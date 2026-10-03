@@ -9,7 +9,7 @@ import { AuditService, AuditWriterAdapter, PareDispatchOutboxService, SecurityOp
 import { SupplierNetworkWorkflowService } from './supplier-network-workflow.service';
 import { SupplierProfileCommandsService } from './supplier-profile-commands.service';
 import type { PareApprovalGovernance } from '@prism/contexts/platform-ops';
-import type { SupplierDocumentVault } from '../../contracts/supplier-document-vault.port';
+import { DocumentVaultService } from '@prism/contexts/event-lifecycle';
 
 const databaseUrl = process.env.P0_TEST_DATABASE_URL?.trim();
 
@@ -178,7 +178,7 @@ function createService(
     workflow,
     pareService,
     { queue: async (input, context) => { pareCalls += 1; return pareOutbox.queue(input, context); } },
-    {} as unknown as SupplierDocumentVault,
+    new DocumentVaultService(servicePrisma),
   );
 }
 

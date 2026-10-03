@@ -1,4 +1,4 @@
-import { Inject, Injectable, BadRequestException, NotFoundException, Optional } from '@nestjs/common';
+import { Inject, Injectable, BadRequestException, ForbiddenException, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma, type OpsBillingStatement, type OpsBillingSource } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
@@ -7,6 +7,8 @@ import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } f
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, StorageObjectService, writeNotification } from '@prism/contexts/platform-ops';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
+import { DOCUMENT_VAULT, type DocumentVault } from '@prism/contexts/event-lifecycle';
+import type { PrismVerifiedEventActor } from '@prism/types';
 import { validatePaymentTerms } from '../../domain/payment-terms.policy';
 import { auditMetadata, billingCommandContext, isoDate, timestamp, addDays, parseDate, requireBillingActor } from './billing-operations.utils';
 import { mapBillingSource, mapBillingStatement } from './billing-operations.mappers';
@@ -82,6 +84,7 @@ export class BillingOperationsService {
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     private readonly workflowCommandService: WorkflowCommandService,
+    @Inject(DOCUMENT_VAULT) private readonly documentVault: DocumentVault,
     @Optional() private readonly storageObjectService?: StorageObjectService,
   ) {}
 
@@ -104,6 +107,13 @@ export class BillingOperationsService {
       idempotencyPayloadHash: payloadHash,
       validateState: async () => {
         await this.requireEvent(eventId);
+        if (input.sourceDocumentId) {
+          await this.documentVault.findEligibleReference({
+            eventId,
+            purpose: 'billing_source_evidence',
+            documentId: input.sourceDocumentId,
+          });
+        }
         lineItems = this.normalizeBillingLineItems(input.lineItems);
         totalAmount = lineItems.reduce((sum, item) => sum + item.amount, 0);
         if (totalAmount <= 0) throw new BadRequestException('Billing source total must be greater than zero');
@@ -112,6 +122,15 @@ export class BillingOperationsService {
         paymentTermsPolicyState = terms.state;
         paymentTermsOverrideReason = terms.overrideReason;
         paymentMethods = this.normalizeBillingMethods(input.paymentMethods);
+      },
+      validateStateInTransaction: async (context) => {
+        if (input.sourceDocumentId) {
+          await this.documentVault.findEligibleReference({
+            eventId,
+            purpose: 'billing_source_evidence',
+            documentId: input.sourceDocumentId,
+          }, context);
+        }
       },
       write: (context) =>
         (async () => {
@@ -204,8 +223,23 @@ export class BillingOperationsService {
     });
   }
 
-  async generateBillingStatement(eventId: string, sourceId: string | undefined, actor: BillingActor, idempotencyKey?: string) {
+  async generateBillingStatement(
+    eventId: string,
+    sourceId: string | undefined,
+    actor: BillingActor,
+    verifiedActor: PrismVerifiedEventActor,
+    idempotencyKey?: string,
+  ) {
     actor = requireBillingActor(actor);
+    if (
+      verifiedActor.actorId !== actor.id ||
+      verifiedActor.actorRole !== actor.role ||
+      verifiedActor.actorName !== actor.name ||
+      verifiedActor.actorEmail.toLowerCase() !== actor.email?.toLowerCase() ||
+      (verifiedActor.eventId && verifiedActor.eventId !== eventId)
+    ) {
+      throw new ForbiddenException('Verified billing actor does not match the billing command');
+    }
     let event: Awaited<ReturnType<BillingOperationsService['requireEvent']>> | null = null;
     let inquiry: Awaited<ReturnType<PrismaService['opsInquiry']['findUnique']>> | null = null;
     let source: OpsBillingSource | null = null;
@@ -224,6 +258,9 @@ export class BillingOperationsService {
     return this.workflowCommandService.execute<OpsBillingStatement, ReturnType<typeof mapBillingStatement>>({
       name: 'generate_billing_statement',
       eventId,
+      context: billingCommandContext(eventId, 'generate_billing_statement', idempotencyKey, actor),
+      sideEffectMode: 'same_tx',
+      idempotencyPayloadHash: payloadHash,
       validateState: async () => {
         event = await this.requireEvent(eventId);
         inquiry = await this.prisma.opsInquiry.findUnique({ where: { id: event.inquiryId } });
@@ -242,99 +279,98 @@ export class BillingOperationsService {
       },
       write: async (context) => {
         if (!event || !source) throw new NotFoundException('Billing source not found');
-
-        return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-          if (idempotencyKey) {
-            existingStatement = await tx.opsBillingStatement.findUnique({ where: { idempotencyKey } });
-            if (existingStatement) {
-              if (existingStatement.payloadHash && existingStatement.payloadHash !== payloadHash) throw new BadRequestException('Billing statement idempotency key was reused for different content');
-              return existingStatement;
-            }
+        const tx = context?.prisma ?? this.prisma;
+        if (idempotencyKey) {
+          existingStatement = await tx.opsBillingStatement.findUnique({ where: { idempotencyKey } });
+          if (existingStatement) {
+            if (existingStatement.payloadHash && existingStatement.payloadHash !== payloadHash) throw new BadRequestException('Billing statement idempotency key was reused for different content');
+            return existingStatement;
           }
-          const billingYear = event!.eventDate.getFullYear();
-          // QUERY_AUDIT_RAW_SQL: serialize the one-time yearly sequence bootstrap with statement allocations.
-          await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('prism.billing_statement_sequence'), ${billingYear})`;
-          // QUERY_AUDIT_RAW_SQL: serialize annual number allocation on the sequence row.
-          const sequenceRows = await tx.$queryRaw<Array<{ next_number: number }>>`SELECT "next_number" FROM "finance_ops"."billing_statement_sequences" WHERE "year" = ${billingYear} FOR UPDATE`;
-          let nextNumber = sequenceRows[0]?.next_number;
-          if (nextNumber === undefined) {
-            // QUERY_AUDIT_RAW_SQL: read legacy statement numbers only when this year has no sequence row.
-            const startingNumberRows = await tx.$queryRaw<Array<{ next_number: number }>>`
-              SELECT COALESCE(MAX(substring("number" FROM '^BS-[0-9]{4}-([0-9]{4})$')::integer), 0) + 1 AS "next_number"
-              FROM "finance_ops"."billing_statements"
-              WHERE "number" ~ ('^BS-' || ${billingYear}::text || '-[0-9]{4}$')
-            `;
-            nextNumber = startingNumberRows[0]?.next_number ?? 1;
-            // QUERY_AUDIT_RAW_SQL: tolerate an older server initializing the row during a rolling deployment.
-            await tx.$executeRaw`INSERT INTO "finance_ops"."billing_statement_sequences" ("year", "next_number") VALUES (${billingYear}, ${nextNumber}) ON CONFLICT ("year") DO NOTHING`;
-            // QUERY_AUDIT_RAW_SQL: use whichever transaction won first-time sequence initialization.
-            const initializedRows = await tx.$queryRaw<Array<{ next_number: number }>>`SELECT "next_number" FROM "finance_ops"."billing_statement_sequences" WHERE "year" = ${billingYear} FOR UPDATE`;
-            nextNumber = initializedRows[0]?.next_number ?? nextNumber;
-          }
-          billingNumber = `BS-${billingYear}-${String(nextNumber).padStart(4, '0')}`;
-          // QUERY_AUDIT_RAW_SQL: advance the locked yearly sequence with the issued statement.
-          await tx.$executeRaw`UPDATE "finance_ops"."billing_statement_sequences" SET "next_number" = ${nextNumber + 1} WHERE "year" = ${billingYear}`;
-          pdfBytes = renderBillingPdf({ number: billingNumber, sourceLabel: source!.sourceLabel, totalAmount: source!.totalAmount });
-          const storage = await this.prepareBillingStatementStorage(eventId, statementId, billingNumber, source!, pdfBytes, actor);
-          storageState = storage.storageState;
-          storageObjectId = storage.storageObjectId;
-          storageKey = storage.storageKey;
-          const billingDocument = await tx.opsDocument.create({
-            data: {
-              id: `doc_${randomUUID()}`,
-              eventId: event!.id,
-              type: 'billing_statement',
-              fileName: `${billingNumber}.pdf`,
-              status: storageState === 'stored' ? 'stored' : 'pending_storage',
-              mimeType: 'application/pdf',
-              storageBucket: 'document-vault',
-              storageKey: storageKey || null,
-              sizeBytes: pdfBytes.byteLength || null,
-              uploadedByRole: 'system',
-            },
-          });
+        }
+        const billingYear = event.eventDate.getFullYear();
+        // QUERY_AUDIT_RAW_SQL: serialize the one-time yearly sequence bootstrap with statement allocations.
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('prism.billing_statement_sequence'), ${billingYear})`;
+        // QUERY_AUDIT_RAW_SQL: serialize annual number allocation on the sequence row.
+        const sequenceRows = await tx.$queryRaw<Array<{ next_number: number }>>`SELECT "next_number" FROM "finance_ops"."billing_statement_sequences" WHERE "year" = ${billingYear} FOR UPDATE`;
+        let nextNumber = sequenceRows[0]?.next_number;
+        if (nextNumber === undefined) {
+          // QUERY_AUDIT_RAW_SQL: read legacy statement numbers only when this year has no sequence row.
+          const startingNumberRows = await tx.$queryRaw<Array<{ next_number: number }>>`
+            SELECT COALESCE(MAX(substring("number" FROM '^BS-[0-9]{4}-([0-9]{4})$')::integer), 0) + 1 AS "next_number"
+            FROM "finance_ops"."billing_statements"
+            WHERE "number" ~ ('^BS-' || ${billingYear}::text || '-[0-9]{4}$')
+          `;
+          nextNumber = startingNumberRows[0]?.next_number ?? 1;
+          // QUERY_AUDIT_RAW_SQL: tolerate an older server initializing the row during a rolling deployment.
+          await tx.$executeRaw`INSERT INTO "finance_ops"."billing_statement_sequences" ("year", "next_number") VALUES (${billingYear}, ${nextNumber}) ON CONFLICT ("year") DO NOTHING`;
+          // QUERY_AUDIT_RAW_SQL: use whichever transaction won first-time sequence initialization.
+          const initializedRows = await tx.$queryRaw<Array<{ next_number: number }>>`SELECT "next_number" FROM "finance_ops"."billing_statement_sequences" WHERE "year" = ${billingYear} FOR UPDATE`;
+          nextNumber = initializedRows[0]?.next_number ?? nextNumber;
+        }
+        billingNumber = `BS-${billingYear}-${String(nextNumber).padStart(4, '0')}`;
+        // QUERY_AUDIT_RAW_SQL: advance the locked yearly sequence with the issued statement.
+        await tx.$executeRaw`UPDATE "finance_ops"."billing_statement_sequences" SET "next_number" = ${nextNumber + 1} WHERE "year" = ${billingYear}`;
+        pdfBytes = renderBillingPdf({ number: billingNumber, sourceLabel: source.sourceLabel, totalAmount: source.totalAmount });
+        const storage = await this.prepareBillingStatementStorage(eventId, statementId, billingNumber, source, pdfBytes, actor);
+        storageState = storage.storageState;
+        storageObjectId = storage.storageObjectId;
+        storageKey = storage.storageKey;
+        const billingDocument = await this.documentVault.registerDocument({
+          eventId: event.id,
+          documentKind: 'billing_statement',
+          logicalTarget: { kind: 'billing_statement', id: statementId },
+          fileName: `${billingNumber}.pdf`,
+          generatedFileName: `${billingNumber}.pdf`,
+          mimeType: 'application/pdf',
+          sizeBytes: pdfBytes.byteLength,
+          validationStatus: 'accepted',
+          storageBucket: 'document-vault',
+          storageKey: storageKey || undefined,
+          status: storageState === 'stored' ? 'stored' : 'pending_storage',
+          verifiedActor,
+          idempotencyKey,
+        }, context);
 
-          const statement = await tx.opsBillingStatement.create({
-            data: {
-              id: statementId,
-              eventId,
-              sourceId: source!.id,
-              number: billingNumber,
-              clientName: inquiry?.clientName ?? event!.clientName,
-              clientContact: inquiry?.email ?? '',
-              eventName: event!.eventName,
-              eventDate: event!.eventDate,
-              lineItems: toPrismaJson(lineItems),
-              paymentSchedule: toPrismaJson(paymentSchedule),
-              paymentMethods: toPrismaJson(paymentMethods),
-              totalAmount: source!.totalAmount,
-              documentId: billingDocument.id,
-              pdfUrl: '',
-              storageKey,
-              storageObjectId,
-              storageState,
-              idempotencyKey: idempotencyKey ?? null,
-              payloadHash,
-              status: 'issued',
-            },
-          });
-
-          await tx.opsPaymentMilestone.createMany({
-            data: paymentSchedule.map((item) => ({
-              id: `pay_${randomUUID()}`,
-              eventId,
-              label: item.label,
-              percentage: item.percentage,
-              amount: item.amount,
-              amountPaid: 0,
-              remainingBalance: item.amount,
-              dueDate: parseDate(item.dueDate ?? isoDate(addDays(event!.eventDate, -7))),
-              status: 'pending',
-            })),
-          });
-
-          return statement;
+        const statement = await tx.opsBillingStatement.create({
+          data: {
+            id: statementId,
+            eventId,
+            sourceId: source.id,
+            number: billingNumber,
+            clientName: inquiry?.clientName ?? event.clientName,
+            clientContact: inquiry?.email ?? '',
+            eventName: event.eventName,
+            eventDate: event.eventDate,
+            lineItems: toPrismaJson(lineItems),
+            paymentSchedule: toPrismaJson(paymentSchedule),
+            paymentMethods: toPrismaJson(paymentMethods),
+            totalAmount: source.totalAmount,
+            documentId: billingDocument.id,
+            pdfUrl: '',
+            storageKey,
+            storageObjectId,
+            storageState,
+            idempotencyKey: idempotencyKey ?? null,
+            payloadHash,
+            status: 'issued',
+          },
         });
+
+        const eventDate = event.eventDate;
+        await tx.opsPaymentMilestone.createMany({
+          data: paymentSchedule.map((item) => ({
+            id: `pay_${randomUUID()}`,
+            eventId,
+            label: item.label,
+            percentage: item.percentage,
+            amount: item.amount,
+            amountPaid: 0,
+            remainingBalance: item.amount,
+            dueDate: parseDate(item.dueDate ?? isoDate(addDays(eventDate, -7))),
+            status: 'pending',
+          })),
+        });
+        return statement;
       },
       sideEffects: async (statement, context) => {
         if (existingStatement) return;
