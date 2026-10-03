@@ -19,32 +19,73 @@ function findTestFiles(directory, accepts) {
   return files;
 }
 
-const sourceBehaviorTests = findTestFiles(
-  path.join(API_ROOT, 'src'),
-  (name) => /\.(database|integration|postgres)\.test\.ts$/.test(name),
-);
-const integrationTests = findTestFiles(
-  path.join(API_ROOT, 'test', 'integration'),
-  (name) => name.endsWith('.test.ts'),
-);
-const testFiles = [...sourceBehaviorTests, ...integrationTests].sort();
-
-if (testFiles.length === 0) {
-  throw new Error('No database behavior suites were found.');
+export function databaseBehaviorTestFiles() {
+  const sourceBehaviorTests = findTestFiles(
+    path.join(API_ROOT, 'src'),
+    (name) => /\.(database|integration|postgres)\.test\.ts$/.test(name),
+  );
+  const integrationTests = findTestFiles(
+    path.join(API_ROOT, 'test', 'integration'),
+    (name) => name.endsWith('.test.ts'),
+  );
+  return [...sourceBehaviorTests, ...integrationTests].sort();
 }
 
-// The audit chain is globally serialized, so independent files must not race it.
-const child = spawn(process.execPath, [VITEST_CLI, 'run', '--no-file-parallelism', ...testFiles, ...process.argv.slice(2)], {
-  cwd: API_ROOT,
-  env: process.env,
-  windowsHide: true,
-  stdio: 'inherit',
-});
+function selectTestFiles(args, availableFiles) {
+  const requested = args.filter((arg) => arg.endsWith('.test.ts'));
+  if (requested.length === 0) {
+    throw new Error('Pass one or more explicit database behavior test file paths. The CI runner resets prism_p0 between files.');
+  }
 
-child.once('error', (error) => {
-  process.stderr.write('Could not start the database behavior suites: ' + error.message + '\n');
-  process.exitCode = 1;
-});
-child.once('close', (code) => {
-  process.exitCode = code ?? 1;
-});
+  const available = new Set(availableFiles);
+  return requested.map((requestedPath) => {
+    const absolutePath = path.resolve(API_ROOT, requestedPath);
+    const relativePath = path.relative(API_ROOT, absolutePath).split(path.sep).join('/');
+    if (!available.has(relativePath)) {
+      throw new Error('Unknown database behavior test file: ' + requestedPath);
+    }
+    return relativePath;
+  });
+}
+
+function run(args = process.argv.slice(2)) {
+  const availableFiles = databaseBehaviorTestFiles();
+  if (availableFiles.length === 0) {
+    throw new Error('No database behavior suites were found.');
+  }
+
+  const testFiles = selectTestFiles(args, availableFiles);
+  const child = spawn(
+    process.execPath,
+    [
+      VITEST_CLI,
+      'run',
+      '--no-file-parallelism',
+      ...testFiles,
+      ...args.filter((arg) => !arg.endsWith('.test.ts')),
+    ],
+    {
+      cwd: API_ROOT,
+      env: process.env,
+      windowsHide: true,
+      stdio: 'inherit',
+    },
+  );
+
+  child.once('error', (error) => {
+    process.stderr.write('Could not start the database behavior suites: ' + error.message + '\n');
+    process.exitCode = 1;
+  });
+  child.once('close', (code) => {
+    process.exitCode = code ?? 1;
+  });
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    run();
+  } catch (error) {
+    process.stderr.write('Database behavior test selection failed: ' + error.message + '\n');
+    process.exitCode = 1;
+  }
+}

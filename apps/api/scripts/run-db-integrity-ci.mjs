@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { normalizeDatabaseConnection } from './db-connection-config.mjs';
+import { databaseBehaviorTestFiles } from './run-db-behavior-tests.mjs';
 import {
   SchemaEquivalenceError,
   assertCommandSucceeded,
@@ -22,7 +23,14 @@ const require = createRequire(path.join(API_ROOT, 'package.json'));
 const PRISMA_CLI = require.resolve('prisma/build/index.js');
 
 function databaseNames() {
-  return ['prism_ci_fresh', 'prism_ci_upgraded', 'prism_p0', 'prism_ci_missing_fk', 'prism_ci_unexpected_object'];
+  return [
+    'prism_ci_fresh',
+    'prism_ci_upgraded',
+    'prism_ci_p0_template',
+    'prism_p0',
+    'prism_ci_missing_fk',
+    'prism_ci_unexpected_object',
+  ];
 }
 
 function safeConnection(rawUrl, expectedDatabase) {
@@ -155,6 +163,14 @@ function quoteSqlIdentifier(value) {
   return '"' + value.replaceAll('"', '""') + '"';
 }
 
+async function resetBehaviorDatabase(adminPool, template, target) {
+  const targetIdentifier = quoteSqlIdentifier(target);
+  await adminPool.query('DROP DATABASE IF EXISTS ' + targetIdentifier + ' WITH (FORCE)');
+  await adminPool.query(
+    'CREATE DATABASE ' + targetIdentifier + ' WITH TEMPLATE ' + quoteSqlIdentifier(template),
+  );
+}
+
 async function applyBaselineAndCurrent(connection, tempRoot, tempName) {
   const historicalPath = temporaryMigrationPath(
     tempRoot,
@@ -225,33 +241,74 @@ async function main() {
     await applyBaselineAndCurrent(upgraded, tempRoot, 'upgraded-checkpoint');
     await verifySchema(upgraded.prismaConnectionString);
 
-    const p0 = connectionForDatabase(admin.connectionString, 'prism_p0');
-    await applyBaselineAndCurrent(p0, tempRoot, 'p0-checkpoint');
-    const p0Url = p0.prismaConnectionString;
-    const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-    const reportPath = path.join(tempRoot, 'postgres-test-report.json');
-    const integration = await run(
-      npmCommand,
-      ['run', 'test:db:integration', '--', '--reporter=json', '--outputFile=' + reportPath],
-      { env: environmentFor(p0, { P0_TEST_DATABASE_URL: p0Url }) },
-    );
-    let report;
-    try {
-      report = JSON.parse(readFileSync(reportPath, 'utf8'));
-    } catch {
-      assertCommandSucceeded(integration, 'PostgreSQL behavior acceptance suite');
-      throw new Error('PostgreSQL behavior acceptance did not produce its JSON report.');
-    }
-    const assertionDetails = (report.testResults || [])
-      .flatMap((suite) => (suite.assertionResults || [])
-        .filter((assertion) => assertion.status !== 'passed')
-        .map((assertion) => assertion.fullName || assertion.title));
-    const commandResult = {
-      ...integration,
-      stdout: integration.stdout + (assertionDetails.length ? '\nDatabase assertions: ' + assertionDetails.join('; ') : ''),
+    const p0Template = connectionForDatabase(admin.connectionString, 'prism_ci_p0_template');
+    await applyBaselineAndCurrent(p0Template, tempRoot, 'p0-template-checkpoint');
+    await verifySchema(p0Template.prismaConnectionString);
+
+    const behaviorFiles = databaseBehaviorTestFiles();
+    if (behaviorFiles.length === 0) throw new Error('No database behavior suites were found.');
+    const behaviorReport = {
+      numTotalTests: 0,
+      numPassedTests: 0,
+      numFailedTests: 0,
+      numPendingTests: 0,
+      testResults: [],
     };
-    assertCommandSucceeded(commandResult, 'PostgreSQL behavior acceptance suite');
-    assertDatabaseSuiteReport(report);
+    const behaviorDatabaseName = 'prism_p0';
+    const behavior = connectionForDatabase(admin.connectionString, behaviorDatabaseName);
+    const behaviorRunner = path.join(API_ROOT, 'scripts', 'run-db-behavior-tests.mjs');
+
+    for (const [index, testFile] of behaviorFiles.entries()) {
+      await resetBehaviorDatabase(adminPool, 'prism_ci_p0_template', behaviorDatabaseName);
+      const reportPath = path.join(
+        tempRoot,
+        'postgres-test-report-' + String(index + 1).padStart(2, '0') + '.json',
+      );
+      const integration = await run(
+        process.execPath,
+        [
+          behaviorRunner,
+          testFile,
+          '--reporter=json',
+          '--outputFile=' + reportPath,
+        ],
+        { env: environmentFor(behavior, { P0_TEST_DATABASE_URL: behavior.prismaConnectionString }) },
+      );
+
+      let report;
+      try {
+        report = JSON.parse(readFileSync(reportPath, 'utf8'));
+      } catch {
+        assertCommandSucceeded(integration, 'PostgreSQL behavior suite ' + testFile);
+        throw new Error('PostgreSQL behavior suite ' + testFile + ' did not produce its JSON report.');
+      }
+
+      const assertionDetails = (report.testResults || [])
+        .flatMap((suite) => (suite.assertionResults || [])
+          .filter((assertion) => assertion.status !== 'passed')
+          .map((assertion) => {
+            const title = assertion.fullName || assertion.title;
+            const failures = (assertion.failureMessages || []).join('\n');
+            return failures ? title + ': ' + failures : title;
+          }));
+      const commandResult = {
+        ...integration,
+        stdout: integration.stdout + (assertionDetails.length ? '\nDatabase assertions:\n' + assertionDetails.join('\n') : ''),
+      };
+      assertCommandSucceeded(commandResult, 'PostgreSQL behavior suite ' + testFile);
+      assert.equal(
+        report.testResults?.length,
+        1,
+        'Expected exactly one PostgreSQL behavior file to run for ' + testFile + '.',
+      );
+
+      behaviorReport.numTotalTests += report.numTotalTests || 0;
+      behaviorReport.numPassedTests += report.numPassedTests || 0;
+      behaviorReport.numFailedTests += report.numFailedTests || 0;
+      behaviorReport.numPendingTests += report.numPendingTests || 0;
+      behaviorReport.testResults.push(...report.testResults);
+    }
+    assertDatabaseSuiteReport(behaviorReport);
 
     const missingFk = connectionForDatabase(admin.connectionString, 'prism_ci_missing_fk');
     const missingFkPath = temporaryMigrationPath(
@@ -290,7 +347,8 @@ async function main() {
     process.stdout.write(
       'PostgreSQL ' + POLICY.postgresMajor
       + ' migration integrity passed: fresh and upgraded schemas match; '
-      + 'DB behavior suites pass; omitted FK and unexpected SQL object fail as expected.\n',
+      + behaviorFiles.length + ' isolated DB behavior suites (' + behaviorReport.numPassedTests + ' tests) pass; '
+      + 'omitted FK and unexpected SQL object fail as expected.\n',
     );
   } finally {
     try {

@@ -90,7 +90,7 @@ async function cleanupFixture(prisma: PrismaService, fixture: Fixture) {
   await prisma.opsCoordinatorAssignment.deleteMany({ where: { eventId: { in: fixture.eventIds } } });
   await prisma.opsCoordinatorReliabilityNote.deleteMany({ where: { eventId: { in: fixture.eventIds } } });
   await prisma.opsNotificationLog.deleteMany({ where: { eventId: { in: fixture.eventIds } } });
-  await prisma.opsAuditLog.deleteMany({ where: { eventId: { in: fixture.eventIds } } });
+  // The audit chain is global and append-only; retain rows until the disposable suite database is discarded.
   await prisma.opsEvent.deleteMany({ where: { id: { in: fixture.eventIds } } });
   await prisma.opsCoordinator.deleteMany({ where: { id: { in: fixture.coordinatorIds } } });
   await prisma.opsInquiry.deleteMany({ where: { id: fixture.inquiryId } });
