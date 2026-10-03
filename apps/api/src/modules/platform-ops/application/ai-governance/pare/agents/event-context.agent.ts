@@ -1,6 +1,22 @@
 import { PrismaService } from '@prism/kernel/database';
+import type { Prisma } from '@prisma/client';
 import type { PAREContext } from '../pare.types';
 import { PareSourceNotFoundError } from '../pare-source.errors';
+
+type PareRequestContext = {
+  assignmentStatus?: string;
+  supplierId: string | null;
+  supplierName: string;
+  category: string;
+  supplier?: { tier: string } | null;
+};
+type PareEventContext = {
+  id: string;
+  eventDate: Date | string;
+  eventName: string;
+  clientName: string;
+};
+type PareQuoteSpend = Pick<Prisma.OpsSupplierQuoteGetPayload<{}>, 'amount' | 'requestId'>;
 
 function assertWithdrawnSource(
   request: { assignmentStatus?: string },
@@ -17,13 +33,13 @@ export class EventContextAgent {
 
   async buildPareEventContext(
     triggerId: string,
-    prefetched?: { request: any; event: any },
+    prefetched?: { request: PareRequestContext; event: PareEventContext },
     requireWithdrawn = false,
     signal?: AbortSignal,
   ): Promise<PAREContext> {
     throwIfAborted(signal);
-    let request: any;
-    let event: any;
+    let request: PareRequestContext;
+    let event: PareEventContext;
 
     if (prefetched) {
       assertWithdrawnSource(prefetched.request, triggerId, requireWithdrawn);
@@ -32,7 +48,14 @@ export class EventContextAgent {
     } else {
       const fetched = await this.prisma.opsSupplierQuoteRequest.findUnique({
         where: { id: triggerId },
-        include: { event: true, supplier: true, categoryRef: true },
+        select: {
+          assignmentStatus: true,
+          supplierId: true,
+          supplierName: true,
+          category: true,
+          supplier: { select: { tier: true } },
+          event: { select: { id: true, eventDate: true, eventName: true, clientName: true } },
+        },
       });
       if (!fetched) throw new PareSourceNotFoundError(`PARE: quote request ${triggerId} not found`);
       assertWithdrawnSource(fetched, triggerId, requireWithdrawn);
@@ -44,13 +67,14 @@ export class EventContextAgent {
     const now = new Date();
     const daysUntilEvent = Math.ceil((eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
-    let allQuotes: any[] = [];
+    let allQuotes: PareQuoteSpend[] = [];
     let clientPreferences: string[] = [];
 
     const readSelectedQuotes = async () => {
       try {
         return await this.prisma.opsSupplierQuote.findMany({
           where: { eventId: event.id, status: 'selected' },
+          select: { amount: true, requestId: true },
         });
       } catch { /* DB unavailable — proceed with empty quotes */ return []; }
     };
@@ -61,6 +85,7 @@ export class EventContextAgent {
           where: { eventId: event.id },
           orderBy: { submittedAt: 'desc' },
           take: 1,
+          select: { serviceRequirements: true },
         });
       } catch { /* DB unavailable — no preferences */ return []; }
     };
@@ -80,9 +105,9 @@ export class EventContextAgent {
       }
     }
 
-    const spentBudget = allQuotes.reduce((sum: number, q: any) => sum + (q.amount ?? 0), 0);
+    const spentBudget = allQuotes.reduce((sum, quote) => sum + (quote.amount ?? 0), 0);
     throwIfAborted(signal);
-    const withdrawnQuote = allQuotes.find((q: any) => q.requestId === triggerId);
+    const withdrawnQuote = allQuotes.find((quote) => quote.requestId === triggerId);
     const quotedAmount = withdrawnQuote?.amount ?? 0;
 
     return {
