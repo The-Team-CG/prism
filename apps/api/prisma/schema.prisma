@@ -512,7 +512,7 @@ model OpsCostEstimate {
   status       String   @default("draft")
   notes        String   @default("")
   createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
   event        OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   lines        OpsCostEstimateLine[]
   proposals    OpsProposalVersion[]
@@ -655,6 +655,7 @@ model OpsSupplierQuoteRequest {
   quotes           OpsSupplierQuote[]
 
   @@index([eventId, status], map: "quote_requests_event_id_status_idx")
+  @@index([eventId, supplierId, status], map: "quote_requests_event_supplier_status_idx")
   @@index([supplierId], map: "quote_requests_supplier_id_idx")
   @@index([categoryId], map: "quote_requests_category_id_idx")
   @@index([contractDocumentId], map: "quote_requests_contract_document_id_idx")
@@ -731,6 +732,7 @@ model OpsSupplierQuote {
   categoryRef OpsSupplierCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   @@index([eventId, status], map: "quotes_event_id_status_idx")
+  @@index([eventId, requestId, status], map: "quotes_event_request_status_idx")
   @@index([supplierId], map: "quotes_supplier_id_idx")
   @@index([requestId], map: "quotes_request_id_idx")
   @@index([categoryId], map: "quotes_category_id_idx")
@@ -1116,7 +1118,7 @@ model OpsEventTaskReassignmentRequest {
   decidedBy     String?   @map("decided_by")
   decisionReason String?  @map("decision_reason")
   createdAt     DateTime   @default(now()) @map("created_at")
-  updatedAt     DateTime   @updatedAt @map("updated_at")
+  updatedAt     DateTime   @default(now()) @updatedAt @map("updated_at")
 
   event OpsEvent       @relation(fields: [eventId], references: [id], onDelete: Cascade)
   task  OpsEventDayTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
@@ -1416,7 +1418,7 @@ model OpsComplianceRisk {
   closedAt    DateTime? @map("closed_at")
   closedBy    String?   @map("closed_by")
   createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
 
   event  OpsEvent                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
   rule   OpsComplianceRule?        @relation(fields: [ruleId], references: [id], onDelete: SetNull)
@@ -1535,6 +1537,7 @@ model OpsPaymentMilestone {
   records OpsPaymentRecord[]
 
   @@index([eventId, status], map: "payment_milestones_event_id_status_idx")
+  @@index([eventId, dueDate, id], map: "payment_milestones_event_due_date_idx")
   @@map("payment_milestones")
   @@schema("finance_ops")
 }
@@ -1666,7 +1669,7 @@ model OpsEventWrapUp {
   completedAt                  DateTime? @map("completed_at")
   completedBy                  String?   @map("completed_by")
   createdAt                    DateTime  @default(now()) @map("created_at")
-  updatedAt                    DateTime  @updatedAt @map("updated_at")
+  updatedAt                    DateTime  @default(now()) @updatedAt @map("updated_at")
 
   event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
@@ -1730,6 +1733,7 @@ model OpsAuditLog {
   event OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId, createdAt], map: "audit_logs_event_id_created_at_idx")
+  @@index([eventId, createdAt(sort: Desc), id], map: "audit_logs_event_created_at_id_idx")
   @@index([actor, createdAt], map: "audit_logs_actor_created_at_idx")
   @@index([createdAt], map: "audit_logs_created_at_idx")
   @@index([category, createdAt], map: "audit_logs_category_created_at_idx")
@@ -1764,6 +1768,7 @@ model OpsNotificationLog {
 
   @@index([eventId, createdAt], map: "notification_logs_event_id_created_at_idx")
   @@index([status, createdAt], map: "notification_logs_status_created_at_idx")
+  @@index([status, createdAt, id], map: "notification_logs_status_created_at_id_idx")
   @@index([correlationId], map: "notification_logs_correlation_id_idx")
   @@index([status, nextAttemptAt], map: "notification_logs_status_next_attempt_at_idx")
   @@map("notification_logs")

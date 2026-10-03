@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 - Declared the existing GIN, composite event-date, and partial active-event indexes in Prisma so schema equivalence can catch unsupported drift.
+- Declared five migration-owned composite indexes and four existing timestamp defaults in Prisma, eliminating fresh-replay drift without changing historical SQL.
 - Added a preflighted Commercial FK from submitted quotes to quote requests, with request deletion restricted while bid evidence exists.
 - Centralized PostgreSQL URL selection and TLS policy across the API, Prisma CLI config, and database admin scripts; hosted connections now verify certificates and non-TLS is restricted to loopback targets.
 - Registration verification rechecks archive status under the event lock, preserving historical roster reads while rejecting writes after archive.
