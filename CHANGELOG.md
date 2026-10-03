@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Fixed the archived coordinator event regression test to wait for refreshed role data before submitting after switching back to a current event.
 
 ### Fixed
+- Centralized PostgreSQL URL selection and TLS policy across the API, Prisma CLI config, and database admin scripts; hosted connections now verify certificates and non-TLS is restricted to loopback targets.
 - Registration verification rechecks archive status under the event lock, preserving historical roster reads while rejecting writes after archive.
 - Archived coordinator events remain readable and selectable, while event-day, schedule, handoff, report, acknowledgment and withdrawal writes are blocked in the portal and API.
 - Simplified coordinator task scope checks and task form projections while preserving canonical-role, historical-role, owner, and operator authorization behavior.
@@ -25,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 - Recorded the approved 91-model ownership manifest, one-schema-per-domain and same-domain-only foreign-key policy, and shared DDD terms in canonical architecture references.
+- Added shared database-connection policy tests for URL precedence, strict hosted TLS, custom CA handling, local loopback, conflicting settings, and credential-safe diagnostics.
 - Added a coordinator registration desk for assigned registration roles, with a minimized roster projection, guest verification and check-in actions, and a walk-in roster flow that requires explicit privacy consent, obeys PMCM policy, and exposes new arrivals for PMCM verification before check-in.
 - Added PMCM and coordinator event-day forms for schedule days and segments, shift handoffs, and end-of-day reports; coordinator handoff/report history is event-scoped, only report authors can update prefilled reports, blank reports are rejected, schedule-segment transitions are validated by the API, and coordinator schedule writes remain limited to the designated operator.
 - Added a PMCM postponement impact panel that lists recorded coordinator booking or declared-availability conflicts, retains the last date snapshot while a new date is unconfirmed, and clears it when the decision releases assignments or cancels the event.
