@@ -1,50 +1,87 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import type { FloorPlan as PrismaFloorPlan, FloorPlanObject as PrismaFloorPlanObject, Prisma } from '@prisma/client';
-import type { UpdatePlanInput } from '@prism/types';
+import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import type { FloorPlan as PrismaFloorPlan, FloorPlanObject as PrismaFloorPlanObject } from '@prisma/client';
+import {
+  AUDIT_WRITER,
+  EventAccessPolicyService,
+  type AuditWriter,
+  type ResolvedEventOpsActor,
+  writeAudit,
+} from '@prism/kernel/access-control';
 import { PrismaService } from '@prism/kernel/database';
+import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
 import { asArray } from '@prism/kernel/shared';
 import type { CanvasObject, FloorPlan, JsonValue, Seat, SeatCategory } from '@prism/kernel/shared';
+import type { UpdatePlanInput } from '@prism/types';
 import { floorPlanScalarPatch, replaceFloorPlanObjects } from './plan-patch';
 
-type UpdatePlanChanges = UpdatePlanInput;
+type UpdatePlanChanges = Omit<UpdatePlanInput, 'expectedUpdatedAt'>;
 
-type PlanActor = {
-  actorRole?: string;
-  role?: string;
-  actorName?: string;
-  actorEmail?: string;
-  clientName?: string;
+type PlanWithObjects = Prisma.FloorPlanGetPayload<{
+  include: {
+    objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] };
+    opsDraft: {
+      include: {
+        event: { include: { inquiry: { select: { email: true } } } };
+      };
+    };
+  };
+}>;
+
+type PlanWriteState = {
+  updatedAt: Date;
+  opsDraft: {
+    status: string;
+    event: { archived: boolean; freezeStatus: string };
+  } | null;
 };
-
-type PlanWithObjects = PrismaFloorPlan & { objectRows?: PrismaFloorPlanObject[] };
-type PlanDraftWithEvent = Prisma.OpsFloorPlanDraftGetPayload<{ include: { event: true } }>;
 
 async function updatePlanWithObjects(
   tx: Prisma.TransactionClient,
   planId: string,
   scalarChanges: Omit<UpdatePlanChanges, 'objects'>,
   objects: CanvasObject[],
+  expectedUpdatedAt: Date,
 ) {
   const updated = await tx.floorPlan
     .update({
-      where: { id: planId },
+      where: { id: planId, updatedAt: expectedUpdatedAt },
       data: floorPlanScalarPatch({ ...scalarChanges, objects }),
+      include: {
+        objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] },
+        opsDraft: { include: { event: { include: { inquiry: { select: { email: true } } } } } },
+      },
     })
-    .catch(() => {
-      throw new NotFoundException('Plan not found');
+    .catch((error: unknown) => {
+      if (isPrismaRecordMissing(error)) {
+        throw new ConflictException('Floorplan changed since it was loaded; reload before saving');
+      }
+      throw error;
     });
   await replaceFloorPlanObjects(tx, planId, objects);
   return updated;
 }
 
+function isPrismaRecordMissing(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2025';
+}
+
+function isPrismaSerializationFailure(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2034';
+}
+
 @Injectable()
 export class PlansService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventAccessPolicyService: EventAccessPolicyService,
+    @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
+  ) {}
 
   private mapPlan(row: PlanWithObjects, resolvedObjects?: CanvasObject[]): FloorPlan {
     const objects =
       resolvedObjects ??
-      (row.objectRows?.length
+      (row.objectRows.length
         ? row.objectRows.map((r) => r.objectData as unknown as CanvasObject)
         : asArray<CanvasObject>(row.objects));
 
@@ -68,13 +105,8 @@ export class PlansService {
     };
   }
 
-  async getPlan(planId: string, actor: PlanActor = {}): Promise<FloorPlan> {
-    const row = await this.prisma.floorPlan.findUnique({
-      where: { id: planId },
-      include: {
-        objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] },
-      },
-    });
+  async getPlan(planId: string, actor: ResolvedEventOpsActor): Promise<FloorPlan> {
+    const row = await this.findPlan(planId);
 
     if (!row) throw new NotFoundException('Plan not found');
     await this.assertCanReadPlan(row, actor);
@@ -82,87 +114,166 @@ export class PlansService {
     return this.mapPlan(row);
   }
 
-  async updatePlan(planId: string, changes: UpdatePlanChanges, actor: PlanActor = {}): Promise<FloorPlan> {
-    await this.assertCanUpdatePlan(planId, actor);
+  async updatePlan(
+    planId: string,
+    changes: UpdatePlanInput,
+    actor: ResolvedEventOpsActor,
+  ): Promise<FloorPlan> {
+    const plan = await this.findPlan(planId);
+    if (!plan) throw new NotFoundException('Plan not found');
 
-    if (Object.keys(changes).length === 0) {
-      return this.getPlan(planId, actor);
+    const { expectedUpdatedAt: expectedUpdatedAtInput, ...requestedChanges } = changes;
+    await this.assertCanUpdatePlan(plan, actor, requestedChanges);
+
+    const expectedUpdatedAt = new Date(expectedUpdatedAtInput);
+    if (plan.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+      throw new ConflictException('Floorplan changed since it was loaded; reload before saving');
     }
 
-    const { objects, ...scalarChanges } = changes;
+    if (Object.keys(requestedChanges).length === 0) return this.mapPlan(plan);
 
-    if (objects === undefined) {
-      const row = await this.prisma.floorPlan
-        .update({
-          where: { id: planId },
-          data: floorPlanScalarPatch(scalarChanges),
-          include: {
-            objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] },
+    const { objects, ...scalarChanges } = requestedChanges;
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const latestState = await tx.floorPlan.findUnique({
+        where: { id: planId },
+        select: {
+          updatedAt: true,
+          opsDraft: {
+            select: {
+              status: true,
+              event: { select: { archived: true, freezeStatus: true } },
+            },
           },
-        })
-        .catch(() => {
-          throw new NotFoundException('Plan not found');
-        });
+        },
+      });
+      if (!latestState) throw new NotFoundException('Plan not found');
+      if (latestState.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+        throw new ConflictException('Floorplan changed since it was loaded; reload before saving');
+      }
+      this.assertPlanMutableState(latestState, actor);
 
-      return this.mapPlan(row);
-    }
+      let saved: PlanWithObjects;
+      if (objects !== undefined) {
+        const typedObjects = objects ?? [];
+        saved = await updatePlanWithObjects(tx, planId, scalarChanges, typedObjects, expectedUpdatedAt);
+      } else {
+        saved = await tx.floorPlan
+          .update({
+            where: { id: planId, updatedAt: expectedUpdatedAt },
+            data: floorPlanScalarPatch(scalarChanges),
+            include: {
+              objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] },
+              opsDraft: { include: { event: { include: { inquiry: { select: { email: true } } } } } },
+            },
+          })
+          .catch((error: unknown) => {
+            if (isPrismaRecordMissing(error)) {
+              throw new ConflictException('Floorplan changed since it was loaded; reload before saving');
+            }
+            throw error;
+          });
+      }
 
-    const typedObjects = objects ?? [];
-    const row = await this.prisma.$transaction((tx) =>
-      updatePlanWithObjects(tx, planId, scalarChanges, typedObjects),
-    );
-
-    return this.mapPlan(row, typedObjects);
-  }
-
-  private async assertCanReadPlan(plan: PlanWithObjects, actor: PlanActor) {
-    const role = (actor.actorRole ?? actor.role ?? '').trim().toLowerCase();
-    if (role === 'pmcm-admin' || role === 'system') return;
-    if (role !== 'client') {
-      throw new ForbiddenException('Only PMCM or the owning client can read this floorplan');
-    }
-
-    const draft = await this.findPlanDraft(plan.id);
-    if (!draft) {
-      throw new ForbiddenException('Clients cannot read this floorplan');
-    }
-
-    this.assertClientOwnsDraft(draft, actor, 'read');
-  }
-
-  private async assertCanUpdatePlan(planId: string, actor: PlanActor) {
-    const role = (actor.actorRole ?? actor.role ?? '').trim().toLowerCase();
-    if (role === 'pmcm-admin' || role === 'system') return;
-    if (role !== 'client') {
-      throw new ForbiddenException('Only PMCM or the owning client can edit this floorplan');
-    }
-
-    const draft = await this.findPlanDraft(planId);
-    if (!draft) {
-      throw new ForbiddenException('Clients cannot edit this floorplan');
-    }
-    if (draft.status === 'approved') {
-      throw new ForbiddenException('Approved floorplans are read-only');
-    }
-
-    this.assertClientOwnsDraft(draft, actor, 'edit');
-  }
-
-  private async findPlanDraft(planId: string): Promise<PlanDraftWithEvent | null> {
-    const plan = await this.prisma.floorPlan.findUnique({
-      where: { id: planId },
-      include: { opsDraft: { include: { event: true } } },
+      await writeAudit(
+        this.auditWriter,
+        plan.opsDraft?.eventId ?? plan.eventId ?? undefined,
+        actor.name,
+        `Updated floorplan: ${plan.name}`,
+        {
+          actorRole: actor.role,
+          actorEmail: actor.email,
+          actionType: AuditActionType.Update,
+          category: AuditCategory.Events,
+          affectedType: 'floor_plan',
+          affectedId: plan.id,
+          affectedLabel: plan.name,
+          metadata: { verified: actor.verified ?? false },
+        },
+        { prisma: tx, correlationId: plan.opsDraft?.eventId ?? plan.eventId ?? plan.id, actorId: actor.id },
+      );
+      return saved;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).catch((error: unknown) => {
+      if (isPrismaSerializationFailure(error)) {
+        throw new ConflictException('Event or floorplan changed while it was being saved; reload before saving');
+      }
+      throw error;
     });
-    return plan?.opsDraft ?? null;
+
+    return this.mapPlan(updated, objects);
   }
 
-  private assertClientOwnsDraft(draft: PlanDraftWithEvent, actor: PlanActor, action: 'read' | 'edit') {
-    const actorClientName = (actor.clientName ?? actor.actorName ?? '').trim().toLowerCase();
-    const eventClientName = (draft.event?.clientName ?? '').trim().toLowerCase();
-    const portalUnlocked = draft.event?.clientPortalStatus === 'unlocked';
-
-    if (!portalUnlocked || !actorClientName || actorClientName !== eventClientName) {
-      throw new ForbiddenException(`Clients cannot ${action} this event floorplan`);
+  private async assertCanReadPlan(plan: PlanWithObjects, actor: ResolvedEventOpsActor) {
+    const eventId = plan.opsDraft?.eventId ?? plan.eventId ?? undefined;
+    if (actor.role === OpsUserRole.System) return;
+    if (actor.role === OpsUserRole.PmcmAdmin) {
+      if (actor.verified) return;
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'floorplan', eventId);
+      throw new ForbiddenException('A verified PMCM identity is required to read this floorplan');
     }
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Client], 'floorplan', eventId);
+    const draft = plan.opsDraft;
+    if (!draft || draft.sourceType !== 'client_preference' || draft.status !== 'client_submitted') {
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'official floorplan', eventId);
+      throw new ForbiddenException('Official floorplans are available through the event-scoped snapshot');
+    }
+    if (!actor.verified || !actor.email?.trim()) {
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'client floorplan preference', draft.event.id);
+      throw new ForbiddenException('A verified client identity is required to read this preference');
+    }
+    await this.eventAccessPolicyService.requireCanReadEvent(actor, draft.event, 'client floorplan preference');
+  }
+
+  private async assertCanUpdatePlan(
+    plan: PlanWithObjects,
+    actor: ResolvedEventOpsActor,
+    changes: UpdatePlanChanges,
+  ) {
+    const eventId = plan.opsDraft?.eventId ?? plan.eventId ?? undefined;
+    if (actor.role === OpsUserRole.Client) {
+      await this.assertCanReadPlan(plan, actor);
+      const forbiddenFields = Object.keys(changes).filter(
+        (field) => !['venue', 'width', 'height', 'gridSize', 'pax', 'objects'].includes(field),
+      );
+      if (forbiddenFields.length > 0) {
+        await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'client floorplan preference mutation', eventId);
+        throw new ForbiddenException('Clients may only update layout preferences');
+      }
+    } else {
+      await this.eventAccessPolicyService.requireActorRole(
+        actor,
+        [OpsUserRole.PmcmAdmin, OpsUserRole.System],
+        'official floorplan mutation',
+        eventId,
+      );
+      if (actor.role === OpsUserRole.PmcmAdmin && !actor.verified) {
+        await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'official floorplan mutation', eventId);
+        throw new ForbiddenException('A verified PMCM identity is required to update this floorplan');
+      }
+    }
+
+    this.assertPlanMutableState(plan, actor);
+  }
+
+  private assertPlanMutableState(plan: PlanWriteState, actor: ResolvedEventOpsActor) {
+    const event = plan.opsDraft?.event;
+    if (event?.archived) throw new ConflictException('Archived events cannot be changed');
+    if (event?.freezeStatus === 'frozen') throw new ConflictException('Frozen event scope cannot be changed');
+    if (
+      actor.role !== OpsUserRole.Client &&
+      plan.opsDraft &&
+      ['in_review', 'approved'].includes(plan.opsDraft.status)
+    ) {
+      throw new ConflictException('Submitted and approved floorplans are immutable; create or reopen a draft');
+    }
+  }
+
+  private findPlan(planId: string) {
+    return this.prisma.floorPlan.findUnique({
+      where: { id: planId },
+      include: {
+        objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] },
+        opsDraft: { include: { event: { include: { inquiry: { select: { email: true } } } } } },
+      },
+    });
   }
 }
