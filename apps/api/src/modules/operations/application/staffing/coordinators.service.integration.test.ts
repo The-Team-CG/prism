@@ -91,9 +91,8 @@ async function cleanupFixture(prisma: PrismaService, fixture: Fixture) {
   await prisma.opsCoordinatorReliabilityNote.deleteMany({ where: { eventId: { in: fixture.eventIds } } });
   await prisma.opsNotificationLog.deleteMany({ where: { eventId: { in: fixture.eventIds } } });
   // The audit chain is global and append-only; retain rows until the disposable suite database is discarded.
-  await prisma.opsEvent.deleteMany({ where: { id: { in: fixture.eventIds } } });
+  // Keep event and inquiry parents because the current cross-schema event cascade also deletes audit evidence.
   await prisma.opsCoordinator.deleteMany({ where: { id: { in: fixture.coordinatorIds } } });
-  await prisma.opsInquiry.deleteMany({ where: { id: fixture.inquiryId } });
 }
 
 databaseSuite('CoordinatorsService PostgreSQL concurrency invariants', () => {
