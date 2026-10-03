@@ -114,16 +114,13 @@ export const clientDashboardRepository = {
       {
         method: "PUT",
         body: {
+          expectedUpdatedAt: new Date(project.updatedAt).toISOString(),
           venue: project.venue,
           width: Math.max(1, Math.round(project.widthM)),
           height: Math.max(1, Math.round(project.heightM)),
           gridSize: 1,
           pax: Math.max(0, Math.round(project.pax)),
           objects: project.objects,
-          guests: project.guests,
-          suppliers: project.suppliers,
-          seats: [],
-          seatCategories: [],
         },
       },
     );

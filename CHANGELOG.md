@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Fixed the archived coordinator event regression test to wait for refreshed role data before submitting after switching back to a current event.
 
 ### Fixed
+- Official floorplan reads and exports now require the verified event owner and use the event-scoped snapshot for client review; only clients may edit their own submitted preferences, and plan writes enforce lifecycle/version gates with transactional actor audit.
 - Registration verification rechecks archive status under the event lock, preserving historical roster reads while rejecting writes after archive.
 - Archived coordinator events remain readable and selectable, while event-day, schedule, handoff, report, acknowledgment and withdrawal writes are blocked in the portal and API.
 - Simplified coordinator task scope checks and task form projections while preserving canonical-role, historical-role, owner, and operator authorization behavior.
