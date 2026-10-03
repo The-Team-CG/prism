@@ -12,10 +12,16 @@ import {
   isSupplierQuoteRequestClosed,
   resolveExpiredQuoteRequestStatus,
 } from '../../domain/supplier-quote-request.policy';
-import type { AddSupplierQuoteInput } from '../../contracts/commercial-workflow-commands.port';
-import type { SupplierAvailabilityInput } from '@prism/types';
+import type {
+  AddSupplierQuoteInput,
+  RequestSupplierQuotesInput,
+  SubmitSupplierQuoteInput,
+  SupplierAvailabilityInput,
+} from '@prism/types';
+import type { CommercialWorkflowCommands } from '../../contracts/commercial-workflow-commands.port';
 import { QUOTE_SUPPLIER_RESOLVER } from '../../contracts/commercial-ops.tokens';
 import type { QuoteSupplierResolver } from '../../contracts/quote-supplier-resolver.port';
+import { mapSupplierQuote, mapSupplierQuoteForSupplier, mapSupplierQuoteRequest } from './supplier-quote.mappers';
 
 type SelectSupplierQuoteResult = {
   quote: OpsSupplierQuote;
@@ -26,20 +32,6 @@ export type QuoteRequestTokenDetail = {
   request: OpsSupplierQuoteRequest;
   event: { id: string; eventName: string; clientName: string; eventDate: Date };
   quote: OpsSupplierQuote | null;
-};
-
-export type RequestSupplierQuotesInput = {
-  categoryId: string;
-  supplierIds?: string[];
-  confidentialBid?: boolean;
-  deadline?: string;
-};
-
-export type SubmitSupplierQuoteInput = {
-  amount: number;
-  inclusions?: string[];
-  paymentTerms?: string;
-  notes?: string;
 };
 
 function isoDate(value: Date) {
@@ -96,7 +88,7 @@ function requireVerifiedCommercialActor(
 }
 
 @Injectable()
-export class CommercialWorkflowService {
+export class CommercialWorkflowService implements CommercialWorkflowCommands {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
@@ -112,7 +104,7 @@ export class CommercialWorkflowService {
     let suppliersToRequest: OpsSupplier[] = [];
     let dueDate: Date | null = null;
 
-    return this.workflowCommandService.execute<OpsSupplierQuoteRequest[], OpsSupplierQuoteRequest[]>({
+    const requests = await this.workflowCommandService.execute<OpsSupplierQuoteRequest[], OpsSupplierQuoteRequest[]>({
       name: 'request_supplier_quotes',
       eventId,
       validateState: async () => {
@@ -168,9 +160,18 @@ export class CommercialWorkflowService {
       write: () => {
         if (!event || !category) throw new NotFoundException('Supplier category not found');
         return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-          const roundModel = (tx as Prisma.TransactionClient & { opsSupplierQuoteRound?: any }).opsSupplierQuoteRound;
-          const latestRound = roundModel ? await roundModel.findFirst({ where: { eventId, categoryId: category!.id }, orderBy: { roundNumber: 'desc' } }) : null;
-          const round = roundModel ? await roundModel.create({ data: { id: `round_${randomUUID()}`, eventId, categoryId: category!.id, roundNumber: (latestRound?.roundNumber ?? 0) + 1 } }) : null;
+          const latestRound = await tx.opsSupplierQuoteRound.findFirst({
+            where: { eventId, categoryId: category!.id },
+            orderBy: { roundNumber: 'desc' },
+          });
+          const round = await tx.opsSupplierQuoteRound.create({
+            data: {
+              id: `round_${randomUUID()}`,
+              eventId,
+              categoryId: category!.id,
+              roundNumber: (latestRound?.roundNumber ?? 0) + 1,
+            },
+          });
           // Transaction scope: DB reads/writes only. No external IO inside this callback.
           const requestData = suppliersToRequest.map((supplier) => {
             const token = randomUUID();
@@ -188,7 +189,7 @@ export class CommercialWorkflowService {
                 ? `${event!.eventName} quote request with client details hidden until selection.`
                 : `${event!.clientName} / ${event!.eventName} quote request.`,
               status: SupplierQuoteRequestStatus.Open,
-              ...(round ? { roundId: round.id } : {}),
+              roundId: round.id,
             };
           });
           const created = await tx.opsSupplierQuoteRequest.createManyAndReturn({ data: requestData });
@@ -239,6 +240,7 @@ export class CommercialWorkflowService {
         ]);
       },
     });
+    return requests.map(mapSupplierQuoteRequest);
   }
 
   async addSupplierQuote(eventId: string, input: AddSupplierQuoteInput, actor: ResolvedEventOpsActor) {
@@ -251,7 +253,7 @@ export class CommercialWorkflowService {
     let categoryRange: OpsSupplierCategory | null = null;
     let directorySupplier: Awaited<ReturnType<QuoteSupplierResolver['resolveQuoteSupplier']>> = null;
 
-    return this.workflowCommandService.execute<OpsSupplierQuote>({
+    const quote = await this.workflowCommandService.execute<OpsSupplierQuote>({
       name: 'add_supplier_quote',
       eventId,
       validateState: async () => {
@@ -324,6 +326,7 @@ export class CommercialWorkflowService {
         ]);
       },
     });
+    return mapSupplierQuote(quote);
   }
 
   async getQuoteRequestByToken(token: string): Promise<QuoteRequestTokenDetail> {
@@ -347,18 +350,18 @@ export class CommercialWorkflowService {
   }
 
   async submitSupplierQuoteByToken(token: string, input: SubmitSupplierQuoteInput) {
-    return this.saveSupplierQuoteByToken(token, input, 'submit');
+    return mapSupplierQuoteForSupplier(await this.saveSupplierQuoteByToken(token, input, 'submit'));
   }
 
   async reviseSupplierQuoteByToken(token: string, input: Partial<SubmitSupplierQuoteInput>) {
-    return this.saveSupplierQuoteByToken(token, input, 'revise');
+    return mapSupplierQuoteForSupplier(await this.saveSupplierQuoteByToken(token, input, 'revise'));
   }
 
   async selectSupplierQuote(eventId: string, quoteId: string, actor: ResolvedEventOpsActor) {
     const verifiedActor = requireVerifiedCommercialActor(actor);
     let quote: OpsSupplierQuote | null = null;
 
-    return this.workflowCommandService.execute<SelectSupplierQuoteResult, OpsSupplierQuote>({
+    const selected = await this.workflowCommandService.execute<SelectSupplierQuoteResult, OpsSupplierQuote>({
       name: 'select_supplier_quote',
       eventId,
       validateState: async () => {
@@ -427,6 +430,7 @@ export class CommercialWorkflowService {
       },
       project: (result) => result.quote,
     });
+    return mapSupplierQuote(selected);
   }
 
   async setSupplierAvailability(supplierId: string, input: SupplierAvailabilityInput, actor: ResolvedEventOpsActor) {
@@ -462,9 +466,10 @@ export class CommercialWorkflowService {
   private async assertSupplierCapacityAvailable(tx: Prisma.TransactionClient, eventId: string, quote: OpsSupplierQuote) {
     if (!quote.supplierId) return;
     const eventDate = await tx.opsEvent.findUnique({ where: { id: eventId }, select: { eventDate: true } });
-    const availabilityModel = (tx as Prisma.TransactionClient & { opsSupplierAvailability?: any }).opsSupplierAvailability;
-    if (!eventDate || !availabilityModel) return;
-    const availability = await availabilityModel.findUnique({ where: { supplierId_availableOn: { supplierId: quote.supplierId, availableOn: eventDate.eventDate } } });
+    if (!eventDate) return;
+    const availability = await tx.opsSupplierAvailability.findUnique({
+      where: { supplierId_availableOn: { supplierId: quote.supplierId, availableOn: eventDate.eventDate } },
+    });
     if (availability && (availability.blocked || availability.capacity < 1)) throw new BadRequestException('Supplier gap warning: supplier is unavailable for the event date');
     if (!availability) return;
     const assignedCount = await tx.opsSupplierQuoteRequest.count({ where: { eventId, supplierId: quote.supplierId, status: SupplierQuoteRequestStatus.Selected, assignmentStatus: { in: ['pending_confirmation', 'confirmed'] } } });

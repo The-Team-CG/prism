@@ -49,6 +49,15 @@ export interface PrismFloorPlanPreference {
   notes?: string;
 }
 
+export interface PrismFloorPlanActor {
+  name: string;
+  role: string;
+}
+
+export interface PrismFloorPlanCreator extends PrismFloorPlanActor {
+  actorId: string;
+}
+
 export interface PrismFloorPlanSnapshot {
   id: string;
   name: string;
