@@ -1,30 +1,26 @@
 import 'dotenv/config';
 import { defineConfig } from 'prisma/config';
+import connectionConfig = require('./src/kernel/database/db-connection-config.cjs');
 
-const candidates = [
-  process.env.PRISMA_DATABASE_URL,
-  process.env.DIRECT_URL,
-  process.env.SUPABASE_DB_URL,
-  process.env.DATABASE_URL,
-];
-
-const prismaDbUrl =
-  candidates
-    .map((value) => (typeof value === 'string' ? value.trim() : ''))
-    .find((value) => value.length > 0) ?? '';
-
-const shadowDbUrl = process.env.SHADOW_DATABASE_URL ?? '';
+const database = connectionConfig.selectDatabaseConnection({ purpose: 'migration', required: false });
+const shadowDatabaseUrl = process.env.SHADOW_DATABASE_URL?.trim();
+const shadowDatabase = shadowDatabaseUrl
+  ? connectionConfig.normalizeDatabaseConnection(shadowDatabaseUrl, {
+      purpose: 'migration',
+      source: 'SHADOW_DATABASE_URL',
+    })
+  : undefined;
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
     path: 'prisma/migrations',
   },
-  ...(prismaDbUrl
+  ...(database
     ? {
         datasource: {
-          url: prismaDbUrl,
-          ...(shadowDbUrl ? { shadowDatabaseUrl: shadowDbUrl } : {}),
+          url: database.prismaConnectionString,
+          ...(shadowDatabase ? { shadowDatabaseUrl: shadowDatabase.prismaConnectionString } : {}),
         },
       }
     : {}),
