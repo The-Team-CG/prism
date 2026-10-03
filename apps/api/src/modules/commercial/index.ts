@@ -9,6 +9,8 @@ export { isPrimaryClientContact, nextProposalClientReview, MAX_PROPOSAL_REVISION
 export * from './application/quotes/supplier-quote.mappers';
 export { COMMERCIAL_WORKFLOW_COMMANDS } from './contracts/commercial-ops.tokens';
 export * from './contracts/commercial-workflow-commands.port';
+export * from './contracts/addendum-impact-writer.port';
+export * from './commercial-addendum-impact.module';
 export * from './application/quotes/commercial-workflow.service';
 export * from './contracts/supplier-commands.port';
 export * from './contracts/supplier-directory.port';
