@@ -37,6 +37,7 @@ export class CoordinatorLiveOpsCommandService {
         role: incoming.role,
         reason: input.reason,
       },
+      `coordinator-replaced:${eventId}:${outgoing.id}:${incoming.id}`,
     );
     return { replacedAssignment: outgoing, replacementAssignment: incoming };
   }
@@ -55,18 +56,17 @@ export class CoordinatorLiveOpsCommandService {
       actor,
       options,
     );
-    if (result.changed) {
-      await recordEventDayLog(
-        this.prisma,
-        eventId,
-        'coordinator_status_updated',
-        actor,
-        `Marked ${result.assignment.coordinatorName} ${result.assignment.attendanceStatus ?? input.status}`,
-        'coordinator_assignment',
-        result.assignment.id,
-        { status: input.status, notes: input.notes ?? '', markedBy: actor.name },
-      );
-    }
+    await recordEventDayLog(
+      this.prisma,
+      eventId,
+      'coordinator_status_updated',
+      actor,
+      `Marked ${result.assignment.coordinatorName} ${result.assignment.attendanceStatus ?? input.status}`,
+      'coordinator_assignment',
+      result.assignment.id,
+      { status: input.status, notes: input.notes ?? '', markedBy: actor.name },
+      `coordinator-attendance:${eventId}:${result.assignment.id}:${result.assignment.attendanceMarkedAt ?? `${input.status}:${input.notes ?? ''}`}`,
+    );
     return result.assignment;
   }
 }

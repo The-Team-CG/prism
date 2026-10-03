@@ -64,6 +64,9 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
     prisma: Prisma.TransactionClient | PrismaService = this.prisma,
   ): Promise<CoordinatorAssignmentPlan> {
     const event = await this.requireEvent(eventId, prisma);
+    if (event.archived || event.status === 'cancelled' || event.status === 'archived') {
+      throw new BadRequestException('Event is not active for coordinator assignment changes');
+    }
     const coordinator = await this.resolveCoordinator(input, prisma);
     if (input.role !== undefined && !coordinatorRoleSchema.safeParse(input.role).success) {
       throw new BadRequestException('Choose a role from the coordinator role catalog.');
@@ -547,7 +550,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
       context: commandContext,
       sideEffectMode: 'same_tx',
       validateState: async () => {
-        await this.requireEvent(eventId);
+        await this.requireAssignmentEventWritable(eventId, actor);
         const existing = await this.prisma.opsCoordinatorAssignment.findFirst({ where: { id: assignmentId, eventId } });
         if (!existing) throw new NotFoundException('Coordinator assignment not found');
         if (actor.role === OpsUserRole.Coordinator) {
@@ -559,6 +562,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
         }
       },
       validateStateInTransaction: async ({ prisma }) => {
+        await this.requireAssignmentEventWritable(eventId, actor, prisma);
         if (actor.role === OpsUserRole.Coordinator) await this.requireOwnedAssignment(eventId, assignmentId, actor, prisma);
       },
       write: (transactionContext) => {
@@ -825,7 +829,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
     }
     if (actor.role === OpsUserRole.Coordinator) {
       if (options.allowAnotherAssignment) {
-        await this.requireCoordinatorWritableEvent(eventId, actor, prisma);
+        await this.requireAssignmentEventWritable(eventId, actor, prisma);
       } else {
         await this.requireOwnedAssignment(eventId, assignmentId, actor, prisma);
       }
@@ -869,10 +873,19 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
     return { toDate: nextDate.toISOString(), assignmentIds: rows.map((row) => row.id), conflicts };
   }
 
-  private async requireCoordinatorWritableEvent(eventId: string, actor: ResolvedEventOpsActor, prisma: Prisma.TransactionClient | PrismaService) {
-    if (actor.role !== OpsUserRole.Coordinator) return;
+  private async requireAssignmentEventWritable(
+    eventId: string,
+    actor: ResolvedEventOpsActor,
+    prisma: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
     const event = await this.requireEvent(eventId, prisma);
-    if (event.archived) throw new ForbiddenException('Archived coordinator events are read-only');
+    if (event.archived) {
+      if (actor.role === OpsUserRole.Coordinator) throw new ForbiddenException('Archived coordinator events are read-only');
+      throw new BadRequestException('Archived coordinator events are read-only');
+    }
+    if (event.status === 'cancelled' || event.status === 'archived') {
+      throw new BadRequestException('Event is not active for coordinator assignment changes');
+    }
   }
 
   // PA-276: acknowledgeCoordinator previously updated by assignmentId alone, letting any
@@ -890,7 +903,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
       throw new NotFoundException('Coordinator assignment not found');
     }
 
-    await this.requireCoordinatorWritableEvent(eventId, actor, prisma);
+    await this.requireAssignmentEventWritable(eventId, actor, prisma);
 
     if (actor.role === OpsUserRole.Coordinator) {
       const coordinator = await resolveCoordinatorForActor(prisma, actor);
