@@ -235,3 +235,4 @@
   notes kept under `[Unreleased]` until versioning occurs.
 - **Decided:** Accepted the seven-schema DDD target and local-only foreign-key rule, and aligned the context register to distinguish target owners from transitional writers; physical schema moves remain a separate rehearsed release.
 - **Enforced:** added Commercial quote-request orphan preflight and a same-domain FK that preserves submitted bid evidence by restricting deletion of referenced requests.
+- **Aligned:** declared the existing GIN, composite event-date, and partial active-event indexes in Prisma for exact migration/schema parity.

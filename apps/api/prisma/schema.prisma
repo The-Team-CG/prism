@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -345,6 +346,8 @@ model OpsEvent {
 
   @@index([inquiryId], map: "events_inquiry_id_idx")
   @@index([status, eventDate], map: "events_status_event_date_idx")
+  @@index([eventDate, id], map: "events_event_date_id_idx")
+  @@index([eventDate, id], where: { archived: false }, map: "events_active_event_date_idx")
   @@map("events")
   @@schema("event_core")
 }
@@ -970,6 +973,8 @@ model OpsCoordinator {
   operatorDesignations OpsEventOperatorDesignation[]
 
   @@index([active, name], map: "coordinators_active_name_idx")
+  @@index([roleTags], type: Gin, map: "coordinators_role_tags_gin_idx")
+  @@index([skillsTags], type: Gin, map: "coordinators_skills_tags_gin_idx")
   @@map("coordinators")
   @@schema("staffing_ops")
 }
