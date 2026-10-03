@@ -1,33 +1,83 @@
 import { ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
+import { ConfigService } from '@nestjs/config';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import type { AuditWriteInput, ResolvedEventOpsActor } from '@prism/kernel/access-control';
+import { AuthSessionService, EventSessionGuard } from '@prism/kernel/event-session';
 import { AuthOperationsService } from './auth-operations.service';
 
-function createApprovalService() {
-  const request = {
-    id: 'approval_1',
-    userId: 'user_client_1',
-    name: 'Ana Reyes',
-    email: 'ana@example.test',
-    role: 'client',
-    organization: 'Ana Events',
-    status: 'pending',
-    requestedAt: new Date('2026-08-01T00:00:00.000Z'),
-    privacyConsentAccepted: true,
-    privacyNoticeVersion: '2026-05-01',
-    marketingConsentAccepted: false,
-  };
-  const prisma = {
-    opsApprovalRequest: {
-      findUnique: vi.fn(async () => request),
-      update: vi.fn(async ({ data }: { data: { status: string } }) => ({ ...request, ...data })),
+function createApprovalService(options: { requestUpdateFails?: boolean; auditFails?: boolean } = {}) {
+  const state = {
+    request: {
+      id: 'approval_1',
+      userId: 'user_client_1',
+      name: 'Ana Reyes',
+      email: 'ana@example.test',
+      role: 'client',
+      organization: 'Ana Events',
+      status: 'pending',
+      requestedAt: new Date('2026-08-01T00:00:00.000Z'),
+      privacyConsentAccepted: true,
+      privacyNoticeVersion: '2026-05-01',
+      marketingConsentAccepted: false,
     },
-    opsUser: { update: vi.fn(async () => undefined) },
+    user: {
+      id: 'user_client_1',
+      name: 'Ana Reyes',
+      email: 'ana@example.test',
+      password: 'hashed-password',
+      role: 'client',
+      organization: 'Ana Events',
+      approvalStatus: 'pending',
+      sessionVersion: 0,
+      lockedUntil: null,
+      permanentLockout: false,
+      failedLoginCount: 0,
+    },
   };
-  const authAudit = { write: vi.fn(async (_input: AuditWriteInput) => undefined) };
+  const opsApprovalRequest = {
+    findUnique: vi.fn(async () => ({ ...state.request })),
+    update: vi.fn(async ({ data }: { data: { status: string } }) => {
+      if (options.requestUpdateFails) throw new Error('approval request update failed');
+      Object.assign(state.request, data);
+      return { ...state.request };
+    }),
+  };
+  const opsUser = {
+    findUnique: vi.fn(async () => ({ ...state.user })),
+    update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+      const { sessionVersion, ...userChanges } = data;
+      Object.assign(state.user, userChanges);
+      if (typeof sessionVersion === 'object' && sessionVersion !== null && 'increment' in sessionVersion) {
+        state.user.sessionVersion += Number(sessionVersion.increment);
+      } else if (typeof sessionVersion === 'number') {
+        state.user.sessionVersion = sessionVersion;
+      }
+      return { ...state.user };
+    }),
+  };
+  const authAudit = {
+    write: vi.fn(async (_input: AuditWriteInput, _context?: unknown) => {
+      if (options.auditFails) throw new Error('approval audit failed');
+    }),
+  };
+  const transaction = { opsApprovalRequest, opsUser };
+  const prisma = {
+    ...transaction,
+    $transaction: vi.fn(async (callback: (tx: typeof transaction) => Promise<unknown>) => {
+      const previousRequest = { ...state.request };
+      const previousUser = { ...state.user };
+      try {
+        return await callback(transaction);
+      } catch (error) {
+        Object.assign(state.request, previousRequest);
+        Object.assign(state.user, previousUser);
+        throw error;
+      }
+    }),
+  };
   const service = new AuthOperationsService(prisma as any, authAudit as any, {} as any, {} as any, {} as any);
-  return { service, prisma, authAudit };
+  return { service, prisma, authAudit, state };
 }
 
 describe('AuthOperationsService', () => {
@@ -62,6 +112,64 @@ describe('AuthOperationsService', () => {
       action,
       metadata: { actorId: 'pmcm_user_1' },
     });
+  });
+
+  it('revokes an already-issued signed session when approval is declined', async () => {
+    const { service, prisma, state } = createApprovalService();
+    const authSessionService = new AuthSessionService(new ConfigService({
+      PRISM_SESSION_SECRET: 'account-revocation-test-secret-123456',
+    }));
+    const oldSession = authSessionService.issueSession({
+      id: state.user.id,
+      name: state.user.name,
+      email: state.user.email,
+      role: 'client',
+      organization: state.user.organization,
+      approvalStatus: 'approved',
+      sessionVersion: 0,
+    });
+    const actor = {
+      id: 'pmcm_user_1', role: OpsUserRole.PmcmAdmin, name: 'Anthony Torres', email: 'anthony@pmcm.test',
+      explicit: true, verified: true,
+    } satisfies ResolvedEventOpsActor;
+
+    await service.declineApprovalRequest('approval_1', actor);
+
+    const guard = new EventSessionGuard(authSessionService, prisma as never);
+    await expect(guard.canActivate({
+      switchToHttp: () => ({ getRequest: () => ({ headers: { authorization: `Bearer ${oldSession.accessToken}` } }) }),
+    } as never)).rejects.toThrow(/revoked|eligible/i);
+    expect(state.user).toMatchObject({ approvalStatus: 'declined', sessionVersion: 1 });
+    expect(state.request.status).toBe('declined');
+  });
+
+  it('replays the same completed decline without incrementing the session version or duplicating audit', async () => {
+    const { service, authAudit, state } = createApprovalService();
+    const actor = {
+      id: 'pmcm_user_1', role: OpsUserRole.PmcmAdmin, name: 'Anthony Torres', email: 'anthony@pmcm.test',
+      explicit: true, verified: true,
+    } satisfies ResolvedEventOpsActor;
+
+    await service.declineApprovalRequest('approval_1', actor);
+    await service.declineApprovalRequest('approval_1', actor);
+
+    expect(state.user.sessionVersion).toBe(1);
+    expect(authAudit.write).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['request update', { requestUpdateFails: true }, 'approval request update failed'],
+    ['audit write', { auditFails: true }, 'approval audit failed'],
+  ])('rolls back the account epoch and request state when the %s fails', async (_label, options, message) => {
+    const { service, state } = createApprovalService(options);
+    const actor = {
+      id: 'pmcm_user_1', role: OpsUserRole.PmcmAdmin, name: 'Anthony Torres', email: 'anthony@pmcm.test',
+      explicit: true, verified: true,
+    } satisfies ResolvedEventOpsActor;
+
+    await expect(service.declineApprovalRequest('approval_1', actor)).rejects.toThrow(message);
+    expect(state.user).toMatchObject({ approvalStatus: 'pending', sessionVersion: 0 });
+    expect(state.request.status).toBe('pending');
   });
 
   it('rejects missing, unverified, or non-admin actors before changing account access', async () => {
@@ -210,7 +318,7 @@ describe('AuthOperationsService', () => {
       handleForbiddenAccess: vi.fn(async () => undefined),
     };
     const authSessionService = {
-      verifyTwoFactorToken: vi.fn(() => ({ userId: user.id, email: user.email, role: 'pmcm-admin', purpose: 'challenge' })),
+      verifyTwoFactorToken: vi.fn(() => ({ userId: user.id, email: user.email, role: 'pmcm-admin', purpose: 'challenge', sessionVersion: 0 })),
       issueSession: vi.fn(() => ({ accessToken: 'pmcm-session' })),
     };
     const totpService = {

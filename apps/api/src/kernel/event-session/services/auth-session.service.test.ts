@@ -61,6 +61,7 @@ describe('AuthSessionService', () => {
       email: 'mys@pmcm.test',
       role: 'pmcm-admin',
       purpose: 'challenge',
+      sessionVersion: 0,
     });
   });
 });
