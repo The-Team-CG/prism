@@ -30,6 +30,7 @@ export type VerifiedTwoFactorToken = {
   email: string;
   role: 'pmcm-admin';
   purpose: TwoFactorTokenPurpose;
+  sessionVersion: number;
 };
 function encodeJson(value: unknown) {
   return Buffer.from(JSON.stringify(value), 'utf8').toString('base64url');
@@ -94,7 +95,7 @@ export class AuthSessionService {
   }
 
   issueTwoFactorToken(
-    input: { userId: string; email: string; role: 'pmcm-admin' },
+    input: { userId: string; email: string; role: 'pmcm-admin'; sessionVersion?: number },
     purpose: TwoFactorTokenPurpose,
     issuedAt = new Date(),
   ) {
@@ -103,6 +104,7 @@ export class AuthSessionService {
       sub: input.userId,
       email: input.email,
       role: input.role,
+      sessionVersion: input.sessionVersion ?? 0,
       purpose,
       iat: issuedAtSeconds,
       exp: issuedAtSeconds + 10 * 60,
@@ -116,11 +118,19 @@ export class AuthSessionService {
       typeof payload.sub !== 'string' ||
       typeof payload.email !== 'string' ||
       payload.role !== 'pmcm-admin' ||
+      (payload.sessionVersion !== undefined &&
+        (typeof payload.sessionVersion !== 'number' || !Number.isSafeInteger(payload.sessionVersion) || payload.sessionVersion < 0)) ||
       (payload.purpose !== 'setup' && payload.purpose !== 'challenge')
     ) {
       throw new UnauthorizedException('Invalid two-factor token');
     }
-    return { userId: payload.sub, email: payload.email, role: payload.role, purpose: payload.purpose };
+    return {
+      userId: payload.sub,
+      email: payload.email,
+      role: payload.role,
+      purpose: payload.purpose,
+      sessionVersion: typeof payload.sessionVersion === 'number' ? payload.sessionVersion : 0,
+    };
   }
 
   private signPayload(payload: Record<string, unknown>) {
