@@ -23,7 +23,6 @@ describe.skipIf(!databaseUrl)('privacy execution against PostgreSQL', () => {
   let pool: Pool;
   let audit: AuditService;
   let service: PrivacyOperationsService;
-  const inquiryIds: string[] = [];
   const requestIds: string[] = [];
   const applicationIds: string[] = [];
   const id = () => `p0_priv_${randomUUID()}`;
@@ -45,9 +44,9 @@ describe.skipIf(!databaseUrl)('privacy execution against PostgreSQL', () => {
     if (!prisma) return;
     // Audit rows are hash-linked global history; retain them until the disposable suite database is discarded.
     await prisma.opsPrivacyRequest.deleteMany({ where: { id: { in: requestIds } } });
-    await prisma.opsInquiry.deleteMany({ where: { id: { in: inquiryIds } } });
     await prisma.opsSupplierApplication.deleteMany({ where: { id: { in: applicationIds } } });
-    requestIds.length = inquiryIds.length = applicationIds.length = 0;
+    // Keep event and inquiry parents because the current cross-schema event cascade also deletes audit evidence.
+    requestIds.length = applicationIds.length = 0;
   });
 
   afterAll(async () => {
@@ -57,7 +56,6 @@ describe.skipIf(!databaseUrl)('privacy execution against PostgreSQL', () => {
 
   async function createClient(normalizedEmail = '') {
     const inquiryId = id();
-    inquiryIds.push(inquiryId);
     const email = `${inquiryId}@privacy.test`;
     const event = await prisma.opsEvent.create({ data: {
       id: id(), clientName: 'Identifiable client', eventName: 'P0 privacy fixture',
