@@ -1,5 +1,9 @@
 # Documentation bundle update log
 
+## 2026-10-04
+
+- **Corrected:** Operations is now the sole production writer for coordinator assignment state. Live Ops delegates attendance and replacement; Lifecycle delegates cancellation and postponement with the original transaction context. Acknowledgment and attendance retries avoid duplicate history, reliability, and audit effects.
+
 ## 2026-10-03
 
 - **Corrected:** Historical coordinator event access now stays read-only in portal controls and API mutation authorization while preserving scoped reads and switching back to current events. The ledger records the boundary and regression evidence, including registration verification rechecking archive status under the event lock.

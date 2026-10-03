@@ -7,27 +7,11 @@ import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access
 import {
   AuditActionType,
   AuditCategory,
-  CoordinatorAssignmentStatus,
-  INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES,
   OpsUserRole,
 } from '@prism/kernel/event-core';
-import { lockCoordinatorAssignmentDay } from '@prism/kernel/shared-kernel';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import type { EventDecisionInput } from '@prism/types';
-
-type AssignmentImpactRow = { id: string; status: string; coordinatorId: string | null; coordinatorName: string };
-
-/** A kept coordinator whose new event date needs PMCM attention. */
-type RescheduleConflict = {
-  assignmentId: string;
-  coordinatorName: string;
-  reason: 'double_booking' | 'unavailable';
-  conflictEventId?: string;
-  conflictEventName?: string;
-};
-
-/** Coordinators that stay on the event and follow it to its new date. */
-type RescheduleImpact = { toDate: string; assignmentIds: string[]; conflicts: RescheduleConflict[] };
+import { STAFFING_COMMANDS, type StaffingCommands } from '@prism/contexts/operations';
 
 @Injectable()
 export class EventDecisionService {
@@ -36,6 +20,7 @@ export class EventDecisionService {
     private readonly access: EventAccessPolicyService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationWriter: NotificationOutboxWriter,
+    @Inject(STAFFING_COMMANDS) private readonly staffingCommands: StaffingCommands,
   ) {}
 
   async list(eventId: string, actor: ResolvedEventOpsActor) {
@@ -58,9 +43,9 @@ export class EventDecisionService {
       }
       const event = await this.requireEvent(eventId, tx);
       const priorState = this.validateEventState(event.status, event.eventDate, input);
-      const impacts = await this.loadImpacts(tx, eventId, input, event.eventDate, priorState.nextDate);
+      const impacts = await this.loadImpacts(tx, eventId, input, event.eventDate, priorState.nextDate, actor);
       const decision = await this.createDecision(tx, eventId, input, actor, priorState, impacts.assignmentImpact);
-      await this.applyTransition(tx, eventId, input, actor, impacts, priorState.nextDate);
+      await this.applyTransition(tx, eventId, input, impacts, priorState.nextDate);
       await this.queueNotification(tx, event, eventId, input, decision.id);
       await this.recordAudit(tx, eventId, input, actor, decision.id, priorState, impacts);
       return decision;
@@ -74,66 +59,34 @@ export class EventDecisionService {
     return { status, eventDate: eventDate.toISOString(), nextDate };
   }
 
-  private async loadImpacts(tx: Prisma.TransactionClient, eventId: string, input: EventDecisionInput, currentDate: Date, nextDate: Date) {
-    const [assignmentRows, supplierRows] = await Promise.all([
-      tx.opsCoordinatorAssignment.findMany({
-        where: { eventId, status: { notIn: [...INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES] } },
-        select: { id: true, status: true, coordinatorId: true, coordinatorName: true },
-      }),
-      tx.opsSupplierQuoteRequest.findMany({ where: { eventId, assignmentStatus: { not: 'withdrawn' } }, select: { id: true, supplierName: true, assignmentStatus: true } }),
-    ]);
-    const release = input.decision === 'cancelled' || input.supplierImpact === 'release_obligations';
-    const keptRows = release ? [] : assignmentRows;
-    const reschedule = keptRows.length && nextDate.getTime() !== currentDate.getTime()
-      ? await this.planReschedule(tx, eventId, keptRows, nextDate)
-      : null;
-    return {
-      assignmentRows,
-      supplierRows,
-      assignmentImpact: {
-        releasedAssignmentIds: release ? assignmentRows.map((row) => row.id) : [],
-        priorAssignments: assignmentRows,
-        ...(reschedule ? { reschedule } : {}),
+  private async loadImpacts(
+    tx: Prisma.TransactionClient,
+    eventId: string,
+    input: EventDecisionInput,
+    currentDate: Date,
+    nextDate: Date,
+    actor: ResolvedEventOpsActor,
+  ) {
+    const assignmentImpact = await this.staffingCommands.applyEventDecisionAssignments(
+      eventId,
+      input,
+      currentDate.toISOString(),
+      nextDate.toISOString(),
+      actor,
+      {
+        prisma: tx,
+        correlationId: `event-decision:${eventId}:${input.idempotencyKey ?? input.decision}`,
+        actorId: actor.id,
       },
-    };
-  }
-
-  /**
-   * Kept coordinators follow the event to its new date. The move itself is not
-   * blocked, because PMCM has already decided to postpone, but each coordinator
-   * is re-checked for a booking or declared unavailability on that date so the
-   * clash is flagged instead of silently double-booking someone.
-   */
-  private async planReschedule(tx: Prisma.TransactionClient, eventId: string, rows: AssignmentImpactRow[], nextDate: Date): Promise<RescheduleImpact> {
-    const coordinatorIds = [...new Set(rows.flatMap((row) => (row.coordinatorId ? [row.coordinatorId] : [])))].sort();
-    // The booking and replacement flows take this per coordinator/day lock; a fixed order keeps two decisions from deadlocking.
-    for (const coordinatorId of coordinatorIds) await lockCoordinatorAssignmentDay(tx, coordinatorId, nextDate);
-    const nextDateEnd = new Date(nextDate.getTime() + 24 * 60 * 60 * 1000);
-    const [bookings, blocks] = coordinatorIds.length
-      ? await Promise.all([
-          tx.opsCoordinatorAssignment.findMany({
-            where: {
-              coordinatorId: { in: coordinatorIds },
-              eventDate: nextDate,
-              eventId: { not: eventId },
-              status: { notIn: [...INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES] },
-            },
-            select: { coordinatorId: true, eventId: true, event: { select: { eventName: true } } },
-            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-          }),
-          tx.opsCoordinatorAvailability.findMany({
-            where: { coordinatorId: { in: coordinatorIds }, startsAt: { lt: nextDateEnd }, endsAt: { gt: nextDate } },
-            select: { coordinatorId: true },
-          }),
-        ])
-      : [[], []];
-    const conflicts = rows.flatMap((row): RescheduleConflict[] => {
-      const booking = bookings.find((item) => item.coordinatorId === row.coordinatorId);
-      if (booking) return [{ assignmentId: row.id, coordinatorName: row.coordinatorName, reason: 'double_booking', conflictEventId: booking.eventId, conflictEventName: booking.event.eventName }];
-      if (blocks.some((item) => item.coordinatorId === row.coordinatorId)) return [{ assignmentId: row.id, coordinatorName: row.coordinatorName, reason: 'unavailable' }];
-      return [];
+    );
+    const supplierRows = await tx.opsSupplierQuoteRequest.findMany({
+      where: { eventId, assignmentStatus: { not: 'withdrawn' } },
+      select: { id: true, supplierName: true, assignmentStatus: true },
     });
-    return { toDate: nextDate.toISOString(), assignmentIds: rows.map((row) => row.id), conflicts };
+    return {
+      supplierRows,
+      assignmentImpact,
+    };
   }
 
   private createDecision(tx: Prisma.TransactionClient, eventId: string, input: EventDecisionInput, actor: ResolvedEventOpsActor, priorState: { status: string; eventDate: string }, assignmentImpact: unknown) {
@@ -145,30 +98,9 @@ export class EventDecisionService {
     } });
   }
 
-  private async applyTransition(tx: Prisma.TransactionClient, eventId: string, input: EventDecisionInput, actor: ResolvedEventOpsActor, impacts: Awaited<ReturnType<EventDecisionService['loadImpacts']>>, nextDate: Date) {
+  private async applyTransition(tx: Prisma.TransactionClient, eventId: string, input: EventDecisionInput, impacts: Awaited<ReturnType<EventDecisionService['loadImpacts']>>, nextDate: Date) {
     await tx.opsEvent.update({ where: { id: eventId }, data: { status: input.decision, eventDate: nextDate } });
-    const { releasedAssignmentIds, reschedule } = impacts.assignmentImpact;
-    if (releasedAssignmentIds.length) {
-      // Cancelled is the state every staffing check treats as inactive; any other value would leave the coordinator booked.
-      await tx.opsCoordinatorAssignment.updateMany({ where: { id: { in: releasedAssignmentIds } }, data: { status: CoordinatorAssignmentStatus.Cancelled, withdrawalReason: `Event ${input.decision}: ${input.reason}`, withdrawnAt: new Date(), withdrawnBy: actor.id ?? actor.name } });
-    }
-    if (reschedule) await this.moveKeptAssignments(tx, reschedule, nextDate);
     if (input.decision === 'cancelled' || input.supplierImpact === 'release_obligations') await tx.opsSupplierQuoteRequest.updateMany({ where: { id: { in: impacts.supplierRows.map((row) => row.id) } }, data: { assignmentStatus: 'withdrawn' } });
-  }
-
-  private async moveKeptAssignments(tx: Prisma.TransactionClient, reschedule: RescheduleImpact, nextDate: Date) {
-    await tx.opsCoordinatorAssignment.updateMany({
-      where: { id: { in: reschedule.assignmentIds } },
-      data: { eventDate: nextDate, doubleBookingWarning: false, conflictEventId: null, conflictEventName: null },
-    });
-    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: each conflicting assignment needs distinct conflict event metadata.
-    for (const conflict of reschedule.conflicts) {
-      if (conflict.reason !== 'double_booking') continue;
-      await tx.opsCoordinatorAssignment.update({
-        where: { id: conflict.assignmentId },
-        data: { doubleBookingWarning: true, conflictEventId: conflict.conflictEventId ?? null, conflictEventName: conflict.conflictEventName ?? null },
-      });
-    }
   }
 
   private async queueNotification(tx: Prisma.TransactionClient, event: Awaited<ReturnType<EventDecisionService['requireEvent']>>, eventId: string, input: EventDecisionInput, decisionId: string) {

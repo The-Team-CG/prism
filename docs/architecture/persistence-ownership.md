@@ -197,7 +197,7 @@ business owner and lifecycle metadata contract.
 
 | Models | Physical schema | Write owner and boundary |
 | --- | --- | --- |
-| `OpsCoordinatorAssignment` | `staffing_ops` | `operations`; owns assignment, attendance, replacement, cancellation, acknowledgment, and reliability mutations. LiveOps callers are being moved behind the Operations capability. |
+| `OpsCoordinatorAssignment` | `staffing_ops` | `operations`; owns assignment, attendance, replacement, cancellation, acknowledgment, and reliability mutations. LiveOps and Lifecycle callers use the Operations capability; event decisions pass the initiating transaction context. |
 | `OpsGuestCheckIn`, `OpsGuestFeedback` | `guest_ops` | `operations`; guest check-in, consent, feedback, and moderation workflows. |
 | `OpsCoordinator` | `staffing_ops` | Reference data is currently fixture-seeded and read through operations; add a real directory owner before introducing administration writes. |
 | OpsEventDayTask, OpsUrgentIssue, OpsEventDayLog | staffing_ops | live-ops; event-day task, issue, log, and escalation workflows. Target schema: live_ops. |
