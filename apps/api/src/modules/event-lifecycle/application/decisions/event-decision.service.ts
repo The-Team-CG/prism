@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import type { OpsEventDecision, Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
@@ -33,23 +33,79 @@ export class EventDecisionService {
 
   async decide(eventId: string, input: EventDecisionInput, actor: ResolvedEventOpsActor) {
     await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'event cancellation or postponement', eventId);
-    return this.prisma.$transaction(async (tx) => {
-      if (input.idempotencyKey) {
-        const replay = await tx.opsEventDecision.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
-        if (replay) {
-          if (replay.eventId !== eventId) throw new BadRequestException('Decision idempotency key belongs to another event');
-          return replay;
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        if (input.idempotencyKey) {
+          const replay = await tx.opsEventDecision.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
+          if (replay) return this.requireMatchingReplay(replay, eventId, input, tx);
         }
+        const event = await this.requireEvent(eventId, tx);
+        const priorState = this.validateEventState(event.status, event.eventDate, input);
+        const impacts = await this.loadImpacts(tx, eventId, input, event.eventDate, priorState.nextDate, actor);
+        const decision = await this.createDecision(tx, eventId, input, actor, priorState, impacts.assignmentImpact);
+        await this.applyTransition(tx, eventId, input, impacts, priorState.nextDate);
+        await this.queueNotification(tx, event, eventId, input, decision.id);
+        await this.recordAudit(tx, eventId, input, actor, decision.id, priorState, impacts);
+        return decision;
+      }, { isolationLevel: 'Serializable' });
+    } catch (error) {
+      if (!input.idempotencyKey || !this.isIdempotencyRace(error)) throw error;
+      const replay = await this.prisma.opsEventDecision.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
+      if (!replay) throw error;
+      return this.requireMatchingReplay(replay, eventId, input);
+    }
+  }
+
+  private async requireMatchingReplay(
+    replay: OpsEventDecision,
+    eventId: string,
+    input: EventDecisionInput,
+    prisma: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    if (replay.eventId !== eventId) throw new BadRequestException('Decision idempotency key belongs to another event');
+    const impact = replay.financialImpact;
+    const storedImpact = impact && typeof impact === 'object' && !Array.isArray(impact) ? impact : {};
+    const hasStoredNewEventDate = Object.prototype.hasOwnProperty.call(storedImpact, 'newEventDate');
+    let targetDateMatches = (storedImpact.newEventDate ?? null) === (input.newEventDate ?? null);
+    if (!hasStoredNewEventDate) {
+      const assignmentImpact = replay.assignmentImpact;
+      const storedAssignmentImpact = assignmentImpact && typeof assignmentImpact === 'object' && !Array.isArray(assignmentImpact)
+        ? assignmentImpact
+        : {};
+      const reschedule = storedAssignmentImpact.reschedule;
+      const storedReschedule = reschedule && typeof reschedule === 'object' && !Array.isArray(reschedule) ? reschedule : {};
+      const storedTarget = storedReschedule.toDate;
+      if (typeof storedTarget === 'string') {
+        targetDateMatches = Boolean(input.newEventDate && this.sameEventDate(input.newEventDate, storedTarget));
+      } else if (replay.decision === 'postponed' && input.newEventDate) {
+        // Legacy records did not persist the requested date in financialImpact.
+        // Use the persisted reschedule impact when present; otherwise current event
+        // state is the only available proof and may reject a replay after later changes.
+        const currentEvent = await prisma.opsEvent.findUnique({ where: { id: eventId }, select: { eventDate: true } });
+        targetDateMatches = Boolean(currentEvent && this.sameEventDate(input.newEventDate, currentEvent.eventDate));
+      } else {
+        targetDateMatches = !input.newEventDate;
       }
-      const event = await this.requireEvent(eventId, tx);
-      const priorState = this.validateEventState(event.status, event.eventDate, input);
-      const impacts = await this.loadImpacts(tx, eventId, input, event.eventDate, priorState.nextDate, actor);
-      const decision = await this.createDecision(tx, eventId, input, actor, priorState, impacts.assignmentImpact);
-      await this.applyTransition(tx, eventId, input, impacts, priorState.nextDate);
-      await this.queueNotification(tx, event, eventId, input, decision.id);
-      await this.recordAudit(tx, eventId, input, actor, decision.id, priorState, impacts);
-      return decision;
-    }, { isolationLevel: 'Serializable' });
+    }
+    const samePayload = replay.decision === input.decision
+      && replay.reason === input.reason
+      && replay.supplierImpact === input.supplierImpact
+      && storedImpact.cancellationFeeAmount === input.cancellationFeeAmount
+      && storedImpact.depositTreatment === input.depositTreatment
+      && targetDateMatches;
+    if (!samePayload) throw new BadRequestException('Decision idempotency key was reused for different content');
+    return replay;
+  }
+
+  private sameEventDate(requestedDate: string, storedDate: Date | string): boolean {
+    const requested = new Date(requestedDate);
+    const stored = storedDate instanceof Date ? storedDate : new Date(storedDate);
+    return !Number.isNaN(requested.getTime()) && !Number.isNaN(stored.getTime()) && requested.getTime() === stored.getTime();
+  }
+
+  private isIdempotencyRace(error: unknown): boolean {
+    if (!error || typeof error !== 'object' || !('code' in error)) return false;
+    return error.code === 'P2002' || error.code === 'P2034';
   }
 
   private validateEventState(status: string, eventDate: Date, input: EventDecisionInput) {
@@ -93,7 +149,7 @@ export class EventDecisionService {
     return tx.opsEventDecision.create({ data: {
       id: `decision_${randomUUID()}`, eventId, decision: input.decision, reason: input.reason,
       actorId: actor.id ?? actor.name, actorRole: actor.role, actorName: actor.name, actorEmail: actor.email ?? null,
-      priorState: toPrismaJson(priorState), financialImpact: toPrismaJson({ cancellationFeeAmount: input.cancellationFeeAmount, depositTreatment: input.depositTreatment, status: 'recorded_for_review' }),
+      priorState: toPrismaJson(priorState), financialImpact: toPrismaJson({ cancellationFeeAmount: input.cancellationFeeAmount, depositTreatment: input.depositTreatment, newEventDate: input.newEventDate ?? null, status: 'recorded_for_review' }),
       assignmentImpact: toPrismaJson(assignmentImpact), supplierImpact: input.supplierImpact, idempotencyKey: input.idempotencyKey ?? null,
     } });
   }

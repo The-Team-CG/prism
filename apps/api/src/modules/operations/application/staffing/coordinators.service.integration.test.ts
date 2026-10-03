@@ -252,6 +252,39 @@ databaseSuite('CoordinatorsService PostgreSQL concurrency invariants', () => {
     }
   });
 
+  it('replays a replacement with one event-day log', async () => {
+    const fixture = await createFixture(prisma, 1, 2);
+    try {
+      const outgoing = await prisma.opsCoordinatorAssignment.create({
+        data: {
+          id: `${fixture.eventIds[0]}_logged_outgoing`,
+          eventId: fixture.eventIds[0],
+          coordinatorId: fixture.coordinatorIds[0],
+          coordinatorName: 'logged outgoing coordinator',
+          role: 'Floor Director',
+          status: CoordinatorAssignmentStatus.Acknowledged,
+          eventDate: new Date('2031-03-17T09:00:00.000Z'),
+        },
+      });
+      const input = {
+        replacementCoordinatorId: fixture.coordinatorIds[1],
+        replacementRole: 'Floor Director',
+        reason: 'Replay-safe event-day logging',
+      } as const;
+
+      const first = await liveOperations.replaceCoordinatorAssignment(fixture.eventIds[0], outgoing.id, input, pmcmActor);
+      const replay = await liveOperations.replaceCoordinatorAssignment(fixture.eventIds[0], outgoing.id, input, pmcmActor);
+      const logs = await prisma.opsEventDayLog.findMany({
+        where: { eventId: fixture.eventIds[0], actionType: 'coordinator_replaced', relatedId: outgoing.id },
+      });
+
+      expect(replay.replacementAssignment.id).toBe(first.replacementAssignment.id);
+      expect(logs).toHaveLength(1);
+    } finally {
+      await cleanupFixture(prisma, fixture);
+    }
+  });
+
   it('rolls back Operations assignment cancellation when the lifecycle transaction fails later', async () => {
     const fixture = await createFixture(prisma, 1, 1);
     const assignmentId = `${fixture.eventIds[0]}_rollback_assignment`;
@@ -320,6 +353,32 @@ databaseSuite('CoordinatorsService PostgreSQL concurrency invariants', () => {
       const assignments = await prisma.opsCoordinatorAssignment.findMany({ where: { eventId: fixture.eventIds[0] } });
       expect(assignments).toHaveLength(1);
       expect(assignments[0].status).toBe(CoordinatorAssignmentStatus.Cancelled);
+    } finally {
+      await cleanupFixture(prisma, fixture);
+    }
+  });
+
+  it('replays one cancellation when same-key decision requests race', async () => {
+    const fixture = await createFixture(prisma, 1, 1);
+    try {
+      const eventDecisions = new EventDecisionService(prisma, new EventAccessPolicyService(auditWriter), auditWriter, notificationWriter, coordinators);
+      const input = {
+        decision: 'cancelled',
+        reason: 'Concurrent idempotent cancellation test',
+        cancellationFeeAmount: 0,
+        depositTreatment: 'pending_review',
+        supplierImpact: 'pending_review',
+        idempotencyKey: `${fixture.eventIds[0]}_cancel_race`,
+      } as const;
+
+      const results = await Promise.all([
+        eventDecisions.decide(fixture.eventIds[0], input, pmcmActor),
+        eventDecisions.decide(fixture.eventIds[0], input, pmcmActor),
+      ]);
+
+      expect(results[0].id).toBe(results[1].id);
+      expect(await prisma.opsEventDecision.count({ where: { eventId: fixture.eventIds[0] } })).toBe(1);
+      expect(await prisma.opsNotificationLog.count({ where: { eventId: fixture.eventIds[0] } })).toBe(1);
     } finally {
       await cleanupFixture(prisma, fixture);
     }
