@@ -59,8 +59,12 @@ function createSupplierWorkspaceService() {
     },
   ];
   const quotes = [
-    { id: 'quote_visible', eventId: 'evt_visible', supplierId: 'sup_sonicline' },
-    { id: 'quote_archived', eventId: 'evt_archived', supplierId: 'sup_sonicline' },
+    { id: 'quote_visible', eventId: 'evt_visible', supplierId: 'sup_sonicline',
+      createdAt: new Date('2026-05-01T00:00:00.000Z'),
+    },
+    { id: 'quote_archived', eventId: 'evt_archived', supplierId: 'sup_sonicline',
+      createdAt: new Date('2026-05-01T00:00:00.000Z'),
+    },
   ];
   const prisma = {
     opsSupplierQuoteRequest: {
@@ -106,7 +110,9 @@ function createSupplierWorkspaceService() {
       certifications: [],
     },
   ];
-  (prisma as any).opsSupplier = { findMany: vi.fn(async () => supplierRows) };
+  (prisma as any).opsSupplier = { findMany: vi.fn(async () => supplierRows),
+    findFirst: vi.fn(async () => supplierRows[0]),
+  };
   (prisma as any).opsSupplierReview = { groupBy: vi.fn(async () => []) };
   const guestReader = createGuestReader();
   const staffingReader = createStaffingReader();
@@ -348,7 +354,10 @@ describe('EventReadModelsService', () => {
       paymentMilestones: [],
     };
     const queries = {
-      visibleEvents: vi.fn(async () => [event]),
+      visibleEvents: vi.fn(async () => ({
+        items: [event],
+        pagination: { nextCursor: null, hasMore: false, totalCount: 1 },
+      })),
       clientWorkspaceForEvents: vi.fn(async () => [
         [], [], [], [], [], [], [],
         [{
@@ -820,6 +829,7 @@ describe('EventReadModelsService', () => {
     const prisma = {
       opsEvent: {
         findMany: vi.fn(async () => [eventVisible, eventOtherClient]),
+        count: vi.fn(async () => 2),
       },
       opsBriefing: { findMany: vi.fn(async () => []) },
       opsDocument: { findMany: vi.fn(async () => []) },
@@ -834,6 +844,7 @@ describe('EventReadModelsService', () => {
             amount: 25000,
             status: 'pending',
             dueDate: new Date('2026-01-01T00:00:00.000Z'),
+            createdAt: new Date('2025-12-01T00:00:00.000Z'),
           },
           {
             id: 'pay_hidden',
@@ -842,6 +853,7 @@ describe('EventReadModelsService', () => {
             amount: 25000,
             status: 'pending',
             dueDate: new Date('2026-01-01T00:00:00.000Z'),
+            createdAt: new Date('2025-12-01T00:00:00.000Z'),
           },
         ]),
       },
@@ -860,7 +872,7 @@ describe('EventReadModelsService', () => {
     expect(actionCenter.items.map((item) => item.eventId)).not.toContain('evt_other_client');
     expect(prisma.opsPaymentMilestone.findMany).toHaveBeenCalledWith({
       where: { eventId: { in: ['evt_visible'] } },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      orderBy: { id: 'asc' },
       take: 500,
     });
   });
@@ -971,7 +983,10 @@ describe('EventReadModelsService', () => {
       },
     ];
     const queries = {
-      visibleEvents: vi.fn(async () => [readyEvent, pendingEvent, completedEvent, hiddenEvent]),
+      visibleEvents: vi.fn(async () => ({
+        items: [readyEvent, pendingEvent, completedEvent, hiddenEvent],
+        pagination: { nextCursor: null, hasMore: false, totalCount: 4 },
+      })),
       clientWorkspaceForEvents: vi.fn(async () => [
         [],
         [],
@@ -1055,7 +1070,11 @@ describe('EventReadModelsService', () => {
   });
 
   it('returns an empty client timeline collection when no events are visible', async () => {
-    const queries = { visibleEvents: vi.fn(async () => []) };
+    const queries = { visibleEvents: vi.fn(async () => ({
+        items: [],
+        pagination: { nextCursor: null, hasMore: false, totalCount: 0 },
+      })),
+    };
     const policy = new EventAccessPolicyService(
       { write: vi.fn() } as unknown as ConstructorParameters<typeof EventAccessPolicyService>[0],
     );
