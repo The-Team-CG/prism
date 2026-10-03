@@ -1,16 +1,18 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import type { OpsApprovalRequest, OpsUser } from '@prisma/client';
 import { PRISM_PRIVACY_NOTICE_VERSION, type PrismUser, type RequestApprovalInput } from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
 import { writeAudit, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
-import { AuthSessionService } from '@prism/kernel/event-session';
+import { AuthSessionService, type VerifiedTwoFactorToken } from '@prism/kernel/event-session';
 import { AuthSecurityService } from './auth-security.service';
 import { TotpService } from './totp.service';
 import { INQUIRY_COMMANDS } from '../../../event-lifecycle/contracts/inquiry-onboarding.tokens';
@@ -25,6 +27,10 @@ type VerifiedIdentityAdmin = ResolvedEventOpsActor & {
 
 function timestamp(value: Date) {
   return value.toISOString();
+}
+
+function isPrismaSerializationFailure(error: unknown) {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2034';
 }
 
 @Injectable()
@@ -129,7 +135,7 @@ export class AuthOperationsService {
       return {
         kind: updated.twoFactorSecret ? 'two_factor_required' : 'two_factor_setup_required',
         token: this.authSessionService.issueTwoFactorToken(
-          { userId: updated.id, email: updated.email, role: 'pmcm-admin' },
+          { userId: updated.id, email: updated.email, role: 'pmcm-admin', sessionVersion: updated.sessionVersion },
           updated.twoFactorSecret ? 'challenge' : 'setup',
         ),
       };
@@ -191,10 +197,22 @@ export class AuthOperationsService {
     return this.authSessionService.issueSession(this.mapUser(updated), new Date());
   }
 
-  private async findTwoFactorUser(verifiedToken: { userId: string; email: string; role: 'pmcm-admin' }) {
+  private async findTwoFactorUser(verifiedToken: VerifiedTwoFactorToken) {
     const user = await this.prisma.opsUser.findUnique({ where: { id: verifiedToken.userId } });
-    if (!user || user.email !== verifiedToken.email || user.role !== OpsUserRole.PmcmAdmin) {
+    if (
+      !user ||
+      user.email.trim().toLowerCase() !== verifiedToken.email.trim().toLowerCase() ||
+      user.role !== OpsUserRole.PmcmAdmin ||
+      user.sessionVersion !== verifiedToken.sessionVersion
+    ) {
       throw new UnauthorizedException('Invalid two-factor token');
+    }
+    if (
+      user.approvalStatus !== 'approved' ||
+      user.permanentLockout ||
+      Boolean(user.lockedUntil && user.lockedUntil > new Date())
+    ) {
+      throw new ForbiddenException('This account is not eligible to complete two-factor authentication');
     }
     return user as OpsUser & { twoFactorSecret?: string | null };
   }
@@ -258,31 +276,63 @@ export class AuthOperationsService {
   }
 
   private async updateApprovalRequest(requestId: string, status: 'approved' | 'declined', actor: VerifiedIdentityAdmin) {
-    const request = await this.prisma.opsApprovalRequest.findUnique({ where: { id: requestId } });
-    if (!request) throw new NotFoundException('Approval request not found');
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        return await this.prisma.$transaction(async (tx) => {
+          const request = await tx.opsApprovalRequest.findUnique({ where: { id: requestId } });
+          if (!request) throw new NotFoundException('Approval request not found');
 
-    await this.prisma.opsUser.update({
-      where: { id: request.userId },
-      data: { approvalStatus: status },
-    });
+          const user = await tx.opsUser.findUnique({ where: { id: request.userId } });
+          if (!user) throw new NotFoundException('Approval request account not found');
 
-    const saved = await this.prisma.opsApprovalRequest.update({
-      where: { id: requestId },
-      data: { status },
-    });
+          const authorityChanged = user.approvalStatus !== status;
+          if (!authorityChanged && request.status === status) return this.mapApprovalRequest(request);
 
-    await writeAudit(this.authAudit, undefined, actor.name, `${status === 'approved' ? 'Approved' : 'Declined'} account access for ${request.email}`, {
-      actorRole: actor.role,
-      actorEmail: actor.email,
-      actionType: status === 'approved' ? AuditActionType.Approve : AuditActionType.Decline,
-      category: AuditCategory.Access,
-      affectedType: 'approval_request',
-      affectedId: request.id,
-      affectedLabel: request.email,
-      metadata: { actorId: actor.id },
-    });
+          const savedUser = authorityChanged
+            ? await tx.opsUser.update({
+                where: { id: user.id },
+                data: { approvalStatus: status, sessionVersion: { increment: 1 } },
+              })
+            : user;
+          const saved = request.status === status
+            ? request
+            : await tx.opsApprovalRequest.update({ where: { id: requestId }, data: { status } });
 
-    return this.mapApprovalRequest(saved);
+          await writeAudit(
+            this.authAudit,
+            undefined,
+            actor.name,
+            `${status === 'approved' ? 'Approved' : 'Declined'} account access for ${request.email}`,
+            {
+              actorRole: actor.role,
+              actorEmail: actor.email,
+              actionType: status === 'approved' ? AuditActionType.Approve : AuditActionType.Decline,
+              category: AuditCategory.Access,
+              affectedType: 'approval_request',
+              affectedId: request.id,
+              affectedLabel: request.email,
+              metadata: {
+                actorId: actor.id,
+                previousApprovalStatus: user.approvalStatus,
+                approvalStatus: status,
+                sessionVersion: savedUser.sessionVersion,
+                sessionVersionIncremented: authorityChanged,
+              },
+            },
+            { prisma: tx, correlationId: request.id, actorId: actor.id },
+          );
+
+          return this.mapApprovalRequest(saved);
+        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      } catch (error) {
+        if (!isPrismaSerializationFailure(error)) throw error;
+        if (attempt === 2) {
+          throw new ConflictException('Account approval changed concurrently; reload before retrying');
+        }
+      }
+    }
+
+    throw new ConflictException('Account approval could not be completed; reload before retrying');
   }
 
   private requireVerifiedIdentityAdmin(actor: ResolvedEventOpsActor | undefined): VerifiedIdentityAdmin {

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { OpsUser } from '@prisma/client';
 import { AuditService, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import type { AuditWriteInput } from '@prism/kernel/access-control';
+import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type { AuthAuditPort } from '../../contracts/auth-audit.port';
 
 /** Composition adapter keeps platform trust implementation out of identity application code. */
@@ -12,9 +13,9 @@ export class AuthAuditAdapter implements AuthAuditPort {
     private readonly securityOperationsService: SecurityOperationsService,
   ) {}
 
-  write(input: AuditWriteInput) {
+  write(input: AuditWriteInput, context?: PrismTransactionContext) {
     const { eventId, actor, action, ...options } = input;
-    return this.auditService.audit(eventId, actor, action, options);
+    return this.auditService.audit(eventId, actor, action, options, context);
   }
 
   recordAuthenticationAudit(input: AuditWriteInput) {
