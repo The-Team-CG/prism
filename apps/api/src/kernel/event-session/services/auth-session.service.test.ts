@@ -52,7 +52,7 @@ describe('AuthSessionService', () => {
   it('issues scoped, short-lived PMCM Admin two-factor tokens', () => {
     const service = createService();
     const token = service.issueTwoFactorToken(
-      { userId: 'user_pmcm', email: 'mys@pmcm.test', role: 'pmcm-admin' },
+      { userId: 'user_pmcm', email: 'mys@pmcm.test', role: 'pmcm-admin', challengeId: 'c'.repeat(43), sessionVersion: 7 },
       'challenge',
     );
 
@@ -61,7 +61,8 @@ describe('AuthSessionService', () => {
       email: 'mys@pmcm.test',
       role: 'pmcm-admin',
       purpose: 'challenge',
-      sessionVersion: 0,
+      challengeId: 'c'.repeat(43),
+      sessionVersion: 7,
     });
   });
 });
