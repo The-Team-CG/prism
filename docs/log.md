@@ -2,6 +2,7 @@
 
 ## 2026-10-03
 
+- **Hardened:** Runtime and migration database URL precedence now share one parser; Node PostgreSQL clients verify hosted certificates, custom CA trust is explicit, non-TLS is loopback-only, and the database runbook documents the policy.
 - **Corrected:** Historical coordinator event access now stays read-only in portal controls and API mutation authorization while preserving scoped reads and switching back to current events. The ledger records the boundary and regression evidence, including registration verification rechecking archive status under the event lock.
 
 - **Promoted:** Approved coordinator role, advisory skill-matching, manual reassignment, timed follow-up and registration-scope decisions into the canonical feature ledger with PR #105–#121 traceability and scoped behavior evidence. Broader family states remain partial.
