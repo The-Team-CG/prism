@@ -29,6 +29,9 @@ sources:
   - id: approved-model-ownership
     resource: "apps/api/prisma/domain-ownership.json"
     title: "Complete model ownership and target-schema inventory"
+  - id: external-reference-policy
+    resource: "apps/api/prisma/domain-reference-policy.json"
+    title: "Cross-domain foreign-key and scalar-reference behavior inventory"
 ---
 # P.R.I.S.M context contracts
 
@@ -80,6 +83,18 @@ current transitional writes separately.
 | operations | modules/operations/index.ts | Coordinator pool, availability, coverage, assignments, attendance, replacement, cancellation, acknowledgments, reliability, and guest operations | Validate and apply staffing and guest changes through Operations-owned commands. |
 | platform-ops | modules/platform-ops/index.ts | Trust, audit, notifications, privacy coordination, and AI governance | Expose narrow audit/notification/governance seams; receipt persistence uses the kernel technical port. |
 | read-models | modules/read-models/index.ts | Authorized, role-scoped read composition | Combine approved reads and map shared interfaces; never write business state. |
+
+## External-reference lifecycle
+
+Cross-domain identifiers are scalar references in the target model. For a
+command that depends on current target state, the target owner validates the
+reference and same-event agreement in the command transaction. The initiating
+context still authorizes its actor. Historical attribution is retained without
+becoming current authorization. See the [external-reference lifecycle
+register](external-reference-lifecycle.md) and the machine policy at
+apps/api/prisma/domain-reference-policy.json. The inventory covers 45 current
+cross-domain foreign keys and 28 additional scalar references; no FK removal
+is implied.
 
 ## Technical kernel surfaces
 
