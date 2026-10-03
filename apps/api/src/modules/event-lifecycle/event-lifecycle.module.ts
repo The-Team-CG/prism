@@ -47,7 +47,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
  * documents owned by this and other contexts. Kept as four sub-areas
  * (`onboarding`, `compliance`, `closure`, `files`) under one context.
  *
- * Owned tables: OpsBriefing, OpsDocument (inquiry/onboarding document kinds),
+ * Owned tables: OpsBriefing, OpsDocument (all document kinds),
  * OpsEvent, OpsInquiry, OpsPostEventDocument, OpsEventWrapUp,
  * OpsComplianceCheck, OpsComplianceRule, and OpsEventInsight. Transitional onboarding writes
  * create the initial OpsBillingSource, OpsBillingStatement, and

@@ -1,5 +1,9 @@
 # Documentation bundle update log
 
+## 2026-10-04
+
+- **Corrected:** Lifecycle is now the sole production owner of `OpsDocument` metadata registration. Commercial supplier contracts and billing statements use the transaction-aware `DOCUMENT_VAULT`; billing-source evidence and client proposal review validate event, kind, and status through the owner capability. Document metadata remains retained and redaction disabled while PMCM document-retention policy is pending.
+
 ## 2026-10-03
 
 - **Corrected:** Historical coordinator event access now stays read-only in portal controls and API mutation authorization while preserving scoped reads and switching back to current events. The ledger records the boundary and regression evidence, including registration verification rechecking archive status under the event lock.
