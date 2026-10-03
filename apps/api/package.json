@@ -16,6 +16,7 @@
         "smoke": "node scripts/smoke-api.mjs",
         "db:seed:fixtures": "npm run build && node --env-file=.env scripts/seed-local-fixtures.mjs",
         "test:fixtures:seed": "node --test scripts/seed-local-fixtures.test.mjs",
+        "test:db:connection": "node --test scripts/db-connection-config.test.mjs",
         "db:doctor": "node --env-file=.env scripts/db-doctor.mjs",
         "db:doctor:runtime": "node --env-file=.env scripts/db-doctor.mjs --mode=runtime",
         "db:status": "npm run db:doctor && prisma migrate status",
