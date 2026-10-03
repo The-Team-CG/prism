@@ -258,105 +258,49 @@ describe('LiveOpsTaskIssueCommandService - Urgent Issues & Attribution Security'
 });
 
 describe('CoordinatorLiveOpsCommandService', () => {
-  it('uses the verified actor for coordinator attendance attribution', async () => {
-    const existing = {
-      id: 'coord_asg_test_1',
-      eventId: 'evt_001',
-      coordinatorId: 'coord_1',
-      coordinatorName: 'Alex Coordinator',
-      role: 'Registration Staff',
-      attendanceStatus: 'pending',
+  const actor = { id: 'usr_admin', name: 'Anthony Admin', email: 'anthony@pmcm.test', role: 'pmcm-admin', explicit: true } as const;
+  const assignment = {
+    id: 'coord_asg_test_1', eventId: 'evt_001', coordinatorId: 'coord_1', coordinatorName: 'Alex Coordinator',
+    role: 'Registration Staff', status: 'acknowledged', attendanceStatus: 'late', attendanceNotes: 'Checked in at registration.',
+    doubleBookingWarning: false,
+  };
+
+  it('delegates attendance ownership and logs only a newly applied status', async () => {
+    const createLog = vi.fn(async () => ({ id: 'log_3' }));
+    const prisma = { opsEventDayLog: { create: createLog } };
+    const staffingCommands = {
+      updateCoordinatorAttendance: vi.fn(async () => ({ assignment, changed: true })),
     };
-    const mockPrisma = {
-      opsCoordinatorAssignment: {
-        findUnique: vi.fn(async () => existing),
-        update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ ...existing, ...data })),
-      },
-      opsCoordinatorReliabilityNote: {
-        create: vi.fn(async () => ({ id: 'reliability_1' })),
-      },
-      opsEventDayLog: {
-        create: vi.fn(async () => ({ id: 'log_3' })),
-      },
-    };
-    const mockAuditWriter = {
-      write: vi.fn(async () => undefined),
-    };
-    const mockReliabilityWriter = {
-      record: vi.fn(async () => undefined),
-    };
-    const service = new CoordinatorLiveOpsCommandService(
-      mockPrisma as unknown as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[0],
-      mockAuditWriter as unknown as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[1],
-      mockNotificationOutboxWriter as unknown as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[2],
-      mockWorkflowCommandService as unknown as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[3],
-      mockReliabilityWriter as unknown as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[4],
+    const service = new CoordinatorLiveOpsCommandService(prisma as never, staffingCommands as never);
+    const input = { status: 'late', notes: 'Checked in at registration.' };
+
+    const result = await service.updateCoordinatorAttendance('evt_001', assignment.id, input, actor, { allowAnotherAssignment: true });
+
+    expect(result).toEqual(assignment);
+    expect(staffingCommands.updateCoordinatorAttendance).toHaveBeenCalledWith(
+      'evt_001', assignment.id, input, actor, { allowAnotherAssignment: true },
     );
-
-    const actor = {
-      id: 'usr_admin',
-      name: 'Anthony Admin',
-      email: 'anthony@pmcm.test',
-      role: 'pmcm-admin',
-    };
-    const input = { status: 'late', notes: 'Checked in at registration.', markedBy: 'Spoofed Operator' };
-
-    await service.updateCoordinatorAttendance('evt_001', existing.id, input, actor);
-
-    expect(mockReliabilityWriter.record).toHaveBeenCalledWith(expect.objectContaining({
-      eventId: 'evt_001',
-      coordinatorId: 'coord_1',
-      assignmentId: existing.id,
-      note: 'Alex Coordinator marked late: Checked in at registration.',
-      severity: 'warning',
+    expect(createLog).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ actionType: 'coordinator_status_updated', relatedId: assignment.id, actor: actor.name }),
     }));
-
-    expect(mockAuditWriter.write).toHaveBeenCalledWith(
-      expect.objectContaining({
-        eventId: 'evt_001',
-        actor: 'Anthony Admin',
-        action: 'Updated coordinator attendance: Alex Coordinator',
-        metadata: { status: 'late', notes: 'Checked in at registration.', markedBy: 'Anthony Admin' },
-      }),
-      undefined,
-    );
-    expect(mockAuditWriter.write).not.toHaveBeenCalledWith(
-      expect.objectContaining({ metadata: expect.objectContaining({ markedBy: 'Spoofed Operator' }) }),
-      undefined,
-    );
   });
 
-  it('locks and rechecks the replacement coordinator before creating an assignment', async () => {
-    const order: string[] = [];
-    const event = { id: 'evt_001', eventName: 'Main Event', eventDate: new Date('2026-06-18T00:00:00.000Z') };
-    const current = { id: 'assignment_1', eventId: event.id, coordinatorId: 'coord_old', coordinatorName: 'Old', role: 'Registration Staff', eventDate: event.eventDate };
-    const conflict = { event: { eventName: 'Other Event' } };
-    const tx = {
-      $executeRaw: vi.fn(async () => { order.push('lock'); return 0; }),
-      opsCoordinatorAssignment: {
-        findFirst: vi.fn(async () => { order.push('conflict-check'); return conflict; }),
-        create: vi.fn(),
-        update: vi.fn(),
-      },
-    };
-    const prisma = {
-      opsEvent: { findUnique: vi.fn(async () => event) },
-      opsCoordinatorAssignment: { findUnique: vi.fn(async () => current) },
-      opsCoordinator: { findUnique: vi.fn(async () => ({ id: 'coord_new', name: 'New', active: true, roleTags: ['Registration Staff'] })) },
-      $transaction: vi.fn(async (callback: (value: typeof tx) => Promise<unknown>) => callback(tx)),
-    };
-    const service = new CoordinatorLiveOpsCommandService(
-      prisma as unknown as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[0],
-      {} as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[1],
-      {} as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[2],
-      mockWorkflowCommandService as unknown as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[3],
-      { record: vi.fn(async () => undefined) } as unknown as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[4],
-    );
+  it('delegates replacement and preserves the event-day replacement log', async () => {
+    const createLog = vi.fn(async () => ({ id: 'log_4' }));
+    const prisma = { opsEventDayLog: { create: createLog } };
+    const outgoing = { ...assignment, status: 'replaced' };
+    const incoming = { ...assignment, id: 'coord_asg_new', coordinatorName: 'New Coordinator', coordinatorId: 'coord_2' };
+    const staffingCommands = { replaceCoordinator: vi.fn(async () => ({ outgoing, incoming })) };
+    const service = new CoordinatorLiveOpsCommandService(prisma as never, staffingCommands as never);
+    const input = { replacementCoordinatorId: 'coord_2', role: 'Registration Staff', reason: 'Coverage change' } as const;
 
-    await expect(service.replaceCoordinatorAssignment(event.id, current.id, {
-      replacementCoordinatorId: 'coord_new', role: 'Registration Staff', reason: 'Coverage change',
-    }, { name: 'Coordinator', role: 'coordinator' })).rejects.toThrow('already assigned to Other Event');
-    expect(order).toEqual(['lock', 'conflict-check']);
-    expect(tx.opsCoordinatorAssignment.create).not.toHaveBeenCalled();
+    await expect(service.replaceCoordinatorAssignment('evt_001', assignment.id, input, actor)).resolves.toEqual({
+      replacedAssignment: outgoing,
+      replacementAssignment: incoming,
+    });
+    expect(staffingCommands.replaceCoordinator).toHaveBeenCalledWith('evt_001', assignment.id, input, actor);
+    expect(createLog).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ actionType: 'coordinator_replaced', relatedId: assignment.id }),
+    }));
   });
 });

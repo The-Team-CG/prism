@@ -1,25 +1,9 @@
+import type { UploadMetadataInput } from '@prism/types';
+import type { UploadValidationOptions, ValidatedUploadMetadata } from '@prism/kernel/shared';
+
 export const DOCUMENT_VAULT = Symbol('DOCUMENT_VAULT');
 
-export type UploadMetadataInput = {
-  fileName: string;
-  mimeType?: string;
-  sizeBytes?: number;
-};
-
-export type ValidatedUploadMetadata = {
-  originalFileName: string;
-  generatedFileName: string;
-  mimeType: string;
-  sizeBytes: number;
-  storageBucket: string;
-  storageKey: string;
-  validationStatus: 'accepted';
-};
-
-export type UploadValidationOptions = {
-  maxSizeBytes?: number;
-  allowedMimeTypes?: readonly string[];
-};
+export type { UploadMetadataInput, UploadValidationOptions, ValidatedUploadMetadata };
 
 export interface DocumentVault {
   validateUploadMetadata(
