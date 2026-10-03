@@ -50,12 +50,9 @@ export class FloorPlanReviewService {
       });
       if (updated.count === 0) throw new BadRequestException('Floorplan draft is no longer in review');
 
-      await tx.opsEvent.update({
-        where: { id: eventId },
-        data: {
-          floorPlanStatus: 'revision_requested',
-          readiness: 'Floorplan revision requested by client',
-        },
+      await this.floorPlanWorkflowService.projectLifecycleState(tx, eventId, {
+        floorPlanStatus: 'revision_requested',
+        readiness: 'Floorplan revision requested by client',
       });
 
       const saved = await tx.opsFloorPlanDraft.findUnique({ where: { id: draftId } });

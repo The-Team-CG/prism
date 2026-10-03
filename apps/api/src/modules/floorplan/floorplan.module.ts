@@ -4,6 +4,7 @@ import { AccessControlModule } from '@prism/kernel/access-control';
 import { EventCoreModule } from '@prism/kernel/event-core';
 import { IdentityAccessModule } from '../identity-access/identity-access.module';
 import { EventSessionModule } from '@prism/kernel/event-session';
+import { EventLifecycleProjectionModule } from '@prism/contexts/event-lifecycle';
 import { PlatformOpsModule } from '../platform-ops/platform-ops.module';
 import { OpsEventFloorplansController } from './api/live/event-floorplans.controller';
 import { EventFloorPlanReviewController } from './api/live/event-floorplan-review.controller';
@@ -28,12 +29,13 @@ import { TemplatesService } from './application/authoring/templates.service';
  * stage; kept as two sub-areas under one context rather than two libraries.
  *
  * Owned tables: FloorPlan, FloorPlanObject, OpsFloorPlanDraft, EventInstance,
- * PublishedSnapshot, VenueTemplate, OpsEvent (floorplan-status fields only;
- * primary event lifecycle owned by inquiry-onboarding).
- * Read-only: none.
+ * OpsFloorPlanProjectionClock, PublishedSnapshot, VenueTemplate.
+ * Read-only: OpsEvent. Floorplan status and readiness changes are sent through
+ * Lifecycle's version-checked projection capability; the event row remains
+ * Lifecycle-owned and no cross-domain FK is introduced for the projection clock.
  */
 @Module({
-  imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, IdentityAccessModule, EventSessionModule],
+  imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, IdentityAccessModule, EventSessionModule, EventLifecycleProjectionModule],
   controllers: [OpsEventFloorplansController, EventFloorPlanReviewController, LayoutEventsController, PlansController, PublishController, TemplatesController],
   providers: [
     FloorPlanWorkflowService,
