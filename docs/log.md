@@ -1,5 +1,9 @@
 # Documentation bundle update log
 
+## 2026-10-04
+
+- **Implemented:** Floorplan now updates its own draft state and sends a per-event versioned projection through Lifecycle's compare-and-set capability in the same transaction. Added the floorplan-owned projection clock without a cross-domain FK, synchronized the ownership inventory (92 tables / 1,163 columns), and recorded stale-projection and concurrent-transition behavior tests.
+
 ## 2026-10-03
 
 - **Corrected:** Historical coordinator event access now stays read-only in portal controls and API mutation authorization while preserving scoped reads and switching back to current events. The ledger records the boundary and regression evidence, including registration verification rechecking archive status under the event lock.
