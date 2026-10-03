@@ -43,7 +43,7 @@ describe.skipIf(!databaseUrl)('privacy execution against PostgreSQL', () => {
   afterEach(async () => {
     vi.restoreAllMocks();
     if (!prisma) return;
-    await prisma.opsAuditLog.deleteMany({ where: { affectedId: { in: requestIds } } });
+    // Audit rows are hash-linked global history; retain them until the disposable suite database is discarded.
     await prisma.opsPrivacyRequest.deleteMany({ where: { id: { in: requestIds } } });
     await prisma.opsInquiry.deleteMany({ where: { id: { in: inquiryIds } } });
     await prisma.opsSupplierApplication.deleteMany({ where: { id: { in: applicationIds } } });
