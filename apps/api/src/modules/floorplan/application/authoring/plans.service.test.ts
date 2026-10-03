@@ -147,6 +147,18 @@ describe('PlansService floorplan permissions and versioning', () => {
     }));
   });
 
+  it('blocks a different verified client with the same display name from updating a preference', async () => {
+    const { service, prisma, audit } = createService(draft('client_submitted'));
+
+    await expect(
+      service.updatePlan('plan_event_1', changes({ width: 45 }), clientActor('other@example.test')),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+    expect(audit.write).toHaveBeenCalledWith(expect.objectContaining({
+      eventId: 'evt_1',
+      actorEmail: 'other@example.test',
+    }));
+  });
   it('keeps official plan reads on the event-scoped snapshot endpoint', async () => {
     const { service } = createService(draft('in_review', 'Ana Reyes', 'owner@example.test', 'blank'));
 
