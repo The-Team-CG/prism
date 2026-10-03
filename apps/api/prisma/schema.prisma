@@ -123,6 +123,10 @@ model OpsUser {
   lastLoginAt      DateTime? @map("last_login_at")
   twoFactorSecret  String?   @map("two_factor_secret")
   sessionVersion   Int       @default(0) @map("session_version")
+  twoFactorChallengeHash       String?   @unique(map: "users_two_factor_challenge_hash_key") @map("two_factor_challenge_hash")
+  twoFactorChallengeExpiresAt  DateTime? @map("two_factor_challenge_expires_at")
+  twoFactorChallengeAttempts   Int       @default(0) @map("two_factor_challenge_attempts")
+  twoFactorChallengeConsumedAt DateTime? @map("two_factor_challenge_consumed_at")
   createdAt        DateTime  @default(now()) @map("created_at")
 
   loginHistory       OpsLoginHistory[]
