@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { toPrismaJson } from '@prism/kernel/database';
 import type { CanvasObject } from '@prism/kernel/shared';
+import type { CreateFloorPlanDraftInput, UpdatePlanInput } from '@prism/types';
 
 export function setIfDefined(
   data: Record<string, unknown>,
@@ -16,32 +17,23 @@ export function jsonIfDefined(data: Record<string, unknown>, key: string, value:
   setIfDefined(data, key, value, (item) => toPrismaJson(item));
 }
 
-export type FloorPlanPatchInput = {
-  venue?: string;
-  width?: number;
-  height?: number;
-  gridSize?: number;
-  pax?: number;
-  guests?: unknown[];
-  suppliers?: unknown[];
-  seats?: unknown;
-  seatCategories?: unknown;
-  objects?: unknown;
-};
+export type FloorPlanPatchInput =
+  Pick<CreateFloorPlanDraftInput, 'venue' | 'width' | 'height' | 'gridSize' | 'pax' | 'guests' | 'suppliers' | 'objects'>
+  & Pick<UpdatePlanInput, 'seats' | 'seatCategories'>;
 
 export function floorPlanScalarPatch(changes: FloorPlanPatchInput): Prisma.FloorPlanUpdateInput {
-  const data: Record<string, unknown> = {};
-  setIfDefined(data, 'width', changes.width);
-  setIfDefined(data, 'height', changes.height);
-  setIfDefined(data, 'gridSize', changes.gridSize);
-  setIfDefined(data, 'venue', changes.venue);
-  setIfDefined(data, 'pax', changes.pax);
-  jsonIfDefined(data, 'guests', changes.guests);
-  jsonIfDefined(data, 'suppliers', changes.suppliers);
-  jsonIfDefined(data, 'seats', changes.seats);
-  jsonIfDefined(data, 'seatCategories', changes.seatCategories);
-  jsonIfDefined(data, 'objects', changes.objects);
-  return data as Prisma.FloorPlanUpdateInput;
+  const data: Prisma.FloorPlanUpdateInput = {};
+  if (changes.width !== undefined) data.width = changes.width;
+  if (changes.height !== undefined) data.height = changes.height;
+  if (changes.gridSize !== undefined) data.gridSize = changes.gridSize;
+  if (changes.venue !== undefined) data.venue = changes.venue;
+  if (changes.pax !== undefined) data.pax = changes.pax;
+  if (changes.guests !== undefined) data.guests = toPrismaJson(changes.guests);
+  if (changes.suppliers !== undefined) data.suppliers = toPrismaJson(changes.suppliers);
+  if (changes.seats !== undefined) data.seats = toPrismaJson(changes.seats);
+  if (changes.seatCategories !== undefined) data.seatCategories = toPrismaJson(changes.seatCategories);
+  if (changes.objects !== undefined) data.objects = toPrismaJson(changes.objects);
+  return data;
 }
 
 export async function replaceFloorPlanObjects(

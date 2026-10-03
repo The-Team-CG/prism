@@ -10,8 +10,6 @@ function createGuestReader() {
     listCheckInsForEvent: vi.fn(async () => []),
     listFeedbackForEvent: vi.fn(async () => []),
     countPendingFeedbackForEvent: vi.fn(async () => 0),
-    mapGuestCheckIn: vi.fn((checkIn) => checkIn),
-    mapGuestFeedback: vi.fn((feedback) => feedback),
   };
 }
 

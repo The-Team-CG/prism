@@ -89,6 +89,37 @@ function createService() {
 }
 
 describe('FloorPlanWorkflowService', () => {
+  it('validates persisted preference and snapshot JSON before mapping the shared read contract', () => {
+    const { service } = createService();
+    const now = new Date('2026-10-04T00:00:00.000Z');
+
+    const mapped = service.mapFloorPlanDraft({
+      id: 'fpd_1',
+      eventId: 'evt_sample',
+      floorPlanId: 'plan_1',
+      name: 'Official',
+      status: 'approved',
+      isActive: true,
+      sourceType: 'blank',
+      createdByRole: 'pmcm-admin',
+      clientPreference: { seatingStyle: 'banquet', stagePreference: 'center', flowNotes: 'Clear entrance', guestCount: 120, constraints: [] },
+      submittedSnapshot: { id: 'plan_1', name: 'Official', venue: 'Hall A', width: 100, height: 60, gridSize: 10, pax: 120, objects: [] },
+      approvedSnapshot: ['unexpected', 'array'],
+      submittedAt: now,
+      reviewedAt: null,
+      approvedAt: now,
+      submittedSnapshotAt: now,
+      approvedSnapshotAt: now,
+      revisionComment: '',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    expect(mapped.clientPreference).toMatchObject({ seatingStyle: 'banquet', guestCount: 120 });
+    expect(mapped.submittedSnapshot).toMatchObject({ id: 'plan_1', venue: 'Hall A' });
+    expect(mapped).not.toHaveProperty('approvedSnapshot');
+  });
+
   it('blocksOfficialDraftWithoutOcularVisit', async () => {
     const { service, state } = createService();
     state.ocularVisitStatus = null;
@@ -307,8 +338,14 @@ describe('FloorPlanWorkflowService', () => {
       isActive: true,
       sourceType: 'blank',
       createdByRole: 'pmcm-admin',
-      submittedSnapshot: { objects: [{ id: 'stage', x: 10 }] },
-      approvedSnapshot: { objects: [{ id: 'stage', x: 20 }] },
+      submittedSnapshot: {
+        id: 'plan_sample', name: 'Official Layout', venue: 'Hall', width: 1200, height: 800, gridSize: 20, pax: 180,
+        objects: [{ id: 'stage', x: 10 }],
+      },
+      approvedSnapshot: {
+        id: 'plan_sample', name: 'Official Layout', venue: 'Hall', width: 1200, height: 800, gridSize: 20, pax: 180,
+        objects: [{ id: 'stage', x: 20 }],
+      },
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -316,8 +353,8 @@ describe('FloorPlanWorkflowService', () => {
     const submitted = await service.getFloorPlanSnapshot('evt_sample', 'fpd_sample', 'submitted');
     const approved = await service.getFloorPlanSnapshot('evt_sample', 'fpd_sample', 'approved');
 
-    expect((submitted as any).objects[0].x).toBe(10);
-    expect((approved as any).objects[0].x).toBe(20);
+    expect(submitted.objects?.[0]).toMatchObject({ x: 10 });
+    expect(approved.objects?.[0]).toMatchObject({ x: 20 });
     expect(state.floorPlanDrafts[0].approvedSnapshot.objects[0].x).toBe(20);
   });
 
