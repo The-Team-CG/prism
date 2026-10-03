@@ -232,3 +232,4 @@
 - **Governed:** Made the root changelog mandatory for every user-requested
   delivery, with this log reserved for documentation-bundle changes and release
   notes kept under `[Unreleased]` until versioning occurs.
+- **Decided:** Accepted the seven-schema DDD target and local-only foreign-key rule, and aligned the context register to distinguish target owners from transitional writers; physical schema moves remain a separate rehearsed release.
