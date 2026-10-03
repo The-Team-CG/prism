@@ -1,3 +1,11 @@
+import type {
+  DocumentReferenceLookup,
+  DocumentRetentionPolicy,
+  PrismDocumentReference,
+  RegisterLifecycleDocumentInput,
+} from '@prism/types';
+import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
+
 export const DOCUMENT_VAULT = Symbol('DOCUMENT_VAULT');
 
 export type UploadMetadataInput = {
@@ -27,4 +35,16 @@ export interface DocumentVault {
     prefix: string,
     options?: UploadValidationOptions,
   ): ValidatedUploadMetadata;
+
+  registerDocument(
+    input: RegisterLifecycleDocumentInput,
+    context?: PrismTransactionContext,
+  ): Promise<PrismDocumentReference>;
+
+  findEligibleReference(
+    input: DocumentReferenceLookup,
+    context?: PrismTransactionContext,
+  ): Promise<PrismDocumentReference>;
+
+  getRetentionPolicy(): DocumentRetentionPolicy;
 }

@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Moved commercial `OpsDocument` registration and eligibility checks behind Lifecycle's transaction-aware `DOCUMENT_VAULT`; supplier contract and billing statement writes share their command transactions, and billing/proposal references are event- and kind-scoped. Document redaction remains disabled pending PMCM retention policy.
 - Removed 11 unreferenced API DTO files and their stale barrel/controller imports; retired the unbound, always-unavailable signed-upload shim while keeping canonical storage flows and active DTO validation.
 - Replaced production API `any` escapes with typed owner mappings and shared contracts; guest commands return serialized receipts, supplier writes use canonical Zod schemas, and unused commercial reader/DTO surfaces were removed.
 - Corrected the supplier workspace quote fixture to include the required update timestamp for typed mapping.
