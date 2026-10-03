@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Fixed the archived coordinator event regression test to wait for refreshed role data before submitting after switching back to a current event.
 
 ### Fixed
+- Compliance checks now persist `ruleId` only for a stored owner rule; built-in code-registry rules remain identified by `conditionKey` and work without local fixture seeding.
 - Declared the existing GIN, composite event-date, and partial active-event indexes in Prisma so schema equivalence can catch unsupported drift.
 - Declared five migration-owned composite indexes and four existing timestamp defaults in Prisma, eliminating fresh-replay drift without changing historical SQL.
 - Added a preflighted Commercial FK from submitted quotes to quote requests, with request deletion restricted while bid evidence exists.
