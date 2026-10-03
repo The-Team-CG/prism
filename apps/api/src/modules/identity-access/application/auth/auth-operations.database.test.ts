@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { beforeAll, afterAll, describe, expect, it } from 'vitest';
+import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest';
 import { ConfigService } from '@nestjs/config';
 import { AuditService, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import { PrismaService } from '@prism/kernel/database';
 import { AuthSessionService, EventSessionGuard } from '@prism/kernel/event-session';
+import { AuthSecurityService } from './auth-security.service';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import type { AuthAuditPort } from '../../contracts/auth-audit.port';
 import { AuthAuditAdapter } from '../../infrastructure/auth/auth-audit.adapter';
@@ -19,6 +20,8 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
   const requestId = `${prefix}_request`;
   const failureUserId = `${prefix}_failure_user`;
   const failureRequestId = `${prefix}_failure_request`;
+  const challengeUserId = `${prefix}_challenge_user`;
+  const challengeEmail = `${prefix}_challenge@example.test`;
   const secret = 'p0-account-approval-session-secret-long-enough';
   let prisma: PrismaService;
   let sessions: AuthSessionService;
@@ -69,6 +72,17 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
       marketingConsentAccepted: false,
     } });
     await prisma.opsUser.create({ data: {
+      id: challengeUserId,
+      name: 'P0 Two Factor Fixture',
+      email: challengeEmail,
+      password: AuthSecurityService.hashPassword('P0-two-factor-password-long-enough'),
+      role: 'pmcm-admin',
+      organization: prefix,
+      approvalStatus: 'approved',
+      twoFactorSecret: 'p0-test-totp-secret',
+      sessionVersion: 0,
+    } });
+    await prisma.opsUser.create({ data: {
       id: failureUserId,
       name: 'P0 Audit Rollback Fixture',
       email: `${prefix}_failure@example.test`,
@@ -95,7 +109,7 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
   afterAll(async () => {
     if (!prisma) return;
     await prisma.opsApprovalRequest.deleteMany({ where: { userId: { in: [userId, failureUserId] } } });
-    await prisma.opsUser.deleteMany({ where: { id: { in: [userId, failureUserId] } } });
+    await prisma.opsUser.deleteMany({ where: { id: { in: [userId, failureUserId, challengeUserId] } } });
     await prisma.$disconnect();
   }, 30_000);
 
@@ -157,5 +171,82 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
       status: 'pending',
     });
     await expect(prisma.opsAuditLog.count({ where: { affectedId: failureRequestId, affectedType: 'approval_request' } })).resolves.toBe(0);
+  });
+
+  it('stores one active challenge, consumes it once under concurrent success, and carries invalid-code counts across challenges', async () => {
+    const auditPort: AuthAuditPort = {
+      write: async () => undefined,
+      recordAuthenticationAudit: async () => undefined,
+      recordLoginHistory: async () => undefined,
+      handleFailedLogin: async () => undefined,
+      handleForbiddenAccess: async () => undefined,
+      listLoginHistory: async () => [],
+    };
+    const totp = {
+      decryptSecret: (encrypted: string) => encrypted,
+      verifyCode: vi.fn(() => true),
+      generateSecret: () => 'p0-generated-secret',
+      encryptSecret: (secret: string) => secret,
+      otpauthUri: () => 'otpauth://totp/p0',
+    };
+    const challengeOperations = new AuthOperationsService(
+      prisma,
+      auditPort,
+      { markPortalInvitationOpenedByEmail: async () => undefined } as never,
+      sessions,
+      totp as never,
+    );
+
+    const firstLogin = await challengeOperations.login(challengeEmail, 'P0-two-factor-password-long-enough');
+    if (!('kind' in firstLogin) || firstLogin.kind !== 'two_factor_required') throw new Error('Expected a two-factor challenge');
+    const firstClaims = sessions.verifyTwoFactorToken(firstLogin.token);
+    const storedChallenge = await prisma.opsUser.findUniqueOrThrow({ where: { id: challengeUserId } });
+    expect(storedChallenge.twoFactorChallengeHash).toBeTruthy();
+    expect(storedChallenge.twoFactorChallengeHash).not.toBe(firstClaims.challengeId);
+    expect(storedChallenge.twoFactorChallengeExpiresAt).toBeInstanceOf(Date);
+    expect(storedChallenge.twoFactorChallengeAttempts).toBe(0);
+    expect(storedChallenge.twoFactorChallengeConsumedAt).toBeNull();
+
+    const simultaneous = await Promise.allSettled([
+      challengeOperations.verifyTwoFactor(firstLogin.token, '123456'),
+      challengeOperations.verifyTwoFactor(firstLogin.token, '123456'),
+    ]);
+    expect(simultaneous.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(simultaneous.filter((result) => result.status === 'rejected')).toHaveLength(1);
+    await expect(challengeOperations.verifyTwoFactor(firstLogin.token, '123456')).rejects.toThrow(/used|invalid/i);
+    await expect(prisma.opsUser.findUniqueOrThrow({ where: { id: challengeUserId } })).resolves.toMatchObject({
+      twoFactorChallengeConsumedAt: expect.any(Date),
+      twoFactorChallengeAttempts: 0,
+    });
+
+    const secondLogin = await challengeOperations.login(challengeEmail, 'P0-two-factor-password-long-enough');
+    if (!('kind' in secondLogin) || secondLogin.kind !== 'two_factor_required') throw new Error('Expected a second two-factor challenge');
+    totp.verifyCode.mockReturnValue(false);
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      await expect(challengeOperations.verifyTwoFactor(secondLogin.token, '000000')).rejects.toThrow('Invalid two-factor code');
+    }
+    await expect(prisma.opsUser.findUniqueOrThrow({ where: { id: challengeUserId } })).resolves.toMatchObject({
+      twoFactorChallengeAttempts: 4,
+      lockoutCount: 0,
+      failedLoginCount: 4,
+      permanentLockout: false,
+      lockedUntil: null,
+    });
+
+    const thirdLogin = await challengeOperations.login(challengeEmail, 'P0-two-factor-password-long-enough');
+    if (!('kind' in thirdLogin) || thirdLogin.kind !== 'two_factor_required') throw new Error('Expected a third two-factor challenge');
+    await expect(prisma.opsUser.findUniqueOrThrow({ where: { id: challengeUserId } })).resolves.toMatchObject({
+      twoFactorChallengeAttempts: 0,
+      failedLoginCount: 4,
+    });
+    await expect(challengeOperations.verifyTwoFactor(thirdLogin.token, '000000')).rejects.toThrow('Invalid two-factor code');
+    await expect(prisma.opsUser.findUniqueOrThrow({ where: { id: challengeUserId } })).resolves.toMatchObject({
+      twoFactorChallengeAttempts: 1,
+      lockoutCount: 1,
+      failedLoginCount: 0,
+      permanentLockout: false,
+      lockedUntil: expect.any(Date),
+    });
+    await expect(challengeOperations.verifyTwoFactor(thirdLogin.token, '123456')).rejects.toThrow(/invalid|eligible/i);
   });
 });

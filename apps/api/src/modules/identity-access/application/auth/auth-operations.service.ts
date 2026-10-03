@@ -6,6 +6,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { createHash, randomBytes } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import type { OpsApprovalRequest, OpsUser } from '@prisma/client';
 import { PRISM_PRIVACY_NOTICE_VERSION, type PrismUser, type RequestApprovalInput } from '@prism/types';
@@ -13,8 +14,10 @@ import { PrismaService } from '@prism/kernel/database';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
 import { writeAudit, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { AuthSessionService, type VerifiedTwoFactorToken } from '@prism/kernel/event-session';
+import type { AuthenticationFailureDetails } from '@prism/contexts/platform-ops';
 import { AuthSecurityService } from './auth-security.service';
 import { TotpService } from './totp.service';
+import { LOGIN_LOCKOUT_THRESHOLD, loginFailureUpdate, nextLoginFailureState } from './login-lockout.policy';
 import { INQUIRY_COMMANDS } from '../../../event-lifecycle/contracts/inquiry-onboarding.tokens';
 import type { InquiryCommands } from '../../../event-lifecycle/contracts/inquiry-commands.port';
 import { AUTH_AUDIT, type AuthAuditPort } from '../../contracts/auth-audit.port';
@@ -31,6 +34,10 @@ function timestamp(value: Date) {
 
 function isPrismaSerializationFailure(error: unknown) {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2034';
+}
+
+function hashTwoFactorChallenge(challengeId: string) {
+  return createHash('sha256').update(challengeId, 'utf8').digest('hex');
 }
 
 @Injectable()
@@ -53,7 +60,7 @@ export class AuthOperationsService {
     }
 
     await this.assertLoginAllowed(user, normalizedEmail, password);
-    const updated = await this.recordSuccessfulLogin(user, normalizedEmail, password);
+    const updated = await this.recordPasswordVerified(user, normalizedEmail, password);
     return this.issueLoginSession(updated);
   }
 
@@ -85,7 +92,7 @@ export class AuthOperationsService {
     }
 
     if (!AuthSecurityService.verifyPassword(user.password, password)) {
-      await this.authAudit.handleFailedLogin(user);
+      await this.recordFailedLoginAttempt(user.id, 'Invalid password');
       throw new UnauthorizedException('Invalid email or password');
     }
 
@@ -95,33 +102,36 @@ export class AuthOperationsService {
     }
   }
 
-  private async recordSuccessfulLogin(user: OpsUser, normalizedEmail: string, password: string) {
+  private async recordPasswordVerified(user: OpsUser, normalizedEmail: string, password: string) {
+    const requiresTwoFactor = user.role === OpsUserRole.PmcmAdmin;
     const updated = await this.prisma.opsUser.update({
       where: { id: user.id },
       data: {
         ...(!AuthSecurityService.isHashedPassword(user.password)
           ? { password: AuthSecurityService.hashPassword(password) }
           : {}),
-        failedLoginCount: 0,
-        lockedUntil: null,
-        lastLoginAt: new Date(),
+        failedLoginCount: requiresTwoFactor ? user.failedLoginCount : 0,
+        lockedUntil: requiresTwoFactor ? user.lockedUntil : null,
+        lastLoginAt: requiresTwoFactor ? user.lastLoginAt : new Date(),
       },
     });
 
-    await Promise.all([
-      this.authAudit.recordLoginHistory(updated, normalizedEmail, 'success'),
-      this.authAudit.recordAuthenticationAudit({
-        actor: updated.name,
-        action: `Signed in to ${updated.role} portal`,
-        actorRole: updated.role,
-        actorEmail: updated.email,
-        actionType: AuditActionType.Login,
-        category: AuditCategory.Access,
-        affectedType: 'account',
-        affectedId: updated.id,
-        affectedLabel: updated.email,
-      }),
-    ]);
+    if (!requiresTwoFactor) {
+      await Promise.all([
+        this.authAudit.recordLoginHistory(updated, normalizedEmail, 'success'),
+        this.authAudit.recordAuthenticationAudit({
+          actor: updated.name,
+          action: `Signed in to ${updated.role} portal`,
+          actorRole: updated.role,
+          actorEmail: updated.email,
+          actionType: AuditActionType.Login,
+          category: AuditCategory.Access,
+          affectedType: 'account',
+          affectedId: updated.id,
+          affectedLabel: updated.email,
+        }),
+      ]);
+    }
 
     return updated;
   }
@@ -132,12 +142,42 @@ export class AuthOperationsService {
     }
 
     if (updated.role === OpsUserRole.PmcmAdmin) {
+      const challengeId = randomBytes(32).toString('base64url');
+      const issuedAt = new Date();
+      const expiresAt = this.authSessionService.twoFactorTokenExpiresAt(issuedAt);
+      const purpose = updated.twoFactorSecret ? 'challenge' : 'setup';
+      const token = this.authSessionService.issueTwoFactorToken(
+        {
+          userId: updated.id,
+          email: updated.email,
+          role: 'pmcm-admin',
+          challengeId,
+          sessionVersion: updated.sessionVersion,
+        },
+        purpose,
+        issuedAt,
+      );
+      const saved = await this.prisma.opsUser.updateMany({
+        where: {
+          id: updated.id,
+          email: updated.email,
+          role: OpsUserRole.PmcmAdmin,
+          approvalStatus: 'approved',
+          sessionVersion: updated.sessionVersion,
+          permanentLockout: false,
+          OR: [{ lockedUntil: null }, { lockedUntil: { lte: issuedAt } }],
+        },
+        data: {
+          twoFactorChallengeHash: hashTwoFactorChallenge(challengeId),
+          twoFactorChallengeExpiresAt: expiresAt,
+          twoFactorChallengeAttempts: 0,
+          twoFactorChallengeConsumedAt: null,
+        },
+      });
+      if (saved.count !== 1) throw new UnauthorizedException('Account access changed during sign-in; sign in again');
       return {
-        kind: updated.twoFactorSecret ? 'two_factor_required' : 'two_factor_setup_required',
-        token: this.authSessionService.issueTwoFactorToken(
-          { userId: updated.id, email: updated.email, role: 'pmcm-admin', sessionVersion: updated.sessionVersion },
-          updated.twoFactorSecret ? 'challenge' : 'setup',
-        ),
+        kind: purpose === 'challenge' ? 'two_factor_required' as const : 'two_factor_setup_required' as const,
+        token,
       };
     }
 
@@ -148,11 +188,16 @@ export class AuthOperationsService {
     const verifiedToken = this.authSessionService.verifyTwoFactorToken(token);
     if (verifiedToken.purpose !== 'setup') throw new ForbiddenException('Two-factor setup is not available for this token');
     const user = await this.findTwoFactorUser(verifiedToken);
+    if (user.twoFactorSecret) throw new ForbiddenException('Two-factor setup has already started for this challenge');
     const secret = this.totpService.generateSecret();
-    await this.prisma.opsUser.update({
-      where: { id: user.id },
+    const saved = await this.prisma.opsUser.updateMany({
+      where: {
+        ...this.twoFactorChallengeWhere(verifiedToken, new Date()),
+        twoFactorSecret: null,
+      },
       data: { twoFactorSecret: this.totpService.encryptSecret(secret) },
     });
+    if (saved.count !== 1) throw new UnauthorizedException('Two-factor setup challenge is no longer active');
     return {
       kind: 'two_factor_setup' as const,
       token,
@@ -172,14 +217,45 @@ export class AuthOperationsService {
       throw new UnauthorizedException('Two-factor authentication is unavailable for this account');
     }
     if (!this.totpService.verifyCode(secret, code)) {
-      await this.authAudit.handleFailedLogin(user);
+      await this.recordFailedLoginAttempt(user.id, 'Invalid two-factor code', verifiedToken);
       throw new UnauthorizedException('Invalid two-factor code');
     }
 
-    const updated = await this.prisma.opsUser.update({
-      where: { id: user.id },
-      data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() },
-    });
+    let updated: OpsUser | undefined;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        updated = await this.prisma.$transaction(async (tx) => {
+          const now = new Date();
+          const current = this.assertTwoFactorUser(
+            await tx.opsUser.findUnique({ where: { id: user.id } }),
+            verifiedToken,
+            now,
+          );
+          if (!current.twoFactorSecret || current.twoFactorSecret !== user.twoFactorSecret) {
+            throw new UnauthorizedException('Two-factor challenge is no longer valid');
+          }
+          const consumed = await tx.opsUser.updateMany({
+            where: {
+              ...this.twoFactorChallengeWhere(verifiedToken, now),
+              twoFactorSecret: current.twoFactorSecret,
+            },
+            data: {
+              twoFactorChallengeConsumedAt: now,
+              failedLoginCount: 0,
+              lockedUntil: null,
+              lastLoginAt: now,
+            },
+          });
+          if (consumed.count !== 1) throw new UnauthorizedException('Two-factor challenge has already been used or expired');
+          return tx.opsUser.findUniqueOrThrow({ where: { id: user.id } });
+        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+        break;
+      } catch (error) {
+        if (!isPrismaSerializationFailure(error)) throw error;
+        if (attempt === 2) throw new ConflictException('Two-factor challenge changed concurrently; sign in again');
+      }
+    }
+    if (!updated) throw new ConflictException('Two-factor challenge could not be completed; sign in again');
     await Promise.all([
       this.authAudit.recordLoginHistory(updated, user.email, 'success'),
       this.authAudit.recordAuthenticationAudit({
@@ -199,22 +275,91 @@ export class AuthOperationsService {
 
   private async findTwoFactorUser(verifiedToken: VerifiedTwoFactorToken) {
     const user = await this.prisma.opsUser.findUnique({ where: { id: verifiedToken.userId } });
+    return this.assertTwoFactorUser(user, verifiedToken, new Date());
+  }
+
+  private assertTwoFactorUser(user: OpsUser | null, verifiedToken: VerifiedTwoFactorToken, now: Date) {
     if (
       !user ||
       user.email.trim().toLowerCase() !== verifiedToken.email.trim().toLowerCase() ||
       user.role !== OpsUserRole.PmcmAdmin ||
-      user.sessionVersion !== verifiedToken.sessionVersion
+      user.sessionVersion !== verifiedToken.sessionVersion ||
+      user.twoFactorChallengeHash !== hashTwoFactorChallenge(verifiedToken.challengeId) ||
+      !user.twoFactorChallengeExpiresAt ||
+      user.twoFactorChallengeExpiresAt <= now ||
+      user.twoFactorChallengeConsumedAt !== null ||
+      user.twoFactorChallengeAttempts >= LOGIN_LOCKOUT_THRESHOLD
     ) {
-      throw new UnauthorizedException('Invalid two-factor token');
+      throw new UnauthorizedException('Invalid, expired, or already-used two-factor token');
     }
     if (
       user.approvalStatus !== 'approved' ||
       user.permanentLockout ||
-      Boolean(user.lockedUntil && user.lockedUntil > new Date())
+      Boolean(user.lockedUntil && user.lockedUntil > now)
     ) {
       throw new ForbiddenException('This account is not eligible to complete two-factor authentication');
     }
-    return user as OpsUser & { twoFactorSecret?: string | null };
+    return user;
+  }
+
+  private twoFactorChallengeWhere(verifiedToken: VerifiedTwoFactorToken, now: Date): Prisma.OpsUserWhereInput {
+    return {
+      id: verifiedToken.userId,
+      email: verifiedToken.email,
+      role: OpsUserRole.PmcmAdmin,
+      approvalStatus: 'approved',
+      sessionVersion: verifiedToken.sessionVersion,
+      permanentLockout: false,
+      OR: [{ lockedUntil: null }, { lockedUntil: { lte: now } }],
+      twoFactorChallengeHash: hashTwoFactorChallenge(verifiedToken.challengeId),
+      twoFactorChallengeExpiresAt: { gt: now },
+      twoFactorChallengeAttempts: { lt: LOGIN_LOCKOUT_THRESHOLD },
+      twoFactorChallengeConsumedAt: null,
+    };
+  }
+
+  private async recordFailedLoginAttempt(userId: string, failureReason: string, verifiedToken?: VerifiedTwoFactorToken) {
+    let result: { user: OpsUser; details: AuthenticationFailureDetails } | undefined;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        result = await this.prisma.$transaction(async (tx) => {
+          const now = new Date();
+          const user = await tx.opsUser.findUnique({ where: { id: userId } });
+          if (!user) throw new UnauthorizedException('Account is no longer available');
+          if (verifiedToken) {
+            this.assertTwoFactorUser(user, verifiedToken, now);
+          } else if (user.permanentLockout || Boolean(user.lockedUntil && user.lockedUntil > now)) {
+            throw new ForbiddenException('This account is currently locked');
+          }
+
+          const state = nextLoginFailureState(user, now);
+          const updated = await tx.opsUser.update({
+            where: { id: userId },
+            data: {
+              ...loginFailureUpdate(state),
+              ...(verifiedToken ? { twoFactorChallengeAttempts: { increment: 1 } } : {}),
+            },
+          });
+          return {
+            user: updated,
+            details: {
+              failureReason,
+              failedAttempt: state.nextFailedCount,
+              lockoutCount: state.nextLockoutCount,
+              lockoutTriggered: state.shouldLock,
+              permanentLockout: state.permanentLockout,
+            },
+          };
+        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+        break;
+      } catch (error) {
+        if (!isPrismaSerializationFailure(error)) throw error;
+        if (attempt === 2) throw new ConflictException('Authentication failure was recorded concurrently; retry sign-in');
+      }
+    }
+    if (!result) throw new ConflictException('Authentication failure could not be recorded; retry sign-in');
+    await this.authAudit.handleFailedLogin(result.user, result.details);
+    return result.user;
   }
 
   async requestApproval(input: string | RequestApprovalInput) {
@@ -291,7 +436,14 @@ export class AuthOperationsService {
           const savedUser = authorityChanged
             ? await tx.opsUser.update({
                 where: { id: user.id },
-                data: { approvalStatus: status, sessionVersion: { increment: 1 } },
+                data: {
+                  approvalStatus: status,
+                  sessionVersion: { increment: 1 },
+                  twoFactorChallengeHash: null,
+                  twoFactorChallengeExpiresAt: null,
+                  twoFactorChallengeAttempts: 0,
+                  twoFactorChallengeConsumedAt: null,
+                },
               })
             : user;
           const saved = request.status === status
