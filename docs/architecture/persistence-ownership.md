@@ -215,6 +215,16 @@ business owner and lifecycle metadata contract.
 | OpsCommandReceipt | trust_ops | platform-ops owns receipt persistence behind the kernel technical port. Business command authorization and replay remain in the calling owner transaction. Target schema: platform_ops. |
 | `OpsAiAuditLog`, `OpsAiApprovalRecord` | `trust_ops` | `platform-ops`; AI sanitisation, human approval, and governance records. |
 
+## External-reference lifecycle
+
+The exact current foreign-key actions and additional scalar references are in
+the [external-reference lifecycle register](external-reference-lifecycle.md)
+and linked machine policy. This stack has 45 cross-domain foreign keys
+(38 CASCADE, 6 SET NULL, 1 RESTRICT) and 28 additional scalar references.
+Those delete actions describe current database behavior, not approved retention
+policy. FK removal remains blocked on owner capabilities, behavior tests, and
+the coordinated migration rehearsal.
+
 ## Intentional cross-context joins and writes
 
 Read-model collection queries use named per-collection `take` limits and a
