@@ -258,6 +258,7 @@ describe('LiveOpsTaskIssueCommandService - Urgent Issues & Attribution Security'
 });
 
 describe('CoordinatorLiveOpsCommandService', () => {
+  type EventDayLogUpsertArgs = { where: { id: string }; create: Record<string, unknown>; update: Record<string, unknown> };
   const actor = { id: 'usr_admin', name: 'Anthony Admin', email: 'anthony@pmcm.test', role: 'pmcm-admin', explicit: true } as const;
   const assignment = {
     id: 'coord_asg_test_1', eventId: 'evt_001', coordinatorId: 'coord_1', coordinatorName: 'Alex Coordinator',
@@ -265,42 +266,51 @@ describe('CoordinatorLiveOpsCommandService', () => {
     doubleBookingWarning: false,
   };
 
-  it('delegates attendance ownership and logs only a newly applied status', async () => {
-    const createLog = vi.fn(async () => ({ id: 'log_3' }));
-    const prisma = { opsEventDayLog: { create: createLog } };
+  it('retries an attendance log after the assignment update already committed', async () => {
+    const upsertLog = vi.fn(async (_args: EventDayLogUpsertArgs) => ({ id: 'log_3' }))
+      .mockRejectedValueOnce(new Error('temporary event-day log failure'))
+      .mockResolvedValueOnce({ id: 'log_3' });
+    const prisma = { opsEventDayLog: { upsert: upsertLog } };
+    const retriedAssignment = { ...assignment, attendanceMarkedAt: '2026-10-04T00:00:00.000Z' };
     const staffingCommands = {
-      updateCoordinatorAttendance: vi.fn(async () => ({ assignment, changed: true })),
+      updateCoordinatorAttendance: vi.fn()
+        .mockResolvedValueOnce({ assignment: retriedAssignment, changed: true })
+        .mockResolvedValueOnce({ assignment: retriedAssignment, changed: false }),
     };
     const service = new CoordinatorLiveOpsCommandService(prisma as never, staffingCommands as never);
     const input = { status: 'late', notes: 'Checked in at registration.' };
 
+    await expect(service.updateCoordinatorAttendance('evt_001', assignment.id, input, actor, { allowAnotherAssignment: true }))
+      .rejects.toThrow('temporary event-day log failure');
     const result = await service.updateCoordinatorAttendance('evt_001', assignment.id, input, actor, { allowAnotherAssignment: true });
 
-    expect(result).toEqual(assignment);
-    expect(staffingCommands.updateCoordinatorAttendance).toHaveBeenCalledWith(
-      'evt_001', assignment.id, input, actor, { allowAnotherAssignment: true },
-    );
-    expect(createLog).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ actionType: 'coordinator_status_updated', relatedId: assignment.id, actor: actor.name }),
+    expect(result).toEqual(retriedAssignment);
+    expect(staffingCommands.updateCoordinatorAttendance).toHaveBeenCalledTimes(2);
+    expect(upsertLog).toHaveBeenCalledTimes(2);
+    expect(upsertLog).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      create: expect.objectContaining({ actionType: 'coordinator_status_updated', relatedId: assignment.id, actor: actor.name }),
     }));
+    expect(upsertLog.mock.calls[0]?.[0].where).toEqual(upsertLog.mock.calls[1]?.[0].where);
   });
 
-  it('delegates replacement and preserves the event-day replacement log', async () => {
-    const createLog = vi.fn(async () => ({ id: 'log_4' }));
-    const prisma = { opsEventDayLog: { create: createLog } };
+  it('uses a stable log identity when a replacement command is replayed', async () => {
+    const upsertLog = vi.fn(async (_args: EventDayLogUpsertArgs) => ({ id: 'log_4' }));
+    const prisma = { opsEventDayLog: { upsert: upsertLog } };
     const outgoing = { ...assignment, status: 'replaced' };
     const incoming = { ...assignment, id: 'coord_asg_new', coordinatorName: 'New Coordinator', coordinatorId: 'coord_2' };
     const staffingCommands = { replaceCoordinator: vi.fn(async () => ({ outgoing, incoming })) };
     const service = new CoordinatorLiveOpsCommandService(prisma as never, staffingCommands as never);
     const input = { replacementCoordinatorId: 'coord_2', role: 'Registration Staff', reason: 'Coverage change' } as const;
 
-    await expect(service.replaceCoordinatorAssignment('evt_001', assignment.id, input, actor)).resolves.toEqual({
-      replacedAssignment: outgoing,
-      replacementAssignment: incoming,
-    });
+    const first = await service.replaceCoordinatorAssignment('evt_001', assignment.id, input, actor);
+    const replay = await service.replaceCoordinatorAssignment('evt_001', assignment.id, input, actor);
+    expect(first).toEqual({ replacedAssignment: outgoing, replacementAssignment: incoming });
+    expect(replay).toEqual(first);
     expect(staffingCommands.replaceCoordinator).toHaveBeenCalledWith('evt_001', assignment.id, input, actor);
-    expect(createLog).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ actionType: 'coordinator_replaced', relatedId: assignment.id }),
+    expect(upsertLog).toHaveBeenCalledTimes(2);
+    expect(upsertLog).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({ actionType: 'coordinator_replaced', relatedId: assignment.id }),
     }));
+    expect(upsertLog.mock.calls[0]?.[0].where).toEqual(upsertLog.mock.calls[1]?.[0].where);
   });
 });

@@ -45,7 +45,7 @@ function createAccessPolicy() {
   };
 }
 
-function createPrisma(coverageRequirements: { role: string; requiredSkills: string[] }[] = [], archived = false) {
+function createPrisma(coverageRequirements: { role: string; requiredSkills: string[] }[] = [], archived = false, eventStatus = 'planning') {
   const assignments: any[] = [
     {
       id: 'coord_asg_conflict',
@@ -92,7 +92,7 @@ function createPrisma(coverageRequirements: { role: string; requiredSkills: stri
     Object.entries(where).every(([key, condition]) => key === 'OR' || matchesValue(row[key], condition));
 
   const prisma = {
-    opsEvent: { findUnique: async ({ where }: { where?: { id?: string } } = {}) => ({ ...event, id: where?.id ?? event.id, status: 'planning', archived }) },
+    opsEvent: { findUnique: async ({ where }: { where?: { id?: string } } = {}) => ({ ...event, id: where?.id ?? event.id, status: eventStatus, archived }) },
     opsEventCoverageRequirement: { findMany: async () => coverageRequirements },
     opsCoordinator: {
       findUnique: async () => coordinator,
@@ -590,6 +590,23 @@ describe('Coordinator staffing workflows', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+  it.each([
+    ['cancelled', false],
+    ['planning', true],
+    ['archived', false],
+  ] as const)('rejects assignment changes for status %s with archived=%s', async (eventStatus, archived) => {
+    const fake = createPrisma([], archived, eventStatus);
+    const service = createService(fake.prisma as never);
+
+    await expect(service.assignCoordinator(
+      event.id,
+      { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true },
+      pmcmAdminActor,
+    )).rejects.toThrow('Event is not active for coordinator assignment changes');
+
+    expect(fake.assignments).toHaveLength(1);
+  });
+
   it('reads active coordinator directory and coordinator assignments for workspace payloads', async () => {
     const fake = createPrisma();
     const service = createReaderService(fake.prisma as any);
@@ -675,11 +692,27 @@ describe('Coordinator staffing workflows', () => {
 
 
   it('prevents a coordinator from acknowledging or withdrawing an archived event assignment', async () => {
-    const fake = createPrisma([], true);
+    const fake = createPrisma();
     const service = createService(fake.prisma as never);
     const created = await service.assignCoordinator(event.id, { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true }, pmcmAdminActor);
+    const findEvent = fake.prisma.opsEvent.findUnique;
+    fake.prisma.opsEvent.findUnique = async (args) => ({ ...(await findEvent(args)), archived: true });
     await expect(service.acknowledgeCoordinator(event.id, created.id, coordinatorActor)).rejects.toThrow('Archived coordinator events are read-only');
     await expect(service.withdrawCoordinator(event.id, created.id, { reason: 'Unavailable' }, coordinatorActor)).rejects.toThrow('Archived coordinator events are read-only');
+    expect(fake.assignments.find((assignment) => assignment.id === created.id)?.status).toBe('pending_acknowledgement');
+  });
+
+  it('prevents PMCM from acknowledging or withdrawing an archived event assignment', async () => {
+    const fake = createPrisma();
+    const service = createService(fake.prisma as never);
+    const created = await service.assignCoordinator(event.id, { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true }, pmcmAdminActor);
+    const findEvent = fake.prisma.opsEvent.findUnique;
+    fake.prisma.opsEvent.findUnique = async (args) => ({ ...(await findEvent(args)), archived: true });
+
+    await expect(service.acknowledgeCoordinator(event.id, created.id, pmcmAdminActor))
+      .rejects.toThrow('Archived coordinator events are read-only');
+    await expect(service.withdrawCoordinator(event.id, created.id, { reason: 'Event archived' }, pmcmAdminActor))
+      .rejects.toThrow('Archived coordinator events are read-only');
     expect(fake.assignments.find((assignment) => assignment.id === created.id)?.status).toBe('pending_acknowledgement');
   });
 
@@ -941,6 +974,29 @@ describe('Coordinator staffing workflows', () => {
       ).rejects.toBeInstanceOf(ForbiddenException);
     });
 
+    it('rejects replacement after the event is archived without creating a replacement', async () => {
+      const fake = createPrisma();
+      const service = createService(fake.prisma as any);
+      const created = await service.assignCoordinator(
+        event.id,
+        { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true },
+        pmcmAdminActor,
+      );
+      const assignmentCountBeforeReplacement = fake.assignments.length;
+      const findEvent = fake.prisma.opsEvent.findUnique;
+      fake.prisma.opsEvent.findUnique = async (args) => ({ ...(await findEvent(args)), archived: true });
+
+      await expect(service.replaceCoordinator(
+        event.id,
+        created.id,
+        { replacementCoordinatorId: coordinator.id, replacementRole: 'Floor Director', reason: 'Archived event' },
+        pmcmAdminActor,
+      )).rejects.toThrow('Archived coordinator events are read-only');
+
+      expect(fake.assignments).toHaveLength(assignmentCountBeforeReplacement);
+      expect(fake.assignments.find((assignment) => assignment.id === created.id)?.status).toBe('pending_acknowledgement');
+    });
+
     it('rejects a same-date conflict on the replacement coordinator until overridden', async () => {
       const fake = createPrisma();
       const service = createService(fake.prisma as any);
@@ -1002,6 +1058,26 @@ describe('Coordinator staffing workflows', () => {
         severity: 'warning',
       });
       expect(fake.audits.filter((entry: any) => entry.action?.includes('Updated coordinator attendance'))).toHaveLength(1);
+    });
+
+    it('rejects attendance updates after the event is archived without changing the assignment', async () => {
+      const fake = createPrisma();
+      const row = activeAssignment();
+      fake.assignments.push(row);
+      const service = createService(fake.prisma as any);
+      const findEvent = fake.prisma.opsEvent.findUnique;
+      fake.prisma.opsEvent.findUnique = async (args) => ({ ...(await findEvent(args)), archived: true });
+
+      await expect(service.updateCoordinatorAttendance(
+        event.id,
+        row.id,
+        { status: 'present', notes: 'Marked after archive' },
+        pmcmAdminActor,
+      )).rejects.toThrow('Archived coordinator events are read-only');
+
+      expect(row).toMatchObject({ attendanceStatus: 'pending', attendanceNotes: '' });
+      expect(fake.reliabilityNotes).toHaveLength(0);
+      expect(fake.audits.filter((entry: any) => entry.action?.includes('Updated coordinator attendance'))).toHaveLength(0);
     });
 
     it('rejects a coordinator attempting to mark another coordinator attendance', async () => {

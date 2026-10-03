@@ -178,11 +178,98 @@ describe('EventDecisionService', () => {
 
   it('replays an idempotent decision without asking Operations to mutate commitments twice', async () => {
     const { service, tx, staffingCommands } = setup();
-    tx.opsEventDecision.findUnique.mockResolvedValue({ id: 'decision-existing', eventId: 'evt-1' });
+    tx.opsEventDecision.findUnique.mockResolvedValue({
+      id: 'decision-existing',
+      eventId: 'evt-1',
+      decision: cancel.decision,
+      reason: cancel.reason,
+      supplierImpact: cancel.supplierImpact,
+      financialImpact: { cancellationFeeAmount: cancel.cancellationFeeAmount, depositTreatment: cancel.depositTreatment, newEventDate: null },
+    } as never);
     const result = await service.decide('evt-1', { ...cancel, idempotencyKey: 'decision-key' }, actor);
 
     expect(result).toMatchObject({ id: 'decision-existing' });
     expect(tx.opsEvent.update).not.toHaveBeenCalled();
+    expect(staffingCommands.applyEventDecisionAssignments).not.toHaveBeenCalled();
+  });
+
+  it('returns the committed decision when a concurrent same-key transaction loses serialization', async () => {
+    const { service, tx, prisma } = setup();
+    const committedDecision = {
+      id: 'decision-committed',
+      eventId: 'evt-1',
+      decision: cancel.decision,
+      reason: cancel.reason,
+      supplierImpact: cancel.supplierImpact,
+      financialImpact: { cancellationFeeAmount: cancel.cancellationFeeAmount, depositTreatment: cancel.depositTreatment, newEventDate: null },
+    };
+    tx.opsEventDecision.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(committedDecision as never);
+    tx.opsEventDecision.create.mockResolvedValue(committedDecision as never);
+    const serializationConflict = Object.assign(new Error('serialization conflict'), { code: 'P2034' });
+    prisma.$transaction
+      .mockImplementationOnce(async (callback) => callback(tx))
+      .mockRejectedValueOnce(serializationConflict);
+    const input = { ...cancel, idempotencyKey: 'decision-key' };
+
+    const first = await service.decide('evt-1', input, actor);
+    const concurrentReplay = await service.decide('evt-1', input, actor);
+
+    expect(first).toMatchObject({ id: 'decision-committed' });
+    expect(concurrentReplay).toMatchObject({ id: 'decision-committed' });
+    expect(tx.opsEventDecision.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects reuse of a decision idempotency key with a different payload', async () => {
+    const { service, tx } = setup();
+    tx.opsEventDecision.findUnique.mockResolvedValue({
+      id: 'decision-existing',
+      eventId: 'evt-1',
+      decision: cancel.decision,
+      reason: cancel.reason,
+      supplierImpact: cancel.supplierImpact,
+      financialImpact: { cancellationFeeAmount: cancel.cancellationFeeAmount, depositTreatment: cancel.depositTreatment, newEventDate: null },
+    } as never);
+
+    await expect(service.decide('evt-1', { ...cancel, reason: 'Changed payload', idempotencyKey: 'decision-key' }, actor))
+      .rejects.toThrow('Decision idempotency key was reused for different content');
+    expect(tx.opsEventDecision.create).not.toHaveBeenCalled();
+  });
+
+  it('replays a legacy postponement using its persisted reschedule target', async () => {
+    const { service, tx, staffingCommands } = setup();
+    const input = postpone('preserve_obligations');
+    tx.opsEventDecision.findUnique.mockResolvedValue({
+      id: 'legacy-postponement',
+      eventId: 'evt-1',
+      decision: input.decision,
+      reason: input.reason,
+      supplierImpact: input.supplierImpact,
+      financialImpact: { cancellationFeeAmount: input.cancellationFeeAmount, depositTreatment: input.depositTreatment },
+      assignmentImpact: { reschedule: { toDate: `${input.newEventDate}T00:00:00.000Z` } },
+    } as never);
+
+    await expect(service.decide('evt-1', { ...input, idempotencyKey: 'legacy-key' }, actor))
+      .resolves.toMatchObject({ id: 'legacy-postponement' });
+    expect(staffingCommands.applyEventDecisionAssignments).not.toHaveBeenCalled();
+  });
+
+  it('replays a legacy postponement without assignment rows when event state proves its target date', async () => {
+    const { service, tx, staffingCommands } = setup({ eventOverrides: { eventDate: new Date('2026-12-10T00:00:00.000Z') } });
+    const input = postpone('preserve_obligations');
+    tx.opsEventDecision.findUnique.mockResolvedValue({
+      id: 'legacy-postponement-no-assignments',
+      eventId: 'evt-1',
+      decision: input.decision,
+      reason: input.reason,
+      supplierImpact: input.supplierImpact,
+      financialImpact: { cancellationFeeAmount: input.cancellationFeeAmount, depositTreatment: input.depositTreatment },
+      assignmentImpact: {},
+    } as never);
+
+    await expect(service.decide('evt-1', { ...input, idempotencyKey: 'legacy-key-no-assignments' }, actor))
+      .resolves.toMatchObject({ id: 'legacy-postponement-no-assignments' });
     expect(staffingCommands.applyEventDecisionAssignments).not.toHaveBeenCalled();
   });
 });
