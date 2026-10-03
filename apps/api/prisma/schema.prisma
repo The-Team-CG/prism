@@ -283,6 +283,7 @@ model OpsEvent {
   floorPlanId           String?   @map("floor_plan_id")
   floorPlanSubmittedAt  DateTime? @map("floor_plan_submitted_at")
   floorPlanReviewedAt   DateTime? @map("floor_plan_reviewed_at")
+  floorPlanProjectionVersion Int @default(0) @map("floor_plan_projection_version")
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at")
 
@@ -451,6 +452,17 @@ model OpsFloorPlanDraft {
   @@index([eventId, status], map: "floor_plan_drafts_event_id_status_idx")
   @@index([eventId, isActive], map: "floor_plan_drafts_event_id_is_active_idx")
   @@map("floor_plan_drafts")
+  @@schema("floorplan")
+}
+
+// Per-event sequence for projecting Floorplan-owned state onto the Lifecycle event record.
+// eventId is an external reference: the context boundary deliberately has no cross-schema FK.
+model OpsFloorPlanProjectionClock {
+  eventId   String   @id @map("event_id")
+  version   Int      @default(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("floor_plan_projection_clocks")
   @@schema("floorplan")
 }
 

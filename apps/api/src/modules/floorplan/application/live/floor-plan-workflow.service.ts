@@ -16,6 +16,7 @@ import { AuditActionType, AuditCategory, WorkflowCommandService } from '@prism/k
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { readEventAccessScope, readEventConformeState, readEventOcularVisitState } from '@prism/contexts/read-models/event-scope';
+import { FLOORPLAN_PROJECTION_WRITER, type FloorplanEventProjection, type FloorplanProjectionWriter } from '@prism/contexts/event-lifecycle';
 import type { FloorplanCommands, FloorPlanActor, FloorPlanCreator } from '../../contracts/floorplan-commands.port';
 import type { FloorplanReader, FloorPlanDraftProjection } from '../../contracts/floorplan-reader.port';
 
@@ -32,6 +33,7 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     private readonly workflowCommandService: WorkflowCommandService,
+    @Inject(FLOORPLAN_PROJECTION_WRITER) private readonly lifecycleProjectionWriter: FloorplanProjectionWriter,
   ) {}
 
   async createFloorPlanDraft(eventId: string, input: CreateFloorPlanDraftInput, actor: FloorPlanCreator) {
@@ -89,13 +91,9 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
             },
           });
 
-          await tx.opsEvent.update({
-            where: { id: eventId },
-            data: {
-              floorPlanStatus: event!.floorPlanStatus === 'approved' ? 'approved' : 'pmcm_draft',
-              readiness: event!.floorPlanStatus === 'approved' ? event!.readiness : 'Floorplan draft in progress',
-            },
-          });
+          await this.projectLifecycleState(tx, eventId, (lifecycleEvent) => lifecycleEvent.floorPlanStatus === 'approved'
+            ? null
+            : { floorPlanStatus: 'pmcm_draft', readiness: 'Floorplan draft in progress' });
 
           return saved;
         });
@@ -170,17 +168,10 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
             },
           });
 
-          await tx.opsEvent.update({
-            where: { id: eventId },
-            data: {
-              // A client preference is a request for changes, not a demotion of the official plan.
-              // The route admits OpsUserRole.Client, so without this guard a preference filed after
-              // approval would knock an approved event out of approved state. PMCM still learns of
-              // the request through the writeNotification below.
-              floorPlanStatus: event!.floorPlanStatus === 'approved' ? 'approved' : 'client_submitted',
-              readiness: event!.floorPlanStatus === 'approved' ? event!.readiness : 'Client layout preference received',
-            },
-          });
+          // A client preference is a request for changes, not a demotion of an approved plan.
+          await this.projectLifecycleState(tx, eventId, (lifecycleEvent) => lifecycleEvent.floorPlanStatus === 'approved'
+            ? null
+            : { floorPlanStatus: 'client_submitted', readiness: 'Client layout preference received' });
 
           return saved;
         });
@@ -198,6 +189,9 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
   async submitFloorPlanDraft(eventId: string, draftId: string, actor: FloorPlanActor) {
     await this.requireEvent(eventId);
     const draft = await this.requireFloorPlanDraft(eventId, draftId);
+    if (!['pmcm_draft', 'revision_requested'].includes(draft.status)) {
+      throw new BadRequestException('Only a draft or revision-requested floorplan can be submitted');
+    }
     const now = new Date();
     const snapshot = await this.floorPlanSnapshot(draft.floorPlanId);
 
@@ -207,8 +201,8 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
       write: () =>
         this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
           // Transaction scope: DB reads/writes only. No external IO inside this callback.
-          const saved = await tx.opsFloorPlanDraft.update({
-            where: { id: draft.id },
+          const updated = await tx.opsFloorPlanDraft.updateMany({
+            where: { id: draft.id, eventId, status: draft.status },
             data: {
               status: 'in_review',
               submittedSnapshot: toPrismaJson(snapshot),
@@ -216,15 +210,15 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
               submittedAt: draft.submittedAt ?? now,
             },
           });
+          if (updated.count !== 1) throw new BadRequestException('Floorplan draft changed before submission');
+          const saved = await tx.opsFloorPlanDraft.findUnique({ where: { id: draft.id } });
+          if (!saved) throw new NotFoundException('Floorplan draft not found');
 
-          await tx.opsEvent.update({
-            where: { id: eventId },
-            data: {
-              floorPlanStatus: 'in_review',
-              floorPlanId: draft.floorPlanId,
-              floorPlanSubmittedAt: now,
-              readiness: 'Floorplan awaiting review',
-            },
+          await this.projectLifecycleState(tx, eventId, {
+            floorPlanStatus: 'in_review',
+            floorPlanId: draft.floorPlanId,
+            floorPlanSubmittedAt: now,
+            readiness: 'Floorplan awaiting review',
           });
 
           return saved;
@@ -242,6 +236,7 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
   async approveFloorPlanDraft(eventId: string, draftId: string, actor: FloorPlanActor) {
     await this.requireEvent(eventId);
     const draft = await this.requireFloorPlanDraft(eventId, draftId);
+    if (draft.status !== 'in_review') throw new BadRequestException('Only a floorplan in review can be approved');
     const now = new Date();
     const snapshot = await this.floorPlanSnapshot(draft.floorPlanId);
 
@@ -256,8 +251,8 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
             data: { isActive: false },
           });
 
-          const saved = await tx.opsFloorPlanDraft.update({
-            where: { id: draft.id },
+          const updated = await tx.opsFloorPlanDraft.updateMany({
+            where: { id: draft.id, eventId, status: 'in_review' },
             data: {
               status: 'approved',
               isActive: true,
@@ -268,15 +263,15 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
               submittedAt: draft.submittedAt ?? now,
             },
           });
+          if (updated.count !== 1) throw new BadRequestException('Floorplan draft changed before approval');
+          const saved = await tx.opsFloorPlanDraft.findUnique({ where: { id: draft.id } });
+          if (!saved) throw new NotFoundException('Floorplan draft not found');
 
-          await tx.opsEvent.update({
-            where: { id: eventId },
-            data: {
-              floorPlanStatus: 'approved',
-              floorPlanId: draft.floorPlanId,
-              floorPlanReviewedAt: now,
-              readiness: 'Floorplan approved',
-            },
+          await this.projectLifecycleState(tx, eventId, {
+            floorPlanStatus: 'approved',
+            floorPlanId: draft.floorPlanId,
+            floorPlanReviewedAt: now,
+            readiness: 'Floorplan approved',
           });
 
           return saved;
@@ -340,6 +335,31 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
     const event = await readEventAccessScope(this.prisma, eventId);
     if (!event) throw new NotFoundException('Event not found');
     return event;
+  }
+
+  async projectLifecycleState(
+    tx: Prisma.TransactionClient,
+    eventId: string,
+    projection: FloorplanEventProjection | ((event: Pick<OpsEvent, 'floorPlanStatus' | 'readiness'>) => FloorplanEventProjection | null),
+  ) {
+    // The row lock serializes all version reservations for this event; gaps are harmless when
+    // a transition leaves an approved projection unchanged.
+    const clock = await tx.opsFloorPlanProjectionClock.upsert({
+      where: { eventId },
+      create: { eventId, version: 1 },
+      update: { version: { increment: 1 } },
+    });
+    const event = await readEventAccessScope(tx, eventId);
+    if (!event) throw new NotFoundException('Event not found');
+    const state = typeof projection === 'function'
+      ? projection({ floorPlanStatus: event.floorPlanStatus, readiness: event.readiness })
+      : projection;
+    if (!state) return;
+
+    await this.lifecycleProjectionWriter.project(
+      { eventId, version: clock.version, state },
+      { prisma: tx, correlationId: `floorplan-projection:${eventId}:${clock.version}` },
+    );
   }
 
   /**

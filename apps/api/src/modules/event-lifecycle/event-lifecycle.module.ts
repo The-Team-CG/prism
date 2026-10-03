@@ -34,6 +34,7 @@ import { ClientEventDayViewController } from './api/client-visibility/client-eve
 import { ClientEventDayViewService } from './application/client-visibility/client-event-day-view.service';
 import { OcularVisitController } from './api/ocular-visit/ocular-visit.controller';
 import { OcularVisitService } from './application/ocular-visit/ocular-visit.service';
+import { EventLifecycleProjectionModule } from './event-lifecycle-projection.module';
 
 const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const };
 
@@ -43,7 +44,8 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
  * `inquiry-onboarding`, `compliance-ops`, `closure-ops`, and `file-ops`
  * Nest library modules (2026-09-01). `inquiry-onboarding` owns `OpsEvent`
  * itself; `compliance-ops` and `closure-ops` write status/derived fields
- * onto it, `file-ops` is a read-only requirements-matrix view over
+ * onto it, and Floorplan sends a versioned state projection through the
+ * Lifecycle capability. `file-ops` is a read-only requirements-matrix view over
  * documents owned by this and other contexts. Kept as four sub-areas
  * (`onboarding`, `compliance`, `closure`, `files`) under one context.
  *
@@ -61,6 +63,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     DatabaseModule,
     EventCoreModule,
     PlatformOpsModule,
+    EventLifecycleProjectionModule,
     AccessControlModule,
     EventSessionModule,
   ],
@@ -120,6 +123,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     FILE_REQUIREMENT_READER,
     FILE_REQUIREMENT_COMMANDS,
     ChangeManagementService,
+    EventLifecycleProjectionModule,
   ],
 })
 export class EventLifecycleModule {}
