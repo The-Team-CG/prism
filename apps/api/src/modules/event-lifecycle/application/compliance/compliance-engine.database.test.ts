@@ -32,8 +32,8 @@ describe.skipIf(!databaseUrl)("compliance engine against PostgreSQL", () => {
     service = new ComplianceWorkflowService(database, auditWriter, new EventAccessPolicyService(auditWriter), new WorkflowCommandService(), new FileRequirementsMatrixService(database));
   });
 
-  afterEach(async () => {
-    if (inquiryId) await prisma.opsInquiry.delete({ where: { id: inquiryId } }).catch(() => undefined);
+  afterEach(() => {
+    // Keep event and inquiry parents because the current cross-schema event cascade also deletes audit evidence.
     inquiryId = ""; eventId = "";
   });
 
