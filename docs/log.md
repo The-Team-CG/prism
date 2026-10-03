@@ -2,6 +2,7 @@
 
 ## 2026-10-04
 
+- **Implemented:** Lifecycle addendum issuance now delegates approved billing-source and selected supplier-quote mutations to a narrow Commercial capability in the same transaction, then retains its own impact history. Corrected the stale onboarding ownership description: current briefing/conforme workflows do not create billing rows without priced-source input.
 - **Corrected:** Lifecycle is now the sole production owner of `OpsDocument` metadata registration. Commercial supplier contracts and billing statements use the transaction-aware `DOCUMENT_VAULT`; billing-source evidence and client proposal review validate event, kind, and status through the owner capability. Document metadata remains retained and redaction disabled while PMCM document-retention policy is pending.
 
 ## 2026-10-03

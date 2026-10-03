@@ -40,6 +40,7 @@ import { CommunicationService } from './application/suppliers/communication.serv
 import { IdentityAccessModule } from '../identity-access/identity-access.module';
 import { ProposalLifecycleController } from './api/quotes/proposal-lifecycle.controller';
 import { ProposalLifecycleService } from './application/quotes/proposal-lifecycle.service';
+import { CommercialAddendumImpactModule } from './commercial-addendum-impact.module';
 
 const supplierDirectoryProvider = {
   provide: SUPPLIER_DIRECTORY,
@@ -79,6 +80,7 @@ const supplierCommandsProvider = {
     PlatformOpsModule,
     EventCoreModule,
     EventLifecycleModule,
+    CommercialAddendumImpactModule,
     EventSessionModule,
     IdentityAccessModule,
   ],
@@ -129,6 +131,7 @@ const supplierCommandsProvider = {
     SUPPLIER_COMMANDS,
     BillingOperationsService,
     PAYMENT_STATUS_READER,
+    CommercialAddendumImpactModule,
   ],
 })
 export class CommercialModule {}
