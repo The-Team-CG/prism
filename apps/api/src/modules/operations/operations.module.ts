@@ -38,7 +38,7 @@ import { WalkInPolicyService } from './application/guest/walk-in-policy.service'
  * correction note).
  *
  * Owned tables: OpsCoordinatorAssignment (day-to-day staffing assignment;
- * Live Ops uses the staffing command port for event-day assignment changes), OpsCoordinatorReliabilityNote,
+ * Live Ops and event lifecycle use the staffing command port for assignment changes), OpsCoordinatorReliabilityNote,
  * OpsGuestCheckIn, OpsGuestFeedback.
  * Read-only: OpsCoordinator (populated only by local fixtures; no owning module), OpsEvent
  * (via inquiry-onboarding).
