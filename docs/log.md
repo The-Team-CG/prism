@@ -1,5 +1,9 @@
 # Documentation bundle update log
 
+## 2026-10-04
+
+- **Implemented:** New audit writes use canonical JSON hashing that survives PostgreSQL JSONB key reordering while the verifier retains legacy hash compatibility. Added a nonproduction-only repair CLI that dry-runs by default, requires a reviewed source digest plus backup and owner-approval references for apply, writes a checksummed pre-repair audit snapshot outside the repository, refuses ambiguous chain graphs and stale populated chain heads, rehashes and appends a checkpoint transactionally, and verifies the full chain before commit. Added the operator runbook. **Verified:** focused audit/hash/repair tests passed (29); repair CLI safety tests passed (3); API typecheck passed with incremental cache writes disabled; a full TypeScript source compile passed into an isolated temporary directory; query audit passed for 328 API source files. An isolated disposable PostgreSQL 16 rehearsal restored a backup, repaired a chain with one invalid legacy hash among 12 rows, appended and verified the checkpoint (13 valid rows), matched the snapshot checksum, and passed the proposal-review PostgreSQL suite (7/7) afterward. **Still required before a shared preproduction run:** a confirmed direct non-pooler endpoint and a verified full backup/restore reference. No shared or preproduction database was changed. The standard Nest build and an explicit compile into the worktree's ignored `dist` both hit Windows EPERM; the package repair entrypoint was not exercised end to end.
+
 ## 2026-10-03
 
 - **Hardened:** Runtime and migration database URL precedence now share one parser; Node PostgreSQL clients verify hosted certificates, custom CA trust is explicit, non-TLS is loopback-only, and the database runbook documents the policy.
