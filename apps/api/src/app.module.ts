@@ -19,6 +19,7 @@ import { OpsEventClosureController } from './modules/event-lifecycle/api/closure
 import { EventInsightGenerationController } from './composition/event-insight-generation.controller';
 import { EventInsightGenerationService } from './composition/event-insight-generation.service';
 import { TransformInterceptor } from './common/transform.interceptor';
+import { PlatformReferenceReadersModule } from './composition/platform-reference-readers.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { TransformInterceptor } from './common/transform.interceptor';
     PlatformOpsCommandReceiptModule,
     EventCoreModule,
     PlatformOpsAuditWriterModule,
+    PlatformReferenceReadersModule,
     AccessControlModule,
     IdentityAccessModule,
     EventLifecycleModule,

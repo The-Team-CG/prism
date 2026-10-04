@@ -44,6 +44,7 @@ function createStore() {
         if (!object) throw new Error('object missing');
         return object;
       }),
+      findMany: vi.fn(async ({ where }: { where: { eventId: string } }) => objects.filter((object) => object.eventId === where.eventId)),
     },
     opsEvent: {
       findUnique: vi.fn(async () => ({ id: 'evt_1', clientName: 'Client', clientPortalStatus: 'unlocked', inquiry: { email: 'client@example.test' }, supplierQuoteRequests: [] })),
@@ -56,7 +57,18 @@ function createStore() {
     requireCanReadEvent: vi.fn(async () => undefined),
     recordForbiddenAccess: vi.fn(async () => undefined),
   };
-  return { objects, prisma, accessPolicy, service: new StorageObjectService(prisma as never, accessPolicy as never, new StorageValidationService()) };
+  const platformReferences = {
+    findStorageEventScope: vi.fn(async (eventId: string) => eventId === 'evt_1' ? ({
+      id: 'evt_1', clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test', supplierIds: [] as string[],
+    }) : null),
+  };
+  return {
+    objects,
+    prisma,
+    accessPolicy,
+    platformReferences,
+    service: new StorageObjectService(prisma as never, accessPolicy as never, new StorageValidationService(), undefined, platformReferences as never),
+  };
 }
 
 const bytes = Buffer.from('provider-neutral storage bytes');
@@ -78,12 +90,20 @@ describe('StorageObjectService', () => {
     expect('location' in result).toBe(false);
   });
 
+  it('rejects new storage work for an event that no longer resolves', async () => {
+    const store = createStore();
+    store.platformReferences.findStorageEventScope.mockResolvedValueOnce(null);
+
+    await expect(store.service.requestUpload({ ...request, actor })).rejects.toThrow(/Event not found/);
+    expect(store.prisma.opsStoredObject.create).not.toHaveBeenCalled();
+  });
+
   it('round-trips bytes through the configured local adapter and marks deletion', async () => {
     const root = await mkdtemp(join(tmpdir(), 'prism-storage-service-'));
     roots.push(root);
     const adapter = new LocalFileSystemStorageAdapter(root);
     const store = createStore();
-    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter);
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter, store.platformReferences as never);
     const requested = await service.requestUpload({ ...request, actor });
     expect(requested.status).toBe('ready');
     if (requested.status !== 'ready') throw new Error('expected upload location');
@@ -97,7 +117,7 @@ describe('StorageObjectService', () => {
   it('keeps a logical target idempotent and rejects changed content', async () => {
     const store = createStore();
     const adapter = { requestUploadLocation: vi.fn(async (input: { providerObjectKey: string }) => ({ providerName: 'test', providerObjectKey: input.providerObjectKey, uploadUrl: 'test://upload', expiresAt: new Date(Date.now() + 1000) })), confirmUpload: vi.fn(), issueDownloadAuthorization: vi.fn(), deleteObject: vi.fn() };
-    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter);
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter, store.platformReferences as never);
     const first = await service.requestUpload({ ...request, actor });
     const second = await service.requestUpload({ ...request, actor });
     expect(second).toMatchObject({ status: 'ready', object: { id: first.status === 'ready' ? first.object.id : undefined } });
@@ -107,7 +127,7 @@ describe('StorageObjectService', () => {
   it('rejects confirmation metadata that differs from the request declaration', async () => {
     const store = createStore();
     const adapter = { requestUploadLocation: vi.fn(async (input: { providerObjectKey: string }) => ({ providerName: 'test', providerObjectKey: input.providerObjectKey, uploadUrl: 'test://upload', expiresAt: new Date(Date.now() + 1000) })), confirmUpload: vi.fn(), issueDownloadAuthorization: vi.fn(), deleteObject: vi.fn() };
-    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter);
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter, store.platformReferences as never);
     const requested = await service.requestUpload({ ...request, actor });
     if (requested.status !== 'ready') throw new Error('expected upload location');
     await expect(service.confirmUpload({ objectId: requested.object.id, byteSize: bytes.byteLength, checksumSha256: 'c'.repeat(64), actor })).rejects.toThrow(/does not match/);
@@ -117,14 +137,30 @@ describe('StorageObjectService', () => {
   it('denies a client downloading an object outside the actor event scope', async () => {
     const store = createStore();
     store.objects.push({ id: 'obj_other', eventId: 'evt_other', usage: 'signed_conforme', lifecycleState: 'stored', providerObjectKey: 'events/evt_other/obj.pdf', contentType: 'application/pdf', declaredByteSize: 1, checksumSha256: 'a'.repeat(64), originalFileName: 'obj.pdf' });
-    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), {} as never);
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), {} as never, store.platformReferences as never);
     await expect(service.issueDownloadAuthorization({ objectId: 'obj_other', actor: client })).rejects.toThrow(/outside|forbidden|scope/);
+  });
+
+  it('derives supplier event access from the read-model supplier scope', async () => {
+    const store = createStore();
+    const supplier = { id: 'supplier-user', role: 'supplier', supplierId: 'sup_1', eventId: 'evt_1', name: 'Supplier', explicit: true, verified: true } as never;
+    store.platformReferences.findStorageEventScope.mockResolvedValue({
+      id: 'evt_1', clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test', supplierIds: ['sup_1'],
+    });
+
+    await expect(store.service.listEventObjects('evt_1', supplier)).resolves.toEqual([]);
+    expect(store.accessPolicy.requireCanReadEvent).toHaveBeenCalledWith(
+      supplier,
+      expect.objectContaining({ id: 'evt_1', clientEmail: 'client@example.test' }),
+      'list event documents',
+      { supplierEventIds: ['evt_1'] },
+    );
   });
 
   it('denies a client reading a supplier-private document in the same event', async () => {
     const store = createStore();
     store.objects.push({ id: 'obj_supplier', eventId: 'evt_1', usage: 'supplier_document', lifecycleState: 'stored', providerObjectKey: 'events/evt_1/supplier.pdf', contentType: 'application/pdf', declaredByteSize: 1, checksumSha256: 'a'.repeat(64), originalFileName: 'supplier.pdf' });
-    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), {} as never);
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), {} as never, store.platformReferences as never);
     await expect(service.issueDownloadAuthorization({ objectId: 'obj_supplier', actor: client })).rejects.toThrow(/cannot access/);
   });
 
@@ -132,7 +168,7 @@ describe('StorageObjectService', () => {
     const store = createStore();
     store.objects.push({ id: 'obj_supplier', eventId: 'evt_1', usage: 'supplier_document', lifecycleState: 'stored', providerObjectKey: 'events/evt_1/supplier.pdf', contentType: 'application/pdf', declaredByteSize: 1, checksumSha256: 'a'.repeat(64), originalFileName: 'supplier.pdf' });
     const supplier = { id: 'supplier-user', role: 'supplier', supplierId: 'sup_1', eventId: 'evt_1', name: 'Supplier', explicit: true } as never;
-    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), {} as never);
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), {} as never, store.platformReferences as never);
     await expect(service.deleteObject({ objectId: 'obj_supplier', actor: supplier })).rejects.toThrow(/cannot access/);
   });
 });

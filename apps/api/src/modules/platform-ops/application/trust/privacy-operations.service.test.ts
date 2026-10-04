@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole, PrivacyRequestType } from '@prism/kernel/event-core';
+import type { PlatformPrivacyInventory } from '@prism/contexts/read-models';
 import { PrivacyOperationsService } from './privacy-operations.service';
 
 const verifiedActor = {
@@ -40,13 +41,17 @@ describe('PrivacyOperationsService', () => {
       },
     };
     const auditService = { audit: vi.fn(async () => undefined) };
+    const platformReferences = {
+      findEventReference: vi.fn(async (id: string): Promise<{ id: string } | null> => ({ id })),
+      findPrivacyInventory: vi.fn(async (): Promise<PlatformPrivacyInventory> => ({ events: [], approvalRequests: [] })),
+    };
     const rootPrisma = { ...prisma, $transaction: vi.fn(async (callback: (tx: typeof prisma) => Promise<unknown>) => callback(prisma)) };
-    const service = new PrivacyOperationsService(rootPrisma as never, auditService as never);
-    return { service, prisma, rootPrisma, auditService, created };
+    const service = new PrivacyOperationsService(rootPrisma as never, auditService as never, platformReferences as never);
+    return { service, prisma, rootPrisma, auditService, platformReferences, created };
   }
 
   it('creates a submitted privacy request and writes an audit trail', async () => {
-    const { service, prisma, auditService } = createService();
+    const { service, prisma, auditService, platformReferences } = createService();
 
     const result = await service.createRequest(
       {
@@ -65,6 +70,7 @@ describe('PrivacyOperationsService', () => {
       requestType: PrivacyRequestType.Access,
     });
     expect(prisma.opsPrivacyRequest.create).toHaveBeenCalledTimes(1);
+    expect(platformReferences.findEventReference).toHaveBeenCalledWith('evt_sample');
     expect(prisma.opsPrivacyRequest.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ createdBy: verifiedActor.name }),
     });
@@ -80,6 +86,41 @@ describe('PrivacyOperationsService', () => {
       }),
       expect.objectContaining({ prisma, actorId: verifiedActor.id }),
     );
+  });
+
+  it('rejects an absent event reference before persisting a privacy request', async () => {
+    const { service, prisma, platformReferences } = createService();
+    platformReferences.findEventReference.mockResolvedValueOnce(null);
+
+    await expect(service.createRequest({
+      subjectType: 'client', subjectEmail: 'ana@ayala.test', eventId: 'evt_missing', requestType: PrivacyRequestType.Access,
+    }, verifiedActor)).rejects.toThrow('Event not found');
+    expect(prisma.opsPrivacyRequest.create).not.toHaveBeenCalled();
+  });
+
+  it('builds event privacy inventory from the approved owner projection', async () => {
+    const { service, platformReferences } = createService();
+    platformReferences.findPrivacyInventory.mockResolvedValueOnce({
+      events: [{
+        id: 'evt_sample', eventName: 'Sample', clientName: 'Client', inquiryId: 'inq_1', eventDate: new Date('2030-01-01'),
+        inquiry: { privacyConsentAccepted: true, privacyNoticeVersion: 'v1', marketingConsentAccepted: false },
+        guestCheckIns: [
+          { privacyConsentAccepted: true, privacyNoticeVersion: 'v1', marketingConsentAccepted: false },
+          { privacyConsentAccepted: false, privacyNoticeVersion: '', marketingConsentAccepted: false },
+        ],
+        guestFeedback: [{ privacyConsentAccepted: true, privacyNoticeVersion: 'v2', marketingConsentAccepted: true }],
+      }],
+      approvalRequests: [{ privacyConsentAccepted: true, privacyNoticeVersion: 'v3', marketingConsentAccepted: false }],
+    });
+
+    const result = await service.getInventory({ eventId: 'evt_sample' });
+
+    expect(platformReferences.findPrivacyInventory).toHaveBeenCalledWith({ eventId: 'evt_sample' });
+    expect(result.events[0]).toMatchObject({ eventId: 'evt_sample', recordCount: 4 });
+    expect(result.events[0]?.surfaces.map(({ surface, consentAcceptedCount }) => [surface, consentAcceptedCount])).toEqual([
+      ['inquiry', 1], ['guest_check_in', 1], ['guest_feedback', 1],
+    ]);
+    expect(result.globalSurfaces[0]).toMatchObject({ recordCount: 1, consentAcceptedCount: 1 });
   });
 
   it('rejects unsupported privacy request types before writing', async () => {
@@ -134,7 +175,10 @@ describe('PrivacyOperationsService', () => {
     // The root client deliberately has no models: execution must use the transaction client.
     const prisma = { $transaction: vi.fn(async (callback: (value: typeof tx) => Promise<unknown>) => callback(tx)) };
     const auditService = { audit: vi.fn(async () => undefined) };
-    const service = new PrivacyOperationsService(prisma as never, auditService as never);
+    const service = new PrivacyOperationsService(prisma as never, auditService as never, {
+      findEventReference: vi.fn(async (id: string): Promise<{ id: string } | null> => ({ id })),
+      findPrivacyInventory: vi.fn(async (): Promise<PlatformPrivacyInventory> => ({ events: [], approvalRequests: [] })),
+    } as never);
     const execute = () => service.executeRequest(request.id, {}, verifiedActor);
     return { request, tx, auditService, execute };
   }
