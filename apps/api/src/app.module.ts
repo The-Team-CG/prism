@@ -20,6 +20,7 @@ import { EventInsightGenerationController } from './composition/event-insight-ge
 import { EventInsightGenerationService } from './composition/event-insight-generation.service';
 import { TransformInterceptor } from './common/transform.interceptor';
 import { PlatformReferenceReadersModule } from './composition/platform-reference-readers.module';
+import { PlatformPrivacyModule } from './modules/platform-ops/platform-privacy.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { PlatformReferenceReadersModule } from './composition/platform-reference
     EventCoreModule,
     PlatformOpsAuditWriterModule,
     PlatformReferenceReadersModule,
+    PlatformPrivacyModule,
     AccessControlModule,
     IdentityAccessModule,
     EventLifecycleModule,

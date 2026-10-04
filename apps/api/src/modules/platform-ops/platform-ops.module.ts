@@ -4,7 +4,7 @@ import { DatabaseModule } from '@prism/kernel/database';
 import { EventSessionModule } from '@prism/kernel/event-session';
 import { AccessControlModule } from '@prism/kernel/access-control';
 import { ConformeReminderWindowModule } from '@prism/contexts/event-lifecycle/conforme-reminder-window';
-import { OpsAuditController, OpsPrivacyController } from './api/trust/audit-privacy.controller';
+import { OpsAuditController } from './api/trust/audit-privacy.controller';
 import { OpsNotificationsController } from './api/notifications/notifications.controller';
 import { OpsAiGovernanceController } from './api/ai-governance/ai-governance.controller';
 import { AuditWriterAdapter } from './infrastructure/trust/audit-writer.adapter';
@@ -15,7 +15,6 @@ import { AuditService } from './application/trust/audit.service';
 import { AuditExportService } from './application/trust/audit-export.service';
 import { AuditReadService } from './application/trust/audit-read.service';
 import { SecurityOperationsService } from './application/trust/security-operations.service';
-import { PrivacyOperationsService } from './application/trust/privacy-operations.service';
 import { NotificationOutboxService } from './application/notifications/notification-outbox.service';
 import { AiGovernanceService } from './application/ai-governance/ai-governance.service';
 import { AiGatewayService } from './application/ai-governance/gateway/ai-gateway.service';
@@ -119,19 +118,18 @@ export function createAiProviderAdapters(
  * Owned tables: OpsAuditLog, OpsLoginHistory, OpsNotificationLog,
  * OpsPareDispatch, OpsPrivacyRequest, OpsSecurityAlert, OpsAiApprovalRecord,
  * OpsCommandReceipt, and OpsAiAuditLog.
- * OpsApprovalRequest is owned by identity-access; privacy erasure may update
- * identity, event, guest, and other records as an explicit platform governance
- * workflow rather than a shared ownership claim.
+ * OpsApprovalRequest is owned by identity-access. Privacy orchestration is
+ * composed separately with the owner contexts and invokes their redaction
+ * capabilities rather than writing their tables from Platform.
  */
 @Module({
   imports: [DatabaseModule, EventSessionModule, ConfigModule, AccessControlModule, ConformeReminderWindowModule],
-  controllers: [OpsAuditController, OpsPrivacyController, OpsNotificationsController, OpsAiGovernanceController, StorageController, ConformeCommsDraftsController],
+  controllers: [OpsAuditController, OpsNotificationsController, OpsAiGovernanceController, StorageController, ConformeCommsDraftsController],
   providers: [
     AuditService,
     AuditReadService,
     AuditExportService,
     SecurityOperationsService,
-    PrivacyOperationsService,
     AuditWriterAdapter,
     auditWriterProvider,
     NotificationOutboxService,
@@ -164,7 +162,6 @@ export function createAiProviderAdapters(
   exports: [
     AuditService,
     SecurityOperationsService,
-    PrivacyOperationsService,
     AuditWriterAdapter,
     auditWriterProvider,
     NotificationOutboxService,
