@@ -1,0 +1,100 @@
+name: Schema cutover preflight (read-only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment; dispatch from staging for staging or prod for production
+        required: true
+        type: choice
+        options: [staging, production]
+      required_head:
+        description: Exact final Prisma migration directory name for the reviewed release
+        required: true
+        type: string
+      backup_confirmed:
+        description: Confirm a current, restorable target backup is available
+        required: true
+        type: boolean
+        default: false
+      services_drained:
+        description: Confirm writers and in-flight provider deploys have settled
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prism-schema-preflight-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate hold, target branch, backup, drain, and exact migration head
+        env:
+          DISPATCH_REF: ${{ github.ref }}
+          TARGET_ENVIRONMENT: ${{ inputs.environment }}
+          REQUIRED_HEAD: ${{ inputs.required_head }}
+          BACKUP_CONFIRMED: ${{ inputs.backup_confirmed }}
+          SERVICES_DRAINED: ${{ inputs.services_drained }}
+          CUTOVER_HOLD: ${{ vars.PRISM_SCHEMA_CUTOVER_HOLD }}
+          COMPATIBILITY_MODE: ${{ vars.PRISM_SCHEMA_COMPATIBILITY_MODE }}
+          CONFIGURED_REQUIRED_HEAD: ${{ vars.PRISM_SCHEMA_REQUIRED_HEAD }}
+        run: |
+          set -euo pipefail
+          case "$TARGET_ENVIRONMENT" in
+            staging) expected_ref="refs/heads/staging" ;;
+            production) expected_ref="refs/heads/prod" ;;
+            *) echo "Unsupported target environment: $TARGET_ENVIRONMENT"; exit 1 ;;
+          esac
+          test "$DISPATCH_REF" = "$expected_ref" || { echo "Dispatch from the matching trusted branch is required"; exit 1; }
+          test "$CUTOVER_HOLD" = "true" || { echo "Set PRISM_SCHEMA_CUTOVER_HOLD=true before schema preflight"; exit 1; }
+          test "$COMPATIBILITY_MODE" = "exact" || { echo "Set PRISM_SCHEMA_COMPATIBILITY_MODE=exact before schema preflight"; exit 1; }
+          test "$BACKUP_CONFIRMED" = "true" || { echo "A current restorable backup must be confirmed"; exit 1; }
+          test "$SERVICES_DRAINED" = "true" || { echo "Database writers and in-flight deploys must be drained"; exit 1; }
+          test -n "$REQUIRED_HEAD" || { echo "required_head is required"; exit 1; }
+          test "$CONFIGURED_REQUIRED_HEAD" = "$REQUIRED_HEAD" || { echo "PRISM_SCHEMA_REQUIRED_HEAD must exactly match required_head"; exit 1; }
+          node -e 'const fs=require("node:fs"); const dirs=fs.readdirSync("apps/api/prisma/migrations",{withFileTypes:true}).filter((entry)=>entry.isDirectory()).map((entry)=>entry.name).sort(); const head=dirs.at(-1); if (!head || head!==process.env.REQUIRED_HEAD) { console.error(`Requested migration head ${process.env.REQUIRED_HEAD} does not match checked-out head ${head ?? "(none)"}`); process.exit(1); }'
+
+  inspect-target:
+    needs: validate-release
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install the locked toolchain
+        run: npm ci
+      - name: Verify migration artifacts and Prisma model offline
+        run: |
+          npm run check:migrations
+          npm --workspace prism-api run db:verify:offline
+      - name: Require the direct read-only inspection connection
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: test -n "$DIRECT_URL"
+      - name: Check the target ledger as a known applied prefix
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          PRISM_SCHEMA_REQUIRED_HEAD: ${{ vars.PRISM_SCHEMA_REQUIRED_HEAD }}
+        run: node apps/api/scripts/check-schema-cutover-ledger.mjs
+      - name: Capture the read-only desired SQL diff for owner review
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: npm --workspace prism-api exec -- prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script
+      - name: State the execution boundary
+        run: echo "Read-only preflight complete. Review the SQL diff as the expected pending change or investigate drift. No database migration, provider sync, or deployment was performed."

@@ -1,5 +1,9 @@
 # Documentation bundle update log
 
+## 2026-10-05
+
+- **Added:** Opt-in exact Prisma migration-ledger compatibility checking at API startup, a repository-wide schema cutover hold for automated deployment, promotion, rollback, and manual environment sync, and a read-only migration preflight workflow. The preflight checks configuration and validates the database ledger as a known applied prefix, prints the desired SQL diff for review, and does not apply migrations or deploy services.
+
 ## 2026-10-04
 
 - **Implemented:** Commercial additional billing validates recorded post-event state through Lifecycle and same-event urgent-issue eligibility through LiveOps; both owner readers use the caller transaction and lock the required rows until commit.
