@@ -4,6 +4,7 @@ import { NestContainer } from '@nestjs/core/injector/container';
 import { MetadataScanner } from '@nestjs/core/metadata-scanner';
 import { NoopGraphInspector } from '@nestjs/core/inspector/noop-graph-inspector';
 import { DependenciesScanner } from '@nestjs/core/scanner';
+import { COMMAND_RECEIPT_STORE } from '@prism/kernel/event-core';
 import { AppModule } from './app.module';
 
 /**
@@ -23,5 +24,6 @@ describe('AppModule', () => {
     await scanner.scan(AppModule);
 
     expect([...container.getModules().values()].some(({ metatype }) => metatype === AppModule)).toBe(true);
+    expect([...container.getModules().values()].some(({ providers }) => providers.has(COMMAND_RECEIPT_STORE))).toBe(true);
   });
 });

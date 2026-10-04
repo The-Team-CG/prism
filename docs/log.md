@@ -1,5 +1,9 @@
 # Documentation bundle update log
 
+## 2026-10-04
+
+- **Implemented:** Platform now owns command-receipt persistence behind the kernel `CommandReceiptStore` port, with a root-level adapter binding. Kernel replay policy still checks permission before lookup and keeps reservation, command writes, and completion in one caller transaction. Updated the live-ops read-model test fixture for the generated event projection version field discovered by Nest compilation. **Verified:** focused workflow/adapter/AppModule and fixture tests passed (16 passed); API typecheck passed with incremental cache writing disabled because the worktree cache path denied writes; Nest build passed with output redirected to an isolated verification directory. PostgreSQL rollback and concurrent-retry integration cases are present but skipped because `P0_TEST_DATABASE_URL` is unset; schema and migration files are unchanged.
+
 ## 2026-10-03
 
 - **Corrected:** Historical coordinator event access now stays read-only in portal controls and API mutation authorization while preserving scoped reads and switching back to current events. The ledger records the boundary and regression evidence, including registration verification rechecking archive status under the event lock.

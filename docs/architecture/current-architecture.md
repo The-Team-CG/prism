@@ -221,7 +221,9 @@ from local fixture tooling into runtime contexts or kernel, no Prisma writes fro
 read queries, and no tracked source under the old API library roots.
 
 The kernel does not import a business context. `kernel/event-core` owns the
-command-receipt port and Prisma adapter: transactional commands with an
+command-receipt port and replay policy; `platform-ops` owns the Prisma adapter
+and receipt persistence, bound globally by `PlatformOpsCommandReceiptModule` at
+the application composition root. Transactional commands with an
 actor- and event-scoped idempotency key and a stable payload hash opt into one durable
 receipt, which is reserved and completed in the same transaction; retries then
 replay the stored projected result after permission checks. A payload hash is

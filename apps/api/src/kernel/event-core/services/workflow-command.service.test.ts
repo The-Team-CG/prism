@@ -230,6 +230,51 @@ describe('WorkflowCommandService', () => {
     ).rejects.toThrow('different content');
   });
 
+  it('rechecks permission before returning a stored receipt', async () => {
+    const receipt: CommandReceiptRecord = {
+      id: 'receipt_revoked_actor',
+      commandName: 'sensitive_command',
+      idempotencyKey: 'sensitive-key',
+      actorId: 'actor_1',
+      eventScope: 'evt_1',
+      actorRole: 'client',
+      eventId: 'evt_1',
+      correlationId: 'receipt-correlation',
+      payloadHash: 'same-content',
+      result: { accepted: true },
+      completedAt: new Date(),
+    };
+    const store: CommandReceiptStore = {
+      find: vi.fn(async () => receipt),
+      create: vi.fn(),
+      complete: vi.fn(),
+    };
+    const transactionRunner = { run: vi.fn() };
+    const write = vi.fn();
+    const validatePermission = vi.fn(() => { throw new Error('actor is no longer authorized'); });
+    const service = new WorkflowCommandService(transactionRunner as never, store);
+
+    await expect(service.execute({
+      name: 'sensitive_command',
+      context: {
+        actorId: 'actor_1',
+        actorRole: 'client',
+        eventId: 'evt_1',
+        correlationId: 'retry-correlation',
+        idempotencyKey: 'sensitive-key',
+      },
+      sideEffectMode: 'same_tx',
+      idempotencyPayloadHash: 'same-content',
+      validatePermission,
+      write,
+    })).rejects.toThrow('no longer authorized');
+
+    expect(validatePermission).toHaveBeenCalledTimes(1);
+    expect(store.find).not.toHaveBeenCalled();
+    expect(transactionRunner.run).not.toHaveBeenCalled();
+    expect(write).not.toHaveBeenCalled();
+  });
+
   it('leaves un-hashed keys on the command-owned idempotency path', async () => {
     const store: CommandReceiptStore = {
       find: vi.fn(),

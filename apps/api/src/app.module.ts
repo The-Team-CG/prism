@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AccessControlModule } from '@prism/kernel/access-control';
 import { DatabaseModule } from '@prism/kernel/database';
 import { PlatformOpsAuditWriterModule } from './modules/platform-ops/platform-ops-audit-writer.module';
+import { PlatformOpsCommandReceiptModule } from './modules/platform-ops/platform-ops-command-receipt.module';
 import { CommercialModule } from './modules/commercial/commercial.module';
 import { EventCoreModule } from '@prism/kernel/event-core';
 import { ReadModelsModule } from './modules/read-models/read-models.module';
@@ -23,6 +24,7 @@ import { TransformInterceptor } from './common/transform.interceptor';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     HealthModule,
+    PlatformOpsCommandReceiptModule,
     EventCoreModule,
     PlatformOpsAuditWriterModule,
     AccessControlModule,

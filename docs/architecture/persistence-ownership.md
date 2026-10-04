@@ -208,7 +208,7 @@ business owner and lifecycle metadata contract.
 | Models | Physical schema | Write owner and boundary |
 | --- | --- | --- |
 | OpsAuditLog, OpsNotificationLog, OpsSecurityAlert, OpsPrivacyRequest, OpsLoginHistory | trust_ops, identity, and event_core as declared in Prisma | platform-ops; audit, outbox, security, privacy governance, and login history. Target schema: platform_ops. Each data owner executes redaction through a focused capability. |
-| OpsCommandReceipt | trust_ops | platform-ops owns receipt persistence behind the kernel technical port. Business command authorization and replay remain in the calling owner transaction. Target schema: platform_ops. |
+| OpsCommandReceipt | trust_ops | platform-ops owns technical receipt persistence behind the kernel `CommandReceiptStore` port. Business authorization and replay remain in the caller transaction; reservation, command writes, and completion are atomic. Target schema: platform_ops. |
 | `OpsAiAuditLog`, `OpsAiApprovalRecord` | `trust_ops` | `platform-ops`; AI sanitisation, human approval, and governance records. |
 
 ## Intentional cross-context joins and writes
