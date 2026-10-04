@@ -32,6 +32,7 @@
         "db:check:migrations": "node scripts/check-prisma-migrations.mjs",
         "db:check:invariants": "node --env-file=.env scripts/check-data-invariants.mjs",
         "db:check:invariants:dry-run": "node scripts/check-data-invariants.mjs --dry-run",
+        "db:audit:repair": "npm run build && node --env-file=.env scripts/repair-audit-chain.mjs",
         "db:diff:live": "prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code",
         "db:audit:schemas": "node --env-file=.env scripts/db-schema-audit.mjs",
         "db:audit:naming": "node --env-file=.env scripts/db-naming-audit.mjs",
@@ -42,7 +43,8 @@
         "db:reset": "node scripts/require-ack.mjs db:reset PRISM_API_DB_RESET_I_UNDERSTAND && npm run db:doctor && prisma migrate reset --force --skip-generate",
     "db:reset:2fa": "node scripts/require-ack.mjs db:reset:2fa PRISM_API_2FA_RESET_I_UNDERSTAND && node --env-file=.env scripts/reset-local-fixture-2fa.mjs",
         "postinstall": "prisma generate",
-        "db:backup:json": "node --env-file=.env scripts/db-backup-json.mjs"
+        "db:backup:json": "node --env-file=.env scripts/db-backup-json.mjs",
+        "test:db:audit-repair": "node --test scripts/repair-audit-chain.test.mjs"
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.95.0",

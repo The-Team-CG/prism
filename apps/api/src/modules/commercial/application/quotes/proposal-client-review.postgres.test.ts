@@ -14,18 +14,22 @@ if (url) {
   }
 }
 const enabled = Boolean(url);
-const prefix = `p0_w02_${randomUUID()}`;
-const ids = { inquiry: `${prefix}_inquiry`, event: `${prefix}_event`, document: `${prefix}_proposal`, secondDocument: `${prefix}_proposal_v2` };
+function createIds() {
+  const prefix = `p0_w02_${randomUUID()}`;
+  return { inquiry: `${prefix}_inquiry`, event: `${prefix}_event`, document: `${prefix}_proposal`, secondDocument: `${prefix}_proposal_v2` };
+}
+let ids = createIds();
 const actor = { id: 'p0_w02_client', role: OpsUserRole.Client, name: 'P0 Client', email: 'p0-w02@example.test', explicit: true };
 
 describe.skipIf(!enabled)('proposal client review PostgreSQL integrity', () => {
   let prisma: PrismaService;
+  let auditService: AuditService;
   let service: ProposalClientReviewService;
   const reset = async () => {
-    await prisma.opsAuditLog.deleteMany({ where: { eventId: ids.event } });
-    await prisma.opsDocument.deleteMany({ where: { eventId: ids.event, id: { not: ids.document } } });
-    await prisma.opsEvent.update({ where: { id: ids.event }, data: { proposalClientStatus: 'pending', proposalRevisionCount: 0, clientPortalStatus: 'unlocked', archived: false } });
-    await prisma.opsDocument.upsert({ where: { id: ids.document }, update: { status: 'issued', type: 'proposal' }, create: { id: ids.document, eventId: ids.event, type: 'proposal', fileName: 'p0.pdf', status: 'issued' } });
+    ids = createIds();
+    await prisma.opsInquiry.create({ data: { id: ids.inquiry, clientName: 'P0 Client', email: actor.email, normalizedEmail: actor.email, eventName: 'P0 W02', eventDate: new Date('2030-01-01'), clientType: 'Corporate', source: 'Other', message: 'test', privacyConsentAccepted: true, privacyNoticeVersion: 'test' } });
+    await prisma.opsEvent.create({ data: { id: ids.event, inquiryId: ids.inquiry, clientName: 'P0 Client', eventName: 'P0 W02', eventDate: new Date('2030-01-01'), clientPortalStatus: 'unlocked', readiness: 'ready' } });
+    await prisma.opsDocument.create({ data: { id: ids.document, eventId: ids.event, type: 'proposal', fileName: 'p0.pdf', status: 'issued' } });
   };
 
   beforeAll(async () => {
@@ -33,24 +37,15 @@ describe.skipIf(!enabled)('proposal client review PostgreSQL integrity', () => {
     process.env.DB_SSL = 'false';
     prisma = new PrismaService();
     await prisma.$connect();
-    await prisma.opsAuditLog.deleteMany({ where: { eventId: ids.event } });
-    await prisma.opsDocument.deleteMany({ where: { id: ids.document } });
-    await prisma.opsEvent.deleteMany({ where: { id: ids.event } });
-    await prisma.opsInquiry.deleteMany({ where: { id: ids.inquiry } });
-    await prisma.opsInquiry.create({ data: { id: ids.inquiry, clientName: 'P0 Client', email: actor.email, normalizedEmail: actor.email, eventName: 'P0 W02', eventDate: new Date('2030-01-01'), clientType: 'Corporate', source: 'Other', message: 'test', privacyConsentAccepted: true, privacyNoticeVersion: 'test' } });
-    await prisma.opsEvent.create({ data: { id: ids.event, inquiryId: ids.inquiry, clientName: 'P0 Client', eventName: 'P0 W02', eventDate: new Date('2030-01-01'), clientPortalStatus: 'unlocked', readiness: 'ready' } });
-    await prisma.opsDocument.create({ data: { id: ids.document, eventId: ids.event, type: 'proposal', fileName: 'p0.pdf', status: 'issued' } });
-    const auditService = new AuditService(prisma);
+    auditService = new AuditService(prisma);
     const writer = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma, auditService));
     service = new ProposalClientReviewService(prisma, new EventAccessPolicyService(writer), writer);
   });
 
   afterAll(async () => {
     if (!prisma) return;
-    await prisma.opsAuditLog.deleteMany({ where: { eventId: ids.event } });
-    await prisma.opsDocument.deleteMany({ where: { id: ids.document } });
-    await prisma.opsEvent.deleteMany({ where: { id: ids.event } });
-    await prisma.opsInquiry.deleteMany({ where: { id: ids.inquiry } });
+    // Keep the event and its append-only audit rows together; deleting the rows
+    // would leave the singleton chain head pointing at missing history.
     await prisma.$disconnect();
   });
 
@@ -60,6 +55,7 @@ describe.skipIf(!enabled)('proposal client review PostgreSQL integrity', () => {
     await service.review(ids.event, { action: 'request_revision', revisionNote: 'Clarify venue', idempotencyKey: 'p0-retry' }, actor);
     await expect(prisma.opsEvent.findUniqueOrThrow({ where: { id: ids.event } })).resolves.toMatchObject({ proposalRevisionCount: 1 });
     await expect(prisma.opsAuditLog.count({ where: { eventId: ids.event, affectedId: 'p0-retry' } })).resolves.toBe(1);
+    await expect(auditService.verifyIntegrity()).resolves.toMatchObject({ valid: true });
   });
 
   it('requires a newer issued proposal for a second decision', async () => {
