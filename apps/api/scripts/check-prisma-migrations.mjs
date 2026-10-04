@@ -7,6 +7,7 @@ const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const API_ROOT = resolve(dirname(SCRIPT_PATH), '..');
 const DEFAULT_MIGRATIONS_ROOT = join(API_ROOT, 'prisma', 'migrations');
 const DEFAULT_POLICY_PATH = join(API_ROOT, 'prisma', 'migration-policy.json');
+const DEFAULT_OWNERSHIP_PATH = join(API_ROOT, 'prisma', 'domain-ownership.json');
 
 const NAME_PATTERN = /^(\d{14})_([a-z0-9]+(?:-[a-z0-9]+)*)_([a-z0-9]+(?:_[a-z0-9]+)*)$/;
 const LEGACY_SHAPE = /^(\d{14})_(.+)$/;
@@ -461,9 +462,16 @@ export function parseMigrationName(name, policy) {
     };
   }
 
-  if (version <= policy.legacyMaxVersion) {
+  const ownerAwareBaselineNames = new Set(policy.ownerAwareBaselineNames ?? []);
+  const ownerAwareBaselineMaxVersion = policy.ownerAwareBaselineMaxVersion ?? policy.legacyMaxVersion;
+  const ownerAwareBaseline = ownerAwareBaselineNames.has(name);
+  if (ownerAwareBaseline && (version <= policy.legacyMaxVersion || version > ownerAwareBaselineMaxVersion)) {
+    return { error: `migration ${name} is outside the immutable owner-aware baseline range` };
+  }
+
+  if (!ownerAwareBaseline && version <= ownerAwareBaselineMaxVersion) {
     return {
-      error: `migration ${name} is not in the immutable legacy allowlist; applied history must not be renamed or recreated`,
+      error: `migration ${name} is not in the immutable migration baseline; applied history must not be renamed or recreated`,
     };
   }
 
@@ -481,15 +489,88 @@ export function parseMigrationName(name, policy) {
     };
   }
 
-  return {
+  const parsed = {
     version,
     owner,
     slug: match[3],
     legacy: false,
   };
+  if (ownerAwareBaseline) parsed.ownerAwareBaseline = true;
+  return parsed;
 }
 
-function validateOwnerAwareMigration(migration, parsed, policy) {
+function ownerOwnsTable(ownershipManifest, policy, owner, schema, table) {
+  if (ownershipManifest?.ownership) {
+    return ownershipManifest.ownership.some((entry) =>
+      entry.domain === owner &&
+      entry.table === table &&
+      (entry.currentSchema === schema || entry.targetSchema === schema));
+  }
+
+  const explicitOwners = policy.tableOwners?.[schema]?.[table];
+  if (explicitOwners) return explicitOwners.includes(owner);
+  const configuredSchemas = policy.owners[owner]?.schemas ?? [];
+  return configuredSchemas.includes(schema) || policy.owners[owner]?.schema === schema;
+}
+
+function targetSchemaForOwner(policy, owner) {
+  return policy.owners[owner]?.schema ?? policy.owners[owner]?.targetSchema ?? null;
+}
+
+function extractSchemaMoves(cleanSql) {
+  const moves = [];
+  const pattern = new RegExp(
+    `\\bALTER\\s+TABLE\\s+(?:ONLY\\s+)?(${QUALIFIED_IDENTIFIER})\\s+SET\\s+SCHEMA\\s+(${IDENTIFIER})`,
+    'gi',
+  );
+  for (const match of cleanSql.matchAll(pattern)) {
+    const source = splitQualifiedIdentifier(match[1]);
+    if (!source) {
+      moves.push({ error: 'schema move source must be qualified' });
+      continue;
+    }
+    moves.push({
+      fromSchema: source.schema,
+      table: source.table,
+      toSchema: unquote(match[2]).toLowerCase(),
+    });
+  }
+  return moves;
+}
+
+function validateSchemaMovePolicy(migration, parsed, cleanSql, policy, ownershipManifest) {
+  const actual = extractSchemaMoves(cleanSql);
+  const expected = policy.schemaMoveMigrations?.[migration.name];
+  const errors = [];
+  if (actual.length === 0 && !expected) return errors;
+  if (!expected) {
+    return [`${migration.name}: table schema moves require an exact migration-name transition policy`];
+  }
+  if (expected.owner !== parsed.owner) {
+    errors.push(`${migration.name}: schema move policy owner does not match migration owner ${parsed.owner}`);
+  }
+
+  const normalize = (move) => `${move.fromSchema}.${move.table}->${move.toSchema}`;
+  const expectedMoves = (expected.moves ?? []).map(normalize).sort();
+  const actualMoves = actual.map(normalize).sort();
+  if (actual.some((move) => move.error) || JSON.stringify(actualMoves) !== JSON.stringify(expectedMoves)) {
+    errors.push(`${migration.name}: schema move statements do not match the exact reviewed transition list`);
+  }
+
+  for (const move of expected.moves ?? []) {
+    const ownedTable = ownershipManifest?.ownership?.find((entry) =>
+      entry.domain === parsed.owner &&
+      entry.table === move.table &&
+      entry.currentSchema === move.fromSchema &&
+      entry.targetSchema === move.toSchema);
+    if (ownershipManifest?.ownership && !ownedTable) {
+      errors.push(`${migration.name}: schema move ${normalize(move)} does not match the domain ownership manifest`);
+    }
+  }
+  return errors;
+}
+
+function validateOwnerAwareMigration(migration, parsed, policy, ownershipManifest) {
   const errors = [];
   const { metadata, errors: metadataErrors } = extractMetadata(migration.sql);
   const systemSchemas = new Set(policy.systemSchemas ?? []);
@@ -522,27 +603,29 @@ function validateOwnerAwareMigration(migration, parsed, policy) {
   }
 
   const relationTargets = extractRelationTargets(analysisSql);
+  errors.push(...validateSchemaMovePolicy(migration, parsed, cleanSql, policy, ownershipManifest));
   const tableOwners = policy.tableOwners ?? {};
   const strictTableSchemas = new Set(policy.requireTableOwnerMappingsForSchemas ?? []);
-  const ownerSchemas = new Set(policy.owners[parsed.owner].schemas);
+  const configuredOwnerSchemas = new Set(policy.owners[parsed.owner].schemas ?? []);
+  const targetSchema = targetSchemaForOwner(policy, parsed.owner);
   for (const schema of schemas) {
     if (systemSchemas.has(schema)) continue;
     const schemaRelations = relationTargets.filter(
       ({ relation }) => relation?.schema === schema,
     );
-    const hasExplicitTableException =
-      schemaRelations.length > 0 &&
-      schemaRelations.every(
-        ({ kind, relation }) =>
-          kind !== 'index' &&
-          tableOwners[schema]?.[relation.table]?.includes(parsed.owner),
-      );
+    const hasOwnerTableAccess = schemaRelations.length > 0 && schemaRelations.every(
+      ({ kind, relation }) => relation && (kind === 'index'
+        ? policy.indexOwners?.[schema]?.[relation.table]?.includes(parsed.owner)
+        : ownerOwnsTable(ownershipManifest, policy, parsed.owner, schema, relation.table)),
+    );
 
     if (forbiddenSchemas.has(schema)) {
       errors.push(`${migration.name}: schema ${schema} is forbidden for Prism domain migrations`);
-    } else if (!ownerSchemas.has(schema) && !hasExplicitTableException) {
+    } else if (ownershipManifest?.ownership
+      ? schema !== targetSchema && !hasOwnerTableAccess
+      : !configuredOwnerSchemas.has(schema) && schema !== targetSchema && !hasOwnerTableAccess) {
       errors.push(
-        `${migration.name}: schema ${schema} is not allowed for owner ${parsed.owner}; allowed schemas: ${[...ownerSchemas].join(', ')}`,
+        `${migration.name}: schema ${schema} is not allowed for owner ${parsed.owner}; owner target schema: ${targetSchema ?? [...configuredOwnerSchemas].join(', ')}`,
       );
     }
   }
@@ -559,12 +642,16 @@ function validateOwnerAwareMigration(migration, parsed, policy) {
     }
   }
 
-  const checkedTables = new Set();
   for (const { kind, relation } of relationTargets) {
     if (kind === 'index' || relation === null) continue;
     const tableKey = `${relation.schema}.${relation.table}`;
-    if (checkedTables.has(tableKey)) continue;
-    checkedTables.add(tableKey);
+
+    if (ownershipManifest?.ownership) {
+      if (!ownerOwnsTable(ownershipManifest, policy, parsed.owner, relation.schema, relation.table)) {
+        errors.push(`${migration.name}: table ${tableKey} is not owned by ${parsed.owner} in the domain ownership manifest`);
+      }
+      continue;
+    }
 
     const schemaOwners = tableOwners[relation.schema];
     const allowedOwners = schemaOwners?.[relation.table];
@@ -580,9 +667,7 @@ function validateOwnerAwareMigration(migration, parsed, policy) {
   }
 
   for (const { kind, relation } of relationTargets) {
-    if (kind !== 'index' || relation === null || !strictTableSchemas.has(relation.schema)) {
-      continue;
-    }
+    if (kind !== 'index' || relation === null) continue;
     const indexKey = `${relation.schema}.${relation.table}`;
     const allowedOwners = policy.indexOwners?.[relation.schema]?.[relation.table];
     if (!Array.isArray(allowedOwners)) {
@@ -619,7 +704,7 @@ function validateOwnerAwareMigration(migration, parsed, policy) {
   return errors;
 }
 
-export function auditMigrationSet(migrations, policy) {
+export function auditMigrationSet(migrations, policy, ownershipManifest = null) {
   const errors = [];
   const warnings = [];
   const parsedMigrations = [];
@@ -629,6 +714,25 @@ export function auditMigrationSet(migrations, policy) {
   const sortedMigrations = [...migrations].sort((left, right) =>
     left.name.localeCompare(right.name),
   );
+
+  if (policy.policyVersion !== 1) {
+    errors.push(`unsupported migration policy version ${policy.policyVersion ?? '(missing)'}; expected version 1`);
+  }
+
+  const historicalPolicy = policy.historicalOwnerSchemas
+    ? {
+        ...policy,
+        owners: policy.historicalOwnerSchemas,
+        tableOwners: policy.historicalTableOwners ?? {},
+        indexOwners: policy.historicalIndexOwners ?? {},
+        requireTableOwnerMappingsForSchemas: policy.historicalRequireTableOwnerMappingsForSchemas ?? [],
+        schemaMoveMigrations: policy.historicalSchemaMoveMigrations ?? {},
+      }
+    : null;
+
+  if ((policy.ownerAwareBaselineNames ?? []).length > 0 && !historicalPolicy) {
+    errors.push('immutable owner-aware migration history requires its saved historical owner schema policy');
+  }
 
   for (const name of policy.legacyMigrationNames) {
     const legacyMatch = name.match(LEGACY_SHAPE);
@@ -670,12 +774,29 @@ export function auditMigrationSet(migrations, policy) {
       continue;
     }
 
+    if (parsed.ownerAwareBaseline) {
+      const expectedChecksum = policy.ownerAwareBaselineChecksums?.[migration.name];
+      if (!expectedChecksum) {
+        errors.push(`${migration.name}: missing immutable owner-aware baseline SQL checksum in policy`);
+      } else if (checksumSql(migration.sql) !== expectedChecksum) {
+        errors.push(`${migration.name}: immutable owner-aware baseline migration.sql checksum mismatch`);
+      }
+      if (historicalPolicy) {
+        if (!historicalPolicy.owners[parsed.owner]) {
+          errors.push(`${migration.name}: historical owner schema policy is missing for ${parsed.owner}`);
+        } else {
+          errors.push(...validateOwnerAwareMigration(migration, parsed, historicalPolicy));
+        }
+      }
+      continue;
+    }
+
     if (futureVersions.has(parsed.version)) {
       futureVersions.get(parsed.version).push(migration.name);
     } else {
       futureVersions.set(parsed.version, [migration.name]);
     }
-    errors.push(...validateOwnerAwareMigration(migration, parsed, policy));
+    errors.push(...validateOwnerAwareMigration(migration, parsed, policy, ownershipManifest));
   }
 
   const legacyDuplicateVersions = new Set(policy.legacyDuplicateVersions ?? []);
@@ -697,6 +818,12 @@ export function auditMigrationSet(migrations, policy) {
     }
   }
 
+  for (const migrationName of Object.keys(policy.schemaMoveMigrations ?? {})) {
+    if (!seenNames.has(migrationName)) {
+      errors.push(`${migrationName}: schema move policy has no matching migration directory`);
+    }
+  }
+
   let previousVersion = '';
   for (const { parsed } of parsedMigrations) {
     if (parsed.version < previousVersion) {
@@ -710,13 +837,42 @@ export function auditMigrationSet(migrations, policy) {
   const summary = {
     total: migrations.length,
     legacy: parsedMigrations.filter(({ parsed }) => parsed.legacy).length,
-    ownerAware: parsedMigrations.filter(({ parsed }) => !parsed.legacy).length,
+    ownerAwareBaseline: parsedMigrations.filter(({ parsed }) => parsed.ownerAwareBaseline).length,
+    ownerAware: parsedMigrations.filter(({ parsed }) => !parsed.legacy && !parsed.ownerAwareBaseline).length,
     futureVersions: futureVersions.size,
   };
 
   if (summary.legacy !== policy.legacyMigrationNames.length) {
     errors.push(
       `legacy migration count ${summary.legacy} does not match policy count ${policy.legacyMigrationNames.length}; review applied history before changing the baseline`,
+    );
+  }
+
+  const ownerAwareBaselineNames = policy.ownerAwareBaselineNames ?? [];
+  const ownerAwareBaselineNameSet = new Set(ownerAwareBaselineNames);
+  if (ownerAwareBaselineNameSet.size !== ownerAwareBaselineNames.length) {
+    errors.push('owner-aware migration baseline contains duplicate names');
+  }
+  const baselineMaxVersion = policy.ownerAwareBaselineMaxVersion ?? policy.legacyMaxVersion;
+  for (const name of ownerAwareBaselineNames) {
+    if (!seenNames.has(name)) errors.push(`${name}: immutable owner-aware baseline migration is missing`);
+    const match = name.match(NAME_PATTERN);
+    const version = match?.[1];
+    if (!version || version <= policy.legacyMaxVersion || version > baselineMaxVersion) {
+      errors.push(`${name}: immutable owner-aware baseline name is outside its configured version range`);
+    }
+    if (!Object.hasOwn(policy.ownerAwareBaselineChecksums ?? {}, name)) {
+      errors.push(`${name}: immutable owner-aware baseline SQL checksum is missing from policy`);
+    }
+  }
+  for (const name of Object.keys(policy.ownerAwareBaselineChecksums ?? {})) {
+    if (!ownerAwareBaselineNameSet.has(name)) {
+      errors.push(`${name}: owner-aware baseline checksum is not an immutable owner-aware baseline migration`);
+    }
+  }
+  if (summary.ownerAwareBaseline !== ownerAwareBaselineNames.length) {
+    errors.push(
+      `owner-aware baseline migration count ${summary.ownerAwareBaseline} does not match policy count ${ownerAwareBaselineNames.length}; review applied history before changing the baseline`,
     );
   }
 
@@ -787,10 +943,15 @@ export function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
   return JSON.parse(readFileSync(policyPath, 'utf8'));
 }
 
-export function runMigrationGuard({ migrationsRoot = DEFAULT_MIGRATIONS_ROOT, policyPath = DEFAULT_POLICY_PATH } = {}) {
+export function runMigrationGuard({
+  migrationsRoot = DEFAULT_MIGRATIONS_ROOT,
+  policyPath = DEFAULT_POLICY_PATH,
+  ownershipPath = DEFAULT_OWNERSHIP_PATH,
+} = {}) {
   const policy = loadPolicy(policyPath);
   const migrations = discoverMigrations(migrationsRoot);
-  return { policy, migrations, ...auditMigrationSet(migrations, policy) };
+  const ownershipManifest = JSON.parse(readFileSync(ownershipPath, 'utf8'));
+  return { policy, migrations, ownershipManifest, ...auditMigrationSet(migrations, policy, ownershipManifest) };
 }
 
 function main() {
@@ -804,7 +965,7 @@ function main() {
     }
 
     console.log(
-      `Prisma migration guard passed (${summary.total} migrations; ${summary.legacy} immutable legacy; ${summary.ownerAware} owner-aware).`,
+      `Prisma migration guard passed (${summary.total} migrations; ${summary.legacy} immutable legacy; ${summary.ownerAwareBaseline} immutable owner-aware baseline; ${summary.ownerAware} new owner-aware).`,
     );
   } catch (error) {
     console.error(
