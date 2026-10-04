@@ -70,11 +70,12 @@ or a blocking data check needs investigation. No status authorizes a repair.
 ## Data review
 
 The preflight checks duplicate normalized account emails and active floorplan
-drafts; same-domain links whose related rows disagree on event; invalid money,
-ratings, registration ranges, JSON shapes, and billing sequences; audit chain
-and head integrity; PARE review-payload digests; notification and PARE states;
-and expired queue leases. It reports bounded opaque IDs in the artifact and
-counts in the console. Each finding belongs to the owner named in the report.
+drafts; orphan quote-to-request links; same-domain links whose related rows
+disagree on event; invalid money, ratings, registration ranges, JSON shapes,
+and billing sequences; audit chain and head integrity; PARE review-payload
+digests; notification and PARE states; and expired queue leases. It reports
+bounded opaque IDs in the artifact and counts in the console. Each finding
+belongs to the owner named in the report.
 Resolve it through that owner's reviewed repair and retain the original
 evidence. Do not delete a row, fabricate a default, or relink by a name or
 email to make the report pass.

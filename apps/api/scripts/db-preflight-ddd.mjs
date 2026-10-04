@@ -83,6 +83,17 @@ UNION ALL
 SELECT id::text FROM {{commercial.cost_estimates}} WHERE budget_amount < 0 OR total_amount < 0`,
   },
   {
+    id: 'orphan_quote_request_references',
+    owner: 'commercial',
+    description: 'Every quote with a request ID points to an existing Commercial quote request.',
+    blocking: true,
+    tables: [['commercial', 'quotes'], ['commercial', 'quote_requests']],
+    query: `SELECT quote.id::text AS opaque_id
+FROM {{commercial.quotes}} AS quote
+LEFT JOIN {{commercial.quote_requests}} AS request ON request.id = quote.request_id
+WHERE quote.request_id IS NOT NULL AND request.id IS NULL`,
+  },
+  {
     id: 'invalid_review_ratings',
     owner: 'commercial / operations',
     description: 'Supplier and guest feedback ratings outside the supported 1 through 5 range.',
