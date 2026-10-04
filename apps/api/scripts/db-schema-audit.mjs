@@ -1,65 +1,46 @@
 import process from 'node:process';
 import { Pool } from 'pg';
 import { selectDatabaseConnection } from './db-connection-config.mjs';
+import { domainPersistenceCatalog, loadOwnershipManifest } from './domain-persistence-catalog.mjs';
 
-const expectedTables = [
-  ['floorplan', 'floor_plans'],
-  ['floorplan', 'floor_plan_objects'],
-  ['floorplan', 'venue_templates'],
-  ['floorplan', 'event_instances'],
-  ['floorplan', 'published_snapshots'],
-  ['floorplan', 'floor_plan_drafts'],
-  ['identity', 'users'],
-  ['identity', 'approval_requests'],
-  ['identity', 'login_history'],
-  ['identity', 'security_alerts'],
-  ['event_core', 'inquiries'],
-  ['event_core', 'events'],
-  ['event_core', 'privacy_requests'],
-  ['event_core', 'documents'],
-  ['event_core', 'briefings'],
-  ['supplier_ops', 'supplier_categories'],
-  ['supplier_ops', 'suppliers'],
-  ['supplier_ops', 'supplier_reviews'],
-  ['supplier_ops', 'supplier_reliability_notes'],
-  ['supplier_ops', 'supplier_certifications'],
-  ['supplier_ops', 'quote_requests'],
-  ['supplier_ops', 'quotes'],
-  ['staffing_ops', 'coordinators'],
-  ['staffing_ops', 'coordinator_assignments'],
-  ['staffing_ops', 'event_day_tasks'],
-  ['staffing_ops', 'urgent_issues'],
-  ['staffing_ops', 'event_day_logs'],
-  ['staffing_ops', 'coordinator_reliability_notes'],
-  ['finance_ops', 'billing_sources'],
-  ['finance_ops', 'billing_statements'],
-  ['finance_ops', 'payment_milestones'],
-  ['finance_ops', 'payment_records'],
-  ['compliance_ops', 'compliance_rules'],
-  ['compliance_ops', 'compliance_checks'],
-  ['compliance_ops', 'post_event_documents'],
-  ['compliance_ops', 'event_insights'],
-  ['guest_ops', 'check_ins'],
-  ['guest_ops', 'feedback'],
-  ['trust_ops', 'audit_logs'],
-  ['trust_ops', 'notification_logs'],
-  ['trust_ops', 'ai_audit_logs'],
-  ['trust_ops', 'ai_approval_records'],
-];
+const acceptedArguments = new Set(['--final']);
+const unknownArguments = process.argv.slice(2).filter((argument) => !acceptedArguments.has(argument));
+if (unknownArguments.length > 0) {
+  console.error(`Unknown argument(s): ${unknownArguments.join(', ')}. Supported option: --final.`);
+  process.exit(1);
+}
+
+const final = process.argv.includes('--final');
+const catalog = domainPersistenceCatalog(loadOwnershipManifest(), { final });
+const expectedTables = catalog.tables.map(({ schema, table }) => [schema, table]);
+const domainSchemas = catalog.schemas;
 
 const database = selectDatabaseConnection({ purpose: 'migration' });
 const pool = new Pool({ connectionString: database.connectionString, ssl: database.ssl });
 
 try {
+  const schemaRows = await pool.query(
+    `select schema_name
+       from information_schema.schemata
+      where schema_name = any($1::text[])
+      order by schema_name`,
+    [domainSchemas],
+  );
+  const presentSchemas = new Set(schemaRows.rows.map(({ schema_name }) => schema_name));
+  const missingSchemas = domainSchemas.filter((schema) => !presentSchemas.has(schema));
+
   const existing = await pool.query(
     `select table_schema, table_name
        from information_schema.tables
       where table_type = 'BASE TABLE'
         and table_schema = any($1::text[])`,
-    [[...new Set(expectedTables.map(([schema]) => schema))]],
+    [domainSchemas],
   );
   const present = new Set(existing.rows.map((row) => `${row.table_schema}.${row.table_name}`));
   const missing = expectedTables.filter(([schema, table]) => !present.has(`${schema}.${table}`));
+  const expected = new Set(expectedTables.map(([schema, table]) => `${schema}.${table}`));
+  const unexpected = existing.rows.filter(({ table_schema, table_name }) =>
+    !expected.has(`${table_schema}.${table_name}`));
 
   const publicTables = await pool.query(
     `select table_name
@@ -70,10 +51,18 @@ try {
       order by table_name`,
   );
 
-  if (missing.length > 0 || publicTables.rows.length > 0) {
+  if (missingSchemas.length > 0 || missing.length > 0 || unexpected.length > 0 || publicTables.rows.length > 0) {
+    if (missingSchemas.length > 0) {
+      console.error('Missing expected domain schemas:');
+      for (const schema of missingSchemas) console.error(`- ${schema}`);
+    }
     if (missing.length > 0) {
       console.error('Missing expected domain tables:');
       for (const [schema, table] of missing) console.error(`- ${schema}.${table}`);
+    }
+    if (unexpected.length > 0) {
+      console.error('Unowned base tables in domain schemas:');
+      for (const row of unexpected) console.error(`- ${row.table_schema}.${row.table_name}`);
     }
     if (publicTables.rows.length > 0) {
       console.error('Runtime tables still in public:');
@@ -82,7 +71,7 @@ try {
     process.exit(1);
   }
 
-  console.log(`Schema audit passed for ${expectedTables.length} domain tables.`);
+  console.log(`Schema audit passed for ${expectedTables.length} ${final ? 'target' : 'current'} domain tables across ${domainSchemas.length} schemas.`);
 } finally {
   await pool.end();
 }
