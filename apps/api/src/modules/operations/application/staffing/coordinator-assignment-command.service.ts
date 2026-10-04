@@ -508,7 +508,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
         data: { eventDate: targetDate, doubleBookingWarning: false, conflictEventId: null, conflictEventName: null },
       });
       if (moved.count !== reschedule.assignmentIds.length) throw new BadRequestException('Coordinator assignments changed during the event decision');
-      for (const conflict of reschedule.conflicts) {
+      for (const conflict of reschedule.conflicts) { // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: each event-scoped active assignment can need distinct persisted conflict metadata.
         if (conflict.reason !== 'double_booking') continue;
         const marked = await prisma.opsCoordinatorAssignment.updateMany({
           where: { id: conflict.assignmentId, eventId, status: { notIn: [...INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES] } },
