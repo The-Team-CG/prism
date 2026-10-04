@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Added a canonical column authority register for all 1,159 baseline columns, with DDD ownership, physical types/defaults, provisional semantic and sensitivity review, candidate consumers, and migration dispositions; no unverified data conversion is included.
 - Fixed the archived coordinator event regression test to wait for refreshed role data before submitting after switching back to a current event.
 
 ### Fixed
