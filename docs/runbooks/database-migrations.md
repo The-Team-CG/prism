@@ -280,6 +280,12 @@ reviewed migration or operator procedure. Do not point the live command at a
 production database from CI, and do not treat a dry-run pass as evidence that
 the target data is compatible.
 
+For the approved domain-schema move rehearsal, safe disposable-target checks,
+and row-preservation evidence, follow the
+[domain schema cutover runbook](domain-schema-cutover.md). The manifest-driven
+JSON export described there is an inspection aid, not a complete database
+backup or recovery procedure.
+
 ## Drift and failed-migration recovery
 
 Stop normal deployment when the migration ledger, checked-in SQL, and live
