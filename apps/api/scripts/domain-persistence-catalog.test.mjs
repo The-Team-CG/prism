@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import {
   domainPersistenceCatalog,
   loadOwnershipManifest,
+  ownerTableReference,
+  renderOwnerTableReferences,
 } from './domain-persistence-catalog.mjs';
 
 describe('domain persistence catalog', () => {
@@ -18,6 +20,36 @@ describe('domain persistence catalog', () => {
     assert.equal(target.schemas.length, 7);
     assert.equal(current.tables.find(({ table }) => table === 'quotes').schema, 'supplier_ops');
     assert.equal(target.tables.find(({ table }) => table === 'quotes').schema, 'commercial');
+  });
+
+  it('resolves exact owner table tokens for current and final schemas', () => {
+    const manifest = loadOwnershipManifest();
+    const query = 'SELECT id FROM {{commercial.quotes}}';
+    assert.equal(
+      renderOwnerTableReferences(query, manifest),
+      'SELECT id FROM "supplier_ops"."quotes"',
+    );
+    assert.equal(
+      renderOwnerTableReferences(query, manifest, { final: true }),
+      'SELECT id FROM "commercial"."quotes"',
+    );
+    assert.equal(ownerTableReference(manifest, 'commercial', 'quotes').model, 'OpsSupplierQuote');
+  });
+
+  it('fails closed for unmapped or duplicate owner table tokens', () => {
+    assert.throws(
+      () => renderOwnerTableReferences('SELECT * FROM {{commercial.unknown}}', { ownership: [] }),
+      /map commercial\.unknown exactly once/,
+    );
+    assert.throws(
+      () => ownerTableReference({
+        ownership: [
+          { domain: 'commercial', table: 'quotes', currentSchema: 'one', targetSchema: 'commercial' },
+          { domain: 'commercial', table: 'quotes', currentSchema: 'two', targetSchema: 'commercial' },
+        ],
+      }, 'commercial', 'quotes'),
+      /map commercial\.quotes exactly once/,
+    );
   });
 
   it('rejects duplicate schema/table ownership instead of silently dropping a row', () => {
