@@ -22,7 +22,11 @@ function createService() {
       }),
     },
     opsSupplierQuote: {
-      findFirst: vi.fn(async ({ where }) => where.id === quote.id ? { ...quote } : null),
+      findFirst: vi.fn(async ({ where }) =>
+        where.id === quote.id && where.eventId === quote.eventId && where.status === quote.status
+          ? { ...quote }
+          : null,
+      ),
       update: vi.fn(async ({ data }) => Object.assign(quote, data) && { ...quote }),
     },
   };
@@ -99,5 +103,25 @@ describe('CommercialAddendumImpactService', () => {
     expect(impacts).toEqual([]);
     expect(prisma.opsBillingSource.findFirst).not.toHaveBeenCalled();
     expect(prisma.opsSupplierQuote.update).not.toHaveBeenCalled();
+  });
+
+  it('does not update a quote from another event or with a non-selected status', async () => {
+    const { service, quote, prisma, transaction } = createService();
+    quote.eventId = 'evt_other';
+    quote.status = 'submitted';
+
+    const impacts = await service.apply({
+      eventId: 'evt_addendum',
+      versionNumber: 1,
+      financialDelta: 0,
+      quotePriceChanges: [{ quoteId: 'quote_1', amount: 30_000 }],
+    }, transaction);
+
+    expect(prisma.opsSupplierQuote.findFirst).toHaveBeenCalledWith({
+      where: { id: 'quote_1', eventId: 'evt_addendum', status: 'selected' },
+    });
+    expect(quote.amount).toBe(25_000);
+    expect(prisma.opsSupplierQuote.update).not.toHaveBeenCalled();
+    expect(impacts).toEqual([]);
   });
 });
