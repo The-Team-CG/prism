@@ -84,8 +84,10 @@ databaseSuite('Platform command receipt PostgreSQL invariants', () => {
 
     try {
       const results = await Promise.all([command(), command()]);
+      const lostResponseRetry = await command();
 
-      expect(results).toEqual([
+      expect([...results, lostResponseRetry]).toEqual([
+        { accepted: true, requestId: 'request_1' },
         { accepted: true, requestId: 'request_1' },
         { accepted: true, requestId: 'request_1' },
       ]);
