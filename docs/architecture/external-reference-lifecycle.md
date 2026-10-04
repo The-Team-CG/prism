@@ -76,7 +76,7 @@ Before any FK removal, owner capabilities must preserve required current checks 
 
 ## Implemented seams and remaining work
 
-The policy marks a reference implemented only where source inspection found the named capability: Commercial addendum impact writes, Lifecycle document validation, and Lifecycle conforme-inquiry eligibility. Floorplan event references remain transitional in this stack. Other references remain transitional until call sites use the required capability and behavior tests cover failures and retries.
+The policy marks a reference implemented only where source inspection found the named capability: Commercial addendum impact writes, Lifecycle document validation and conforme-inquiry eligibility, and the Lifecycle post-event / LiveOps urgent-issue readers used by additional billing. Floorplan event references remain transitional in this stack. Other references remain transitional until call sites use the required capability and behavior tests cover failures and retries.
 
 The static guard verifies exact cross-domain FK coverage and scalar source/target ownership/profile drift. It does not prove every caller uses an owner capability, validate a live PostgreSQL catalog, or authorize FK removal.
 

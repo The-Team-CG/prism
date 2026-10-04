@@ -2,6 +2,7 @@
 
 ## 2026-10-04
 
+- **Implemented:** Commercial additional billing validates recorded post-event state through Lifecycle and same-event urgent-issue eligibility through LiveOps; both owner readers use the caller transaction and lock the required rows until commit.
 - **Recorded:** Added the canonical external-reference lifecycle register and machine-readable policy for 45 cross-domain foreign keys and 28 scalar references. The register distinguishes current eligibility from historical attribution, records current delete effects and owner recovery rules, and keeps FK removal behind behavior and migration gates.
 - **Implemented:** Lifecycle addendum issuance now delegates approved billing-source and selected supplier-quote mutations to a narrow Commercial capability in the same transaction, then retains its own impact history. Corrected the stale onboarding ownership description: current briefing/conforme workflows do not create billing rows without priced-source input.
 - **Corrected:** Lifecycle is now the sole production owner of `OpsDocument` metadata registration. Commercial supplier contracts and billing statements use the transaction-aware `DOCUMENT_VAULT`; billing-source evidence and client proposal review validate event, kind, and status through the owner capability. Document metadata remains retained and redaction disabled while PMCM document-retention policy is pending.

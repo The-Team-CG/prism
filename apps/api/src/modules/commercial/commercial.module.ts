@@ -6,6 +6,7 @@ import { EventCoreModule } from '@prism/kernel/event-core';
 import { EventSessionModule } from '@prism/kernel/event-session';
 import { DOCUMENT_VAULT } from '@prism/contexts/event-lifecycle';
 import { EventLifecycleModule } from '../event-lifecycle/event-lifecycle.module';
+import { UrgentIssueReferenceModule } from '@prism/contexts/live-ops/urgent-issue-reference';
 import { OpsEventCommercialController } from './api/quotes/event-commercial.controller';
 import { OpsEventProposalReviewController } from './api/quotes/event-proposal-review.controller';
 import { ProposalClientReviewService } from './application/quotes/proposal-client-review.service';
@@ -80,6 +81,7 @@ const supplierCommandsProvider = {
     PlatformOpsModule,
     EventCoreModule,
     EventLifecycleModule,
+    UrgentIssueReferenceModule,
     CommercialAddendumImpactModule,
     EventSessionModule,
     IdentityAccessModule,
