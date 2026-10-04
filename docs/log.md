@@ -2,6 +2,7 @@
 
 ## 2026-10-04
 
+- **Implemented:** Floorplan reads lifecycle-owned event facts through a transaction-aware owner capability and locks event then ocular state before event-scoped writes. Official draft gates use signed-conforme and completed/waived ocular state; archived/frozen events reject mutations, while authorized historical reads remain available. Lifecycle event references are no longer read through Floorplan's cross-domain Prisma relation; the FK remains until the coordinated schema cutover. **Verified:** focused Floorplan/Lifecycle checks passed (80 tests; 2 PostgreSQL-gated skips), API typecheck, boundary scan (1,332 files), and query audit (329 API source files) passed. PostgreSQL lock behavior remains unverified; this reference slice adds no schema or FK changes.
 - **Implemented:** Floorplan now updates its own draft state and sends a per-event versioned projection through Lifecycle's compare-and-set capability in the same transaction. Added the floorplan-owned projection clock without a cross-domain FK, synchronized the ownership inventory (92 tables / 1,163 columns), and recorded stale-projection and concurrent-transition behavior tests.
 
 ## 2026-10-03

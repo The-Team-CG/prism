@@ -14,9 +14,12 @@ function createService() {
         inquiryId: 'inq_sample',
         // Bare new Date() on purpose: the conforme gate checks null vs non-null, so the value is
         // inert, and a dated literal here would be a future check:test-clocks liability.
-        inquiry: { conformeSignedAt: new Date() },
+        inquiry: { email: 'ana@example.test', conformeSignedAt: new Date() },
         clientName: 'Ana Reyes',
         eventName: 'Ayala Summit',
+        clientPortalStatus: 'unlocked',
+        archived: false,
+        freezeStatus: 'open',
         floorPlanStatus: 'not_started',
         readiness: 'Planning',
         floorPlanProjectionVersion: 0,
@@ -99,6 +102,25 @@ function createService() {
     },
     $transaction: vi.fn(async (callback) => callback(prisma)),
   };
+  const lifecycleEventReferences = {
+    findFloorplanEvent: vi.fn(async (eventId: string, transaction?: PrismTransactionContext) => {
+      const event = await (transaction?.prisma ?? prisma).opsEvent.findUnique({ where: { id: eventId } });
+      if (!event) return null;
+      return {
+        eventId: event.id,
+        eventName: event.eventName,
+        clientName: event.clientName,
+        clientPortalStatus: event.clientPortalStatus,
+        archived: event.archived,
+        freezeStatus: event.freezeStatus,
+        floorPlanStatus: event.floorPlanStatus,
+        readiness: event.readiness,
+        primaryClientEmail: event.inquiry?.email ?? null,
+        conformeSigned: Boolean(event.inquiry?.conformeSignedAt),
+        ocularVisitStatus: state.ocularVisitStatus,
+      };
+    }),
+  };
   const auditWriter = { write: vi.fn(async () => undefined) };
   const notificationOutboxWriter = { write: vi.fn(async () => undefined) };
   const lifecycleProjectionWriter: FloorplanProjectionWriter = {
@@ -117,8 +139,9 @@ function createService() {
     notificationOutboxWriter as any,
     new WorkflowCommandService(),
     lifecycleProjectionWriter,
+    lifecycleEventReferences,
   );
-  return { service, state, prisma, auditWriter, notificationOutboxWriter, lifecycleProjectionWriter };
+  return { service, state, prisma, auditWriter, notificationOutboxWriter, lifecycleProjectionWriter, lifecycleEventReferences };
 }
 
 describe('FloorPlanWorkflowService', () => {
@@ -177,6 +200,40 @@ describe('FloorPlanWorkflowService', () => {
     expect(state.floorPlans).toHaveLength(0);
   });
 
+  it('fails closed when the Lifecycle owner no longer has the referenced event', async () => {
+    const { service, state } = createService();
+    state.events.length = 0;
+
+    await expect(service.createFloorPlanDraft(
+      'evt_sample',
+      { name: 'Official Layout', sourceType: 'blank' },
+      { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' },
+    )).rejects.toThrow('Event not found');
+    expect(state.floorPlans).toHaveLength(0);
+  });
+
+  it.each([
+    ['archived', { archived: true }],
+    ['frozen', { freezeStatus: 'frozen' }],
+  ])('blocks a client preference while the event is %s', async (_state, eventChanges) => {
+    const { service, state } = createService();
+    Object.assign(state.events[0], eventChanges);
+
+    await expect(service.createFloorPlanPreference(
+      'evt_sample',
+      {
+        name: 'Client Preference',
+        seatingStyle: 'banquet',
+        stagePreference: 'center',
+        flowNotes: 'Keep the entrance clear.',
+        guestCount: 120,
+        constraints: [],
+      },
+      { actorId: 'user_client_1', name: 'Ana Reyes', role: 'client' },
+    )).rejects.toThrow('cannot be changed');
+    expect(state.floorPlans).toHaveLength(0);
+  });
+
   it.each(['completed', 'waived'])('allowsOfficialDraftAfter%s', async (status) => {
     const { service, state } = createService();
     state.ocularVisitStatus = status;
@@ -191,8 +248,8 @@ describe('FloorPlanWorkflowService', () => {
     expect(state.floorPlanDrafts).toHaveLength(1);
   });
 
-  it('leavesClientPreferenceUngated', async () => {
-    const { service, state, prisma } = createService();
+  it('keeps client preferences outside the official conforme and ocular gates', async () => {
+    const { service, state } = createService();
     state.ocularVisitStatus = null;
     state.events[0].clientPortalStatus = 'unlocked';
 
@@ -210,7 +267,6 @@ describe('FloorPlanWorkflowService', () => {
     );
 
     expect(state.floorPlanDrafts).toHaveLength(1);
-    expect(prisma.opsOcularVisitRequest.findUnique).not.toHaveBeenCalled();
   });
 
   it('creates PMCM official floorplan drafts with canvas object rows intact', async () => {
@@ -331,8 +387,8 @@ describe('FloorPlanWorkflowService', () => {
     expect(state.events[0]).toMatchObject({ floorPlanStatus: 'not_started', readiness: 'Planning' });
   });
 
-  it('reads conforme state through its own focused query, not the access-scope include', async () => {
-    const { service, prisma } = createService();
+  it('reads current Lifecycle gates through its owner capability inside the write transaction', async () => {
+    const { service, lifecycleEventReferences, prisma } = createService();
 
     await service.createFloorPlanDraft(
       'evt_sample',
@@ -340,13 +396,11 @@ describe('FloorPlanWorkflowService', () => {
       { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' },
     );
 
-    // Proves the gate actually issued its own conforme read rather than being bypassed.
-    expect(prisma.opsEvent.findUnique).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'evt_sample' },
-        select: expect.objectContaining({ inquiry: { select: { conformeSignedAt: true } } }),
-      }),
+    expect(lifecycleEventReferences.findFloorplanEvent).toHaveBeenCalledWith(
+      'evt_sample',
+      expect.objectContaining({ prisma: expect.anything(), correlationId: 'floorplan-create:evt_sample' }),
     );
+    expect(prisma.opsEvent.findUnique).toHaveBeenCalledWith({ where: { id: 'evt_sample' } });
   });
 
   it('creates client layout preferences without making them official approved layouts', async () => {

@@ -35,6 +35,7 @@ import { ClientEventDayViewService } from './application/client-visibility/clien
 import { OcularVisitController } from './api/ocular-visit/ocular-visit.controller';
 import { OcularVisitService } from './application/ocular-visit/ocular-visit.service';
 import { EventLifecycleProjectionModule } from './event-lifecycle-projection.module';
+import { FloorplanReferenceModule } from './floorplan-reference.module';
 
 const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const };
 
@@ -64,6 +65,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     EventCoreModule,
     PlatformOpsModule,
     EventLifecycleProjectionModule,
+    FloorplanReferenceModule,
     AccessControlModule,
     EventSessionModule,
   ],
@@ -124,6 +126,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     FILE_REQUIREMENT_COMMANDS,
     ChangeManagementService,
     EventLifecycleProjectionModule,
+    FloorplanReferenceModule,
   ],
 })
 export class EventLifecycleModule {}

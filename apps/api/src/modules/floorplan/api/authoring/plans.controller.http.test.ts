@@ -9,6 +9,7 @@ import { PrismaService as PrismaServiceToken } from '@prism/kernel/database';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter } from '@prism/kernel/access-control';
 import { EventSessionGuard, AuthSessionService } from '@prism/kernel/event-session';
 import type { PrismUser } from '@prism/types';
+import { FLOORPLAN_EVENT_REFERENCE_READER } from '@prism/contexts/event-lifecycle/floorplan-reference';
 import { PlansController } from './plans.controller';
 import { PlansService } from '../../application/authoring/plans.service';
 
@@ -57,15 +58,33 @@ const planRows = new Map([
   [officialDraft.id, officialDraft],
 ]);
 
+const lifecycleEventReferences = {
+  findFloorplanEvent: async (eventId: string) => {
+    const plan = [...planRows.values()].find((row) => row.opsDraft.eventId === eventId);
+    if (!plan) return null;
+    return {
+      eventId,
+      eventName: `Event ${eventId}`,
+      clientName: plan.opsDraft.event.clientName,
+      clientPortalStatus: plan.opsDraft.event.clientPortalStatus,
+      archived: plan.opsDraft.event.archived,
+      freezeStatus: plan.opsDraft.event.freezeStatus,
+      floorPlanStatus: 'in_review',
+      readiness: 'Floorplan awaiting review',
+      primaryClientEmail: plan.opsDraft.event.inquiry.email,
+      conformeSigned: true,
+      ocularVisitStatus: 'completed',
+    };
+  },
+};
+
 const auditWriter: AuditWriter = { write: async () => undefined };
 const transaction = {
   floorPlan: {
-    findUnique: async () => ({
-      updatedAt,
-      opsDraft: { status: 'draft', event: { archived: false, freezeStatus: 'open' } },
-    }),
+    findUnique: async ({ where }: { where: { id: string } }) => planRows.get(where.id) ?? null,
     update: async () => ({ ...officialDraft, updatedAt: new Date('2026-05-05T00:01:00.000Z') }),
   },
+  $queryRawUnsafe: async () => [],
 };
 
 const prismaMock = {
@@ -73,6 +92,7 @@ const prismaMock = {
   floorPlan: {
     findUnique: async ({ where }: { where: { id: string } }) => planRows.get(where.id) ?? null,
   },
+  $queryRawUnsafe: async () => [],
   $transaction: async (callback: (tx: typeof transaction) => Promise<unknown>) => callback(transaction),
 };
 
@@ -86,6 +106,7 @@ const prismaMock = {
     { provide: ConfigService, useValue: { get: (key: string) => (key === 'PRISM_SESSION_SECRET' ? sessionSecret : undefined) } },
     { provide: PrismaServiceToken, useValue: prismaMock as unknown as PrismaService },
     { provide: AUDIT_WRITER, useValue: auditWriter },
+    { provide: FLOORPLAN_EVENT_REFERENCE_READER, useValue: lifecycleEventReferences },
   ],
 })
 class PlansHttpTestModule {}

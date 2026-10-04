@@ -10,6 +10,11 @@ import {
 } from '@prism/kernel/access-control';
 import { PrismaService } from '@prism/kernel/database';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
+import {
+  FLOORPLAN_EVENT_REFERENCE_READER,
+  type FloorplanEventReference,
+  type FloorplanEventReferenceReader,
+} from '@prism/contexts/event-lifecycle/floorplan-reference';
 import { asArray } from '@prism/kernel/shared';
 import type { CanvasObject, FloorPlan, JsonValue, Seat, SeatCategory } from '@prism/kernel/shared';
 import type { UpdatePlanInput } from '@prism/types';
@@ -20,20 +25,14 @@ type UpdatePlanChanges = Omit<UpdatePlanInput, 'expectedUpdatedAt'>;
 type PlanWithObjects = Prisma.FloorPlanGetPayload<{
   include: {
     objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] };
-    opsDraft: {
-      include: {
-        event: { include: { inquiry: { select: { email: true } } } };
-      };
-    };
+    opsDraft: { select: { eventId: true; sourceType: true; status: true } };
   };
 }>;
 
 type PlanWriteState = {
   updatedAt: Date;
-  opsDraft: {
-    status: string;
-    event: { archived: boolean; freezeStatus: string };
-  } | null;
+  eventId: string | null;
+  opsDraft: { eventId: string; sourceType: string; status: string } | null;
 };
 
 async function updatePlanWithObjects(
@@ -49,7 +48,7 @@ async function updatePlanWithObjects(
       data: floorPlanScalarPatch({ ...scalarChanges, objects }),
       include: {
         objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] },
-        opsDraft: { include: { event: { include: { inquiry: { select: { email: true } } } } } },
+        opsDraft: { select: { eventId: true, sourceType: true, status: true } },
       },
     })
     .catch((error: unknown) => {
@@ -76,6 +75,7 @@ export class PlansService {
     private readonly prisma: PrismaService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
+    @Inject(FLOORPLAN_EVENT_REFERENCE_READER) private readonly lifecycleEventReferences: FloorplanEventReferenceReader,
   ) {}
 
   private mapPlan(row: PlanWithObjects, resolvedObjects?: CanvasObject[]): FloorPlan {
@@ -123,34 +123,45 @@ export class PlansService {
     if (!plan) throw new NotFoundException('Plan not found');
 
     const { expectedUpdatedAt: expectedUpdatedAtInput, ...requestedChanges } = changes;
-    await this.assertCanUpdatePlan(plan, actor, requestedChanges);
-
     const expectedUpdatedAt = new Date(expectedUpdatedAtInput);
-    if (plan.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
-      throw new ConflictException('Floorplan changed since it was loaded; reload before saving');
-    }
-
-    if (Object.keys(requestedChanges).length === 0) return this.mapPlan(plan);
-
     const { objects, ...scalarChanges } = requestedChanges;
     const updated = await this.prisma.$transaction(async (tx) => {
-      const latestState = await tx.floorPlan.findUnique({
+      const stateBeforeLocks = await tx.floorPlan.findUnique({
         where: { id: planId },
-        select: {
-          updatedAt: true,
-          opsDraft: {
-            select: {
-              status: true,
-              event: { select: { archived: true, freezeStatus: true } },
-            },
-          },
-        },
+        select: { id: true, name: true, eventId: true, updatedAt: true, opsDraft: { select: { eventId: true } } },
       });
-      if (!latestState) throw new NotFoundException('Plan not found');
-      if (latestState.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+      if (!stateBeforeLocks) throw new NotFoundException('Plan not found');
+      const eventIdBeforeLocks = stateBeforeLocks.opsDraft?.eventId ?? stateBeforeLocks.eventId;
+      const lifecycleEvent = eventIdBeforeLocks
+        ? await this.lifecycleEventReferences.findFloorplanEvent(eventIdBeforeLocks, {
+            prisma: tx,
+            correlationId: `floorplan-plan-update:${planId}`,
+          })
+        : null;
+      if (eventIdBeforeLocks && !lifecycleEvent) throw new NotFoundException('Event not found');
+
+      // Lifecycle event and ocular rows are locked by the owner capability first. Lock the
+      // Floorplan-owned draft second so approval and plan edits follow one stable lock order.
+      if (stateBeforeLocks.opsDraft) {
+        // QUERY_AUDIT_RAW_SQL: serialize plan mutation with same-domain draft approval.
+        await tx.$queryRawUnsafe(
+          'SELECT "id" FROM "floorplan"."floor_plan_drafts" WHERE "floor_plan_id" = $1 FOR UPDATE',
+          planId,
+        );
+      }
+
+      const latestPlan = await this.findPlan(planId, tx);
+      if (!latestPlan) throw new NotFoundException('Plan not found');
+      const eventIdAfterLocks = latestPlan.opsDraft?.eventId ?? latestPlan.eventId;
+      if (eventIdAfterLocks !== eventIdBeforeLocks) {
+        throw new ConflictException('Floorplan event changed while it was being saved; reload before saving');
+      }
+      await this.assertCanUpdatePlan(latestPlan, actor, requestedChanges, lifecycleEvent);
+      if (latestPlan.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
         throw new ConflictException('Floorplan changed since it was loaded; reload before saving');
       }
-      this.assertPlanMutableState(latestState, actor);
+
+      if (Object.keys(requestedChanges).length === 0) return latestPlan;
 
       let saved: PlanWithObjects;
       if (objects !== undefined) {
@@ -163,7 +174,7 @@ export class PlansService {
             data: floorPlanScalarPatch(scalarChanges),
             include: {
               objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] },
-              opsDraft: { include: { event: { include: { inquiry: { select: { email: true } } } } } },
+              opsDraft: { select: { eventId: true, sourceType: true, status: true } },
             },
           })
           .catch((error: unknown) => {
@@ -176,20 +187,20 @@ export class PlansService {
 
       await writeAudit(
         this.auditWriter,
-        plan.opsDraft?.eventId ?? plan.eventId ?? undefined,
+        latestPlan.opsDraft?.eventId ?? latestPlan.eventId ?? undefined,
         actor.name,
-        `Updated floorplan: ${plan.name}`,
+        `Updated floorplan: ${latestPlan.name}`,
         {
           actorRole: actor.role,
           actorEmail: actor.email,
           actionType: AuditActionType.Update,
           category: AuditCategory.Events,
           affectedType: 'floor_plan',
-          affectedId: plan.id,
-          affectedLabel: plan.name,
+          affectedId: latestPlan.id,
+          affectedLabel: latestPlan.name,
           metadata: { verified: actor.verified ?? false },
         },
-        { prisma: tx, correlationId: plan.opsDraft?.eventId ?? plan.eventId ?? plan.id, actorId: actor.id },
+        { prisma: tx, correlationId: latestPlan.opsDraft?.eventId ?? latestPlan.eventId ?? latestPlan.id, actorId: actor.id },
       );
       return saved;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).catch((error: unknown) => {
@@ -205,6 +216,8 @@ export class PlansService {
   private async assertCanReadPlan(plan: PlanWithObjects, actor: ResolvedEventOpsActor) {
     const eventId = plan.opsDraft?.eventId ?? plan.eventId ?? undefined;
     if (actor.role === OpsUserRole.System) return;
+    const lifecycleEvent = eventId ? await this.lifecycleEventReferences.findFloorplanEvent(eventId) : null;
+    if (eventId && !lifecycleEvent) throw new NotFoundException('Event not found');
     if (actor.role === OpsUserRole.PmcmAdmin) {
       if (actor.verified) return;
       await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'floorplan', eventId);
@@ -212,25 +225,45 @@ export class PlansService {
     }
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Client], 'floorplan', eventId);
     const draft = plan.opsDraft;
-    if (!draft || draft.sourceType !== 'client_preference' || draft.status !== 'client_submitted') {
+    if (!draft || !eventId || draft.sourceType !== 'client_preference' || draft.status !== 'client_submitted') {
       await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'official floorplan', eventId);
       throw new ForbiddenException('Official floorplans are available through the event-scoped snapshot');
     }
     if (!actor.verified || !actor.email?.trim()) {
-      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'client floorplan preference', draft.event.id);
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'client floorplan preference', eventId);
       throw new ForbiddenException('A verified client identity is required to read this preference');
     }
-    await this.eventAccessPolicyService.requireCanReadEvent(actor, draft.event, 'client floorplan preference');
+    await this.eventAccessPolicyService.requireCanReadEvent(
+      actor,
+      this.toReadableEvent(lifecycleEvent!),
+      'client floorplan preference',
+    );
   }
 
   private async assertCanUpdatePlan(
     plan: PlanWithObjects,
     actor: ResolvedEventOpsActor,
     changes: UpdatePlanChanges,
+    lifecycleEvent: FloorplanEventReference | null,
   ) {
     const eventId = plan.opsDraft?.eventId ?? plan.eventId ?? undefined;
     if (actor.role === OpsUserRole.Client) {
-      await this.assertCanReadPlan(plan, actor);
+      if (!lifecycleEvent || !eventId) throw new NotFoundException('Event not found');
+      const draft = plan.opsDraft;
+      if (!draft || draft.sourceType !== 'client_preference' || draft.status !== 'client_submitted') {
+        await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'official floorplan mutation', eventId);
+        throw new ForbiddenException('Official floorplans are read-only for clients');
+      }
+      if (!actor.verified || !actor.email?.trim()) {
+        await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'client floorplan preference mutation', eventId);
+        throw new ForbiddenException('A verified client identity is required to update this preference');
+      }
+      await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Client], 'floorplan', eventId);
+      await this.eventAccessPolicyService.requireCanReadEvent(
+        actor,
+        this.toReadableEvent(lifecycleEvent),
+        'client floorplan preference',
+      );
       const forbiddenFields = Object.keys(changes).filter(
         (field) => !['venue', 'width', 'height', 'gridSize', 'pax', 'objects'].includes(field),
       );
@@ -251,11 +284,14 @@ export class PlansService {
       }
     }
 
-    this.assertPlanMutableState(plan, actor);
+    this.assertPlanMutableState(plan, actor, lifecycleEvent);
   }
 
-  private assertPlanMutableState(plan: PlanWriteState, actor: ResolvedEventOpsActor) {
-    const event = plan.opsDraft?.event;
+  private assertPlanMutableState(
+    plan: PlanWriteState,
+    actor: ResolvedEventOpsActor,
+    event: FloorplanEventReference | null,
+  ) {
     if (event?.archived) throw new ConflictException('Archived events cannot be changed');
     if (event?.freezeStatus === 'frozen') throw new ConflictException('Frozen event scope cannot be changed');
     if (
@@ -267,12 +303,21 @@ export class PlansService {
     }
   }
 
-  private findPlan(planId: string) {
-    return this.prisma.floorPlan.findUnique({
+  private toReadableEvent(event: FloorplanEventReference) {
+    return {
+      id: event.eventId,
+      clientName: event.clientName,
+      clientPortalStatus: event.clientPortalStatus,
+      inquiry: { email: event.primaryClientEmail },
+    };
+  }
+
+  private findPlan(planId: string, database: PrismaService | Prisma.TransactionClient = this.prisma) {
+    return database.floorPlan.findUnique({
       where: { id: planId },
       include: {
         objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] },
-        opsDraft: { include: { event: { include: { inquiry: { select: { email: true } } } } } },
+        opsDraft: { select: { eventId: true, sourceType: true, status: true } },
       },
     });
   }
