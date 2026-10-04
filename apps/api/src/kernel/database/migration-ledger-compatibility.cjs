@@ -1,3 +1,18 @@
+const { createHash } = require('node:crypto');
+
+function migrationChecksumVariants(sql) {
+  if (typeof sql !== 'string' && !Buffer.isBuffer(sql) && !(sql instanceof Uint8Array)) {
+    throw new TypeError('Prisma migration SQL must be text or bytes.');
+  }
+  const raw = Buffer.isBuffer(sql) ? sql : Buffer.from(sql);
+  const canonicalSql = raw.toString('utf8').replace(/\r\n?/g, '\n');
+  const windowsSql = canonicalSql.replace(/\n/g, '\r\n');
+  return [...new Set([
+    createHash('sha256').update(raw).digest('hex'),
+    createHash('sha256').update(canonicalSql, 'utf8').digest('hex'),
+    createHash('sha256').update(windowsSql, 'utf8').digest('hex'),
+  ])];
+}
 function sortByName(values) {
   return [...values].sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0));
 }
@@ -54,7 +69,8 @@ function assertKnownMigrationPrefix(input) {
   for (const migration of applied) {
     const localMigration = localByName.get(migration.name);
     if (!localMigration) throw new Error(`Database has unknown Prisma migration ${migration.name}.`);
-    if (migration.checksum !== localMigration.checksum) {
+    const acceptedChecksums = new Set([localMigration.checksum, ...(localMigration.checksumVariants ?? [])]);
+    if (!acceptedChecksums.has(migration.checksum)) {
       throw new Error(`Prisma migration checksum mismatch for ${migration.name}.`);
     }
   }
@@ -80,4 +96,4 @@ function assertExactMigrationCompatibility(input) {
   return prefix.appliedHead;
 }
 
-module.exports = { assertExactMigrationCompatibility, assertKnownMigrationPrefix };
+module.exports = { assertExactMigrationCompatibility, assertKnownMigrationPrefix, migrationChecksumVariants };
