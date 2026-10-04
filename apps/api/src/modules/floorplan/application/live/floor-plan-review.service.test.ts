@@ -10,8 +10,11 @@ function createService() {
       {
         id: 'evt_sample',
         inquiry: { email: 'ana@example.test' },
+        eventName: 'Ayala Summit',
+        clientName: 'Ana Reyes',
         clientPortalStatus: 'unlocked',
         archived: false,
+        freezeStatus: 'open',
         floorPlanStatus: 'in_review',
         readiness: 'Floorplan awaiting review',
         floorPlanProjectionVersion: 0,
@@ -105,14 +108,33 @@ function createService() {
       if (updated.count !== 1) throw new Error('Stale floorplan projection version');
     }),
   };
+  const lifecycleEventReferences = {
+    findFloorplanEvent: vi.fn(async (eventId: string) => {
+      const event = state.events.find((item) => item.id === eventId);
+      return event ? {
+        eventId: event.id,
+        eventName: event.eventName,
+        clientName: event.clientName,
+        clientPortalStatus: event.clientPortalStatus,
+        archived: event.archived,
+        freezeStatus: event.freezeStatus,
+        floorPlanStatus: event.floorPlanStatus,
+        readiness: event.readiness,
+        primaryClientEmail: event.inquiry.email,
+        conformeSigned: true,
+        ocularVisitStatus: 'completed',
+      } : null;
+    }),
+  };
   const service = new FloorPlanReviewService(
     prisma as any,
     eventAccessPolicyService as any,
     floorPlanWorkflowService as any,
     auditWriter as any,
     notificationOutboxWriter as any,
+    lifecycleEventReferences,
   );
-  return { service, state, auditWriter, notificationOutboxWriter, eventAccessPolicyService, floorPlanWorkflowService };
+  return { service, state, auditWriter, notificationOutboxWriter, eventAccessPolicyService, floorPlanWorkflowService, lifecycleEventReferences };
 }
 
 const clientActor = {
@@ -213,6 +235,21 @@ describe('FloorPlanReviewService', () => {
     state.events[0].archived = true;
 
     await expect(service.submitRevisionComment('evt_sample', 'fpd_review', input, clientActor)).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects revision comments while the event is frozen', async () => {
+    const { service, state } = createService();
+    state.events[0].freezeStatus = 'frozen';
+
+    await expect(service.submitRevisionComment('evt_sample', 'fpd_review', input, clientActor)).rejects.toThrow(BadRequestException);
+    expect(state.drafts[0].status).toBe('in_review');
+  });
+
+  it('fails closed when Lifecycle no longer owns the referenced event', async () => {
+    const { service, state } = createService();
+    state.events.length = 0;
+
+    await expect(service.submitRevisionComment('evt_sample', 'fpd_review', input, clientActor)).rejects.toThrow('Event not found');
   });
 
   it('rejects revision comments when the draft is not in review', async () => {

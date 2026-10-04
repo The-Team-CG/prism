@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { OpsEvent, OpsFloorPlanDraft, Prisma } from '@prisma/client';
+import type { OpsFloorPlanDraft, Prisma } from '@prisma/client';
 import {
   prismFloorPlanPreferenceSchema,
   prismFloorPlanSnapshotSchema,
@@ -13,10 +13,12 @@ import { toPrismaJson } from '@prism/kernel/database';
 import { defaultSeatCategories } from '@prism/kernel/shared';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, WorkflowCommandService } from '@prism/kernel/event-core';
+import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
-import { readEventAccessScope, readEventConformeState, readEventOcularVisitState } from '@prism/contexts/read-models/event-scope';
+import { readEventAccessScope } from '@prism/contexts/read-models/event-scope';
 import { FLOORPLAN_PROJECTION_WRITER, type FloorplanEventProjection, type FloorplanProjectionWriter } from '@prism/contexts/event-lifecycle';
+import { FLOORPLAN_EVENT_REFERENCE_READER, type FloorplanEventReference, type FloorplanEventReferenceReader } from '@prism/contexts/event-lifecycle/floorplan-reference';
 import type { FloorplanCommands, FloorPlanActor, FloorPlanCreator } from '../../contracts/floorplan-commands.port';
 import type { FloorplanReader, FloorPlanDraftProjection } from '../../contracts/floorplan-reader.port';
 
@@ -34,10 +36,10 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     private readonly workflowCommandService: WorkflowCommandService,
     @Inject(FLOORPLAN_PROJECTION_WRITER) private readonly lifecycleProjectionWriter: FloorplanProjectionWriter,
+    @Inject(FLOORPLAN_EVENT_REFERENCE_READER) private readonly lifecycleEventReferences: FloorplanEventReferenceReader,
   ) {}
 
   async createFloorPlanDraft(eventId: string, input: CreateFloorPlanDraftInput, actor: FloorPlanCreator) {
-    let event: OpsEvent | null = null;
     const now = new Date();
     const floorPlanId = `plan_${randomUUID()}`;
     const objects = input.objects ?? [];
@@ -45,20 +47,19 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
     return this.workflowCommandService.execute<OpsFloorPlanDraft, ReturnType<FloorPlanWorkflowService['mapFloorPlanDraft']>>({
       name: 'create_floorplan_draft',
       eventId,
-      validateState: async () => {
-        event = await this.requireEvent(eventId);
-        await this.requireSignedConforme(eventId);
-        await this.requireOcularVisitReady(eventId);
-      },
       write: async () => {
-        if (!event) throw new NotFoundException('Event not found');
         return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
           // Transaction scope: DB reads/writes only. No external IO inside this callback.
+          const event = await this.requireWritableEvent(eventId, { prisma: tx, correlationId: `floorplan-create:${eventId}` });
+          if (!event.conformeSigned) throw new BadRequestException('Official floor plan requires a signed conforme');
+          if (event.ocularVisitStatus !== 'completed' && event.ocularVisitStatus !== 'waived') {
+            throw new BadRequestException('Official floor plan requires a completed or waived ocular visit');
+          }
           await tx.floorPlan.create({
             data: {
               id: floorPlanId,
               name: input.name,
-              venue: input.venue ?? event!.eventName,
+              venue: input.venue ?? event.eventName,
               ownerId: actor.actorId,
               eventId,
               width: input.width ?? 1200,
@@ -106,7 +107,6 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
   }
 
   async createFloorPlanPreference(eventId: string, input: CreateFloorPlanPreferenceInput, actor: FloorPlanCreator) {
-    let event: OpsEvent | null = null;
     const now = new Date();
     const floorPlanId = `plan_${randomUUID()}`;
     const objects = input.objects ?? [];
@@ -122,18 +122,15 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
     return this.workflowCommandService.execute<OpsFloorPlanDraft, ReturnType<FloorPlanWorkflowService['mapFloorPlanDraft']>>({
       name: 'create_floorplan_preference',
       eventId,
-      validateState: async () => {
-        event = await this.requireEvent(eventId);
-      },
       write: async () => {
-        if (!event) throw new NotFoundException('Event not found');
         return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
           // Transaction scope: DB reads/writes only. No external IO inside this callback.
+          const event = await this.requireWritableEvent(eventId, { prisma: tx, correlationId: `floorplan-preference:${eventId}` });
           await tx.floorPlan.create({
             data: {
               id: floorPlanId,
               name: input.name,
-              venue: input.venue ?? event!.eventName,
+              venue: input.venue ?? event.eventName,
               ownerId: actor.actorId,
               eventId,
               width: input.width ?? 30,
@@ -187,7 +184,6 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
   }
 
   async submitFloorPlanDraft(eventId: string, draftId: string, actor: FloorPlanActor) {
-    await this.requireEvent(eventId);
     const draft = await this.requireFloorPlanDraft(eventId, draftId);
     if (!['pmcm_draft', 'revision_requested'].includes(draft.status)) {
       throw new BadRequestException('Only a draft or revision-requested floorplan can be submitted');
@@ -201,6 +197,7 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
       write: () =>
         this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
           // Transaction scope: DB reads/writes only. No external IO inside this callback.
+          await this.requireWritableEvent(eventId, { prisma: tx, correlationId: `floorplan-submit:${draftId}` });
           const updated = await tx.opsFloorPlanDraft.updateMany({
             where: { id: draft.id, eventId, status: draft.status },
             data: {
@@ -234,7 +231,6 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
   }
 
   async approveFloorPlanDraft(eventId: string, draftId: string, actor: FloorPlanActor) {
-    await this.requireEvent(eventId);
     const draft = await this.requireFloorPlanDraft(eventId, draftId);
     if (draft.status !== 'in_review') throw new BadRequestException('Only a floorplan in review can be approved');
     const now = new Date();
@@ -246,6 +242,7 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
       write: () =>
         this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
           // Transaction scope: DB reads/writes only. No external IO inside this callback.
+          await this.requireWritableEvent(eventId, { prisma: tx, correlationId: `floorplan-approve:${draftId}` });
           await tx.opsFloorPlanDraft.updateMany({
             where: { eventId, isActive: true },
             data: { isActive: false },
@@ -331,58 +328,48 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
     };
   }
 
-  async requireEvent(eventId: string) {
-    const event = await readEventAccessScope(this.prisma, eventId);
-    if (!event) throw new NotFoundException('Event not found');
-    return event;
-  }
-
   async projectLifecycleState(
     tx: Prisma.TransactionClient,
     eventId: string,
-    projection: FloorplanEventProjection | ((event: Pick<OpsEvent, 'floorPlanStatus' | 'readiness'>) => FloorplanEventProjection | null),
+    projection: FloorplanEventProjection | ((event: Pick<FloorplanEventReference, 'floorPlanStatus' | 'readiness'>) => FloorplanEventProjection | null),
   ) {
+    const reference = await this.requireFloorplanEvent(eventId, { prisma: tx, correlationId: `floorplan-projection:${eventId}` });
+    const state = typeof projection === 'function'
+      ? projection({ floorPlanStatus: reference.floorPlanStatus, readiness: reference.readiness })
+      : projection;
+    if (!state) return;
+
     // The row lock serializes all version reservations for this event; gaps are harmless when
-    // a transition leaves an approved projection unchanged.
+    // an earlier transaction rolled back after reserving a version.
     const clock = await tx.opsFloorPlanProjectionClock.upsert({
       where: { eventId },
       create: { eventId, version: 1 },
       update: { version: { increment: 1 } },
     });
-    const event = await readEventAccessScope(tx, eventId);
-    if (!event) throw new NotFoundException('Event not found');
-    const state = typeof projection === 'function'
-      ? projection({ floorPlanStatus: event.floorPlanStatus, readiness: event.readiness })
-      : projection;
-    if (!state) return;
-
     await this.lifecycleProjectionWriter.project(
       { eventId, version: clock.version, state },
       { prisma: tx, correlationId: `floorplan-projection:${eventId}:${clock.version}` },
     );
   }
 
-  /**
-   * EP-05-S01 AC1. An official floor plan is downstream of a signed conforme, so refuse to open a
-   * draft until event-lifecycle records one. Fails closed: OpsEvent.inquiry is a required relation,
-   * so a missing conforme fact means unsigned, never "assume signed".
-   */
-  private async requireSignedConforme(eventId: string) {
-    const conforme = await readEventConformeState(this.prisma, eventId);
-    if (!conforme?.conformeSignedAt) {
-      throw new BadRequestException('Official floor plan requires a signed conforme');
-    }
+  private async requireFloorplanEvent(eventId: string, transaction?: PrismTransactionContext) {
+    const event = await this.lifecycleEventReferences.findFloorplanEvent(eventId, transaction);
+    if (!event) throw new NotFoundException('Event not found');
+    return event;
   }
 
-  /**
-   * EP-10-S03. Official layouts require a completed ocular visit or an explicit PMCM waiver.
-   * Missing and unknown states fail closed; client preference drafts remain outside this gate.
-   */
-  private async requireOcularVisitReady(eventId: string) {
-    const status = await readEventOcularVisitState(this.prisma, eventId);
-    if (status !== 'completed' && status !== 'waived') {
-      throw new BadRequestException('Official floor plan requires a completed or waived ocular visit');
-    }
+  /** Read-model composition used by access-control for read-only route scoping. */
+  async requireEvent(eventId: string) {
+    const event = await readEventAccessScope(this.prisma, eventId);
+    if (!event) throw new NotFoundException('Event not found');
+    return event;
+  }
+
+  private async requireWritableEvent(eventId: string, transaction: PrismTransactionContext) {
+    const event = await this.requireFloorplanEvent(eventId, transaction);
+    if (event.archived) throw new BadRequestException('Archived events cannot be changed');
+    if (event.freezeStatus === 'frozen') throw new BadRequestException('Frozen events cannot be changed');
+    return event;
   }
 
   private async requireFloorPlanDraft(eventId: string, draftId: string) {
