@@ -1,7 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, BadRequestException, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
+import { PLATFORM_REFERENCE_READ_MODEL, type PlatformReferenceReadModel } from '@prism/contexts/read-models';
 import { randomUUID } from 'node:crypto';
 import {
   AuditActionType,
@@ -70,49 +71,19 @@ export class PrivacyOperationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    @Optional() @Inject(PLATFORM_REFERENCE_READ_MODEL)
+    private readonly platformReferences?: PlatformReferenceReadModel,
   ) {}
 
   async getInventory(input: PrivacyInventoryInput = {}) {
-    // QUERY_AUDIT_ALLOW_UNBOUNDED: the system-wide inventory must include every event when no event filter is supplied.
-    const events = await this.prisma.opsEvent.findMany({
-      where: input.eventId ? { id: input.eventId } : {},
-      select: { id: true, eventName: true, clientName: true, inquiryId: true, eventDate: true },
-      orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
-    });
-    const eventIds = events.map((event) => event.id);
-    const inquiryIds = Array.from(new Set(events.map((event) => event.inquiryId)));
-    // QUERY_AUDIT_ALLOW_UNBOUNDED: this global surface reports consent totals across all approval requests, using consent fields only.
-    const approvalRequestsPromise = this.prisma.opsApprovalRequest.findMany({
-      select: { privacyConsentAccepted: true, privacyNoticeVersion: true, marketingConsentAccepted: true },
-    });
-    const [inquiries, guestCheckIns, guestFeedback, approvalRequests] = await Promise.all([
-      inquiryIds.length
-        ? this.prisma.opsInquiry.findMany({
-            where: { id: { in: inquiryIds } },
-            select: { id: true, privacyConsentAccepted: true, privacyNoticeVersion: true, marketingConsentAccepted: true },
-          })
-        : Promise.resolve([]),
-      this.prisma.opsGuestCheckIn.findMany({
-        where: { eventId: { in: eventIds } },
-        select: { eventId: true, privacyConsentAccepted: true, privacyNoticeVersion: true, marketingConsentAccepted: true },
-      }),
-      this.prisma.opsGuestFeedback.findMany({
-        where: { eventId: { in: eventIds } },
-        select: { eventId: true, privacyConsentAccepted: true, privacyNoticeVersion: true, marketingConsentAccepted: true },
-      }),
-      approvalRequestsPromise,
-    ]);
-
-    const eventsInventory = events.map((event) => {
-      const inquiry = inquiries.find((item) => item.id === event.inquiryId);
-      const checkIns = guestCheckIns.filter((item) => item.eventId === event.id);
-      const feedback = guestFeedback.filter((item) => item.eventId === event.id);
+    const source = await this.requirePlatformReferences().findPrivacyInventory(input);
+    const eventsInventory = source.events.map((event) => {
       const surfaces = [
-        this.privacySurface('inquiry', inquiry ? 1 : 0, ['client_contact', 'event_details', 'consent'], [
-          inquiry,
+        this.privacySurface('inquiry', event.inquiry ? 1 : 0, ['client_contact', 'event_details', 'consent'], [
+          event.inquiry,
         ]),
-        this.privacySurface('guest_check_in', checkIns.length, ['guest_name', 'attendance', 'consent'], checkIns),
-        this.privacySurface('guest_feedback', feedback.length, ['guest_name', 'rating', 'comment', 'media_metadata', 'consent'], feedback),
+        this.privacySurface('guest_check_in', event.guestCheckIns.length, ['guest_name', 'attendance', 'consent'], event.guestCheckIns),
+        this.privacySurface('guest_feedback', event.guestFeedback.length, ['guest_name', 'rating', 'comment', 'media_metadata', 'consent'], event.guestFeedback),
       ];
       return {
         eventId: event.id,
@@ -129,7 +100,7 @@ export class PrivacyOperationsService {
       generatedAt: new Date().toISOString(),
       events: eventsInventory,
       globalSurfaces: [
-        this.privacySurface('account_approval_request', approvalRequests.length, ['email', 'role', 'organization', 'consent'], approvalRequests),
+        this.privacySurface('account_approval_request', source.approvalRequests.length, ['email', 'role', 'organization', 'consent'], source.approvalRequests),
       ],
       retentionNotes: [
         'Personal-data records remain with the event until the archive retention policy is finalized.',
@@ -211,6 +182,9 @@ export class PrivacyOperationsService {
     }
     if (!input.subjectEmail && !input.subjectName) {
       throw new BadRequestException('Privacy request requires a subject email or subject name');
+    }
+    if (input.eventId && !(await this.requirePlatformReferences().findEventReference(input.eventId))) {
+      throw new NotFoundException('Event not found');
     }
 
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -343,6 +317,11 @@ export class PrivacyOperationsService {
       ),
       marketingConsentAcceptedCount: presentRecords.filter((record) => Boolean(record.marketingConsentAccepted)).length,
     };
+  }
+
+  private requirePlatformReferences() {
+    if (!this.platformReferences) throw new ServiceUnavailableException('Platform reference read model is unavailable');
+    return this.platformReferences;
   }
 
   private assertRequestType(requestType: string) {

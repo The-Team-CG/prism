@@ -276,4 +276,50 @@ describe('AuthOperationsService', () => {
     await expect(service.login('ana@example.test', 'prism-client')).rejects.toThrow('audit incident unavailable');
     expect(authSessionService.issueSession).not.toHaveBeenCalled();
   });
+
+  it.each([
+    { failedLoginCount: 3, expectedCount: 4, locked: false },
+    { failedLoginCount: 4, expectedCount: 0, locked: true },
+  ])('serializes failed login state from the locked Identity row ($failedLoginCount prior failures)', async ({ failedLoginCount, expectedCount, locked }) => {
+    const user = {
+      id: 'usr_client', name: 'Ana Reyes', email: 'ana@example.test', password: 'correct-password',
+      role: 'client', organization: 'Ana Events', approvalStatus: 'approved', permanentLockout: false,
+      lockedUntil: null, failedLoginCount: 0, lastLoginAt: null, twoFactorSecret: null, sessionVersion: 0,
+    };
+    const current = {
+      id: user.id, name: user.name, email: user.email, role: user.role,
+      failedLoginCount, lockoutCount: 0, lockedUntil: null as Date | null, permanentLockout: false,
+    };
+    const query = vi.fn(async (strings: TemplateStringsArray) => {
+      expect(strings.join(' ')).toMatch(/FROM identity\.users[\s\S]*FOR UPDATE/i);
+      return [{ ...current }];
+    });
+    const update = vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+      Object.assign(current, data);
+      return current;
+    });
+    const transaction = vi.fn(async (work: (tx: unknown) => unknown) => work({ $queryRaw: query, opsUser: { update } }));
+    const prisma = {
+      opsUser: { findUnique: vi.fn(async () => user) },
+      $transaction: transaction,
+    };
+    const authAudit = {
+      recordLoginHistory: vi.fn(async () => undefined),
+      recordAuthenticationAudit: vi.fn(async () => undefined),
+      handleFailedLogin: vi.fn(async () => undefined),
+      handleForbiddenAccess: vi.fn(async () => undefined),
+    };
+    const service = new AuthOperationsService(prisma as any, authAudit as any, {} as any, {} as any, {} as any);
+
+    await expect(service.login('ana@example.test', 'wrong-password')).rejects.toThrow('Invalid email or password');
+
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(current.failedLoginCount).toBe(expectedCount);
+    expect(authAudit.handleFailedLogin).toHaveBeenCalledWith(expect.objectContaining({
+      failedAttempt: failedLoginCount + 1,
+      locked,
+      lockoutCount: locked ? 1 : 0,
+    }));
+  });
 });

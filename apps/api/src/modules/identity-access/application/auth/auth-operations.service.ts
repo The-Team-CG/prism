@@ -15,7 +15,32 @@ import { AuthSecurityService } from './auth-security.service';
 import { TotpService } from './totp.service';
 import { INQUIRY_COMMANDS } from '../../../event-lifecycle/contracts/inquiry-onboarding.tokens';
 import type { InquiryCommands } from '../../../event-lifecycle/contracts/inquiry-commands.port';
-import { AUTH_AUDIT, type AuthAuditPort } from '../../contracts/auth-audit.port';
+import { AUTH_AUDIT, type AuthActorEvidence, type AuthAuditPort, type FailedLoginEvidence } from '../../contracts/auth-audit.port';
+
+const LOGIN_LOCKOUT_THRESHOLD = 5;
+const LOGIN_LOCKOUT_MINUTES = 10;
+const PERMANENT_LOCKOUT_THRESHOLD = 5;
+
+type LockedIdentityRow = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  failedLoginCount: number;
+  lockoutCount: number;
+  lockedUntil: Date | null;
+  permanentLockout: boolean;
+};
+
+function addMinutes(value: Date, minutes: number) {
+  const next = new Date(value);
+  next.setMinutes(next.getMinutes() + minutes);
+  return next;
+}
+
+function actorEvidence(user: Pick<OpsUser, 'id' | 'name' | 'email' | 'role'>): AuthActorEvidence {
+  return { id: user.id, name: user.name, email: user.email, role: user.role };
+}
 
 type VerifiedIdentityAdmin = ResolvedEventOpsActor & {
   id: string;
@@ -69,22 +94,21 @@ export class AuthOperationsService {
   private async assertLoginAllowed(user: OpsUser, normalizedEmail: string, password: string) {
     const now = new Date();
     if (user.permanentLockout) {
-      await this.authAudit.handleForbiddenAccess(user, normalizedEmail, 'Permanent lockout');
+      await this.authAudit.handleForbiddenAccess(actorEvidence(user), normalizedEmail, 'Permanent lockout');
       throw new ForbiddenException('This account is permanently locked and requires PMCM Admin intervention');
     }
 
     if (user.lockedUntil && user.lockedUntil > now) {
-      await this.authAudit.handleForbiddenAccess(user, normalizedEmail, 'Temporary lockout');
+      await this.authAudit.handleForbiddenAccess(actorEvidence(user), normalizedEmail, 'Temporary lockout');
       throw new ForbiddenException('This account is temporarily locked after repeated failed login attempts');
     }
 
     if (!AuthSecurityService.verifyPassword(user.password, password)) {
-      await this.authAudit.handleFailedLogin(user);
-      throw new UnauthorizedException('Invalid email or password');
+      await this.recordFailedLogin(user);
     }
 
     if (user.approvalStatus !== 'approved') {
-      await this.authAudit.handleForbiddenAccess(user, normalizedEmail, 'Account waiting for approval');
+      await this.authAudit.handleForbiddenAccess(actorEvidence(user), normalizedEmail, 'Account waiting for approval');
       throw new ForbiddenException('This account is waiting for admin approval');
     }
   }
@@ -103,7 +127,7 @@ export class AuthOperationsService {
     });
 
     await Promise.all([
-      this.authAudit.recordLoginHistory(updated, normalizedEmail, 'success'),
+      this.authAudit.recordLoginHistory(actorEvidence(updated), normalizedEmail, 'success'),
       this.authAudit.recordAuthenticationAudit({
         actor: updated.name,
         action: `Signed in to ${updated.role} portal`,
@@ -118,6 +142,58 @@ export class AuthOperationsService {
     ]);
 
     return updated;
+  }
+
+  private async recordFailedLogin(user: OpsUser, failureMessage = 'Invalid email or password'): Promise<never> {
+    const now = new Date();
+    const decision = await this.prisma.$transaction(async (tx) => {
+      // QUERY_AUDIT_RAW_SQL: serialize failed-login threshold changes on the Identity-owned user row.
+      const [current] = await tx.$queryRaw<LockedIdentityRow[]>`
+        SELECT id, name, email, role,
+               failed_login_count AS "failedLoginCount",
+               lockout_count AS "lockoutCount",
+               locked_until AS "lockedUntil",
+               permanent_lockout AS "permanentLockout"
+        FROM identity.users
+        WHERE id = ${user.id}
+        FOR UPDATE
+      `;
+      if (!current) return null;
+
+      const actor = actorEvidence(current);
+      if (current.permanentLockout) return { kind: 'blocked' as const, actor, reason: 'Permanent lockout' };
+      if (current.lockedUntil && current.lockedUntil > now) {
+        return { kind: 'blocked' as const, actor, reason: 'Temporary lockout' };
+      }
+
+      const failedAttempt = current.failedLoginCount + 1;
+      const locked = failedAttempt >= LOGIN_LOCKOUT_THRESHOLD;
+      const lockoutCount = locked ? current.lockoutCount + 1 : current.lockoutCount;
+      const permanentLockout = lockoutCount >= PERMANENT_LOCKOUT_THRESHOLD;
+      await tx.opsUser.update({
+        where: { id: current.id },
+        data: {
+          failedLoginCount: locked ? 0 : failedAttempt,
+          lockoutCount,
+          lockedUntil: locked && !permanentLockout ? addMinutes(now, LOGIN_LOCKOUT_MINUTES) : current.lockedUntil,
+          permanentLockout,
+        },
+      });
+      return {
+        kind: 'failed' as const,
+        evidence: { ...actor, failedAttempt, lockoutCount, locked, permanentLockout } satisfies FailedLoginEvidence,
+      };
+    });
+
+    if (!decision) throw new UnauthorizedException(failureMessage);
+    if (decision.kind === 'blocked') {
+      await this.authAudit.handleForbiddenAccess(decision.actor, decision.actor.email, decision.reason);
+      throw new ForbiddenException(decision.reason === 'Permanent lockout'
+        ? 'This account is permanently locked and requires PMCM Admin intervention'
+        : 'This account is temporarily locked after repeated failed login attempts');
+    }
+    await this.authAudit.handleFailedLogin(decision.evidence);
+    throw new UnauthorizedException(failureMessage);
   }
 
   private async issueLoginSession(updated: OpsUser) {
@@ -166,8 +242,7 @@ export class AuthOperationsService {
       throw new UnauthorizedException('Two-factor authentication is unavailable for this account');
     }
     if (!this.totpService.verifyCode(secret, code)) {
-      await this.authAudit.handleFailedLogin(user);
-      throw new UnauthorizedException('Invalid two-factor code');
+      await this.recordFailedLogin(user, 'Invalid two-factor code');
     }
 
     const updated = await this.prisma.opsUser.update({
@@ -175,7 +250,7 @@ export class AuthOperationsService {
       data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() },
     });
     await Promise.all([
-      this.authAudit.recordLoginHistory(updated, user.email, 'success'),
+      this.authAudit.recordLoginHistory(actorEvidence(updated), user.email, 'success'),
       this.authAudit.recordAuthenticationAudit({
         actor: updated.name,
         action: `Signed in to ${updated.role} portal`,

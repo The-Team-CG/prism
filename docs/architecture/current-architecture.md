@@ -4,12 +4,12 @@ title: "P.R.I.S.M current architecture"
 description: "Current runtime topology, role-app ownership, shared packages, backend bounded contexts, technical kernel, persistence, and lifecycle boundaries."
 tags: [architecture, current-state, modular-monolith, roles]
 status: canonical
-updated: "2026-10-03"
+updated: "2026-10-04"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, reviewers]
 scope: "all Prism portals, API, packages, and runtime boundaries"
-last_verified: "staging 7f64c0b; current runtime and approved persistence target reviewed"
+last_verified: "2026-10-04; Platform reference readers, privacy inventory projection, and Identity-owned login lockout"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"

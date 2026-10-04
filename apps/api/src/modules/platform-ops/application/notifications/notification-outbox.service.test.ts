@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { NotificationOutboxService } from './notification-outbox.service';
+import { processNotificationQueue } from './notification-delivery-worker';
 
 function createService() {
   const notifications: Array<Record<string, unknown>> = [];
@@ -54,6 +55,30 @@ function createService() {
 }
 
 describe('NotificationOutboxService', () => {
+  it('delivers and retains queued evidence when its optional event reference is absent', async () => {
+    const row: Record<string, any> = {
+      id: 'not_orphaned_event', eventId: 'evt_retired', channel: 'email', recipient: 'trust@example.test', message: 'Audit review required',
+      status: 'queued', attempts: 0, nextAttemptAt: new Date(Date.now() - 1_000), leaseToken: null, leaseExpiresAt: null,
+      createdAt: new Date(),
+    };
+    const prisma = {
+      opsNotificationLog: {
+        findMany: vi.fn(async () => [row]),
+        updateMany: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+          Object.assign(row, data);
+          return { count: 1 };
+        }),
+        findUnique: vi.fn(async () => row),
+      },
+    };
+    const delivery = { deliver: vi.fn(async () => ({ status: 'accepted' as const, receipt: 'provider-receipt' })) };
+
+    const processed = await processNotificationQueue(prisma as never, delivery);
+
+    expect(processed[0]).toMatchObject({ id: row.id, eventId: 'evt_retired', status: 'sent', providerReceipt: 'provider-receipt' });
+    expect(prisma.opsNotificationLog.updateMany).toHaveBeenCalledTimes(2);
+  });
+
   it.each(['queued', 'failed'])('rejects acknowledgement of %s work', async (status) => {
     const { service, notifications } = createService();
     notifications.push({ id: 'not_1', recipient: 'client@example.test', status });

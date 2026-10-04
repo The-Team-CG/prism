@@ -4,12 +4,12 @@ title: "P.R.I.S.M context contracts"
 description: "Current public context surfaces, dependency direction, read-model composition, and focused seams in the Prism modular monolith."
 tags: [architecture, contracts, boundaries, ddd]
 status: canonical
-updated: "2026-10-03"
+updated: "2026-10-04"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, backend-engineers, reviewers]
 scope: "apps/api/src/modules and kernel seams"
-last_verified: "staging 7f64c0b; current seams reviewed against ADR-0008 and owner manifest"
+last_verified: "2026-10-04; Platform reference readers and Identity-owned failed-login state"
 sources:
   - id: context-source
     resource: "apps/api/src/modules"
@@ -78,7 +78,7 @@ current transitional writes separately.
 | identity-access | modules/identity-access/index.ts | Authentication, account approval, and account access state | Expose verified actor/access checks; do not export session implementation details. |
 | live-ops | modules/live-ops/index.ts | Event-day tasks, schedules, issues, handoffs, end-of-day reports, and event-day policy | Expose live-ops commands and reads; request Operations-owned assignment transitions. |
 | operations | modules/operations/index.ts | Coordinator pool, availability, coverage, assignments, attendance, replacement, cancellation, acknowledgments, reliability, and guest operations | Validate and apply staffing and guest changes through Operations-owned commands. |
-| platform-ops | modules/platform-ops/index.ts | Trust, audit, notifications, privacy coordination, and AI governance | Expose narrow audit/notification/governance seams; receipt persistence uses the kernel technical port. |
+| platform-ops | modules/platform-ops/index.ts | Trust, audit, notifications, privacy coordination, and AI governance | Expose narrow audit/notification/governance seams; Platform implements the kernel receipt port and consumes read-only reference projections. |
 | read-models | modules/read-models/index.ts | Authorized, role-scoped read composition | Combine approved reads and map shared interfaces; never write business state. |
 
 ## Technical kernel surfaces
@@ -102,7 +102,7 @@ legacy relation or changing schema placement.
 | modules/platform-ops | event-lifecycle reminder eligibility | Focused lifecycle claim contract | Lifecycle validates accepted, unsigned inquiry eligibility and atomically claims the reminder window inside the approval transaction. |
 | modules/event-lifecycle and modules/floorplan | read-models event-scope reader | Explicit public reader contract | Joins scoped event identity and assignment/profile facts; controllers do not trust actor/query labels or expose joined identity fields. |
 | kernel/access-control | platform audit behavior | Kernel-owned focused port; composition-root adapter | AUDIT_WRITER is bound to Platform by the composition root; kernel imports no business context. |
-| modules/identity-access | platform trust behavior | Identity depends on AUTH_AUDIT; adapter owns the implementation dependency | Authentication/account workflows use an audit/lockout seam; application code does not import AuditService. |
+| modules/identity-access | platform trust behavior | Identity depends on AUTH_AUDIT; adapter owns the implementation dependency | Identity updates its own failed-login counters in a serialized transaction, then sends serializable evidence to Platform for login history, audit, and alert recording. |
 | modules/event-lifecycle | document storage behavior | DOCUMENT_VAULT owned by Lifecycle | Onboarding uses the port; the current adapter primarily validates metadata references. Commercial still creates OpsDocument rows directly for supplier and billing flows, so sole Lifecycle persistence ownership is not yet implemented. |
 | modules/commercial | Lifecycle document-vault capability | Register and validate document references for commercial records | Commercial keeps contract/billing decisions and scalar document IDs; direct metadata writes remain transitional until registration and eligibility are handled by Lifecycle. |
 | modules/event-lifecycle | Commercial billing capability | Transaction-aware billing initialization and owner-validated billing changes | Lifecycle onboarding and change workflows still write some billing rows directly. Commercial must own those writes and preserve accepted-inquiry eligibility, replay, and outbox atomicity. |
@@ -110,6 +110,7 @@ legacy relation or changing schema placement.
 | modules/event-lifecycle | Operations staffing capability | Owner-validated assignment cancellation/postponement transitions | Event decision workflows currently update assignment rows directly; Operations must apply the transitions within the caller transaction. |
 | modules/floorplan | Lifecycle event capability | Versioned floorplan-state projection | Floorplan currently writes lifecycle event status fields in the same workflow; the projection is transitional and Lifecycle remains owner of its event aggregate. |
 | kernel/event-core | Platform receipt storage | `CommandReceiptStore` port with caller transaction | Platform implements receipt persistence and binds it at the root; kernel keeps command authorization and replay policy, while reservation, command writes, and completion share the caller transaction. |
+| modules/platform-ops | read-models reference projection | `PLATFORM_REFERENCE_READ_MODEL`, bound by `PlatformReferenceReadersModule` at the API composition root | Supplies narrow event/storage scope, PARE request/event/supplier facts, trust-recipient email, and privacy consent inventory. Reads only; no owning-context writes. |
 | modules/platform-ops | each affected data-owning context | Focused redaction/retention capability | Platform coordinates approved privacy requests; data-owner mutations and resumable partial execution remain to be made explicit before external constraints are removed. |
 | context composition roots | other Nest context modules | Module import only at composition root | Allowed for one-process assembly; not a private application dependency. |
 | API controllers | owning context application services | Owner service and public mapper | Controllers do not expose Prisma models or perform cross-context persistence lookups. |
