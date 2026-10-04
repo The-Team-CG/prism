@@ -99,8 +99,12 @@ Approved domain ownership decisions:
 - Lifecycle owns document metadata for every document kind; Commercial owns
   contract and billing decisions and references document IDs through the
   lifecycle capability.
-- Commercial owns billing rows and exposes transaction-capable initialization
-  for accepted-inquiry onboarding.
+- Commercial owns billing rows. Current Lifecycle briefing/conforme workflows
+  do not initialize billing because they provide no priced-source input; a
+  future initializer requires an approved product contract, owner-validated
+  eligibility, and replay safety. Lifecycle-issued addenda request
+  transaction-aware Commercial billing-source and selected-quote changes,
+  while Lifecycle owns addendum impact history.
 - Operations owns coordinator reliability notes and every assignment,
   attendance, replacement, cancellation, and acknowledgment mutation.
 - Floorplan owns official plan and review state; lifecycle-facing status fields
