@@ -34,6 +34,7 @@ import { ClientEventDayViewController } from './api/client-visibility/client-eve
 import { ClientEventDayViewService } from './application/client-visibility/client-event-day-view.service';
 import { OcularVisitController } from './api/ocular-visit/ocular-visit.controller';
 import { OcularVisitService } from './application/ocular-visit/ocular-visit.service';
+import { EventLifecycleReferenceModule } from './event-lifecycle-reference.module';
 import { CommercialAddendumImpactModule } from '@prism/contexts/commercial';
 
 const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const };
@@ -63,6 +64,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     DatabaseModule,
     EventCoreModule,
     PlatformOpsModule,
+    EventLifecycleReferenceModule,
     CommercialAddendumImpactModule,
     AccessControlModule,
     EventSessionModule,
@@ -123,6 +125,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     FILE_REQUIREMENT_READER,
     FILE_REQUIREMENT_COMMANDS,
     ChangeManagementService,
+    EventLifecycleReferenceModule,
   ],
 })
 export class EventLifecycleModule {}
