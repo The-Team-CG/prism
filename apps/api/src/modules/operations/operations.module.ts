@@ -28,6 +28,8 @@ import { CoordinatorAcknowledgementReminderScheduler } from './application/staff
 import { GuestWorkflowService } from './application/guest/guest-workflow.service';
 import { RegistrationPlatformService } from './application/guest/registration-platform.service';
 import { WalkInPolicyService } from './application/guest/walk-in-policy.service';
+import { OperationsPrivacyRedactorService } from './application/guest/operations-privacy-redactor.service';
+import { OPERATIONS_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 
 /**
  * Bounded-context composition root for operations: day-to-day coordinator
@@ -59,6 +61,8 @@ import { WalkInPolicyService } from './application/guest/walk-in-policy.service'
     GuestWorkflowService,
     RegistrationPlatformService,
     WalkInPolicyService,
+    OperationsPrivacyRedactorService,
+    { provide: OPERATIONS_PRIVACY_REDACTOR, useExisting: OperationsPrivacyRedactorService },
     { provide: STAFFING_COMMANDS, useExisting: CoordinatorAssignmentCommandService },
     { provide: COORDINATOR_RELIABILITY_WRITER, useExisting: CoordinatorReliabilityNoteWriterService },
     { provide: COORDINATOR_INSIGHT_FACTS_READER, useExisting: CoordinatorInsightFactsReaderService },
@@ -67,6 +71,6 @@ import { WalkInPolicyService } from './application/guest/walk-in-policy.service'
     { provide: GUEST_READER, useExisting: GuestWorkflowService },
     { provide: REGISTRATION_PLATFORM_READER, useExisting: RegistrationPlatformService },
   ],
-  exports: [CoordinatorsService, CoordinatorWorkspaceReadService, STAFFING_COMMANDS, STAFFING_READER, COORDINATOR_RELIABILITY_WRITER, COORDINATOR_INSIGHT_FACTS_READER, GuestWorkflowService, RegistrationPlatformService, WalkInPolicyService, GUEST_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER],
+  exports: [CoordinatorsService, CoordinatorWorkspaceReadService, STAFFING_COMMANDS, STAFFING_READER, COORDINATOR_RELIABILITY_WRITER, COORDINATOR_INSIGHT_FACTS_READER, GuestWorkflowService, RegistrationPlatformService, WalkInPolicyService, GUEST_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER, OPERATIONS_PRIVACY_REDACTOR],
 })
 export class OperationsModule {}

@@ -424,6 +424,28 @@ model OpsPrivacyRequest {
   @@schema("event_core")
 }
 
+model OpsPrivacyLegalHold {
+  id             String    @id
+  subjectType    String    @map("subject_type")
+  subjectEmail   String    @default("") @map("subject_email")
+  subjectName    String    @default("") @map("subject_name")
+  eventId        String?   @map("event_id")
+  reason         String
+  placedById     String    @map("placed_by_id")
+  placedByName   String    @map("placed_by_name")
+  placedAt       DateTime  @default(now()) @map("placed_at")
+  releaseReason  String?   @map("release_reason")
+  releasedById   String?   @map("released_by_id")
+  releasedByName String?   @map("released_by_name")
+  releasedAt     DateTime? @map("released_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@index([subjectType, subjectEmail, releasedAt, eventId], map: "privacy_legal_holds_email_active_idx")
+  @@index([subjectType, subjectName, releasedAt, eventId], map: "privacy_legal_holds_name_active_idx")
+  @@map("privacy_legal_holds")
+  @@schema("platform_ops")
+}
+
 model OpsFloorPlanDraft {
   id                  String    @id
   eventId             String    @map("event_id")

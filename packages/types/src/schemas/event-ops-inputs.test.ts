@@ -41,6 +41,8 @@ import {
   createEventTaskReassignmentSchema,
   createFloorPlanDraftSchema,
   createFloorPlanPreferenceSchema,
+  createPrivacyLegalHoldSchema,
+  releasePrivacyLegalHoldSchema,
   createRegistrationPlatformSchema,
   updateRegistrationPlatformSchema,
   importHeadcountSchema,
@@ -52,6 +54,28 @@ import {
   parseContract,
   PrismContractError,
 } from "./index.js";
+
+describe("privacy legal hold contracts", () => {
+  it("requires a supported identity and reason while allowing optional event scope", () => {
+    expect(createPrivacyLegalHoldSchema.safeParse({
+      subjectType: "client", subjectEmail: "ana@example.test", reason: "Preserve records",
+    }).success).toBe(true);
+    expect(createPrivacyLegalHoldSchema.safeParse({
+      subjectType: "supplier", reason: "Preserve records",
+    }).success).toBe(false);
+    expect(createPrivacyLegalHoldSchema.safeParse({
+      subjectType: "guest", subjectName: "Ana Reyes", reason: "Preserve records",
+    }).success).toBe(true);
+    expect(createPrivacyLegalHoldSchema.safeParse({
+      subjectType: "guest", reason: "Preserve records",
+    }).success).toBe(false);
+    expect(createPrivacyLegalHoldSchema.safeParse({
+      subjectType: "account", subjectEmail: "ana@example.test", reason: "Preserve records",
+    }).success).toBe(false);
+    expect(releasePrivacyLegalHoldSchema.safeParse({ reason: "Counsel confirmed release" }).success).toBe(true);
+    expect(releasePrivacyLegalHoldSchema.safeParse({ reason: "  " }).success).toBe(false);
+  });
+});
 
 describe("coordinator role contracts", () => {
   it("accepts the seven canonical roles and rejects new role values outside the catalog", () => {
