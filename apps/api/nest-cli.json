@@ -17,6 +17,10 @@
           {
             "include": "kernel/database/db-connection-config.cjs",
             "outDir": "dist/apps/api/src"
+          },
+          {
+            "include": "kernel/database/migration-ledger-compatibility.cjs",
+            "outDir": "dist/apps/api/src"
           }
         ]
       }
