@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -106,6 +106,35 @@ function run(command, args, options = {}) {
   });
 }
 
+async function runTimedStep(label, action) {
+  const startedAt = performance.now();
+  process.stdout.write('[db:integrity] ' + label + ' started.\n');
+  try {
+    const result = await action();
+    const elapsedSeconds = ((performance.now() - startedAt) / 1000).toFixed(1);
+    process.stdout.write('[db:integrity] ' + label + ' completed in ' + elapsedSeconds + 's.\n');
+    return result;
+  } catch (error) {
+    const elapsedSeconds = ((performance.now() - startedAt) / 1000).toFixed(1);
+    process.stderr.write('[db:integrity] ' + label + ' failed after ' + elapsedSeconds + 's.\n');
+    throw error;
+  }
+}
+
+async function runDatabaseProbe(connection, sql) {
+  const pool = new Pool({
+    connectionString: connection.connectionString,
+    ssl: false,
+    connectionTimeoutMillis: 5_000,
+    max: 1,
+  });
+  try {
+    await pool.query(sql);
+  } finally {
+    await pool.end();
+  }
+}
+
 async function runPrisma(connection, args, migrationPath) {
   const env = environmentFor(connection);
   if (migrationPath) env.PRISMA_MIGRATIONS_PATH = migrationPath;
@@ -114,7 +143,7 @@ async function runPrisma(connection, args, migrationPath) {
   return result;
 }
 
-function copyMigrationSet(destination, predicate, omitQuoteForeignKey = false) {
+function copyMigrationSet(destination, predicate) {
   const names = readdirSync(MIGRATIONS_ROOT, { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && predicate(entry.name))
     .map((entry) => entry.name)
@@ -126,21 +155,13 @@ function copyMigrationSet(destination, predicate, omitQuoteForeignKey = false) {
     const source = path.join(MIGRATIONS_ROOT, name);
     const target = path.join(destination, name);
     cpSync(source, target, { recursive: true });
-    if (omitQuoteForeignKey && name === POLICY.quoteRequestFkMigration) {
-      const sqlPath = path.join(target, 'migration.sql');
-      const sql = readFileSync(sqlPath, 'utf8');
-      const marker = 'ALTER TABLE "supplier_ops"."quotes"';
-      const markerIndex = sql.indexOf(marker);
-      if (markerIndex < 0) throw new Error('Quote request FK migration does not contain the expected FK operation.');
-      writeFileSync(sqlPath, sql.slice(0, markerIndex), 'utf8');
-    }
   }
   cpSync(path.join(MIGRATIONS_ROOT, 'migration_lock.toml'), path.join(destination, 'migration_lock.toml'));
 }
 
-function temporaryMigrationPath(tempRoot, name, predicate, omitQuoteForeignKey = false) {
+function temporaryMigrationPath(tempRoot, name, predicate) {
   const destination = path.join(tempRoot, name);
-  copyMigrationSet(destination, predicate, omitQuoteForeignKey);
+  copyMigrationSet(destination, predicate);
   return destination;
 }
 
@@ -301,6 +322,7 @@ function removeTemporaryRoot(tempRoot) {
 }
 
 async function main() {
+  const totalStartedAt = performance.now();
   const adminUrl = process.env.DB_INTEGRITY_ADMIN_URL?.trim();
   if (!adminUrl) throw new Error('Set DB_INTEGRITY_ADMIN_URL for the disposable PostgreSQL integrity job.');
   const admin = safeConnection(adminUrl, 'postgres');
@@ -316,33 +338,41 @@ async function main() {
   });
   const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'prism-db-integrity-'));
   try {
-    const { rows } = await adminPool.query('SHOW server_version_num');
-    const major = Math.floor(Number(rows[0]?.server_version_num) / 10000);
-    if (major !== POLICY.postgresMajor) {
-      throw new Error('Expected PostgreSQL ' + POLICY.postgresMajor + ', received major ' + major + '.');
-    }
-
     const names = databaseNames();
-    await assertDatabasesAbsent(adminPool, names);
-    await createDatabases(adminPool, names);
+    await runTimedStep('PostgreSQL version check and disposable database setup', async () => {
+      const { rows } = await adminPool.query('SHOW server_version_num');
+      const major = Math.floor(Number(rows[0]?.server_version_num) / 10000);
+      if (major !== POLICY.postgresMajor) {
+        throw new Error('Expected PostgreSQL ' + POLICY.postgresMajor + ', received major ' + major + '.');
+      }
+
+      await assertDatabasesAbsent(adminPool, names);
+      await createDatabases(adminPool, names);
+    });
 
     const fresh = connectionForDatabase(admin.connectionString, 'prism_ci_fresh');
-    await runPrisma(fresh, ['migrate', 'deploy']);
-    await verifySchema(fresh.prismaConnectionString);
+    await runTimedStep('fresh migration replay and schema verification', async () => {
+      await runPrisma(fresh, ['migrate', 'deploy']);
+      await verifySchema(fresh.prismaConnectionString);
+    });
 
     const upgraded = connectionForDatabase(admin.connectionString, 'prism_ci_upgraded');
-    const upgradeFixture = await applyBaselineAndCurrent(
-      upgraded,
-      tempRoot,
-      'upgraded-checkpoint',
-      () => seedUpgradeCheckpoint(upgraded),
-    );
-    await verifySchema(upgraded.prismaConnectionString);
-    await assertUpgradeFixturePreserved(upgraded, upgradeFixture);
+    await runTimedStep('populated checkpoint upgrade and schema verification', async () => {
+      const upgradeFixture = await applyBaselineAndCurrent(
+        upgraded,
+        tempRoot,
+        'upgraded-checkpoint',
+        () => seedUpgradeCheckpoint(upgraded),
+      );
+      await verifySchema(upgraded.prismaConnectionString);
+      await assertUpgradeFixturePreserved(upgraded, upgradeFixture);
+    });
 
     const p0Template = connectionForDatabase(admin.connectionString, 'prism_ci_p0_template');
-    await applyBaselineAndCurrent(p0Template, tempRoot, 'p0-template-checkpoint');
-    await verifySchema(p0Template.prismaConnectionString);
+    await runTimedStep('behavior template migration replay and schema verification', async () => {
+      await applyBaselineAndCurrent(p0Template, tempRoot, 'p0-template-checkpoint');
+      await verifySchema(p0Template.prismaConnectionString);
+    });
 
     const behaviorFiles = databaseBehaviorTestFiles();
     if (behaviorFiles.length === 0) throw new Error('No database behavior suites were found.');
@@ -358,96 +388,97 @@ async function main() {
     const behaviorRunner = path.join(API_ROOT, 'scripts', 'run-db-behavior-tests.mjs');
 
     for (const [index, testFile] of behaviorFiles.entries()) {
-      await resetBehaviorDatabase(adminPool, 'prism_ci_p0_template', behaviorDatabaseName);
-      const reportPath = path.join(
-        tempRoot,
-        'postgres-test-report-' + String(index + 1).padStart(2, '0') + '.json',
-      );
-      const integration = await run(
-        process.execPath,
-        [
-          behaviorRunner,
-          testFile,
-          '--reporter=json',
-          '--outputFile=' + reportPath,
-        ],
-        { env: environmentFor(behavior, { P0_TEST_DATABASE_URL: behavior.prismaConnectionString }) },
-      );
+      await runTimedStep(
+        'isolated behavior suite ' + String(index + 1) + '/' + behaviorFiles.length + ': ' + path.basename(testFile),
+        async () => {
+          await resetBehaviorDatabase(adminPool, 'prism_ci_p0_template', behaviorDatabaseName);
+          const reportPath = path.join(
+            tempRoot,
+            'postgres-test-report-' + String(index + 1).padStart(2, '0') + '.json',
+          );
+          const integration = await run(
+            process.execPath,
+            [
+              behaviorRunner,
+              testFile,
+              '--reporter=json',
+              '--outputFile=' + reportPath,
+            ],
+            { env: environmentFor(behavior, { P0_TEST_DATABASE_URL: behavior.prismaConnectionString }) },
+          );
 
-      let report;
-      try {
-        report = JSON.parse(readFileSync(reportPath, 'utf8'));
-      } catch {
-        assertCommandSucceeded(integration, 'PostgreSQL behavior suite ' + testFile);
-        throw new Error('PostgreSQL behavior suite ' + testFile + ' did not produce its JSON report.');
-      }
+          let report;
+          try {
+            report = JSON.parse(readFileSync(reportPath, 'utf8'));
+          } catch {
+            assertCommandSucceeded(integration, 'PostgreSQL behavior suite ' + testFile);
+            throw new Error('PostgreSQL behavior suite ' + testFile + ' did not produce its JSON report.');
+          }
 
-      const assertionDetails = (report.testResults || [])
-        .flatMap((suite) => (suite.assertionResults || [])
-          .filter((assertion) => assertion.status !== 'passed')
-          .map((assertion) => {
-            const title = assertion.fullName || assertion.title;
-            const failures = (assertion.failureMessages || []).join('\n');
-            return failures ? title + ': ' + failures : title;
-          }));
-      const commandResult = {
-        ...integration,
-        stdout: integration.stdout + (assertionDetails.length ? '\nDatabase assertions:\n' + assertionDetails.join('\n') : ''),
-      };
-      assertCommandSucceeded(commandResult, 'PostgreSQL behavior suite ' + testFile);
-      assert.equal(
-        report.testResults?.length,
-        1,
-        'Expected exactly one PostgreSQL behavior file to run for ' + testFile + '.',
+          const assertionDetails = (report.testResults || [])
+            .flatMap((suite) => (suite.assertionResults || [])
+              .filter((assertion) => assertion.status !== 'passed')
+              .map((assertion) => {
+                const title = assertion.fullName || assertion.title;
+                const failures = (assertion.failureMessages || []).join('\n');
+                return failures ? title + ': ' + failures : title;
+              }));
+          const commandResult = {
+            ...integration,
+            stdout: integration.stdout + (assertionDetails.length ? '\nDatabase assertions:\n' + assertionDetails.join('\n') : ''),
+          };
+          assertCommandSucceeded(commandResult, 'PostgreSQL behavior suite ' + testFile);
+          assert.equal(
+            report.testResults?.length,
+            1,
+            'Expected exactly one PostgreSQL behavior file to run for ' + testFile + '.',
+          );
+
+          behaviorReport.numTotalTests += report.numTotalTests || 0;
+          behaviorReport.numPassedTests += report.numPassedTests || 0;
+          behaviorReport.numFailedTests += report.numFailedTests || 0;
+          behaviorReport.numPendingTests += report.numPendingTests || 0;
+          behaviorReport.testResults.push(...report.testResults);
+        },
       );
-
-      behaviorReport.numTotalTests += report.numTotalTests || 0;
-      behaviorReport.numPassedTests += report.numPassedTests || 0;
-      behaviorReport.numFailedTests += report.numFailedTests || 0;
-      behaviorReport.numPendingTests += report.numPendingTests || 0;
-      behaviorReport.testResults.push(...report.testResults);
     }
     assertDatabaseSuiteReport(behaviorReport);
 
     const missingFk = connectionForDatabase(admin.connectionString, 'prism_ci_missing_fk');
-    const missingFkPath = temporaryMigrationPath(
-      tempRoot,
-      'missing-quote-fk',
-      () => true,
-      true,
-    );
-    await runPrisma(missingFk, ['migrate', 'deploy'], missingFkPath);
-    await verifyExpectedFailure(missingFk, 'PRISMA_SCHEMA_DRIFT', 'An omitted same-domain quote request FK');
+    await runTimedStep('missing-FK drift probe on verified schema clone', async () => {
+      await resetBehaviorDatabase(adminPool, 'prism_ci_p0_template', 'prism_ci_missing_fk');
+      await verifyExpectedFailure(
+        missingFk,
+        'PRISMA_SCHEMA_DRIFT',
+        'An omitted same-domain quote request FK',
+        () => runDatabaseProbe(
+          missingFk,
+          'ALTER TABLE "supplier_ops"."quotes" DROP CONSTRAINT "quotes_request_id_fkey"',
+        ),
+      );
+    });
 
     const unexpected = connectionForDatabase(admin.connectionString, 'prism_ci_unexpected_object');
-    await runPrisma(unexpected, ['migrate', 'deploy']);
-    await verifyExpectedFailure(
-      unexpected,
-      'SQL_ONLY_OBJECT_DRIFT',
-      'An unapproved SQL-only expression index',
-      async () => {
-        const pool = new Pool({
-          connectionString: unexpected.connectionString,
-          ssl: false,
-          connectionTimeoutMillis: 5_000,
-          max: 1,
-        });
-        try {
-          await pool.query(
-            'CREATE INDEX ' + quoteSqlIdentifier('prism_ci_unexpected_expression_idx')
-            + ' ON "supplier_ops"."quotes" (lower("request_id"))',
-          );
-        } finally {
-          await pool.end();
-        }
-      },
-    );
+    await runTimedStep('unexpected-SQL-object drift probe on verified schema clone', async () => {
+      await resetBehaviorDatabase(adminPool, 'prism_ci_p0_template', 'prism_ci_unexpected_object');
+      await verifyExpectedFailure(
+        unexpected,
+        'SQL_ONLY_OBJECT_DRIFT',
+        'An unapproved SQL-only expression index',
+        () => runDatabaseProbe(
+          unexpected,
+          'CREATE INDEX ' + quoteSqlIdentifier('prism_ci_unexpected_expression_idx')
+          + ' ON "supplier_ops"."quotes" (lower("request_id"))',
+        ),
+      );
+    });
 
+    const elapsedSeconds = ((performance.now() - totalStartedAt) / 1000).toFixed(1);
     process.stdout.write(
       'PostgreSQL ' + POLICY.postgresMajor
       + ' migration integrity passed: fresh replay and populated checkpoint upgrade match; '
       + behaviorFiles.length + ' isolated DB behavior suites (' + behaviorReport.numPassedTests + ' tests) pass; '
-      + 'omitted FK and unexpected SQL object fail as expected.\n',
+      + 'omitted FK and unexpected SQL object fail as expected in ' + elapsedSeconds + 's total.\n',
     );
   } finally {
     try {

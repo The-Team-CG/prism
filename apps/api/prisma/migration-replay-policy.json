@@ -1,6 +1,5 @@
 {
   "version": 1,
   "postgresMajor": 16,
-  "upgradeBaselineMigration": "20260909100000_command_receipt_event_scope",
-  "quoteRequestFkMigration": "20261003100000_commercial_quote_request_integrity"
+  "upgradeBaselineMigration": "20260909100000_command_receipt_event_scope"
 }
