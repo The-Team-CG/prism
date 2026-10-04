@@ -6,6 +6,7 @@ import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/ker
 import { OpsUserRole, type OpsUserRole as OpsUserRoleValue } from '@prism/kernel/event-core';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type { PrismStoredObject } from '@prism/types';
+import { PLATFORM_REFERENCE_READ_MODEL, type PlatformReferenceReadModel } from '@prism/contexts/read-models';
 import {
   STORAGE_ADAPTER,
   type StorageAdapter,
@@ -29,6 +30,7 @@ export class StorageObjectService {
     private readonly accessPolicy: EventAccessPolicyService,
     private readonly validation: StorageValidationService,
     @Optional() @Inject(STORAGE_ADAPTER) private readonly adapter?: StorageAdapter,
+    @Optional() @Inject(PLATFORM_REFERENCE_READ_MODEL) private readonly platformReferences?: PlatformReferenceReadModel,
   ) {}
 
   async requestUpload(input: StorageServiceRequest): Promise<StorageRequestResult> {
@@ -123,7 +125,7 @@ export class StorageObjectService {
     const event = await this.findEvent(eventId);
     await this.requireActorEventScope(actor, eventId, 'list event documents');
     await this.accessPolicy.requireCanReadEvent(actor, event, 'list event documents', {
-      supplierEventIds: this.supplierEventScope(actor, event.id, event.supplierQuoteRequests),
+      supplierEventIds: this.supplierEventScope(actor, event.id, event.supplierIds),
     });
     const objects = await this.prisma.opsStoredObject.findMany({
       where: { eventId, lifecycleState: { in: ['requested', 'stored', 'failed'] } },
@@ -167,7 +169,7 @@ export class StorageObjectService {
     if (!upload && usage === 'supplier_document') await this.requireSupplierDocumentRole(actor, resource, eventId);
     const event = await this.findEvent(eventId);
     if (this.canSkipEventRead(actor, usage, upload)) return;
-    await this.accessPolicy.requireCanReadEvent(actor, event, resource, { supplierEventIds: this.supplierEventScope(actor, event.id, event.supplierQuoteRequests) });
+    await this.accessPolicy.requireCanReadEvent(actor, event, resource, { supplierEventIds: this.supplierEventScope(actor, event.id, event.supplierIds) });
   }
 
   private async requireActorEventScope(actor: ResolvedEventOpsActor, eventId: string, resource: string) {
@@ -198,18 +200,15 @@ export class StorageObjectService {
     return (upload && (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System || (actor.role === OpsUserRole.Guest && usage === 'guest_feedback_media')));
   }
 
-  private supplierEventScope(actor: ResolvedEventOpsActor, eventId: string, requests: Array<{ supplierId: string | null }>) {
-    return actor.supplierId && requests.some((request) => request.supplierId === actor.supplierId) ? [eventId] : [];
+  private supplierEventScope(actor: ResolvedEventOpsActor, eventId: string, supplierIds: string[]) {
+    return actor.supplierId && supplierIds.includes(actor.supplierId) ? [eventId] : [];
   }
 
-  private findEvent(eventId: string) {
-    return this.prisma.opsEvent.findUnique({
-      where: { id: eventId },
-      select: { id: true, clientName: true, clientPortalStatus: true, inquiry: { select: { email: true } }, supplierQuoteRequests: { select: { supplierId: true } } },
-    }).then((event) => {
-      if (!event) throw new NotFoundException('Event not found');
-      return event;
-    });
+  private async findEvent(eventId: string) {
+    if (!this.platformReferences) throw new ServiceUnavailableException('Event access read model is unavailable');
+    const event = await this.platformReferences.findStorageEventScope(eventId);
+    if (!event) throw new NotFoundException('Event not found');
+    return event;
   }
 
   private async persistFailedRequest(input: StorageServiceRequest, declaration: ReturnType<StorageValidationService['validateDeclaration']>, objectId: string, providerObjectKey: string, reason: string, context?: PrismTransactionContext) {

@@ -362,19 +362,19 @@ describe('AuditService', () => {
       },
     };
     const service = securityOperationsService(prisma);
-    const user = {
+    const evidence = {
       id: 'usr_client',
       name: 'Ana Reyes',
       email: 'ana@example.test',
       role: 'client',
-      failedLoginCount: 0,
+      failedAttempt: 1,
       lockoutCount: 0,
+      locked: false,
       permanentLockout: false,
-      lockedUntil: null,
     };
 
-    await expect(service.handleFailedLogin(user as never)).resolves.toBeUndefined();
-    expect(updates).toHaveLength(1);
+    await expect(service.handleFailedLogin(evidence)).resolves.toBeUndefined();
+    expect(updates).toHaveLength(0);
     expect(histories).toHaveLength(1);
     expect(alerts).toHaveLength(1);
     expect(alerts[0]).toMatchObject({ type: 'audit_integrity_incident' });
@@ -402,18 +402,18 @@ describe('AuditService', () => {
       },
     };
     const service = securityOperationsService(prisma);
-    const user = {
+    const evidence = {
       id: 'usr_client',
       name: 'Ana Reyes',
       email: 'ana@example.test',
       role: 'client',
-      failedLoginCount: 4,
-      lockoutCount: 0,
+      failedAttempt: 5,
+      lockoutCount: 1,
+      locked: true,
       permanentLockout: false,
-      lockedUntil: null,
     };
 
-    await expect(service.handleFailedLogin(user as never)).resolves.toBeUndefined();
+    await expect(service.handleFailedLogin(evidence)).resolves.toBeUndefined();
     expect(histories).toHaveLength(1);
     expect(alerts).toHaveLength(3);
     expect(alerts).toEqual(expect.arrayContaining([
@@ -636,7 +636,9 @@ describe('AuditService', () => {
     const exportService = new AuditExportService(
       new AuditReadService(prisma as never),
       auditService,
-      new SecurityOperationsService(prisma as never, auditService, outbox as never),
+      new SecurityOperationsService(prisma as never, auditService, outbox as never, {
+        findApprovedTrustRecipientEmail: async () => 'trust@example.test',
+      } as never),
     );
     const exported = await exportService.exportAuditLogs({}, { id: 'verified-pmcm-id', name: 'Verified PMCM', role: 'pmcm-admin', email: 'pmcm@example.test' });
 
