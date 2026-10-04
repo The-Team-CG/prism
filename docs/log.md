@@ -3,7 +3,7 @@
 ## 2026-10-05
 
 - **Added:** Opt-in exact Prisma migration-ledger compatibility checking at API startup, a repository-wide schema cutover hold for automated deployment, promotion, rollback, and manual environment sync, and a read-only migration preflight workflow. The preflight checks configuration and validates the database ledger as a known applied prefix, prints the desired SQL diff for review, and does not apply migrations or deploy services.
-- **Implemented:** Added a DDD schema-cutover preflight that accepts only explicit loopback disposable database URLs, captures bounded read-only evidence, and performs no automatic repair. The manifest-driven JSON export now covers the owned tables and migration ledger from one snapshot, uses private file creation where supported, and refuses to replace an existing backup.
+- **Implemented:** Added a DDD schema-cutover preflight that accepts only explicit loopback disposable database URLs, captures bounded read-only evidence (including quote-request orphan checks in both schema layouts), and performs no automatic repair. The manifest-driven JSON export now covers the owned tables and migration ledger from one snapshot, uses private file creation where supported, and refuses to replace an existing backup.
 - **Documented:** Added the schema-cutover rehearsal runbook and linked it from the migration runbook.
 - **Verified:** Backup, preflight, invariant, and ownership tests passed (34/34); final-layout invariant dry-run, API typecheck, offline Prisma validation/diff, and the 1,328-file boundary scan passed. No live PostgreSQL replay, populated upgrade, or alternate-database restore was run in this slice.
 
