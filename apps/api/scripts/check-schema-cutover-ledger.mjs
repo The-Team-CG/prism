@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
@@ -6,7 +5,7 @@ import { Pool } from 'pg';
 import { selectDatabaseConnection } from './db-connection-config.mjs';
 
 const require = createRequire(import.meta.url);
-const { assertKnownMigrationPrefix } = require('../src/kernel/database/migration-ledger-compatibility.cjs');
+const { assertKnownMigrationPrefix, migrationChecksumVariants } = require('../src/kernel/database/migration-ledger-compatibility.cjs');
 
 async function loadLocalMigrations() {
   const candidates = [
@@ -32,7 +31,8 @@ async function loadLocalMigrations() {
   const migrations = [];
   for (const name of names) {
     const sql = await readFile(join(migrationDirectory, name, 'migration.sql'));
-    migrations.push({ name, checksum: createHash('sha256').update(sql).digest('hex') });
+    const checksumVariants = migrationChecksumVariants(sql);
+    migrations.push({ name, checksum: checksumVariants[0], checksumVariants });
   }
   return migrations;
 }
