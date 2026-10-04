@@ -4,12 +4,12 @@ title: "P.R.I.S.M persistence ownership and intentional joins"
 description: "At-a-glance ownership of Prisma models, physical database schemas, allowed cross-context reads, and documented transitional writes."
 tags: [architecture, persistence, prisma, ddd, modular-monolith, data-ownership]
 status: canonical
-updated: "2026-10-03"
+updated: "2026-10-05"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, reviewers]
 scope: "apps/api/prisma/schema.prisma and apps/api/src/modules"
-last_verified: "staging 7f64c0b; 91-model ownership manifest validated"
+last_verified: "local PR18 worktree; 92-model ownership manifest, Prisma validation and offline schema verification passed 2026-10-05"
 sources:
   - id: prisma-schema
     resource: "apps/api/prisma/schema.prisma"
@@ -72,13 +72,13 @@ policy does not create microservices or a database authorization boundary.
 | live-ops | live_ops | 10 | 122 | Event-day tasks, schedule, operators, handoffs, end-of-day, urgent issues/logs |
 | floorplan | floorplan | 6 | 72 | Plans, objects, templates, layout instances, published copies, official drafts |
 | identity-access | identity_access | 4 | 38 | Accounts, approvals, password reset and authentication state |
-| platform-ops | platform_ops | 13 | 187 | Privacy, security, login history, audit, notifications, AI, storage, command receipts |
-| **Total** | **7 schemas** | **91** | **1,159** | Every business table has one owner |
+| platform-ops | platform_ops | 14 | 201 | Privacy requests and legal holds, security, login history, audit, notifications, AI, storage, command receipts |
+| **Total** | **7 schemas** | **92** | **1,173** | Every business table has one owner |
 
 The machine-readable domain ownership manifest linked above is the complete
 model-level inventory. It records each current and target schema, domain owner,
 table name, and scalar column count. This summary table is not a substitute for
-the 91 model assignments.
+the 92 model assignments.
 
 The reviewed staging baseline has ten populated application schemas and 112
 foreign keys. By target owner, 67 baseline keys are local and 45 cross domain.
@@ -209,6 +209,7 @@ business owner and lifecycle metadata contract.
 | --- | --- | --- |
 | OpsAuditLog, OpsNotificationLog, OpsSecurityAlert, OpsPrivacyRequest, OpsLoginHistory | trust_ops, identity, and event_core as declared in Prisma | platform-ops; audit, outbox, security, privacy governance, and login history. Target schema: platform_ops. Each data owner executes redaction through a focused capability. |
 | OpsCommandReceipt | trust_ops | platform-ops owns technical receipt persistence behind the kernel `CommandReceiptStore` port. Business authorization and replay remain in the caller transaction; reservation, command writes, and completion are atomic. Target schema: platform_ops. |
+| `OpsPrivacyLegalHold` | `platform_ops` | `platform-ops`; PMCM-admin placement/release, subject and optional event scope, with release provenance. `event_id` is a scalar reference and has no cross-domain FK. Target schema: platform_ops. |
 | `OpsAiAuditLog`, `OpsAiApprovalRecord` | `trust_ops` | `platform-ops`; AI sanitisation, human approval, and governance records. |
 
 ## Intentional cross-context joins and writes

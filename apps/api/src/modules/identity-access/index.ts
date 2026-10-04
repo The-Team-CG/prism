@@ -6,4 +6,6 @@ export * from './contracts/password-reset-delivery.port';
 export * from './contracts/auth-audit.port';
 export * from './infrastructure/auth/auth-audit.adapter';
 export * from './contracts/participant-reader.port';
+export * from './contracts/privacy-redaction.port';
+export * from './application/participants/identity-privacy-redactor.service';
 export * from './application/participants/participant-reader.service';

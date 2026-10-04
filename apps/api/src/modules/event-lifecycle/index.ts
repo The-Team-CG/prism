@@ -11,6 +11,8 @@ export { ConformeReminderWindowClaimService } from './application/onboarding/con
 export * from './application/onboarding/client-onboarding-workflow.service';
 export * from './application/onboarding/inquiries.service';
 export { InquiryWorkflowService, type InquiryWorkflowContext } from './application/onboarding/inquiry-workflow.service';
+export * from './contracts/privacy-redaction.port';
+export * from './application/onboarding/lifecycle-privacy-redactor.service';
 export * from './api/onboarding/onboarding.controller';
 export * from './api/compliance/compliance-rules.controller';
 export * from './api/compliance/event-compliance.controller';

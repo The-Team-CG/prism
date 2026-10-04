@@ -34,6 +34,8 @@ import { ClientEventDayViewController } from './api/client-visibility/client-eve
 import { ClientEventDayViewService } from './application/client-visibility/client-event-day-view.service';
 import { OcularVisitController } from './api/ocular-visit/ocular-visit.controller';
 import { OcularVisitService } from './application/ocular-visit/ocular-visit.service';
+import { LifecyclePrivacyRedactorService } from './application/onboarding/lifecycle-privacy-redactor.service';
+import { LIFECYCLE_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 
 const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const };
 
@@ -101,6 +103,8 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     ChangeManagementService,
     ClientEventDayViewService,
     OcularVisitService,
+    LifecyclePrivacyRedactorService,
+    { provide: LIFECYCLE_PRIVACY_REDACTOR, useExisting: LifecyclePrivacyRedactorService },
   ],
   exports: [
     InquiriesService,
@@ -120,6 +124,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     FILE_REQUIREMENT_READER,
     FILE_REQUIREMENT_COMMANDS,
     ChangeManagementService,
+    LIFECYCLE_PRIVACY_REDACTOR,
   ],
 })
 export class EventLifecycleModule {}
