@@ -2,8 +2,40 @@ import { describe, expect, it, vi } from 'vitest';
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { EventScheduleService } from './event-schedule.service';
 
+function createScheduleService(
+  prisma: any,
+  access: any,
+  audit: any,
+  staffing: any,
+  readModel: any,
+  clock?: any,
+  owners: { eventReferences?: any; operationsReferences?: any } = {},
+) {
+  const eventReferences = owners.eventReferences ?? {
+    findOperationsEvent: vi.fn(async (eventId: string, transaction?: { prisma: any }) => {
+      const client = transaction?.prisma ?? prisma;
+      const event = await client.opsEvent?.findUnique?.({ where: { id: eventId } });
+      return event ?? { id: eventId, archived: false };
+    }),
+  };
+  const operationsReferences = owners.operationsReferences ?? {
+    findCoordinatorProfile: vi.fn(async () => null),
+    findEligibleOperatorAssignment: vi.fn(async () => null),
+    findEligibleHandoffAssignments: vi.fn(async () => []),
+  };
+  return new EventScheduleService(
+    prisma as never,
+    access as never,
+    audit as never,
+    staffing as never,
+    readModel as never,
+    eventReferences as never,
+    operationsReferences as never,
+    clock,
+  );
+}
 function service(access: { requireActorRole: ReturnType<typeof vi.fn> }, staffing = {}) {
-  return new EventScheduleService({} as never, access as never, {} as never, staffing as never, { getEventLiveOps: vi.fn() } as never);
+  return createScheduleService({} as never, access as never, {} as never, staffing as never, { getEventLiveOps: vi.fn() } as never);
 }
 
 describe('EventScheduleService authority', () => {
@@ -15,7 +47,7 @@ describe('EventScheduleService authority', () => {
       opsEventEodReport: { findMany: vi.fn(async () => []) },
       $transaction: vi.fn(),
     };
-    const instance = new EventScheduleService(prisma as never, { requireActorRole: vi.fn() } as never, {} as never,
+    const instance = createScheduleService(prisma as never, { requireActorRole: vi.fn() } as never, {} as never,
       { findAssignmentForEventActor: vi.fn(async () => ({ id: 'a_1', coordinatorId: 'coord_1' })) } as never,
       { getEventLiveOps: vi.fn(async () => ({ schedule: { eventId: 'evt_1', days: [] } })) } as never);
     const actor = { id: 'coord_1', name: 'Coordinator', role: 'coordinator' } as const;
@@ -53,7 +85,7 @@ describe('EventScheduleService authority', () => {
       urgentIssues: [{ id: 'issue_visible' }],
     };
     const readModel = { getEventLiveOps: vi.fn(async () => scopedLiveOps) };
-    const instance = new EventScheduleService(
+    const instance = createScheduleService(
       {} as never,
       { requireActorRole: vi.fn(async () => undefined) } as never,
       {} as never,
@@ -96,7 +128,7 @@ describe('EventScheduleService authority', () => {
     const prisma = { opsEventHandoff: { findMany: vi.fn().mockResolvedValue([row]) } };
     const access = { requireActorRole: vi.fn().mockResolvedValue(undefined) };
     const staffing = { findAssignmentForEventActor: vi.fn().mockResolvedValue({ id: 'assignment_1' }) };
-    const instance = new EventScheduleService(prisma as never, access as never, {} as never, staffing as never, {} as never);
+    const instance = createScheduleService(prisma as never, access as never, {} as never, staffing as never, {} as never);
 
     await expect(instance.listHandoffs(eventId, actor as never)).resolves.toMatchObject([
       { id: 'handoff_1', eventId, dayId: 'day_1', outstandingItems: ['Confirm stage cue'] },
@@ -117,7 +149,7 @@ describe('EventScheduleService authority', () => {
     };
     const prisma = { $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)) };
     const access = { requireActorRole: vi.fn().mockResolvedValue(undefined) };
-    const instance = new EventScheduleService(prisma as never, access as never, {} as never, {} as never, {} as never);
+    const instance = createScheduleService(prisma as never, access as never, {} as never, {} as never, {} as never);
 
     await expect(instance.createHandoff('evt_1', {
       dayId: 'day_1', role: 'Floor Director', fromAssignmentId: 'assignment_1', toAssignmentId: 'assignment_1', outstandingItems: [],
@@ -151,13 +183,21 @@ describe('EventScheduleService authority', () => {
     };
     const prisma = { $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)) };
     const auditWriter = { write: vi.fn().mockResolvedValue(undefined) };
-    const instance = new EventScheduleService(
+    const instance = createScheduleService(
       prisma as never,
       access as never,
       auditWriter as never,
       {} as never,
       { getEventLiveOps: vi.fn() } as never,
       { now: () => new Date('2026-09-08T03:00:00.000Z') },
+      { operationsReferences: {
+        findCoordinatorProfile: vi.fn(async () => current),
+        findEligibleOperatorAssignment: vi.fn(async () => ({
+          id: 'assignment_2', eventId: 'evt_1', coordinatorId: 'coord_2', coordinatorName: current.name,
+          role: 'Registration Staff', status: 'acknowledged',
+        })),
+        findEligibleHandoffAssignments: vi.fn(async () => []),
+      } },
     );
 
     await instance.designateOperator('evt_1', { coordinatorId: 'coord_2' }, { id: 'pmcm_1', name: 'PMCM', role: 'pmcm-admin' } as never);
@@ -175,60 +215,86 @@ describe('EventScheduleService operator designation', () => {
   const pmcm = { id: 'pmcm_1', name: 'PMCM', role: 'pmcm-admin' } as never;
   const clock = { now: () => new Date('2026-09-08T03:00:00.000Z') };
 
-  type AssignmentRow = { eventId: string; coordinatorId: string; status: string };
-
-  function harness(assignments: AssignmentRow[]) {
+  function harness(eligibleAssignment: Record<string, unknown> | null) {
     const tx = {
-      opsCoordinator: { findFirst: vi.fn().mockResolvedValue({ id: 'coord_2', name: 'Coordinator Two', active: true }) },
-      // Answers the way the database would: a row matches unless its status is in the excluded list.
-      opsCoordinatorAssignment: {
-        findFirst: vi.fn(async ({ where }: { where: { eventId: string; coordinatorId: string; status: { notIn: string[] } } }) =>
-          assignments.find((row) => row.eventId === where.eventId && row.coordinatorId === where.coordinatorId && !where.status.notIn.includes(row.status)) ?? null),
-      },
       opsEventOperatorDesignation: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         create: vi.fn().mockResolvedValue({ id: 'designation_2', eventId: 'evt_1', coordinatorId: 'coord_2' }),
       },
     };
     const prisma = { $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)) };
-    const instance = new EventScheduleService(prisma as never, { requireActorRole: vi.fn() } as never, { write: vi.fn() } as never, {} as never, { getEventLiveOps: vi.fn() } as never, clock);
-    return { instance, tx };
+    const operationsReferences = {
+      findCoordinatorProfile: vi.fn(async () => null),
+      findEligibleOperatorAssignment: vi.fn(async () => eligibleAssignment),
+      findEligibleHandoffAssignments: vi.fn(async () => []),
+    };
+    const instance = createScheduleService(
+      prisma as never,
+      { requireActorRole: vi.fn() } as never,
+      { write: vi.fn() } as never,
+      {} as never,
+      { getEventLiveOps: vi.fn() } as never,
+      clock,
+      { operationsReferences },
+    );
+    return { instance, tx, operationsReferences };
   }
 
-  it('designates a coordinator who is working the event', async () => {
-    const { instance, tx } = harness([{ eventId: 'evt_1', coordinatorId: 'coord_2', status: 'pending_acknowledgement' }]);
+  it('designates a current assignment through the Operations capability', async () => {
+    const assignment = {
+      id: 'assignment_2', eventId: 'evt_1', coordinatorId: 'coord_2',
+      coordinatorName: 'Coordinator Two', role: 'Registration Staff', status: 'acknowledged',
+    };
+    const { instance, tx, operationsReferences } = harness(assignment);
 
     await instance.designateOperator('evt_1', { coordinatorId: 'coord_2' }, pmcm);
 
+    expect(operationsReferences.findEligibleOperatorAssignment).toHaveBeenCalledWith(
+      'evt_1', 'coord_2', expect.objectContaining({ prisma: tx, actorId: 'pmcm_1' }),
+    );
     expect(tx.opsEventOperatorDesignation.create).toHaveBeenCalledTimes(1);
   });
 
-  it.each(['cancelled', 'replaced', 'declined'])('refuses a coordinator whose assignment is %s and leaves the current operator in place', async (status) => {
-    const { instance, tx } = harness([{ eventId: 'evt_1', coordinatorId: 'coord_2', status }]);
+  it.each(['inactive coordinator', 'missing assignment', 'cross-event assignment', 'cancelled or replaced assignment'])(
+    'leaves the current designation in place when Operations rejects an %s',
+    async () => {
+      const { instance, tx } = harness(null);
 
-    await expect(instance.designateOperator('evt_1', { coordinatorId: 'coord_2' }, pmcm)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(instance.designateOperator('evt_1', { coordinatorId: 'coord_2' }, pmcm)).rejects.toBeInstanceOf(BadRequestException);
 
-    expect(tx.opsEventOperatorDesignation.updateMany).not.toHaveBeenCalled();
-    expect(tx.opsEventOperatorDesignation.create).not.toHaveBeenCalled();
-  });
+      expect(tx.opsEventOperatorDesignation.updateMany).not.toHaveBeenCalled();
+      expect(tx.opsEventOperatorDesignation.create).not.toHaveBeenCalled();
+    },
+  );
 
-  it('refuses a coordinator who is only assigned to a different event', async () => {
-    const { instance, tx } = harness([{ eventId: 'evt_other', coordinatorId: 'coord_2', status: 'acknowledged' }]);
-
-    await expect(instance.designateOperator('evt_1', { coordinatorId: 'coord_2' }, pmcm)).rejects.toBeInstanceOf(BadRequestException);
-
-    expect(tx.opsEventOperatorDesignation.create).not.toHaveBeenCalled();
-  });
-
-  it('reports the current operator by name, or none before anyone is designated', async () => {
+  it('reports the current operator through the Operations owner and handles a missing profile', async () => {
     const findFirst = vi.fn()
-      .mockResolvedValueOnce({ coordinatorId: 'coord_2', coordinator: { name: 'Coordinator Two' }, designatedAt: new Date('2026-09-08T03:00:00.000Z') })
+      .mockResolvedValueOnce({ coordinatorId: 'coord_2', designatedAt: new Date('2026-09-08T03:00:00.000Z') })
+      .mockResolvedValueOnce({ coordinatorId: 'coord_missing', designatedAt: new Date('2026-09-08T03:00:00.000Z') })
       .mockResolvedValueOnce(null);
-    const instance = new EventScheduleService({ opsEventOperatorDesignation: { findFirst } } as never, { requireActorRole: vi.fn() } as never, {} as never, {} as never, { getEventLiveOps: vi.fn() } as never, clock);
+    const operationsReferences = {
+      findCoordinatorProfile: vi.fn(async (coordinatorId: string) =>
+        coordinatorId === 'coord_2' ? { id: coordinatorId, name: 'Coordinator Two', active: true } : null),
+      findEligibleOperatorAssignment: vi.fn(async () => null),
+      findEligibleHandoffAssignments: vi.fn(async () => []),
+    };
+    const instance = createScheduleService(
+      { opsEventOperatorDesignation: { findFirst } } as never,
+      { requireActorRole: vi.fn() } as never,
+      {} as never,
+      {} as never,
+      { getEventLiveOps: vi.fn() } as never,
+      clock,
+      { operationsReferences },
+    );
 
     await expect(instance.getOperatorDesignation('evt_1', pmcm)).resolves.toEqual({
       eventId: 'evt_1',
       operator: { coordinatorId: 'coord_2', coordinatorName: 'Coordinator Two', designatedAt: '2026-09-08T03:00:00.000Z' },
+    });
+    await expect(instance.getOperatorDesignation('evt_1', pmcm)).resolves.toEqual({
+      eventId: 'evt_1',
+      operator: { coordinatorId: 'coord_missing', coordinatorName: null, designatedAt: '2026-09-08T03:00:00.000Z' },
     });
     await expect(instance.getOperatorDesignation('evt_1', pmcm)).resolves.toEqual({ eventId: 'evt_1', operator: null });
   });
@@ -239,7 +305,6 @@ describe('EventScheduleService operator designation', () => {
     await expect(service(access).getOperatorDesignation('evt_1', { id: 'coord_1', name: 'Coordinator', role: 'coordinator' } as never)).rejects.toThrow('denied');
   });
 });
-
 describe('EventScheduleService schedule-segment transitions', () => {
   const pmcm = { id: 'pmcm_1', name: 'PMCM', role: 'pmcm-admin' } as never;
   const now = new Date('2026-10-02T12:00:00.000Z');
@@ -268,7 +333,7 @@ describe('EventScheduleService schedule-segment transitions', () => {
     const access = { requireActorRole: vi.fn(async () => undefined) };
     const auditWriter = { write: vi.fn(async () => undefined) };
     const prisma = { $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)) };
-    const instance = new EventScheduleService(
+    const instance = createScheduleService(
       prisma as never,
       access as never,
       auditWriter as never,
@@ -375,7 +440,7 @@ describe('EventScheduleService schedule-segment transitions', () => {
       }),
     };
     const auditWriter = { write: vi.fn(async () => undefined) };
-    const instance = new EventScheduleService(
+    const instance = createScheduleService(
       prisma as never,
       { requireActorRole: vi.fn(async () => undefined) } as never,
       auditWriter as never,
@@ -404,7 +469,7 @@ describe('EventScheduleService end-of-day reports', () => {
     const access = { requireActorRole: vi.fn(async () => undefined) };
     const staffing = { findAssignmentForEventActor: vi.fn(async () => null) };
     const findMany = vi.fn();
-    const instance = new EventScheduleService({ opsEventEodReport: { findMany } } as never, access as never, {} as never, staffing as never, {} as never);
+    const instance = createScheduleService({ opsEventEodReport: { findMany } } as never, access as never, {} as never, staffing as never, {} as never);
 
     await expect(instance.listEodReports('evt_secret', coordinator as never)).rejects.toBeInstanceOf(ForbiddenException);
 
@@ -418,7 +483,7 @@ describe('EventScheduleService end-of-day reports', () => {
       }),
     };
     const transaction = vi.fn();
-    const instance = new EventScheduleService({ $transaction: transaction } as never, access as never, {} as never, {} as never, {} as never);
+    const instance = createScheduleService({ $transaction: transaction } as never, access as never, {} as never, {} as never, {} as never);
 
     await expect(instance.submitEodReport('evt_1', input, { id: 'pmcm_1', name: 'PMCM', role: 'pmcm-admin' } as never)).rejects.toBeInstanceOf(ForbiddenException);
 
@@ -434,7 +499,7 @@ describe('EventScheduleService end-of-day reports', () => {
     const access = { requireActorRole: vi.fn(async () => undefined) };
     const staffing = { findAssignmentForEventActor: vi.fn(async () => ({ id: 'assignment_1' })) };
     const findMany = vi.fn(async () => [report]);
-    const instance = new EventScheduleService({ opsEventEodReport: { findMany } } as never, access as never, {} as never, staffing as never, {} as never);
+    const instance = createScheduleService({ opsEventEodReport: { findMany } } as never, access as never, {} as never, staffing as never, {} as never);
 
     await expect(instance.listEodReports('evt_1', coordinator as never)).resolves.toMatchObject([
       { id: 'report_1', canEdit: true, replies: [{ id: 'reply_1', body: 'Thanks' }] },
@@ -455,7 +520,7 @@ describe('EventScheduleService end-of-day reports', () => {
     const access = { requireActorRole: vi.fn(async () => undefined) };
     const staffing = { findAssignmentForEventActor: vi.fn(async () => ({ id: 'assignment_2' })) };
     const prisma = { opsEvent: { findUnique: vi.fn(async () => ({ archived: false })) }, $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)) };
-    const instance = new EventScheduleService(prisma as never, access as never, {} as never, staffing as never, {} as never);
+    const instance = createScheduleService(prisma as never, access as never, {} as never, staffing as never, {} as never);
     const actor = { ...coordinator, id: 'user_coord_2' } as never;
 
     await expect(instance.submitEodReport('evt_1', input, actor)).rejects.toBeInstanceOf(ForbiddenException);
@@ -476,7 +541,7 @@ describe('EventScheduleService end-of-day reports', () => {
     const access = { requireActorRole: vi.fn(async () => undefined) };
     const staffing = { findAssignmentForEventActor: vi.fn(async () => ({ id: 'assignment_1' })) };
     const prisma = { opsEvent: { findUnique: vi.fn(async () => ({ archived: false })) }, $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)) };
-    const instance = new EventScheduleService(prisma as never, access as never, {} as never, staffing as never, {} as never);
+    const instance = createScheduleService(prisma as never, access as never, {} as never, staffing as never, {} as never);
 
     await expect(instance.submitEodReport('evt_1', input, coordinator as never)).rejects.toBeInstanceOf(ConflictException);
   });

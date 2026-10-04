@@ -253,7 +253,7 @@
       "target": "OpsCoordinatorAssignment.id",
       "profile": "operations-coordinator-current",
       "meaning": "Outgoing assignment must be active and belong to the handoff event when written.",
-      "status": "transitional",
+      "status": "implemented",
       "sourceOwner": "live-ops",
       "targetOwner": "operations"
     },
@@ -262,7 +262,7 @@
       "target": "OpsCoordinatorAssignment.id",
       "profile": "operations-coordinator-current",
       "meaning": "Incoming assignment must be active and belong to the handoff event when written.",
-      "status": "transitional",
+      "status": "implemented",
       "sourceOwner": "live-ops",
       "targetOwner": "operations"
     },

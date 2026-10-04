@@ -67,6 +67,9 @@
       "@prism/contexts/floorplan/*": [
         "src/modules/floorplan/*"
       ],
+      "@prism/contexts/operations/live-ops-reference": [
+        "src/modules/operations/live-ops-reference"
+      ],
       "@prism/contexts/operations": [
         "src/modules/operations/index"
       ],

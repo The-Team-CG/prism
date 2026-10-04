@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+- Routed LiveOps event-state checks through Lifecycle and operator/handoff eligibility through a transaction-aware Operations capability. Profile and assignment state is locked and rechecked before the LiveOps write; no schema or foreign-key changes were made.
 
 - Fixed audit-chain hashing so dates inside audit metadata hash the way PostgreSQL stores them; previously an event decision with date metadata made the next audit write fail integrity verification. The coordinator PostgreSQL suite now builds the receipt-enabled workflow its replay test depends on.
 
