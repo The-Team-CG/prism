@@ -324,8 +324,8 @@
       "source": "OpsAdditionalBilling.urgentIssueId",
       "target": "OpsUrgentIssue.id",
       "profile": "liveops-issue-current",
-      "meaning": "Same-event incident is required before additional billing; current validation reads the LiveOps model directly.",
-      "status": "transitional",
+      "meaning": "LiveOps locks and validates the incident in the billing transaction; only the issue ID and event ID cross to Commercial.",
+      "status": "implemented",
       "sourceOwner": "commercial",
       "targetOwner": "live-ops"
     },
