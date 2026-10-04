@@ -4,6 +4,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import pg from 'pg';
 import { selectDatabaseConnection } from './db-connection-config.mjs';
+import { loadOwnershipManifest, renderOwnerTableReferences } from './domain-persistence-catalog.mjs';
 
 const { Pool } = pg;
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
@@ -208,7 +209,10 @@ export function validateInvariantDeclarations(declarations) {
   });
 }
 
-export function loadInvariantDeclarations(declarationsPath = DEFAULT_DECLARATIONS_PATH) {
+export function loadInvariantDeclarations(
+  declarationsPath = DEFAULT_DECLARATIONS_PATH,
+  { final = false, ownershipManifest = loadOwnershipManifest() } = {},
+) {
   let declarations;
   try {
     declarations = JSON.parse(readFileSync(declarationsPath, 'utf8'));
@@ -220,7 +224,10 @@ export function loadInvariantDeclarations(declarationsPath = DEFAULT_DECLARATION
     );
   }
 
-  return validateInvariantDeclarations(declarations);
+  return validateInvariantDeclarations(declarations.map((declaration) => ({
+    ...declaration,
+    query: renderOwnerTableReferences(declaration.query, ownershipManifest, { final }),
+  })));
 }
 
 function errorMessage(error) {
@@ -310,19 +317,24 @@ export function formatTextReport(report) {
 }
 
 function parseArguments(argv) {
-  const allowed = new Set(['--dry-run', '--json']);
+  const allowed = new Set(['--dry-run', '--json', '--final']);
   const unknown = argv.filter((argument) => !allowed.has(argument));
   if (unknown.length > 0) throw new Error(`unknown argument(s): ${unknown.join(', ')}`);
-  return { dryRun: argv.includes('--dry-run'), json: argv.includes('--json') };
+  return {
+    dryRun: argv.includes('--dry-run'),
+    json: argv.includes('--json'),
+    final: argv.includes('--final'),
+  };
 }
 
 async function main() {
-  const { dryRun, json } = parseArguments(process.argv.slice(2));
-  const declarations = loadInvariantDeclarations();
+  const { dryRun, json, final } = parseArguments(process.argv.slice(2));
+  const declarations = loadInvariantDeclarations(DEFAULT_DECLARATIONS_PATH, { final });
 
   if (dryRun) {
     const report = {
       mode: 'dry-run',
+      schemaMode: final ? 'final' : 'current',
       valid: true,
       total: declarations.length,
       declarations: declarations.map(({ id, context, severity }) => ({ id, context, severity })),
