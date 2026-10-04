@@ -74,6 +74,31 @@ describe('assertExactMigrationCompatibility', () => {
     ).toBe(localMigrations[localMigrations.length - 1].name);
   });
 
+  it('accepts equivalent LF and CRLF migration checksums but rejects changed SQL', () => {
+    const crlfChecksums = migrationLedger.migrationChecksumVariants(Buffer.from('SELECT 1;\r\n'));
+    const lfChecksum = migrationLedger.migrationChecksumVariants(Buffer.from('SELECT 1;\n'))[0];
+    const changedChecksum = migrationLedger.migrationChecksumVariants(Buffer.from('SELECT 2;\n'))[0];
+    expect(crlfChecksums).toContain(lfChecksum);
+
+    const migration = { name: localMigrations[0].name, checksum: crlfChecksums[0], checksumVariants: crlfChecksums };
+    const applied = [{ ...appliedMigrations[0], checksum: lfChecksum }];
+    expect(
+      migrationLedger.assertKnownMigrationPrefix({
+        localMigrations: [migration],
+        appliedMigrations: applied,
+        requiredHead: migration.name,
+      }).appliedHead,
+    ).toBe(migration.name);
+
+    expect(() =>
+      migrationLedger.assertKnownMigrationPrefix({
+        localMigrations: [migration],
+        appliedMigrations: [{ ...applied[0], checksum: changedChecksum }],
+        requiredHead: migration.name,
+      }),
+    ).toThrow('checksum mismatch');
+  });
+
   it('accepts a known applied prefix and reports the remaining migrations', () => {
     expect(
       migrationLedger.assertKnownMigrationPrefix({

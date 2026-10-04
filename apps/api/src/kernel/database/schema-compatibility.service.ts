@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
@@ -76,7 +75,8 @@ export class SchemaCompatibilityService implements OnApplicationBootstrap {
     const migrations: LocalMigration[] = [];
     for (const name of migrationDirectories) {
       const sql = await readFile(join(migrationDirectory, name, 'migration.sql'));
-      migrations.push({ name, checksum: createHash('sha256').update(sql).digest('hex') });
+      const checksumVariants = migrationLedger.migrationChecksumVariants(sql);
+      migrations.push({ name, checksum: checksumVariants[0], checksumVariants });
     }
     return migrations;
   }

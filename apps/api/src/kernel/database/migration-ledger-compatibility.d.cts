@@ -1,6 +1,7 @@
 export interface LocalMigration {
   name: string;
   checksum: string;
+  checksumVariants?: readonly string[];
 }
 
 export interface AppliedMigration {
@@ -27,3 +28,5 @@ export function assertExactMigrationCompatibility(input: {
   appliedMigrations: readonly AppliedMigration[];
   requiredHead: string;
 }): string;
+
+export function migrationChecksumVariants(sql: string | Uint8Array): [string, ...string[]];

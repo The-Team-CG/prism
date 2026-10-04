@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createRequire } from 'node:module';
 import { link, open, unlink, stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -9,6 +9,9 @@ import { normalizeDatabaseConnection } from './db-connection-config.mjs';
 import { assertReadOnlyQuery } from './check-data-invariants.mjs';
 import { discoverMigrations } from './check-prisma-migrations.mjs';
 import { domainPersistenceCatalog, loadOwnershipManifest, renderOwnerTableReferences } from './domain-persistence-catalog.mjs';
+
+const require = createRequire(import.meta.url);
+const { migrationChecksumVariants } = require('../src/kernel/database/migration-ledger-compatibility.cjs');
 
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const API_ROOT = path.resolve(path.dirname(SCRIPT_PATH), '..');
@@ -522,11 +525,11 @@ const FOREIGN_KEY_QUERY = `SELECT constraint_row.conname AS name,
        source_table.relname AS source_table,
        target_namespace.nspname AS target_schema,
        target_table.relname AS target_table,
-       ARRAY(SELECT source_column.attname
+       ARRAY(SELECT source_column.attname::text
                FROM unnest(constraint_row.conkey) WITH ORDINALITY AS key_column(attnum, position)
                JOIN pg_attribute AS source_column ON source_column.attrelid = source_table.oid AND source_column.attnum = key_column.attnum
               ORDER BY key_column.position) AS source_columns,
-       ARRAY(SELECT target_column.attname
+       ARRAY(SELECT target_column.attname::text
                FROM unnest(constraint_row.confkey) WITH ORDINALITY AS key_column(attnum, position)
                JOIN pg_attribute AS target_column ON target_column.attrelid = target_table.oid AND target_column.attnum = key_column.attnum
               ORDER BY key_column.position) AS target_columns,
@@ -604,8 +607,8 @@ async function inspectMigrationLedger(client, migrationRoot) {
   const checksumMismatches = completed.flatMap((row) => {
     const expected = expectedByName.get(row.migration_name);
     if (!expected) return [];
-    const checksum = createHash('sha256').update(expected.sql.replace(/\r\n/g, '\n').replace(/\r/g, '\n'), 'utf8').digest('hex');
-    return row.checksum !== checksum ? [row.migration_name] : [];
+    const checksums = migrationChecksumVariants(expected.sql);
+    return checksums.includes(row.checksum) ? [] : [row.migration_name];
   });
   const unresolved = rows.filter((row) => !row.finished_at && !row.rolled_back_at).map((row) => row.migration_name);
   const duplicateCompleted = [...activeCounts].filter(([, count]) => count > 1).map(([name]) => name);
