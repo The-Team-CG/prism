@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Added frozen checksums for the reviewed migration baseline and domain persistence gates for schema ownership, foreign keys, private writes, and manifest-driven database audits.
 - Added Lifecycle and LiveOps transaction-aware owner readers for additional billing. Lifecycle checks post-event eligibility and LiveOps checks same-event urgent-issue eligibility before Commercial writes.
 - Added a checked policy inventory for all 45 current cross-domain foreign keys and 28 scalar references, documenting owner checks, former delete effects, failure, and recovery; FK removal remains gated.
 - Delegated Lifecycle addendum billing-source and selected-quote mutations to a Commercial owner capability while Lifecycle retains addendum history. Current briefing/conforme flows do not fabricate billing rows without priced-source input.

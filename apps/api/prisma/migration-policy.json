@@ -139,6 +139,37 @@
     "20260908161000_command_receipts": "86e20308027cd486e436a48a13df2b135d960bce163f4c80e3349cd78b54ceb0",
     "20260909100000_command_receipt_event_scope": "c6f9fcf5144fc577060921839ddc2050004ce78735f974165a8756850bf1966d"
   },
+  "ownerAwareBaselineMaxVersion": "20261002120000",
+  "ownerAwareBaselineNames": [
+    "20260917090000_commercial_billing_statement_sequence_backfill",
+    "20260917091000_platform-ops_audit_hash_integrity_repair",
+    "20260924100000_platform-ops_ai_gateway_audit_budget",
+    "20260925090000_platform-ops_conforme_comms_drafts",
+    "20260928090000_platform-ops_pare_review_payload",
+    "20260930100000_event-lifecycle_client_event_day_view",
+    "20260930120000_platform-ops_audit_chain_head",
+    "20261001090000_event-lifecycle_client_ocular_visit",
+    "20261001100000_live-ops_remove_duplicate_schedule_day_index",
+    "20261001110000_commercial_require_supplier_reviewer",
+    "20261002100000_platform-ops_require_explicit_trust_requesters",
+    "20261002110000_live-ops_require_explicit_issue_reporter",
+    "20261002120000_floorplan_require_explicit_creator_role"
+  ],
+  "ownerAwareBaselineChecksums": {
+    "20260917090000_commercial_billing_statement_sequence_backfill": "9e1b1e22a65ccf50b2713987815acb394a85bce552fdb7bccf93dd6bea4f021d",
+    "20260917091000_platform-ops_audit_hash_integrity_repair": "0b51f69e5833ada67bbb7f9724f1869eee6e86f3bb7d50750b0084b42c48059c",
+    "20260924100000_platform-ops_ai_gateway_audit_budget": "c8aa8f1276527da3b918c768090df44e6a755409f4dbb6fb8176ed54c8be3207",
+    "20260925090000_platform-ops_conforme_comms_drafts": "0894b1dbdbea7715200cdb27d5db9ac680c923fab156450befd8bbfe87645d8e",
+    "20260928090000_platform-ops_pare_review_payload": "a0973341541da5502253c11fc98c01d2ee278ed24605b2a44de85d3cfb5298d8",
+    "20260930100000_event-lifecycle_client_event_day_view": "6bd719fb0003840a35f36052a45d08b81707edd1b40a12542aed2465e0925439",
+    "20260930120000_platform-ops_audit_chain_head": "9e6c537f0f18c8452236d45ee5a3d1a2028132e992a2a0c2c32f364f4d96944d",
+    "20261001090000_event-lifecycle_client_ocular_visit": "e289cc8d097101a91d52d5fb7ad1dd81de1332ef48013d8c5c7ecd174db64452",
+    "20261001100000_live-ops_remove_duplicate_schedule_day_index": "bdbda6e1ab50964efaa8bdf6a33507b322dfb36c0ff780cefdb03023e49dc360",
+    "20261001110000_commercial_require_supplier_reviewer": "13547cce75cec6e635676e4d0f4df05892e3a30bcd9e2fe766e28d4db40118c3",
+    "20261002100000_platform-ops_require_explicit_trust_requesters": "5808d5226db8e964a0a3a4e944a4524cd63304d378b692d7abffa5f6d4e12399",
+    "20261002110000_live-ops_require_explicit_issue_reporter": "991e133f45debf7cec3dd785bb83af5d24e17ef9e34393d2787ace72c249353d",
+    "20261002120000_floorplan_require_explicit_creator_role": "5ae67bb29908e48a478541cfcd37f97a8dada181c98fcce5584658b9b8b04503"
+  },
   "systemSchemas": [
     "information_schema",
     "pg_catalog"
@@ -146,10 +177,10 @@
   "forbiddenSchemas": [
     "public"
   ],
-  "requireTableOwnerMappingsForSchemas": [
+  "historicalRequireTableOwnerMappingsForSchemas": [
     "staffing_ops"
   ],
-  "tableOwners": {
+  "historicalTableOwners": {
     "event_core": {
       "documents": [
         "event-lifecycle",
@@ -220,6 +251,13 @@
       ]
     }
   },
+  "historicalIndexOwners": {
+    "staffing_ops": {
+      "event_schedule_days_event_id_day_date_idx": [
+        "live-ops"
+      ]
+    }
+  },
   "indexOwners": {
     "staffing_ops": {
       "event_schedule_days_event_id_day_date_idx": [
@@ -227,7 +265,7 @@
       ]
     }
   },
-  "owners": {
+  "historicalOwnerSchemas": {
     "commercial": {
       "schemas": [
         "finance_ops",
@@ -272,6 +310,37 @@
         "platform_ops",
         "trust_ops"
       ],
+      "note": "Storage metadata, audit, notification, security, and AI governance records."
+    }
+  },
+  "schemaMoveMigrations": {},
+  "owners": {
+    "commercial": {
+      "schema": "commercial",
+      "note": "Supplier and finance persistence owned by the commercial context."
+    },
+    "event-lifecycle": {
+      "schema": "event_lifecycle",
+      "note": "Inquiry, event, briefing, compliance, closure, and lifecycle records."
+    },
+    "floorplan": {
+      "schema": "floorplan",
+      "note": "Official floorplans, drafts, templates, and published snapshots."
+    },
+    "identity-access": {
+      "schema": "identity_access",
+      "note": "Authentication, account approval, session, and identity records."
+    },
+    "live-ops": {
+      "schema": "live_ops",
+      "note": "Event-day tasks, urgent issues, logs, attendance, and handoff records."
+    },
+    "operations": {
+      "schema": "operations",
+      "note": "Guest workflows and operations-owned staffing records."
+    },
+    "platform-ops": {
+      "schema": "platform_ops",
       "note": "Storage metadata, audit, notification, security, and AI governance records."
     }
   }
