@@ -63,25 +63,54 @@ function createService(opsDraft: unknown, overrides: Record<string, unknown> = {
   const update = vi.fn().mockResolvedValue(floorPlanRow({ opsDraft }));
   const deleteMany = vi.fn().mockResolvedValue({ count: 0 });
   const createMany = vi.fn().mockResolvedValue({ count: 0 });
+  const queryRawUnsafe = vi.fn().mockResolvedValue([{ id: 'evt_1' }]);
   const floorPlanObject = { deleteMany, createMany };
   const floorPlan = {
     findUnique: vi.fn().mockResolvedValue({ ...floorPlanRow({ opsDraft }), ...overrides }),
     upsert: vi.fn(),
     update,
   };
+  const event = (opsDraft as { event?: Record<string, unknown> } | null)?.event ?? {
+    id: 'evt_1',
+    eventName: 'Ayala Summit',
+    clientName: 'Ana Reyes',
+    clientPortalStatus: 'unlocked',
+    archived: false,
+    freezeStatus: 'open',
+    floorPlanStatus: 'in_review',
+    readiness: 'Floorplan awaiting review',
+    inquiry: { email: 'owner@example.test' },
+  };
+  const lifecycleEventReferences = {
+    findFloorplanEvent: vi.fn(async (eventId: string) => event ? ({
+      eventId,
+      eventName: String(event.eventName ?? 'Ayala Summit'),
+      clientName: String(event.clientName ?? 'Ana Reyes'),
+      clientPortalStatus: String(event.clientPortalStatus ?? 'unlocked'),
+      archived: Boolean(event.archived),
+      freezeStatus: String(event.freezeStatus ?? 'open'),
+      floorPlanStatus: String(event.floorPlanStatus ?? 'in_review'),
+      readiness: String(event.readiness ?? ''),
+      primaryClientEmail: String((event.inquiry as { email?: string } | undefined)?.email ?? 'owner@example.test'),
+      conformeSigned: true,
+      ocularVisitStatus: 'completed',
+    }) : null),
+  };
   const prisma = {
     floorPlan,
     floorPlanObject,
+    $queryRawUnsafe: queryRawUnsafe,
     $transaction: vi.fn(async (callback: (tx: unknown) => unknown) =>
-      callback({ floorPlan, floorPlanObject }),
+      callback({ floorPlan, floorPlanObject, $queryRawUnsafe: queryRawUnsafe }),
     ),
   } as unknown as PrismaService;
 
   return {
-    service: new PlansService(prisma, accessPolicy, audit),
-    prisma: { ...prisma, floorPlan, floorPlanObject },
+    service: new PlansService(prisma, accessPolicy, audit, lifecycleEventReferences),
+    prisma: { ...prisma, floorPlan, floorPlanObject, $queryRawUnsafe: queryRawUnsafe },
     audit,
     accessPolicy,
+    lifecycleEventReferences,
   };
 }
 
@@ -186,6 +215,15 @@ describe('PlansService floorplan permissions and versioning', () => {
     expect(audit.write).toHaveBeenCalledWith(expect.objectContaining({ eventId: 'evt_1' }));
   });
 
+  it('fails closed when the Lifecycle owner record is missing', async () => {
+    const { service, prisma, lifecycleEventReferences } = createService(draft('pmcm_draft'));
+    lifecycleEventReferences.findFloorplanEvent.mockResolvedValue(null);
+
+    await expect(service.updatePlan('plan_event_1', changes(), pmcmActor())).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+    expect(prisma.$queryRawUnsafe).not.toHaveBeenCalled();
+  });
+
   it('blocks the event owner from editing a PMCM-created official draft', async () => {
     const { service, prisma, audit } = createService(draft('pmcm_draft'));
 
@@ -200,7 +238,7 @@ describe('PlansService floorplan permissions and versioning', () => {
   });
 
   it('allows a verified client to update only their own submitted preference', async () => {
-    const { service, prisma, audit } = createService(draft('client_submitted'));
+    const { service, prisma, audit, lifecycleEventReferences } = createService(draft('client_submitted'));
 
     await expect(
       service.updatePlan('plan_event_1', changes({ width: 45 }), clientActor('owner@example.test')),
@@ -209,6 +247,10 @@ describe('PlansService floorplan permissions and versioning', () => {
     expect(prisma.floorPlan.update).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: 'plan_event_1', updatedAt: new Date(planUpdatedAt) },
     }));
+    expect(lifecycleEventReferences.findFloorplanEvent).toHaveBeenCalledWith(
+      'evt_1',
+      expect.objectContaining({ prisma: expect.anything() }),
+    );
     expect(audit.write).toHaveBeenCalledWith(expect.objectContaining({
       eventId: 'evt_1',
       actorRole: 'client',
@@ -260,15 +302,21 @@ describe('PlansService floorplan permissions and versioning', () => {
     expect(audit.write).not.toHaveBeenCalled();
   });
 
-  it('rechecks the event freeze state inside the serializable write transaction', async () => {
-    const { service, prisma, audit } = createService(draft('pmcm_draft'));
-    prisma.floorPlan.findUnique
-      .mockReset()
-      .mockResolvedValueOnce(floorPlanRow({ opsDraft: draft('pmcm_draft') }))
-      .mockResolvedValueOnce({
-        updatedAt: new Date(planUpdatedAt),
-        opsDraft: { status: 'pmcm_draft', event: { archived: false, freezeStatus: 'frozen' } },
-      });
+  it('rechecks the Lifecycle freeze state inside the serializable write transaction', async () => {
+    const { service, prisma, audit, lifecycleEventReferences } = createService(draft('pmcm_draft'));
+    lifecycleEventReferences.findFloorplanEvent.mockResolvedValue({
+      eventId: 'evt_1',
+      eventName: 'Ayala Summit',
+      clientName: 'Ana Reyes',
+      clientPortalStatus: 'unlocked',
+      archived: false,
+      freezeStatus: 'frozen',
+      floorPlanStatus: 'in_review',
+      readiness: 'Floorplan awaiting review',
+      primaryClientEmail: 'owner@example.test',
+      conformeSigned: true,
+      ocularVisitStatus: 'completed',
+    });
 
     await expect(service.updatePlan('plan_event_1', changes(), pmcmActor())).rejects.toBeInstanceOf(
       ConflictException,
@@ -283,9 +331,16 @@ describe('PlansService floorplan permissions and versioning', () => {
       .mockReset()
       .mockResolvedValueOnce(floorPlanRow({ opsDraft: draft('pmcm_draft') }))
       .mockResolvedValueOnce({
+        id: 'plan_event_1',
+        name: 'Event floorplan',
+        eventId: 'evt_1',
+        updatedAt: new Date(planUpdatedAt),
+        opsDraft: { eventId: 'evt_1' },
+      })
+      .mockResolvedValueOnce(floorPlanRow({
+        opsDraft: draft('pmcm_draft'),
         updatedAt: new Date('2026-05-06T00:00:00.000Z'),
-        opsDraft: { status: 'pmcm_draft', event: { archived: false, freezeStatus: 'open' } },
-      });
+      }));
 
     await expect(service.updatePlan('plan_event_1', changes(), pmcmActor())).rejects.toBeInstanceOf(
       ConflictException,

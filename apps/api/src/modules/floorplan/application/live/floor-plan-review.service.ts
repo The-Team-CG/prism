@@ -6,6 +6,7 @@ import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor, writeAudit } from '@prism/kernel/access-control';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { isPrimaryClientContact } from '@prism/contexts/commercial';
+import { FLOORPLAN_EVENT_REFERENCE_READER, type FloorplanEventReferenceReader } from '@prism/contexts/event-lifecycle/floorplan-reference';
 import { FloorPlanWorkflowService } from './floor-plan-workflow.service';
 
 const REVISION_COMMENT_ACTION = 'request_revision';
@@ -18,6 +19,7 @@ export class FloorPlanReviewService {
     private readonly floorPlanWorkflowService: FloorPlanWorkflowService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
+    @Inject(FLOORPLAN_EVENT_REFERENCE_READER) private readonly lifecycleEventReferences: FloorplanEventReferenceReader,
   ) {}
 
   async submitRevisionComment(
@@ -38,6 +40,7 @@ export class FloorPlanReviewService {
 
       if (event.clientPortalStatus !== 'unlocked') throw new BadRequestException('Client floorplan review is locked');
       if (event.archived) throw new BadRequestException('Archived events cannot receive floorplan revision comments');
+      if (event.freezeStatus === 'frozen') throw new BadRequestException('Frozen events cannot receive floorplan revision comments');
 
       if (draft.status !== 'in_review') {
         throw new BadRequestException('Only a floorplan in review can receive revision comments');
@@ -101,9 +104,13 @@ export class FloorPlanReviewService {
     draftId: string,
     actor: ResolvedEventOpsActor,
   ) {
-    const event = await tx.opsEvent.findUnique({ where: { id: eventId }, include: { inquiry: true } });
+    const event = await this.lifecycleEventReferences.findFloorplanEvent(eventId, {
+      prisma: tx,
+      correlationId: `floorplan-review:${eventId}:${draftId}`,
+      actorId: actor.id,
+    });
     if (!event) throw new NotFoundException('Event not found');
-    if (!isPrimaryClientContact(actor.email, event.inquiry.email)) {
+    if (!isPrimaryClientContact(actor.email, event.primaryClientEmail ?? '')) {
       throw new ForbiddenException('Only the primary client contact can send floorplan revision comments');
     }
 

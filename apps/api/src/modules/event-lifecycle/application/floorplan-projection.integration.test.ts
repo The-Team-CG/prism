@@ -6,6 +6,7 @@ import { PrismaService } from '@prism/kernel/database';
 import { EventAccessPolicyService, type AuditWriter } from '@prism/kernel/access-control';
 import { WorkflowCommandService, OpsUserRole } from '@prism/kernel/event-core';
 import { FloorplanProjectionService } from './floorplan-projection.service';
+import { FloorplanEventReferenceService } from './onboarding/floorplan-event-reference.service';
 import { FloorPlanWorkflowService, FloorPlanReviewService } from '@prism/contexts/floorplan';
 import type { FloorplanProjectionWriter } from '../contracts/floorplan-projection.port';
 import type { NotificationOutboxWriter } from '@prism/contexts/platform-ops';
@@ -84,6 +85,7 @@ function createWorkflow(prisma: PrismaService, projectionWriter = new FloorplanP
     notificationWriter,
     new WorkflowCommandService(),
     projectionWriter,
+    new FloorplanEventReferenceService(prisma),
   );
   return { workflow, auditWriter, notificationWriter };
 }
@@ -135,6 +137,7 @@ databaseSuite('Floorplan lifecycle projection PostgreSQL invariants', () => {
       workflow,
       auditWriter,
       notificationWriter,
+      new FloorplanEventReferenceService(prisma),
     );
 
     try {

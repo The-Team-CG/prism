@@ -4,12 +4,12 @@ title: "P.R.I.S.M persistence ownership and intentional joins"
 description: "At-a-glance ownership of Prisma models, physical database schemas, allowed cross-context reads, and documented transitional writes."
 tags: [architecture, persistence, prisma, ddd, modular-monolith, data-ownership]
 status: canonical
-updated: "2026-10-03"
+updated: "2026-10-04"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, reviewers]
 scope: "apps/api/prisma/schema.prisma and apps/api/src/modules"
-last_verified: "staging 7f64c0b; 91-model ownership manifest validated"
+last_verified: "Local S2 stack codex/pr17e-floorplan-reference-on-pr14; 92-table/1,163-column owner manifest; 80 focused API tests passed, 2 PostgreSQL-gated skipped; API typecheck, boundaries, and query audit passed; PostgreSQL lock behavior remains unverified"
 sources:
   - id: prisma-schema
     resource: "apps/api/prisma/schema.prisma"
@@ -155,10 +155,14 @@ not authorize database repair or deployment.
 | --- | --- | --- |
 | `FloorPlan`, `FloorPlanObject`, `VenueTemplate`, `PublishedSnapshot`, `OpsFloorPlanDraft` | `floorplan` | `floorplan`; official layout authoring, draft, publish, and snapshot workflows. |
 
-Floorplan owns authoritative official-plan and review state. Until the
-projection migration is complete, a floorplan command requests a versioned
-update of lifecycle-facing event fields through the lifecycle capability;
-direct writes do not transfer ownership of the event lifecycle aggregate.
+Floorplan owns authoritative official-plan and review state. Event-scoped
+mutations ask Lifecycle's `FLOORPLAN_EVENT_REFERENCE_READER` to lock and return
+current conforme, ocular, archive, freeze, portal, and projection facts in the
+same transaction. Official-draft eligibility is checked from those owner
+facts; archived or frozen events reject writes, while authorized historical
+reads remain available. Floorplan sends lifecycle-facing status through the
+versioned projection writer; direct writes do not transfer event ownership.
+The cross-schema draft-to-event FK remains until the coordinated schema cutover.
 
 ### Identity and access
 
@@ -228,7 +232,7 @@ contract is introduced.
 | event-lifecycle | Commercial billing capability | Initialize billing and request owner-approved billing changes | Commercial owns these records; direct lifecycle writes remain transitional until routed through the capability. Preserve eligibility, replay, and outbox atomicity. |
 | commercial | event-lifecycle document-vault capability | Register and validate contract/billing document references | Commercial retains business state; lifecycle owns metadata and validates event, kind, and eligibility. |
 | `commercial` | `OpsEvent`, `OpsInquiry` | Read event scope/client source; invoke lifecycle/public capabilities where needed | Billing and supplier requests require event and inquiry context; no direct lifecycle status mutation. |
-| floorplan | event-lifecycle event capability | Publish a versioned floorplan-state projection | Floorplan currently writes lifecycle fields directly; replace that path with a versioned contract. Lifecycle owns the event aggregate and rejects stale projection updates. |
+| floorplan | event-lifecycle reference and projection capabilities | Validate event/conforme/ocular/freeze/archive state and publish a versioned floorplan-state projection | Implemented through `FLOORPLAN_EVENT_REFERENCE_READER` and Lifecycle's compare-and-set writer. Floorplan locks Lifecycle state before local draft changes and projection-clock reservation; cross-domain FKs remain until cutover. |
 | live-ops | Operations staffing capability | Request owner-validated assignment, replacement, and attendance transitions | LiveOps currently writes assignment rows directly; Operations owns the mutation and applies it under event scope. |
 | event-lifecycle | Operations staffing capability | Request owner-validated cancellation and postponement transitions | Event-decision workflows currently write assignments directly; Operations applies the transition within the caller transaction. |
 | `platform-ops` privacy workflow | identity, event, commercial, guest records | Locate and anonymise/delete subject data when an approved privacy request executes | Governance requires a coordinated erasure transaction. Each affected model is named in the workflow; this is not general write permission. |

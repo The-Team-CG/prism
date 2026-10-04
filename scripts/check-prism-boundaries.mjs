@@ -39,6 +39,7 @@ function hasPrivateModuleImport(source) {
     '@prism/contexts/read-models/closeout',
     '@prism/contexts/read-models/event-scope',
     '@prism/contexts/event-lifecycle/conforme-reminder-window',
+    '@prism/contexts/event-lifecycle/floorplan-reference',
   ]);
   return [...nestedImports].some((match) => !publicSubpathSeams.has(match[1]));
 }
