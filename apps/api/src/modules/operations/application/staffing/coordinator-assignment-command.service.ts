@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { OpsCoordinator, OpsCoordinatorAssignment, OpsEvent, Prisma } from '@prisma/client';
+import type { OpsCoordinator, OpsCoordinatorAssignment, Prisma } from '@prisma/client';
 import {
   COORDINATOR_ROLES,
   canonicalCoordinatorRole,
@@ -29,18 +29,24 @@ import { mapCoordinatorAssignment } from './coordinators.mappers';
 import { resolveCoordinatorForActor } from './coordinator-actor-lookup';
 import { CoordinatorSuggestionsService } from './coordinator-suggestions.service';
 import { isoDate } from './staffing.utils';
+import {
+  OPERATIONS_EVENT_REFERENCE_READER,
+  type OperationsEventReference,
+  type OperationsEventReferenceReader,
+} from '@prism/contexts/event-lifecycle/operations-reference';
+import {
+  COORDINATOR_ACCOUNT_ELIGIBILITY_READER,
+  type CoordinatorAccountEligibilityReader,
+} from '@prism/contexts/identity-access/coordinator-reference';
 
-type CoordinatorConflict = OpsCoordinatorAssignment & {
-  event: {
-    eventName: string;
-  };
-};
+type CoordinatorConflict = OpsCoordinatorAssignment;
 
 type CoordinatorAssignmentPlan = {
-  event: OpsEvent;
+  event: OperationsEventReference;
   coordinator: OpsCoordinator;
   role: string;
   conflict: CoordinatorConflict | null;
+  conflictEventName: string | null;
 };
 
 type EventDecisionAssignmentRow = Pick<OpsCoordinatorAssignment, 'id' | 'status' | 'coordinatorId' | 'coordinatorName'>;
@@ -56,18 +62,21 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     private readonly coordinatorSuggestionsService: CoordinatorSuggestionsService,
     @Inject(COORDINATOR_RELIABILITY_WRITER) private readonly reliabilityWriter: CoordinatorReliabilityWriter,
+    @Inject(OPERATIONS_EVENT_REFERENCE_READER) private readonly eventReferences: OperationsEventReferenceReader,
+    @Inject(COORDINATOR_ACCOUNT_ELIGIBILITY_READER) private readonly coordinatorAccountEligibility: CoordinatorAccountEligibilityReader,
   ) {}
 
   private async resolveAssignmentPlan(
     eventId: string,
     input: CreateCoordinatorAssignmentInput,
     prisma: Prisma.TransactionClient | PrismaService = this.prisma,
+    transactionContext?: PrismTransactionContext,
   ): Promise<CoordinatorAssignmentPlan> {
-    const event = await this.requireEvent(eventId, prisma);
+    const event = await this.requireEvent(eventId, prisma, transactionContext);
     if (event.archived || event.status === 'cancelled' || event.status === 'archived') {
       throw new BadRequestException('Event is not active for coordinator assignment changes');
     }
-    const coordinator = await this.resolveCoordinator(input, prisma);
+    const coordinator = await this.resolveCoordinator(input, prisma, transactionContext);
     if (input.role !== undefined && !coordinatorRoleSchema.safeParse(input.role).success) {
       throw new BadRequestException('Choose a role from the coordinator role catalog.');
     }
@@ -98,29 +107,31 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
       });
     }
 
-    const conflict = (await prisma.opsCoordinatorAssignment.findFirst({
+    const conflict = await prisma.opsCoordinatorAssignment.findFirst({
       where: {
         coordinatorId: coordinator.id,
         eventDate: event.eventDate,
         eventId: { not: event.id },
         status: { notIn: [CoordinatorAssignmentStatus.Cancelled, CoordinatorAssignmentStatus.Replaced] },
       },
-      include: { event: true },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    })) as CoordinatorConflict | null;
+    }) as CoordinatorConflict | null;
+    const conflictEventName = conflict
+      ? (await this.eventReferences.findOperationsEvent(conflict.eventId))?.eventName ?? null
+      : null;
 
     if (conflict && !input.overrideConflict) {
       const sameRoleSuggestions = await this.coordinatorSuggestionsService.listForConflict(event, role, coordinator.id, prisma);
       throw new BadRequestException({
         code: 'COORDINATOR_DOUBLE_BOOKING',
-        message: `${coordinator.name} is already assigned to ${conflict.event.eventName} on this date.`,
+        message: `${coordinator.name} is already assigned to ${conflictEventName ?? 'another event'} on this date.`,
         conflictEventId: conflict.eventId,
-        conflictEventName: conflict.event.eventName,
+        conflictEventName,
         sameRoleSuggestions,
       });
     }
 
-    return { event, coordinator, role, conflict };
+    return { event, coordinator, role, conflict, conflictEventName };
   }
 
   private buildAssignmentCreateData(
@@ -137,7 +148,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
       doubleBookingWarning: Boolean(plan.conflict),
       eventDate: plan.event.eventDate,
       conflictEventId: plan.conflict?.eventId ?? null,
-      conflictEventName: plan.conflict?.event.eventName ?? null,
+      conflictEventName: plan.conflictEventName,
     };
   }
 
@@ -165,8 +176,8 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
         await this.resolveAssignmentPlan(eventId, input);
       },
       validateStateInTransaction: async (transactionContext) => {
-        await this.lockCoordinatorDate(transactionContext.prisma, input, eventId);
-        plan = await this.resolveAssignmentPlan(eventId, input, transactionContext.prisma);
+        await this.lockCoordinatorDate(transactionContext.prisma, input, eventId, transactionContext);
+        plan = await this.resolveAssignmentPlan(eventId, input, transactionContext.prisma, transactionContext);
       },
       write: (transactionContext) => {
         if (!plan) throw new NotFoundException('Coordinator not found');
@@ -188,7 +199,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
             metadata: {
               coordinatorId: plan.coordinator.id,
               conflictEventId: plan.conflict?.eventId ?? null,
-              conflictEventName: plan.conflict?.event.eventName ?? null,
+              conflictEventName: plan.conflictEventName,
             },
           }, transactionContext),
           this.notificationOutboxWriter.write({
@@ -450,11 +461,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
       eventId,
     );
     const prisma = context.prisma;
-    const event = await prisma.opsEvent.findUnique({
-      where: { id: eventId },
-      select: { id: true, archived: true, status: true, eventDate: true },
-    });
-    if (!event) throw new NotFoundException('Event not found');
+    const event = await this.requireEvent(eventId, prisma, context);
     if (event.archived || event.status === 'cancelled') throw new BadRequestException('Event is not active for assignment changes');
 
     const currentDate = new Date(currentEventDate);
@@ -674,7 +681,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
         });
       },
       validateStateInTransaction: async (transactionContext) => {
-        const event = await this.requireEvent(eventId, transactionContext.prisma);
+        const event = await this.requireEvent(eventId, transactionContext.prisma, transactionContext);
         if (event.archived) throw new BadRequestException('Archived coordinator events are read-only');
         oldAssignment = await transactionContext.prisma.opsCoordinatorAssignment.findFirst({ where: { id: assignmentId, eventId } });
         if (!oldAssignment) throw new NotFoundException('Coordinator assignment not found');
@@ -685,13 +692,13 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
         await this.lockCoordinatorDate(transactionContext.prisma, {
           coordinatorId: input.replacementCoordinatorId,
           coordinatorName: input.replacementCoordinatorName,
-        }, eventId);
+        }, eventId, transactionContext);
         plan = await this.resolveAssignmentPlan(eventId, {
           coordinatorId: input.replacementCoordinatorId,
           coordinatorName: input.replacementCoordinatorName,
           role: input.replacementRole ?? input.role,
           overrideConflict: input.overrideConflict,
-        }, transactionContext.prisma);
+        }, transactionContext.prisma, transactionContext);
       },
       write: async (transactionContext) => {
         if (!oldAssignment || !plan) throw new NotFoundException('Coordinator assignment not found');
@@ -774,19 +781,45 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
     });
   }
 
-  private async resolveCoordinator(input: CreateCoordinatorAssignmentInput, prisma: Prisma.TransactionClient | PrismaService = this.prisma) {
-    const coordinator = input.coordinatorId
+  private async resolveCoordinator(
+    input: CreateCoordinatorAssignmentInput,
+    prisma: Prisma.TransactionClient | PrismaService = this.prisma,
+    transactionContext?: PrismTransactionContext,
+  ) {
+    const candidate = input.coordinatorId
       ? await prisma.opsCoordinator.findUnique({ where: { id: input.coordinatorId } })
       : await prisma.opsCoordinator.findFirst({
           where: { name: input.coordinatorName ?? '', active: true },
         });
+    if (!candidate) throw new NotFoundException('Coordinator not found');
 
+    if (transactionContext) {
+      // QUERY_AUDIT_RAW_SQL: serialize current Operations coordinator eligibility with assignment writes.
+      await transactionContext.prisma.$queryRaw`SELECT id FROM staffing_ops.coordinators WHERE id = ${candidate.id} FOR UPDATE`;
+    }
+    const coordinator = transactionContext
+      ? await prisma.opsCoordinator.findUnique({ where: { id: candidate.id } })
+      : candidate;
     if (!coordinator) throw new NotFoundException('Coordinator not found');
     if (!coordinator.active) throw new BadRequestException('Coordinator is inactive');
+    if (
+      coordinator.userId &&
+      !(await this.coordinatorAccountEligibility.isCoordinatorAccountEligible(coordinator.userId, transactionContext))
+    ) {
+      throw new BadRequestException('Coordinator account is not currently eligible for assignment');
+    }
     return coordinator as OpsCoordinator;
   }
-  private async requireEvent(eventId: string, prisma: Prisma.TransactionClient | PrismaService = this.prisma) {
-    const event = await prisma.opsEvent.findUnique({ where: { id: eventId } });
+  private async requireEvent(
+    eventId: string,
+    prisma: Prisma.TransactionClient | PrismaService = this.prisma,
+    transactionContext?: PrismTransactionContext,
+  ): Promise<OperationsEventReference> {
+    const context = transactionContext ?? (prisma === this.prisma ? undefined : {
+      prisma: prisma as Prisma.TransactionClient,
+      correlationId: `operations_event_reference:${eventId}`,
+    });
+    const event = await this.eventReferences.findOperationsEvent(eventId, context);
     if (!event) throw new NotFoundException('Event not found');
     return event;
   }
@@ -800,6 +833,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
       replacementCoordinatorName?: string;
     },
     eventId: string,
+    transactionContext?: PrismTransactionContext,
   ) {
     const coordinatorId = input.coordinatorId ?? input.replacementCoordinatorId;
     const coordinatorName = input.coordinatorName ?? input.replacementCoordinatorName;
@@ -809,7 +843,10 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
         ? await prisma.opsCoordinator.findFirst({ where: { name: coordinatorName }, select: { id: true } })
         : null;
     if (!coordinator) return;
-    const event = await prisma.opsEvent.findUnique({ where: { id: eventId }, select: { eventDate: true } });
+    const event = await this.requireEvent(eventId, prisma, transactionContext).catch((error) => {
+      if (error instanceof NotFoundException) return null;
+      throw error;
+    });
     if (!event?.eventDate) return;
     await lockCoordinatorAssignmentDay(prisma, coordinator.id, event.eventDate);
   }
@@ -856,7 +893,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
               eventId: { not: eventId },
               status: { notIn: [...INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES] },
             },
-            select: { coordinatorId: true, eventId: true, event: { select: { eventName: true } } },
+            select: { coordinatorId: true, eventId: true },
             orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           }),
           prisma.opsCoordinatorAvailability.findMany({
@@ -865,9 +902,12 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
           }),
         ])
       : [[], []];
+    const eventNames = new Map((await this.eventReferences.findOperationsEvents(
+      [...new Set(bookings.map((booking) => booking.eventId))],
+    )).map((item) => [item.id, item.eventName]));
     const conflicts = rows.flatMap<EventDecisionRescheduleConflict>((row) => {
       const booking = bookings.find((item) => item.coordinatorId === row.coordinatorId);
-      if (booking) return [{ assignmentId: row.id, coordinatorName: row.coordinatorName, reason: 'double_booking', conflictEventId: booking.eventId, conflictEventName: booking.event.eventName }];
+      if (booking) return [{ assignmentId: row.id, coordinatorName: row.coordinatorName, reason: 'double_booking', conflictEventId: booking.eventId, conflictEventName: eventNames.get(booking.eventId) }];
       if (blocks.some((item) => item.coordinatorId === row.coordinatorId)) return [{ assignmentId: row.id, coordinatorName: row.coordinatorName, reason: 'unavailable' }];
       return [];
     });
