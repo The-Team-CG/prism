@@ -1,5 +1,5 @@
 import { Inject, Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import type { OpsEvent, OpsGuestCheckIn, OpsGuestFeedback, OpsGuestRosterEntry, Prisma } from '@prisma/client';
+import type { OpsGuestCheckIn, OpsGuestFeedback, OpsGuestRosterEntry, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
@@ -28,12 +28,19 @@ import type {
   PrismGuestEventWatermark,
 } from '@prism/types';
 import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
-import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
+import {
+  OPERATIONS_EVENT_REFERENCE_READER,
+  type OperationsEventReference,
+  type OperationsEventReferenceReader,
+} from '@prism/contexts/event-lifecycle/operations-reference';
 import type { GuestCommands } from '../../contracts/guest-commands.port';
+import {
+  GUEST_EVENT_PROJECTION_READER,
+  type GuestEventProjection,
+  type GuestEventProjectionReader,
+} from '@prism/contexts/read-models/guest-events';
 
-export type EventWithDrafts = Prisma.OpsEventGetPayload<{
-  include: { floorPlanDrafts: { select: { id: true; floorPlanId: true; isActive: true } } };
-}>;
+type EventWithDrafts = GuestEventProjection;
 type GuestFeedbackWithMedia = Prisma.OpsGuestFeedbackGetPayload<{ include: { mediaAttachments: true } }>;
 
 export type GuestCheckInInput = Omit<CreateGuestCheckInInput, 'privacyConsentAccepted'> & {
@@ -50,7 +57,6 @@ const GUEST_UPLOAD_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', '
 const MAX_GUEST_CHECK_INS = 500;
 const MAX_GUEST_FEEDBACK = 500;
 const MAX_GUEST_ROSTER_SEARCH = 500;
-const MAX_GUEST_EVENT_FLOORPLAN_DRAFTS = 100;
 
 @Injectable()
 export class GuestWorkflowService implements GuestCommands {
@@ -59,6 +65,8 @@ export class GuestWorkflowService implements GuestCommands {
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     private readonly workflowCommandService: WorkflowCommandService,
     @Inject(STAFFING_READER) private readonly staffingReader: StaffingReader,
+    @Inject(OPERATIONS_EVENT_REFERENCE_READER) private readonly eventReferences: OperationsEventReferenceReader,
+    @Inject(GUEST_EVENT_PROJECTION_READER) private readonly eventProjections: GuestEventProjectionReader,
   ) {}
 
   async getEventByAccessCode(accessCode: string) {
@@ -67,11 +75,7 @@ export class GuestWorkflowService implements GuestCommands {
 
   async getEventWatermarkByAccessCode(accessCode: string): Promise<PrismGuestEventWatermark> {
     const normalizedCode = this.normalizeGuestAccessCode(accessCode);
-    const events = await this.prisma.opsEvent.findMany({
-      where: { archived: false },
-      select: { id: true, eventName: true, updatedAt: true },
-      orderBy: { eventDate: 'asc' },
-    });
+    const events = await this.eventProjections.listGuestAccessCandidates(false);
     const event = events.find((item) => this.guestAccessCode(item) === normalizedCode);
     if (!event) throw new NotFoundException('Guest event code was not found');
 
@@ -162,9 +166,8 @@ export class GuestWorkflowService implements GuestCommands {
 
     return this.prisma.$transaction(async (tx) => {
       const correlationId = `coordinator_walkin_${randomUUID()}`;
-      await this.lockEvent({ prisma: tx, correlationId }, eventId);
-      const event = await tx.opsEvent.findFirst({ where: { id: eventId, archived: false } });
-      if (!event) throw new NotFoundException('Event not found or archived');
+      const event = await this.eventReferences.findOperationsEvent(eventId, { prisma: tx, correlationId });
+      if (!event || event.archived) throw new NotFoundException('Event not found or archived');
       const checkedInCount = await tx.opsGuestCheckIn.count({ where: { eventId, status: 'checked_in' } });
       this.assertWalkInAllowed(event, checkedInCount);
 
@@ -224,8 +227,7 @@ export class GuestWorkflowService implements GuestCommands {
       },
       validateStateInTransaction: async (context) => {
         if (!event) throw new NotFoundException('Guest event code was not found');
-        await this.lockEvent(context, event.id);
-        const currentEvent = await context.prisma.opsEvent.findUnique({ where: { id: event.id } });
+        const currentEvent = await this.eventReferences.findOperationsEvent(event.id, context);
         if (!currentEvent || currentEvent.archived) throw new NotFoundException('Guest event was not found or archived');
         if (input.walkIn) {
           const checkedIn = await context.prisma.opsGuestCheckIn.count({ where: { eventId: event.id, status: 'checked_in' } });
@@ -298,9 +300,9 @@ export class GuestWorkflowService implements GuestCommands {
         if (input.photo) this.validateUploadMetadata(input.photo, prefix);
         if (input.video) this.validateUploadMetadata(input.video, prefix);
       },
-      validateStateInTransaction: async ({ prisma: tx }) => {
+      validateStateInTransaction: async (context) => {
         if (!event) throw new NotFoundException('Guest event code was not found');
-        const currentEvent = await tx.opsEvent.findUnique({ where: { id: event.id }, select: { actualEndedAt: true, eventDate: true } });
+        const currentEvent = await this.eventReferences.findOperationsEvent(event.id, context);
         if (!currentEvent) throw new NotFoundException('Guest event code was not found');
         this.assertFeedbackWindow(currentEvent);
       },
@@ -351,7 +353,7 @@ export class GuestWorkflowService implements GuestCommands {
     }
     const batchId = `roster_${randomUUID()}`;
       return this.prisma.$transaction(async (tx) => {
-      const event = await tx.opsEvent.findUnique({ where: { id: eventId } });
+      const event = await this.eventReferences.findOperationsEvent(eventId, { prisma: tx, correlationId: batchId });
       if (!event) throw new NotFoundException('Event not found');
       const keys = input.rows.map((row) => row.sourceKey);
       // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: input is capped at 1000 rows by the shared contract.
@@ -407,8 +409,7 @@ export class GuestWorkflowService implements GuestCommands {
   async updateVerification(eventId: string, rosterEntryId: string, input: UpdateGuestVerificationInput, actor: GuestWorkflowActor) {
     await this.requireRegistrationDeskAccess(eventId, actor);
     const updated = await this.prisma.$transaction(async (tx) => {
-      await this.lockEvent({ prisma: tx, correlationId: `roster_verify_${rosterEntryId}` }, eventId);
-      const event = await tx.opsEvent.findUnique({ where: { id: eventId }, select: { archived: true } });
+      const event = await this.eventReferences.findOperationsEvent(eventId, { prisma: tx, correlationId: `roster_verify_${rosterEntryId}` });
       if (!event || event.archived) throw new NotFoundException('Event not found or archived');
       const roster = await tx.opsGuestRosterEntry.findFirst({ where: { id: rosterEntryId, eventId, withdrawnAt: null } });
       if (!roster) throw new NotFoundException('Roster entry not found');
@@ -427,10 +428,7 @@ export class GuestWorkflowService implements GuestCommands {
   async checkInRosterEntry(eventId: string, rosterEntryId: string, actor: GuestWorkflowActor) {
     await this.requireRegistrationDeskAccess(eventId, actor);
     return this.prisma.$transaction(async (tx) => {
-      const event = await tx.opsEvent.findFirst({ where: { id: eventId, archived: false } });
-      if (!event) throw new NotFoundException('Event not found or archived');
-      await this.lockEvent({ prisma: tx, correlationId: `roster_checkin_${rosterEntryId}` }, eventId);
-      const currentEvent = await tx.opsEvent.findUnique({ where: { id: eventId } });
+      const currentEvent = await this.eventReferences.findOperationsEvent(eventId, { prisma: tx, correlationId: `roster_checkin_${rosterEntryId}` });
       if (!currentEvent || currentEvent.archived) throw new NotFoundException('Event not found or archived');
       const roster = await tx.opsGuestRosterEntry.findFirst({
         where: { id: rosterEntryId, eventId, withdrawnAt: null, eligibility: 'eligible' },
@@ -470,7 +468,7 @@ export class GuestWorkflowService implements GuestCommands {
     });
   }
 
-  private async requireRosterCheckInEligibility(tx: Prisma.TransactionClient, event: OpsEvent, roster: OpsGuestRosterEntry) {
+  private async requireRosterCheckInEligibility(tx: Prisma.TransactionClient, event: Pick<OperationsEventReference, 'id' | 'walkInPolicy' | 'walkInThreshold'>, roster: OpsGuestRosterEntry) {
       if (roster.verificationStatus === 'rejected') throw new BadRequestException('Roster entry verification was rejected');
       const walkIn = roster.source === 'coordinator-walk-in';
       if (walkIn && roster.verificationStatus !== 'verified') {
@@ -487,7 +485,7 @@ export class GuestWorkflowService implements GuestCommands {
     const event = await this.resolveGuestEventByAccessCode(accessCode, true);
     this.assertFeedbackWindow(event);
     return this.prisma.$transaction(async (tx) => {
-      const currentEvent = await tx.opsEvent.findUnique({ where: { id: event.id }, select: { actualEndedAt: true, eventDate: true } });
+      const currentEvent = await this.eventReferences.findOperationsEvent(event.id, { prisma: tx, correlationId: `feedback_consent_${feedbackId}` });
       if (!currentEvent) throw new NotFoundException('Guest event code was not found');
       this.assertFeedbackWindow(currentEvent);
       const feedback = await tx.opsGuestFeedback.findFirst({ where: { id: feedbackId, eventId: event.id } });
@@ -548,24 +546,10 @@ export class GuestWorkflowService implements GuestCommands {
 
   private async resolveGuestEventByAccessCode(accessCode: string, feedbackPath = false) {
     const normalizedCode = this.normalizeGuestAccessCode(accessCode);
-    // QUERY_AUDIT_ALLOW_UNBOUNDED: access codes are derived from event name and ID, so lookup scans only those two columns.
-    const events = await this.prisma.opsEvent.findMany({
-      where: feedbackPath ? {} : { archived: false },
-      select: { id: true, eventName: true },
-      orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
-    });
+    const events = await this.eventProjections.listGuestAccessCandidates(feedbackPath);
     const matched = events.find((item) => this.guestAccessCode(item) === normalizedCode);
     if (!matched) throw new NotFoundException('Guest event code was not found');
-    const event = await this.prisma.opsEvent.findUnique({
-      where: { id: matched.id },
-      include: {
-        floorPlanDrafts: {
-          select: { id: true, floorPlanId: true, isActive: true },
-          orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
-          take: MAX_GUEST_EVENT_FLOORPLAN_DRAFTS,
-        },
-      },
-    });
+    const event = await this.eventProjections.findGuestEvent(matched.id);
     if (!event) throw new NotFoundException('Guest event code was not found');
     return event;
   }
@@ -600,7 +584,7 @@ export class GuestWorkflowService implements GuestCommands {
     return accessCode.trim().toUpperCase().replace(/\s+/g, '-');
   }
 
-  private assertWalkInAllowed(event: Pick<OpsEvent, 'walkInPolicy' | 'walkInThreshold'>, checkedInCount: number) {
+  private assertWalkInAllowed(event: Pick<OperationsEventReference, 'walkInPolicy' | 'walkInThreshold'>, checkedInCount: number) {
     const policy = event.walkInPolicy;
     if (policy === 'closed' || !policy) throw new BadRequestException('Walk-in registration is closed for this event');
     if (policy === 'threshold' && checkedInCount >= event.walkInThreshold) {
@@ -637,11 +621,6 @@ export class GuestWorkflowService implements GuestCommands {
     if (!walkIn) return;
     const checkedInCount = await this.prisma.opsGuestCheckIn.count({ where: { eventId: event.id, status: 'checked_in' } });
     this.assertWalkInAllowed(event, checkedInCount);
-  }
-
-  private async lockEvent(context: PrismTransactionContext, eventId: string) {
-    // QUERY_AUDIT_RAW_SQL: serialize threshold check-ins with policy changes.
-    await context.prisma.$queryRaw`SELECT id FROM event_core.events WHERE id = ${eventId} FOR UPDATE`;
   }
 
   private async requireRegistrationDeskAccess(eventId: string, actor: GuestWorkflowActor) {

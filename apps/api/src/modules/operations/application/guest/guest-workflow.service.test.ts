@@ -2,6 +2,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
 import { GuestWorkflowService } from './guest-workflow.service';
 
+const testEventReferences = {
+  findOperationsEvent: vi.fn(async (id: string) => ({
+    id,
+    eventName: 'Test Event',
+    eventDate: new Date('2026-06-18T00:00:00.000Z'),
+    status: 'event_day',
+    archived: false,
+    actualEndedAt: new Date('2026-09-07T12:00:00.000Z'),
+    walkInPolicy: 'open',
+    walkInThreshold: 200,
+  })),
+};
+
+const createTestGuestEventProjections = () => ({
+  listGuestAccessCandidates: vi.fn(async () => []),
+  findGuestEvent: vi.fn(async () => null),
+  listCoordinatorWorkspaceEvents: vi.fn(async () => []),
+});
+
 function createGuestWorkflowFixture() {
   const state = {
     events: [
@@ -114,14 +133,39 @@ function createGuestWorkflowFixture() {
   };
   const auditWriter = { write: vi.fn() };
   const staffingReader = { findAssignmentForEventActor: vi.fn(async () => ({ id: 'asg_registration', role: 'Registration Staff', status: 'acknowledged' })) };
+  const eventReferences = {
+    findOperationsEvent: vi.fn(async (eventId: string, _context?: { prisma: any }) => {
+      const event = state.events.find((candidate) => candidate.id === eventId);
+      if (!event) return null;
+      return {
+        id: event.id,
+        eventName: event.eventName,
+        eventDate: event.eventDate,
+        status: event.status,
+        archived: event.archived,
+        actualEndedAt: event.actualEndedAt,
+        walkInPolicy: event.walkInPolicy,
+        walkInThreshold: event.walkInThreshold,
+      };
+    }),
+  };
+  const eventProjections = {
+    listGuestAccessCandidates: vi.fn(async (includeArchived: boolean) => state.events
+      .filter((event) => includeArchived || !event.archived)
+      .map(({ id, eventName, eventDate, updatedAt, archived }) => ({ id, eventName, eventDate, updatedAt, archived }))),
+    findGuestEvent: vi.fn(async (eventId: string) => state.events.find((event) => event.id === eventId) ?? null),
+    listCoordinatorWorkspaceEvents: vi.fn(async () => []),
+  };
   const service = new GuestWorkflowService(
     prisma as any,
     auditWriter as any,
     new WorkflowCommandService(),
     staffingReader as any,
+    eventReferences as any,
+    eventProjections as any,
   );
 
-  return { service, state, prisma, auditWriter, staffingReader };
+  return { service, state, prisma, auditWriter, staffingReader, eventReferences, eventProjections };
 }
 
 beforeEach(() => {
@@ -135,19 +179,14 @@ afterEach(() => {
 
 describe('GuestWorkflowService', () => {
   it('resolves a guest event and returns attendance counts by access code', async () => {
-    const { service, prisma } = createGuestWorkflowFixture();
+    const { service, eventProjections } = createGuestWorkflowFixture();
 
     await expect(service.getEventByAccessCode('AYALA-TECH-MPLE')).resolves.toMatchObject({
       id: 'evt_sample',
       eventName: 'Ayala Tech Summit',
     });
-    expect(prisma.opsEvent.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      select: { id: true, eventName: true },
-    }));
-    expect(prisma.opsEvent.findUnique).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: 'evt_sample' },
-      include: { floorPlanDrafts: expect.objectContaining({ take: 100 }) },
-    }));
+    expect(eventProjections.listGuestAccessCandidates).toHaveBeenCalledWith(false);
+    expect(eventProjections.findGuestEvent).toHaveBeenCalledWith('evt_sample');
     await expect(service.countCheckInsForEvent('evt_sample')).resolves.toBe(1);
   });
 
@@ -263,7 +302,7 @@ describe('GuestWorkflowService', () => {
     };
     const prisma = { $transaction: async (work: (context: typeof tx) => Promise<unknown>) => work(tx) };
     const staffingReader = { findAssignmentForEventActor: vi.fn(async () => ({ id: 'asg_registration', role: 'Registration Staff', status: 'acknowledged' })) };
-    const service = new GuestWorkflowService(prisma as any, { write: vi.fn() } as any, new WorkflowCommandService(), staffingReader as any);
+    const service = new GuestWorkflowService(prisma as any, { write: vi.fn() } as any, new WorkflowCommandService(), staffingReader as any, testEventReferences as any, createTestGuestEventProjections() as any);
 
     const first = await service.checkInRosterEntry('evt_sample', 'gre_one', { name: 'Registration', role: 'coordinator' });
     const second = await service.checkInRosterEntry('evt_sample', 'gre_two', { name: 'Registration', role: 'coordinator' });
@@ -284,6 +323,8 @@ describe('GuestWorkflowService', () => {
       { write: vi.fn() } as any,
       new WorkflowCommandService(),
       staffingReader as any,
+      testEventReferences as any,
+      createTestGuestEventProjections() as any,
     );
     const actor = { id: 'usr_coord', email: 'coord@example.test', name: 'Mia Registration', role: 'coordinator' };
 
@@ -316,6 +357,8 @@ describe('GuestWorkflowService', () => {
       { write: vi.fn() } as any,
       new WorkflowCommandService(),
       staffingReader as any,
+      testEventReferences as any,
+      createTestGuestEventProjections() as any,
     );
 
     await expect(service.updateVerification('evt_1', 'gre_1', { status: 'verified' }, {
@@ -335,6 +378,8 @@ describe('GuestWorkflowService', () => {
       { write: vi.fn() } as any,
       new WorkflowCommandService(),
       staffingReader as any,
+      testEventReferences as any,
+      createTestGuestEventProjections() as any,
     );
     const actor = { id: 'usr_coord', email: 'coord@example.test', name: 'Usher', role: 'coordinator' };
 
@@ -346,7 +391,7 @@ describe('GuestWorkflowService', () => {
   });
 
   it('serializes verification rejection with check-in and prevents rejecting an already checked-in guest', async () => {
-    const { service, state, prisma } = createGuestWorkflowFixture();
+    const { service, state, prisma, eventReferences } = createGuestWorkflowFixture();
     const actor = { id: 'usr_registration', name: 'Registration Staff', role: 'coordinator' };
     const roster = {
       id: 'gre_race', eventId: 'evt_sample', sourceKey: 'race-1', guestName: 'Mia Santos', normalizedName: 'mia santos',
@@ -362,7 +407,8 @@ describe('GuestWorkflowService', () => {
 
     expect(roster.verificationStatus).toBe('pending');
     expect(roster.checkedInAt).toBeInstanceOf(Date);
-    expect(prisma.$queryRaw).toHaveBeenCalledTimes(2);
+    expect(eventReferences.findOperationsEvent).toHaveBeenCalledTimes(2);
+    expect(eventReferences.findOperationsEvent).toHaveBeenCalledWith('evt_sample', expect.objectContaining({ prisma }));
 
     const rejectedRoster = { ...roster, id: 'gre_rejected', sourceKey: 'rejected-1', checkedInAt: null, verificationStatus: 'pending' };
     state.guestRoster.push(rejectedRoster);
@@ -372,14 +418,20 @@ describe('GuestWorkflowService', () => {
   });
 
   it('keeps archived registration records readable and rejects writes after the event lock', async () => {
-    const { service, state, prisma, auditWriter } = createGuestWorkflowFixture();
+    const { service, state, prisma, auditWriter, eventReferences } = createGuestWorkflowFixture();
     const actor = { id: 'usr_registration', name: 'Registration Staff', role: 'coordinator' };
     const roster = await service.registerWalkIn('evt_sample', { guestName: 'Historical Guest', privacyConsentAccepted: true }, actor);
     vi.clearAllMocks();
-    // Archive wins while verification waits for the event lock.
-    prisma.$queryRaw.mockImplementation(async () => {
-      state.events[0].archived = true;
-      return [];
+    // Archive wins when Lifecycle rechecks the event inside the command transaction.
+    eventReferences.findOperationsEvent.mockImplementation(async (eventId: string, context?: { prisma: any }) => {
+      if (context) state.events[0].archived = true;
+      const current = state.events.find((candidate) => candidate.id === eventId);
+      if (!current) return null;
+      return {
+        id: current.id, eventName: current.eventName, eventDate: current.eventDate, status: current.status,
+        archived: current.archived, actualEndedAt: current.actualEndedAt, walkInPolicy: current.walkInPolicy,
+        walkInThreshold: current.walkInThreshold,
+      };
     });
 
     await expect(service.updateVerification('evt_sample', roster.id, { status: 'verified' }, actor)).rejects.toThrow('archived');
@@ -447,6 +499,8 @@ describe('GuestWorkflowService', () => {
       { write: vi.fn() } as any,
       new WorkflowCommandService(),
       { findAssignmentForEventActor: vi.fn() } as any,
+      testEventReferences as any,
+      createTestGuestEventProjections() as any,
     );
 
     await expect(service.importRoster('evt_1', { source: ' Coordinator-Walk-In ', rows: [] } as any, {

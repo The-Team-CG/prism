@@ -217,11 +217,46 @@ function createPrisma(coverageRequirements: { role: string; requiredSkills: stri
       transactionCalls.push('same_tx');
       return callback(prisma);
     },
+    $queryRaw: vi.fn(async () => []),
     $executeRaw: async () => {
       queryOrder.push('pg_advisory_xact_lock');
       return 0;
     },
   };
+
+  const eventReferences = {
+    findOperationsEvent: vi.fn(async (eventId: string, context?: { prisma: any }) => {
+      const source = await (context?.prisma ?? prisma).opsEvent.findUnique({ where: { id: eventId } });
+      if (!source) return null;
+      const linkedEvent = assignments.find((item) => item.eventId === eventId)?.event;
+      return {
+        id: eventId,
+        eventName: linkedEvent?.eventName ?? source.eventName,
+        eventDate: source.eventDate,
+        status: source.status,
+        archived: source.archived,
+        actualEndedAt: null,
+        walkInPolicy: 'closed',
+        walkInThreshold: 0,
+      };
+    }),
+    findOperationsEvents: vi.fn(async (eventIds: readonly string[]) => Promise.all(eventIds.map(async (eventId) => {
+      const source = await prisma.opsEvent.findUnique({ where: { id: eventId } });
+      const linkedEvent = assignments.find((item) => item.eventId === eventId)?.event;
+      return {
+        id: eventId,
+        eventName: linkedEvent?.eventName ?? source.eventName,
+        eventDate: source.eventDate,
+        status: source.status,
+        archived: source.archived,
+        actualEndedAt: null,
+        walkInPolicy: 'closed',
+        walkInThreshold: 0,
+      };
+    }))),
+    findEventReadAccess: vi.fn(),
+  };
+  (prisma as any).eventReferences = eventReferences;
 
   return {
     assignments,
@@ -233,6 +268,7 @@ function createPrisma(coverageRequirements: { role: string; requiredSkills: stri
     transactionCalls,
     queryOrder,
     prisma,
+    eventReferences,
   };
 }
 
@@ -244,27 +280,75 @@ function createServiceWriters(prisma: any) {
   };
 }
 
-function createService(prisma: any, accessPolicy: any = createAccessPolicy()) {
+function eventReferencesFor(prisma: any) {
+  if (prisma.eventReferences) return prisma.eventReferences;
+  const read = async (eventId: string, context?: { prisma: any }) => {
+    const database = context?.prisma ?? prisma;
+    const source = await database.opsEvent?.findUnique?.({ where: { id: eventId } });
+    if (source === null) return null;
+    return {
+      id: eventId,
+      eventName: source?.eventName ?? event.eventName,
+      eventDate: source?.eventDate ?? event.eventDate,
+      status: source?.status ?? 'planning',
+      archived: source?.archived ?? false,
+      actualEndedAt: null,
+      walkInPolicy: 'closed',
+      walkInThreshold: 0,
+    };
+  };
+  return {
+    findOperationsEvent: vi.fn(read),
+    findOperationsEvents: vi.fn(async (eventIds: readonly string[]) => Promise.all(eventIds.map((eventId) => read(eventId)))),
+    findEventReadAccess: vi.fn(async () => null),
+  };
+}
+
+function createService(prisma: any, accessPolicy: any = createAccessPolicy(), coordinatorAccountEligibility: any = { isCoordinatorAccountEligible: vi.fn(async () => true) }) {
   const writers = createServiceWriters(prisma);
+  const eventReferences = eventReferencesFor(prisma);
   return new CoordinatorAssignmentCommandService(
     prisma,
     writers.auditWriter,
     writers.notificationWriter,
     new WorkflowCommandService(new PrismTransactionRunner(prisma)),
     accessPolicy,
-    new CoordinatorSuggestionsService(prisma),
+    new CoordinatorSuggestionsService(prisma, eventReferences),
     new CoordinatorReliabilityNoteWriterService(prisma),
+    eventReferences,
+    coordinatorAccountEligibility,
   );
 }
 
 function createReaderService(prisma: any, accessPolicy: any = createAccessPolicy()) {
   const writers = createServiceWriters(prisma);
-  return new CoordinatorsService(prisma, writers.auditWriter, writers.notificationWriter, accessPolicy);
+  return new CoordinatorsService(prisma, writers.auditWriter, writers.notificationWriter, accessPolicy, eventReferencesFor(prisma));
 }
 
 describe('Coordinator staffing workflows', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
+  });
+
+  it('rechecks linked Identity eligibility under the assignment transaction', async () => {
+    const fake = createPrisma();
+    const coordinatorAccountEligibility = {
+      isCoordinatorAccountEligible: vi.fn()
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false),
+    };
+    const service = createService(fake.prisma, createAccessPolicy(), coordinatorAccountEligibility);
+
+    await expect(service.assignCoordinator('evt_main', {
+      coordinatorId: coordinator.id,
+      role: 'Floor Director',
+      overrideConflict: true,
+    }, pmcmAdminActor)).rejects.toThrow('Coordinator account is not currently eligible for assignment');
+
+    expect(coordinatorAccountEligibility.isCoordinatorAccountEligible).toHaveBeenCalledTimes(2);
+    expect(coordinatorAccountEligibility.isCoordinatorAccountEligible).toHaveBeenNthCalledWith(1, coordinator.userId, undefined);
+    expect(coordinatorAccountEligibility.isCoordinatorAccountEligible).toHaveBeenNthCalledWith(2, coordinator.userId, expect.objectContaining({ prisma: fake.prisma }));
+    expect(fake.assignments.some((assignment) => assignment.eventId === 'evt_main')).toBe(false);
   });
 
   describe('acknowledgement reminder scheduling', () => {
