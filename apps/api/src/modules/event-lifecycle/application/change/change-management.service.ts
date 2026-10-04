@@ -132,9 +132,9 @@ export class ChangeManagementService {
       quotePriceChanges,
     }, { prisma: tx, correlationId: addendumId });
 
-    for (const impact of impacts) {
-      await tx.opsAddendumImpact.create({
-        data: {
+    if (impacts.length > 0) {
+      await tx.opsAddendumImpact.createMany({
+        data: impacts.map((impact) => ({
           id: `impact_${randomUUID()}`,
           eventId,
           addendumId,
@@ -143,7 +143,7 @@ export class ChangeManagementService {
           beforeValue: toPrismaJson(impact.beforeValue),
           afterValue: toPrismaJson(impact.afterValue),
           deltaAmount: impact.deltaAmount,
-        },
+        })),
       });
     }
   }

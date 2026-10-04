@@ -53,7 +53,7 @@ describe('ChangeManagementService Commercial ownership', () => {
           issuedAt: new Date('2026-10-04T00:00:00.000Z'),
         }),
       },
-      opsAddendumImpact: { create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => data) },
+      opsAddendumImpact: { createMany: vi.fn(async ({ data }: { data: Record<string, unknown>[] }) => ({ count: data.length })) },
       $transaction: async (callback: (transaction: unknown) => Promise<unknown>) => callback(prisma),
     };
     const commercialWriter: CommercialAddendumImpactWriter = { apply: vi.fn(async () => impacts) };
@@ -83,12 +83,12 @@ describe('ChangeManagementService Commercial ownership', () => {
       financialDelta: 10,
       quotePriceChanges: [{ quoteId: 'quote_1', amount: 25 }],
     }, expect.objectContaining({ correlationId: result.id, prisma: expect.anything() }));
-    expect(prisma.opsAddendumImpact.create).toHaveBeenCalledTimes(2);
-    expect(prisma.opsAddendumImpact.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ targetType: 'billing_source', targetId: 'billing_source_1', deltaAmount: 10 }),
-    }));
-    expect(prisma.opsAddendumImpact.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ targetType: 'supplier_quote', targetId: 'quote_1', deltaAmount: 5 }),
-    }));
+    expect(prisma.opsAddendumImpact.createMany).toHaveBeenCalledTimes(1);
+    expect(prisma.opsAddendumImpact.createMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({ targetType: 'billing_source', targetId: 'billing_source_1', deltaAmount: 10 }),
+        expect.objectContaining({ targetType: 'supplier_quote', targetId: 'quote_1', deltaAmount: 5 }),
+      ]),
+    });
   });
 });

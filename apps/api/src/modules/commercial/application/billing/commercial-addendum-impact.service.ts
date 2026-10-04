@@ -34,6 +34,7 @@ export class CommercialAddendumImpactService implements CommercialAddendumImpact
       });
     }
 
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: each event-scoped quote has its own amount and before/after facts; owner eligibility, mutation, and projection stay in the caller's Serializable transaction.
     for (const change of input.quotePriceChanges) {
       const quote = await prisma.opsSupplierQuote.findFirst({
         where: { id: change.quoteId, eventId: input.eventId, status: 'selected' },
