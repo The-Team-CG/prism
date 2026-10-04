@@ -43,6 +43,7 @@ export default defineConfig({
       '@prism/contexts/identity-access/coordinator-reference': resolve(__dirname, './src/modules/identity-access/coordinator-reference.ts'),
       '@prism/contexts/identity-access': resolve(__dirname, './src/modules/identity-access/index.ts'),
       '@prism/contexts/floorplan': resolve(__dirname, './src/modules/floorplan/index.ts'),
+      '@prism/contexts/operations/live-ops-reference': resolve(__dirname, './src/modules/operations/live-ops-reference.ts'),
       '@prism/contexts/operations': resolve(__dirname, './src/modules/operations/index.ts'),
       '@prism/kernel/event-session': resolve(__dirname, './src/kernel/event-session/index.ts'),
       '@prism/kernel/health': resolve(__dirname, './src/kernel/health/index.ts'),

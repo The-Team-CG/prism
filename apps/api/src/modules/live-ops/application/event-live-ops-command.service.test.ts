@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
+import { OperationsEventReferenceReader } from '@prism/contexts/event-lifecycle/operations-reference';
 import { EventLiveOpsCommandService } from './event-live-ops-command.service';
 
 function coordinatorActor() {
@@ -78,7 +79,7 @@ function urgentIssueRow(overrides: Record<string, unknown> = {}) {
 function createService(assignment: unknown) {
   const prisma = {
     opsEvent: {
-      findUnique: vi.fn(async () => ({ id: 'evt_sample_unassigned', archived: false })),
+      findUnique: vi.fn(async (_args?: unknown) => ({ id: 'evt_sample_unassigned', archived: false })),
     },
     opsEventOperatorDesignation: {
       findFirst: vi.fn(async () => null),
@@ -124,6 +125,7 @@ function createService(assignment: unknown) {
     mapCoordinatorAssignment: vi.fn(),
   };
   const supplierCommands = {};
+  const eventReferences = { findOperationsEvent: vi.fn(async (eventId: string) => prisma.opsEvent.findUnique({ where: { id: eventId } })) };
   const service = new EventLiveOpsCommandService(
     prisma as never,
     eventAccessPolicyService as never,
@@ -131,8 +133,9 @@ function createService(assignment: unknown) {
     coordinatorCommandService as never,
     staffingReader as never,
     supplierCommands as never,
+    eventReferences as never,
   );
-  return { service, liveOperationsService, coordinatorCommandService, eventAccessPolicyService, staffingReader, prisma };
+  return { service, liveOperationsService, coordinatorCommandService, eventAccessPolicyService, staffingReader, prisma, eventReferences };
 }
 
 describe('EventLiveOpsCommandService event scoping', () => {
