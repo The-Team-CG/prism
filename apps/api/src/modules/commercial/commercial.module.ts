@@ -44,6 +44,7 @@ import { ProposalLifecycleService } from './application/quotes/proposal-lifecycl
 import { CommercialPrivacyRedactorService } from './application/suppliers/commercial-privacy-redactor.service';
 import { COMMERCIAL_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 import { CommercialAddendumImpactModule } from './commercial-addendum-impact.module';
+import { RegistrationSupplierReferenceModule } from './registration-supplier-reference.module';
 
 const supplierDirectoryProvider = {
   provide: SUPPLIER_DIRECTORY,
@@ -85,6 +86,7 @@ const supplierCommandsProvider = {
     EventLifecycleModule,
     UrgentIssueReferenceModule,
     CommercialAddendumImpactModule,
+    RegistrationSupplierReferenceModule,
     EventSessionModule,
     IdentityAccessModule,
   ],

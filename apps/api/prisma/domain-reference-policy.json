@@ -30,8 +30,8 @@
       "eventAgreement": "The coordinator profile is global; an event assignment command separately proves coordinator and assignment scope for that event.",
       "authorization": "Identity Access controls account approval/session state; Operations controls coordinator eligibility, pool state, and assignments.",
       "meaning": "Current account-to-coordinator association plus historical assignment attribution.",
-      "targetLifecycle": "Disabling an account blocks new authenticated coordinator actions. Operations checks current eligibility before assignment and preserves coordinator/assignment history. Physical account deletion may null this link only after Operations has safely disabled the profile.",
-      "failure": "Missing, unapproved, or disabled accounts cannot authorize new coordinator work. Existing history remains readable to permitted roles.",
+      "targetLifecycle": "Disabling or declining an account blocks new authenticated coordinator actions. Operations checks the profile active flag and rechecks the linked Identity role, approval, and active lockout while holding the assignment transaction; read-models excludes inactive profiles from participant access. Coordinator and assignment history is preserved. Physical account deletion may null this link only after Operations has safely disabled the profile.",
+      "failure": "Missing, unapproved, locked, or disabled accounts and inactive coordinator profiles cannot authorize new assignments or communication membership. Existing history remains readable to permitted roles.",
       "recovery": "Resolve the account and coordinator through their owners, then explicitly relink or deactivate. Do not infer identity from coordinator name or email."
     },
     "document-current-optional": {
@@ -351,8 +351,8 @@
       "source": "OpsRegistrationPlatform.supplierId",
       "target": "OpsSupplier.id",
       "profile": "supplier-current",
-      "meaning": "Optional global registration vendor; supplier existence/status currently has no foreign key.",
-      "status": "transitional",
+      "meaning": "Optional global registration supplier; Commercial validates category and current event selection, requiring an active category only for a new or changed supplier link inside the caller transaction.",
+      "status": "implemented",
       "sourceOwner": "operations",
       "targetOwner": "commercial"
     },
@@ -379,16 +379,16 @@
       "target": "authenticated-principal.id",
       "targetOwner": "identity-access-or-system-principal",
       "profile": "principal-history",
-      "meaning": "Optional importer attribution; importedBy is a historical display snapshot.",
-      "status": "transitional",
+      "meaning": "Optional importer attribution; importedBy is a historical display snapshot and never authorizes later actions.",
+      "status": "implemented",
       "sourceOwner": "operations"
     },
     {
       "source": "OpsGuestFeedback.moderatedById",
       "target": "OpsUser.id",
       "profile": "identity-history",
-      "meaning": "Optional moderator attribution for a completed moderation decision.",
-      "status": "transitional",
+      "meaning": "Optional moderator attribution for a completed moderation decision; the moderator ID/name is historical evidence and is not dereferenced for future access.",
+      "status": "implemented",
       "sourceOwner": "operations",
       "targetOwner": "identity-access"
     },
@@ -432,8 +432,8 @@
       "source": "OpsCoordinatorAssignment.conflictEventId",
       "target": "OpsEvent.id",
       "profile": "event-history",
-      "meaning": "Conflict event ID/name is an advisory snapshot, not a current coordinator eligibility decision.",
-      "status": "transitional",
+      "meaning": "Conflict event ID/name is an advisory snapshot read from Lifecycle when captured, not a current coordinator eligibility decision.",
+      "status": "implemented",
       "sourceOwner": "operations",
       "targetOwner": "event-lifecycle"
     }

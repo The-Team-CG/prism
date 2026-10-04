@@ -39,8 +39,12 @@ function hasPrivateModuleImport(source) {
     '@prism/contexts/read-models/closeout',
     '@prism/contexts/read-models/event-scope',
     '@prism/contexts/read-models/participant-facts',
+    '@prism/contexts/read-models/guest-events',
     '@prism/contexts/event-lifecycle/conforme-reminder-window',
     '@prism/contexts/event-lifecycle/post-event-reference',
+    '@prism/contexts/event-lifecycle/operations-reference',
+    '@prism/contexts/identity-access/coordinator-reference',
+    '@prism/contexts/commercial/registration-supplier-reference',
     '@prism/contexts/live-ops/urgent-issue-reference',
     '@prism/contexts/event-lifecycle/floorplan-reference',
   ]);

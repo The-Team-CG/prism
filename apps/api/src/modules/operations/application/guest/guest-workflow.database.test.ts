@@ -30,7 +30,39 @@ describe.skipIf(!databaseUrl)('guest feedback PostgreSQL transaction acceptance'
     await prisma.$connect();
     const auditService = new AuditService(prisma as never);
     const auditWriter = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma as never, auditService));
-    service = new GuestWorkflowService(prisma as never, auditWriter, new WorkflowCommandService(), { findAssignmentForEventActor: vi.fn() } as never);
+    service = new GuestWorkflowService(
+      prisma as never,
+      auditWriter,
+      new WorkflowCommandService(),
+      { findAssignmentForEventActor: vi.fn() } as never,
+      {
+        findOperationsEvent: async (eventId: string, context?: { prisma: any }) => {
+          const database = context?.prisma ?? prisma;
+          return database.opsEvent.findUnique({
+            where: { id: eventId },
+            select: { id: true, eventName: true, eventDate: true, status: true, archived: true, actualEndedAt: true, walkInPolicy: true, walkInThreshold: true },
+          });
+        },
+      } as never,
+      {
+        listGuestAccessCandidates: (includeArchived: boolean) => prisma.opsEvent.findMany({
+          where: includeArchived ? {} : { archived: false },
+          select: { id: true, eventName: true, eventDate: true, updatedAt: true, archived: true },
+          orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
+        }),
+        findGuestEvent: (eventId: string) => prisma.opsEvent.findUnique({
+          where: { id: eventId },
+          include: {
+            floorPlanDrafts: {
+              select: { id: true, floorPlanId: true, isActive: true },
+              orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+              take: 100,
+            },
+          },
+        }),
+        listCoordinatorWorkspaceEvents: async () => [],
+      } as never,
+    );
   });
 
   afterEach(() => {
