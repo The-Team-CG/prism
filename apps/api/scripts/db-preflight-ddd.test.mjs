@@ -64,7 +64,7 @@ describe('DDD preflight ownership and data checks', () => {
   it('renders owner tables and validates preflight SQL without exposing row contents', () => {
     for (const final of [false, true]) {
       const checks = buildDddPrechecks(manifest, { final });
-      assert.equal(checks.length, 15);
+      assert.equal(checks.length, 16);
       for (const check of checks) {
         assertReadOnlyQuery(check.query, check.id);
         assert.doesNotMatch(check.query, /\{\{[^}]+\}\}/);
@@ -75,6 +75,8 @@ describe('DDD preflight ownership and data checks', () => {
       }
       assert.match(checks.find(({ id }) => id === 'audit_chain_integrity').query,
         final ? /"platform_ops"\."audit_logs"/ : /"trust_ops"\."audit_logs"/);
+      assert.match(checks.find(({ id }) => id === 'orphan_quote_request_references').query,
+        final ? /"commercial"\."quotes"/ : /"supplier_ops"\."quotes"/);
     }
   });
 
@@ -193,7 +195,7 @@ describe('DDD preflight ownership and data checks', () => {
       assert.equal(report.catalog.expectedTableCount, 91);
       assert.equal(report.foreignKeys.matchesManifest, true);
       assert.equal(report.migrationLedger.pending.length, 0);
-      assert.equal(artifact.checks.length >= 15, true);
+      assert.equal(artifact.checks.length >= 16, true);
       assert.deepEqual(calls[0].sql, 'BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
       assert.equal(calls.at(-1).sql, 'COMMIT');
       assert.equal(calls.some(({ sql }) => /\b(?:INSERT|UPDATE|DELETE|ALTER|DROP|TRUNCATE)\b/i.test(sql)), false);
