@@ -118,7 +118,7 @@ export function createAiProviderAdapters(
  *
  * Owned tables: OpsAuditLog, OpsLoginHistory, OpsNotificationLog,
  * OpsPareDispatch, OpsPrivacyRequest, OpsSecurityAlert, OpsAiApprovalRecord,
- * and OpsAiAuditLog.
+ * OpsCommandReceipt, and OpsAiAuditLog.
  * OpsApprovalRequest is owned by identity-access; privacy erasure may update
  * identity, event, guest, and other records as an explicit platform governance
  * workflow rather than a shared ownership claim.

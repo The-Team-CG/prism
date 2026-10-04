@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Removed 11 unreferenced API DTO files and their stale barrel/controller imports; retired the unbound, always-unavailable signed-upload shim while keeping canonical storage flows and active DTO validation.
 - Replaced production API `any` escapes with typed owner mappings and shared contracts; guest commands return serialized receipts, supplier writes use canonical Zod schemas, and unused commercial reader/DTO surfaces were removed.
 - Corrected the supplier workspace quote fixture to include the required update timestamp for typed mapping.
+- Moved command-receipt Prisma persistence from the kernel to Platform behind the existing `CommandReceiptStore` port, with root-level binding. Permission checks still precede replay; reservation, command writes, and receipt completion keep the caller transaction.
+- Updated the live-ops read-model test fixture with the generated event projection version field so API compilation checks the current Prisma model.
 - Fixed the archived coordinator event regression test to wait for refreshed role data before submitting after switching back to a current event.
 
 ### Fixed
