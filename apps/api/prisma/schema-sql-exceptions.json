@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "sqlOnlyObjects": [],
+  "rationale": "The current partial and GIN indexes are representable in the Prisma schema. No SQL-only object is currently approved."
+}

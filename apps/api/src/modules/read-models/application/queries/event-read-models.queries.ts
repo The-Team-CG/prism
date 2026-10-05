@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import type {
   OpsEvent,
   OpsSupplier,
@@ -8,7 +9,8 @@ import type {
   OpsSupplierReview,
 } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
-import { AuditCategory } from '@prism/kernel/event-core';
+import { AuditCategory, CoordinatorAssignmentStatus, OpsUserRole } from '@prism/kernel/event-core';
+import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { PRISM_PMCM_COMMAND_INBOX_MAX_PAGE } from '@prism/types';
 
 type SupplierWithProfile = OpsSupplier & {
@@ -43,6 +45,88 @@ export const MAX_COORDINATOR_RELIABILITY_HISTORY_ROWS = 50;
 export const MAX_SUPPLIER_CERTIFICATIONS = 100;
 export const MAX_AUDIT_LOGS = 100;
 export const MAX_NOTIFICATION_LOGS = 100;
+export const EVENT_READ_PAGE_SIZE = 100;
+
+type EventReadCursor = { eventDate: Date; id: string };
+
+function encodeEventCursor(event: Pick<OpsEvent, 'eventDate' | 'id'>) {
+  return Buffer.from(JSON.stringify([event.eventDate.toISOString(), event.id]), 'utf8').toString('base64url');
+}
+
+function decodeEventCursor(cursor?: string): EventReadCursor | undefined {
+  if (cursor === undefined) return undefined;
+  try {
+    const decoded: unknown = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
+    if (!Array.isArray(decoded) || typeof decoded[0] !== 'string' || typeof decoded[1] !== 'string' || !decoded[1]) {
+      throw new Error('Invalid event cursor');
+    }
+    const eventDate = new Date(decoded[0]);
+    if (Number.isNaN(eventDate.getTime())) throw new Error('Invalid event cursor');
+    return { eventDate, id: decoded[1] };
+  } catch {
+    throw new BadRequestException('Invalid event cursor');
+  }
+}
+
+function visibleEventsWhere(actor: ResolvedEventOpsActor): Prisma.OpsEventWhereInput {
+  if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return { archived: false };
+  if (actor.role === OpsUserRole.Client) {
+    if (actor.email?.trim()) {
+      return {
+        archived: false,
+        clientPortalStatus: 'unlocked',
+        inquiry: {
+          is: { email: { equals: actor.email.trim(), mode: 'insensitive' } },
+        },
+      };
+    }
+    if (actor.verified) return { id: { in: [] } };
+    if (actor.clientName?.trim()) {
+      return {
+        archived: false,
+        clientPortalStatus: 'unlocked',
+        clientName: { equals: actor.clientName.trim(), mode: 'insensitive' },
+      };
+    }
+    return { id: { in: [] } };
+  }
+  if (actor.role === OpsUserRole.Supplier) {
+    const supplierRequestWhere: Prisma.OpsSupplierQuoteRequestWhereInput | undefined = actor.supplierId
+      ? { supplierId: actor.supplierId }
+      : actor.email?.trim()
+        ? { supplier: { is: { email: { equals: actor.email.trim(), mode: 'insensitive' } } } }
+        : undefined;
+    return supplierRequestWhere
+      ? { archived: false, supplierQuoteRequests: { some: supplierRequestWhere } }
+      : { id: { in: [] } };
+  }
+  if (actor.role === OpsUserRole.Coordinator) {
+    const coordinatorIdentity: Prisma.OpsCoordinatorWhereInput | undefined = actor.coordinatorId
+      ? { id: actor.coordinatorId }
+      : actor.id
+        ? { userId: actor.id }
+        : actor.email?.trim()
+          ? { email: { equals: actor.email.trim(), mode: 'insensitive' } }
+          : undefined;
+    if (!coordinatorIdentity) return { id: { in: [] } };
+    return {
+      archived: false,
+      coordinatorAssignments: {
+        some: {
+          status: {
+            notIn: [
+              CoordinatorAssignmentStatus.Cancelled,
+              CoordinatorAssignmentStatus.Replaced,
+              CoordinatorAssignmentStatus.Declined,
+            ],
+          },
+          coordinator: { is: { active: true, ...coordinatorIdentity } },
+        },
+      },
+    };
+  }
+  return { id: { in: [] } };
+}
 
 type DefenseReadModelCounts = {
   briefings: number;
@@ -65,24 +149,78 @@ function timestamp(value: Date) {
   return value.toISOString();
 }
 
+async function readAllRowsById<T extends { id: string }>(
+  pageSize: number,
+  readPage: (afterId?: string) => Promise<T[]>,
+) {
+  const rows: T[] = [];
+  let afterId: string | undefined;
+  while (true) {
+    const page = await readPage(afterId);
+    rows.push(...page);
+    if (page.length < pageSize) return rows;
+    const nextId = page[page.length - 1]?.id;
+    if (!nextId || nextId === afterId) throw new Error('Read pagination failed to advance');
+    afterId = nextId;
+  }
+}
+
+function sortByDate<T extends { id: string }>(rows: T[], dateOf: (row: T) => Date, direction: 'asc' | 'desc') {
+  const sign = direction === 'asc' ? 1 : -1;
+  return rows.sort((left, right) => {
+    const date = (dateOf(left).getTime() - dateOf(right).getTime()) * sign;
+    return date || left.id.localeCompare(right.id) * sign;
+  });
+}
 @Injectable()
 export class EventReadModelQueries {
   constructor(private readonly prisma: PrismaService) {}
 
-  // Query budget: one archived-filtered event query with floorplan drafts, no per-row Prisma loop.
-  visibleEvents() {
-    return this.prisma.opsEvent.findMany({
-      where: { archived: false },
-      include: {
-        inquiry: { select: { email: true } },
-        floorPlanDrafts: {
-          orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
-          take: MAX_EVENT_FLOORPLAN_DRAFTS,
+  // Query budget: actor scope and keyset are applied in Postgres before each bounded page.
+  async visibleEvents(actor: ResolvedEventOpsActor, cursor?: string) {
+    const where = visibleEventsWhere(actor);
+    const decodedCursor = decodeEventCursor(cursor);
+    const pageWhere: Prisma.OpsEventWhereInput = decodedCursor
+      ? {
+          AND: [
+            where,
+            {
+              OR: [
+                { eventDate: { gt: decodedCursor.eventDate } },
+                {
+                  eventDate: decodedCursor.eventDate,
+                  id: { gt: decodedCursor.id },
+                },
+              ],
+            },
+          ],
+        }
+      : where;
+    const [rows, totalCount] = await Promise.all([
+      this.prisma.opsEvent.findMany({
+        where: pageWhere,
+        include: {
+          inquiry: { select: { email: true } },
+          floorPlanDrafts: {
+            orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+            take: MAX_EVENT_FLOORPLAN_DRAFTS,
+          },
         },
+        orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
+        take: EVENT_READ_PAGE_SIZE + 1,
+      }),
+      this.prisma.opsEvent.count({ where }),
+    ]);
+    const hasMore = rows.length > EVENT_READ_PAGE_SIZE;
+    const items = hasMore ? rows.slice(0, EVENT_READ_PAGE_SIZE) : rows;
+    return {
+      items,
+      pagination: {
+        nextCursor: hasMore && items.length ? encodeEventCursor(items[items.length - 1]) : null,
+        hasMore,
+        totalCount,
       },
-      orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
-      take: MAX_VISIBLE_EVENTS,
-    });
+    };
   }
 
   // Query budget: one selected-event query with floorplan drafts, no per-row Prisma loop.
@@ -229,21 +367,51 @@ export class EventReadModelQueries {
     });
   }
 
-
-  // Query budget: eight client workspace queries for a bounded visible event id set, no per-row Prisma loop.
-  clientWorkspaceForEvents(eventIds: string[]) {
-    return Promise.all([
-      this.prisma.opsDocument.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }], take: MAX_CLIENT_WORKSPACE_ROWS }),
-      this.prisma.opsBriefing.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }], take: MAX_CLIENT_WORKSPACE_ROWS }),
-      this.prisma.opsFloorPlanDraft.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], take: MAX_CLIENT_WORKSPACE_ROWS }),
-      this.prisma.opsBillingStatement.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ generatedAt: 'desc' }, { id: 'desc' }], take: MAX_CLIENT_WORKSPACE_ROWS }),
-      this.prisma.opsPaymentMilestone.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: MAX_CLIENT_WORKSPACE_ROWS }),
-      this.prisma.opsPaymentRecord.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ recordedAt: 'desc' }, { id: 'desc' }], take: MAX_CLIENT_WORKSPACE_ROWS }),
-      this.prisma.opsAuditLog.findMany({
-        where: { eventId: { in: eventIds }, category: { not: AuditCategory.Access } },
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+  // Each client collection is loaded through bounded keyset pages after the actor-scoped event page.
+  async clientWorkspaceForEvents(eventIds: string[]) {
+    const [
+      documents,
+      briefings,
+      floorPlanDrafts,
+      billingStatements,
+      paymentMilestones,
+      paymentRecords,
+      auditLogs,
+      ocularVisits,
+    ] = await Promise.all([
+      readAllRowsById(MAX_CLIENT_WORKSPACE_ROWS, (afterId) =>
+        this.prisma.opsDocument.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+          orderBy: { id: 'asc' }, take: MAX_CLIENT_WORKSPACE_ROWS }),
+      ),
+      readAllRowsById(MAX_CLIENT_WORKSPACE_ROWS, (afterId) =>
+        this.prisma.opsBriefing.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+          orderBy: { id: 'asc' }, take: MAX_CLIENT_WORKSPACE_ROWS }),
+      ),
+      readAllRowsById(MAX_CLIENT_WORKSPACE_ROWS, (afterId) =>
+        this.prisma.opsFloorPlanDraft.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+          orderBy: { id: 'asc' }, take: MAX_CLIENT_WORKSPACE_ROWS }),
+      ),
+      readAllRowsById(MAX_CLIENT_WORKSPACE_ROWS, (afterId) =>
+        this.prisma.opsBillingStatement.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+          orderBy: { id: 'asc' }, take: MAX_CLIENT_WORKSPACE_ROWS }),
+      ),
+      readAllRowsById(MAX_CLIENT_WORKSPACE_ROWS, (afterId) =>
+        this.prisma.opsPaymentMilestone.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+          orderBy: { id: 'asc' }, take: MAX_CLIENT_WORKSPACE_ROWS }),
+      ),
+      readAllRowsById(MAX_CLIENT_WORKSPACE_ROWS, (afterId) =>
+        this.prisma.opsPaymentRecord.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+          orderBy: { id: 'asc' }, take: MAX_CLIENT_WORKSPACE_ROWS }),
+      ),
+      readAllRowsById(MAX_AUDIT_LOGS, (afterId) =>
+        this.prisma.opsAuditLog.findMany({
+        where: { eventId: { in: eventIds }, category: { not: AuditCategory.Access },
+            ...(afterId ? { id: { gt: afterId } } : {}),
+          },
+          orderBy: { id: 'asc' },
         take: MAX_AUDIT_LOGS,
       }),
+      ),
       this.prisma.opsOcularVisitRequest.findMany({
         where: { eventId: { in: eventIds } },
         select: { eventId: true, status: true, clientNote: true, requestedAt: true, scheduledAt: true },
@@ -251,39 +419,114 @@ export class EventReadModelQueries {
         take: MAX_CLIENT_WORKSPACE_ROWS,
       }),
     ]);
+    return [
+      sortByDate(documents, (row) => row.uploadedAt, 'desc'),
+      sortByDate(briefings, (row) => row.submittedAt, 'desc'),
+      sortByDate(floorPlanDrafts, (row) => row.updatedAt, 'desc'),
+      sortByDate(billingStatements, (row) => row.generatedAt, 'desc'),
+      sortByDate(paymentMilestones, (row) => row.createdAt, 'asc'),
+      sortByDate(paymentRecords, (row) => row.recordedAt, 'desc'),
+      sortByDate(auditLogs, (row) => row.createdAt, 'desc'),
+      ocularVisits,
+    ] as const;
   }
-
-  // Query budget: seven client action-center queries for a bounded visible event id set, no per-row Prisma loop.
-  clientActionCenterForEvents(eventIds: string[]) {
-    return Promise.all([
-      this.prisma.opsBriefing.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }], take: MAX_CLIENT_ACTION_CENTER_ROWS }),
-      this.prisma.opsDocument.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }], take: MAX_CLIENT_ACTION_CENTER_ROWS }),
-      this.prisma.opsFloorPlanDraft.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], take: MAX_CLIENT_ACTION_CENTER_ROWS }),
-      this.prisma.opsBillingStatement.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ generatedAt: 'desc' }, { id: 'desc' }], take: MAX_CLIENT_ACTION_CENTER_ROWS }),
-      this.prisma.opsPaymentMilestone.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: MAX_CLIENT_ACTION_CENTER_ROWS }),
-      this.prisma.opsPaymentRecord.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ recordedAt: 'desc' }, { id: 'desc' }], take: MAX_CLIENT_ACTION_CENTER_ROWS }),
-      this.prisma.opsPostEventDocument.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ title: 'asc' }, { id: 'asc' }], take: MAX_CLIENT_ACTION_CENTER_ROWS }),
+  // Every action source is fetched in bounded keyset pages for the visible event set.
+  async clientActionCenterForEvents(eventIds: string[]) {
+    const [
+      briefings,
+      documents,
+      floorPlanDrafts,
+      billingStatements,
+      paymentMilestones,
+      paymentRecords,
+      postEventDocuments,
+    ] = await Promise.all([
+      readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>
+        this.prisma.opsBriefing.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+          orderBy: { id: 'asc' }, take: MAX_CLIENT_ACTION_CENTER_ROWS }),
+      ),
+      readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>
+        this.prisma.opsDocument.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+          orderBy: { id: 'asc' }, take: MAX_CLIENT_ACTION_CENTER_ROWS }),
+      ),
+      readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>
+        this.prisma.opsFloorPlanDraft.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+          orderBy: { id: 'asc' }, take: MAX_CLIENT_ACTION_CENTER_ROWS }),
+      ),
+      readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>
+        this.prisma.opsBillingStatement.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+          orderBy: { id: 'asc' }, take: MAX_CLIENT_ACTION_CENTER_ROWS }),
+      ),
+      readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>
+        this.prisma.opsPaymentMilestone.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+          orderBy: { id: 'asc' }, take: MAX_CLIENT_ACTION_CENTER_ROWS }),
+      ),
+      readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>
+        this.prisma.opsPaymentRecord.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+          orderBy: { id: 'asc' }, take: MAX_CLIENT_ACTION_CENTER_ROWS }),
+      ),
+      readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>
+        this.prisma.opsPostEventDocument.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+          orderBy: { id: 'asc' }, take: MAX_CLIENT_ACTION_CENTER_ROWS }),
+      ),
     ]);
+    return [
+      sortByDate(briefings, (row) => row.submittedAt, 'desc'),
+      sortByDate(documents, (row) => row.uploadedAt, 'desc'),
+      sortByDate(floorPlanDrafts, (row) => row.updatedAt, 'desc'),
+      sortByDate(billingStatements, (row) => row.generatedAt, 'desc'),
+      sortByDate(paymentMilestones, (row) => row.createdAt, 'asc'),
+      sortByDate(paymentRecords, (row) => row.recordedAt, 'desc'),
+      postEventDocuments.sort(
+        (left, right) => left.title.localeCompare(right.title) || left.id.localeCompare(right.id),
+      ),
+    ] as const;
   }
-
-  // Query budget: two supplier quote queries for one supplier, no per-row Prisma loop.
-  supplierWorkspaceForSupplier(supplierId: string) {
-    return Promise.all([
-      this.prisma.opsSupplierQuoteRequest.findMany({ where: { supplierId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_SUPPLIER_WORKSPACE_ROWS }),
-      this.prisma.opsSupplierQuote.findMany({ where: { supplierId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_SUPPLIER_WORKSPACE_ROWS }),
+  // Supplier and event eligibility is applied before each bounded keyset page.
+  async supplierWorkspaceForSupplier(supplierId: string) {
+    const activeRequestWhere = {
+      supplierId,
+      event: { is: { archived: false } },
+    };
+    const activeQuoteWhere = { supplierId, event: { is: { archived: false } } };
+    const [requests, quotes] = await Promise.all([
+      readAllRowsById(MAX_SUPPLIER_WORKSPACE_ROWS, (afterId) =>
+        this.prisma.opsSupplierQuoteRequest.findMany({ where: {
+            ...activeRequestWhere,
+            ...(afterId ? { id: { gt: afterId } } : {}),
+          },
+          orderBy: { id: 'asc' }, take: MAX_SUPPLIER_WORKSPACE_ROWS }),
+      ),
+      readAllRowsById(MAX_SUPPLIER_WORKSPACE_ROWS, (afterId) =>
+        this.prisma.opsSupplierQuote.findMany({ where: {
+            ...activeQuoteWhere,
+            ...(afterId ? { id: { gt: afterId } } : {}),
+          },
+          orderBy: { id: 'asc' }, take: MAX_SUPPLIER_WORKSPACE_ROWS }),
+      ),
     ]);
+    return [
+      sortByDate(requests, (row) => row.createdAt, 'desc'),
+      sortByDate(quotes, (row) => row.createdAt, 'desc'),
+    ] as const;
   }
 
-  // Query budget: one archived-filtered event query for supplier event ids, no per-row Prisma loop.
-  supplierEvents(eventIds: string[]) {
-    return eventIds.length
-      ? this.prisma.opsEvent.findMany({ where: { id: { in: eventIds }, archived: false }, orderBy: { id: 'asc' }, take: MAX_SUPPLIER_EVENTS })
-      : Promise.resolve([]);
+  async supplierEvents(eventIds: string[]) {
+    if (!eventIds.length) return [];
+    return readAllRowsById(MAX_SUPPLIER_EVENTS, (afterId) =>
+      this.prisma.opsEvent.findMany({ where: {
+          archived: false,
+          id: { in: eventIds, ...(afterId ? { gt: afterId } : {}) },
+        }, orderBy: { id: 'asc' }, take: MAX_SUPPLIER_EVENTS }),
+    );
   }
 
-  // Query budget: one bounded supplier quote-request query for one supplier, no per-row Prisma loop.
-  supplierReadinessRequests(supplierId: string) {
-    return this.prisma.opsSupplierQuoteRequest.findMany({ where: { supplierId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_SUPPLIER_WORKSPACE_ROWS });
+  async supplierReadinessRequests(supplierId: string) {
+    const requests = await readAllRowsById(MAX_SUPPLIER_WORKSPACE_ROWS, (afterId) =>
+      this.prisma.opsSupplierQuoteRequest.findMany({ where: { supplierId, event: { is: { archived: false } }, ...(afterId ? { id: { gt: afterId } } : {}) },
+        orderBy: { id: 'asc' }, take: MAX_SUPPLIER_WORKSPACE_ROWS }),
+    );
+    return sortByDate(requests, (row) => row.createdAt, 'desc');
   }
 
   // Each actionable source has its own deterministic page so combined queue rows are never silently dropped.
@@ -341,7 +584,7 @@ export class EventReadModelQueries {
         skip, take,
       }),
     ]);
-    const items = <T,>(rows: T[]) => rows.slice(0, pageSize);
+    const items = <T>(rows: T[]) => rows.slice(0, pageSize);
 
     return {
       inquiries: items(inquiries),
@@ -445,6 +688,44 @@ export class EventReadModelQueries {
     });
   }
 
+  async supplierForActor(supplierId?: string, email?: string) {
+    const identityWhere: Prisma.OpsSupplierWhereInput | undefined = supplierId
+      ? { id: supplierId }
+      : email?.trim()
+        ? { email: { equals: email.trim(), mode: 'insensitive' } }
+        : undefined;
+    if (!identityWhere) return null;
+    const supplier = await this.prisma.opsSupplier.findFirst({
+      where: identityWhere,
+      include: {
+        category: true,
+        reviews: {
+          include: { event: true },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: MAX_SUPPLIER_HISTORY_ROWS,
+        },
+        reliabilityNotes: {
+          include: { event: true },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: MAX_SUPPLIER_HISTORY_ROWS,
+        },
+        certifications: {
+          orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }],
+          take: MAX_SUPPLIER_CERTIFICATIONS,
+        },
+      },
+    });
+    if (!supplier) return null;
+    const aggregates =
+      typeof this.prisma.opsSupplierReview.groupBy === 'function'
+        ? await this.prisma.opsSupplierReview.groupBy({
+            by: ['supplierId'],
+            where: { supplierId: supplier.id },
+            _avg: { rating: true },
+          })
+        : [];
+    return this.mapSupplier(supplier, aggregates[0]?._avg.rating);
+  }
   // Query budget: one active supplier directory query, no per-row Prisma loop.
   activeSuppliers() {
     return this.prisma.opsSupplier

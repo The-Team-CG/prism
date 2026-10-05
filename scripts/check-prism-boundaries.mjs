@@ -38,7 +38,16 @@ function hasPrivateModuleImport(source) {
   const publicSubpathSeams = new Set([
     '@prism/contexts/read-models/closeout',
     '@prism/contexts/read-models/event-scope',
+    '@prism/contexts/read-models/participant-facts',
+    '@prism/contexts/read-models/guest-events',
     '@prism/contexts/event-lifecycle/conforme-reminder-window',
+    '@prism/contexts/event-lifecycle/post-event-reference',
+    '@prism/contexts/event-lifecycle/operations-reference',
+    '@prism/contexts/identity-access/coordinator-reference',
+    '@prism/contexts/operations/live-ops-reference',
+    '@prism/contexts/commercial/registration-supplier-reference',
+    '@prism/contexts/live-ops/urgent-issue-reference',
+    '@prism/contexts/event-lifecycle/floorplan-reference',
   ]);
   return [...nestedImports].some((match) => !publicSubpathSeams.has(match[1]));
 }
@@ -145,7 +154,9 @@ export const boundaryRules = [
   {
     name: "read models must not mutate Prisma state",
     filePattern: readModelsPattern,
-    check(_normalized, source) {
+    check(normalized, source) {
+      // Database behavior tests seed their own rows; the rule protects production read-model code.
+      if (/\.test\.ts$/.test(normalized)) return false;
       return prismaMutationPattern.test(source);
     },
   },

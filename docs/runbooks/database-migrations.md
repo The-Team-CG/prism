@@ -4,12 +4,12 @@ title: "Prism database migrations"
 description: "Create, review, deploy, and recover Prism's Prisma migrations without changing the applied history by hand."
 tags: [runbook, database, migrations, prisma, drift, recovery]
 status: canonical
-updated: "2026-09-11"
+updated: "2026-10-03"
 authority: operational
 owner: "D (Anthony)"
 audience: [developers, reviewers, QA, operators, agents]
 scope: "apps/api Prisma migration creation, static review, deployment, and drift recovery"
-last_verified: "codex/prisma-migration-guardrails"
+last_verified: "codex/db-integrity-ci; PostgreSQL workflow source reviewed"
 sources:
   - id: migration-config
     resource: "apps/api/prisma.config.ts"
@@ -23,6 +23,15 @@ sources:
   - id: persistence-register
     resource: "docs/architecture/persistence-ownership.md"
     title: "Persistence ownership register"
+  - id: equivalence-gate
+    resource: "apps/api/scripts/db-schema-equivalence.mjs"
+    title: "Prisma and PostgreSQL catalog equivalence verifier"
+  - id: replay-policy
+    resource: "apps/api/prisma/migration-replay-policy.json"
+    title: "PostgreSQL version and migration checkpoint policy"
+  - id: replay-workflow
+    resource: ".github/workflows/db-integrity.yml"
+    title: "Disposable PostgreSQL migration replay workflow"
 ---
 # Prism database migrations
 
@@ -193,6 +202,66 @@ means Prisma found a non-empty diff that needs review; exit `1` means the
 comparison failed. A non-empty diff is evidence to investigate, not permission
 to apply the generated SQL automatically.
 
+## Controlled schema cutover
+
+Ordinary backward-compatible deployments leave
+`PRISM_SCHEMA_COMPATIBILITY_MODE=disabled`. During a deliberately controlled
+schema release, the API can run with `PRISM_SCHEMA_COMPATIBILITY_MODE=exact`
+and `PRISM_SCHEMA_REQUIRED_HEAD=<reviewed migration directory>`. Before the
+API listens, it compares every bundled migration name and SHA-256 checksum
+with completed rows in `public._prisma_migrations`, rejects unfinished,
+missing, unknown, or checksum-mismatched rows, and requires the checked-out
+head to equal `PRISM_SCHEMA_REQUIRED_HEAD`. This verifies the ledger only;
+`db:diff:live` remains necessary to detect physical schema drift.
+The startup query uses the API's runtime database identity, while the preflight
+uses `DIRECT_URL`; the preflight therefore does not prove that the runtime role
+can read `public._prisma_migrations`. Confirm that privilege in staging before
+enabling exact mode. If the runtime query is denied, API startup fails closed.
+
+Use this order for an approved cutover:
+
+1. Set the repository Actions variable `PRISM_SCHEMA_CUTOVER_HOLD=true`.
+   Confirm all automatic Deploy, Promote, Rollback, and non-dry-run environment
+   sync jobs have settled. The hold blocks new repository workflow mutations;
+   it does not pause a provider service or cancel an already running job.
+2. Take and verify a restorable backup. Stop or drain the API and every other
+   database writer, and verify no provider deploy is in flight.
+3. Set the exact compatibility mode and reviewed migration head in repository
+   Actions variables. Ensure both are included in the API entries in
+   `ENV_SYNC_MANIFEST_JSON` so the exact API artifact receives those values.
+4. Dispatch **Schema cutover preflight (read-only)** from `staging` for
+   staging, or `prod` for production. Confirm the backup and drain inputs. The
+   workflow checks the migration artifacts and Prisma model, confirms that the
+   target ledger is a checksum-validated prefix with no unknown or failed
+   entries, and prints a read-only SQL diff for owner review. Pending migration
+   names are expected; review the SQL diff for unintended drift. It performs no
+   database or provider writes. The selected GitHub Environment must provide
+   `DIRECT_URL`.
+5. Review the pending migration list, schema diff, backup, and ownership/risk
+   review. An approved operator applies the checked-in history with
+   `npm --workspace prism-api run db:migrate:deploy`, then runs
+   `npm --workspace prism-api run db:status` and
+   `npm --workspace prism-api run db:diff:live` against the same target.
+6. While the hold remains active and writers remain stopped, configure the
+   provider runtime with the exact mode/head and deploy the reviewed SHA using
+   the approved maintenance procedure. Confirm API health and startup evidence
+   that the ledger exactly matches the required head; deploy portals only after
+   the API passes health checks. Provider-side operations are outside the
+   read-only preflight and repository hold controls.
+7. While the hold remains active, set the API runtime compatibility mode back
+   to `disabled` through the approved provider maintenance procedure, clear the
+   one-time required head in the repository variables/manifest, and verify API
+   health again after any provider restart. Then resume writers and clear the
+   hold only after database and application acceptance. This keeps ordinary
+   backward-compatible releases on the default path; a later schema release
+   enables `exact` again with its own required head.
+
+The normal manual environment-sync workflow refuses non-dry-run provider sync
+while the hold is active. Do not clear the hold merely to make it run. If any
+preflight or post-migration check fails, keep the hold, leave writers stopped,
+and follow the recovery procedure below. Do not roll an old API image onto a
+new schema without a verified compatibility decision.
+
 ## Data invariants
 
 Schema changes and data backfills are not the only migration risks. Any
@@ -219,6 +288,12 @@ backfills, or otherwise mutates data; remediation requires a separately
 reviewed migration or operator procedure. Do not point the live command at a
 production database from CI, and do not treat a dry-run pass as evidence that
 the target data is compatible.
+
+For the approved domain-schema move rehearsal, safe disposable-target checks,
+and row-preservation evidence, follow the
+[domain schema cutover runbook](domain-schema-cutover.md). The manifest-driven
+JSON export described there is an inspection aid, not a complete database
+backup or recovery procedure.
 
 ## Drift and failed-migration recovery
 
@@ -271,6 +346,59 @@ The normal recovery sequence is:
 `db:reset` is destructive and is not part of this procedure. The migration
 guard itself performs no database mutation and cannot approve emergency repair.
 
+## Required PostgreSQL replay and equivalence gate
+
+The dedicated database integrity workflow at .github/workflows/db-integrity.yml
+runs on pull requests and pushes targeting staging or prod. It provisions an
+ephemeral PostgreSQL 16 service and invokes:
+
+    npm --workspace prism-api run db:integrity:ci
+
+The runner accepts only DB_INTEGRITY_ADMIN_URL resolving to
+127.0.0.1:55437/postgres with DB_SSL=false. It checks the server major,
+refuses to reuse any of its five fixed database names if they already exist,
+and creates them without dropping or resetting databases. The service lifetime
+provides cleanup in CI. For local rehearsal, use an isolated disposable
+PostgreSQL service on that exact loopback endpoint; never point this command at
+a shared or hosted database.
+
+The gate uses separate databases for a clean full replay (prism_ci_fresh),
+an upgrade from the recorded checkpoint (prism_ci_upgraded), and guarded
+behavior tests (prism_p0). The upgrade checkpoint is
+20260909100000_command_receipt_event_scope; the script applies that historical
+prefix first and then the remaining checked-in migrations. The DB tests receive
+only P0_TEST_DATABASE_URL=postgresql://...@127.0.0.1:55437/prism_p0. Their
+machine-readable Vitest report must show every test passed with zero skipped
+or pending tests.
+
+For each schema verification, the script inventories SQL objects Prisma
+cannot represent and requires an exact match to
+apps/api/prisma/schema-sql-exceptions.json, including object definition,
+owning domain, and rationale. It then runs
+prisma migrate diff --from-config-datasource --to-schema ... --exit-code.
+Ordinary tables, columns, constraints, defaults, and supported indexes must
+match Prisma. A missing quote-request foreign key therefore fails as Prisma
+drift; it is not added to the SQL-only exception list. The currently approved
+SQL-only object list is empty. GIN, composite, and partial indexes are declared
+in Prisma.
+
+Two isolated negative cases verify that the gate itself fails closed: one
+applies a temporary copy of the migration history with the quote-request FK
+omitted, and one creates an unexpected expression index. Both are confined to
+disposable databases and a temporary migration directory. The temporary
+directory is removed only after its resolved path is verified to be under the
+OS temp directory.
+
+db:verify:schema runs the read-only catalog and Prisma comparison against
+PRISMA_DATABASE_URL. It does not apply migrations or repair drift. It is
+distinct from db:verify:offline, which validates a model and prints SQL from an
+empty schema but does not compare the migration history to a live database.
+
+The DB integration fixtures explicitly remove their own test records. The audit
+chain test intentionally retains its append-only audit evidence in the
+disposable database; deleting a tail could invalidate a concurrent writer.
+No test teardown relies on deleting an event or account to cascade across
+context-owned data.
 ## CI and evidence
 
 Pull-request CI runs the static guard and focused tests without database

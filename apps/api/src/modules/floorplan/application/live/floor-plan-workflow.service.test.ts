@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { FloorPlanWorkflowService } from './floor-plan-workflow.service';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
+import { ConflictException } from '@nestjs/common';
+import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
+import type { FloorplanProjectionInput, FloorplanProjectionWriter } from '@prism/contexts/event-lifecycle';
 
 function createService() {
   const state = {
@@ -11,25 +14,30 @@ function createService() {
         inquiryId: 'inq_sample',
         // Bare new Date() on purpose: the conforme gate checks null vs non-null, so the value is
         // inert, and a dated literal here would be a future check:test-clocks liability.
-        inquiry: { conformeSignedAt: new Date() },
+        inquiry: { email: 'ana@example.test', conformeSignedAt: new Date() },
         clientName: 'Ana Reyes',
         eventName: 'Ayala Summit',
+        clientPortalStatus: 'unlocked',
+        archived: false,
+        freezeStatus: 'open',
         floorPlanStatus: 'not_started',
         readiness: 'Planning',
+        floorPlanProjectionVersion: 0,
       },
     ] as any[],
     floorPlans: [] as any[],
     floorPlanObjects: [] as any[],
     floorPlanDrafts: [] as any[],
+    projectionClock: null as null | { eventId: string; version: number },
   };
   const prisma = {
     opsEvent: {
       findUnique: vi.fn(async ({ where }) => state.events.find((event) => event.id === where.id) ?? null),
-      update: vi.fn(async ({ where, data }) => {
+      updateMany: vi.fn(async ({ where, data }) => {
         const event = state.events.find((item) => item.id === where.id);
-        if (!event) throw new Error('event not found');
+        if (!event || event.floorPlanProjectionVersion >= where.floorPlanProjectionVersion.lt) return { count: 0 };
         Object.assign(event, data);
-        return event;
+        return { count: 1 };
       }),
     },
     opsOcularVisitRequest: {
@@ -61,8 +69,12 @@ function createService() {
         ),
       ),
       findFirst: vi.fn(async ({ where }) =>
-        state.floorPlanDrafts.find((draft) => draft.id === where.id && draft.eventId === where.eventId) ?? null,
+        (() => {
+          const draft = state.floorPlanDrafts.find((item) => item.id === where.id && item.eventId === where.eventId);
+          return draft ? { ...draft } : null;
+        })(),
       ),
+      findUnique: vi.fn(async ({ where }) => state.floorPlanDrafts.find((draft) => draft.id === where.id) ?? null),
       update: vi.fn(async ({ where, data }) => {
         const draft = state.floorPlanDrafts.find((item) => item.id === where.id);
         if (!draft) throw new Error('draft not found');
@@ -74,26 +86,101 @@ function createService() {
         for (const draft of state.floorPlanDrafts) {
           if (where?.eventId && draft.eventId !== where.eventId) continue;
           if (typeof where?.isActive === 'boolean' && draft.isActive !== where.isActive) continue;
+          if (where?.status && draft.status !== where.status) continue;
           Object.assign(draft, data);
           count += 1;
         }
         return { count };
       }),
     },
+    opsFloorPlanProjectionClock: {
+      upsert: vi.fn(async ({ where, create, update }) => {
+        const current = state.projectionClock;
+        if (current && current.eventId === where.eventId) {
+          current.version += update.version.increment;
+          return current;
+        }
+        const created = { ...create };
+        state.projectionClock = created;
+        return created;
+      }),
+    },
     $transaction: vi.fn(async (callback) => callback(prisma)),
+  };
+  const lifecycleEventReferences = {
+    findFloorplanEvent: vi.fn(async (eventId: string, transaction?: PrismTransactionContext) => {
+      const event = await (transaction?.prisma ?? prisma).opsEvent.findUnique({ where: { id: eventId } });
+      if (!event) return null;
+      return {
+        eventId: event.id,
+        eventName: event.eventName,
+        clientName: event.clientName,
+        clientPortalStatus: event.clientPortalStatus,
+        archived: event.archived,
+        freezeStatus: event.freezeStatus,
+        floorPlanStatus: event.floorPlanStatus,
+        readiness: event.readiness,
+        primaryClientEmail: event.inquiry?.email ?? null,
+        conformeSigned: Boolean(event.inquiry?.conformeSignedAt),
+        ocularVisitStatus: state.ocularVisitStatus,
+      };
+    }),
   };
   const auditWriter = { write: vi.fn(async () => undefined) };
   const notificationOutboxWriter = { write: vi.fn(async () => undefined) };
+  const lifecycleProjectionWriter: FloorplanProjectionWriter = {
+    project: vi.fn(async (input: FloorplanProjectionInput, transaction: PrismTransactionContext) => {
+      const result = await transaction.prisma.opsEvent.updateMany({
+        where: { id: input.eventId, floorPlanProjectionVersion: { lt: input.version } },
+        data: { ...input.state, floorPlanProjectionVersion: input.version },
+      });
+      if (result.count !== 1) throw new ConflictException('Stale floorplan projection version');
+      return { applied: true, version: input.version };
+    }),
+  };
   const service = new FloorPlanWorkflowService(
     prisma as any,
     auditWriter as any,
     notificationOutboxWriter as any,
     new WorkflowCommandService(),
+    lifecycleProjectionWriter,
+    lifecycleEventReferences,
   );
-  return { service, state, prisma, auditWriter, notificationOutboxWriter };
+  return { service, state, prisma, auditWriter, notificationOutboxWriter, lifecycleProjectionWriter, lifecycleEventReferences };
 }
 
 describe('FloorPlanWorkflowService', () => {
+  it('validates persisted preference and snapshot JSON before mapping the shared read contract', () => {
+    const { service } = createService();
+    const now = new Date('2026-10-04T00:00:00.000Z');
+
+    const mapped = service.mapFloorPlanDraft({
+      id: 'fpd_1',
+      eventId: 'evt_sample',
+      floorPlanId: 'plan_1',
+      name: 'Official',
+      status: 'approved',
+      isActive: true,
+      sourceType: 'blank',
+      createdByRole: 'pmcm-admin',
+      clientPreference: { seatingStyle: 'banquet', stagePreference: 'center', flowNotes: 'Clear entrance', guestCount: 120, constraints: [] },
+      submittedSnapshot: { id: 'plan_1', name: 'Official', venue: 'Hall A', width: 100, height: 60, gridSize: 10, pax: 120, objects: [] },
+      approvedSnapshot: ['unexpected', 'array'],
+      submittedAt: now,
+      reviewedAt: null,
+      approvedAt: now,
+      submittedSnapshotAt: now,
+      approvedSnapshotAt: now,
+      revisionComment: '',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    expect(mapped.clientPreference).toMatchObject({ seatingStyle: 'banquet', guestCount: 120 });
+    expect(mapped.submittedSnapshot).toMatchObject({ id: 'plan_1', venue: 'Hall A' });
+    expect(mapped).not.toHaveProperty('approvedSnapshot');
+  });
+
   it('blocksOfficialDraftWithoutOcularVisit', async () => {
     const { service, state } = createService();
     state.ocularVisitStatus = null;
@@ -118,6 +205,40 @@ describe('FloorPlanWorkflowService', () => {
     expect(state.floorPlans).toHaveLength(0);
   });
 
+  it('fails closed when the Lifecycle owner no longer has the referenced event', async () => {
+    const { service, state } = createService();
+    state.events.length = 0;
+
+    await expect(service.createFloorPlanDraft(
+      'evt_sample',
+      { name: 'Official Layout', sourceType: 'blank' },
+      { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' },
+    )).rejects.toThrow('Event not found');
+    expect(state.floorPlans).toHaveLength(0);
+  });
+
+  it.each([
+    ['archived', { archived: true }],
+    ['frozen', { freezeStatus: 'frozen' }],
+  ])('blocks a client preference while the event is %s', async (_state, eventChanges) => {
+    const { service, state } = createService();
+    Object.assign(state.events[0], eventChanges);
+
+    await expect(service.createFloorPlanPreference(
+      'evt_sample',
+      {
+        name: 'Client Preference',
+        seatingStyle: 'banquet',
+        stagePreference: 'center',
+        flowNotes: 'Keep the entrance clear.',
+        guestCount: 120,
+        constraints: [],
+      },
+      { actorId: 'user_client_1', name: 'Ana Reyes', role: 'client' },
+    )).rejects.toThrow('cannot be changed');
+    expect(state.floorPlans).toHaveLength(0);
+  });
+
   it.each(['completed', 'waived'])('allowsOfficialDraftAfter%s', async (status) => {
     const { service, state } = createService();
     state.ocularVisitStatus = status;
@@ -132,8 +253,8 @@ describe('FloorPlanWorkflowService', () => {
     expect(state.floorPlanDrafts).toHaveLength(1);
   });
 
-  it('leavesClientPreferenceUngated', async () => {
-    const { service, state, prisma } = createService();
+  it('keeps client preferences outside the official conforme and ocular gates', async () => {
+    const { service, state } = createService();
     state.ocularVisitStatus = null;
     state.events[0].clientPortalStatus = 'unlocked';
 
@@ -151,7 +272,6 @@ describe('FloorPlanWorkflowService', () => {
     );
 
     expect(state.floorPlanDrafts).toHaveLength(1);
-    expect(prisma.opsOcularVisitRequest.findUnique).not.toHaveBeenCalled();
   });
 
   it('creates PMCM official floorplan drafts with canvas object rows intact', async () => {
@@ -197,6 +317,83 @@ describe('FloorPlanWorkflowService', () => {
     expect(draft.createdByRole).toBe('system');
     expect(state.floorPlanDrafts[0].createdByRole).toBe('system');
   });
+
+  it('submits a draft and projects its status through the Lifecycle owner with an increasing version', async () => {
+    const { service, state, lifecycleProjectionWriter } = createService();
+    const actor = { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' } as const;
+    const draft = await service.createFloorPlanDraft('evt_sample', { name: 'Official Layout', sourceType: 'blank' }, actor);
+
+    const submitted = await service.submitFloorPlanDraft('evt_sample', draft.id, actor);
+
+    expect(submitted.status).toBe('in_review');
+    expect(state.events[0]).toMatchObject({
+      floorPlanStatus: 'in_review',
+      floorPlanId: draft.floorPlanId,
+      readiness: 'Floorplan awaiting review',
+      floorPlanProjectionVersion: 2,
+    });
+    expect(lifecycleProjectionWriter.project).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        eventId: 'evt_sample',
+        version: 2,
+        state: expect.objectContaining({ floorPlanStatus: 'in_review', floorPlanId: draft.floorPlanId }),
+      }),
+      expect.objectContaining({ correlationId: 'floorplan-projection:evt_sample:2' }),
+    );
+  });
+
+  it('allows only one concurrent submission of the same draft', async () => {
+    const { service, state } = createService();
+    const actor = { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' } as const;
+    const draft = await service.createFloorPlanDraft('evt_sample', { name: 'Official Layout', sourceType: 'blank' }, actor);
+
+    const results = await Promise.allSettled([
+      service.submitFloorPlanDraft('evt_sample', draft.id, actor),
+      service.submitFloorPlanDraft('evt_sample', draft.id, actor),
+    ]);
+
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
+    expect(state.floorPlanDrafts[0].status).toBe('in_review');
+    expect(state.events[0]).toMatchObject({ floorPlanStatus: 'in_review', floorPlanProjectionVersion: 2 });
+  });
+
+  it('approves only a submitted draft and keeps the Lifecycle projection synchronized', async () => {
+    const { service, state } = createService();
+    const actor = { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' } as const;
+    const draft = await service.createFloorPlanDraft('evt_sample', { name: 'Official Layout', sourceType: 'blank' }, actor);
+    await service.submitFloorPlanDraft('evt_sample', draft.id, actor);
+
+    const approved = await service.approveFloorPlanDraft('evt_sample', draft.id, actor);
+
+    expect(approved).toMatchObject({ status: 'approved', isActive: true });
+    expect(state.events[0]).toMatchObject({
+      floorPlanStatus: 'approved',
+      floorPlanId: draft.floorPlanId,
+      readiness: 'Floorplan approved',
+      floorPlanProjectionVersion: 3,
+    });
+  });
+
+  it('rejects approval when a concurrent client revision changed the draft after the initial read', async () => {
+    const { service, state, lifecycleEventReferences } = createService();
+    const actor = { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' } as const;
+    const draft = await service.createFloorPlanDraft('evt_sample', { name: 'Official Layout', sourceType: 'blank' }, actor);
+    await service.submitFloorPlanDraft('evt_sample', draft.id, actor);
+    const readEvent = lifecycleEventReferences.findFloorplanEvent.getMockImplementation();
+
+    lifecycleEventReferences.findFloorplanEvent.mockImplementationOnce(async (eventId, transaction) => {
+      state.floorPlanDrafts[0].status = 'revision_requested';
+      if (!readEvent) throw new Error('Lifecycle test reader is not configured');
+      return readEvent(eventId, transaction);
+    });
+
+    await expect(service.approveFloorPlanDraft('evt_sample', draft.id, actor))
+      .rejects.toThrow('Floorplan draft changed before approval');
+    expect(state.floorPlanDrafts[0].status).toBe('revision_requested');
+    expect(state.events[0]).toMatchObject({ floorPlanStatus: 'in_review', floorPlanProjectionVersion: 2 });
+  });
+
   it('rejects an official floorplan draft when the conforme is unsigned', async () => {
     const { service, state } = createService();
     state.events[0].inquiry = { conformeSignedAt: null };
@@ -214,8 +411,8 @@ describe('FloorPlanWorkflowService', () => {
     expect(state.events[0]).toMatchObject({ floorPlanStatus: 'not_started', readiness: 'Planning' });
   });
 
-  it('reads conforme state through its own focused query, not the access-scope include', async () => {
-    const { service, prisma } = createService();
+  it('reads current Lifecycle gates through its owner capability inside the write transaction', async () => {
+    const { service, lifecycleEventReferences, prisma } = createService();
 
     await service.createFloorPlanDraft(
       'evt_sample',
@@ -223,13 +420,11 @@ describe('FloorPlanWorkflowService', () => {
       { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' },
     );
 
-    // Proves the gate actually issued its own conforme read rather than being bypassed.
-    expect(prisma.opsEvent.findUnique).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'evt_sample' },
-        select: expect.objectContaining({ inquiry: { select: { conformeSignedAt: true } } }),
-      }),
+    expect(lifecycleEventReferences.findFloorplanEvent).toHaveBeenCalledWith(
+      'evt_sample',
+      expect.objectContaining({ prisma: expect.anything(), correlationId: 'floorplan-create:evt_sample' }),
     );
+    expect(prisma.opsEvent.findUnique).toHaveBeenCalledWith({ where: { id: 'evt_sample' } });
   });
 
   it('creates client layout preferences without making them official approved layouts', async () => {
@@ -312,8 +507,14 @@ describe('FloorPlanWorkflowService', () => {
       isActive: true,
       sourceType: 'blank',
       createdByRole: 'pmcm-admin',
-      submittedSnapshot: { objects: [{ id: 'stage', x: 10 }] },
-      approvedSnapshot: { objects: [{ id: 'stage', x: 20 }] },
+      submittedSnapshot: {
+        id: 'plan_sample', name: 'Official Layout', venue: 'Hall', width: 1200, height: 800, gridSize: 20, pax: 180,
+        objects: [{ id: 'stage', x: 10 }],
+      },
+      approvedSnapshot: {
+        id: 'plan_sample', name: 'Official Layout', venue: 'Hall', width: 1200, height: 800, gridSize: 20, pax: 180,
+        objects: [{ id: 'stage', x: 20 }],
+      },
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -321,8 +522,8 @@ describe('FloorPlanWorkflowService', () => {
     const submitted = await service.getFloorPlanSnapshot('evt_sample', 'fpd_sample', 'submitted');
     const approved = await service.getFloorPlanSnapshot('evt_sample', 'fpd_sample', 'approved');
 
-    expect((submitted as any).objects[0].x).toBe(10);
-    expect((approved as any).objects[0].x).toBe(20);
+    expect(submitted.objects?.[0]).toMatchObject({ x: 10 });
+    expect(approved.objects?.[0]).toMatchObject({ x: 20 });
     expect(state.floorPlanDrafts[0].approvedSnapshot.objects[0].x).toBe(20);
   });
 

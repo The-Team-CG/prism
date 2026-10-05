@@ -13,6 +13,14 @@ import type {
 } from '@prism/types';
 import type { RegistrationPlatformReader } from '../../contracts/registration-platform-reader.port';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
+import {
+  OPERATIONS_EVENT_REFERENCE_READER,
+  type OperationsEventReferenceReader,
+} from '@prism/contexts/event-lifecycle/operations-reference';
+import {
+  REGISTRATION_SUPPLIER_REFERENCE_READER,
+  type RegistrationSupplierReferenceReader,
+} from '@prism/contexts/commercial/registration-supplier-reference';
 
 @Injectable()
 export class RegistrationPlatformService implements RegistrationPlatformReader {
@@ -20,6 +28,8 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
     private readonly prisma: PrismaService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     private readonly workflowCommandService: WorkflowCommandService,
+    @Inject(OPERATIONS_EVENT_REFERENCE_READER) private readonly eventReferences: OperationsEventReferenceReader,
+    @Inject(REGISTRATION_SUPPLIER_REFERENCE_READER) private readonly supplierReferences: RegistrationSupplierReferenceReader,
   ) {}
 
   async getByEventId(eventId: string): Promise<OpsRegistrationPlatform | null> {
@@ -27,7 +37,7 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
   }
 
   async upsert(eventId: string, input: CreateRegistrationPlatformInput, actor: ResolvedEventOpsActor): Promise<OpsRegistrationPlatform> {
-    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
+    const event = await this.eventReferences.findOperationsEvent(eventId);
     if (!event) throw new NotFoundException('Event not found');
 
     let existed = false;
@@ -37,17 +47,28 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
       validateState: async () => {
         const current = await this.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } });
         existed = Boolean(current);
-        await this.validateAssignedSupplier(this.prisma, eventId, input.supplierId !== undefined ? input.supplierId : current?.supplierId);
+        await this.validateAssignedSupplier(
+          eventId,
+          input.supplierId !== undefined ? input.supplierId : current?.supplierId,
+          undefined,
+          input.supplierId !== undefined && input.supplierId !== current?.supplierId,
+        );
         if (input.expectedPaxMin !== undefined && input.expectedPaxMax !== undefined && input.expectedPaxMin > input.expectedPaxMax) {
           throw new BadRequestException('Minimum expected headcount cannot exceed maximum');
         }
       },
       sideEffectMode: 'same_tx',
       validateStateInTransaction: async (transactionContext) => {
-        await this.lockEvent(transactionContext, eventId);
+        const event = await this.eventReferences.findOperationsEvent(eventId, transactionContext);
+        if (!event) throw new ConflictException('Event state changed; refresh before configuring registration');
         const current = await transactionContext.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } });
         existed = Boolean(current);
-        await this.validateAssignedSupplier(transactionContext.prisma, eventId, input.supplierId !== undefined ? input.supplierId : current?.supplierId);
+        await this.validateAssignedSupplier(
+          eventId,
+          input.supplierId !== undefined ? input.supplierId : current?.supplierId,
+          transactionContext,
+          input.supplierId !== undefined && input.supplierId !== current?.supplierId,
+        );
         const min = input.expectedPaxMin ?? current?.expectedPaxMin ?? 0;
         const max = input.expectedPaxMax ?? current?.expectedPaxMax ?? 0;
         if (min > max) throw new BadRequestException('Minimum expected headcount cannot exceed maximum');
@@ -100,7 +121,14 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
       name: 'registration_platform_update',
       sideEffectMode: 'same_tx',
       validateState: async () => {
-        await this.validateAssignedSupplier(this.prisma, eventId, input.supplierId !== undefined ? input.supplierId : existing.supplierId);
+        const event = await this.eventReferences.findOperationsEvent(eventId);
+        if (!event) throw new NotFoundException('Event not found');
+        await this.validateAssignedSupplier(
+          eventId,
+          input.supplierId !== undefined ? input.supplierId : existing.supplierId,
+          undefined,
+          input.supplierId !== undefined && input.supplierId !== existing.supplierId,
+        );
         const effectiveMin = input.expectedPaxMin ?? existing.expectedPaxMin;
         const effectiveMax = input.expectedPaxMax ?? existing.expectedPaxMax;
         if (effectiveMin > effectiveMax) {
@@ -114,10 +142,16 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
         }
       },
       validateStateInTransaction: async (transactionContext) => {
-        await this.lockEvent(transactionContext, eventId);
+        const event = await this.eventReferences.findOperationsEvent(eventId, transactionContext);
+        if (!event) throw new ConflictException('Event state changed; retry the command');
         const current = await transactionContext.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } });
         if (!current || current.status !== existing.status) throw new ConflictException('Registration platform changed; retry the command');
-        await this.validateAssignedSupplier(transactionContext.prisma, eventId, input.supplierId !== undefined ? input.supplierId : current.supplierId);
+        await this.validateAssignedSupplier(
+          eventId,
+          input.supplierId !== undefined ? input.supplierId : current.supplierId,
+          transactionContext,
+          input.supplierId !== undefined && input.supplierId !== current.supplierId,
+        );
         const min = input.expectedPaxMin ?? current.expectedPaxMin;
         const max = input.expectedPaxMax ?? current.expectedPaxMax;
         if (min > max) throw new BadRequestException('Minimum expected headcount cannot exceed maximum');
@@ -159,7 +193,7 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
   async importHeadcount(eventId: string, input: ImportHeadcountInput, actor: ResolvedEventOpsActor): Promise<OpsRegistrationPlatform> {
     const [existing, event] = await Promise.all([
       this.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } }),
-      this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { id: true, status: true, archived: true, actualEndedAt: true } }),
+      this.eventReferences.findOperationsEvent(eventId),
     ]);
     if (!existing) throw new NotFoundException('Registration platform not configured for this event');
     if (!event) throw new NotFoundException('Event not found');
@@ -177,11 +211,10 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
         if (input.importedHeadcount < 0) throw new BadRequestException('Headcount must be non-negative');
       },
       validateStateInTransaction: async (context) => {
-        await this.lockEvent(context, eventId);
+        const currentEvent = await this.eventReferences.findOperationsEvent(eventId, context);
         const current = await context.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } });
-        const currentEvent = await context.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { actualEndedAt: true } });
         if (!current || current.status !== 'closed' || !currentEvent?.actualEndedAt) throw new ConflictException('Platform or event state changed; refresh before importing');
-        await this.validateAssignedSupplier(context.prisma, eventId, current.supplierId);
+        await this.validateAssignedSupplier(eventId, current.supplierId, context);
       },
       write: (context) =>
         this.transaction(context).prisma.opsRegistrationPlatform.update({
@@ -212,30 +245,21 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
     return context;
   }
 
-  private async lockEvent(context: PrismTransactionContext, eventId: string) {
-    // QUERY_AUDIT_RAW_SQL: parameterized row lock serializes event registration commands with lifecycle changes.
-    await context.prisma.$queryRaw`SELECT id FROM event_core.events WHERE id = ${eventId} FOR UPDATE`;
-  }
-
-  private async validateAssignedSupplier(db: Pick<PrismaService, 'opsSupplier' | 'opsSupplierQuoteRequest'>, eventId: string, supplierId?: string | null): Promise<void> {
+  private async validateAssignedSupplier(
+    eventId: string,
+    supplierId?: string | null,
+    transaction?: PrismTransactionContext,
+    requireActiveCategory = false,
+  ): Promise<void> {
     if (!supplierId) throw new BadRequestException('A selected Digital Registration supplier is required');
-    const supplier = await db.opsSupplier.findUnique({
-      where: { id: supplierId },
-      include: { category: true },
-    });
-    const categoryLabel = supplier?.category?.name ?? supplier?.category?.slug ?? '';
-    const normalizedCategory = categoryLabel.toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (!supplier || !['digitalregistration', 'registration'].includes(normalizedCategory)) {
+    const supplier = await this.supplierReferences.findRegistrationSupplier(eventId, supplierId, transaction);
+    if (!supplier || !supplier.registrationCategory) {
       throw new BadRequestException('Supplier must belong to the Digital Registration category');
     }
-    const assignment = await db.opsSupplierQuoteRequest.findFirst({
-      where: {
-        eventId,
-        supplierId,
-        status: 'selected',
-      },
-    });
-    if (!assignment) {
+    if (requireActiveCategory && !supplier.categoryActive) {
+      throw new BadRequestException('Supplier must belong to an active Digital Registration category');
+    }
+    if (!supplier.selectedForEvent) {
       throw new BadRequestException('Supplier must be selected for Digital Registration on this event');
     }
   }

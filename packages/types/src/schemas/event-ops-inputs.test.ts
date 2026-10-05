@@ -41,8 +41,12 @@ import {
   createEventTaskReassignmentSchema,
   createFloorPlanDraftSchema,
   createFloorPlanPreferenceSchema,
+  createPrivacyLegalHoldSchema,
+  releasePrivacyLegalHoldSchema,
   createRegistrationPlatformSchema,
   updateRegistrationPlatformSchema,
+  uploadContractSchema,
+  registerLifecycleDocumentSchema,
   importHeadcountSchema,
   submitBriefingSchema,
   uploadConformeSchema,
@@ -53,6 +57,28 @@ import {
   parseContract,
   PrismContractError,
 } from "./index.js";
+
+describe("privacy legal hold contracts", () => {
+  it("requires a supported identity and reason while allowing optional event scope", () => {
+    expect(createPrivacyLegalHoldSchema.safeParse({
+      subjectType: "client", subjectEmail: "ana@example.test", reason: "Preserve records",
+    }).success).toBe(true);
+    expect(createPrivacyLegalHoldSchema.safeParse({
+      subjectType: "supplier", reason: "Preserve records",
+    }).success).toBe(false);
+    expect(createPrivacyLegalHoldSchema.safeParse({
+      subjectType: "guest", subjectName: "Ana Reyes", reason: "Preserve records",
+    }).success).toBe(true);
+    expect(createPrivacyLegalHoldSchema.safeParse({
+      subjectType: "guest", reason: "Preserve records",
+    }).success).toBe(false);
+    expect(createPrivacyLegalHoldSchema.safeParse({
+      subjectType: "account", subjectEmail: "ana@example.test", reason: "Preserve records",
+    }).success).toBe(false);
+    expect(releasePrivacyLegalHoldSchema.safeParse({ reason: "Counsel confirmed release" }).success).toBe(true);
+    expect(releasePrivacyLegalHoldSchema.safeParse({ reason: "  " }).success).toBe(false);
+  });
+});
 
 describe("coordinator role contracts", () => {
   it("accepts the seven canonical roles and rejects new role values outside the catalog", () => {
@@ -262,6 +288,46 @@ describe("event-ops write schemas", () => {
   it("validates supplier quote amount", () => {
     expect(submitSupplierQuoteSchema.safeParse({ amount: 12000 }).success).toBe(true);
     expect(submitSupplierQuoteSchema.safeParse({ amount: -1 }).success).toBe(false);
+  });
+
+  it("requires an idempotency key for supplier contract metadata", () => {
+    expect(uploadContractSchema.safeParse({
+      fileName: "contract.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 2048,
+    }).success).toBe(false);
+    expect(uploadContractSchema.safeParse({
+      fileName: "contract.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 2048,
+      idempotencyKey: "contract-submit-1",
+    }).success).toBe(true);
+  });
+
+  it("requires document ownership, target, verified actor, and replay metadata on registration", () => {
+    const input = {
+      eventId: "evt_1",
+      documentKind: "supplier_contract",
+      logicalTarget: { kind: "supplier_quote_request", id: "qr_1" },
+      fileName: "contract.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 2048,
+      status: "submitted",
+      verifiedActor: {
+        actorId: "supplier_1",
+        actorRole: "supplier",
+        actorEmail: "supplier@example.test",
+        actorName: "Supplier",
+        supplierId: "sup_1",
+        expiresAt: "2026-10-04T12:00:00.000Z",
+      },
+      idempotencyKey: "contract-submit-1",
+    };
+    expect(registerLifecycleDocumentSchema.safeParse(input).success).toBe(true);
+    expect(registerLifecycleDocumentSchema.safeParse({
+      ...input,
+      logicalTarget: { kind: "billing_statement", id: "bill_1" },
+    }).success).toBe(false);
   });
 
   it("requires an event and reason for supplier reliability and promotion actions", () => {

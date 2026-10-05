@@ -14,7 +14,8 @@ jobs:
   promote:
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'staging'
+      github.event.workflow_run.head_branch == 'staging' &&
+      vars.PRISM_SCHEMA_CUTOVER_HOLD != 'true'
     uses: The-Team-CG/.github/.github/workflows/promote-to-prod.yml@v2
     with:
       source_branch: staging

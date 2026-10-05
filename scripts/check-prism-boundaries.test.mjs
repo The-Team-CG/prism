@@ -152,6 +152,70 @@ describe("findBoundaryViolations", () => {
     }
   });
 
+  it("allows focused owner reference capability seams only", () => {
+    const path = "apps/api/src/modules/commercial/application/billing/billing-adjustment.service.ts";
+    assert.deepEqual(findBoundaryViolations({ [path]:
+      'import { POST_EVENT_LIFECYCLE_STATE_READER } from "@prism/contexts/event-lifecycle/post-event-reference"; import { URGENT_ISSUE_REFERENCE_READER } from "@prism/contexts/live-ops/urgent-issue-reference";',
+    }), []);
+    for (const imported of [
+      "@prism/contexts/event-lifecycle/application/onboarding/post-event-lifecycle-state-reader.service",
+      "@prism/contexts/event-lifecycle/post-event-reference/private",
+      "@prism/contexts/live-ops/application/urgent-issue-reference-reader.service",
+      "@prism/contexts/live-ops/urgent-issue-reference/private",
+    ]) {
+      assert.deepEqual(findBoundaryViolations({ [path]: 'import { reader } from "' + imported + '";' }), [
+        path + ": backend code must use public context and kernel entrypoints",
+      ]);
+    }
+  });
+
+  it("allows Operations read projections only through the public guest event reader", () => {
+    const path = "apps/api/src/modules/operations/application/guest/guest-workflow.service.ts";
+    assert.deepEqual(findBoundaryViolations({ [path]:
+      'import { GUEST_EVENT_PROJECTION_READER } from "@prism/contexts/read-models/guest-events";',
+    }), []);
+    for (const imported of [
+      "@prism/contexts/read-models/application/services/guest-event-projection.service",
+      "@prism/contexts/read-models/guest-events/private",
+    ]) {
+      assert.deepEqual(findBoundaryViolations({ [path]: 'import { reader } from "' + imported + '";' }), [
+        path + ": backend code must use public context and kernel entrypoints",
+      ]);
+    }
+  });
+
+  it("allows Operations to check linked coordinator identity through the public Identity seam", () => {
+    const path = "apps/api/src/modules/operations/application/staffing/coordinator-assignment-command.service.ts";
+    assert.deepEqual(findBoundaryViolations({ [path]:
+      'import { COORDINATOR_ACCOUNT_ELIGIBILITY_READER } from "@prism/contexts/identity-access/coordinator-reference";',
+    }), []);
+    for (const imported of [
+      "@prism/contexts/identity-access/application/coordinator-account-reference.service",
+      "@prism/contexts/identity-access/coordinator-reference/private",
+    ]) {
+      assert.deepEqual(findBoundaryViolations({ [path]: 'import { reader } from "' + imported + '";' }), [
+        path + ": backend code must use public context and kernel entrypoints",
+      ]);
+    }
+  });
+
+  it("allows the Operations owner reference capabilities only through their public seams", () => {
+    const path = "apps/api/src/modules/operations/application/guest/registration-platform.service.ts";
+    assert.deepEqual(findBoundaryViolations({ [path]:
+      'import { OPERATIONS_EVENT_REFERENCE_READER } from "@prism/contexts/event-lifecycle/operations-reference"; import { REGISTRATION_SUPPLIER_REFERENCE_READER } from "@prism/contexts/commercial/registration-supplier-reference";',
+    }), []);
+    for (const imported of [
+      "@prism/contexts/event-lifecycle/application/onboarding/operations-event-reference.service",
+      "@prism/contexts/event-lifecycle/operations-reference/private",
+      "@prism/contexts/commercial/application/suppliers/registration-supplier-reference.service",
+      "@prism/contexts/commercial/registration-supplier-reference/private",
+    ]) {
+      assert.deepEqual(findBoundaryViolations({ [path]: 'import { reader } from "' + imported + '";' }), [
+        path + ": backend code must use public context and kernel entrypoints",
+      ]);
+    }
+  });
+
   it("confines provider SDK imports to gateway infrastructure after the PARE migration", () => {
     const allowedAdapter = "apps/api/src/modules/platform-ops/infrastructure/ai-governance/anthropic.adapter.ts";
     const migratedAgent = "apps/api/src/modules/platform-ops/application/ai-governance/pare/agents/budget.agent.ts";

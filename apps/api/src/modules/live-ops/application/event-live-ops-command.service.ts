@@ -21,8 +21,8 @@ import type {
 } from '@prism/types';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { STAFFING_READER, type StaffingReader } from '@prism/contexts/operations';
+import { OPERATIONS_EVENT_REFERENCE_READER, type OperationsEventReferenceReader } from '@prism/contexts/event-lifecycle/operations-reference';
 import {
-  mapSupplierQuoteRequest,
   SUPPLIER_COMMANDS,
   type SupplierCommands,
 } from '@prism/contexts/commercial';
@@ -45,6 +45,7 @@ export class EventLiveOpsCommandService {
     private readonly coordinatorCommandService: CoordinatorLiveOpsCommandService,
     @Inject(STAFFING_READER) private readonly staffingReader: StaffingReader,
     @Inject(SUPPLIER_COMMANDS) private readonly supplierCommands: SupplierCommands,
+    @Inject(OPERATIONS_EVENT_REFERENCE_READER) private readonly eventReferences: OperationsEventReferenceReader,
   ) {}
 
   async createEventDayTask(eventId: string, input: CreateEventDayTaskInput, actor: ResolvedEventOpsActor) {
@@ -133,11 +134,14 @@ export class EventLiveOpsCommandService {
       await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'coordinator attendance', eventId);
       throw new ForbiddenException("Coordinator cannot mark another coordinator's attendance");
     }
-    const assignment = await this.coordinatorCommandService.updateCoordinatorAttendance(eventId, assignmentId, input, actor);
-    return mapCoordinatorAssignmentForEventDay(
-      assignment,
-      this.staffingReader.mapCoordinatorAssignment.bind(this.staffingReader),
+    const assignment = await this.coordinatorCommandService.updateCoordinatorAttendance(
+      eventId,
+      assignmentId,
+      input,
+      actor,
+      { allowAnotherAssignment: designatedOperator },
     );
+    return mapCoordinatorAssignmentForEventDay(assignment);
   }
 
   async requestTaskReassignment(eventId: string, taskId: string, input: CreateEventTaskReassignmentInput, actor: ResolvedEventOpsActor) {
@@ -177,14 +181,8 @@ export class EventLiveOpsCommandService {
       await this.coordinatorCommandService.replaceCoordinatorAssignment(eventId, assignmentId, input, actor);
 
     return {
-      replacedAssignment: mapCoordinatorAssignmentForEventDay(
-        replacedAssignment,
-        this.staffingReader.mapCoordinatorAssignment.bind(this.staffingReader),
-      ),
-      replacementAssignment: mapCoordinatorAssignmentForEventDay(
-        replacementAssignment,
-        this.staffingReader.mapCoordinatorAssignment.bind(this.staffingReader),
-      ),
+      replacedAssignment: mapCoordinatorAssignmentForEventDay(replacedAssignment),
+      replacementAssignment: mapCoordinatorAssignmentForEventDay(replacementAssignment),
     };
   }
 
@@ -212,7 +210,7 @@ export class EventLiveOpsCommandService {
       metadata,
     );
 
-    return mapSupplierQuoteRequest(updated);
+    return updated;
   }
 
   async updateSupplierEventStatus(
@@ -231,7 +229,7 @@ export class EventLiveOpsCommandService {
       { status: input.status, notes: input.notes ?? '', photoFileName: input.photo?.fileName ?? null },
     );
 
-    return mapSupplierQuoteRequest(request);
+    return request;
   }
 
   private async requireEventDayWriteActor(eventId: string, actor: ResolvedEventOpsActor, resource: string) {
@@ -265,7 +263,7 @@ export class EventLiveOpsCommandService {
   }
 
   private async requireEvent(eventId: string) {
-    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
+    const event = await this.eventReferences.findOperationsEvent(eventId);
     if (!event) throw new NotFoundException('Event not found');
     return event;
   }

@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { mapBillingStatement, mapPaymentMilestone } from '@prism/contexts/commercial';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
@@ -18,7 +18,7 @@ export class OpsClientController {
 
   @Get('workspace')
   @UseGuards(EventSessionGuard)
-  getClientWorkspace(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+  getClientWorkspace(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor, @Query('cursor') cursor?: string) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.eventReadModelsService.clientWorkspace(
       actor,
@@ -31,6 +31,7 @@ export class OpsClientController {
         mapFloorPlanDraft: mapReadModelFloorPlanDraft,
         mapAuditLog,
       }),
+      cursor,
     );
   }
 

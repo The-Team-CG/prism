@@ -198,6 +198,7 @@ describe('OpsClientController', () => {
         mapFloorPlanDraft: expect.any(Function),
         mapAuditLog: expect.any(Function),
       }),
+      undefined,
     );
     expect(eventReadModelsService.clientActionCenter).toHaveBeenCalledWith({
       role: 'client',

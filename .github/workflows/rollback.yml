@@ -19,7 +19,17 @@ permissions:
   packages: write
 
 jobs:
+  reject-rollback-during-schema-cutover:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Keep rollback disabled while schema cutover is held
+        if: vars.PRISM_SCHEMA_CUTOVER_HOLD == 'true'
+        run: |
+          echo "::error::Rollback is blocked during a schema cutover. Restore the database or complete the cutover before redeploying an API image."
+          exit 1
+
   rollback-api:
+    needs: reject-rollback-during-schema-cutover
     uses: The-Team-CG/.github/.github/workflows/rollback-render.yml@f5986c05d92dd3cb61a880efc3cab5ddba25cd35
     with:
       environment: ${{ inputs.environment }}

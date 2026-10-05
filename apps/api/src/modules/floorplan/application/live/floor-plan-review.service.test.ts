@@ -10,10 +10,14 @@ function createService() {
       {
         id: 'evt_sample',
         inquiry: { email: 'ana@example.test' },
+        eventName: 'Ayala Summit',
+        clientName: 'Ana Reyes',
         clientPortalStatus: 'unlocked',
         archived: false,
+        freezeStatus: 'open',
         floorPlanStatus: 'in_review',
         readiness: 'Floorplan awaiting review',
+        floorPlanProjectionVersion: 0,
       },
     ] as any[],
     drafts: [
@@ -34,17 +38,18 @@ function createService() {
       },
     ] as any[],
     auditLogs: [] as any[],
+    projectionClock: null as null | { eventId: string; version: number },
   };
   const prisma = {
     opsEvent: {
       findUnique: vi.fn(async ({ where }) =>
         state.events.find((event) => event.id === where.id) ?? null,
       ),
-      update: vi.fn(async ({ where, data }) => {
+      updateMany: vi.fn(async ({ where, data }) => {
         const event = state.events.find((item) => item.id === where.id);
-        if (!event) throw new Error('event not found');
+        if (!event || event.floorPlanProjectionVersion >= where.floorPlanProjectionVersion.lt) return { count: 0 };
         Object.assign(event, data);
-        return event;
+        return { count: 1 };
       }),
     },
     opsFloorPlanDraft: {
@@ -54,7 +59,7 @@ function createService() {
       findUnique: vi.fn(async ({ where }) => state.drafts.find((draft) => draft.id === where.id) ?? null),
       updateMany: vi.fn(async ({ where, data }) => {
         const targets = state.drafts.filter((draft) =>
-          draft.id === where.id && draft.eventId === where.eventId && draft.status === where.status,
+          draft.id === where.id && draft.eventId === where.eventId && (!where.status || draft.status === where.status),
         );
         for (const draft of targets) Object.assign(draft, data);
         return { count: targets.length };
@@ -64,6 +69,18 @@ function createService() {
       findFirst: vi.fn(async ({ where }) =>
         state.auditLogs.find((audit) => audit.eventId === where.eventId && audit.affectedId === where.affectedId) ?? null,
       ),
+    },
+    opsFloorPlanProjectionClock: {
+      upsert: vi.fn(async ({ where, create, update }) => {
+        const current = state.projectionClock;
+        if (current && current.eventId === where.eventId) {
+          current.version += update.version.increment;
+          return current;
+        }
+        const created = { ...create };
+        state.projectionClock = created;
+        return created;
+      }),
     },
     $transaction: vi.fn(async (callback) => callback(prisma)),
   };
@@ -78,6 +95,36 @@ function createService() {
   };
   const floorPlanWorkflowService = {
     mapFloorPlanDraft: vi.fn((draft) => ({ id: draft.id, status: draft.status, revisionComment: draft.revisionComment })),
+    projectLifecycleState: vi.fn(async (tx, eventId, stateProjection) => {
+      const clock = await tx.opsFloorPlanProjectionClock.upsert({
+        where: { eventId },
+        create: { eventId, version: 1 },
+        update: { version: { increment: 1 } },
+      });
+      const updated = await tx.opsEvent.updateMany({
+        where: { id: eventId, floorPlanProjectionVersion: { lt: clock.version } },
+        data: { ...stateProjection, floorPlanProjectionVersion: clock.version },
+      });
+      if (updated.count !== 1) throw new Error('Stale floorplan projection version');
+    }),
+  };
+  const lifecycleEventReferences = {
+    findFloorplanEvent: vi.fn(async (eventId: string) => {
+      const event = state.events.find((item) => item.id === eventId);
+      return event ? {
+        eventId: event.id,
+        eventName: event.eventName,
+        clientName: event.clientName,
+        clientPortalStatus: event.clientPortalStatus,
+        archived: event.archived,
+        freezeStatus: event.freezeStatus,
+        floorPlanStatus: event.floorPlanStatus,
+        readiness: event.readiness,
+        primaryClientEmail: event.inquiry.email,
+        conformeSigned: true,
+        ocularVisitStatus: 'completed',
+      } : null;
+    }),
   };
   const service = new FloorPlanReviewService(
     prisma as any,
@@ -85,8 +132,9 @@ function createService() {
     floorPlanWorkflowService as any,
     auditWriter as any,
     notificationOutboxWriter as any,
+    lifecycleEventReferences,
   );
-  return { service, state, auditWriter, notificationOutboxWriter, eventAccessPolicyService };
+  return { service, state, auditWriter, notificationOutboxWriter, eventAccessPolicyService, floorPlanWorkflowService, lifecycleEventReferences };
 }
 
 const clientActor = {
@@ -104,7 +152,7 @@ const input = createFloorPlanRevisionCommentSchema.parse({
 
 describe('FloorPlanReviewService', () => {
   it('records a client revision comment on an in-review floorplan draft', async () => {
-    const { service, state, auditWriter, notificationOutboxWriter, eventAccessPolicyService } = createService();
+    const { service, state, auditWriter, notificationOutboxWriter, eventAccessPolicyService, floorPlanWorkflowService } = createService();
 
     const result = await service.submitRevisionComment('evt_sample', 'fpd_review', input, clientActor);
 
@@ -140,6 +188,27 @@ describe('FloorPlanReviewService', () => {
         actorId: clientActor.id,
       }),
     );
+    expect(state.events[0]).toMatchObject({ floorPlanProjectionVersion: 1 });
+    expect(floorPlanWorkflowService.projectLifecycleState).toHaveBeenCalledWith(
+      expect.anything(),
+      'evt_sample',
+      { floorPlanStatus: 'revision_requested', readiness: 'Floorplan revision requested by client' },
+    );
+  });
+
+  it('allows only one concurrent review decision to leave the in-review state', async () => {
+    const { service, state, notificationOutboxWriter } = createService();
+
+    const results = await Promise.allSettled([
+      service.submitRevisionComment('evt_sample', 'fpd_review', input, clientActor),
+      service.submitRevisionComment('evt_sample', 'fpd_review', input, clientActor),
+    ]);
+
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
+    expect(state.drafts[0].status).toBe('revision_requested');
+    expect(state.events[0]).toMatchObject({ floorPlanStatus: 'revision_requested', floorPlanProjectionVersion: 1 });
+    expect(notificationOutboxWriter.write).toHaveBeenCalledTimes(1);
   });
 
   it('rejects revision comments from a secondary Client without the primary inquiry email', async () => {
@@ -166,6 +235,21 @@ describe('FloorPlanReviewService', () => {
     state.events[0].archived = true;
 
     await expect(service.submitRevisionComment('evt_sample', 'fpd_review', input, clientActor)).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects revision comments while the event is frozen', async () => {
+    const { service, state } = createService();
+    state.events[0].freezeStatus = 'frozen';
+
+    await expect(service.submitRevisionComment('evt_sample', 'fpd_review', input, clientActor)).rejects.toThrow(BadRequestException);
+    expect(state.drafts[0].status).toBe('in_review');
+  });
+
+  it('fails closed when Lifecycle no longer owns the referenced event', async () => {
+    const { service, state } = createService();
+    state.events.length = 0;
+
+    await expect(service.submitRevisionComment('evt_sample', 'fpd_review', input, clientActor)).rejects.toThrow('Event not found');
   });
 
   it('rejects revision comments when the draft is not in review', async () => {

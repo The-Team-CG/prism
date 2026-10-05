@@ -41,10 +41,9 @@ describe('OpsSuppliersController', () => {
       addSupplierReview: vi.fn(async () => ({ id: 'sup_review' })),
     };
     const controller = new OpsSuppliersController(eventAccessPolicyService as any, supplierCommands as any);
-    const spoofedQuery = { actorRole: 'pmcm-admin', actorName: 'Spoofed Admin', actorEmail: 'spoofed@example.com' };
     const review = { rating: 5, notes: 'Excellent' };
 
-    await expect(controller.addReview('sup_1', review, spoofedQuery, verifiedActor as any)).resolves.toEqual({
+    await expect(controller.addReview('sup_1', review, verifiedActor as any)).resolves.toEqual({
       id: 'sup_review',
     });
 
@@ -82,7 +81,7 @@ describe('OpsSuppliersController', () => {
     expect(bodyArgument?.pipes?.[0]).toBeInstanceOf(ZodValidationPipe);
   });
 
-  it('delegates supplier writes through the supplier command port with a verified actor, ignoring spoofed query actors', async () => {
+  it('delegates supplier writes through the supplier command port with the verified actor', async () => {
     const actor = { role: 'pmcm-admin', name: 'Maxine', email: 'maxine@pmcm.test' };
     const verifiedActor = {
       actorId: 'user_maxine',
@@ -101,25 +100,22 @@ describe('OpsSuppliersController', () => {
       addSupplierCertification: vi.fn(async () => ({ id: 'sup_cert' })),
     };
     const controller = new OpsSuppliersController(eventAccessPolicyService as any, supplierCommands as any);
-    const spoofedQuery = { actorRole: 'pmcm-admin', actorName: 'Spoofed Admin', actorEmail: 'spoofed@example.com' };
-
     await expect(
-      controller.create({ categoryId: 'cat_food', name: 'SonicLine' }, spoofedQuery, verifiedActor as any),
+      controller.create({ categoryId: 'cat_food', name: 'SonicLine' }, verifiedActor as any),
     ).resolves.toEqual({ id: 'sup_new' });
     await expect(
-      controller.update('sup_1', { phone: '+63 900 111 2222' }, spoofedQuery, verifiedActor as any),
+      controller.update('sup_1', { phone: '+63 900 111 2222' }, verifiedActor as any),
     ).resolves.toEqual({ id: 'sup_existing' });
     await expect(
-      controller.changeTier('sup_1', { tier: 'preferred', reason: 'Reliable' }, spoofedQuery, verifiedActor as any),
+      controller.changeTier('sup_1', { tier: 'tier_2', reason: 'Reliable' }, verifiedActor as any),
     ).resolves.toEqual({ id: 'sup_tier' });
     await expect(
-      controller.addReview('sup_1', { rating: 5, notes: 'Excellent' }, spoofedQuery, verifiedActor as any),
+      controller.addReview('sup_1', { rating: 5, notes: 'Excellent' }, verifiedActor as any),
     ).resolves.toEqual({ id: 'sup_review' });
     await expect(
       controller.addCertification(
         'sup_1',
         { fileName: 'permit.pdf', documentType: 'permit' },
-        spoofedQuery,
         verifiedActor as any,
       ),
     ).resolves.toEqual({ id: 'sup_cert' });
@@ -130,7 +126,7 @@ describe('OpsSuppliersController', () => {
     expect(supplierCommands.updateSupplier).toHaveBeenCalledWith('sup_1', { phone: '+63 900 111 2222' }, actor);
     expect(supplierCommands.changeSupplierTier).toHaveBeenCalledWith(
       'sup_1',
-      { tier: 'preferred', reason: 'Reliable' },
+      { tier: 'tier_2', reason: 'Reliable' },
       actor,
     );
     expect(supplierCommands.addSupplierReview).toHaveBeenCalledWith('sup_1', { rating: 5, notes: 'Excellent' }, actor);

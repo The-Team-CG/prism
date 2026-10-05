@@ -85,6 +85,12 @@ export interface PrismCoordinatorAssignmentAcknowledgment {
   createdAt: string;
 }
 
+/** Result from the Operations attendance command; `changed` suppresses duplicate LiveOps log intent. */
+export interface PrismCoordinatorAttendanceUpdateResult {
+  assignment: PrismCoordinatorAssignment;
+  changed: boolean;
+}
+
 export interface PrismCoordinatorReliabilityHistoryEntry {
   id: string;
   eventId: string | null;
@@ -160,7 +166,7 @@ export interface PrismEventOperatorDesignation {
   eventId: string;
   operator: {
     coordinatorId: string;
-    coordinatorName: string;
+    coordinatorName: string | null;
     designatedAt: string;
   } | null;
 }
@@ -248,13 +254,20 @@ export interface PrismGuestFeedback {
   submittedAt: string;
 }
 
+/** Minimal acknowledgement returned to a guest after submitting or withdrawing feedback consent. */
+export interface PrismGuestFeedbackReceipt {
+  id: string;
+  eventId: string;
+  submittedAt: string;
+}
+
 export interface PrismGuestFeedbackMedia {
   id: string;
   kind: "photo" | "video";
   originalFileName: string;
   mimeType: string;
   sizeBytes: number;
-  status: "pending_storage";
+  status: string;
   blocker: string;
 }
 

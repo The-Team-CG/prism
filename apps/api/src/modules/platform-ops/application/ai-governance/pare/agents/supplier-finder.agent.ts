@@ -1,39 +1,10 @@
-import { PrismaService } from '@prism/kernel/database';
 import type { PARECandidate, PAREContext } from '../pare.types';
+import type { PareSupplierCandidateSource } from '@prism/contexts/read-models';
 
 export class SupplierFinderAgent {
-  constructor(private readonly prisma: PrismaService) {}
-
-  async findPareSupplierCandidates(ctx: PAREContext, signal?: AbortSignal): Promise<PARECandidate[]> {
+  async findPareSupplierCandidates(ctx: PAREContext, suppliers: PareSupplierCandidateSource[], signal?: AbortSignal): Promise<PARECandidate[]> {
     throwIfAborted(signal);
-    const { withdrawnSupplier, eventId } = ctx;
-
-    let category: any;
-    let suppliers: any[] = [];
-
-    try {
-      category = await this.prisma.opsSupplierCategory.findFirst({
-        where: { name: withdrawnSupplier.category },
-      });
-      if (!category) return [];
-
-      suppliers = await this.prisma.opsSupplier.findMany({
-        where: {
-          categoryId: category.id,
-          id: { not: withdrawnSupplier.id },
-          NOT: { name: withdrawnSupplier.name },
-        },
-        include: {
-          reviews: true,
-          reliabilityNotes: true,
-          certifications: true,
-          quoteRequests: { where: { eventId } },
-          quotes: { where: { eventId } },
-        },
-      });
-    } catch {
-      return [];
-    }
+    const { withdrawnSupplier } = ctx;
 
     const candidates: PARECandidate[] = [];
     const seenNames = new Set<string>();
@@ -45,20 +16,14 @@ export class SupplierFinderAgent {
       seenNames.add(supplier.name);
 
       // Skip if already assigned to this event in another role (same category block)
-      const alreadyOnEvent = supplier.quoteRequests.some(
-        (qr: any) => qr.assignmentStatus === 'confirmed',
-      );
-      if (alreadyOnEvent) continue;
+      if (supplier.confirmedOnEvent) continue;
 
       const reliabilityScore = this.computeReliabilityScore(supplier);
       const halal = this.detectHalal(supplier);
-      const priorPmcmEvents = supplier.reviews.length;
+      const priorPmcmEvents = supplier.reviewRatings.length;
+      const quotedAmount = supplier.eventQuoteAmount ?? 0;
 
-      // Get quote for this event if exists, else 0
-      const existingQuote = supplier.quotes[0];
-      const quotedAmount = existingQuote?.amount ?? 0;
-
-      const reason = this.buildReason(supplier, reliabilityScore, halal, existingQuote);
+      const reason = this.buildReason(supplier, reliabilityScore, halal, supplier.eventQuoteAmount);
 
       candidates.push({
         supplierId: supplier.id,
@@ -82,33 +47,32 @@ export class SupplierFinderAgent {
     return candidates.slice(0, 5); // Top 5
   }
 
-  private computeReliabilityScore(supplier: any): number {
-    const reviews: any[] = supplier.reviews ?? [];
-    if (reviews.length === 0) return 0.5; // Unknown — neutral
+  private computeReliabilityScore(supplier: PareSupplierCandidateSource): number {
+    if (supplier.reviewRatings.length === 0) return 0.5; // Unknown — neutral
 
-    const avgRating = reviews.reduce((s: number, r: any) => s + r.rating, 0) / reviews.length;
+    const avgRating = supplier.reviewRatings.reduce((sum, rating) => sum + rating, 0) / supplier.reviewRatings.length;
     // Normalize 1-5 rating to 0-1 score
     const score = (avgRating - 1) / 4;
     return Math.round(score * 100) / 100;
   }
 
-  private detectHalal(supplier: any): boolean {
+  private detectHalal(supplier: PareSupplierCandidateSource): boolean {
     const text = `${supplier.serviceInclusions} ${supplier.performanceNotes}`.toLowerCase();
     return text.includes('halal');
   }
 
   private buildReason(
-    supplier: any,
+    supplier: PareSupplierCandidateSource,
     score: number,
     halal: boolean,
-    quote: any,
+    quoteAmount: number | null,
   ): string {
     const parts: string[] = [];
     parts.push(`Tier ${supplier.tier.replace('tier_', '')}`);
     parts.push(`reliability score ${score}`);
     if (halal) parts.push('halal-certified');
-    if (supplier.reviews.length > 0) parts.push(`${supplier.reviews.length} prior PMCM event(s)`);
-    if (quote) parts.push(`quote on file: ₱${quote.amount.toLocaleString()}`);
+    if (supplier.reviewRatings.length > 0) parts.push(`${supplier.reviewRatings.length} prior PMCM event(s)`);
+    if (quoteAmount !== null) parts.push(`quote on file: ₱${quoteAmount.toLocaleString()}`);
     else parts.push('no quote on file for this event');
     return parts.join(', ');
   }

@@ -22,6 +22,31 @@ export interface PrismSupplierQuote {
   updatedAt?: string;
 }
 
+export type PrismSupplierQuoteForSupplier = Omit<
+  PrismSupplierQuote,
+  "acceptableMin" | "acceptableMax" | "outsideAcceptableRange"
+>;
+
+export interface PrismSupplierSchedule {
+  id: string;
+  eventId: string;
+  requestId: string;
+  supplierName: string;
+  ingressAt: string;
+  egressAt: string;
+  location: string;
+  notes: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PrismSupplierDirectoryProfile {
+  id: string;
+  name: string;
+  email?: string | null;
+}
+
 export interface PrismSupplierQuoteRequest {
   id: string;
   eventId: string;

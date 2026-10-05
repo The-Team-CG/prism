@@ -30,7 +30,7 @@ describe('CoordinatorWorkspaceReadService', () => {
       { id: 'assignment_1', eventId: 'evt_1', status: 'acknowledged' },
       { id: 'assignment_2', eventId: 'evt_2', status: 'replaced' },
     ];
-    const findMany = vi.fn(async () => [
+    const listCoordinatorWorkspaceEvents = vi.fn(async () => [
       event('evt_1', { briefings: [{ venue: 'Updated Hall' }, { venue: 'Old Hall' }] }),
       event('evt_2', { eventDate: new Date('2026-08-01T00:00:00.000Z'), briefings: [{ venue: 'Historic Hall' }] }),
       event('evt_unassigned', { briefings: [{ venue: 'Private Venue' }] }),
@@ -42,11 +42,11 @@ describe('CoordinatorWorkspaceReadService', () => {
       mapCoordinator: vi.fn(() => ({ id: coordinator.id, name: coordinator.name })),
       mapCoordinatorAssignment: vi.fn((assignment: (typeof assignments)[number]) => assignment),
     };
-    const prisma = { opsEvent: { findMany } };
+    const eventProjections = { listCoordinatorWorkspaceEvents };
     const floorplan = { mapFloorPlanDraft: vi.fn() };
     const guests = { guestAccessCode: vi.fn(() => 'GUEST-CODE') };
     const service = new CoordinatorWorkspaceReadService(
-      prisma as never,
+      eventProjections as never,
       access as never,
       staffing as never,
       floorplan as never,
@@ -57,18 +57,7 @@ describe('CoordinatorWorkspaceReadService', () => {
 
     expect(access.requireActorRole).toHaveBeenCalledWith(actor, [OpsUserRole.Coordinator], 'coordinator workspace');
     expect(staffing.listAssignmentsForCoordinator).toHaveBeenCalledWith(coordinator.id, { includeHistorical: true });
-    expect(findMany).toHaveBeenCalledWith({
-      where: { id: { in: ['evt_1', 'evt_2'] } },
-      include: {
-        floorPlanDrafts: { orderBy: { updatedAt: 'desc' } },
-        briefings: {
-          orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
-          take: 1,
-          select: { venue: true },
-        },
-      },
-      orderBy: { eventDate: 'asc' },
-    });
+    expect(listCoordinatorWorkspaceEvents).toHaveBeenCalledWith(['evt_1', 'evt_2']);
     expect(result.events).toMatchObject([
       { id: 'evt_1', venue: 'Updated Hall' },
       { id: 'evt_2', venue: 'Historic Hall' },
