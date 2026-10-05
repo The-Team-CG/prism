@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 - Platform storage now accepts only the production-wired `billing_statement` + `event_deliverable` owner/usage pair. Unwired owner types fail before authorization, provider access, or persistence; non-billing uploads remain unavailable until their owning contexts expose capabilities.
+- Extended Operations-owned privacy redaction and inventory to guest roster identity/contact fields and guest feedback filename metadata. Stored media bytes are untouched.
 - Moved privacy redaction writes behind Lifecycle, Commercial, Operations, and Identity owner capabilities. Added the Platform-owned `privacy_legal_holds` table and migration, verified PMCM-admin placement/release with reasons, optional event scope, shared advisory locking, audit evidence, and event-audit controls. A matching active hold blocks deletion before owner writes. The PostgreSQL lock-race test remains gated for the integrated database milestone.
 - Removed 11 unreferenced API DTO files and their stale barrel/controller imports; retired the unbound, always-unavailable signed-upload shim while keeping canonical storage flows and active DTO validation.
 - Replaced production API `any` escapes with typed owner mappings and shared contracts; guest commands return serialized receipts, supplier writes use canonical Zod schemas, and unused commercial reader/DTO surfaces were removed.
