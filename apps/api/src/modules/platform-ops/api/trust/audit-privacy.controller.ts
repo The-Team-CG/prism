@@ -4,7 +4,7 @@ import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { zodBody, zodQuery } from '@prism/kernel/shared';
-import { auditLogFiltersSchema, createPrivacyRequestSchema, reviewPrivacyRequestSchema, executePrivacyRequestSchema, type AuditLogFilters, type CreatePrivacyRequestInput, type ReviewPrivacyRequestInput, type ExecutePrivacyRequestInput } from '@prism/types';
+import { auditLogFiltersSchema, createPrivacyRequestSchema, reviewPrivacyRequestSchema, executePrivacyRequestSchema, createPrivacyLegalHoldSchema, releasePrivacyLegalHoldSchema, listPrivacyLegalHoldsQuerySchema, type AuditLogFilters, type CreatePrivacyRequestInput, type ReviewPrivacyRequestInput, type ExecutePrivacyRequestInput, type CreatePrivacyLegalHoldInput, type ReleasePrivacyLegalHoldInput, type ListPrivacyLegalHoldsQuery } from '@prism/types';
 import {
   CreatePrivacyRequestDto,
   ExecutePrivacyRequestDto,
@@ -80,6 +80,22 @@ class TrustRoutePolicy {
       }
     }
     throw new ForbiddenException(`${actor.role} cannot access ${resource}`);
+  }
+
+  async requirePmcmAdmin(actor: TrustActor, resource: string) {
+    if (actor.role === OpsUserRole.PmcmAdmin) return;
+    if (actor.role !== OpsUserRole.System) return this.requireTrustOperator(actor, resource);
+    await this.auditService.audit(undefined, actor.name, `403 forbidden access: ${resource}`, {
+      actorRole: actor.role,
+      actorEmail: actor.email,
+      actionType: AuditActionType.ForbiddenAccess,
+      category: AuditCategory.Access,
+      affectedType: 'scoped_write',
+      affectedLabel: resource,
+      severity: 'warning',
+      metadata: { actorId: actor.id, role: actor.role },
+    });
+    throw new ForbiddenException('Only a PMCM administrator may manage legal holds');
   }
 }
 
@@ -190,5 +206,30 @@ export class OpsPrivacyController {
     const actor = resolveActor(verifiedActor);
     await this.policy.requireTrustOperator(actor, 'privacy request execution');
     return this.privacyOperationsService.executeRequest(requestId, dto, actor);
+  }
+
+  @Post('legal-holds')
+  @UseGuards(EventSessionGuard)
+  @HttpCode(HttpStatus.CREATED)
+  async createLegalHold(@Body(zodBody(createPrivacyLegalHoldSchema)) dto: CreatePrivacyLegalHoldInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = resolveActor(verifiedActor);
+    await this.policy.requirePmcmAdmin(actor, 'privacy legal hold placement');
+    return this.privacyOperationsService.createLegalHold(dto, actor);
+  }
+
+  @Get('legal-holds')
+  @UseGuards(EventSessionGuard)
+  async legalHolds(@Query(zodQuery(listPrivacyLegalHoldsQuerySchema)) query: ListPrivacyLegalHoldsQuery, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = resolveActor(verifiedActor);
+    await this.policy.requirePmcmAdmin(actor, 'privacy legal hold inventory');
+    return this.privacyOperationsService.listLegalHolds(query);
+  }
+
+  @Post('legal-holds/:holdId/release')
+  @UseGuards(EventSessionGuard)
+  async releaseLegalHold(@Param('holdId') holdId: string, @Body(zodBody(releasePrivacyLegalHoldSchema)) dto: ReleasePrivacyLegalHoldInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = resolveActor(verifiedActor);
+    await this.policy.requirePmcmAdmin(actor, 'privacy legal hold release');
+    return this.privacyOperationsService.releaseLegalHold(holdId, dto, actor);
   }
 }
