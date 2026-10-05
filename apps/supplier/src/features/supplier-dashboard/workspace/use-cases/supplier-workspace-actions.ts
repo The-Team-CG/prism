@@ -64,8 +64,9 @@ export async function saveSupplierContract(
   session: PrismAuthenticatedSession,
   request: PrismSupplierQuoteRequest,
   fileName: string,
+  idempotencyKey: string,
 ): Promise<{ notice: string }> {
-  await supplierWorkspaceRepository.uploadContract(session, request.id, fileName);
+  await supplierWorkspaceRepository.uploadContract(session, request.id, fileName, idempotencyKey);
   return { notice: "Contract metadata saved." };
 }
 
