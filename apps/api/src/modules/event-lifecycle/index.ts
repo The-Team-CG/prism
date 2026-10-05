@@ -39,3 +39,6 @@ export * from './contracts/signed-upload-url-factory.port';
 export * from './application/files/file-requirements-matrix.service';
 export * from './api/decisions/event-decision.controller';
 export * from './application/decisions/event-decision.service';
+export * from './contracts/client-floorplan-access.port';
+export * from './application/client-visibility/event-client-floorplan-access.service';
+export * from './api/client-visibility/event-client-floorplan-access.controller';
