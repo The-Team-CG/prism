@@ -48,6 +48,14 @@ function expectedHash(row: TestAuditRow) {
   })).digest('hex');
 }
 
+function postgresJsonbRoundTrip(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(postgresJsonbRoundTrip);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, entry]) => [key, postgresJsonbRoundTrip(entry)]));
+}
+
 function auditRow(overrides: Partial<TestAuditRow> = {}): TestAuditRow {
   const row: TestAuditRow = {
     id: `aud_${Math.random()}`,
@@ -153,6 +161,43 @@ describe('AuditService', () => {
     expect(fullHistoryReads).toBe(1);
     expect(created[1].previousHash).toBe(created[0].immutableHash);
     expect(lock).toMatchObject({ headId: created[1].id, headHash: created[1].immutableHash });
+  });
+
+  it('keeps new audit hashes valid after PostgreSQL JSONB reorders nested metadata keys', async () => {
+    const logs: any[] = [];
+    const created: any[] = [];
+    const lock = { id: 'global', revision: 0, headId: null as string | null, headHash: null as string | null };
+    const prisma = {
+      $transaction: async (callback: (tx: unknown) => unknown): Promise<unknown> => callback(prisma),
+      opsAuditChainLock: {
+        update: async ({ data }: { data: any }) => {
+          if (data.revision?.increment) lock.revision += data.revision.increment;
+          if (data.headId !== undefined) lock.headId = data.headId;
+          if (data.headHash !== undefined) lock.headHash = data.headHash;
+          return { ...lock };
+        },
+      },
+      opsAuditLog: {
+        findMany: async () => [...logs],
+        findFirst: async ({ where }: { where: any }) => logs.find((log) => log.createdAt >= where.createdAt.gte && log.id !== where.id.not) ?? null,
+        findUnique: async ({ where }: { where: { id: string } }) => logs.find((log) => log.id === where.id) ?? null,
+        create: async ({ data }: { data: any }) => {
+          const persisted = { ...data, metadata: postgresJsonbRoundTrip(data.metadata) };
+          created.push(persisted);
+          logs.push(persisted);
+          return persisted;
+        },
+      },
+    };
+    const service = new AuditService(prisma as never);
+
+    await service.audit(undefined, 'PMCM Admin', 'First JSONB-backed append', {
+      metadata: { zLast: { yNested: 2, aNested: 1 }, aFirst: true },
+    });
+    await service.audit(undefined, 'PMCM Admin', 'Second JSONB-backed append');
+
+    expect(created[0].metadata).toEqual({ aFirst: true, zLast: { aNested: 1, yNested: 2 } });
+    expect(created[1].previousHash).toBe(created[0].immutableHash);
   });
 
   it('revalidates and reconciles an untracked tail left by an older writer', async () => {
