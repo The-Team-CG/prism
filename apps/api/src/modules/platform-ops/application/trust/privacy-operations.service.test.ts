@@ -266,6 +266,10 @@ describe('PrivacyOperationsService', () => {
     // The root client deliberately has no models: execution must use the transaction client.
     const prisma = { $transaction: vi.fn(async (callback: (value: typeof tx) => Promise<unknown>) => callback(tx)) };
     const auditService = { audit: vi.fn(async () => undefined) };
+    const lifecyclePrivacy = new LifecyclePrivacyRedactorService();
+    const commercialPrivacy = new CommercialPrivacyRedactorService();
+    const operationsPrivacy = new OperationsPrivacyRedactorService();
+    const identityPrivacy = new IdentityPrivacyRedactorService();
     const service = new PrivacyOperationsService(
       prisma as never,
       auditService as never,
@@ -273,13 +277,13 @@ describe('PrivacyOperationsService', () => {
         findEventReference: vi.fn(async (id: string): Promise<{ id: string } | null> => ({ id })),
         findPrivacyInventory: vi.fn(async (): Promise<PlatformPrivacyInventory> => ({ events: [], approvalRequests: [] })),
       } as never,
-      new LifecyclePrivacyRedactorService(),
-      new CommercialPrivacyRedactorService(),
-      new OperationsPrivacyRedactorService(),
-      new IdentityPrivacyRedactorService(),
+      lifecyclePrivacy,
+      commercialPrivacy,
+      operationsPrivacy,
+      identityPrivacy,
     );
     const execute = () => service.executeRequest(request.id, {}, verifiedActor);
-    return { request, tx, rootPrisma: prisma, auditService, advisoryLockKeys, service, execute };
+    return { request, tx, rootPrisma: prisma, auditService, advisoryLockKeys, service, execute, lifecyclePrivacy, commercialPrivacy, operationsPrivacy, identityPrivacy };
   }
 
   it('places and releases a normalized hold with one shared lock order and audit receipts', async () => {
@@ -368,6 +372,28 @@ describe('PrivacyOperationsService', () => {
         }),
       }),
       expect.objectContaining({ prisma: tx, correlationId: 'privacy:priv_1:owner:event-lifecycle' }),
+    );
+  });
+
+  it('delegates client redaction writes through owner capabilities in the execution transaction', async () => {
+    const { execute, tx, lifecyclePrivacy, commercialPrivacy, identityPrivacy } = executionFixture({ subjectEmail: 'ANA@AYALA.TEST', eventId: null });
+    const lifecycle = vi.spyOn(lifecyclePrivacy, 'redactClient');
+    const commercial = vi.spyOn(commercialPrivacy, 'redactClientBilling');
+    const identity = vi.spyOn(identityPrivacy, 'redactApprovalIdentity');
+
+    await execute();
+
+    expect(lifecycle).toHaveBeenCalledWith(
+      { email: 'ana@ayala.test', redactedEmail: 'redacted+privacy_priv_1@privacy.local', eventId: null },
+      tx,
+    );
+    expect(commercial).toHaveBeenCalledWith(
+      { eventIds: ['evt_linked'], redactedEmail: 'redacted+privacy_priv_1@privacy.local' },
+      tx,
+    );
+    expect(identity).toHaveBeenCalledWith(
+      { email: 'ana@ayala.test', redactedEmail: 'redacted+privacy_priv_1@privacy.local', role: OpsUserRole.Client },
+      tx,
     );
   });
 
