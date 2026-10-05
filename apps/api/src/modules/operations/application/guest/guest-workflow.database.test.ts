@@ -14,7 +14,6 @@ describe.skipIf(!databaseUrl)('guest feedback PostgreSQL transaction acceptance'
   let prisma: PrismaClient;
   let pool: Pool;
   let service: GuestWorkflowService;
-  const inquiryIds: string[] = [];
   const id = () => `w23_feedback_${randomUUID()}`;
 
   beforeEach(() => {
@@ -35,17 +34,15 @@ describe.skipIf(!databaseUrl)('guest feedback PostgreSQL transaction acceptance'
     service = new GuestWorkflowService(prisma as never, auditWriter, new WorkflowCommandService(), new DocumentVaultService(), { findAssignmentForEventActor: vi.fn() } as never);
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     vi.useRealTimers();
-    if (prisma) await prisma.opsInquiry.deleteMany({ where: { id: { in: inquiryIds } } });
-    inquiryIds.length = 0;
+    // Keep event and inquiry parents because the current cross-schema event cascade also deletes audit evidence.
   });
 
   afterAll(async () => { await prisma?.$disconnect(); await pool?.end(); });
 
   it('commits feedback, moderation decision, and audit atomically', async () => {
     const inquiryId = id();
-    inquiryIds.push(inquiryId);
     const event = await prisma.opsEvent.create({ data: {
       id: id(), clientName: 'W23 transaction client', eventName: 'W23 transaction event',
       eventDate: new Date('2026-09-07T00:00:00Z'), actualEndedAt: new Date('2026-09-07T12:00:00Z'),
