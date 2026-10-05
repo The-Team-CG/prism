@@ -37,11 +37,17 @@ describe('PlansController auth boundary', () => {
     const { controller, plansService, eventAccessPolicyService, resolvedActor } = createController();
 
     await expect(controller.getOne('plan_1', verifiedPmcmActor as any)).resolves.toEqual({ id: 'plan_1' });
-    await expect(controller.update('plan_1', { objects: [] }, verifiedPmcmActor as any)).resolves.toEqual({ id: 'plan_1', updated: true });
+    await expect(
+      controller.update('plan_1', { expectedUpdatedAt: '2026-05-05T00:00:00.000Z', objects: [] }, verifiedPmcmActor as any),
+    ).resolves.toEqual({ id: 'plan_1', updated: true });
 
     expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, verifiedPmcmActor);
     expect(plansService.getPlan).toHaveBeenCalledWith('plan_1', resolvedActor);
-    expect(plansService.updatePlan).toHaveBeenCalledWith('plan_1', { objects: [] }, resolvedActor);
+    expect(plansService.updatePlan).toHaveBeenCalledWith(
+      'plan_1',
+      { expectedUpdatedAt: '2026-05-05T00:00:00.000Z', objects: [] },
+      resolvedActor,
+    );
   });
 
   it('uses the verified actor for plan exports', async () => {

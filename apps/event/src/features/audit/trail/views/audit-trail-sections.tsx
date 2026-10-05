@@ -18,7 +18,7 @@ import {
   UserRound,
 } from "lucide-react";
 
-import type { PrismAuditLog, PrismEvent, PrismPrivacyRequest, PrismUser, PrismLoginHistory, PrismSecurityAlert } from "@prism/types";
+import type { PrismAuditLog, PrismEvent, PrismPrivacyLegalHold, PrismPrivacyRequest, PrismUser, PrismLoginHistory, PrismSecurityAlert } from "@prism/types";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -325,6 +325,7 @@ export function PrivacyOperationsPanel({ vm }: { vm: AuditVm }) {
           {vm.privacyRequests.slice(0, 5).map((request) => (
             <PrivacyRequestCard key={request.id} request={request} busy={vm.busy} onReview={vm.reviewPrivacyRequest} onExecute={vm.executePrivacyRequest} />
           ))}
+          {vm.isPmcmAdmin ? <PrivacyLegalHoldControls vm={vm} /> : null}
         </div>
         <div className="space-y-2">
           {vm.privacyPolicies.slice(0, 7).map((policy) => (
@@ -336,6 +337,115 @@ export function PrivacyOperationsPanel({ vm }: { vm: AuditVm }) {
         </div>
       </div>
     </Panel>
+  );
+}
+
+function PrivacyLegalHoldControls({ vm }: { vm: AuditVm }) {
+  const form = vm.legalHoldForm;
+  const eventScope = form.eventScope === "event";
+  const identity = form.subjectType === "guest" ? form.subjectName : form.subjectEmail;
+  return (
+    <section className="space-y-3 rounded-md border border-border bg-background p-3" aria-labelledby="privacy-legal-holds-title">
+      <div>
+        <h3 id="privacy-legal-holds-title" className="font-black text-foreground">Legal holds</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Active holds stop matching deletion requests. Guest identity uses the full name; an all-events hold applies to matching names across events.
+        </p>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <select
+          aria-label="Legal hold subject type"
+          value={form.subjectType}
+          onChange={(event) => vm.setLegalHoldForm((current) => ({ ...current, subjectType: event.target.value as typeof current.subjectType }))}
+          className="h-10 rounded-md border border-border bg-white px-3 text-sm"
+        >
+          <option value="client">Client</option>
+          <option value="supplier">Supplier</option>
+          <option value="guest">Guest</option>
+        </select>
+        <select
+          aria-label="Legal hold event scope"
+          value={form.eventScope}
+          onChange={(event) => vm.setLegalHoldForm((current) => ({ ...current, eventScope: event.target.value as typeof current.eventScope }))}
+          className="h-10 rounded-md border border-border bg-white px-3 text-sm"
+        >
+          <option value="subject">All events for this subject</option>
+          <option value="event" disabled={vm.eventId === "all"}>Selected event only</option>
+        </select>
+        {form.subjectType === "guest" ? (
+          <Input
+            aria-label="Guest name for legal hold"
+            value={form.subjectName ?? ""}
+            onChange={(event) => vm.setLegalHoldForm((current) => ({ ...current, subjectName: event.target.value }))}
+            className="h-10 bg-white sm:col-span-2"
+            placeholder="Full guest name"
+          />
+        ) : (
+          <Input
+            aria-label="Email identity for legal hold"
+            value={form.subjectEmail ?? ""}
+            onChange={(event) => vm.setLegalHoldForm((current) => ({ ...current, subjectEmail: event.target.value }))}
+            className="h-10 bg-white sm:col-span-2"
+            placeholder="Subject email"
+          />
+        )}
+        <Input
+          aria-label="Legal hold reason"
+          value={form.reason}
+          onChange={(event) => vm.setLegalHoldForm((current) => ({ ...current, reason: event.target.value }))}
+          className="h-10 bg-white sm:col-span-2"
+          placeholder="Reason for placing the hold"
+        />
+        <Button
+          type="button"
+          disabled={vm.busy || !(identity ?? "").trim() || !form.reason.trim() || (eventScope && vm.eventId === "all")}
+          onClick={vm.placePrivacyLegalHold}
+          className="h-10 rounded-md font-black sm:col-span-2"
+        >
+          Place legal hold
+        </Button>
+      </div>
+      {vm.privacyLegalHolds.length === 0 ? <p className="text-sm text-muted-foreground">No active legal holds.</p> : null}
+      <div className="space-y-2">
+        {vm.privacyLegalHolds.map((hold) => (
+          <PrivacyLegalHoldCard key={hold.id} hold={hold} vm={vm} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PrivacyLegalHoldCard({ hold, vm }: { hold: PrismPrivacyLegalHold; vm: AuditVm }) {
+  const eventName = hold.eventId
+    ? vm.events.find((event) => event.id === hold.eventId)?.eventName ?? hold.eventId
+    : "All events";
+  const releaseReason = vm.legalHoldReleaseReasons[hold.id] ?? "";
+  return (
+    <div className="rounded-md border border-border bg-white p-3 text-sm">
+      <div>
+        <p className="font-black capitalize">{hold.subjectType} · {hold.subjectEmail || hold.subjectName}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{eventName} · Placed by {hold.placedByName} · {compactTimestamp(hold.placedAt)}</p>
+        <p className="mt-2 text-xs text-muted-foreground">{hold.reason}</p>
+      </div>
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <Input
+          aria-label={`Release reason for ${hold.subjectEmail || hold.subjectName}`}
+          value={releaseReason}
+          onChange={(event) => vm.setLegalHoldReleaseReason(hold.id, event.target.value)}
+          className="h-9 bg-white"
+          placeholder="Reason for release"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={vm.busy || !releaseReason.trim()}
+          onClick={() => vm.releasePrivacyLegalHold(hold.id)}
+        >
+          Release hold
+        </Button>
+      </div>
+    </div>
   );
 }
 

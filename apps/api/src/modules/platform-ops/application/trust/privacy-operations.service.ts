@@ -1,7 +1,13 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, BadRequestException, ConflictException, ForbiddenException, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
+import { COMMERCIAL_PRIVACY_REDACTOR, type CommercialPrivacyRedactor } from '@prism/contexts/commercial';
+import { LIFECYCLE_PRIVACY_REDACTOR, type LifecyclePrivacyRedactor } from '@prism/contexts/event-lifecycle';
+import { IDENTITY_PRIVACY_REDACTOR, type IdentityPrivacyRedactor } from '@prism/contexts/identity-access';
+import { OPERATIONS_PRIVACY_REDACTOR, type OperationsPrivacyRedactor } from '@prism/contexts/operations';
+import { PLATFORM_REFERENCE_READ_MODEL, type PlatformReferenceReadModel } from '@prism/contexts/read-models';
+import type { CreatePrivacyLegalHoldInput, ListPrivacyLegalHoldsQuery, PrismPrivacyLegalHold, ReleasePrivacyLegalHoldInput } from '@prism/types';
 import { randomUUID } from 'node:crypto';
 import {
   AuditActionType,
@@ -12,6 +18,14 @@ import {
   isOpsConstantValue,
 } from '@prism/kernel/event-core';
 import { AuditService } from './audit.service';
+import {
+  activeLegalHoldWhere,
+  exactActiveLegalHoldWhere,
+  normalizePrivacyLegalHoldScope,
+  privacyLegalHoldLockKeys,
+  privacyRequestLegalHoldScope,
+  type PrivacyLegalHoldScope,
+} from './privacy-legal-hold.policy';
 import { requireVerifiedTrustActor } from './verified-trust-actor';
 
 type CreatePrivacyRequestInput = {
@@ -61,6 +75,30 @@ type OpsPrivacyRequestRecord = {
   updatedAt: Date;
 };
 
+type OpsPrivacyLegalHoldRecord = {
+  id: string;
+  subjectType: string;
+  subjectEmail: string;
+  subjectName: string;
+  eventId: string | null;
+  reason: string;
+  placedById: string;
+  placedByName: string;
+  placedAt: Date;
+  releaseReason: string | null;
+  releasedById: string | null;
+  releasedByName: string | null;
+  releasedAt: Date | null;
+  createdAt: Date;
+};
+
+type PrivacyOwnerReceipt = {
+  owner: 'event-lifecycle' | 'commercial' | 'operations' | 'identity-access';
+  outcome: 'completed' | 'no_matches';
+  surfaces: string[];
+  touchedRecords: number;
+};
+
 function timestamp(value?: Date | null) {
   return value ? value.toISOString() : null;
 }
@@ -70,49 +108,29 @@ export class PrivacyOperationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    @Optional() @Inject(PLATFORM_REFERENCE_READ_MODEL)
+    private readonly platformReferences: PlatformReferenceReadModel | undefined,
+    @Inject(LIFECYCLE_PRIVACY_REDACTOR)
+    private readonly lifecyclePrivacy: LifecyclePrivacyRedactor,
+    @Inject(COMMERCIAL_PRIVACY_REDACTOR)
+    private readonly commercialPrivacy: CommercialPrivacyRedactor,
+    @Inject(OPERATIONS_PRIVACY_REDACTOR)
+    private readonly operationsPrivacy: OperationsPrivacyRedactor,
+    @Inject(IDENTITY_PRIVACY_REDACTOR)
+    private readonly identityPrivacy: IdentityPrivacyRedactor,
   ) {}
 
   async getInventory(input: PrivacyInventoryInput = {}) {
-    // QUERY_AUDIT_ALLOW_UNBOUNDED: the system-wide inventory must include every event when no event filter is supplied.
-    const events = await this.prisma.opsEvent.findMany({
-      where: input.eventId ? { id: input.eventId } : {},
-      select: { id: true, eventName: true, clientName: true, inquiryId: true, eventDate: true },
-      orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
-    });
-    const eventIds = events.map((event) => event.id);
-    const inquiryIds = Array.from(new Set(events.map((event) => event.inquiryId)));
-    // QUERY_AUDIT_ALLOW_UNBOUNDED: this global surface reports consent totals across all approval requests, using consent fields only.
-    const approvalRequestsPromise = this.prisma.opsApprovalRequest.findMany({
-      select: { privacyConsentAccepted: true, privacyNoticeVersion: true, marketingConsentAccepted: true },
-    });
-    const [inquiries, guestCheckIns, guestFeedback, approvalRequests] = await Promise.all([
-      inquiryIds.length
-        ? this.prisma.opsInquiry.findMany({
-            where: { id: { in: inquiryIds } },
-            select: { id: true, privacyConsentAccepted: true, privacyNoticeVersion: true, marketingConsentAccepted: true },
-          })
-        : Promise.resolve([]),
-      this.prisma.opsGuestCheckIn.findMany({
-        where: { eventId: { in: eventIds } },
-        select: { eventId: true, privacyConsentAccepted: true, privacyNoticeVersion: true, marketingConsentAccepted: true },
-      }),
-      this.prisma.opsGuestFeedback.findMany({
-        where: { eventId: { in: eventIds } },
-        select: { eventId: true, privacyConsentAccepted: true, privacyNoticeVersion: true, marketingConsentAccepted: true },
-      }),
-      approvalRequestsPromise,
-    ]);
-
-    const eventsInventory = events.map((event) => {
-      const inquiry = inquiries.find((item) => item.id === event.inquiryId);
-      const checkIns = guestCheckIns.filter((item) => item.eventId === event.id);
-      const feedback = guestFeedback.filter((item) => item.eventId === event.id);
+    const source = await this.requirePlatformReferences().findPrivacyInventory(input);
+    const eventsInventory = source.events.map((event) => {
       const surfaces = [
-        this.privacySurface('inquiry', inquiry ? 1 : 0, ['client_contact', 'event_details', 'consent'], [
-          inquiry,
+        this.privacySurface('inquiry', event.inquiry ? 1 : 0, ['client_contact', 'event_details', 'consent'], [
+          event.inquiry,
         ]),
-        this.privacySurface('guest_check_in', checkIns.length, ['guest_name', 'attendance', 'consent'], checkIns),
-        this.privacySurface('guest_feedback', feedback.length, ['guest_name', 'rating', 'comment', 'media_metadata', 'consent'], feedback),
+        this.privacySurface('guest_check_in', event.guestCheckIns.length, ['guest_name', 'attendance', 'consent'], event.guestCheckIns),
+        this.privacySurface('guest_roster_entry', event.guestRosterEntryCount, ['guest_name', 'email', 'phone'], []),
+        this.privacySurface('guest_feedback', event.guestFeedback.length, ['guest_name', 'rating', 'comment', 'media_metadata', 'consent'], event.guestFeedback),
+        this.privacySurface('guest_feedback_media_metadata', event.guestFeedbackMedia.length, ['file_name_metadata', 'consent'], event.guestFeedbackMedia),
       ];
       return {
         eventId: event.id,
@@ -129,7 +147,7 @@ export class PrivacyOperationsService {
       generatedAt: new Date().toISOString(),
       events: eventsInventory,
       globalSurfaces: [
-        this.privacySurface('account_approval_request', approvalRequests.length, ['email', 'role', 'organization', 'consent'], approvalRequests),
+        this.privacySurface('account_approval_request', source.approvalRequests.length, ['email', 'role', 'organization', 'consent'], source.approvalRequests),
       ],
       retentionNotes: [
         'Personal-data records remain with the event until the archive retention policy is finalized.',
@@ -183,6 +201,12 @@ export class PrivacyOperationsService {
         retentionPeriod: 'Pending PMCM policy decision',
         deletionBehavior: 'Never hard delete or mutate in normal workflows; append redaction events instead.',
       },
+      {
+        surface: 'legal_hold',
+        dataCategories: ['subject_identity', 'hold_reason', 'placement_and_release_actor'],
+        retentionPeriod: 'No automatic expiry; retain while active and until PMCM defines post-release retention.',
+        deletionBehavior: 'Only a verified PMCM administrator can release a hold; active holds block matching deletion execution.',
+      },
     ];
   }
 
@@ -199,6 +223,103 @@ export class PrivacyOperationsService {
     return requests.map((request: OpsPrivacyRequestRecord) => this.mapRequest(request));
   }
 
+  async listLegalHolds(input: ListPrivacyLegalHoldsQuery = {}) {
+    const holds = await this.prisma.opsPrivacyLegalHold.findMany({
+      where: {
+        releasedAt: null,
+        ...(input.eventId ? { OR: [{ eventId: null }, { eventId: input.eventId }] } : {}),
+      },
+      orderBy: { placedAt: 'desc' },
+    });
+    return holds.map((hold) => this.mapLegalHold(hold));
+  }
+
+  async createLegalHold(input: CreatePrivacyLegalHoldInput, actor: ResolvedEventOpsActor) {
+    const verifiedActor = this.requireLegalHoldAdmin(actor, 'placing a legal hold');
+    const scope = normalizePrivacyLegalHoldScope(input);
+    if (!['client', 'supplier', 'guest'].includes(scope.subjectType) ||
+      (scope.subjectType === 'guest' ? !scope.subjectName : !scope.subjectEmail)) {
+      throw new BadRequestException('A legal hold requires a supported subject identity');
+    }
+    if (scope.eventId && !(await this.requirePlatformReferences().findEventReference(scope.eventId))) {
+      throw new NotFoundException('Event not found');
+    }
+
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await this.lockPrivacySubject(tx, scope);
+      const active = await tx.opsPrivacyLegalHold.findFirst({ where: exactActiveLegalHoldWhere(scope) });
+      if (active) return this.mapLegalHold(active);
+
+      const hold = await tx.opsPrivacyLegalHold.create({
+        data: {
+          id: `hold_${randomUUID()}`,
+          ...scope,
+          reason: input.reason.trim(),
+          placedById: verifiedActor.id,
+          placedByName: verifiedActor.name,
+          placedAt: new Date(),
+        },
+      });
+      await this.auditService.audit(scope.eventId ?? undefined, verifiedActor.name, 'Placed privacy legal hold', {
+        actorRole: verifiedActor.role,
+        actorEmail: verifiedActor.email,
+        actionType: AuditActionType.Create,
+        category: AuditCategory.Access,
+        affectedType: 'privacy_legal_hold',
+        affectedId: hold.id,
+        affectedLabel: 'Privacy legal hold',
+        metadata: {
+          actorId: verifiedActor.id,
+          holdId: hold.id,
+          subjectType: scope.subjectType,
+          eventId: scope.eventId,
+          reason: input.reason.trim(),
+        },
+      }, { prisma: tx, correlationId: `privacy-legal-hold:${hold.id}:place`, actorId: verifiedActor.id });
+      return this.mapLegalHold(hold);
+    });
+  }
+
+  async releaseLegalHold(holdId: string, input: ReleasePrivacyLegalHoldInput, actor: ResolvedEventOpsActor) {
+    const verifiedActor = this.requireLegalHoldAdmin(actor, 'releasing a legal hold');
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const existing = await tx.opsPrivacyLegalHold.findUnique({ where: { id: holdId } });
+      if (!existing) throw new NotFoundException('Privacy legal hold not found');
+      const hold = existing as OpsPrivacyLegalHoldRecord;
+      await this.lockPrivacySubject(tx, hold);
+      const releasedAt = new Date();
+      const updated = await tx.opsPrivacyLegalHold.updateMany({
+        where: { id: holdId, releasedAt: null },
+        data: {
+          releaseReason: input.reason.trim(),
+          releasedById: verifiedActor.id,
+          releasedByName: verifiedActor.name,
+          releasedAt,
+        },
+      });
+      if (updated.count !== 1) throw new ConflictException('Privacy legal hold was already released');
+
+      const saved = await tx.opsPrivacyLegalHold.findUniqueOrThrow({ where: { id: holdId } });
+      await this.auditService.audit(hold.eventId ?? undefined, verifiedActor.name, 'Released privacy legal hold', {
+        actorRole: verifiedActor.role,
+        actorEmail: verifiedActor.email,
+        actionType: AuditActionType.Update,
+        category: AuditCategory.Access,
+        affectedType: 'privacy_legal_hold',
+        affectedId: hold.id,
+        affectedLabel: 'Privacy legal hold',
+        metadata: {
+          actorId: verifiedActor.id,
+          holdId: hold.id,
+          subjectType: hold.subjectType,
+          eventId: hold.eventId,
+          reason: input.reason.trim(),
+        },
+      }, { prisma: tx, correlationId: `privacy-legal-hold:${hold.id}:release`, actorId: verifiedActor.id });
+      return this.mapLegalHold(saved);
+    });
+  }
+
   async createRequest(input: CreatePrivacyRequestInput, actor: ResolvedEventOpsActor) {
     const verifiedActor = requireVerifiedTrustActor(actor, 'this privacy action');
     this.assertRequestType(input.requestType);
@@ -211,6 +332,9 @@ export class PrivacyOperationsService {
     }
     if (!input.subjectEmail && !input.subjectName) {
       throw new BadRequestException('Privacy request requires a subject email or subject name');
+    }
+    if (input.eventId && !(await this.requirePlatformReferences().findEventReference(input.eventId))) {
+      throw new NotFoundException('Event not found');
     }
 
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -298,10 +422,41 @@ export class PrivacyOperationsService {
         throw new BadRequestException('Access and correction execution is not supported yet');
       }
       this.assertDeletionIdentity(request);
+      const subjectScope = privacyRequestLegalHoldScope(request);
+      await this.lockPrivacySubject(tx, subjectScope);
+      const activeHold = await tx.opsPrivacyLegalHold.findFirst({
+        where: activeLegalHoldWhere(subjectScope),
+        select: { id: true },
+      });
+      if (activeHold) {
+        throw new BadRequestException('An active legal hold prevents this privacy execution; contact a PMCM administrator');
+      }
 
       const redaction = await this.softRedactSubject(request, tx);
       if (!redaction.touchedRecords) {
         throw new BadRequestException('No supported records matched this privacy request; execution remains pending');
+      }
+      for (const receipt of redaction.ownerReceipts) {
+        await this.auditService.audit(
+          request.eventId ?? undefined,
+          verifiedActor.name,
+          `Privacy redaction receipt: ${receipt.owner}`,
+          {
+            actorRole: verifiedActor.role,
+            actorEmail: verifiedActor.email,
+            actionType: AuditActionType.Update,
+            category: AuditCategory.Access,
+            affectedType: 'privacy_owner_redaction_receipt',
+            affectedId: `${request.id}:${receipt.owner}`,
+            affectedLabel: receipt.owner,
+            metadata: { actorId: verifiedActor.id, requestId: request.id, ...receipt },
+          },
+          {
+            prisma: tx,
+            correlationId: `privacy:${request.id}:owner:${receipt.owner}`,
+            actorId: verifiedActor.id,
+          },
+        );
       }
       await this.auditService.audit(request.eventId ?? undefined, verifiedActor.name, 'Soft redaction summary for privacy request', {
         actorRole: verifiedActor.role,
@@ -345,6 +500,11 @@ export class PrivacyOperationsService {
     };
   }
 
+  private requirePlatformReferences() {
+    if (!this.platformReferences) throw new ServiceUnavailableException('Platform reference read model is unavailable');
+    return this.platformReferences;
+  }
+
   private assertRequestType(requestType: string) {
     if (!isOpsConstantValue(PrivacyRequestType, requestType)) {
       throw new BadRequestException('Unsupported privacy request type');
@@ -357,10 +517,9 @@ export class PrivacyOperationsService {
       return { ...await this.redactNameSurfaces(request, request.subjectName, prisma), redactedEmail: null };
     }
     const byEmail = request.subjectEmail.trim().toLowerCase();
-    const account = await prisma.opsUser.findFirst({
-      where: { email: { equals: byEmail, mode: 'insensitive' } }, select: { id: true },
-    });
-    if (account) throw new BadRequestException('This identity has an account; account deletion is not supported yet');
+    if (await this.identityPrivacy.hasAccount(byEmail, prisma)) {
+      throw new BadRequestException('This identity has an account; account deletion is not supported yet');
+    }
     const result = request.subjectType === 'client'
       ? await this.redactClientSurfaces(request, byEmail, redactedEmail, prisma)
       : await this.redactSupplierSurfaces(byEmail, redactedEmail, prisma);
@@ -382,123 +541,92 @@ export class PrivacyOperationsService {
     }
   }
 
+  private requireLegalHoldAdmin(actor: ResolvedEventOpsActor, action: string) {
+    const verifiedActor = requireVerifiedTrustActor(actor, action);
+    if (verifiedActor.role !== OpsUserRole.PmcmAdmin) {
+      throw new ForbiddenException('Only a verified PMCM administrator may manage legal holds');
+    }
+    return verifiedActor;
+  }
+
+  private async lockPrivacySubject(prisma: Prisma.TransactionClient, scope: PrivacyLegalHoldScope) {
+    for (const lockKey of privacyLegalHoldLockKeys(scope)) {
+      await prisma.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`; // QUERY_AUDIT_RAW_SQL: acquire normalized subject then optional event locks in the same order for every hold operation.
+    }
+  }
+
   private recordRedaction(surfaces: string[], surface: string, count: number) {
     if (count) surfaces.push(surface);
     return count;
   }
 
   private async redactClientSurfaces(request: OpsPrivacyRequestRecord, byEmail: string, redactedEmail: string, prisma: Prisma.TransactionClient) {
-    const surfaces: string[] = [];
-    let touchedRecords = 0;
-    // Capture links before redacting either email column, including pre-normalization records.
-    const identities = await prisma.opsInquiry.findMany({
-      where: request.eventId
-        ? {
-            OR: [
-              { email: { equals: byEmail, mode: 'insensitive' } },
-              { normalizedEmail: byEmail },
-            ],
-            events: { some: { id: request.eventId } },
-          }
-        : {
-            OR: [
-              { email: { equals: byEmail, mode: 'insensitive' } },
-              { normalizedEmail: byEmail },
-            ],
-          },
-      select: { id: true },
-    });
-    const inquiryIds = identities.map((inquiry) => inquiry.id);
-    const inquiries = await prisma.opsInquiry.updateMany({
-      where: { id: { in: inquiryIds } },
-      data: {
-        clientName: 'Redacted data subject',
-        companyName: '',
-        email: redactedEmail,
-        normalizedEmail: redactedEmail,
-        referralDetails: '',
-        message: '[redacted by privacy request]',
-        loggedByName: null,
-        previousDeclineReason: null,
-        declineReason: null,
-      },
-    });
-    touchedRecords += this.recordRedaction(surfaces, 'inquiry', inquiries.count);
-
-    const linkedEvents = await prisma.opsEvent.updateMany({
-      where: { inquiryId: { in: inquiryIds } },
-      data: { clientName: 'Redacted data subject' },
-    });
-    touchedRecords += this.recordRedaction(surfaces, 'event_client_copy', linkedEvents.count);
-
-    const billing = await prisma.opsBillingStatement.updateMany({
-      where: { event: { inquiryId: { in: inquiryIds } } },
-      data: { clientName: 'Redacted data subject', clientContact: redactedEmail },
-    });
-    touchedRecords += this.recordRedaction(surfaces, 'billing_client_copy', billing.count);
-    const approvals = await this.redactApprovalIdentity(byEmail, redactedEmail, OpsUserRole.Client, prisma);
-    touchedRecords += this.recordRedaction(surfaces, 'approval_request', approvals.count);
-    return { surfaces, touchedRecords };
+    // The inquiry owner captures matching IDs before replacing either email column.
+    const lifecycle = await this.lifecyclePrivacy.redactClient(
+      { email: byEmail, redactedEmail, eventId: request.eventId },
+      prisma,
+    );
+    const commercial = await this.commercialPrivacy.redactClientBilling(
+      { eventIds: lifecycle.eventIds, redactedEmail },
+      prisma,
+    );
+    const approvals = await this.identityPrivacy.redactApprovalIdentity(
+      { email: byEmail, redactedEmail, role: OpsUserRole.Client },
+      prisma,
+    );
+    const surfaces = [...lifecycle.surfaces, ...commercial.surfaces];
+    this.recordRedaction(surfaces, 'approval_request', approvals.count);
+    return {
+      surfaces,
+      touchedRecords: lifecycle.touchedRecords + commercial.touchedRecords + approvals.count,
+      ownerReceipts: [
+        this.ownerReceipt('event-lifecycle', lifecycle),
+        this.ownerReceipt('commercial', commercial),
+        this.ownerReceipt('identity-access', {
+          surfaces: approvals.count ? ['approval_request'] : [],
+          touchedRecords: approvals.count,
+        }),
+      ],
+    };
   }
 
   private async redactSupplierSurfaces(byEmail: string, redactedEmail: string, prisma: Prisma.TransactionClient) {
-    const surfaces: string[] = [];
-    let touchedRecords = 0;
-    const suppliers = await prisma.opsSupplier.updateMany({
-      where: { email: { equals: byEmail, mode: 'insensitive' } },
-      data: {
-        contactName: 'Redacted supplier contact',
-        email: redactedEmail,
-        phone: '',
-        performanceNotes: '[redacted by privacy request]',
-      },
-    });
-    touchedRecords += this.recordRedaction(surfaces, 'supplier', suppliers.count);
-    const supplierApplications = await prisma.opsSupplierApplication.updateMany({
-      where: { OR: [{ email: { equals: byEmail, mode: 'insensitive' } }, { normalizedEmail: byEmail }] },
-      data: {
-        contactName: 'Redacted supplier contact', email: redactedEmail, normalizedEmail: redactedEmail,
-        phone: '', portfolioUrl: '', additionalNotes: '[redacted by privacy request]',
-      },
-    });
-    touchedRecords += this.recordRedaction(surfaces, 'supplier_application', supplierApplications.count);
-    const approvals = await this.redactApprovalIdentity(byEmail, redactedEmail, OpsUserRole.Supplier, prisma);
-    touchedRecords += this.recordRedaction(surfaces, 'approval_request', approvals.count);
-    return { surfaces, touchedRecords };
-  }
-
-  private redactApprovalIdentity(byEmail: string, redactedEmail: string, role: string, prisma: Prisma.TransactionClient) {
-    return prisma.opsApprovalRequest.updateMany({
-      where: { email: { equals: byEmail, mode: 'insensitive' }, role },
-      data: { name: 'Redacted data subject', email: redactedEmail, organization: '' },
-    });
+    const commercial = await this.commercialPrivacy.redactSupplier({ email: byEmail, redactedEmail }, prisma);
+    const approvals = await this.identityPrivacy.redactApprovalIdentity(
+      { email: byEmail, redactedEmail, role: OpsUserRole.Supplier },
+      prisma,
+    );
+    const surfaces = [...commercial.surfaces];
+    this.recordRedaction(surfaces, 'approval_request', approvals.count);
+    return {
+      surfaces,
+      touchedRecords: commercial.touchedRecords + approvals.count,
+      ownerReceipts: [
+        this.ownerReceipt('commercial', commercial),
+        this.ownerReceipt('identity-access', {
+          surfaces: approvals.count ? ['approval_request'] : [],
+          touchedRecords: approvals.count,
+        }),
+      ],
+    };
   }
 
   private async redactNameSurfaces(request: OpsPrivacyRequestRecord, byName: string, prisma: Prisma.TransactionClient) {
-    const surfaces: string[] = [];
-    let touchedRecords = 0;
-    const guestWhere = {
-      ...(request.eventId ? { eventId: request.eventId } : {}),
-      guestName: { equals: byName.trim(), mode: 'insensitive' as const },
-    };
     if (!request.eventId) throw new BadRequestException('Guest deletion requires an event scope');
-    const checkIns = await prisma.opsGuestCheckIn.updateMany({
-      where: guestWhere,
-      data: { guestName: 'Redacted guest' },
-    });
-    touchedRecords += this.recordRedaction(surfaces, 'guest_check_in', checkIns.count);
+    const result = await this.operationsPrivacy.redactGuest({ eventId: request.eventId, name: byName }, prisma);
+    return { ...result, ownerReceipts: [this.ownerReceipt('operations', result)] };
+  }
 
-    const feedback = await prisma.opsGuestFeedback.updateMany({
-      where: guestWhere,
-      data: {
-        guestName: 'Redacted guest',
-        comment: '[redacted by privacy request]',
-        photoFileName: null,
-        videoFileName: null,
-      },
-    });
-    touchedRecords += this.recordRedaction(surfaces, 'guest_feedback', feedback.count);
-    return { surfaces, touchedRecords };
+  private ownerReceipt(
+    owner: PrivacyOwnerReceipt['owner'],
+    result: { surfaces: string[]; touchedRecords: number },
+  ): PrivacyOwnerReceipt {
+    return {
+      owner,
+      outcome: result.touchedRecords ? 'completed' : 'no_matches',
+      surfaces: result.surfaces,
+      touchedRecords: result.touchedRecords,
+    };
   }
 
   private mapRequest(request: OpsPrivacyRequestRecord) {
@@ -520,6 +648,25 @@ export class PrivacyOperationsService {
       executedAt: timestamp(request.executedAt),
       createdAt: timestamp(request.createdAt),
       updatedAt: timestamp(request.updatedAt),
+    };
+  }
+
+  private mapLegalHold(hold: OpsPrivacyLegalHoldRecord): PrismPrivacyLegalHold {
+    return {
+      id: hold.id,
+      subjectType: hold.subjectType as PrismPrivacyLegalHold['subjectType'],
+      subjectEmail: hold.subjectEmail,
+      subjectName: hold.subjectName,
+      eventId: hold.eventId,
+      reason: hold.reason,
+      placedById: hold.placedById,
+      placedByName: hold.placedByName,
+      placedAt: timestamp(hold.placedAt) ?? '',
+      releaseReason: hold.releaseReason,
+      releasedById: hold.releasedById,
+      releasedByName: hold.releasedByName,
+      releasedAt: timestamp(hold.releasedAt),
+      createdAt: timestamp(hold.createdAt) ?? '',
     };
   }
 }

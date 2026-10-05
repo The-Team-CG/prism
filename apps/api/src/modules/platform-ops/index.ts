@@ -1,4 +1,5 @@
 export * from './platform-ops-audit-writer.module';
+export * from './platform-ops-command-receipt.module';
 
 export * from './api/trust/audit-privacy.controller';
 export * from './api/trust/audit-privacy.dto';
@@ -7,6 +8,7 @@ export * from './contracts/trust/trust-ops.tokens';
 export * from './infrastructure/trust/audit-writer.adapter';
 export * from './application/trust/audit.service';
 export * from './application/trust/security-operations.service';
+export * from './contracts/trust/authentication-failure-details';
 export * from './application/trust/audit.mappers';
 export * from './application/trust/privacy-operations.service';
 

@@ -14,9 +14,9 @@ describe('domain persistence catalog', () => {
     const current = domainPersistenceCatalog(manifest);
     const target = domainPersistenceCatalog(manifest, { final: true });
 
-    assert.equal(current.tables.length, 92);
+    assert.equal(current.tables.length, 93);
     assert.equal(current.schemas.length, 10);
-    assert.equal(target.tables.length, 92);
+    assert.equal(target.tables.length, 93);
     assert.equal(current.tables.find(({ table }) => table === 'privacy_legal_holds').schema, 'platform_ops');
     assert.equal(target.tables.find(({ table }) => table === 'privacy_legal_holds').schema, 'platform_ops');
     assert.equal(target.schemas.length, 7);
