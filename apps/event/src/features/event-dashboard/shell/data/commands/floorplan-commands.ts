@@ -47,6 +47,7 @@ savePlan: (project: Project) =>
     request<ApiFloorPlan>(`/api/plans/${project.id}`, {
       method: "PUT",
       body: {
+        expectedUpdatedAt: new Date(project.updatedAt).toISOString(),
         venue: project.venue,
         width: Math.max(1, Math.round(project.widthM)),
         height: Math.max(1, Math.round(project.heightM)),

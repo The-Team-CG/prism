@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DocumentVaultService } from '@prism/contexts/event-lifecycle';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
 import { GuestWorkflowService } from './guest-workflow.service';
 
@@ -119,7 +118,6 @@ function createGuestWorkflowFixture() {
     prisma as any,
     auditWriter as any,
     new WorkflowCommandService(),
-    new DocumentVaultService(),
     staffingReader as any,
   );
 
@@ -265,7 +263,7 @@ describe('GuestWorkflowService', () => {
     };
     const prisma = { $transaction: async (work: (context: typeof tx) => Promise<unknown>) => work(tx) };
     const staffingReader = { findAssignmentForEventActor: vi.fn(async () => ({ id: 'asg_registration', role: 'Registration Staff', status: 'acknowledged' })) };
-    const service = new GuestWorkflowService(prisma as any, { write: vi.fn() } as any, new WorkflowCommandService(), new DocumentVaultService(), staffingReader as any);
+    const service = new GuestWorkflowService(prisma as any, { write: vi.fn() } as any, new WorkflowCommandService(), staffingReader as any);
 
     const first = await service.checkInRosterEntry('evt_sample', 'gre_one', { name: 'Registration', role: 'coordinator' });
     const second = await service.checkInRosterEntry('evt_sample', 'gre_two', { name: 'Registration', role: 'coordinator' });
@@ -285,7 +283,6 @@ describe('GuestWorkflowService', () => {
       { opsGuestRosterEntry: { findMany } } as any,
       { write: vi.fn() } as any,
       new WorkflowCommandService(),
-      new DocumentVaultService(),
       staffingReader as any,
     );
     const actor = { id: 'usr_coord', email: 'coord@example.test', name: 'Mia Registration', role: 'coordinator' };
@@ -318,7 +315,6 @@ describe('GuestWorkflowService', () => {
       { $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)) } as any,
       { write: vi.fn() } as any,
       new WorkflowCommandService(),
-      new DocumentVaultService(),
       staffingReader as any,
     );
 
@@ -338,7 +334,6 @@ describe('GuestWorkflowService', () => {
       { opsGuestRosterEntry: { findMany }, $transaction: transaction } as any,
       { write: vi.fn() } as any,
       new WorkflowCommandService(),
-      new DocumentVaultService(),
       staffingReader as any,
     );
     const actor = { id: 'usr_coord', email: 'coord@example.test', name: 'Usher', role: 'coordinator' };
@@ -451,7 +446,6 @@ describe('GuestWorkflowService', () => {
       { $transaction: transaction } as any,
       { write: vi.fn() } as any,
       new WorkflowCommandService(),
-      new DocumentVaultService(),
       { findAssignmentForEventActor: vi.fn() } as any,
     );
 

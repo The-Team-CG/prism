@@ -4,12 +4,12 @@ title: "P.R.I.S.M context contracts"
 description: "Current public context surfaces, dependency direction, read-model composition, and focused seams in the Prism modular monolith."
 tags: [architecture, contracts, boundaries, ddd]
 status: canonical
-updated: "2026-10-03"
+updated: "2026-10-05"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, backend-engineers, reviewers]
 scope: "apps/api/src/modules and kernel seams"
-last_verified: "staging 7f64c0b; current seams reviewed against ADR-0008 and owner manifest"
+last_verified: "2026-10-05 participant event facts use a DatabaseModule-only read submodule; behavior suite deferred"
 sources:
   - id: context-source
     resource: "apps/api/src/modules"
@@ -50,6 +50,9 @@ deployable. A context index or focused port is an application contract; it is
 not a network endpoint and does not imply that the context is already an
 independent service.
 
+Floorplan uses the focused `event-lifecycle/floorplan-reference` capability
+for event gates and projection facts in event-scoped write transactions.
+
 ## Contract rules
 
 1. A context's public `index.ts` is the default surface for stable in-process
@@ -77,11 +80,11 @@ current transitional writes separately.
 | --- | --- | --- | --- |
 | commercial | modules/commercial/index.ts | Supplier network, quotes, proposals, communications, and billing decisions | Expose owner-validated supplier and commercial commands; lifecycle alone owns document metadata. |
 | event-lifecycle | modules/event-lifecycle/index.ts | Inquiry and event lifecycle, document metadata, compliance, decisions, and closure | Expose lifecycle commands and scoped reads; consume the versioned Floorplan projection and request Commercial-owned impacts for Lifecycle-issued addenda. |
-| floorplan | modules/floorplan/index.ts | Official plans, drafts, templates, publication, and review state | Expose official-layout reads and mutation contracts; client preference input remains role-scoped. |
+| floorplan | modules/floorplan/index.ts | Official plans, drafts, templates, publication, and review state | Expose official-layout reads and mutation contracts; consume Lifecycle's transaction-aware reference and versioned projection capabilities. Client preference input remains role-scoped. |
 | identity-access | modules/identity-access/index.ts | Authentication, account approval, and account access state | Expose verified actor/access checks; do not export session implementation details. |
 | live-ops | modules/live-ops/index.ts | Event-day tasks, schedules, issues, handoffs, end-of-day reports, and event-day policy | Expose live-ops commands and reads; request Operations-owned assignment transitions. |
 | operations | modules/operations/index.ts | Coordinator pool, availability, coverage, assignments, attendance, replacement, cancellation, acknowledgments, reliability, and guest operations | Validate and apply staffing and guest changes through Operations-owned commands. |
-| platform-ops | modules/platform-ops/index.ts | Trust, audit, notifications, privacy coordination, and AI governance | Expose narrow audit/notification/governance seams; receipt persistence uses the kernel technical port. |
+| platform-ops | modules/platform-ops/index.ts | Trust, audit, notifications, privacy coordination, and AI governance | Expose narrow audit/notification/governance seams; Platform implements the kernel receipt port and consumes read-only reference projections. |
 | read-models | modules/read-models/index.ts | Authorized, role-scoped read composition | Combine approved reads and map shared interfaces; never write business state. |
 
 ## External-reference lifecycle
@@ -123,11 +126,14 @@ legacy relation or changing schema placement.
 | modules/event-lifecycle | Commercial addendum-impact capability | Transaction-aware updates to an approved billing source and selected supplier quotes | Lifecycle owns addendum decisions and impact history; Commercial owns the source/quote writes. Current briefing/conforme workflows do not initialize billing because they provide no priced-source input; do not fabricate billing rows. |
 | modules/commercial | Lifecycle post-event state reader | Validate event existence and recorded end before additional billing | Lifecycle locks and returns only required event state in the caller transaction; Commercial owns the billing command. |
 | modules/commercial | LiveOps urgent-issue reference reader | Validate the incident belongs to the same event before additional billing | LiveOps locks the incident row in the caller transaction and returns only its ID and event ID; Commercial authorizes and writes billing. |
-| modules/live-ops | Operations staffing capability | Owner-validated assignment, replacement, and attendance commands | LiveOps currently writes assignment rows in event-day workflows; Operations remains the approved owner and the direct writes are transitional. |
-| modules/event-lifecycle | Operations staffing capability | Owner-validated assignment cancellation/postponement transitions | Event decision workflows currently update assignment rows directly; Operations must apply the transitions within the caller transaction. |
-| modules/floorplan | Lifecycle event capability | Versioned floorplan-state projection | Floorplan currently writes lifecycle event status fields in the same workflow; the projection is transitional and Lifecycle remains owner of its event aggregate. |
-| kernel/event-core | Platform receipt storage | Existing CommandReceiptStore technical port; Platform adapter | The Prisma store currently resides in the kernel. Move persistence behind the port to Platform while keeping command authorization, replay decision, and transaction ownership at the caller. |
-| modules/platform-ops | each affected data-owning context | Focused redaction/retention capability | Platform coordinates approved privacy requests; data-owner mutations and resumable partial execution remain to be made explicit. Document metadata stays retained and redaction stays disabled while the PMCM document-retention policy is pending. |
+| modules/live-ops | Operations staffing capability | Owner-validated replacement and attendance commands | Operations validates and mutates assignment state, attendance, reliability and audit effects; LiveOps retains event-day authorization and event-day log composition. |
+| modules/event-lifecycle | Operations staffing capability | Owner-validated assignment cancellation/postponement transitions | Event decisions pass their caller transaction to Operations, which validates and applies assignment changes atomically; Lifecycle continues to coordinate the event decision. |
+| modules/floorplan | Lifecycle event capabilities | `FLOORPLAN_EVENT_REFERENCE_READER` and `FLOORPLAN_PROJECTION_WRITER` | Lifecycle supplies locked event, conforme, ocular, archive, freeze, portal, and projection facts. Floorplan validates official-draft gates and blocks archived/frozen writes; its versioned projection clock and draft changes commit with Lifecycle's compare-and-set. Cross-domain FKs remain until the coordinated schema cutover. |
+| kernel/event-core | Platform receipt storage | `CommandReceiptStore` port with caller transaction | Platform implements receipt persistence and binds it at the root; kernel keeps command authorization and replay policy, while reservation, command writes, and completion share the caller transaction. |
+| modules/platform-ops | each affected data-owning context | Focused redaction/retention capability | Platform coordinates approved privacy requests; data-owner mutations and resumable partial execution remain to be made explicit. Document metadata stays retained and redaction stays disabled while the PMCM document-retention policy is pending. Operations redaction covers guest roster identity/contact fields and feedback filename metadata, while stored media bytes remain outside database redaction. |
+| modules/platform-ops | read-models reference projection | `PLATFORM_REFERENCE_READ_MODEL`, bound by `PlatformReferenceReadersModule` at the API composition root | Supplies narrow event/storage scope, PARE request/event/supplier facts, trust-recipient email, and privacy consent inventory. Reads only; no owning-context writes. |
+| modules/identity-access | read-models participant event facts | `PARTICIPANT_FACTS` from `read-models/participant-facts`, whose submodule imports only DatabaseModule | Supplies serializable event/inquiry, supplier-assignment, and coordinator-assignment facts; Identity retains approved-account lookup, role eligibility, email matching, actor stamping, and EventAccessPolicy decisions. The focused submodule avoids importing full ReadModelsModule and its Identity/Commercial module cycle. |
+| modules/platform-ops | stored-object owner/usage pairs | Closed owner/usage registry | Only `billing_statement` + `event_deliverable` is production-wired; unregistered pairs fail closed before upload side effects and on stored-object confirmation, retrieval, listing, and deletion. The allowlist does not prove the referenced statement exists or matches the event on later reads; target-owner revalidation remains open. |
 | context composition roots | other Nest context modules | Module import only at composition root | Allowed for one-process assembly; not a private application dependency. |
 | API controllers | owning context application services | Owner service and public mapper | Controllers do not expose Prisma models or perform cross-context persistence lookups. |
 

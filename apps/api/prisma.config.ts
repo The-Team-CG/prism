@@ -14,7 +14,7 @@ const shadowDatabase = shadowDatabaseUrl
 export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
-    path: 'prisma/migrations',
+    path: process.env.PRISMA_MIGRATIONS_PATH?.trim() || 'prisma/migrations',
   },
   ...(database
     ? {

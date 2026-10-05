@@ -4,12 +4,12 @@ title: "Prism database migrations"
 description: "Create, review, deploy, and recover Prism's Prisma migrations without changing the applied history by hand."
 tags: [runbook, database, migrations, prisma, drift, recovery]
 status: canonical
-updated: "2026-09-11"
+updated: "2026-10-03"
 authority: operational
 owner: "D (Anthony)"
 audience: [developers, reviewers, QA, operators, agents]
 scope: "apps/api Prisma migration creation, static review, deployment, and drift recovery"
-last_verified: "codex/prisma-migration-guardrails"
+last_verified: "codex/db-integrity-ci; PostgreSQL workflow source reviewed"
 sources:
   - id: migration-config
     resource: "apps/api/prisma.config.ts"
@@ -23,6 +23,15 @@ sources:
   - id: persistence-register
     resource: "docs/architecture/persistence-ownership.md"
     title: "Persistence ownership register"
+  - id: equivalence-gate
+    resource: "apps/api/scripts/db-schema-equivalence.mjs"
+    title: "Prisma and PostgreSQL catalog equivalence verifier"
+  - id: replay-policy
+    resource: "apps/api/prisma/migration-replay-policy.json"
+    title: "PostgreSQL version and migration checkpoint policy"
+  - id: replay-workflow
+    resource: ".github/workflows/db-integrity.yml"
+    title: "Disposable PostgreSQL migration replay workflow"
 ---
 # Prism database migrations
 
@@ -337,6 +346,59 @@ The normal recovery sequence is:
 `db:reset` is destructive and is not part of this procedure. The migration
 guard itself performs no database mutation and cannot approve emergency repair.
 
+## Required PostgreSQL replay and equivalence gate
+
+The dedicated database integrity workflow at .github/workflows/db-integrity.yml
+runs on pull requests and pushes targeting staging or prod. It provisions an
+ephemeral PostgreSQL 16 service and invokes:
+
+    npm --workspace prism-api run db:integrity:ci
+
+The runner accepts only DB_INTEGRITY_ADMIN_URL resolving to
+127.0.0.1:55437/postgres with DB_SSL=false. It checks the server major,
+refuses to reuse any of its five fixed database names if they already exist,
+and creates them without dropping or resetting databases. The service lifetime
+provides cleanup in CI. For local rehearsal, use an isolated disposable
+PostgreSQL service on that exact loopback endpoint; never point this command at
+a shared or hosted database.
+
+The gate uses separate databases for a clean full replay (prism_ci_fresh),
+an upgrade from the recorded checkpoint (prism_ci_upgraded), and guarded
+behavior tests (prism_p0). The upgrade checkpoint is
+20260909100000_command_receipt_event_scope; the script applies that historical
+prefix first and then the remaining checked-in migrations. The DB tests receive
+only P0_TEST_DATABASE_URL=postgresql://...@127.0.0.1:55437/prism_p0. Their
+machine-readable Vitest report must show every test passed with zero skipped
+or pending tests.
+
+For each schema verification, the script inventories SQL objects Prisma
+cannot represent and requires an exact match to
+apps/api/prisma/schema-sql-exceptions.json, including object definition,
+owning domain, and rationale. It then runs
+prisma migrate diff --from-config-datasource --to-schema ... --exit-code.
+Ordinary tables, columns, constraints, defaults, and supported indexes must
+match Prisma. A missing quote-request foreign key therefore fails as Prisma
+drift; it is not added to the SQL-only exception list. The currently approved
+SQL-only object list is empty. GIN, composite, and partial indexes are declared
+in Prisma.
+
+Two isolated negative cases verify that the gate itself fails closed: one
+applies a temporary copy of the migration history with the quote-request FK
+omitted, and one creates an unexpected expression index. Both are confined to
+disposable databases and a temporary migration directory. The temporary
+directory is removed only after its resolved path is verified to be under the
+OS temp directory.
+
+db:verify:schema runs the read-only catalog and Prisma comparison against
+PRISMA_DATABASE_URL. It does not apply migrations or repair drift. It is
+distinct from db:verify:offline, which validates a model and prints SQL from an
+empty schema but does not compare the migration history to a live database.
+
+The DB integration fixtures explicitly remove their own test records. The audit
+chain test intentionally retains its append-only audit evidence in the
+disposable database; deleting a tail could invalidate a concurrent writer.
+No test teardown relies on deleting an event or account to cascade across
+context-owned data.
 ## CI and evidence
 
 Pull-request CI runs the static guard and focused tests without database
