@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Fixed the API test configuration so Identity tests can resolve the Platform participant-facts reader alias.
+
 - Fixed coordinator replacement so its two audit entries are written in sequence, keeping the audit log a single hash chain.
 
 - Added the approved `platform_ops.privacy_legal_holds` table to Prisma, the owner manifest, migration history, cutover preflight, and backup catalog so the schema-release inventory includes legal holds.
