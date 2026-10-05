@@ -16,7 +16,7 @@ const MAX_INGRESS_PAGES_PER_RUN = 2;
 const UNREPORTED_EVENT_DAY_STATUSES = ['not_started', 'planned'];
 
 async function lockSupplierSchedule(prisma: Prisma.TransactionClient, scheduleId: string) {
-  await prisma.$queryRaw`SELECT id FROM "supplier_ops"."supplier_schedules" WHERE id = ${scheduleId} FOR UPDATE`; // QUERY_AUDIT_RAW_SQL: parameterized row lock serializes late marking against schedule changes.
+  await prisma.$queryRaw`SELECT id FROM "commercial"."supplier_schedules" WHERE id = ${scheduleId} FOR UPDATE`; // QUERY_AUDIT_RAW_SQL: parameterized row lock serializes late marking against schedule changes.
 }
 
 function isLateEligibleStatus(status: string) {

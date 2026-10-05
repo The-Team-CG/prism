@@ -16,12 +16,24 @@ function harness(actualEndedAt: Date | null = new Date('2026-09-07T00:00:00.000Z
       updateMany: vi.fn(async ({ data }: any) => { Object.assign(records[0], data); return { count: 1 }; }),
       upsert: vi.fn(async ({ create }: any) => { records.push(create); return create; }),
     },
+    opsComplianceCheck: { findMany: vi.fn(async () => [{ id: 'check_1', title: 'Open item', status: 'open' }]) },
+    opsDocument: { findMany: vi.fn(async () => [{ id: 'doc_1', type: 'closeout', status: 'submitted' }]) },
+    opsPostEventDocument: { findMany: vi.fn(async () => []) },
   };
   const prisma: any = { ...tx, opsEvent: tx.opsEvent, opsEventWrapUp: tx.opsEventWrapUp, $transaction: vi.fn(async (fn: any) => fn(tx)) };
   const policy: any = { requireActorRole: vi.fn(async (subject: any, roles: string[]) => { if (!roles.includes(subject.role)) throw new ForbiddenException(); }) };
   const notifications = { write: vi.fn(async () => undefined) };
-  const service = new EventClosureService(prisma, {} as any, {} as any, { write: vi.fn(async () => undefined) } as any, policy, notifications as any, {} as any);
-  return { service, prisma, tx, records, policy, notifications };
+  const commercialFactsReader = { getLifecycleFacts: vi.fn(async () => ({
+    supplierQuoteRequests: [], billingSources: [], supplierReviews: [{ id: 'review_1', supplierId: 'supplier_1', rating: 5, notes: 'Good', reviewedBy: 'PMCM' }],
+    billingStatements: [{ id: 'bill_1', totalAmount: 1000 }], paymentMilestones: [{ id: 'payment_1', amountPaid: 400, remainingBalance: 600 }],
+  })) };
+  const lifecycleFactsReader = { getClosureFacts: vi.fn(async () => ({
+    guestFeedback: [{ id: 'feedback_1', rating: 5, moderationStatus: 'approved', privacyConsentAccepted: true, privacyConsentWithdrawnAt: null }],
+    issues: [{ id: 'issue_1' }], scheduleDays: [{ id: 'day_1', segments: [{ id: 'segment_1', actualEndedAt: new Date('2026-09-07T13:00:00.000Z'), plannedEndAt: new Date('2026-09-07T12:00:00.000Z') }] }],
+  })) };
+  const service = new EventClosureService(prisma, {} as any, {} as any, { write: vi.fn(async () => undefined) } as any, policy, notifications as any, {} as any,
+    commercialFactsReader as any, lifecycleFactsReader as any);
+  return { service, prisma, tx, records, policy, notifications, commercialFactsReader, lifecycleFactsReader };
 }
 
 beforeEach(() => {
@@ -34,6 +46,21 @@ afterEach(() => {
 });
 
 describe('EventClosureService wrap-up', () => {
+  it('composes Commercial and Operations/LiveOps read-model facts into closeout insight', async () => {
+    const { service, commercialFactsReader, lifecycleFactsReader } = harness();
+    const facts = await (service as any).buildEventInsightContext('evt_1', { id: 'evt_1', eventName: 'Event' }, {
+      assignments: 1, awaitingAcknowledgement: 0, lateAttendance: 0, absentAttendance: 0,
+      replacedAssignments: 0, cancelledAssignments: 0, reliabilityNotes: 0,
+    });
+
+    expect(facts.financialSummary).toEqual({ billingCount: 1, totalBilled: 1000, amountPaid: 400, outstandingAmount: 600 });
+    expect(facts.supplierNotes).toEqual([{ supplierId: 'supplier_1', rating: 5, notes: 'Good', reviewedBy: 'PMCM' }]);
+    expect(facts.feedbackSummary).toMatchObject({ guestFeedback: 1, approvedGuestFeedback: 1, averageGuestRating: 5 });
+    expect(facts.dimensions.schedule.summary).toBe('1 schedule segment(s) ended late');
+    expect(commercialFactsReader.getLifecycleFacts).toHaveBeenCalledWith('evt_1');
+    expect(lifecycleFactsReader.getClosureFacts).toHaveBeenCalledWith('evt_1');
+  });
+
   it('starts exactly once from actualEndedAt and keeps a 24-hour deadline', async () => {
     const { service, records } = harness();
     const first = await service.startWrapUp('evt_1', { mode: 'full' }, actor);

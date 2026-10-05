@@ -2,6 +2,8 @@ import { BadRequestException, ForbiddenException, NotFoundException } from '@nes
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { ProposalClientReviewService } from './proposal-client-review.service';
+import { ProposalReviewOwnerService } from '@prism/contexts/event-lifecycle';
+import { CommercialFactsReaderService } from '@prism/contexts/read-models/commercial-facts-reader';
 
 const primary = { id: 'client_1', role: OpsUserRole.Client, name: 'Ana Reyes', email: 'ana@ayala.test', explicit: true };
 const otherClient = { id: 'client_2', role: OpsUserRole.Client, name: 'Other', email: 'other@ayala.test', explicit: true };
@@ -40,11 +42,9 @@ function createPrisma() {
       id: 'doc_proposal', eventId: 'evt_1', kind: 'proposal' as const, status: 'issued', fileName: 'proposal.pdf',
     })),
   };
-  return {
-    event,
-    auditWriter,
-    documentVault,
-    prisma: {
+  const proposalReviewOwner = new ProposalReviewOwnerService();
+  const transactionEventRead = vi.fn(async () => event);
+  const prisma = {
       opsEvent: {
         findUnique: async (): Promise<typeof event | null> => event,
         update: async ({ data }: { data: Record<string, unknown> }) => {
@@ -53,24 +53,26 @@ function createPrisma() {
         },
       },
       opsDocument: { findFirst: async () => ({ id: 'doc_proposal' }) },
-      opsAuditLog: { findFirst: async () => null },
+      opsAuditLog: { findFirst: async () => null, findMany: async () => [] },
       $transaction: async (callback: (tx: any) => Promise<unknown>) => callback({
+        $queryRaw: async () => [],
         opsEvent: {
-          findUnique: async () => event,
+          findUnique: transactionEventRead,
           updateMany: async ({ data }: { data: Record<string, unknown> }) => { Object.assign(event, data); return { count: 1 }; },
           findUniqueOrThrow: async () => event,
         },
         opsDocument: { findFirst: async () => ({ id: 'doc_proposal' }) },
         opsAuditLog: { findFirst: async () => null, findMany: async () => [] },
       }),
-    },
   };
+  const commercialFactsReader = new CommercialFactsReaderService(prisma as never);
+  return { event, auditWriter, documentVault, proposalReviewOwner, commercialFactsReader, transactionEventRead, prisma };
 }
 
 describe('ProposalClientReviewService', () => {
   it('rejects a non-primary client contact', async () => {
     const fake = createPrisma();
-    const service = new ProposalClientReviewService(fake.prisma as never, createAccessPolicy() as never, fake.auditWriter as never, fake.documentVault as never);
+    const service = new ProposalClientReviewService(fake.prisma as never, createAccessPolicy() as never, fake.auditWriter as never, fake.documentVault as never, fake.proposalReviewOwner, fake.commercialFactsReader);
     await expect(service.review('evt_1', { action: 'approve' }, otherClient)).rejects.toBeInstanceOf(
       ForbiddenException,
     );
@@ -78,7 +80,7 @@ describe('ProposalClientReviewService', () => {
 
   it('rejects a PMCM actor from the client review path', async () => {
     const fake = createPrisma();
-    const service = new ProposalClientReviewService(fake.prisma as never, createAccessPolicy() as never, fake.auditWriter as never, fake.documentVault as never);
+    const service = new ProposalClientReviewService(fake.prisma as never, createAccessPolicy() as never, fake.auditWriter as never, fake.documentVault as never, fake.proposalReviewOwner, fake.commercialFactsReader);
     await expect(
       service.review('evt_1', { action: 'approve' }, { ...primary, role: OpsUserRole.PmcmAdmin, email: 'mys@pmcm.test' }),
     ).rejects.toBeInstanceOf(ForbiddenException);
@@ -86,22 +88,23 @@ describe('ProposalClientReviewService', () => {
 
   it('lets the primary contact approve once', async () => {
     const fake = createPrisma();
-    const service = new ProposalClientReviewService(fake.prisma as never, createAccessPolicy() as never, fake.auditWriter as never, fake.documentVault as never);
+    const service = new ProposalClientReviewService(fake.prisma as never, createAccessPolicy() as never, fake.auditWriter as never, fake.documentVault as never, fake.proposalReviewOwner, fake.commercialFactsReader);
     const reviewed = await service.review('evt_1', { action: 'approve', idempotencyKey: 'k1' }, primary);
     expect(reviewed.proposalClientStatus).toBe('approved');
+    expect(fake.transactionEventRead).toHaveBeenCalled();
   });
 
   it('returns not found for a missing event', async () => {
     const fake = createPrisma();
     fake.prisma.opsEvent.findUnique = async () => null;
-    const service = new ProposalClientReviewService(fake.prisma as never, createAccessPolicy() as never, fake.auditWriter as never, fake.documentVault as never);
+    const service = new ProposalClientReviewService(fake.prisma as never, createAccessPolicy() as never, fake.auditWriter as never, fake.documentVault as never, fake.proposalReviewOwner, fake.commercialFactsReader);
     await expect(service.review('missing', { action: 'approve' }, primary)).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('rejects locked, archived, or unissued proposals', async () => {
     const fake = createPrisma();
     fake.event.clientPortalStatus = 'locked';
-    const service = new ProposalClientReviewService(fake.prisma as never, createAccessPolicy() as never, fake.auditWriter as never, fake.documentVault as never);
+    const service = new ProposalClientReviewService(fake.prisma as never, createAccessPolicy() as never, fake.auditWriter as never, fake.documentVault as never, fake.proposalReviewOwner, fake.commercialFactsReader);
     await expect(service.review('evt_1', { action: 'approve' }, primary)).rejects.toBeInstanceOf(BadRequestException);
     fake.event.clientPortalStatus = 'unlocked';
     fake.event.archived = true;
@@ -110,7 +113,7 @@ describe('ProposalClientReviewService', () => {
 
   it('keeps the revision reason in the atomic audit record', async () => {
     const fake = createPrisma();
-    const service = new ProposalClientReviewService(fake.prisma as never, createAccessPolicy() as never, fake.auditWriter as never, fake.documentVault as never);
+    const service = new ProposalClientReviewService(fake.prisma as never, createAccessPolicy() as never, fake.auditWriter as never, fake.documentVault as never, fake.proposalReviewOwner, fake.commercialFactsReader);
     await service.review('evt_1', { action: 'request_revision', revisionNote: 'Please clarify the venue option', idempotencyKey: 'k2' }, primary);
     expect(fake.auditWriter.write).toHaveBeenCalledWith(expect.objectContaining({ affectedId: 'k2', metadata: expect.objectContaining({ revisionNote: 'Please clarify the venue option' }) }), expect.anything());
   });
@@ -118,11 +121,12 @@ describe('ProposalClientReviewService', () => {
   it('rejects a compare-and-swap loser without writing an audit record', async () => {
     const fake = createPrisma();
     fake.prisma.$transaction = async (callback: (tx: any) => Promise<unknown>) => callback({
+      $queryRaw: async () => [],
       opsAuditLog: { findFirst: async () => null, findMany: async () => [] },
       opsEvent: { findUnique: async () => fake.event, updateMany: async () => ({ count: 0 }), findUniqueOrThrow: async () => fake.event },
       opsDocument: { findFirst: async () => ({ id: 'doc_proposal' }) },
     });
-    const service = new ProposalClientReviewService(fake.prisma as never, createAccessPolicy() as never, fake.auditWriter as never, fake.documentVault as never);
+    const service = new ProposalClientReviewService(fake.prisma as never, createAccessPolicy() as never, fake.auditWriter as never, fake.documentVault as never, fake.proposalReviewOwner, fake.commercialFactsReader);
     await expect(service.review('evt_1', { action: 'approve', idempotencyKey: 'race' }, primary)).rejects.toBeInstanceOf(BadRequestException);
     expect(fake.auditWriter.write).not.toHaveBeenCalled();
   });
@@ -131,11 +135,12 @@ describe('ProposalClientReviewService', () => {
     const fake = createPrisma();
     fake.prisma.opsAuditLog.findFirst = (async () => ({ metadata: { action: 'request_revision', revisionNote: 'original', actorEmail: primary.email } })) as never;
     fake.prisma.$transaction = async (callback: (tx: any) => Promise<unknown>) => callback({
+      $queryRaw: async () => [],
       opsAuditLog: { findFirst: fake.prisma.opsAuditLog.findFirst },
       opsEvent: { findUnique: async () => fake.event, findUniqueOrThrow: async () => fake.event },
       opsDocument: { findFirst: async () => ({ id: 'doc_proposal' }) },
     });
-    const service = new ProposalClientReviewService(fake.prisma as never, createAccessPolicy() as never, fake.auditWriter as never, fake.documentVault as never);
+    const service = new ProposalClientReviewService(fake.prisma as never, createAccessPolicy() as never, fake.auditWriter as never, fake.documentVault as never, fake.proposalReviewOwner, fake.commercialFactsReader);
     await expect(service.review('evt_1', { action: 'request_revision', revisionNote: 'changed', idempotencyKey: 'same' }, primary)).rejects.toBeInstanceOf(BadRequestException);
     await expect(service.review('evt_1', { action: 'request_revision', revisionNote: 'original', idempotencyKey: 'same' }, { ...otherClient, email: primary.email })).rejects.toBeInstanceOf(BadRequestException);
   });

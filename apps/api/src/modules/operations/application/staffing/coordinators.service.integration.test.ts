@@ -13,6 +13,7 @@ import { CoordinatorReliabilityNoteWriterService } from './coordinator-reliabili
 import { CoordinatorSuggestionsService } from './coordinator-suggestions.service';
 import { CoordinatorLiveOpsCommandService } from '../../../live-ops/application/coordinator-live-ops-command.service';
 import { EventDecisionService } from '../../../event-lifecycle/application/decisions/event-decision.service';
+import { EventDecisionSupplierOwnerService } from '@prism/contexts/commercial';
 
 const databaseUrl = process.env.P0_TEST_DATABASE_URL?.trim();
 
@@ -20,6 +21,7 @@ function createOperationsEventReferences(prisma: PrismaService) {
   const select = {
     id: true,
     eventName: true,
+    clientName: true,
     eventDate: true,
     status: true,
     archived: true,
@@ -32,7 +34,7 @@ function createOperationsEventReferences(prisma: PrismaService) {
       const database = context?.prisma ?? prisma;
       if (context) {
         const locked = await database.$queryRawUnsafe(
-          'SELECT "id" FROM "event_core"."events" WHERE "id" = $1 FOR UPDATE',
+          'SELECT "id" FROM "event_lifecycle"."events" WHERE "id" = $1 FOR UPDATE',
           eventId,
         ) as Array<{ id: string }>;
         if (locked.length === 0) return null;
@@ -42,6 +44,10 @@ function createOperationsEventReferences(prisma: PrismaService) {
     findOperationsEvents: async (eventIds: readonly string[]) => eventIds.length === 0
       ? []
       : prisma.opsEvent.findMany({ where: { id: { in: [...eventIds] } }, select }),
+    findEventIdsByDateRange: async (startsAt: Date, endsBefore: Date) => (await prisma.opsEvent.findMany({
+      where: { eventDate: { gte: startsAt, lt: endsBefore } },
+      select: { id: true },
+    })).map((event) => event.id),
     findEventReadAccess: async (eventId: string) => prisma.opsEvent.findUnique({
       where: { id: eventId },
       select: { id: true, clientName: true, clientPortalStatus: true, clientEmail: true, inquiry: { select: { email: true } } },
@@ -378,7 +384,7 @@ databaseSuite('CoordinatorsService PostgreSQL concurrency invariants', () => {
           eventDate: new Date('2031-03-17T09:00:00.000Z'),
         },
       });
-      const eventDecisions = new EventDecisionService(prisma, new EventAccessPolicyService(auditWriter), auditWriter, notificationWriter, coordinators);
+      const eventDecisions = new EventDecisionService(prisma, new EventAccessPolicyService(auditWriter), auditWriter, notificationWriter, coordinators, new EventDecisionSupplierOwnerService());
       const input = {
         decision: 'cancelled',
         reason: 'Idempotent cancellation test',
@@ -404,7 +410,7 @@ databaseSuite('CoordinatorsService PostgreSQL concurrency invariants', () => {
   it('replays one cancellation when same-key decision requests race', async () => {
     const fixture = await createFixture(prisma, 1, 1);
     try {
-      const eventDecisions = new EventDecisionService(prisma, new EventAccessPolicyService(auditWriter), auditWriter, notificationWriter, coordinators);
+      const eventDecisions = new EventDecisionService(prisma, new EventAccessPolicyService(auditWriter), auditWriter, notificationWriter, coordinators, new EventDecisionSupplierOwnerService());
       const input = {
         decision: 'cancelled',
         reason: 'Concurrent idempotent cancellation test',

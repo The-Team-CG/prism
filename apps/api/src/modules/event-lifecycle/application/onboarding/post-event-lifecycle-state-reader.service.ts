@@ -12,7 +12,7 @@ export class PostEventLifecycleStateReaderService implements PostEventLifecycleS
     if (transaction) {
       // QUERY_AUDIT_RAW_SQL: serialize post-event billing eligibility with Lifecycle event-state transitions.
       await transaction.prisma.$queryRawUnsafe(
-        'SELECT "id" FROM "event_core"."events" WHERE "id" = $1 FOR UPDATE',
+        'SELECT "id" FROM "event_lifecycle"."events" WHERE "id" = $1 FOR UPDATE',
         eventId,
       );
     }

@@ -6,6 +6,7 @@ import { WorkflowCommandService, OpsUserRole } from '@prism/kernel/event-core';
 import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
 import type { AuditWriter } from '@prism/kernel/access-control';
 import { SuppliersService } from '../../src/modules/commercial/application/suppliers/suppliers.service';
+import { CommercialFactsReaderService } from '@prism/contexts/read-models/commercial-facts-reader';
 import { SupplierNetworkWorkflowService } from '../../src/modules/commercial/application/suppliers/supplier-network-workflow.service';
 import type { PareApprovalGovernance } from '@prism/contexts/platform-ops';
 import { DocumentVaultService } from '@prism/contexts/event-lifecycle';
@@ -130,7 +131,7 @@ describe.skipIf(!live)('supplier identity ownership against PostgreSQL', () => {
       const documentVault = new DocumentVaultService(prisma);
       const commandService = new SupplierNetworkWorkflowService(
         prisma,
-        new SuppliersService(prisma),
+        new SuppliersService(prisma, { findOperationsEvents: async () => [] } as never, new CommercialFactsReaderService(prisma)),
         {} as unknown as SupplierProfileCommandsService,
         auditWriter,
         policy,
