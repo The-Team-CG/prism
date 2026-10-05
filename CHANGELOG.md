@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 - Canonicalized new audit-chain hashes against PostgreSQL JSONB key ordering and added a backup- and approval-gated preproduction rehash/checkpoint command with a checksummed pre-repair snapshot. Rehearsed backup restore, rehash, checkpoint, and integrity verification on an isolated disposable PostgreSQL 16 database; no shared or preproduction database was modified.
+- Removed 11 unreferenced API DTO files and their stale barrel/controller imports; retired the unbound, always-unavailable signed-upload shim while keeping canonical storage flows and active DTO validation.
+- Replaced production API `any` escapes with typed owner mappings and shared contracts; guest commands return serialized receipts, supplier writes use canonical Zod schemas, and unused commercial reader/DTO surfaces were removed.
+- Corrected the supplier workspace quote fixture to include the required update timestamp for typed mapping.
+- Added a canonical column authority register for all 1,159 baseline columns, with DDD ownership, physical types/defaults, provisional semantic and sensitivity review, candidate consumers, and migration dispositions; no unverified data conversion is included.
 - Fixed the archived coordinator event regression test to wait for refreshed role data before submitting after switching back to a current event.
 
 ### Fixed
@@ -16,13 +20,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Declared five migration-owned composite indexes and four existing timestamp defaults in Prisma, eliminating fresh-replay drift without changing historical SQL.
 - Added a preflighted Commercial FK from submitted quotes to quote requests, with request deletion restricted while bid evidence exists.
 - Centralized PostgreSQL URL selection and TLS policy across the API, Prisma CLI config, and database admin scripts; hosted connections now verify certificates and non-TLS is restricted to loopback targets.
+- PMCM two-factor challenges now bind to the account session epoch, persist only a hash of their random ID, expire and consume once; retries accumulate toward the established lockout across challenge reissues, and password reset or approval changes revoke pending challenges.
+- PMCM sign-in success history is recorded only after two-factor verification completes.
+- Approval changes now revoke issued sessions atomically with the request and audit entry; session guards reject accounts that are no longer approved, are locked, or no longer match the token identity.
 - Registration verification rechecks archive status under the event lock, preserving historical roster reads while rejecting writes after archive.
 - Archived coordinator events remain readable and selectable, while event-day, schedule, handoff, report, acknowledgment and withdrawal writes are blocked in the portal and API.
 - Simplified coordinator task scope checks and task form projections while preserving canonical-role, historical-role, owner, and operator authorization behavior.
 - Corrected the client event-day migration metadata to declare its ALTER TABLE as a schema change with medium risk.
 - Updated floorplan workflow test actors with required IDs, restoring API typecheck.
 
+- Client, supplier, and coordinator event eligibility now filters before keyset pagination; cursor totals use the same scope, actor identity uses one persisted key, and declined coordinator assignments are excluded.
+
 ### Added
+- Added guarded PostgreSQL coverage for 500+ unrelated-event visibility, supplier/coordinator eligibility, archived history, and complete action-center results; added API-client and client-portal pagination tests.
 - Recorded the approved 91-model ownership manifest, one-schema-per-domain and same-domain-only foreign-key policy, and shared DDD terms in canonical architecture references.
 - Added a PostgreSQL 16 disposable migration replay and schema-equivalence gate that discovers all database-gated API behavior suites and rejects missing constraints, unapproved SQL objects, and skipped tests.
 - Reduced disposable integrity-run duration by cloning the verified migration template for intentional drift probes, and added phase- and suite-level elapsed-time reporting.

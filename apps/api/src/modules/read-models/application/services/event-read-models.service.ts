@@ -212,9 +212,12 @@ export type PmcmDashboardMappers = {
 
 @Injectable()
 export class EventReadModelsService {
-  async eventList(actor: ResolvedEventOpsActor, mappers: EventListMappers) {
-    const visibleEvents = await this.visibleEventsForActor(actor);
-    return visibleEvents.map((event) => mappers.mapEvent(event));
+  async eventList(actor: ResolvedEventOpsActor, mappers: EventListMappers, cursor?: string) {
+    const page = await this.visibleEventPageForActor(actor, cursor);
+    return {
+      items: page.items.map((event) => mappers.mapEvent(event)),
+      pagination: page.pagination,
+    };
   }
 
   async eventDetail(actor: ResolvedEventOpsActor, eventId: string, mappers: EventListMappers) {
@@ -362,10 +365,11 @@ export class EventReadModelsService {
     };
   }
 
-  async clientWorkspace(actor: ResolvedEventOpsActor, mappers: ClientWorkspaceMappers) {
+  async clientWorkspace(actor: ResolvedEventOpsActor, mappers: ClientWorkspaceMappers, cursor?: string) {
     await this.policy.requireActorRole(actor, [OpsUserRole.Client], 'client workspace');
 
-    const visibleEvents = await this.visibleEventsForActor(actor);
+    const eventPage = await this.visibleEventPageForActor(actor, cursor);
+    const visibleEvents = eventPage.items;
     const eventIds = visibleEvents.map((event) => event.id);
 
     if (eventIds.length === 0) {
@@ -386,6 +390,7 @@ export class EventReadModelsService {
         notificationLogs: [],
         clientEventTimelines: [],
         ocularVisits: [],
+        pagination: eventPage.pagination,
       };
     }
 
@@ -435,20 +440,44 @@ export class EventReadModelsService {
       auditLogs: auditLogs.map((log) => mappers.mapAuditLog(log)),
       notificationLogs: [],
       ocularVisits: ocularVisits.map(mapClientOcularVisit),
+      pagination: eventPage.pagination,
     };
   }
 
   async clientActionCenter(actor: ResolvedEventOpsActor) {
     await this.policy.requireActorRole(actor, [OpsUserRole.Client], 'client action center');
 
-    const visibleEvents = await this.visibleEventsForActor(actor);
-    const eventIds = visibleEvents.map((event) => event.id);
-    if (eventIds.length === 0) {
-      return emptyInboxPayload();
-    }
+    const visibleEvents = await this.allVisibleEventsForActor(actor);
+    if (visibleEvents.length === 0) return emptyInboxPayload();
 
-    const [briefings, documents, floorPlanDrafts, billingStatements, paymentMilestones, paymentRecords, postEventDocuments] =
-      await this.queries.clientActionCenterForEvents(eventIds);
+    type ClientActionSources = Awaited<ReturnType<EventReadModelQueries['clientActionCenterForEvents']>>;
+    const briefings: ClientActionSources[0] = [];
+    const documents: ClientActionSources[1] = [];
+    const floorPlanDrafts: ClientActionSources[2] = [];
+    const billingStatements: ClientActionSources[3] = [];
+    const paymentMilestones: ClientActionSources[4] = [];
+    const paymentRecords: ClientActionSources[5] = [];
+    const postEventDocuments: ClientActionSources[6] = [];
+    for (let offset = 0; offset < visibleEvents.length; offset += 100) {
+      const eventBatch = visibleEvents.slice(offset, offset + 100);
+      const [
+        batchBriefings,
+        batchDocuments,
+        batchFloorPlanDrafts,
+        batchBillingStatements,
+        batchPaymentMilestones,
+        batchPaymentRecords,
+        batchPostEventDocuments,
+      ] =
+      await this.queries.clientActionCenterForEvents(eventBatch.map((event) => event.id));
+      briefings.push(...batchBriefings);
+      documents.push(...batchDocuments);
+      floorPlanDrafts.push(...batchFloorPlanDrafts);
+      billingStatements.push(...batchBillingStatements);
+      paymentMilestones.push(...batchPaymentMilestones);
+      paymentRecords.push(...batchPaymentRecords);
+      postEventDocuments.push(...batchPostEventDocuments);
+    }
     const items = collectClientActionItems({
       visibleEvents,
       briefings,
@@ -646,8 +675,8 @@ export class EventReadModelsService {
       registrationPlatform: registrationPlatform ? mappers.mapRegistrationPlatform(registrationPlatform) : null,
       ocularVisit: ocularVisit ? mapPmcmOcularVisit(ocularVisit) : null,
       guestAttendanceCount,
-      guestCheckIns: guestCheckIns.map((checkIn) => this.guestReader.mapGuestCheckIn(checkIn)),
-      guestFeedback: guestFeedback.map((feedback) => this.guestReader.mapGuestFeedback(feedback)),
+      guestCheckIns,
+      guestFeedback,
     };
   }
 
@@ -729,24 +758,41 @@ export class EventReadModelsService {
     };
   }
 
+  private async visibleEventPageForActor(actor: ResolvedEventOpsActor, cursor?: string) {
+    const page = await this.queries.visibleEvents(actor, cursor);
+    const eventIds = page.items.map((event) => event.id);
+    return {
+      ...page,
+      items: this.policy.filterEventsForActor(actor, page.items, {
+        supplierEventIds: actor.role === OpsUserRole.Supplier ? eventIds : undefined,
+        coordinatorEventIds: actor.role === OpsUserRole.Coordinator ? eventIds : undefined,
+      }),
+    };
+  }
+
+  private async allVisibleEventsForActor(actor: ResolvedEventOpsActor) {
+    const events: Awaited<ReturnType<EventReadModelQueries['visibleEvents']>>['items'] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await this.visibleEventPageForActor(actor, cursor);
+      events.push(...page.items);
+      cursor = page.pagination.hasMore ? (page.pagination.nextCursor ?? undefined) : undefined;
+    } while (cursor);
+    return events;
+  }
+
   private async visibleEventsForActor(actor: ResolvedEventOpsActor) {
-    const events = await this.queries.visibleEvents();
-    return this.policy.filterEventsForActor(actor, events);
+    return this.allVisibleEventsForActor(actor);
   }
 
   private async resolveSupplierForActor(actor: ResolvedEventOpsActor) {
-    const suppliers = await this.queries.activeSuppliers();
-    const supplier = suppliers.find(
-      (item) =>
-        this.policy.sameText(actor.supplierId, item.id) ||
-        this.policy.sameText(actor.email, item.email) ||
-        false,
-    );
+    const supplier = await this.queries.supplierForActor(actor.supplierId, actor.email);
     if (!supplier) throw new NotFoundException('Supplier profile not found for actor');
     return supplier;
   }
 
-  private sanitizeSupplierForSupplier(supplier: Awaited<ReturnType<EventReadModelQueries['activeSuppliers']>>[number]) {
+  private sanitizeSupplierForSupplier(supplier: NonNullable<Awaited<ReturnType<EventReadModelQueries['supplierForActor']>>>,
+  ) {
     const { reviews, reliabilityNotes, performanceNotes, aggregateRating, lastEventDate, pastEvents, ...safeSupplier } =
       supplier;
     return safeSupplier;
