@@ -20,7 +20,7 @@ describe('OpsSupplierDirectoryController', () => {
     expect(guards).toContain(EventSessionGuard);
   });
 
-  it('serves supplier directory reads through SuppliersService with role policy, ignoring spoofed query actors', async () => {
+  it('serves supplier directory reads using the verified session actor', async () => {
     const suppliersService = {
       listSupplierCategories: vi.fn(async () => [{ id: 'cat_food' }]),
       listSuppliers: vi.fn(async () => [{ id: 'sup_1' }]),
@@ -33,7 +33,6 @@ describe('OpsSupplierDirectoryController', () => {
       requireActorRole: vi.fn(async () => undefined),
     };
     const controller = new OpsSupplierDirectoryController(suppliersService as any, eventAccessPolicyService as any);
-    const spoofedQuery = { actorRole: 'pmcm-admin', actorName: 'Spoofed Admin', actorEmail: 'spoofed@example.com' };
     const supplierActor = {
       actorId: 'user_sonicline',
       actorRole: 'supplier',
@@ -47,8 +46,8 @@ describe('OpsSupplierDirectoryController', () => {
       actorEmail: 'maxine@pmcm.test',
     };
 
-    await expect(controller.listCategories(spoofedQuery, supplierActor as any)).resolves.toEqual([{ id: 'cat_food' }]);
-    await expect(controller.list(spoofedQuery, adminActor as any)).resolves.toEqual([{ id: 'sup_1' }]);
+    await expect(controller.listCategories(supplierActor as any)).resolves.toEqual([{ id: 'cat_food' }]);
+    await expect(controller.list(adminActor as any)).resolves.toEqual([{ id: 'sup_1' }]);
 
     expect(eventAccessPolicyService.resolveActor).toHaveBeenNthCalledWith(1, {}, supplierActor);
     expect(eventAccessPolicyService.resolveActor).toHaveBeenNthCalledWith(2, {}, adminActor);

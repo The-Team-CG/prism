@@ -1,5 +1,5 @@
 import type { OpsEvent, OpsSupplier, OpsSupplierCategory, OpsSupplierCertification, OpsSupplierReliabilityNote, OpsSupplierReview } from '@prisma/client';
-import type { AddSupplierQuoteInput } from './commercial-workflow-commands.port';
+import type { AddSupplierQuoteInput } from '@prism/types';
 
 export type QuoteSupplierProfile = OpsSupplier & {
   category: OpsSupplierCategory;
