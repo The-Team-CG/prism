@@ -32,6 +32,13 @@ describe('audit hash compatibility', () => {
     expect(left).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it('hashes dates in metadata the way JSONB stores them', () => {
+    const withDate = hashCanonicalAuditPayload({ metadata: { withdrawnAt: new Date('2026-10-04T00:00:00.000Z') } });
+    const stored = hashCanonicalAuditPayload({ metadata: { withdrawnAt: '2026-10-04T00:00:00.000Z' } });
+
+    expect(withDate).toBe(stored);
+  });
+
   it('continues to validate legacy hashes where the original JSON order survives', () => {
     const payload = toAuditHashPayload({ ...auditRow, immutableHash: '' });
     const legacyRow = { ...auditRow, immutableHash: hashLegacyAuditPayload(payload) };

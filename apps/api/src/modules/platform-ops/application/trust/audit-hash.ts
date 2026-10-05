@@ -63,6 +63,10 @@ export function isAuditHashValid(row: AuditHashRow) {
 }
 
 function canonicalizeJson(value: unknown): unknown {
+  // JSONB stores the serialized form, so dates and similar values hash the way they are stored.
+  if (value && typeof value === 'object' && typeof (value as { toJSON?: unknown }).toJSON === 'function') {
+    return canonicalizeJson((value as { toJSON: () => unknown }).toJSON());
+  }
   if (Array.isArray(value)) return value.map(canonicalizeJson);
   if (!value || typeof value !== 'object') return value;
 
