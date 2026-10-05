@@ -248,13 +248,20 @@ export interface PrismGuestFeedback {
   submittedAt: string;
 }
 
+/** Minimal acknowledgement returned to a guest after submitting or withdrawing feedback consent. */
+export interface PrismGuestFeedbackReceipt {
+  id: string;
+  eventId: string;
+  submittedAt: string;
+}
+
 export interface PrismGuestFeedbackMedia {
   id: string;
   kind: "photo" | "video";
   originalFileName: string;
   mimeType: string;
   sizeBytes: number;
-  status: "pending_storage";
+  status: string;
   blocker: string;
 }
 

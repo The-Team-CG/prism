@@ -1,7 +1,11 @@
-import type { OpsGuestCheckIn, OpsGuestFeedback } from '@prisma/client';
-import type { GuestCheckInInput, GuestFeedbackInput } from '../application/guest/guest-workflow.service';
+import type {
+  CreateGuestCheckInInput,
+  CreateGuestFeedbackInput,
+  PrismGuestCheckIn,
+  PrismGuestFeedbackReceipt,
+} from '@prism/types';
 
 export interface GuestCommands {
-  checkInByAccessCode(accessCode: string, input: GuestCheckInInput): Promise<OpsGuestCheckIn>;
-  submitFeedbackByAccessCode(accessCode: string, input: GuestFeedbackInput): Promise<OpsGuestFeedback>;
+  checkInByAccessCode(accessCode: string, input: CreateGuestCheckInInput): Promise<PrismGuestCheckIn>;
+  submitFeedbackByAccessCode(accessCode: string, input: CreateGuestFeedbackInput): Promise<PrismGuestFeedbackReceipt>;
 }
