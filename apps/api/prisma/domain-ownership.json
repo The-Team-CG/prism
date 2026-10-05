@@ -1,6 +1,6 @@
 {
   "summary": {
-    "totalTables": 91,
+    "totalTables": 92,
     "targetSchemas": 7,
     "tableMoves": 83,
     "currentCrossSchemaFks": 49,
@@ -56,8 +56,8 @@
       {
         "domain": "platform-ops",
         "schema": "platform_ops",
-        "tables": 13,
-        "columns": 187
+        "tables": 14,
+        "columns": 201
       }
     ]
   },
@@ -181,6 +181,14 @@
       "domain": "platform-ops",
       "targetSchema": "platform_ops",
       "columnCount": 17
+    },
+    {
+      "model": "OpsPrivacyLegalHold",
+      "currentSchema": "platform_ops",
+      "table": "privacy_legal_holds",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 14
     },
     {
       "model": "OpsFloorPlanDraft",
