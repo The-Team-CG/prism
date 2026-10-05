@@ -23,6 +23,15 @@ function createStaffingReader() {
     listCoordinators: vi.fn(async () => []),
   };
 }
+
+function createFloorplanReader(): ConstructorParameters<typeof EventReadModelsService>[4] {
+  return { listClientSnapshotEntries: vi.fn(async () => []) } as never;
+}
+
+function createEventClientFloorplanAccessReader(): ConstructorParameters<typeof EventReadModelsService>[5] {
+  return { listActiveSharedEvents: vi.fn(async () => []) } as never;
+}
+
 function createSupplierWorkspaceService() {
   const requests = [
     {
@@ -115,6 +124,8 @@ function createSupplierWorkspaceService() {
     policy,
     guestReader as any,
     staffingReader as any,
+    createFloorplanReader(),
+    createEventClientFloorplanAccessReader(),
   );
   return { service, prisma, policy, guestReader, staffingReader };
 }
@@ -290,6 +301,8 @@ function createPmcmReadModelService() {
     policy,
     guestReader as any,
     staffingReader as any,
+    createFloorplanReader(),
+    createEventClientFloorplanAccessReader(),
   );
   return { service, prisma, policy, guestReader };
 }
@@ -313,6 +326,8 @@ describe('EventReadModelsService', () => {
       policy as any,
       {} as any,
       {} as any,
+      createFloorplanReader(),
+      createEventClientFloorplanAccessReader(),
     );
 
     await expect(service.coordinatorReliabilityHistory({ role: OpsUserRole.PmcmAdmin, name: 'PMCM' } as any, 'coord_1')).resolves.toEqual([{
@@ -370,6 +385,8 @@ describe('EventReadModelsService', () => {
       policy,
       createGuestReader() as never,
       createStaffingReader() as never,
+      createFloorplanReader(),
+      createEventClientFloorplanAccessReader(),
     );
     const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });
     const mappers = {
@@ -522,6 +539,8 @@ describe('EventReadModelsService', () => {
       policy,
       guestReader as any,
       staffingReader as any,
+      createFloorplanReader(),
+      createEventClientFloorplanAccessReader(),
       closureReadinessReader as any,
     );
     const actor = policy.resolveActor({ actorRole: OpsUserRole.PmcmAdmin, actorName: 'Maxine' });
@@ -578,6 +597,8 @@ describe('EventReadModelsService', () => {
       policy,
       createGuestReader() as any,
       createStaffingReader() as any,
+      createFloorplanReader(),
+      createEventClientFloorplanAccessReader(),
       { closeGates: vi.fn() } as any,
     );
 
@@ -790,6 +811,8 @@ describe('EventReadModelsService', () => {
       policy,
       createGuestReader() as any,
       createStaffingReader() as any,
+      createFloorplanReader(),
+      createEventClientFloorplanAccessReader(),
     );
     const actor = policy.resolveActor({ actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
 
@@ -851,7 +874,14 @@ describe('EventReadModelsService', () => {
     const policy = new EventAccessPolicyService({ write: vi.fn() } as any);
     const guestReader = createGuestReader();
     const staffingReader = createStaffingReader();
-    const service = new EventReadModelsService(new EventReadModelQueries(prisma as any), policy, guestReader as any, staffingReader as any);
+    const service = new EventReadModelsService(
+      new EventReadModelQueries(prisma as any),
+      policy,
+      guestReader as any,
+      staffingReader as any,
+      createFloorplanReader(),
+      createEventClientFloorplanAccessReader(),
+    );
     const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });
 
     const actionCenter = await service.clientActionCenter(actor);
@@ -995,6 +1025,8 @@ describe('EventReadModelsService', () => {
       policy,
       createGuestReader() as unknown as ConstructorParameters<typeof EventReadModelsService>[2],
       createStaffingReader() as unknown as ConstructorParameters<typeof EventReadModelsService>[3],
+      createFloorplanReader(),
+      createEventClientFloorplanAccessReader(),
     );
     const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });
     const mappers = {
@@ -1064,6 +1096,8 @@ describe('EventReadModelsService', () => {
       policy,
       createGuestReader() as unknown as ConstructorParameters<typeof EventReadModelsService>[2],
       createStaffingReader() as unknown as ConstructorParameters<typeof EventReadModelsService>[3],
+      createFloorplanReader(),
+      createEventClientFloorplanAccessReader(),
     );
     const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });
 
@@ -1073,5 +1107,109 @@ describe('EventReadModelsService', () => {
     );
 
     expect(workspace.clientEventTimelines).toEqual([]);
+  });
+
+  it('composes only minimal snapshots for currently shared event grants', async () => {
+    const eventClientFloorplanAccessReader = {
+      listActiveSharedEvents: vi.fn(async () => [{
+        eventId: 'evt_shared',
+        eventName: 'Shared Gala',
+        eventDate: '2026-11-12T00:00:00.000Z',
+      }]),
+    };
+    const floorplanReader = {
+      listClientSnapshotEntries: vi.fn(async () => [
+        {
+          eventId: 'evt_shared',
+          draftId: 'fpd_approved',
+          draftName: 'Official Layout',
+          draftStatus: 'approved',
+          availableSnapshots: ['submitted', 'approved'],
+        },
+        {
+          eventId: 'evt_ungranted',
+          draftId: 'fpd_ungranted',
+          draftName: 'Should be filtered',
+          draftStatus: 'approved',
+          availableSnapshots: ['approved'],
+        },
+      ]),
+    };
+    const policy = new EventAccessPolicyService(
+      { write: vi.fn() } as unknown as ConstructorParameters<typeof EventAccessPolicyService>[0],
+    );
+    const service = new EventReadModelsService(
+      {} as unknown as ConstructorParameters<typeof EventReadModelsService>[0],
+      policy,
+      createGuestReader() as unknown as ConstructorParameters<typeof EventReadModelsService>[2],
+      createStaffingReader() as unknown as ConstructorParameters<typeof EventReadModelsService>[3],
+      floorplanReader as never,
+      eventClientFloorplanAccessReader as never,
+    );
+    const actor = {
+      ...policy.resolveActor({
+        actorId: 'client_secondary',
+        actorRole: OpsUserRole.Client,
+        actorEmail: 'secondary@example.test',
+      }),
+      verified: true,
+    };
+
+    await expect(service.clientSharedFloorplans(actor)).resolves.toEqual([{
+      eventId: 'evt_shared',
+      eventName: 'Shared Gala',
+      eventDate: '2026-11-12T00:00:00.000Z',
+      draftId: 'fpd_approved',
+      draftName: 'Official Layout',
+      draftStatus: 'approved',
+      availableSnapshots: ['submitted', 'approved'],
+    }]);
+    expect(eventClientFloorplanAccessReader.listActiveSharedEvents).toHaveBeenCalledWith('client_secondary');
+    expect(floorplanReader.listClientSnapshotEntries).toHaveBeenCalledWith(['evt_shared']);
+  });
+
+  it('does not query snapshots when there are no active shared events', async () => {
+    const eventClientFloorplanAccessReader = { listActiveSharedEvents: vi.fn(async () => []) };
+    const floorplanReader = { listClientSnapshotEntries: vi.fn(async () => []) };
+    const policy = new EventAccessPolicyService(
+      { write: vi.fn() } as unknown as ConstructorParameters<typeof EventAccessPolicyService>[0],
+    );
+    const service = new EventReadModelsService(
+      {} as unknown as ConstructorParameters<typeof EventReadModelsService>[0],
+      policy,
+      createGuestReader() as unknown as ConstructorParameters<typeof EventReadModelsService>[2],
+      createStaffingReader() as unknown as ConstructorParameters<typeof EventReadModelsService>[3],
+      floorplanReader as never,
+      eventClientFloorplanAccessReader as never,
+    );
+
+    const actor = {
+      ...policy.resolveActor({ actorId: 'client_1', actorRole: OpsUserRole.Client }),
+      verified: true,
+    };
+    await expect(service.clientSharedFloorplans(actor)).resolves.toEqual([]);
+    expect(floorplanReader.listClientSnapshotEntries).not.toHaveBeenCalled();
+  });
+
+  it('rejects non-Client actors before querying shared floorplan readers', async () => {
+    const eventClientFloorplanAccessReader = { listActiveSharedEvents: vi.fn(async () => []) };
+    const floorplanReader = { listClientSnapshotEntries: vi.fn(async () => []) };
+    const policy = new EventAccessPolicyService(
+      { write: vi.fn() } as unknown as ConstructorParameters<typeof EventAccessPolicyService>[0],
+    );
+    const service = new EventReadModelsService(
+      {} as unknown as ConstructorParameters<typeof EventReadModelsService>[0],
+      policy,
+      createGuestReader() as unknown as ConstructorParameters<typeof EventReadModelsService>[2],
+      createStaffingReader() as unknown as ConstructorParameters<typeof EventReadModelsService>[3],
+      floorplanReader as never,
+      eventClientFloorplanAccessReader as never,
+    );
+
+    await expect(service.clientSharedFloorplans(policy.resolveActor({ actorId: 'admin_1', actorRole: OpsUserRole.PmcmAdmin }))).rejects.toThrow(
+      'pmcm-admin cannot access client shared floorplans',
+    );
+    expect(eventClientFloorplanAccessReader.listActiveSharedEvents).not.toHaveBeenCalled();
+    expect(floorplanReader.listClientSnapshotEntries).not.toHaveBeenCalled();
   });
 });

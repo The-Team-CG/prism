@@ -1,5 +1,7 @@
 import 'reflect-metadata';
+import { RequestMethod } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
+import { EventSessionGuard } from '@prism/kernel/event-session';
 import { OpsClientController } from './client-workspace.controller';
 
 function controllerPath(controller: Function): string {
@@ -9,6 +11,34 @@ function controllerPath(controller: Function): string {
 describe('OpsClientController', () => {
   it('keeps the public client route base stable under event-read-models ownership', () => {
     expect(controllerPath(OpsClientController)).toBe('client');
+  });
+
+  it('guards the dedicated shared-floorplans route with the verified event session', () => {
+    const handler = OpsClientController.prototype.sharedFloorplans;
+    expect(Reflect.getMetadata('path', handler)).toBe('shared-floorplans');
+    expect(Reflect.getMetadata('method', handler)).toBe(RequestMethod.GET);
+    expect(Reflect.getMetadata('__guards__', handler)).toContain(EventSessionGuard);
+  });
+
+  it('resolves the verified Client actor for the narrow shared-floorplans read', async () => {
+    const sharedEntries = [{
+      eventId: 'evt_shared',
+      eventName: 'Shared Gala',
+      eventDate: '2026-11-12T00:00:00.000Z',
+      draftId: 'fpd_approved',
+      draftName: 'Official Layout',
+      draftStatus: 'approved',
+      availableSnapshots: ['submitted', 'approved'],
+    }];
+    const service = { clientSharedFloorplans: vi.fn(async () => sharedEntries) };
+    const actor = { id: 'client_secondary', role: 'client', name: 'Sally' };
+    const eventAccessPolicyService = { resolveActor: vi.fn(() => actor) };
+    const controller = new OpsClientController(service as never, eventAccessPolicyService as never);
+    const verifiedActor = { actorId: 'client_secondary', actorRole: 'client', actorEmail: 'sally@example.test', actorName: 'Sally' };
+
+    await expect(controller.sharedFloorplans(verifiedActor as never)).resolves.toEqual(sharedEntries);
+    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, verifiedActor);
+    expect(service.clientSharedFloorplans).toHaveBeenCalledWith(actor);
   });
 
   it('serves client workspace and action center through EventReadModelsService', async () => {
