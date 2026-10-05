@@ -37,6 +37,7 @@ scope, verification, and source/provenance entries.
 | Concern | Source |
 | --- | --- |
 | Agent rules and ownership | [`../AGENTS.md`](../AGENTS.md) |
+| Domain language | [../GLOSSARY.md](../GLOSSARY.md) |
 | Human setup and commands | [`../README.md`](../README.md) |
 | Release-visible change history | [`../CHANGELOG.md`](../CHANGELOG.md) |
 | Bundle update history | [`log.md`](log.md) |

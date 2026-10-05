@@ -3,8 +3,6 @@ import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import type { PrismVerifiedEventActor } from '@prism/types';
-import { CreateTemplateDto } from './create-template.dto';
-import { UpdateTemplateDto } from './update-template.dto';
 import { TemplatesService } from '../../application/authoring/templates.service';
 import { zodBody } from '@prism/kernel/shared';
 import { createTemplateSchema, updateTemplateSchema, type CreateTemplateInput, type UpdateTemplateInput } from '@prism/types';
