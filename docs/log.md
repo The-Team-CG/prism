@@ -1,5 +1,9 @@
 # Documentation bundle update log
 
+## 2026-10-04
+
+- **Added:** Active column authority register covering 91 models and 1,159 baseline fields, including their DDD owner, physical type/null/default, provisional semantic and retention classifications, consumer candidates, and keep/change/retire disposition. It records no speculative conversion; owner confirmations and populated-data gates remain open.
+
 ## 2026-10-03
 
 - **Corrected:** Historical coordinator event access now stays read-only in portal controls and API mutation authorization while preserving scoped reads and switching back to current events. The ledger records the boundary and regression evidence, including registration verification rechecking archive status under the event lock.
@@ -232,3 +236,4 @@
 - **Governed:** Made the root changelog mandatory for every user-requested
   delivery, with this log reserved for documentation-bundle changes and release
   notes kept under `[Unreleased]` until versioning occurs.
+- **Decided:** Accepted the seven-schema DDD target and local-only foreign-key rule, and aligned the context register to distinguish target owners from transitional writers; physical schema moves remain a separate rehearsed release.
