@@ -12,6 +12,7 @@ import {
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import type { EventDecisionInput } from '@prism/types';
 import { STAFFING_COMMANDS, type StaffingCommands } from '@prism/contexts/operations';
+import { EVENT_DECISION_SUPPLIER_OWNER, type EventDecisionSupplierOwner } from '@prism/contexts/commercial';
 
 @Injectable()
 export class EventDecisionService {
@@ -21,6 +22,7 @@ export class EventDecisionService {
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationWriter: NotificationOutboxWriter,
     @Inject(STAFFING_COMMANDS) private readonly staffingCommands: StaffingCommands,
+    @Inject(EVENT_DECISION_SUPPLIER_OWNER) private readonly supplierDecisionOwner: EventDecisionSupplierOwner,
   ) {}
 
   async list(eventId: string, actor: ResolvedEventOpsActor) {
@@ -128,22 +130,20 @@ export class EventDecisionService {
     nextDate: Date,
     actor: ResolvedEventOpsActor,
   ) {
+    const transactionContext = {
+      prisma: tx,
+      correlationId: `event-decision:${eventId}:${input.idempotencyKey ?? input.decision}`,
+      actorId: actor.id,
+    };
     const assignmentImpact = await this.staffingCommands.applyEventDecisionAssignments(
       eventId,
       input,
       currentDate.toISOString(),
       nextDate.toISOString(),
       actor,
-      {
-        prisma: tx,
-        correlationId: `event-decision:${eventId}:${input.idempotencyKey ?? input.decision}`,
-        actorId: actor.id,
-      },
+      transactionContext,
     );
-    const supplierRows = await tx.opsSupplierQuoteRequest.findMany({
-      where: { eventId, assignmentStatus: { not: 'withdrawn' } },
-      select: { id: true, supplierName: true, assignmentStatus: true },
-    });
+    const supplierRows = await this.supplierDecisionOwner.findEventDecisionSupplierImpact(eventId, transactionContext);
     return {
       supplierRows,
       assignmentImpact,
@@ -161,7 +161,12 @@ export class EventDecisionService {
 
   private async applyTransition(tx: Prisma.TransactionClient, eventId: string, input: EventDecisionInput, impacts: Awaited<ReturnType<EventDecisionService['loadImpacts']>>, nextDate: Date) {
     await tx.opsEvent.update({ where: { id: eventId }, data: { status: input.decision, eventDate: nextDate } });
-    if (input.decision === 'cancelled' || input.supplierImpact === 'release_obligations') await tx.opsSupplierQuoteRequest.updateMany({ where: { id: { in: impacts.supplierRows.map((row) => row.id) } }, data: { assignmentStatus: 'withdrawn' } });
+    if (input.decision === 'cancelled' || input.supplierImpact === 'release_obligations') {
+      await this.supplierDecisionOwner.releaseEventSupplierObligations(eventId, {
+        prisma: tx,
+        correlationId: `event-decision:${eventId}:${input.idempotencyKey ?? input.decision}`,
+      });
+    }
   }
 
   private async queueNotification(tx: Prisma.TransactionClient, event: Awaited<ReturnType<EventDecisionService['requireEvent']>>, eventId: string, input: EventDecisionInput, decisionId: string) {

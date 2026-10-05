@@ -1,4 +1,4 @@
-import { Inject, Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, BadRequestException, ForbiddenException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import type { OpsGuestCheckIn, OpsGuestFeedback, OpsGuestRosterEntry, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
@@ -601,14 +601,16 @@ export class GuestWorkflowService implements GuestCommands {
   }
 
   private async resolveCheckInGuestName(eventId: string, input: GuestCheckInInput) {
-    const rosterConfigured = await this.prisma.opsGuestRosterEntry?.findFirst({ where: { eventId, withdrawnAt: null } });
+    const rosterDelegate = this.prisma.opsGuestRosterEntry;
+    if (!rosterDelegate) throw new ServiceUnavailableException('Guest roster persistence is unavailable');
+    const rosterConfigured = await rosterDelegate.findFirst({ where: { eventId, withdrawnAt: null } });
     if (rosterConfigured && !input.rosterEntryId && !input.walkIn) throw new BadRequestException('Select an eligible roster entry for check-in');
     if (!input.rosterEntryId) {
       const name = input.guestName?.trim();
       if (!name) throw new BadRequestException('Guest name is required');
       return name;
     }
-    const roster = await this.prisma.opsGuestRosterEntry?.findFirst({ where: { id: input.rosterEntryId, eventId, withdrawnAt: null } });
+    const roster = await rosterDelegate.findFirst({ where: { id: input.rosterEntryId, eventId, withdrawnAt: null } });
     if (!roster || roster.eligibility !== 'eligible' || roster.verificationStatus === 'rejected') throw new BadRequestException('Roster entry is not eligible for check-in');
     return roster.guestName;
   }

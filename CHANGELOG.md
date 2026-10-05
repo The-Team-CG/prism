@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Wrapped the domain schema cutover in an explicit PostgreSQL transaction so its 5-second lock timeout and 60-second statement timeout apply to the full atomic move. Replayed the pending forward SQL and cutover against a disposable populated clone: all 93 tables retained OIDs, row counts, and index counts; the final catalog had 68 same-schema and zero cross-schema foreign keys. Prisma `migrate deploy` and a representative-data restore remain unverified.
+- Bounded batched floorplan draft reads per event with a PostgreSQL window query, preventing a high-volume event from consuming the page limit for every other event.
+- Updated the persistence ownership register and added before/after schema maps for the 10-schema staging layout and the seven-schema domain target.
 - Repaired verification failures left by the stacked merges: API typecheck errors, stale transitional-write exceptions, the read-model test exemption in the boundary scan, client contact enforcement in the communication participant reader, outdated privacy and floorplan HTTP test fixtures, and concurrent same-key event decisions that hit a serialization failure.
 - Routed LiveOps event-state checks through Lifecycle and operator/handoff eligibility through a transaction-aware Operations capability. Profile and assignment state is locked and rechecked before the LiveOps write; no schema or foreign-key changes were made.
+- Routed remaining Commercial and Lifecycle cross-domain reads through focused read-model readers, moved proposal review mutations behind Lifecycle ownership, and made missing guest-roster sources fail closed. Updated the context contracts and cutover runbook to match the implemented migration and verification limits.
 
 - Fixed audit-chain hashing so dates inside audit metadata hash the way PostgreSQL stores them; previously an event decision with date metadata made the next audit write fail integrity verification. The coordinator PostgreSQL suite now builds the receipt-enabled workflow its replay test depends on.
 
