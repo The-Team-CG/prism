@@ -5,6 +5,7 @@ import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type Resolved
 import { OpsUserRole } from '@prism/kernel/event-core';
 import type { DecideFreezeExceptionInput, FreezeEventInput, IssueAddendumInput, RequestFreezeExceptionInput, PrismAddendum, PrismEventFreezeException } from '@prism/types';
 import { randomUUID } from 'node:crypto';
+import { COMMERCIAL_ADDENDUM_IMPACT_WRITER, type CommercialAddendumImpactWriter } from '@prism/contexts/commercial';
 
 type SnapshotEntry = Record<string, unknown>;
 
@@ -38,7 +39,12 @@ function mapAddendum(value: { id: string; eventId: string; versionNumber: number
 
 @Injectable()
 export class ChangeManagementService {
-  constructor(private readonly prisma: PrismaService, private readonly access: EventAccessPolicyService, @Inject(AUDIT_WRITER) private readonly audit: AuditWriter) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly access: EventAccessPolicyService,
+    @Inject(AUDIT_WRITER) private readonly audit: AuditWriter,
+    @Inject(COMMERCIAL_ADDENDUM_IMPACT_WRITER) private readonly commercialAddendumImpactWriter: CommercialAddendumImpactWriter,
+  ) {}
 
   private async requireOperator(actor: ResolvedEventOpsActor, eventId: string, resource: string) {
     await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], resource, eventId);
@@ -104,28 +110,41 @@ export class ChangeManagementService {
     return exception;
   }
 
-  private async applyFinancialImpact(tx: Prisma.TransactionClient, eventId: string, addendumId: string, versionNumber: number, delta: number) {
-    if (delta === 0) return;
-    const source = await tx.opsBillingSource.findFirst({ where: { eventId, status: 'approved' }, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }] });
-    if (!source) throw new BadRequestException('An approved billing source is required before applying a financial addendum');
-    const items = Array.isArray(source.lineItems) ? [...source.lineItems as unknown[]] : [];
-    items.push({ label: `Addendum v${versionNumber} scope change`, amount: delta });
-    const updated = await tx.opsBillingSource.update({ where: { id: source.id }, data: { totalAmount: source.totalAmount + delta, lineItems: toPrismaJson(items) } });
-    await tx.opsAddendumImpact.create({ data: { id: `impact_${randomUUID()}`, eventId, addendumId, targetType: 'billing_source', targetId: source.id, beforeValue: toPrismaJson({ totalAmount: source.totalAmount, lineItems: source.lineItems }), afterValue: toPrismaJson({ totalAmount: updated.totalAmount, lineItems: updated.lineItems }), deltaAmount: delta } });
-  }
-
-  private async applyQuoteImpacts(tx: Prisma.TransactionClient, eventId: string, addendumId: string, changes: ReturnType<typeof compareSnapshots>) {
-    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: each changed quote needs its own before/after impact record within this event.
-    for (const change of changes) {
+  private async applyCommercialImpacts(
+    tx: Prisma.TransactionClient,
+    eventId: string,
+    addendumId: string,
+    versionNumber: number,
+    financialDelta: number,
+    changes: ReturnType<typeof compareSnapshots>,
+  ) {
+    const quotePriceChanges = changes.flatMap((change) => {
       const before = change.before as SnapshotEntry | null;
       const after = change.after as SnapshotEntry | null;
       const quoteId = String(after?.id ?? before?.id ?? '');
       const amount = typeof after?.amount === 'number' ? after.amount : null;
-      if (!quoteId || amount === null) continue;
-      const quote = await tx.opsSupplierQuote.findFirst({ where: { id: quoteId, eventId, status: 'selected' } });
-      if (!quote || quote.amount === amount) continue;
-      const updated = await tx.opsSupplierQuote.update({ where: { id: quote.id }, data: { amount } });
-      await tx.opsAddendumImpact.create({ data: { id: `impact_${randomUUID()}`, eventId, addendumId, targetType: 'supplier_quote', targetId: quote.id, beforeValue: toPrismaJson({ amount: quote.amount, status: quote.status }), afterValue: toPrismaJson({ amount: updated.amount, status: updated.status }), deltaAmount: updated.amount - quote.amount } });
+      return quoteId && amount !== null ? [{ quoteId, amount }] : [];
+    });
+    const impacts = await this.commercialAddendumImpactWriter.apply({
+      eventId,
+      versionNumber,
+      financialDelta,
+      quotePriceChanges,
+    }, { prisma: tx, correlationId: addendumId });
+
+    if (impacts.length > 0) {
+      await tx.opsAddendumImpact.createMany({
+        data: impacts.map((impact) => ({
+          id: `impact_${randomUUID()}`,
+          eventId,
+          addendumId,
+          targetType: impact.targetType,
+          targetId: impact.targetId,
+          beforeValue: toPrismaJson(impact.beforeValue),
+          afterValue: toPrismaJson(impact.afterValue),
+          deltaAmount: impact.deltaAmount,
+        })),
+      });
     }
   }
 
@@ -137,8 +156,7 @@ export class ChangeManagementService {
       const comparison = { contract: compareSnapshots((previous?.contractSnapshot ?? []) as SnapshotEntry[], input.contractSnapshot), quotes: compareSnapshots((previous?.quoteSnapshot ?? []) as SnapshotEntry[], input.quoteSnapshot) };
       const versionNumber = (previous?.versionNumber ?? 0) + 1;
       const addendum = await tx.opsAddendum.create({ data: { id: `addendum_${randomUUID()}`, eventId, versionNumber, title: input.title.trim(), summary: input.summary?.trim() ?? '', documentId: document.id, contractSnapshot: toPrismaJson(input.contractSnapshot), quoteSnapshot: toPrismaJson(input.quoteSnapshot), comparison: toPrismaJson(comparison), financialDelta: input.financialDelta, freezeExceptionId: exception?.id ?? null } });
-      await this.applyFinancialImpact(tx, eventId, addendum.id, versionNumber, input.financialDelta);
-      await this.applyQuoteImpacts(tx, eventId, addendum.id, comparison.quotes);
+      await this.applyCommercialImpacts(tx, eventId, addendum.id, versionNumber, input.financialDelta, comparison.quotes);
       await writeAudit(this.audit, eventId, actor.name, 'Issued immutable addendum', { actorRole: actor.role, actionType: 'create', category: 'events', affectedType: 'addendum', affectedId: addendum.id, metadata: { versionNumber, documentId: document.id, documentState: 'pending', signatureMethod: 'scanned_document', comparison, financialDelta: input.financialDelta, freezeExceptionId: exception?.id ?? null } }, { prisma: tx, correlationId: addendum.id, actorId: actor.id });
       return mapAddendum(addendum);
     }, { isolationLevel: 'Serializable' });

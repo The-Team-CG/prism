@@ -12,8 +12,33 @@ function createContext(request: Record<string, unknown>): ExecutionContext {
   } as unknown as ExecutionContext;
 }
 
-function prismaFor(version = 0) {
-  return { opsUser: { findUnique: vi.fn().mockResolvedValue({ sessionVersion: version }) } } as never;
+const verifiedPmcmActor = {
+  id: 'user_pmcm',
+  actorId: 'user_pmcm',
+  role: 'pmcm-admin',
+  actorRole: 'pmcm-admin',
+  email: 'mys@pmcm.test',
+  actorEmail: 'mys@pmcm.test',
+  name: 'Ms. Mys',
+  actorName: 'Ms. Mys',
+  sessionVersion: 0,
+  expiresAt: '2099-01-01T00:00:00.000Z',
+};
+
+function prismaFor(version = 0, overrides: Record<string, unknown> = {}) {
+  return {
+    opsUser: {
+      findUnique: vi.fn().mockResolvedValue({
+        sessionVersion: version,
+        approvalStatus: 'approved',
+        lockedUntil: null,
+        permanentLockout: false,
+        role: 'pmcm-admin',
+        email: 'mys@pmcm.test',
+        ...overrides,
+      }),
+    },
+  } as never;
 }
 
 describe('EventSessionGuard', () => {
@@ -36,17 +61,7 @@ describe('EventSessionGuard', () => {
   });
 
   it('accepts a bearer token and attaches the verified actor to the request', async () => {
-    const verifiedActor = {
-      id: 'user_pmcm',
-      actorId: 'user_pmcm',
-      role: 'pmcm-admin',
-      actorRole: 'pmcm-admin',
-      email: 'mys@pmcm.test',
-      actorEmail: 'mys@pmcm.test',
-      name: 'Ms. Mys',
-      actorName: 'Ms. Mys',
-      expiresAt: '2026-07-15T00:00:00.000Z',
-    };
+    const verifiedActor = verifiedPmcmActor;
     const authSessionService = {
       verifyAccessToken: vi.fn(() => verifiedActor),
     } as unknown as AuthSessionService;
@@ -61,9 +76,17 @@ describe('EventSessionGuard', () => {
 
   it('accepts the x-prism-session header as an alternative to Authorization', async () => {
     const authSessionService = {
-      verifyAccessToken: vi.fn(() => ({ actorRole: 'client' })),
+      verifyAccessToken: vi.fn(() => ({
+        ...verifiedPmcmActor,
+        id: 'user_client',
+        actorId: 'user_client',
+        role: 'client',
+        actorRole: 'client',
+        email: 'client@example.test',
+        actorEmail: 'client@example.test',
+      })),
     } as unknown as AuthSessionService;
-    const guard = new EventSessionGuard(authSessionService, prismaFor());
+    const guard = new EventSessionGuard(authSessionService, prismaFor(0, { role: 'client', email: 'client@example.test' }));
     const context = createContext({ headers: { 'x-prism-session': 'session-token' } });
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
@@ -72,11 +95,29 @@ describe('EventSessionGuard', () => {
 
   it('rejects a signed session whose durable user epoch has changed', async () => {
     const authSessionService = {
-      verifyAccessToken: vi.fn(() => ({ id: 'user_1', sessionVersion: 0 })),
+      verifyAccessToken: vi.fn(() => verifiedPmcmActor),
     } as unknown as AuthSessionService;
-    const prisma = { opsUser: { findUnique: vi.fn().mockResolvedValue({ sessionVersion: 1 }) } };
+    const prisma = prismaFor(1);
     const guard = new EventSessionGuard(authSessionService, prisma as never);
     await expect(guard.canActivate(createContext({ headers: { authorization: 'Bearer old-token' } }))).rejects.toThrow('revoked');
+  });
+
+  it.each([
+    ['declined account', { approvalStatus: 'declined' }],
+    ['pending account', { approvalStatus: 'pending' }],
+    ['temporary lockout', { lockedUntil: new Date(Date.now() + 60_000) }],
+    ['permanent lockout', { permanentLockout: true }],
+    ['changed role', { role: 'client' }],
+    ['changed email', { email: 'changed@example.test' }],
+  ])('rejects a signed session for a currently ineligible %s', async (_label, userOverrides) => {
+    const authSessionService = {
+      verifyAccessToken: vi.fn(() => verifiedPmcmActor),
+    } as unknown as AuthSessionService;
+    const guard = new EventSessionGuard(authSessionService, prismaFor(0, userOverrides) as never);
+
+    await expect(guard.canActivate(createContext({ headers: { authorization: 'Bearer old-token' } }))).rejects.toThrow(
+      /revoked|eligible/i,
+    );
   });
 
   it('does not allow a guard without a durable user lookup', async () => {

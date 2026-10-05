@@ -73,6 +73,9 @@
       "@prism/contexts/operations/*": [
         "src/modules/operations/*"
       ],
+      "@prism/contexts/live-ops/urgent-issue-reference": [
+        "src/modules/live-ops/urgent-issue-reference"
+      ],
       "@prism/contexts/live-ops": [
         "src/modules/live-ops/index"
       ],
@@ -85,8 +88,14 @@
       "@prism/contexts/commercial/*": [
         "src/modules/commercial/*"
       ],
+      "@prism/contexts/event-lifecycle/post-event-reference": [
+        "src/modules/event-lifecycle/post-event-reference"
+      ],
       "@prism/contexts/event-lifecycle": [
         "src/modules/event-lifecycle/index"
+      ],
+      "@prism/contexts/event-lifecycle/floorplan-reference": [
+        "src/modules/event-lifecycle/floorplan-reference"
       ],
       "@prism/contexts/event-lifecycle/*": [
         "src/modules/event-lifecycle/*"

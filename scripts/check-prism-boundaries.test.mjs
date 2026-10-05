@@ -152,6 +152,23 @@ describe("findBoundaryViolations", () => {
     }
   });
 
+  it("allows focused owner reference capability seams only", () => {
+    const path = "apps/api/src/modules/commercial/application/billing/billing-adjustment.service.ts";
+    assert.deepEqual(findBoundaryViolations({ [path]:
+      'import { POST_EVENT_LIFECYCLE_STATE_READER } from "@prism/contexts/event-lifecycle/post-event-reference"; import { URGENT_ISSUE_REFERENCE_READER } from "@prism/contexts/live-ops/urgent-issue-reference";',
+    }), []);
+    for (const imported of [
+      "@prism/contexts/event-lifecycle/application/onboarding/post-event-lifecycle-state-reader.service",
+      "@prism/contexts/event-lifecycle/post-event-reference/private",
+      "@prism/contexts/live-ops/application/urgent-issue-reference-reader.service",
+      "@prism/contexts/live-ops/urgent-issue-reference/private",
+    ]) {
+      assert.deepEqual(findBoundaryViolations({ [path]: 'import { reader } from "' + imported + '";' }), [
+        path + ": backend code must use public context and kernel entrypoints",
+      ]);
+    }
+  });
+
   it("confines provider SDK imports to gateway infrastructure after the PARE migration", () => {
     const allowedAdapter = "apps/api/src/modules/platform-ops/infrastructure/ai-governance/anthropic.adapter.ts";
     const migratedAgent = "apps/api/src/modules/platform-ops/application/ai-governance/pare/agents/budget.agent.ts";
