@@ -720,6 +720,29 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
       },
       sideEffects: async ({ newAssignment, oldAssignment: updatedOld }, transactionContext) => {
         if (!plan) return;
+        // Audit rows extend one hash chain, so a command's audit entries are written one after another.
+        await this.auditWriter.write({
+          eventId,
+          actor: actor.name,
+          action: `Replaced ${updatedOld.coordinatorName} with ${plan.coordinator.name}`,
+          actionType: AuditActionType.Update,
+          category: AuditCategory.Events,
+          affectedType: 'coordinator_assignment',
+          affectedId: updatedOld.id,
+          affectedLabel: updatedOld.coordinatorName,
+          metadata: { reason: input.reason ?? '', replacementAssignmentId: newAssignment.id },
+        }, transactionContext);
+        await this.auditWriter.write({
+          eventId,
+          actor: actor.name,
+          action: `Assigned ${plan.coordinator.name} as ${plan.role} (replacement)`,
+          actionType: AuditActionType.Assign,
+          category: AuditCategory.Events,
+          affectedType: 'coordinator_assignment',
+          affectedId: newAssignment.id,
+          affectedLabel: `${plan.coordinator.name} - ${plan.role}`,
+          metadata: { replacedAssignmentId: updatedOld.id },
+        }, transactionContext);
         await Promise.all([
           this.reliabilityWriter.record({
             eventId,
@@ -727,28 +750,6 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
             assignmentId: updatedOld.id,
             note: `${updatedOld.coordinatorName} replaced for ${updatedOld.role}: ${input.reason ?? 'Assignment coverage changed'}`,
             severity: 'warning',
-          }, transactionContext),
-          this.auditWriter.write({
-            eventId,
-            actor: actor.name,
-            action: `Replaced ${updatedOld.coordinatorName} with ${plan.coordinator.name}`,
-            actionType: AuditActionType.Update,
-            category: AuditCategory.Events,
-            affectedType: 'coordinator_assignment',
-            affectedId: updatedOld.id,
-            affectedLabel: updatedOld.coordinatorName,
-            metadata: { reason: input.reason ?? '', replacementAssignmentId: newAssignment.id },
-          }, transactionContext),
-          this.auditWriter.write({
-            eventId,
-            actor: actor.name,
-            action: `Assigned ${plan.coordinator.name} as ${plan.role} (replacement)`,
-            actionType: AuditActionType.Assign,
-            category: AuditCategory.Events,
-            affectedType: 'coordinator_assignment',
-            affectedId: newAssignment.id,
-            affectedLabel: `${plan.coordinator.name} - ${plan.role}`,
-            metadata: { replacedAssignmentId: updatedOld.id },
           }, transactionContext),
           this.notificationOutboxWriter.write({
             eventId,
