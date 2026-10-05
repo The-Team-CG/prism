@@ -27,7 +27,10 @@ export class LifecyclePrivacyRedactorService implements LifecyclePrivacyRedactor
     });
     const inquiryIds = identities.map((inquiry) => inquiry.id);
     const eventReferences = await transaction.opsEvent.findMany({
-      where: { inquiryId: { in: inquiryIds } },
+      where: {
+        inquiryId: { in: inquiryIds },
+        ...(input.eventId ? { id: input.eventId } : {}),
+      },
       select: { id: true },
     });
     const eventIds = eventReferences.map((event) => event.id);
