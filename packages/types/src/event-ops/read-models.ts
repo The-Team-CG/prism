@@ -36,6 +36,17 @@ import type {
 } from "./compliance-billing.js";
 import type { PrismAuditLog, PrismNotificationLog } from "./trust.js";
 
+export interface PrismCursorPageInfo {
+  nextCursor: string | null;
+  hasMore: boolean;
+  totalCount: number;
+}
+
+export interface PrismEventPage {
+  items: PrismEvent[];
+  pagination: PrismCursorPageInfo;
+}
+
 export interface PrismPmcmDashboardWorkspace {
   users: PrismUser[];
   inquiries: PrismInquiry[];
@@ -72,8 +83,7 @@ export type PrismClientTimelineMilestoneKey =
   | "balance_payment_due"
   | "event_date";
 
-export type PrismClientTimelineMilestoneStatus =
-  | "completed"
+export type PrismClientTimelineMilestoneStatus = "completed"
   | "current"
   | "pending";
 
@@ -130,6 +140,7 @@ export type PrismClientWorkspace = Pick<
   | "auditLogs"
   | "notificationLogs"
 > & {
+  pagination: PrismCursorPageInfo;
   clientEventTimelines: PrismClientEventTimeline[];
   ocularVisits?: PrismClientOcularVisit[];
 };
@@ -176,8 +187,7 @@ export interface PrismSupplierReadinessBoard {
   items: PrismSupplierReadinessItem[];
 }
 
-export type PrismCommandInboxSeverity =
-  | "critical"
+export type PrismCommandInboxSeverity = "critical"
   | "warning"
   | "attention"
   | "info";
@@ -258,7 +268,7 @@ export interface PrismClientActionItem {
   id: string;
   kind: Extract<
     PrismCommandInboxKind,
-    | "briefing"
+    "briefing"
     | "billing"
     | "document"
     | "floorplan"
