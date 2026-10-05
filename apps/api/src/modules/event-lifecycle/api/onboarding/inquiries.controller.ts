@@ -28,14 +28,12 @@ export class OpsInquiriesController {
   private inquiryWorkflowContext() {
     return {
       inquiriesService: this.inquiriesService,
-      resolveActor: (input?: ActorContextDto, verifiedActor?: PrismVerifiedEventActor) =>
-        this.eventAccessPolicyService.resolveActor(input, verifiedActor),
-      requireActorRole: (actor: ReturnType<EventAccessPolicyService['resolveActor']>, roles: OpsUserRole[], resource: string) =>
-        this.eventAccessPolicyService.requireActorRole(actor, roles, resource),
+      resolveActor: this.eventAccessPolicyService.resolveActor.bind(this.eventAccessPolicyService),
+      requireActorRole: this.eventAccessPolicyService.requireActorRole.bind(this.eventAccessPolicyService),
       allowedAdminRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.System],
-      mapInquiry: (inquiry: unknown) => mapInquiry(inquiry as Parameters<typeof mapInquiry>[0]),
-      mapDocument: (document: unknown) => mapDocument(document as Parameters<typeof mapDocument>[0]),
-      mapEvent: (event: unknown) => mapOnboardingEvent(event as Parameters<typeof mapOnboardingEvent>[0]),
+      mapInquiry,
+      mapDocument,
+      mapEvent: mapOnboardingEvent,
     };
   }
 

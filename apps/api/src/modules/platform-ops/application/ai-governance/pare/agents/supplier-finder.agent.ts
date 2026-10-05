@@ -1,5 +1,16 @@
 import { PrismaService } from '@prism/kernel/database';
+import type { Prisma } from '@prisma/client';
 import type { PARECandidate, PAREContext } from '../pare.types';
+
+type PareSupplierCandidate = Prisma.OpsSupplierGetPayload<{
+  include: {
+    reviews: true;
+    certifications: true;
+    quoteRequests: true;
+    quotes: true;
+  };
+}>;
+type PareSupplierQuote = Prisma.OpsSupplierQuoteGetPayload<{}>;
 
 export class SupplierFinderAgent {
   constructor(private readonly prisma: PrismaService) {}
@@ -8,8 +19,8 @@ export class SupplierFinderAgent {
     throwIfAborted(signal);
     const { withdrawnSupplier, eventId } = ctx;
 
-    let category: any;
-    let suppliers: any[] = [];
+    let category: Prisma.OpsSupplierCategoryGetPayload<{}> | null = null;
+    let suppliers: PareSupplierCandidate[] = [];
 
     try {
       category = await this.prisma.opsSupplierCategory.findFirst({
@@ -25,7 +36,6 @@ export class SupplierFinderAgent {
         },
         include: {
           reviews: true,
-          reliabilityNotes: true,
           certifications: true,
           quoteRequests: { where: { eventId } },
           quotes: { where: { eventId } },
@@ -46,7 +56,7 @@ export class SupplierFinderAgent {
 
       // Skip if already assigned to this event in another role (same category block)
       const alreadyOnEvent = supplier.quoteRequests.some(
-        (qr: any) => qr.assignmentStatus === 'confirmed',
+        (request) => request.assignmentStatus === 'confirmed',
       );
       if (alreadyOnEvent) continue;
 
@@ -82,26 +92,26 @@ export class SupplierFinderAgent {
     return candidates.slice(0, 5); // Top 5
   }
 
-  private computeReliabilityScore(supplier: any): number {
-    const reviews: any[] = supplier.reviews ?? [];
+  private computeReliabilityScore(supplier: PareSupplierCandidate): number {
+    const reviews = supplier.reviews;
     if (reviews.length === 0) return 0.5; // Unknown — neutral
 
-    const avgRating = reviews.reduce((s: number, r: any) => s + r.rating, 0) / reviews.length;
+    const avgRating = reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length;
     // Normalize 1-5 rating to 0-1 score
     const score = (avgRating - 1) / 4;
     return Math.round(score * 100) / 100;
   }
 
-  private detectHalal(supplier: any): boolean {
+  private detectHalal(supplier: PareSupplierCandidate): boolean {
     const text = `${supplier.serviceInclusions} ${supplier.performanceNotes}`.toLowerCase();
     return text.includes('halal');
   }
 
   private buildReason(
-    supplier: any,
+    supplier: PareSupplierCandidate,
     score: number,
     halal: boolean,
-    quote: any,
+    quote: PareSupplierQuote | undefined,
   ): string {
     const parts: string[] = [];
     parts.push(`Tier ${supplier.tier.replace('tier_', '')}`);

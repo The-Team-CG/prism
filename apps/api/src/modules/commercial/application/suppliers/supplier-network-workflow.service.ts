@@ -20,7 +20,7 @@ import {
   type SupplierDirectory,
   type UpdateSupplierInput,
 } from '../../contracts/supplier-directory.port';
-import type { SupplierEventStatusInput, SupplierReadinessInput, VerifySupplierEventStatusInput } from '../../contracts/supplier-commands.port';
+import type { SupplierCommands, SupplierEventStatusInput, SupplierReadinessInput, VerifySupplierEventStatusInput } from '../../contracts/supplier-commands.port';
 import type { SupplierDocumentVault, UploadMetadataInput, ValidatedUploadMetadata } from '../../contracts/supplier-document-vault.port';
 import {
   SUPPLIER_DIRECTORY,
@@ -35,6 +35,7 @@ import {
 } from '@prism/contexts/platform-ops';
 import { SupplierProfileCommandsService } from './supplier-profile-commands.service';
 import type { CreateSupplierReliabilityNoteInput, PromoteSupplierInput, CreateSupplierScheduleInput } from '@prism/types';
+import { mapSupplierQuoteRequest, mapSupplierSchedule } from '../quotes/supplier-quote.mappers';
 
 async function lockSupplierQuoteRequest(prisma: Prisma.TransactionClient, requestId: string) {
   await prisma.$queryRaw`SELECT id FROM "supplier_ops"."quote_requests" WHERE id = ${requestId} FOR UPDATE`; // QUERY_AUDIT_RAW_SQL: parameterized primary-key row lock rechecks assignment state and identity.
@@ -81,7 +82,7 @@ function requireLockedWithdrawalRequest(
 }
 
 @Injectable()
-export class SupplierNetworkWorkflowService {
+export class SupplierNetworkWorkflowService implements SupplierCommands {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(SUPPLIER_DIRECTORY) private readonly suppliersService: SupplierDirectory,
@@ -132,7 +133,7 @@ export class SupplierNetworkWorkflowService {
     let expectedEventId = '';
     let expectedSupplierId = '';
 
-    return this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
+    const updated = await this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
       name: 'confirm_supplier_assignment',
       context: { actorId: actor.id ?? actor.name, actorRole: actor.role, correlationId: `supplier-confirm:${requestId}` },
       sideEffectMode: 'same_tx',
@@ -188,6 +189,7 @@ export class SupplierNetworkWorkflowService {
         }, transactionContext);
       },
     });
+    return mapSupplierQuoteRequest(updated);
   }
 
   async withdrawSupplier(requestId: string, reason: string, actor: ResolvedEventOpsActor, eventId?: string) {
@@ -264,7 +266,7 @@ export class SupplierNetworkWorkflowService {
         }, transactionContext);
       },
     });
-    return result.request;
+    return mapSupplierQuoteRequest(result.request);
   }
 
   pareGetPendingApprovals(eventId?: string) {
@@ -290,7 +292,7 @@ export class SupplierNetworkWorkflowService {
   ) {
     let request: OpsSupplierQuoteRequest | null = null;
 
-    return this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
+    const updated = await this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
       name: 'confirm_supplier_readiness',
       validatePermission: async () => {
         request = await this.requireSupplierQuoteRequestForActor(requestId, actor);
@@ -324,6 +326,7 @@ export class SupplierNetworkWorkflowService {
         }, transactionContext);
       },
     });
+    return mapSupplierQuoteRequest(updated);
   }
 
   async updateSupplierEventStatus(
@@ -334,7 +337,7 @@ export class SupplierNetworkWorkflowService {
     let request: OpsSupplierQuoteRequest | null = null;
     let photo: ValidatedUploadMetadata | null = null;
 
-    return this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
+    const updated = await this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
       name: 'update_supplier_event_status',
       validatePermission: async () => {
         request = await this.requireSupplierQuoteRequestForActor(requestId, actor);
@@ -375,6 +378,7 @@ export class SupplierNetworkWorkflowService {
         }, transactionContext);
       },
     });
+    return mapSupplierQuoteRequest(updated);
   }
 
   async verifySupplierEventStatus(
@@ -387,7 +391,7 @@ export class SupplierNetworkWorkflowService {
     let verificationStatus: SupplierVerificationStatus | null = null;
     const verifiedBy = actor.name;
 
-    return this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
+    const updated = await this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
       name: 'verify_supplier_event_status',
       eventId,
       validatePermission: async () => {
@@ -435,13 +439,14 @@ export class SupplierNetworkWorkflowService {
         });
       },
     });
+    return mapSupplierQuoteRequest(updated);
   }
 
   async uploadSupplierContract(requestId: string, input: UploadMetadataInput, actor: ResolvedEventOpsActor) {
     let request: OpsSupplierQuoteRequest | null = null;
     let upload: ValidatedUploadMetadata | null = null;
 
-    return this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
+    const updated = await this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
       name: 'upload_supplier_contract',
       validatePermission: async () => {
         request = await this.requireSupplierQuoteRequestForActor(requestId, actor);
@@ -487,6 +492,7 @@ export class SupplierNetworkWorkflowService {
         });
       },
     });
+    return mapSupplierQuoteRequest(updated);
   }
 
   async createSupplierSchedule(eventId: string, input: CreateSupplierScheduleInput, actor: ResolvedEventOpsActor) {
@@ -494,7 +500,7 @@ export class SupplierNetworkWorkflowService {
     const ingressAt = new Date(input.ingressAt);
     const egressAt = new Date(input.egressAt);
     if (egressAt <= ingressAt) throw new BadRequestException('Egress must be after ingress');
-    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const request = await tx.opsSupplierQuoteRequest.findUnique({ where: { id: input.requestId } });
       if (!request || request.eventId !== eventId || request.status !== 'selected' || request.assignmentStatus !== 'confirmed') {
         throw new BadRequestException('Only a confirmed supplier assignment can receive a schedule');
@@ -518,13 +524,19 @@ export class SupplierNetworkWorkflowService {
           lateFlagReset: lateFlagReset.count === 1,
         },
       }, { prisma: tx, actorId: actor.id, correlationId: `supplier-schedule:${schedule.id}` });
-      return schedule;
+      return { schedule, supplierName: request.supplierName };
     });
+    return mapSupplierSchedule(result.schedule, result.supplierName);
   }
 
   async listSupplierSchedules(eventId: string, actor: ResolvedEventOpsActor) {
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator], 'supplier ingress schedule', eventId);
-    return this.prisma.opsSupplierSchedule.findMany({ where: { eventId }, include: { request: true }, orderBy: { ingressAt: 'asc' } });
+    const schedules = await this.prisma.opsSupplierSchedule.findMany({
+      where: { eventId },
+      include: { request: { select: { supplierName: true } } },
+      orderBy: { ingressAt: 'asc' },
+    });
+    return schedules.map(({ request, ...schedule }) => mapSupplierSchedule(schedule, request.supplierName));
   }
 
   private requireSupplierAdmin(actor: ResolvedEventOpsActor, resource: string, eventId?: string) {

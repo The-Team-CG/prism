@@ -6,7 +6,6 @@ import type {
   OpsEventDayLog,
   OpsEventDayTask,
   OpsFloorPlanDraft,
-  OpsGuestCheckIn,
   OpsSupplierQuoteRequest,
   OpsUrgentIssue,
 } from '@prisma/client';
@@ -186,7 +185,7 @@ function assignmentFixture(role: string): OpsCoordinatorAssignment {
   };
 }
 
-function guestFixture(): OpsGuestCheckIn {
+function guestFixture(): PrismGuestCheckIn {
   return {
     id: 'check_in_1',
     eventId: EVENT_ID,
@@ -195,10 +194,7 @@ function guestFixture(): OpsGuestCheckIn {
     status: 'checked_in',
     walkIn: false,
     verificationStatus: 'verified',
-    privacyConsentAccepted: true,
-    privacyNoticeVersion: '2026-05-01',
-    marketingConsentAccepted: false,
-    checkedInAt: CREATED_AT,
+    checkedInAt: CREATED_AT.toISOString(),
     rosterEntryId: null,
   };
 }
@@ -220,7 +216,7 @@ function createService(input: {
   supplierRequests?: OpsSupplierQuoteRequest[];
   eventDayLogs?: OpsEventDayLog[];
   assignment?: OpsCoordinatorAssignment;
-  guestCheckIns?: OpsGuestCheckIn[];
+  guestCheckIns?: PrismGuestCheckIn[];
 }) {
   const assignment = input.assignment;
   const guestCheckIns = input.guestCheckIns ?? [];
@@ -233,16 +229,6 @@ function createService(input: {
     status: assignment?.status ?? 'acknowledged',
     doubleBookingWarning: false,
   };
-  const mappedGuest = (checkIn: OpsGuestCheckIn): PrismGuestCheckIn => ({
-    id: checkIn.id,
-    eventId: checkIn.eventId,
-    guestName: checkIn.guestName,
-    checkInMode: checkIn.checkInMode,
-    status: checkIn.status,
-    walkIn: checkIn.walkIn,
-    verificationStatus: checkIn.verificationStatus,
-    checkedInAt: checkIn.checkedInAt.toISOString(),
-  });
   const queries = {
     liveOpsForEvent: vi.fn(async () => ({
       event: eventFixture(),
@@ -282,7 +268,6 @@ function createService(input: {
   const guestReader = {
     listCheckInsForEvent: vi.fn(async () => guestCheckIns),
     countCheckInsForEvent: vi.fn(async () => guestCheckIns.length),
-    mapGuestCheckIn: vi.fn(mappedGuest),
     guestAccessCode: vi.fn(() => 'EVENT-CODE'),
   } as unknown as GuestReader;
   const staffingReader = {

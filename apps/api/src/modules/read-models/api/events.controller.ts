@@ -1,4 +1,4 @@
-import { Controller, Get, Inject, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, Param, Query, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { FLOORPLAN_READER, type FloorplanReader } from '@prism/contexts/floorplan';
 import { GUEST_READER, type GuestReader } from '@prism/contexts/operations';
@@ -18,9 +18,9 @@ export class OpsEventReadsController {
 
   @Get()
   @UseGuards(EventSessionGuard)
-  list(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+  list(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor, @Query('cursor') cursor?: string) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
-    return this.eventReadModelsService.eventList(actor, this.mappers());
+    return this.eventReadModelsService.eventList(actor, this.mappers(), cursor);
   }
 
   @Get(':eventId')
