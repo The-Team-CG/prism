@@ -3,10 +3,8 @@ import { DatabaseModule } from '@prism/kernel/database';
 import { AccessControlModule } from '@prism/kernel/access-control';
 import { EventCoreModule } from '@prism/kernel/event-core';
 import { FloorplanModule } from '../floorplan/floorplan.module';
-import { IdentityAccessModule } from '../identity-access/identity-access.module';
 import { EventSessionModule } from '@prism/kernel/event-session';
 import { PlatformOpsModule } from '../platform-ops/platform-ops.module';
-import { EventLifecycleModule } from '../event-lifecycle/event-lifecycle.module';
 import { OpsCoordinatorWorkspaceController } from './api/staffing/coordinator-workspace.controller';
 import { OpsEventCoordinatorAssignmentsController } from './api/staffing/event-coordinator-assignments.controller';
 import { OpsCoordinatorsController } from './api/staffing/coordinators.controller';
@@ -40,13 +38,13 @@ import { WalkInPolicyService } from './application/guest/walk-in-policy.service'
  * correction note).
  *
  * Owned tables: OpsCoordinatorAssignment (day-to-day staffing assignment;
- * live-ops also writes here for event-day updates), OpsCoordinatorReliabilityNote,
+ * Live Ops and event lifecycle use the staffing command port for assignment changes), OpsCoordinatorReliabilityNote,
  * OpsGuestCheckIn, OpsGuestFeedback.
  * Read-only: OpsCoordinator (populated only by local fixtures; no owning module), OpsEvent
  * (via inquiry-onboarding).
  */
 @Module({
-  imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, FloorplanModule, IdentityAccessModule, EventSessionModule, EventLifecycleModule],
+  imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, FloorplanModule, EventSessionModule],
   controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsCoordinatorCapacityController, OpsGuestController, OpsRegistrationPlatformController, WalkInPolicyController],
   providers: [
     CoordinatorsService,

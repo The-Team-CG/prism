@@ -4,7 +4,6 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuditService, AuditWriterAdapter, SecurityOperationsService } from '@prism/contexts/platform-ops';
-import { DocumentVaultService } from '@prism/contexts/event-lifecycle';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
 import { GuestWorkflowService } from './guest-workflow.service';
 
@@ -31,7 +30,7 @@ describe.skipIf(!databaseUrl)('guest feedback PostgreSQL transaction acceptance'
     await prisma.$connect();
     const auditService = new AuditService(prisma as never);
     const auditWriter = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma as never, auditService));
-    service = new GuestWorkflowService(prisma as never, auditWriter, new WorkflowCommandService(), new DocumentVaultService(), { findAssignmentForEventActor: vi.fn() } as never);
+    service = new GuestWorkflowService(prisma as never, auditWriter, new WorkflowCommandService(), { findAssignmentForEventActor: vi.fn() } as never);
   });
 
   afterEach(() => {

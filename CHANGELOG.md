@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Routed Live Ops assignment, replacement, and attendance changes through Operations; Lifecycle delegates cancellation and postponement with the caller transaction. Retry-safe assignment commands preserve existing audit and reliability effects, with event-scoped row conflict updates.
+- Assignment command replay now avoids duplicating event decisions, reliability notes, audit records, notifications, and event-day logs.
 - Added Lifecycle and LiveOps transaction-aware owner readers for additional billing. Lifecycle checks post-event eligibility and LiveOps checks same-event urgent-issue eligibility before Commercial writes.
 - Added a checked policy inventory for all 45 current cross-domain foreign keys and 28 scalar references, documenting owner checks, former delete effects, failure, and recovery; FK removal remains gated.
 - Delegated Lifecycle addendum billing-source and selected-quote mutations to a Commercial owner capability while Lifecycle retains addendum history. Current briefing/conforme flows do not fabricate billing rows without priced-source input.
