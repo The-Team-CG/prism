@@ -12,6 +12,7 @@ import {
 import { NotificationOutboxService } from '../notifications/notification-outbox.service';
 import { AuditService, AuditIntegrityConflictException } from './audit.service';
 import type { AuditLogInput } from './audit.service';
+import type { AuthenticationFailureDetails } from '../../contracts/trust/authentication-failure-details';
 
 export type IntegrityIncidentInput = {
   source: string;
@@ -28,10 +29,6 @@ export function resolveAuthAuditIntegrityPosture(): AuthAuditIntegrityPosture {
   return process.env.AUTH_AUDIT_INTEGRITY_POSTURE === 'degraded' ? 'degraded' : 'fail_closed';
 }
 
-const LOGIN_LOCKOUT_THRESHOLD = 5;
-const LOGIN_LOCKOUT_MINUTES = 10;
-const PERMANENT_LOCKOUT_THRESHOLD = 5;
-
 function timestamp(value: Date) {
   return value.toISOString();
 }
@@ -42,46 +39,22 @@ function addMinutes(value: Date, minutes: number) {
   return next;
 }
 
-type LockoutState = {
-  nextFailedCount: number;
-  shouldLock: boolean;
-  nextLockoutCount: number;
-  permanentLockout: boolean;
-};
-
-function lockoutState(user: OpsUser): LockoutState {
-  const nextFailedCount = user.failedLoginCount + 1;
-  const shouldLock = nextFailedCount >= LOGIN_LOCKOUT_THRESHOLD;
-  const nextLockoutCount = shouldLock ? user.lockoutCount + 1 : user.lockoutCount;
-  const permanentLockout = nextLockoutCount >= PERMANENT_LOCKOUT_THRESHOLD;
-  return { nextFailedCount, shouldLock, nextLockoutCount, permanentLockout };
-}
-
-function lockoutUserData(user: OpsUser, now: Date, state: LockoutState) {
+function lockoutHistory(state: AuthenticationFailureDetails) {
   return {
-    failedLoginCount: state.shouldLock ? 0 : state.nextFailedCount,
-    lockoutCount: state.nextLockoutCount,
-    lockedUntil: state.shouldLock && !state.permanentLockout ? addMinutes(now, LOGIN_LOCKOUT_MINUTES) : user.lockedUntil,
-    permanentLockout: state.permanentLockout,
+    status: state.lockoutTriggered ? LoginHistoryStatus.Locked : LoginHistoryStatus.Failed,
+    reason: state.lockoutTriggered ? 'Account locked after repeated failed attempts' : state.failureReason,
+    severity: state.lockoutTriggered ? 'critical' : 'warning',
   };
 }
 
-function lockoutHistory(state: LockoutState) {
-  return {
-    status: state.shouldLock ? LoginHistoryStatus.Locked : LoginHistoryStatus.Failed,
-    reason: state.shouldLock ? 'Account locked after repeated failed attempts' : 'Invalid password',
-    severity: state.shouldLock ? 'critical' : 'warning',
-  };
-}
-
-function lockoutAlertPayload(user: OpsUser, state: LockoutState) {
+function lockoutAlertPayload(user: OpsUser, state: AuthenticationFailureDetails) {
   return {
     type: state.permanentLockout ? 'permanent_account_lockout' : 'account_lockout',
     title: state.permanentLockout ? 'Permanent account lockout' : 'Account lockout triggered',
-    description: `${user.email} was locked after repeated failed login attempts.`,
+    description: `${user.email} was locked after repeated failed authentication attempts.`,
     severity: state.permanentLockout ? 'critical' : 'warning',
     triggeredBy: user.email,
-    metadata: { userId: user.id, role: user.role, lockoutCount: state.nextLockoutCount },
+    metadata: { userId: user.id, role: user.role, lockoutCount: state.lockoutCount },
   };
 }
 
@@ -190,15 +163,7 @@ export class SecurityOperationsService {
     });
   }
 
-  async handleFailedLogin(user: OpsUser) {
-    const now = new Date();
-    const state = lockoutState(user);
-
-    await this.prisma.opsUser.update({
-      where: { id: user.id },
-      data: lockoutUserData(user, now, state),
-    });
-
+  async handleFailedLogin(user: OpsUser, state: AuthenticationFailureDetails) {
     const history = lockoutHistory(state);
     await this.recordLoginHistory(user, user.email, history.status, history.reason);
 
@@ -213,10 +178,14 @@ export class SecurityOperationsService {
       affectedId: user.id,
       affectedLabel: user.email,
       severity: history.severity,
-      metadata: { failedAttempt: state.nextFailedCount, lockoutCount: state.nextLockoutCount },
+      metadata: {
+        failedAttempt: state.failedAttempt,
+        lockoutCount: state.lockoutCount,
+        failureReason: state.failureReason,
+      },
     });
 
-    if (state.shouldLock) {
+    if (state.lockoutTriggered) {
       await this.createSecurityAlert(lockoutAlertPayload(user, state), { authentication: true });
     }
   }
