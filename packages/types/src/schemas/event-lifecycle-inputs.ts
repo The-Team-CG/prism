@@ -145,4 +145,9 @@ export const waiveOcularVisitSchema = z.object({
 });
 export type WaiveOcularVisitInput = z.infer<typeof waiveOcularVisitSchema>;
 
+export const grantSecondaryClientAccessSchema = z.object({
+  userId: nonEmptyStringSchema,
+});
+export type GrantSecondaryClientAccessInput = z.infer<typeof grantSecondaryClientAccessSchema>;
+
 
