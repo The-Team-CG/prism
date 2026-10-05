@@ -1,15 +1,15 @@
 import type { OpsAuditChainLock, OpsAuditLog, Prisma } from '@prisma/client';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
 import { toPrismaJson } from '@prism/kernel/database';
 import type { PrismaService } from '@prism/kernel/database';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { auditTailCandidates, isIndependentAuditChainSet, orderLinkedAuditLogs } from './audit-chain-order';
+import { hashCanonicalAuditPayload, isAuditHashValid } from './audit-hash';
 import { AuditIntegrityConflictException } from './audit-chain.types';
 import type { AuditLogInput } from './audit-chain.types';
 
 const AUDIT_READ_PAGE_SIZE = 1000;
-
 type AuditReader = Pick<Prisma.TransactionClient, 'opsAuditLog'>;
 type AuditAppendInput = {
   eventId?: string;
@@ -126,9 +126,7 @@ export async function verifyAuditIntegrity(prisma: AuditReader) {
     };
   }
   for (const log of chain.ordered) {
-    const expectedHash = expectedAuditHash(log);
-
-    if (log.previousHash !== previousHash || log.immutableHash !== expectedHash) {
+    if (log.previousHash !== previousHash || !hasValidImmutableHash(log)) {
       return {
         valid: false,
         checkedCount: logs.length,
@@ -231,7 +229,7 @@ function buildAuditData(input: AuditLogInput) {
     previousHash: input.previousHash ?? null,
     createdAt: createdAt.toISOString(),
   };
-  const immutableHash = hashAuditPayload(payload);
+  const immutableHash = hashCanonicalAuditPayload(payload);
 
   return {
     ...payload,
@@ -241,36 +239,8 @@ function buildAuditData(input: AuditLogInput) {
   };
 }
 
-function expectedAuditHash(
-  log: Pick<OpsAuditLog, 'id' | 'eventId' | 'actor' | 'actorRole' | 'actorEmail' | 'action' | 'actionType' | 'category' | 'affectedType' | 'affectedId' | 'affectedLabel' | 'metadata' | 'ipAddress' | 'device' | 'severity' | 'previousHash' | 'createdAt'>,
-) {
-  return hashAuditPayload({
-    id: log.id,
-    eventId: log.eventId ?? null,
-    actor: log.actor,
-    actorRole: log.actorRole,
-    actorEmail: log.actorEmail ?? null,
-    action: log.action,
-    actionType: log.actionType,
-    category: log.category,
-    affectedType: log.affectedType ?? null,
-    affectedId: log.affectedId ?? null,
-    affectedLabel: log.affectedLabel ?? null,
-    metadata: log.metadata ?? {},
-    ipAddress: log.ipAddress,
-    device: log.device,
-    severity: log.severity,
-    previousHash: log.previousHash ?? null,
-    createdAt: log.createdAt.toISOString(),
-  });
-}
-
 function hasValidImmutableHash(log: OpsAuditLog) {
-  return log.immutableHash === expectedAuditHash(log);
-}
-
-function hashAuditPayload(payload: Record<string, unknown>) {
-  return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
+  return isAuditHashValid(log);
 }
 
 function inferActorRole(actor: string) {

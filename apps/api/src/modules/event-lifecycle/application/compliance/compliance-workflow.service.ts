@@ -80,7 +80,7 @@ export class ComplianceWorkflowService {
       write: () => this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const run = await tx.opsComplianceRun.create({ data: { id: `crun_${randomUUID()}`, eventId, phase, trigger: input.trigger ?? 'manual', status: 'completed', startedAt: now, completedAt: new Date(), ruleCount: evaluations.length + custom.length } });
         const data = [...evaluations.map(({ rule, evaluation, persisted: dbRule }) => ({
-          id: `chk_${randomUUID()}`, eventId, ruleId: dbRule?.id ?? rule.id, runId: run.id, layer: rule.layer, severity: rule.severity, phase,
+          id: `chk_${randomUUID()}`, eventId, ruleId: dbRule?.id ?? null, runId: run.id, layer: rule.layer, severity: rule.severity, phase,
           conditionKey: rule.conditionKey, title: rule.title, status: evaluation.status === 'not_satisfied' ? 'open' : 'resolved', evaluationStatus: evaluation.status,
           evidence: evaluation.evidence, definitionStatus: rule.definitionStatus, remediation: rule.remediation, note: rule.remediation,
         })), ...custom.map((rule) => ({

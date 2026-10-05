@@ -127,9 +127,10 @@ describe("createEventOpsClient", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
-    await client.events.list({ actorName: "Ms. Mys", actorRole: "pmcm" });
+    await client.events.list({ actorName: "Ms. Mys", actorRole: "pmcm" }, 'cursor-2');
 
-    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/events?actorName=Ms.+Mys&actorRole=pmcm", {
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:4000/api/events?actorName=Ms.+Mys&actorRole=pmcm&cursor=cursor-2', {
       headers: { "Content-Type": "application/json" },
     });
   });
@@ -232,6 +233,32 @@ describe("createEventOpsClient", () => {
     );
   });
 
+  it('sends the client workspace cursor with bearer auth', async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            events: [],
+            pagination: { nextCursor: null, hasMore: false, totalCount: 0 },
+          }),
+          { status: 200 },
+        ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = createEventOpsClient({
+      baseUrl: 'http://localhost:4000/api',
+      getAuthToken: () => 'client-session-token',
+    });
+    await client.clientWorkspace.detail({}, 'cursor-2');
+
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:4000/api/client/workspace?cursor=cursor-2', {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer client-session-token',
+      },
+    });
+  });
   it("loads the client action center with bearer auth and no actor query", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ items: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);

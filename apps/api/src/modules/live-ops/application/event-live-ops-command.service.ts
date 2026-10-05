@@ -132,11 +132,14 @@ export class EventLiveOpsCommandService {
       await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'coordinator attendance', eventId);
       throw new ForbiddenException("Coordinator cannot mark another coordinator's attendance");
     }
-    const assignment = await this.coordinatorCommandService.updateCoordinatorAttendance(eventId, assignmentId, input, actor);
-    return mapCoordinatorAssignmentForEventDay(
-      assignment,
-      this.staffingReader.mapCoordinatorAssignment.bind(this.staffingReader),
+    const assignment = await this.coordinatorCommandService.updateCoordinatorAttendance(
+      eventId,
+      assignmentId,
+      input,
+      actor,
+      { allowAnotherAssignment: designatedOperator },
     );
+    return mapCoordinatorAssignmentForEventDay(assignment);
   }
 
   async requestTaskReassignment(eventId: string, taskId: string, input: CreateEventTaskReassignmentInput, actor: ResolvedEventOpsActor) {
@@ -176,14 +179,8 @@ export class EventLiveOpsCommandService {
       await this.coordinatorCommandService.replaceCoordinatorAssignment(eventId, assignmentId, input, actor);
 
     return {
-      replacedAssignment: mapCoordinatorAssignmentForEventDay(
-        replacedAssignment,
-        this.staffingReader.mapCoordinatorAssignment.bind(this.staffingReader),
-      ),
-      replacementAssignment: mapCoordinatorAssignmentForEventDay(
-        replacementAssignment,
-        this.staffingReader.mapCoordinatorAssignment.bind(this.staffingReader),
-      ),
+      replacedAssignment: mapCoordinatorAssignmentForEventDay(replacedAssignment),
+      replacementAssignment: mapCoordinatorAssignmentForEventDay(replacementAssignment),
     };
   }
 

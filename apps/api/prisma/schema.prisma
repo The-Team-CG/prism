@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -123,6 +124,10 @@ model OpsUser {
   lastLoginAt      DateTime? @map("last_login_at")
   twoFactorSecret  String?   @map("two_factor_secret")
   sessionVersion   Int       @default(0) @map("session_version")
+  twoFactorChallengeHash       String?   @unique(map: "users_two_factor_challenge_hash_key") @map("two_factor_challenge_hash")
+  twoFactorChallengeExpiresAt  DateTime? @map("two_factor_challenge_expires_at")
+  twoFactorChallengeAttempts   Int       @default(0) @map("two_factor_challenge_attempts")
+  twoFactorChallengeConsumedAt DateTime? @map("two_factor_challenge_consumed_at")
   createdAt        DateTime  @default(now()) @map("created_at")
 
   loginHistory       OpsLoginHistory[]
@@ -283,6 +288,7 @@ model OpsEvent {
   floorPlanId           String?   @map("floor_plan_id")
   floorPlanSubmittedAt  DateTime? @map("floor_plan_submitted_at")
   floorPlanReviewedAt   DateTime? @map("floor_plan_reviewed_at")
+  floorPlanProjectionVersion Int @default(0) @map("floor_plan_projection_version")
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at")
 
@@ -345,6 +351,8 @@ model OpsEvent {
 
   @@index([inquiryId], map: "events_inquiry_id_idx")
   @@index([status, eventDate], map: "events_status_event_date_idx")
+  @@index([eventDate, id], map: "events_event_date_id_idx")
+  @@index([eventDate, id], where: { archived: false }, map: "events_active_event_date_idx")
   @@map("events")
   @@schema("event_core")
 }
@@ -424,6 +432,28 @@ model OpsPrivacyRequest {
   @@schema("event_core")
 }
 
+model OpsPrivacyLegalHold {
+  id             String    @id
+  subjectType    String    @map("subject_type")
+  subjectEmail   String    @default("") @map("subject_email")
+  subjectName    String    @default("") @map("subject_name")
+  eventId        String?   @map("event_id")
+  reason         String
+  placedById     String    @map("placed_by_id")
+  placedByName   String    @map("placed_by_name")
+  placedAt       DateTime  @default(now()) @map("placed_at")
+  releaseReason  String?   @map("release_reason")
+  releasedById   String?   @map("released_by_id")
+  releasedByName String?   @map("released_by_name")
+  releasedAt     DateTime? @map("released_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@index([subjectType, subjectEmail, releasedAt, eventId], map: "privacy_legal_holds_email_active_idx")
+  @@index([subjectType, subjectName, releasedAt, eventId], map: "privacy_legal_holds_name_active_idx")
+  @@map("privacy_legal_holds")
+  @@schema("platform_ops")
+}
+
 model OpsFloorPlanDraft {
   id                  String    @id
   eventId             String    @map("event_id")
@@ -451,6 +481,17 @@ model OpsFloorPlanDraft {
   @@index([eventId, status], map: "floor_plan_drafts_event_id_status_idx")
   @@index([eventId, isActive], map: "floor_plan_drafts_event_id_is_active_idx")
   @@map("floor_plan_drafts")
+  @@schema("floorplan")
+}
+
+// Per-event sequence for projecting Floorplan-owned state onto the Lifecycle event record.
+// eventId is an external reference: the context boundary deliberately has no cross-schema FK.
+model OpsFloorPlanProjectionClock {
+  eventId   String   @id @map("event_id")
+  version   Int      @default(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("floor_plan_projection_clocks")
   @@schema("floorplan")
 }
 
@@ -509,7 +550,7 @@ model OpsCostEstimate {
   status       String   @default("draft")
   notes        String   @default("")
   createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
   event        OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   lines        OpsCostEstimateLine[]
   proposals    OpsProposalVersion[]
@@ -652,6 +693,7 @@ model OpsSupplierQuoteRequest {
   quotes           OpsSupplierQuote[]
 
   @@index([eventId, status], map: "quote_requests_event_id_status_idx")
+  @@index([eventId, supplierId, status], map: "quote_requests_event_supplier_status_idx")
   @@index([supplierId], map: "quote_requests_supplier_id_idx")
   @@index([categoryId], map: "quote_requests_category_id_idx")
   @@index([contractDocumentId], map: "quote_requests_contract_document_id_idx")
@@ -728,6 +770,7 @@ model OpsSupplierQuote {
   categoryRef OpsSupplierCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   @@index([eventId, status], map: "quotes_event_id_status_idx")
+  @@index([eventId, requestId, status], map: "quotes_event_request_status_idx")
   @@index([supplierId], map: "quotes_supplier_id_idx")
   @@index([requestId], map: "quotes_request_id_idx")
   @@index([categoryId], map: "quotes_category_id_idx")
@@ -970,6 +1013,8 @@ model OpsCoordinator {
   operatorDesignations OpsEventOperatorDesignation[]
 
   @@index([active, name], map: "coordinators_active_name_idx")
+  @@index([roleTags], type: Gin, map: "coordinators_role_tags_gin_idx")
+  @@index([skillsTags], type: Gin, map: "coordinators_skills_tags_gin_idx")
   @@map("coordinators")
   @@schema("staffing_ops")
 }
@@ -1111,7 +1156,7 @@ model OpsEventTaskReassignmentRequest {
   decidedBy     String?   @map("decided_by")
   decisionReason String?  @map("decision_reason")
   createdAt     DateTime   @default(now()) @map("created_at")
-  updatedAt     DateTime   @updatedAt @map("updated_at")
+  updatedAt     DateTime   @default(now()) @updatedAt @map("updated_at")
 
   event OpsEvent       @relation(fields: [eventId], references: [id], onDelete: Cascade)
   task  OpsEventDayTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
@@ -1411,7 +1456,7 @@ model OpsComplianceRisk {
   closedAt    DateTime? @map("closed_at")
   closedBy    String?   @map("closed_by")
   createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
 
   event  OpsEvent                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
   rule   OpsComplianceRule?        @relation(fields: [ruleId], references: [id], onDelete: SetNull)
@@ -1530,6 +1575,7 @@ model OpsPaymentMilestone {
   records OpsPaymentRecord[]
 
   @@index([eventId, status], map: "payment_milestones_event_id_status_idx")
+  @@index([eventId, dueDate, id], map: "payment_milestones_event_due_date_idx")
   @@map("payment_milestones")
   @@schema("finance_ops")
 }
@@ -1661,7 +1707,7 @@ model OpsEventWrapUp {
   completedAt                  DateTime? @map("completed_at")
   completedBy                  String?   @map("completed_by")
   createdAt                    DateTime  @default(now()) @map("created_at")
-  updatedAt                    DateTime  @updatedAt @map("updated_at")
+  updatedAt                    DateTime  @default(now()) @updatedAt @map("updated_at")
 
   event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
@@ -1725,6 +1771,7 @@ model OpsAuditLog {
   event OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId, createdAt], map: "audit_logs_event_id_created_at_idx")
+  @@index([eventId, createdAt(sort: Desc), id], map: "audit_logs_event_created_at_id_idx")
   @@index([actor, createdAt], map: "audit_logs_actor_created_at_idx")
   @@index([createdAt], map: "audit_logs_created_at_idx")
   @@index([category, createdAt], map: "audit_logs_category_created_at_idx")
@@ -1759,6 +1806,7 @@ model OpsNotificationLog {
 
   @@index([eventId, createdAt], map: "notification_logs_event_id_created_at_idx")
   @@index([status, createdAt], map: "notification_logs_status_created_at_idx")
+  @@index([status, createdAt, id], map: "notification_logs_status_created_at_id_idx")
   @@index([correlationId], map: "notification_logs_correlation_id_idx")
   @@index([status, nextAttemptAt], map: "notification_logs_status_next_attempt_at_idx")
   @@map("notification_logs")
