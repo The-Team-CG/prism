@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 - Added a transaction-aware Lifecycle reference capability for Floorplan event, conforme, ocular, archive, freeze, portal, and projection facts. Official drafts retain signed-conforme and ocular gates; archived/frozen events reject mutations, and clients keep authorized historical reads. No schema or FK changes were made.
+- Added a regression case proving that approval rejects a draft changed by a concurrent client revision after the initial read; the in-review Lifecycle projection remains unchanged.
 - Added an additive, version-checked Lifecycle projection for Floorplan state; Floorplan drafts and per-event projection clocks remain Floorplan-owned in their domain schema, with no cross-domain foreign key.
 - Verified the PR17e Floorplan owner-reference path on PostgreSQL 16; all 56 focused tests passed, including rollback and concurrent review cases.
 - Removed 11 unreferenced API DTO files and their stale barrel/controller imports; retired the unbound, always-unavailable signed-upload shim while keeping canonical storage flows and active DTO validation.
