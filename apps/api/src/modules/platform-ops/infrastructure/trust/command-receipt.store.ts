@@ -3,10 +3,10 @@ import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '@prism/kernel/database';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
-import type { CommandReceiptCreate, CommandReceiptKey, CommandReceiptRecord, CommandReceiptStore } from '../ports/command-receipt.port';
+import type { CommandReceiptCreate, CommandReceiptKey, CommandReceiptRecord, CommandReceiptStore } from '@prism/kernel/event-core';
 
 @Injectable()
-export class PrismaCommandReceiptStore implements CommandReceiptStore {
+export class PlatformCommandReceiptStore implements CommandReceiptStore {
   constructor(private readonly prisma: PrismaService) {}
 
   async find(key: CommandReceiptKey, context?: PrismTransactionContext): Promise<CommandReceiptRecord | null> {

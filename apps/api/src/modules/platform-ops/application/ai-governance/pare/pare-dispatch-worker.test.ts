@@ -108,7 +108,12 @@ describe('PARE dispatch outbox', () => {
     expect(config.rows[0]).toMatchObject({ status: 'failed', failureReason: expect.stringContaining('disabled or misconfigured') });
     const missing = harness([row({ id: 'missing' })]);
     await processPareDispatchQueue(missing.prisma, { handleEmergencyTrigger: vi.fn(async () => { throw new PareSourceNotFoundError('source missing'); }) });
-    expect(missing.rows[0]).toMatchObject({ status: 'failed', failureReason: expect.stringContaining('source request or event') });
+    expect(missing.rows[0]).toMatchObject({
+      status: 'failed',
+      eventId: 'event_1',
+      requestId: 'request_1',
+      failureReason: expect.stringContaining('source request or event'),
+    });
   });
 
   it('retries transient gateway failures and terminally records incomplete runs', async () => {

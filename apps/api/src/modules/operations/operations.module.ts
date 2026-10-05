@@ -3,10 +3,8 @@ import { DatabaseModule } from '@prism/kernel/database';
 import { AccessControlModule } from '@prism/kernel/access-control';
 import { EventCoreModule } from '@prism/kernel/event-core';
 import { FloorplanModule } from '../floorplan/floorplan.module';
-import { IdentityAccessModule } from '../identity-access/identity-access.module';
 import { EventSessionModule } from '@prism/kernel/event-session';
 import { PlatformOpsModule } from '../platform-ops/platform-ops.module';
-import { EventLifecycleModule } from '../event-lifecycle/event-lifecycle.module';
 import { OpsCoordinatorWorkspaceController } from './api/staffing/coordinator-workspace.controller';
 import { OpsEventCoordinatorAssignmentsController } from './api/staffing/event-coordinator-assignments.controller';
 import { OpsCoordinatorsController } from './api/staffing/coordinators.controller';
@@ -28,6 +26,8 @@ import { CoordinatorAcknowledgementReminderScheduler } from './application/staff
 import { GuestWorkflowService } from './application/guest/guest-workflow.service';
 import { RegistrationPlatformService } from './application/guest/registration-platform.service';
 import { WalkInPolicyService } from './application/guest/walk-in-policy.service';
+import { OperationsPrivacyRedactorService } from './application/guest/operations-privacy-redactor.service';
+import { OPERATIONS_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 
 /**
  * Bounded-context composition root for operations: day-to-day coordinator
@@ -40,13 +40,13 @@ import { WalkInPolicyService } from './application/guest/walk-in-policy.service'
  * correction note).
  *
  * Owned tables: OpsCoordinatorAssignment (day-to-day staffing assignment;
- * live-ops also writes here for event-day updates), OpsCoordinatorReliabilityNote,
+ * Live Ops and event lifecycle use the staffing command port for assignment changes), OpsCoordinatorReliabilityNote,
  * OpsGuestCheckIn, OpsGuestFeedback.
  * Read-only: OpsCoordinator (populated only by local fixtures; no owning module), OpsEvent
  * (via inquiry-onboarding).
  */
 @Module({
-  imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, FloorplanModule, IdentityAccessModule, EventSessionModule, EventLifecycleModule],
+  imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, FloorplanModule, EventSessionModule],
   controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsCoordinatorCapacityController, OpsGuestController, OpsRegistrationPlatformController, WalkInPolicyController],
   providers: [
     CoordinatorsService,
@@ -59,6 +59,8 @@ import { WalkInPolicyService } from './application/guest/walk-in-policy.service'
     GuestWorkflowService,
     RegistrationPlatformService,
     WalkInPolicyService,
+    OperationsPrivacyRedactorService,
+    { provide: OPERATIONS_PRIVACY_REDACTOR, useExisting: OperationsPrivacyRedactorService },
     { provide: STAFFING_COMMANDS, useExisting: CoordinatorAssignmentCommandService },
     { provide: COORDINATOR_RELIABILITY_WRITER, useExisting: CoordinatorReliabilityNoteWriterService },
     { provide: COORDINATOR_INSIGHT_FACTS_READER, useExisting: CoordinatorInsightFactsReaderService },
@@ -67,6 +69,6 @@ import { WalkInPolicyService } from './application/guest/walk-in-policy.service'
     { provide: GUEST_READER, useExisting: GuestWorkflowService },
     { provide: REGISTRATION_PLATFORM_READER, useExisting: RegistrationPlatformService },
   ],
-  exports: [CoordinatorsService, CoordinatorWorkspaceReadService, STAFFING_COMMANDS, STAFFING_READER, COORDINATOR_RELIABILITY_WRITER, COORDINATOR_INSIGHT_FACTS_READER, GuestWorkflowService, RegistrationPlatformService, WalkInPolicyService, GUEST_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER],
+  exports: [CoordinatorsService, CoordinatorWorkspaceReadService, STAFFING_COMMANDS, STAFFING_READER, COORDINATOR_RELIABILITY_WRITER, COORDINATOR_INSIGHT_FACTS_READER, GuestWorkflowService, RegistrationPlatformService, WalkInPolicyService, GUEST_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER, OPERATIONS_PRIVACY_REDACTOR],
 })
 export class OperationsModule {}
