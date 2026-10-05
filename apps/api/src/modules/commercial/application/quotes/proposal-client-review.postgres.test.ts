@@ -15,18 +15,50 @@ if (url) {
   }
 }
 const enabled = Boolean(url);
-const prefix = `p0_w02_${randomUUID()}`;
-const ids = { inquiry: `${prefix}_inquiry`, event: `${prefix}_event`, document: `${prefix}_proposal`, secondDocument: `${prefix}_proposal_v2` };
+let ids = { inquiry: '', event: '', document: '', secondDocument: '' };
 const actor = { id: 'p0_w02_client', role: OpsUserRole.Client, name: 'P0 Client', email: 'p0-w02@example.test', explicit: true };
 
 describe.skipIf(!enabled)('proposal client review PostgreSQL integrity', () => {
   let prisma: PrismaService;
+  let auditService: AuditService;
   let service: ProposalClientReviewService;
-  const reset = async () => {
-    await prisma.opsAuditLog.deleteMany({ where: { eventId: ids.event } });
-    await prisma.opsDocument.deleteMany({ where: { eventId: ids.event, id: { not: ids.document } } });
-    await prisma.opsEvent.update({ where: { id: ids.event }, data: { proposalClientStatus: 'pending', proposalRevisionCount: 0, clientPortalStatus: 'unlocked', archived: false } });
-    await prisma.opsDocument.upsert({ where: { id: ids.document }, update: { status: 'issued', type: 'proposal' }, create: { id: ids.document, eventId: ids.event, type: 'proposal', fileName: 'p0.pdf', status: 'issued' } });
+  const seedFixture = async () => {
+    const prefix = `p0_w02_${randomUUID()}`;
+    ids = {
+      inquiry: `${prefix}_inquiry`,
+      event: `${prefix}_event`,
+      document: `${prefix}_proposal`,
+      secondDocument: `${prefix}_proposal_v2`,
+    };
+    await prisma.opsInquiry.create({ data: {
+      id: ids.inquiry,
+      clientName: 'P0 Client',
+      email: actor.email,
+      normalizedEmail: actor.email,
+      eventName: 'P0 W02',
+      eventDate: new Date('2030-01-01'),
+      clientType: 'Corporate',
+      source: 'Other',
+      message: 'test',
+      privacyConsentAccepted: true,
+      privacyNoticeVersion: 'test',
+    } });
+    await prisma.opsEvent.create({ data: {
+      id: ids.event,
+      inquiryId: ids.inquiry,
+      clientName: 'P0 Client',
+      eventName: 'P0 W02',
+      eventDate: new Date('2030-01-01'),
+      clientPortalStatus: 'unlocked',
+      readiness: 'ready',
+    } });
+    await prisma.opsDocument.create({ data: {
+      id: ids.document,
+      eventId: ids.event,
+      type: 'proposal',
+      fileName: 'p0.pdf',
+      status: 'issued',
+    } });
   };
 
   beforeAll(async () => {
@@ -34,37 +66,28 @@ describe.skipIf(!enabled)('proposal client review PostgreSQL integrity', () => {
     process.env.DB_SSL = 'false';
     prisma = new PrismaService();
     await prisma.$connect();
-    await prisma.opsAuditLog.deleteMany({ where: { eventId: ids.event } });
-    await prisma.opsDocument.deleteMany({ where: { id: ids.document } });
-    await prisma.opsEvent.deleteMany({ where: { id: ids.event } });
-    await prisma.opsInquiry.deleteMany({ where: { id: ids.inquiry } });
-    await prisma.opsInquiry.create({ data: { id: ids.inquiry, clientName: 'P0 Client', email: actor.email, normalizedEmail: actor.email, eventName: 'P0 W02', eventDate: new Date('2030-01-01'), clientType: 'Corporate', source: 'Other', message: 'test', privacyConsentAccepted: true, privacyNoticeVersion: 'test' } });
-    await prisma.opsEvent.create({ data: { id: ids.event, inquiryId: ids.inquiry, clientName: 'P0 Client', eventName: 'P0 W02', eventDate: new Date('2030-01-01'), clientPortalStatus: 'unlocked', readiness: 'ready' } });
-    await prisma.opsDocument.create({ data: { id: ids.document, eventId: ids.event, type: 'proposal', fileName: 'p0.pdf', status: 'issued' } });
-    const auditService = new AuditService(prisma);
+    auditService = new AuditService(prisma);
     const writer = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma, auditService));
     service = new ProposalClientReviewService(prisma, new EventAccessPolicyService(writer), writer, new DocumentVaultService(prisma));
   });
 
   afterAll(async () => {
     if (!prisma) return;
-    await prisma.opsAuditLog.deleteMany({ where: { eventId: ids.event } });
-    await prisma.opsDocument.deleteMany({ where: { id: ids.document } });
-    await prisma.opsEvent.deleteMany({ where: { id: ids.event } });
-    await prisma.opsInquiry.deleteMany({ where: { id: ids.inquiry } });
+    // Keep append-only audit rows intact; the disposable database is discarded after this suite.
     await prisma.$disconnect();
   });
 
   it('persists one revision and one audit across a retry', async () => {
-    await reset();
+    await seedFixture();
     await service.review(ids.event, { action: 'request_revision', revisionNote: 'Clarify venue', idempotencyKey: 'p0-retry' }, actor);
     await service.review(ids.event, { action: 'request_revision', revisionNote: 'Clarify venue', idempotencyKey: 'p0-retry' }, actor);
     await expect(prisma.opsEvent.findUniqueOrThrow({ where: { id: ids.event } })).resolves.toMatchObject({ proposalRevisionCount: 1 });
     await expect(prisma.opsAuditLog.count({ where: { eventId: ids.event, affectedId: 'p0-retry' } })).resolves.toBe(1);
+    await expect(auditService.verifyIntegrity()).resolves.toMatchObject({ valid: true });
   });
 
   it('requires a newer issued proposal for a second decision', async () => {
-    await reset();
+    await seedFixture();
     await service.review(ids.event, { action: 'request_revision', revisionNote: 'Need detail', idempotencyKey: 'p0-version-1' }, actor);
     await expect(service.review(ids.event, { action: 'approve', idempotencyKey: 'p0-version-2' }, actor)).rejects.toThrow(/newer issued proposal/i);
     await prisma.opsDocument.create({ data: { id: ids.secondDocument, eventId: ids.event, type: 'proposal', fileName: 'p0-v2.pdf', status: 'issued' } });
@@ -74,7 +97,7 @@ describe.skipIf(!enabled)('proposal client review PostgreSQL integrity', () => {
   });
 
   it('rejects locked, archived, and non-primary clients', async () => {
-    await reset();
+    await seedFixture();
     await prisma.opsEvent.update({ where: { id: ids.event }, data: { clientPortalStatus: 'locked' } });
     await expect(service.review(ids.event, { action: 'approve', idempotencyKey: 'p0-locked' }, actor)).rejects.toThrow(/locked/i);
     await prisma.opsEvent.update({ where: { id: ids.event }, data: { clientPortalStatus: 'unlocked', archived: true } });
@@ -85,13 +108,13 @@ describe.skipIf(!enabled)('proposal client review PostgreSQL integrity', () => {
   });
 
   it('rejects review when no issued proposal document exists', async () => {
-    await reset();
+    await seedFixture();
     await prisma.opsDocument.update({ where: { id: ids.document }, data: { status: 'draft' } });
     await expect(service.review(ids.event, { action: 'approve', idempotencyKey: 'p0-no-issued' }, actor)).rejects.toThrow(/issued proposal/i);
   });
 
   it('rejects changed payload reuse and preserves review metadata', async () => {
-    await reset();
+    await seedFixture();
     await service.review(ids.event, { action: 'request_revision', revisionNote: 'Keep the stage', idempotencyKey: 'p0-payload' }, actor);
     await expect(service.review(ids.event, { action: 'request_revision', revisionNote: 'Change the stage', idempotencyKey: 'p0-payload' }, actor)).rejects.toThrow(/reused/i);
     const audit = await prisma.opsAuditLog.findFirstOrThrow({ where: { eventId: ids.event, affectedId: 'p0-payload' } });
@@ -100,7 +123,7 @@ describe.skipIf(!enabled)('proposal client review PostgreSQL integrity', () => {
   });
 
   it('rolls back the event when durable audit writing fails', async () => {
-    await reset();
+    await seedFixture();
     const auditService = new AuditService(prisma);
     const realWriter = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma, auditService));
     const failingWriter = {
@@ -116,7 +139,7 @@ describe.skipIf(!enabled)('proposal client review PostgreSQL integrity', () => {
   });
 
   it('allows only one effect for concurrent same-version decisions', async () => {
-    await reset();
+    await seedFixture();
     const results = await Promise.allSettled([
       service.review(ids.event, { action: 'request_revision', revisionNote: 'Concurrent A', idempotencyKey: 'p0-concurrent-a' }, actor),
       service.review(ids.event, { action: 'request_revision', revisionNote: 'Concurrent B', idempotencyKey: 'p0-concurrent-b' }, actor),

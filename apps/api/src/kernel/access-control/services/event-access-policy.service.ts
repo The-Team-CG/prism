@@ -21,10 +21,12 @@ export type ResolvedEventOpsActor = {
   verified?: boolean;
 };
 
-type ReadableEvent = Pick<OpsEvent, 'id' | 'clientName' | 'clientPortalStatus'> & { clientEmail?: string | null; inquiry?: { email?: string | null } | null };
+type ReadableEvent = Pick<OpsEvent, 'id' | 'clientName' | 'clientPortalStatus'> & { clientEmail?: string | null; inquiry?: { email?: string | null } | null;
+};
 
 type EventAccessScope = {
   supplierEventIds?: readonly string[];
+  coordinatorEventIds?: readonly string[];
 };
 
 @Injectable()
@@ -91,7 +93,7 @@ export class EventAccessPolicyService {
       return event.clientPortalStatus === 'unlocked' && this.clientOwnsEvent(actor, event);
     }
     if (actor.role === OpsUserRole.Coordinator) {
-      return Boolean(actor.eventId && actor.eventId === event.id);
+      return Boolean((actor.eventId && actor.eventId === event.id) || scope.coordinatorEventIds?.includes(event.id));
     }
     if (actor.role === OpsUserRole.Supplier) {
       if (actor.eventId && actor.eventId !== event.id) return false;
