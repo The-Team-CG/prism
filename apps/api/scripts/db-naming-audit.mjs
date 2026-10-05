@@ -1,27 +1,16 @@
 import process from 'node:process';
 import { Pool } from 'pg';
+import { selectDatabaseConnection } from './db-connection-config.mjs';
 
 const domainSchemas = ['floorplan', 'identity', 'event_core', 'supplier_ops', 'staffing_ops', 'finance_ops', 'compliance_ops', 'guest_ops', 'trust_ops'];
 const identifierPattern = /^[a-z_][a-z0-9_]*$/;
-
-function connectionString() {
-  const candidates = [process.env.PRISMA_DATABASE_URL, process.env.DIRECT_URL, process.env.SUPABASE_DB_URL, process.env.DATABASE_URL];
-  const value = candidates.map((item) => item?.trim()).find(Boolean);
-  if (!value) {
-    console.error('No database URL configured. Set PRISMA_DATABASE_URL, DIRECT_URL, SUPABASE_DB_URL, or DATABASE_URL.');
-    process.exit(1);
-  }
-  return value;
-}
 
 function badIdentifier(value) {
   return !identifierPattern.test(value);
 }
 
-const pool = new Pool({
-  connectionString: connectionString(),
-  ssl: process.env.DB_SSL === 'false' ? false : { rejectUnauthorized: false },
-});
+const database = selectDatabaseConnection({ purpose: 'migration' });
+const pool = new Pool({ connectionString: database.connectionString, ssl: database.ssl });
 
 try {
   const failures = [];
