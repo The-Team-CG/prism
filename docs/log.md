@@ -1,5 +1,9 @@
 # Documentation bundle update log
 
+## 2026-10-05
+
+- **Implemented:** Platform storage applies a closed owner/usage registry for the only production-wired pair, `billing_statement` + `event_deliverable`. Unregistered pairs fail closed before upload authorization/provider/persistence and for existing-object operations; the Platform reference read-model behavior from PR17f is retained. Non-billing owner types remain unavailable pending owner capabilities. The allowlist does not revalidate statement existence/event agreement on later object reads. **Verification:** behavior tests were added and are deferred to the consolidated pass; diff checks are run locally. No schema or migration changed.
+
 ## 2026-10-04
 
 - **Implemented:** Bound Platform's event, PARE, privacy-inventory, and trust-recipient reads through a root-composed read-only contract; Identity now row-locks and owns failed-login counter/lockout writes before emitting evidence to Platform. Added explicit absent-event handling for storage requests and durable dispatch/notification evidence coverage. Updated the architecture and context-contract registers. **Verified:** focused API tests 131 passed and 1 PostgreSQL-gated test skipped; API typecheck, Prisma validation, offline schema verification, migration guard (76 migrations), query audit (340 files), boundary scan (1,331 files), boundary tests (53), and `git diff --check` passed. No schema or migrations changed. **Still open:** Platform privacy execution still writes cross-owner records; type-qualified storage owner IDs are not verified for confirmation/retrieval; PostgreSQL lock behavior is unverified without `P0_TEST_DATABASE_URL`. API Nest build could not write output in the managed worktree (EPERM), so it is unverified.

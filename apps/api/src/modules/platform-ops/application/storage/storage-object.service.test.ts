@@ -74,7 +74,7 @@ function createStore() {
 const bytes = Buffer.from('provider-neutral storage bytes');
 const checksumSha256 = createHash('sha256').update(bytes).digest('hex');
 const request = {
-  eventId: 'evt_1', ownerRecordType: 'conforme', ownerRecordId: 'conforme_1', logicalTarget: 'signed-conforme', usage: 'signed_conforme' as const,
+  eventId: 'evt_1', ownerRecordType: 'billing_statement', ownerRecordId: 'bill_1', logicalTarget: 'billing-statement:bill_1', usage: 'event_deliverable' as const,
   fileName: 'signed.pdf', contentType: 'application/pdf', declaredByteSize: bytes.byteLength, checksumSha256,
 };
 
@@ -96,6 +96,32 @@ describe('StorageObjectService', () => {
 
     await expect(store.service.requestUpload({ ...request, actor })).rejects.toThrow(/Event not found/);
     expect(store.prisma.opsStoredObject.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unwired owner and usage before provider access, authorization, or persistence', async () => {
+    const store = createStore();
+    const adapter = {
+      requestUploadLocation: vi.fn(async (input: { providerObjectKey: string }) => ({ providerName: 'test', providerObjectKey: input.providerObjectKey, uploadUrl: 'test://upload', expiresAt: new Date(Date.now() + 1000) })),
+      confirmUpload: vi.fn(),
+      issueDownloadAuthorization: vi.fn(),
+      deleteObject: vi.fn(),
+    };
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter, store.platformReferences as never);
+
+    await expect(service.requestUpload({
+      ...request,
+      ownerRecordType: 'conforme',
+      ownerRecordId: 'conforme_1',
+      logicalTarget: 'signed-conforme',
+      usage: 'signed_conforme',
+      actor,
+    })).rejects.toThrow(/owner reference is not supported/);
+
+    expect(store.prisma.opsStoredObject.findUnique).not.toHaveBeenCalled();
+    expect(store.prisma.opsStoredObject.create).not.toHaveBeenCalled();
+    expect(store.platformReferences.findStorageEventScope).not.toHaveBeenCalled();
+    expect(store.accessPolicy.requireActorRole).not.toHaveBeenCalled();
+    expect(adapter.requestUploadLocation).not.toHaveBeenCalled();
   });
 
   it('round-trips bytes through the configured local adapter and marks deletion', async () => {
@@ -136,7 +162,7 @@ describe('StorageObjectService', () => {
 
   it('denies a client downloading an object outside the actor event scope', async () => {
     const store = createStore();
-    store.objects.push({ id: 'obj_other', eventId: 'evt_other', usage: 'signed_conforme', lifecycleState: 'stored', providerObjectKey: 'events/evt_other/obj.pdf', contentType: 'application/pdf', declaredByteSize: 1, checksumSha256: 'a'.repeat(64), originalFileName: 'obj.pdf' });
+    store.objects.push({ id: 'obj_other', eventId: 'evt_other', ownerRecordType: 'billing_statement', ownerRecordId: 'bill_other', usage: 'event_deliverable', lifecycleState: 'stored', providerObjectKey: 'events/evt_other/obj.pdf', contentType: 'application/pdf', declaredByteSize: 1, checksumSha256: 'a'.repeat(64), originalFileName: 'obj.pdf' });
     const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), {} as never, store.platformReferences as never);
     await expect(service.issueDownloadAuthorization({ objectId: 'obj_other', actor: client })).rejects.toThrow(/outside|forbidden|scope/);
   });
@@ -157,16 +183,16 @@ describe('StorageObjectService', () => {
     );
   });
 
-  it('denies a client reading a supplier-private document in the same event', async () => {
+  it('rejects a legacy unsupported supplier-document reference during retrieval', async () => {
     const store = createStore();
-    store.objects.push({ id: 'obj_supplier', eventId: 'evt_1', usage: 'supplier_document', lifecycleState: 'stored', providerObjectKey: 'events/evt_1/supplier.pdf', contentType: 'application/pdf', declaredByteSize: 1, checksumSha256: 'a'.repeat(64), originalFileName: 'supplier.pdf' });
+    store.objects.push({ id: 'obj_supplier', eventId: 'evt_1', ownerRecordType: 'supplier', ownerRecordId: 'sup_1', usage: 'supplier_document', lifecycleState: 'stored', providerObjectKey: 'events/evt_1/supplier.pdf', contentType: 'application/pdf', declaredByteSize: 1, checksumSha256: 'a'.repeat(64), originalFileName: 'supplier.pdf' });
     const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), {} as never, store.platformReferences as never);
-    await expect(service.issueDownloadAuthorization({ objectId: 'obj_supplier', actor: client })).rejects.toThrow(/cannot access/);
+    await expect(service.issueDownloadAuthorization({ objectId: 'obj_supplier', actor: client })).rejects.toThrow(/owner reference is not supported/);
   });
 
   it('denies a supplier deleting an object even when the event is in scope', async () => {
     const store = createStore();
-    store.objects.push({ id: 'obj_supplier', eventId: 'evt_1', usage: 'supplier_document', lifecycleState: 'stored', providerObjectKey: 'events/evt_1/supplier.pdf', contentType: 'application/pdf', declaredByteSize: 1, checksumSha256: 'a'.repeat(64), originalFileName: 'supplier.pdf' });
+    store.objects.push({ id: 'obj_supplier', eventId: 'evt_1', ownerRecordType: 'billing_statement', ownerRecordId: 'bill_1', usage: 'event_deliverable', lifecycleState: 'stored', providerObjectKey: 'events/evt_1/supplier.pdf', contentType: 'application/pdf', declaredByteSize: 1, checksumSha256: 'a'.repeat(64), originalFileName: 'supplier.pdf' });
     const supplier = { id: 'supplier-user', role: 'supplier', supplierId: 'sup_1', eventId: 'evt_1', name: 'Supplier', explicit: true } as never;
     const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), {} as never, store.platformReferences as never);
     await expect(service.deleteObject({ objectId: 'obj_supplier', actor: supplier })).rejects.toThrow(/cannot access/);
