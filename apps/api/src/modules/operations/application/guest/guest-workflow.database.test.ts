@@ -4,7 +4,6 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuditService, AuditWriterAdapter, SecurityOperationsService } from '@prism/contexts/platform-ops';
-import { DocumentVaultService } from '@prism/contexts/event-lifecycle';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
 import { GuestWorkflowService } from './guest-workflow.service';
 
@@ -14,7 +13,6 @@ describe.skipIf(!databaseUrl)('guest feedback PostgreSQL transaction acceptance'
   let prisma: PrismaClient;
   let pool: Pool;
   let service: GuestWorkflowService;
-  const inquiryIds: string[] = [];
   const id = () => `w23_feedback_${randomUUID()}`;
 
   beforeEach(() => {
@@ -32,20 +30,50 @@ describe.skipIf(!databaseUrl)('guest feedback PostgreSQL transaction acceptance'
     await prisma.$connect();
     const auditService = new AuditService(prisma as never);
     const auditWriter = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma as never, auditService));
-    service = new GuestWorkflowService(prisma as never, auditWriter, new WorkflowCommandService(), new DocumentVaultService(), { findAssignmentForEventActor: vi.fn() } as never);
+    service = new GuestWorkflowService(
+      prisma as never,
+      auditWriter,
+      new WorkflowCommandService(),
+      { findAssignmentForEventActor: vi.fn() } as never,
+      {
+        findOperationsEvent: async (eventId: string, context?: { prisma: any }) => {
+          const database = context?.prisma ?? prisma;
+          return database.opsEvent.findUnique({
+            where: { id: eventId },
+            select: { id: true, eventName: true, eventDate: true, status: true, archived: true, actualEndedAt: true, walkInPolicy: true, walkInThreshold: true },
+          });
+        },
+      } as never,
+      {
+        listGuestAccessCandidates: (includeArchived: boolean) => prisma.opsEvent.findMany({
+          where: includeArchived ? {} : { archived: false },
+          select: { id: true, eventName: true, eventDate: true, updatedAt: true, archived: true },
+          orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
+        }),
+        findGuestEvent: (eventId: string) => prisma.opsEvent.findUnique({
+          where: { id: eventId },
+          include: {
+            floorPlanDrafts: {
+              select: { id: true, floorPlanId: true, isActive: true },
+              orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+              take: 100,
+            },
+          },
+        }),
+        listCoordinatorWorkspaceEvents: async () => [],
+      } as never,
+    );
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     vi.useRealTimers();
-    if (prisma) await prisma.opsInquiry.deleteMany({ where: { id: { in: inquiryIds } } });
-    inquiryIds.length = 0;
+    // Keep event and inquiry parents because the current cross-schema event cascade also deletes audit evidence.
   });
 
   afterAll(async () => { await prisma?.$disconnect(); await pool?.end(); });
 
   it('commits feedback, moderation decision, and audit atomically', async () => {
     const inquiryId = id();
-    inquiryIds.push(inquiryId);
     const event = await prisma.opsEvent.create({ data: {
       id: id(), clientName: 'W23 transaction client', eventName: 'W23 transaction event',
       eventDate: new Date('2026-09-07T00:00:00Z'), actualEndedAt: new Date('2026-09-07T12:00:00Z'),

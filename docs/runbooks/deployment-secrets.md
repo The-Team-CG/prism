@@ -16,6 +16,59 @@ in a GitHub Environment: the caller jobs in `deploy.yml` do not declare an
 `environment`, so their `${{ secrets.* }}` and `${{ vars.* }}` lookups need a
 repository- or organization-visible value.
 
+## Schema cutover controls
+
+The automated Deploy, Promote, Rollback, and non-dry-run environment-sync paths
+honor the shared repository variable `PRISM_SCHEMA_CUTOVER_HOLD`. Set it to the
+exact lowercase string `true` to stop those workflow mutations. Dry-run
+environment sync remains available. The hold is not a provider-side pause:
+wait for active runs to finish and separately drain services and other database
+writers before a schema cutover.
+
+The read-only `Schema cutover preflight (read-only)` workflow requires the hold,
+an exact compatibility mode/head, backup and drain confirmations, and the
+matching trusted branch. It reads the target using the `DIRECT_URL` secret from
+the selected GitHub Environment (`staging` or `production`). It checks that the
+database ledger is a checksum-validated prefix of the checked-in migration
+history and prints the desired SQL diff for review; it does not apply
+migrations, sync provider configuration, or deploy services. Pending migration
+names are expected, and the diff must be reviewed for unintended drift.
+
+For the API startup ledger guard, define `PRISM_SCHEMA_COMPATIBILITY_MODE` and
+`PRISM_SCHEMA_REQUIRED_HEAD` as repository Actions variables and include both
+in `ENV_SYNC_MANIFEST_JSON` for the API service. Set the mode to `exact` and the
+head to the reviewed final migration directory name before running the
+preflight. The workflow verifies that the configured head matches both its
+input and the checked-out migration tip. The API refuses startup if its local
+migration names/checksums and the target's completed `_prisma_migrations`
+history differ. This checks the migration ledger; it does not replace the live
+schema diff. The API performs its startup query through the runtime database
+identity, so a successful preflight with `DIRECT_URL` does not prove that the
+runtime identity can read the ledger. Verify that permission in staging before
+enabling exact mode; a denied query prevents API startup.
+
+| Name | Type | Scope | Purpose |
+| --- | --- | --- | --- |
+| `PRISM_SCHEMA_CUTOVER_HOLD` | variable | repository | Exact lowercase `true` blocks automated deployment, promotion, rollback, and non-dry-run environment sync. |
+| `PRISM_SCHEMA_COMPATIBILITY_MODE` | variable | repository + API manifest | Temporarily set to `exact` for a held schema release, then restore `disabled`; ordinary deployments use `disabled`. |
+| `PRISM_SCHEMA_REQUIRED_HEAD` | variable | repository + API manifest | Exact checked-in final migration directory required by the API startup guard during the held release; clear after acceptance. |
+| `DIRECT_URL` | secret | GitHub Environment `staging` or `production` | Direct database URL used by the read-only preflight; never printed. |
+
+The repository currently has no automated migration-and-deploy workflow. After
+the read-only preflight passes, the approved operator performs migration,
+provider configuration, and exact-SHA deployments under the existing
+maintenance procedure, verifies API and portal health, and clears the hold only
+after acceptance. The normal manual environment-sync workflow rejects
+non-dry-run operation while the hold is active. Do not clear the hold early to
+make that workflow run. Configure environment protection and the external
+provider pause/health checks separately; their current settings are not
+verified by this repository change.
+
+| Provider surface | External control to verify before cutover |
+| --- | --- |
+| Render `prism-api` | Check for Git-triggered deploys or direct deploy hooks outside these workflows; pause or monitor them while writers are drained. |
+| Vercel `client`, `event`, `guest`, `supplier` | Check branch-connected automatic deployments and preview/production promotion; ensure no unreviewed SHA can deploy during the hold. |
+
 ### Staging path
 
 | Name | Type | Environment | Purpose |

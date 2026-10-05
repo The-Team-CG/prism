@@ -4,12 +4,12 @@ title: "P.R.I.S.M current architecture"
 description: "Current runtime topology, role-app ownership, shared packages, backend bounded contexts, technical kernel, persistence, and lifecycle boundaries."
 tags: [architecture, current-state, modular-monolith, roles]
 status: canonical
-updated: "2026-09-30"
+updated: "2026-10-05"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, reviewers]
 scope: "all Prism portals, API, packages, and runtime boundaries"
-last_verified: "2026-09-30; maintainability refactor verification"
+last_verified: "2026-10-05; PR18 legal-hold model and owner-driven redaction wiring; offline Prisma and ownership checks"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
@@ -58,6 +58,13 @@ File-matrix and official snapshot reads use the similarly focused
 `@prism/contexts/read-models/event-scope` seam for trusted inquiry and assignment
 identity. Empty identities and inactive coordinator assignments/profiles confer
 no event scope.
+Communication participant resolution uses the focused
+`@prism/contexts/read-models/participant-facts` contract, whose Nest submodule
+imports DatabaseModule only. It returns serializable event/inquiry and supplier
+or coordinator membership facts; Identity retains approved-account lookup,
+role/email matching, actor stamping, and EventAccessPolicy decisions. The full
+ReadModelsModule is not imported by IdentityAccess, avoiding a cycle through
+Commercial's communication service.
 
 ## Architecture principles
 
@@ -221,7 +228,9 @@ from local fixture tooling into runtime contexts or kernel, no Prisma writes fro
 read queries, and no tracked source under the old API library roots.
 
 The kernel does not import a business context. `kernel/event-core` owns the
-command-receipt port and Prisma adapter: transactional commands with an
+command-receipt port and replay policy; `platform-ops` owns the Prisma adapter
+and receipt persistence, bound globally by `PlatformOpsCommandReceiptModule` at
+the application composition root. Transactional commands with an
 actor- and event-scoped idempotency key and a stable payload hash opt into one durable
 receipt, which is reserved and completed in the same transaction; retries then
 replay the stored projected result after permission checks. A payload hash is
@@ -247,24 +256,37 @@ separate services or databases.
 unit-testable. Other contexts use progressive depth: add a domain policy only when
 an invariant must hold independently of HTTP and Prisma.
 
-## Data domains
+## Data domains and persistence target
 
-| Domain | Representative models |
-| --- | --- |
-| Floorplans and venue templates | `FloorPlan`, `FloorPlanObject`, `VenueTemplate`, `PublishedSnapshot`, `OpsFloorPlanDraft` |
-| Identity and access | `OpsUser`, `OpsApprovalRequest` |
-| Core event lifecycle | `OpsInquiry`, `OpsEvent`, `OpsBriefing`, `OpsDocument` (inquiry/onboarding kinds), `OpsPostEventDocument`, `OpsEventInsight` |
-| Supplier network | `OpsSupplier`, `OpsSupplierCategory`, `OpsSupplierReview`, `OpsSupplierReliabilityNote`, `OpsSupplierCertification`, `OpsSupplierQuoteRequest`, `OpsSupplierQuote` |
-| Coordinator staffing | `OpsCoordinator`, `OpsCoordinatorAssignment`, `OpsCoordinatorReliabilityNote` |
-| Event-day operations | `OpsEventDayTask`, `OpsUrgentIssue`, `OpsEventDayLog` |
-| Compliance and billing | `OpsComplianceRule`, `OpsComplianceCheck`, `OpsBillingSource`, `OpsBillingStatement`, `OpsPaymentMilestone`, `OpsPaymentRecord` |
-| Trust, privacy, and audit | `OpsPrivacyRequest`, `OpsAuditLog`, `OpsNotificationLog`, `OpsCommandReceipt`, `OpsLoginHistory`, `OpsSecurityAlert` |
-| Guest operations | `OpsGuestCheckIn`, `OpsGuestFeedback` |
-| AI governance | `OpsAiAuditLog`, `OpsAiApprovalRecord`, `OpsPareDispatch` |
+Prism has seven write domains. Each owns one PostgreSQL schema in the approved
+target. The current database remains one Postgres instance, one Prisma client,
+and one API deployment; this is a namespace and write-ownership rule, not a
+microservice or authorization boundary.
 
-The database remains one shared Postgres/Prisma boundary. Context ownership notes
-and intentional read-join documentation are required before independent service
-extraction; a source move alone does not imply database isolation.
+| Write domain | Target schema | Model/column inventory | Ownership |
+| --- | --- | ---: | --- |
+| event-lifecycle | event_lifecycle | 18 tables / 280 columns | Inquiry, event lifecycle, document metadata, briefing, compliance, decisions, freeze/addenda, closure |
+| commercial | commercial | 28 tables / 319 columns | Supplier network, quotes, communications, estimates, proposals, billing, payments |
+| operations | operations | 12 tables / 142 columns | Coordinator pool, assignments, acknowledgments, reliability history, guest operations |
+| live-ops | live_ops | 10 tables / 122 columns | Event-day tasks, schedules, operators, handoffs, end-of-day, issues and logs |
+| floorplan | floorplan | 7 tables / 75 columns | Official plans, drafts, projection clock, templates, published copies, review state |
+| identity-access | identity_access | 4 tables / 38 columns | Accounts, approvals, password recovery, authentication state |
+| platform-ops | platform_ops | 14 tables / 201 columns | Privacy requests and legal holds, security, login history, audit, notifications, AI, storage, command receipts |
+| **Total** | **7 schemas** | **93 tables / 1,177 columns** | One write owner per table |
+
+The full assignment is in apps/api/prisma/domain-ownership.json. It records
+each of the 93 models once, including its current schema, owner, target schema,
+table name and column count. ADR-0008 and the persistence ownership register
+define the policy and transitional behavior.
+
+A PostgreSQL foreign key may connect records owned by the same domain.
+Cross-domain references remain scalar IDs and use an owner's public capability
+for writes that need current eligibility. Read-models composes explicitly
+scoped, read-only projections. Do not introduce a Prisma relation or FK between
+different domains.
+The database remains one shared Postgres/Prisma boundary. Its ten current physical schemas and 45 cross-domain foreign keys are transitional. The target map uses seven owner schemas and no cross-domain foreign keys.
+
+Replacing owner capabilities and relations precedes the coordinated move; source movement alone does not imply database isolation.
 
 Supplier withdrawal is a durable asynchronous boundary: `commercial` writes the
 withdrawal and audit, then uses the public platform-ops dispatch-writer contract

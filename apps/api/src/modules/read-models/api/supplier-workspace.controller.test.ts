@@ -74,6 +74,7 @@ describe('OpsSupplierWorkspaceReadsController', () => {
             status: 'submitted',
             selectedAt: null,
             createdAt: new Date('2026-06-19T09:00:00.000Z'),
+            updatedAt: new Date('2026-06-19T09:00:00.000Z'),
           }),
         ],
       })),

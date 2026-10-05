@@ -6,13 +6,48 @@ import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
 import { WorkflowCommandService, OpsUserRole, CoordinatorAssignmentStatus } from '@prism/kernel/event-core';
 import { EventAccessPolicyService, type AuditWriter } from '@prism/kernel/access-control';
 import { AuditService, AuditWriterAdapter, SecurityOperationsService } from '@prism/contexts/platform-ops';
+import { PlatformCommandReceiptStore } from '../../../platform-ops/infrastructure/trust/command-receipt.store';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/contexts/platform-ops';
 import { CoordinatorAssignmentCommandService } from './coordinator-assignment-command.service';
 import { CoordinatorReliabilityNoteWriterService } from './coordinator-reliability-note-writer.service';
 import { CoordinatorSuggestionsService } from './coordinator-suggestions.service';
 import { CoordinatorLiveOpsCommandService } from '../../../live-ops/application/coordinator-live-ops-command.service';
+import { EventDecisionService } from '../../../event-lifecycle/application/decisions/event-decision.service';
 
 const databaseUrl = process.env.P0_TEST_DATABASE_URL?.trim();
+
+function createOperationsEventReferences(prisma: PrismaService) {
+  const select = {
+    id: true,
+    eventName: true,
+    eventDate: true,
+    status: true,
+    archived: true,
+    actualEndedAt: true,
+    walkInPolicy: true,
+    walkInThreshold: true,
+  } as const;
+  return {
+    findOperationsEvent: async (eventId: string, context?: { prisma: any }) => {
+      const database = context?.prisma ?? prisma;
+      if (context) {
+        const locked = await database.$queryRawUnsafe(
+          'SELECT "id" FROM "event_core"."events" WHERE "id" = $1 FOR UPDATE',
+          eventId,
+        ) as Array<{ id: string }>;
+        if (locked.length === 0) return null;
+      }
+      return database.opsEvent.findUnique({ where: { id: eventId }, select });
+    },
+    findOperationsEvents: async (eventIds: readonly string[]) => eventIds.length === 0
+      ? []
+      : prisma.opsEvent.findMany({ where: { id: { in: [...eventIds] } }, select }),
+    findEventReadAccess: async (eventId: string) => prisma.opsEvent.findUnique({
+      where: { id: eventId },
+      select: { id: true, clientName: true, clientPortalStatus: true, clientEmail: true, inquiry: { select: { email: true } } },
+    }),
+  };
+}
 
 function validateDatabaseUrl(value: string) {
   const parsed = new URL(value);
@@ -90,16 +125,18 @@ async function cleanupFixture(prisma: PrismaService, fixture: Fixture) {
   await prisma.opsCoordinatorAssignment.deleteMany({ where: { eventId: { in: fixture.eventIds } } });
   await prisma.opsCoordinatorReliabilityNote.deleteMany({ where: { eventId: { in: fixture.eventIds } } });
   await prisma.opsNotificationLog.deleteMany({ where: { eventId: { in: fixture.eventIds } } });
-  await prisma.opsAuditLog.deleteMany({ where: { eventId: { in: fixture.eventIds } } });
-  await prisma.opsEvent.deleteMany({ where: { id: { in: fixture.eventIds } } });
+  // The audit chain is global and append-only; retain rows until the disposable suite database is discarded.
+  // Keep event and inquiry parents because the current cross-schema event cascade also deletes audit evidence.
   await prisma.opsCoordinator.deleteMany({ where: { id: { in: fixture.coordinatorIds } } });
-  await prisma.opsInquiry.deleteMany({ where: { id: fixture.inquiryId } });
 }
 
 databaseSuite('CoordinatorsService PostgreSQL concurrency invariants', () => {
   let prisma: PrismaService;
   let coordinators: CoordinatorAssignmentCommandService;
   let liveOperations: CoordinatorLiveOpsCommandService;
+  let receiptLiveOperations: CoordinatorLiveOpsCommandService;
+  let auditWriter: AuditWriter;
+  let notificationWriter: NotificationOutboxWriterAdapter;
 
   beforeAll(async () => {
     if (!databaseUrl) return;
@@ -111,20 +148,29 @@ databaseSuite('CoordinatorsService PostgreSQL concurrency invariants', () => {
     await prisma.$connect();
 
     const auditService = new AuditService(prisma);
-    const auditWriter: AuditWriter = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma, auditService));
-    const notificationWriter = new NotificationOutboxWriterAdapter(new NotificationOutboxService(prisma));
+    auditWriter = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma, auditService));
+    notificationWriter = new NotificationOutboxWriterAdapter(new NotificationOutboxService(prisma));
     const access = new EventAccessPolicyService(auditWriter);
-    const workflow = new WorkflowCommandService(new PrismTransactionRunner(prisma));
-    coordinators = new CoordinatorAssignmentCommandService(
+    const eventReferences = createOperationsEventReferences(prisma);
+    const buildCoordinators = (workflow: WorkflowCommandService) => new CoordinatorAssignmentCommandService(
       prisma,
       auditWriter,
       notificationWriter,
       workflow,
       access,
-      new CoordinatorSuggestionsService(prisma),
+      new CoordinatorSuggestionsService(prisma, eventReferences),
       new CoordinatorReliabilityNoteWriterService(prisma),
+      eventReferences,
+      { isCoordinatorAccountEligible: async () => true },
     );
-    liveOperations = new CoordinatorLiveOpsCommandService(prisma, auditWriter, notificationWriter, workflow, new CoordinatorReliabilityNoteWriterService(prisma));
+    const transactions = new PrismTransactionRunner(prisma);
+    coordinators = buildCoordinators(new WorkflowCommandService(transactions));
+    liveOperations = new CoordinatorLiveOpsCommandService(prisma, coordinators);
+    // Command receipts are what let an identical retry return the stored result instead of failing validation.
+    receiptLiveOperations = new CoordinatorLiveOpsCommandService(
+      prisma,
+      buildCoordinators(new WorkflowCommandService(transactions, new PlatformCommandReceiptStore(prisma))),
+    );
   });
 
   afterAll(async () => {
@@ -208,6 +254,174 @@ databaseSuite('CoordinatorsService PostgreSQL concurrency invariants', () => {
         },
       });
       expect(targetAssignments).toHaveLength(1);
+    } finally {
+      await cleanupFixture(prisma, fixture);
+    }
+  });
+
+  it('allows only one concurrent replacement to commit for the same outgoing assignment', async () => {
+    const fixture = await createFixture(prisma, 1, 2);
+    try {
+      const outgoing = await prisma.opsCoordinatorAssignment.create({
+        data: {
+          id: `${fixture.eventIds[0]}_concurrent_outgoing`,
+          eventId: fixture.eventIds[0],
+          coordinatorId: fixture.coordinatorIds[0],
+          coordinatorName: 'outgoing fixture coordinator',
+          role: 'Floor Director',
+          status: CoordinatorAssignmentStatus.Acknowledged,
+          eventDate: new Date('2031-03-17T09:00:00.000Z'),
+        },
+      });
+      const replacement = {
+        replacementCoordinatorId: fixture.coordinatorIds[1],
+        replacementRole: 'Floor Director',
+        reason: 'Concurrent replacement test',
+      } as const;
+
+      const attempts = await Promise.allSettled([
+        coordinators.replaceCoordinator(fixture.eventIds[0], outgoing.id, replacement, pmcmActor),
+        coordinators.replaceCoordinator(fixture.eventIds[0], outgoing.id, replacement, pmcmActor),
+      ]);
+
+      expect(attempts.filter((attempt) => attempt.status === 'fulfilled')).toHaveLength(1);
+      expect(attempts.filter((attempt) => attempt.status === 'rejected')).toHaveLength(1);
+      const assignments = await prisma.opsCoordinatorAssignment.findMany({ where: { eventId: fixture.eventIds[0] } });
+      expect(assignments).toHaveLength(2);
+      expect(assignments.filter((item) => item.coordinatorId === fixture.coordinatorIds[1])).toHaveLength(1);
+      expect(assignments.find((item) => item.id === outgoing.id)?.status).toBe(CoordinatorAssignmentStatus.Replaced);
+    } finally {
+      await cleanupFixture(prisma, fixture);
+    }
+  });
+
+  it('replays a replacement with one event-day log', async () => {
+    const fixture = await createFixture(prisma, 1, 2);
+    try {
+      const outgoing = await prisma.opsCoordinatorAssignment.create({
+        data: {
+          id: `${fixture.eventIds[0]}_logged_outgoing`,
+          eventId: fixture.eventIds[0],
+          coordinatorId: fixture.coordinatorIds[0],
+          coordinatorName: 'logged outgoing coordinator',
+          role: 'Floor Director',
+          status: CoordinatorAssignmentStatus.Acknowledged,
+          eventDate: new Date('2031-03-17T09:00:00.000Z'),
+        },
+      });
+      const input = {
+        replacementCoordinatorId: fixture.coordinatorIds[1],
+        replacementRole: 'Floor Director',
+        reason: 'Replay-safe event-day logging',
+      } as const;
+
+      const first = await receiptLiveOperations.replaceCoordinatorAssignment(fixture.eventIds[0], outgoing.id, input, pmcmActor);
+      const replay = await receiptLiveOperations.replaceCoordinatorAssignment(fixture.eventIds[0], outgoing.id, input, pmcmActor);
+      const logs = await prisma.opsEventDayLog.findMany({
+        where: { eventId: fixture.eventIds[0], actionType: 'coordinator_replaced', relatedId: outgoing.id },
+      });
+
+      expect(replay.replacementAssignment.id).toBe(first.replacementAssignment.id);
+      expect(logs).toHaveLength(1);
+    } finally {
+      await cleanupFixture(prisma, fixture);
+    }
+  });
+
+  it('rolls back Operations assignment cancellation when the lifecycle transaction fails later', async () => {
+    const fixture = await createFixture(prisma, 1, 1);
+    const assignmentId = `${fixture.eventIds[0]}_rollback_assignment`;
+    const eventDate = new Date('2031-03-17T09:00:00.000Z');
+    try {
+      await prisma.opsCoordinatorAssignment.create({
+        data: {
+          id: assignmentId,
+          eventId: fixture.eventIds[0],
+          coordinatorId: fixture.coordinatorIds[0],
+          coordinatorName: 'rollback fixture coordinator',
+          role: 'Floor Director',
+          status: CoordinatorAssignmentStatus.Acknowledged,
+          eventDate,
+        },
+      });
+
+      await expect(prisma.$transaction(async (tx) => {
+        await coordinators.applyEventDecisionAssignments(
+          fixture.eventIds[0],
+          { decision: 'cancelled', reason: 'Rollback test', supplierImpact: 'pending_review' },
+          eventDate.toISOString(),
+          eventDate.toISOString(),
+          pmcmActor,
+          { prisma: tx, actorId: pmcmActor.id, correlationId: `${fixture.eventIds[0]}_decision` },
+        );
+        throw new Error('simulate lifecycle decision failure');
+      }, { isolationLevel: 'Serializable' })).rejects.toThrow('simulate lifecycle decision failure');
+
+      const afterRollback = await prisma.opsCoordinatorAssignment.findUnique({ where: { id: assignmentId } });
+      expect(afterRollback?.status).toBe(CoordinatorAssignmentStatus.Acknowledged);
+    } finally {
+      await cleanupFixture(prisma, fixture);
+    }
+  });
+
+  it('replays an idempotent event cancellation without releasing assignments twice', async () => {
+    const fixture = await createFixture(prisma, 1, 1);
+    try {
+      await prisma.opsCoordinatorAssignment.create({
+        data: {
+          id: `${fixture.eventIds[0]}_replay_assignment`,
+          eventId: fixture.eventIds[0],
+          coordinatorId: fixture.coordinatorIds[0],
+          coordinatorName: 'replay fixture coordinator',
+          role: 'Floor Director',
+          status: CoordinatorAssignmentStatus.Acknowledged,
+          eventDate: new Date('2031-03-17T09:00:00.000Z'),
+        },
+      });
+      const eventDecisions = new EventDecisionService(prisma, new EventAccessPolicyService(auditWriter), auditWriter, notificationWriter, coordinators);
+      const input = {
+        decision: 'cancelled',
+        reason: 'Idempotent cancellation test',
+        cancellationFeeAmount: 0,
+        depositTreatment: 'pending_review',
+        supplierImpact: 'pending_review',
+        idempotencyKey: `${fixture.eventIds[0]}_cancel_once`,
+      } as const;
+
+      const first = await eventDecisions.decide(fixture.eventIds[0], input, pmcmActor);
+      const replay = await eventDecisions.decide(fixture.eventIds[0], input, pmcmActor);
+
+      expect(replay.id).toBe(first.id);
+      expect(await prisma.opsEventDecision.count({ where: { eventId: fixture.eventIds[0] } })).toBe(1);
+      const assignments = await prisma.opsCoordinatorAssignment.findMany({ where: { eventId: fixture.eventIds[0] } });
+      expect(assignments).toHaveLength(1);
+      expect(assignments[0].status).toBe(CoordinatorAssignmentStatus.Cancelled);
+    } finally {
+      await cleanupFixture(prisma, fixture);
+    }
+  });
+
+  it('replays one cancellation when same-key decision requests race', async () => {
+    const fixture = await createFixture(prisma, 1, 1);
+    try {
+      const eventDecisions = new EventDecisionService(prisma, new EventAccessPolicyService(auditWriter), auditWriter, notificationWriter, coordinators);
+      const input = {
+        decision: 'cancelled',
+        reason: 'Concurrent idempotent cancellation test',
+        cancellationFeeAmount: 0,
+        depositTreatment: 'pending_review',
+        supplierImpact: 'pending_review',
+        idempotencyKey: `${fixture.eventIds[0]}_cancel_race`,
+      } as const;
+
+      const results = await Promise.all([
+        eventDecisions.decide(fixture.eventIds[0], input, pmcmActor),
+        eventDecisions.decide(fixture.eventIds[0], input, pmcmActor),
+      ]);
+
+      expect(results[0].id).toBe(results[1].id);
+      expect(await prisma.opsEventDecision.count({ where: { eventId: fixture.eventIds[0] } })).toBe(1);
+      expect(await prisma.opsNotificationLog.count({ where: { eventId: fixture.eventIds[0] } })).toBe(1);
     } finally {
       await cleanupFixture(prisma, fixture);
     }

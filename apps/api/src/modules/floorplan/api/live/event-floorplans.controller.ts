@@ -18,7 +18,7 @@ import { FloorPlanWorkflowService } from '../../application/live/floor-plan-work
 import {
   EVENT_CLIENT_FLOORPLAN_ACCESS_READER,
   type EventClientFloorplanAccessReader,
-} from '../../../event-lifecycle/contracts/client-floorplan-access.port';
+} from '@prism/contexts/event-lifecycle';
 
 @Controller('events')
 export class OpsEventFloorplansController {

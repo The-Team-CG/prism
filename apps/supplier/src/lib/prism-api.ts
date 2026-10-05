@@ -113,10 +113,10 @@ export const prismApi = {
     eventOpsClient.supplierWorkspace.confirmAssignment(requestId, actorFromSession(session)),
   confirmReadiness: (session: PrismAuthenticatedSession, requestId: string, notes: string) =>
     eventOpsClient.supplierWorkspace.confirmReadiness(requestId, { notes }, actorFromSession(session)),
-  uploadContract: (session: PrismAuthenticatedSession, requestId: string, fileName: string) =>
+  uploadContract: (session: PrismAuthenticatedSession, requestId: string, fileName: string, idempotencyKey: string) =>
     eventOpsClient.supplierWorkspace.uploadContract(
       requestId,
-      { fileName, mimeType: "application/pdf", sizeBytes: 2048 },
+      { fileName, mimeType: "application/pdf", sizeBytes: 2048, idempotencyKey },
       actorFromSession(session),
     ),
   updateEventStatus: (session: PrismAuthenticatedSession, requestId: string, status: string, notes: string) =>
