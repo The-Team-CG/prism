@@ -4,7 +4,7 @@
     "targetSchemas": 7,
     "tableMoves": 83,
     "currentCrossSchemaFks": 49,
-    "targetSameDomainFks": 67,
+    "targetSameDomainFks": 68,
     "targetCrossDomainFks": 45,
     "crossDomainPairs": {
       "platform-ops → event-lifecycle": 8,
@@ -2127,6 +2127,21 @@
       "targetCurrentSchema": "event_core",
       "targetTable": "events",
       "sameDomain": false
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "quotes",
+      "name": "quotes_request_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (request_id) REFERENCES supplier_ops.quote_requests(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "request_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "quote_requests",
+      "sameDomain": true
     },
     {
       "schema": "supplier_ops",
