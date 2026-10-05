@@ -1,22 +1,26 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsEvent, Prisma } from '@prisma/client';
 import { CoordinatorAssignmentStatus } from '@prism/kernel/event-core';
 import { PrismaService } from '@prism/kernel/database';
 import type { CoordinatorSuggestionsQueryInput, PrismCoordinatorSuggestion } from '@prism/types';
 import { canonicalCoordinatorRole } from '@prism/types';
+import {
+  OPERATIONS_EVENT_REFERENCE_READER,
+  type OperationsEventReferenceReader,
+} from '@prism/contexts/event-lifecycle/operations-reference';
 import { rankCoordinatorSuggestions } from './coordinator-suggestion-rules';
 
 const STAFFING_QUERY_LIMIT = 500;
 
 @Injectable()
 export class CoordinatorSuggestionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(OPERATIONS_EVENT_REFERENCE_READER) private readonly eventReferences: OperationsEventReferenceReader,
+  ) {}
 
   async listForEvent(eventId: string, query: CoordinatorSuggestionsQueryInput): Promise<PrismCoordinatorSuggestion[]> {
-    const event = await this.prisma.opsEvent.findUnique({
-      where: { id: eventId },
-      select: { id: true, eventDate: true },
-    });
+    const event = await this.eventReferences.findOperationsEvent(eventId);
     if (!event) throw new NotFoundException('Event not found');
 
     return this.listForConflict(event, query.role, undefined, this.prisma, query.skills);

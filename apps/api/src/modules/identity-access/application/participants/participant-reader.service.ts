@@ -67,6 +67,10 @@ export class ParticipantReaderService implements ParticipantReader {
   }
 
   private async resolveClient(actor: ResolvedEventOpsActor, event: ReturnType<typeof toPolicyEvent>) {
+    const inquiryEmail = event.inquiry?.email;
+    if (!inquiryEmail || normalizeEmail(inquiryEmail) !== normalizeEmail(actor.email ?? '')) {
+      throw new ForbiddenException('Client is not the primary contact for this event');
+    }
     await this.policy.requireCanReadEvent(actor, event, 'communication participant', {});
     return actor;
   }
@@ -76,8 +80,7 @@ export class ParticipantReaderService implements ParticipantReader {
       normalizeEmail(email) === normalizeEmail(actor.email ?? '') &&
       facts.supplierAssignments.some((request) => request.supplierId === id && activeSupplierStatuses.includes(request.status)),
     );
-    const assigned = Boolean(supplier);
-    if (!assigned) throw new ForbiddenException('Supplier is not assigned to this event');
+    if (!supplier) throw new ForbiddenException('Supplier is not assigned to this event');
     actor.supplierId = supplier.id;
     await this.policy.requireCanReadEvent(actor, event, 'communication participant', { supplierEventIds: [eventId] });
     return actor;

@@ -21,6 +21,7 @@ import type {
 } from '@prism/types';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { STAFFING_READER, type StaffingReader } from '@prism/contexts/operations';
+import { OPERATIONS_EVENT_REFERENCE_READER, type OperationsEventReferenceReader } from '@prism/contexts/event-lifecycle/operations-reference';
 import {
   SUPPLIER_COMMANDS,
   type SupplierCommands,
@@ -44,6 +45,7 @@ export class EventLiveOpsCommandService {
     private readonly coordinatorCommandService: CoordinatorLiveOpsCommandService,
     @Inject(STAFFING_READER) private readonly staffingReader: StaffingReader,
     @Inject(SUPPLIER_COMMANDS) private readonly supplierCommands: SupplierCommands,
+    @Inject(OPERATIONS_EVENT_REFERENCE_READER) private readonly eventReferences: OperationsEventReferenceReader,
   ) {}
 
   async createEventDayTask(eventId: string, input: CreateEventDayTaskInput, actor: ResolvedEventOpsActor) {
@@ -261,7 +263,7 @@ export class EventLiveOpsCommandService {
   }
 
   private async requireEvent(eventId: string) {
-    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
+    const event = await this.eventReferences.findOperationsEvent(eventId);
     if (!event) throw new NotFoundException('Event not found');
     return event;
   }

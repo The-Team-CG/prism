@@ -251,7 +251,13 @@ describe('PrivacyOperationsService', () => {
       opsSupplier: { updateMany: updateMany() },
       opsSupplierApplication: { updateMany: updateMany() },
       opsGuestCheckIn: { updateMany: updateMany() },
-      opsGuestFeedback: { updateMany: updateMany() },
+      opsGuestFeedback: { findMany: vi.fn(async () => [{ id: 'feedback_1' }]), updateMany: updateMany() },
+      opsGuestFeedbackMedia: { updateMany: updateMany() },
+      opsGuestRosterEntry: {
+        findMany: vi.fn(async () => [] as Array<{ id: string }>),
+        findFirst: vi.fn(async () => null),
+        update: vi.fn(async () => ({})),
+      },
       opsPrivacyLegalHold: {
         findFirst: vi.fn(async () => null as { id: string } | null),
         findUnique: vi.fn(async () => legalHold),
@@ -462,6 +468,7 @@ describe('PrivacyOperationsService', () => {
     const { execute, request, tx } = executionFixture({ subjectType: 'guest' });
     tx.opsGuestCheckIn.updateMany.mockResolvedValue({ count: 0 });
     tx.opsGuestFeedback.updateMany.mockResolvedValue({ count: 0 });
+    tx.opsGuestFeedbackMedia.updateMany.mockResolvedValue({ count: 0 });
     await expect(execute()).rejects.toThrow('No supported records matched');
     expect(request.status).toBe('approved');
   });

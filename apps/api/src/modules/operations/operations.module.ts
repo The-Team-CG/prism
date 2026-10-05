@@ -5,6 +5,10 @@ import { EventCoreModule } from '@prism/kernel/event-core';
 import { FloorplanModule } from '../floorplan/floorplan.module';
 import { EventSessionModule } from '@prism/kernel/event-session';
 import { PlatformOpsModule } from '../platform-ops/platform-ops.module';
+import { OperationsEventReferenceModule } from '@prism/contexts/event-lifecycle/operations-reference';
+import { CoordinatorAccountReferenceModule } from '@prism/contexts/identity-access/coordinator-reference';
+import { RegistrationSupplierReferenceModule } from '@prism/contexts/commercial/registration-supplier-reference';
+import { GuestEventProjectionModule } from '@prism/contexts/read-models/guest-events';
 import { OpsCoordinatorWorkspaceController } from './api/staffing/coordinator-workspace.controller';
 import { OpsEventCoordinatorAssignmentsController } from './api/staffing/event-coordinator-assignments.controller';
 import { OpsCoordinatorsController } from './api/staffing/coordinators.controller';
@@ -42,11 +46,12 @@ import { OPERATIONS_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port'
  * Owned tables: OpsCoordinatorAssignment (day-to-day staffing assignment;
  * Live Ops and event lifecycle use the staffing command port for assignment changes), OpsCoordinatorReliabilityNote,
  * OpsGuestCheckIn, OpsGuestFeedback.
- * Read-only: OpsCoordinator (populated only by local fixtures; no owning module), OpsEvent
- * (via inquiry-onboarding).
+ * Read-only: OpsCoordinator pool profiles are fixture-provisioned, while Operations owns their
+ * staffing eligibility; linked account state is resolved through the Identity capability. OpsEvent
+ * command checks use Lifecycle, and guest/workspace projections use read-models.
  */
 @Module({
-  imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, FloorplanModule, EventSessionModule],
+  imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, FloorplanModule, EventSessionModule, OperationsEventReferenceModule, CoordinatorAccountReferenceModule, RegistrationSupplierReferenceModule, GuestEventProjectionModule],
   controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsCoordinatorCapacityController, OpsGuestController, OpsRegistrationPlatformController, WalkInPolicyController],
   providers: [
     CoordinatorsService,
