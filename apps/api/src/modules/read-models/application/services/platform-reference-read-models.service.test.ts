@@ -17,8 +17,10 @@ describe('PlatformReferenceReadModelsService', () => {
     const opsInquiry = { findMany: vi.fn(async () => [{ id: 'inq_1', privacyConsentAccepted: true, privacyNoticeVersion: 'v1', marketingConsentAccepted: false }]) };
     const opsGuestCheckIn = { findMany: vi.fn(async () => [{ eventId: 'evt_1', privacyConsentAccepted: false, privacyNoticeVersion: '', marketingConsentAccepted: false }]) };
     const opsGuestFeedback = { findMany: vi.fn(async () => [{ eventId: 'evt_1', privacyConsentAccepted: true, privacyNoticeVersion: 'v2', marketingConsentAccepted: true }]) };
+    const opsGuestRosterEntry = { findMany: vi.fn(async () => [{ eventId: 'evt_1' }]) };
+    const opsGuestFeedbackMedia = { findMany: vi.fn(async () => [{ feedback: { eventId: 'evt_1', privacyConsentAccepted: true, privacyNoticeVersion: 'v2', marketingConsentAccepted: false } }]) };
     const opsApprovalRequest = { findMany: vi.fn(async () => [{ privacyConsentAccepted: true, privacyNoticeVersion: 'v3', marketingConsentAccepted: false }]) };
-    const service = new PlatformReferenceReadModelsService({ opsEvent, opsInquiry, opsGuestCheckIn, opsGuestFeedback, opsApprovalRequest } as unknown as PrismaService);
+    const service = new PlatformReferenceReadModelsService({ opsEvent, opsInquiry, opsGuestCheckIn, opsGuestFeedback, opsGuestRosterEntry, opsGuestFeedbackMedia, opsApprovalRequest } as unknown as PrismaService);
 
     await expect(service.findPrivacyInventory({ eventId: 'evt_1' })).resolves.toEqual({
       events: [{
@@ -26,6 +28,8 @@ describe('PlatformReferenceReadModelsService', () => {
         inquiry: { privacyConsentAccepted: true, privacyNoticeVersion: 'v1', marketingConsentAccepted: false },
         guestCheckIns: [{ privacyConsentAccepted: false, privacyNoticeVersion: '', marketingConsentAccepted: false }],
         guestFeedback: [{ privacyConsentAccepted: true, privacyNoticeVersion: 'v2', marketingConsentAccepted: true }],
+        guestRosterEntryCount: 1,
+        guestFeedbackMedia: [{ privacyConsentAccepted: true, privacyNoticeVersion: 'v2', marketingConsentAccepted: false }],
       }],
       approvalRequests: [{ privacyConsentAccepted: true, privacyNoticeVersion: 'v3', marketingConsentAccepted: false }],
     });

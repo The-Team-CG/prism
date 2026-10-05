@@ -128,7 +128,9 @@ export class PrivacyOperationsService {
           event.inquiry,
         ]),
         this.privacySurface('guest_check_in', event.guestCheckIns.length, ['guest_name', 'attendance', 'consent'], event.guestCheckIns),
+        this.privacySurface('guest_roster_entry', event.guestRosterEntryCount, ['guest_name', 'email', 'phone'], []),
         this.privacySurface('guest_feedback', event.guestFeedback.length, ['guest_name', 'rating', 'comment', 'media_metadata', 'consent'], event.guestFeedback),
+        this.privacySurface('guest_feedback_media_metadata', event.guestFeedbackMedia.length, ['file_name_metadata', 'consent'], event.guestFeedbackMedia),
       ];
       return {
         eventId: event.id,
