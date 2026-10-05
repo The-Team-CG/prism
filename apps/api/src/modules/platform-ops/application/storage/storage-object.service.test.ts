@@ -150,6 +150,45 @@ describe('StorageObjectService', () => {
     await expect(service.requestUpload({ ...request, checksumSha256: 'b'.repeat(64), actor })).rejects.toThrow(/different content/);
   });
 
+  it('rejects an existing legacy owner pair before requesting a provider location', async () => {
+    const store = createStore();
+    const adapter = { requestUploadLocation: vi.fn(async (input: { providerObjectKey: string }) => ({ providerName: 'test', providerObjectKey: input.providerObjectKey, uploadUrl: 'test://upload', expiresAt: new Date(Date.now() + 1000) })) };
+    store.objects.push({ id: 'obj_legacy', ...request, ownerRecordType: 'conforme', ownerRecordId: 'conforme_1', lifecycleState: 'failed' });
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter as never, store.platformReferences as never);
+
+    await expect(service.requestUpload({ ...request, actor })).rejects.toThrow(/owner reference is not supported/);
+    expect(adapter.requestUploadLocation).not.toHaveBeenCalled();
+    expect(store.prisma.opsStoredObject.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects a global idempotency-key match bound to a different owner record before provider access', async () => {
+    const store = createStore();
+    const adapter = { requestUploadLocation: vi.fn(async (input: { providerObjectKey: string }) => ({ providerName: 'test', providerObjectKey: input.providerObjectKey, uploadUrl: 'test://upload', expiresAt: new Date(Date.now() + 1000) })) };
+    store.objects.push({ id: 'obj_other_owner', ...request, ownerRecordId: 'bill_other', idempotencyKey: 'global-key', lifecycleState: 'failed' });
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter as never, store.platformReferences as never);
+
+    await expect(service.requestUpload({ ...request, idempotencyKey: 'global-key', actor })).rejects.toThrow(/different content/);
+    expect(adapter.requestUploadLocation).not.toHaveBeenCalled();
+    expect(store.prisma.opsStoredObject.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unsupported owner recovered after a unique-key race', async () => {
+    const store = createStore();
+    const adapter = { requestUploadLocation: vi.fn(async (input: { providerObjectKey: string }) => ({ providerName: 'test', providerObjectKey: input.providerObjectKey, uploadUrl: 'test://upload', expiresAt: new Date(Date.now() + 1000) })) };
+    const raced = { id: 'obj_raced', ...request, ownerRecordType: 'conforme', ownerRecordId: 'conforme_1', idempotencyKey: 'race-key', lifecycleState: 'failed' };
+    store.prisma.opsStoredObject.findUnique.mockImplementation(async ({ where }: { where: Record<string, any> }) => {
+      if (where.idempotencyKey === 'race-key') return store.prisma.opsStoredObject.create.mock.calls.length > 0 ? raced : null;
+      if (where.id) return store.objects.find((object) => object.id === where.id) ?? null;
+      const target = where.eventId_usage_logicalTarget;
+      return store.objects.find((object) => object.eventId === target.eventId && object.usage === target.usage && object.logicalTarget === target.logicalTarget) ?? null;
+    });
+    store.prisma.opsStoredObject.create.mockRejectedValueOnce(new Error('unique constraint'));
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter as never, store.platformReferences as never);
+
+    await expect(service.requestUpload({ ...request, idempotencyKey: 'race-key', actor })).rejects.toThrow(/owner reference is not supported/);
+    expect(adapter.requestUploadLocation).toHaveBeenCalledOnce();
+  });
+
   it('rejects confirmation metadata that differs from the request declaration', async () => {
     const store = createStore();
     const adapter = { requestUploadLocation: vi.fn(async (input: { providerObjectKey: string }) => ({ providerName: 'test', providerObjectKey: input.providerObjectKey, uploadUrl: 'test://upload', expiresAt: new Date(Date.now() + 1000) })), confirmUpload: vi.fn(), issueDownloadAuthorization: vi.fn(), deleteObject: vi.fn() };

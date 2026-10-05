@@ -316,7 +316,8 @@ export class StorageObjectService {
   }
 
   private assertSameLogicalContent(object: OpsStoredObject, input: StorageServiceRequest, declaration: ReturnType<StorageValidationService['validateDeclaration']>) {
-    if (object.eventId !== input.eventId || object.usage !== input.usage || object.logicalTarget !== input.logicalTarget || object.contentType !== declaration.contentType || object.declaredByteSize !== declaration.byteSize || object.checksumSha256 !== declaration.checksumSha256) {
+    this.assertSupportedOwner(object.ownerRecordType, object.usage);
+    if (object.eventId !== input.eventId || object.ownerRecordType !== input.ownerRecordType || object.ownerRecordId !== input.ownerRecordId || object.usage !== input.usage || object.logicalTarget !== input.logicalTarget || object.contentType !== declaration.contentType || object.declaredByteSize !== declaration.byteSize || object.checksumSha256 !== declaration.checksumSha256) {
       throw new ConflictException('Storage logical target is already bound to different content');
     }
   }
