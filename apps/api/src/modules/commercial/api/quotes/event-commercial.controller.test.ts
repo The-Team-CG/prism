@@ -28,11 +28,11 @@ function createController() {
     supplierName: 'SonicLine Technicals',
     category: 'Technicals',
     message: 'Ana Reyes / Ayala Tech Summit quote request.',
-    dueDate: new Date('2026-06-25T00:00:00.000Z'),
+    dueDate: '2026-06-25',
     accessToken: 'token-sample',
     confidentialBid: false,
     status: 'open',
-    createdAt: now,
+    createdAt: now.toISOString(),
   };
   const quote = {
     id: 'quote_sample',
@@ -54,13 +54,13 @@ function createController() {
     revisedAt: null,
     selectedAt: null,
     lockedAt: null,
-    createdAt: now,
-    updatedAt: now,
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
   };
   const commercialWorkflowService = {
     addSupplierQuote: vi.fn(async () => quote),
     requestSupplierQuotes: vi.fn(async () => [request]),
-    selectSupplierQuote: vi.fn(async () => ({ ...quote, status: 'selected', selectedAt: now, lockedAt: now })),
+    selectSupplierQuote: vi.fn(async () => ({ ...quote, status: 'selected', selectedAt: now.toISOString(), lockedAt: now.toISOString() })),
   };
   const eventAccessPolicyService = {
     resolveActor: vi.fn((input = {}, verified?: PrismVerifiedEventActor) => ({

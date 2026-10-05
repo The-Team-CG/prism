@@ -95,7 +95,11 @@ function createGuestWorkflowFixture() {
         );
       }),
       create: vi.fn(async ({ data }: any) => {
-        const row = { ...data, submittedAt: new Date('2026-06-18T10:00:00.000Z') };
+        const row = {
+          ...data,
+          mediaAttachments: data.mediaAttachments?.create ?? [],
+          submittedAt: new Date('2026-06-18T10:00:00.000Z'),
+        };
         state.guestFeedback.push(row);
         return row;
       }),
@@ -202,7 +206,9 @@ describe('GuestWorkflowService', () => {
     });
 
     expect(checkIn).toMatchObject({ eventId: 'evt_sample', guestName: 'Sofia Lim', status: 'checked_in' });
-    expect(feedback).toMatchObject({ eventId: 'evt_sample', guestName: 'Sofia Lim', moderationStatus: 'pending_review' });
+    expect(feedback).toMatchObject({ eventId: 'evt_sample', submittedAt: expect.any(String) });
+    expect(feedback).not.toHaveProperty('guestName');
+    expect(feedback).not.toHaveProperty('moderationStatus');
     expect(auditWriter.write).toHaveBeenCalledTimes(2);
     vi.useRealTimers();
   });
@@ -474,8 +480,33 @@ describe('GuestWorkflowService', () => {
         attendanceCount: 1,
       }),
     );
-    expect(service.mapGuestCheckIn(state.guestCheckIns[0] as any)).toMatchObject({ guestName: 'Existing Guest' });
-    expect(service.mapGuestFeedback(feedback)).toMatchObject({ guestName: 'Sofia Lim', moderationStatus: 'pending_review' });
+    const guestCheckInPayload = service.mapGuestCheckIn(state.guestCheckIns[0] as any);
+    expect(guestCheckInPayload).toMatchObject({ guestName: 'Existing Guest' });
+    expect(guestCheckInPayload).not.toHaveProperty('privacyConsentAccepted');
+    expect(guestCheckInPayload).not.toHaveProperty('privacyNoticeVersion');
+    expect(guestCheckInPayload).not.toHaveProperty('marketingConsentAccepted');
+    expect(feedback).toEqual({
+      id: feedback.id,
+      eventId: feedback.eventId,
+      submittedAt: '2026-06-18T10:00:00.000Z',
+    });
+    const [feedbackForReview] = await service.listPendingFeedbackForEvent('evt_sample');
+    state.guestFeedback[0].mediaAttachments.push({
+      id: 'media_1',
+      kind: 'photo',
+      originalFileName: 'table.jpg',
+      mimeType: 'image/jpeg',
+      sizeBytes: 1024,
+      status: 'pending_storage',
+      blocker: 'Local storage adapter unavailable',
+    });
+    const [feedbackWithMedia] = await service.listPendingFeedbackForEvent('evt_sample');
+    expect(service.mapGuestFeedback(feedbackWithMedia)).toMatchObject({
+      guestName: 'Sofia Lim',
+      moderationStatus: 'pending_review',
+      privacyConsentAccepted: true,
+      mediaAttachments: [{ id: 'media_1', kind: 'photo', blocker: 'Local storage adapter unavailable' }],
+    });
     const guestEventPayload = service.mapGuestEvent(state.events[0] as any, 1);
     const guestEventJson = JSON.stringify(guestEventPayload);
     expect(guestEventPayload).not.toHaveProperty('clientPortalStatus');
@@ -495,7 +526,7 @@ describe('GuestWorkflowService', () => {
     vi.setSystemTime(new Date('2026-09-07T11:59:59.000Z'));
     await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'Before', rating: 5, privacyConsentAccepted: true })).rejects.toThrow('opens after the event has actually ended');
     vi.setSystemTime(new Date('2026-09-14T12:00:00.000Z'));
-    await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'At deadline', rating: 5, privacyConsentAccepted: true })).resolves.toMatchObject({ guestName: 'At deadline' });
+    await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'At deadline', rating: 5, privacyConsentAccepted: true })).resolves.toMatchObject({ eventId: 'evt_sample', submittedAt: expect.any(String) });
     vi.setSystemTime(new Date('2026-09-14T12:00:00.001Z'));
     await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'After', rating: 5, privacyConsentAccepted: true })).rejects.toThrow('seven-day guest feedback window has closed');
     (state.events[0] as any).actualEndedAt = null;
@@ -523,8 +554,8 @@ describe('GuestWorkflowService', () => {
     const { service, state } = createGuestWorkflowFixture();
     const feedback = await service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'Consent Guest', rating: 5, privacyConsentAccepted: true, marketingConsentAccepted: true, privacyNoticeVersion: '2026-09-01' });
     const withdrawn = await service.withdrawFeedbackConsentByAccessCode('AYALA-TECH-MPLE', feedback.id, { withdrawPrivacyConsent: true, withdrawMarketingConsent: true });
-    expect(withdrawn).toMatchObject({ privacyConsentAccepted: false, marketingConsentAccepted: false });
-    expect((withdrawn as any).privacyConsentWithdrawnAt).toBeInstanceOf(Date);
+    expect(withdrawn).toMatchObject({ id: feedback.id, eventId: 'evt_sample', submittedAt: expect.any(String) });
+    expect(state.guestFeedback[0].privacyConsentWithdrawnAt).toBeInstanceOf(Date);
     expect(state.guestFeedback[0].privacyNoticeVersion).toBe('2026-09-01');
     vi.useRealTimers();
   });

@@ -646,8 +646,8 @@ export class EventReadModelsService {
       registrationPlatform: registrationPlatform ? mappers.mapRegistrationPlatform(registrationPlatform) : null,
       ocularVisit: ocularVisit ? mapPmcmOcularVisit(ocularVisit) : null,
       guestAttendanceCount,
-      guestCheckIns: guestCheckIns.map((checkIn) => this.guestReader.mapGuestCheckIn(checkIn)),
-      guestFeedback: guestFeedback.map((feedback) => this.guestReader.mapGuestFeedback(feedback)),
+      guestCheckIns,
+      guestFeedback,
     };
   }
 
