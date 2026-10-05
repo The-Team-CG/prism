@@ -12,7 +12,7 @@ export class FloorplanEventReferenceService implements FloorplanEventReferenceRe
     if (transaction) {
       // QUERY_AUDIT_RAW_SQL: serialize Floorplan writes with Lifecycle event and ocular state changes.
       const lockedEvents = await transaction.prisma.$queryRawUnsafe<Array<{ id: string }>>(
-        'SELECT "id" FROM "event_core"."events" WHERE "id" = $1 FOR UPDATE',
+        'SELECT "id" FROM "event_lifecycle"."events" WHERE "id" = $1 FOR UPDATE',
         eventId,
       );
       if (lockedEvents.length === 0) return null;
@@ -20,7 +20,7 @@ export class FloorplanEventReferenceService implements FloorplanEventReferenceRe
       // Keep lock order stable: Lifecycle event first, then its unique ocular request.
       // QUERY_AUDIT_RAW_SQL: serialize official-floorplan eligibility with ocular-state changes.
       await transaction.prisma.$queryRawUnsafe(
-        'SELECT "id" FROM "event_core"."ocular_visit_requests" WHERE "event_id" = $1 FOR UPDATE',
+        'SELECT "id" FROM "event_lifecycle"."ocular_visit_requests" WHERE "event_id" = $1 FOR UPDATE',
         eventId,
       );
     }

@@ -40,12 +40,12 @@ const auditRowQuery = `
     -- Prisma serializes the timestamp-without-time-zone audit column as UTC.
     -- Cast it explicitly so node-postgres does not apply the host's local zone.
     created_at AT TIME ZONE 'UTC' AS "createdAt"
-  FROM trust_ops.audit_logs
+  FROM platform_ops.audit_logs
   ORDER BY created_at ASC, id ASC`;
 
 const lockQuery = `
   SELECT id, revision, head_id AS "headId", head_hash AS "headHash"
-  FROM trust_ops.audit_chain_locks
+  FROM platform_ops.audit_chain_locks
   WHERE id = 'global'`;
 
 export function parseRepairArguments(argv) {
@@ -219,7 +219,7 @@ function makeCheckpoint(plan, options, target, sourceSha256, snapshotSha256, has
 
 async function insertCheckpoint(client, checkpoint) {
   await client.query(
-    `INSERT INTO trust_ops.audit_logs (
+    `INSERT INTO platform_ops.audit_logs (
       id, event_id, actor, actor_role, actor_email, action, action_type, category,
       affected_type, affected_id, affected_label, metadata, ip_address, device,
       severity, immutable_hash, previous_hash, created_at
@@ -286,7 +286,7 @@ export async function runAuditChainRepair({
       transactionOpen = true;
       const lock = await client.query(`${lockQuery.trim()} FOR UPDATE`);
       if (!lock.rows[0]) throw new Error('The global audit chain lock row is missing');
-      await client.query('LOCK TABLE trust_ops.audit_logs IN SHARE ROW EXCLUSIVE MODE');
+      await client.query('LOCK TABLE platform_ops.audit_logs IN SHARE ROW EXCLUSIVE MODE');
     } else {
       await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
       transactionOpen = true;
@@ -320,7 +320,7 @@ export async function runAuditChainRepair({
 
       for (const row of plan.plannedRows) {
         const update = await client.query(
-          `UPDATE trust_ops.audit_logs
+          `UPDATE platform_ops.audit_logs
               SET previous_hash = $2, immutable_hash = $3
             WHERE id = $1`,
           [row.id, row.previousHash, row.immutableHash],
@@ -331,7 +331,7 @@ export async function runAuditChainRepair({
       const checkpoint = makeCheckpoint(plan, options, target, sourceSha256, snapshotSha256, hashModule);
       await insertCheckpoint(client, checkpoint);
       const headUpdate = await client.query(
-        `UPDATE trust_ops.audit_chain_locks
+        `UPDATE platform_ops.audit_chain_locks
             SET revision = revision + 1, head_id = $1, head_hash = $2
           WHERE id = 'global'`,
         [checkpoint.id, checkpoint.immutableHash],

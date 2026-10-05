@@ -12,7 +12,7 @@ export class CoordinatorAccountReferenceService implements CoordinatorAccountEli
     const prisma = transaction?.prisma ?? this.prisma;
     if (transaction) {
       // QUERY_AUDIT_RAW_SQL: serialize assignment eligibility with Identity approval, lockout, and disable changes.
-      await transaction.prisma.$queryRaw`SELECT id FROM identity.users WHERE id = ${userId} FOR UPDATE`;
+      await transaction.prisma.$queryRaw`SELECT id FROM identity_access.users WHERE id = ${userId} FOR UPDATE`;
     }
     const user = await prisma.opsUser.findUnique({
       where: { id: userId },

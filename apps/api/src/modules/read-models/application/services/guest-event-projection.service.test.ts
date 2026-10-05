@@ -15,7 +15,7 @@ describe('GuestEventProjectionService', () => {
     });
   });
 
-  it('keeps the guest pass projection narrow and caps related floorplan drafts', async () => {
+  it('keeps the guest pass event projection within lifecycle-owned fields', async () => {
     const findUnique = vi.fn(async () => null);
     const service = new GuestEventProjectionService({ opsEvent: { findUnique } } as never);
 
@@ -37,11 +37,6 @@ describe('GuestEventProjectionService', () => {
         floorPlanStatus: true,
         floorPlanId: true,
         updatedAt: true,
-        floorPlanDrafts: {
-          select: { id: true, floorPlanId: true, isActive: true },
-          orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
-          take: 100,
-        },
       },
     });
   });
@@ -65,10 +60,6 @@ describe('GuestEventProjectionService', () => {
         archived: true,
         floorPlanStatus: true,
         floorPlanId: true,
-        floorPlanDrafts: {
-          orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
-          take: 100,
-        },
         briefings: {
           orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
           take: 1,

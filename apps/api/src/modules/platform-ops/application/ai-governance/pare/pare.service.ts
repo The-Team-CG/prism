@@ -736,7 +736,7 @@ export class PAREService implements PareApprovalGovernance {
     // QUERY_AUDIT_RAW_SQL: re-read the saved JSONB canonical text before accepting an approval.
     const serializedRows = await prisma.$queryRaw<Array<{ canonicalPayload: string }>>`
       SELECT "review_payload"::text AS "canonicalPayload"
-      FROM "trust_ops"."ai_approval_records"
+      FROM "platform_ops"."ai_approval_records"
       WHERE "id" = ${approvalRecordId}
     `;
     const canonicalPayload = serializedRows[0]?.canonicalPayload;

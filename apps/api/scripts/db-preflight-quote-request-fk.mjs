@@ -6,15 +6,15 @@ import { selectDatabaseConnection } from './db-connection-config.mjs';
 
 const COUNT_QUERY = [
   'SELECT COUNT(*)::text AS orphan_count',
-  'FROM supplier_ops.quotes AS quote',
-  'LEFT JOIN supplier_ops.quote_requests AS request ON request.id = quote.request_id',
+  'FROM commercial.quotes AS quote',
+  'LEFT JOIN commercial.quote_requests AS request ON request.id = quote.request_id',
   'WHERE quote.request_id IS NOT NULL AND request.id IS NULL',
 ].join(' ');
 
 const SAMPLE_QUERY = [
   'SELECT quote.id',
-  'FROM supplier_ops.quotes AS quote',
-  'LEFT JOIN supplier_ops.quote_requests AS request ON request.id = quote.request_id',
+  'FROM commercial.quotes AS quote',
+  'LEFT JOIN commercial.quote_requests AS request ON request.id = quote.request_id',
   'WHERE quote.request_id IS NOT NULL AND request.id IS NULL',
   'ORDER BY quote.id LIMIT $1',
 ].join(' ');

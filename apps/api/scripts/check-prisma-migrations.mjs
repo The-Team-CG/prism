@@ -549,6 +549,12 @@ function validateSchemaMovePolicy(migration, parsed, cleanSql, policy, ownership
   if (expected.owner !== parsed.owner) {
     errors.push(`${migration.name}: schema move policy owner does not match migration owner ${parsed.owner}`);
   }
+  const coordinatedDomains = new Set([expected.owner, ...(expected.coordinatedDomains ?? [])]);
+  for (const domain of expected.coordinatedDomains ?? []) {
+    if (!ownershipManifest?.summary?.domains?.some((entry) => entry.domain === domain)) {
+      errors.push(`${migration.name}: schema move policy names unknown coordinated domain ${domain}`);
+    }
+  }
 
   const normalize = (move) => `${move.fromSchema}.${move.table}->${move.toSchema}`;
   const expectedMoves = (expected.moves ?? []).map(normalize).sort();
@@ -559,7 +565,7 @@ function validateSchemaMovePolicy(migration, parsed, cleanSql, policy, ownership
 
   for (const move of expected.moves ?? []) {
     const ownedTable = ownershipManifest?.ownership?.find((entry) =>
-      entry.domain === parsed.owner &&
+      coordinatedDomains.has(entry.domain) &&
       entry.table === move.table &&
       entry.currentSchema === move.fromSchema &&
       entry.targetSchema === move.toSchema);
@@ -606,7 +612,17 @@ function validateOwnerAwareMigration(migration, parsed, policy, ownershipManifes
   errors.push(...validateSchemaMovePolicy(migration, parsed, cleanSql, policy, ownershipManifest));
   const tableOwners = policy.tableOwners ?? {};
   const strictTableSchemas = new Set(policy.requireTableOwnerMappingsForSchemas ?? []);
-  const configuredOwnerSchemas = new Set(policy.owners[parsed.owner].schemas ?? []);
+  const schemaMovePolicy = policy.schemaMoveMigrations?.[migration.name];
+  const coordinatedOwners = new Set([parsed.owner, ...(schemaMovePolicy?.coordinatedDomains ?? [])]);
+  const configuredOwnerSchemas = new Set(
+    [...coordinatedOwners].flatMap((owner) => [
+      ...(policy.owners[owner]?.schemas ?? []),
+      targetSchemaForOwner(policy, owner),
+    ]).filter(Boolean),
+  );
+  const coordinatedHistoricalSchemas = new Set((ownershipManifest?.ownership ?? [])
+    .filter((entry) => coordinatedOwners.has(entry.domain))
+    .map((entry) => entry.currentSchema));
   const targetSchema = targetSchemaForOwner(policy, parsed.owner);
   for (const schema of schemas) {
     if (systemSchemas.has(schema)) continue;
@@ -615,14 +631,14 @@ function validateOwnerAwareMigration(migration, parsed, policy, ownershipManifes
     );
     const hasOwnerTableAccess = schemaRelations.length > 0 && schemaRelations.every(
       ({ kind, relation }) => relation && (kind === 'index'
-        ? policy.indexOwners?.[schema]?.[relation.table]?.includes(parsed.owner)
-        : ownerOwnsTable(ownershipManifest, policy, parsed.owner, schema, relation.table)),
+        ? (policy.indexOwners?.[schema]?.[relation.table] ?? []).some((owner) => coordinatedOwners.has(owner))
+        : [...coordinatedOwners].some((owner) => ownerOwnsTable(ownershipManifest, policy, owner, schema, relation.table))),
     );
 
     if (forbiddenSchemas.has(schema)) {
       errors.push(`${migration.name}: schema ${schema} is forbidden for Prism domain migrations`);
     } else if (ownershipManifest?.ownership
-      ? schema !== targetSchema && !hasOwnerTableAccess
+      ? !configuredOwnerSchemas.has(schema) && !coordinatedHistoricalSchemas.has(schema) && !hasOwnerTableAccess
       : !configuredOwnerSchemas.has(schema) && schema !== targetSchema && !hasOwnerTableAccess) {
       errors.push(
         `${migration.name}: schema ${schema} is not allowed for owner ${parsed.owner}; owner target schema: ${targetSchema ?? [...configuredOwnerSchemas].join(', ')}`,
@@ -647,7 +663,7 @@ function validateOwnerAwareMigration(migration, parsed, policy, ownershipManifes
     const tableKey = `${relation.schema}.${relation.table}`;
 
     if (ownershipManifest?.ownership) {
-      if (!ownerOwnsTable(ownershipManifest, policy, parsed.owner, relation.schema, relation.table)) {
+      if (![...coordinatedOwners].some((owner) => ownerOwnsTable(ownershipManifest, policy, owner, relation.schema, relation.table))) {
         errors.push(`${migration.name}: table ${tableKey} is not owned by ${parsed.owner} in the domain ownership manifest`);
       }
       continue;
@@ -674,7 +690,7 @@ function validateOwnerAwareMigration(migration, parsed, policy, ownershipManifes
       errors.push(
         `${migration.name}: index ${indexKey} is in a shared schema and needs an explicit table-owner review`,
       );
-    } else if (!allowedOwners.includes(parsed.owner)) {
+    } else if (!allowedOwners.some((owner) => coordinatedOwners.has(owner))) {
       errors.push(
         `${migration.name}: index ${indexKey} is owned by ${allowedOwners.join(', ')}, not ${parsed.owner}`,
       );
