@@ -1,11 +1,11 @@
-import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
 import type { OpsStoredObject } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '@prism/kernel/database';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { OpsUserRole, type OpsUserRole as OpsUserRoleValue } from '@prism/kernel/event-core';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
-import type { PrismStoredObject } from '@prism/types';
+import type { PrismStoredObject, StorageUsage } from '@prism/types';
 import { PLATFORM_REFERENCE_READ_MODEL, type PlatformReferenceReadModel } from '@prism/contexts/read-models';
 import {
   STORAGE_ADAPTER,
@@ -23,6 +23,16 @@ import { StorageValidationService } from './storage-validation.service';
 
 export const STORAGE_RETENTION_POLICY_SEAM = 'Retention and legal-hold policy is owned by W29 and is not implemented here';
 
+// Keep the generic storage API closed to owner pairs without production callers.
+// This allowlist does not validate target-row existence; each owner capability must do that.
+const STORAGE_OWNER_USAGE_REGISTRY: Readonly<Record<string, readonly StorageUsage[]>> = {
+  billing_statement: ['event_deliverable'],
+};
+
+function isSupportedStorageOwner(ownerRecordType: string, usage: string) {
+  return STORAGE_OWNER_USAGE_REGISTRY[ownerRecordType]?.includes(usage as StorageUsage) ?? false;
+}
+
 @Injectable()
 export class StorageObjectService {
   constructor(
@@ -34,6 +44,7 @@ export class StorageObjectService {
   ) {}
 
   async requestUpload(input: StorageServiceRequest): Promise<StorageRequestResult> {
+    this.assertSupportedOwner(input.ownerRecordType, input.usage);
     const prisma = this.database(input.context);
     await this.authorizeEvent(input.eventId, input.actor, input.usage, 'request storage upload');
     const declaration = this.declaration(input);
@@ -54,6 +65,7 @@ export class StorageObjectService {
     const prisma = this.database(input.context);
     const current = await prisma.opsStoredObject.findUnique({ where: { id: input.objectId } });
     if (!current) throw new NotFoundException('Stored object not found');
+    this.assertSupportedOwner(current.ownerRecordType, current.usage);
     await this.authorizeEvent(current.eventId, input.actor, current.usage as StorageServiceRequest['usage'], 'confirm storage upload');
     if (current.lifecycleState === 'stored') return this.confirmAlreadyStored(current, input);
     if (current.lifecycleState !== 'requested') throw new ConflictException('Only a requested upload can be confirmed');
@@ -113,6 +125,7 @@ export class StorageObjectService {
   async issueDownloadAuthorization(input: StorageServiceDownload): Promise<StorageDownloadAuthorization> {
     const object = await this.prisma.opsStoredObject.findUnique({ where: { id: input.objectId } });
     if (!object) throw new NotFoundException('Stored object not found');
+    this.assertSupportedOwner(object.ownerRecordType, object.usage);
     await this.authorizeEvent(object.eventId, input.actor, object.usage as StorageServiceRequest['usage'], 'download storage object');
     if (object.lifecycleState !== 'stored' || !object.providerObjectKey || !this.adapter) {
       throw new ServiceUnavailableException(object.lifecycleState === 'stored' ? 'Storage provider is not configured' : 'Stored object is not available');
@@ -137,6 +150,7 @@ export class StorageObjectService {
   }
 
   private canSeeObject(actor: ResolvedEventOpsActor, object: OpsStoredObject) {
+    if (!isSupportedStorageOwner(object.ownerRecordType, object.usage)) return false;
     if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return true;
     if (object.usage === 'signed_conforme') return actor.role === OpsUserRole.Client;
     if (object.usage === 'event_deliverable') return actor.role === OpsUserRole.Client || actor.role === OpsUserRole.Coordinator;
@@ -144,10 +158,17 @@ export class StorageObjectService {
     return false;
   }
 
+  private assertSupportedOwner(ownerRecordType: string, usage: string) {
+    if (!isSupportedStorageOwner(ownerRecordType, usage)) {
+      throw new BadRequestException('Storage owner reference is not supported for this usage');
+    }
+  }
+
   async deleteObject(input: StorageServiceDeletion): Promise<PrismStoredObject> {
     const prisma = this.database(input.context);
     const object = await prisma.opsStoredObject.findUnique({ where: { id: input.objectId } });
     if (!object) throw new NotFoundException('Stored object not found');
+    this.assertSupportedOwner(object.ownerRecordType, object.usage);
     await this.accessPolicy.requireActorRole(input.actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'delete storage object', object.eventId);
     if (object.lifecycleState === 'deleted') return this.mapObject(object);
     if (object.lifecycleState !== 'stored') throw new ConflictException('Only a stored object can be deleted');
