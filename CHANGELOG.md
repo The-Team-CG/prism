@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 - Canonicalized new audit-chain hashes against PostgreSQL JSONB key ordering and added a backup- and approval-gated preproduction rehash/checkpoint command with a checksummed pre-repair snapshot. Rehearsed backup restore, rehash, checkpoint, and integrity verification on an isolated disposable PostgreSQL 16 database; no shared or preproduction database was modified.
-- Seeded valid quote/request evidence at the migration checkpoint and verified it survives upgrade; isolated each PostgreSQL behavior suite on a fresh clone, kept global audit rows and their event/inquiry parents intact, and required an explicit test path for focused runs.
 - Fixed the archived coordinator event regression test to wait for refreshed role data before submitting after switching back to a current event.
 
 ### Fixed
