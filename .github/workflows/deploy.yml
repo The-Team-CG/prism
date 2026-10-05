@@ -14,7 +14,8 @@ jobs:
   sync-staging:
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'staging'
+      github.event.workflow_run.head_branch == 'staging' &&
+      vars.PRISM_SCHEMA_CUTOVER_HOLD != 'true'
     uses: The-Team-CG/.github/.github/workflows/sync-environment.yml@1c186ab95cf1432a7cbb59e24c9be19d527577cf
     with:
       environment: staging
@@ -30,7 +31,8 @@ jobs:
   sync-production:
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'prod'
+      github.event.workflow_run.head_branch == 'prod' &&
+      vars.PRISM_SCHEMA_CUTOVER_HOLD != 'true'
     uses: The-Team-CG/.github/.github/workflows/sync-environment.yml@1c186ab95cf1432a7cbb59e24c9be19d527577cf
     with:
       environment: production
@@ -44,7 +46,9 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
   check-deploy-secrets:
-    if: github.event.workflow_run.head_branch == 'staging' || github.event.workflow_run.head_branch == 'prod'
+    if: >-
+      vars.PRISM_SCHEMA_CUTOVER_HOLD != 'true' &&
+      (github.event.workflow_run.head_branch == 'staging' || github.event.workflow_run.head_branch == 'prod')
     runs-on: ubuntu-latest
     outputs:
       staging_ready: ${{ steps.check.outputs.staging_ready }}
@@ -83,6 +87,7 @@ jobs:
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'staging' &&
+      vars.PRISM_SCHEMA_CUTOVER_HOLD != 'true' &&
       needs.check-deploy-secrets.outputs.staging_ready == 'true'
     uses: The-Team-CG/.github/.github/workflows/deploy-render.yml@f5986c05d92dd3cb61a880efc3cab5ddba25cd35
     with:
@@ -100,6 +105,7 @@ jobs:
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'prod' &&
+      vars.PRISM_SCHEMA_CUTOVER_HOLD != 'true' &&
       needs.check-deploy-secrets.outputs.production_ready == 'true'
     uses: The-Team-CG/.github/.github/workflows/deploy-render.yml@f5986c05d92dd3cb61a880efc3cab5ddba25cd35
     with:
@@ -116,7 +122,8 @@ jobs:
     needs: deploy-api-staging
     if: >-
       needs.deploy-api-staging.result == 'success' &&
-      github.event.workflow_run.head_branch == 'staging'
+      github.event.workflow_run.head_branch == 'staging' &&
+      vars.PRISM_SCHEMA_CUTOVER_HOLD != 'true'
     uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2.1
     with:
       environment: staging
@@ -132,7 +139,8 @@ jobs:
     needs: deploy-api-staging
     if: >-
       needs.deploy-api-staging.result == 'success' &&
-      github.event.workflow_run.head_branch == 'staging'
+      github.event.workflow_run.head_branch == 'staging' &&
+      vars.PRISM_SCHEMA_CUTOVER_HOLD != 'true'
     uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2.1
     with:
       environment: staging
@@ -148,7 +156,8 @@ jobs:
     needs: deploy-api-staging
     if: >-
       needs.deploy-api-staging.result == 'success' &&
-      github.event.workflow_run.head_branch == 'staging'
+      github.event.workflow_run.head_branch == 'staging' &&
+      vars.PRISM_SCHEMA_CUTOVER_HOLD != 'true'
     uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2.1
     with:
       environment: staging
@@ -164,7 +173,8 @@ jobs:
     needs: deploy-api-staging
     if: >-
       needs.deploy-api-staging.result == 'success' &&
-      github.event.workflow_run.head_branch == 'staging'
+      github.event.workflow_run.head_branch == 'staging' &&
+      vars.PRISM_SCHEMA_CUTOVER_HOLD != 'true'
     uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2.1
     with:
       environment: staging
@@ -180,7 +190,8 @@ jobs:
     needs: deploy-api-production
     if: >-
       needs.deploy-api-production.result == 'success' &&
-      github.event.workflow_run.head_branch == 'prod'
+      github.event.workflow_run.head_branch == 'prod' &&
+      vars.PRISM_SCHEMA_CUTOVER_HOLD != 'true'
     uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2.1
     with:
       environment: production
@@ -196,7 +207,8 @@ jobs:
     needs: deploy-api-production
     if: >-
       needs.deploy-api-production.result == 'success' &&
-      github.event.workflow_run.head_branch == 'prod'
+      github.event.workflow_run.head_branch == 'prod' &&
+      vars.PRISM_SCHEMA_CUTOVER_HOLD != 'true'
     uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2.1
     with:
       environment: production
@@ -212,7 +224,8 @@ jobs:
     needs: deploy-api-production
     if: >-
       needs.deploy-api-production.result == 'success' &&
-      github.event.workflow_run.head_branch == 'prod'
+      github.event.workflow_run.head_branch == 'prod' &&
+      vars.PRISM_SCHEMA_CUTOVER_HOLD != 'true'
     uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2.1
     with:
       environment: production
@@ -228,7 +241,8 @@ jobs:
     needs: deploy-api-production
     if: >-
       needs.deploy-api-production.result == 'success' &&
-      github.event.workflow_run.head_branch == 'prod'
+      github.event.workflow_run.head_branch == 'prod' &&
+      vars.PRISM_SCHEMA_CUTOVER_HOLD != 'true'
     uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2.1
     with:
       environment: production

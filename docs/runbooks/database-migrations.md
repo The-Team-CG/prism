@@ -202,6 +202,66 @@ means Prisma found a non-empty diff that needs review; exit `1` means the
 comparison failed. A non-empty diff is evidence to investigate, not permission
 to apply the generated SQL automatically.
 
+## Controlled schema cutover
+
+Ordinary backward-compatible deployments leave
+`PRISM_SCHEMA_COMPATIBILITY_MODE=disabled`. During a deliberately controlled
+schema release, the API can run with `PRISM_SCHEMA_COMPATIBILITY_MODE=exact`
+and `PRISM_SCHEMA_REQUIRED_HEAD=<reviewed migration directory>`. Before the
+API listens, it compares every bundled migration name and SHA-256 checksum
+with completed rows in `public._prisma_migrations`, rejects unfinished,
+missing, unknown, or checksum-mismatched rows, and requires the checked-out
+head to equal `PRISM_SCHEMA_REQUIRED_HEAD`. This verifies the ledger only;
+`db:diff:live` remains necessary to detect physical schema drift.
+The startup query uses the API's runtime database identity, while the preflight
+uses `DIRECT_URL`; the preflight therefore does not prove that the runtime role
+can read `public._prisma_migrations`. Confirm that privilege in staging before
+enabling exact mode. If the runtime query is denied, API startup fails closed.
+
+Use this order for an approved cutover:
+
+1. Set the repository Actions variable `PRISM_SCHEMA_CUTOVER_HOLD=true`.
+   Confirm all automatic Deploy, Promote, Rollback, and non-dry-run environment
+   sync jobs have settled. The hold blocks new repository workflow mutations;
+   it does not pause a provider service or cancel an already running job.
+2. Take and verify a restorable backup. Stop or drain the API and every other
+   database writer, and verify no provider deploy is in flight.
+3. Set the exact compatibility mode and reviewed migration head in repository
+   Actions variables. Ensure both are included in the API entries in
+   `ENV_SYNC_MANIFEST_JSON` so the exact API artifact receives those values.
+4. Dispatch **Schema cutover preflight (read-only)** from `staging` for
+   staging, or `prod` for production. Confirm the backup and drain inputs. The
+   workflow checks the migration artifacts and Prisma model, confirms that the
+   target ledger is a checksum-validated prefix with no unknown or failed
+   entries, and prints a read-only SQL diff for owner review. Pending migration
+   names are expected; review the SQL diff for unintended drift. It performs no
+   database or provider writes. The selected GitHub Environment must provide
+   `DIRECT_URL`.
+5. Review the pending migration list, schema diff, backup, and ownership/risk
+   review. An approved operator applies the checked-in history with
+   `npm --workspace prism-api run db:migrate:deploy`, then runs
+   `npm --workspace prism-api run db:status` and
+   `npm --workspace prism-api run db:diff:live` against the same target.
+6. While the hold remains active and writers remain stopped, configure the
+   provider runtime with the exact mode/head and deploy the reviewed SHA using
+   the approved maintenance procedure. Confirm API health and startup evidence
+   that the ledger exactly matches the required head; deploy portals only after
+   the API passes health checks. Provider-side operations are outside the
+   read-only preflight and repository hold controls.
+7. While the hold remains active, set the API runtime compatibility mode back
+   to `disabled` through the approved provider maintenance procedure, clear the
+   one-time required head in the repository variables/manifest, and verify API
+   health again after any provider restart. Then resume writers and clear the
+   hold only after database and application acceptance. This keeps ordinary
+   backward-compatible releases on the default path; a later schema release
+   enables `exact` again with its own required head.
+
+The normal manual environment-sync workflow refuses non-dry-run provider sync
+while the hold is active. Do not clear the hold merely to make it run. If any
+preflight or post-migration check fails, keep the hold, leave writers stopped,
+and follow the recovery procedure below. Do not roll an old API image onto a
+new schema without a verified compatibility decision.
+
 ## Data invariants
 
 Schema changes and data backfills are not the only migration risks. Any
@@ -228,6 +288,12 @@ backfills, or otherwise mutates data; remediation requires a separately
 reviewed migration or operator procedure. Do not point the live command at a
 production database from CI, and do not treat a dry-run pass as evidence that
 the target data is compatible.
+
+For the approved domain-schema move rehearsal, safe disposable-target checks,
+and row-preservation evidence, follow the
+[domain schema cutover runbook](domain-schema-cutover.md). The manifest-driven
+JSON export described there is an inspection aid, not a complete database
+backup or recovery procedure.
 
 ## Drift and failed-migration recovery
 

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Added the approved `platform_ops.privacy_legal_holds` table to Prisma, the owner manifest, migration history, cutover preflight, and backup catalog so the schema-release inventory includes legal holds.
+- Added the domain-persistence ownership guard and its tests to CI so schema ownership, foreign-key, private-write, and database-audit policy regressions fail the standard pipeline.
+- Added an opt-in exact Prisma migration-ledger startup check, deployment/promotion/rollback holds for schema cutovers, and a read-only cutover preflight workflow; it prints the desired SQL diff for review and does not migrate or deploy.
+- Made migration-ledger validation portable across LF/CRLF checkouts without accepting changed SQL, and fixed PostgreSQL foreign-key catalog array decoding in DDD preflight.
+- Allowed the guarded local fixture seeder to validate exact migration-owned baseline IDs and seed the matching billing sequence for issued sample statements.
+- Added frozen checksums for the reviewed migration baseline and domain persistence gates for schema ownership, foreign keys, private writes, and manifest-driven database audits.
 - Platform storage now accepts only the production-wired `billing_statement` + `event_deliverable` owner/usage pair. Unwired owner types fail before authorization, provider access, or persistence; non-billing uploads remain unavailable until their owning contexts expose capabilities.
 - Extended Operations-owned privacy redaction and inventory to guest roster identity/contact fields and guest feedback filename metadata. Stored media bytes are untouched.
 - Moved privacy redaction writes behind Lifecycle, Commercial, Operations, and Identity owner capabilities. Added the Platform-owned `privacy_legal_holds` table and migration, verified PMCM-admin placement/release with reasons, optional event scope, shared advisory locking, audit evidence, and event-audit controls. A matching active hold blocks deletion before owner writes. The PostgreSQL lock-race test remains gated for the integrated database milestone.
@@ -36,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Moved communication participant event, inquiry, supplier, and coordinator reads behind a serializable read-model contract. Identity retains account approval, role, matching, actor stamping, and event-access policy decisions; the focused read submodule imports DatabaseModule only.
 
 ### Fixed
+- Added a preflighted Commercial FK from submitted quotes to quote requests, with request deletion restricted while bid evidence exists.
+- Centralized PostgreSQL URL selection and TLS policy across the API, Prisma CLI config, and database admin scripts; hosted connections now verify certificates and non-TLS is restricted to loopback targets.
 - Official floorplan reads and exports now require the verified event owner and use the event-scoped snapshot for client review; only clients may edit their own submitted preferences, and plan writes enforce lifecycle/version gates with transactional actor audit.
 - Compliance checks now persist `ruleId` only for a stored owner rule; built-in code-registry rules remain identified by `conditionKey` and work without local fixture seeding.
 - Declared the existing GIN, composite event-date, and partial active-event indexes in Prisma so schema equivalence can catch unsupported drift.
@@ -54,6 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Client, supplier, and coordinator event eligibility now filters before keyset pagination; cursor totals use the same scope, actor identity uses one persisted key, and declined coordinator assignments are excluded.
 
 ### Added
+- Added a disposable-database DDD preflight and exact manifest-based JSON export; reports are bounded and read-only, and backup publication uses restricted file mode where supported without replacing existing exports.
 - Added guarded PostgreSQL coverage for 500+ unrelated-event visibility, supplier/coordinator eligibility, archived history, and complete action-center results; added API-client and client-portal pagination tests.
 - Recorded the approved 91-model ownership manifest, one-schema-per-domain and same-domain-only foreign-key policy, and shared DDD terms in canonical architecture references.
 - Added a PostgreSQL 16 disposable migration replay and schema-equivalence gate that discovers all database-gated API behavior suites and rejects missing constraints, unapproved SQL objects, and skipped tests.
