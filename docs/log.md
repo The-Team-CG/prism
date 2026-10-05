@@ -2,6 +2,7 @@
 
 ## 2026-10-05
 
+- **Aligned:** Added the approved Platform legal-hold table to the DDD cutover ownership manifest, preflight/backup inventory expectations, and migration history; it remains in `platform_ops` and does not change the planned namespace or cross-domain FK cutover.
 - **Added:** Opt-in exact Prisma migration-ledger compatibility checking at API startup, a repository-wide schema cutover hold for automated deployment, promotion, rollback, and manual environment sync, and a read-only migration preflight workflow. The preflight checks configuration and validates the database ledger as a known applied prefix, prints the desired SQL diff for review, and does not apply migrations or deploy services.
 - **Implemented:** Added a DDD schema-cutover preflight that accepts only explicit loopback disposable database URLs, captures bounded read-only evidence (including quote-request orphan checks in both schema layouts), and performs no automatic repair. The manifest-driven JSON export now covers the owned tables and migration ledger from one snapshot, uses private file creation where supported, and refuses to replace an existing backup.
 - **Documented:** Added the schema-cutover rehearsal runbook and linked it from the migration runbook.

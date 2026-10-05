@@ -82,7 +82,7 @@ email to make the report pass.
 
 ## Populated upgrade and recovery evidence
 
-The manifest-driven `db:backup:json` command exports the 91 owner-manifest
+The manifest-driven `db:backup:json` command exports the 92 owner-manifest
 tables plus `public._prisma_migrations` from one repeatable-read snapshot. It
 writes with owner-only file mode where supported and refuses to replace an
 existing timestamped export. It is useful for local inspection, but it is not
