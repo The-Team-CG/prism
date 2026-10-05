@@ -1,16 +1,8 @@
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { selectDatabaseConnection } from './db-connection-config.mjs';
 
 export const SAMPLE_DISPOSABLE_DATABASE = 'prism_sample_disposable';
-const RUNTIME_DATABASE_URL_ENV_NAMES = ['SUPABASE_DB_URL', 'DATABASE_URL', 'PRISMA_DATABASE_URL', 'DIRECT_URL'];
-
-function isLoopbackHost(hostname) {
-  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, '');
-  if (normalized === 'localhost' || normalized === '::1') return true;
-
-  const octets = normalized.split('.').map(Number);
-  return octets.length === 4 && octets[0] === 127 && octets.every((octet) => Number.isInteger(octet) && octet >= 0 && octet <= 255);
-}
 
 function confirmDisposableDatabase(args) {
   if (
@@ -27,25 +19,25 @@ function assertDisposableLocalDatabase(env) {
     throw new Error('Fixture seeding is disabled in production.');
   }
 
-  const connectionString = RUNTIME_DATABASE_URL_ENV_NAMES
-    .map((name) => env[name]?.trim())
-    .find((value) => Boolean(value));
-  if (!connectionString) {
-    throw new Error('Set the API runtime database URL to a loopback prism_sample_disposable database.');
+  let connection;
+  try {
+    connection = selectDatabaseConnection({ purpose: 'runtime', env });
+  } catch (error) {
+    if (error?.code === 'DATABASE_URL_MISSING') {
+      throw new Error('Set the API runtime database URL to a loopback prism_sample_disposable database.');
+    }
+    throw new Error('Fixture seeding requires the effective runtime URL to be a loopback prism_sample_disposable PostgreSQL database.');
   }
 
+  let databaseName;
   try {
-    const database = new URL(connectionString);
-    const databaseName = decodeURIComponent(database.pathname.replace(/^\/+/, ''));
-    if (
-      !['postgres:', 'postgresql:'].includes(database.protocol) ||
-      !isLoopbackHost(database.hostname) ||
-      databaseName !== SAMPLE_DISPOSABLE_DATABASE
-    ) {
-      throw new Error();
-    }
+    const databaseUrl = new URL(connection.connectionString);
+    databaseName = decodeURIComponent(databaseUrl.pathname.replace(/^\/+/, ''));
   } catch {
     throw new Error('Fixture seeding requires the effective runtime URL to be a loopback prism_sample_disposable PostgreSQL database.');
+  }
+  if (!connection.isLoopback || databaseName !== SAMPLE_DISPOSABLE_DATABASE) {
+    throw new Error('Set the API runtime database URL to a loopback prism_sample_disposable database.');
   }
 }
 
