@@ -80,6 +80,10 @@ model-level inventory. It records each current and target schema, domain owner,
 table name, and scalar column count. This summary table is not a substitute for
 the 91 model assignments.
 
+Use the [active column authority register](column-authority-register.md) for each baseline field's
+physical type, nullability, default, provisional semantics, candidate consumers, sensitivity and DDL
+disposition. The register does not approve unresolved business units, timezones or retention periods.
+
 The reviewed staging baseline has ten populated application schemas and 112
 foreign keys. By target owner, 67 baseline keys are local and 45 cross domain.
 The source and migration work have not yet moved all tables or removed the 45
@@ -193,7 +197,7 @@ business owner and lifecycle metadata contract.
 | --- | --- | --- |
 | `OpsSupplier`, `OpsSupplierApplication`, `OpsSupplierCertification`, `OpsSupplierReview`, `OpsSupplierReliabilityNote` | `supplier_ops` | `commercial`; supplier directory, onboarding, certification, review, and reliability policy. |
 | `OpsSupplierCategory`, `OpsSupplierReviewDimension`, `OpsSupplierReviewDimensionRating` | `supplier_ops` | `commercial`; reference and review-dimension configuration. Some rows are currently fixture-seeded and have no separate administration workflow. |
-| `OpsSupplierQuoteRequest`, `OpsSupplierQuote` | `supplier_ops` | `commercial`; request, submission, revision, selection, and withdrawal lifecycle. |
+| `OpsSupplierQuoteRequest`, `OpsSupplierQuote` | `supplier_ops` | `commercial`; request, submission, revision, selection, and withdrawal lifecycle. Deleting a request referenced by submitted quote evidence is restricted; requestId remains nullable for manually entered quotes. |
 | `OpsBillingSource`, `OpsBillingStatement`, `OpsPaymentMilestone`, `OpsPaymentRecord` | `finance_ops` | `commercial`; proposal-to-billing conversion, statements, milestones, and payment history. |
 | Commercial contract and billing models | finance_ops / supplier_ops | commercial; retains business decisions and scalar document IDs. Lifecycle alone owns document metadata and validates references through its public capability. Target schema: commercial. |
 
