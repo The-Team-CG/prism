@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Repaired verification failures left by the stacked merges: API typecheck errors, stale transitional-write exceptions, the read-model test exemption in the boundary scan, client contact enforcement in the communication participant reader, outdated privacy and floorplan HTTP test fixtures, and concurrent same-key event decisions that hit a serialization failure.
+- Routed LiveOps event-state checks through Lifecycle and operator/handoff eligibility through a transaction-aware Operations capability. Profile and assignment state is locked and rechecked before the LiveOps write; no schema or foreign-key changes were made.
+
 - Fixed audit-chain hashing so dates inside audit metadata hash the way PostgreSQL stores them; previously an event decision with date metadata made the next audit write fail integrity verification. The coordinator PostgreSQL suite now builds the receipt-enabled workflow its replay test depends on.
 
 - Fixed the API test configuration so Identity tests can resolve the Platform participant-facts reader alias.
@@ -28,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Assignment command replay now avoids duplicating event decisions, reliability notes, audit records, notifications, and event-day logs.
 - Added Lifecycle and LiveOps transaction-aware owner readers for additional billing. Lifecycle checks post-event eligibility and LiveOps checks same-event urgent-issue eligibility before Commercial writes.
 - Added a checked policy inventory for all 45 current cross-domain foreign keys and 28 scalar references, documenting owner checks, former delete effects, failure, and recovery; FK removal remains gated.
+- Recorded the behavior of all 45 current cross-domain foreign keys and 29 scalar references, including former delete effects, owner checks, failure, and recovery; added a static inventory guard. No foreign keys were dropped and owner-behavior/cutover gates remain pending.
+- Routed Operations guest/staffing event checks and walk-in policy writes through Lifecycle owner capabilities, moved registration supplier/category/event-selection checks to Commercial, and moved guest, coordinator workspace, and Identity Access participant compositions behind focused read-model readers. Inactive coordinator profiles no longer gain communication access or new assignments; assignment writes recheck linked Identity role, approval, and lockout under the transaction. No FK was removed.
+- Added Lifecycle- and LiveOps-owned, transaction-aware reference readers for post-event additional billing; both owners lock and recheck their records before Commercial writes.
+- Added an additive, version-checked Lifecycle projection for Floorplan state; Floorplan drafts and per-event projection clocks remain Floorplan-owned with no cross-domain foreign key, and the canonical ownership inventory now records 92 tables / 1,163 columns.
 - Delegated Lifecycle addendum billing-source and selected-quote mutations to a Commercial owner capability while Lifecycle retains addendum history. Current briefing/conforme flows do not fabricate billing rows without priced-source input.
 - Moved commercial `OpsDocument` registration and eligibility checks behind Lifecycle's transaction-aware `DOCUMENT_VAULT`; supplier contract and billing statement writes share their command transactions, and billing/proposal references are event- and kind-scoped. Added P0 PostgreSQL rollback coverage for failed supplier-contract linking. Document redaction remains disabled pending PMCM retention policy.
 - Added a transaction-aware Lifecycle reference capability for Floorplan event, conforme, ocular, archive, freeze, portal, and projection facts. Official drafts retain signed-conforme and ocular gates; archived/frozen events reject mutations, and clients keep authorized historical reads. No schema or FK changes were made.

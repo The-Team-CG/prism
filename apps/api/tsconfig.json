@@ -67,6 +67,9 @@
       "@prism/contexts/floorplan/*": [
         "src/modules/floorplan/*"
       ],
+      "@prism/contexts/operations/live-ops-reference": [
+        "src/modules/operations/live-ops-reference"
+      ],
       "@prism/contexts/operations": [
         "src/modules/operations/index"
       ],
@@ -91,6 +94,12 @@
       "@prism/contexts/event-lifecycle/post-event-reference": [
         "src/modules/event-lifecycle/post-event-reference"
       ],
+      "@prism/contexts/event-lifecycle/operations-reference": [
+        "src/modules/event-lifecycle/operations-reference"
+      ],
+      "@prism/contexts/commercial/registration-supplier-reference": [
+        "src/modules/commercial/registration-supplier-reference"
+      ],
       "@prism/contexts/event-lifecycle": [
         "src/modules/event-lifecycle/index"
       ],
@@ -106,11 +115,17 @@
       "@prism/contexts/platform-ops/*": [
         "src/modules/platform-ops/*"
       ],
+      "@prism/contexts/identity-access/coordinator-reference": [
+        "src/modules/identity-access/coordinator-reference"
+      ],
       "@prism/contexts/identity-access": [
         "src/modules/identity-access/index"
       ],
       "@prism/contexts/identity-access/*": [
         "src/modules/identity-access/*"
+      ],
+      "@prism/contexts/read-models/guest-events": [
+        "src/modules/read-models/guest-events"
       ],
       "@prism/contexts/read-models": [
         "src/modules/read-models/index"

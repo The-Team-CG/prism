@@ -87,8 +87,22 @@ const transaction = {
   $queryRawUnsafe: async () => [],
 };
 
+// The session guard re-reads the account, so the mock must match the identities that sign the test tokens.
+const accounts = new Map([
+  ['client-owner', { email: 'ana.owner@example.test', role: 'client' }],
+  ['client-other', { email: 'ana.other@example.test', role: 'client' }],
+  ['pmcm-user', { email: 'maxine@pmcm.example.test', role: 'pmcm-admin' }],
+]);
+
 const prismaMock = {
-  opsUser: { findUnique: async () => ({ sessionVersion: 0 }) },
+  opsUser: {
+    findUnique: async ({ where }: { where: { id: string } }) => {
+      const account = accounts.get(where.id);
+      return account
+        ? { sessionVersion: 0, approvalStatus: 'approved', lockedUntil: null, permanentLockout: false, ...account }
+        : null;
+    },
+  },
   floorPlan: {
     findUnique: async ({ where }: { where: { id: string } }) => planRows.get(where.id) ?? null,
   },

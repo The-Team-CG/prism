@@ -2,6 +2,7 @@ import { ConflictException, Inject, Injectable, NotFoundException } from '@nestj
 import type { OpsCoordinator, OpsCoordinatorAssignment, Prisma } from '@prisma/client';
 import type { CreateCoordinatorAvailabilityInput, CreateCoordinatorCoverageRequirementInput } from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
+import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, OpsUserRole } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
@@ -11,6 +12,10 @@ import { mapCoordinator as mapCoordinatorRecord, mapCoordinatorAssignment as map
 import { isoDate, sameText, timestamp } from './staffing.utils';
 import { resolveCoordinatorForActor } from './coordinator-actor-lookup';
 import { coordinatorAcknowledgementLeadTimeDays } from './coordinator-reminder-policy';
+import {
+  OPERATIONS_EVENT_REFERENCE_READER,
+  type OperationsEventReferenceReader,
+} from '@prism/contexts/event-lifecycle/operations-reference';
 
 export type StaffingCoverageRow = {
   role: string;
@@ -58,6 +63,7 @@ export class CoordinatorsService {
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
+    @Inject(OPERATIONS_EVENT_REFERENCE_READER) private readonly eventReferences: OperationsEventReferenceReader,
   ) {}
 
   async listCoordinators() {
@@ -229,10 +235,10 @@ export class CoordinatorsService {
     actor: ResolvedEventOpsActor,
   ) {
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'coordinator coverage');
-    await this.requireEvent(eventId);
     if (input.mapFromRole) {
       const mapFromRole = input.mapFromRole;
       return this.prisma.$transaction(async (transaction) => {
+        await this.requireEvent(eventId, { prisma: transaction, correlationId: `ops_coverage_${eventId}` });
         const existingLegacyTarget = await transaction.opsEventCoverageRequirement.findUnique({
           where: { eventId_role: { eventId, role: mapFromRole } },
         });
@@ -259,22 +265,25 @@ export class CoordinatorsService {
       });
     }
 
-    return this.prisma.opsEventCoverageRequirement.upsert({
-      where: { eventId_role: { eventId, role: input.role } },
-      create: {
-        id: `coord_cov_${randomUUID()}`,
-        eventId,
-        role: input.role,
-        required: input.required,
-        requiredSkills: input.requiredSkills,
-        createdBy: actor.name,
-        updatedBy: actor.name,
-      },
-      update: {
-        required: input.required,
-        requiredSkills: input.requiredSkills,
-        updatedBy: actor.name,
-      },
+    return this.prisma.$transaction(async (transaction) => {
+      await this.requireEvent(eventId, { prisma: transaction, correlationId: `ops_coverage_${eventId}` });
+      return transaction.opsEventCoverageRequirement.upsert({
+        where: { eventId_role: { eventId, role: input.role } },
+        create: {
+          id: `coord_cov_${randomUUID()}`,
+          eventId,
+          role: input.role,
+          required: input.required,
+          requiredSkills: input.requiredSkills,
+          createdBy: actor.name,
+          updatedBy: actor.name,
+        },
+        update: {
+          required: input.required,
+          requiredSkills: input.requiredSkills,
+          updatedBy: actor.name,
+        },
+      });
     });
   }
 
@@ -367,8 +376,8 @@ export class CoordinatorsService {
     return mapCoordinatorAssignmentRecord(assignment);
   }
 
-  private async requireEvent(eventId: string, prisma: Prisma.TransactionClient | PrismaService = this.prisma) {
-    const event = await prisma.opsEvent.findUnique({ where: { id: eventId } });
+  private async requireEvent(eventId: string, transaction?: PrismTransactionContext) {
+    const event = await this.eventReferences.findOperationsEvent(eventId, transaction);
     if (!event) throw new NotFoundException('Event not found');
     return event;
   }

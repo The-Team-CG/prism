@@ -46,7 +46,7 @@ const availability = [
 ];
 
 function createPrisma(eventResult: typeof event | null = event) {
-  return {
+  const prisma = {
     opsEvent: {
       findUnique: vi.fn(async () => eventResult),
     },
@@ -89,12 +89,27 @@ function createPrisma(eventResult: typeof event | null = event) {
         .map((entry) => ({ coordinatorId: entry.coordinatorId }))),
     },
   };
+  const eventReferences = {
+    findOperationsEvent: vi.fn(async () => eventResult ? {
+      id: eventResult.id,
+      eventName: 'Main Event',
+      eventDate: eventResult.eventDate,
+      status: 'planning',
+      archived: false,
+      actualEndedAt: null,
+      walkInPolicy: 'closed',
+      walkInThreshold: 0,
+    } : null),
+    findOperationsEvents: vi.fn(async () => []),
+    findEventReadAccess: vi.fn(async () => null),
+  };
+  return { prisma, eventReferences };
 }
 
 describe('CoordinatorSuggestionsService', () => {
   it('returns eligible role matches filtered by every selected skill and ranked by coverage fit', async () => {
-    const prisma = createPrisma();
-    const service = new CoordinatorSuggestionsService(prisma as never);
+    const { prisma, eventReferences } = createPrisma();
+    const service = new CoordinatorSuggestionsService(prisma as never, eventReferences as never);
 
     const suggestions = await service.listForEvent(event.id, {
       role: 'Floor Director',
@@ -122,10 +137,7 @@ describe('CoordinatorSuggestionsService', () => {
       matchedSkillCount: 1,
       requiredSkillCount: 2,
     });
-    expect(prisma.opsEvent.findUnique).toHaveBeenCalledWith({
-      where: { id: event.id },
-      select: { id: true, eventDate: true },
-    });
+    expect(eventReferences.findOperationsEvent).toHaveBeenCalledWith(event.id);
     expect(prisma.opsCoordinatorAssignment.groupBy).toHaveBeenCalledWith({
       by: ['coordinatorId'],
       where: {
@@ -151,7 +163,8 @@ describe('CoordinatorSuggestionsService', () => {
   });
 
   it('returns not found when the event is outside the requested scope', async () => {
-    const service = new CoordinatorSuggestionsService(createPrisma(null) as never);
+    const { prisma, eventReferences } = createPrisma(null);
+    const service = new CoordinatorSuggestionsService(prisma as never, eventReferences as never);
 
     await expect(service.listForEvent(event.id, { role: 'Floor Director', skills: [] })).rejects.toBeInstanceOf(NotFoundException);
   });

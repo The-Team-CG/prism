@@ -16,6 +16,39 @@ import { EventDecisionService } from '../../../event-lifecycle/application/decis
 
 const databaseUrl = process.env.P0_TEST_DATABASE_URL?.trim();
 
+function createOperationsEventReferences(prisma: PrismaService) {
+  const select = {
+    id: true,
+    eventName: true,
+    eventDate: true,
+    status: true,
+    archived: true,
+    actualEndedAt: true,
+    walkInPolicy: true,
+    walkInThreshold: true,
+  } as const;
+  return {
+    findOperationsEvent: async (eventId: string, context?: { prisma: any }) => {
+      const database = context?.prisma ?? prisma;
+      if (context) {
+        const locked = await database.$queryRawUnsafe(
+          'SELECT "id" FROM "event_core"."events" WHERE "id" = $1 FOR UPDATE',
+          eventId,
+        ) as Array<{ id: string }>;
+        if (locked.length === 0) return null;
+      }
+      return database.opsEvent.findUnique({ where: { id: eventId }, select });
+    },
+    findOperationsEvents: async (eventIds: readonly string[]) => eventIds.length === 0
+      ? []
+      : prisma.opsEvent.findMany({ where: { id: { in: [...eventIds] } }, select }),
+    findEventReadAccess: async (eventId: string) => prisma.opsEvent.findUnique({
+      where: { id: eventId },
+      select: { id: true, clientName: true, clientPortalStatus: true, clientEmail: true, inquiry: { select: { email: true } } },
+    }),
+  };
+}
+
 function validateDatabaseUrl(value: string) {
   const parsed = new URL(value);
   if (
@@ -118,14 +151,17 @@ databaseSuite('CoordinatorsService PostgreSQL concurrency invariants', () => {
     auditWriter = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma, auditService));
     notificationWriter = new NotificationOutboxWriterAdapter(new NotificationOutboxService(prisma));
     const access = new EventAccessPolicyService(auditWriter);
+    const eventReferences = createOperationsEventReferences(prisma);
     const buildCoordinators = (workflow: WorkflowCommandService) => new CoordinatorAssignmentCommandService(
       prisma,
       auditWriter,
       notificationWriter,
       workflow,
       access,
-      new CoordinatorSuggestionsService(prisma),
+      new CoordinatorSuggestionsService(prisma, eventReferences),
       new CoordinatorReliabilityNoteWriterService(prisma),
+      eventReferences,
+      { isCoordinatorAccountEligible: async () => true },
     );
     const transactions = new PrismTransactionRunner(prisma);
     coordinators = buildCoordinators(new WorkflowCommandService(transactions));

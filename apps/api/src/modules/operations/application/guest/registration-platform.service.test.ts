@@ -14,13 +14,16 @@ function createService(overrides: Partial<OpsRegistrationPlatform> = {}) {
     setupNotes: '', headcountSource: '', importedHeadcount: 0, importedFileName: null,
     importedAt: null, createdAt: new Date(), updatedAt: new Date(), ...overrides,
   };
-  const event = { id: 'evt_sample', status: 'archived', archived: true, actualEndedAt: new Date('2026-09-07T12:00:00Z') as Date | null };
+  const event = {
+    id: 'evt_sample', eventName: 'Conference', eventDate: new Date('2026-09-01T00:00:00Z'),
+    status: 'archived', archived: true, actualEndedAt: new Date('2026-09-07T12:00:00Z') as Date | null,
+    walkInPolicy: 'closed', walkInThreshold: 200,
+  };
   const hooks = { beforeTransaction: () => {} };
   const database = {
-    $queryRaw: vi.fn(async () => [{ id: event.id }]),
-    opsEvent: { findUnique: vi.fn(async () => event) },
     opsRegistrationPlatform: {
       findUnique: vi.fn(async () => existing),
+      create: vi.fn(async ({ data }: { data: Partial<OpsRegistrationPlatform> }) => (existing = { ...existing, ...data } as OpsRegistrationPlatform)),
       update: vi.fn(async ({ data }: { data: Partial<OpsRegistrationPlatform> }) => (existing = { ...existing, ...data })),
       updateMany: vi.fn(async ({ where, data }: { where: { status: string }; data: Partial<OpsRegistrationPlatform> }) => {
         if (where.status !== existing.status) return { count: 0 };
@@ -28,14 +31,21 @@ function createService(overrides: Partial<OpsRegistrationPlatform> = {}) {
         return { count: 1 };
       }),
     },
-    opsSupplier: { findUnique: vi.fn(async () => ({ id: 'sup_reg', category: { name: 'Digital Registration', slug: 'digital-registration' } })) },
-    opsSupplierQuoteRequest: { findFirst: vi.fn(async (): Promise<{ id: string; status: string } | null> => ({ id: 'assignment_1', status: 'selected' })) },
   };
   const prisma = { ...database, $transaction: async <T>(work: (tx: typeof database) => Promise<T>) => { hooks.beforeTransaction(); return work(database); } };
+  const eventReferences = { findOperationsEvent: vi.fn(async () => ({ ...event })) };
+  let supplier = { id: 'sup_reg', registrationCategory: true, categoryActive: true, selectedForEvent: true };
+  const supplierReferences = { findRegistrationSupplier: vi.fn(async () => ({ ...supplier })) };
   const auditWriter = { write: vi.fn(async () => undefined) };
   const workflow = new WorkflowCommandService(new PrismTransactionRunner(prisma as unknown as PrismaService));
-  const service = new RegistrationPlatformService(prisma as unknown as PrismaService, auditWriter, workflow);
-  return { service, prisma, database, auditWriter, hooks, event };
+  const service = new RegistrationPlatformService(
+    prisma as unknown as PrismaService,
+    auditWriter as never,
+    workflow,
+    eventReferences as never,
+    supplierReferences as never,
+  );
+  return { service, prisma, database, auditWriter, hooks, event, eventReferences, supplierReferences, setSupplier: (value: typeof supplier) => { supplier = value; } };
 }
 
 describe('RegistrationPlatformService transaction validation', () => {
@@ -48,7 +58,6 @@ describe('RegistrationPlatformService transaction validation', () => {
     expect(repeated.setupConfirmedAt).toEqual(live.setupConfirmedAt);
     expect(closed.setupConfirmedAt).toEqual(live.setupConfirmedAt);
     expect(prisma.opsRegistrationPlatform.updateMany).toHaveBeenCalledTimes(3);
-    expect(prisma.$queryRaw).toHaveBeenCalledTimes(3);
   });
   it('rejects headcount import until platform closure', async () => {
     const { service, auditWriter } = createService({ status: 'live' });
@@ -71,7 +80,7 @@ describe('RegistrationPlatformService transaction validation', () => {
     event.actualEndedAt = null;
     await expect(service.importHeadcount('evt_sample', { headcountSource: 'XPERTO', importedHeadcount: 180 }, actor)).rejects.toBeInstanceOf(BadRequestException);
   });
-  it('rechecks actual event end inside the transaction before import', async () => {
+  it('rechecks actual event end through Lifecycle inside the transaction before import', async () => {
     const { service, event, hooks, auditWriter, prisma } = createService({ status: 'closed' });
     hooks.beforeTransaction = () => { event.actualEndedAt = null; };
     await expect(service.importHeadcount('evt_sample', { headcountSource: 'XPERTO', importedHeadcount: 180 }, actor)).rejects.toBeInstanceOf(ConflictException);
@@ -83,9 +92,27 @@ describe('RegistrationPlatformService transaction validation', () => {
     await expect(service.upsert('evt_sample', { platformType: 'xperto' }, actor)).rejects.toBeInstanceOf(BadRequestException);
   });
   it('requires a selected supplier assignment', async () => {
-    const { service, prisma } = createService();
-    prisma.opsSupplierQuoteRequest.findFirst.mockResolvedValue(null);
+    const { service, supplierReferences } = createService();
+    supplierReferences.findRegistrationSupplier.mockResolvedValue({ id: 'sup_reg', registrationCategory: true, categoryActive: true, selectedForEvent: false });
     await expect(service.upsert('evt_sample', { platformType: 'xperto', supplierId: 'sup_reg' }, actor)).rejects.toBeInstanceOf(BadRequestException);
+  });
+  it('requires an active Commercial registration category when linking a supplier', async () => {
+    const { service, supplierReferences, prisma } = createService();
+    supplierReferences.findRegistrationSupplier.mockResolvedValue({ id: 'sup_new', registrationCategory: true, categoryActive: false, selectedForEvent: true });
+    await expect(service.update('evt_sample', { supplierId: 'sup_new' }, actor)).rejects.toThrow('active Digital Registration category');
+    expect(prisma.opsRegistrationPlatform.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('allows existing registration history to be edited after its supplier category becomes inactive', async () => {
+    const { service, supplierReferences } = createService();
+    supplierReferences.findRegistrationSupplier.mockResolvedValue({ id: 'sup_reg', registrationCategory: true, categoryActive: false, selectedForEvent: true });
+    await expect(service.update('evt_sample', { setupNotes: 'Closeout details' }, actor)).resolves.toMatchObject({ setupNotes: 'Closeout details' });
+  });
+  it('rechecks supplier selection in the command transaction', async () => {
+    const { service, hooks, supplierReferences, prisma } = createService();
+    hooks.beforeTransaction = () => { supplierReferences.findRegistrationSupplier.mockResolvedValue({ id: 'sup_reg', registrationCategory: true, categoryActive: true, selectedForEvent: false }); };
+    await expect(service.upsert('evt_sample', { platformType: 'xperto', supplierId: 'sup_reg' }, actor)).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.opsRegistrationPlatform.create).not.toHaveBeenCalled();
   });
   it('validates partial headcount edits against the current transactional row', async () => {
     const { service, hooks, prisma, auditWriter } = createService();

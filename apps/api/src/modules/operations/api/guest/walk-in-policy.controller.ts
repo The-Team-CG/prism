@@ -1,6 +1,9 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Patch, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
-import { PrismaService } from '@prism/kernel/database';
+import {
+  OPERATIONS_EVENT_REFERENCE_READER,
+  type OperationsEventReferenceReader,
+} from '@prism/contexts/event-lifecycle/operations-reference';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { zodBody } from '@prism/kernel/shared';
@@ -12,7 +15,7 @@ export class WalkInPolicyController {
   constructor(
     private readonly access: EventAccessPolicyService,
     private readonly policy: WalkInPolicyService,
-    private readonly prisma: PrismaService,
+    @Inject(OPERATIONS_EVENT_REFERENCE_READER) private readonly eventReferences: OperationsEventReferenceReader,
   ) {}
 
   @Get()
@@ -20,7 +23,7 @@ export class WalkInPolicyController {
   async get(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = this.access.resolveActor({}, verifiedActor);
     await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.Client, OpsUserRole.System], 'walk-in policy', eventId);
-    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, include: { inquiry: true } });
+    const event = await this.eventReferences.findEventReadAccess(eventId);
     if (!event) return this.policy.get(eventId);
     await this.access.requireCanReadEvent(actor, event, 'walk-in policy');
     return this.policy.get(eventId);

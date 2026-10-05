@@ -1,16 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { OpsEvent, OpsFloorPlanDraft } from '@prisma/client';
-import { PrismaService } from '@prism/kernel/database';
+import { GUEST_EVENT_PROJECTION_READER, type CoordinatorWorkspaceEventProjection, type GuestEventProjectionReader } from '@prism/contexts/read-models/guest-events';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { FLOORPLAN_READER, type FloorplanReader } from '@prism/contexts/floorplan';
 import { GuestWorkflowService } from '../guest/guest-workflow.service';
 import { CoordinatorsService } from './coordinators.service';
 
-type EventWithDrafts = OpsEvent & {
-  briefings?: Array<{ venue: string }>;
-  floorPlanDrafts?: OpsFloorPlanDraft[];
-};
+type EventWithDrafts = CoordinatorWorkspaceEventProjection;
 
 function isoDate(value: Date) {
   return value.toISOString().slice(0, 10);
@@ -19,7 +15,7 @@ function isoDate(value: Date) {
 @Injectable()
 export class CoordinatorWorkspaceReadService {
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(GUEST_EVENT_PROJECTION_READER) private readonly eventProjections: GuestEventProjectionReader,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     private readonly coordinatorsService: CoordinatorsService,
     @Inject(FLOORPLAN_READER) private readonly floorplanReader: FloorplanReader,
@@ -34,23 +30,12 @@ export class CoordinatorWorkspaceReadService {
       { includeHistorical: true },
     );
     const eventIds = new Set(visibleAssignments.map((assignment) => assignment.eventId));
-    const events = await this.prisma.opsEvent.findMany({
-      where: { id: { in: Array.from(eventIds) } },
-      include: {
-        floorPlanDrafts: { orderBy: { updatedAt: 'desc' } },
-        briefings: {
-          orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
-          take: 1,
-          select: { venue: true },
-        },
-      },
-      orderBy: { eventDate: 'asc' },
-    });
+    const events = await this.eventProjections.listCoordinatorWorkspaceEvents(Array.from(eventIds));
 
     return {
       coordinator: this.coordinatorsService.mapCoordinator(coordinator),
       assignments: visibleAssignments.map((assignment) => this.coordinatorsService.mapCoordinatorAssignment(assignment)),
-      events: events.filter((event) => eventIds.has(event.id)).map((event) => this.mapEvent(event as EventWithDrafts)),
+      events: events.filter((event) => eventIds.has(event.id)).map((event) => this.mapEvent(event)),
     };
   }
 
