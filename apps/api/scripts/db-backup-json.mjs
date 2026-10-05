@@ -2,6 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { Pool } from 'pg';
+import { selectDatabaseConnection } from './db-connection-config.mjs';
 
 const runtimeSchemas = [
   'public',
@@ -16,16 +17,6 @@ const runtimeSchemas = [
   'trust_ops',
 ];
 
-function connectionString() {
-  const candidates = [process.env.SUPABASE_DB_URL, process.env.DATABASE_URL, process.env.PRISMA_DATABASE_URL, process.env.DIRECT_URL];
-  const value = candidates.map((item) => item?.trim()).find(Boolean);
-  if (!value) {
-    console.error('No database URL configured. Set SUPABASE_DB_URL, DATABASE_URL, PRISMA_DATABASE_URL, or DIRECT_URL.');
-    process.exit(1);
-  }
-  return value;
-}
-
 function backupDir() {
   const requested = process.env.PRISM_DB_BACKUP_DIR?.trim();
   if (requested) return requested;
@@ -36,10 +27,8 @@ function timestamp() {
   return new Date().toISOString().replace(/[:.]/g, '-');
 }
 
-const pool = new Pool({
-  connectionString: connectionString(),
-  ssl: process.env.DB_SSL === 'false' ? false : { rejectUnauthorized: false },
-});
+const database = selectDatabaseConnection({ purpose: 'migration' });
+const pool = new Pool({ connectionString: database.connectionString, ssl: database.ssl });
 
 try {
   const tables = await pool.query(
