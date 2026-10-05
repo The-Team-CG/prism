@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 - Removed 11 unreferenced API DTO files and their stale barrel/controller imports; retired the unbound, always-unavailable signed-upload shim while keeping canonical storage flows and active DTO validation.
+- Added a canonical column authority register for all 1,159 baseline columns, with DDD ownership, physical types/defaults, provisional semantic and sensitivity review, candidate consumers, and migration dispositions; no unverified data conversion is included.
 - Fixed the archived coordinator event regression test to wait for refreshed role data before submitting after switching back to a current event.
 
 ### Fixed
