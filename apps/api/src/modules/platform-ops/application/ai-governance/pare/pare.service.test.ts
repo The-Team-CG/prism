@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { PlatformReferenceReadModelsService } from '@prism/contexts/read-models';
 import { PAREService } from './pare.service';
 
 function createParePrisma() {
@@ -158,7 +159,7 @@ function createParePrisma() {
         return where.id === 'different_dispatch' ? null : ({
           id: where.id,
           requestId: quoteRequest.id,
-          eventId: event.id,
+          eventId: where.id === 'dispatch_wrong_event' ? 'evt_other' : event.id,
         });
       },
     },
@@ -170,10 +171,21 @@ function createParePrisma() {
   return { prisma: transactionalPrisma, state, quoteRequest };
 }
 
+function pareService(prisma: unknown) {
+  return new PAREService(
+    prisma as any,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    new PlatformReferenceReadModelsService(prisma as never),
+  );
+}
+
 describe('PAREService', () => {
   it('returns a hydrated pending approval response even when replacement candidates have no quotes yet', async () => {
     const { prisma, quoteRequest } = createParePrisma();
-    const service = new PAREService(prisma as any);
+    const service = pareService(prisma);
 
     await service.handleEmergencyTrigger(quoteRequest.id);
     const pending = await service.getPendingApprovals('evt_sample');
@@ -210,7 +222,7 @@ describe('PAREService', () => {
 
   it('hydrates multiple pending approvals with one audit and dispatch batch read', async () => {
     const { prisma, quoteRequest, state } = createParePrisma();
-    const service = new PAREService(prisma as any);
+    const service = pareService(prisma);
     const first = await service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_batch_1');
     const second = await service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_batch_2');
     Object.assign(state.queryCalls, { auditFindMany: 0, auditFindUnique: 0, dispatchFindMany: 0, dispatchFindUnique: 0 });
@@ -224,7 +236,7 @@ describe('PAREService', () => {
 
   it('returns the same approval and audit when a dispatch is delivered twice', async () => {
     const { prisma, quoteRequest, state } = createParePrisma();
-    const service = new PAREService(prisma as any);
+    const service = pareService(prisma);
     const first = await service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_1');
     const second = await service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_1');
     expect(second.id).toBe(first.id);
@@ -234,7 +246,7 @@ describe('PAREService', () => {
 
   it('rejects idempotent redelivery when its durable audit is missing', async () => {
     const { prisma, quoteRequest, state } = createParePrisma();
-    const service = new PAREService(prisma as any);
+    const service = pareService(prisma);
     await service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_missing_audit');
     state.auditLogs.length = 0;
     await expect(service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_missing_audit'))
@@ -243,7 +255,7 @@ describe('PAREService', () => {
 
   it('rejects a durable audit whose payload belongs to another request', async () => {
     const { prisma, quoteRequest, state } = createParePrisma();
-    const service = new PAREService(prisma as any);
+    const service = pareService(prisma);
     await service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_mismatched_request');
     state.auditLogs[0].sanitizedPayload = {
       ...state.auditLogs[0].sanitizedPayload,
@@ -255,7 +267,7 @@ describe('PAREService', () => {
 
   it('rejects idempotent redelivery when the approval source link is corrupted', async () => {
     const { prisma, quoteRequest, state } = createParePrisma();
-    const service = new PAREService(prisma as any);
+    const service = pareService(prisma);
     await service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_source_link');
     state.approvalRecords[0].sourceDispatchId = 'different_dispatch';
     await expect(service.getPendingApprovals('evt_sample'))
@@ -265,14 +277,23 @@ describe('PAREService', () => {
   it('does not execute a new dispatch after the source is no longer withdrawn', async () => {
     const { prisma, quoteRequest } = createParePrisma();
     quoteRequest.assignmentStatus = 'confirmed';
-    const service = new PAREService(prisma as any);
+    const service = pareService(prisma);
     await expect(service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_not_withdrawn'))
       .rejects.toThrow('no longer withdrawn');
   });
 
+  it('rejects a new dispatch linked to a different event than its quote request', async () => {
+    const { prisma, quoteRequest, state } = createParePrisma();
+    const service = pareService(prisma);
+
+    await expect(service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_wrong_event'))
+      .rejects.toThrow('does not match quote request');
+    expect(state.approvalRecords).toHaveLength(0);
+  });
+
   it('returns the same hydrated PARE response after approval', async () => {
     const { prisma, quoteRequest } = createParePrisma();
-    const service = new PAREService(prisma as any);
+    const service = pareService(prisma);
 
     const pending = await service.handleEmergencyTrigger(quoteRequest.id);
     const approved = await service.approveRecommendation(pending.id, 'Ms. Mys');

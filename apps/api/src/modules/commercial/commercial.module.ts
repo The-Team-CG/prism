@@ -41,6 +41,8 @@ import { CommunicationService } from './application/suppliers/communication.serv
 import { IdentityAccessModule } from '../identity-access/identity-access.module';
 import { ProposalLifecycleController } from './api/quotes/proposal-lifecycle.controller';
 import { ProposalLifecycleService } from './application/quotes/proposal-lifecycle.service';
+import { CommercialPrivacyRedactorService } from './application/suppliers/commercial-privacy-redactor.service';
+import { COMMERCIAL_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 import { CommercialAddendumImpactModule } from './commercial-addendum-impact.module';
 
 const supplierDirectoryProvider = {
@@ -120,6 +122,8 @@ const supplierCommandsProvider = {
     PaymentRiskScheduler,
     CommunicationService,
     ProposalLifecycleService,
+    CommercialPrivacyRedactorService,
+    { provide: COMMERCIAL_PRIVACY_REDACTOR, useExisting: CommercialPrivacyRedactorService },
     { provide: PAYMENT_STATUS_READER, useExisting: PaymentOperationsService },
   ],
   exports: [
@@ -133,6 +137,7 @@ const supplierCommandsProvider = {
     SUPPLIER_COMMANDS,
     BillingOperationsService,
     PAYMENT_STATUS_READER,
+    COMMERCIAL_PRIVACY_REDACTOR,
     CommercialAddendumImpactModule,
   ],
 })
