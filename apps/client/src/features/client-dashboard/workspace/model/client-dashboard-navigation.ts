@@ -3,6 +3,7 @@ import {
   CalendarDays,
   FileText,
   Home,
+  MapPinned,
   MessageSquareText,
   WalletCards,
 } from "lucide-react";
@@ -16,6 +17,13 @@ export const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
     icon: Home,
     section: "Client Portal",
     route: "home",
+  },
+  {
+    id: "shared-floorplans",
+    label: "Shared floorplans",
+    icon: MapPinned,
+    section: "Client Portal",
+    route: "shared-floorplans",
   },
   {
     id: "my-events",
@@ -83,6 +91,7 @@ export const EVENT_WORKSPACE_NAV_ITEMS: ClientSidebarSubItem[] = [
 
 export const PORTAL_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, string>> = {
   home: "client-dashboard",
+  "shared-floorplans": "shared-floorplans",
   request: "client-dashboard",
   events: "my-events",
   calendar: "calendar",
@@ -253,6 +262,7 @@ export function sidebarActiveItemId(
 
 const PORTAL_HREFS: Partial<Record<ClientDashboardRoute, string>> = {
   home: "/dashboard",
+  "shared-floorplans": "/dashboard/shared-floorplans",
   request: "/dashboard/request",
   events: "/dashboard/events",
   calendar: "/dashboard/calendar",
