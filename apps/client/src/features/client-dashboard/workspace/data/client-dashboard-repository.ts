@@ -52,8 +52,46 @@ export const clientDashboardRepository = {
     });
   },
 
-  loadWorkspace(): Promise<PrismClientWorkspace> {
-    return clientApi.clientWorkspace.detail();
+  async loadWorkspace(): Promise<PrismClientWorkspace> {
+    const pages: PrismClientWorkspace[] = [];
+    const seenCursors = new Set<string>();
+    let cursor: string | undefined;
+    do {
+      const page = await clientApi.clientWorkspace.detail({}, cursor);
+      pages.push(page);
+      if (!page.pagination.hasMore) break;
+      const nextCursor = page.pagination.nextCursor;
+      if (!nextCursor || seenCursors.has(nextCursor)) throw new Error('Client workspace pagination did not advance');
+      seenCursors.add(nextCursor);
+      cursor = nextCursor;
+    } while (cursor);
+
+    const first = pages[0];
+    if (!first) throw new Error('Client workspace returned no page');
+    return {
+      ...first,
+      users: pages.flatMap((page) => page.users),
+      inquiries: pages.flatMap((page) => page.inquiries),
+      events: pages.flatMap((page) => page.events),
+      documents: pages.flatMap((page) => page.documents),
+      briefings: pages.flatMap((page) => page.briefings),
+      supplierQuotes: pages.flatMap((page) => page.supplierQuotes),
+      coordinatorAssignments: pages.flatMap((page) => page.coordinatorAssignments),
+      complianceChecks: pages.flatMap((page) => page.complianceChecks),
+      billingStatements: pages.flatMap((page) => page.billingStatements),
+      paymentMilestones: pages.flatMap((page) => page.paymentMilestones),
+      postEventDocuments: pages.flatMap((page) => page.postEventDocuments),
+      floorPlanDrafts: pages.flatMap((page) => page.floorPlanDrafts),
+      auditLogs: pages.flatMap((page) => page.auditLogs),
+      notificationLogs: pages.flatMap((page) => page.notificationLogs),
+      clientEventTimelines: pages.flatMap((page) => page.clientEventTimelines),
+      ocularVisits: pages.flatMap((page) => page.ocularVisits ?? []),
+      pagination: {
+        nextCursor: null,
+        hasMore: false,
+        totalCount: first.pagination.totalCount,
+      },
+    };
   },
 
   loadActionCenter(): Promise<PrismClientActionCenter> {
