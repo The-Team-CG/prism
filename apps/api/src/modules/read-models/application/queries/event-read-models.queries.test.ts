@@ -2,10 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import type { PrismaService } from '@prism/kernel/database';
 import {
   EventReadModelQueries,
+  EVENT_READ_PAGE_SIZE,
   MAX_PMCM_COMMAND_INBOX_PAGE_SIZE,
   MAX_EVENT_FLOORPLAN_DRAFTS,
   MAX_PMCM_DASHBOARD_ROWS,
   MAX_COORDINATOR_RELIABILITY_HISTORY_ROWS,
+  MAX_CLIENT_WORKSPACE_ROWS,
   MAX_VISIBLE_EVENTS,
 } from './event-read-models.queries';
 
@@ -79,7 +81,14 @@ describe('EventReadModelQueries collection limits', () => {
     const opsEvent = model();
     const queries = new EventReadModelQueries({ opsEvent } as unknown as PrismaService);
 
-    await queries.visibleEvents();
+    const actor = { role: 'pmcm-admin' as const, name: 'PMCM', explicit: true };
+    const page = await queries.visibleEvents(actor);
+
+    expect(page.pagination).toEqual({
+      nextCursor: null,
+      hasMore: false,
+      totalCount: 0,
+    });
 
     expect(opsEvent.findMany).toHaveBeenCalledWith({
       where: { archived: false },
@@ -91,10 +100,203 @@ describe('EventReadModelQueries collection limits', () => {
         },
       },
       orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
-      take: MAX_VISIBLE_EVENTS,
+      take: EVENT_READ_PAGE_SIZE + 1,
     });
+    expect(opsEvent.count).toHaveBeenCalledWith({ where: { archived: false } });
   });
 
+  it('finds a client event after unrelated unarchived traffic by scoping before page limits', async () => {
+    const clientEvent = {
+      id: 'evt_client_after_global_volume',
+      eventDate: new Date('2026-11-01T00:00:00.000Z'),
+      archived: false,
+      clientPortalStatus: 'unlocked',
+      inquiry: { email: 'ana@example.test' },
+    };
+    const unrelatedEvents = Array.from({ length: 501 }, (_, index) => ({
+      ...clientEvent,
+      id: `evt_unrelated_${index}`,
+      inquiry: { email: `other-${index}@example.test` },
+    }));
+    const allEvents = [...unrelatedEvents, clientEvent];
+    const opsEvent = {
+      findMany: vi.fn(async () =>
+        allEvents.filter(
+          (event) =>
+            !event.archived &&
+            event.clientPortalStatus === 'unlocked' &&
+            event.inquiry.email.toLowerCase() === 'ana@example.test',
+        ),
+      ),
+      count: vi.fn(async () => 1),
+    };
+    const queries = new EventReadModelQueries({
+      opsEvent,
+    } as unknown as PrismaService);
+    const actor = {
+      role: 'client' as const,
+      email: 'ana@example.test',
+      name: 'Ana',
+      explicit: true,
+      verified: true,
+    };
+
+    const page = await queries.visibleEvents(actor);
+    const scope = {
+      archived: false,
+      clientPortalStatus: 'unlocked',
+      inquiry: {
+        is: { email: { equals: 'ana@example.test', mode: 'insensitive' } },
+      },
+    };
+
+    expect(page.items.map((event) => event.id)).toEqual(['evt_client_after_global_volume']);
+    expect(page.pagination).toEqual({
+      nextCursor: null,
+      hasMore: false,
+      totalCount: 1,
+    });
+    expect(opsEvent.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: scope, take: EVENT_READ_PAGE_SIZE + 1 }),
+    );
+    expect(opsEvent.count).toHaveBeenCalledWith({ where: scope });
+  });
+
+  it('uses a stable eventDate and ID keyset for subsequent event pages', async () => {
+    const eventDate = new Date('2026-11-01T00:00:00.000Z');
+    const rows = Array.from({ length: EVENT_READ_PAGE_SIZE + 1 }, (_, index) => ({
+      id: `evt_${String(index).padStart(3, '0')}`,
+      eventDate,
+    }));
+    const opsEvent = {
+      findMany: vi.fn(async () => rows),
+      count: vi.fn(async () => rows.length),
+    };
+    const queries = new EventReadModelQueries({
+      opsEvent,
+    } as unknown as PrismaService);
+    const actor = { role: 'pmcm-admin' as const, name: 'PMCM', explicit: true };
+
+    const first = await queries.visibleEvents(actor);
+    await queries.visibleEvents(actor, first.pagination.nextCursor ?? undefined);
+
+    expect(first.items).toHaveLength(EVENT_READ_PAGE_SIZE);
+    expect(first.pagination.hasMore).toBe(true);
+    expect(opsEvent.findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: {
+          AND: [
+            { archived: false },
+            {
+              OR: [{ eventDate: { gt: eventDate } }, { eventDate, id: { gt: 'evt_099' } }],
+            },
+          ],
+        },
+        orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
+      }),
+    );
+  });
+
+  it('filters supplier and coordinator event eligibility in the database', async () => {
+    const opsEvent = model();
+    const queries = new EventReadModelQueries({
+      opsEvent,
+    } as unknown as PrismaService);
+
+    await queries.visibleEvents({
+      role: 'supplier',
+      name: 'Supplier',
+      email: 'vendor@example.test',
+      supplierId: 'sup_1',
+      explicit: true,
+    });
+    await queries.visibleEvents({
+      role: 'coordinator',
+      name: 'Coordinator',
+      email: 'coord@example.test',
+      id: 'user_1',
+      coordinatorId: 'coord_1',
+      explicit: true,
+    });
+
+    expect(opsEvent.findMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: {
+          archived: false,
+          supplierQuoteRequests: { some: { supplierId: 'sup_1' } },
+        },
+      }),
+    );
+    expect(opsEvent.findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: {
+          archived: false,
+          coordinatorAssignments: {
+            some: {
+              status: { notIn: ['cancelled', 'replaced', 'declined'] },
+              coordinator: { is: { active: true, id: 'coord_1' } },
+            },
+          },
+        },
+      }),
+    );
+  });
+
+  it('prefers supplier ID over an email that may identify another profile', async () => {
+    const findFirst = vi.fn(async () => null);
+    const queries = new EventReadModelQueries({
+      opsSupplier: { findFirst },
+    } as unknown as PrismaService);
+
+    await queries.supplierForActor('sup_primary', 'other@example.test');
+    await queries.supplierForActor(undefined, 'fallback@example.test');
+
+    expect(findFirst).toHaveBeenNthCalledWith(1, expect.objectContaining({ where: { id: 'sup_primary' } }));
+    expect(findFirst).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: { email: { equals: 'fallback@example.test', mode: 'insensitive' } },
+      }),
+    );
+  });
+
+  it('iterates client workspace source rows in bounded keyset pages', async () => {
+    const documents = Array.from({ length: MAX_CLIENT_WORKSPACE_ROWS + 1 }, (_, index) => ({
+      id: `doc_${String(index).padStart(3, '0')}`,
+      eventId: 'evt_client',
+      uploadedAt: new Date(`2026-10-${String((index % 28) + 1).padStart(2, '0')}T00:00:00.000Z`),
+    }));
+    const opsDocument = {
+      findMany: vi.fn(async (args: { where: { id?: { gt?: string } }; take: number }) =>
+        documents.filter((document) => !args.where.id?.gt || document.id > args.where.id.gt).slice(0, args.take),
+      ),
+    };
+    const prisma = new Proxy(
+      { opsDocument },
+      {
+        get(target, property: string) {
+          if (property in target) return target[property as keyof typeof target];
+          return model();
+        },
+      },
+    );
+    const queries = new EventReadModelQueries(prisma as unknown as PrismaService);
+
+    const [result] = await queries.clientWorkspaceForEvents(['evt_client']);
+
+    expect(result).toHaveLength(MAX_CLIENT_WORKSPACE_ROWS + 1);
+    expect(opsDocument.findMany).toHaveBeenCalledTimes(2);
+    expect(opsDocument.findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: { eventId: { in: ['evt_client'] }, id: { gt: 'doc_499' } },
+        orderBy: { id: 'asc' },
+      }),
+    );
+  });
   it('bounds PMCM dashboard collections and nested floorplan history', async () => {
     const opsEvent = model();
     const prisma = new Proxy(

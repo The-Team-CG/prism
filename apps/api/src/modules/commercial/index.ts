@@ -27,6 +27,8 @@ export * from './api/suppliers/suppliers.controller';
 export * from './application/suppliers/supplier-application.mappers';
 export { SupplierApplicationService } from './application/suppliers/supplier-application.service';
 export { SuppliersService } from './application/suppliers/suppliers.service';
+export * from './contracts/privacy-redaction.port';
+export * from './application/suppliers/commercial-privacy-redactor.service';
 export * from './api/billing/event-billing.controller';
 export * from './contracts/billing-reader.port';
 export * from './contracts/billing-operations.types';
