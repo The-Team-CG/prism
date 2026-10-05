@@ -7,3 +7,5 @@ export * from './contracts/auth-audit.port';
 export * from './infrastructure/auth/auth-audit.adapter';
 export * from './contracts/participant-reader.port';
 export * from './application/participants/participant-reader.service';
+export * from './contracts/approved-client-account-reader.port';
+export * from './application/accounts/approved-client-account-reader.service';
