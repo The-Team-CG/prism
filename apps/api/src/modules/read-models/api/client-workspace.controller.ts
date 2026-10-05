@@ -34,6 +34,13 @@ export class OpsClientController {
     );
   }
 
+  @Get('shared-floorplans')
+  @UseGuards(EventSessionGuard)
+  sharedFloorplans(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.eventReadModelsService.clientSharedFloorplans(actor);
+  }
+
   @Get('action-center')
   @UseGuards(EventSessionGuard)
   actionCenter(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {

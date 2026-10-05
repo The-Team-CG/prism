@@ -109,6 +109,8 @@ describe.skipIf(!live)('supplier identity ownership against PostgreSQL', () => {
         policy,
         {} as unknown as GuestReader,
         {} as unknown as StaffingReader,
+        {} as unknown as ConstructorParameters<typeof EventReadModelsService>[4],
+        {} as unknown as ConstructorParameters<typeof EventReadModelsService>[5],
       );
       const mappers = {
         mapSupplierQuoteRequest: (request: { id: string }) => request,

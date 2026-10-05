@@ -55,6 +55,11 @@ function createService() {
         state.floorPlanDrafts.push(row);
         return row;
       }),
+      findMany: vi.fn(async ({ where }) =>
+        state.floorPlanDrafts.filter((draft) =>
+          where.eventId.in.includes(draft.eventId) && where.status.in.includes(draft.status),
+        ),
+      ),
       findFirst: vi.fn(async ({ where }) =>
         state.floorPlanDrafts.find((draft) => draft.id === where.id && draft.eventId === where.eventId) ?? null,
       ),
@@ -398,5 +403,55 @@ describe('FloorPlanWorkflowService', () => {
       where: { id: 'fpd_other_event', eventId: 'evt_sample' },
     });
     expect(prisma.floorPlan.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('lists only official snapshot entries for the supplied shared events', async () => {
+    const { service, state, prisma } = createService();
+    state.floorPlanDrafts.push(
+      { id: 'fpd_review', eventId: 'evt_shared', name: 'Review Layout', status: 'in_review', updatedAt: new Date() },
+      { id: 'fpd_revision', eventId: 'evt_shared', name: 'Revision Layout', status: 'revision_requested', updatedAt: new Date() },
+      { id: 'fpd_approved', eventId: 'evt_other', name: 'Approved Layout', status: 'approved', updatedAt: new Date() },
+      { id: 'fpd_preference', eventId: 'evt_shared', name: 'Client Preference', status: 'client_submitted', updatedAt: new Date() },
+      { id: 'fpd_unshared', eventId: 'evt_unshared', name: 'Unshared Layout', status: 'approved', updatedAt: new Date() },
+    );
+
+    await expect(service.listClientSnapshotEntries(['evt_shared', 'evt_other'])).resolves.toEqual([
+      {
+        eventId: 'evt_shared',
+        draftId: 'fpd_review',
+        draftName: 'Review Layout',
+        draftStatus: 'in_review',
+        availableSnapshots: ['submitted'],
+      },
+      {
+        eventId: 'evt_shared',
+        draftId: 'fpd_revision',
+        draftName: 'Revision Layout',
+        draftStatus: 'revision_requested',
+        availableSnapshots: ['submitted'],
+      },
+      {
+        eventId: 'evt_other',
+        draftId: 'fpd_approved',
+        draftName: 'Approved Layout',
+        draftStatus: 'approved',
+        availableSnapshots: ['submitted', 'approved'],
+      },
+    ]);
+    expect(prisma.opsFloorPlanDraft.findMany).toHaveBeenCalledWith({
+      where: {
+        eventId: { in: ['evt_shared', 'evt_other'] },
+        status: { in: ['in_review', 'revision_requested', 'approved'] },
+      },
+      select: { eventId: true, id: true, name: true, status: true, updatedAt: true },
+      orderBy: [{ eventId: 'asc' }, { updatedAt: 'desc' }, { id: 'asc' }],
+    });
+  });
+
+  it('skips the draft query when there are no shared events', async () => {
+    const { service, prisma } = createService();
+
+    await expect(service.listClientSnapshotEntries([])).resolves.toEqual([]);
+    expect(prisma.opsFloorPlanDraft.findMany).not.toHaveBeenCalled();
   });
 });
