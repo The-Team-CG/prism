@@ -6,8 +6,26 @@ import { BillingOperationsService, renderBillingPdf } from './billing-operations
 import { PaymentOperationsService } from './payment-operations.service';
 import type { BillingActor } from '../../contracts/billing-operations.types';
 import type { StorageObjectService } from '@prism/contexts/platform-ops';
+import type { PrismVerifiedEventActor } from '@prism/types';
 
 const billingActor: BillingActor = { id: 'user_finance_1', name: 'Finance Operator', role: 'pmcm-admin', email: 'admin@pmcm.test', correlationId: 'corr_finance_1' };
+const verifiedBillingActor: PrismVerifiedEventActor = {
+  id: 'user_finance_1', actorId: 'user_finance_1', role: 'pmcm-admin', actorRole: 'pmcm-admin',
+  email: 'admin@pmcm.test', actorEmail: 'admin@pmcm.test', name: 'Finance Operator', actorName: 'Finance Operator',
+  expiresAt: '2026-10-04T12:00:00.000Z',
+};
+
+function createWorkflowCommandService(prisma: any) {
+  const transactionRunner = {
+    run: (work: (context: any) => Promise<unknown>, command: { correlationId?: string; actorId?: string } = {}) =>
+      prisma.$transaction((tx: any) => work({
+        prisma: tx,
+        correlationId: command.correlationId ?? 'corr_test',
+        actorId: command.actorId,
+      })),
+  };
+  return new WorkflowCommandService(transactionRunner as never);
+}
 
 function createPaymentService() {
   const milestone = {
@@ -63,15 +81,22 @@ function createPaymentService() {
     },
     opsBillingSource: {
       findUnique: vi.fn(async () => billingSource),
+      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ ...billingSource, ...data })),
       update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => Object.assign(billingSource, data)),
     },
     $transaction: vi.fn(async (callback: (tx: any) => unknown) => callback(prisma)),
   };
   const audit = { write: vi.fn() };
   const notifications = { write: vi.fn() };
-  const service = new BillingOperationsService(prisma, audit as any, notifications as any, new WorkflowCommandService());
+  const documentVault = {
+    registerDocument: vi.fn(async ({ eventId, documentKind, fileName, status }: any) => ({
+      id: 'doc_billing_statement', eventId, kind: documentKind, fileName, status,
+    })),
+    findEligibleReference: vi.fn(),
+  };
+  const service = new BillingOperationsService(prisma, audit as any, notifications as any, createWorkflowCommandService(prisma), documentVault as any);
   const paymentService = new PaymentOperationsService(prisma, audit as any, notifications as any, new WorkflowCommandService());
-  return { service, paymentService, prisma, audit, history, milestone };
+  return { service, paymentService, prisma, audit, history, milestone, documentVault };
 }
 
 function createBillingStatementService(priorNumbers: string[], conflictingSequenceNumber?: number, storageObjectService?: StorageObjectService) {
@@ -133,11 +158,51 @@ function createBillingStatementService(priorNumbers: string[], conflictingSequen
   };
   const audit = { write: vi.fn() };
   const notifications = { write: vi.fn() };
-  const service = new BillingOperationsService(prisma, audit as any, notifications as any, new WorkflowCommandService(), storageObjectService);
-  return { service, prisma, statements };
+  const documentVault = {
+    registerDocument: vi.fn(async ({ eventId, documentKind, fileName, status }: any) => ({
+      id: 'doc_billing_statement', eventId, kind: documentKind, fileName, status,
+    })),
+    findEligibleReference: vi.fn(),
+  };
+  const service = new BillingOperationsService(prisma, audit as any, notifications as any, createWorkflowCommandService(prisma), documentVault as any, storageObjectService);
+  return { service, prisma, statements, documentVault };
 }
 
 describe('BillingOperationsService', () => {
+  it('rejects cross-event or ineligible billing evidence before creating a source', async () => {
+    const { service, prisma, documentVault } = createPaymentService();
+    documentVault.findEligibleReference.mockRejectedValueOnce(new Error('Eligible document not found for this event'));
+
+    await expect(service.createBillingSource('evt_sample', {
+      sourceLabel: 'Proposal evidence',
+      sourceDocumentId: 'doc_wrong_event',
+      lineItems: [{ label: 'Package', amount: 100000 }],
+    }, billingActor)).rejects.toThrow('Eligible document not found');
+
+    expect(documentVault.findEligibleReference).toHaveBeenCalledWith({
+      eventId: 'evt_sample', purpose: 'billing_source_evidence', documentId: 'doc_wrong_event',
+    });
+    expect(prisma.opsBillingSource.create).not.toHaveBeenCalled();
+  });
+
+  it('accepts an eligible same-event proposal reference for a billing source', async () => {
+    const { service, prisma, documentVault } = createPaymentService();
+    documentVault.findEligibleReference.mockResolvedValue({
+      id: 'doc_proposal', eventId: 'evt_sample', kind: 'proposal', status: 'issued', fileName: 'proposal.pdf',
+    } as never);
+
+    await service.createBillingSource('evt_sample', {
+      sourceLabel: 'Approved proposal',
+      sourceDocumentId: 'doc_proposal',
+      lineItems: [{ label: 'Package', amount: 100000 }],
+    }, billingActor);
+
+    expect(prisma.opsBillingSource.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ eventId: 'evt_sample', sourceDocumentId: 'doc_proposal' }),
+    }));
+    expect(documentVault.findEligibleReference).toHaveBeenCalledTimes(2);
+  });
+
   it('rejects a payment mutation without a verified actor before database access', async () => {
     const { paymentService, prisma } = createPaymentService();
 
@@ -240,6 +305,7 @@ describe('BillingOperationsService', () => {
       'evt_billing_sequence',
       'bsrc_billing_sequence',
       billingActor,
+      verifiedBillingActor,
     );
 
     expect(result.number).toBe(expectedNumber);
@@ -258,7 +324,7 @@ describe('BillingOperationsService', () => {
     } as unknown as StorageObjectService;
     const { service } = createBillingStatementService([], undefined, storageObjectService);
 
-    await service.generateBillingStatement('evt_billing_sequence', 'bsrc_billing_sequence', billingActor);
+    await service.generateBillingStatement('evt_billing_sequence', 'bsrc_billing_sequence', billingActor, verifiedBillingActor);
 
     expect(storageObjectService.requestUpload).toHaveBeenCalledWith(expect.objectContaining({
       actor: expect.objectContaining({ id: billingActor.id, name: billingActor.name }),
@@ -275,11 +341,13 @@ describe('BillingOperationsService', () => {
       'evt_billing_sequence',
       'bsrc_billing_sequence',
       billingActor,
+      verifiedBillingActor,
     );
     const second = await service.generateBillingStatement(
       'evt_billing_sequence',
       'bsrc_billing_sequence',
       billingActor,
+      verifiedBillingActor,
     );
 
     expect(first.number).toBe('BS-2026-0002');
@@ -295,6 +363,7 @@ describe('BillingOperationsService', () => {
       'evt_billing_sequence',
       'bsrc_billing_sequence',
       billingActor,
+      verifiedBillingActor,
     );
 
     expect(result.number).toBe('BS-2026-0003');
