@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsSupplierQuoteRequest, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   AuditActionType,
   AuditCategory,
@@ -12,6 +12,7 @@ import {
 } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
+import { DOCUMENT_VAULT, type DocumentVault, type ValidatedUploadMetadata } from '@prism/contexts/event-lifecycle';
 import {
   type ChangeSupplierTierInput,
   type CreateSupplierCertificationInput,
@@ -21,10 +22,8 @@ import {
   type UpdateSupplierInput,
 } from '../../contracts/supplier-directory.port';
 import type { SupplierCommands, SupplierEventStatusInput, SupplierReadinessInput, VerifySupplierEventStatusInput } from '../../contracts/supplier-commands.port';
-import type { SupplierDocumentVault, UploadMetadataInput, ValidatedUploadMetadata } from '../../contracts/supplier-document-vault.port';
 import {
   SUPPLIER_DIRECTORY,
-  SUPPLIER_DOCUMENT_VAULT,
 } from '../../contracts/supplier-ops.tokens';
 import {
   PARE_APPROVAL_GOVERNANCE,
@@ -34,7 +33,15 @@ import {
   type PAREApprovalRecord,
 } from '@prism/contexts/platform-ops';
 import { SupplierProfileCommandsService } from './supplier-profile-commands.service';
-import type { CreateSupplierReliabilityNoteInput, PromoteSupplierInput, CreateSupplierScheduleInput } from '@prism/types';
+import type {
+  CreateSupplierReliabilityNoteInput,
+  PromoteSupplierInput,
+  CreateSupplierScheduleInput,
+  PrismSupplierQuoteRequest,
+  PrismVerifiedEventActor,
+  UploadContractInput,
+  UploadMetadataInput,
+} from '@prism/types';
 import { mapSupplierQuoteRequest, mapSupplierSchedule } from '../quotes/supplier-quote.mappers';
 
 async function lockSupplierQuoteRequest(prisma: Prisma.TransactionClient, requestId: string) {
@@ -92,7 +99,7 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
     private readonly workflowCommandService: WorkflowCommandService,
     @Inject(PARE_APPROVAL_GOVERNANCE) private readonly pareGovernance: PareApprovalGovernance,
     @Inject(PARE_DISPATCH_WRITER) private readonly pareDispatchWriter: PareDispatchWriter,
-    @Inject(SUPPLIER_DOCUMENT_VAULT) private readonly documentVaultService: SupplierDocumentVault,
+    @Inject(DOCUMENT_VAULT) private readonly documentVaultService: DocumentVault,
   ) {}
 
   async createSupplier(input: CreateSupplierInput, actor: ResolvedEventOpsActor) {
@@ -442,44 +449,82 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
     return mapSupplierQuoteRequest(updated);
   }
 
-  async uploadSupplierContract(requestId: string, input: UploadMetadataInput, actor: ResolvedEventOpsActor) {
-    let request: OpsSupplierQuoteRequest | null = null;
-    let upload: ValidatedUploadMetadata | null = null;
+  async uploadSupplierContract(
+    requestId: string,
+    input: UploadContractInput,
+    actor: ResolvedEventOpsActor,
+    verifiedActor: PrismVerifiedEventActor,
+  ) {
+    let request: OpsSupplierQuoteRequest = await this.requireSupplierQuoteRequestForActor(requestId, actor);
+    this.assertVerifiedSupplierActor(verifiedActor, actor, request);
+    const upload: ValidatedUploadMetadata = this.validateUploadMetadata(input, `events/${request.eventId}/supplier-contracts`);
+    const payloadHash = createHash('sha256').update(JSON.stringify({
+      requestId,
+      eventId: request.eventId,
+      documentKind: 'supplier_contract',
+      fileName: upload.originalFileName,
+      mimeType: upload.mimeType,
+      sizeBytes: upload.sizeBytes,
+    })).digest('hex');
 
-    const updated = await this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
+    const updated = await this.workflowCommandService.execute<
+      OpsSupplierQuoteRequest,
+      PrismSupplierQuoteRequest
+    >({
       name: 'upload_supplier_contract',
+      eventId: request.eventId,
+      context: {
+        actorId: verifiedActor.actorId,
+        actorRole: verifiedActor.actorRole,
+        eventId: request.eventId,
+        correlationId: `supplier-contract:${requestId}:${input.idempotencyKey}`,
+        idempotencyKey: input.idempotencyKey,
+      },
+      sideEffectMode: 'same_tx',
+      idempotencyPayloadHash: payloadHash,
       validatePermission: async () => {
-        request = await this.requireSupplierQuoteRequestForActor(requestId, actor);
+        const current = await this.requireSupplierQuoteRequestForActor(requestId, actor);
+        if (current.eventId !== request?.eventId || current.supplierId !== request?.supplierId) {
+          throw new NotFoundException('Supplier quote request not found');
+        }
+        this.assertVerifiedSupplierActor(verifiedActor, actor, current);
+        request = current;
       },
       validateState: () => {
         if (!request) throw new NotFoundException('Supplier quote request not found');
-        upload = this.validateUploadMetadata(input, `events/${request.eventId}/supplier-contracts`);
       },
-      write: async () => {
-        if (!request || !upload) throw new NotFoundException('Supplier quote request not found');
-        const document = await this.prisma.opsDocument.create({
-          data: {
-            id: `doc_${randomUUID()}`,
-            eventId: request.eventId,
-            type: 'supplier_contract',
-            fileName: upload.originalFileName,
-            generatedFileName: upload.generatedFileName,
-            status: 'submitted',
-            mimeType: upload.mimeType,
-            sizeBytes: upload.sizeBytes,
-            validationStatus: upload.validationStatus,
-            storageBucket: upload.storageBucket,
-            storageKey: upload.storageKey,
-            uploadedByRole: 'supplier',
-          },
-        });
-        const updated = await this.prisma.opsSupplierQuoteRequest.update({
+      validateStateInTransaction: async (transactionContext) => {
+        if (!request) throw new NotFoundException('Supplier quote request not found');
+        const current = await transactionContext.prisma.opsSupplierQuoteRequest.findUnique({ where: { id: requestId } });
+        if (!current || current.eventId !== request.eventId || current.supplierId !== request.supplierId) {
+          throw new NotFoundException('Supplier quote request not found');
+        }
+        request = current;
+      },
+      write: async (transactionContext) => {
+        if (!request) throw new NotFoundException('Supplier quote request not found');
+        const document = await this.documentVaultService.registerDocument({
+          eventId: request.eventId,
+          documentKind: 'supplier_contract',
+          logicalTarget: { kind: 'supplier_quote_request', id: request.id },
+          fileName: upload.originalFileName,
+          generatedFileName: upload.generatedFileName,
+          mimeType: upload.mimeType,
+          sizeBytes: upload.sizeBytes,
+          validationStatus: upload.validationStatus,
+          storageBucket: upload.storageBucket,
+          storageKey: upload.storageKey,
+          status: 'submitted',
+          verifiedActor,
+          idempotencyKey: input.idempotencyKey,
+        }, transactionContext);
+        const db = transactionContext?.prisma ?? this.prisma;
+        return db.opsSupplierQuoteRequest.update({
           where: { id: request.id },
           data: { contractDocumentId: document.id },
         });
-        return updated;
       },
-      sideEffects: async (updated) => {
+      sideEffects: async (updated, transactionContext) => {
         if (!request) return;
         await writeAudit(this.auditWriter, request.eventId, actor.name, `Uploaded supplier contract: ${request.supplierName}`, {
           actorRole: actor.role,
@@ -488,11 +533,27 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
           category: AuditCategory.Documents,
           affectedType: 'document',
           affectedId: updated.contractDocumentId ?? undefined,
-          affectedLabel: upload?.originalFileName,
-        });
+          affectedLabel: upload.originalFileName,
+        }, transactionContext);
       },
+      project: mapSupplierQuoteRequest,
     });
-    return mapSupplierQuoteRequest(updated);
+    return updated;
+  }
+
+  private assertVerifiedSupplierActor(
+    verifiedActor: PrismVerifiedEventActor,
+    actor: ResolvedEventOpsActor,
+    request: OpsSupplierQuoteRequest,
+  ) {
+    if (
+      verifiedActor.actorRole !== OpsUserRole.Supplier ||
+      !verifiedActor.supplierId ||
+      verifiedActor.supplierId !== request.supplierId ||
+      verifiedActor.actorId !== actor.id
+    ) {
+      throw new ForbiddenException('Verified supplier identity does not match the contract request');
+    }
   }
 
   async createSupplierSchedule(eventId: string, input: CreateSupplierScheduleInput, actor: ResolvedEventOpsActor) {

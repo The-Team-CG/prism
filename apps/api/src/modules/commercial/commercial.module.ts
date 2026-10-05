@@ -4,8 +4,9 @@ import { AccessControlModule } from '@prism/kernel/access-control';
 import { PlatformOpsModule } from '../platform-ops/platform-ops.module';
 import { EventCoreModule } from '@prism/kernel/event-core';
 import { EventSessionModule } from '@prism/kernel/event-session';
-import { DOCUMENT_VAULT } from '../event-lifecycle/contracts/document-vault.port';
+import { DOCUMENT_VAULT } from '@prism/contexts/event-lifecycle';
 import { EventLifecycleModule } from '../event-lifecycle/event-lifecycle.module';
+import { UrgentIssueReferenceModule } from '@prism/contexts/live-ops/urgent-issue-reference';
 import { OpsEventCommercialController } from './api/quotes/event-commercial.controller';
 import { OpsEventProposalReviewController } from './api/quotes/event-proposal-review.controller';
 import { ProposalClientReviewService } from './application/quotes/proposal-client-review.service';
@@ -21,7 +22,6 @@ import { COMMERCIAL_WORKFLOW_COMMANDS, QUOTE_SUPPLIER_RESOLVER } from './contrac
 import {
   SUPPLIER_COMMANDS,
   SUPPLIER_DIRECTORY,
-  SUPPLIER_DOCUMENT_VAULT,
 } from './contracts/supplier-ops.tokens';
 import { PAYMENT_STATUS_READER } from './contracts/finance-ops.tokens';
 import { CommercialWorkflowService } from './application/quotes/commercial-workflow.service';
@@ -43,6 +43,7 @@ import { ProposalLifecycleController } from './api/quotes/proposal-lifecycle.con
 import { ProposalLifecycleService } from './application/quotes/proposal-lifecycle.service';
 import { CommercialPrivacyRedactorService } from './application/suppliers/commercial-privacy-redactor.service';
 import { COMMERCIAL_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
+import { CommercialAddendumImpactModule } from './commercial-addendum-impact.module';
 
 const supplierDirectoryProvider = {
   provide: SUPPLIER_DIRECTORY,
@@ -64,13 +65,12 @@ const supplierCommandsProvider = {
  * existing `domain/` folder (quote-request lifecycle policy) moves in
  * unchanged.
  *
- * Owned tables: OpsSupplierQuote, OpsSupplierQuoteRequest, OpsDocument
- * (supplier document kinds), OpsSupplier, OpsSupplierApplication,
+ * Owned tables: OpsSupplierQuote, OpsSupplierQuoteRequest, OpsSupplier,
+ * OpsSupplierApplication,
  * OpsSupplierCertification, OpsSupplierReview, OpsSupplierReliabilityNote,
  * OpsBillingSource,
- * OpsBillingStatement, OpsDocument (billing-related documents only;
- * OpsDocument is also owned by inquiry-onboarding for its own document
- * kinds), OpsPaymentMilestone, OpsPaymentRecord.
+ * OpsBillingStatement, OpsPaymentMilestone, OpsPaymentRecord. Lifecycle owns
+ * all OpsDocument metadata and exposes the document-vault capability.
  * Read-only: OpsEvent (via inquiry-onboarding), OpsSupplierCategory
  * (populated only by local fixtures; no owning module), OpsSupplierReviewDimension
  * (populated only by local fixtures; no owning module), OpsInquiry (via
@@ -83,6 +83,8 @@ const supplierCommandsProvider = {
     PlatformOpsModule,
     EventCoreModule,
     EventLifecycleModule,
+    UrgentIssueReferenceModule,
+    CommercialAddendumImpactModule,
     EventSessionModule,
     IdentityAccessModule,
   ],
@@ -114,7 +116,6 @@ const supplierCommandsProvider = {
     SupplierIngressLateMonitorService,
     SupplierIngressLateScheduler,
     supplierCommandsProvider,
-    { provide: SUPPLIER_DOCUMENT_VAULT, useExisting: DOCUMENT_VAULT },
     BillingOperationsService,
     BillingAdjustmentService,
     PaymentOperationsService,
@@ -137,6 +138,7 @@ const supplierCommandsProvider = {
     BillingOperationsService,
     PAYMENT_STATUS_READER,
     COMMERCIAL_PRIVACY_REDACTOR,
+    CommercialAddendumImpactModule,
   ],
 })
 export class CommercialModule {}
