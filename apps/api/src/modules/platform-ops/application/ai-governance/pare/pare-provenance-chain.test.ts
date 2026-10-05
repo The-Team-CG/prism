@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PrismaService } from '@prism/kernel/database';
+import type { PlatformReferenceReadModel } from '@prism/contexts/read-models';
 import type {
   AiProviderAdapter,
   AiProviderRequest,
@@ -156,7 +157,33 @@ function setup(provider: Provider) {
   const runtime = createRuntime(provider);
   const gateway = new AiGatewayService(prisma, runtime, [new MockAiProviderAdapter(), adapter], registry);
   gateway.onModuleInit();
-  const service = new PAREService(prisma, undefined, gateway, undefined, registry);
+  const platformReferences: PlatformReferenceReadModel = {
+    findStorageEventScope: async () => null,
+    findEventReference: async () => null,
+    findPrivacyInventory: async () => ({ events: [], approvalRequests: [] }),
+    findPareEventSource: async (requestId) => ({
+      request: {
+        id: requestId,
+        eventId: root.eventId,
+        assignmentStatus: 'withdrawn',
+        supplierId: root.withdrawnSupplier.id,
+        supplierName: root.withdrawnSupplier.name,
+        category: root.withdrawnSupplier.category,
+        supplierTier: root.withdrawnSupplier.tier,
+      },
+      event: {
+        id: root.eventId,
+        eventDate: new Date(`${root.eventDate}T00:00:00.000Z`),
+        eventName: root.eventName,
+        clientName: root.clientName,
+      },
+      selectedQuotes: [{ requestId, amount: root.withdrawnSupplier.quotedAmount }],
+      latestBriefingRequirements: null,
+    }),
+    findPareSupplierCandidates: async () => [],
+    findApprovedTrustRecipientEmail: async () => null,
+  };
+  const service = new PAREService(prisma, undefined, gateway, undefined, registry, platformReferences);
   return { root, prisma, state, adapter, registry, gateway, service };
 }
 
