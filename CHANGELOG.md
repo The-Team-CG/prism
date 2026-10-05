@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Added a root-bound read-only Platform reference reader for event authorization, PARE's minimal request/event/supplier facts, trust-recipient resolution, privacy consent inventory, and optional event-reference checks. PARE fails closed on a missing or mismatched live source while its dispatch and audit evidence remain durable; notification retries and hash-chain records keep optional event IDs as historical attribution.
 - Moved failed-login counters and lockout decisions into Identity Access, serializing the threshold update with a row lock before Platform records the resulting login, audit, and alert evidence. Privacy execution writes and polymorphic storage-owner validation remain cutover blockers; no Prisma schema or migration changed.
 - Fixed the archived coordinator event regression test to wait for refreshed role data before submitting after switching back to a current event.
+- Moved communication participant event, inquiry, supplier, and coordinator reads behind a serializable read-model contract. Identity retains account approval, role, matching, actor stamping, and event-access policy decisions; the focused read submodule imports DatabaseModule only.
 
 ### Fixed
 - Registration verification rechecks archive status under the event lock, preserving historical roster reads while rejecting writes after archive.

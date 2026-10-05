@@ -247,3 +247,4 @@
   delivery, with this log reserved for documentation-bundle changes and release
   notes kept under `[Unreleased]` until versioning occurs.
 - **Decided:** Accepted the seven-schema DDD target and local-only foreign-key rule, and aligned the context register to distinguish target owners from transitional writers; physical schema moves remain a separate rehearsed release.
+- **Aligned:** Routed Identity communication-participant lookups through a narrow serializable read-model contract and a DatabaseModule-only submodule, recording the cycle-avoidance boundary while keeping participant authorization in Identity.
