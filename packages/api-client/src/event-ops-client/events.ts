@@ -2,6 +2,7 @@ import type {
   PrismArchivedEventSearchHit,
   PrismFloorPlanDraft,
   PrismEvent,
+  PrismEventPage,
   PrismFileRequirementsMatrix,
   PrismStoredObject,
   PrismAddendum,
@@ -17,11 +18,11 @@ export function createEventsClient(
 ): Pick<EventOpsClient, "events"> {
   return {
     events: {
-      list: (actor = {}) =>
-        prismRequest<PrismEvent[]>(
-          actorPath("/events", actor),
-          withBase(options),
-        ),
+      list: (actor = {}, cursor?: string) => {
+        const query = toQueryString({ ...actor, cursor });
+        return prismRequest<PrismEventPage>(query ? `/events?${query}` : "/events", withBase(options),
+        );
+      },
       detail: (eventId, actor = {}) =>
         prismRequest<PrismEvent>(
           actorPath(`/events/${eventId}`, actor),

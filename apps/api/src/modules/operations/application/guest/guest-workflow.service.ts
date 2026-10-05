@@ -4,7 +4,7 @@ import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
-import { DOCUMENT_VAULT, type DocumentVault } from '@prism/contexts/event-lifecycle';
+import { validateUploadMetadata } from '@prism/kernel/shared';
 import { STAFFING_READER } from '../../contracts/staffing-ops.tokens';
 import type { StaffingReader } from '../../contracts/staffing-reader.port';
 import type {
@@ -58,7 +58,6 @@ export class GuestWorkflowService implements GuestCommands {
     private readonly prisma: PrismaService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     private readonly workflowCommandService: WorkflowCommandService,
-    @Inject(DOCUMENT_VAULT) private readonly documentVault: DocumentVault,
     @Inject(STAFFING_READER) private readonly staffingReader: StaffingReader,
   ) {}
 
@@ -782,7 +781,7 @@ export class GuestWorkflowService implements GuestCommands {
   }
 
   private validateUploadMetadata(input: UploadMetadataInput, prefix: string) {
-    return this.documentVault.validateUploadMetadata(input, prefix, {
+    return validateUploadMetadata(input, prefix, {
       maxSizeBytes: MAX_UPLOAD_SIZE_BYTES,
       allowedMimeTypes: GUEST_UPLOAD_MIME_TYPES,
     });

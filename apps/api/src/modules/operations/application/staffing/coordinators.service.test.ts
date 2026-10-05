@@ -45,7 +45,7 @@ function createAccessPolicy() {
   };
 }
 
-function createPrisma(coverageRequirements: { role: string; requiredSkills: string[] }[] = [], archived = false) {
+function createPrisma(coverageRequirements: { role: string; requiredSkills: string[] }[] = [], archived = false, eventStatus = 'planning') {
   const assignments: any[] = [
     {
       id: 'coord_asg_conflict',
@@ -70,9 +70,29 @@ function createPrisma(coverageRequirements: { role: string; requiredSkills: stri
   const reliabilityNotes: any[] = [];
   const transactionCalls: string[] = [];
   const queryOrder: string[] = [];
+  const matchesValue = (value: unknown, condition: unknown): boolean => {
+    if (condition instanceof Date) return value instanceof Date && value.getTime() === condition.getTime();
+    if (condition && typeof condition === 'object') {
+      const filter = condition as { in?: unknown[]; notIn?: unknown[]; not?: unknown; lt?: Date; lte?: Date; gt?: Date; gte?: Date };
+      const compare = (left: unknown, right: unknown) => left instanceof Date && right instanceof Date
+        ? left.getTime() - right.getTime()
+        : String(left).localeCompare(String(right));
+      if (filter.in && !filter.in.includes(value)) return false;
+      if (filter.notIn && filter.notIn.includes(value)) return false;
+      if ('not' in filter && value === filter.not) return false;
+      if (filter.lt && compare(value, filter.lt) >= 0) return false;
+      if (filter.lte && compare(value, filter.lte) > 0) return false;
+      if (filter.gt && compare(value, filter.gt) <= 0) return false;
+      if (filter.gte && compare(value, filter.gte) < 0) return false;
+      return true;
+    }
+    return value === condition;
+  };
+  const matchesWhere = (row: Record<string, any>, where: Record<string, unknown> = {}) =>
+    Object.entries(where).every(([key, condition]) => key === 'OR' || matchesValue(row[key], condition));
 
   const prisma = {
-    opsEvent: { findUnique: async () => ({ ...event, archived }) },
+    opsEvent: { findUnique: async ({ where }: { where?: { id?: string } } = {}) => ({ ...event, id: where?.id ?? event.id, status: eventStatus, archived }) },
     opsEventCoverageRequirement: { findMany: async () => coverageRequirements },
     opsCoordinator: {
       findUnique: async () => coordinator,
@@ -87,9 +107,10 @@ function createPrisma(coverageRequirements: { role: string; requiredSkills: stri
           if (where?.endsAt?.gt && row.endsAt <= where.endsAt.gt) return false;
           return true;
         }) ?? null,
-      findMany: async ({ where }: { where?: { coordinatorId?: string; startsAt?: { lte?: Date; lt?: Date }; endsAt?: { gt?: Date } } } = {}) =>
+      findMany: async ({ where }: { where?: any } = {}) =>
         availability.filter((row) => {
-          if (where?.coordinatorId && row.coordinatorId !== where.coordinatorId) return false;
+          if (where?.coordinatorId?.in && !where.coordinatorId.in.includes(row.coordinatorId)) return false;
+          if (where?.coordinatorId && typeof where.coordinatorId === 'string' && row.coordinatorId !== where.coordinatorId) return false;
           if (where?.startsAt?.lte && row.startsAt > where.startsAt.lte) return false;
           if (where?.startsAt?.lt && row.startsAt >= where.startsAt.lt) return false;
           if (where?.endsAt?.gt && row.endsAt <= where.endsAt.gt) return false;
@@ -109,35 +130,15 @@ function createPrisma(coverageRequirements: { role: string; requiredSkills: stri
       },
     },
     opsCoordinatorAssignment: {
-      findFirst: async ({ where }: { where?: { id?: string } } = {}) => {
+      findFirst: async ({ where }: { where?: Record<string, unknown> } = {}) => {
         queryOrder.push('assignment.findFirst');
-        if (where?.id) {
-          return assignments.find((item) => item.id === where.id) ?? null;
-        }
-        return assignments[0] ?? null;
+        return assignments.find((item) => matchesWhere(item, where)) ?? null;
       },
-      findMany: async ({ where, take }: {
-        where?: {
-          eventId?: string;
-          id?: { gt?: string };
-          coordinatorId?: string;
-          coordinatorName?: string;
-          status?: { notIn?: string[]; in?: string[] };
-          OR?: Array<{
-            eventDate?: { gte?: Date; lt?: Date } | null;
-            event?: { is?: { eventDate?: { gte?: Date; lt?: Date } } };
-          }>;
-        };
-        take?: number;
-      } = {}) => assignments.filter((assignment) => {
-          if (where?.eventId && assignment.eventId !== where.eventId) return false;
+      findMany: async ({ where, take }: { where?: Record<string, any>; take?: number } = {}) => assignments.filter((assignment) => {
+          if (!matchesWhere(assignment, where)) return false;
           if (where?.id?.gt && assignment.id <= where.id.gt) return false;
-          if (where?.coordinatorId && assignment.coordinatorId !== where.coordinatorId) return false;
-          if (where?.coordinatorName && assignment.coordinatorName !== where.coordinatorName) return false;
-          if (where?.status?.notIn?.includes(assignment.status)) return false;
-          if (where?.status?.in && !where.status.in.includes(assignment.status)) return false;
           if (where?.OR) {
-            const matchesWindow = where.OR.some((condition) => {
+            const matchesWindow = where.OR.some((condition: any) => {
               if (condition.eventDate === null && assignment.eventDate !== null) return false;
               const date = condition.eventDate === null ? assignment.event?.eventDate : assignment.eventDate;
               const range = condition.eventDate === null ? condition.event?.is?.eventDate : condition.eventDate;
@@ -162,6 +163,12 @@ function createPrisma(coverageRequirements: { role: string; requiredSkills: stri
         const row = { ...data, createdAt: new Date(), event };
         assignments.push(row);
         return row;
+      },
+      findUnique: async ({ where }: { where: { id: string } }) => assignments.find((item) => item.id === where.id) ?? null,
+      updateMany: async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
+        const targets = assignments.filter((item) => matchesWhere(item, where));
+        targets.forEach((item) => Object.assign(item, data));
+        return { count: targets.length };
       },
       update: async ({ where, data }: { where: { id: string }; data: any }) => {
         const index = assignments.findIndex((item) => item.id === where.id);
@@ -583,6 +590,23 @@ describe('Coordinator staffing workflows', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+  it.each([
+    ['cancelled', false],
+    ['planning', true],
+    ['archived', false],
+  ] as const)('rejects assignment changes for status %s with archived=%s', async (eventStatus, archived) => {
+    const fake = createPrisma([], archived, eventStatus);
+    const service = createService(fake.prisma as never);
+
+    await expect(service.assignCoordinator(
+      event.id,
+      { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true },
+      pmcmAdminActor,
+    )).rejects.toThrow('Event is not active for coordinator assignment changes');
+
+    expect(fake.assignments).toHaveLength(1);
+  });
+
   it('reads active coordinator directory and coordinator assignments for workspace payloads', async () => {
     const fake = createPrisma();
     const service = createReaderService(fake.prisma as any);
@@ -668,11 +692,27 @@ describe('Coordinator staffing workflows', () => {
 
 
   it('prevents a coordinator from acknowledging or withdrawing an archived event assignment', async () => {
-    const fake = createPrisma([], true);
+    const fake = createPrisma();
     const service = createService(fake.prisma as never);
     const created = await service.assignCoordinator(event.id, { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true }, pmcmAdminActor);
+    const findEvent = fake.prisma.opsEvent.findUnique;
+    fake.prisma.opsEvent.findUnique = async (args) => ({ ...(await findEvent(args)), archived: true });
     await expect(service.acknowledgeCoordinator(event.id, created.id, coordinatorActor)).rejects.toThrow('Archived coordinator events are read-only');
     await expect(service.withdrawCoordinator(event.id, created.id, { reason: 'Unavailable' }, coordinatorActor)).rejects.toThrow('Archived coordinator events are read-only');
+    expect(fake.assignments.find((assignment) => assignment.id === created.id)?.status).toBe('pending_acknowledgement');
+  });
+
+  it('prevents PMCM from acknowledging or withdrawing an archived event assignment', async () => {
+    const fake = createPrisma();
+    const service = createService(fake.prisma as never);
+    const created = await service.assignCoordinator(event.id, { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true }, pmcmAdminActor);
+    const findEvent = fake.prisma.opsEvent.findUnique;
+    fake.prisma.opsEvent.findUnique = async (args) => ({ ...(await findEvent(args)), archived: true });
+
+    await expect(service.acknowledgeCoordinator(event.id, created.id, pmcmAdminActor))
+      .rejects.toThrow('Archived coordinator events are read-only');
+    await expect(service.withdrawCoordinator(event.id, created.id, { reason: 'Event archived' }, pmcmAdminActor))
+      .rejects.toThrow('Archived coordinator events are read-only');
     expect(fake.assignments.find((assignment) => assignment.id === created.id)?.status).toBe('pending_acknowledgement');
   });
 
@@ -714,6 +754,26 @@ describe('Coordinator staffing workflows', () => {
     expect(fake.acknowledgments).toEqual([
       expect.objectContaining({ assignmentId: created.id, state: 'declined', actor: coordinatorActor.id }),
     ]);
+  });
+
+  it('applies concurrent identical acknowledgments once and replays the resulting state', async () => {
+    const fake = createPrisma();
+    const service = createService(fake.prisma as any);
+    const created = await service.assignCoordinator(
+      event.id,
+      { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true },
+      pmcmAdminActor,
+    );
+
+    const [first, concurrentRetry] = await Promise.all([
+      service.acknowledgeCoordinator(event.id, created.id, coordinatorActor),
+      service.acknowledgeCoordinator(event.id, created.id, coordinatorActor),
+    ]);
+
+    expect(first.status).toBe('acknowledged');
+    expect(concurrentRetry.status).toBe('acknowledged');
+    expect(fake.acknowledgments.filter((entry) => entry.assignmentId === created.id)).toHaveLength(1);
+    expect(fake.audits.filter((entry: any) => entry.action === 'Acknowledged coordinator assignment')).toHaveLength(1);
   });
 
   it('rejects acknowledgeCoordinator for an actor that is neither PmcmAdmin nor Coordinator', async () => {
@@ -914,6 +974,29 @@ describe('Coordinator staffing workflows', () => {
       ).rejects.toBeInstanceOf(ForbiddenException);
     });
 
+    it('rejects replacement after the event is archived without creating a replacement', async () => {
+      const fake = createPrisma();
+      const service = createService(fake.prisma as any);
+      const created = await service.assignCoordinator(
+        event.id,
+        { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true },
+        pmcmAdminActor,
+      );
+      const assignmentCountBeforeReplacement = fake.assignments.length;
+      const findEvent = fake.prisma.opsEvent.findUnique;
+      fake.prisma.opsEvent.findUnique = async (args) => ({ ...(await findEvent(args)), archived: true });
+
+      await expect(service.replaceCoordinator(
+        event.id,
+        created.id,
+        { replacementCoordinatorId: coordinator.id, replacementRole: 'Floor Director', reason: 'Archived event' },
+        pmcmAdminActor,
+      )).rejects.toThrow('Archived coordinator events are read-only');
+
+      expect(fake.assignments).toHaveLength(assignmentCountBeforeReplacement);
+      expect(fake.assignments.find((assignment) => assignment.id === created.id)?.status).toBe('pending_acknowledgement');
+    });
+
     it('rejects a same-date conflict on the replacement coordinator until overridden', async () => {
       const fake = createPrisma();
       const service = createService(fake.prisma as any);
@@ -931,6 +1014,155 @@ describe('Coordinator staffing workflows', () => {
           pmcmAdminActor,
         ),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('Operations assignment ownership commands', () => {
+    const activeAssignment = (overrides: Record<string, unknown> = {}) => ({
+      id: 'coord_asg_event_day',
+      eventId: event.id,
+      coordinatorId: coordinator.id,
+      coordinatorName: coordinator.name,
+      role: 'Floor Director',
+      status: CoordinatorAssignmentStatus.Acknowledged,
+      attendanceStatus: 'pending',
+      attendanceMarkedAt: null,
+      attendanceNotes: '',
+      doubleBookingWarning: false,
+      eventDate: event.eventDate,
+      conflictEventId: null,
+      conflictEventName: null,
+      acknowledgedAt: null,
+      createdAt: new Date('2026-06-01T00:00:00.000Z'),
+      event,
+      ...overrides,
+    });
+
+    it('owns attendance updates and suppresses duplicate reliability and audit effects on an exact retry', async () => {
+      const fake = createPrisma();
+      const row = activeAssignment();
+      fake.assignments.push(row);
+      const service = createService(fake.prisma as any);
+      const input = { status: 'late', notes: 'Arrived after call time' } as const;
+
+      const first = await service.updateCoordinatorAttendance(event.id, row.id, input, coordinatorActor);
+      const retry = await service.updateCoordinatorAttendance(event.id, row.id, input, coordinatorActor);
+
+      expect(first).toMatchObject({ changed: true, assignment: { id: row.id, attendanceStatus: 'late', attendanceNotes: input.notes } });
+      expect(retry).toMatchObject({ changed: false, assignment: first.assignment });
+      expect(fake.reliabilityNotes).toHaveLength(1);
+      expect(fake.reliabilityNotes[0]).toMatchObject({
+        eventId: event.id,
+        coordinatorId: coordinator.id,
+        assignmentId: row.id,
+        severity: 'warning',
+      });
+      expect(fake.audits.filter((entry: any) => entry.action?.includes('Updated coordinator attendance'))).toHaveLength(1);
+    });
+
+    it('rejects attendance updates after the event is archived without changing the assignment', async () => {
+      const fake = createPrisma();
+      const row = activeAssignment();
+      fake.assignments.push(row);
+      const service = createService(fake.prisma as any);
+      const findEvent = fake.prisma.opsEvent.findUnique;
+      fake.prisma.opsEvent.findUnique = async (args) => ({ ...(await findEvent(args)), archived: true });
+
+      await expect(service.updateCoordinatorAttendance(
+        event.id,
+        row.id,
+        { status: 'present', notes: 'Marked after archive' },
+        pmcmAdminActor,
+      )).rejects.toThrow('Archived coordinator events are read-only');
+
+      expect(row).toMatchObject({ attendanceStatus: 'pending', attendanceNotes: '' });
+      expect(fake.reliabilityNotes).toHaveLength(0);
+      expect(fake.audits.filter((entry: any) => entry.action?.includes('Updated coordinator attendance'))).toHaveLength(0);
+    });
+
+    it('rejects a coordinator attempting to mark another coordinator attendance', async () => {
+      const fake = createPrisma();
+      fake.assignments.push(activeAssignment());
+      const coordinatorB = { ...coordinator, id: 'coord_taylor', userId: 'usr_taylor', name: 'Taylor Cruz', email: 'taylor@pmcm.test' };
+      (fake.prisma.opsCoordinator as any).findMany = async () => [coordinator, coordinatorB];
+      const service = createService(fake.prisma as any);
+      const actor = { id: coordinatorB.userId, role: OpsUserRole.Coordinator, name: coordinatorB.name, email: coordinatorB.email, explicit: true };
+
+      await expect(service.updateCoordinatorAttendance(
+        event.id,
+        'coord_asg_event_day',
+        { status: 'present' },
+        actor,
+      )).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('releases only active assignments owned by the cancelled event', async () => {
+      const fake = createPrisma();
+      const active = activeAssignment({ id: 'coord_asg_active' });
+      const alreadyCancelled = activeAssignment({ id: 'coord_asg_cancelled', status: CoordinatorAssignmentStatus.Cancelled, withdrawalReason: 'Coordinator withdrew' });
+      const otherEvent = activeAssignment({ id: 'coord_asg_other_event', eventId: 'evt_other' });
+      fake.assignments.push(active, alreadyCancelled, otherEvent);
+      const service = createService(fake.prisma as any);
+
+      const impact = await service.applyEventDecisionAssignments(
+        event.id,
+        { decision: 'cancelled', reason: 'Client confirmed', supplierImpact: 'pending_review' },
+        event.eventDate.toISOString(),
+        event.eventDate.toISOString(),
+        pmcmAdminActor,
+        { prisma: fake.prisma as any, actorId: pmcmAdminActor.id, correlationId: 'test-cancel-decision' },
+      );
+
+      expect(impact.releasedAssignmentIds).toEqual(['coord_asg_active']);
+      expect(active).toMatchObject({ status: CoordinatorAssignmentStatus.Cancelled, withdrawalReason: 'Event cancelled: Client confirmed' });
+      expect(fake.assignments.find((row) => row.id === alreadyCancelled.id)?.withdrawalReason).toBe('Coordinator withdrew');
+      expect(otherEvent.status).toBe(CoordinatorAssignmentStatus.Acknowledged);
+    });
+
+    it('reschedules owned assignments and returns a cross-event booking conflict', async () => {
+      const fake = createPrisma();
+      const moved = activeAssignment({ id: 'coord_asg_to_move' });
+      const booking = activeAssignment({
+        id: 'coord_asg_conflicting_booking',
+        eventId: 'evt_other',
+        eventDate: new Date('2026-07-18T00:00:00.000Z'),
+        event: { id: 'evt_other', eventName: 'Other Event' },
+      });
+      fake.assignments.push(moved, booking);
+      const service = createService(fake.prisma as any);
+
+      const impact = await service.applyEventDecisionAssignments(
+        event.id,
+        { decision: 'postponed', reason: 'Venue unavailable', supplierImpact: 'preserve_obligations', newEventDate: '2026-07-18' },
+        event.eventDate.toISOString(),
+        '2026-07-18T00:00:00.000Z',
+        pmcmAdminActor,
+        { prisma: fake.prisma as any, actorId: pmcmAdminActor.id, correlationId: 'test-postpone-decision' },
+      );
+
+      expect(moved.eventDate).toEqual(new Date('2026-07-18T00:00:00.000Z'));
+      expect(moved).toMatchObject({ doubleBookingWarning: true, conflictEventId: 'evt_other', conflictEventName: 'Other Event' });
+      expect(impact.reschedule?.conflicts).toEqual([{
+        assignmentId: moved.id,
+        coordinatorName: coordinator.name,
+        reason: 'double_booking',
+        conflictEventId: 'evt_other',
+        conflictEventName: 'Other Event',
+      }]);
+    });
+
+    it('rejects an assignment date that does not match the event decision', async () => {
+      const fake = createPrisma();
+      const service = createService(fake.prisma as any);
+
+      await expect(service.applyEventDecisionAssignments(
+        event.id,
+        { decision: 'postponed', reason: 'Venue unavailable', supplierImpact: 'preserve_obligations', newEventDate: '2026-08-18' },
+        event.eventDate.toISOString(),
+        '2026-07-18T00:00:00.000Z',
+        pmcmAdminActor,
+        { prisma: fake.prisma as any, actorId: pmcmAdminActor.id, correlationId: 'test-invalid-postpone' },
+      )).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 });

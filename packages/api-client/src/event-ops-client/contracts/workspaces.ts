@@ -21,7 +21,7 @@ import type { EventOpsActorQuery } from "./primitives";
 
 export interface EventOpsWorkspacesContract {
   clientWorkspace: {
-    detail(actor?: EventOpsActorQuery): Promise<PrismClientWorkspace>;
+    detail(actor?: EventOpsActorQuery, cursor?: string): Promise<PrismClientWorkspace>;
     actionCenter(actor?: EventOpsActorQuery): Promise<PrismClientActionCenter>;
   };
 
