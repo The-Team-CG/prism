@@ -23,11 +23,13 @@ export function createWorkspacesClient(
 > {
   return {
     clientWorkspace: {
-      detail: (actor = {}) =>
-        prismRequest<PrismClientWorkspace>(
-          actorPath("/client/workspace", actor),
+      detail: (actor = {}, cursor?: string) => {
+        const query = toQueryString({ ...actor, cursor });
+        return prismRequest<PrismClientWorkspace>(
+          query ? `/client/workspace?${query}` : "/client/workspace",
           withBase(options),
-        ),
+        );
+      },
       actionCenter: (actor = {}) =>
         prismRequest<PrismClientActionCenter>(
           actorPath("/client/action-center", actor),

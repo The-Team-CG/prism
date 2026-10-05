@@ -1,6 +1,13 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsEvent, OpsFloorPlanDraft, Prisma } from '@prisma/client';
-import type { CreateFloorPlanDraftInput, CreateFloorPlanPreferenceInput } from '@prism/types';
+import {
+  prismFloorPlanPreferenceSchema,
+  prismFloorPlanSnapshotSchema,
+  type CreateFloorPlanDraftInput,
+  type CreateFloorPlanPreferenceInput,
+  type PrismFloorPlanDraft,
+  type PrismFloorPlanSnapshot,
+} from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
 import { defaultSeatCategories } from '@prism/kernel/shared';
@@ -9,7 +16,8 @@ import { AuditActionType, AuditCategory, WorkflowCommandService } from '@prism/k
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { readEventAccessScope, readEventConformeState, readEventOcularVisitState } from '@prism/contexts/read-models/event-scope';
-import type { FloorPlanActor, FloorPlanCreator } from '../../contracts/floorplan-commands.port';
+import type { FloorplanCommands, FloorPlanActor, FloorPlanCreator } from '../../contracts/floorplan-commands.port';
+import type { FloorplanReader, FloorPlanDraftProjection } from '../../contracts/floorplan-reader.port';
 
 export type { CreateFloorPlanDraftInput, CreateFloorPlanPreferenceInput } from '@prism/types';
 
@@ -18,7 +26,7 @@ function timestamp(value: Date) {
 }
 
 @Injectable()
-export class FloorPlanWorkflowService {
+export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanReader {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
@@ -280,14 +288,11 @@ export class FloorPlanWorkflowService {
     });
   }
 
-  async getFloorPlanSnapshot(eventId: string, draftId: string, type: 'submitted' | 'approved' = 'approved') {
+  async getFloorPlanSnapshot(eventId: string, draftId: string, type: 'submitted' | 'approved' = 'approved'): Promise<PrismFloorPlanSnapshot> {
     const draft = await this.requireFloorPlanDraft(eventId, draftId);
-    const expanded = draft as OpsFloorPlanDraft & {
-      submittedSnapshot?: unknown;
-      approvedSnapshot?: unknown;
-    };
-    const snapshot = type === 'submitted' ? expanded.submittedSnapshot : expanded.approvedSnapshot;
-    if (snapshot) return snapshot;
+    const snapshot = type === 'submitted' ? draft.submittedSnapshot : draft.approvedSnapshot;
+    const validatedSnapshot = prismFloorPlanSnapshotSchema.safeParse(snapshot);
+    if (validatedSnapshot.success) return validatedSnapshot.data;
 
     // Compatibility recovery for drafts created before persisted snapshots were added. Only
     // official lifecycle states may use the current plan as a legacy snapshot; preference and
@@ -303,14 +308,11 @@ export class FloorPlanWorkflowService {
     throw new NotFoundException('Floorplan snapshot not found');
   }
 
-  mapFloorPlanDraft(draft: OpsFloorPlanDraft) {
-    const expanded = draft as OpsFloorPlanDraft & {
-      submittedSnapshot?: unknown;
-      approvedSnapshot?: unknown;
-      submittedSnapshotAt?: Date | null;
-      approvedSnapshotAt?: Date | null;
-      revisionComment?: string;
-    };
+  mapFloorPlanDraft(draft: FloorPlanDraftProjection): PrismFloorPlanDraft {
+    const clientPreference = prismFloorPlanPreferenceSchema.safeParse(draft.clientPreference);
+    const submittedSnapshot = prismFloorPlanSnapshotSchema.safeParse(draft.submittedSnapshot);
+    const approvedSnapshot = prismFloorPlanSnapshotSchema.safeParse(draft.approvedSnapshot);
+
     return {
       id: draft.id,
       eventId: draft.eventId,
@@ -320,15 +322,15 @@ export class FloorPlanWorkflowService {
       isActive: draft.isActive,
       sourceType: draft.sourceType,
       createdByRole: draft.createdByRole,
-      clientPreference: draft.clientPreference ?? undefined,
-      submittedSnapshot: expanded.submittedSnapshot ?? undefined,
-      approvedSnapshot: expanded.approvedSnapshot ?? undefined,
+      ...(clientPreference.success ? { clientPreference: clientPreference.data } : {}),
+      ...(submittedSnapshot.success ? { submittedSnapshot: submittedSnapshot.data } : {}),
+      ...(approvedSnapshot.success ? { approvedSnapshot: approvedSnapshot.data } : {}),
       submittedAt: draft.submittedAt ? timestamp(draft.submittedAt) : undefined,
       reviewedAt: draft.reviewedAt ? timestamp(draft.reviewedAt) : undefined,
       approvedAt: draft.approvedAt ? timestamp(draft.approvedAt) : undefined,
-      submittedSnapshotAt: expanded.submittedSnapshotAt ? timestamp(expanded.submittedSnapshotAt) : undefined,
-      approvedSnapshotAt: expanded.approvedSnapshotAt ? timestamp(expanded.approvedSnapshotAt) : undefined,
-      revisionComment: expanded.revisionComment ?? '',
+      submittedSnapshotAt: draft.submittedSnapshotAt ? timestamp(draft.submittedSnapshotAt) : undefined,
+      approvedSnapshotAt: draft.approvedSnapshotAt ? timestamp(draft.approvedSnapshotAt) : undefined,
+      revisionComment: draft.revisionComment,
       createdAt: timestamp(draft.createdAt),
       updatedAt: timestamp(draft.updatedAt),
     };

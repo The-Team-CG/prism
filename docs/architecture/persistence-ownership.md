@@ -4,7 +4,7 @@ title: "P.R.I.S.M persistence ownership and intentional joins"
 description: "At-a-glance ownership of Prisma models, physical database schemas, allowed cross-context reads, and documented transitional writes."
 tags: [architecture, persistence, prisma, ddd, modular-monolith, data-ownership]
 status: canonical
-updated: "2026-10-03"
+updated: "2026-10-04"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, reviewers]
@@ -79,6 +79,10 @@ The machine-readable domain ownership manifest linked above is the complete
 model-level inventory. It records each current and target schema, domain owner,
 table name, and scalar column count. This summary table is not a substitute for
 the 91 model assignments.
+
+Use the [active column authority register](column-authority-register.md) for each baseline field's
+physical type, nullability, default, provisional semantics, candidate consumers, sensitivity and DDL
+disposition. The register does not approve unresolved business units, timezones or retention periods.
 
 The reviewed staging baseline has ten populated application schemas and 112
 foreign keys. By target owner, 67 baseline keys are local and 45 cross domain.

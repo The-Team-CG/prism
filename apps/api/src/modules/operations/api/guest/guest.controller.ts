@@ -19,6 +19,7 @@ import {
   type WithdrawGuestFeedbackConsentInput,
   type ImportGuestRosterInput,
   type CoordinatorWalkInCheckInInput,
+  type PrismVerifiedEventActor,
 } from '@prism/types';
 import { GuestWorkflowService } from '../../application/guest/guest-workflow.service';
 
@@ -28,7 +29,7 @@ export class OpsGuestController {
 
   @Post('events/:eventId/roster/import')
   @UseGuards(EventSessionGuard)
-  async importRoster(@Param('eventId') eventId: string, @Body(zodBody(importGuestRosterSchema)) dto: ImportGuestRosterInput, @VerifiedEventActor() verifiedActor: any) {
+  async importRoster(@Param('eventId') eventId: string, @Body(zodBody(importGuestRosterSchema)) dto: ImportGuestRosterInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'guest roster import', eventId);
     return this.guestWorkflowService.importRoster(eventId, dto, actor);
@@ -36,7 +37,7 @@ export class OpsGuestController {
 
   @Get('events/:eventId/roster')
   @UseGuards(EventSessionGuard)
-  async searchRoster(@Param('eventId') eventId: string, @Query('query') query: string, @VerifiedEventActor() verifiedActor: any) {
+  async searchRoster(@Param('eventId') eventId: string, @Query('query') query: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator], 'guest roster search', eventId);
     const filters = {
@@ -58,7 +59,7 @@ export class OpsGuestController {
     @Query('namePrefix') namePrefix: string | undefined,
     @Query('eligibility') eligibility: GuestRosterSearchInput['eligibility'],
     @Query('checkedIn') checkedIn: string | undefined,
-    @VerifiedEventActor() verifiedActor: any,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator], 'guest roster search', eventId);
@@ -74,7 +75,7 @@ export class OpsGuestController {
   async checkInRoster(
     @Param('eventId') eventId: string,
     @Param('rosterEntryId') rosterEntryId: string,
-    @VerifiedEventActor() verifiedActor: any,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.Coordinator, OpsUserRole.System], 'guest roster check-in', eventId);
@@ -88,7 +89,7 @@ export class OpsGuestController {
   async registerWalkIn(
     @Param('eventId') eventId: string,
     @Body(zodBody(coordinatorWalkInCheckInSchema)) input: CoordinatorWalkInCheckInInput,
-    @VerifiedEventActor() verifiedActor: any,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Coordinator], 'coordinator walk-in registration', eventId);
@@ -101,7 +102,7 @@ export class OpsGuestController {
     @Param('eventId') eventId: string,
     @Param('rosterEntryId') rosterEntryId: string,
     @Body(zodBody(updateGuestVerificationSchema)) input: UpdateGuestVerificationInput,
-    @VerifiedEventActor() verifiedActor: any,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator], 'guest roster verification', eventId);
@@ -126,8 +127,7 @@ export class OpsGuestController {
     @Param('accessCode') accessCode: string,
     @Body(zodBody(createGuestCheckInSchema)) dto: CreateGuestCheckInInput,
   ) {
-    const checkIn = await this.guestWorkflowService.checkInByAccessCode(accessCode, dto);
-    return this.guestWorkflowService.mapGuestCheckIn(checkIn);
+    return this.guestWorkflowService.checkInByAccessCode(accessCode, dto);
   }
 
   @Post('events/:accessCode/feedback')
@@ -136,8 +136,7 @@ export class OpsGuestController {
     @Param('accessCode') accessCode: string,
     @Body(zodBody(createGuestFeedbackSchema)) dto: CreateGuestFeedbackInput,
   ) {
-    const feedback = await this.guestWorkflowService.submitFeedbackByAccessCode(accessCode, dto);
-    return this.guestWorkflowService.mapGuestFeedback(feedback);
+    return this.guestWorkflowService.submitFeedbackByAccessCode(accessCode, dto);
   }
 
   @Post('events/:accessCode/feedback/:feedbackId/consent-withdrawal')
@@ -147,13 +146,12 @@ export class OpsGuestController {
     @Param('feedbackId') feedbackId: string,
     @Body(zodBody(withdrawGuestFeedbackConsentSchema)) dto: WithdrawGuestFeedbackConsentInput,
   ) {
-    const feedback = await this.guestWorkflowService.withdrawFeedbackConsentByAccessCode(accessCode, feedbackId, dto);
-    return this.guestWorkflowService.mapGuestFeedback(feedback);
+    return this.guestWorkflowService.withdrawFeedbackConsentByAccessCode(accessCode, feedbackId, dto);
   }
 
   @Get('events/:eventId/feedback/moderation')
   @UseGuards(EventSessionGuard)
-  async pendingFeedback(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: any) {
+  async pendingFeedback(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'guest feedback moderation queue', eventId);
     const feedback = await this.guestWorkflowService.listPendingFeedbackForEvent(eventId);
@@ -166,7 +164,7 @@ export class OpsGuestController {
     @Param('eventId') eventId: string,
     @Param('feedbackId') feedbackId: string,
     @Body(zodBody(moderateGuestFeedbackSchema)) dto: ModerateGuestFeedbackInput,
-    @VerifiedEventActor() verifiedActor: any,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'guest feedback moderation', eventId);

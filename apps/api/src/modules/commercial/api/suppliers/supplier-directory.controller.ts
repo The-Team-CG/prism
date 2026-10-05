@@ -1,9 +1,8 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
-import { SupplierActorDto } from './supplier.dto';
 import { SuppliersService } from '../../application/suppliers/suppliers.service';
 
 @Controller('suppliers')
@@ -16,7 +15,6 @@ export class OpsSupplierDirectoryController {
   @Get('categories')
   @UseGuards(EventSessionGuard)
   async listCategories(
-    @Query() _actorInput: SupplierActorDto,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
@@ -31,7 +29,6 @@ export class OpsSupplierDirectoryController {
   @Get()
   @UseGuards(EventSessionGuard)
   async list(
-    @Query() _actorInput: SupplierActorDto,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
