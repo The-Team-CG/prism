@@ -27,6 +27,7 @@ export default defineConfig({
       '@prism/kernel/shared': resolve(__dirname, './src/kernel/shared/index.ts'),
       '@prism/contexts/read-models/closeout': resolve(__dirname, './src/modules/read-models/closeout.ts'),
       '@prism/contexts/read-models/event-scope': resolve(__dirname, './src/modules/read-models/event-scope.ts'),
+      '@prism/contexts/read-models/participant-facts': resolve(__dirname, './src/modules/read-models/participant-facts/index.ts'),
       '@prism/contexts/read-models': resolve(__dirname, './src/modules/read-models/index.ts'),
       '@prism/kernel/event-core': resolve(__dirname, './src/kernel/event-core/index.ts'),
       '@prism/kernel/access-control': resolve(__dirname, './src/kernel/access-control/index.ts'),
