@@ -5,7 +5,6 @@ import type {
   PrismCoordinatorLiveOps,
   PrismEvent,
   PrismEventDayStatusFeed,
-  PrismFloorPlanDraft,
   PrismBriefing,
   PrismLiveOps,
 } from '@prism/types';
@@ -108,7 +107,7 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
       supplierStatuses,
       coordinatorAssignments: mappedAssignments,
       guestAttendanceCount,
-      guestCheckIns: guestCheckIns.map((checkIn) => this.guestReader.mapGuestCheckIn(checkIn)),
+      guestCheckIns,
       eventDayLogs: data.eventDayLogs.map(mapEventDayLog),
       isDesignatedOperator: designatedOperator,
       canMarkDelegatedAttendance: designatedOperator,
@@ -301,7 +300,7 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
       floorPlanId: event.floorPlanId,
       guestAccessCode: this.guestReader.guestAccessCode(event),
       activeFloorPlanDraftId: activeDraft?.id,
-      floorPlanDrafts: floorPlanDrafts.map((draft) => this.floorplanReader.mapFloorPlanDraft(draft) as PrismFloorPlanDraft),
+      floorPlanDrafts: floorPlanDrafts.map((draft) => this.floorplanReader.mapFloorPlanDraft(draft)),
     };
   }
 

@@ -7,6 +7,7 @@ export * from './contracts/trust/trust-ops.tokens';
 export * from './infrastructure/trust/audit-writer.adapter';
 export * from './application/trust/audit.service';
 export * from './application/trust/security-operations.service';
+export * from './contracts/trust/authentication-failure-details';
 export * from './application/trust/audit.mappers';
 export * from './application/trust/privacy-operations.service';
 
@@ -25,7 +26,6 @@ export * from './api/storage/storage.controller';
 
 export * from './api/ai-governance/ai-governance.controller';
 export * from './api/ai-governance/conforme-comms-drafts.controller';
-export * from './api/ai-governance/ai-governance.dto';
 export * from './application/ai-governance/ai-governance.service';
 export * from './application/ai-governance/conforme-comms-draft.service';
 export * from './application/ai-governance/pare/pare.service';

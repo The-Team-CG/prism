@@ -20,5 +20,4 @@ export * from './contracts/registration-platform-reader.port';
 export * from './application/guest/guest-workflow.service';
 export * from './application/guest/registration-platform.service';
 export * from './api/guest/guest.controller';
-export * from './api/guest/guest.dto';
 export * from './api/guest/registration-platform.controller';

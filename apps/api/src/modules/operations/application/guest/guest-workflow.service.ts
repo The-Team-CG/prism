@@ -9,11 +9,18 @@ import { STAFFING_READER } from '../../contracts/staffing-ops.tokens';
 import type { StaffingReader } from '../../contracts/staffing-reader.port';
 import type {
   CoordinatorWalkInCheckInInput,
+  CreateGuestCheckInInput,
   CreateGuestFeedbackInput,
   GuestRosterSearchInput,
   ImportGuestRosterInput,
   ModerateGuestFeedbackInput,
   PrismCoordinatorRegistrationEntry,
+  PrismGuestCheckIn,
+  PrismGuestEventPass,
+  PrismEvent,
+  PrismGuestFeedback,
+  PrismGuestFeedbackMedia,
+  PrismGuestFeedbackReceipt,
   PrismGuestRosterEntry,
   UpdateGuestVerificationInput,
   UploadMetadataInput,
@@ -22,18 +29,15 @@ import type {
 } from '@prism/types';
 import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
+import type { GuestCommands } from '../../contracts/guest-commands.port';
 
-export type EventWithDrafts = OpsEvent & { floorPlanDrafts?: unknown[]; walkInPolicy?: string | null; walkInThreshold?: number | null };
+export type EventWithDrafts = Prisma.OpsEventGetPayload<{
+  include: { floorPlanDrafts: { select: { id: true; floorPlanId: true; isActive: true } } };
+}>;
+type GuestFeedbackWithMedia = Prisma.OpsGuestFeedbackGetPayload<{ include: { mediaAttachments: true } }>;
 
-export type GuestCheckInInput = {
-  guestName: string;
-  rosterEntryId?: string;
-  checkInMode?: string;
-  walkIn?: boolean;
-  verificationStatus?: string;
+export type GuestCheckInInput = Omit<CreateGuestCheckInInput, 'privacyConsentAccepted'> & {
   privacyConsentAccepted?: boolean;
-  privacyNoticeVersion?: string;
-  marketingConsentAccepted?: boolean;
 };
 
 export type GuestFeedbackInput = CreateGuestFeedbackInput;
@@ -49,7 +53,7 @@ const MAX_GUEST_ROSTER_SEARCH = 500;
 const MAX_GUEST_EVENT_FLOORPLAN_DRAFTS = 100;
 
 @Injectable()
-export class GuestWorkflowService {
+export class GuestWorkflowService implements GuestCommands {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
@@ -80,30 +84,44 @@ export class GuestWorkflowService {
     return this.prisma.opsGuestCheckIn.count({ where: { eventId } });
   }
 
-  listCheckInsForEvent(eventId: string) {
-    return this.prisma.opsGuestCheckIn.findMany({ where: { eventId }, orderBy: [{ checkedInAt: 'desc' }, { id: 'desc' }], take: MAX_GUEST_CHECK_INS });
+  async listCheckInsForEvent(eventId: string): Promise<PrismGuestCheckIn[]> {
+    const checkIns = await this.prisma.opsGuestCheckIn.findMany({
+      where: { eventId },
+      orderBy: [{ checkedInAt: 'desc' }, { id: 'desc' }],
+      take: MAX_GUEST_CHECK_INS,
+    });
+    return checkIns.map((checkIn) => this.mapGuestCheckIn(checkIn));
   }
 
-  listCheckInsForEvents(eventIds: string[]) {
-    if (eventIds.length === 0) return Promise.resolve([]);
-    return this.prisma.opsGuestCheckIn.findMany({
+  async listCheckInsForEvents(eventIds: string[]): Promise<PrismGuestCheckIn[]> {
+    if (eventIds.length === 0) return [];
+    const checkIns = await this.prisma.opsGuestCheckIn.findMany({
       where: { eventId: { in: eventIds } },
       orderBy: [{ checkedInAt: 'desc' }, { id: 'desc' }],
       take: MAX_GUEST_CHECK_INS,
     });
+    return checkIns.map((checkIn) => this.mapGuestCheckIn(checkIn));
   }
 
-  listFeedbackForEvent(eventId: string) {
-    return this.prisma.opsGuestFeedback.findMany({ where: { eventId }, orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }], take: MAX_GUEST_FEEDBACK });
-  }
-
-  listFeedbackForEvents(eventIds: string[]) {
-    if (eventIds.length === 0) return Promise.resolve([]);
-    return this.prisma.opsGuestFeedback.findMany({
-      where: { eventId: { in: eventIds } },
+  async listFeedbackForEvent(eventId: string): Promise<PrismGuestFeedback[]> {
+    const feedback = await this.prisma.opsGuestFeedback.findMany({
+      where: { eventId },
+      include: { mediaAttachments: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } },
       orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
       take: MAX_GUEST_FEEDBACK,
     });
+    return feedback.map((item) => this.mapGuestFeedback(item));
+  }
+
+  async listFeedbackForEvents(eventIds: string[]): Promise<PrismGuestFeedback[]> {
+    if (eventIds.length === 0) return [];
+    const feedback = await this.prisma.opsGuestFeedback.findMany({
+      where: { eventId: { in: eventIds } },
+      include: { mediaAttachments: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } },
+      orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
+      take: MAX_GUEST_FEEDBACK,
+    });
+    return feedback.map((item) => this.mapGuestFeedback(item));
   }
 
   countPendingFeedbackForEvent(eventId: string) {
@@ -113,6 +131,7 @@ export class GuestWorkflowService {
   listPendingFeedbackForEvent(eventId: string) {
     return this.prisma.opsGuestFeedback.findMany({
       where: { eventId, moderationStatus: 'pending_review' },
+      include: { mediaAttachments: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } },
       orderBy: [{ submittedAt: 'asc' }, { id: 'asc' }],
       take: MAX_GUEST_FEEDBACK,
     });
@@ -131,8 +150,9 @@ export class GuestWorkflowService {
     });
   }
 
-  async checkInByAccessCode(accessCode: string, input: GuestCheckInInput): Promise<OpsGuestCheckIn> {
-    return this.createCheckIn(() => this.resolveGuestEventByAccessCode(accessCode), input);
+  async checkInByAccessCode(accessCode: string, input: GuestCheckInInput): Promise<PrismGuestCheckIn> {
+    const checkIn = await this.createCheckIn(() => this.resolveGuestEventByAccessCode(accessCode), input);
+    return this.mapGuestCheckIn(checkIn);
   }
 
   async registerWalkIn(eventId: string, input: CoordinatorWalkInCheckInInput, actor: GuestWorkflowActor) {
@@ -255,11 +275,11 @@ export class GuestWorkflowService {
     });
   }
 
-  async submitFeedbackByAccessCode(accessCode: string, input: GuestFeedbackInput): Promise<OpsGuestFeedback> {
+  async submitFeedbackByAccessCode(accessCode: string, input: GuestFeedbackInput): Promise<PrismGuestFeedbackReceipt> {
     let event: EventWithDrafts | null = null;
     let guestName = '';
 
-    return this.workflowCommandService.execute<OpsGuestFeedback>({
+    const feedback = await this.workflowCommandService.execute<OpsGuestFeedback>({
       name: 'guest_feedback',
       sideEffectMode: 'same_tx',
       context: { actorId: 'guest', actorRole: OpsUserRole.Guest, correlationId: `guest_feedback_${randomUUID()}` },
@@ -323,6 +343,7 @@ export class GuestWorkflowService {
         });
       },
     });
+    return this.mapGuestFeedbackReceipt(feedback);
   }
 
   async importRoster(eventId: string, input: ImportGuestRosterInput, actor: { id?: string; name: string; role: string }) {
@@ -463,7 +484,7 @@ export class GuestWorkflowService {
       return walkIn;
   }
 
-  async withdrawFeedbackConsentByAccessCode(accessCode: string, feedbackId: string, input: WithdrawGuestFeedbackConsentInput) {
+  async withdrawFeedbackConsentByAccessCode(accessCode: string, feedbackId: string, input: WithdrawGuestFeedbackConsentInput): Promise<PrismGuestFeedbackReceipt> {
     const event = await this.resolveGuestEventByAccessCode(accessCode, true);
     this.assertFeedbackWindow(event);
     return this.prisma.$transaction(async (tx) => {
@@ -489,7 +510,7 @@ export class GuestWorkflowService {
         affectedLabel: feedback.guestName,
         metadata: { withdrawPrivacyConsent: Boolean(input.withdrawPrivacyConsent), withdrawMarketingConsent: Boolean(input.withdrawMarketingConsent) },
       }, { prisma: tx, correlationId: `feedback_consent_${feedbackId}` });
-      return updated;
+      return this.mapGuestFeedbackReceipt(updated);
     });
   }
 
@@ -509,6 +530,7 @@ export class GuestWorkflowService {
           moderatedBy: actor.name,
           moderatedAt: new Date(),
         },
+        include: { mediaAttachments: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } },
       });
       const actionLabel = input.action === 'approve' ? 'approved' : input.action === 'reject' ? 'rejected' : 'hidden';
       await writeAudit(this.auditWriter, eventId, actor.name, `Guest feedback ${actionLabel}`, {
@@ -537,7 +559,13 @@ export class GuestWorkflowService {
     if (!matched) throw new NotFoundException('Guest event code was not found');
     const event = await this.prisma.opsEvent.findUnique({
       where: { id: matched.id },
-      include: { floorPlanDrafts: { orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], take: MAX_GUEST_EVENT_FLOORPLAN_DRAFTS } },
+      include: {
+        floorPlanDrafts: {
+          select: { id: true, floorPlanId: true, isActive: true },
+          orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+          take: MAX_GUEST_EVENT_FLOORPLAN_DRAFTS,
+        },
+      },
     });
     if (!event) throw new NotFoundException('Guest event code was not found');
     return event;
@@ -556,7 +584,7 @@ export class GuestWorkflowService {
     if (now > event.actualEndedAt.getTime() + 7 * 24 * 60 * 60 * 1000) throw new BadRequestException('The seven-day guest feedback window has closed');
   }
 
-  guestAccessCode(event: Pick<OpsEvent, 'id' | 'eventName'>) {
+  guestAccessCode(event: Pick<PrismEvent, 'id' | 'eventName'>) {
     const namePart =
       event.eventName
         .toUpperCase()
@@ -633,11 +661,11 @@ export class GuestWorkflowService {
     }
   }
 
-  mapGuestEvent(event: EventWithDrafts, attendanceCount = 0) {
+  mapGuestEvent(event: EventWithDrafts, attendanceCount = 0): PrismGuestEventPass {
     const floorPlanDrafts = event.floorPlanDrafts ?? [];
     const activeDraft =
-      floorPlanDrafts.find((draft: any) => draft.isActive) ??
-      floorPlanDrafts.find((draft: any) => draft.floorPlanId === event.floorPlanId);
+      floorPlanDrafts.find((draft) => draft.isActive) ??
+      floorPlanDrafts.find((draft) => draft.floorPlanId === event.floorPlanId);
 
     return {
       id: event.id,
@@ -646,7 +674,7 @@ export class GuestWorkflowService {
       clientName: event.clientName,
       readiness: event.readiness,
       floorPlanStatus: event.floorPlanStatus,
-      activeFloorPlanDraftId: (activeDraft as any)?.id,
+      activeFloorPlanDraftId: activeDraft?.id,
       guestAccessCode: this.guestAccessCode(event),
       attendanceCount,
       watermark: this.guestEventWatermark(event.updatedAt, attendanceCount),
@@ -657,7 +685,7 @@ export class GuestWorkflowService {
     return `${updatedAt.toISOString()}:${attendanceCount}`;
   }
 
-  mapGuestCheckIn(checkIn: OpsGuestCheckIn) {
+  mapGuestCheckIn(checkIn: OpsGuestCheckIn): PrismGuestCheckIn {
     return {
       id: checkIn.id,
       eventId: checkIn.eventId,
@@ -667,10 +695,15 @@ export class GuestWorkflowService {
       status: checkIn.status,
       walkIn: checkIn.walkIn,
       verificationStatus: checkIn.verificationStatus,
-      privacyConsentAccepted: (checkIn as any).privacyConsentAccepted ?? false,
-      privacyNoticeVersion: (checkIn as any).privacyNoticeVersion ?? '',
-      marketingConsentAccepted: (checkIn as any).marketingConsentAccepted ?? false,
       checkedInAt: checkIn.checkedInAt.toISOString(),
+    };
+  }
+
+  mapGuestFeedbackReceipt(feedback: Pick<OpsGuestFeedback, 'id' | 'eventId' | 'submittedAt'>): PrismGuestFeedbackReceipt {
+    return {
+      id: feedback.id,
+      eventId: feedback.eventId,
+      submittedAt: feedback.submittedAt.toISOString(),
     };
   }
 
@@ -713,7 +746,7 @@ export class GuestWorkflowService {
     };
   }
 
-  mapGuestFeedback(feedback: OpsGuestFeedback) {
+  mapGuestFeedback(feedback: GuestFeedbackWithMedia): PrismGuestFeedback {
     return {
       id: feedback.id,
       eventId: feedback.eventId,
@@ -722,25 +755,28 @@ export class GuestWorkflowService {
       comment: feedback.comment,
       photoFileName: feedback.photoFileName ?? null,
       videoFileName: feedback.videoFileName ?? null,
-      privacyConsentAccepted: (feedback as any).privacyConsentAccepted ?? false,
-      privacyNoticeVersion: (feedback as any).privacyNoticeVersion ?? '',
-      marketingConsentAccepted: (feedback as any).marketingConsentAccepted ?? false,
+      privacyConsentAccepted: feedback.privacyConsentAccepted,
+      privacyNoticeVersion: feedback.privacyNoticeVersion,
+      marketingConsentAccepted: feedback.marketingConsentAccepted,
       moderationStatus: feedback.moderationStatus,
-      moderationReason: (feedback as any).moderationReason ?? null,
-      moderatedById: (feedback as any).moderatedById ?? null,
-      moderatedBy: (feedback as any).moderatedBy ?? null,
-      moderatedAt: (feedback as any).moderatedAt?.toISOString?.() ?? null,
-      privacyConsentWithdrawnAt: (feedback as any).privacyConsentWithdrawnAt?.toISOString?.() ?? null,
-      marketingConsentWithdrawnAt: (feedback as any).marketingConsentWithdrawnAt?.toISOString?.() ?? null,
-      mediaAttachments: ((feedback as any).mediaAttachments ?? []).map((media: any) => ({
-        id: media.id,
-        kind: media.kind,
-        originalFileName: media.originalFileName,
-        mimeType: media.mimeType,
-        sizeBytes: media.sizeBytes,
-        status: media.status,
-        blocker: media.blocker,
-      })),
+      moderationReason: feedback.moderationReason,
+      moderatedById: feedback.moderatedById,
+      moderatedBy: feedback.moderatedBy,
+      moderatedAt: feedback.moderatedAt?.toISOString() ?? null,
+      privacyConsentWithdrawnAt: feedback.privacyConsentWithdrawnAt?.toISOString() ?? null,
+      marketingConsentWithdrawnAt: feedback.marketingConsentWithdrawnAt?.toISOString() ?? null,
+      mediaAttachments: feedback.mediaAttachments.flatMap((media): PrismGuestFeedbackMedia[] => {
+        if (media.kind !== 'photo' && media.kind !== 'video') return [];
+        return [{
+          id: media.id,
+          kind: media.kind,
+          originalFileName: media.originalFileName,
+          mimeType: media.mimeType,
+          sizeBytes: media.sizeBytes,
+          status: media.status,
+          blocker: media.blocker,
+        }];
+      }),
       submittedAt: feedback.submittedAt.toISOString(),
     };
   }

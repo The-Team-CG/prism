@@ -10,6 +10,7 @@ import { asArray } from '@prism/kernel/shared';
 import type { CanvasObject, JsonValue, VenueTemplate } from '@prism/kernel/shared';
 import { randomUUID } from 'node:crypto';
 import { defaultSeatCategories } from '@prism/kernel/shared';
+import type { CreateFloorPlanDraftInput, UpdatePlanInput } from '@prism/types';
 import {
   floorPlanScalarPatch,
   jsonIfDefined,
@@ -20,23 +21,18 @@ import {
 const TEMPLATE_LIST_LIMIT = 100;
 const TEMPLATE_PLAN_KEYS = ['objects', 'width', 'height', 'gridSize', 'venue', 'pax', 'guests', 'suppliers'] as const;
 
-type TemplateUpdateInput = {
+type TemplateUpdateInput = Pick<
+  CreateFloorPlanDraftInput,
+  'venue' | 'width' | 'height' | 'gridSize' | 'pax' | 'guests' | 'suppliers'
+> & {
   name?: string;
   description?: string;
-  venue?: string;
   venueRules?: string;
   permanentFeatures?: CanvasObject[];
-  objects?: CanvasObject[];
-  width?: number;
-  height?: number;
-  gridSize?: number;
-  pax?: number;
   includeGuests?: boolean;
   includeSuppliers?: boolean;
-  guests?: unknown[];
-  suppliers?: unknown[];
   sourceType?: string;
-};
+} & Pick<UpdatePlanInput, 'objects'>;
 
 function templateRowPatch(input: TemplateUpdateInput): Prisma.VenueTemplateUpdateInput {
   const data: Record<string, unknown> = {};
