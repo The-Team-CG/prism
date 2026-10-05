@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Removed 11 unreferenced API DTO files and their stale barrel/controller imports; retired the unbound, always-unavailable signed-upload shim while keeping canonical storage flows and active DTO validation.
+- Replaced production API `any` escapes with typed owner mappings and shared contracts; guest commands return serialized receipts, supplier writes use canonical Zod schemas, and unused commercial reader/DTO surfaces were removed.
+- Corrected the supplier workspace quote fixture to include the required update timestamp for typed mapping.
+- Added a canonical column authority register for all 1,159 baseline columns, with DDD ownership, physical types/defaults, provisional semantic and sensitivity review, candidate consumers, and migration dispositions; no unverified data conversion is included.
 - Fixed the archived coordinator event regression test to wait for refreshed role data before submitting after switching back to a current event.
 
 ### Fixed
@@ -20,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Updated floorplan workflow test actors with required IDs, restoring API typecheck.
 
 ### Added
+- Recorded the approved 91-model ownership manifest, one-schema-per-domain and same-domain-only foreign-key policy, and shared DDD terms in canonical architecture references.
 - Added a coordinator registration desk for assigned registration roles, with a minimized roster projection, guest verification and check-in actions, and a walk-in roster flow that requires explicit privacy consent, obeys PMCM policy, and exposes new arrivals for PMCM verification before check-in.
 - Added PMCM and coordinator event-day forms for schedule days and segments, shift handoffs, and end-of-day reports; coordinator handoff/report history is event-scoped, only report authors can update prefilled reports, blank reports are rejected, schedule-segment transitions are validated by the API, and coordinator schedule writes remain limited to the designated operator.
 - Added a PMCM postponement impact panel that lists recorded coordinator booking or declared-availability conflicts, retains the last date snapshot while a new date is unconfirmed, and clears it when the decision releases assignments or cancels the event.
