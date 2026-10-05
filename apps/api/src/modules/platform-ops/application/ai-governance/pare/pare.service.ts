@@ -4,6 +4,7 @@ import { BadRequestException, ConflictException, Inject, Injectable, NotFoundExc
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
+import { PLATFORM_REFERENCE_READ_MODEL, type PlatformReferenceReadModel } from '@prism/contexts/read-models';
 import {
   aiAuditEvidenceSchema,
   aiPareProvenanceChainEvidenceSchema,
@@ -18,6 +19,7 @@ import {
 } from '../gateway/ai-gateway.config';
 import { assertPareExecutionAllowed, configuredPareMode, PareConfigurationError, type PAREMode } from './pare-execution.policy';
 import { DataSanitizerService } from './data-sanitizer.service';
+import { PareSourceNotFoundError } from './pare-source.errors';
 import { EventContextAgent } from './agents/event-context.agent';
 import { SupplierFinderAgent } from './agents/supplier-finder.agent';
 import { BudgetAgent } from './agents/budget.agent';
@@ -109,11 +111,6 @@ function auditEventId(audit: Pick<AuditRow, 'sanitizedPayload'>): string {
   return typeof value === 'string' ? value : '';
 }
 
-function isAbortSignal(value: unknown): value is AbortSignal {
-  return Boolean(value && typeof value === 'object' && 'aborted' in value && 'addEventListener' in value);
-}
-
-type PreparedPareContext = NonNullable<Parameters<EventContextAgent['buildPareEventContext']>[1]>;
 type PareChainEvidence = NonNullable<AiAuditEvidence['pareChain']>;
 type PareChainVersion = typeof PARE_LINEAR_CHAIN_PROVENANCE_VERSION | typeof PARE_CHAIN_PROVENANCE_VERSION;
 type BudgetAgentRun = Awaited<ReturnType<BudgetAgent['runPareBudgetAgent']>>;
@@ -254,19 +251,6 @@ function createPareGatewaySignal(executionSignal: AbortSignal | undefined, cance
     : [cancellation.signal]);
 }
 
-function resolveTriggerArgs(
-  sourceDispatchIdOrPrefetched?: string | PreparedPareContext,
-  prefetchedOrSignal?: PreparedPareContext | AbortSignal,
-  signal?: AbortSignal,
-): { sourceDispatchId?: string; executionSignal?: AbortSignal; preparedContext?: PreparedPareContext } {
-  const sourceDispatchId = typeof sourceDispatchIdOrPrefetched === 'string' ? sourceDispatchIdOrPrefetched : undefined;
-  const executionSignal = isAbortSignal(prefetchedOrSignal) ? prefetchedOrSignal : signal;
-  const preparedContext = typeof sourceDispatchIdOrPrefetched === 'object'
-    ? sourceDispatchIdOrPrefetched
-    : isAbortSignal(prefetchedOrSignal) ? undefined : prefetchedOrSignal;
-  return { sourceDispatchId, executionSignal, preparedContext };
-}
-
 function assertLivePareRoute(runtime: AiGatewayRuntimeConfig): void {
   if (runtime.isProduction) {
     throw new PareConfigurationError('Live PARE is disabled in production until its activation is approved');
@@ -378,12 +362,14 @@ export class PAREService implements PareApprovalGovernance {
     @Optional() @Inject(AI_GATEWAY_RUNTIME_CONFIG) private readonly aiRuntime?: AiGatewayRuntimeConfig,
     @Optional() @Inject(AI_SYNTHETIC_PROVENANCE_VERIFIER)
     private readonly syntheticVerifier?: AiSyntheticProvenanceVerifier,
+    @Optional() @Inject(PLATFORM_REFERENCE_READ_MODEL)
+    private readonly platformReferences?: PlatformReferenceReadModel,
   ) {
     this.mode = configuredPareMode(process.env.PARE_MODE, this.aiRuntime?.localSyntheticProviderMode === true);
     if (this.mode === 'live' && this.aiRuntime) assertLivePareRoute(this.aiRuntime);
     this.sanitizer = new DataSanitizerService();
-    this.eventContextAgent = new EventContextAgent(prisma);
-    this.supplierFinderAgent = new SupplierFinderAgent(prisma);
+    this.eventContextAgent = new EventContextAgent();
+    this.supplierFinderAgent = new SupplierFinderAgent();
     this.budgetAgent = new BudgetAgent(this.mode, this.aiGateway);
     this.riskAgent = new RiskAgent(this.mode, this.aiGateway);
     this.messageDrafterAgent = new MessageDrafterAgent(this.mode, this.aiGateway);
@@ -391,19 +377,15 @@ export class PAREService implements PareApprovalGovernance {
 
   async handleEmergencyTrigger(
     triggerId: string,
-    sourceDispatchIdOrPrefetched?: string | PreparedPareContext,
-    prefetchedOrSignal?: PreparedPareContext | AbortSignal,
-    signal?: AbortSignal,
+    sourceDispatchId?: string,
+    executionSignal?: AbortSignal,
   ): Promise<PAREApprovalRecord> {
-    const { sourceDispatchId, executionSignal, preparedContext } = resolveTriggerArgs(
-      sourceDispatchIdOrPrefetched, prefetchedOrSignal, signal,
-    );
     const existing = await this.findExistingDispatchApproval(triggerId, sourceDispatchId);
     if (existing) return existing;
     this.assertExecutionDependencies();
     this.throwIfAborted(executionSignal);
     const triggeredAt = new Date();
-    const ctx = await this.buildPareContext(triggerId, preparedContext, sourceDispatchId, executionSignal);
+    const ctx = await this.buildPareContext(triggerId, sourceDispatchId, executionSignal);
     const syntheticPareChain = await this.beginSyntheticPareChain(ctx);
     this.throwIfAborted(executionSignal);
     const gatewayCancellation = new AbortController();
@@ -434,17 +416,36 @@ export class PAREService implements PareApprovalGovernance {
 
   private async buildPareContext(
     triggerId: string,
-    preparedContext: PreparedPareContext | undefined,
     sourceDispatchId: string | undefined,
     signal: AbortSignal | undefined,
   ): Promise<PAREContext> {
+    if (!this.platformReferences) {
+      throw new PareConfigurationError('Platform reference read model is unavailable; PARE execution is disabled');
+    }
+    const source = await this.platformReferences.findPareEventSource(triggerId);
+    if (!source) throw new PareSourceNotFoundError(`PARE: quote request ${triggerId} has no matching event source`);
+    if (sourceDispatchId) {
+      const dispatch = await this.prisma.opsPareDispatch.findUnique({
+        where: { id: sourceDispatchId },
+        select: { id: true, requestId: true, eventId: true },
+      });
+      if (!dispatch || dispatch.requestId !== triggerId || dispatch.eventId !== source.event.id) {
+        throw new PareSourceNotFoundError(`PARE: dispatch ${sourceDispatchId} does not match quote request ${triggerId}`);
+      }
+    }
     const ctx = await this.eventContextAgent.buildPareEventContext(
       triggerId,
-      preparedContext,
+      source,
       Boolean(sourceDispatchId),
       signal,
     );
-    ctx.candidates = await this.supplierFinderAgent.findPareSupplierCandidates(ctx, signal);
+    const suppliers = await this.platformReferences.findPareSupplierCandidates({
+      category: ctx.withdrawnSupplier.category,
+      withdrawnSupplierId: ctx.withdrawnSupplier.id,
+      withdrawnSupplierName: ctx.withdrawnSupplier.name,
+      eventId: ctx.eventId,
+    });
+    ctx.candidates = await this.supplierFinderAgent.findPareSupplierCandidates(ctx, suppliers, signal);
     return ctx;
   }
 

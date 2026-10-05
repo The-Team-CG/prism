@@ -7,6 +7,8 @@
 * [ADR-0005: Next route and feature MVVM architecture](adr-0005-next-route-and-feature-mvvm.md) - thin routes, route groups, URL preservation, and feature slices.
 * [ADR-0006: Focused ports and composition-root adapters](adr-0006-focused-ports-and-composition-roots.md) - extraction-ready dependency inversion without premature services.
 * [ADR-0007: Retire the broad sample runtime; keep local fixture seeding](adr-0007-retire-sample-runtime-keep-local-fixture-seeding.md) - remove aggregate routes and browser-local demo state; preserve a guarded seed-only development path.
+* [ADR-0008: One PostgreSQL schema per owning domain](adr-0008-domain-owned-postgres-schemas.md) - one write owner per table, same-domain FKs only, and a coordinated schema transition.
+* [ADR-0009: Privacy legal-hold scope and authority](adr-0009-privacy-legal-hold-scope-and-authority.md) - subject/event scope, PMCM-admin control, fail-closed redaction, and retained release evidence.
 * [ADR-0008: One PostgreSQL schema per owning domain](adr-0008-domain-owned-postgres-schemas.md) - one table owner per write domain, one target schema per domain, and no cross-domain foreign keys.
 
 ADR status is current unless an accepted successor explicitly supersedes the

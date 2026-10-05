@@ -94,6 +94,9 @@
       "@prism/contexts/event-lifecycle": [
         "src/modules/event-lifecycle/index"
       ],
+      "@prism/contexts/event-lifecycle/floorplan-reference": [
+        "src/modules/event-lifecycle/floorplan-reference"
+      ],
       "@prism/contexts/event-lifecycle/*": [
         "src/modules/event-lifecycle/*"
       ],

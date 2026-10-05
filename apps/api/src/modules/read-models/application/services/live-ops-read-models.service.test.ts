@@ -47,6 +47,7 @@ function eventFixture(): OpsEvent & { floorPlanDrafts: OpsFloorPlanDraft[] } {
     floorPlanId: null,
     floorPlanSubmittedAt: null,
     floorPlanReviewedAt: null,
+    floorPlanProjectionVersion: 0,
     proposalClientStatus: 'pending',
     proposalRevisionCount: 0,
     proposalReviewedAt: null,
@@ -58,6 +59,7 @@ function eventFixture(): OpsEvent & { floorPlanDrafts: OpsFloorPlanDraft[] } {
     createdAt: CREATED_AT,
     updatedAt: CREATED_AT,
     floorPlanDrafts: [],
+    floorPlanProjectionVersion: 0,
   } as OpsEvent & { floorPlanDrafts: OpsFloorPlanDraft[] };
 }
 

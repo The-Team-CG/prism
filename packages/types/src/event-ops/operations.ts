@@ -85,6 +85,12 @@ export interface PrismCoordinatorAssignmentAcknowledgment {
   createdAt: string;
 }
 
+/** Result from the Operations attendance command; `changed` suppresses duplicate LiveOps log intent. */
+export interface PrismCoordinatorAttendanceUpdateResult {
+  assignment: PrismCoordinatorAssignment;
+  changed: boolean;
+}
+
 export interface PrismCoordinatorReliabilityHistoryEntry {
   id: string;
   eventId: string | null;

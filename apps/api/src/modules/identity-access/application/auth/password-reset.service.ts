@@ -86,7 +86,16 @@ export class PasswordResetService {
 
         await tx.opsUser.update({
           where: { id: candidate.userId },
-          data: { password: AuthSecurityService.hashPassword(password), sessionVersion: { increment: 1 }, failedLoginCount: 0, lockedUntil: null },
+          data: {
+            password: AuthSecurityService.hashPassword(password),
+            sessionVersion: { increment: 1 },
+            failedLoginCount: 0,
+            lockedUntil: null,
+            twoFactorChallengeHash: null,
+            twoFactorChallengeExpiresAt: null,
+            twoFactorChallengeAttempts: 0,
+            twoFactorChallengeConsumedAt: null,
+          },
         });
       });
     } catch (error) {

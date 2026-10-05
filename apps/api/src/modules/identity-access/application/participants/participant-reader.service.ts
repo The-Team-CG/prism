@@ -1,23 +1,30 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
+import { PARTICIPANT_FACTS, type ParticipantEventFacts, type ParticipantFactsReader } from '@prism/contexts/read-models/participant-facts';
 import type { ParticipantReader } from '../../contracts/participant-reader.port';
 
-const communicationEventInclude = { inquiry: true, supplierQuoteRequests: { select: { supplierId: true, assignmentStatus: true } }, coordinatorAssignments: { select: { coordinatorId: true, status: true } } } as const;
-type CommunicationEvent = Prisma.OpsEventGetPayload<{ include: typeof communicationEventInclude }>;
-
 function normalizeEmail(value: string) { return value.trim().toLowerCase(); }
+const activeSupplierStatuses = ['confirmed', 'pending_confirmation'];
+
+function toPolicyEvent(facts: ParticipantEventFacts) {
+  return { ...facts.event, inquiry: facts.event.inquiryEmail === null ? null : { email: facts.event.inquiryEmail } };
+}
 
 @Injectable()
 export class ParticipantReaderService implements ParticipantReader {
-  constructor(private readonly prisma: PrismaService, private readonly policy: EventAccessPolicyService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly policy: EventAccessPolicyService,
+    @Inject(PARTICIPANT_FACTS) private readonly factsReader: ParticipantFactsReader,
+  ) {}
 
-  async resolveForEvent(actorId: string, eventId: string): Promise<ResolvedEventOpsActor> {
+  async resolveForEvent(actorId: string, eventId: string, db?: Prisma.TransactionClient): Promise<ResolvedEventOpsActor> {
     const [user, event] = await Promise.all([
-      this.prisma.opsUser.findUnique({ where: { id: actorId }, select: { id: true, name: true, email: true, role: true, approvalStatus: true } }),
-      this.prisma.opsEvent.findUnique({ where: { id: eventId }, include: communicationEventInclude }),
+      (db ?? this.prisma).opsUser.findUnique({ where: { id: actorId }, select: { id: true, name: true, email: true, role: true, approvalStatus: true } }),
+      this.factsReader.findForEvent(eventId, db),
     ]);
     if (!user || user.approvalStatus !== 'approved') throw new NotFoundException('Communication participant account not found');
     if (!event) throw new NotFoundException('Event not found');
@@ -28,66 +35,59 @@ export class ParticipantReaderService implements ParticipantReader {
 
   async listEligibleForEvent(eventId: string, requester: ResolvedEventOpsActor) {
     if (requester.role !== OpsUserRole.PmcmAdmin && requester.role !== OpsUserRole.System) throw new ForbiddenException('Only PMCM can enumerate communication participants');
-    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, include: communicationEventInclude });
+    const facts = await this.factsReader.findForEvent(eventId);
+    const event = facts && toPolicyEvent(facts);
     if (!event) throw new NotFoundException('Event not found');
     const users = await this.prisma.opsUser.findMany({ where: { approvalStatus: 'approved' }, select: { id: true, name: true, email: true, role: true }, orderBy: { id: 'asc' } });
-    const assignedSupplierIds = Array.from(new Set(event.supplierQuoteRequests
-      .filter((request) => request.supplierId && ['confirmed', 'pending_confirmation'].includes(request.assignmentStatus))
-      .map((request) => request.supplierId)
-      .filter((supplierId): supplierId is string => typeof supplierId === 'string')));
-    const [suppliers, coordinators] = await Promise.all([
-      assignedSupplierIds.length
-        ? this.prisma.opsSupplier.findMany({ where: { id: { in: assignedSupplierIds } }, select: { id: true, email: true } })
-        : Promise.resolve([]),
-      this.prisma.opsCoordinator.findMany({ where: { userId: { in: users.filter((user) => user.role === OpsUserRole.Coordinator).map((user) => user.id) } }, select: { id: true, userId: true } }),
-    ]);
-    const supplierByEmail = new Map(suppliers.map((supplier) => [normalizeEmail(supplier.email), supplier.id]));
-    const coordinatorByUser = new Map(coordinators.filter((coordinator) => coordinator.userId).map((coordinator) => [coordinator.userId!, coordinator.id]));
-    const eligible = users.filter((user) => this.canResolveRole(user, event, supplierByEmail, coordinatorByUser));
+    const eligible = users.filter((user) => this.canResolveRole(user, facts!, event));
     return eligible;
   }
 
-  private canResolveRole(user: { id: string; email: string; role: string }, event: CommunicationEvent, supplierByEmail: Map<string, string>, coordinatorByUser: Map<string, string>) {
+  private canResolveRole(user: { id: string; email: string; role: string }, facts: ParticipantEventFacts, event: ReturnType<typeof toPolicyEvent>) {
     if (user.role === OpsUserRole.PmcmAdmin || user.role === OpsUserRole.System) return true;
-    if (user.role === OpsUserRole.Client) return event.inquiry?.email.trim().toLowerCase() === normalizeEmail(user.email);
+    if (user.role === OpsUserRole.Client) return Boolean(event.inquiry?.email && normalizeEmail(event.inquiry.email) === normalizeEmail(user.email));
     if (user.role === OpsUserRole.Supplier) {
-      const supplierId = supplierByEmail.get(normalizeEmail(user.email));
-      return Boolean(supplierId && event.supplierQuoteRequests.some((request) => request.supplierId === supplierId && ['confirmed', 'pending_confirmation'].includes(request.assignmentStatus)));
+      const supplierIds = new Set(facts.suppliers.filter((supplier) => normalizeEmail(supplier.email) === normalizeEmail(user.email)).map(({ id }) => id));
+      return facts.supplierAssignments.some((assignment) => assignment.supplierId && supplierIds.has(assignment.supplierId) && activeSupplierStatuses.includes(assignment.status));
     }
     if (user.role === OpsUserRole.Coordinator) {
-      const coordinatorId = coordinatorByUser.get(user.id);
-      return Boolean(coordinatorId && event.coordinatorAssignments.some((assignment) => assignment.coordinatorId === coordinatorId && assignment.status !== 'cancelled'));
+      const coordinatorIds = new Set(facts.coordinators.filter((coordinator) => coordinator.userId === user.id).map(({ id }) => id));
+      return facts.coordinatorAssignments.some((assignment) => assignment.coordinatorId && coordinatorIds.has(assignment.coordinatorId) && assignment.status !== 'cancelled');
     }
     return false;
   }
 
-  private async resolveRole(actor: ResolvedEventOpsActor, role: OpsUserRole, event: CommunicationEvent, eventId: string) {
+  private async resolveRole(actor: ResolvedEventOpsActor, role: OpsUserRole, facts: ParticipantEventFacts, eventId: string) {
+    const event = toPolicyEvent(facts);
     if (role === OpsUserRole.PmcmAdmin || role === OpsUserRole.System) return actor;
     if (role === OpsUserRole.Client) return this.resolveClient(actor, event);
-    if (role === OpsUserRole.Supplier) return this.resolveSupplier(actor, event, eventId);
-    if (role === OpsUserRole.Coordinator) return this.resolveCoordinator(actor, event, eventId);
+    if (role === OpsUserRole.Supplier) return this.resolveSupplier(actor, facts, event, eventId);
+    if (role === OpsUserRole.Coordinator) return this.resolveCoordinator(actor, facts, event, eventId);
     throw new ForbiddenException('Account role cannot join communication threads');
   }
 
-  private async resolveClient(actor: ResolvedEventOpsActor, event: CommunicationEvent) {
+  private async resolveClient(actor: ResolvedEventOpsActor, event: ReturnType<typeof toPolicyEvent>) {
     await this.policy.requireCanReadEvent(actor, event, 'communication participant', {});
     return actor;
   }
 
-  private async resolveSupplier(actor: ResolvedEventOpsActor, event: CommunicationEvent, eventId: string) {
-    const supplier = await this.prisma.opsSupplier.findFirst({ where: { email: { equals: normalizeEmail(actor.email ?? ''), mode: 'insensitive' } }, select: { id: true } });
-    const assigned = supplier && event.supplierQuoteRequests.some((request) => request.supplierId === supplier.id && ['confirmed', 'pending_confirmation'].includes(request.assignmentStatus));
+  private async resolveSupplier(actor: ResolvedEventOpsActor, facts: ParticipantEventFacts, event: ReturnType<typeof toPolicyEvent>, eventId: string) {
+    const supplier = facts.suppliers.find(({ email, id }) =>
+      normalizeEmail(email) === normalizeEmail(actor.email ?? '') &&
+      facts.supplierAssignments.some((request) => request.supplierId === id && activeSupplierStatuses.includes(request.status)),
+    );
+    const assigned = Boolean(supplier);
     if (!assigned) throw new ForbiddenException('Supplier is not assigned to this event');
-    actor.supplierId = supplier!.id;
+    actor.supplierId = supplier.id;
     await this.policy.requireCanReadEvent(actor, event, 'communication participant', { supplierEventIds: [eventId] });
     return actor;
   }
 
-  private async resolveCoordinator(actor: ResolvedEventOpsActor, event: CommunicationEvent, eventId: string) {
-    const coordinator = await this.prisma.opsCoordinator.findUnique({ where: { userId: actor.id }, select: { id: true } });
-    const assigned = coordinator && event.coordinatorAssignments.some((assignment) => assignment.coordinatorId === coordinator.id && assignment.status !== 'cancelled');
+  private async resolveCoordinator(actor: ResolvedEventOpsActor, facts: ParticipantEventFacts, event: ReturnType<typeof toPolicyEvent>, eventId: string) {
+    const coordinator = facts.coordinators.find(({ userId }) => userId === actor.id);
+    const assigned = coordinator && facts.coordinatorAssignments.some((assignment) => assignment.coordinatorId === coordinator.id && assignment.status !== 'cancelled');
     if (!assigned) throw new ForbiddenException('Coordinator is not assigned to this event');
-    actor.coordinatorId = coordinator!.id;
+    actor.coordinatorId = coordinator.id;
     actor.eventId = eventId;
     await this.policy.requireCanReadEvent(actor, event, 'communication participant', {});
     return actor;
