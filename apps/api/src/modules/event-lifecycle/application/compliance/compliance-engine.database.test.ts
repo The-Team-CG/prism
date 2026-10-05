@@ -46,6 +46,7 @@ describe.skipIf(!databaseUrl)("compliance engine against PostgreSQL", () => {
     const checks = await service.runCompliance(eventId, { phase: "planning", trigger: "manual" }, operator);
     expect(checks.length).toBeGreaterThan(0);
     expect(checks.every((check) => ["satisfied", "not_satisfied", "not_applicable"].includes(check.evaluationStatus))).toBe(true);
+    expect(checks.find((check) => check.conditionKey === "lifecycle_phase_aligned")?.ruleId).toBeNull();
     expect(await prisma.opsComplianceRun.count({ where: { eventId } })).toBe(1);
     expect(await prisma.opsComplianceRisk.count({ where: { eventId, source: "rule" } })).toBeGreaterThan(0);
   });
