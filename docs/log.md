@@ -1,5 +1,9 @@
 # Documentation bundle update log
 
+## 2026-10-04
+
+- **Added:** Active column authority register covering 91 models and 1,159 baseline fields, including their DDD owner, physical type/null/default, provisional semantic and retention classifications, consumer candidates, and keep/change/retire disposition. It records no speculative conversion; owner confirmations and populated-data gates remain open.
+
 ## 2026-10-03
 
 - **Hardened:** Runtime and migration database URL precedence now share one parser; Node PostgreSQL clients verify hosted certificates, custom CA trust is explicit, non-TLS is loopback-only, and the database runbook documents the policy.

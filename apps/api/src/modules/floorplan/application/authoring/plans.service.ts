@@ -1,22 +1,12 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { FloorPlan as PrismaFloorPlan, FloorPlanObject as PrismaFloorPlanObject, Prisma } from '@prisma/client';
+import type { UpdatePlanInput } from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
 import { asArray } from '@prism/kernel/shared';
 import type { CanvasObject, FloorPlan, JsonValue, Seat, SeatCategory } from '@prism/kernel/shared';
 import { floorPlanScalarPatch, replaceFloorPlanObjects } from './plan-patch';
 
-type UpdatePlanChanges = {
-  venue?: string;
-  width?: number;
-  height?: number;
-  gridSize?: number;
-  pax?: number;
-  objects?: CanvasObject[];
-  guests?: unknown[];
-  suppliers?: unknown[];
-  seats?: Seat[];
-  seatCategories?: SeatCategory[];
-};
+type UpdatePlanChanges = UpdatePlanInput;
 
 type PlanActor = {
   actorRole?: string;
@@ -27,6 +17,7 @@ type PlanActor = {
 };
 
 type PlanWithObjects = PrismaFloorPlan & { objectRows?: PrismaFloorPlanObject[] };
+type PlanDraftWithEvent = Prisma.OpsFloorPlanDraftGetPayload<{ include: { event: true } }>;
 
 async function updatePlanWithObjects(
   tx: Prisma.TransactionClient,
@@ -157,15 +148,15 @@ export class PlansService {
     this.assertClientOwnsDraft(draft, actor, 'edit');
   }
 
-  private async findPlanDraft(planId: string) {
-    const plan = (await this.prisma.floorPlan.findUnique({
+  private async findPlanDraft(planId: string): Promise<PlanDraftWithEvent | null> {
+    const plan = await this.prisma.floorPlan.findUnique({
       where: { id: planId },
       include: { opsDraft: { include: { event: true } } },
-    } as any)) as any;
-    return plan?.opsDraft;
+    });
+    return plan?.opsDraft ?? null;
   }
 
-  private assertClientOwnsDraft(draft: any, actor: PlanActor, action: 'read' | 'edit') {
+  private assertClientOwnsDraft(draft: PlanDraftWithEvent, actor: PlanActor, action: 'read' | 'edit') {
     const actorClientName = (actor.clientName ?? actor.actorName ?? '').trim().toLowerCase();
     const eventClientName = (draft.event?.clientName ?? '').trim().toLowerCase();
     const portalUnlocked = draft.event?.clientPortalStatus === 'unlocked';
