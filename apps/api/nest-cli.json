@@ -12,7 +12,13 @@
       "entryFile": "main",
       "sourceRoot": "src",
       "compilerOptions": {
-        "tsConfigPath": "tsconfig.app.json"
+        "tsConfigPath": "tsconfig.app.json",
+        "assets": [
+          {
+            "include": "kernel/database/db-connection-config.cjs",
+            "outDir": "dist/apps/api/src"
+          }
+        ]
       }
     }
   }
