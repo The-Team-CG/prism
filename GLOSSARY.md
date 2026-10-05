@@ -20,6 +20,14 @@ _Avoid_: Direct write, shared service
 An identifier for an object whose decisions belong to another domain; the identifier does not transfer ownership.
 _Avoid_: Cross-domain entity
 
+**Current-state reference**:
+An external identifier whose target owner must confirm existence, eligibility, and required event scope before a new command commits.
+_Avoid_: Foreign key as authorization
+
+**Historical attribution**:
+An external identifier retained to explain a completed action; it does not prove current account access, event scope, or target eligibility.
+_Avoid_: Live authorization
+
 **Read model**:
 A role-scoped view composed from owner-provided information; it does not change the source information.
 _Avoid_: Shared write model

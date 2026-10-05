@@ -471,6 +471,7 @@ describe('EventLiveOpsCommandService coordinator attendance self-scope', () => {
       'coord_asg_ayala_marco',
       input,
       actor,
+      { allowAnotherAssignment: false },
     );
   });
 
@@ -493,6 +494,7 @@ describe('EventLiveOpsCommandService coordinator attendance self-scope', () => {
       'coord_asg_ayala_rhea',
       input,
       actor,
+      { allowAnotherAssignment: false },
     );
   });
 
@@ -513,6 +515,7 @@ describe('EventLiveOpsCommandService coordinator attendance self-scope', () => {
       'coord_asg_ayala_rhea',
       input,
       expect.objectContaining({ coordinatorId: 'coord_marco' }),
+      { allowAnotherAssignment: true },
     );
   });
 

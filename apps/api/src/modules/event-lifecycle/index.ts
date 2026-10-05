@@ -5,6 +5,8 @@ export * from './application/onboarding/inquiry.mappers';
 export * from './contracts/client-onboarding-commands.port';
 export * from './contracts/inquiry-commands.port';
 export * from './contracts/inquiry-onboarding.tokens';
+export * from './contracts/floorplan-projection.port';
+export * from './event-lifecycle-projection.module';
 export * from './contracts/conforme-reminder-window-claim.port';
 export { ConformeReminderWindowModule } from './conforme-reminder-window.module';
 export { ConformeReminderWindowClaimService } from './application/onboarding/conforme-reminder-window-claim.service';
