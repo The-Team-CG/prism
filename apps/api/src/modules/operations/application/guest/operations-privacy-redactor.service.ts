@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { OperationsPrivacyRedactor, OperationsRedactionResult } from '../../contracts/privacy-redaction.port';
 
@@ -21,10 +21,11 @@ export class OperationsPrivacyRedactorService implements OperationsPrivacyRedact
       select: { id: true },
     });
     for (const entry of rosterEntries) {
+      const sourceKey = await this.availableRedactedSourceKey(transaction, input.eventId, entry.id);
       await transaction.opsGuestRosterEntry.update({
         where: { id: entry.id },
         data: {
-          sourceKey: `privacy-redacted:${entry.id}`,
+          sourceKey,
           guestName: 'Redacted guest',
           normalizedName: 'redacted guest',
           email: '',
@@ -65,5 +66,23 @@ export class OperationsPrivacyRedactorService implements OperationsPrivacyRedact
       ],
       touchedRecords: rosterEntries.length + checkIns.count + feedback.count + media.count,
     };
+  }
+
+  private async availableRedactedSourceKey(
+    transaction: Prisma.TransactionClient,
+    eventId: string,
+    entryId: string,
+  ): Promise<string> {
+    const base = `privacy-redacted:${entryId}`;
+    const maxCandidates = 16;
+    for (let suffix = 0; suffix < maxCandidates; suffix += 1) {
+      const candidate = suffix === 0 ? base : `${base}:${suffix}`;
+      const existing = await transaction.opsGuestRosterEntry.findFirst({
+        where: { eventId, sourceKey: candidate },
+        select: { id: true },
+      });
+      if (!existing) return candidate;
+    }
+    throw new ConflictException('Unable to allocate a unique redacted guest roster key');
   }
 }
