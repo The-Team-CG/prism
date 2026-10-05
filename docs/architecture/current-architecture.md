@@ -9,7 +9,7 @@ authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, reviewers]
 scope: "all Prism portals, API, packages, and runtime boundaries"
-last_verified: "2026-10-04; Platform reference readers, privacy inventory projection, and Identity-owned login lockout"
+last_verified: "staging 7f64c0b plus local schema and owner-boundary verification; live migration remains unverified"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
@@ -258,17 +258,17 @@ microservice or authorization boundary.
 
 | Write domain | Target schema | Model/column inventory | Ownership |
 | --- | --- | ---: | --- |
-| event-lifecycle | event_lifecycle | 18 tables / 279 columns | Inquiry, event lifecycle, document metadata, briefing, compliance, decisions, freeze/addenda, closure |
+| event-lifecycle | event_lifecycle | 18 tables / 280 columns | Inquiry, event lifecycle, document metadata, briefing, compliance, decisions, freeze/addenda, closure |
 | commercial | commercial | 28 tables / 319 columns | Supplier network, quotes, communications, estimates, proposals, billing, payments |
 | operations | operations | 12 tables / 142 columns | Coordinator pool, assignments, acknowledgments, reliability history, guest operations |
 | live-ops | live_ops | 10 tables / 122 columns | Event-day tasks, schedules, operators, handoffs, end-of-day, issues and logs |
-| floorplan | floorplan | 6 tables / 72 columns | Official plans, drafts, templates, published copies, review state |
+| floorplan | floorplan | 7 tables / 75 columns | Official plans, drafts, projection clock, templates, published copies, review state |
 | identity-access | identity_access | 4 tables / 38 columns | Accounts, approvals, password recovery, authentication state |
 | platform-ops | platform_ops | 13 tables / 187 columns | Privacy, security, login history, audit, notifications, AI, storage, command receipts |
-| **Total** | **7 schemas** | **91 tables / 1,159 columns** | One write owner per table |
+| **Total** | **7 schemas** | **92 tables / 1,163 columns** | One write owner per table |
 
 The full assignment is in apps/api/prisma/domain-ownership.json. It records
-each of the 91 models once, including its current schema, owner, target schema,
+each of the 92 models once, including its current schema, owner, target schema,
 table name and column count. ADR-0008 and the persistence ownership register
 define the policy and transitional behavior.
 

@@ -30,7 +30,11 @@ export type VerifiedTwoFactorToken = {
   email: string;
   role: 'pmcm-admin';
   purpose: TwoFactorTokenPurpose;
+  challengeId: string;
+  sessionVersion: number;
 };
+
+const TWO_FACTOR_TOKEN_TTL_SECONDS = 10 * 60;
 function encodeJson(value: unknown) {
   return Buffer.from(JSON.stringify(value), 'utf8').toString('base64url');
 }
@@ -94,7 +98,7 @@ export class AuthSessionService {
   }
 
   issueTwoFactorToken(
-    input: { userId: string; email: string; role: 'pmcm-admin' },
+    input: { userId: string; email: string; role: 'pmcm-admin'; challengeId: string; sessionVersion: number },
     purpose: TwoFactorTokenPurpose,
     issuedAt = new Date(),
   ) {
@@ -103,10 +107,16 @@ export class AuthSessionService {
       sub: input.userId,
       email: input.email,
       role: input.role,
+      jti: input.challengeId,
+      sessionVersion: input.sessionVersion,
       purpose,
       iat: issuedAtSeconds,
-      exp: issuedAtSeconds + 10 * 60,
+      exp: issuedAtSeconds + TWO_FACTOR_TOKEN_TTL_SECONDS,
     });
+  }
+
+  twoFactorTokenExpiresAt(issuedAt = new Date()) {
+    return new Date((Math.floor(issuedAt.getTime() / 1000) + TWO_FACTOR_TOKEN_TTL_SECONDS) * 1000);
   }
 
   verifyTwoFactorToken(token: string): VerifiedTwoFactorToken {
@@ -116,11 +126,22 @@ export class AuthSessionService {
       typeof payload.sub !== 'string' ||
       typeof payload.email !== 'string' ||
       payload.role !== 'pmcm-admin' ||
+      typeof payload.jti !== 'string' ||
+      !/^[A-Za-z0-9_-]{43}$/.test(payload.jti) ||
+      (payload.sessionVersion !== undefined &&
+        (typeof payload.sessionVersion !== 'number' || !Number.isSafeInteger(payload.sessionVersion) || payload.sessionVersion < 0)) ||
       (payload.purpose !== 'setup' && payload.purpose !== 'challenge')
     ) {
       throw new UnauthorizedException('Invalid two-factor token');
     }
-    return { userId: payload.sub, email: payload.email, role: payload.role, purpose: payload.purpose };
+    return {
+      userId: payload.sub,
+      email: payload.email,
+      role: payload.role,
+      purpose: payload.purpose,
+      challengeId: payload.jti,
+      sessionVersion: typeof payload.sessionVersion === 'number' ? payload.sessionVersion : 0,
+    };
   }
 
   private signPayload(payload: Record<string, unknown>) {
