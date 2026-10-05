@@ -4,7 +4,6 @@ import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-sessi
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { createEventFromTemplateSchema, type CreateEventFromTemplateInput, type PrismVerifiedEventActor } from '@prism/types';
 import { zodBody } from '@prism/kernel/shared';
-import { CreateEventDto } from './create-event.dto';
 import { LayoutEventsService } from '../../application/authoring/layout-events.service';
 
 @Controller('layout-events')
