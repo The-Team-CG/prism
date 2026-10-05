@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Added the domain-persistence ownership guard and its tests to CI so schema ownership, foreign-key, private-write, and database-audit policy regressions fail the standard pipeline.
 - Added frozen checksums for the reviewed migration baseline and domain persistence gates for schema ownership, foreign keys, private writes, and manifest-driven database audits.
 - Added Lifecycle and LiveOps transaction-aware owner readers for additional billing. Lifecycle checks post-event eligibility and LiveOps checks same-event urgent-issue eligibility before Commercial writes.
 - Added a checked policy inventory for all 45 current cross-domain foreign keys and 28 scalar references, documenting owner checks, former delete effects, failure, and recovery; FK removal remains gated.
