@@ -78,4 +78,36 @@ describe("editor-time architecture lint", () => {
       [],
     );
   });
+
+  it("blocks explicit any types and assertions in production API code but allows tests", async () => {
+    assert.deepEqual(
+      await messages(
+        "apps/api/src/modules/floorplan/example.service.ts",
+        "const value = input as any;",
+      ),
+      [
+        {
+          ruleId: "prism/no-production-any",
+          message: "Avoid explicit 'any' in production API code; use a selected payload or explicit contract mapping.",
+        },
+      ],
+    );
+    assert.deepEqual(
+      await messages(
+        "apps/api/src/modules/floorplan/example.service.ts",
+        "function passThrough(value: any): { result: any } { return value as { result: any }; }",
+      ),
+      ["value: any", "result: any", "result: any"].map(() => ({
+        ruleId: "prism/no-production-any",
+        message: "Avoid explicit 'any' in production API code; use a selected payload or explicit contract mapping.",
+      })),
+    );
+    assert.deepEqual(
+      await messages(
+        "apps/api/src/modules/floorplan/example.service.test.ts",
+        "function passThrough(value: any): { result: any } { return value as { result: any }; }",
+      ),
+      [],
+    );
+  });
 });

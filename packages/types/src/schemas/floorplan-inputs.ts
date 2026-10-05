@@ -32,6 +32,31 @@ export const createFloorPlanPreferenceSchema = z.object({
 });
 export type CreateFloorPlanPreferenceInput = z.infer<typeof createFloorPlanPreferenceSchema>;
 
+export const prismFloorPlanPreferenceSchema = z.object({
+  seatingStyle: z.string(),
+  stagePreference: z.string(),
+  flowNotes: z.string(),
+  guestCount: z.number(),
+  constraints: z.array(z.string()),
+  notes: z.string().optional(),
+});
+
+export const prismFloorPlanSnapshotSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  venue: z.string(),
+  width: z.number(),
+  height: z.number(),
+  gridSize: z.number(),
+  pax: z.number(),
+  objects: z.array(z.unknown()).optional(),
+  guests: z.array(z.unknown()).optional(),
+  suppliers: z.array(z.unknown()).optional(),
+  seats: z.array(z.unknown()).optional(),
+  seatCategories: z.array(z.unknown()).optional(),
+  updatedAt: z.string().optional(),
+});
+
 export const createFloorPlanRevisionCommentSchema = z.object({
   revisionNote: nonEmptyStringSchema,
   idempotencyKey: optionalTrimmedStringSchema,
