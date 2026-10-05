@@ -30,6 +30,14 @@ describe('data invariant declaration validation', () => {
         'pare_review_payload_has_audit_digest',
       ],
     );
+    assert.match(declarations[0].query, /"trust_ops"\."audit_logs"/);
+  });
+
+  it('renders owner table references for the target schema layout', () => {
+    const declarations = loadInvariantDeclarations(undefined, { final: true });
+    assert.match(declarations[0].query, /"platform_ops"\."audit_logs"/);
+    assert.match(declarations[4].query, /"commercial"\."billing_statements"/);
+    assert.match(declarations[5].query, /public\._prisma_migrations/);
   });
 
   it('rejects duplicate ids and malformed declarations', () => {
@@ -131,5 +139,15 @@ describe('dry-run process behavior', () => {
     });
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /7 invariants/);
+  });
+
+  it('dry-runs owner queries against the final schema catalog without database credentials', () => {
+    const result = spawnSync(process.execPath, [SCRIPT_PATH, '--dry-run', '--final', '--json'], {
+      cwd: resolve(SCRIPT_PATH, '..', '..'),
+      env: { ...process.env, DIRECT_URL: 'postgresql://invalid-host.invalid/no_connection', DATABASE_URL: '' },
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /"schemaMode": "final"/);
   });
 });

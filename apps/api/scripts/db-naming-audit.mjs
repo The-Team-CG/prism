@@ -1,8 +1,17 @@
 import process from 'node:process';
 import { Pool } from 'pg';
 import { selectDatabaseConnection } from './db-connection-config.mjs';
+import { domainPersistenceCatalog, loadOwnershipManifest } from './domain-persistence-catalog.mjs';
 
-const domainSchemas = ['floorplan', 'identity', 'event_core', 'supplier_ops', 'staffing_ops', 'finance_ops', 'compliance_ops', 'guest_ops', 'trust_ops'];
+const acceptedArguments = new Set(['--final']);
+const unknownArguments = process.argv.slice(2).filter((argument) => !acceptedArguments.has(argument));
+if (unknownArguments.length > 0) {
+  console.error(`Unknown argument(s): ${unknownArguments.join(', ')}. Supported option: --final.`);
+  process.exit(1);
+}
+
+const final = process.argv.includes('--final');
+const { schemas: domainSchemas } = domainPersistenceCatalog(loadOwnershipManifest(), { final });
 const identifierPattern = /^[a-z_][a-z0-9_]*$/;
 
 function badIdentifier(value) {
