@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Routed Live Ops assignment, replacement, and attendance changes through Operations; Lifecycle delegates cancellation and postponement with the caller transaction. Retry-safe assignment commands preserve existing audit and reliability effects, with event-scoped row conflict updates.
+- Assignment command replay now avoids duplicating event decisions, reliability notes, audit records, notifications, and event-day logs.
+- Added Lifecycle and LiveOps transaction-aware owner readers for additional billing. Lifecycle checks post-event eligibility and LiveOps checks same-event urgent-issue eligibility before Commercial writes.
+- Added a checked policy inventory for all 45 current cross-domain foreign keys and 28 scalar references, documenting owner checks, former delete effects, failure, and recovery; FK removal remains gated.
+- Delegated Lifecycle addendum billing-source and selected-quote mutations to a Commercial owner capability while Lifecycle retains addendum history. Current briefing/conforme flows do not fabricate billing rows without priced-source input.
+- Moved commercial `OpsDocument` registration and eligibility checks behind Lifecycle's transaction-aware `DOCUMENT_VAULT`; supplier contract and billing statement writes share their command transactions, and billing/proposal references are event- and kind-scoped. Added P0 PostgreSQL rollback coverage for failed supplier-contract linking. Document redaction remains disabled pending PMCM retention policy.
+- Added a transaction-aware Lifecycle reference capability for Floorplan event, conforme, ocular, archive, freeze, portal, and projection facts. Official drafts retain signed-conforme and ocular gates; archived/frozen events reject mutations, and clients keep authorized historical reads. No schema or FK changes were made.
+- Added a regression case proving that approval rejects a draft changed by a concurrent client revision after the initial read; the in-review Lifecycle projection remains unchanged.
+- Added an additive, version-checked Lifecycle projection for Floorplan state; Floorplan drafts and per-event projection clocks remain Floorplan-owned in their domain schema, with no cross-domain foreign key.
+- Verified the PR17e Floorplan owner-reference path on PostgreSQL 16; all 56 focused tests passed, including rollback and concurrent review cases.
+- Canonicalized new audit-chain hashes against PostgreSQL JSONB key ordering and added a backup- and approval-gated preproduction rehash/checkpoint command with a checksummed pre-repair snapshot. Rehearsed backup restore, rehash, checkpoint, and integrity verification on an isolated disposable PostgreSQL 16 database; no shared or preproduction database was modified.
 - Removed 11 unreferenced API DTO files and their stale barrel/controller imports; retired the unbound, always-unavailable signed-upload shim while keeping canonical storage flows and active DTO validation.
 - Replaced production API `any` escapes with typed owner mappings and shared contracts; guest commands return serialized receipts, supplier writes use canonical Zod schemas, and unused commercial reader/DTO surfaces were removed.
 - Corrected the supplier workspace quote fixture to include the required update timestamp for typed mapping.
@@ -14,18 +25,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Verified command-receipt rollback and concurrent retry/replay on PostgreSQL 16; all 12 focused workflow/receipt tests passed.
 - Updated the live-ops read-model test fixture with the generated event projection version field so API compilation checks the current Prisma model.
 - Added a root-bound read-only Platform reference reader for event authorization, PARE's minimal request/event/supplier facts, trust-recipient resolution, privacy consent inventory, and optional event-reference checks. PARE fails closed on a missing or mismatched live source while its dispatch and audit evidence remain durable; notification retries and hash-chain records keep optional event IDs as historical attribution.
-- Moved failed-login counters and lockout decisions into Identity Access, serializing the threshold update with a row lock before Platform records the resulting login, audit, and alert evidence. Privacy execution writes and polymorphic storage-owner validation remain cutover blockers; no Prisma schema or migration changed.
+- Bound Platform event, PARE, privacy-inventory, and trust-recipient reads to a root-composed read-only reference contract. Privacy execution writes and polymorphic storage-owner validation remain cutover blockers; no Prisma schema or migration changed.
+- Added a canonical column authority register for all 1,159 baseline columns, with DDD ownership, physical types/defaults, provisional semantic and sensitivity review, candidate consumers, and migration dispositions; no unverified data conversion is included.
 - Fixed the archived coordinator event regression test to wait for refreshed role data before submitting after switching back to a current event.
 
 ### Fixed
+- Official floorplan reads and exports now require the verified event owner and use the event-scoped snapshot for client review; only clients may edit their own submitted preferences, and plan writes enforce lifecycle/version gates with transactional actor audit.
+- Compliance checks now persist `ruleId` only for a stored owner rule; built-in code-registry rules remain identified by `conditionKey` and work without local fixture seeding.
+- Declared the existing GIN, composite event-date, and partial active-event indexes in Prisma so schema equivalence can catch unsupported drift.
+- Declared five migration-owned composite indexes and four existing timestamp defaults in Prisma, eliminating fresh-replay drift without changing historical SQL.
+- Added a preflighted Commercial FK from submitted quotes to quote requests, with request deletion restricted while bid evidence exists.
+- Centralized PostgreSQL URL selection and TLS policy across the API, Prisma CLI config, and database admin scripts; hosted connections now verify certificates and non-TLS is restricted to loopback targets.
+- PMCM two-factor challenges now bind to the account session epoch, persist only a hash of their random ID, expire and consume once; retries accumulate toward the established lockout across challenge reissues, and password reset or approval changes revoke pending challenges.
+- PMCM sign-in success history is recorded only after two-factor verification completes.
+- Approval changes now revoke issued sessions atomically with the request and audit entry; session guards reject accounts that are no longer approved, are locked, or no longer match the token identity.
 - Registration verification rechecks archive status under the event lock, preserving historical roster reads while rejecting writes after archive.
 - Archived coordinator events remain readable and selectable, while event-day, schedule, handoff, report, acknowledgment and withdrawal writes are blocked in the portal and API.
 - Simplified coordinator task scope checks and task form projections while preserving canonical-role, historical-role, owner, and operator authorization behavior.
 - Corrected the client event-day migration metadata to declare its ALTER TABLE as a schema change with medium risk.
 - Updated floorplan workflow test actors with required IDs, restoring API typecheck.
 
+- Client, supplier, and coordinator event eligibility now filters before keyset pagination; cursor totals use the same scope, actor identity uses one persisted key, and declined coordinator assignments are excluded.
+
 ### Added
+- Added guarded PostgreSQL coverage for 500+ unrelated-event visibility, supplier/coordinator eligibility, archived history, and complete action-center results; added API-client and client-portal pagination tests.
 - Recorded the approved 91-model ownership manifest, one-schema-per-domain and same-domain-only foreign-key policy, and shared DDD terms in canonical architecture references.
+- Added a PostgreSQL 16 disposable migration replay and schema-equivalence gate that discovers all database-gated API behavior suites and rejects missing constraints, unapproved SQL objects, and skipped tests.
+- Reduced disposable integrity-run duration by cloning the verified migration template for intentional drift probes, and added phase- and suite-level elapsed-time reporting.
+- Added the shared prism/types and prism/api-client test suites to the reusable CI test command.
+- Added shared database-connection policy tests for URL precedence, strict hosted TLS, custom CA handling, local loopback, conflicting settings, and credential-safe diagnostics.
 - Added a coordinator registration desk for assigned registration roles, with a minimized roster projection, guest verification and check-in actions, and a walk-in roster flow that requires explicit privacy consent, obeys PMCM policy, and exposes new arrivals for PMCM verification before check-in.
 - Added PMCM and coordinator event-day forms for schedule days and segments, shift handoffs, and end-of-day reports; coordinator handoff/report history is event-scoped, only report authors can update prefilled reports, blank reports are rejected, schedule-segment transitions are validated by the API, and coordinator schedule writes remain limited to the designated operator.
 - Added a PMCM postponement impact panel that lists recorded coordinator booking or declared-availability conflicts, retains the last date snapshot while a new date is unconfirmed, and clears it when the decision releases assignments or cancels the event.

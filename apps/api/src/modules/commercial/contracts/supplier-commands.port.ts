@@ -11,9 +11,10 @@ import type {
   PrismSupplierSchedule,
   UpdateSupplierEventStatusInput,
   UpdateSupplierInput,
-  UploadMetadataInput,
+  UploadContractInput,
   VerifySupplierStatusInput,
   PromoteSupplierInput,
+  PrismVerifiedEventActor,
 } from '@prism/types';
 import type { SupplierProfile } from './supplier-directory.port';
 import type { PAREApprovalRecord as SupplierPareApprovalRecord } from '@prism/contexts/platform-ops';
@@ -57,8 +58,9 @@ export interface SupplierCommands {
   ): Promise<PrismSupplierQuoteRequest>;
   uploadSupplierContract(
     requestId: string,
-    input: UploadMetadataInput,
+    input: UploadContractInput,
     actor: ResolvedEventOpsActor,
+    verifiedActor: PrismVerifiedEventActor,
   ): Promise<PrismSupplierQuoteRequest>;
   createSupplierSchedule(eventId: string, input: CreateSupplierScheduleInput, actor: ResolvedEventOpsActor): Promise<PrismSupplierSchedule>;
   listSupplierSchedules(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismSupplierSchedule[]>;
