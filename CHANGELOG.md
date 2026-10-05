@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Fixed audit-chain hashing so dates inside audit metadata hash the way PostgreSQL stores them; previously an event decision with date metadata made the next audit write fail integrity verification. The coordinator PostgreSQL suite now builds the receipt-enabled workflow its replay test depends on.
+
 - Fixed the API test configuration so Identity tests can resolve the Platform participant-facts reader alias.
 
 - Fixed coordinator replacement so its two audit entries are written in sequence, keeping the audit log a single hash chain.
