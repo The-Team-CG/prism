@@ -18,6 +18,27 @@ export {
 } from "./common.js";
 
 export {
+  documentKindSchema,
+  lifecycleDocumentRegistrationKindSchema,
+  documentLogicalTargetSchema,
+  documentReferenceLookupSchema,
+  documentReferencePurposeSchema,
+  documentRetentionPolicySchema,
+  prismDocumentReferenceSchema,
+  registerLifecycleDocumentSchema,
+  verifiedDocumentActorSchema,
+  type DocumentKind,
+  type LifecycleDocumentRegistrationKind,
+  type DocumentLogicalTarget,
+  type DocumentReferenceLookup,
+  type DocumentReferencePurpose,
+  type DocumentRetentionPolicy,
+  type PrismDocumentReference,
+  type RegisterLifecycleDocumentInput,
+  type VerifiedDocumentActor,
+} from "./document-vault.js";
+
+export {
   createPrismInquirySchema,
   updateInquiryStatusSchema,
   uploadConformeSchema,

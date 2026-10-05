@@ -74,9 +74,13 @@ export class OpsEventBillingController {
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = await this.requireFinanceActor(verifiedActor, 'billing statement', eventId);
-    return dto.idempotencyKey
-      ? this.billingOperationsService.generateBillingStatement(eventId, dto.sourceId, actor, dto.idempotencyKey)
-      : this.billingOperationsService.generateBillingStatement(eventId, dto.sourceId, actor);
+    return this.billingOperationsService.generateBillingStatement(
+      eventId,
+      dto.sourceId,
+      actor,
+      verifiedActor,
+      dto.idempotencyKey,
+    );
   }
 
   @Patch(':eventId/payments/:milestoneId')

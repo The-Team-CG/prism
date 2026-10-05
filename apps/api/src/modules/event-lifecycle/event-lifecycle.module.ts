@@ -34,6 +34,8 @@ import { ClientEventDayViewController } from './api/client-visibility/client-eve
 import { ClientEventDayViewService } from './application/client-visibility/client-event-day-view.service';
 import { OcularVisitController } from './api/ocular-visit/ocular-visit.controller';
 import { OcularVisitService } from './application/ocular-visit/ocular-visit.service';
+import { EventLifecycleReferenceModule } from './event-lifecycle-reference.module';
+import { CommercialAddendumImpactModule } from '@prism/contexts/commercial';
 import { EventLifecycleProjectionModule } from './event-lifecycle-projection.module';
 import { FloorplanReferenceModule } from './floorplan-reference.module';
 
@@ -50,20 +52,23 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
  * documents owned by this and other contexts. Kept as four sub-areas
  * (`onboarding`, `compliance`, `closure`, `files`) under one context.
  *
- * Owned tables: OpsBriefing, OpsDocument (inquiry/onboarding document kinds),
- * OpsEvent, OpsInquiry, OpsPostEventDocument, OpsEventWrapUp,
- * OpsComplianceCheck, OpsComplianceRule, and OpsEventInsight. Transitional onboarding writes
- * create the initial OpsBillingSource, OpsBillingStatement, and
- * OpsPaymentMilestone rows; ongoing finance ownership remains in commercial.
- * Read-only: ongoing billing records via commercial and OpsSupplierReview via
- * commercial. File requirements is a read-only composition over these owned
- * and external document kinds.
+ * Owned tables: OpsBriefing, OpsDocument (all document metadata), OpsEvent,
+ * OpsInquiry, OpsPostEventDocument, OpsEventWrapUp, OpsComplianceCheck,
+ * OpsComplianceRule, and OpsEventInsight. Lifecycle owns addendum records and
+ * impact history; Commercial applies billing-source and selected-quote changes
+ * through its owner capability. Current briefing and conforme workflows do
+ * not create initial billing rows because they carry no priced-source input.
+ * Read-only: ongoing billing records and OpsSupplierReview via commercial.
+ * File requirements is a read-only composition over owned and external
+ * document kinds.
  */
 @Module({
   imports: [
     DatabaseModule,
     EventCoreModule,
     PlatformOpsModule,
+    EventLifecycleReferenceModule,
+    CommercialAddendumImpactModule,
     EventLifecycleProjectionModule,
     FloorplanReferenceModule,
     AccessControlModule,
@@ -125,6 +130,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     FILE_REQUIREMENT_READER,
     FILE_REQUIREMENT_COMMANDS,
     ChangeManagementService,
+    EventLifecycleReferenceModule,
     EventLifecycleProjectionModule,
     FloorplanReferenceModule,
   ],
