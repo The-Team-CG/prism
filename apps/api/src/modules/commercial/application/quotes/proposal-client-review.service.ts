@@ -1,11 +1,11 @@
 import { BadRequestException, ForbiddenException, Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@prism/kernel/database';
-import type { ReviewEventProposalInput } from '@prism/types';
+import type { PrismDocumentReference, ReviewEventProposalInput } from '@prism/types';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import type { Prisma } from '@prisma/client';
 import { OpsUserRole } from '@prism/kernel/event-core';
-import { mapOnboardingEvent } from '@prism/contexts/event-lifecycle';
+import { DOCUMENT_VAULT, mapOnboardingEvent, type DocumentVault } from '@prism/contexts/event-lifecycle';
 import {
   isPrimaryClientContact,
   nextProposalClientReview,
@@ -17,6 +17,7 @@ export class ProposalClientReviewService {
     private readonly prisma: PrismaService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
+    @Inject(DOCUMENT_VAULT) private readonly documentVault: DocumentVault,
   ) {}
 
   private async loadReviewContext(tx: Prisma.TransactionClient, eventId: string, actor: ResolvedEventOpsActor) {
@@ -25,12 +26,16 @@ export class ProposalClientReviewService {
     if (!isPrimaryClientContact(actor.email, event.inquiry.email)) {
       throw new ForbiddenException('Only the primary client contact can approve or request a proposal revision');
     }
-    const proposal = await tx.opsDocument.findFirst({
-      where: { eventId, status: 'issued', type: { in: ['proposal', 'ce_proposal', 'briefing_proposal'] } },
-      orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }],
-      select: { id: true },
-    });
-    if (!proposal) throw new BadRequestException('No issued proposal is available for review');
+    let proposal: PrismDocumentReference;
+    try {
+      proposal = await this.documentVault.findEligibleReference(
+        { eventId, purpose: 'client_proposal_review' },
+        { prisma: tx, correlationId: `proposal-review:${eventId}`, actorId: actor.id },
+      );
+    } catch (error) {
+      if (error instanceof NotFoundException) throw new BadRequestException('No issued proposal is available for review');
+      throw error;
+    }
     return { event, proposal };
   }
 
