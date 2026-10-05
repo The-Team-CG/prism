@@ -51,8 +51,8 @@ export const supplierWorkspaceRepository = {
     return prismApi.confirmReadiness(session, requestId, notes);
   },
 
-  uploadContract(session: PrismAuthenticatedSession, requestId: string, fileName: string) {
-    return prismApi.uploadContract(session, requestId, fileName);
+  uploadContract(session: PrismAuthenticatedSession, requestId: string, fileName: string, idempotencyKey: string) {
+    return prismApi.uploadContract(session, requestId, fileName, idempotencyKey);
   },
 
   updateEventStatus(
