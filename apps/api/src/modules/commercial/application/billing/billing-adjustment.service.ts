@@ -4,6 +4,9 @@ import { PrismaService } from '@prism/kernel/database';
 import { createHash, randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
+import { POST_EVENT_LIFECYCLE_STATE_READER, type PostEventLifecycleStateReader } from '@prism/contexts/event-lifecycle/post-event-reference';
+import { URGENT_ISSUE_REFERENCE_READER, type UrgentIssueReferenceReader } from '@prism/contexts/live-ops/urgent-issue-reference';
+import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { auditMetadata, billingCommandContext, requireBillingActor } from './billing-operations.utils';
 import { mapAdditionalBilling, mapBillingCorrection, mapBillingDispute } from './billing-operations.mappers';
 import type {
@@ -22,6 +25,8 @@ export class BillingAdjustmentService {
     private readonly prisma: PrismaService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     private readonly workflowCommandService: WorkflowCommandService,
+    @Inject(POST_EVENT_LIFECYCLE_STATE_READER) private readonly postEventStateReader: PostEventLifecycleStateReader,
+    @Inject(URGENT_ISSUE_REFERENCE_READER) private readonly urgentIssueReferenceReader: UrgentIssueReferenceReader,
   ) {}
 
   async requestBillingCorrection(eventId: string, input: RequestBillingCorrectionInput, actor: BillingActor) {
@@ -123,7 +128,6 @@ export class BillingAdjustmentService {
   async createAdditionalBilling(eventId: string, input: CreateAdditionalBillingInput, actor: BillingActor) {
     actor = requireBillingActor(actor);
     const payloadHash = createHash('sha256').update(JSON.stringify({ eventId, ...input })).digest('hex');
-    let event: { actualEndedAt: Date | null } | null = null;
     let issue: { id: string; eventId: string } | null = null;
     let replayed = false;
     return this.workflowCommandService.execute<OpsAdditionalBilling, ReturnType<typeof mapAdditionalBilling>>({
@@ -131,10 +135,14 @@ export class BillingAdjustmentService {
       context: billingCommandContext(eventId, 'create_additional_billing', input.idempotencyKey, actor),
       idempotencyPayloadHash: payloadHash,
       validateState: async () => {
-        event = await this.requireEvent(eventId);
-        if (!event.actualEndedAt) throw new BadRequestException('Post-event additional billing requires a recorded event end');
-        issue = await this.prisma.opsUrgentIssue.findUnique({ where: { id: input.urgentIssueId }, select: { id: true, eventId: true } });
-        if (!issue || issue.eventId !== eventId) throw new NotFoundException('Urgent issue not found');
+        await this.requirePostEventState(eventId);
+        issue = await this.urgentIssueReferenceReader.findUrgentIssueForEvent(eventId, input.urgentIssueId);
+        if (!issue) throw new NotFoundException('Urgent issue not found');
+      },
+      validateStateInTransaction: async (context) => {
+        await this.requirePostEventState(eventId, context);
+        issue = await this.urgentIssueReferenceReader.findUrgentIssueForEvent(eventId, input.urgentIssueId, context);
+        if (!issue) throw new NotFoundException('Urgent issue not found');
       },
       write: async (context) => {
         const db = context?.prisma ?? this.prisma;
@@ -170,6 +178,13 @@ export class BillingAdjustmentService {
   private async requireEvent(eventId: string) {
     const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
+    return event;
+  }
+
+  private async requirePostEventState(eventId: string, context?: PrismTransactionContext) {
+    const event = await this.postEventStateReader.findPostEventState(eventId, context);
+    if (!event) throw new NotFoundException('Event not found');
+    if (!event.actualEndedAt) throw new BadRequestException('Post-event additional billing requires a recorded event end');
     return event;
   }
 }

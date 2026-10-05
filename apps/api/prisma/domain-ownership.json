@@ -1,6 +1,6 @@
 {
   "summary": {
-    "totalTables": 91,
+    "totalTables": 92,
     "targetSchemas": 7,
     "tableMoves": 83,
     "currentCrossSchemaFks": 49,
@@ -21,7 +21,7 @@
         "domain": "event-lifecycle",
         "schema": "event_lifecycle",
         "tables": 18,
-        "columns": 279
+        "columns": 280
       },
       {
         "domain": "commercial",
@@ -38,8 +38,8 @@
       {
         "domain": "floorplan",
         "schema": "floorplan",
-        "tables": 6,
-        "columns": 72
+        "tables": 7,
+        "columns": 75
       },
       {
         "domain": "live-ops",
@@ -156,7 +156,7 @@
       "table": "events",
       "domain": "event-lifecycle",
       "targetSchema": "event_lifecycle",
-      "columnCount": 32
+      "columnCount": 33
     },
     {
       "model": "OpsOcularVisitRequest",
@@ -189,6 +189,14 @@
       "domain": "floorplan",
       "targetSchema": "floorplan",
       "columnCount": 19
+    },
+    {
+      "model": "OpsFloorPlanProjectionClock",
+      "currentSchema": "floorplan",
+      "table": "floor_plan_projection_clocks",
+      "domain": "floorplan",
+      "targetSchema": "floorplan",
+      "columnCount": 3
     },
     {
       "model": "OpsDocument",

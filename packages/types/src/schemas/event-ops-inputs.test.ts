@@ -43,6 +43,8 @@ import {
   createFloorPlanPreferenceSchema,
   createRegistrationPlatformSchema,
   updateRegistrationPlatformSchema,
+  uploadContractSchema,
+  registerLifecycleDocumentSchema,
   importHeadcountSchema,
   submitBriefingSchema,
   uploadConformeSchema,
@@ -252,6 +254,46 @@ describe("event-ops write schemas", () => {
   it("validates supplier quote amount", () => {
     expect(submitSupplierQuoteSchema.safeParse({ amount: 12000 }).success).toBe(true);
     expect(submitSupplierQuoteSchema.safeParse({ amount: -1 }).success).toBe(false);
+  });
+
+  it("requires an idempotency key for supplier contract metadata", () => {
+    expect(uploadContractSchema.safeParse({
+      fileName: "contract.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 2048,
+    }).success).toBe(false);
+    expect(uploadContractSchema.safeParse({
+      fileName: "contract.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 2048,
+      idempotencyKey: "contract-submit-1",
+    }).success).toBe(true);
+  });
+
+  it("requires document ownership, target, verified actor, and replay metadata on registration", () => {
+    const input = {
+      eventId: "evt_1",
+      documentKind: "supplier_contract",
+      logicalTarget: { kind: "supplier_quote_request", id: "qr_1" },
+      fileName: "contract.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 2048,
+      status: "submitted",
+      verifiedActor: {
+        actorId: "supplier_1",
+        actorRole: "supplier",
+        actorEmail: "supplier@example.test",
+        actorName: "Supplier",
+        supplierId: "sup_1",
+        expiresAt: "2026-10-04T12:00:00.000Z",
+      },
+      idempotencyKey: "contract-submit-1",
+    };
+    expect(registerLifecycleDocumentSchema.safeParse(input).success).toBe(true);
+    expect(registerLifecycleDocumentSchema.safeParse({
+      ...input,
+      logicalTarget: { kind: "billing_statement", id: "bill_1" },
+    }).success).toBe(false);
   });
 
   it("requires an event and reason for supplier reliability and promotion actions", () => {
