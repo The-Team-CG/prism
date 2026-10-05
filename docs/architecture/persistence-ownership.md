@@ -78,7 +78,11 @@ policy does not create microservices or a database authorization boundary.
 The machine-readable domain ownership manifest linked above is the complete
 model-level inventory. It records each current and target schema, domain owner,
 table name, and scalar column count. This summary table is not a substitute for
-the 92 model assignments.
+the 93 model assignments.
+
+Use the [active column authority register](column-authority-register.md) for each baseline field's
+physical type, nullability, default, provisional semantics, candidate consumers, sensitivity and DDL
+disposition. The register does not approve unresolved business units, timezones or retention periods.
 
 The reviewed staging baseline has ten populated application schemas and 112
 foreign keys. By target owner, 67 baseline keys are local and 45 cross domain.
@@ -99,8 +103,12 @@ Approved domain ownership decisions:
 - Lifecycle owns document metadata for every document kind; Commercial owns
   contract and billing decisions and references document IDs through the
   lifecycle capability.
-- Commercial owns billing rows and exposes transaction-capable initialization
-  for accepted-inquiry onboarding.
+- Commercial owns billing rows. Current Lifecycle briefing/conforme workflows
+  do not initialize billing because they provide no priced-source input; a
+  future initializer requires an approved product contract, owner-validated
+  eligibility, and replay safety. Lifecycle-issued addenda request
+  transaction-aware Commercial billing-source and selected-quote changes,
+  while Lifecycle owns addendum impact history.
 - Operations owns coordinator reliability notes and every assignment,
   attendance, replacement, cancellation, and acknowledgment mutation.
 - Floorplan owns official plan and review state; lifecycle-facing status fields
@@ -155,10 +163,14 @@ not authorize database repair or deployment.
 | --- | --- | --- |
 | `FloorPlan`, `FloorPlanObject`, `VenueTemplate`, `PublishedSnapshot`, `OpsFloorPlanDraft` | `floorplan` | `floorplan`; official layout authoring, draft, publish, and snapshot workflows. |
 
-Floorplan owns authoritative official-plan and review state. Until the
-projection migration is complete, a floorplan command requests a versioned
-update of lifecycle-facing event fields through the lifecycle capability;
-direct writes do not transfer ownership of the event lifecycle aggregate.
+Floorplan owns authoritative official-plan and review state. Event-scoped
+mutations ask Lifecycle's `FLOORPLAN_EVENT_REFERENCE_READER` to lock and return
+current conforme, ocular, archive, freeze, portal, and projection facts in the
+same transaction. Official-draft eligibility is checked from those owner
+facts; archived or frozen events reject writes, while authorized historical
+reads remain available. Floorplan sends lifecycle-facing status through the
+versioned projection writer; direct writes do not transfer event ownership.
+The cross-schema draft-to-event FK remains until the coordinated schema cutover.
 
 ### Identity and access
 
@@ -189,7 +201,7 @@ business owner and lifecycle metadata contract.
 | --- | --- | --- |
 | `OpsSupplier`, `OpsSupplierApplication`, `OpsSupplierCertification`, `OpsSupplierReview`, `OpsSupplierReliabilityNote` | `supplier_ops` | `commercial`; supplier directory, onboarding, certification, review, and reliability policy. |
 | `OpsSupplierCategory`, `OpsSupplierReviewDimension`, `OpsSupplierReviewDimensionRating` | `supplier_ops` | `commercial`; reference and review-dimension configuration. Some rows are currently fixture-seeded and have no separate administration workflow. |
-| `OpsSupplierQuoteRequest`, `OpsSupplierQuote` | `supplier_ops` | `commercial`; request, submission, revision, selection, and withdrawal lifecycle. |
+| `OpsSupplierQuoteRequest`, `OpsSupplierQuote` | `supplier_ops` | `commercial`; request, submission, revision, selection, and withdrawal lifecycle. Deleting a request referenced by submitted quote evidence is restricted; requestId remains nullable for manually entered quotes. |
 | `OpsBillingSource`, `OpsBillingStatement`, `OpsPaymentMilestone`, `OpsPaymentRecord` | `finance_ops` | `commercial`; proposal-to-billing conversion, statements, milestones, and payment history. |
 | Commercial contract and billing models | finance_ops / supplier_ops | commercial; retains business decisions and scalar document IDs. Lifecycle alone owns document metadata and validates references through its public capability. Target schema: commercial. |
 
@@ -197,7 +209,7 @@ business owner and lifecycle metadata contract.
 
 | Models | Physical schema | Write owner and boundary |
 | --- | --- | --- |
-| `OpsCoordinatorAssignment` | `staffing_ops` | `operations`; owns assignment, attendance, replacement, cancellation, acknowledgment, and reliability mutations. LiveOps callers are being moved behind the Operations capability. |
+| `OpsCoordinatorAssignment` | `staffing_ops` | `operations`; owns assignment, attendance, replacement, cancellation, acknowledgment, and reliability mutations. LiveOps and Lifecycle callers use the Operations capability; event decisions pass the initiating transaction context. |
 | `OpsGuestCheckIn`, `OpsGuestFeedback` | `guest_ops` | `operations`; guest check-in, consent, feedback, and moderation workflows. |
 | `OpsCoordinator` | `staffing_ops` | Reference data is currently fixture-seeded and read through operations; add a real directory owner before introducing administration writes. |
 | OpsEventDayTask, OpsUrgentIssue, OpsEventDayLog | staffing_ops | live-ops; event-day task, issue, log, and escalation workflows. Target schema: live_ops. |
@@ -211,6 +223,16 @@ business owner and lifecycle metadata contract.
 | OpsCommandReceipt | trust_ops | platform-ops owns technical receipt persistence behind the kernel `CommandReceiptStore` port. Business authorization and replay remain in the caller transaction; reservation, command writes, and completion are atomic. Target schema: platform_ops. |
 | `OpsPrivacyLegalHold` | `platform_ops` | `platform-ops`; PMCM-admin placement/release, subject and optional event scope, with release provenance. `event_id` is a scalar reference and has no cross-domain FK. Target schema: platform_ops. |
 | `OpsAiAuditLog`, `OpsAiApprovalRecord` | `trust_ops` | `platform-ops`; AI sanitisation, human approval, and governance records. |
+
+## External-reference lifecycle
+
+The exact current foreign-key actions and additional scalar references are in
+the [external-reference lifecycle register](external-reference-lifecycle.md)
+and linked machine policy. This stack has 45 cross-domain foreign keys
+(38 CASCADE, 6 SET NULL, 1 RESTRICT) and 28 additional scalar references.
+Those delete actions describe current database behavior, not approved retention
+policy. FK removal remains blocked on owner capabilities, behavior tests, and
+the coordinated migration rehearsal.
 
 ## Intentional cross-context joins and writes
 
@@ -228,8 +250,8 @@ contract is introduced.
 | `read-models` | `event-lifecycle`, `commercial`, `operations`, `live-ops`, `floorplan`, `platform-ops` | Read scoped rows and map to role contracts | Build PMCM/client/supplier/coordinator projections. Queries stay bounded and read-only; authorization remains in the owning context/controller. |
 | event-lifecycle | Commercial billing capability | Initialize billing and request owner-approved billing changes | Commercial owns these records; direct lifecycle writes remain transitional until routed through the capability. Preserve eligibility, replay, and outbox atomicity. |
 | commercial | event-lifecycle document-vault capability | Register and validate contract/billing document references | Commercial retains business state; lifecycle owns metadata and validates event, kind, and eligibility. |
-| `commercial` | `OpsEvent`, `OpsInquiry` | Read event scope/client source; invoke lifecycle/public capabilities where needed | Billing and supplier requests require event and inquiry context; no direct lifecycle status mutation. |
-| floorplan | event-lifecycle event capability | Publish a versioned floorplan-state projection | Floorplan currently writes lifecycle fields directly; replace that path with a versioned contract. Lifecycle owns the event aggregate and rejects stale projection updates. |
+
+| floorplan | event-lifecycle reference and projection capabilities | Validate event/conforme/ocular/freeze/archive state and publish a versioned floorplan-state projection | Implemented through `FLOORPLAN_EVENT_REFERENCE_READER` and Lifecycle's compare-and-set writer. Floorplan locks Lifecycle state before local draft changes and projection-clock reservation; cross-domain FKs remain until cutover. |
 | live-ops | Operations staffing capability | Request owner-validated assignment, replacement, and attendance transitions | LiveOps currently writes assignment rows directly; Operations owns the mutation and applies it under event scope. |
 | event-lifecycle | Operations staffing capability | Request owner-validated cancellation and postponement transitions | Event-decision workflows currently write assignments directly; Operations applies the transition within the caller transaction. |
 | `platform-ops` privacy workflow | identity, event, commercial, guest records | Locate and anonymise/delete subject data when an approved privacy request executes | Governance requires a coordinated erasure transaction. Each affected model is named in the workflow; this is not general write permission. |
