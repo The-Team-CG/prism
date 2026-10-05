@@ -34,6 +34,7 @@ export default [
       "prism/no-private-context-imports": "error",
       "prism/no-local-contract-definitions": "error",
       "prism/no-inline-zod": "error",
+      "prism/no-production-any": "error",
       "react-hooks/exhaustive-deps": "off",
     },
   },

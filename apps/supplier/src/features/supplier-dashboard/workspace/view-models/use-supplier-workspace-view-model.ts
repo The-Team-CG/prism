@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PrismAuthenticatedSession } from "@prism/types";
 import {
@@ -44,6 +44,7 @@ export function useSupplierWorkspaceViewModel() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const contractSubmissionKeys = useRef<Record<string, { fingerprint: string; key: string }>>({});
 
   useEffect(() => {
     const current = loadSupplierDashboardSession();
@@ -173,14 +174,20 @@ export function useSupplierWorkspaceViewModel() {
           readinessNotes[req.id] ?? req.readinessNotes ?? "",
         ),
       ),
-    saveContract: (req: PrismSupplierQuoteRequest) =>
-      runAction(req, "contract", () =>
-        saveSupplierContract(
-          session!,
-          req,
-          contractFiles[req.id] ?? "supplier-contract.pdf",
-        ),
-      ),
+    saveContract: (req: PrismSupplierQuoteRequest) => {
+      const fileName = contractFiles[req.id] ?? "supplier-contract.pdf";
+      const fingerprint = JSON.stringify([req.id, fileName.trim()]);
+      const existing = contractSubmissionKeys.current[req.id];
+      const key = existing?.fingerprint === fingerprint
+        ? existing.key
+        : `supplier-contract:${globalThis.crypto.randomUUID()}`;
+      contractSubmissionKeys.current[req.id] = { fingerprint, key };
+      return runAction(req, "contract", async () => {
+        const result = await saveSupplierContract(session!, req, fileName, key);
+        delete contractSubmissionKeys.current[req.id];
+        return result;
+      });
+    },
     updateStatus: (req: PrismSupplierQuoteRequest, status: string) =>
       runAction(req, status, () =>
         updateSupplierEventStatus(

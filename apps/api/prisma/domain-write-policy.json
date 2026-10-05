@@ -1,0 +1,42 @@
+{
+  "policyVersion": 1,
+  "fixtureBoundary": {
+    "sourceRoot": "apps/api/src/fixtures",
+    "entrypoint": "apps/api/scripts/seed-local-fixtures.mjs",
+    "databaseName": "prism_sample_disposable",
+    "requiredHost": "127.0.0.1",
+    "guard": "The effective API runtime URL must target the exact loopback disposable database before fixture code is imported."
+  },
+  "testBoundary": {
+    "excludedSuffixes": [".test.ts", ".spec.ts"],
+    "databaseName": "prism_p0",
+    "requiredHost": "127.0.0.1",
+    "guard": "PostgreSQL integration tests use the task-owned loopback prism_p0 target; source setup writes are not production-context writes."
+  },
+  "transitionalWrites": [
+    {
+      "file": "apps/api/src/modules/commercial/application/quotes/proposal-client-review.service.ts",
+      "kind": "Prisma write",
+      "model": "OpsEvent",
+      "operation": "updateMany",
+      "sourceDomain": "commercial",
+      "targetDomain": "event-lifecycle",
+      "count": 1,
+      "reason": "Commercial proposal review still updates Lifecycle-owned event state directly; replace it with a Lifecycle-owned command.",
+      "replacesBy": "Lifecycle proposal-review owner command",
+      "expiresBy": "PR21"
+    },
+    {
+      "file": "apps/api/src/modules/event-lifecycle/application/decisions/event-decision.service.ts",
+      "kind": "Prisma write",
+      "model": "OpsSupplierQuoteRequest",
+      "operation": "updateMany",
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "commercial",
+      "count": 1,
+      "reason": "Lifecycle decisions still update Commercial-owned quote requests directly; route the state transition through Commercial.",
+      "replacesBy": "S5 PR17b Commercial quote-request owner capability",
+      "expiresBy": "PR21"
+    }
+  ]
+}

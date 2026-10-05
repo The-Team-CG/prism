@@ -1,7 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DocumentVaultService } from '@prism/contexts/event-lifecycle';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
 import { GuestWorkflowService } from './guest-workflow.service';
+
+const testEventReferences = {
+  findOperationsEvent: vi.fn(async (id: string) => ({
+    id,
+    eventName: 'Test Event',
+    eventDate: new Date('2026-06-18T00:00:00.000Z'),
+    status: 'event_day',
+    archived: false,
+    actualEndedAt: new Date('2026-09-07T12:00:00.000Z'),
+    walkInPolicy: 'open',
+    walkInThreshold: 200,
+  })),
+};
+
+const createTestGuestEventProjections = () => ({
+  listGuestAccessCandidates: vi.fn(async () => []),
+  findGuestEvent: vi.fn(async () => null),
+  listCoordinatorWorkspaceEvents: vi.fn(async () => []),
+});
 
 function createGuestWorkflowFixture() {
   const state = {
@@ -95,7 +113,11 @@ function createGuestWorkflowFixture() {
         );
       }),
       create: vi.fn(async ({ data }: any) => {
-        const row = { ...data, submittedAt: new Date('2026-06-18T10:00:00.000Z') };
+        const row = {
+          ...data,
+          mediaAttachments: data.mediaAttachments?.create ?? [],
+          submittedAt: new Date('2026-06-18T10:00:00.000Z'),
+        };
         state.guestFeedback.push(row);
         return row;
       }),
@@ -111,15 +133,39 @@ function createGuestWorkflowFixture() {
   };
   const auditWriter = { write: vi.fn() };
   const staffingReader = { findAssignmentForEventActor: vi.fn(async () => ({ id: 'asg_registration', role: 'Registration Staff', status: 'acknowledged' })) };
+  const eventReferences = {
+    findOperationsEvent: vi.fn(async (eventId: string, _context?: { prisma: any }) => {
+      const event = state.events.find((candidate) => candidate.id === eventId);
+      if (!event) return null;
+      return {
+        id: event.id,
+        eventName: event.eventName,
+        eventDate: event.eventDate,
+        status: event.status,
+        archived: event.archived,
+        actualEndedAt: event.actualEndedAt,
+        walkInPolicy: event.walkInPolicy,
+        walkInThreshold: event.walkInThreshold,
+      };
+    }),
+  };
+  const eventProjections = {
+    listGuestAccessCandidates: vi.fn(async (includeArchived: boolean) => state.events
+      .filter((event) => includeArchived || !event.archived)
+      .map(({ id, eventName, eventDate, updatedAt, archived }) => ({ id, eventName, eventDate, updatedAt, archived }))),
+    findGuestEvent: vi.fn(async (eventId: string) => state.events.find((event) => event.id === eventId) ?? null),
+    listCoordinatorWorkspaceEvents: vi.fn(async () => []),
+  };
   const service = new GuestWorkflowService(
     prisma as any,
     auditWriter as any,
     new WorkflowCommandService(),
-    new DocumentVaultService(),
     staffingReader as any,
+    eventReferences as any,
+    eventProjections as any,
   );
 
-  return { service, state, prisma, auditWriter, staffingReader };
+  return { service, state, prisma, auditWriter, staffingReader, eventReferences, eventProjections };
 }
 
 beforeEach(() => {
@@ -133,19 +179,14 @@ afterEach(() => {
 
 describe('GuestWorkflowService', () => {
   it('resolves a guest event and returns attendance counts by access code', async () => {
-    const { service, prisma } = createGuestWorkflowFixture();
+    const { service, eventProjections } = createGuestWorkflowFixture();
 
     await expect(service.getEventByAccessCode('AYALA-TECH-MPLE')).resolves.toMatchObject({
       id: 'evt_sample',
       eventName: 'Ayala Tech Summit',
     });
-    expect(prisma.opsEvent.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      select: { id: true, eventName: true },
-    }));
-    expect(prisma.opsEvent.findUnique).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: 'evt_sample' },
-      include: { floorPlanDrafts: expect.objectContaining({ take: 100 }) },
-    }));
+    expect(eventProjections.listGuestAccessCandidates).toHaveBeenCalledWith(false);
+    expect(eventProjections.findGuestEvent).toHaveBeenCalledWith('evt_sample');
     await expect(service.countCheckInsForEvent('evt_sample')).resolves.toBe(1);
   });
 
@@ -202,7 +243,9 @@ describe('GuestWorkflowService', () => {
     });
 
     expect(checkIn).toMatchObject({ eventId: 'evt_sample', guestName: 'Sofia Lim', status: 'checked_in' });
-    expect(feedback).toMatchObject({ eventId: 'evt_sample', guestName: 'Sofia Lim', moderationStatus: 'pending_review' });
+    expect(feedback).toMatchObject({ eventId: 'evt_sample', submittedAt: expect.any(String) });
+    expect(feedback).not.toHaveProperty('guestName');
+    expect(feedback).not.toHaveProperty('moderationStatus');
     expect(auditWriter.write).toHaveBeenCalledTimes(2);
     vi.useRealTimers();
   });
@@ -259,7 +302,7 @@ describe('GuestWorkflowService', () => {
     };
     const prisma = { $transaction: async (work: (context: typeof tx) => Promise<unknown>) => work(tx) };
     const staffingReader = { findAssignmentForEventActor: vi.fn(async () => ({ id: 'asg_registration', role: 'Registration Staff', status: 'acknowledged' })) };
-    const service = new GuestWorkflowService(prisma as any, { write: vi.fn() } as any, new WorkflowCommandService(), new DocumentVaultService(), staffingReader as any);
+    const service = new GuestWorkflowService(prisma as any, { write: vi.fn() } as any, new WorkflowCommandService(), staffingReader as any, testEventReferences as any, createTestGuestEventProjections() as any);
 
     const first = await service.checkInRosterEntry('evt_sample', 'gre_one', { name: 'Registration', role: 'coordinator' });
     const second = await service.checkInRosterEntry('evt_sample', 'gre_two', { name: 'Registration', role: 'coordinator' });
@@ -279,8 +322,9 @@ describe('GuestWorkflowService', () => {
       { opsGuestRosterEntry: { findMany } } as any,
       { write: vi.fn() } as any,
       new WorkflowCommandService(),
-      new DocumentVaultService(),
       staffingReader as any,
+      testEventReferences as any,
+      createTestGuestEventProjections() as any,
     );
     const actor = { id: 'usr_coord', email: 'coord@example.test', name: 'Mia Registration', role: 'coordinator' };
 
@@ -312,8 +356,9 @@ describe('GuestWorkflowService', () => {
       { $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)) } as any,
       { write: vi.fn() } as any,
       new WorkflowCommandService(),
-      new DocumentVaultService(),
       staffingReader as any,
+      testEventReferences as any,
+      createTestGuestEventProjections() as any,
     );
 
     await expect(service.updateVerification('evt_1', 'gre_1', { status: 'verified' }, {
@@ -332,8 +377,9 @@ describe('GuestWorkflowService', () => {
       { opsGuestRosterEntry: { findMany }, $transaction: transaction } as any,
       { write: vi.fn() } as any,
       new WorkflowCommandService(),
-      new DocumentVaultService(),
       staffingReader as any,
+      testEventReferences as any,
+      createTestGuestEventProjections() as any,
     );
     const actor = { id: 'usr_coord', email: 'coord@example.test', name: 'Usher', role: 'coordinator' };
 
@@ -345,7 +391,7 @@ describe('GuestWorkflowService', () => {
   });
 
   it('serializes verification rejection with check-in and prevents rejecting an already checked-in guest', async () => {
-    const { service, state, prisma } = createGuestWorkflowFixture();
+    const { service, state, prisma, eventReferences } = createGuestWorkflowFixture();
     const actor = { id: 'usr_registration', name: 'Registration Staff', role: 'coordinator' };
     const roster = {
       id: 'gre_race', eventId: 'evt_sample', sourceKey: 'race-1', guestName: 'Mia Santos', normalizedName: 'mia santos',
@@ -361,7 +407,8 @@ describe('GuestWorkflowService', () => {
 
     expect(roster.verificationStatus).toBe('pending');
     expect(roster.checkedInAt).toBeInstanceOf(Date);
-    expect(prisma.$queryRaw).toHaveBeenCalledTimes(2);
+    expect(eventReferences.findOperationsEvent).toHaveBeenCalledTimes(2);
+    expect(eventReferences.findOperationsEvent).toHaveBeenCalledWith('evt_sample', expect.objectContaining({ prisma }));
 
     const rejectedRoster = { ...roster, id: 'gre_rejected', sourceKey: 'rejected-1', checkedInAt: null, verificationStatus: 'pending' };
     state.guestRoster.push(rejectedRoster);
@@ -371,14 +418,20 @@ describe('GuestWorkflowService', () => {
   });
 
   it('keeps archived registration records readable and rejects writes after the event lock', async () => {
-    const { service, state, prisma, auditWriter } = createGuestWorkflowFixture();
+    const { service, state, prisma, auditWriter, eventReferences } = createGuestWorkflowFixture();
     const actor = { id: 'usr_registration', name: 'Registration Staff', role: 'coordinator' };
     const roster = await service.registerWalkIn('evt_sample', { guestName: 'Historical Guest', privacyConsentAccepted: true }, actor);
     vi.clearAllMocks();
-    // Archive wins while verification waits for the event lock.
-    prisma.$queryRaw.mockImplementation(async () => {
-      state.events[0].archived = true;
-      return [];
+    // Archive wins when Lifecycle rechecks the event inside the command transaction.
+    eventReferences.findOperationsEvent.mockImplementation(async (eventId: string, context?: { prisma: any }) => {
+      if (context) state.events[0].archived = true;
+      const current = state.events.find((candidate) => candidate.id === eventId);
+      if (!current) return null;
+      return {
+        id: current.id, eventName: current.eventName, eventDate: current.eventDate, status: current.status,
+        archived: current.archived, actualEndedAt: current.actualEndedAt, walkInPolicy: current.walkInPolicy,
+        walkInThreshold: current.walkInThreshold,
+      };
     });
 
     await expect(service.updateVerification('evt_sample', roster.id, { status: 'verified' }, actor)).rejects.toThrow('archived');
@@ -445,8 +498,9 @@ describe('GuestWorkflowService', () => {
       { $transaction: transaction } as any,
       { write: vi.fn() } as any,
       new WorkflowCommandService(),
-      new DocumentVaultService(),
       { findAssignmentForEventActor: vi.fn() } as any,
+      testEventReferences as any,
+      createTestGuestEventProjections() as any,
     );
 
     await expect(service.importRoster('evt_1', { source: ' Coordinator-Walk-In ', rows: [] } as any, {
@@ -474,8 +528,33 @@ describe('GuestWorkflowService', () => {
         attendanceCount: 1,
       }),
     );
-    expect(service.mapGuestCheckIn(state.guestCheckIns[0] as any)).toMatchObject({ guestName: 'Existing Guest' });
-    expect(service.mapGuestFeedback(feedback)).toMatchObject({ guestName: 'Sofia Lim', moderationStatus: 'pending_review' });
+    const guestCheckInPayload = service.mapGuestCheckIn(state.guestCheckIns[0] as any);
+    expect(guestCheckInPayload).toMatchObject({ guestName: 'Existing Guest' });
+    expect(guestCheckInPayload).not.toHaveProperty('privacyConsentAccepted');
+    expect(guestCheckInPayload).not.toHaveProperty('privacyNoticeVersion');
+    expect(guestCheckInPayload).not.toHaveProperty('marketingConsentAccepted');
+    expect(feedback).toEqual({
+      id: feedback.id,
+      eventId: feedback.eventId,
+      submittedAt: '2026-06-18T10:00:00.000Z',
+    });
+    const [feedbackForReview] = await service.listPendingFeedbackForEvent('evt_sample');
+    state.guestFeedback[0].mediaAttachments.push({
+      id: 'media_1',
+      kind: 'photo',
+      originalFileName: 'table.jpg',
+      mimeType: 'image/jpeg',
+      sizeBytes: 1024,
+      status: 'pending_storage',
+      blocker: 'Local storage adapter unavailable',
+    });
+    const [feedbackWithMedia] = await service.listPendingFeedbackForEvent('evt_sample');
+    expect(service.mapGuestFeedback(feedbackWithMedia)).toMatchObject({
+      guestName: 'Sofia Lim',
+      moderationStatus: 'pending_review',
+      privacyConsentAccepted: true,
+      mediaAttachments: [{ id: 'media_1', kind: 'photo', blocker: 'Local storage adapter unavailable' }],
+    });
     const guestEventPayload = service.mapGuestEvent(state.events[0] as any, 1);
     const guestEventJson = JSON.stringify(guestEventPayload);
     expect(guestEventPayload).not.toHaveProperty('clientPortalStatus');
@@ -495,7 +574,7 @@ describe('GuestWorkflowService', () => {
     vi.setSystemTime(new Date('2026-09-07T11:59:59.000Z'));
     await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'Before', rating: 5, privacyConsentAccepted: true })).rejects.toThrow('opens after the event has actually ended');
     vi.setSystemTime(new Date('2026-09-14T12:00:00.000Z'));
-    await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'At deadline', rating: 5, privacyConsentAccepted: true })).resolves.toMatchObject({ guestName: 'At deadline' });
+    await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'At deadline', rating: 5, privacyConsentAccepted: true })).resolves.toMatchObject({ eventId: 'evt_sample', submittedAt: expect.any(String) });
     vi.setSystemTime(new Date('2026-09-14T12:00:00.001Z'));
     await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'After', rating: 5, privacyConsentAccepted: true })).rejects.toThrow('seven-day guest feedback window has closed');
     (state.events[0] as any).actualEndedAt = null;
@@ -523,8 +602,8 @@ describe('GuestWorkflowService', () => {
     const { service, state } = createGuestWorkflowFixture();
     const feedback = await service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'Consent Guest', rating: 5, privacyConsentAccepted: true, marketingConsentAccepted: true, privacyNoticeVersion: '2026-09-01' });
     const withdrawn = await service.withdrawFeedbackConsentByAccessCode('AYALA-TECH-MPLE', feedback.id, { withdrawPrivacyConsent: true, withdrawMarketingConsent: true });
-    expect(withdrawn).toMatchObject({ privacyConsentAccepted: false, marketingConsentAccepted: false });
-    expect((withdrawn as any).privacyConsentWithdrawnAt).toBeInstanceOf(Date);
+    expect(withdrawn).toMatchObject({ id: feedback.id, eventId: 'evt_sample', submittedAt: expect.any(String) });
+    expect(state.guestFeedback[0].privacyConsentWithdrawnAt).toBeInstanceOf(Date);
     expect(state.guestFeedback[0].privacyNoticeVersion).toBe('2026-09-01');
     vi.useRealTimers();
   });

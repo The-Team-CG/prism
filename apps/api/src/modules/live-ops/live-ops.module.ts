@@ -6,6 +6,8 @@ import { IdentityAccessModule } from '../identity-access/identity-access.module'
 import { EventSessionModule } from '@prism/kernel/event-session';
 import { PlatformOpsModule } from '../platform-ops/platform-ops.module';
 import { OperationsModule } from '../operations/operations.module';
+import { OperationsEventReferenceModule } from '@prism/contexts/event-lifecycle/operations-reference';
+import { LiveOpsReferenceModule } from '@prism/contexts/operations/live-ops-reference';
 import { CommercialModule } from '../commercial/commercial.module';
 import { ReadModelsModule } from '../read-models/read-models.module';
 import { CoordinatorLiveOpsController } from './api/coordinator-live-ops.controller';
@@ -18,8 +20,8 @@ import { LiveOpsTaskIssueCommandService } from './application/live-ops-task-issu
 import { EventScheduleService } from './application/event-schedule.service';
 
 /**
- * Owned tables: OpsCoordinatorAssignment (live-ops-triggered updates; day-to-day staffing assignment owned by operations), OpsEventDayLog, OpsEventDayTask, OpsUrgentIssue. Coordinator reliability notes are written through the operations staffing port.
- * Read-only: OpsCoordinator (populated only by local fixtures; no owning module), OpsEvent (via inquiry-onboarding).
+ * Owned tables: OpsEventDayLog, OpsEventDayTask, OpsUrgentIssue. Assignment and coordinator reliability changes use the Operations staffing port.
+ * Read-only: Lifecycle supplies event state; Operations supplies coordinator and assignment references. LiveOps stores scalar event, operator, and handoff assignment IDs; history keeps its recorded display snapshots.
  */
 @Module({
   imports: [
@@ -28,6 +30,8 @@ import { EventScheduleService } from './application/event-schedule.service';
     EventCoreModule,
     PlatformOpsModule,
     OperationsModule,
+    OperationsEventReferenceModule,
+    LiveOpsReferenceModule,
     CommercialModule,
     ReadModelsModule,
     IdentityAccessModule,

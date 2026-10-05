@@ -1,19 +1,26 @@
 import { Inject, Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import type { OpsEvent, OpsGuestCheckIn, OpsGuestFeedback, OpsGuestRosterEntry, Prisma } from '@prisma/client';
+import type { OpsGuestCheckIn, OpsGuestFeedback, OpsGuestRosterEntry, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
-import { DOCUMENT_VAULT, type DocumentVault } from '@prism/contexts/event-lifecycle';
+import { validateUploadMetadata } from '@prism/kernel/shared';
 import { STAFFING_READER } from '../../contracts/staffing-ops.tokens';
 import type { StaffingReader } from '../../contracts/staffing-reader.port';
 import type {
   CoordinatorWalkInCheckInInput,
+  CreateGuestCheckInInput,
   CreateGuestFeedbackInput,
   GuestRosterSearchInput,
   ImportGuestRosterInput,
   ModerateGuestFeedbackInput,
   PrismCoordinatorRegistrationEntry,
+  PrismGuestCheckIn,
+  PrismGuestEventPass,
+  PrismEvent,
+  PrismGuestFeedback,
+  PrismGuestFeedbackMedia,
+  PrismGuestFeedbackReceipt,
   PrismGuestRosterEntry,
   UpdateGuestVerificationInput,
   UploadMetadataInput,
@@ -21,19 +28,23 @@ import type {
   PrismGuestEventWatermark,
 } from '@prism/types';
 import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
-import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
+import {
+  OPERATIONS_EVENT_REFERENCE_READER,
+  type OperationsEventReference,
+  type OperationsEventReferenceReader,
+} from '@prism/contexts/event-lifecycle/operations-reference';
+import type { GuestCommands } from '../../contracts/guest-commands.port';
+import {
+  GUEST_EVENT_PROJECTION_READER,
+  type GuestEventProjection,
+  type GuestEventProjectionReader,
+} from '@prism/contexts/read-models/guest-events';
 
-export type EventWithDrafts = OpsEvent & { floorPlanDrafts?: unknown[]; walkInPolicy?: string | null; walkInThreshold?: number | null };
+type EventWithDrafts = GuestEventProjection;
+type GuestFeedbackWithMedia = Prisma.OpsGuestFeedbackGetPayload<{ include: { mediaAttachments: true } }>;
 
-export type GuestCheckInInput = {
-  guestName: string;
-  rosterEntryId?: string;
-  checkInMode?: string;
-  walkIn?: boolean;
-  verificationStatus?: string;
+export type GuestCheckInInput = Omit<CreateGuestCheckInInput, 'privacyConsentAccepted'> & {
   privacyConsentAccepted?: boolean;
-  privacyNoticeVersion?: string;
-  marketingConsentAccepted?: boolean;
 };
 
 export type GuestFeedbackInput = CreateGuestFeedbackInput;
@@ -46,16 +57,16 @@ const GUEST_UPLOAD_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', '
 const MAX_GUEST_CHECK_INS = 500;
 const MAX_GUEST_FEEDBACK = 500;
 const MAX_GUEST_ROSTER_SEARCH = 500;
-const MAX_GUEST_EVENT_FLOORPLAN_DRAFTS = 100;
 
 @Injectable()
-export class GuestWorkflowService {
+export class GuestWorkflowService implements GuestCommands {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     private readonly workflowCommandService: WorkflowCommandService,
-    @Inject(DOCUMENT_VAULT) private readonly documentVault: DocumentVault,
     @Inject(STAFFING_READER) private readonly staffingReader: StaffingReader,
+    @Inject(OPERATIONS_EVENT_REFERENCE_READER) private readonly eventReferences: OperationsEventReferenceReader,
+    @Inject(GUEST_EVENT_PROJECTION_READER) private readonly eventProjections: GuestEventProjectionReader,
   ) {}
 
   async getEventByAccessCode(accessCode: string) {
@@ -64,11 +75,7 @@ export class GuestWorkflowService {
 
   async getEventWatermarkByAccessCode(accessCode: string): Promise<PrismGuestEventWatermark> {
     const normalizedCode = this.normalizeGuestAccessCode(accessCode);
-    const events = await this.prisma.opsEvent.findMany({
-      where: { archived: false },
-      select: { id: true, eventName: true, updatedAt: true },
-      orderBy: { eventDate: 'asc' },
-    });
+    const events = await this.eventProjections.listGuestAccessCandidates(false);
     const event = events.find((item) => this.guestAccessCode(item) === normalizedCode);
     if (!event) throw new NotFoundException('Guest event code was not found');
 
@@ -80,30 +87,44 @@ export class GuestWorkflowService {
     return this.prisma.opsGuestCheckIn.count({ where: { eventId } });
   }
 
-  listCheckInsForEvent(eventId: string) {
-    return this.prisma.opsGuestCheckIn.findMany({ where: { eventId }, orderBy: [{ checkedInAt: 'desc' }, { id: 'desc' }], take: MAX_GUEST_CHECK_INS });
+  async listCheckInsForEvent(eventId: string): Promise<PrismGuestCheckIn[]> {
+    const checkIns = await this.prisma.opsGuestCheckIn.findMany({
+      where: { eventId },
+      orderBy: [{ checkedInAt: 'desc' }, { id: 'desc' }],
+      take: MAX_GUEST_CHECK_INS,
+    });
+    return checkIns.map((checkIn) => this.mapGuestCheckIn(checkIn));
   }
 
-  listCheckInsForEvents(eventIds: string[]) {
-    if (eventIds.length === 0) return Promise.resolve([]);
-    return this.prisma.opsGuestCheckIn.findMany({
+  async listCheckInsForEvents(eventIds: string[]): Promise<PrismGuestCheckIn[]> {
+    if (eventIds.length === 0) return [];
+    const checkIns = await this.prisma.opsGuestCheckIn.findMany({
       where: { eventId: { in: eventIds } },
       orderBy: [{ checkedInAt: 'desc' }, { id: 'desc' }],
       take: MAX_GUEST_CHECK_INS,
     });
+    return checkIns.map((checkIn) => this.mapGuestCheckIn(checkIn));
   }
 
-  listFeedbackForEvent(eventId: string) {
-    return this.prisma.opsGuestFeedback.findMany({ where: { eventId }, orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }], take: MAX_GUEST_FEEDBACK });
-  }
-
-  listFeedbackForEvents(eventIds: string[]) {
-    if (eventIds.length === 0) return Promise.resolve([]);
-    return this.prisma.opsGuestFeedback.findMany({
-      where: { eventId: { in: eventIds } },
+  async listFeedbackForEvent(eventId: string): Promise<PrismGuestFeedback[]> {
+    const feedback = await this.prisma.opsGuestFeedback.findMany({
+      where: { eventId },
+      include: { mediaAttachments: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } },
       orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
       take: MAX_GUEST_FEEDBACK,
     });
+    return feedback.map((item) => this.mapGuestFeedback(item));
+  }
+
+  async listFeedbackForEvents(eventIds: string[]): Promise<PrismGuestFeedback[]> {
+    if (eventIds.length === 0) return [];
+    const feedback = await this.prisma.opsGuestFeedback.findMany({
+      where: { eventId: { in: eventIds } },
+      include: { mediaAttachments: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } },
+      orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
+      take: MAX_GUEST_FEEDBACK,
+    });
+    return feedback.map((item) => this.mapGuestFeedback(item));
   }
 
   countPendingFeedbackForEvent(eventId: string) {
@@ -113,6 +134,7 @@ export class GuestWorkflowService {
   listPendingFeedbackForEvent(eventId: string) {
     return this.prisma.opsGuestFeedback.findMany({
       where: { eventId, moderationStatus: 'pending_review' },
+      include: { mediaAttachments: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } },
       orderBy: [{ submittedAt: 'asc' }, { id: 'asc' }],
       take: MAX_GUEST_FEEDBACK,
     });
@@ -131,8 +153,9 @@ export class GuestWorkflowService {
     });
   }
 
-  async checkInByAccessCode(accessCode: string, input: GuestCheckInInput): Promise<OpsGuestCheckIn> {
-    return this.createCheckIn(() => this.resolveGuestEventByAccessCode(accessCode), input);
+  async checkInByAccessCode(accessCode: string, input: GuestCheckInInput): Promise<PrismGuestCheckIn> {
+    const checkIn = await this.createCheckIn(() => this.resolveGuestEventByAccessCode(accessCode), input);
+    return this.mapGuestCheckIn(checkIn);
   }
 
   async registerWalkIn(eventId: string, input: CoordinatorWalkInCheckInInput, actor: GuestWorkflowActor) {
@@ -143,9 +166,8 @@ export class GuestWorkflowService {
 
     return this.prisma.$transaction(async (tx) => {
       const correlationId = `coordinator_walkin_${randomUUID()}`;
-      await this.lockEvent({ prisma: tx, correlationId }, eventId);
-      const event = await tx.opsEvent.findFirst({ where: { id: eventId, archived: false } });
-      if (!event) throw new NotFoundException('Event not found or archived');
+      const event = await this.eventReferences.findOperationsEvent(eventId, { prisma: tx, correlationId });
+      if (!event || event.archived) throw new NotFoundException('Event not found or archived');
       const checkedInCount = await tx.opsGuestCheckIn.count({ where: { eventId, status: 'checked_in' } });
       this.assertWalkInAllowed(event, checkedInCount);
 
@@ -205,8 +227,7 @@ export class GuestWorkflowService {
       },
       validateStateInTransaction: async (context) => {
         if (!event) throw new NotFoundException('Guest event code was not found');
-        await this.lockEvent(context, event.id);
-        const currentEvent = await context.prisma.opsEvent.findUnique({ where: { id: event.id } });
+        const currentEvent = await this.eventReferences.findOperationsEvent(event.id, context);
         if (!currentEvent || currentEvent.archived) throw new NotFoundException('Guest event was not found or archived');
         if (input.walkIn) {
           const checkedIn = await context.prisma.opsGuestCheckIn.count({ where: { eventId: event.id, status: 'checked_in' } });
@@ -255,11 +276,11 @@ export class GuestWorkflowService {
     });
   }
 
-  async submitFeedbackByAccessCode(accessCode: string, input: GuestFeedbackInput): Promise<OpsGuestFeedback> {
+  async submitFeedbackByAccessCode(accessCode: string, input: GuestFeedbackInput): Promise<PrismGuestFeedbackReceipt> {
     let event: EventWithDrafts | null = null;
     let guestName = '';
 
-    return this.workflowCommandService.execute<OpsGuestFeedback>({
+    const feedback = await this.workflowCommandService.execute<OpsGuestFeedback>({
       name: 'guest_feedback',
       sideEffectMode: 'same_tx',
       context: { actorId: 'guest', actorRole: OpsUserRole.Guest, correlationId: `guest_feedback_${randomUUID()}` },
@@ -279,9 +300,9 @@ export class GuestWorkflowService {
         if (input.photo) this.validateUploadMetadata(input.photo, prefix);
         if (input.video) this.validateUploadMetadata(input.video, prefix);
       },
-      validateStateInTransaction: async ({ prisma: tx }) => {
+      validateStateInTransaction: async (context) => {
         if (!event) throw new NotFoundException('Guest event code was not found');
-        const currentEvent = await tx.opsEvent.findUnique({ where: { id: event.id }, select: { actualEndedAt: true, eventDate: true } });
+        const currentEvent = await this.eventReferences.findOperationsEvent(event.id, context);
         if (!currentEvent) throw new NotFoundException('Guest event code was not found');
         this.assertFeedbackWindow(currentEvent);
       },
@@ -323,6 +344,7 @@ export class GuestWorkflowService {
         });
       },
     });
+    return this.mapGuestFeedbackReceipt(feedback);
   }
 
   async importRoster(eventId: string, input: ImportGuestRosterInput, actor: { id?: string; name: string; role: string }) {
@@ -331,7 +353,7 @@ export class GuestWorkflowService {
     }
     const batchId = `roster_${randomUUID()}`;
       return this.prisma.$transaction(async (tx) => {
-      const event = await tx.opsEvent.findUnique({ where: { id: eventId } });
+      const event = await this.eventReferences.findOperationsEvent(eventId, { prisma: tx, correlationId: batchId });
       if (!event) throw new NotFoundException('Event not found');
       const keys = input.rows.map((row) => row.sourceKey);
       // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: input is capped at 1000 rows by the shared contract.
@@ -387,8 +409,7 @@ export class GuestWorkflowService {
   async updateVerification(eventId: string, rosterEntryId: string, input: UpdateGuestVerificationInput, actor: GuestWorkflowActor) {
     await this.requireRegistrationDeskAccess(eventId, actor);
     const updated = await this.prisma.$transaction(async (tx) => {
-      await this.lockEvent({ prisma: tx, correlationId: `roster_verify_${rosterEntryId}` }, eventId);
-      const event = await tx.opsEvent.findUnique({ where: { id: eventId }, select: { archived: true } });
+      const event = await this.eventReferences.findOperationsEvent(eventId, { prisma: tx, correlationId: `roster_verify_${rosterEntryId}` });
       if (!event || event.archived) throw new NotFoundException('Event not found or archived');
       const roster = await tx.opsGuestRosterEntry.findFirst({ where: { id: rosterEntryId, eventId, withdrawnAt: null } });
       if (!roster) throw new NotFoundException('Roster entry not found');
@@ -407,10 +428,7 @@ export class GuestWorkflowService {
   async checkInRosterEntry(eventId: string, rosterEntryId: string, actor: GuestWorkflowActor) {
     await this.requireRegistrationDeskAccess(eventId, actor);
     return this.prisma.$transaction(async (tx) => {
-      const event = await tx.opsEvent.findFirst({ where: { id: eventId, archived: false } });
-      if (!event) throw new NotFoundException('Event not found or archived');
-      await this.lockEvent({ prisma: tx, correlationId: `roster_checkin_${rosterEntryId}` }, eventId);
-      const currentEvent = await tx.opsEvent.findUnique({ where: { id: eventId } });
+      const currentEvent = await this.eventReferences.findOperationsEvent(eventId, { prisma: tx, correlationId: `roster_checkin_${rosterEntryId}` });
       if (!currentEvent || currentEvent.archived) throw new NotFoundException('Event not found or archived');
       const roster = await tx.opsGuestRosterEntry.findFirst({
         where: { id: rosterEntryId, eventId, withdrawnAt: null, eligibility: 'eligible' },
@@ -450,7 +468,7 @@ export class GuestWorkflowService {
     });
   }
 
-  private async requireRosterCheckInEligibility(tx: Prisma.TransactionClient, event: OpsEvent, roster: OpsGuestRosterEntry) {
+  private async requireRosterCheckInEligibility(tx: Prisma.TransactionClient, event: Pick<OperationsEventReference, 'id' | 'walkInPolicy' | 'walkInThreshold'>, roster: OpsGuestRosterEntry) {
       if (roster.verificationStatus === 'rejected') throw new BadRequestException('Roster entry verification was rejected');
       const walkIn = roster.source === 'coordinator-walk-in';
       if (walkIn && roster.verificationStatus !== 'verified') {
@@ -463,11 +481,11 @@ export class GuestWorkflowService {
       return walkIn;
   }
 
-  async withdrawFeedbackConsentByAccessCode(accessCode: string, feedbackId: string, input: WithdrawGuestFeedbackConsentInput) {
+  async withdrawFeedbackConsentByAccessCode(accessCode: string, feedbackId: string, input: WithdrawGuestFeedbackConsentInput): Promise<PrismGuestFeedbackReceipt> {
     const event = await this.resolveGuestEventByAccessCode(accessCode, true);
     this.assertFeedbackWindow(event);
     return this.prisma.$transaction(async (tx) => {
-      const currentEvent = await tx.opsEvent.findUnique({ where: { id: event.id }, select: { actualEndedAt: true, eventDate: true } });
+      const currentEvent = await this.eventReferences.findOperationsEvent(event.id, { prisma: tx, correlationId: `feedback_consent_${feedbackId}` });
       if (!currentEvent) throw new NotFoundException('Guest event code was not found');
       this.assertFeedbackWindow(currentEvent);
       const feedback = await tx.opsGuestFeedback.findFirst({ where: { id: feedbackId, eventId: event.id } });
@@ -489,7 +507,7 @@ export class GuestWorkflowService {
         affectedLabel: feedback.guestName,
         metadata: { withdrawPrivacyConsent: Boolean(input.withdrawPrivacyConsent), withdrawMarketingConsent: Boolean(input.withdrawMarketingConsent) },
       }, { prisma: tx, correlationId: `feedback_consent_${feedbackId}` });
-      return updated;
+      return this.mapGuestFeedbackReceipt(updated);
     });
   }
 
@@ -509,6 +527,7 @@ export class GuestWorkflowService {
           moderatedBy: actor.name,
           moderatedAt: new Date(),
         },
+        include: { mediaAttachments: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } },
       });
       const actionLabel = input.action === 'approve' ? 'approved' : input.action === 'reject' ? 'rejected' : 'hidden';
       await writeAudit(this.auditWriter, eventId, actor.name, `Guest feedback ${actionLabel}`, {
@@ -527,18 +546,10 @@ export class GuestWorkflowService {
 
   private async resolveGuestEventByAccessCode(accessCode: string, feedbackPath = false) {
     const normalizedCode = this.normalizeGuestAccessCode(accessCode);
-    // QUERY_AUDIT_ALLOW_UNBOUNDED: access codes are derived from event name and ID, so lookup scans only those two columns.
-    const events = await this.prisma.opsEvent.findMany({
-      where: feedbackPath ? {} : { archived: false },
-      select: { id: true, eventName: true },
-      orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
-    });
+    const events = await this.eventProjections.listGuestAccessCandidates(feedbackPath);
     const matched = events.find((item) => this.guestAccessCode(item) === normalizedCode);
     if (!matched) throw new NotFoundException('Guest event code was not found');
-    const event = await this.prisma.opsEvent.findUnique({
-      where: { id: matched.id },
-      include: { floorPlanDrafts: { orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], take: MAX_GUEST_EVENT_FLOORPLAN_DRAFTS } },
-    });
+    const event = await this.eventProjections.findGuestEvent(matched.id);
     if (!event) throw new NotFoundException('Guest event code was not found');
     return event;
   }
@@ -556,7 +567,7 @@ export class GuestWorkflowService {
     if (now > event.actualEndedAt.getTime() + 7 * 24 * 60 * 60 * 1000) throw new BadRequestException('The seven-day guest feedback window has closed');
   }
 
-  guestAccessCode(event: Pick<OpsEvent, 'id' | 'eventName'>) {
+  guestAccessCode(event: Pick<PrismEvent, 'id' | 'eventName'>) {
     const namePart =
       event.eventName
         .toUpperCase()
@@ -573,7 +584,7 @@ export class GuestWorkflowService {
     return accessCode.trim().toUpperCase().replace(/\s+/g, '-');
   }
 
-  private assertWalkInAllowed(event: Pick<OpsEvent, 'walkInPolicy' | 'walkInThreshold'>, checkedInCount: number) {
+  private assertWalkInAllowed(event: Pick<OperationsEventReference, 'walkInPolicy' | 'walkInThreshold'>, checkedInCount: number) {
     const policy = event.walkInPolicy;
     if (policy === 'closed' || !policy) throw new BadRequestException('Walk-in registration is closed for this event');
     if (policy === 'threshold' && checkedInCount >= event.walkInThreshold) {
@@ -612,11 +623,6 @@ export class GuestWorkflowService {
     this.assertWalkInAllowed(event, checkedInCount);
   }
 
-  private async lockEvent(context: PrismTransactionContext, eventId: string) {
-    // QUERY_AUDIT_RAW_SQL: serialize threshold check-ins with policy changes.
-    await context.prisma.$queryRaw`SELECT id FROM event_core.events WHERE id = ${eventId} FOR UPDATE`;
-  }
-
   private async requireRegistrationDeskAccess(eventId: string, actor: GuestWorkflowActor) {
     if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return;
     if (actor.role !== OpsUserRole.Coordinator) {
@@ -633,11 +639,11 @@ export class GuestWorkflowService {
     }
   }
 
-  mapGuestEvent(event: EventWithDrafts, attendanceCount = 0) {
+  mapGuestEvent(event: EventWithDrafts, attendanceCount = 0): PrismGuestEventPass {
     const floorPlanDrafts = event.floorPlanDrafts ?? [];
     const activeDraft =
-      floorPlanDrafts.find((draft: any) => draft.isActive) ??
-      floorPlanDrafts.find((draft: any) => draft.floorPlanId === event.floorPlanId);
+      floorPlanDrafts.find((draft) => draft.isActive) ??
+      floorPlanDrafts.find((draft) => draft.floorPlanId === event.floorPlanId);
 
     return {
       id: event.id,
@@ -646,7 +652,7 @@ export class GuestWorkflowService {
       clientName: event.clientName,
       readiness: event.readiness,
       floorPlanStatus: event.floorPlanStatus,
-      activeFloorPlanDraftId: (activeDraft as any)?.id,
+      activeFloorPlanDraftId: activeDraft?.id,
       guestAccessCode: this.guestAccessCode(event),
       attendanceCount,
       watermark: this.guestEventWatermark(event.updatedAt, attendanceCount),
@@ -657,7 +663,7 @@ export class GuestWorkflowService {
     return `${updatedAt.toISOString()}:${attendanceCount}`;
   }
 
-  mapGuestCheckIn(checkIn: OpsGuestCheckIn) {
+  mapGuestCheckIn(checkIn: OpsGuestCheckIn): PrismGuestCheckIn {
     return {
       id: checkIn.id,
       eventId: checkIn.eventId,
@@ -667,10 +673,15 @@ export class GuestWorkflowService {
       status: checkIn.status,
       walkIn: checkIn.walkIn,
       verificationStatus: checkIn.verificationStatus,
-      privacyConsentAccepted: (checkIn as any).privacyConsentAccepted ?? false,
-      privacyNoticeVersion: (checkIn as any).privacyNoticeVersion ?? '',
-      marketingConsentAccepted: (checkIn as any).marketingConsentAccepted ?? false,
       checkedInAt: checkIn.checkedInAt.toISOString(),
+    };
+  }
+
+  mapGuestFeedbackReceipt(feedback: Pick<OpsGuestFeedback, 'id' | 'eventId' | 'submittedAt'>): PrismGuestFeedbackReceipt {
+    return {
+      id: feedback.id,
+      eventId: feedback.eventId,
+      submittedAt: feedback.submittedAt.toISOString(),
     };
   }
 
@@ -713,7 +724,7 @@ export class GuestWorkflowService {
     };
   }
 
-  mapGuestFeedback(feedback: OpsGuestFeedback) {
+  mapGuestFeedback(feedback: GuestFeedbackWithMedia): PrismGuestFeedback {
     return {
       id: feedback.id,
       eventId: feedback.eventId,
@@ -722,31 +733,34 @@ export class GuestWorkflowService {
       comment: feedback.comment,
       photoFileName: feedback.photoFileName ?? null,
       videoFileName: feedback.videoFileName ?? null,
-      privacyConsentAccepted: (feedback as any).privacyConsentAccepted ?? false,
-      privacyNoticeVersion: (feedback as any).privacyNoticeVersion ?? '',
-      marketingConsentAccepted: (feedback as any).marketingConsentAccepted ?? false,
+      privacyConsentAccepted: feedback.privacyConsentAccepted,
+      privacyNoticeVersion: feedback.privacyNoticeVersion,
+      marketingConsentAccepted: feedback.marketingConsentAccepted,
       moderationStatus: feedback.moderationStatus,
-      moderationReason: (feedback as any).moderationReason ?? null,
-      moderatedById: (feedback as any).moderatedById ?? null,
-      moderatedBy: (feedback as any).moderatedBy ?? null,
-      moderatedAt: (feedback as any).moderatedAt?.toISOString?.() ?? null,
-      privacyConsentWithdrawnAt: (feedback as any).privacyConsentWithdrawnAt?.toISOString?.() ?? null,
-      marketingConsentWithdrawnAt: (feedback as any).marketingConsentWithdrawnAt?.toISOString?.() ?? null,
-      mediaAttachments: ((feedback as any).mediaAttachments ?? []).map((media: any) => ({
-        id: media.id,
-        kind: media.kind,
-        originalFileName: media.originalFileName,
-        mimeType: media.mimeType,
-        sizeBytes: media.sizeBytes,
-        status: media.status,
-        blocker: media.blocker,
-      })),
+      moderationReason: feedback.moderationReason,
+      moderatedById: feedback.moderatedById,
+      moderatedBy: feedback.moderatedBy,
+      moderatedAt: feedback.moderatedAt?.toISOString() ?? null,
+      privacyConsentWithdrawnAt: feedback.privacyConsentWithdrawnAt?.toISOString() ?? null,
+      marketingConsentWithdrawnAt: feedback.marketingConsentWithdrawnAt?.toISOString() ?? null,
+      mediaAttachments: feedback.mediaAttachments.flatMap((media): PrismGuestFeedbackMedia[] => {
+        if (media.kind !== 'photo' && media.kind !== 'video') return [];
+        return [{
+          id: media.id,
+          kind: media.kind,
+          originalFileName: media.originalFileName,
+          mimeType: media.mimeType,
+          sizeBytes: media.sizeBytes,
+          status: media.status,
+          blocker: media.blocker,
+        }];
+      }),
       submittedAt: feedback.submittedAt.toISOString(),
     };
   }
 
   private validateUploadMetadata(input: UploadMetadataInput, prefix: string) {
-    return this.documentVault.validateUploadMetadata(input, prefix, {
+    return validateUploadMetadata(input, prefix, {
       maxSizeBytes: MAX_UPLOAD_SIZE_BYTES,
       allowedMimeTypes: GUEST_UPLOAD_MIME_TYPES,
     });

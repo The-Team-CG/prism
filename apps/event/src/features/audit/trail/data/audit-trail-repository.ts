@@ -1,5 +1,6 @@
 import type {
   AuditLogFilters,
+  CreatePrivacyLegalHoldInput,
   CreatePrivacyRequestInput,
   PrismApprovalRequest,
   PrismAuditExport,
@@ -8,12 +9,14 @@ import type {
   PrismEvent,
   PrismLoginHistory,
   PrismPrivacyInventory,
+  PrismPrivacyLegalHold,
   PrismPrivacyRequest,
   PrismPrivacyRetentionPolicy,
   PrismPmcmDashboardWorkspace,
   PrismSecurityAlert,
   PrismUser,
   ReviewPrivacyRequestInput,
+  ReleasePrivacyLegalHoldInput,
 } from "@prism/types";
 import { eventApi, eventApiRequest } from "@/lib/prism-api";
 
@@ -26,21 +29,25 @@ export type AuditTrailData = {
   approvalRequests: PrismApprovalRequest[];
   privacyPolicies: PrismPrivacyRetentionPolicy[];
   privacyRequests: PrismPrivacyRequest[];
+  privacyLegalHolds: PrismPrivacyLegalHold[];
 };
 
 export type AuditTrailCommands = {
   approvalRequests(): Promise<PrismApprovalRequest[]>;
   auditIntegrity(): Promise<PrismAuditIntegrity>;
   auditLogs(filters: AuditLogFilters): Promise<PrismAuditLog[]>;
+  createLegalHold(input: CreatePrivacyLegalHoldInput): Promise<PrismPrivacyLegalHold>;
   createPrivacyRequest(input: CreatePrivacyRequestInput): Promise<PrismPrivacyRequest>;
   executePrivacyRequest(requestId: string, notes?: string): Promise<PrismPrivacyRequest>;
   exportAuditLogs(filters: AuditLogFilters): Promise<PrismAuditExport>;
   loginHistory(userId: string): Promise<PrismLoginHistory[]>;
   pmcmState(): Promise<PrismPmcmDashboardWorkspace>;
   privacyInventory(eventId?: string): Promise<PrismPrivacyInventory>;
+  privacyLegalHolds(eventId?: string): Promise<PrismPrivacyLegalHold[]>;
   privacyRequests(eventId?: string): Promise<PrismPrivacyRequest[]>;
   privacyRetentionPolicies(): Promise<PrismPrivacyRetentionPolicy[]>;
   reviewPrivacyRequest(requestId: string, input: ReviewPrivacyRequestInput): Promise<PrismPrivacyRequest>;
+  releaseLegalHold(holdId: string, input: ReleasePrivacyLegalHoldInput): Promise<PrismPrivacyLegalHold>;
   securityAlerts(): Promise<PrismSecurityAlert[]>;
 };
 
@@ -57,6 +64,8 @@ const auditTrailCommands = {
   },
   createPrivacyRequest: (input: CreatePrivacyRequestInput) =>
     eventApiRequest<PrismPrivacyRequest>("/api/privacy/requests", { method: "POST", body: input }),
+  createLegalHold: (input: CreatePrivacyLegalHoldInput) =>
+    eventApiRequest<PrismPrivacyLegalHold>("/api/privacy/legal-holds", { method: "POST", body: input }),
   executePrivacyRequest: (requestId: string, notes?: string) =>
     eventApiRequest<PrismPrivacyRequest>(`/api/privacy/requests/${requestId}/execute`, {
       method: "POST", body: { executionNotes: notes },
@@ -69,6 +78,10 @@ const auditTrailCommands = {
     eventApiRequest<PrismPrivacyInventory>(
       `/api/privacy/inventory${eventId && eventId !== "all" ? `?eventId=${encodeURIComponent(eventId)}` : ""}`,
     ),
+  privacyLegalHolds: (eventId?: string) =>
+    eventApiRequest<PrismPrivacyLegalHold[]>(
+      `/api/privacy/legal-holds${eventId && eventId !== "all" ? `?eventId=${encodeURIComponent(eventId)}` : ""}`,
+    ),
   privacyRequests: (eventId?: string) =>
     eventApiRequest<PrismPrivacyRequest[]>(
       `/api/privacy/requests${eventId && eventId !== "all" ? `?eventId=${encodeURIComponent(eventId)}` : ""}`,
@@ -77,6 +90,10 @@ const auditTrailCommands = {
   reviewPrivacyRequest: (requestId: string, input: ReviewPrivacyRequestInput) =>
     eventApiRequest<PrismPrivacyRequest>(`/api/privacy/requests/${requestId}/review`, {
       method: "PATCH", body: input,
+    }),
+  releaseLegalHold: (holdId: string, input: ReleasePrivacyLegalHoldInput) =>
+    eventApiRequest<PrismPrivacyLegalHold>(`/api/privacy/legal-holds/${holdId}/release`, {
+      method: "POST", body: input,
     }),
   securityAlerts: () => eventApiRequest<PrismSecurityAlert[]>("/api/audit/alerts"),
 } satisfies AuditTrailCommands;
@@ -87,7 +104,7 @@ export function createAuditTrailRepository(commands: AuditTrailCommands = auditT
       return commands.pmcmState().then(({ events, users }) => ({ events, users }));
     },
 
-    load(filters: AuditLogFilters, userId: string, eventId: string): Promise<AuditTrailData> {
+    load(filters: AuditLogFilters, userId: string, eventId: string, includeLegalHolds = false): Promise<AuditTrailData> {
       return Promise.all([
         commands.auditLogs(filters),
         commands.securityAlerts(),
@@ -97,7 +114,8 @@ export function createAuditTrailRepository(commands: AuditTrailCommands = auditT
         commands.approvalRequests(),
         commands.privacyRetentionPolicies(),
         commands.privacyRequests(eventId),
-      ]).then(([logs, alerts, loginHistory, auditIntegrity, privacyInventory, approvalRequests, privacyPolicies, privacyRequests]) => ({
+        includeLegalHolds ? commands.privacyLegalHolds(eventId) : Promise.resolve([]),
+      ]).then(([logs, alerts, loginHistory, auditIntegrity, privacyInventory, approvalRequests, privacyPolicies, privacyRequests, privacyLegalHolds]) => ({
         logs,
         alerts,
         loginHistory,
@@ -106,6 +124,7 @@ export function createAuditTrailRepository(commands: AuditTrailCommands = auditT
         approvalRequests,
         privacyPolicies,
         privacyRequests,
+        privacyLegalHolds,
       }));
     },
 
@@ -117,12 +136,20 @@ export function createAuditTrailRepository(commands: AuditTrailCommands = auditT
       return commands.createPrivacyRequest(input);
     },
 
+    createLegalHold(input: CreatePrivacyLegalHoldInput): Promise<PrismPrivacyLegalHold> {
+      return commands.createLegalHold(input);
+    },
+
     reviewPrivacyRequest(requestId: string, input: ReviewPrivacyRequestInput): Promise<PrismPrivacyRequest> {
       return commands.reviewPrivacyRequest(requestId, input);
     },
 
     executePrivacyRequest(requestId: string, notes: string): Promise<PrismPrivacyRequest> {
       return commands.executePrivacyRequest(requestId, notes);
+    },
+
+    releaseLegalHold(holdId: string, input: ReleasePrivacyLegalHoldInput): Promise<PrismPrivacyLegalHold> {
+      return commands.releaseLegalHold(holdId, input);
     },
   };
 }

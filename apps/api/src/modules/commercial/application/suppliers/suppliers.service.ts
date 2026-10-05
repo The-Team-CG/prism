@@ -11,12 +11,12 @@ import type {
   OpsSupplierReviewDimension,
   OpsSupplierReviewDimensionRating,
 } from '@prisma/client';
+import type { AddSupplierQuoteInput } from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type { SupplierPromotionResult } from '../../contracts/supplier-directory.port';
 import { createHash, randomUUID } from 'node:crypto';
 import { SupplierTier } from '@prism/kernel/event-core';
-import type { AddSupplierQuoteInput } from '../../contracts/commercial-workflow-commands.port';
 
 function isIdempotencyKeyViolation(error: unknown): boolean {
   if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') return false;
@@ -208,7 +208,7 @@ export class SuppliersService {
     return { supplier: this.mapSupplier(await this.supplierRow(supplierId, db)), replayed: false };
   }
 
-  private assertPromotionTarget(supplier: any, input: PromoteSupplierInput) {
+  private assertPromotionTarget(supplier: SupplierWithProfile, input: PromoteSupplierInput) {
     if (!supplier.category.active) throw new BadRequestException('Supplier category is inactive');
     if (supplier.tier !== SupplierTier.PendingFirstEvent && supplier.tier !== input.tier) throw new BadRequestException('Only pending-first-event suppliers can be promoted');
     if (supplier.tier === input.tier) throw new BadRequestException('Supplier has already been promoted to this tier');
@@ -340,7 +340,7 @@ export class SuppliersService {
     });
 
     if (!supplier) throw new NotFoundException('Supplier not found');
-    return supplier as SupplierWithProfile;
+    return supplier;
   }
 
   async resolveQuoteSupplier(input: AddSupplierQuoteInput) {

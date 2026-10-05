@@ -37,17 +37,25 @@ function createRequest(overrides: Record<string, unknown> = {}) {
     supplierName: 'SonicLine Technicals',
     category: 'Technicals',
     message: 'Ayala Tech Summit quote request.',
-    dueDate: new Date('2026-06-25T00:00:00.000Z'),
+    dueDate: '2026-06-25',
     accessToken: 'token-sample',
     confidentialBid: false,
     status: 'selected',
     assignmentStatus: 'confirmed',
-    assignmentConfirmedAt: new Date('2026-06-20T08:00:00.000Z'),
+    assignmentConfirmedAt: '2026-06-20T08:00:00.000Z',
     readinessStatus: 'confirmed',
-    readinessConfirmedAt: new Date('2026-06-20T09:00:00.000Z'),
+    readinessConfirmedAt: '2026-06-20T09:00:00.000Z',
     readinessNotes: 'Ready for ingress',
     contractDocumentId: 'doc_contract',
-    createdAt: new Date('2026-06-19T08:00:00.000Z'),
+    eventDayStatus: 'not_started',
+    eventDayStatusAt: null,
+    eventDayNotes: '',
+    eventDayVerificationStatus: 'self_reported',
+    eventDayVerifiedAt: null,
+    eventDayVerifiedBy: null,
+    eventDayVerificationNotes: '',
+    statusPhotoFileName: null,
+    createdAt: '2026-06-19T08:00:00.000Z',
     ...overrides,
   };
 }
@@ -77,16 +85,15 @@ describe('OpsSupplierWorkspaceCommandsController', () => {
       supplierNetworkWorkflowService as unknown as SupplierNetworkWorkflowService,
       eventAccessPolicyService as unknown as EventAccessPolicyService,
     );
-    const spoofedActorQuery = { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Spoofed Admin', supplierId: 'sup_other' };
     const sessionActor = verifiedActor();
 
-    await expect(controller.confirmAssignment('qr_sonic', spoofedActorQuery, sessionActor)).resolves.toMatchObject({
+    await expect(controller.confirmAssignment('qr_sonic', sessionActor)).resolves.toMatchObject({
       id: 'qr_sonic',
       assignmentStatus: 'confirmed',
       assignmentConfirmedAt: '2026-06-20T08:00:00.000Z',
     });
     await expect(
-      controller.confirmReadiness('qr_sonic', { notes: 'Ingress confirmed' }, spoofedActorQuery, sessionActor),
+      controller.confirmReadiness('qr_sonic', { notes: 'Ingress confirmed' }, sessionActor),
     ).resolves.toMatchObject({
       id: 'qr_sonic',
       readinessNotes: 'Ingress confirmed',
@@ -94,8 +101,7 @@ describe('OpsSupplierWorkspaceCommandsController', () => {
     await expect(
       controller.uploadContract(
         'qr_sonic',
-        { fileName: 'contract.pdf', mimeType: 'application/pdf', sizeBytes: 2048 },
-        spoofedActorQuery,
+        { fileName: 'contract.pdf', mimeType: 'application/pdf', sizeBytes: 2048, idempotencyKey: 'contract-submit-1' },
         sessionActor,
       ),
     ).resolves.toMatchObject({ id: 'qr_sonic', contractDocumentId: 'doc_uploaded' });
@@ -110,8 +116,9 @@ describe('OpsSupplierWorkspaceCommandsController', () => {
     );
     expect(supplierNetworkWorkflowService.uploadSupplierContract).toHaveBeenCalledWith(
       'qr_sonic',
-      { fileName: 'contract.pdf', mimeType: 'application/pdf', sizeBytes: 2048 },
+      { fileName: 'contract.pdf', mimeType: 'application/pdf', sizeBytes: 2048, idempotencyKey: 'contract-submit-1' },
       actor,
+      sessionActor,
     );
   });
 });

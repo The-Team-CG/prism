@@ -24,7 +24,9 @@ import {
 import { EventReadModelQueries } from './application/queries/event-read-models.queries';
 import { EventReadModelsService } from './application/services/event-read-models.service';
 import { LiveOpsReadModelsService } from './application/services/live-ops-read-models.service';
+import { PlatformReferenceReadModelsService } from './application/services/platform-reference-read-models.service';
 import { LIVE_OPS_READ_MODEL } from './contracts/ports/live-ops-read-models.tokens';
+import { GuestEventProjectionModule } from './guest-event-projection.module';
 
 /**
  * Read-only composition context. It owns no writes and composes the public
@@ -40,7 +42,7 @@ import { LIVE_OPS_READ_MODEL } from './contracts/ports/live-ops-read-models.toke
     PlatformOpsModule,
     EventLifecycleModule,
     IdentityAccessModule,
-    EventSessionModule,
+    GuestEventProjectionModule,
   ],
   controllers: [
     OpsBillingController,
@@ -55,6 +57,7 @@ import { LIVE_OPS_READ_MODEL } from './contracts/ports/live-ops-read-models.toke
     EventReadModelQueries,
     EventReadModelsService,
     LiveOpsReadModelsService,
+    PlatformReferenceReadModelsService,
     { provide: LIVE_OPS_READ_MODEL, useExisting: LiveOpsReadModelsService },
     { provide: PMCM_EVENT_READ_MODEL, useExisting: EventReadModelsService },
     { provide: CLIENT_EVENT_READ_MODEL, useExisting: EventReadModelsService },
@@ -69,6 +72,8 @@ import { LIVE_OPS_READ_MODEL } from './contracts/ports/live-ops-read-models.toke
     SUPPLIER_EVENT_READ_MODEL,
     BILLING_READ_MODEL,
     LIVE_OPS_READ_MODEL,
+    PlatformReferenceReadModelsService,
+    GuestEventProjectionModule,
   ],
 })
 export class ReadModelsModule {}

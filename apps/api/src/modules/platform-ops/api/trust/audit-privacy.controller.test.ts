@@ -45,6 +45,9 @@ describe('trust-ops audit/privacy controllers', () => {
       createRequest: vi.fn(async () => ({ id: 'priv_2' })),
       reviewRequest: vi.fn(async () => ({ id: 'priv_2', status: 'approved' })),
       executeRequest: vi.fn(async () => ({ id: 'priv_2', status: 'executed' })),
+      listLegalHolds: vi.fn(async () => [{ id: 'hold_1', eventId: 'evt_sample' }]),
+      createLegalHold: vi.fn(async () => ({ id: 'hold_1', subjectType: 'client' })),
+      releaseLegalHold: vi.fn(async () => ({ id: 'hold_1', releasedAt: '2026-10-05T00:00:00.000Z' })),
     };
     const auditService = { audit: vi.fn(async () => ({ id: 'aud_forbidden' })) };
     const securityOperationsService = { recordIntegrityIncident: vi.fn(async () => undefined) };
@@ -67,6 +70,18 @@ describe('trust-ops audit/privacy controllers', () => {
       id: 'priv_2',
       status: 'executed',
     });
+    await expect(controller.createLegalHold({
+      subjectType: 'client', subjectEmail: 'ana@example.test', reason: 'Preserve records',
+    }, verified())).resolves.toEqual({ id: 'hold_1', subjectType: 'client' });
+    await expect(controller.legalHolds({ eventId: 'evt_sample' }, verified())).resolves.toEqual([
+      { id: 'hold_1', eventId: 'evt_sample' },
+    ]);
+    await expect(controller.releaseLegalHold('hold_1', { reason: 'Counsel confirmed release' }, verified())).resolves.toEqual({
+      id: 'hold_1', releasedAt: '2026-10-05T00:00:00.000Z',
+    });
+    await expect(controller.createLegalHold({
+      subjectType: 'client', subjectEmail: 'ana@example.test', reason: 'Preserve records',
+    }, verified('system'))).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(privacyOperationsService.getInventory).toHaveBeenCalledWith({ eventId: 'evt_sample' });
     expect(privacyOperationsService.createRequest).toHaveBeenCalledWith(
@@ -82,6 +97,20 @@ describe('trust-ops audit/privacy controllers', () => {
       'priv_2',
       { executionNotes: 'Done' },
       expect.objectContaining({ id: 'u1', role: 'system', verified: true }),
+    );
+    expect(privacyOperationsService.createLegalHold).toHaveBeenCalledWith(
+      { subjectType: 'client', subjectEmail: 'ana@example.test', reason: 'Preserve records' },
+      expect.objectContaining({ id: 'u1', role: 'pmcm-admin', verified: true }),
+    );
+    expect(privacyOperationsService.listLegalHolds).toHaveBeenCalledWith({ eventId: 'evt_sample' });
+    expect(privacyOperationsService.releaseLegalHold).toHaveBeenCalledWith(
+      'hold_1', { reason: 'Counsel confirmed release' }, expect.objectContaining({ id: 'u1', role: 'pmcm-admin', verified: true }),
+    );
+    expect(auditService.audit).toHaveBeenCalledWith(
+      undefined,
+      'PMCM Admin',
+      '403 forbidden access: privacy legal hold placement',
+      expect.objectContaining({ actionType: 'forbidden_access', affectedType: 'scoped_write' }),
     );
   });
 

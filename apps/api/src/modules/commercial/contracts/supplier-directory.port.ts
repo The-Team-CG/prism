@@ -1,41 +1,24 @@
-import type { CreateSupplierReliabilityNoteInput, CreateSupplierReviewInput, PromoteSupplierInput } from '@prism/types';
+import type {
+  ChangeSupplierTierInput,
+  CreateSupplierCertificationInput,
+  CreateSupplierInput,
+  CreateSupplierReliabilityNoteInput,
+  CreateSupplierReviewInput,
+  PrismSupplierDirectoryProfile,
+  PromoteSupplierInput,
+  UpdateSupplierInput,
+} from '@prism/types';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 
-export type { CreateSupplierReviewInput } from '@prism/types';
+export type {
+  ChangeSupplierTierInput,
+  CreateSupplierCertificationInput,
+  CreateSupplierInput,
+  CreateSupplierReviewInput,
+  UpdateSupplierInput,
+} from '@prism/types';
 
-export type SupplierProfile = {
-  id: string;
-  name: string;
-  email?: string | null;
-};
-
-export type CreateSupplierInput = {
-  categoryId: string;
-  name: string;
-  contactName?: string;
-  email?: string;
-  phone?: string;
-  tier?: string;
-  bniMember?: boolean;
-  serviceInclusions?: string;
-  performanceNotes?: string;
-};
-
-export type UpdateSupplierInput = Partial<Omit<CreateSupplierInput, 'tier'>>;
-
-export type ChangeSupplierTierInput = {
-  tier: string;
-  reason: string;
-};
-
-export type CreateSupplierCertificationInput = {
-  fileName: string;
-  documentType: string;
-  issuer?: string;
-  expiresAt?: string;
-  status?: string;
-  notes?: string;
-};
+export type SupplierProfile = PrismSupplierDirectoryProfile;
 
 export type ChangeSupplierTierResult = {
   supplier: SupplierProfile;

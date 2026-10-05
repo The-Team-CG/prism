@@ -12,6 +12,7 @@ import {
 } from './check-prisma-migrations.mjs';
 
 const policy = {
+  policyVersion: 1,
   legacyMaxVersion: '20260909100000',
   legacyMigrationNames: ['20260908000400_legacy_change'],
   legacyDuplicateVersions: [],
@@ -24,8 +25,32 @@ const policy = {
     operations: { schemas: ['guest_ops', 'staffing_ops'] },
     'platform-ops': { schemas: ['platform_ops', 'trust_ops'] },
   },
+  historicalOwnerSchemas: {
+    commercial: { schemas: ['finance_ops', 'supplier_ops'] },
+    'event-lifecycle': { schemas: ['compliance_ops', 'event_core'] },
+    'live-ops': { schemas: ['staffing_ops'] },
+    operations: { schemas: ['guest_ops', 'staffing_ops'] },
+    'platform-ops': { schemas: ['platform_ops', 'trust_ops'] },
+  },
+  historicalTableOwners: {},
+  historicalIndexOwners: {},
+  historicalRequireTableOwnerMappingsForSchemas: [],
 };
 const futurePolicy = { ...policy, legacyMigrationNames: [] };
+const strictOwnershipManifest = {
+  ownership: [
+    { domain: 'commercial', currentSchema: 'supplier_ops', targetSchema: 'commercial', table: 'quotes' },
+    { domain: 'event-lifecycle', currentSchema: 'event_core', targetSchema: 'event_lifecycle', table: 'events' },
+  ],
+};
+const strictFuturePolicy = {
+  ...futurePolicy,
+  owners: {
+    commercial: { schema: 'commercial' },
+    'event-lifecycle': { schema: 'event_lifecycle' },
+  },
+  schemaMoveMigrations: {},
+};
 
 const temporaryRoots = [];
 
@@ -54,6 +79,16 @@ function ownerAwareMigration({
 }
 
 describe('Prisma migration policy', () => {
+  it('requires an explicit supported policy version', () => {
+    const result = auditMigrationSet([], { ...futurePolicy, policyVersion: undefined });
+
+    assert.match(result.errors.join('\n'), /unsupported migration policy version \(missing\)/);
+    assert.match(
+      auditMigrationSet([], { ...futurePolicy, policyVersion: 2 }).errors.join('\n'),
+      /unsupported migration policy version 2/,
+    );
+  });
+
   it('parses owner-aware names and preserves the full change slug', () => {
     assert.deepEqual(
       parseMigrationName(
@@ -110,6 +145,75 @@ describe('Prisma migration policy', () => {
     );
 
     assert.match(result.errors.join('\n'), /immutable legacy migration\.sql checksum mismatch/);
+  });
+
+  it('freezes the reviewed owner-aware baseline by exact name and SQL checksum', () => {
+    const reviewed = ownerAwareMigration({ version: '20260911123000' });
+    const checksum = createHash('sha256').update(reviewed.sql.replace(/\r\n/g, '\n'), 'utf8').digest('hex');
+    const result = auditMigrationSet([reviewed], {
+      ...futurePolicy,
+      ownerAwareBaselineMaxVersion: '20260911123000',
+      ownerAwareBaselineNames: [reviewed.name],
+      ownerAwareBaselineChecksums: { [reviewed.name]: checksum },
+    });
+
+    assert.deepEqual(result.errors, []);
+    assert.equal(result.summary.ownerAwareBaseline, 1);
+    assert.equal(result.summary.ownerAware, 0);
+  });
+
+  it('revalidates frozen owner-aware history against its saved historical schema policy', () => {
+    const reviewed = ownerAwareMigration({ version: '20260911123000' });
+    const checksum = createHash('sha256').update(reviewed.sql, 'utf8').digest('hex');
+    const result = auditMigrationSet([reviewed], {
+      ...futurePolicy,
+      ownerAwareBaselineMaxVersion: '20260911123000',
+      ownerAwareBaselineNames: [reviewed.name],
+      ownerAwareBaselineChecksums: { [reviewed.name]: checksum },
+      historicalOwnerSchemas: { commercial: { schemas: ['finance_ops'] } },
+      historicalTableOwners: {},
+      historicalIndexOwners: {},
+      historicalRequireTableOwnerMappingsForSchemas: [],
+    });
+
+    assert.match(result.errors.join('\n'), /schema supplier_ops is not allowed for owner commercial/);
+  });
+
+  it('rejects edits to a frozen owner-aware migration', () => {
+    const reviewed = ownerAwareMigration({ version: '20260911123000' });
+    const checksum = createHash('sha256').update(reviewed.sql, 'utf8').digest('hex');
+    const result = auditMigrationSet(
+      [migration(reviewed.name, `${reviewed.sql} -- edited`)],
+      {
+        ...futurePolicy,
+        ownerAwareBaselineMaxVersion: '20260911123000',
+        ownerAwareBaselineNames: [reviewed.name],
+        ownerAwareBaselineChecksums: { [reviewed.name]: checksum },
+      },
+    );
+
+    assert.match(result.errors.join('\n'), /immutable owner-aware baseline migration\.sql checksum mismatch/);
+  });
+
+  it('requires every owner-aware baseline migration to remain present', () => {
+    const name = '20260911123000_commercial_supplier_reconciliation';
+    const result = auditMigrationSet([], {
+      ...futurePolicy,
+      ownerAwareBaselineMaxVersion: '20260911123000',
+      ownerAwareBaselineNames: [name],
+      ownerAwareBaselineChecksums: { [name]: 'a'.repeat(64) },
+    });
+
+    assert.match(result.errors.join('\n'), /immutable owner-aware baseline migration is missing/);
+  });
+
+  it('rejects a new migration inserted into the frozen owner-aware version range', () => {
+    const result = parseMigrationName('20260911122959_commercial_before_baseline', {
+      ...futurePolicy,
+      ownerAwareBaselineMaxVersion: '20260911123000',
+    });
+
+    assert.match(result.error, /not in the immutable migration baseline/);
   });
 
   it('accepts a future owner-aware migration with matching metadata and schema', () => {
@@ -198,6 +302,67 @@ describe('Prisma migration policy', () => {
     );
 
     assert.match(result.errors.join('\n'), /not allowed for owner commercial/);
+  });
+
+  it('allows an owner migration to update its own table before the schema move', () => {
+    const result = auditMigrationSet(
+      [ownerAwareMigration({ sql: 'ALTER TABLE "supplier_ops"."quotes" ADD COLUMN "reviewed_at" TIMESTAMP(3);' })],
+      strictFuturePolicy,
+      strictOwnershipManifest,
+    );
+
+    assert.deepEqual(result.errors, []);
+  });
+
+  it('rejects a new owner migration that mutates another domain table in a shared source schema', () => {
+    const result = auditMigrationSet(
+      [ownerAwareMigration({ sql: 'ALTER TABLE "event_core"."events" ADD COLUMN "reviewed_at" TIMESTAMP(3);' })],
+      strictFuturePolicy,
+      strictOwnershipManifest,
+    );
+
+    assert.ok(result.errors.some((error) => error.includes('table event_core.events is not owned by commercial')));
+  });
+
+  it('rejects a table missing from the ownership manifest', () => {
+    const result = auditMigrationSet(
+      [ownerAwareMigration({ sql: 'ALTER TABLE "supplier_ops"."unmapped_table" ADD COLUMN "reviewed_at" TIMESTAMP(3);' })],
+      strictFuturePolicy,
+      strictOwnershipManifest,
+    );
+
+    assert.ok(result.errors.some((error) => error.includes('table supplier_ops.unmapped_table is not owned by commercial')));
+  });
+
+  it('requires table schema moves to match an exact migration-name transition', () => {
+    const move = ownerAwareMigration({
+      slug: 'move_quotes',
+      sql: 'ALTER TABLE "supplier_ops"."quotes" SET SCHEMA "commercial";',
+    });
+    const unreviewed = auditMigrationSet([move], strictFuturePolicy, strictOwnershipManifest);
+    const reviewed = auditMigrationSet([move], {
+      ...strictFuturePolicy,
+      schemaMoveMigrations: {
+        [move.name]: {
+          owner: 'commercial',
+          moves: [{ fromSchema: 'supplier_ops', table: 'quotes', toSchema: 'commercial' }],
+        },
+      },
+    }, strictOwnershipManifest);
+
+    assert.ok(unreviewed.errors.some((error) => error.includes('require an exact migration-name transition policy')));
+    assert.deepEqual(reviewed.errors, []);
+  });
+
+  it('rejects unused schema move permissions that name no migration directory', () => {
+    const result = auditMigrationSet([], {
+      ...strictFuturePolicy,
+      schemaMoveMigrations: {
+        '20260911123000_commercial_move_quotes': { owner: 'commercial', moves: [] },
+      },
+    });
+
+    assert.match(result.errors.join('\n'), /schema move policy has no matching migration directory/);
   });
 
   it('rejects the public schema for new domain migrations', () => {
