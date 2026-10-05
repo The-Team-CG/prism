@@ -2,6 +2,7 @@
 
 ## 2026-10-04
 
+- **Corrected:** Operations is now the sole production writer for coordinator assignment state. Live Ops delegates attendance and replacement; Lifecycle delegates cancellation and postponement with the original transaction context. Acknowledgment and attendance retries avoid duplicate history, reliability, and audit effects.
 - **Implemented:** Commercial additional billing validates recorded post-event state through Lifecycle and same-event urgent-issue eligibility through LiveOps; both owner readers use the caller transaction and lock the required rows until commit.
 - **Recorded:** Added the canonical external-reference lifecycle register and machine-readable policy for 45 cross-domain foreign keys and 28 scalar references. The register distinguishes current eligibility from historical attribution, records current delete effects and owner recovery rules, and keeps FK removal behind behavior and migration gates.
 - **Implemented:** Lifecycle addendum issuance now delegates approved billing-source and selected supplier-quote mutations to a narrow Commercial capability in the same transaction, then retains its own impact history. Corrected the stale onboarding ownership description: current briefing/conforme workflows do not create billing rows without priced-source input.

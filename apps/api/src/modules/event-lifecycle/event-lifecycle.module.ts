@@ -4,6 +4,7 @@ import { AccessControlModule } from '@prism/kernel/access-control';
 import { EventCoreModule } from '@prism/kernel/event-core';
 import { EventSessionModule } from '@prism/kernel/event-session';
 import { PlatformOpsModule } from '../platform-ops/platform-ops.module';
+import { OperationsModule } from '../operations/operations.module';
 import { CLIENT_ONBOARDING_COMMANDS, INQUIRY_COMMANDS } from './contracts/inquiry-onboarding.tokens';
 import { OpsEventBriefingController } from './api/onboarding/event-briefing.controller';
 import { OpsInquiriesController } from './api/onboarding/inquiries.controller';
@@ -67,6 +68,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     DatabaseModule,
     EventCoreModule,
     PlatformOpsModule,
+    OperationsModule,
     EventLifecycleReferenceModule,
     CommercialAddendumImpactModule,
     EventLifecycleProjectionModule,
