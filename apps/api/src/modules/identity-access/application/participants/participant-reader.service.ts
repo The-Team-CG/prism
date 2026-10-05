@@ -21,6 +21,7 @@ export class ParticipantReaderService implements ParticipantReader {
     @Inject(PARTICIPANT_FACTS) private readonly factsReader: ParticipantFactsReader,
   ) {}
 
+
   async resolveForEvent(actorId: string, eventId: string, db?: Prisma.TransactionClient): Promise<ResolvedEventOpsActor> {
     const [user, event] = await Promise.all([
       (db ?? this.prisma).opsUser.findUnique({ where: { id: actorId }, select: { id: true, name: true, email: true, role: true, approvalStatus: true } }),

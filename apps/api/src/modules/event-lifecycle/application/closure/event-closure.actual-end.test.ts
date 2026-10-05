@@ -8,7 +8,8 @@ function harness(actualEndedAt: Date | null = null) {
   const tx = { opsEvent: { findUnique: vi.fn(async () => event), update: vi.fn(async ({ data }: any) => ({ ...event, ...data })) }, opsEventWrapUp: { upsert: vi.fn(async ({ create }: any) => create) } };
   const prisma = { $transaction: vi.fn(async (fn: any) => fn(tx)) };
   const auditWriter = { write: vi.fn(async () => undefined) };
-  const service = new EventClosureService(prisma as any, {} as any, {} as any, auditWriter as any, {} as any, {} as any, {} as any);
+  const service = new EventClosureService(prisma as any, {} as any, {} as any, auditWriter as any, {} as any, {} as any, {} as any,
+    { getLifecycleFacts: vi.fn() } as any, { getClosureFacts: vi.fn() } as any);
   return { service, tx, auditWriter };
 }
 const actor = { id: 'user_pmcm', name: 'Maxine', email: 'mys@test', role: OpsUserRole.PmcmAdmin } as any;

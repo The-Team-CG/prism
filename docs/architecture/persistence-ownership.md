@@ -4,12 +4,12 @@ title: "P.R.I.S.M persistence ownership and intentional joins"
 description: "At-a-glance ownership of Prisma models, physical database schemas, allowed cross-context reads, and documented transitional writes."
 tags: [architecture, persistence, prisma, ddd, modular-monolith, data-ownership]
 status: canonical
-updated: "2026-10-05"
+updated: "2026-10-06"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, reviewers]
 scope: "apps/api/prisma/schema.prisma and apps/api/src/modules"
-last_verified: "local PR18 worktree; 92-model ownership manifest, Prisma validation and offline schema verification passed 2026-10-05"
+last_verified: "local s11-cutover worktree; 93-model manifest, Prisma validation, persistence guard, and populated PostgreSQL cutover replay passed 2026-10-06; Prisma migrate deploy was not exercised"
 sources:
   - id: prisma-schema
     resource: "apps/api/prisma/schema.prisma"
@@ -66,30 +66,45 @@ policy does not create microservices or a database authorization boundary.
 
 | Write domain | Target schema | Tables | Columns | Owns |
 | --- | --- | ---: | ---: | --- |
-| event-lifecycle | event_lifecycle | 18 | 279 | Inquiry, events, lifecycle documents, briefing, compliance, decisions, freeze/addenda, closure |
+| event-lifecycle | event_lifecycle | 18 | 280 | Inquiry, events, lifecycle documents, briefing, compliance, decisions, freeze/addenda, closure |
 | commercial | commercial | 28 | 319 | Suppliers, quotes, communications, estimates, proposals, billing, receipts |
 | operations | operations | 12 | 142 | Coordinator pool, availability, coverage, assignments, acknowledgment/reliability, guest operations |
 | live-ops | live_ops | 10 | 122 | Event-day tasks, schedule, operators, handoffs, end-of-day, urgent issues/logs |
-| floorplan | floorplan | 6 | 72 | Plans, objects, templates, layout instances, published copies, official drafts |
-| identity-access | identity_access | 4 | 38 | Accounts, approvals, password reset and authentication state |
+| floorplan | floorplan | 7 | 75 | Plans, objects, templates, layout instances, published copies, official drafts, projection clock |
+| identity-access | identity_access | 4 | 42 | Accounts, approvals, password reset and authentication state |
 | platform-ops | platform_ops | 14 | 201 | Privacy requests and legal holds, security, login history, audit, notifications, AI, storage, command receipts |
-| **Total** | **7 schemas** | **92** | **1,173** | Every business table has one owner |
+| **Total** | **7 schemas** | **93** | **1,181** | Every business table has one owner |
 
 The machine-readable domain ownership manifest linked above is the complete
 model-level inventory. It records each current and target schema, domain owner,
-table name, and scalar column count. This summary table is not a substitute for
-the 93 model assignments.
+table name, and scalar column count. Ten tables already reside in their owner
+schema; the coordinated cutover moves the other 83.
+
+The cutover retires no tables or columns. The separate
+[column authority register](column-authority-register.md) records the reviewed
+trim candidate (`OpsEventDecision.storage_intent`) and why response
+compatibility, historical values, and owner approval must be resolved before a
+separate retirement migration. Other columns remain pending owner or usage
+evidence; none is treated as removable based on lexical search alone.
+
+The [domain schema map](domain-schema-map.md) shows the reviewed baseline and
+the one-schema-per-domain target. It distinguishes the current physical
+database from the target Prisma layout represented on the cutover branch.
 
 Use the [active column authority register](column-authority-register.md) for each baseline field's
 physical type, nullability, default, provisional semantics, candidate consumers, sensitivity and DDL
 disposition. The register does not approve unresolved business units, timezones or retention periods.
 
-The reviewed staging baseline has ten populated application schemas and 112
-foreign keys. By target owner, 67 baseline keys are local and 45 cross domain.
-The source and migration work have not yet moved all tables or removed the 45
-external constraints. Preserve current placement as transitional evidence.
-A quote-to-request relation is a valid same-Commercial constraint and is
-repaired in its existing namespace before the schema cutover.
+The reviewed staging baseline has ten populated application schemas and 45
+cross-domain foreign keys. By target owner, 68 same-domain foreign keys are
+retained. The cutover migration removes the 45 external constraints while
+preserving same-domain constraints. A populated disposable PostgreSQL replay
+confirmed 93 tables retained their relation OIDs, row counts, and index counts;
+the post-cutover catalog had 68 same-schema foreign keys and no cross-schema
+foreign keys. The replay used psql after applying the branch's four pending
+forward migrations; Prisma's migrate deploy command was not exercised.
+The quote-to-request relation remains a valid same-Commercial constraint and
+is repaired in its existing namespace before cutover.
 
 The rule is based on owning domain, not current namespace: a key between two
 Commercial tables is permitted even if their tables currently live in
@@ -227,13 +242,15 @@ business owner and lifecycle metadata contract.
 
 ## External-reference lifecycle
 
-The exact current foreign-key actions and additional scalar references are in
+The exact baseline foreign-key actions and additional scalar references are in
 the [external-reference lifecycle register](external-reference-lifecycle.md)
 and linked machine policy. This stack has 45 cross-domain foreign keys
 (38 CASCADE, 6 SET NULL, 1 RESTRICT) and 28 additional scalar references.
-Those delete actions describe current database behavior, not approved retention
-policy. FK removal remains blocked on owner capabilities, behavior tests, and
-the coordinated migration rehearsal.
+Those delete actions describe baseline database behavior, not approved
+retention policy. The schema cutover preserves the scalar references and
+removes cross-domain referential actions only after owner capabilities and the
+disposable replay are in place. The shared staging database has not been
+changed by this local branch.
 
 ## Intentional cross-context joins and writes
 

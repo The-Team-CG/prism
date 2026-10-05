@@ -8,6 +8,8 @@ import { EventAccessPolicyService } from "@prism/kernel/access-control";
 import { AuditService, AuditWriterAdapter, SecurityOperationsService } from "@prism/contexts/platform-ops";
 import { OpsUserRole, WorkflowCommandService } from "@prism/kernel/event-core";
 import { FileRequirementsMatrixService } from "../files/file-requirements-matrix.service";
+import { CommercialFactsReaderService } from "@prism/contexts/read-models/commercial-facts-reader";
+import { LifecycleFactsReaderService } from "@prism/contexts/read-models/lifecycle-facts";
 import { ComplianceWorkflowService } from "./compliance-workflow.service";
 
 const databaseUrl = process.env.P0_TEST_DATABASE_URL;
@@ -29,7 +31,7 @@ describe.skipIf(!databaseUrl)("compliance engine against PostgreSQL", () => {
     const database = prisma as PrismaService;
     const auditService = new AuditService(database);
     const auditWriter = new AuditWriterAdapter(auditService, new SecurityOperationsService(database, auditService));
-    service = new ComplianceWorkflowService(database, auditWriter, new EventAccessPolicyService(auditWriter), new WorkflowCommandService(), new FileRequirementsMatrixService(database));
+    service = new ComplianceWorkflowService(database, auditWriter, new EventAccessPolicyService(auditWriter), new WorkflowCommandService(), new CommercialFactsReaderService(database), new LifecycleFactsReaderService(database), new FileRequirementsMatrixService(database));
   });
 
   afterEach(() => {

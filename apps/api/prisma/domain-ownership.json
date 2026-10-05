@@ -5,8 +5,8 @@
     "tableMoves": 83,
     "currentCrossSchemaFks": 49,
     "targetSameDomainFks": 68,
-    "targetCrossDomainFks": 45,
-    "crossDomainPairs": {
+    "crossDomainFksToDrop": 45,
+    "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
       "commercial → event-lifecycle": 17,
       "floorplan → event-lifecycle": 1,
@@ -51,7 +51,7 @@
         "domain": "identity-access",
         "schema": "identity_access",
         "tables": 4,
-        "columns": 38
+        "columns": 42
       },
       {
         "domain": "platform-ops",
@@ -108,7 +108,7 @@
       "table": "users",
       "domain": "identity-access",
       "targetSchema": "identity_access",
-      "columnCount": 15
+      "columnCount": 19
     },
     {
       "model": "OpsPasswordResetToken",

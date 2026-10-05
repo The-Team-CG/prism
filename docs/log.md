@@ -1,5 +1,12 @@
 # Documentation bundle update log
 
+## 2026-10-06
+
+- **Mapped:** Added before/after schema diagrams and refreshed the 93-table / 1,181-column owner inventory. The baseline is ten physical schemas with mixed ownership; the target is seven domain schemas, one per write owner.
+- **Rehearsed:** On a disposable synthetic PostgreSQL clone, replayed the four pending forward migrations and the cutover SQL. All 93 manifest tables preserved relation OIDs, row counts, and index counts; the final catalog had 68 same-schema foreign keys and zero cross-schema foreign keys. This used psql because Prisma deploy authentication was unavailable; it did not modify staging or production.
+- **Bounded:** Floorplan draft batches now use `row_number()` partitioned by event ID, so one event cannot consume another event's draft limit. A rollback-only PostgreSQL fixture selected the newest draft independently for two events; four focused API suites passed (33 tests).
+- **Still required:** A Prisma `migrate deploy` run, preflight artifact on a completed migration ledger, representative sanitized dataset, and alternate-database restore rehearsal remain unverified.
+
 ## 2026-10-05
 
 - **Aligned:** Added the approved Platform legal-hold table to the DDD cutover ownership manifest, preflight/backup inventory expectations, and migration history; it remains in `platform_ops` and does not change the planned namespace or cross-domain FK cutover.
@@ -272,3 +279,4 @@
 - **Enforced:** added Commercial quote-request orphan preflight and a same-domain FK that preserves submitted bid evidence by restricting deletion of referenced requests.
 - **Aligned:** declared the existing GIN, composite event-date, and partial active-event indexes in Prisma for exact migration/schema parity.
 - **Updated:** documented the PostgreSQL 16 migration replay/equivalence workflow and preflight guidance for schema changes.
+- **Aligned:** updated the context contract and cutover runbook to describe the completed local schema migration and its verification limits; recorded that no tables or columns were removed and linked the evidence-based trim candidate register.

@@ -65,6 +65,7 @@ function createSupplierWorkspaceService() {
     },
   ];
   const prisma = {
+    $queryRaw: vi.fn(async () => []),
     opsSupplierQuoteRequest: {
       findMany: vi.fn(async () => requests),
     },
@@ -162,6 +163,7 @@ function createPmcmReadModelService() {
     floorPlanDrafts: [],
   };
   const prisma = {
+    $queryRaw: vi.fn(async () => []),
     opsUser: {
       findMany: vi.fn(async () => [
         {
@@ -303,7 +305,6 @@ describe('EventReadModelsService', () => {
     const note = {
       id: 'note_1',
       eventId: 'evt_1',
-      event: { eventName: 'Autumn Forum', eventDate: new Date('2026-10-04T00:00:00.000Z') },
       assignmentId: 'assignment_1',
       assignment: { role: 'Registration Staff' },
       note: 'Coordinator withdrew: Family emergency',
@@ -313,7 +314,10 @@ describe('EventReadModelsService', () => {
     const notes = { findMany: vi.fn(async () => [note]) };
     const policy = { requireActorRole: vi.fn(async () => undefined) };
     const service = new EventReadModelsService(
-      new EventReadModelQueries({ opsCoordinatorReliabilityNote: notes } as any),
+      new EventReadModelQueries({
+        opsCoordinatorReliabilityNote: notes,
+        opsEvent: { findMany: vi.fn(async () => [{ id: 'evt_1', eventName: 'Autumn Forum', eventDate: new Date('2026-10-04T00:00:00.000Z') }]) },
+      } as any),
       policy as any,
       {} as any,
       {} as any,
@@ -825,6 +829,7 @@ describe('EventReadModelsService', () => {
       clientName: 'Ramon Cruz',
     };
     const prisma = {
+      $queryRaw: vi.fn(async () => []),
       opsEvent: {
         findMany: vi.fn(async () => [eventVisible, eventOtherClient]),
         count: vi.fn(async () => 2),

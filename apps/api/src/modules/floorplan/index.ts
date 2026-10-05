@@ -4,5 +4,6 @@ export * from './api/live/floorplan.dto';
 export * from './contracts/floorplan-commands.port';
 export * from './contracts/floorplan-reader.port';
 export * from './contracts/floorplan.tokens';
+export * from './event-drafts';
 export * from './application/live/floor-plan-workflow.service';
 export * from './application/live/floor-plan-review.service';

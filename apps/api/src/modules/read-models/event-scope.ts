@@ -3,17 +3,32 @@ import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 
 /** Focused public scope seam for event reads; it carries only trusted ownership facts. */
 export async function readEventAccessScope(prisma: Prisma.TransactionClient, eventId: string) {
-  return prisma.opsEvent.findUnique({
+  const event = await prisma.opsEvent.findUnique({
     where: { id: eventId },
     include: {
       inquiry: { select: { email: true } },
-      supplierQuoteRequests: { select: { supplierId: true, supplier: { select: { email: true } } } },
-      coordinatorAssignments: {
-        where: { status: { notIn: ['cancelled', 'replaced'] }, coordinator: { is: { active: true } } },
-        select: { coordinatorId: true, coordinator: { select: { userId: true, email: true } } },
-      },
     },
   });
+  if (!event) return null;
+  const [supplierQuoteRequests, coordinatorAssignments] = await Promise.all([
+    prisma.opsSupplierQuoteRequest.findMany({
+      where: { eventId },
+      select: { supplierId: true, supplier: { select: { email: true } } },
+    }),
+    prisma.opsCoordinatorAssignment.findMany({
+      where: {
+        eventId,
+        status: { notIn: ['cancelled', 'replaced'] },
+        coordinator: { is: { active: true } },
+      },
+      select: { coordinatorId: true, coordinator: { select: { userId: true, email: true } } },
+    }),
+  ]);
+  return {
+    ...event,
+    supplierQuoteRequests,
+    coordinatorAssignments,
+  };
 }
 
 /**

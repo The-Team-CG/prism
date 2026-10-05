@@ -30,7 +30,7 @@ describe('data invariant declaration validation', () => {
         'pare_review_payload_has_audit_digest',
       ],
     );
-    assert.match(declarations[0].query, /"trust_ops"\."audit_logs"/);
+    assert.match(declarations[0].query, /"platform_ops"\."audit_logs"/);
   });
 
   it('renders owner table references for the target schema layout', () => {
@@ -77,7 +77,7 @@ describe('read-only SQL guard', () => {
 
   it('rejects write keywords hidden inside a WITH statement', () => {
     assert.throws(
-      () => assertReadOnlyQuery('WITH changed AS (UPDATE trust_ops.audit_logs SET actor = actor RETURNING id) SELECT * FROM changed'),
+      () => assertReadOnlyQuery('WITH changed AS (UPDATE platform_ops.audit_logs SET actor = actor RETURNING id) SELECT * FROM changed'),
       /forbidden write or administrative SQL keyword/,
     );
   });

@@ -60,7 +60,7 @@ const ownershipManifest = {
     totalTables: ownership.length,
     targetSchemas: 2,
     targetSameDomainFks: 1,
-    targetCrossDomainFks: 1,
+    crossDomainFksToDrop: 1,
     domains: [
       { domain: 'commercial', schema: 'commercial' },
       { domain: 'event-lifecycle', schema: 'event_lifecycle' },

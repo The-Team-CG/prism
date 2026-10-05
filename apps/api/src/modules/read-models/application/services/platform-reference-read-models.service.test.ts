@@ -44,9 +44,12 @@ describe('PlatformReferenceReadModelsService', () => {
       clientName: 'Client',
       clientPortalStatus: 'unlocked',
       inquiry: { email: 'client@example.test' },
-      supplierQuoteRequests: [{ supplierId: 'supplier_1' }, { supplierId: null }],
     }));
-    const service = new PlatformReferenceReadModelsService({ opsEvent: { findUnique } } as unknown as PrismaService);
+    const requestFindMany = vi.fn(async () => [{ supplierId: 'supplier_1' }, { supplierId: null }]);
+    const service = new PlatformReferenceReadModelsService({
+      opsEvent: { findUnique },
+      opsSupplierQuoteRequest: { findMany: requestFindMany },
+    } as unknown as PrismaService);
 
     await expect(service.findStorageEventScope('evt_1')).resolves.toEqual({
       id: 'evt_1',
@@ -61,19 +64,20 @@ describe('PlatformReferenceReadModelsService', () => {
         clientName: true,
         clientPortalStatus: true,
         inquiry: { select: { email: true } },
-        supplierQuoteRequests: { select: { supplierId: true } },
       }),
     }));
+    expect(requestFindMany).toHaveBeenCalledWith({ where: { eventId: 'evt_1' }, select: { supplierId: true } });
   });
 
   it('rejects missing or mismatched PARE event references before reading dependent data', async () => {
     const findMany = vi.fn();
+    const eventFindUnique = vi.fn(async () => ({ id: 'evt_actual', eventDate: new Date('2030-01-01T00:00:00Z'), eventName: 'Event', clientName: 'Client' }));
     const service = new PlatformReferenceReadModelsService({
+      opsEvent: { findUnique: eventFindUnique },
       opsSupplierQuoteRequest: {
         findUnique: vi.fn(async () => ({
           id: 'request_1', eventId: 'evt_expected', assignmentStatus: 'withdrawn', supplierId: 'supplier_1',
           supplierName: 'Supplier', category: 'catering', supplier: { tier: 'tier_1' },
-          event: { id: 'evt_actual', eventDate: new Date('2030-01-01T00:00:00Z'), eventName: 'Event', clientName: 'Client' },
         })),
       },
       opsSupplierQuote: { findMany },

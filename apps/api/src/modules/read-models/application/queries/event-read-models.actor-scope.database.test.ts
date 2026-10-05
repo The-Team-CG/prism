@@ -249,6 +249,8 @@ databaseSuite("actor-scoped event reads PostgreSQL behavior", () => {
         policy,
         {} as never,
         {} as never,
+        {} as never,
+        {} as never,
       );
       const clientActor = policy.resolveActor({
         actorRole: OpsUserRole.Client,
@@ -309,6 +311,8 @@ databaseSuite("actor-scoped event reads PostgreSQL behavior", () => {
         {} as never,
         {} as never,
         policy,
+        {} as never,
+        {} as never,
         {} as never,
         {} as never,
       );

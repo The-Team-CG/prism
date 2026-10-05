@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@prism/kernel/database';
+import { findFloorPlanDraftsByEvent, withFloorPlanDrafts } from '@prism/contexts/floorplan/event-drafts';
 import type { GuestEventProjectionReader } from '../../contracts/ports/guest-event-projection.port';
 
 const MAX_GUEST_EVENT_FLOORPLAN_DRAFTS = 100;
@@ -18,8 +19,8 @@ export class GuestEventProjectionService implements GuestEventProjectionReader {
     });
   }
 
-  findGuestEvent(eventId: string) {
-    return this.prisma.opsEvent.findUnique({
+  async findGuestEvent(eventId: string) {
+    const event = await this.prisma.opsEvent.findUnique({
       where: { id: eventId },
       select: {
         id: true,
@@ -35,18 +36,19 @@ export class GuestEventProjectionService implements GuestEventProjectionReader {
         floorPlanStatus: true,
         floorPlanId: true,
         updatedAt: true,
-        floorPlanDrafts: {
-          select: { id: true, floorPlanId: true, isActive: true },
-          orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
-          take: MAX_GUEST_EVENT_FLOORPLAN_DRAFTS,
-        },
       },
     });
+    if (!event) return null;
+    const drafts = await findFloorPlanDraftsByEvent(this.prisma, [eventId], { perEventLimit: MAX_GUEST_EVENT_FLOORPLAN_DRAFTS });
+    return {
+      ...event,
+      floorPlanDrafts: (drafts.get(eventId) ?? []).map(({ id, floorPlanId, isActive }) => ({ id, floorPlanId, isActive })),
+    };
   }
 
-  listCoordinatorWorkspaceEvents(eventIds: readonly string[]) {
-    if (eventIds.length === 0) return Promise.resolve([]);
-    return this.prisma.opsEvent.findMany({
+  async listCoordinatorWorkspaceEvents(eventIds: readonly string[]) {
+    if (eventIds.length === 0) return [];
+    const events = await this.prisma.opsEvent.findMany({
       where: { id: { in: [...eventIds] } },
       select: {
         id: true,
@@ -60,7 +62,6 @@ export class GuestEventProjectionService implements GuestEventProjectionReader {
         archived: true,
         floorPlanStatus: true,
         floorPlanId: true,
-        floorPlanDrafts: { orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], take: MAX_COORDINATOR_WORKSPACE_DRAFTS },
         briefings: {
           orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
           take: 1,
@@ -70,5 +71,7 @@ export class GuestEventProjectionService implements GuestEventProjectionReader {
       orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
       take: eventIds.length,
     });
+    const drafts = await findFloorPlanDraftsByEvent(this.prisma, events.map(({ id }) => id), { perEventLimit: MAX_COORDINATOR_WORKSPACE_DRAFTS });
+    return withFloorPlanDrafts(events, drafts);
   }
 }

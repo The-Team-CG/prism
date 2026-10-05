@@ -15,7 +15,7 @@ export class UrgentIssueReferenceReaderService implements UrgentIssueReferenceRe
     if (transaction) {
       // QUERY_AUDIT_RAW_SQL: retain the LiveOps issue row while a cross-domain billing reference is committed.
       const locked = await transaction.prisma.$queryRawUnsafe<Array<{ id: string }>>(
-        'SELECT "id" FROM "staffing_ops"."urgent_issues" WHERE "id" = $1 AND "event_id" = $2 FOR UPDATE',
+        'SELECT "id" FROM "live_ops"."urgent_issues" WHERE "id" = $1 AND "event_id" = $2 FOR UPDATE',
         issueId,
         eventId,
       );
