@@ -9,7 +9,7 @@ import { AuditService, AuditWriterAdapter, PareDispatchOutboxService, SecurityOp
 import { SupplierNetworkWorkflowService } from './supplier-network-workflow.service';
 import { SupplierProfileCommandsService } from './supplier-profile-commands.service';
 import type { PareApprovalGovernance } from '@prism/contexts/platform-ops';
-import type { SupplierDocumentVault } from '../../contracts/supplier-document-vault.port';
+import { DocumentVaultService } from '@prism/contexts/event-lifecycle';
 
 const databaseUrl = process.env.P0_TEST_DATABASE_URL?.trim();
 
@@ -106,10 +106,10 @@ async function createFixture(prisma: PrismaService): Promise<Fixture> {
 }
 
 async function cleanupFixture(prisma: PrismaService, fixture: Fixture) {
-  await prisma.opsAuditLog.deleteMany({ where: { eventId: fixture.eventId } });
+  // The audit chain is global and append-only; retain rows until the disposable suite database is discarded.
+  await prisma.opsDocument.deleteMany({ where: { eventId: fixture.eventId } });
   await prisma.opsSupplierQuoteRequest.deleteMany({ where: { id: fixture.requestId } });
-  await prisma.opsEvent.deleteMany({ where: { id: fixture.eventId } });
-  await prisma.opsInquiry.deleteMany({ where: { id: fixture.inquiryId } });
+  // Keep event and inquiry parents because the current cross-schema event cascade also deletes audit evidence.
   await prisma.opsSupplier.deleteMany({ where: { id: fixture.supplierId } });
   await prisma.opsSupplierCategory.deleteMany({ where: { id: fixture.categoryId } });
 }
@@ -131,9 +131,10 @@ function createService(
   pareService: PareApprovalGovernance,
   fixture: Fixture,
   afterFirstRequestRead?: () => Promise<void>,
+  workflowCommandService?: WorkflowCommandService,
 ) {
   const access = new EventAccessPolicyService({ write: async () => undefined });
-  const workflow = new WorkflowCommandService(new PrismTransactionRunner(prisma));
+  const workflow = workflowCommandService ?? new WorkflowCommandService(new PrismTransactionRunner(prisma));
   const suppliers = {
     listSuppliers: async () => [{
       id: fixture.supplierId,
@@ -178,7 +179,7 @@ function createService(
     workflow,
     pareService,
     { queue: async (input, context) => { pareCalls += 1; return pareOutbox.queue(input, context); } },
-    {} as unknown as SupplierDocumentVault,
+    new DocumentVaultService(servicePrisma),
   );
 }
 
@@ -256,6 +257,65 @@ databaseSuite('SupplierNetworkWorkflowService PostgreSQL transition invariants',
       expect(request?.assignmentStatus).toBe('pending_confirmation');
       expect(pareCalls).toBe(previousPareCalls);
       await expect(prisma.opsPareDispatch.count({ where: { requestId: fixture.requestId } })).resolves.toBe(0);
+    } finally {
+      await cleanupFixture(prisma, fixture);
+    }
+  });
+
+  it('rolls back Lifecycle document metadata when the Commercial link fails', async () => {
+    const fixture = await createFixture(prisma);
+    try {
+      const transactionRunner = {
+        run: (
+          work: (context: { prisma: unknown; correlationId: string; actorId?: string }) => Promise<unknown>,
+          command: { correlationId?: string; actorId?: string } = {},
+        ) => prisma.$transaction((tx) => {
+          const failingRequestDelegate = new Proxy(tx.opsSupplierQuoteRequest, {
+            get(target, property, receiver) {
+              if (property === 'update') return async () => { throw new Error('commercial link failed'); };
+              return Reflect.get(target, property, receiver);
+            },
+          });
+          const transactionPrisma = new Proxy(tx, {
+            get(target, property, receiver) {
+              if (property === 'opsSupplierQuoteRequest') return failingRequestDelegate;
+              return Reflect.get(target, property, receiver);
+            },
+          });
+          return work({
+            prisma: transactionPrisma,
+            correlationId: command.correlationId ?? 'p0_document_rollback',
+            actorId: command.actorId,
+          });
+        }),
+      };
+      const workflow = new WorkflowCommandService(transactionRunner as never);
+      const service = createService(prisma, auditWriter, pareService, fixture, undefined, workflow);
+      const actor = supplierActor(fixture);
+      const verifiedActor = {
+        id: actor.id,
+        actorId: actor.id,
+        role: actor.role,
+        actorRole: actor.role,
+        email: actor.email,
+        actorEmail: actor.email,
+        name: actor.name,
+        actorName: actor.name,
+        supplierId: fixture.supplierId,
+        eventId: fixture.eventId,
+        expiresAt: '2099-01-01T00:00:00.000Z',
+      };
+
+      await expect(service.uploadSupplierContract(
+        fixture.requestId,
+        { fileName: 'contract.pdf', mimeType: 'application/pdf', sizeBytes: 2048, idempotencyKey: 'p0-document-rollback' },
+        actor,
+        verifiedActor,
+      )).rejects.toThrow('commercial link failed');
+
+      await expect(prisma.opsDocument.count({ where: { eventId: fixture.eventId, type: 'supplier_contract' } })).resolves.toBe(0);
+      await expect(prisma.opsSupplierQuoteRequest.findUniqueOrThrow({ where: { id: fixture.requestId } })).resolves.toMatchObject({ contractDocumentId: null });
+      await expect(prisma.opsAuditLog.count({ where: { eventId: fixture.eventId, affectedId: fixture.requestId } })).resolves.toBe(0);
     } finally {
       await cleanupFixture(prisma, fixture);
     }

@@ -20,7 +20,6 @@ describe.skipIf(!databaseUrl)('closeout against PostgreSQL', () => {
   let auditWriter: AuditWriterAdapter;
   let outboxWriter: NotificationOutboxWriterAdapter;
   let service: EventClosureService;
-  const inquiryIds: string[] = [];
   const id = () => `p0_close_${randomUUID()}`;
 
   beforeAll(async () => {
@@ -40,17 +39,15 @@ describe.skipIf(!databaseUrl)('closeout against PostgreSQL', () => {
       outboxWriter, new WorkflowCommandService());
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     vi.restoreAllMocks();
-    if (prisma) await prisma.opsInquiry.deleteMany({ where: { id: { in: inquiryIds } } });
-    inquiryIds.length = 0;
+    // Keep event and inquiry parents because the current cross-schema event cascade also deletes audit evidence.
   });
 
   afterAll(async () => { await prisma?.$disconnect(); await pool?.end(); });
 
   async function event() {
     const inquiryId = id();
-    inquiryIds.push(inquiryId);
     return prisma.opsEvent.create({ data: {
       id: id(), clientName: 'P0 closeout client', eventName: 'P0 closeout fixture',
       eventDate: new Date('2026-09-01T00:00:00Z'), status: 'event_day', clientPortalStatus: 'unlocked',
