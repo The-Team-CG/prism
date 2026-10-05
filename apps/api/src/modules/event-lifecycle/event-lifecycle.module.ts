@@ -4,6 +4,7 @@ import { AccessControlModule } from '@prism/kernel/access-control';
 import { EventCoreModule } from '@prism/kernel/event-core';
 import { EventSessionModule } from '@prism/kernel/event-session';
 import { PlatformOpsModule } from '../platform-ops/platform-ops.module';
+import { OperationsModule } from '../operations/operations.module';
 import { CLIENT_ONBOARDING_COMMANDS, INQUIRY_COMMANDS } from './contracts/inquiry-onboarding.tokens';
 import { OpsEventBriefingController } from './api/onboarding/event-briefing.controller';
 import { OpsInquiriesController } from './api/onboarding/inquiries.controller';
@@ -34,8 +35,12 @@ import { ClientEventDayViewController } from './api/client-visibility/client-eve
 import { ClientEventDayViewService } from './application/client-visibility/client-event-day-view.service';
 import { OcularVisitController } from './api/ocular-visit/ocular-visit.controller';
 import { OcularVisitService } from './application/ocular-visit/ocular-visit.service';
+import { LifecyclePrivacyRedactorService } from './application/onboarding/lifecycle-privacy-redactor.service';
+import { LIFECYCLE_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 import { EventLifecycleReferenceModule } from './event-lifecycle-reference.module';
 import { CommercialAddendumImpactModule } from '@prism/contexts/commercial';
+import { EventLifecycleProjectionModule } from './event-lifecycle-projection.module';
+import { FloorplanReferenceModule } from './floorplan-reference.module';
 
 const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const };
 
@@ -45,7 +50,8 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
  * `inquiry-onboarding`, `compliance-ops`, `closure-ops`, and `file-ops`
  * Nest library modules (2026-09-01). `inquiry-onboarding` owns `OpsEvent`
  * itself; `compliance-ops` and `closure-ops` write status/derived fields
- * onto it, `file-ops` is a read-only requirements-matrix view over
+ * onto it, and Floorplan sends a versioned state projection through the
+ * Lifecycle capability. `file-ops` is a read-only requirements-matrix view over
  * documents owned by this and other contexts. Kept as four sub-areas
  * (`onboarding`, `compliance`, `closure`, `files`) under one context.
  *
@@ -64,8 +70,11 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     DatabaseModule,
     EventCoreModule,
     PlatformOpsModule,
+    OperationsModule,
     EventLifecycleReferenceModule,
     CommercialAddendumImpactModule,
+    EventLifecycleProjectionModule,
+    FloorplanReferenceModule,
     AccessControlModule,
     EventSessionModule,
   ],
@@ -106,6 +115,8 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     ChangeManagementService,
     ClientEventDayViewService,
     OcularVisitService,
+    LifecyclePrivacyRedactorService,
+    { provide: LIFECYCLE_PRIVACY_REDACTOR, useExisting: LifecyclePrivacyRedactorService },
   ],
   exports: [
     InquiriesService,
@@ -125,7 +136,10 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     FILE_REQUIREMENT_READER,
     FILE_REQUIREMENT_COMMANDS,
     ChangeManagementService,
+    LIFECYCLE_PRIVACY_REDACTOR,
     EventLifecycleReferenceModule,
+    EventLifecycleProjectionModule,
+    FloorplanReferenceModule,
   ],
 })
 export class EventLifecycleModule {}

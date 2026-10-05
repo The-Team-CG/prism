@@ -12,8 +12,8 @@ import { loadOwnershipManifest } from './domain-persistence-catalog.mjs';
 describe('JSON database backup catalog', () => {
   it('exports exactly the owned tables plus the Prisma migration ledger', () => {
     const catalog = buildJsonBackupCatalog(loadOwnershipManifest());
-    assert.equal(catalog.tables.length, 93);
-    assert.equal(catalog.tables.filter(({ domain }) => domain !== 'prisma').length, 92);
+    assert.equal(catalog.tables.length, 94);
+    assert.equal(catalog.tables.filter(({ domain }) => domain !== 'prisma').length, 93);
     assert.deepEqual(
       catalog.tables.filter(({ domain }) => domain === 'prisma').map(({ schema, table }) => ({ schema, table })),
       [{ schema: 'public', table: '_prisma_migrations' }],
@@ -24,7 +24,7 @@ describe('JSON database backup catalog', () => {
 
   it('uses target owner schemas without changing the system ledger location', () => {
     const catalog = buildJsonBackupCatalog(loadOwnershipManifest(), { final: true });
-    assert.equal(catalog.tables.length, 93);
+    assert.equal(catalog.tables.length, 94);
     assert.equal(catalog.tables.some(({ schema, table }) => schema === 'platform_ops' && table === 'audit_logs'), true);
     assert.equal(catalog.tables.some(({ schema, table }) => schema === 'trust_ops' && table === 'audit_logs'), false);
     assert.equal(catalog.tables.some(({ schema, table }) => schema === 'public' && table === '_prisma_migrations'), true);
@@ -81,13 +81,13 @@ describe('JSON database backup catalog', () => {
         now: new Date('2026-10-05T00:00:00.000Z'),
       });
       const snapshot = JSON.parse(await readFile(result.file, 'utf8'));
-      assert.equal(result.tableCount, 93);
-      assert.equal(result.rowCount, 93);
+      assert.equal(result.tableCount, 94);
+      assert.equal(result.rowCount, 94);
       assert.deepEqual(snapshot.tables.map(({ schema, table }) => schema + '.' + table).sort(),
         catalog.tables.map(({ schema, table }) => schema + '.' + table).sort());
       assert.equal(queries[0].sql, 'BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
       assert.equal(queries.at(-1).sql, 'COMMIT');
-      assert.equal(queries.filter(({ sql }) => sql.startsWith('SELECT * FROM')).length, 93);
+      assert.equal(queries.filter(({ sql }) => sql.startsWith('SELECT * FROM')).length, 94);
       assert.equal(await readFile(staleTemporaryFile, 'utf8'), 'preserve existing file');
       if (process.platform !== 'win32') {
         assert.equal((await stat(result.file)).mode & 0o777, 0o600);

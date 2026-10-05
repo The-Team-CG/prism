@@ -106,6 +106,23 @@ export interface PrismPrivacyRequest {
   updatedAt: string;
 }
 
+export interface PrismPrivacyLegalHold {
+  id: string;
+  subjectType: "client" | "supplier" | "guest";
+  subjectEmail: string;
+  subjectName: string;
+  eventId: string | null;
+  reason: string;
+  placedById: string;
+  placedByName: string;
+  placedAt: string;
+  releaseReason: string | null;
+  releasedById: string | null;
+  releasedByName: string | null;
+  releasedAt: string | null;
+  createdAt: string;
+}
+
 export interface PrismAuditExport {
   exportedAt: string;
   recordCount: number;

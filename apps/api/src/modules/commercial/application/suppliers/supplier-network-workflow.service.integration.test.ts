@@ -106,11 +106,10 @@ async function createFixture(prisma: PrismaService): Promise<Fixture> {
 }
 
 async function cleanupFixture(prisma: PrismaService, fixture: Fixture) {
-  await prisma.opsAuditLog.deleteMany({ where: { eventId: fixture.eventId } });
+  // The audit chain is global and append-only; retain rows until the disposable suite database is discarded.
   await prisma.opsDocument.deleteMany({ where: { eventId: fixture.eventId } });
   await prisma.opsSupplierQuoteRequest.deleteMany({ where: { id: fixture.requestId } });
-  await prisma.opsEvent.deleteMany({ where: { id: fixture.eventId } });
-  await prisma.opsInquiry.deleteMany({ where: { id: fixture.inquiryId } });
+  // Keep event and inquiry parents because the current cross-schema event cascade also deletes audit evidence.
   await prisma.opsSupplier.deleteMany({ where: { id: fixture.supplierId } });
   await prisma.opsSupplierCategory.deleteMany({ where: { id: fixture.categoryId } });
 }

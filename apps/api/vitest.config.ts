@@ -33,6 +33,7 @@ export default defineConfig({
       '@prism/contexts/commercial': resolve(__dirname, './src/modules/commercial/index.ts'),
       '@prism/contexts/event-lifecycle/conforme-reminder-window': resolve(__dirname, './src/modules/event-lifecycle/conforme-reminder-window.ts'),
       '@prism/contexts/event-lifecycle/post-event-reference': resolve(__dirname, './src/modules/event-lifecycle/post-event-reference.ts'),
+      '@prism/contexts/event-lifecycle/floorplan-reference': resolve(__dirname, './src/modules/event-lifecycle/floorplan-reference.ts'),
       '@prism/contexts/event-lifecycle': resolve(__dirname, './src/modules/event-lifecycle/index.ts'),
       '@prism/contexts/platform-ops': resolve(__dirname, './src/modules/platform-ops/index.ts'),
       '@prism/contexts/identity-access': resolve(__dirname, './src/modules/identity-access/index.ts'),
