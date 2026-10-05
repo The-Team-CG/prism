@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, Inject, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
@@ -15,12 +15,18 @@ import {
   FloorPlanSnapshotQueryDto,
 } from './floorplan.dto';
 import { FloorPlanWorkflowService } from '../../application/live/floor-plan-workflow.service';
+import {
+  EVENT_CLIENT_FLOORPLAN_ACCESS_READER,
+  type EventClientFloorplanAccessReader,
+} from '../../../event-lifecycle/contracts/client-floorplan-access.port';
 
 @Controller('events')
 export class OpsEventFloorplansController {
   constructor(
     private readonly floorPlanWorkflowService: FloorPlanWorkflowService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
+    @Inject(EVENT_CLIENT_FLOORPLAN_ACCESS_READER)
+    private readonly clientFloorplanAccessReader: EventClientFloorplanAccessReader,
   ) {}
 
   @Post(':eventId/floorplans')
@@ -111,21 +117,40 @@ export class OpsEventFloorplansController {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     const event = await this.requireEvent(eventId);
     const scoped = scopeActorToEvent(actor, event);
-    await this.eventAccessPolicyService.requireCanReadEvent(scoped.actor, event, 'official floorplan snapshot', scoped.scope);
-    // The submitted snapshot is the internal pre-approval layout. PMCM owns it and the client is
-    // invited to review it (submitFloorPlanDraft notifies them), so both may read it; suppliers,
-    // coordinators and guests may not. Denied rather than silently downgraded to 'approved': every
-    // other boundary here denies and audits, and a downgrade would 404 into the client's own
-    // catch() as a blank preview. Runs after requireCanReadEvent so an actor who cannot read the
-    // event at all is refused on that ground, not mislabelled as a snapshot-type violation.
-    if (type === 'submitted') {
-      await this.eventAccessPolicyService.requireActorRole(
+    if (scoped.actor.role === OpsUserRole.Client) {
+      const primaryContactCanRead = this.eventAccessPolicyService.canReadEvent(scoped.actor, event, scoped.scope);
+      const hasSecondaryGrant = !primaryContactCanRead && scoped.actor.id
+        ? await this.clientFloorplanAccessReader.hasActiveGrant(eventId, scoped.actor.id)
+        : false;
+      if (!primaryContactCanRead && !hasSecondaryGrant) {
+        await this.eventAccessPolicyService.requireCanReadEvent(
+          scoped.actor,
+          event,
+          'official floorplan snapshot',
+          scoped.scope,
+        );
+        throw new ForbiddenException('Client cannot access official floorplan snapshot');
+      }
+    } else {
+      await this.eventAccessPolicyService.requireCanReadEvent(
         scoped.actor,
-        [OpsUserRole.Client, OpsUserRole.PmcmAdmin, OpsUserRole.System],
-        'official floorplan submitted snapshot',
-        eventId,
+        event,
+        'official floorplan snapshot',
+        scoped.scope,
       );
     }
+    // Event access runs first so coordinator assignment and supplier scope remain authoritative.
+    // Snapshot access then narrows the roles: coordinators may read only the final approved artifact.
+    const allowedRoles =
+      type === 'submitted'
+        ? [OpsUserRole.Client, OpsUserRole.PmcmAdmin, OpsUserRole.System]
+        : [OpsUserRole.Client, OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator];
+    await this.eventAccessPolicyService.requireActorRole(
+      scoped.actor,
+      allowedRoles,
+      `official floorplan ${type} snapshot`,
+      eventId,
+    );
     return this.floorPlanWorkflowService.getFloorPlanSnapshot(eventId, draftId, type);
   }
 
