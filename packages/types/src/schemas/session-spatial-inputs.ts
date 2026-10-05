@@ -15,5 +15,5 @@ export const updateTemplateSchema = z.object(templateFields).partial();
 export type UpdateTemplateInput = z.infer<typeof updateTemplateSchema>;
 const seat = z.object({ id: z.string(), label: z.string(), position: z.object({ x: z.number(), y: z.number() }), categoryId: z.string().nullable() });
 const seatCategory = z.object({ id: z.string(), name: z.string(), colorHex: z.string() });
-export const updatePlanSchema = z.object({ venue: z.string().optional(), width: z.number().positive().optional(), height: z.number().positive().optional(), gridSize: z.number().positive().optional(), pax: z.number().int().nonnegative().optional(), objects: canvasObjects, guests: canvasObjects, suppliers: canvasObjects, seats: z.array(seat).optional(), seatCategories: z.array(seatCategory).optional() });
+export const updatePlanSchema = z.object({ expectedUpdatedAt: z.string().datetime(), venue: z.string().optional(), width: z.number().positive().optional(), height: z.number().positive().optional(), gridSize: z.number().positive().optional(), pax: z.number().int().nonnegative().optional(), objects: canvasObjects, guests: canvasObjects, suppliers: canvasObjects, seats: z.array(seat).optional(), seatCategories: z.array(seatCategory).optional() });
 export type UpdatePlanInput = z.infer<typeof updatePlanSchema>;

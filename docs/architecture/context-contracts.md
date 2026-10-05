@@ -4,12 +4,12 @@ title: "P.R.I.S.M context contracts"
 description: "Current public context surfaces, dependency direction, read-model composition, and focused seams in the Prism modular monolith."
 tags: [architecture, contracts, boundaries, ddd]
 status: canonical
-updated: "2026-10-03"
+updated: "2026-10-04"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, backend-engineers, reviewers]
 scope: "apps/api/src/modules and kernel seams"
-last_verified: "staging 7f64c0b; current seams reviewed against ADR-0008 and owner manifest"
+last_verified: "Local S2 stack codex/pr17e-floorplan-reference-on-pr14; 80 focused API tests passed, 2 PostgreSQL-gated skipped; API typecheck, boundary scan, and query audit passed; owner-lock behavior remains database-gated"
 sources:
   - id: context-source
     resource: "apps/api/src/modules"
@@ -47,6 +47,9 @@ deployable. A context index or focused port is an application contract; it is
 not a network endpoint and does not imply that the context is already an
 independent service.
 
+Floorplan uses the focused `event-lifecycle/floorplan-reference` capability
+for event gates and projection facts in event-scoped write transactions.
+
 ## Contract rules
 
 1. A context's public `index.ts` is the default surface for stable in-process
@@ -74,7 +77,7 @@ current transitional writes separately.
 | --- | --- | --- | --- |
 | commercial | modules/commercial/index.ts | Supplier network, quotes, proposals, communications, and billing decisions | Expose owner-validated supplier and commercial commands; lifecycle alone owns document metadata. |
 | event-lifecycle | modules/event-lifecycle/index.ts | Inquiry and event lifecycle, document metadata, compliance, decisions, and closure | Expose lifecycle commands and scoped reads; request Commercial billing initialization and consume the versioned Floorplan projection. |
-| floorplan | modules/floorplan/index.ts | Official plans, drafts, templates, publication, and review state | Expose official-layout reads and mutation contracts; client preference input remains role-scoped. |
+| floorplan | modules/floorplan/index.ts | Official plans, drafts, templates, publication, and review state | Expose official-layout reads and mutation contracts; consume Lifecycle's transaction-aware reference and versioned projection capabilities. Client preference input remains role-scoped. |
 | identity-access | modules/identity-access/index.ts | Authentication, account approval, and account access state | Expose verified actor/access checks; do not export session implementation details. |
 | live-ops | modules/live-ops/index.ts | Event-day tasks, schedules, issues, handoffs, end-of-day reports, and event-day policy | Expose live-ops commands and reads; request Operations-owned assignment transitions. |
 | operations | modules/operations/index.ts | Coordinator pool, availability, coverage, assignments, attendance, replacement, cancellation, acknowledgments, reliability, and guest operations | Validate and apply staffing and guest changes through Operations-owned commands. |
@@ -108,7 +111,7 @@ legacy relation or changing schema placement.
 | modules/event-lifecycle | Commercial billing capability | Transaction-aware billing initialization and owner-validated billing changes | Lifecycle onboarding and change workflows still write some billing rows directly. Commercial must own those writes and preserve accepted-inquiry eligibility, replay, and outbox atomicity. |
 | modules/live-ops | Operations staffing capability | Owner-validated assignment, replacement, and attendance commands | LiveOps currently writes assignment rows in event-day workflows; Operations remains the approved owner and the direct writes are transitional. |
 | modules/event-lifecycle | Operations staffing capability | Owner-validated assignment cancellation/postponement transitions | Event decision workflows currently update assignment rows directly; Operations must apply the transitions within the caller transaction. |
-| modules/floorplan | Lifecycle event capability | Versioned floorplan-state projection | Floorplan currently writes lifecycle event status fields in the same workflow; the projection is transitional and Lifecycle remains owner of its event aggregate. |
+| modules/floorplan | Lifecycle event capabilities | `FLOORPLAN_EVENT_REFERENCE_READER` and `FLOORPLAN_PROJECTION_WRITER` | Lifecycle supplies locked event, conforme, ocular, archive, freeze, portal, and projection facts. Floorplan validates official-draft gates and blocks archived/frozen writes; its versioned projection clock and draft changes commit with Lifecycle's compare-and-set. Cross-domain FKs remain until the coordinated schema cutover. |
 | kernel/event-core | Platform receipt storage | Existing CommandReceiptStore technical port; Platform adapter | The Prisma store currently resides in the kernel. Move persistence behind the port to Platform while keeping command authorization, replay decision, and transaction ownership at the caller. |
 | modules/platform-ops | each affected data-owning context | Focused redaction/retention capability | Platform coordinates approved privacy requests; data-owner mutations and resumable partial execution remain to be made explicit before external constraints are removed. |
 | context composition roots | other Nest context modules | Module import only at composition root | Allowed for one-process assembly; not a private application dependency. |

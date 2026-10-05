@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Added a transaction-aware Lifecycle reference capability for Floorplan event, conforme, ocular, archive, freeze, portal, and projection facts. Official drafts retain signed-conforme and ocular gates; archived/frozen events reject mutations, and clients keep authorized historical reads. No schema or FK changes were made.
+- Added a regression case proving that approval rejects a draft changed by a concurrent client revision after the initial read; the in-review Lifecycle projection remains unchanged.
+- Added an additive, version-checked Lifecycle projection for Floorplan state; Floorplan drafts and per-event projection clocks remain Floorplan-owned in their domain schema, with no cross-domain foreign key.
+- Verified the PR17e Floorplan owner-reference path on PostgreSQL 16; all 56 focused tests passed, including rollback and concurrent review cases.
 - Canonicalized new audit-chain hashes against PostgreSQL JSONB key ordering and added a backup- and approval-gated preproduction rehash/checkpoint command with a checksummed pre-repair snapshot. Rehearsed backup restore, rehash, checkpoint, and integrity verification on an isolated disposable PostgreSQL 16 database; no shared or preproduction database was modified.
 - Removed 11 unreferenced API DTO files and their stale barrel/controller imports; retired the unbound, always-unavailable signed-upload shim while keeping canonical storage flows and active DTO validation.
 - Replaced production API `any` escapes with typed owner mappings and shared contracts; guest commands return serialized receipts, supplier writes use canonical Zod schemas, and unused commercial reader/DTO surfaces were removed.
@@ -15,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Fixed the archived coordinator event regression test to wait for refreshed role data before submitting after switching back to a current event.
 
 ### Fixed
+- Official floorplan reads and exports now require the verified event owner and use the event-scoped snapshot for client review; only clients may edit their own submitted preferences, and plan writes enforce lifecycle/version gates with transactional actor audit.
 - Compliance checks now persist `ruleId` only for a stored owner rule; built-in code-registry rules remain identified by `conditionKey` and work without local fixture seeding.
 - Declared the existing GIN, composite event-date, and partial active-event indexes in Prisma so schema equivalence can catch unsupported drift.
 - Declared five migration-owned composite indexes and four existing timestamp defaults in Prisma, eliminating fresh-replay drift without changing historical SQL.
