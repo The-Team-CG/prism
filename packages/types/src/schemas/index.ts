@@ -87,6 +87,8 @@ export {
   auditLogFiltersSchema,
   createFloorPlanDraftSchema,
   createFloorPlanPreferenceSchema,
+  prismFloorPlanPreferenceSchema,
+  prismFloorPlanSnapshotSchema,
   createFloorPlanRevisionCommentSchema,
   eventDecisionSchema,
   setClientEventDayViewSchema,
