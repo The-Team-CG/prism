@@ -17,7 +17,7 @@ import { OpsSupplierPareController } from './api/suppliers/supplier-pare.control
 import { OpsSupplierWorkspaceCommandsController } from './api/suppliers/supplier-workspace-commands.controller';
 import { OpsSuppliersController } from './api/suppliers/suppliers.controller';
 import { OpsEventBillingController } from './api/billing/event-billing.controller';
-import { COMMERCIAL_WORKFLOW_COMMANDS, PROPOSAL_READER, QUOTE_SUPPLIER_RESOLVER } from './contracts/commercial-ops.tokens';
+import { COMMERCIAL_WORKFLOW_COMMANDS, QUOTE_SUPPLIER_RESOLVER } from './contracts/commercial-ops.tokens';
 import {
   SUPPLIER_COMMANDS,
   SUPPLIER_DIRECTORY,
@@ -103,7 +103,6 @@ const supplierCommandsProvider = {
     ProposalClientReviewService,
     PrismaQuoteSupplierResolver,
     { provide: COMMERCIAL_WORKFLOW_COMMANDS, useExisting: CommercialWorkflowService },
-    { provide: PROPOSAL_READER, useExisting: CommercialWorkflowService },
     { provide: QUOTE_SUPPLIER_RESOLVER, useExisting: PrismaQuoteSupplierResolver },
     SuppliersService,
     SupplierApplicationService,
@@ -125,8 +124,6 @@ const supplierCommandsProvider = {
   exports: [
     CommercialWorkflowService,
     COMMERCIAL_WORKFLOW_COMMANDS,
-    PROPOSAL_READER,
-    QUOTE_SUPPLIER_RESOLVER,
     SuppliersService,
     supplierDirectoryProvider,
     supplierCommandsProvider,
