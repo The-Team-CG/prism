@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Added Lifecycle and LiveOps transaction-aware owner readers for additional billing. Lifecycle checks post-event eligibility and LiveOps checks same-event urgent-issue eligibility before Commercial writes.
+- Added a checked policy inventory for all 45 current cross-domain foreign keys and 28 scalar references, documenting owner checks, former delete effects, failure, and recovery; FK removal remains gated.
+- Delegated Lifecycle addendum billing-source and selected-quote mutations to a Commercial owner capability while Lifecycle retains addendum history. Current briefing/conforme flows do not fabricate billing rows without priced-source input.
+- Moved commercial `OpsDocument` registration and eligibility checks behind Lifecycle's transaction-aware `DOCUMENT_VAULT`; supplier contract and billing statement writes share their command transactions, and billing/proposal references are event- and kind-scoped. Added P0 PostgreSQL rollback coverage for failed supplier-contract linking. Document redaction remains disabled pending PMCM retention policy.
 - Added a transaction-aware Lifecycle reference capability for Floorplan event, conforme, ocular, archive, freeze, portal, and projection facts. Official drafts retain signed-conforme and ocular gates; archived/frozen events reject mutations, and clients keep authorized historical reads. No schema or FK changes were made.
 - Added a regression case proving that approval rejects a draft changed by a concurrent client revision after the initial read; the in-review Lifecycle projection remains unchanged.
 - Added an additive, version-checked Lifecycle projection for Floorplan state; Floorplan drafts and per-event projection clocks remain Floorplan-owned in their domain schema, with no cross-domain foreign key.

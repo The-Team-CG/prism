@@ -103,8 +103,12 @@ Approved domain ownership decisions:
 - Lifecycle owns document metadata for every document kind; Commercial owns
   contract and billing decisions and references document IDs through the
   lifecycle capability.
-- Commercial owns billing rows and exposes transaction-capable initialization
-  for accepted-inquiry onboarding.
+- Commercial owns billing rows. Current Lifecycle briefing/conforme workflows
+  do not initialize billing because they provide no priced-source input; a
+  future initializer requires an approved product contract, owner-validated
+  eligibility, and replay safety. Lifecycle-issued addenda request
+  transaction-aware Commercial billing-source and selected-quote changes,
+  while Lifecycle owns addendum impact history.
 - Operations owns coordinator reliability notes and every assignment,
   attendance, replacement, cancellation, and acknowledgment mutation.
 - Floorplan owns official plan and review state; lifecycle-facing status fields
@@ -219,6 +223,16 @@ business owner and lifecycle metadata contract.
 | OpsCommandReceipt | trust_ops | platform-ops owns receipt persistence behind the kernel technical port. Business command authorization and replay remain in the calling owner transaction. Target schema: platform_ops. |
 | `OpsAiAuditLog`, `OpsAiApprovalRecord` | `trust_ops` | `platform-ops`; AI sanitisation, human approval, and governance records. |
 
+## External-reference lifecycle
+
+The exact current foreign-key actions and additional scalar references are in
+the [external-reference lifecycle register](external-reference-lifecycle.md)
+and linked machine policy. This stack has 45 cross-domain foreign keys
+(38 CASCADE, 6 SET NULL, 1 RESTRICT) and 28 additional scalar references.
+Those delete actions describe current database behavior, not approved retention
+policy. FK removal remains blocked on owner capabilities, behavior tests, and
+the coordinated migration rehearsal.
+
 ## Intentional cross-context joins and writes
 
 Read-model collection queries use named per-collection `take` limits and a
@@ -235,7 +249,7 @@ contract is introduced.
 | `read-models` | `event-lifecycle`, `commercial`, `operations`, `live-ops`, `floorplan`, `platform-ops` | Read scoped rows and map to role contracts | Build PMCM/client/supplier/coordinator projections. Queries stay bounded and read-only; authorization remains in the owning context/controller. |
 | event-lifecycle | Commercial billing capability | Initialize billing and request owner-approved billing changes | Commercial owns these records; direct lifecycle writes remain transitional until routed through the capability. Preserve eligibility, replay, and outbox atomicity. |
 | commercial | event-lifecycle document-vault capability | Register and validate contract/billing document references | Commercial retains business state; lifecycle owns metadata and validates event, kind, and eligibility. |
-| `commercial` | `OpsEvent`, `OpsInquiry` | Read event scope/client source; invoke lifecycle/public capabilities where needed | Billing and supplier requests require event and inquiry context; no direct lifecycle status mutation. |
+
 | floorplan | event-lifecycle reference and projection capabilities | Validate event/conforme/ocular/freeze/archive state and publish a versioned floorplan-state projection | Implemented through `FLOORPLAN_EVENT_REFERENCE_READER` and Lifecycle's compare-and-set writer. Floorplan locks Lifecycle state before local draft changes and projection-clock reservation; cross-domain FKs remain until cutover. |
 | live-ops | Operations staffing capability | Request owner-validated assignment, replacement, and attendance transitions | LiveOps currently writes assignment rows directly; Operations owns the mutation and applies it under event scope. |
 | event-lifecycle | Operations staffing capability | Request owner-validated cancellation and postponement transitions | Event-decision workflows currently write assignments directly; Operations applies the transition within the caller transaction. |
