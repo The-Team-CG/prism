@@ -9,7 +9,7 @@ authority: normative
 owner: "D (Anthony)"
 audience: [agents, backend-engineers, reviewers]
 scope: "apps/api/src/modules and kernel seams"
-last_verified: "2026-10-04 Platform reference readers and Identity-owned failed-login state; storage owner/usage registry static diff checked, behavior suite deferred"
+last_verified: "2026-10-05 participant event facts use a DatabaseModule-only read submodule; behavior suite deferred"
 sources:
   - id: context-source
     resource: "apps/api/src/modules"
@@ -111,6 +111,7 @@ legacy relation or changing schema placement.
 | modules/floorplan | Lifecycle event capability | Versioned floorplan-state projection | Floorplan currently writes lifecycle event status fields in the same workflow; the projection is transitional and Lifecycle remains owner of its event aggregate. |
 | kernel/event-core | Platform receipt storage | `CommandReceiptStore` port with caller transaction | Platform implements receipt persistence and binds it at the root; kernel keeps command authorization and replay policy, while reservation, command writes, and completion share the caller transaction. |
 | modules/platform-ops | read-models reference projection | `PLATFORM_REFERENCE_READ_MODEL`, bound by `PlatformReferenceReadersModule` at the API composition root | Supplies narrow event/storage scope, PARE request/event/supplier facts, trust-recipient email, and privacy consent inventory. Reads only; no owning-context writes. |
+| modules/identity-access | read-models participant event facts | `PARTICIPANT_FACTS` from `read-models/participant-facts`, whose submodule imports only DatabaseModule | Supplies serializable event/inquiry, supplier-assignment, and coordinator-assignment facts; Identity retains approved-account lookup, role eligibility, email matching, actor stamping, and EventAccessPolicy decisions. The focused submodule avoids importing full ReadModelsModule and its Identity/Commercial module cycle. |
 | modules/platform-ops | stored-object owner/usage pairs | Closed owner/usage registry | Only `billing_statement` + `event_deliverable` is production-wired; unregistered pairs fail closed before upload side effects and on stored-object confirmation, retrieval, listing, and deletion. The allowlist does not prove the referenced statement exists or matches the event on later reads; target-owner revalidation remains open. |
 | modules/platform-ops | each affected data-owning context | Focused redaction/retention capability | Platform coordinates approved privacy requests; Operations redaction covers guest roster identity/contact fields and feedback filename metadata, while stored media bytes remain outside database redaction. |
 | context composition roots | other Nest context modules | Module import only at composition root | Allowed for one-process assembly; not a private application dependency. |

@@ -3,6 +3,7 @@ import { DatabaseModule } from '@prism/kernel/database';
 import { AccessControlModule } from '@prism/kernel/access-control';
 import { EventSessionModule } from '@prism/kernel/event-session';
 import { EventLifecycleModule } from '../event-lifecycle/event-lifecycle.module';
+import { ParticipantFactsModule } from '@prism/contexts/read-models/participant-facts';
 import { PlatformOpsModule } from '../platform-ops/platform-ops.module';
 import { OpsAuthController } from './api/auth/auth.controller';
 import { AuthOperationsService } from './application/auth/auth-operations.service';
@@ -22,10 +23,10 @@ import { IDENTITY_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
  * contexts that need verified request actors.
  *
  * Owned tables: OpsApprovalRequest (account approval workflow) and OpsUser.
- * Read-only: none.
+ * Read-only: participant eligibility uses the focused ReadModels participant-facts contract.
  */
 @Module({
-  imports: [DatabaseModule, AccessControlModule, PlatformOpsModule, forwardRef(() => EventLifecycleModule), EventSessionModule],
+  imports: [DatabaseModule, AccessControlModule, PlatformOpsModule, forwardRef(() => EventLifecycleModule), EventSessionModule, ParticipantFactsModule],
   controllers: [OpsAuthController],
   providers: [AuthOperationsService, PasswordResetService, TotpService, AuthAuditAdapter, ParticipantReaderService, IdentityPrivacyRedactorService, { provide: AUTH_AUDIT, useExisting: AuthAuditAdapter }, { provide: PARTICIPANT_READER, useExisting: ParticipantReaderService }, { provide: IDENTITY_PRIVACY_REDACTOR, useExisting: IdentityPrivacyRedactorService }],
   exports: [AuthOperationsService, PARTICIPANT_READER, IDENTITY_PRIVACY_REDACTOR],
