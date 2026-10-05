@@ -23,7 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Corrected the client event-day migration metadata to declare its ALTER TABLE as a schema change with medium risk.
 - Updated floorplan workflow test actors with required IDs, restoring API typecheck.
 
+- Client, supplier, and coordinator event eligibility now filters before keyset pagination; cursor totals use the same scope, actor identity uses one persisted key, and declined coordinator assignments are excluded.
+
 ### Added
+- Added guarded PostgreSQL coverage for 500+ unrelated-event visibility, supplier/coordinator eligibility, archived history, and complete action-center results; added API-client and client-portal pagination tests.
 - Recorded the approved 91-model ownership manifest, one-schema-per-domain and same-domain-only foreign-key policy, and shared DDD terms in canonical architecture references.
 - Added a coordinator registration desk for assigned registration roles, with a minimized roster projection, guest verification and check-in actions, and a walk-in roster flow that requires explicit privacy consent, obeys PMCM policy, and exposes new arrivals for PMCM verification before check-in.
 - Added PMCM and coordinator event-day forms for schedule days and segments, shift handoffs, and end-of-day reports; coordinator handoff/report history is event-scoped, only report authors can update prefilled reports, blank reports are rejected, schedule-segment transitions are validated by the API, and coordinator schedule writes remain limited to the designated operator.
