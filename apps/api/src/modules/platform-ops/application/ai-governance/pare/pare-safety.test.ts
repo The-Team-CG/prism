@@ -9,6 +9,7 @@ import {
   type AiUseCaseOutput,
 } from '@prism/types';
 import type { PrismaService } from '@prism/kernel/database';
+import type { PlatformReferenceReadModel } from '@prism/contexts/read-models';
 import type { AiGateway, AiGatewayCallOptions } from '../../../contracts/ai-governance/ai-gateway.port';
 import { BudgetAgent } from './agents/budget.agent';
 import { EventContextAgent } from './agents/event-context.agent';
@@ -203,8 +204,34 @@ function harness(gateway?: AiGateway) {
       return result;
     }),
   };
+  const platformReferences: PlatformReferenceReadModel = {
+    findStorageEventScope: async () => null,
+    findEventReference: async () => null,
+    findPrivacyInventory: async () => ({ events: [], approvalRequests: [] }),
+    findPareEventSource: async () => ({
+      request: {
+        id: context.triggerId,
+        eventId: context.eventId,
+        assignmentStatus: 'withdrawn',
+        supplierId: context.withdrawnSupplier.id,
+        supplierName: context.withdrawnSupplier.name,
+        category: context.withdrawnSupplier.category,
+        supplierTier: context.withdrawnSupplier.tier,
+      },
+      event: {
+        id: context.eventId,
+        eventDate: new Date(`${context.eventDate}T00:00:00.000Z`),
+        eventName: context.eventName,
+        clientName: context.clientName,
+      },
+      selectedQuotes: [],
+      latestBriefingRequirements: null,
+    }),
+    findPareSupplierCandidates: async () => [],
+    findApprovedTrustRecipientEmail: async () => null,
+  };
   return {
-    service: new PAREService(prisma as unknown as PrismaService, undefined, gateway),
+    service: new PAREService(prisma as unknown as PrismaService, undefined, gateway, undefined, undefined, platformReferences),
     prisma,
     state,
     failures,

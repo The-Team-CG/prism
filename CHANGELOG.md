@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Platform storage now accepts only the production-wired `billing_statement` + `event_deliverable` owner/usage pair. Unwired owner types fail before authorization, provider access, or persistence; non-billing uploads remain unavailable until their owning contexts expose capabilities.
+- Extended Operations-owned privacy redaction and inventory to guest roster identity/contact fields and guest feedback filename metadata. Stored media bytes are untouched.
+- Moved privacy redaction writes behind Lifecycle, Commercial, Operations, and Identity owner capabilities. Added the Platform-owned `privacy_legal_holds` table and migration, verified PMCM-admin placement/release with reasons, optional event scope, shared advisory locking, audit evidence, and event-audit controls. A matching active hold blocks deletion before owner writes. The PostgreSQL lock-race test remains gated for the integrated database milestone.
+- Added a focused behavior test that verifies client privacy redaction delegates to Lifecycle, Commercial, and Identity capabilities using the same execution transaction.
+- Kept event-scoped client privacy redaction inside the selected event when a matching inquiry is linked to multiple events, preventing unrelated Lifecycle and Commercial records from being redacted.
 - Routed Live Ops assignment, replacement, and attendance changes through Operations; Lifecycle delegates cancellation and postponement with the caller transaction. Retry-safe assignment commands preserve existing audit and reliability effects, with event-scoped row conflict updates.
 - Assignment command replay now avoids duplicating event decisions, reliability notes, audit records, notifications, and event-day logs.
 - Added Lifecycle and LiveOps transaction-aware owner readers for additional billing. Lifecycle checks post-event eligibility and LiveOps checks same-event urgent-issue eligibility before Commercial writes.
@@ -21,8 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Removed 11 unreferenced API DTO files and their stale barrel/controller imports; retired the unbound, always-unavailable signed-upload shim while keeping canonical storage flows and active DTO validation.
 - Replaced production API `any` escapes with typed owner mappings and shared contracts; guest commands return serialized receipts, supplier writes use canonical Zod schemas, and unused commercial reader/DTO surfaces were removed.
 - Corrected the supplier workspace quote fixture to include the required update timestamp for typed mapping.
+- Moved command-receipt Prisma persistence from the kernel to Platform behind the existing `CommandReceiptStore` port, with root-level binding. Permission checks still precede replay; reservation, command writes, and receipt completion keep the caller transaction.
+- Verified command-receipt rollback and concurrent retry/replay on PostgreSQL 16; all 12 focused workflow/receipt tests passed.
+- Updated the live-ops read-model test fixture with the generated event projection version field so API compilation checks the current Prisma model.
+- Added a root-bound read-only Platform reference reader for event authorization, PARE's minimal request/event/supplier facts, trust-recipient resolution, privacy consent inventory, and optional event-reference checks. PARE fails closed on a missing or mismatched live source while its dispatch and audit evidence remain durable; notification retries and hash-chain records keep optional event IDs as historical attribution.
+- Bound Platform event, PARE, privacy-inventory, and trust-recipient reads to a root-composed read-only reference contract. Privacy execution writes and polymorphic storage-owner validation remain cutover blockers; no Prisma schema or migration changed.
 - Added a canonical column authority register for all 1,159 baseline columns, with DDD ownership, physical types/defaults, provisional semantic and sensitivity review, candidate consumers, and migration dispositions; no unverified data conversion is included.
 - Fixed the archived coordinator event regression test to wait for refreshed role data before submitting after switching back to a current event.
+- Moved communication participant event, inquiry, supplier, and coordinator reads behind a serializable read-model contract. Identity retains account approval, role, matching, actor stamping, and event-access policy decisions; the focused read submodule imports DatabaseModule only.
 
 ### Fixed
 - Official floorplan reads and exports now require the verified event owner and use the event-scoped snapshot for client review; only clients may edit their own submitted preferences, and plan writes enforce lifecycle/version gates with transactional actor audit.
