@@ -198,7 +198,7 @@ business owner and lifecycle metadata contract.
 | Models | Physical schema | Write owner and boundary |
 | --- | --- | --- |
 | `OpsCoordinatorAssignment` | `staffing_ops` | `operations`; owns assignment, attendance, replacement, cancellation, acknowledgment, and reliability mutations. LiveOps callers are being moved behind the Operations capability. |
-| `OpsGuestCheckIn`, `OpsGuestFeedback` | `guest_ops` | `operations`; guest check-in, consent, feedback, and moderation workflows. |
+| `OpsGuestCheckIn`, `OpsGuestRosterEntry`, `OpsGuestFeedback`, `OpsGuestFeedbackMedia` | `guest_ops` | `operations`; guest roster identity/contact data, check-in, consent, feedback, moderation, and feedback filename metadata. Stored media bytes remain in the storage provider and are outside database redaction. |
 | `OpsCoordinator` | `staffing_ops` | Reference data is currently fixture-seeded and read through operations; add a real directory owner before introducing administration writes. |
 | OpsEventDayTask, OpsUrgentIssue, OpsEventDayLog | staffing_ops | live-ops; event-day task, issue, log, and escalation workflows. Target schema: live_ops. |
 | OpsCoordinatorReliabilityNote | staffing_ops | operations; coordinator reliability history, matching its focused writer. Target schema: operations. |

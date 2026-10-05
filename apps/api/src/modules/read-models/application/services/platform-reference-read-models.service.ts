@@ -49,7 +49,7 @@ export class PlatformReferenceReadModelsService implements PlatformReferenceRead
     const eventIds = events.map(({ id }) => id);
     const inquiryIds = Array.from(new Set(events.map(({ inquiryId }) => inquiryId)));
 
-    const [inquiries, guestCheckIns, guestFeedback, approvalRequests] = await Promise.all([
+    const [inquiries, guestCheckIns, guestFeedback, guestRosterEntries, guestFeedbackMedia, approvalRequests] = await Promise.all([
       inquiryIds.length
         ? this.prisma.opsInquiry.findMany({
             where: { id: { in: inquiryIds } },
@@ -63,6 +63,16 @@ export class PlatformReferenceReadModelsService implements PlatformReferenceRead
       this.prisma.opsGuestFeedback.findMany({
         where: { eventId: { in: eventIds } },
         select: { eventId: true, privacyConsentAccepted: true, privacyNoticeVersion: true, marketingConsentAccepted: true },
+      }),
+      this.prisma.opsGuestRosterEntry.findMany({
+        where: { eventId: { in: eventIds } },
+        select: { eventId: true },
+      }),
+      this.prisma.opsGuestFeedbackMedia.findMany({
+        where: { feedback: { eventId: { in: eventIds } } },
+        select: {
+          feedback: { select: { eventId: true, privacyConsentAccepted: true, privacyNoticeVersion: true, marketingConsentAccepted: true } },
+        },
       }),
       // QUERY_AUDIT_ALLOW_UNBOUNDED: report global consent totals using consent fields only.
       this.prisma.opsApprovalRequest.findMany({
@@ -82,6 +92,8 @@ export class PlatformReferenceReadModelsService implements PlatformReferenceRead
         inquiry: inquiry ? consentFact(inquiry) : null,
         guestCheckIns: guestCheckIns.filter(({ eventId }) => eventId === event.id).map(consentFact),
         guestFeedback: guestFeedback.filter(({ eventId }) => eventId === event.id).map(consentFact),
+        guestRosterEntryCount: guestRosterEntries.filter(({ eventId }) => eventId === event.id).length,
+        guestFeedbackMedia: guestFeedbackMedia.filter(({ feedback }) => feedback.eventId === event.id).map(({ feedback }) => consentFact(feedback)),
       };
     });
 

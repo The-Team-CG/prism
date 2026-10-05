@@ -54,6 +54,8 @@ export type PlatformPrivacyEventInventory = {
   inquiry: PlatformPrivacyConsentFact | null;
   guestCheckIns: PlatformPrivacyConsentFact[];
   guestFeedback: PlatformPrivacyConsentFact[];
+  guestRosterEntryCount: number;
+  guestFeedbackMedia: PlatformPrivacyConsentFact[];
 };
 
 export type PlatformPrivacyInventory = {
