@@ -1,5 +1,6 @@
-import type { OpsSupplierQuote, OpsSupplierQuoteRequest } from '@prisma/client';
+import type { OpsSupplierQuote, OpsSupplierQuoteRequest, OpsSupplierSchedule } from '@prisma/client';
 import { SupplierVerificationStatus } from '@prism/kernel/event-core';
+import type { PrismSupplierSchedule } from '@prism/types';
 import type { QuoteRequestTokenDetail } from './commercial-workflow.service';
 
 function isoDate(value: Date) {
@@ -11,22 +12,6 @@ function timestamp(value: Date) {
 }
 
 export function mapSupplierQuoteRequest(request: OpsSupplierQuoteRequest) {
-  const expanded = request as OpsSupplierQuoteRequest & {
-    assignmentStatus?: string;
-    assignmentConfirmedAt?: Date | null;
-    readinessStatus?: string;
-    readinessConfirmedAt?: Date | null;
-    readinessNotes?: string;
-    eventDayStatus?: string;
-    eventDayStatusAt?: Date | null;
-    eventDayNotes?: string;
-    eventDayVerificationStatus?: string;
-    eventDayVerifiedAt?: Date | null;
-    eventDayVerifiedBy?: string | null;
-    eventDayVerificationNotes?: string;
-    statusPhotoFileName?: string | null;
-    contractDocumentId?: string | null;
-  };
   return {
     id: request.id,
     eventId: request.eventId,
@@ -39,32 +24,28 @@ export function mapSupplierQuoteRequest(request: OpsSupplierQuoteRequest) {
     accessToken: request.accessToken,
     confidentialBid: request.confidentialBid,
     status: request.status,
-    assignmentStatus: expanded.assignmentStatus ?? 'pending_confirmation',
-    assignmentConfirmedAt: expanded.assignmentConfirmedAt ? timestamp(expanded.assignmentConfirmedAt) : null,
-    readinessStatus: expanded.readinessStatus ?? 'not_requested',
-    readinessConfirmedAt: expanded.readinessConfirmedAt ? timestamp(expanded.readinessConfirmedAt) : null,
-    readinessNotes: expanded.readinessNotes ?? '',
-    eventDayStatus: expanded.eventDayStatus ?? 'not_started',
-    eventDayStatusAt: expanded.eventDayStatusAt ? timestamp(expanded.eventDayStatusAt) : null,
-    eventDayNotes: expanded.eventDayNotes ?? '',
-    eventDayVerificationStatus: expanded.eventDayVerificationStatus ?? SupplierVerificationStatus.SelfReported,
-    eventDayVerifiedAt: expanded.eventDayVerifiedAt ? timestamp(expanded.eventDayVerifiedAt) : null,
-    eventDayVerifiedBy: expanded.eventDayVerifiedBy ?? null,
-    eventDayVerificationNotes: expanded.eventDayVerificationNotes ?? '',
-    statusPhotoFileName: expanded.statusPhotoFileName ?? null,
-    contractDocumentId: expanded.contractDocumentId ?? null,
+    assignmentStatus: request.assignmentStatus ?? 'pending_confirmation',
+    assignmentConfirmedAt: request.assignmentConfirmedAt ? timestamp(request.assignmentConfirmedAt) : null,
+    readinessStatus: request.readinessStatus ?? 'not_requested',
+    readinessConfirmedAt: request.readinessConfirmedAt ? timestamp(request.readinessConfirmedAt) : null,
+    readinessNotes: request.readinessNotes ?? '',
+    eventDayStatus: request.eventDayStatus ?? 'not_started',
+    eventDayStatusAt: request.eventDayStatusAt ? timestamp(request.eventDayStatusAt) : null,
+    eventDayNotes: request.eventDayNotes ?? '',
+    eventDayVerificationStatus: request.eventDayVerificationStatus ?? SupplierVerificationStatus.SelfReported,
+    eventDayVerifiedAt: request.eventDayVerifiedAt ? timestamp(request.eventDayVerifiedAt) : null,
+    eventDayVerifiedBy: request.eventDayVerifiedBy ?? null,
+    eventDayVerificationNotes: request.eventDayVerificationNotes ?? '',
+    statusPhotoFileName: request.statusPhotoFileName ?? null,
+    contractDocumentId: request.contractDocumentId ?? null,
     createdAt: timestamp(request.createdAt),
   };
 }
 
 export function mapSupplierQuote(quote: OpsSupplierQuote) {
-  const expanded = quote as OpsSupplierQuote & {
-    revisionNumber?: number;
-    revisedAt?: Date | null;
-    lockedAt?: Date | null;
-    updatedAt?: Date | null;
-  };
-  const inclusions = Array.isArray(quote.inclusions) ? (quote.inclusions as string[]) : [];
+  const inclusions = Array.isArray(quote.inclusions)
+    ? quote.inclusions.filter((value): value is string => typeof value === 'string')
+    : [];
   return {
     id: quote.id,
     eventId: quote.eventId,
@@ -81,12 +62,28 @@ export function mapSupplierQuote(quote: OpsSupplierQuote) {
     acceptableMax: quote.acceptableMax ?? null,
     outsideAcceptableRange: quote.outsideAcceptableRange,
     status: quote.status,
-    revisionNumber: expanded.revisionNumber ?? 1,
-    revisedAt: expanded.revisedAt ? timestamp(expanded.revisedAt) : null,
+    revisionNumber: quote.revisionNumber ?? 1,
+    revisedAt: quote.revisedAt ? timestamp(quote.revisedAt) : null,
     selectedAt: quote.selectedAt ? timestamp(quote.selectedAt) : null,
-    lockedAt: expanded.lockedAt ? timestamp(expanded.lockedAt) : null,
+    lockedAt: quote.lockedAt ? timestamp(quote.lockedAt) : null,
     createdAt: timestamp(quote.createdAt),
-    updatedAt: expanded.updatedAt ? timestamp(expanded.updatedAt) : timestamp(quote.createdAt),
+    updatedAt: timestamp(quote.updatedAt),
+  };
+}
+
+export function mapSupplierSchedule(schedule: OpsSupplierSchedule, supplierName: string): PrismSupplierSchedule {
+  return {
+    id: schedule.id,
+    eventId: schedule.eventId,
+    requestId: schedule.requestId,
+    supplierName,
+    ingressAt: timestamp(schedule.ingressAt),
+    egressAt: timestamp(schedule.egressAt),
+    location: schedule.location,
+    notes: schedule.notes,
+    status: schedule.status,
+    createdAt: timestamp(schedule.createdAt),
+    updatedAt: timestamp(schedule.updatedAt),
   };
 }
 

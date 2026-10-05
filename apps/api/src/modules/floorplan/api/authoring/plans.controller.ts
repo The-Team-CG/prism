@@ -3,7 +3,6 @@ import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import type { Response } from 'express';
-import { UpdatePlanDto } from './update-plan.dto';
 import { PlansService } from '../../application/authoring/plans.service';
 import { zodBody } from '@prism/kernel/shared';
 import { updatePlanSchema, type UpdatePlanInput } from '@prism/types';

@@ -79,8 +79,14 @@ describe('CommercialWorkflowService', () => {
       { id: 'sup_b', name: 'Bravo', email: 'bravo@example.test', phone: '222', categoryId: 'cat_tech' },
     ];
     const tx = {
+      opsSupplierQuoteRound: {
+        findFirst: vi.fn(async () => null),
+        create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ ...data, status: 'open' })),
+      },
       opsSupplierQuoteRequest: {
-        createManyAndReturn: vi.fn(async ({ data }: { data: Array<Record<string, unknown>> }) => [...data].reverse()),
+        createManyAndReturn: vi.fn(async ({ data }: { data: Array<Record<string, unknown>> }) =>
+          [...data].reverse().map((row) => ({ ...row, createdAt: new Date('2026-06-20T08:00:00.000Z') })),
+        ),
       },
     };
     const prisma = {
@@ -105,6 +111,9 @@ describe('CommercialWorkflowService', () => {
 
     expect(tx.opsSupplierQuoteRequest.createManyAndReturn).toHaveBeenCalledTimes(1);
     expect(tx.opsSupplierQuoteRequest.createManyAndReturn.mock.calls[0][0].data).toHaveLength(2);
+    expect(tx.opsSupplierQuoteRound.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ eventId: 'evt_1', categoryId: 'cat_tech', roundNumber: 1 }),
+    });
     expect(created.map(({ supplierId }) => supplierId)).toEqual(['sup_a', 'sup_b']);
     expect(notificationOutboxWriter.write).toHaveBeenCalledTimes(4);
     expect(auditWriter.write).toHaveBeenCalledWith(expect.objectContaining({
@@ -120,7 +129,27 @@ describe('CommercialWorkflowService', () => {
     const actor = verifiedAdminActor();
     const auditWriter = { write: vi.fn(async () => undefined) };
     const notificationOutboxWriter = { write: vi.fn(async () => undefined) };
-    const quote = { id: 'quote_1', supplierName: 'Sonic Line Events' };
+    const createdAt = new Date('2026-06-20T08:00:00.000Z');
+    const quote = {
+      id: 'quote_1',
+      eventId: 'evt_1',
+      requestId: null,
+      supplierId: 'sup_1',
+      categoryId: null,
+      supplierName: 'Sonic Line Events',
+      category: 'Technicals',
+      amount: 1200,
+      inclusions: [],
+      paymentTerms: '',
+      notes: '',
+      acceptableMin: null,
+      acceptableMax: null,
+      outsideAcceptableRange: false,
+      status: 'received',
+      selectedAt: null,
+      createdAt,
+      updatedAt: createdAt,
+    };
     const prisma = {
       opsEvent: { findUnique: vi.fn(async () => ({ id: 'evt_1' })) },
       opsSupplierCategory: { findUnique: vi.fn(async () => null) },
@@ -155,6 +184,8 @@ describe('CommercialWorkflowService', () => {
         category: 'Technicals',
         categoryId: 'cat_tech',
         status: 'received',
+        createdAt: new Date('2026-06-20T08:00:00.000Z'),
+        updatedAt: new Date('2026-06-20T08:00:00.000Z'),
       },
       {
         id: 'quote_other',
@@ -164,6 +195,8 @@ describe('CommercialWorkflowService', () => {
         category: 'Technicals',
         categoryId: 'cat_tech',
         status: 'received',
+        createdAt: new Date('2026-06-20T08:00:00.000Z'),
+        updatedAt: new Date('2026-06-20T08:00:00.000Z'),
       },
     ];
     const quoteRequests = [
@@ -202,6 +235,9 @@ describe('CommercialWorkflowService', () => {
           }
           return { count: 1 };
         }),
+      },
+      opsSupplierAvailability: {
+        findUnique: vi.fn(async () => null),
       },
       $transaction: vi.fn(async (callback) => callback(prisma)),
     };
@@ -332,12 +368,24 @@ describe('CommercialWorkflowService', () => {
 
 type RevisionCapQuote = {
   id: string;
+  eventId: string;
   requestId: string;
+  supplierId: string | null;
+  categoryId: string | null;
+  supplierName: string;
+  category: string;
+  inclusions: string[];
+  paymentTerms: string;
+  notes: string;
+  outsideAcceptableRange: boolean;
   status: string;
   revisionNumber: number;
   amount: number;
   acceptableMin: number | null;
   acceptableMax: number | null;
+  selectedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 /**
@@ -369,6 +417,18 @@ function createRevisionCapScenario(revisionNumber: number | null) {
           amount: 50000,
           acceptableMin: null,
           acceptableMax: null,
+          eventId: 'evt_sample',
+          supplierId: 'sup_sample',
+          categoryId: 'cat_sample',
+          supplierName: 'Sample Supplier',
+          category: 'Technicals',
+          inclusions: [],
+          paymentTerms: '',
+          notes: '',
+          outsideAcceptableRange: false,
+          selectedAt: null,
+          createdAt: new Date('2026-06-20T08:00:00.000Z'),
+          updatedAt: new Date('2026-06-20T08:00:00.000Z'),
         };
   const created: Record<string, unknown>[] = [];
   const prisma = {
@@ -401,7 +461,8 @@ function createRevisionCapScenario(revisionNumber: number | null) {
       findUniqueOrThrow: vi.fn(async () => quote),
       create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
         created.push(data);
-        return data;
+        const timestamp = new Date('2026-06-20T08:00:00.000Z');
+        return { ...data, createdAt: timestamp, updatedAt: timestamp };
       }),
     },
     $transaction: vi.fn(async (callback: (tx: unknown) => unknown) => callback(prisma)),
