@@ -192,7 +192,7 @@ describe('DDD preflight ownership and data checks', () => {
       });
       const artifact = JSON.parse(await readFile(artifactPath, 'utf8'));
       assert.equal(report.status, 'ready');
-      assert.equal(report.catalog.expectedTableCount, 91);
+      assert.equal(report.catalog.expectedTableCount, 92);
       assert.equal(report.foreignKeys.matchesManifest, true);
       assert.equal(report.migrationLedger.pending.length, 0);
       assert.equal(artifact.checks.length >= 16, true);
