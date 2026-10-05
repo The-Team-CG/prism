@@ -3,8 +3,11 @@ import type { OpsEventEodReport, OpsEventHandoff, OpsEventScheduleSegment, Prism
 import { randomUUID } from 'node:crypto';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { EventAccessPolicyService, type ResolvedEventOpsActor, writeAudit, AUDIT_WRITER, type AuditWriter } from '@prism/kernel/access-control';
-import { CoordinatorAssignmentStatus, INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES, OpsUserRole } from '@prism/kernel/event-core';
+import { OpsUserRole } from '@prism/kernel/event-core';
 import { STAFFING_READER, type StaffingReader } from '@prism/contexts/operations';
+import { OPERATIONS_EVENT_REFERENCE_READER, type OperationsEventReferenceReader } from '@prism/contexts/event-lifecycle/operations-reference';
+import { OPERATIONS_LIVE_OPS_REFERENCE_READER, type OperationsLiveOpsReferenceReader } from '@prism/contexts/operations/live-ops-reference';
+import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { LIVE_OPS_READ_MODEL, type LiveOpsReadModel } from '@prism/contexts/read-models';
 import type {
   CreateEventEodReplyInput,
@@ -25,12 +28,6 @@ import type {
 } from '@prism/types';
 
 export type LiveOpsClock = { now(): Date };
-
-/** A coordinator who left, was replaced, or declined cannot run the event, so they cannot be its operator. */
-const OPERATOR_INELIGIBLE_ASSIGNMENT_STATUSES = [
-  ...INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES,
-  CoordinatorAssignmentStatus.Declined,
-];
 
 export class SystemLiveOpsClock implements LiveOpsClock {
   now() { return new Date(); }
@@ -122,6 +119,8 @@ export class EventScheduleService {
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(STAFFING_READER) private readonly staffingReader: StaffingReader,
     @Inject(LIVE_OPS_READ_MODEL) private readonly liveOpsReadModel: LiveOpsReadModel,
+    @Inject(OPERATIONS_EVENT_REFERENCE_READER) private readonly eventReferences: OperationsEventReferenceReader,
+    @Inject(OPERATIONS_LIVE_OPS_REFERENCE_READER) private readonly operationsReferences: OperationsLiveOpsReferenceReader,
     @Optional() private readonly clock: LiveOpsClock = new SystemLiveOpsClock(),
   ) {}
 
@@ -133,6 +132,7 @@ export class EventScheduleService {
   async createDay(eventId: string, input: CreateEventScheduleDayInput, actor: ResolvedEventOpsActor) {
     await this.requireScheduleWriter(eventId, actor);
     const day = await this.prisma.$transaction(async (tx) => {
+      await this.requireCoordinatorWritableEvent(eventId, actor, tx);
       const created = await tx.opsEventScheduleDay.create({ data: { id: `esd_${randomUUID()}`, eventId, dayDate: new Date(`${input.dayDate}T00:00:00.000Z`), label: input.label?.trim() ?? '' } });
       await writeAudit(this.auditWriter, eventId, actor.name, `Authored event schedule day: ${input.dayDate}`, { actorRole: actor.role, actorEmail: actor.email, actionType: 'create', category: 'live_ops', affectedType: 'event_schedule_day', affectedId: created.id }, { prisma: tx, actorId: actor.id, correlationId: `schedule-day:${created.id}` });
       return created;
@@ -144,6 +144,7 @@ export class EventScheduleService {
     await this.requireScheduleWriter(eventId, actor);
     const start = new Date(input.plannedStartAt); const end = new Date(input.plannedEndAt);
     const segment = await this.prisma.$transaction(async (tx) => {
+      await this.requireCoordinatorWritableEvent(eventId, actor, tx);
       const day = await tx.opsEventScheduleDay.findFirst({ where: { id: dayId, eventId } });
       if (!day) throw new NotFoundException('Schedule day not found');
       const sequence = input.sequence ?? ((await tx.opsEventScheduleSegment.count({ where: { dayId } })));
@@ -158,6 +159,7 @@ export class EventScheduleService {
     await this.requireScheduleWriter(eventId, actor);
     const now = this.clock.now();
     return this.prisma.$transaction(async (tx) => {
+      await this.requireCoordinatorWritableEvent(eventId, actor, tx);
       const candidate = await tx.opsEventScheduleSegment.findFirst({ where: { id: segmentId, day: { eventId } } });
       if (!candidate) throw new NotFoundException('Schedule segment not found');
       // QUERY_AUDIT_RAW_SQL: serialize segment transitions before deriving the enclosing day status.
@@ -180,34 +182,54 @@ export class EventScheduleService {
 
   async designateOperator(eventId: string, input: CreateEventOperatorDesignationInput, actor: ResolvedEventOpsActor) {
     await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'event day system operator designation', eventId);
-    const designation = await this.prisma.$transaction(async (tx) => {
-      const coordinator = await tx.opsCoordinator.findFirst({ where: { id: input.coordinatorId, active: true } });
-      if (!coordinator) throw new NotFoundException('Coordinator not found');
-      // Designating replaces the current operator, so an unassigned pick would strip a working operator and then be refused every operator action.
-      const working = await tx.opsCoordinatorAssignment.findFirst({
-        where: { eventId, coordinatorId: coordinator.id, status: { notIn: [...OPERATOR_INELIGIBLE_ASSIGNMENT_STATUSES] } },
-        select: { id: true },
+    return this.prisma.$transaction(async (tx) => {
+      await this.requireCoordinatorWritableEvent(eventId, actor, tx);
+      const assignment = await this.operationsReferences.findEligibleOperatorAssignment(
+        eventId,
+        input.coordinatorId,
+        this.eventTransactionContext(tx, actor, 'operator-designation:' + eventId),
+      );
+      if (!assignment?.coordinatorId) {
+        throw new BadRequestException('The Event Day System Operator must be an active coordinator assigned to this event');
+      }
+      await tx.opsEventOperatorDesignation.updateMany({
+        where: { eventId, revokedAt: null },
+        data: { revokedAt: this.clock.now(), revokedBy: actor.id ?? actor.name },
       });
-      if (!working) throw new BadRequestException('The Event Day System Operator must be a coordinator assigned to this event');
-      await tx.opsEventOperatorDesignation.updateMany({ where: { eventId, revokedAt: null }, data: { revokedAt: this.clock.now(), revokedBy: actor.id ?? actor.name } });
-      const created = await tx.opsEventOperatorDesignation.create({ data: { id: `eodsg_${randomUUID()}`, eventId, coordinatorId: coordinator.id, designatedBy: actor.id ?? actor.name } });
-      await writeAudit(this.auditWriter, eventId, actor.name, `Designated event day system operator: ${coordinator.name}`, { actorRole: actor.role, actorEmail: actor.email, actionType: 'assign', category: 'live_ops', affectedType: 'event_operator_designation', affectedId: created.id }, { prisma: tx, actorId: actor.id, correlationId: `operator-designation:${created.id}` });
+      const created = await tx.opsEventOperatorDesignation.create({
+        data: {
+          id: 'eodsg_' + randomUUID(),
+          eventId,
+          coordinatorId: assignment.coordinatorId,
+          designatedBy: actor.id ?? actor.name,
+        },
+      });
+      await writeAudit(
+        this.auditWriter,
+        eventId,
+        actor.name,
+        'Designated event day system operator: ' + assignment.coordinatorName,
+        { actorRole: actor.role, actorEmail: actor.email, actionType: 'assign', category: 'live_ops', affectedType: 'event_operator_designation', affectedId: created.id },
+        { prisma: tx, actorId: actor.id, correlationId: 'operator-designation:' + created.id },
+      );
       return created;
     });
-    return designation;
   }
 
   async getOperatorDesignation(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismEventOperatorDesignation> {
     await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'event day system operator designation', eventId);
     const current = await this.prisma.opsEventOperatorDesignation.findFirst({
       where: { eventId, revokedAt: null },
-      include: { coordinator: { select: { name: true } } },
+      select: { coordinatorId: true, designatedAt: true },
       orderBy: [{ designatedAt: 'desc' }, { id: 'desc' }],
     });
+    const coordinator = current
+      ? await this.operationsReferences.findCoordinatorProfile(current.coordinatorId)
+      : null;
     return {
       eventId,
       operator: current
-        ? { coordinatorId: current.coordinatorId, coordinatorName: current.coordinator.name, designatedAt: current.designatedAt.toISOString() }
+        ? { coordinatorId: current.coordinatorId, coordinatorName: coordinator?.name ?? null, designatedAt: current.designatedAt.toISOString() }
         : null,
     };
   }
@@ -217,17 +239,47 @@ export class EventScheduleService {
     await this.requireCoordinatorWritableEvent(eventId, actor);
     const at = input.handedOffAt ? new Date(input.handedOffAt) : this.clock.now();
     return this.prisma.$transaction(async (tx) => {
-      const [day, from, to] = await Promise.all([
+      await this.requireCoordinatorWritableEvent(eventId, actor, tx);
+      if (input.fromAssignmentId === input.toAssignmentId) {
+        throw new BadRequestException('Handoff must transfer to a different coordinator assignment');
+      }
+      const [day, assignments] = await Promise.all([
         tx.opsEventScheduleDay.findFirst({ where: { id: input.dayId, eventId } }),
-        tx.opsCoordinatorAssignment.findFirst({ where: { id: input.fromAssignmentId, eventId, status: { notIn: OPERATOR_INELIGIBLE_ASSIGNMENT_STATUSES } } }),
-        tx.opsCoordinatorAssignment.findFirst({ where: { id: input.toAssignmentId, eventId, status: { notIn: OPERATOR_INELIGIBLE_ASSIGNMENT_STATUSES } } }),
+        this.operationsReferences.findEligibleHandoffAssignments(
+          eventId,
+          [input.fromAssignmentId, input.toAssignmentId],
+          this.eventTransactionContext(tx, actor, 'event-handoff:' + eventId),
+        ),
       ]);
       if (!day) throw new NotFoundException('Schedule day not found');
+      const from = assignments.find(({ id }) => id === input.fromAssignmentId);
+      const to = assignments.find(({ id }) => id === input.toAssignmentId);
       if (!from || !to) throw new NotFoundException('Coordinator assignment not found');
-      if (from.id === to.id) throw new BadRequestException('Handoff must transfer to a different coordinator assignment');
-      if (from.role !== input.role || to.role !== input.role) throw new BadRequestException('Handoff assignments must share the requested role');
-      const created = await tx.opsEventHandoff.create({ data: { id: `eh_${randomUUID()}`, eventId, dayId: input.dayId, role: input.role.trim(), fromAssignmentId: from.id, toAssignmentId: to.id, handedOffBy: actor.id ?? actor.name, receivedBy: to.coordinatorId ?? to.coordinatorName, handedOffAt: at, outstandingItems: toPrismaJson(input.outstandingItems) } });
-      await writeAudit(this.auditWriter, eventId, actor.name, `Recorded coordinator handoff: ${input.role}`, { actorRole: actor.role, actorEmail: actor.email, actionType: 'update', category: 'live_ops', affectedType: 'event_handoff', affectedId: created.id, metadata: { fromAssignmentId: from.id, toAssignmentId: to.id, outstandingItems: input.outstandingItems } }, { prisma: tx, actorId: actor.id, correlationId: `handoff:${created.id}` });
+      if (from.role !== input.role || to.role !== input.role) {
+        throw new BadRequestException('Handoff assignments must share the requested role');
+      }
+      const created = await tx.opsEventHandoff.create({
+        data: {
+          id: 'eh_' + randomUUID(),
+          eventId,
+          dayId: input.dayId,
+          role: input.role.trim(),
+          fromAssignmentId: from.id,
+          toAssignmentId: to.id,
+          handedOffBy: actor.id ?? actor.name,
+          receivedBy: to.coordinatorId ?? to.coordinatorName,
+          handedOffAt: at,
+          outstandingItems: toPrismaJson(input.outstandingItems),
+        },
+      });
+      await writeAudit(
+        this.auditWriter,
+        eventId,
+        actor.name,
+        'Recorded coordinator handoff: ' + input.role,
+        { actorRole: actor.role, actorEmail: actor.email, actionType: 'update', category: 'live_ops', affectedType: 'event_handoff', affectedId: created.id, metadata: { fromAssignmentId: from.id, toAssignmentId: to.id, outstandingItems: input.outstandingItems } },
+        { prisma: tx, actorId: actor.id, correlationId: 'handoff:' + created.id },
+      );
       return mapHandoff(created);
     });
   }
@@ -248,6 +300,7 @@ export class EventScheduleService {
     const submittedAt = input.submittedAt ? new Date(input.submittedAt) : this.clock.now();
     try {
       return await this.prisma.$transaction(async (tx) => {
+        await this.requireCoordinatorWritableEvent(eventId, actor, tx);
         const day = await tx.opsEventScheduleDay.findFirst({ where: { id: input.dayId, eventId } });
         if (!day) throw new NotFoundException('Schedule day not found');
         const author = actor.id ?? actor.name;
@@ -269,6 +322,7 @@ export class EventScheduleService {
   async replyToEodReport(eventId: string, reportId: string, input: CreateEventEodReplyInput, actor: ResolvedEventOpsActor) {
     await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'EOD report reply', eventId);
     return this.prisma.$transaction(async (tx) => {
+      await this.requireCoordinatorWritableEvent(eventId, actor, tx);
       const report = await tx.opsEventEodReport.findFirst({ where: { id: reportId, eventId } });
       if (!report) throw new NotFoundException('EOD report not found');
       const reply = await tx.opsEventEodReply.create({ data: { id: `eodr_${randomUUID()}`, reportId, authorId: actor.id ?? actor.name, authorRole: actor.role, body: input.body.trim() } });
@@ -312,11 +366,27 @@ export class EventScheduleService {
     }
   }
 
-  private async requireCoordinatorWritableEvent(eventId: string, actor: ResolvedEventOpsActor) {
-    if (actor.role !== OpsUserRole.Coordinator) return;
-    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { archived: true } });
+  private eventTransactionContext(
+    prisma: Prisma.TransactionClient,
+    actor: ResolvedEventOpsActor,
+    correlationId: string,
+  ): PrismTransactionContext {
+    return { prisma, actorId: actor.id ?? actor.name, correlationId };
+  }
+
+  private async requireCoordinatorWritableEvent(
+    eventId: string,
+    actor: ResolvedEventOpsActor,
+    prisma?: Prisma.TransactionClient,
+  ) {
+    const event = await this.eventReferences.findOperationsEvent(
+      eventId,
+      prisma ? this.eventTransactionContext(prisma, actor, 'live-ops-event:' + eventId) : undefined,
+    );
     if (!event) throw new NotFoundException('Event not found');
-    if (event.archived) throw new ForbiddenException('Archived coordinator events are read-only');
+    if (actor.role === OpsUserRole.Coordinator && event.archived) {
+      throw new ForbiddenException('Archived coordinator events are read-only');
+    }
   }
 
   private async requireEventDayAuthority(eventId: string, actor: ResolvedEventOpsActor, assignmentId?: string) {

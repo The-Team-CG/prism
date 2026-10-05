@@ -15,6 +15,8 @@ export * from './contracts/ports/billing-read-model.port';
 export * from './contracts/ports/client-event-read-model.port';
 export * from './contracts/ports/event-read-models.tokens';
 export * from './contracts/ports/live-ops-read-model.port';
+export * from './contracts/ports/guest-event-projection.port';
+export { GuestEventProjectionModule } from './guest-event-projection.module';
 export * from './contracts/ports/live-ops-read-models.tokens';
 export * from './contracts/ports/platform-reference-read-model.port';
 export * from './contracts/ports/pmcm-event-read-model.port';

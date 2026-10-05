@@ -38,6 +38,7 @@ import { OcularVisitService } from './application/ocular-visit/ocular-visit.serv
 import { LifecyclePrivacyRedactorService } from './application/onboarding/lifecycle-privacy-redactor.service';
 import { LIFECYCLE_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 import { EventLifecycleReferenceModule } from './event-lifecycle-reference.module';
+import { OperationsEventReferenceModule } from './operations-reference.module';
 import { CommercialAddendumImpactModule } from '@prism/contexts/commercial';
 import { EventLifecycleProjectionModule } from './event-lifecycle-projection.module';
 import { FloorplanReferenceModule } from './floorplan-reference.module';
@@ -72,6 +73,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     PlatformOpsModule,
     OperationsModule,
     EventLifecycleReferenceModule,
+    OperationsEventReferenceModule,
     CommercialAddendumImpactModule,
     EventLifecycleProjectionModule,
     FloorplanReferenceModule,
@@ -140,6 +142,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     EventLifecycleReferenceModule,
     EventLifecycleProjectionModule,
     FloorplanReferenceModule,
+    OperationsEventReferenceModule,
   ],
 })
 export class EventLifecycleModule {}

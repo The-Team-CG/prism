@@ -166,7 +166,7 @@ export interface PrismEventOperatorDesignation {
   eventId: string;
   operator: {
     coordinatorId: string;
-    coordinatorName: string;
+    coordinatorName: string | null;
     designatedAt: string;
   } | null;
 }
