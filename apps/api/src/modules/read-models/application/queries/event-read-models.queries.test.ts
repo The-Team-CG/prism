@@ -46,42 +46,35 @@ describe('EventReadModelQueries collection limits', () => {
     expect(MAX_COORDINATOR_RELIABILITY_HISTORY_ROWS).toBe(50);
   });
 
-  it('scopes the client timeline query and selects only an approved official floor plan', async () => {
-    const opsEvent = model();
-    const queries = new EventReadModelQueries({ opsEvent } as unknown as PrismaService);
+  it('composes the client timeline from the event plus one owner-read approved official plan and balance milestone per event', async () => {
+    const approvedAt = new Date('2026-06-01');
+    const dueDate = new Date('2026-06-10');
+    const opsEvent = model<{ id: string }>();
+    opsEvent.findMany = vi.fn(async () => [{ id: 'evt_a' }, { id: 'evt_b' }]);
+    const opsFloorPlanDraft = model<{ eventId: string; isActive: boolean; approvedAt: Date }>();
+    opsFloorPlanDraft.findMany = vi.fn(async () => [{ eventId: 'evt_a', isActive: true, approvedAt }]);
+    const opsPaymentMilestone = model<{ eventId: string; dueDate: Date; status: string; remainingBalance: number }>();
+    opsPaymentMilestone.findMany = vi.fn(async () => [{ eventId: 'evt_b', dueDate, status: 'paid', remainingBalance: 0 }]);
+    const queries = new EventReadModelQueries({ opsEvent, opsFloorPlanDraft, opsPaymentMilestone } as unknown as PrismaService);
 
-    await queries.clientEventTimelineForEvents(['evt_visible']);
+    const timeline = await queries.clientEventTimelineForEvents(['evt_a', 'evt_b', 'evt_hidden']);
 
-    expect(opsEvent.findMany).toHaveBeenCalledWith({
-      where: { id: { in: ['evt_visible'] } },
-      select: {
-        id: true,
-        eventDate: true,
-        status: true,
-        archived: true,
-        proposalClientStatus: true,
-        proposalReviewedAt: true,
-        inquiry: { select: { conformeSignedAt: true } },
-        floorPlanDrafts: {
-          where: { status: 'approved', sourceType: { not: 'client_preference' } },
-          select: { isActive: true, approvedAt: true },
-          orderBy: [
-            { isActive: 'desc' },
-            { approvedAt: { sort: 'desc', nulls: 'last' } },
-            { id: 'asc' },
-          ],
-          take: 1,
-        },
-        paymentMilestones: {
-          where: { label: { contains: 'balance', mode: 'insensitive' } },
-          select: { dueDate: true, status: true, remainingBalance: true },
-          orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
-          take: 1,
-        },
-      },
-      orderBy: [{ id: 'asc' }],
+    expect(opsEvent.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: { in: ['evt_a', 'evt_b', 'evt_hidden'] } },
       take: MAX_VISIBLE_EVENTS,
-    });
+    }));
+    expect(opsFloorPlanDraft.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { eventId: { in: ['evt_a', 'evt_b'] }, status: 'approved', sourceType: { not: 'client_preference' } },
+      distinct: ['eventId'],
+    }));
+    expect(opsPaymentMilestone.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { eventId: { in: ['evt_a', 'evt_b'] }, label: { contains: 'balance', mode: 'insensitive' } },
+      distinct: ['eventId'],
+    }));
+    expect(timeline).toEqual([
+      { id: 'evt_a', floorPlanDrafts: [{ isActive: true, approvedAt }], paymentMilestones: [] },
+      { id: 'evt_b', floorPlanDrafts: [], paymentMilestones: [{ dueDate, status: 'paid', remainingBalance: 0 }] },
+    ]);
   });
 
   it('bounds visible events and nested drafts with deterministic tie-breakers', async () => {
