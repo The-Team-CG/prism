@@ -418,8 +418,14 @@ describe('AuditService', () => {
       lockedUntil: null,
     };
 
-    await expect(service.handleFailedLogin(user as never)).resolves.toBeUndefined();
-    expect(updates).toHaveLength(1);
+    await expect(service.handleFailedLogin(user as never, {
+      failureReason: 'Invalid password',
+      failedAttempt: 1,
+      lockoutCount: 0,
+      lockoutTriggered: false,
+      permanentLockout: false,
+    })).resolves.toBeUndefined();
+    expect(updates).toHaveLength(0);
     expect(histories).toHaveLength(1);
     expect(alerts).toHaveLength(1);
     expect(alerts[0]).toMatchObject({ type: 'audit_integrity_incident' });
@@ -458,7 +464,13 @@ describe('AuditService', () => {
       lockedUntil: null,
     };
 
-    await expect(service.handleFailedLogin(user as never)).resolves.toBeUndefined();
+    await expect(service.handleFailedLogin(user as never, {
+      failureReason: 'Invalid two-factor code',
+      failedAttempt: 5,
+      lockoutCount: 1,
+      lockoutTriggered: true,
+      permanentLockout: false,
+    })).resolves.toBeUndefined();
     expect(histories).toHaveLength(1);
     expect(alerts).toHaveLength(3);
     expect(alerts).toEqual(expect.arrayContaining([

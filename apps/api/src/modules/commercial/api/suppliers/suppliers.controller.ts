@@ -1,15 +1,26 @@
-import { Body, Controller, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards, Optional } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Param, Patch, Post, UseGuards, Optional } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { zodBody } from '@prism/kernel/shared';
-import { createSupplierReliabilityNoteSchema, createSupplierReviewSchema, promoteSupplierSchema, supplierAvailabilitySchema, type CreateSupplierReliabilityNoteInput, type CreateSupplierReviewInput, type PrismVerifiedEventActor, type PromoteSupplierInput, type SupplierAvailabilityInput } from '@prism/types';
 import {
-  ChangeSupplierTierDto,
-  CreateSupplierCertificationDto,
-  CreateSupplierDto,
-  SupplierActorDto,
-  UpdateSupplierDto,
-} from './supplier.dto';
+  changeSupplierTierSchema,
+  createSupplierCertificationSchema,
+  createSupplierReliabilityNoteSchema,
+  createSupplierReviewSchema,
+  createSupplierSchema,
+  promoteSupplierSchema,
+  supplierAvailabilitySchema,
+  updateSupplierSchema,
+  type ChangeSupplierTierInput,
+  type CreateSupplierCertificationInput,
+  type CreateSupplierInput,
+  type CreateSupplierReliabilityNoteInput,
+  type CreateSupplierReviewInput,
+  type PrismVerifiedEventActor,
+  type PromoteSupplierInput,
+  type SupplierAvailabilityInput,
+  type UpdateSupplierInput,
+} from '@prism/types';
 import { SupplierProfileCommandsService } from '../../application/suppliers/supplier-profile-commands.service';
 import { CommercialWorkflowService } from '../../application/quotes/commercial-workflow.service';
 
@@ -25,8 +36,7 @@ export class OpsSuppliersController {
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(EventSessionGuard)
   create(
-    @Body() dto: CreateSupplierDto,
-    @Query() _actorInput: SupplierActorDto,
+    @Body(zodBody(createSupplierSchema)) dto: CreateSupplierInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
@@ -45,8 +55,7 @@ export class OpsSuppliersController {
   @UseGuards(EventSessionGuard)
   update(
     @Param('supplierId') supplierId: string,
-    @Body() dto: UpdateSupplierDto,
-    @Query() _actorInput: SupplierActorDto,
+    @Body(zodBody(updateSupplierSchema)) dto: UpdateSupplierInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
@@ -57,8 +66,7 @@ export class OpsSuppliersController {
   @UseGuards(EventSessionGuard)
   changeTier(
     @Param('supplierId') supplierId: string,
-    @Body() dto: ChangeSupplierTierDto,
-    @Query() _actorInput: SupplierActorDto,
+    @Body(zodBody(changeSupplierTierSchema)) dto: ChangeSupplierTierInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
@@ -71,7 +79,6 @@ export class OpsSuppliersController {
   addReview(
     @Param('supplierId') supplierId: string,
     @Body(zodBody(createSupplierReviewSchema)) input: CreateSupplierReviewInput,
-    @Query() _actorInput: SupplierActorDto,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
@@ -107,8 +114,7 @@ export class OpsSuppliersController {
   @UseGuards(EventSessionGuard)
   addCertification(
     @Param('supplierId') supplierId: string,
-    @Body() dto: CreateSupplierCertificationDto,
-    @Query() _actorInput: SupplierActorDto,
+    @Body(zodBody(createSupplierCertificationSchema)) dto: CreateSupplierCertificationInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
