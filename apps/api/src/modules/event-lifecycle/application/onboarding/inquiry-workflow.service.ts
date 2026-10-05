@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '@prism/kernel/database';
+import { findFloorPlanDraftsByEvent, withFloorPlanDrafts } from '@prism/contexts/floorplan/event-drafts';
 import type { PrismEventOpsActorContext, PrismVerifiedEventActor } from '@prism/types';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import type { EventAccessPolicyService } from '@prism/kernel/access-control';
@@ -60,15 +61,12 @@ export class InquiryWorkflowService {
     const actor = context.resolveActor(verifiedActor ? {} : actorInput, verifiedActor);
     await context.requireActorRole(actor, context.allowedAdminRoles, 'onboarding');
 
-    const [inquiries, events, documents] = await Promise.all([
+    const [inquiries, eventRows, documents] = await Promise.all([
       this.prisma.opsInquiry.findMany({ take: 500, include: { statusHistory: { orderBy: { createdAt: 'asc' } } }, orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsEvent.findMany({
-        take: 500,
-        include: { floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
-        orderBy: { eventDate: 'asc' },
-      }),
+      this.prisma.opsEvent.findMany({ take: 500, orderBy: { eventDate: 'asc' } }),
       this.prisma.opsDocument.findMany({ take: 500, orderBy: { uploadedAt: 'desc' } }),
     ]);
+    const events = withFloorPlanDrafts(eventRows, await findFloorPlanDraftsByEvent(this.prisma, eventRows.map(({ id }) => id)));
 
     return {
       inquiries: inquiries.map(context.mapInquiry),

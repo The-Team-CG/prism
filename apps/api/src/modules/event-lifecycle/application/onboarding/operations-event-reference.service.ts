@@ -17,7 +17,7 @@ export class OperationsEventReferenceService implements OperationsEventReference
     if (transaction) {
       // QUERY_AUDIT_RAW_SQL: Lifecycle locks event state before Operations commits an event-scoped mutation.
       const locked = await transaction.prisma.$queryRawUnsafe<Array<{ id: string }>>(
-        'SELECT "id" FROM "event_core"."events" WHERE "id" = $1 FOR UPDATE',
+        'SELECT "id" FROM "event_lifecycle"."events" WHERE "id" = $1 FOR UPDATE',
         eventId,
       );
       if (locked.length === 0) return null;
@@ -27,6 +27,7 @@ export class OperationsEventReferenceService implements OperationsEventReference
       select: {
         id: true,
         eventName: true,
+        clientName: true,
         eventDate: true,
         status: true,
         archived: true,
@@ -45,6 +46,7 @@ export class OperationsEventReferenceService implements OperationsEventReference
       select: {
         id: true,
         eventName: true,
+        clientName: true,
         eventDate: true,
         status: true,
         archived: true,
@@ -53,6 +55,15 @@ export class OperationsEventReferenceService implements OperationsEventReference
         walkInThreshold: true,
       },
     });
+  }
+
+  async findEventIdsByDateRange(startsAt: Date, endsBefore: Date): Promise<string[]> {
+    const events = await this.prisma.opsEvent.findMany({
+      where: { eventDate: { gte: startsAt, lt: endsBefore } },
+      select: { id: true },
+      orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
+    });
+    return events.map((event) => event.id);
   }
 
   async findEventReadAccess(eventId: string) {
@@ -84,6 +95,7 @@ export class OperationsEventReferenceService implements OperationsEventReference
       select: {
         id: true,
         eventName: true,
+        clientName: true,
         eventDate: true,
         status: true,
         archived: true,

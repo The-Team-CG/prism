@@ -4,12 +4,12 @@ title: "Domain schema cutover rehearsal"
 description: "Safely inspect disposable PostgreSQL copies before moving Prism tables to their owning domain schemas and removing cross-domain foreign keys."
 tags: [runbook, database, ddd, preflight, recovery]
 status: canonical
-updated: "2026-10-05"
+updated: "2026-10-06"
 authority: operational
 owner: "D (Anthony)"
 audience: [developers, reviewers, QA, operators, agents]
 scope: "Read-only DDD preflight and populated rehearsal for the Prism domain schema cutover"
-last_verified: "codex/pr21a-preflight-on-pr19"
+last_verified: "local s11-cutover; migration and map reviewed; populated disposable PostgreSQL replay verified with psql; Prisma migrate deploy not exercised"
 sources:
   - id: persistence-register
     resource: "docs/architecture/persistence-ownership.md"
@@ -23,10 +23,12 @@ sources:
 ---
 # Domain schema cutover rehearsal
 
-Use this runbook to inspect a disposable PostgreSQL copy before moving tables
-to their owning domain schemas or removing cross-domain foreign keys. The
-preflight is read-only. It does not repair rows, apply migrations, or stop
-database sessions.
+Use this runbook to inspect a disposable PostgreSQL copy before applying the
+domain-schema cutover migration that moves tables to their owning schemas and
+removes cross-domain foreign keys. The preflight is read-only. It does not
+repair rows, apply migrations, or stop database sessions. The migration was
+rehearsed with psql against a populated disposable copy; the Prisma migration
+CLI path remains unverified and no staging or production database was changed.
 
 ## Target and report safety
 

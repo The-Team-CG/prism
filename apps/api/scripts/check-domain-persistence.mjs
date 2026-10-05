@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import ts from 'typescript';
@@ -220,7 +220,7 @@ export function validateDomainPersistence({ ownershipManifest, schemaText, final
 
   const expectedSummaryCounts = [
     ['targetSameDomainFks', sameDomainForeignKeyCount],
-    ['targetCrossDomainFks', crossDomainForeignKeyCount],
+    ['crossDomainFksToDrop', crossDomainForeignKeyCount],
     ['currentCrossSchemaFks', currentCrossSchemaForeignKeyCount],
   ];
   for (const [field, count] of expectedSummaryCounts) {
@@ -547,11 +547,23 @@ export function validatePrivateWrites({ ownershipManifest, schemaText, sourceFil
 }
 
 export function loadPrivateWriteSources(root = REPO_ROOT) {
-  const files = execFileSync('git', ['ls-files', 'apps/api/src/modules'], {
-    cwd: root,
-    encoding: 'utf8',
-  }).split(/\r?\n/).filter(Boolean)
-    .filter((file) => /\.tsx?$/.test(file) && !/\.(?:test|spec)\.[cm]?tsx?$/.test(file));
+  let trackedFiles;
+  try {
+    trackedFiles = execFileSync('git', ['ls-files', 'apps/api/src/modules'], {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).split(/\r?\n/).filter(Boolean);
+  } catch {
+    const moduleRoot = join(root, 'apps/api/src/modules');
+    const visit = (directory) => readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) return visit(path);
+      return entry.isFile() && /\.tsx?$/.test(entry.name) ? [path] : [];
+    });
+    trackedFiles = visit(moduleRoot).map((path) => path.slice(root.length + 1).replaceAll('\\', '/'));
+  }
+  const files = trackedFiles.filter((file) => /\.tsx?$/.test(file) && !/\.(?:test|spec)\.[cm]?tsx?$/.test(file));
   return Object.fromEntries(files.map((file) => [file, readFileSync(join(root, file), 'utf8')]));
 }
 

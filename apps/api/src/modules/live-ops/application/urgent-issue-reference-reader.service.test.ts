@@ -17,7 +17,7 @@ describe('UrgentIssueReferenceReaderService', () => {
     });
 
     expect(queryRaw).toHaveBeenCalledWith(
-      'SELECT "id" FROM "staffing_ops"."urgent_issues" WHERE "id" = $1 AND "event_id" = $2 FOR UPDATE',
+      'SELECT "id" FROM "live_ops"."urgent_issues" WHERE "id" = $1 AND "event_id" = $2 FOR UPDATE',
       'issue_1',
       'evt_1',
     );

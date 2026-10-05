@@ -8,6 +8,8 @@ import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventLifecycleService, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AuditService, AuditWriterAdapter, NotificationOutboxService, NotificationOutboxWriterAdapter, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import { FileRequirementsMatrixService } from '../files/file-requirements-matrix.service';
+import { CommercialFactsReaderService } from '@prism/contexts/read-models/commercial-facts-reader';
+import { LifecycleFactsReaderService } from '@prism/contexts/read-models/lifecycle-facts';
 import { EventClosureService } from './event-closure.service';
 
 const databaseUrl = process.env.P0_TEST_DATABASE_URL;
@@ -36,7 +38,7 @@ describe.skipIf(!databaseUrl)('closeout against PostgreSQL', () => {
     outboxWriter = new NotificationOutboxWriterAdapter(new NotificationOutboxService(database));
     service = new EventClosureService(database, new FileRequirementsMatrixService(database),
       new EventLifecycleService(), auditWriter, new EventAccessPolicyService(auditWriter),
-      outboxWriter, new WorkflowCommandService());
+      outboxWriter, new WorkflowCommandService(), new CommercialFactsReaderService(database), new LifecycleFactsReaderService(database));
   });
 
   afterEach(() => {

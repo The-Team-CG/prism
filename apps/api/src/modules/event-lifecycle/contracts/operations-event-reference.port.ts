@@ -12,6 +12,7 @@ export type EventReadAccessReference = {
 export type OperationsEventReference = {
   id: string;
   eventName: string;
+  clientName: string;
   eventDate: Date;
   status: string;
   archived: boolean;
@@ -19,6 +20,7 @@ export type OperationsEventReference = {
   walkInPolicy: string;
   walkInThreshold: number;
 };
+
 
 export type WalkInPolicySnapshot = {
   eventId: string;
@@ -36,6 +38,7 @@ export type WalkInPolicyChange = {
 export interface OperationsEventReferenceReader {
   findOperationsEvent(eventId: string, transaction?: PrismTransactionContext): Promise<OperationsEventReference | null>;
   findOperationsEvents(eventIds: readonly string[]): Promise<OperationsEventReference[]>;
+  findEventIdsByDateRange(startsAt: Date, endsBefore: Date): Promise<string[]>;
   findEventReadAccess(eventId: string): Promise<EventReadAccessReference | null>;
 }
 

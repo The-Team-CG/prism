@@ -5,6 +5,8 @@ import { PrismaService } from '@prism/kernel/database';
 import { AuditService, AuditWriterAdapter, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import { DocumentVaultService } from '@prism/contexts/event-lifecycle';
 import { ProposalClientReviewService } from './proposal-client-review.service';
+import { ProposalReviewOwnerService } from '@prism/contexts/event-lifecycle';
+import { CommercialFactsReaderService } from '@prism/contexts/read-models/commercial-facts-reader';
 import { OpsUserRole } from '@prism/kernel/event-core';
 
 const url = process.env.P0_TEST_DATABASE_URL;
@@ -68,7 +70,7 @@ describe.skipIf(!enabled)('proposal client review PostgreSQL integrity', () => {
     await prisma.$connect();
     auditService = new AuditService(prisma);
     const writer = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma, auditService));
-    service = new ProposalClientReviewService(prisma, new EventAccessPolicyService(writer), writer, new DocumentVaultService(prisma));
+    service = new ProposalClientReviewService(prisma, new EventAccessPolicyService(writer), writer, new DocumentVaultService(prisma), new ProposalReviewOwnerService(), new CommercialFactsReaderService(prisma));
   });
 
   afterAll(async () => {
@@ -132,7 +134,7 @@ describe.skipIf(!enabled)('proposal client review PostgreSQL integrity', () => {
         throw new Error('simulated audit failure');
       },
     };
-    const failingService = new ProposalClientReviewService(prisma, new EventAccessPolicyService(realWriter), failingWriter, new DocumentVaultService(prisma));
+    const failingService = new ProposalClientReviewService(prisma, new EventAccessPolicyService(realWriter), failingWriter, new DocumentVaultService(prisma), new ProposalReviewOwnerService(), new CommercialFactsReaderService(prisma));
     await expect(failingService.review(ids.event, { action: 'request_revision', revisionNote: 'Must rollback', idempotencyKey: 'p0-audit-failure' }, actor)).rejects.toThrow('simulated audit failure');
     await expect(prisma.opsEvent.findUniqueOrThrow({ where: { id: ids.event } })).resolves.toMatchObject({ proposalRevisionCount: 0, proposalClientStatus: 'pending' });
     await expect(prisma.opsAuditLog.count({ where: { eventId: ids.event, affectedId: 'p0-audit-failure' } })).resolves.toBe(0);

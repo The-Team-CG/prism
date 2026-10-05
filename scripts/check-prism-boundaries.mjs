@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -40,6 +40,9 @@ function hasPrivateModuleImport(source) {
     '@prism/contexts/read-models/event-scope',
     '@prism/contexts/read-models/participant-facts',
     '@prism/contexts/read-models/guest-events',
+    '@prism/contexts/read-models/account-contacts',
+    '@prism/contexts/read-models/commercial-facts-reader',
+    '@prism/contexts/read-models/lifecycle-facts',
     '@prism/contexts/event-lifecycle/conforme-reminder-window',
     '@prism/contexts/event-lifecycle/post-event-reference',
     '@prism/contexts/event-lifecycle/operations-reference',
@@ -48,6 +51,7 @@ function hasPrivateModuleImport(source) {
     '@prism/contexts/commercial/registration-supplier-reference',
     '@prism/contexts/live-ops/urgent-issue-reference',
     '@prism/contexts/event-lifecycle/floorplan-reference',
+    '@prism/contexts/floorplan/event-drafts',
   ]);
   return [...nestedImports].some((match) => !publicSubpathSeams.has(match[1]));
 }
@@ -178,11 +182,25 @@ export const boundaryRules = [
 ];
 
 export function listTrackedSourceFiles(root = process.cwd()) {
-  return execFileSync("git", ["ls-files", "apps", "packages"], {
-    cwd: root,
-    encoding: "utf8",
-  })
-    .split(/\r?\n/)
+  let files;
+  try {
+    files = execFileSync("git", ["ls-files", "apps", "packages"], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).split(/\r?\n/).filter(Boolean);
+  } catch {
+    const visit = (directory) => readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) return visit(path);
+      return entry.isFile() && /\.tsx?$/.test(entry.name) ? [path] : [];
+    });
+    files = ["apps", "packages"]
+      .flatMap((directory) => visit(join(root, directory)))
+      .map((path) => path.slice(root.length + 1).replaceAll("\\", "/"));
+  }
+
+  return files
     .filter(Boolean)
     .filter((file) => file.endsWith(".ts") || file.endsWith(".tsx"))
     .filter((file) => existsSync(join(root, file)));

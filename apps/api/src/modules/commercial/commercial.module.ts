@@ -45,6 +45,8 @@ import { CommercialPrivacyRedactorService } from './application/suppliers/commer
 import { COMMERCIAL_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 import { CommercialAddendumImpactModule } from './commercial-addendum-impact.module';
 import { RegistrationSupplierReferenceModule } from './registration-supplier-reference.module';
+import { EventDecisionSupplierOwnerModule } from './event-decision-supplier-owner.module';
+import { CommercialFactsReaderModule } from '@prism/contexts/read-models/commercial-facts-reader';
 
 const supplierDirectoryProvider = {
   provide: SUPPLIER_DIRECTORY,
@@ -87,6 +89,8 @@ const supplierCommandsProvider = {
     UrgentIssueReferenceModule,
     CommercialAddendumImpactModule,
     RegistrationSupplierReferenceModule,
+    EventDecisionSupplierOwnerModule,
+    CommercialFactsReaderModule,
     EventSessionModule,
     IdentityAccessModule,
   ],

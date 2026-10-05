@@ -4,6 +4,7 @@ import { DatabaseModule } from '@prism/kernel/database';
 import { EventSessionModule } from '@prism/kernel/event-session';
 import { AccessControlModule } from '@prism/kernel/access-control';
 import { ConformeReminderWindowModule } from '@prism/contexts/event-lifecycle/conforme-reminder-window';
+import { AccountContactReadModelModule } from '../read-models/account-contact-read-model.module';
 import { OpsAuditController } from './api/trust/audit-privacy.controller';
 import { OpsNotificationsController } from './api/notifications/notifications.controller';
 import { OpsAiGovernanceController } from './api/ai-governance/ai-governance.controller';
@@ -123,7 +124,7 @@ export function createAiProviderAdapters(
  * capabilities rather than writing their tables from Platform.
  */
 @Module({
-  imports: [DatabaseModule, EventSessionModule, ConfigModule, AccessControlModule, ConformeReminderWindowModule],
+  imports: [DatabaseModule, EventSessionModule, ConfigModule, AccessControlModule, ConformeReminderWindowModule, AccountContactReadModelModule],
   controllers: [OpsAuditController, OpsNotificationsController, OpsAiGovernanceController, StorageController, ConformeCommsDraftsController],
   providers: [
     AuditService,

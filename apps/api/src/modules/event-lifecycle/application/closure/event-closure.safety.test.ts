@@ -34,7 +34,7 @@ function harness() {
     resolveActor: (input: { actorRole?: string; actorName?: string }) => ({ role: input.actorRole ?? 'unknown', name: input.actorName ?? 'Verified PMCM', email: 'pmcm@example.test' }),
     requireActorRole: vi.fn(async (actor: { role: string }) => { if (actor.role !== 'pmcm-admin') throw new ForbiddenException(); }),
   };
-  const service = new EventClosureService(prisma as never, fileMatrix as never, new EventLifecycleService(), audit, access as never, notification, new WorkflowCommandService());
+  const service = new EventClosureService(prisma as never, fileMatrix as never, new EventLifecycleService(), audit, access as never, notification, new WorkflowCommandService(), { getLifecycleFacts: vi.fn() } as never, { getClosureFacts: vi.fn() } as never);
   return { service, prisma, state, failures, fileMatrix, audit, notification, foreignDocument };
 }
 

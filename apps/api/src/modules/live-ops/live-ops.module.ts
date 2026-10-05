@@ -10,6 +10,7 @@ import { OperationsEventReferenceModule } from '@prism/contexts/event-lifecycle/
 import { LiveOpsReferenceModule } from '@prism/contexts/operations/live-ops-reference';
 import { CommercialModule } from '../commercial/commercial.module';
 import { ReadModelsModule } from '../read-models/read-models.module';
+import { AccountContactReadModelModule } from '../read-models/account-contact-read-model.module';
 import { CoordinatorLiveOpsController } from './api/coordinator-live-ops.controller';
 import { EventLiveOpsController } from './api/event-live-ops.controller';
 import { SupplierLiveOpsController } from './api/supplier-live-ops.controller';
@@ -34,6 +35,7 @@ import { EventScheduleService } from './application/event-schedule.service';
     LiveOpsReferenceModule,
     CommercialModule,
     ReadModelsModule,
+    AccountContactReadModelModule,
     IdentityAccessModule,
     EventSessionModule,
   ],

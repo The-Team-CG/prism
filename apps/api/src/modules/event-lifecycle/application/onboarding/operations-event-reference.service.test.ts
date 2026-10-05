@@ -24,7 +24,7 @@ describe('OperationsEventReferenceService', () => {
 
     await expect(service.findOperationsEvent(event.id, transaction)).resolves.toEqual(event);
     expect(queryRaw).toHaveBeenCalledWith(
-      'SELECT "id" FROM "event_core"."events" WHERE "id" = $1 FOR UPDATE',
+      'SELECT "id" FROM "event_lifecycle"."events" WHERE "id" = $1 FOR UPDATE',
       event.id,
     );
     expect(findUnique).toHaveBeenCalledWith({

@@ -23,13 +23,16 @@ const mockWorkflowCommandService = {
 const mockNotificationOutboxWriter = {
   write: vi.fn(async () => undefined),
 };
+const mockAccountContacts = {
+  findApprovedEmailByRole: vi.fn(async () => 'admin@pmcm.test'),
+  findApprovedEmailByName: vi.fn(async () => 'alex@example.test'),
+};
 
 describe('LiveOpsTaskIssueCommandService - Urgent Issues & Attribution Security', () => {
 
   it('enforces openedBy to verified actor.name and persists affectedArea', async () => {
     let createdRecord: Record<string, unknown> | null = null;
     const mockPrisma = {
-      opsUser: { findFirst: vi.fn(async () => ({ email: 'admin@pmcm.test' })) },
       opsUrgentIssue: {
         create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
           createdRecord = { ...data, createdAt: new Date(), updatedAt: new Date() };
@@ -50,6 +53,7 @@ describe('LiveOpsTaskIssueCommandService - Urgent Issues & Attribution Security'
       mockAuditWriter as unknown as ConstructorParameters<typeof LiveOpsTaskIssueCommandService>[1],
       mockNotificationOutboxWriter as unknown as ConstructorParameters<typeof LiveOpsTaskIssueCommandService>[2],
       mockWorkflowCommandService as unknown as ConstructorParameters<typeof LiveOpsTaskIssueCommandService>[3],
+      mockAccountContacts as unknown as ConstructorParameters<typeof LiveOpsTaskIssueCommandService>[4],
     );
 
     const actor = {
@@ -138,6 +142,7 @@ describe('LiveOpsTaskIssueCommandService - Urgent Issues & Attribution Security'
       mockAuditWriter as unknown as ConstructorParameters<typeof LiveOpsTaskIssueCommandService>[1],
       mockNotificationOutboxWriter as unknown as ConstructorParameters<typeof LiveOpsTaskIssueCommandService>[2],
       mockWorkflowCommandService as unknown as ConstructorParameters<typeof LiveOpsTaskIssueCommandService>[3],
+      mockAccountContacts as unknown as ConstructorParameters<typeof LiveOpsTaskIssueCommandService>[4],
     );
 
     const actor = {
@@ -168,12 +173,11 @@ describe('LiveOpsTaskIssueCommandService - Urgent Issues & Attribution Security'
       autoApproveAt: new Date('2026-09-08T03:02:00.000Z'), decidedAt: null, decidedBy: null, decisionReason: null,
     };
     const mockPrisma = {
-      opsUser: { findFirst: vi.fn(async () => ({ email: 'admin@pmcm.test' })) },
       opsEventDayTask: { findUnique: vi.fn(async () => task) },
       opsEventTaskReassignmentRequest: { create: vi.fn(async () => request) },
     };
     const auditWriter = { write: vi.fn(async () => undefined) };
-    const service = new LiveOpsTaskIssueCommandService(mockPrisma as never, auditWriter as never, mockNotificationOutboxWriter as never, mockWorkflowCommandService as never);
+    const service = new LiveOpsTaskIssueCommandService(mockPrisma as never, auditWriter as never, mockNotificationOutboxWriter as never, mockWorkflowCommandService as never, mockAccountContacts as never);
 
     const result = await service.requestTaskReassignment('evt_001', 'task_1', {
       toOwnerRole: 'Floor Director', toOwnerName: 'Jamie', reason: 'Registration queue is clear',
@@ -181,6 +185,7 @@ describe('LiveOpsTaskIssueCommandService - Urgent Issues & Attribution Security'
 
     expect(result).toMatchObject({ id: 'reassignment_1', status: 'pending', toOwnerRole: 'Floor Director' });
     expect(mockNotificationOutboxWriter.write).toHaveBeenCalledWith(expect.objectContaining({ eventId: 'evt_001', recipient: 'admin@pmcm.test' }), undefined);
+    expect(mockAccountContacts.findApprovedEmailByRole).toHaveBeenCalledWith('pmcm-admin');
     vi.useRealTimers();
   });
 
@@ -200,18 +205,18 @@ describe('LiveOpsTaskIssueCommandService - Urgent Issues & Attribution Security'
       opsEventDayTask: { update: vi.fn(async () => undefined) },
     };
     const mockPrisma = {
-      opsUser: { findFirst: vi.fn(async () => ({ email: 'alex@example.test' })) },
       opsEventTaskReassignmentRequest: { findFirst: vi.fn(async () => request) },
       $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)),
     };
     const auditWriter = { write: vi.fn(async () => undefined) };
-    const service = new LiveOpsTaskIssueCommandService(mockPrisma as never, auditWriter as never, mockNotificationOutboxWriter as never, mockWorkflowCommandService as never);
+    const service = new LiveOpsTaskIssueCommandService(mockPrisma as never, auditWriter as never, mockNotificationOutboxWriter as never, mockWorkflowCommandService as never, mockAccountContacts as never);
 
     const result = await service.decideTaskReassignment('evt_001', 'reassignment_1', { decision: 'approved', reason: 'Approved' }, { name: 'PMCM', role: 'pmcm-admin' });
 
     expect(tx.opsEventDayTask.update).toHaveBeenCalledWith({ where: { id: 'task_1' }, data: { assignedRole: 'Floor Director', ownerName: 'Jamie' } });
     expect(result.status).toBe('approved');
     expect(mockNotificationOutboxWriter.write).toHaveBeenCalledWith(expect.objectContaining({ recipient: 'alex@example.test' }), undefined);
+    expect(mockAccountContacts.findApprovedEmailByName).toHaveBeenCalledWith('Alex');
   });
 
   it('rejects a reassignment without a decision reason', async () => {
@@ -226,6 +231,7 @@ describe('LiveOpsTaskIssueCommandService - Urgent Issues & Attribution Security'
       {} as never,
       mockNotificationOutboxWriter as never,
       mockWorkflowCommandService as never,
+      mockAccountContacts as never,
     );
 
     await expect(service.decideTaskReassignment('evt_001', 'reassignment_1', { decision: 'rejected' }, { name: 'PMCM', role: 'pmcm-admin' })).rejects.toBeInstanceOf(BadRequestException);
@@ -247,10 +253,9 @@ describe('LiveOpsTaskIssueCommandService - Urgent Issues & Attribution Security'
       opsEventDayTask: { update: vi.fn(async () => undefined) },
     };
     const service = new LiveOpsTaskIssueCommandService({
-      opsUser: { findFirst: vi.fn(async () => ({ email: 'alex@example.test' })) },
       opsEventTaskReassignmentRequest: { findFirst: vi.fn(async () => request) },
       $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)),
-    } as never, { write: vi.fn(async () => undefined) } as never, mockNotificationOutboxWriter as never, mockWorkflowCommandService as never);
+    } as never, { write: vi.fn(async () => undefined) } as never, mockNotificationOutboxWriter as never, mockWorkflowCommandService as never, mockAccountContacts as never);
     const result = await service.decideTaskReassignment('evt_001', request.id, { decision: 'rejected', reason: 'Keep current owner' }, { name: 'PMCM', role: 'pmcm-admin' });
     expect(result.status).toBe('rejected');
     expect(tx.opsEventDayTask.update).not.toHaveBeenCalled();

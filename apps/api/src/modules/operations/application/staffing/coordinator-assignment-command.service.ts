@@ -795,7 +795,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
 
     if (transactionContext) {
       // QUERY_AUDIT_RAW_SQL: serialize current Operations coordinator eligibility with assignment writes.
-      await transactionContext.prisma.$queryRaw`SELECT id FROM staffing_ops.coordinators WHERE id = ${candidate.id} FOR UPDATE`;
+      await transactionContext.prisma.$queryRaw`SELECT id FROM operations.coordinators WHERE id = ${candidate.id} FOR UPDATE`;
     }
     const coordinator = transactionContext
       ? await prisma.opsCoordinator.findUnique({ where: { id: candidate.id } })

@@ -60,7 +60,7 @@ try {
   const before = await pool.query(
     `select email, role, two_factor_secret is not null as has_2fa,
             failed_login_count, lockout_count, locked_until, permanent_lockout
-       from identity.users
+       from identity_access.users
       where ${where}
       order by email`,
     params,
@@ -72,7 +72,7 @@ try {
   }
 
   const result = await pool.query(
-    `update identity.users
+    `update identity_access.users
         set two_factor_secret  = null,
             failed_login_count = 0,
             lockout_count      = 0,

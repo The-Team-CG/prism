@@ -4,16 +4,15 @@ import {
   EventReadModelQueries,
   EVENT_READ_PAGE_SIZE,
   MAX_PMCM_COMMAND_INBOX_PAGE_SIZE,
-  MAX_EVENT_FLOORPLAN_DRAFTS,
   MAX_PMCM_DASHBOARD_ROWS,
   MAX_COORDINATOR_RELIABILITY_HISTORY_ROWS,
   MAX_CLIENT_WORKSPACE_ROWS,
   MAX_VISIBLE_EVENTS,
 } from './event-read-models.queries';
 
-function model() {
+function model<T = never>() {
   return {
-    findMany: vi.fn(async () => []),
+    findMany: vi.fn(async (): Promise<T[]> => []),
     findUnique: vi.fn(async () => null),
     findFirst: vi.fn(async () => null),
     count: vi.fn(async () => 0),
@@ -22,20 +21,28 @@ function model() {
 
 describe('EventReadModelQueries collection limits', () => {
   it('loads recent coordinator reliability history by coordinator with event and role context', async () => {
-    const reliabilityNotes = model();
-    const queries = new EventReadModelQueries({ opsCoordinatorReliabilityNote: reliabilityNotes } as unknown as PrismaService);
+    const note = { id: 'note_1', eventId: 'evt_1', assignment: { role: 'lead' } };
+    const reliabilityNotes = model<typeof note>();
+    reliabilityNotes.findMany = vi.fn(async () => [note]);
+    const event = { id: 'evt_1', eventName: 'Forum', eventDate: new Date('2026-06-18') };
+    const opsEvent = { findMany: vi.fn(async () => [event]) };
+    const queries = new EventReadModelQueries({ opsCoordinatorReliabilityNote: reliabilityNotes, opsEvent } as unknown as PrismaService);
 
-    await queries.coordinatorReliabilityHistory('coord_1');
+    const result = await queries.coordinatorReliabilityHistory('coord_1');
 
     expect(reliabilityNotes.findMany).toHaveBeenCalledWith({
       where: { coordinatorId: 'coord_1' },
       include: {
-        event: { select: { eventName: true, eventDate: true } },
         assignment: { select: { role: true } },
       },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: MAX_COORDINATOR_RELIABILITY_HISTORY_ROWS,
     });
+    expect(opsEvent.findMany).toHaveBeenCalledWith({
+      where: { id: { in: ['evt_1'] } },
+      select: { id: true, eventName: true, eventDate: true },
+    });
+    expect(result[0]).toMatchObject({ event });
     expect(MAX_COORDINATOR_RELIABILITY_HISTORY_ROWS).toBe(50);
   });
 
@@ -94,10 +101,6 @@ describe('EventReadModelQueries collection limits', () => {
       where: { archived: false },
       include: {
         inquiry: { select: { email: true } },
-        floorPlanDrafts: {
-          orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
-          take: MAX_EVENT_FLOORPLAN_DRAFTS,
-        },
       },
       orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
       take: EVENT_READ_PAGE_SIZE + 1,
@@ -132,6 +135,7 @@ describe('EventReadModelQueries collection limits', () => {
     };
     const queries = new EventReadModelQueries({
       opsEvent,
+      $queryRaw: vi.fn(async () => []),
     } as unknown as PrismaService);
     const actor = {
       role: 'client' as const,
@@ -174,6 +178,7 @@ describe('EventReadModelQueries collection limits', () => {
     };
     const queries = new EventReadModelQueries({
       opsEvent,
+      $queryRaw: vi.fn(async () => []),
     } as unknown as PrismaService);
     const actor = { role: 'pmcm-admin' as const, name: 'PMCM', explicit: true };
 
@@ -200,8 +205,15 @@ describe('EventReadModelQueries collection limits', () => {
 
   it('filters supplier and coordinator event eligibility in the database', async () => {
     const opsEvent = model();
+    const opsSupplierQuoteRequest = { findMany: vi.fn(async () => [{ eventId: 'evt_supplier' }]) };
+    const opsCoordinator = { findFirst: vi.fn(async () => ({ id: 'coord_1' })) };
+    const opsCoordinatorAssignment = { findMany: vi.fn(async () => [{ eventId: 'evt_coordinator' }]) };
     const queries = new EventReadModelQueries({
       opsEvent,
+      opsSupplierQuoteRequest,
+      opsCoordinator,
+      opsCoordinatorAssignment,
+      $queryRaw: vi.fn(async () => []),
     } as unknown as PrismaService);
 
     await queries.visibleEvents({
@@ -225,7 +237,7 @@ describe('EventReadModelQueries collection limits', () => {
       expect.objectContaining({
         where: {
           archived: false,
-          supplierQuoteRequests: { some: { supplierId: 'sup_1' } },
+          id: { in: ['evt_supplier'] },
         },
       }),
     );
@@ -234,15 +246,18 @@ describe('EventReadModelQueries collection limits', () => {
       expect.objectContaining({
         where: {
           archived: false,
-          coordinatorAssignments: {
-            some: {
-              status: { notIn: ['cancelled', 'replaced', 'declined'] },
-              coordinator: { is: { active: true, id: 'coord_1' } },
-            },
-          },
+          id: { in: ['evt_coordinator'] },
         },
       }),
     );
+    expect(opsSupplierQuoteRequest.findMany).toHaveBeenCalledWith({ where: { supplierId: 'sup_1' }, select: { eventId: true } });
+    expect(opsCoordinatorAssignment.findMany).toHaveBeenCalledWith({
+      where: {
+        coordinatorId: 'coord_1',
+        status: { notIn: ['cancelled', 'replaced', 'declined'] },
+      },
+      select: { eventId: true },
+    });
   });
 
   it('prefers supplier ID over an email that may identify another profile', async () => {
@@ -299,8 +314,9 @@ describe('EventReadModelQueries collection limits', () => {
   });
   it('bounds PMCM dashboard collections and nested floorplan history', async () => {
     const opsEvent = model();
+    const opsFloorPlanDraft = model();
     const prisma = new Proxy(
-      { opsEvent },
+      { opsEvent, opsFloorPlanDraft },
       {
         get(target, property: string) {
           if (property in target) return target[property as keyof typeof target];
@@ -313,14 +329,12 @@ describe('EventReadModelQueries collection limits', () => {
     await queries.pmcmDashboard();
 
     expect(opsEvent.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      include: {
-        floorPlanDrafts: {
-          orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
-          take: MAX_EVENT_FLOORPLAN_DRAFTS,
-        },
-      },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: MAX_VISIBLE_EVENTS,
+    }));
+    expect(opsFloorPlanDraft.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+      take: MAX_PMCM_DASHBOARD_ROWS,
     }));
     expect((prisma as typeof prisma).opsEvent).toBe(opsEvent);
     expect(MAX_PMCM_DASHBOARD_ROWS).toBe(500);
