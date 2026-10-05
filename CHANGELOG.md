@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Fixed the archived coordinator event regression test to wait for refreshed role data before submitting after switching back to a current event.
 
 ### Fixed
+- PMCM two-factor challenges now bind to the account session epoch, persist only a hash of their random ID, expire and consume once; retries accumulate toward the established lockout across challenge reissues, and password reset or approval changes revoke pending challenges.
+- PMCM sign-in success history is recorded only after two-factor verification completes.
+- Approval changes now revoke issued sessions atomically with the request and audit entry; session guards reject accounts that are no longer approved, are locked, or no longer match the token identity.
 - Registration verification rechecks archive status under the event lock, preserving historical roster reads while rejecting writes after archive.
 - Archived coordinator events remain readable and selectable, while event-day, schedule, handoff, report, acknowledgment and withdrawal writes are blocked in the portal and API.
 - Simplified coordinator task scope checks and task form projections while preserving canonical-role, historical-role, owner, and operator authorization behavior.
