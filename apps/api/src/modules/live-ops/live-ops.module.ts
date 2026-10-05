@@ -18,7 +18,7 @@ import { LiveOpsTaskIssueCommandService } from './application/live-ops-task-issu
 import { EventScheduleService } from './application/event-schedule.service';
 
 /**
- * Owned tables: OpsCoordinatorAssignment (live-ops-triggered updates; day-to-day staffing assignment owned by operations), OpsEventDayLog, OpsEventDayTask, OpsUrgentIssue. Coordinator reliability notes are written through the operations staffing port.
+ * Owned tables: OpsEventDayLog, OpsEventDayTask, OpsUrgentIssue. Assignment and coordinator reliability changes use the Operations staffing port.
  * Read-only: OpsCoordinator (populated only by local fixtures; no owning module), OpsEvent (via inquiry-onboarding).
  */
 @Module({

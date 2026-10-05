@@ -5,6 +5,7 @@ import type {
   PrismArchivedEventSearchHit,
   PrismFloorPlanDraft,
   PrismEvent,
+  PrismEventPage,
   PrismFileRequirementsMatrix,
   PrismStoredObject,
   PrismAddendum,
@@ -17,7 +18,7 @@ import type { EventOpsActorQuery } from "./primitives";
 
 export interface EventOpsEventsContract {
   events: {
-    list(actor?: EventOpsActorQuery): Promise<PrismEvent[]>;
+    list(actor?: EventOpsActorQuery, cursor?: string): Promise<PrismEventPage>;
     detail(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEvent>;
     decisionHistory(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventDecision[]>;
     fileRequirements(

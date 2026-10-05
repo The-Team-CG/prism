@@ -11,6 +11,7 @@
 
 import process from 'node:process';
 import { Pool } from 'pg';
+import { selectDatabaseConnection } from './db-connection-config.mjs';
 
 const DEFAULT_EMAIL = 'mys@pmcm.test';
 
@@ -38,16 +39,6 @@ function parseArgs(argv) {
   return args;
 }
 
-function connectionString() {
-  const candidates = [process.env.SUPABASE_DB_URL, process.env.DATABASE_URL, process.env.PRISMA_DATABASE_URL, process.env.DIRECT_URL];
-  const value = candidates.map((item) => item?.trim()).find(Boolean);
-  if (!value) {
-    console.error('No database URL configured. Set SUPABASE_DB_URL, DATABASE_URL, PRISMA_DATABASE_URL, or DIRECT_URL.');
-    process.exit(1);
-  }
-  return value;
-}
-
 const args = parseArgs(process.argv.slice(2));
 
 // Guard against pointing this at a shared database. Only seeded test-domain
@@ -59,10 +50,8 @@ if (!args.allFixtures && !FIXTURE_EMAIL_PATTERN.test(args.email)) {
   process.exit(1);
 }
 
-const pool = new Pool({
-  connectionString: connectionString(),
-  ssl: process.env.DB_SSL === 'false' ? false : { rejectUnauthorized: false },
-});
+const database = selectDatabaseConnection({ purpose: 'runtime' });
+const pool = new Pool({ connectionString: database.connectionString, ssl: database.ssl });
 
 try {
   const where = args.allFixtures ? `email ilike '%@pmcm.test' or email ilike '%.test'` : 'email = $1';

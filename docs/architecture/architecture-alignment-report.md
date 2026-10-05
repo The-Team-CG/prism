@@ -207,11 +207,14 @@ writes. The key rule is that a PostgreSQL schema namespace is not an ownership
 grant. `read-models` may compose role-scoped records, while business writes stay
 with the owner or a named transitional workflow.
 
-Known transitional seams are intentionally documented rather than hidden:
+Current transitional seams are intentionally documented rather than hidden:
 
-- lifecycle bootstraps initial billing records during accepted-inquiry
-  onboarding; ongoing billing belongs to commercial;
-- live-ops updates staffing assignments for event-day replacement and
+- current Lifecycle briefing/conforme workflows do not initialize billing:
+  they provide no priced-source input, and a signed conforme alone does not
+  justify creating a billing source or statement. Lifecycle-issued addenda now
+  request Commercial-owned billing-source and selected-quote changes through
+  a transaction-aware capability; Lifecycle retains addendum impact history;
+- LiveOps updates staffing assignments for event-day replacement and
   attendance; a future staffing command port should remove the shared-table
   write;
 - platform privacy execution anonymises records owned by several contexts;
