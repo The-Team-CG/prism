@@ -2,7 +2,9 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '@prism/kernel/database';
 import type { PrismEventOpsActorContext, PrismVerifiedEventActor } from '@prism/types';
 import { OpsUserRole } from '@prism/kernel/event-core';
+import type { EventAccessPolicyService } from '@prism/kernel/access-control';
 import type { InquiriesService } from './inquiries.service';
+import type { mapDocument, mapInquiry, mapOnboardingEvent } from './inquiry.mappers';
 
 type OpsUserRoleValue = (typeof OpsUserRole)[keyof typeof OpsUserRole];
 
@@ -30,12 +32,12 @@ export type UpdateInquiryStatusInput = {
 
 export interface InquiryWorkflowContext {
   inquiriesService: InquiriesService;
-  resolveActor: (input?: PrismEventOpsActorContext, verifiedActor?: PrismVerifiedEventActor) => any;
-  requireActorRole: (actor: any, roles: OpsUserRoleValue[], resource: string) => Promise<void>;
+  resolveActor: EventAccessPolicyService['resolveActor'];
+  requireActorRole: EventAccessPolicyService['requireActorRole'];
   allowedAdminRoles: OpsUserRoleValue[];
-  mapInquiry: (inquiry: unknown) => any;
-  mapDocument: (document: unknown) => any;
-  mapEvent: (event: unknown) => any;
+  mapInquiry: (inquiry: Parameters<typeof mapInquiry>[0]) => ReturnType<typeof mapInquiry>;
+  mapDocument: (document: Parameters<typeof mapDocument>[0]) => ReturnType<typeof mapDocument>;
+  mapEvent: (event: Parameters<typeof mapOnboardingEvent>[0]) => ReturnType<typeof mapOnboardingEvent>;
 }
 
 @Injectable()

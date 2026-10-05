@@ -20,15 +20,27 @@ describe('OpsGuestController', () => {
       mapGuestEvent: vi.fn((event, attendanceCount) => ({ id: event.id, attendanceCount })),
       checkInByAccessCode: vi.fn(async () => ({ id: 'gci_1', guestName: 'Sofia Lim' })),
       mapGuestCheckIn: vi.fn((checkIn) => ({ id: checkIn.id, guestName: checkIn.guestName })),
-      submitFeedbackByAccessCode: vi.fn(async () => ({ id: 'gfb_1', guestName: 'Sofia Lim' })),
-      mapGuestFeedback: vi.fn((feedback) => ({ id: feedback.id, guestName: feedback.guestName })),
+      submitFeedbackByAccessCode: vi.fn(async () => ({
+        id: 'gfb_1',
+        eventId: 'evt_sample',
+        submittedAt: '2026-06-18T10:00:00.000Z',
+      })),
     };
   const controller = new OpsGuestController(guestWorkflowService as any, { resolveActor: vi.fn(() => ({ role: OpsUserRole.PmcmAdmin, name: 'Maxine' })), requireActorRole: vi.fn(async () => undefined) } as any);
 
     await expect(controller.eventByAccessCode('AYALA-TECH-MPLE')).resolves.toEqual({ id: 'evt_sample', attendanceCount: 2 });
     await expect(controller.eventWatermarkByAccessCode('AYALA-TECH-MPLE')).resolves.toEqual({ watermark: '2026-06-01T00:00:00.000Z:2' });
     await expect(controller.checkIn('AYALA-TECH-MPLE', { guestName: 'Sofia Lim', privacyConsentAccepted: true })).resolves.toEqual({ id: 'gci_1', guestName: 'Sofia Lim' });
-    await expect(controller.submitFeedback('AYALA-TECH-MPLE', { guestName: 'Sofia Lim', rating: 5, privacyConsentAccepted: true })).resolves.toEqual({ id: 'gfb_1', guestName: 'Sofia Lim' });
+    const feedbackReceipt = await controller.submitFeedback('AYALA-TECH-MPLE', { guestName: 'Sofia Lim', rating: 5, privacyConsentAccepted: true });
+    expect(feedbackReceipt).toEqual({
+      id: 'gfb_1',
+      eventId: 'evt_sample',
+      submittedAt: '2026-06-18T10:00:00.000Z',
+    });
+    expect(feedbackReceipt).not.toHaveProperty('moderationStatus');
+    expect(feedbackReceipt).not.toHaveProperty('moderationReason');
+    expect(feedbackReceipt).not.toHaveProperty('privacyConsentAccepted');
+    expect(feedbackReceipt).not.toHaveProperty('mediaAttachments');
     expect(guestWorkflowService.getEventByAccessCode).toHaveBeenCalledWith('AYALA-TECH-MPLE');
     expect(guestWorkflowService.getEventWatermarkByAccessCode).toHaveBeenCalledWith('AYALA-TECH-MPLE');
     expect(guestWorkflowService.countCheckInsForEvent).toHaveBeenCalledWith('evt_sample');

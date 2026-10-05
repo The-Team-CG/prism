@@ -36,6 +36,18 @@ describe('OpsQuoteRequestsController', () => {
       createdAt: now,
       updatedAt: now,
     };
+    const {
+      acceptableMin: _acceptableMin,
+      acceptableMax: _acceptableMax,
+      outsideAcceptableRange: _outsideAcceptableRange,
+      ...supplierQuote
+    } = {
+      ...quote,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+      revisedAt: null,
+      lockedAt: null,
+    };
     const commercialWorkflowService = {
       getQuoteRequestByToken: vi.fn(async () => ({
         request: {
@@ -60,8 +72,8 @@ describe('OpsQuoteRequestsController', () => {
         },
         quote,
       })),
-      submitSupplierQuoteByToken: vi.fn(async () => quote),
-      reviseSupplierQuoteByToken: vi.fn(async () => ({ ...quote, amount: 175000, status: 'revised' })),
+      submitSupplierQuoteByToken: vi.fn(async () => supplierQuote),
+      reviseSupplierQuoteByToken: vi.fn(async () => ({ ...supplierQuote, amount: 175000, status: 'revised' })),
     };
     const controller = new OpsQuoteRequestsController(commercialWorkflowService as any);
 
