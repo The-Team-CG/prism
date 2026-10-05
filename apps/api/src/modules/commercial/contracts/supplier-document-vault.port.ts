@@ -1,8 +1,6 @@
-export type UploadMetadataInput = {
-  fileName: string;
-  mimeType?: string;
-  sizeBytes?: number;
-};
+import type { UploadMetadataInput } from '@prism/types';
+
+export type { UploadMetadataInput } from '@prism/types';
 
 export type ValidatedUploadMetadata = {
   originalFileName: string;

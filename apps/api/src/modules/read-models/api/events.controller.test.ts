@@ -8,7 +8,10 @@ function controllerPath(controller: Function): string {
 
 function createController() {
   const eventReadModelsService = {
-    eventList: vi.fn(async () => [{ id: 'evt_sample' }]),
+    eventList: vi.fn(async () => ({
+      items: [{ id: 'evt_sample' }],
+      pagination: { nextCursor: null, hasMore: false, totalCount: 1 },
+    })),
     eventDetail: vi.fn(async () => ({ id: 'evt_sample' })),
   };
   const eventAccessPolicyService = {
@@ -45,15 +48,19 @@ describe('OpsEventReadsController', () => {
     };
     const detailActor = { ...listActor, name: 'pmcm-admin', actorName: 'pmcm-admin' };
 
-    await expect(controller.list(listActor as any)).resolves.toEqual([
+    await expect(controller.list(listActor as any)).resolves.toEqual({
+      items: [
       { id: 'evt_sample' },
-    ]);
+    ],
+      pagination: { nextCursor: null, hasMore: false, totalCount: 1 },
+    });
     await expect(controller.detail('evt_sample', detailActor as any)).resolves.toEqual({ id: 'evt_sample' });
 
     expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, listActor);
     expect(eventReadModelsService.eventList).toHaveBeenCalledWith(
       { role: 'pmcm-admin', name: 'Maxine' },
       expect.objectContaining({ mapEvent: expect.any(Function) }),
+      undefined,
     );
     expect(eventReadModelsService.eventDetail).toHaveBeenCalledWith(
       { role: 'pmcm-admin', name: 'pmcm-admin' },

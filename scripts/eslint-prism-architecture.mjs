@@ -196,6 +196,33 @@ const noInlineZod = {
   },
 };
 
+const noProductionAny = {
+  meta: {
+    type: "problem",
+    docs: { description: "keep production API code free of explicit any types" },
+    schema: [],
+  },
+  create(context) {
+    const normalized = normalizedRelative(context.getFilename());
+    if (
+      !normalized.startsWith("apps/api/src/") ||
+      normalized.startsWith("apps/api/src/fixtures/") ||
+      /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(normalized)
+    ) return {};
+
+    function checkAny(node) {
+      context.report({
+        node,
+        message: "Avoid explicit 'any' in production API code; use a selected payload or explicit contract mapping.",
+      });
+    }
+
+    return {
+      TSAnyKeyword: checkAny,
+    };
+  },
+};
+
 export default {
   parser: tsParser,
   plugin: {
@@ -204,6 +231,7 @@ export default {
       "no-private-context-imports": noPrivateContextImports,
       "no-local-contract-definitions": noLocalContractDefinitions,
       "no-inline-zod": noInlineZod,
+      "no-production-any": noProductionAny,
     },
   },
 };
