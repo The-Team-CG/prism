@@ -26,7 +26,6 @@ export * from './api/storage/storage.controller';
 
 export * from './api/ai-governance/ai-governance.controller';
 export * from './api/ai-governance/conforme-comms-drafts.controller';
-export * from './api/ai-governance/ai-governance.dto';
 export * from './application/ai-governance/ai-governance.service';
 export * from './application/ai-governance/conforme-comms-draft.service';
 export * from './application/ai-governance/pare/pare.service';

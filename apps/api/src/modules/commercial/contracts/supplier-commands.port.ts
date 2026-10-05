@@ -1,31 +1,26 @@
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
-import type { OpsSupplierQuoteRequest } from '@prisma/client';
 import type {
+  ConfirmSupplierReadinessInput,
   ChangeSupplierTierInput,
   CreateSupplierCertificationInput,
   CreateSupplierInput,
+  CreateSupplierReliabilityNoteInput,
   CreateSupplierReviewInput,
-  SupplierProfile,
+  CreateSupplierScheduleInput,
+  PrismSupplierQuoteRequest,
+  PrismSupplierSchedule,
+  UpdateSupplierEventStatusInput,
   UpdateSupplierInput,
-} from './supplier-directory.port';
-import type { CreateSupplierReliabilityNoteInput, PromoteSupplierInput, CreateSupplierScheduleInput } from '@prism/types';
-import type { UploadMetadataInput } from './supplier-document-vault.port';
+  UploadMetadataInput,
+  VerifySupplierStatusInput,
+  PromoteSupplierInput,
+} from '@prism/types';
+import type { SupplierProfile } from './supplier-directory.port';
 import type { PAREApprovalRecord as SupplierPareApprovalRecord } from '@prism/contexts/platform-ops';
 
-export type SupplierReadinessInput = {
-  notes?: string;
-};
-
-export type SupplierEventStatusInput = {
-  status: string;
-  notes?: string;
-  photo?: UploadMetadataInput;
-};
-
-export type VerifySupplierEventStatusInput = {
-  verificationStatus: string;
-  notes?: string;
-};
+export type SupplierReadinessInput = ConfirmSupplierReadinessInput;
+export type SupplierEventStatusInput = UpdateSupplierEventStatusInput;
+export type VerifySupplierEventStatusInput = VerifySupplierStatusInput;
 
 export interface SupplierCommands {
   createSupplier(input: CreateSupplierInput, actor: ResolvedEventOpsActor): Promise<SupplierProfile>;
@@ -39,8 +34,8 @@ export interface SupplierCommands {
     input: CreateSupplierCertificationInput,
     actor: ResolvedEventOpsActor,
   ): Promise<SupplierProfile>;
-  confirmSupplierAssignment(requestId: string, actor: ResolvedEventOpsActor): Promise<OpsSupplierQuoteRequest>;
-  withdrawSupplier(requestId: string, reason: string, actor: ResolvedEventOpsActor): Promise<OpsSupplierQuoteRequest>;
+  confirmSupplierAssignment(requestId: string, actor: ResolvedEventOpsActor): Promise<PrismSupplierQuoteRequest>;
+  withdrawSupplier(requestId: string, reason: string, actor: ResolvedEventOpsActor): Promise<PrismSupplierQuoteRequest>;
   pareGetPendingApprovals(eventId?: string): Promise<SupplierPareApprovalRecord[]>;
   pareApprove(approvalRecordId: string, approvedBy: string): Promise<SupplierPareApprovalRecord>;
   pareReject(approvalRecordId: string, rejectedBy: string): Promise<SupplierPareApprovalRecord>;
@@ -48,23 +43,23 @@ export interface SupplierCommands {
     requestId: string,
     input: SupplierReadinessInput,
     actor: ResolvedEventOpsActor,
-  ): Promise<OpsSupplierQuoteRequest>;
+  ): Promise<PrismSupplierQuoteRequest>;
   updateSupplierEventStatus(
     requestId: string,
     input: SupplierEventStatusInput,
     actor: ResolvedEventOpsActor,
-  ): Promise<OpsSupplierQuoteRequest>;
+  ): Promise<PrismSupplierQuoteRequest>;
   verifySupplierEventStatus(
     eventId: string,
     requestId: string,
     input: VerifySupplierEventStatusInput,
     actor: ResolvedEventOpsActor,
-  ): Promise<OpsSupplierQuoteRequest>;
+  ): Promise<PrismSupplierQuoteRequest>;
   uploadSupplierContract(
     requestId: string,
     input: UploadMetadataInput,
     actor: ResolvedEventOpsActor,
-  ): Promise<OpsSupplierQuoteRequest>;
-  createSupplierSchedule(eventId: string, input: CreateSupplierScheduleInput, actor: ResolvedEventOpsActor): Promise<unknown>;
-  listSupplierSchedules(eventId: string, actor: ResolvedEventOpsActor): Promise<unknown[]>;
+  ): Promise<PrismSupplierQuoteRequest>;
+  createSupplierSchedule(eventId: string, input: CreateSupplierScheduleInput, actor: ResolvedEventOpsActor): Promise<PrismSupplierSchedule>;
+  listSupplierSchedules(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismSupplierSchedule[]>;
 }

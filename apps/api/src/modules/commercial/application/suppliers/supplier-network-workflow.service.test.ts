@@ -9,13 +9,29 @@ function createService() {
     id: 'qr_sonic',
     eventId: 'evt_sample',
     supplierId: 'sup_sonicline',
+    categoryId: 'cat_technicals',
     supplierName: 'Sonic Line Events',
     category: 'Technicals',
+    message: 'Summit quote request.',
+    dueDate: null,
+    accessToken: 'supplier-token',
+    confidentialBid: false,
+    createdAt: new Date('2026-10-02T09:00:00.000Z'),
     eventDayVerificationStatus: SupplierVerificationStatus.SelfReported,
+    eventDayVerifiedAt: null,
+    eventDayVerifiedBy: null,
+    eventDayVerificationNotes: '',
     eventDayStatus: 'not_started',
     eventDayStatusAt: null as Date | null,
+    eventDayNotes: '',
     status: 'pending',
     assignmentStatus: 'pending_confirmation',
+    assignmentConfirmedAt: null,
+    readinessStatus: 'not_requested',
+    readinessConfirmedAt: null,
+    readinessNotes: '',
+    statusPhotoFileName: null,
+    contractDocumentId: null,
   };
   const audit = vi.fn();
   const suppliers = {
@@ -38,7 +54,12 @@ function createService() {
       }),
     },
     opsSupplierSchedule: {
-      upsert: vi.fn(async ({ create }: { create: Record<string, unknown> }) => ({ ...create, status: 'planned' })),
+      upsert: vi.fn(async ({ create }: { create: Record<string, unknown> }) => ({
+        ...create,
+        status: 'planned',
+        createdAt: new Date('2026-10-02T09:00:00.000Z'),
+        updatedAt: new Date('2026-10-02T09:00:00.000Z'),
+      })),
     },
     $transaction: vi.fn(async (callback: (tx: Record<string, unknown>) => Promise<unknown>) => callback(prisma as unknown as Record<string, unknown>)),
   };
@@ -92,7 +113,7 @@ describe('SupplierNetworkWorkflowService', () => {
       service.verifySupplierEventStatus(
         'evt_sample',
         'qr_sonic',
-        { verificationStatus: 'unknown' },
+        { verificationStatus: 'unknown' } as never,
         { name: 'PMCM Admin', role: OpsUserRole.PmcmAdmin, explicit: true },
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
@@ -164,7 +185,13 @@ describe('SupplierNetworkWorkflowService', () => {
       { name: 'PMCM Admin', role: OpsUserRole.PmcmAdmin, explicit: true },
     );
 
-    expect(schedule).toMatchObject({ requestId: 'qr_sonic', status: 'planned' });
+    expect(schedule).toMatchObject({
+      requestId: 'qr_sonic',
+      supplierName: 'Sonic Line Events',
+      status: 'planned',
+      ingressAt: '2026-10-02T11:00:00.000Z',
+      egressAt: '2026-10-02T14:00:00.000Z',
+    });
     expect(request).toMatchObject({ eventDayStatus: 'not_started', eventDayStatusAt: null });
     expect(prisma.opsSupplierQuoteRequest.updateMany).toHaveBeenCalledWith({
       where: { id: 'qr_sonic', eventDayStatus: 'late' },
