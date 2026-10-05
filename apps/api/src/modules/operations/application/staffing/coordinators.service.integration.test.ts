@@ -6,6 +6,7 @@ import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
 import { WorkflowCommandService, OpsUserRole, CoordinatorAssignmentStatus } from '@prism/kernel/event-core';
 import { EventAccessPolicyService, type AuditWriter } from '@prism/kernel/access-control';
 import { AuditService, AuditWriterAdapter, SecurityOperationsService } from '@prism/contexts/platform-ops';
+import { PlatformCommandReceiptStore } from '../../../platform-ops/infrastructure/trust/command-receipt.store';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/contexts/platform-ops';
 import { CoordinatorAssignmentCommandService } from './coordinator-assignment-command.service';
 import { CoordinatorReliabilityNoteWriterService } from './coordinator-reliability-note-writer.service';
@@ -100,6 +101,7 @@ databaseSuite('CoordinatorsService PostgreSQL concurrency invariants', () => {
   let prisma: PrismaService;
   let coordinators: CoordinatorAssignmentCommandService;
   let liveOperations: CoordinatorLiveOpsCommandService;
+  let receiptLiveOperations: CoordinatorLiveOpsCommandService;
   let auditWriter: AuditWriter;
   let notificationWriter: NotificationOutboxWriterAdapter;
 
@@ -116,8 +118,7 @@ databaseSuite('CoordinatorsService PostgreSQL concurrency invariants', () => {
     auditWriter = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma, auditService));
     notificationWriter = new NotificationOutboxWriterAdapter(new NotificationOutboxService(prisma));
     const access = new EventAccessPolicyService(auditWriter);
-    const workflow = new WorkflowCommandService(new PrismTransactionRunner(prisma));
-    coordinators = new CoordinatorAssignmentCommandService(
+    const buildCoordinators = (workflow: WorkflowCommandService) => new CoordinatorAssignmentCommandService(
       prisma,
       auditWriter,
       notificationWriter,
@@ -126,7 +127,14 @@ databaseSuite('CoordinatorsService PostgreSQL concurrency invariants', () => {
       new CoordinatorSuggestionsService(prisma),
       new CoordinatorReliabilityNoteWriterService(prisma),
     );
+    const transactions = new PrismTransactionRunner(prisma);
+    coordinators = buildCoordinators(new WorkflowCommandService(transactions));
     liveOperations = new CoordinatorLiveOpsCommandService(prisma, coordinators);
+    // Command receipts are what let an identical retry return the stored result instead of failing validation.
+    receiptLiveOperations = new CoordinatorLiveOpsCommandService(
+      prisma,
+      buildCoordinators(new WorkflowCommandService(transactions, new PlatformCommandReceiptStore(prisma))),
+    );
   });
 
   afterAll(async () => {
@@ -271,8 +279,8 @@ databaseSuite('CoordinatorsService PostgreSQL concurrency invariants', () => {
         reason: 'Replay-safe event-day logging',
       } as const;
 
-      const first = await liveOperations.replaceCoordinatorAssignment(fixture.eventIds[0], outgoing.id, input, pmcmActor);
-      const replay = await liveOperations.replaceCoordinatorAssignment(fixture.eventIds[0], outgoing.id, input, pmcmActor);
+      const first = await receiptLiveOperations.replaceCoordinatorAssignment(fixture.eventIds[0], outgoing.id, input, pmcmActor);
+      const replay = await receiptLiveOperations.replaceCoordinatorAssignment(fixture.eventIds[0], outgoing.id, input, pmcmActor);
       const logs = await prisma.opsEventDayLog.findMany({
         where: { eventId: fixture.eventIds[0], actionType: 'coordinator_replaced', relatedId: outgoing.id },
       });
