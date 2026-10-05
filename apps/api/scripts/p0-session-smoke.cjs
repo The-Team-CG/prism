@@ -70,6 +70,15 @@ function registeredRoutes(app) {
 async function main() {
   const app = await NestFactory.create(AppModule, { logger: ['error'], abortOnError: false });
   const fixtureIds = [0, 1].map(() => `p0_http_${randomUUID()}`);
+  const primaryAccountId = `p0_http_primary_client_${randomUUID()}`;
+  const secondaryAccountId = `p0_http_secondary_client_${randomUUID()}`;
+  const primaryEmail = `${primaryAccountId}@example.test`;
+  const secondaryEmail = `${secondaryAccountId}@example.test`;
+  const officialPlanId = `p0_http_official_plan_${randomUUID()}`;
+  const officialDraftId = `p0_http_official_draft_${randomUUID()}`;
+  const supplierId = `p0_http_supplier_${randomUUID()}`;
+  const supplierCategoryId = `p0_http_supplier_category_${randomUUID()}`;
+  const supplierRequestId = `p0_http_supplier_request_${randomUUID()}`;
   let prisma;
   try {
     app.setGlobalPrefix('api');
@@ -79,19 +88,64 @@ async function main() {
     const base = await app.getUrl();
     prisma = app.get(PrismaService);
     const sessions = app.get(AuthSessionService);
-    const client = { id: 'p0_http_client', name: 'P0 HTTP Client', email: 'p0-http-client@example.test', role: 'client', organization: 'P0 test' };
+    const client = { id: 'p0_http_client', name: 'P0 HTTP Client', email: primaryEmail, role: 'client', organization: 'P0 test' };
+    const secondaryClient = {
+      id: secondaryAccountId,
+      name: 'P0 HTTP Secondary Client',
+      email: secondaryEmail,
+      role: 'client',
+      organization: 'P0 test',
+      approvalStatus: 'approved',
+    };
+    await prisma.opsUser.create({ data: {
+      id: primaryAccountId,
+      name: client.name,
+      email: primaryEmail,
+      password: 'p0-smoke-fixture',
+      role: 'client',
+      organization: client.organization,
+      approvalStatus: 'approved',
+    } });
+    await prisma.opsUser.create({ data: {
+      id: secondaryAccountId,
+      name: secondaryClient.name,
+      email: secondaryEmail,
+      password: 'p0-smoke-fixture',
+      role: 'client',
+      organization: secondaryClient.organization,
+      approvalStatus: 'approved',
+    } });
     const expired = sessions.issueSession(client, new Date(Date.now() - 86_400_000)).accessToken;
     const clientToken = sessions.issueSession(client).accessToken;
+    const secondaryClientToken = sessions.issueSession(secondaryClient).accessToken;
     const pmcmToken = sessions.issueSession({ ...client, id: 'p0_http_pmcm', role: 'pmcm-admin' }).accessToken;
     const results = [];
-    async function check(method, path, token, expected, label) {
+    async function check(method, path, token, expected, label, body, validateBody) {
       const headers = { 'content-type': 'application/json' };
       if (token) headers.authorization = `Bearer ${token}`;
       const response = await fetch(`${base}${path}`, {
-        method, headers, ...(method === 'GET' || method === 'HEAD' ? {} : { body: '{}' }),
+        method,
+        headers,
+        ...(method === 'GET' || method === 'HEAD' ? {} : { body: JSON.stringify(body ?? {}) }),
       });
-      await response.arrayBuffer();
-      results.push({ method, path, label, expected, status: response.status, passed: response.status === expected });
+      let responseBody;
+      try {
+        responseBody = await response.json();
+      } catch {
+        responseBody = null;
+      }
+      const bodyPassed = validateBody ? Boolean(validateBody(responseBody)) : true;
+      const passed = response.status === expected && bodyPassed;
+      results.push({
+        method,
+        path,
+        label,
+        expected,
+        status: response.status,
+        ...(validateBody ? { bodyValidated: bodyPassed } : {}),
+        passed,
+      });
+      return responseBody;
     }
     const inventory = registeredRoutes(app);
     const routes = inventory.filter((route) => route.sessionGuarded);
@@ -112,16 +166,210 @@ async function main() {
       await prisma.opsInquiry.create({ data: {
         id, clientName: client.name, email, normalizedEmail: email,
         eventName: `HTTP ownership ${index}`, eventDate: new Date('2031-04-18'), clientType: 'Individual',
-        events: { create: { id, clientName: client.name, eventName: `HTTP ownership ${index}`, eventDate: new Date('2031-04-18'), clientPortalStatus: 'unlocked' } },
+        events: { create: {
+          id,
+          clientName: client.name,
+          eventName: `HTTP ownership ${index}`,
+          eventDate: new Date('2031-04-18'),
+          clientPortalStatus: index === 0 ? 'unlocked' : 'locked',
+        } },
       } });
       await prisma.floorPlan.create({ data: { id, name: 'HTTP snapshot', ownerId: 'p0_http_pmcm' } });
       await prisma.opsFloorPlanDraft.create({ data: {
-        id, eventId: id, floorPlanId: id, name: 'HTTP approved snapshot', status: 'approved', approvedSnapshot: { objects: [] },
+        id,
+        eventId: id,
+        floorPlanId: id,
+        name: 'HTTP approved snapshot',
+        status: 'approved',
+        approvedSnapshot: { objects: [] },
+        submittedSnapshot: { objects: [] },
       } });
       const expected = index === 0 ? 200 : 403;
       for (const suffix of ['', '/file-requirements', `/floorplans/${id}/snapshot`]) {
         await check('GET', `/api/events/${id}${suffix}?actorRole=pmcm-admin&actorName=Spoofed`, clientToken, expected, index === 0 ? 'verified owner read' : 'namesake foreign event denied');
       }
+    }
+
+    await prisma.floorPlan.create({
+      data: { id: officialPlanId, name: 'HTTP PMCM official in-review plan', ownerId: 'p0_http_pmcm' },
+    });
+    await prisma.opsFloorPlanDraft.create({
+      data: {
+        id: officialDraftId,
+        eventId: fixtureIds[0],
+        floorPlanId: officialPlanId,
+        name: 'HTTP PMCM official in-review plan',
+        status: 'in_review',
+        sourceType: 'blank',
+        createdByRole: 'pmcm-admin',
+        submittedSnapshot: { objects: [] },
+        approvedSnapshot: { objects: [] },
+        submittedSnapshotAt: new Date(),
+        approvedSnapshotAt: new Date(),
+      },
+    });
+
+    const supplierEmail = `${supplierId}@example.test`;
+    const supplierToken = sessions.issueSession({
+      ...client,
+      id: supplierId,
+      role: 'supplier',
+      email: supplierEmail,
+    }).accessToken;
+    await prisma.opsSupplierCategory.create({
+      data: { id: supplierCategoryId, slug: supplierCategoryId, name: 'P0 HTTP Supplier category' },
+    });
+    await prisma.opsSupplier.create({
+      data: {
+        id: supplierId,
+        categoryId: supplierCategoryId,
+        name: 'P0 HTTP Supplier',
+        email: supplierEmail,
+      },
+    });
+    await prisma.opsSupplierQuoteRequest.create({
+      data: {
+        id: supplierRequestId,
+        eventId: fixtureIds[0],
+        supplierId,
+        categoryId: supplierCategoryId,
+        supplierName: 'P0 HTTP Supplier',
+        category: 'P0 HTTP Supplier category',
+        accessToken: `${supplierRequestId}-token`,
+        status: 'selected',
+        assignmentStatus: 'confirmed',
+      },
+    });
+    for (const type of ['approved', 'submitted']) {
+      await check(
+        'GET',
+        `/api/events/${fixtureIds[0]}/floorplans/${fixtureIds[0]}/snapshot?type=${type}`,
+        supplierToken,
+        403,
+        `event-scoped supplier denied ${type} floorplan snapshot`,
+      );
+    }
+    await check('GET', `/api/plans/${officialPlanId}`, clientToken, 403, 'client denied PMCM in-review raw plan read');
+    await check('PUT', `/api/plans/${officialPlanId}`, clientToken, 403, 'client denied PMCM in-review raw plan update');
+    await check('GET', `/api/plans/${officialPlanId}/export`, clientToken, 403, 'client denied PMCM in-review raw plan export');
+
+    const eventId = fixtureIds[0];
+    const lockedEventId = fixtureIds[1];
+    const candidatesPath = `/api/events/${eventId}/client-floorplan-access/candidates?query=${encodeURIComponent('P0 HTTP')}`;
+    await check(
+      'GET',
+      candidatesPath,
+      pmcmToken,
+      200,
+      'PMCM finds approved secondary candidates and excludes the primary contact',
+      undefined,
+      (body) => Array.isArray(body)
+        && body.some((account) => account.id === secondaryAccountId)
+        && !body.some((account) => account.id === primaryAccountId),
+    );
+    await check(
+      'POST',
+      `/api/events/${eventId}/client-floorplan-access`,
+      pmcmToken,
+      200,
+      'PMCM grants an existing approved secondary Client',
+      { userId: secondaryAccountId },
+    );
+    await check(
+      'POST',
+      `/api/events/${eventId}/client-floorplan-access`,
+      pmcmToken,
+      200,
+      'repeated secondary grant remains idempotent',
+      { userId: secondaryAccountId },
+    );
+    await check(
+      'GET',
+      `/api/events/${eventId}/client-floorplan-access`,
+      pmcmToken,
+      200,
+      'PMCM access list shows primary and one secondary contact',
+      undefined,
+      (body) => body?.primaryContact?.email === primaryEmail
+        && body.secondaryContacts?.length === 1
+        && body.secondaryContacts[0]?.id === secondaryAccountId,
+    );
+    await check(
+      'GET',
+      candidatesPath,
+      pmcmToken,
+      200,
+      'candidate search excludes primary and active secondary contacts',
+      undefined,
+      (body) => Array.isArray(body)
+        && !body.some((account) => account.id === primaryAccountId || account.id === secondaryAccountId),
+    );
+    await check(
+      'GET',
+      '/api/client/shared-floorplans',
+      secondaryClientToken,
+      200,
+      'secondary Client receives the minimal shared-floorplan list',
+      undefined,
+      (body) => Array.isArray(body)
+        && body.some((entry) => entry.eventId === eventId && entry.draftId === officialDraftId
+          && entry.availableSnapshots.includes('submitted')
+          && entry.availableSnapshots.includes('approved')),
+    );
+    for (const type of ['submitted', 'approved']) {
+      await check(
+        'GET',
+        `/api/events/${eventId}/floorplans/${officialDraftId}/snapshot?type=${type}`,
+        secondaryClientToken,
+        200,
+        `active secondary Client can read ${type} snapshot`,
+      );
+    }
+    await check(
+      'PATCH',
+      `/api/events/${eventId}/floorplans/${officialDraftId}/review`,
+      secondaryClientToken,
+      403,
+      'secondary Client cannot submit a revision comment',
+      { revisionNote: 'P0 secondary comment must be denied' },
+    );
+    await check(
+      'POST',
+      `/api/events/${lockedEventId}/client-floorplan-access`,
+      pmcmToken,
+      200,
+      'PMCM can grant the locked event without unlocking client access',
+      { userId: secondaryAccountId },
+    );
+    await check(
+      'GET',
+      `/api/events/${lockedEventId}/floorplans/${lockedEventId}/snapshot?type=approved`,
+      secondaryClientToken,
+      403,
+      'active secondary grant remains denied while the event client portal is locked',
+    );
+    await check(
+      'DELETE',
+      `/api/events/${eventId}/client-floorplan-access/${secondaryAccountId}`,
+      pmcmToken,
+      200,
+      'PMCM revokes secondary floorplan access',
+    );
+    await check(
+      'DELETE',
+      `/api/events/${eventId}/client-floorplan-access/${secondaryAccountId}`,
+      pmcmToken,
+      200,
+      'repeated secondary revoke remains idempotent',
+    );
+    for (const type of ['submitted', 'approved']) {
+      await check(
+        'GET',
+        `/api/events/${eventId}/floorplans/${officialDraftId}/snapshot?type=${type}`,
+        secondaryClientToken,
+        403,
+        `revoked secondary Client cannot read ${type} snapshot`,
+      );
     }
     const coordinator = { ...client, id: fixtureIds[0], role: 'coordinator', email: 'p0-http-coordinator@example.test' };
     const coordinatorToken = sessions.issueSession(coordinator).accessToken;
@@ -150,8 +398,12 @@ async function main() {
     if (prisma) {
       await prisma.opsEvent.deleteMany({ where: { id: { in: fixtureIds } } });
       await prisma.opsInquiry.deleteMany({ where: { id: { in: fixtureIds } } });
-      await prisma.floorPlan.deleteMany({ where: { id: { in: fixtureIds } } });
+      await prisma.opsSupplierQuoteRequest.deleteMany({ where: { id: supplierRequestId } });
+      await prisma.opsSupplier.deleteMany({ where: { id: supplierId } });
+      await prisma.opsSupplierCategory.deleteMany({ where: { id: supplierCategoryId } });
+      await prisma.floorPlan.deleteMany({ where: { id: { in: [...fixtureIds, officialPlanId] } } });
       await prisma.opsCoordinator.deleteMany({ where: { id: { in: fixtureIds } } });
+      await prisma.opsUser.deleteMany({ where: { id: { in: [primaryAccountId, secondaryAccountId] } } });
     }
     await app.close();
   }

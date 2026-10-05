@@ -1,4 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
+import { OpsUserRole } from '@prism/kernel/event-core';
 import type { FloorPlan as PrismaFloorPlan, FloorPlanObject as PrismaFloorPlanObject, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { asArray } from '@prism/kernel/shared';
@@ -18,15 +20,14 @@ type UpdatePlanChanges = {
   seatCategories?: SeatCategory[];
 };
 
-type PlanActor = {
-  actorRole?: string;
-  role?: string;
-  actorName?: string;
-  actorEmail?: string;
-  clientName?: string;
-};
+type PlanDraftWithEventContact = Prisma.OpsFloorPlanDraftGetPayload<{
+  include: { event: { include: { inquiry: { select: { email: true } } } } };
+}>;
 
-type PlanWithObjects = PrismaFloorPlan & { objectRows?: PrismaFloorPlanObject[] };
+type PlanWithObjects = PrismaFloorPlan & {
+  objectRows?: PrismaFloorPlanObject[];
+  opsDraft?: PlanDraftWithEventContact | null;
+};
 
 async function updatePlanWithObjects(
   tx: Prisma.TransactionClient,
@@ -48,7 +49,10 @@ async function updatePlanWithObjects(
 
 @Injectable()
 export class PlansService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventAccessPolicyService: EventAccessPolicyService,
+  ) {}
 
   private mapPlan(row: PlanWithObjects, resolvedObjects?: CanvasObject[]): FloorPlan {
     const objects =
@@ -77,11 +81,12 @@ export class PlansService {
     };
   }
 
-  async getPlan(planId: string, actor: PlanActor = {}): Promise<FloorPlan> {
+  async getPlan(planId: string, actor: ResolvedEventOpsActor): Promise<FloorPlan> {
     const row = await this.prisma.floorPlan.findUnique({
       where: { id: planId },
       include: {
         objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] },
+        opsDraft: { include: { event: { include: { inquiry: { select: { email: true } } } } } },
       },
     });
 
@@ -91,7 +96,7 @@ export class PlansService {
     return this.mapPlan(row);
   }
 
-  async updatePlan(planId: string, changes: UpdatePlanChanges, actor: PlanActor = {}): Promise<FloorPlan> {
+  async updatePlan(planId: string, changes: UpdatePlanChanges, actor: ResolvedEventOpsActor): Promise<FloorPlan> {
     await this.assertCanUpdatePlan(planId, actor);
 
     if (Object.keys(changes).length === 0) {
@@ -124,54 +129,87 @@ export class PlansService {
     return this.mapPlan(row, typedObjects);
   }
 
-  private async assertCanReadPlan(plan: PlanWithObjects, actor: PlanActor) {
-    const role = (actor.actorRole ?? actor.role ?? '').trim().toLowerCase();
-    if (role === 'pmcm-admin' || role === 'system') return;
-    if (role !== 'client') {
-      throw new ForbiddenException('Only PMCM or the owning client can read this floorplan');
+  private async assertCanReadPlan(plan: PlanWithObjects, actor: ResolvedEventOpsActor) {
+    if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return;
+    if (!plan.opsDraft) {
+      await this.eventAccessPolicyService.requireActorRole(
+        actor,
+        [OpsUserRole.PmcmAdmin, OpsUserRole.System],
+        'raw floorplan read',
+        plan.eventId ?? undefined,
+      );
+      return;
     }
 
-    const draft = await this.findPlanDraft(plan.id);
-    if (!draft) {
-      throw new ForbiddenException('Clients cannot read this floorplan');
-    }
-
-    this.assertClientOwnsDraft(draft, actor, 'read');
+    await this.assertPlanAccess(plan.opsDraft, actor, 'read');
   }
 
-  private async assertCanUpdatePlan(planId: string, actor: PlanActor) {
-    const role = (actor.actorRole ?? actor.role ?? '').trim().toLowerCase();
-    if (role === 'pmcm-admin' || role === 'system') return;
-    if (role !== 'client') {
-      throw new ForbiddenException('Only PMCM or the owning client can edit this floorplan');
-    }
-
+  private async assertCanUpdatePlan(planId: string, actor: ResolvedEventOpsActor) {
+    if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return;
     const draft = await this.findPlanDraft(planId);
     if (!draft) {
-      throw new ForbiddenException('Clients cannot edit this floorplan');
+      await this.eventAccessPolicyService.requireActorRole(
+        actor,
+        [OpsUserRole.PmcmAdmin, OpsUserRole.System],
+        'raw floorplan write',
+      );
+      return;
     }
-    if (draft.status === 'approved') {
+
+    await this.assertPlanAccess(draft, actor, 'edit');
+  }
+
+  private async assertPlanAccess(
+    draft: PlanDraftWithEventContact,
+    actor: ResolvedEventOpsActor,
+    action: 'read' | 'edit',
+  ) {
+    if (draft.sourceType !== 'client_preference') {
+      await this.eventAccessPolicyService.requireActorRole(
+        actor,
+        [OpsUserRole.PmcmAdmin, OpsUserRole.System],
+        'official floorplan raw plan',
+        draft.event.id,
+      );
+      return;
+    }
+
+    await this.eventAccessPolicyService.requireActorRole(
+      actor,
+      [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Client],
+      'client floorplan preference',
+      draft.event.id,
+    );
+    if (actor.role !== OpsUserRole.Client) return;
+
+    const resource = `client floorplan preference ${action}`;
+    if (!actor.verified || !actor.email?.trim()) {
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, resource, draft.event.id);
+      throw new ForbiddenException('Verified client identity is required for floorplan preferences');
+    }
+
+    await this.eventAccessPolicyService.requireCanReadEvent(actor, draft.event, resource);
+    if (action === 'edit' && draft.status === 'approved') {
+      await this.eventAccessPolicyService.recordForbiddenAccess(
+        actor,
+        'approved floorplan raw plan write',
+        draft.event.id,
+      );
       throw new ForbiddenException('Approved floorplans are read-only');
     }
-
-    this.assertClientOwnsDraft(draft, actor, 'edit');
   }
 
-  private async findPlanDraft(planId: string) {
-    const plan = (await this.prisma.floorPlan.findUnique({
+  private async findPlanDraft(planId: string): Promise<PlanDraftWithEventContact | null> {
+    const plan = await this.prisma.floorPlan.findUnique({
       where: { id: planId },
-      include: { opsDraft: { include: { event: true } } },
-    } as any)) as any;
-    return plan?.opsDraft;
-  }
-
-  private assertClientOwnsDraft(draft: any, actor: PlanActor, action: 'read' | 'edit') {
-    const actorClientName = (actor.clientName ?? actor.actorName ?? '').trim().toLowerCase();
-    const eventClientName = (draft.event?.clientName ?? '').trim().toLowerCase();
-    const portalUnlocked = draft.event?.clientPortalStatus === 'unlocked';
-
-    if (!portalUnlocked || !actorClientName || actorClientName !== eventClientName) {
-      throw new ForbiddenException(`Clients cannot ${action} this event floorplan`);
-    }
+      include: {
+        opsDraft: {
+          include: {
+            event: { include: { inquiry: { select: { email: true } } } },
+          },
+        },
+      },
+    });
+    return plan?.opsDraft ?? null;
   }
 }
