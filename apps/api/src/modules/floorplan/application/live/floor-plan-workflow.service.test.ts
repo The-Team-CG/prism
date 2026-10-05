@@ -370,6 +370,25 @@ describe('FloorPlanWorkflowService', () => {
     });
   });
 
+  it('rejects approval when a concurrent client revision changed the draft after the initial read', async () => {
+    const { service, state, lifecycleEventReferences } = createService();
+    const actor = { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' } as const;
+    const draft = await service.createFloorPlanDraft('evt_sample', { name: 'Official Layout', sourceType: 'blank' }, actor);
+    await service.submitFloorPlanDraft('evt_sample', draft.id, actor);
+    const readEvent = lifecycleEventReferences.findFloorplanEvent.getMockImplementation();
+
+    lifecycleEventReferences.findFloorplanEvent.mockImplementationOnce(async (eventId, transaction) => {
+      state.floorPlanDrafts[0].status = 'revision_requested';
+      if (!readEvent) throw new Error('Lifecycle test reader is not configured');
+      return readEvent(eventId, transaction);
+    });
+
+    await expect(service.approveFloorPlanDraft('evt_sample', draft.id, actor))
+      .rejects.toThrow('Floorplan draft changed before approval');
+    expect(state.floorPlanDrafts[0].status).toBe('revision_requested');
+    expect(state.events[0]).toMatchObject({ floorPlanStatus: 'in_review', floorPlanProjectionVersion: 2 });
+  });
+
   it('rejects an official floorplan draft when the conforme is unsigned', async () => {
     const { service, state } = createService();
     state.events[0].inquiry = { conformeSignedAt: null };
