@@ -43,7 +43,13 @@ describe('PasswordResetService', () => {
     const service = new PasswordResetService(prisma as never, undefined, authAudit);
     await expect(service.consume('a'.repeat(43), 'a sufficiently long password')).resolves.toEqual({ message: 'Password reset completed. Please sign in again.' });
     expect(userUpdate).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ sessionVersion: { increment: 1 } }),
+      data: expect.objectContaining({
+        sessionVersion: { increment: 1 },
+        twoFactorChallengeHash: null,
+        twoFactorChallengeExpiresAt: null,
+        twoFactorChallengeAttempts: 0,
+        twoFactorChallengeConsumedAt: null,
+      }),
     }));
     expect(authAudit.write).toHaveBeenCalledWith(expect.objectContaining({ action: 'Password reset consumed' }));
   });
