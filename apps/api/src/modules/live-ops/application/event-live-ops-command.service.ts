@@ -22,7 +22,6 @@ import type {
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { STAFFING_READER, type StaffingReader } from '@prism/contexts/operations';
 import {
-  mapSupplierQuoteRequest,
   SUPPLIER_COMMANDS,
   type SupplierCommands,
 } from '@prism/contexts/commercial';
@@ -212,7 +211,7 @@ export class EventLiveOpsCommandService {
       metadata,
     );
 
-    return mapSupplierQuoteRequest(updated);
+    return updated;
   }
 
   async updateSupplierEventStatus(
@@ -231,7 +230,7 @@ export class EventLiveOpsCommandService {
       { status: input.status, notes: input.notes ?? '', photoFileName: input.photo?.fileName ?? null },
     );
 
-    return mapSupplierQuoteRequest(request);
+    return request;
   }
 
   private async requireEventDayWriteActor(eventId: string, actor: ResolvedEventOpsActor, resource: string) {
