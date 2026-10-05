@@ -22,16 +22,19 @@ export class PlatformReferenceReadModelsService implements PlatformReferenceRead
         clientName: true,
         clientPortalStatus: true,
         inquiry: { select: { email: true } },
-        supplierQuoteRequests: { select: { supplierId: true } },
       },
     });
     if (!event) return null;
+    const supplierRequests = await this.prisma.opsSupplierQuoteRequest.findMany({
+      where: { eventId },
+      select: { supplierId: true },
+    });
     return {
       id: event.id,
       clientName: event.clientName,
       clientPortalStatus: event.clientPortalStatus,
       clientEmail: event.inquiry?.email ?? null,
-      supplierIds: event.supplierQuoteRequests.flatMap(({ supplierId }) => supplierId ? [supplierId] : []),
+      supplierIds: supplierRequests.flatMap(({ supplierId }) => supplierId ? [supplierId] : []),
     };
   }
 
@@ -114,10 +117,14 @@ export class PlatformReferenceReadModelsService implements PlatformReferenceRead
         supplierName: true,
         category: true,
         supplier: { select: { tier: true } },
-        event: { select: { id: true, eventDate: true, eventName: true, clientName: true } },
       },
     });
-    if (!request?.event || request.eventId !== request.event.id) return null;
+    if (!request) return null;
+    const event = await this.prisma.opsEvent.findUnique({
+      where: { id: request.eventId },
+      select: { id: true, eventDate: true, eventName: true, clientName: true },
+    });
+    if (!event || request.eventId !== event.id) return null;
 
     const [selectedQuotes, briefings] = await Promise.all([
       this.prisma.opsSupplierQuote.findMany({
@@ -142,7 +149,7 @@ export class PlatformReferenceReadModelsService implements PlatformReferenceRead
         category: request.category,
         supplierTier: request.supplier?.tier ?? null,
       },
-      event: request.event,
+      event,
       selectedQuotes: selectedQuotes.map((quote) => ({
         requestId: quote.requestId,
         amount: quote.amount === null ? null : Number(quote.amount),

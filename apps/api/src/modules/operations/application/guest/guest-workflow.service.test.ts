@@ -217,6 +217,17 @@ describe('GuestWorkflowService', () => {
     );
   });
 
+  it('fails closed when guest roster persistence is unavailable', async () => {
+    const { service, prisma } = createGuestWorkflowFixture();
+    delete (prisma as { opsGuestRosterEntry?: unknown }).opsGuestRosterEntry;
+
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', {
+      guestName: 'Sofia Lim',
+      privacyConsentAccepted: true,
+    })).rejects.toThrow('Guest roster persistence is unavailable');
+    expect(prisma.opsGuestCheckIn.create).not.toHaveBeenCalled();
+  });
+
   it('does not allow archived events to resolve ordinary guest check-in access', async () => {
     const { service, state } = createGuestWorkflowFixture();
     state.events[0].archived = true;

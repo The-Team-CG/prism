@@ -18,7 +18,7 @@ describe('PostEventLifecycleStateReaderService', () => {
     });
 
     expect(queryRaw).toHaveBeenCalledWith(
-      'SELECT "id" FROM "event_core"."events" WHERE "id" = $1 FOR UPDATE',
+      'SELECT "id" FROM "event_lifecycle"."events" WHERE "id" = $1 FOR UPDATE',
       'evt_1',
     );
     expect(findUnique).toHaveBeenCalledWith({

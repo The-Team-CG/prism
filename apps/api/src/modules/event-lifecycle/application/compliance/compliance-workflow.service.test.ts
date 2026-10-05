@@ -48,6 +48,8 @@ function createService() {
       update: vi.fn(async ({ data }) => Object.assign(state.event, data)),
     },
     opsInquiry: { findUnique: vi.fn(async () => state.inquiry) },
+    opsBriefing: { findMany: vi.fn(async () => [{ id: 'briefing_1' }]) },
+    opsDocument: { findMany: vi.fn(async () => [{ id: 'doc_1', type: 'conforme', status: 'accepted' }]) },
     opsComplianceRule: {
       findMany: vi.fn(async ({ where }) =>
         state.rules.filter((rule) => rule.active === where.active && rule.phase === where.phase),
@@ -77,11 +79,29 @@ function createService() {
   auditService.audit = vi.fn(async () => undefined) as any;
   const auditWriter = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma as any, auditService));
   const accessPolicy = new EventAccessPolicyService({ write: vi.fn() });
-  const service = new ComplianceWorkflowService(prisma as any, auditWriter, accessPolicy, new WorkflowCommandService());
-  return { service, state, auditService };
+  const commercialFactsReader = { getLifecycleFacts: vi.fn(async () => ({ supplierQuoteRequests: [{ id: 'request_1', supplierName: 'Sound', assignmentStatus: 'confirmed', readinessStatus: 'ready' }], billingSources: [{ id: 'source_1', status: 'approved' }], supplierReviews: [], billingStatements: [], paymentMilestones: [] })) };
+  const lifecycleFactsReader = { getComplianceFacts: vi.fn(async () => ({ coverageRequirements: [{ role: 'Lead', required: 1 }], coordinatorAssignments: [{ role: 'Lead', status: 'acknowledged', withdrawnAt: null }], guestRosterCount: 12 })) };
+  const service = new ComplianceWorkflowService(prisma as any, auditWriter, accessPolicy, new WorkflowCommandService(), commercialFactsReader as any, lifecycleFactsReader as any);
+  return { service, state, auditService, commercialFactsReader, lifecycleFactsReader };
 }
 
 describe('ComplianceWorkflowService', () => {
+  it('composes owner-scoped cross-domain facts into the compliance evaluation context', async () => {
+    const { service, commercialFactsReader, lifecycleFactsReader } = createService();
+
+    const context = await (service as any).loadContext('evt_sample');
+
+    expect(context).toMatchObject({
+      suppliers: [{ id: 'request_1', supplierName: 'Sound' }],
+      billingSources: [{ id: 'source_1', status: 'approved' }],
+      coverageRequirements: [{ role: 'Lead', required: 1 }],
+      coordinatorAssignments: [{ role: 'Lead', status: 'acknowledged' }],
+      guestRosterCount: 12,
+    });
+    expect(commercialFactsReader.getLifecycleFacts).toHaveBeenCalledWith('evt_sample');
+    expect(lifecycleFactsReader.getComplianceFacts).toHaveBeenCalledWith('evt_sample');
+  });
+
   it('generates matching compliance checks and updates readiness in one workflow command', async () => {
     const { service, state, auditService } = createService();
 

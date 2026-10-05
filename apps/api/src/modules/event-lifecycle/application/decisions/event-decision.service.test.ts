@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { EventDecisionService } from './event-decision.service';
+import { EventDecisionSupplierOwnerService } from '@prism/contexts/commercial';
 
 const actor = { id: 'pmcm-1', role: 'pmcm-admin', name: 'PMCM Admin', email: 'pmcm@example.test', explicit: true } as const;
 const event = {
@@ -67,6 +68,7 @@ function setup(options: { eventOverrides?: Partial<typeof event>; staffingImpact
     { write: audit } as never,
     { write: notification } as never,
     staffingCommands as never,
+    new EventDecisionSupplierOwnerService(),
   );
   return { service, tx, prisma, access, audit, notification, staffingCommands, assignmentImpact };
 }

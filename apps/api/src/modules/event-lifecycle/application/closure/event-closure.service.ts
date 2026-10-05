@@ -11,6 +11,8 @@ import { FileRequirementsMatrixService } from '../files/file-requirements-matrix
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { archivedEventMatchesSearch } from '../../domain/archive-search.policy';
 import { mapArchivedEventSearchHit } from './closure.mappers';
+import { COMMERCIAL_FACTS_READER, type CommercialFactsReader } from '@prism/contexts/read-models/commercial-facts-reader';
+import { LIFECYCLE_FACTS_READER, type LifecycleFactsReader } from '@prism/contexts/read-models/lifecycle-facts';
 
 export type ArchiveEventInput = EventOpsActorInput & {
   overrideReason?: string;
@@ -36,6 +38,8 @@ export class EventClosureService {
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     private readonly workflowCommandService: WorkflowCommandService,
+    @Inject(COMMERCIAL_FACTS_READER) private readonly commercialFactsReader: CommercialFactsReader,
+    @Inject(LIFECYCLE_FACTS_READER) private readonly lifecycleFactsReader: LifecycleFactsReader,
   ) {}
 
   async closeGates(eventId: string) {
@@ -387,19 +391,16 @@ export class EventClosureService {
     event: OpsEvent,
     coordinatorFacts: PrismCoordinatorInsightFacts,
   ): Promise<EventInsightContext> {
-    const [supplierReviews, complianceChecks, billingStatements, paymentMilestones, documents, postEventDocuments, guestFeedback, issues, scheduleDays, wrapUp] =
-      await Promise.all([
-        this.prisma.opsSupplierReview.findMany({ where: { eventId } }),
-        this.prisma.opsComplianceCheck.findMany({ where: { eventId } }),
-        this.prisma.opsBillingStatement.findMany({ where: { eventId } }),
-        this.prisma.opsPaymentMilestone.findMany({ where: { eventId } }),
-        this.prisma.opsDocument.findMany({ where: { eventId } }),
-        this.prisma.opsPostEventDocument.findMany({ where: { eventId } }),
-        this.prisma.opsGuestFeedback.findMany({ where: { eventId } }),
-        this.prisma.opsUrgentIssue.findMany({ where: { eventId } }),
-        this.prisma.opsEventScheduleDay?.findMany({ where: { eventId }, include: { segments: true } }) ?? Promise.resolve([]),
-        this.prisma.opsEventWrapUp?.findUnique({ where: { eventId } }) ?? Promise.resolve(null),
-      ]);
+    const [commercialFacts, lifecycleFacts, complianceChecks, documents, postEventDocuments, wrapUp] = await Promise.all([
+      this.commercialFactsReader.getLifecycleFacts(eventId),
+      this.lifecycleFactsReader.getClosureFacts(eventId),
+      this.prisma.opsComplianceCheck.findMany({ where: { eventId } }),
+      this.prisma.opsDocument.findMany({ where: { eventId } }),
+      this.prisma.opsPostEventDocument.findMany({ where: { eventId } }),
+      this.prisma.opsEventWrapUp.findUnique({ where: { eventId } }),
+    ]);
+    const { supplierReviews, billingStatements, paymentMilestones } = commercialFacts;
+    const { guestFeedback, issues, scheduleDays } = lifecycleFacts;
 
     const totalBilled = billingStatements.reduce((sum, statement) => sum + statement.totalAmount, 0);
     const amountPaid = paymentMilestones.reduce((sum, milestone) => sum + milestone.amountPaid, 0);

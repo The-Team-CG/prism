@@ -1,8 +1,7 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { CreateSupplierReliabilityNoteInput, CreateSupplierReviewInput, PromoteSupplierInput } from '@prism/types';
 import type {
-  OpsEvent,
   OpsSupplier,
   OpsSupplierCategory,
   OpsSupplierCertification,
@@ -17,6 +16,12 @@ import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type { SupplierPromotionResult } from '../../contracts/supplier-directory.port';
 import { createHash, randomUUID } from 'node:crypto';
 import { SupplierTier } from '@prism/kernel/event-core';
+import { COMMERCIAL_FACTS_READER, type CommercialFactsReader } from '@prism/contexts/read-models/commercial-facts-reader';
+import {
+  OPERATIONS_EVENT_REFERENCE_READER,
+  type OperationsEventReference,
+  type OperationsEventReferenceReader,
+} from '@prism/contexts/event-lifecycle/operations-reference';
 
 function isIdempotencyKeyViolation(error: unknown): boolean {
   if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') return false;
@@ -56,11 +61,15 @@ export type CreateSupplierCertificationInput = {
 
 type ReviewDimensionRatingWithDimension = OpsSupplierReviewDimensionRating & { dimension: OpsSupplierReviewDimension };
 
-type SupplierWithProfile = OpsSupplier & {
+type SupplierProfileBase = OpsSupplier & {
   category: OpsSupplierCategory;
-  reviews: Array<OpsSupplierReview & { event: OpsEvent | null; dimensionRatings: ReviewDimensionRatingWithDimension[] }>;
-  reliabilityNotes: Array<OpsSupplierReliabilityNote & { event: OpsEvent | null }>;
+  reviews: Array<OpsSupplierReview & { dimensionRatings: ReviewDimensionRatingWithDimension[] }>;
+  reliabilityNotes: OpsSupplierReliabilityNote[];
   certifications: OpsSupplierCertification[];
+};
+type SupplierWithProfile = Omit<SupplierProfileBase, 'reviews' | 'reliabilityNotes'> & {
+  reviews: Array<OpsSupplierReview & { event: OperationsEventReference | null; dimensionRatings: ReviewDimensionRatingWithDimension[] }>;
+  reliabilityNotes: Array<OpsSupplierReliabilityNote & { event: Pick<OperationsEventReference, 'id' | 'eventName'> | null }>;
 };
 
 type CategoryWithDimensions = OpsSupplierCategory & { reviewDimensions: OpsSupplierReviewDimension[] };
@@ -75,7 +84,11 @@ function timestamp(value: Date) {
 
 @Injectable()
 export class SuppliersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(OPERATIONS_EVENT_REFERENCE_READER) private readonly eventReferences: OperationsEventReferenceReader,
+    @Inject(COMMERCIAL_FACTS_READER) private readonly commercialFacts: CommercialFactsReader,
+  ) {}
 
   async listSupplierCategories() {
     const categories = await this.prisma.opsSupplierCategory.findMany({
@@ -292,7 +305,7 @@ export class SuppliersService {
 
   private async validateReviewEligibility(supplierId: string, eventId: string | undefined, db: PrismaService | Prisma.TransactionClient) {
     if (!eventId) throw new BadRequestException('Supplier reviews require an event');
-    const event = await db.opsEvent.findUnique({ where: { id: eventId }, select: { eventDate: true, status: true, actualEndedAt: true } });
+    const event = await this.commercialFacts.findSupplierReviewEventEligibility(eventId, db);
     if (!event) throw new BadRequestException('Supplier review event not found');
     if (event.actualEndedAt === null || !['completed', 'closed', 'archived'].includes(event.status)) {
       throw new BadRequestException('Supplier reviews are available only after event completion');
@@ -328,11 +341,10 @@ export class SuppliersService {
       include: {
         category: true,
         reviews: {
-          include: { event: true, dimensionRatings: { include: { dimension: true } } },
+          include: { dimensionRatings: { include: { dimension: true } } },
           orderBy: { createdAt: 'desc' },
         },
         reliabilityNotes: {
-          include: { event: true },
           orderBy: { createdAt: 'desc' },
         },
         certifications: { orderBy: { uploadedAt: 'desc' } },
@@ -340,7 +352,29 @@ export class SuppliersService {
     });
 
     if (!supplier) throw new NotFoundException('Supplier not found');
-    return supplier;
+    return this.attachSupplierEvents(supplier);
+  }
+
+  private async attachSupplierEvents(supplier: SupplierProfileBase): Promise<SupplierWithProfile> {
+    const [enriched] = await this.attachSupplierEventsToRows([supplier]);
+    return enriched;
+  }
+
+  private async attachSupplierEventsToRows(suppliers: SupplierProfileBase[]): Promise<SupplierWithProfile[]> {
+    const eventIds = [...new Set(suppliers.flatMap((supplier) => [
+      ...supplier.reviews.flatMap((review) => review.eventId ? [review.eventId] : []),
+      ...supplier.reliabilityNotes.flatMap((note) => note.eventId ? [note.eventId] : []),
+    ]))];
+    const events = await this.eventReferences.findOperationsEvents(eventIds);
+    const eventById = new Map(events.map((event) => [event.id, event]));
+    return suppliers.map((supplier) => ({
+        ...supplier,
+        reviews: supplier.reviews.map((review) => ({ ...review, event: review.eventId ? eventById.get(review.eventId) ?? null : null })),
+        reliabilityNotes: supplier.reliabilityNotes.map((note) => {
+          const event = note.eventId ? eventById.get(note.eventId) : undefined;
+          return { ...note, event: event ? { id: event.id, eventName: event.eventName } : null };
+        }),
+      }));
   }
 
   async resolveQuoteSupplier(input: AddSupplierQuoteInput) {
@@ -393,7 +427,7 @@ export class SuppliersService {
         : null;
     const datedEvents = supplier.reviews
       .map((review) => review.event)
-      .filter((event): event is OpsEvent => Boolean(event))
+      .filter((event): event is OperationsEventReference => Boolean(event))
       .sort((a, b) => b.eventDate.getTime() - a.eventDate.getTime());
 
     return {
@@ -468,22 +502,22 @@ export class SuppliersService {
     return category;
   }
 
-  private supplierRows() {
-    return this.prisma.opsSupplier.findMany({
+  private async supplierRows() {
+    const suppliers = await this.prisma.opsSupplier.findMany({
       take: 500,
       include: {
         category: true,
         reviews: {
-          include: { event: true, dimensionRatings: { include: { dimension: true } } },
+          include: { dimensionRatings: { include: { dimension: true } } },
           orderBy: { createdAt: 'desc' },
         },
         reliabilityNotes: {
-          include: { event: true },
           orderBy: { createdAt: 'desc' },
         },
         certifications: { orderBy: { uploadedAt: 'desc' } },
       },
       orderBy: [{ category: { sortOrder: 'asc' } }, { tier: 'asc' }, { name: 'asc' }],
     });
+    return this.attachSupplierEventsToRows(suppliers);
   }
 }

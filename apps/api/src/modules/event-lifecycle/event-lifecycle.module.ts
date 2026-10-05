@@ -40,8 +40,13 @@ import { LIFECYCLE_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 import { EventLifecycleReferenceModule } from './event-lifecycle-reference.module';
 import { OperationsEventReferenceModule } from './operations-reference.module';
 import { CommercialAddendumImpactModule } from '@prism/contexts/commercial';
+import { EventDecisionSupplierOwnerModule } from '@prism/contexts/commercial';
 import { EventLifecycleProjectionModule } from './event-lifecycle-projection.module';
 import { FloorplanReferenceModule } from './floorplan-reference.module';
+import { LifecycleFactsReaderModule } from '@prism/contexts/read-models/lifecycle-facts';
+import { CommercialFactsReaderModule } from '@prism/contexts/read-models/commercial-facts-reader';
+import { ProposalReviewOwnerService } from './application/onboarding/proposal-review-owner.service';
+import { PROPOSAL_REVIEW_OWNER } from './contracts/proposal-review-owner.port';
 
 const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const };
 
@@ -75,8 +80,11 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     EventLifecycleReferenceModule,
     OperationsEventReferenceModule,
     CommercialAddendumImpactModule,
+    EventDecisionSupplierOwnerModule,
     EventLifecycleProjectionModule,
     FloorplanReferenceModule,
+    LifecycleFactsReaderModule,
+    CommercialFactsReaderModule,
     AccessControlModule,
     EventSessionModule,
   ],
@@ -117,6 +125,8 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     ChangeManagementService,
     ClientEventDayViewService,
     OcularVisitService,
+    ProposalReviewOwnerService,
+    { provide: PROPOSAL_REVIEW_OWNER, useExisting: ProposalReviewOwnerService },
     LifecyclePrivacyRedactorService,
     { provide: LIFECYCLE_PRIVACY_REDACTOR, useExisting: LifecyclePrivacyRedactorService },
   ],
@@ -139,6 +149,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     FILE_REQUIREMENT_COMMANDS,
     ChangeManagementService,
     LIFECYCLE_PRIVACY_REDACTOR,
+    PROPOSAL_REVIEW_OWNER,
     EventLifecycleReferenceModule,
     EventLifecycleProjectionModule,
     FloorplanReferenceModule,

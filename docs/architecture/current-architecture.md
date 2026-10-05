@@ -4,12 +4,12 @@ title: "P.R.I.S.M current architecture"
 description: "Current runtime topology, role-app ownership, shared packages, backend bounded contexts, technical kernel, persistence, and lifecycle boundaries."
 tags: [architecture, current-state, modular-monolith, roles]
 status: canonical
-updated: "2026-10-05"
+updated: "2026-10-06"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, reviewers]
 scope: "all Prism portals, API, packages, and runtime boundaries"
-last_verified: "2026-10-05; PR18 legal-hold model and owner-driven redaction wiring; offline Prisma and ownership checks"
+last_verified: "2026-10-06; local s11-cutover worktree; Prisma validation, domain-persistence ownership guard, boundary scan, and populated PostgreSQL cutover replay passed; Prisma migrate deploy was not exercised"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
@@ -270,9 +270,9 @@ microservice or authorization boundary.
 | operations | operations | 12 tables / 142 columns | Coordinator pool, assignments, acknowledgments, reliability history, guest operations |
 | live-ops | live_ops | 10 tables / 122 columns | Event-day tasks, schedules, operators, handoffs, end-of-day, issues and logs |
 | floorplan | floorplan | 7 tables / 75 columns | Official plans, drafts, projection clock, templates, published copies, review state |
-| identity-access | identity_access | 4 tables / 38 columns | Accounts, approvals, password recovery, authentication state |
+| identity-access | identity_access | 4 tables / 42 columns | Accounts, approvals, password recovery, authentication state |
 | platform-ops | platform_ops | 14 tables / 201 columns | Privacy requests and legal holds, security, login history, audit, notifications, AI, storage, command receipts |
-| **Total** | **7 schemas** | **93 tables / 1,177 columns** | One write owner per table |
+| **Total** | **7 schemas** | **93 tables / 1,181 columns** | One write owner per table |
 
 The full assignment is in apps/api/prisma/domain-ownership.json. It records
 each of the 93 models once, including its current schema, owner, target schema,
@@ -284,7 +284,7 @@ Cross-domain references remain scalar IDs and use an owner's public capability
 for writes that need current eligibility. Read-models composes explicitly
 scoped, read-only projections. Do not introduce a Prisma relation or FK between
 different domains.
-The database remains one shared Postgres/Prisma boundary. Its ten current physical schemas and 45 cross-domain foreign keys are transitional. The target map uses seven owner schemas and no cross-domain foreign keys.
+The database remains one shared Postgres/Prisma boundary. The currently applied staging layout has ten physical schemas and 45 cross-domain foreign keys; it is transitional. The cutover branch maps 93 models to seven owner schemas and no cross-domain relations. Same-domain relations remain permitted. The actual schema move is a coordinated forward migration and has only been replayed on a disposable database so far.
 
 Replacing owner capabilities and relations precedes the coordinated move; source movement alone does not imply database isolation.
 
