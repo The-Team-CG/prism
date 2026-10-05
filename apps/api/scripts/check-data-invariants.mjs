@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import pg from 'pg';
+import { selectDatabaseConnection } from './db-connection-config.mjs';
 
 const { Pool } = pg;
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
@@ -330,14 +331,11 @@ async function main() {
     return;
   }
 
-  const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
-  if (!connectionString) {
-    throw new Error('DIRECT_URL or DATABASE_URL is required for live invariant checks');
-  }
+  const database = selectDatabaseConnection({ purpose: 'migration' });
 
   const pool = new Pool({
-    connectionString,
-    ssl: { rejectUnauthorized: false },
+    connectionString: database.connectionString,
+    ssl: database.ssl,
     statement_timeout: DEFAULT_STATEMENT_TIMEOUT_MS,
     connectionTimeoutMillis: DEFAULT_STATEMENT_TIMEOUT_MS,
     max: 1,
