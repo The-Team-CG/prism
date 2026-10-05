@@ -58,6 +58,13 @@ File-matrix and official snapshot reads use the similarly focused
 `@prism/contexts/read-models/event-scope` seam for trusted inquiry and assignment
 identity. Empty identities and inactive coordinator assignments/profiles confer
 no event scope.
+Communication participant resolution uses the focused
+`@prism/contexts/read-models/participant-facts` contract, whose Nest submodule
+imports DatabaseModule only. It returns serializable event/inquiry and supplier
+or coordinator membership facts; Identity retains approved-account lookup,
+role/email matching, actor stamping, and EventAccessPolicy decisions. The full
+ReadModelsModule is not imported by IdentityAccess, avoiding a cycle through
+Commercial's communication service.
 
 ## Architecture principles
 

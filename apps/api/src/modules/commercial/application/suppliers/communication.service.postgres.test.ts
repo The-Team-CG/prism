@@ -31,7 +31,12 @@ describe.skipIf(!enabled)('communication service PostgreSQL transaction', () => 
     const audit = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma, auditService));
     const notifications = new NotificationOutboxWriterAdapter(new NotificationOutboxService(prisma));
     const access = new EventAccessPolicyService(audit);
-    const reader = new ParticipantReaderService(prisma, access);
+    const reader = new ParticipantReaderService(prisma, access, {
+      findForEvent: async (eventId) => {
+        const event = await prisma.opsEvent.findUnique({ where: { id: eventId }, select: { id: true, clientName: true, clientPortalStatus: true, inquiryId: true } });
+        return event ? { event: { id: event.id, clientName: event.clientName, clientPortalStatus: event.clientPortalStatus, inquiryEmail: actor.email }, supplierAssignments: [], suppliers: [], coordinatorAssignments: [], coordinators: [] } : null;
+      },
+    });
     service = new CommunicationService(prisma, access, reader, audit, notifications);
   });
   afterAll(async () => { await prisma?.$disconnect(); });

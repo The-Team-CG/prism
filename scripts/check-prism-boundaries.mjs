@@ -38,6 +38,7 @@ function hasPrivateModuleImport(source) {
   const publicSubpathSeams = new Set([
     '@prism/contexts/read-models/closeout',
     '@prism/contexts/read-models/event-scope',
+    '@prism/contexts/read-models/participant-facts',
     '@prism/contexts/event-lifecycle/conforme-reminder-window',
   ]);
   return [...nestedImports].some((match) => !publicSubpathSeams.has(match[1]));
