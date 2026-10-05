@@ -377,4 +377,26 @@ describe('FloorPlanWorkflowService', () => {
       'Floorplan snapshot not found',
     );
   });
+
+  it('does not serve a floorplan draft from a different event', async () => {
+    const { service, state, prisma } = createService();
+    state.floorPlanDrafts.push({
+      id: 'fpd_other_event',
+      eventId: 'evt_other',
+      floorPlanId: 'plan_other_event',
+      name: 'Other Event Layout',
+      status: 'approved',
+      approvedSnapshot: { objects: [{ id: 'private-stage' }] },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await expect(service.getFloorPlanSnapshot('evt_sample', 'fpd_other_event', 'approved')).rejects.toThrow(
+      'Floorplan draft not found',
+    );
+    expect(prisma.opsFloorPlanDraft.findFirst).toHaveBeenCalledWith({
+      where: { id: 'fpd_other_event', eventId: 'evt_sample' },
+    });
+    expect(prisma.floorPlan.findUnique).not.toHaveBeenCalled();
+  });
 });

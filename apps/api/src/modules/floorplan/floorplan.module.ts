@@ -3,6 +3,7 @@ import { DatabaseModule } from '@prism/kernel/database';
 import { AccessControlModule } from '@prism/kernel/access-control';
 import { EventCoreModule } from '@prism/kernel/event-core';
 import { IdentityAccessModule } from '../identity-access/identity-access.module';
+import { EventLifecycleModule } from '../event-lifecycle/event-lifecycle.module';
 import { EventSessionModule } from '@prism/kernel/event-session';
 import { PlatformOpsModule } from '../platform-ops/platform-ops.module';
 import { OpsEventFloorplansController } from './api/live/event-floorplans.controller';
@@ -33,7 +34,7 @@ import { TemplatesService } from './application/authoring/templates.service';
  * Read-only: none.
  */
 @Module({
-  imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, IdentityAccessModule, EventSessionModule],
+  imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, IdentityAccessModule, EventLifecycleModule, EventSessionModule],
   controllers: [OpsEventFloorplansController, EventFloorPlanReviewController, LayoutEventsController, PlansController, PublishController, TemplatesController],
   providers: [
     FloorPlanWorkflowService,
