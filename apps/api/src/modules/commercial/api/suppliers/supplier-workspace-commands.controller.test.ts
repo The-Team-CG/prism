@@ -101,7 +101,7 @@ describe('OpsSupplierWorkspaceCommandsController', () => {
     await expect(
       controller.uploadContract(
         'qr_sonic',
-        { fileName: 'contract.pdf', mimeType: 'application/pdf', sizeBytes: 2048 },
+        { fileName: 'contract.pdf', mimeType: 'application/pdf', sizeBytes: 2048, idempotencyKey: 'contract-submit-1' },
         sessionActor,
       ),
     ).resolves.toMatchObject({ id: 'qr_sonic', contractDocumentId: 'doc_uploaded' });
@@ -116,8 +116,9 @@ describe('OpsSupplierWorkspaceCommandsController', () => {
     );
     expect(supplierNetworkWorkflowService.uploadSupplierContract).toHaveBeenCalledWith(
       'qr_sonic',
-      { fileName: 'contract.pdf', mimeType: 'application/pdf', sizeBytes: 2048 },
+      { fileName: 'contract.pdf', mimeType: 'application/pdf', sizeBytes: 2048, idempotencyKey: 'contract-submit-1' },
       actor,
+      sessionActor,
     );
   });
 });
