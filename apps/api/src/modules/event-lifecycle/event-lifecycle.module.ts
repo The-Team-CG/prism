@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/kernel/database';
 import { AccessControlModule } from '@prism/kernel/access-control';
 import { EventCoreModule } from '@prism/kernel/event-core';
@@ -34,6 +34,10 @@ import { ClientEventDayViewController } from './api/client-visibility/client-eve
 import { ClientEventDayViewService } from './application/client-visibility/client-event-day-view.service';
 import { OcularVisitController } from './api/ocular-visit/ocular-visit.controller';
 import { OcularVisitService } from './application/ocular-visit/ocular-visit.service';
+import { IdentityAccessModule } from '../identity-access/identity-access.module';
+import { EventClientFloorplanAccessController } from './api/client-visibility/event-client-floorplan-access.controller';
+import { EventClientFloorplanAccessService } from './application/client-visibility/event-client-floorplan-access.service';
+import { EVENT_CLIENT_FLOORPLAN_ACCESS_COMMANDS, EVENT_CLIENT_FLOORPLAN_ACCESS_READER } from './contracts/client-floorplan-access.port';
 
 const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const };
 
@@ -63,6 +67,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     PlatformOpsModule,
     AccessControlModule,
     EventSessionModule,
+    forwardRef(() => IdentityAccessModule),
   ],
   controllers: [
     OpsInquiriesController,
@@ -76,6 +81,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     ChangeManagementController,
     ClientEventDayViewController,
     OcularVisitController,
+    EventClientFloorplanAccessController,
   ],
   providers: [
     InquiriesService,
@@ -101,6 +107,9 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     ChangeManagementService,
     ClientEventDayViewService,
     OcularVisitService,
+    EventClientFloorplanAccessService,
+    { provide: EVENT_CLIENT_FLOORPLAN_ACCESS_COMMANDS, useExisting: EventClientFloorplanAccessService },
+    { provide: EVENT_CLIENT_FLOORPLAN_ACCESS_READER, useExisting: EventClientFloorplanAccessService },
   ],
   exports: [
     InquiriesService,
@@ -120,6 +129,8 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     FILE_REQUIREMENT_READER,
     FILE_REQUIREMENT_COMMANDS,
     ChangeManagementService,
+    EVENT_CLIENT_FLOORPLAN_ACCESS_COMMANDS,
+    EVENT_CLIENT_FLOORPLAN_ACCESS_READER,
   ],
 })
 export class EventLifecycleModule {}

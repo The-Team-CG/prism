@@ -48,6 +48,12 @@ export interface PrismEventClientAccess {
   secondaryContacts: PrismApprovedClientAccount[];
 }
 
+export interface PrismClientSharedFloorplanEvent {
+  eventId: string;
+  eventName: string;
+  eventDate: string;
+}
+
 export type PrismClientFloorplanSnapshotType = "submitted" | "approved";
 
 export interface PrismClientSharedFloorplanEntry {
