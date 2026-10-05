@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPrivacyLegalHoldSchema } from "@prism/types";
 import type {
   AuditLogFilters,
+  CreatePrivacyLegalHoldInput,
   CreatePrivacyRequestInput,
   PrismApprovalRequest,
   PrismAuditIntegrity,
@@ -10,6 +12,7 @@ import type {
   PrismEvent,
   PrismLoginHistory,
   PrismPrivacyInventory,
+  PrismPrivacyLegalHold,
   PrismPrivacyRequest,
   PrismPrivacyRetentionPolicy,
   PrismSecurityAlert,
@@ -37,6 +40,18 @@ const initialPrivacyForm: PrivacyForm = {
   requestNotes: "",
 };
 
+type PrivacyLegalHoldForm = Pick<CreatePrivacyLegalHoldInput, "subjectType" | "subjectEmail" | "subjectName" | "reason"> & {
+  eventScope: "subject" | "event";
+};
+
+const initialLegalHoldForm: PrivacyLegalHoldForm = {
+  subjectType: "client",
+  subjectEmail: "",
+  subjectName: "",
+  reason: "",
+  eventScope: "subject",
+};
+
 /**
  * Self-sufficient audit trail ViewModel: reads its own verified session and
  * loads the PMCM event/user roster it needs directly, instead of depending
@@ -54,9 +69,12 @@ export function useAuditTrailViewModel() {
   const [privacyInventory, setPrivacyInventory] = useState<PrismPrivacyInventory | null>(null);
   const [privacyPolicies, setPrivacyPolicies] = useState<PrismPrivacyRetentionPolicy[]>([]);
   const [privacyRequests, setPrivacyRequests] = useState<PrismPrivacyRequest[]>([]);
+  const [privacyLegalHolds, setPrivacyLegalHolds] = useState<PrismPrivacyLegalHold[]>([]);
   const [approvalRequests, setApprovalRequests] = useState<PrismApprovalRequest[]>([]);
   const [loginHistory, setLoginHistory] = useState<PrismLoginHistory[]>([]);
   const [privacyForm, setPrivacyForm] = useState<PrivacyForm>(initialPrivacyForm);
+  const [legalHoldForm, setLegalHoldForm] = useState<PrivacyLegalHoldForm>(initialLegalHoldForm);
+  const [legalHoldReleaseReasons, setLegalHoldReleaseReasons] = useState<Record<string, string>>({});
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [eventId, setEventId] = useState("all");
@@ -102,7 +120,7 @@ export function useAuditTrailViewModel() {
     setBusy(true);
     setError(null);
     try {
-      const next = await repository.load(filters, session.id, eventId);
+      const next = await repository.load(filters, session.id, eventId, session.role === "pmcm-admin");
       setLogs(next.logs);
       setAlerts(next.alerts);
       setLoginHistory(next.loginHistory);
@@ -111,6 +129,7 @@ export function useAuditTrailViewModel() {
       setApprovalRequests(next.approvalRequests);
       setPrivacyPolicies(next.privacyPolicies);
       setPrivacyRequests(next.privacyRequests);
+      setPrivacyLegalHolds(next.privacyLegalHolds);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load audit trail");
     } finally {
@@ -181,6 +200,60 @@ export function useAuditTrailViewModel() {
     }
   }, [refreshAudit, repository]);
 
+  const placePrivacyLegalHold = useCallback(async () => {
+    const eventScope = legalHoldForm.eventScope === "event";
+    if (eventScope && eventId === "all") {
+      setError("Select an event before placing an event-limited hold");
+      return;
+    }
+    const parsed = createPrivacyLegalHoldSchema.safeParse({
+      subjectType: legalHoldForm.subjectType,
+      subjectEmail: legalHoldForm.subjectEmail,
+      subjectName: legalHoldForm.subjectName,
+      reason: legalHoldForm.reason,
+      ...(eventScope ? { eventId } : {}),
+    });
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "Enter a valid legal hold scope and reason");
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    try {
+      await repository.createLegalHold(parsed.data);
+      setLegalHoldForm(initialLegalHoldForm);
+      await refreshAudit();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to place legal hold");
+    } finally {
+      setBusy(false);
+    }
+  }, [eventId, legalHoldForm, refreshAudit, repository]);
+
+  const setLegalHoldReleaseReason = useCallback((holdId: string, reason: string) => {
+    setLegalHoldReleaseReasons((current) => ({ ...current, [holdId]: reason }));
+  }, []);
+
+  const releasePrivacyLegalHold = useCallback(async (holdId: string) => {
+    const reason = legalHoldReleaseReasons[holdId]?.trim();
+    if (!reason) {
+      setError("Enter a reason before releasing this legal hold");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await repository.releaseLegalHold(holdId, { reason });
+      setLegalHoldReleaseReasons((current) => ({ ...current, [holdId]: "" }));
+      await refreshAudit();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to release legal hold");
+    } finally {
+      setBusy(false);
+    }
+  }, [legalHoldReleaseReasons, refreshAudit, repository]);
+
   const summary = useMemo(() => summarizeAuditTrail({
     logs,
     alerts,
@@ -200,10 +273,16 @@ export function useAuditTrailViewModel() {
     privacyInventory,
     privacyPolicies,
     privacyRequests,
+    privacyLegalHolds,
     approvalRequests,
     loginHistory,
     privacyForm,
     setPrivacyForm,
+    legalHoldForm,
+    setLegalHoldForm,
+    legalHoldReleaseReasons,
+    setLegalHoldReleaseReason,
+    isPmcmAdmin: session?.role === "pmcm-admin",
     query,
     setQuery,
     category,
@@ -232,6 +311,8 @@ export function useAuditTrailViewModel() {
     logPrivacyRequest,
     reviewPrivacyRequest,
     executePrivacyRequest,
+    placePrivacyLegalHold,
+    releasePrivacyLegalHold,
     ...summary,
   };
 }
