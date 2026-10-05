@@ -5,7 +5,6 @@ import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-sessi
 import { zodBody } from '@prism/kernel/shared';
 import { addSupplierQuoteSchema, requestSupplierQuotesSchema, createSupplierScheduleSchema, type AddSupplierQuoteInput, type PrismVerifiedEventActor, type RequestSupplierQuotesInput, type CreateSupplierScheduleInput } from '@prism/types';
 import { SupplierNetworkWorkflowService } from '../../application/suppliers/supplier-network-workflow.service';
-import { mapSupplierQuote, mapSupplierQuoteRequest } from '../../application/quotes/supplier-quote.mappers';
 import { CommercialWorkflowService } from '../../application/quotes/commercial-workflow.service';
 
 @Controller('events')
@@ -25,7 +24,7 @@ export class OpsEventCommercialController {
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = await this.requireCommercialActor(verifiedActor, 'supplier quote details', eventId);
-    return mapSupplierQuote(await this.commercialWorkflowService.addSupplierQuote(eventId, dto, actor));
+    return this.commercialWorkflowService.addSupplierQuote(eventId, dto, actor);
   }
 
   @Post(':eventId/supplier-schedules')
@@ -63,8 +62,7 @@ export class OpsEventCommercialController {
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = await this.requireCommercialActor(verifiedActor, 'supplier quote requests', eventId);
-    const requests = await this.commercialWorkflowService.requestSupplierQuotes(eventId, dto, actor);
-    return requests.map((request) => mapSupplierQuoteRequest(request));
+    return this.commercialWorkflowService.requestSupplierQuotes(eventId, dto, actor);
   }
 
   @Patch(':eventId/supplier-quotes/:quoteId/select')
@@ -75,7 +73,7 @@ export class OpsEventCommercialController {
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = await this.requireCommercialActor(verifiedActor, 'supplier quote selection', eventId);
-    return mapSupplierQuote(await this.commercialWorkflowService.selectSupplierQuote(eventId, quoteId, actor));
+    return this.commercialWorkflowService.selectSupplierQuote(eventId, quoteId, actor);
   }
 
   private async requireCommercialActor(verifiedActor: PrismVerifiedEventActor, resource: string, eventId: string) {
