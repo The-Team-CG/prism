@@ -52,7 +52,10 @@ describe('OpsEventBillingController', () => {
 
   it('routes billing, payment, and adjustment commands through their own operations services', async () => {
     const { controller, billingOperationsService, paymentOperationsService, billingAdjustmentService, eventAccessPolicyService } = createController();
-    const actor = { id: 'user_maxine', actorId: 'user_maxine', actorRole: OpsUserRole.PmcmAdmin, actorName: 'Maxine', actorEmail: 'maxine@pmcm.test' };
+    const actor = {
+      id: 'user_maxine', actorId: 'user_maxine', actorRole: OpsUserRole.PmcmAdmin,
+      actorName: 'Maxine', actorEmail: 'maxine@pmcm.test', expiresAt: '2026-10-04T12:00:00.000Z', eventId: 'evt_sample',
+    };
 
     await expect(
       controller.createBillingSource(
@@ -107,6 +110,8 @@ describe('OpsEventBillingController', () => {
       'evt_sample',
       'bsrc_new',
       { id: 'user_maxine', name: 'Maxine', role: OpsUserRole.PmcmAdmin, email: 'maxine@pmcm.test' },
+      actor,
+      undefined,
     );
     expect(paymentOperationsService.recordPayment).toHaveBeenCalledWith(
       'evt_sample',

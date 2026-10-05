@@ -28,7 +28,6 @@ describe.skipIf(!databaseUrl)('privacy execution against PostgreSQL', () => {
   let pool: Pool;
   let audit: AuditService;
   let service: PrivacyOperationsService;
-  const inquiryIds: string[] = [];
   const requestIds: string[] = [];
   const legalHoldIds: string[] = [];
   const applicationIds: string[] = [];
@@ -60,24 +59,12 @@ describe.skipIf(!databaseUrl)('privacy execution against PostgreSQL', () => {
   afterEach(async () => {
     vi.restoreAllMocks();
     if (!prisma) return;
-    await prisma.opsAuditLog.deleteMany({
-      where: {
-        affectedId: {
-          in: requestIds.flatMap((requestId) => [
-            requestId,
-            `${requestId}:event-lifecycle`,
-            `${requestId}:commercial`,
-            `${requestId}:operations`,
-            `${requestId}:identity-access`,
-          ]).concat(legalHoldIds),
-        },
-      },
-    });
+    // Audit rows are hash-linked global history; retain them until the disposable suite database is discarded.
     await prisma.opsPrivacyLegalHold.deleteMany({ where: { id: { in: legalHoldIds } } });
     await prisma.opsPrivacyRequest.deleteMany({ where: { id: { in: requestIds } } });
-    await prisma.opsInquiry.deleteMany({ where: { id: { in: inquiryIds } } });
     await prisma.opsSupplierApplication.deleteMany({ where: { id: { in: applicationIds } } });
-    requestIds.length = legalHoldIds.length = inquiryIds.length = applicationIds.length = 0;
+    // Keep event and inquiry parents because the current cross-schema event cascade also deletes audit evidence.
+    requestIds.length = legalHoldIds.length = applicationIds.length = 0;
   });
 
   afterAll(async () => {
@@ -87,7 +74,6 @@ describe.skipIf(!databaseUrl)('privacy execution against PostgreSQL', () => {
 
   async function createClient(normalizedEmail = '', emailOverride = '') {
     const inquiryId = id();
-    inquiryIds.push(inquiryId);
     const email = emailOverride || `${inquiryId}@privacy.test`;
     const event = await prisma.opsEvent.create({ data: {
       id: id(), clientName: 'Identifiable client', eventName: 'P0 privacy fixture',

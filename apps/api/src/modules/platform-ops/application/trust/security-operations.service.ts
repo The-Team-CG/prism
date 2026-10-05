@@ -1,7 +1,6 @@
-import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
-import type { OpsLoginHistory, OpsSecurityAlert } from '@prisma/client';
+import { Injectable, Logger } from '@nestjs/common';
+import type { OpsLoginHistory, OpsSecurityAlert, OpsUser } from '@prisma/client';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
-import { PLATFORM_REFERENCE_READ_MODEL, type PlatformReferenceReadModel } from '@prism/contexts/read-models';
 import { randomUUID } from 'node:crypto';
 import {
   AuditActionType,
@@ -13,6 +12,7 @@ import {
 import { NotificationOutboxService } from '../notifications/notification-outbox.service';
 import { AuditService, AuditIntegrityConflictException } from './audit.service';
 import type { AuditLogInput } from './audit.service';
+import type { AuthenticationFailureDetails } from '../../contracts/trust/authentication-failure-details';
 
 export type IntegrityIncidentInput = {
   source: string;
@@ -39,36 +39,22 @@ function addMinutes(value: Date, minutes: number) {
   return next;
 }
 
-type AuthenticationActorEvidence = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-};
-
-type FailedLoginEvidence = AuthenticationActorEvidence & {
-  failedAttempt: number;
-  lockoutCount: number;
-  locked: boolean;
-  permanentLockout: boolean;
-};
-
-function lockoutHistory(input: FailedLoginEvidence) {
+function lockoutHistory(state: AuthenticationFailureDetails) {
   return {
-    status: input.locked ? LoginHistoryStatus.Locked : LoginHistoryStatus.Failed,
-    reason: input.locked ? 'Account locked after repeated failed attempts' : 'Invalid password',
-    severity: input.locked ? 'critical' : 'warning',
+    status: state.lockoutTriggered ? LoginHistoryStatus.Locked : LoginHistoryStatus.Failed,
+    reason: state.lockoutTriggered ? 'Account locked after repeated failed attempts' : state.failureReason,
+    severity: state.lockoutTriggered ? 'critical' : 'warning',
   };
 }
 
-function lockoutAlertPayload(input: FailedLoginEvidence) {
+function lockoutAlertPayload(user: OpsUser, state: AuthenticationFailureDetails) {
   return {
-    type: input.permanentLockout ? 'permanent_account_lockout' : 'account_lockout',
-    title: input.permanentLockout ? 'Permanent account lockout' : 'Account lockout triggered',
-    description: `${input.email} was locked after repeated failed login attempts.`,
-    severity: input.permanentLockout ? 'critical' : 'warning',
-    triggeredBy: input.email,
-    metadata: { userId: input.id, role: input.role, lockoutCount: input.lockoutCount },
+    type: state.permanentLockout ? 'permanent_account_lockout' : 'account_lockout',
+    title: state.permanentLockout ? 'Permanent account lockout' : 'Account lockout triggered',
+    description: `${user.email} was locked after repeated failed authentication attempts.`,
+    severity: state.permanentLockout ? 'critical' : 'warning',
+    triggeredBy: user.email,
+    metadata: { userId: user.id, role: user.role, lockoutCount: state.lockoutCount },
   };
 }
 
@@ -98,8 +84,6 @@ export class SecurityOperationsService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly notificationOutbox?: NotificationOutboxService,
-    @Optional() @Inject(PLATFORM_REFERENCE_READ_MODEL)
-    private readonly platformReferences?: PlatformReferenceReadModel,
   ) {}
 
   async listLoginHistory(userId: string) {
@@ -158,7 +142,7 @@ export class SecurityOperationsService {
   }
 
   async recordLoginHistory(
-    user: AuthenticationActorEvidence | null,
+    user: OpsUser | null,
     email: string,
     status: string,
     failureReason?: string,
@@ -179,30 +163,34 @@ export class SecurityOperationsService {
     });
   }
 
-  async handleFailedLogin(input: FailedLoginEvidence) {
-    const history = lockoutHistory(input);
-    await this.recordLoginHistory(input, input.email, history.status, history.reason);
+  async handleFailedLogin(user: OpsUser, state: AuthenticationFailureDetails) {
+    const history = lockoutHistory(state);
+    await this.recordLoginHistory(user, user.email, history.status, history.reason);
 
     await this.recordAuthenticationAudit({
-      actor: input.name,
-      action: `Failed login attempt for ${input.email}`,
-      actorRole: input.role,
-      actorEmail: input.email,
+      actor: user.name,
+      action: `Failed login attempt for ${user.email}`,
+      actorRole: user.role,
+      actorEmail: user.email,
       actionType: AuditActionType.LoginFailed,
       category: AuditCategory.Access,
       affectedType: 'account',
-      affectedId: input.id,
-      affectedLabel: input.email,
+      affectedId: user.id,
+      affectedLabel: user.email,
       severity: history.severity,
-      metadata: { failedAttempt: input.failedAttempt, lockoutCount: input.lockoutCount },
+      metadata: {
+        failedAttempt: state.failedAttempt,
+        lockoutCount: state.lockoutCount,
+        failureReason: state.failureReason,
+      },
     });
 
-    if (input.locked) {
-      await this.createSecurityAlert(lockoutAlertPayload(input), { authentication: true });
+    if (state.lockoutTriggered) {
+      await this.createSecurityAlert(lockoutAlertPayload(user, state), { authentication: true });
     }
   }
 
-  async handleForbiddenAccess(user: AuthenticationActorEvidence, email: string, reason: string) {
+  async handleForbiddenAccess(user: OpsUser, email: string, reason: string) {
     await this.recordLoginHistory(user, email, LoginHistoryStatus.Blocked, reason);
 
     await this.recordAuthenticationAudit({
@@ -328,7 +316,13 @@ export class SecurityOperationsService {
   }
 
   private async resolveTrustRecipient() {
-    return this.platformReferences?.findApprovedTrustRecipientEmail() ?? null;
+    const recipient = await this.prisma.opsUser.findFirst({
+      where: { role: OpsUserRole.PmcmAdmin, approvalStatus: 'approved' },
+      orderBy: { createdAt: 'asc' },
+      select: { email: true },
+    });
+    const email = recipient?.email?.trim().toLowerCase();
+    return email && email.includes('@') ? email : null;
   }
 
   private mapLoginHistory(entry: OpsLoginHistory) {

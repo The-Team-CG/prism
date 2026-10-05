@@ -1,5 +1,6 @@
 import { CoordinatorAttendanceStatus, LiveOpsEscalationLevel } from '@prism/kernel/event-core';
-import type { OpsCoordinatorAssignment, OpsEventDayLog, OpsEventDayTask, OpsUrgentIssue } from '@prisma/client';
+import type { OpsEventDayLog, OpsEventDayTask, OpsUrgentIssue } from '@prisma/client';
+import type { PrismCoordinatorAssignment } from '@prism/types';
 
 type SlaRecord = {
   status?: string | null;
@@ -10,8 +11,6 @@ type SlaRecord = {
   completedAt?: Date | null;
 };
 type ComputeSlaStatus = (record: SlaRecord) => string;
-type CoordinatorAssignmentMapper = (assignment: OpsCoordinatorAssignment) => object;
-
 function timestamp(value: Date) {
   return value.toISOString();
 }
@@ -80,17 +79,16 @@ export function mapEventDayLog(log: OpsEventDayLog) {
 }
 
 export function mapCoordinatorAssignmentForEventDay(
-  assignment: OpsCoordinatorAssignment,
-  mapCoordinatorAssignment: CoordinatorAssignmentMapper,
+  assignment: PrismCoordinatorAssignment,
 ) {
   return {
-    ...mapCoordinatorAssignment(assignment),
+    ...assignment,
     attendanceStatus: assignment.attendanceStatus ?? CoordinatorAttendanceStatus.Pending,
-    attendanceMarkedAt: assignment.attendanceMarkedAt ? timestamp(assignment.attendanceMarkedAt) : null,
+    attendanceMarkedAt: assignment.attendanceMarkedAt ?? null,
     attendanceNotes: assignment.attendanceNotes ?? '',
     replacedByAssignmentId: assignment.replacedByAssignmentId ?? null,
     replacementReason: assignment.replacementReason ?? '',
-    replacedAt: assignment.replacedAt ? timestamp(assignment.replacedAt) : null,
+    replacedAt: assignment.replacedAt ?? null,
     replacedBy: assignment.replacedBy ?? null,
   };
 }
