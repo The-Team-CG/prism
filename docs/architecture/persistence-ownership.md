@@ -193,7 +193,7 @@ business owner and lifecycle metadata contract.
 | --- | --- | --- |
 | `OpsSupplier`, `OpsSupplierApplication`, `OpsSupplierCertification`, `OpsSupplierReview`, `OpsSupplierReliabilityNote` | `supplier_ops` | `commercial`; supplier directory, onboarding, certification, review, and reliability policy. |
 | `OpsSupplierCategory`, `OpsSupplierReviewDimension`, `OpsSupplierReviewDimensionRating` | `supplier_ops` | `commercial`; reference and review-dimension configuration. Some rows are currently fixture-seeded and have no separate administration workflow. |
-| `OpsSupplierQuoteRequest`, `OpsSupplierQuote` | `supplier_ops` | `commercial`; request, submission, revision, selection, and withdrawal lifecycle. |
+| `OpsSupplierQuoteRequest`, `OpsSupplierQuote` | `supplier_ops` | `commercial`; request, submission, revision, selection, and withdrawal lifecycle. Deleting a request referenced by submitted quote evidence is restricted; requestId remains nullable for manually entered quotes. |
 | `OpsBillingSource`, `OpsBillingStatement`, `OpsPaymentMilestone`, `OpsPaymentRecord` | `finance_ops` | `commercial`; proposal-to-billing conversion, statements, milestones, and payment history. |
 | Commercial contract and billing models | finance_ops / supplier_ops | commercial; retains business decisions and scalar document IDs. Lifecycle alone owns document metadata and validates references through its public capability. Target schema: commercial. |
 
