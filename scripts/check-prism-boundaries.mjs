@@ -154,7 +154,9 @@ export const boundaryRules = [
   {
     name: "read models must not mutate Prisma state",
     filePattern: readModelsPattern,
-    check(_normalized, source) {
+    check(normalized, source) {
+      // Database behavior tests seed their own rows; the rule protects production read-model code.
+      if (/\.test\.ts$/.test(normalized)) return false;
       return prismaMutationPattern.test(source);
     },
   },

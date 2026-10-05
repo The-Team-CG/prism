@@ -105,7 +105,12 @@ export class EventDecisionService {
 
   private isIdempotencyRace(error: unknown): boolean {
     if (!error || typeof error !== 'object' || !('code' in error)) return false;
-    return error.code === 'P2002' || error.code === 'P2034';
+    if (error.code === 'P2002' || error.code === 'P2034') return true;
+    // A serialization failure inside a raw query (for example an event row lock) surfaces as a Prisma raw-query
+    // error that carries the PostgreSQL SQLSTATE 40001 in its metadata or message.
+    const meta = 'meta' in error ? (error.meta as { code?: unknown } | undefined) : undefined;
+    const message = 'message' in error ? String(error.message) : '';
+    return meta?.code === '40001' || (error.code === 'P2010' && message.includes('40001'));
   }
 
   private validateEventState(status: string, eventDate: Date, input: EventDecisionInput) {
