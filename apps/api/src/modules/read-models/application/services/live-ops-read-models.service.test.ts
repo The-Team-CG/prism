@@ -59,7 +59,6 @@ function eventFixture(): OpsEvent & { floorPlanDrafts: OpsFloorPlanDraft[] } {
     createdAt: CREATED_AT,
     updatedAt: CREATED_AT,
     floorPlanDrafts: [],
-    floorPlanProjectionVersion: 0,
   } as OpsEvent & { floorPlanDrafts: OpsFloorPlanDraft[] };
 }
 
