@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Fixed coordinator replacement so its two audit entries are written in sequence, keeping the audit log a single hash chain.
+
 - Added the approved `platform_ops.privacy_legal_holds` table to Prisma, the owner manifest, migration history, cutover preflight, and backup catalog so the schema-release inventory includes legal holds.
 - Added the domain-persistence ownership guard and its tests to CI so schema ownership, foreign-key, private-write, and database-audit policy regressions fail the standard pipeline.
 - Added an opt-in exact Prisma migration-ledger startup check, deployment/promotion/rollback holds for schema cutovers, and a read-only cutover preflight workflow; it prints the desired SQL diff for review and does not migrate or deploy.
