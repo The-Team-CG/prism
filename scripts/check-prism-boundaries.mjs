@@ -40,6 +40,9 @@ function hasPrivateModuleImport(source) {
     '@prism/contexts/read-models/event-scope',
     '@prism/contexts/read-models/participant-facts',
     '@prism/contexts/event-lifecycle/conforme-reminder-window',
+    '@prism/contexts/event-lifecycle/post-event-reference',
+    '@prism/contexts/live-ops/urgent-issue-reference',
+    '@prism/contexts/event-lifecycle/floorplan-reference',
   ]);
   return [...nestedImports].some((match) => !publicSubpathSeams.has(match[1]));
 }

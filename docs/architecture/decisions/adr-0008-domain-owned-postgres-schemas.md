@@ -61,7 +61,7 @@ The schema boundary is a persistence organization rule, not a security boundary.
 ## Ownership decisions
 
 - Lifecycle owns document metadata and lifecycle eligibility. Commercial keeps contract and billing decisions, but asks the document-vault capability to register and validate document references.
-- Commercial owns billing records. Lifecycle onboarding initializes them through a Commercial capability within the accepted-inquiry/conforme transaction.
+- Commercial owns billing records. A future Lifecycle onboarding initializer must receive priced-source input, enforce the approved event/conforme gate through an owner capability, and be replay-safe; current briefing/conforme workflows do not create billing rows from signature alone. Lifecycle-issued addenda use a transaction-aware Commercial capability for billing-source and selected-quote changes, while Lifecycle retains addendum decisions and impact history.
 - Operations owns assignment, attendance, replacement, cancellation, acknowledgment, and reliability-note writes, including requests initiated by LiveOps or lifecycle decisions.
 - Floorplan owns official plan and review state. Lifecycle-facing event status fields are a temporary, versioned projection until consumers move; they do not grant lifecycle a second write authority over floorplan state.
 - Platform-ops owns command-receipt persistence behind the existing kernel technical port. The command's business decision, authorization, and atomic replay transaction remain with its owning context.
