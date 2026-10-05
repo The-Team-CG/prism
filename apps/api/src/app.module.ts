@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AccessControlModule } from '@prism/kernel/access-control';
 import { DatabaseModule } from '@prism/kernel/database';
 import { PlatformOpsAuditWriterModule } from './modules/platform-ops/platform-ops-audit-writer.module';
+import { PlatformOpsCommandReceiptModule } from './modules/platform-ops/platform-ops-command-receipt.module';
 import { CommercialModule } from './modules/commercial/commercial.module';
 import { EventCoreModule } from '@prism/kernel/event-core';
 import { ReadModelsModule } from './modules/read-models/read-models.module';
@@ -18,13 +19,18 @@ import { OpsEventClosureController } from './modules/event-lifecycle/api/closure
 import { EventInsightGenerationController } from './composition/event-insight-generation.controller';
 import { EventInsightGenerationService } from './composition/event-insight-generation.service';
 import { TransformInterceptor } from './common/transform.interceptor';
+import { PlatformReferenceReadersModule } from './composition/platform-reference-readers.module';
+import { PlatformPrivacyModule } from './modules/platform-ops/platform-privacy.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     HealthModule,
+    PlatformOpsCommandReceiptModule,
     EventCoreModule,
     PlatformOpsAuditWriterModule,
+    PlatformReferenceReadersModule,
+    PlatformPrivacyModule,
     AccessControlModule,
     IdentityAccessModule,
     EventLifecycleModule,

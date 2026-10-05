@@ -18,6 +18,8 @@ export * from './contracts/guest-reader.port';
 export * from './contracts/guest-ops.tokens';
 export * from './contracts/registration-platform-reader.port';
 export * from './application/guest/guest-workflow.service';
+export * from './contracts/privacy-redaction.port';
+export * from './application/guest/operations-privacy-redactor.service';
 export * from './application/guest/registration-platform.service';
 export * from './api/guest/guest.controller';
 export * from './api/guest/registration-platform.controller';
