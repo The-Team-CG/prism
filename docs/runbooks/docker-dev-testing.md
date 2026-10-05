@@ -99,7 +99,8 @@ Then edit `.env.docker` and fill in the database values.
 Important notes:
 
 - Do not commit `.env.docker`.
-- For Supabase, keep `DB_SSL=true`.
+- Hosted database TLS is verified by default; keep `DB_SSL=true` for Supabase. Set `DB_SSL_CA_FILE` to an absolute PEM CA path only when the host uses a private CA. With Docker, the file must exist and be readable at that path inside the API container.
+- `DB_SSL=false` is accepted only when the selected database URL targets `localhost`, `127.0.0.0/8`, or `::1`.
 - If using the Supabase pooler on a free tier, keep `ALLOW_POOLER_FOR_PRISMA=1`.
 - If the database is paused, wake the Supabase project, then run `npm --workspace prism-api run db:setup`. The API may fail until the project is resumed.
 - If you do not have a real database URL yet, the containers can build, but API runtime/database tests may fail.
@@ -112,11 +113,12 @@ DATABASE_URL=
 PRISMA_DATABASE_URL=
 DIRECT_URL=
 DB_SSL=true
+DB_SSL_CA_FILE=
 ALLOW_POOLER_FOR_PRISMA=1
 PARE_MODE=mock
 ```
 
-For local testing, the database URL values usually point to the same local or Supabase database connection unless you are intentionally testing separate runtime/direct connections.
+Runtime uses `SUPABASE_DB_URL` then `DATABASE_URL`; Prisma CLI and administration prefer `PRISMA_DATABASE_URL` then `DIRECT_URL`. Keep the runtime pooler URL separate from the direct migration URL when both are available. For local non-TLS Postgres, set `DB_SSL=false` and use a loopback hostname; remote hosts cannot disable certificate verification.
 
 ## One-command wrappers
 
