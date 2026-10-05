@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import type { CommandReceiptRecord, CommandReceiptStore } from '@prism/kernel/event-core';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
-import { createBillingSourceSchema, createBillingDisputeSchema, requestBillingCorrectionSchema, waiveAdditionalBillingSchema } from '@prism/types';
+import type { PostEventLifecycleState } from '@prism/contexts/event-lifecycle/post-event-reference';
+import { createAdditionalBillingSchema, createBillingSourceSchema, createBillingDisputeSchema, requestBillingCorrectionSchema, waiveAdditionalBillingSchema } from '@prism/types';
 import { BillingAdjustmentService } from './billing-adjustment.service';
 import { nextPaymentMilestoneStatus, validatePaymentTerms } from '../../domain/payment-terms.policy';
 
@@ -32,7 +33,7 @@ function createW14Service(withReceipts = false) {
       create: vi.fn(async ({ data }: any) => { disputeCreated = true; return Object.assign(dispute, data); }),
       update: vi.fn(async ({ data }: any) => Object.assign(dispute, data)),
     },
-    opsUrgentIssue: { findUnique: vi.fn(async () => ({ id: 'issue_w14', eventId: event.id })) },
+
     opsAdditionalBilling: {
       findUnique: vi.fn(async ({ where }: any) => where.idempotencyKey ? (additionalCreated ? additional : null) : additional),
       create: vi.fn(async ({ data }: any) => { additionalCreated = true; return Object.assign(additional, data); }),
@@ -40,6 +41,15 @@ function createW14Service(withReceipts = false) {
     },
   };
   const audit = { write: vi.fn() };
+  const postEventStateReader = {
+    findPostEventState: vi.fn(async (eventId: string): Promise<PostEventLifecycleState | null> => eventId === event.id
+      ? { eventId: event.id, actualEndedAt: event.actualEndedAt }
+      : null),
+  };
+  const urgentIssueReferenceReader = {
+    findUrgentIssueForEvent: vi.fn(async (eventId: string, issueId: string) =>
+      eventId === event.id && issueId === 'issue_w14' ? { id: issueId, eventId } : null),
+  };
   const savedReceipts = new Map<string, CommandReceiptRecord>();
   const receiptStore: CommandReceiptStore = {
     find: vi.fn(async (key) => savedReceipts.get(`${key.commandName}:${key.idempotencyKey}:${key.actorId}:${key.eventScope}`) ?? null),
@@ -60,14 +70,15 @@ function createW14Service(withReceipts = false) {
       if (receipt) receipt.result = result;
     }),
   };
+  const transactionContext: PrismTransactionContext = { prisma, correlationId: 'receipt_w14', actorId: actor.id };
   const transactionRunner = {
-    run: vi.fn(async (work: (context: PrismTransactionContext) => Promise<unknown>) => work({ prisma, correlationId: 'receipt_w14', actorId: actor.id })),
+    run: vi.fn(async (work: (context: PrismTransactionContext) => Promise<unknown>) => work(transactionContext)),
   };
   const workflow = withReceipts
     ? new WorkflowCommandService(transactionRunner as never, receiptStore)
     : new WorkflowCommandService();
-  const service = new BillingAdjustmentService(prisma, audit as any, workflow);
-  return { service, prisma, audit, statement, correction, dispute, additional, receiptStore, transactionRunner };
+  const service = new BillingAdjustmentService(prisma, audit as any, workflow, postEventStateReader as never, urgentIssueReferenceReader as never);
+  return { service, prisma, audit, statement, correction, dispute, additional, receiptStore, transactionRunner, transactionContext, postEventStateReader, urgentIssueReferenceReader };
 }
 
 describe('W14 billing operations', () => {
@@ -113,6 +124,77 @@ describe('W14 billing operations', () => {
     await expect(service.createBillingDispute('evt_w14', { ...input, amount: 100001, idempotencyKey: 'other-dispute' }, actor)).rejects.toBeInstanceOf(BadRequestException);
     await service.resolveBillingDispute('evt_w14', dispute.id, { action: 'resolve', resolutionNotes: 'Reviewed source line' }, actor);
     await expect(service.resolveBillingDispute('evt_w14', dispute.id, { action: 'reject', resolutionNotes: 'Too late' }, actor)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects additional billing when Lifecycle has no recorded event end', async () => {
+    const { service, prisma, postEventStateReader, urgentIssueReferenceReader } = createW14Service();
+    postEventStateReader.findPostEventState.mockResolvedValue({ eventId: 'evt_w14', actualEndedAt: null });
+    const input = createAdditionalBillingSchema.parse({
+      urgentIssueId: 'issue_w14',
+      description: 'Approved overtime',
+      amount: 5000,
+      idempotencyKey: 'additional-billing-before-event-end',
+    });
+
+    await expect(service.createAdditionalBilling('evt_w14', input, actor))
+      .rejects.toThrow('Post-event additional billing requires a recorded event end');
+
+    expect(urgentIssueReferenceReader.findUrgentIssueForEvent).not.toHaveBeenCalled();
+    expect(prisma.opsAdditionalBilling.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects additional billing if event eligibility disappears before the transaction writes', async () => {
+    const { service, prisma, transactionContext, postEventStateReader, urgentIssueReferenceReader } = createW14Service(true);
+    postEventStateReader.findPostEventState
+      .mockResolvedValueOnce({ eventId: 'evt_w14', actualEndedAt: new Date('2026-08-02T00:00:00.000Z') })
+      .mockResolvedValueOnce(null);
+    const input = createAdditionalBillingSchema.parse({
+      urgentIssueId: 'issue_w14',
+      description: 'Approved overtime',
+      amount: 5000,
+      idempotencyKey: 'additional-billing-event-vanished',
+    });
+
+    await expect(service.createAdditionalBilling('evt_w14', input, actor)).rejects.toThrow('Event not found');
+
+    expect(postEventStateReader.findPostEventState).toHaveBeenNthCalledWith(2, 'evt_w14', transactionContext);
+    expect(urgentIssueReferenceReader.findUrgentIssueForEvent).toHaveBeenCalledTimes(1);
+    expect(prisma.opsAdditionalBilling.create).not.toHaveBeenCalled();
+  });
+  it('validates post-event and issue ownership again inside the billing transaction', async () => {
+    const { service, prisma, transactionContext, transactionRunner, postEventStateReader, urgentIssueReferenceReader } = createW14Service(true);
+    const input = createAdditionalBillingSchema.parse({
+      urgentIssueId: 'issue_w14',
+      description: 'Approved overtime',
+      amount: 5000,
+      idempotencyKey: 'additional-billing-owner-check',
+    });
+
+    const result = await service.createAdditionalBilling('evt_w14', input, actor);
+
+    expect(result).toMatchObject({ eventId: 'evt_w14', urgentIssueId: 'issue_w14', amount: 5000 });
+    expect(transactionRunner.run).toHaveBeenCalledTimes(1);
+    expect(postEventStateReader.findPostEventState).toHaveBeenNthCalledWith(2, 'evt_w14', transactionContext);
+    expect(urgentIssueReferenceReader.findUrgentIssueForEvent).toHaveBeenNthCalledWith(2, 'evt_w14', 'issue_w14', transactionContext);
+    expect(prisma.opsAdditionalBilling.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects an issue that disappears before the owner-checked billing transaction writes', async () => {
+    const { service, prisma, transactionContext, urgentIssueReferenceReader } = createW14Service(true);
+    urgentIssueReferenceReader.findUrgentIssueForEvent
+      .mockResolvedValueOnce({ id: 'issue_w14', eventId: 'evt_w14' })
+      .mockResolvedValueOnce(null);
+    const input = createAdditionalBillingSchema.parse({
+      urgentIssueId: 'issue_w14',
+      description: 'Approved overtime',
+      amount: 5000,
+      idempotencyKey: 'additional-billing-stale-issue',
+    });
+
+    await expect(service.createAdditionalBilling('evt_w14', input, actor)).rejects.toThrow('Urgent issue not found');
+
+    expect(urgentIssueReferenceReader.findUrgentIssueForEvent).toHaveBeenNthCalledWith(2, 'evt_w14', 'issue_w14', transactionContext);
+    expect(prisma.opsAdditionalBilling.create).not.toHaveBeenCalled();
   });
 
   it('requires a reason for waiver and only waives issued additional billing', async () => {
