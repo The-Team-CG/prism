@@ -1,11 +1,11 @@
 import type {
   CreateGuestCheckInInput,
   CreateGuestFeedbackInput,
-  PrismGuestCheckIn,
+  PrismGuestCheckInReceipt,
   PrismGuestFeedbackReceipt,
 } from '@prism/types';
 
 export interface GuestCommands {
-  checkInByAccessCode(accessCode: string, input: CreateGuestCheckInInput): Promise<PrismGuestCheckIn>;
+  checkInByAccessCode(accessCode: string, input: CreateGuestCheckInInput): Promise<PrismGuestCheckInReceipt>;
   submitFeedbackByAccessCode(accessCode: string, input: CreateGuestFeedbackInput): Promise<PrismGuestFeedbackReceipt>;
 }

@@ -39,19 +39,20 @@ function eventData(eventId: string) {
       statusFeed: { event: { id: eventId }, items: [] },
       defenseReadiness: null,
       registrationPlatform: null,
+      guestPrivacyClassification: { eventId, classification: "unclassified" },
     },
     errors: {},
   };
 }
 
-function renderWorkspace(eventId: string) {
+function renderWorkspace(eventId: string, tab: "live-ops" | "registration" = "live-ops") {
   return renderHook(
     ({ selectedEventId }: { selectedEventId: string | null }) =>
       useEventDashboardWorkspaceViewModel({
         selectedEventId,
         screenName: "portal",
         section: "events",
-        tab: "live-ops",
+        tab,
       }),
     { initialProps: { selectedEventId: eventId } },
   );
@@ -92,5 +93,15 @@ describe("PMCM event-day live updates", () => {
     });
     expect(result.current.liveOps?.event.id).toBe("evt_2");
     unmount();
+  });
+
+  it("loads event guest privacy classification with registration command data", async () => {
+    const { result } = renderWorkspace("evt_1", "registration");
+
+    await waitFor(() => expect(loadEventCommandData).toHaveBeenCalledWith("evt_1", true));
+    await waitFor(() => expect(result.current.guestPrivacyClassification).toEqual({
+      eventId: "evt_1",
+      classification: "unclassified",
+    }));
   });
 });

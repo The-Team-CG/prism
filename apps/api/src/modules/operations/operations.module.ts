@@ -16,6 +16,7 @@ import { OpsCoordinatorCapacityController } from './api/staffing/coordinator-cap
 import { OpsGuestController } from './api/guest/guest.controller';
 import { OpsRegistrationPlatformController } from './api/guest/registration-platform.controller';
 import { WalkInPolicyController } from './api/guest/walk-in-policy.controller';
+import { GuestPrivacyClassificationController } from './api/guest/guest-privacy-classification.controller';
 import { STAFFING_COMMANDS, STAFFING_READER } from './contracts/staffing-ops.tokens';
 import { COORDINATOR_RELIABILITY_WRITER } from './contracts/coordinator-reliability-writer.token';
 import { COORDINATOR_INSIGHT_FACTS_READER } from './contracts/coordinator-insight-facts-reader.port';
@@ -30,6 +31,7 @@ import { CoordinatorAcknowledgementReminderScheduler } from './application/staff
 import { GuestWorkflowService } from './application/guest/guest-workflow.service';
 import { RegistrationPlatformService } from './application/guest/registration-platform.service';
 import { WalkInPolicyService } from './application/guest/walk-in-policy.service';
+import { GuestPrivacyClassificationService } from './application/guest/guest-privacy-classification.service';
 import { OperationsPrivacyRedactorService } from './application/guest/operations-privacy-redactor.service';
 import { OPERATIONS_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 
@@ -52,7 +54,7 @@ import { OPERATIONS_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port'
  */
 @Module({
   imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, FloorplanModule, EventSessionModule, OperationsEventReferenceModule, CoordinatorAccountReferenceModule, RegistrationSupplierReferenceModule, GuestEventProjectionModule],
-  controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsCoordinatorCapacityController, OpsGuestController, OpsRegistrationPlatformController, WalkInPolicyController],
+  controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsCoordinatorCapacityController, OpsGuestController, OpsRegistrationPlatformController, WalkInPolicyController, GuestPrivacyClassificationController],
   providers: [
     CoordinatorsService,
     CoordinatorAssignmentCommandService,
@@ -64,6 +66,7 @@ import { OPERATIONS_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port'
     GuestWorkflowService,
     RegistrationPlatformService,
     WalkInPolicyService,
+    GuestPrivacyClassificationService,
     OperationsPrivacyRedactorService,
     { provide: OPERATIONS_PRIVACY_REDACTOR, useExisting: OperationsPrivacyRedactorService },
     { provide: STAFFING_COMMANDS, useExisting: CoordinatorAssignmentCommandService },

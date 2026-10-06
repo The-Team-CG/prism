@@ -5,9 +5,11 @@ import {
   savePrismSession,
   type PrismGuestEventPass,
   type PrismGuestEventWatermark,
+  type PrismGuestCheckInReceipt,
   type CreateGuestFeedbackInput,
 } from "@prism/types";
 import { guestJson } from "@/features/guest-shared/guest-http";
+import { sanitizeGuestSession } from "@/features/guest-shared/guest-session-storage";
 import { guestApiPath } from "../model/guest-dashboard-rules";
 import type { CheckInPayload, GuestSession } from "../model/guest-dashboard-types";
 
@@ -15,7 +17,13 @@ const SESSION_KEY = PRISM_SESSION_STORAGE_KEYS.guest;
 
 export const guestDashboardRepository = {
   readSession(): GuestSession | null {
-    return readPrismSession<GuestSession>(SESSION_KEY);
+    const stored = readPrismSession<GuestSession & { guestName?: unknown; attendanceCount?: unknown }>(SESSION_KEY);
+    if (!stored) return null;
+    const session = sanitizeGuestSession(stored) as GuestSession;
+    if ("guestName" in stored || "attendanceCount" in stored) {
+      savePrismSession(SESSION_KEY, session);
+    }
+    return session;
   },
 
   saveSession(session: GuestSession): void {
@@ -34,8 +42,8 @@ export const guestDashboardRepository = {
     return guestJson<PrismGuestEventWatermark>(guestApiPath(session, "/watermark"));
   },
 
-  checkIn(session: GuestSession, payload: CheckInPayload): Promise<unknown> {
-    return guestJson(guestApiPath(session, "/check-ins"), {
+  checkIn(session: GuestSession, payload: CheckInPayload): Promise<PrismGuestCheckInReceipt> {
+    return guestJson<PrismGuestCheckInReceipt>(guestApiPath(session, "/check-ins"), {
       method: "POST",
       body: JSON.stringify(payload),
     });

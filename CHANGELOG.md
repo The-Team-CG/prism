@@ -8,6 +8,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- EP-13-S02 guest check-in now uses PMCM-managed privacy classification and briefing counts for conservative New-CL1 review. Guest pass entry is code-only, headcount remains anonymous, receipts are generic, and internal totals count checked-in guests only. Ambiguous names and New-CL1 submissions enter a timestamped staff review queue; retries are idempotent. Focused suites, API/event typechecks, migration guard, Prisma validation, offline schema verification, and boundary checks pass. Guarded database smoke remains pending because it requires the isolated local `prism_p0` database.
 - Clients can track source-backed planning milestones and required next actions in their event workspace.
 - PMCM can enable client-visible event-day progress, which exposes only a generic status.
 - Clients can request an ocular visit; PMCM can schedule, complete, or waive it with an audit reason.

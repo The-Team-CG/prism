@@ -25,12 +25,29 @@ describe("PMCM dashboard command transport", () => {
     });
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ data: { id: "evt_1", archived: true } }), {
+      vi.fn().mockImplementation(() =>
+        Promise.resolve(new Response(JSON.stringify({ data: { id: "evt_1", archived: true } }), {
           headers: { "content-type": "application/json" },
-        }),
+        })),
       ),
     );
+  });
+
+  it("loads and updates guest privacy through the session-authenticated command", async () => {
+    await eventDashboardCommands.getGuestPrivacyClassification("evt_1");
+    await eventDashboardCommands.updateGuestPrivacyClassification("evt_1", { classification: "private" });
+
+    const fetchMock = vi.mocked(fetch);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0][0]).toBe("http://localhost:4000/api/events/evt_1/guest-privacy");
+    expect(fetchMock.mock.calls[1][0]).toBe("http://localhost:4000/api/events/evt_1/guest-privacy");
+    expect(fetchMock.mock.calls[1][1]).toMatchObject({
+      method: "PATCH",
+      body: JSON.stringify({ classification: "private" }),
+    });
+    for (const [, requestInit] of fetchMock.mock.calls) {
+      expect(new Headers(requestInit?.headers).get("authorization")).toContain("Bearer");
+    }
   });
 
   it("uses the verified session token without sending a caller supplied actor name", async () => {

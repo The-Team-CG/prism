@@ -4,6 +4,11 @@ import { pmcmCommandInboxQuerySchema } from "./event-ops-inputs.js";
 import {
   createPrismInquirySchema,
   createGuestFeedbackSchema,
+  createGuestCheckInSchema,
+  guestRosterSearchSchema,
+  guestCheckInReceiptSchema,
+  guestPrivacyClassificationSchema,
+  updateGuestPrivacyClassificationSchema,
   coordinatorWalkInCheckInSchema,
   moderateGuestFeedbackSchema,
   withdrawGuestFeedbackConsentSchema,
@@ -196,6 +201,87 @@ describe("event-ops write schemas", () => {
       message: "Hello",
     });
     expect(result.success).toBe(false);
+  });
+
+  it("accepts the selected named and anonymous public check-in shapes", () => {
+    expect(createGuestCheckInSchema.parse({
+      checkInMode: "name_search",
+      guestName: "  Ana Reyes  ",
+      privacyConsentAccepted: true,
+      privacyNoticeVersion: "2026-10",
+      marketingConsentAccepted: false,
+    })).toEqual({
+      checkInMode: "name_search",
+      guestName: "Ana Reyes",
+      privacyConsentAccepted: true,
+      privacyNoticeVersion: "2026-10",
+      marketingConsentAccepted: false,
+    });
+    expect(createGuestCheckInSchema.parse({
+      checkInMode: "headcount",
+      privacyConsentAccepted: true,
+    })).toEqual({
+      checkInMode: "headcount",
+      privacyConsentAccepted: true,
+    });
+  });
+
+  it.each([
+    ["blank name", { checkInMode: "name_search", guestName: "   ", privacyConsentAccepted: true }],
+    ["headcount with a name", { checkInMode: "headcount", guestName: "Ana Reyes", privacyConsentAccepted: true }],
+    ["unsupported mode", { checkInMode: "walk_in", guestName: "Ana Reyes", privacyConsentAccepted: true }],
+  ])("rejects malformed public check-in shape: %s", (_label, input) => {
+    expect(createGuestCheckInSchema.safeParse(input).success).toBe(false);
+  });
+
+  it.each([
+    ["roster entry id", { rosterEntryId: "roster_1" }],
+    ["walk-in state", { walkIn: true }],
+    ["verification state", { verificationStatus: "verified" }],
+    ["attendance state", { status: "checked_in" }],
+  ])("rejects client-owned check-in state: %s", (_label, serverState) => {
+    expect(createGuestCheckInSchema.safeParse({
+      checkInMode: "name_search",
+      guestName: "Ana Reyes",
+      privacyConsentAccepted: true,
+      ...serverState,
+    }).success).toBe(false);
+    expect(createGuestCheckInSchema.safeParse({
+      checkInMode: "headcount",
+      privacyConsentAccepted: true,
+      ...serverState,
+    }).success).toBe(false);
+  });
+
+  it("accepts only a generic public check-in receipt", () => {
+    expect(guestCheckInReceiptSchema.parse({ accepted: true })).toEqual({ accepted: true });
+    for (const privateField of [
+      "guestName",
+      "rosterEntryId",
+      "status",
+      "verificationStatus",
+      "checkInMode",
+    ]) {
+      expect(guestCheckInReceiptSchema.safeParse({
+        accepted: true,
+        [privateField]: "private",
+      }).success).toBe(false);
+    }
+  });
+
+  it("accepts the review queue flag only as a boolean", () => {
+    expect(guestRosterSearchSchema.parse({ reviewQueue: true })).toEqual({ reviewQueue: true });
+    expect(guestRosterSearchSchema.safeParse({ reviewQueue: "true" }).success).toBe(false);
+  });
+
+  it("accepts only the supported guest privacy classifications", () => {
+    for (const classification of ["private", "public", "unclassified"]) {
+      expect(guestPrivacyClassificationSchema.parse(classification)).toBe(classification);
+      expect(updateGuestPrivacyClassificationSchema.parse({ classification })).toEqual({ classification });
+    }
+    expect(guestPrivacyClassificationSchema.safeParse("internal").success).toBe(false);
+    expect(updateGuestPrivacyClassificationSchema.safeParse({ classification: "internal" }).success).toBe(false);
+    expect(updateGuestPrivacyClassificationSchema.safeParse({ classification: "private", eventId: "evt_1" }).success).toBe(false);
   });
 
   it("validates guest feedback rating bounds", () => {
