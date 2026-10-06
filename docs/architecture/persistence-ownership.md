@@ -285,6 +285,14 @@ migration clears an untrusted link (missing parent or a parent in another event)
 to NULL and keeps the row. The import batch row is now written before the entries
 that reference it.
 
+The unauthenticated guest endpoints (access-code lookup, check-in, feedback and
+consent withdrawal) are bounded by an in-process fixed-window limiter in the
+Operations API layer: lookups per client address and writes per client address and
+access code, refused with 429 and a Retry-After header, with denials logged using
+a hashed address. The limits are deliberately generous so a venue entrance sharing
+one address can still check guests in. The counters are per API instance, so a
+multi-instance deployment multiplies the effective ceiling; a shared store is the
+next step if abuse is observed.
 Operations rows also carry stable row-local CHECK constraints that match the
 shared contracts: coordinator availability ends after it starts, coverage
 requirements and feedback media sizes and import row counts are non-negative,
