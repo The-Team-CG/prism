@@ -279,17 +279,7 @@ export class AuthOperationsService {
   }
 
   private assertTwoFactorUser(user: OpsUser | null, verifiedToken: VerifiedTwoFactorToken, now: Date) {
-    if (
-      !user ||
-      user.email.trim().toLowerCase() !== verifiedToken.email.trim().toLowerCase() ||
-      user.role !== OpsUserRole.PmcmAdmin ||
-      user.sessionVersion !== verifiedToken.sessionVersion ||
-      user.twoFactorChallengeHash !== hashTwoFactorChallenge(verifiedToken.challengeId) ||
-      !user.twoFactorChallengeExpiresAt ||
-      user.twoFactorChallengeExpiresAt <= now ||
-      user.twoFactorChallengeConsumedAt !== null ||
-      user.twoFactorChallengeAttempts >= LOGIN_LOCKOUT_THRESHOLD
-    ) {
+    if (!user || !this.matchesTwoFactorIdentity(user, verifiedToken) || !this.isTwoFactorChallengeLive(user, verifiedToken, now)) {
       throw new UnauthorizedException('Invalid, expired, or already-used two-factor token');
     }
     if (
@@ -300,6 +290,20 @@ export class AuthOperationsService {
       throw new ForbiddenException('This account is not eligible to complete two-factor authentication');
     }
     return user;
+  }
+
+  private matchesTwoFactorIdentity(user: OpsUser, verifiedToken: VerifiedTwoFactorToken): boolean {
+    return user.email.trim().toLowerCase() === verifiedToken.email.trim().toLowerCase()
+      && user.role === OpsUserRole.PmcmAdmin
+      && user.sessionVersion === verifiedToken.sessionVersion;
+  }
+
+  private isTwoFactorChallengeLive(user: OpsUser, verifiedToken: VerifiedTwoFactorToken, now: Date): boolean {
+    return user.twoFactorChallengeHash === hashTwoFactorChallenge(verifiedToken.challengeId)
+      && Boolean(user.twoFactorChallengeExpiresAt)
+      && user.twoFactorChallengeExpiresAt! > now
+      && user.twoFactorChallengeConsumedAt === null
+      && user.twoFactorChallengeAttempts < LOGIN_LOCKOUT_THRESHOLD;
   }
 
   private twoFactorChallengeWhere(verifiedToken: VerifiedTwoFactorToken, now: Date): Prisma.OpsUserWhereInput {
