@@ -238,6 +238,13 @@ milestones). Payment history, proposal versions, corrections and disputes use
 derived data and still goes with its request. The retained same-domain
 foreign-key count is 71 (68 at the cutover plus the three new links).
 
+Commercial rows also carry stable row-local CHECK constraints that match the
+shared contracts: review ratings 1 to 5, positive payment receipts, milestone
+percentage 0 to 100, non-negative milestone, quote, estimate, proposal, billing
+source and additional billing amounts, supplier schedule end not before start,
+quote acceptable minimum not above maximum, and non-negative supplier capacity.
+Milestone balances and adjustments are deliberately unconstrained so signed
+refunds and adjustments stay legal.
 Quote-request links carry a bearer token with an expiry and a revocation time
 (`quote_requests.access_token_expires_at`, `access_token_revoked_at`). New
 tokens are 256-bit random values that expire after 90 days; links that existed
