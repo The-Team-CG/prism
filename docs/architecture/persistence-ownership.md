@@ -200,6 +200,13 @@ lookup through `canonicalAccountEmail`, and enforced by CHECK constraints on
 beside the existing unique key. The migration rewrites existing rows and aborts
 on a case-only collision; accounts are never merged automatically.
 
+An approval request belongs to its account through a same-schema foreign key
+(`approval_requests.user_id`, `RESTRICT`). The request is the retained history of
+the account's approval decisions and keeps its own snapshot of name, email, role
+and organization, so an account is retired by disabling it (approval status or
+lockout), not by deleting it. A request whose account is missing aborts the
+migration for an explicit owner decision.
+
 ### Event lifecycle and compliance
 
 | Models | Physical schema | Write owner and boundary |
