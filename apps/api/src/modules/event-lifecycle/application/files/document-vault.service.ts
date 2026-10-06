@@ -50,20 +50,7 @@ export class DocumentVaultService implements DocumentVault {
     if (!parsed.success) throw new BadRequestException('Invalid lifecycle document metadata');
     const command = parsed.data;
     const { verifiedActor } = command;
-
-    if (verifiedActor.eventId && verifiedActor.eventId !== command.eventId) {
-      throw new ForbiddenException('Verified actor is outside the document event scope');
-    }
-    if (command.documentKind === 'supplier_contract') {
-      if (verifiedActor.actorRole !== 'supplier' || !verifiedActor.supplierId) {
-        throw new ForbiddenException('A verified supplier is required to register a supplier contract');
-      }
-    } else if (command.documentKind === 'billing_statement') {
-      if (!['pmcm-admin', 'system'].includes(verifiedActor.actorRole)) {
-        throw new ForbiddenException('A verified billing actor is required to register a billing statement');
-      }
-    }
-
+    this.assertActorMayRegister(command, verifiedActor);
     const fileName = command.fileName.trim().replace(/^.*[\\/]/, '');
     if (!fileName) throw new BadRequestException('File name is required');
     const db = context?.prisma ?? this.prisma;
@@ -93,6 +80,24 @@ export class DocumentVaultService implements DocumentVault {
       status: document.status,
       fileName: document.fileName,
     };
+  }
+
+  private assertActorMayRegister(
+    command: { eventId: string; documentKind: string },
+    verifiedActor: { eventId?: string | null; actorRole: string; supplierId?: string | null },
+  ): void {
+    if (verifiedActor.eventId && verifiedActor.eventId !== command.eventId) {
+      throw new ForbiddenException('Verified actor is outside the document event scope');
+    }
+    if (command.documentKind === 'supplier_contract') {
+      if (verifiedActor.actorRole !== 'supplier' || !verifiedActor.supplierId) {
+        throw new ForbiddenException('A verified supplier is required to register a supplier contract');
+      }
+    } else if (command.documentKind === 'billing_statement') {
+      if (!['pmcm-admin', 'system'].includes(verifiedActor.actorRole)) {
+        throw new ForbiddenException('A verified billing actor is required to register a billing statement');
+      }
+    }
   }
 
   async findEligibleReference(

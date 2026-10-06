@@ -21,19 +21,18 @@ export type FloorPlanPatchInput =
   Pick<CreateFloorPlanDraftInput, 'venue' | 'width' | 'height' | 'gridSize' | 'pax' | 'guests' | 'suppliers' | 'objects'>
   & Pick<UpdatePlanInput, 'seats' | 'seatCategories'>;
 
+const PLAIN_PATCH_FIELDS = ['width', 'height', 'gridSize', 'venue', 'pax'] as const;
+const JSON_PATCH_FIELDS = ['guests', 'suppliers', 'seats', 'seatCategories', 'objects'] as const;
+
 export function floorPlanScalarPatch(changes: FloorPlanPatchInput): Prisma.FloorPlanUpdateInput {
-  const data: Prisma.FloorPlanUpdateInput = {};
-  if (changes.width !== undefined) data.width = changes.width;
-  if (changes.height !== undefined) data.height = changes.height;
-  if (changes.gridSize !== undefined) data.gridSize = changes.gridSize;
-  if (changes.venue !== undefined) data.venue = changes.venue;
-  if (changes.pax !== undefined) data.pax = changes.pax;
-  if (changes.guests !== undefined) data.guests = toPrismaJson(changes.guests);
-  if (changes.suppliers !== undefined) data.suppliers = toPrismaJson(changes.suppliers);
-  if (changes.seats !== undefined) data.seats = toPrismaJson(changes.seats);
-  if (changes.seatCategories !== undefined) data.seatCategories = toPrismaJson(changes.seatCategories);
-  if (changes.objects !== undefined) data.objects = toPrismaJson(changes.objects);
-  return data;
+  const data: Record<string, unknown> = {};
+  for (const field of PLAIN_PATCH_FIELDS) {
+    if (changes[field] !== undefined) data[field] = changes[field];
+  }
+  for (const field of JSON_PATCH_FIELDS) {
+    if (changes[field] !== undefined) data[field] = toPrismaJson(changes[field]);
+  }
+  return data as Prisma.FloorPlanUpdateInput;
 }
 
 export async function replaceFloorPlanObjects(

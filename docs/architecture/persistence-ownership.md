@@ -142,24 +142,21 @@ ledger. New migration directory names carry the owning context:
 `YYYYMMDDHHmmss_<owner>_<change_slug>`. Existing applied directories are
 immutable and remain grandfathered in the policy.
 
-The current migration policy maps owner-aware migrations to legacy physical schemas as follows. These permissions preserve the existing migration history during transition; they do not change ADR-0008 target ownership:
+The migration policy maps each owner to exactly one physical schema, matching ADR-0008. Migrations before the cutover keep their original schema names through the frozen historical policy:
 
-| Migration owner | Physical schemas | Boundary note |
+| Migration owner | Physical schema | Boundary note |
 | --- | --- | --- |
-| `event-lifecycle` | `event_core`, `compliance_ops` | Inquiry, event, briefing, compliance, closure, and lifecycle records. |
-| `commercial` | `supplier_ops`, `finance_ops` | Supplier network and finance persistence. |
-| `operations` | `guest_ops`, `staffing_ops` | Guest workflows and coordinator/staffing records. |
-| `live-ops` | `staffing_ops` | Event-day records in the intentionally shared staffing schema. |
+| `event-lifecycle` | `event_lifecycle` | Inquiry, event, briefing, compliance, closure, and lifecycle records. |
+| `commercial` | `commercial` | Supplier network, communications, estimates, proposals, and billing. |
+| `operations` | `operations` | Coordinator pool, assignments, reliability, and guest operations. |
+| `live-ops` | `live_ops` | Event-day tasks, schedule, handoffs, issues, and logs. |
 | `floorplan` | `floorplan` | Official plans, drafts, templates, and snapshots. |
-| `identity-access` | `identity` | Authentication, approval, session, and identity records. |
-| `platform-ops` | `platform_ops`, `trust_ops` | Storage metadata, audit, notification, security, and AI governance. |
+| `identity-access` | `identity_access` | Authentication, approval, and password-recovery records. |
+| `platform-ops` | `platform_ops` | Privacy, audit, notification, security, storage, receipts, and AI governance. |
 
-`staffing_ops` is intentionally shared by `operations` and `live-ops` while
-their table ownership is split in this register. A migration that crosses an
-owner boundary or changes a table-level exception requires an explicit policy
-and ownership review; the schema allowlist is not blanket permission to write
-another context's records. `read-models`, the kernel, and local fixture seed tooling
-do not own business migrations.
+A migration that touches another owner's schema fails the guard, so a physical
+schema is never permission to write another context's records. `read-models`,
+the kernel, and local fixture seed tooling do not own business migrations.
 
 `apps/api/scripts/check-prisma-migrations.mjs` enforces the policy for future
 migrations: direct Prisma directory structure, immutable legacy names, unique
@@ -185,25 +182,25 @@ same transaction. Official-draft eligibility is checked from those owner
 facts; archived or frozen events reject writes, while authorized historical
 reads remain available. Floorplan sends lifecycle-facing status through the
 versioned projection writer; direct writes do not transfer event ownership.
-The cross-schema draft-to-event FK remains until the coordinated schema cutover.
+Drafts reference the event by scalar ID only; the cutover removed the
+draft-to-event foreign key.
 
 ### Identity and access
 
 | Models | Physical schema | Write owner and boundary |
 | --- | --- | --- |
-| OpsUser, OpsApprovalRequest, OpsPasswordResetToken, OpsPasswordResetRateLimit | identity | identity-access; authentication, approval, lockout, password recovery and account-authentication state. Target schema: identity_access. |
+| OpsUser, OpsApprovalRequest, OpsPasswordResetToken, OpsPasswordResetRateLimit | identity_access | identity-access; authentication, approval, lockout, password recovery and account-authentication state. |
 
-OpsLoginHistory and OpsSecurityAlert are platform-ops-owned even though
-their current physical schema is identity; the target namespace is
+OpsLoginHistory and OpsSecurityAlert are platform-ops-owned and live in
 platform_ops. Identity reaches platform audit behavior through AUTH_AUDIT.
 
 ### Event lifecycle and compliance
 
 | Models | Physical schema | Write owner and boundary |
 | --- | --- | --- |
-| `OpsInquiry`, `OpsEvent`, `OpsBriefing` | `event_core` | `event-lifecycle`; inquiry intake, event creation, onboarding, and briefing state. |
-| OpsDocument (all kinds) | event_core | event-lifecycle; document metadata, registration, eligibility and retention. Target schema: event_lifecycle. |
-| `OpsComplianceRule`, `OpsComplianceCheck`, `OpsPostEventDocument`, `OpsEventInsight` | `compliance_ops` | `event-lifecycle`; compliance, closure gates, post-event records, and lifecycle insights. |
+| `OpsInquiry`, `OpsEvent`, `OpsBriefing` | `event_lifecycle` | `event-lifecycle`; inquiry intake, event creation, onboarding, and briefing state. |
+| OpsDocument (all kinds) | event_lifecycle | event-lifecycle; document metadata, registration, eligibility and retention. |
+| `OpsComplianceRule`, `OpsComplianceCheck`, `OpsPostEventDocument`, `OpsEventInsight` | `event_lifecycle` | `event-lifecycle`; compliance, closure gates, post-event records, and lifecycle insights. |
 
 OpsDocument metadata has one owner: event-lifecycle. Commercial retains
 business decisions and statuses, but validates and registers document IDs
@@ -214,43 +211,42 @@ business owner and lifecycle metadata contract.
 
 | Models | Physical schema | Write owner and boundary |
 | --- | --- | --- |
-| `OpsSupplier`, `OpsSupplierApplication`, `OpsSupplierCertification`, `OpsSupplierReview`, `OpsSupplierReliabilityNote` | `supplier_ops` | `commercial`; supplier directory, onboarding, certification, review, and reliability policy. |
-| `OpsSupplierCategory`, `OpsSupplierReviewDimension`, `OpsSupplierReviewDimensionRating` | `supplier_ops` | `commercial`; reference and review-dimension configuration. Some rows are currently fixture-seeded and have no separate administration workflow. |
-| `OpsSupplierQuoteRequest`, `OpsSupplierQuote` | `supplier_ops` | `commercial`; request, submission, revision, selection, and withdrawal lifecycle. Deleting a request referenced by submitted quote evidence is restricted; requestId remains nullable for manually entered quotes. |
-| `OpsBillingSource`, `OpsBillingStatement`, `OpsPaymentMilestone`, `OpsPaymentRecord` | `finance_ops` | `commercial`; proposal-to-billing conversion, statements, milestones, and payment history. |
-| Commercial contract and billing models | finance_ops / supplier_ops | commercial; retains business decisions and scalar document IDs. Lifecycle alone owns document metadata and validates references through its public capability. Target schema: commercial. |
+| `OpsSupplier`, `OpsSupplierApplication`, `OpsSupplierCertification`, `OpsSupplierReview`, `OpsSupplierReliabilityNote` | `commercial` | `commercial`; supplier directory, onboarding, certification, review, and reliability policy. |
+| `OpsSupplierCategory`, `OpsSupplierReviewDimension`, `OpsSupplierReviewDimensionRating` | `commercial` | `commercial`; reference and review-dimension configuration. Some rows are currently fixture-seeded and have no separate administration workflow. |
+| `OpsSupplierQuoteRequest`, `OpsSupplierQuote` | `commercial` | `commercial`; request, submission, revision, selection, and withdrawal lifecycle. Deleting a request referenced by submitted quote evidence is restricted; requestId remains nullable for manually entered quotes. |
+| `OpsBillingSource`, `OpsBillingStatement`, `OpsPaymentMilestone`, `OpsPaymentRecord` | `commercial` | `commercial`; proposal-to-billing conversion, statements, milestones, and payment history. |
+| Commercial contract and billing models | commercial | commercial; retains business decisions and scalar document IDs. Lifecycle alone owns document metadata and validates references through its public capability. |
 
 ### Operations and live operations
 
 | Models | Physical schema | Write owner and boundary |
 | --- | --- | --- |
-| `OpsCoordinatorAssignment` | `staffing_ops` | `operations`; owns assignment, attendance, replacement, cancellation, acknowledgment, and reliability mutations. LiveOps and Lifecycle callers use the Operations capability; event decisions pass the initiating transaction context. |
-| `OpsGuestCheckIn`, `OpsGuestRosterEntry`, `OpsGuestFeedback`, `OpsGuestFeedbackMedia` | `guest_ops` | `operations`; guest roster identity/contact data, check-in, consent, feedback, moderation, and feedback filename metadata. Stored media bytes remain in the storage provider and are outside database redaction. |
-| `OpsGuestCheckIn`, `OpsGuestFeedback`, guest roster and registration records | `guest_ops` | `operations`; guest check-in, consent, feedback, moderation, roster and registration workflows. Event command checks use Lifecycle’s scoped reference capability; Commercial owns supplier/category/selection checks for registration links. |
-| `OpsCoordinator` | `staffing_ops` | Reference data is currently fixture-seeded and read through operations; add a real directory owner before introducing administration writes. |
-| OpsEventDayTask, OpsUrgentIssue, OpsEventDayLog | staffing_ops | live-ops; event-day task, issue, log, and escalation workflows. Target schema: live_ops. |
-| OpsCoordinatorReliabilityNote | staffing_ops | operations; coordinator reliability history, matching its focused writer. Target schema: operations. |
+| `OpsCoordinatorAssignment` | `operations` | `operations`; owns assignment, attendance, replacement, cancellation, acknowledgment, and reliability mutations. LiveOps and Lifecycle callers use the Operations capability; event decisions pass the initiating transaction context. |
+| `OpsGuestCheckIn`, `OpsGuestRosterEntry`, `OpsGuestFeedback`, `OpsGuestFeedbackMedia` | `operations` | `operations`; guest roster identity/contact data, check-in, consent, feedback, moderation, and feedback filename metadata. Stored media bytes remain in the storage provider and are outside database redaction. |
+| `OpsGuestCheckIn`, `OpsGuestFeedback`, guest roster and registration records | `operations` | `operations`; guest check-in, consent, feedback, moderation, roster and registration workflows. Event command checks use Lifecycle’s scoped reference capability; Commercial owns supplier/category/selection checks for registration links. |
+| `OpsCoordinator` | `operations` | Reference data is currently fixture-seeded and read through operations; add a real directory owner before introducing administration writes. |
+| OpsEventDayTask, OpsUrgentIssue, OpsEventDayLog | live_ops | live-ops; event-day task, issue, log, and escalation workflows. |
+| OpsCoordinatorReliabilityNote | operations | operations; coordinator reliability history, matching its focused writer. |
 
 ### Platform trust, notifications, and AI governance
 
 | Models | Physical schema | Write owner and boundary |
 | --- | --- | --- |
-| OpsAuditLog, OpsNotificationLog, OpsSecurityAlert, OpsPrivacyRequest, OpsLoginHistory | trust_ops, identity, and event_core as declared in Prisma | platform-ops; audit, outbox, security, privacy governance, and login history. Target schema: platform_ops. Each data owner executes redaction through a focused capability. |
-| OpsCommandReceipt | trust_ops | platform-ops owns technical receipt persistence behind the kernel `CommandReceiptStore` port. Business authorization and replay remain in the caller transaction; reservation, command writes, and completion are atomic. Target schema: platform_ops. |
-| `OpsPrivacyLegalHold` | `platform_ops` | `platform-ops`; PMCM-admin placement/release, subject and optional event scope, with release provenance. `event_id` is a scalar reference and has no cross-domain FK. Target schema: platform_ops. |
-| `OpsAiAuditLog`, `OpsAiApprovalRecord` | `trust_ops` | `platform-ops`; AI sanitisation, human approval, and governance records. |
+| OpsAuditLog, OpsNotificationLog, OpsSecurityAlert, OpsPrivacyRequest, OpsLoginHistory | platform_ops | platform-ops; audit, outbox, security, privacy governance, and login history. Each data owner executes redaction through a focused capability. |
+| OpsCommandReceipt | platform_ops | platform-ops owns technical receipt persistence behind the kernel `CommandReceiptStore` port. Business authorization and replay remain in the caller transaction; reservation, command writes, and completion are atomic. |
+| `OpsPrivacyLegalHold` | `platform_ops` | `platform-ops`; PMCM-admin placement/release, subject and optional event scope, with release provenance. `event_id` is a scalar reference and has no cross-domain FK. |
+| `OpsAiAuditLog`, `OpsAiApprovalRecord` | `platform_ops` | `platform-ops`; AI sanitisation, human approval, and governance records. |
 
 ## External-reference lifecycle
 
 The exact baseline foreign-key actions and additional scalar references are in
 the [external-reference lifecycle register](external-reference-lifecycle.md)
-and linked machine policy. This stack has 45 cross-domain foreign keys
-(38 CASCADE, 6 SET NULL, 1 RESTRICT) and 28 additional scalar references.
+and linked machine policy. The pre-cutover baseline had 45 cross-domain foreign
+keys (38 CASCADE, 6 SET NULL, 1 RESTRICT) and 28 additional scalar references.
 Those delete actions describe baseline database behavior, not approved
-retention policy. The schema cutover preserves the scalar references and
-removes cross-domain referential actions only after owner capabilities and the
-disposable replay are in place. The shared staging database has not been
-changed by this local branch.
+retention policy. The cutover migration removed all 45 constraints and kept the
+scalar references and indexes. It has been replayed on disposable PostgreSQL
+only; no shared or production database has run it.
 
 ## Intentional cross-context joins and writes
 
