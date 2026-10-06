@@ -131,6 +131,7 @@ model OpsUser {
   createdAt        DateTime  @default(now()) @map("created_at")
 
   passwordResetTokens OpsPasswordResetToken[]
+  approvalRequests    OpsApprovalRequest[]
 
   @@map("users")
   @@schema("identity_access")
@@ -179,7 +180,10 @@ model OpsApprovalRequest {
   marketingConsentAccepted Boolean  @default(false) @map("marketing_consent_accepted")
   requestedAt              DateTime @default(now()) @map("requested_at")
 
+  user OpsUser @relation(fields: [userId], references: [id], onDelete: Restrict, map: "approval_requests_user_id_fkey")
+
   @@index([status, requestedAt], map: "approval_requests_status_requested_at_idx")
+  @@index([userId], map: "approval_requests_user_id_idx")
   @@map("approval_requests")
   @@schema("identity_access")
 }
@@ -1770,9 +1774,11 @@ model OpsPareDispatch {
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  approvalRecord   OpsAiApprovalRecord? @relation(fields: [approvalRecordId], references: [id], onDelete: Restrict, map: "pare_dispatches_approval_record_id_fkey")
 
   @@unique([requestId, sourceUpdatedAt], map: "pare_dispatches_request_source_updated_key")
   @@index([eventId, status], map: "pare_dispatches_event_status_idx")
+  @@index([approvalRecordId], map: "pare_dispatches_approval_record_id_idx")
   @@index([status, nextAttemptAt], map: "pare_dispatches_status_next_attempt_idx")
   @@index([status, nextAttemptAt, createdAt, id], map: "pare_dispatches_worker_claim_idx")
   @@index([correlationId], map: "pare_dispatches_correlation_id_idx")
@@ -2006,6 +2012,7 @@ model OpsAiAuditLog {
   budgetDate            DateTime? @db.Date @map("budget_date")
   reservedTokens        Int      @default(0) @map("reserved_tokens")
 
+  approvals             OpsAiApprovalRecord[]
 
   @@index([eventId], map: "ai_audit_logs_event_id_idx")
   @@index([featureName, createdAt], map: "ai_audit_logs_feature_name_created_at_idx")
@@ -2042,6 +2049,8 @@ model OpsAiApprovalRecord {
   reviewPayload Json      @default("{}") @map("review_payload")
 
   conformeCommsDraft OpsConformeCommsDraft?
+  auditLog           OpsAiAuditLog @relation(fields: [aiAuditLogId], references: [id], onDelete: Restrict, map: "ai_approval_records_ai_audit_log_id_fkey")
+  dispatches         OpsPareDispatch[]
 
   @@index([aiAuditLogId], map: "ai_approval_records_ai_audit_log_id_idx")
   @@index([eventId], map: "ai_approval_records_event_id_idx")
