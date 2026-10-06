@@ -95,7 +95,7 @@ export class CommunicationService {
     const payloadHash = createHash('sha256').update(JSON.stringify({ threadId, senderId: verified.id, body })).digest('hex');
     return this.prisma.$transaction(async (tx) => {
       // QUERY_AUDIT_RAW_SQL: serialize message sequencing and idempotency checks for this thread.
-      await tx.$queryRaw`SELECT id FROM "supplier_ops"."communication_threads" WHERE id = ${threadId} FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM "commercial"."communication_threads" WHERE id = ${threadId} FOR UPDATE`;
       const membership = await tx.opsCommunicationParticipant.findFirst({ where: { threadId, actorId: verified.id!, active: true }, select: { id: true } });
       if (!membership) throw new ForbiddenException('Actor is no longer an active thread participant');
       const replay = await tx.opsCommunicationMessage.findUnique({ where: { threadId_idempotencyKey: { threadId, idempotencyKey: input.idempotencyKey } }, select: { id: true, threadId: true, senderId: true, senderRole: true, body: true, payloadHash: true, createdAt: true } });

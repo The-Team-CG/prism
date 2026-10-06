@@ -5,16 +5,19 @@ import { EventClosureService } from './event-closure.service';
 
 describe('EventClosureService.searchArchive', () => {
   it('rejects a client actor from archive search', async () => {
+    const access = {
+      requireActorRole: async (actor: { role: string }, roles: string[], resource: string) => {
+        if (!roles.includes(actor.role)) throw new ForbiddenException(`${actor.role} cannot access ${resource}`);
+      },
+    };
     const service = new EventClosureService(
       { opsEvent: { findMany: async () => [] } } as never,
       {} as never,
       {} as never,
       {} as never,
-      {
-        requireActorRole: async (actor: { role: string }, roles: string[], resource: string) => {
-          if (!roles.includes(actor.role)) throw new ForbiddenException(`${actor.role} cannot access ${resource}`);
-        },
-      } as never,
+      access as never,
+      {} as never,
+      {} as never,
       {} as never,
       {} as never,
     );

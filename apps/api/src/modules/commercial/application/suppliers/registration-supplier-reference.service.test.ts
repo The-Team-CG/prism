@@ -69,17 +69,17 @@ describe('RegistrationSupplierReferenceService', () => {
     });
     expect(queryRaw).toHaveBeenNthCalledWith(
       1,
-      'SELECT "id" FROM "supplier_ops"."suppliers" WHERE "id" = $1 FOR UPDATE',
+      'SELECT "id" FROM "commercial"."suppliers" WHERE "id" = $1 FOR UPDATE',
       'sup_1',
     );
     expect(queryRaw).toHaveBeenNthCalledWith(
       2,
-      'SELECT "id" FROM "supplier_ops"."supplier_categories" WHERE "id" = $1 FOR UPDATE',
+      'SELECT "id" FROM "commercial"."supplier_categories" WHERE "id" = $1 FOR UPDATE',
       'cat_1',
     );
     expect(queryRaw).toHaveBeenNthCalledWith(
       3,
-      'SELECT "id" FROM "supplier_ops"."supplier_quote_requests" WHERE "event_id" = $1 AND "supplier_id" = $2 AND "status" = $3 ORDER BY "id" LIMIT 1 FOR UPDATE',
+      'SELECT "id" FROM "commercial"."supplier_quote_requests" WHERE "event_id" = $1 AND "supplier_id" = $2 AND "status" = $3 ORDER BY "id" LIMIT 1 FOR UPDATE',
       'evt_1',
       'sup_1',
       'selected',

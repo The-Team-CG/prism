@@ -6,6 +6,7 @@ describe('OperationsEventReferenceService', () => {
   const event = {
     id: 'evt_1',
     eventName: 'Launch',
+    clientName: 'Client',
     eventDate: new Date('2026-08-01T00:00:00.000Z'),
     status: 'planning',
     archived: false,
@@ -24,7 +25,7 @@ describe('OperationsEventReferenceService', () => {
 
     await expect(service.findOperationsEvent(event.id, transaction)).resolves.toEqual(event);
     expect(queryRaw).toHaveBeenCalledWith(
-      'SELECT "id" FROM "event_core"."events" WHERE "id" = $1 FOR UPDATE',
+      'SELECT "id" FROM "event_lifecycle"."events" WHERE "id" = $1 FOR UPDATE',
       event.id,
     );
     expect(findUnique).toHaveBeenCalledWith({
@@ -32,6 +33,7 @@ describe('OperationsEventReferenceService', () => {
       select: {
         id: true,
         eventName: true,
+        clientName: true,
         eventDate: true,
         status: true,
         archived: true,
@@ -64,6 +66,7 @@ describe('OperationsEventReferenceService', () => {
       select: {
         id: true,
         eventName: true,
+        clientName: true,
         eventDate: true,
         status: true,
         archived: true,
@@ -114,6 +117,7 @@ describe('OperationsEventReferenceService', () => {
       select: {
         id: true,
         eventName: true,
+        clientName: true,
         eventDate: true,
         status: true,
         archived: true,

@@ -5,8 +5,9 @@ import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/ker
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { PARTICIPANT_FACTS, type ParticipantEventFacts, type ParticipantFactsReader } from '@prism/contexts/read-models/participant-facts';
 import type { ParticipantReader } from '../../contracts/participant-reader.port';
+import { canonicalAccountEmail } from '../auth/account-email';
 
-function normalizeEmail(value: string) { return value.trim().toLowerCase(); }
+const normalizeEmail = canonicalAccountEmail;
 const activeSupplierStatuses = ['confirmed', 'pending_confirmation'];
 
 function toPolicyEvent(facts: ParticipantEventFacts) {
@@ -20,6 +21,7 @@ export class ParticipantReaderService implements ParticipantReader {
     private readonly policy: EventAccessPolicyService,
     @Inject(PARTICIPANT_FACTS) private readonly factsReader: ParticipantFactsReader,
   ) {}
+
 
   async resolveForEvent(actorId: string, eventId: string, db?: Prisma.TransactionClient): Promise<ResolvedEventOpsActor> {
     const [user, event] = await Promise.all([

@@ -45,7 +45,8 @@ export function domainPersistenceCatalog(manifest, { final = false } = {}) {
     throw new Error('domain ownership manifest must contain ownership rows');
   }
 
-  const tables = manifest.ownership.map((entry) => {
+  const activeOwnership = manifest.ownership.filter((entry) => final || !entry.introducedAfterCutover);
+  const tables = activeOwnership.map((entry) => {
     const schema = final ? entry.targetSchema : entry.currentSchema;
     if (!schema || !entry.table || !entry.domain || !entry.model) {
       throw new Error('domain ownership row for ' + (entry.model ?? '(unknown model)') + ' is incomplete');

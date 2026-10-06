@@ -4,12 +4,12 @@ title: "P.R.I.S.M context contracts"
 description: "Current public context surfaces, dependency direction, read-model composition, and focused seams in the Prism modular monolith."
 tags: [architecture, contracts, boundaries, ddd]
 status: canonical
-updated: "2026-10-05"
+updated: "2026-10-06"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, backend-engineers, reviewers]
 scope: "apps/api/src/modules and kernel seams"
-last_verified: "2026-10-05 participant event facts use a DatabaseModule-only read submodule; behavior suite deferred"
+last_verified: "2026-10-06 local s11-cutover review; owner readers and context dependency direction checked against current module exports"
 sources:
   - id: context-source
     resource: "apps/api/src/modules"
@@ -95,9 +95,12 @@ reference and same-event agreement in the command transaction. The initiating
 context still authorizes its actor. Historical attribution is retained without
 becoming current authorization. See the [external-reference lifecycle
 register](external-reference-lifecycle.md) and the machine policy at
-apps/api/prisma/domain-reference-policy.json. The inventory covers 45 current
-cross-domain foreign keys and 28 additional scalar references; no FK removal
-is implied.
+apps/api/prisma/domain-reference-policy.json. The reviewed staging baseline
+contained 45 cross-domain foreign keys and 28 additional scalar references.
+The coordinated domain-schema cutover removes those 45 constraints after
+owner-reference validation is in place; the target database retains only
+same-domain foreign keys. Cross-domain scalar references remain subject to
+the owner validation and recovery rules in the policy register.
 
 ## Technical kernel surfaces
 

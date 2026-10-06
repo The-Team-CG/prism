@@ -1,4 +1,4 @@
-import { Inject, Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, BadRequestException, ForbiddenException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import type { OpsGuestCheckIn, OpsGuestFeedback, OpsGuestRosterEntry, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
@@ -355,6 +355,8 @@ export class GuestWorkflowService implements GuestCommands {
       return this.prisma.$transaction(async (tx) => {
       const event = await this.eventReferences.findOperationsEvent(eventId, { prisma: tx, correlationId: batchId });
       if (!event) throw new NotFoundException('Event not found');
+      // The batch row must exist before roster entries reference it (same-event composite foreign key).
+      await tx.opsGuestRosterImport.create({ data: { id: batchId, eventId, source: input.source, importedById: actor.id ?? null, importedBy: actor.name, rowCount: input.rows.length, rawFileUploadBlocked: true } });
       const keys = input.rows.map((row) => row.sourceKey);
       // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: input is capped at 1000 rows by the shared contract.
       const rows = [];
@@ -370,7 +372,6 @@ export class GuestWorkflowService implements GuestCommands {
           }))));
       }
       await tx.opsGuestRosterEntry.updateMany({ where: { eventId, source: input.source, sourceKey: { notIn: keys }, withdrawnAt: null }, data: { withdrawnAt: new Date() } });
-      await tx.opsGuestRosterImport.create({ data: { id: batchId, eventId, source: input.source, importedById: actor.id ?? null, importedBy: actor.name, rowCount: rows.length, rawFileUploadBlocked: true } });
       await writeAudit(this.auditWriter, eventId, actor.name, 'Guest roster imported and reconciled', { actorRole: actor.role, category: AuditCategory.Events, actionType: AuditActionType.Update, affectedType: 'guest_roster', affectedId: eventId, metadata: { batchId, rowCount: rows.length, source: input.source, actorId: actor.id, rawFileUploadBlocked: true } }, { prisma: tx, correlationId: batchId });
       return rows.map((row) => this.mapGuestRosterEntry(row));
     });
@@ -601,14 +602,16 @@ export class GuestWorkflowService implements GuestCommands {
   }
 
   private async resolveCheckInGuestName(eventId: string, input: GuestCheckInInput) {
-    const rosterConfigured = await this.prisma.opsGuestRosterEntry?.findFirst({ where: { eventId, withdrawnAt: null } });
+    const rosterDelegate = this.prisma.opsGuestRosterEntry;
+    if (!rosterDelegate) throw new ServiceUnavailableException('Guest roster persistence is unavailable');
+    const rosterConfigured = await rosterDelegate.findFirst({ where: { eventId, withdrawnAt: null } });
     if (rosterConfigured && !input.rosterEntryId && !input.walkIn) throw new BadRequestException('Select an eligible roster entry for check-in');
     if (!input.rosterEntryId) {
       const name = input.guestName?.trim();
       if (!name) throw new BadRequestException('Guest name is required');
       return name;
     }
-    const roster = await this.prisma.opsGuestRosterEntry?.findFirst({ where: { id: input.rosterEntryId, eventId, withdrawnAt: null } });
+    const roster = await rosterDelegate.findFirst({ where: { id: input.rosterEntryId, eventId, withdrawnAt: null } });
     if (!roster || roster.eligibility !== 'eligible' || roster.verificationStatus === 'rejected') throw new BadRequestException('Roster entry is not eligible for check-in');
     return roster.guestName;
   }

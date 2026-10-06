@@ -14,6 +14,7 @@ import {
 } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
+import { ACCOUNT_CONTACT_READ_MODEL, type AccountContactReadModel } from '@prism/contexts/read-models/account-contacts';
 import type {
   CreateEventDayTaskInput,
   CreateEventTaskReassignmentInput,
@@ -74,6 +75,7 @@ export class LiveOpsTaskIssueCommandService {
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     private readonly workflowCommandService: WorkflowCommandService,
+    @Inject(ACCOUNT_CONTACT_READ_MODEL) private readonly accountContacts: AccountContactReadModel,
   ) {}
   async createEventDayTask(eventId: string, input: CreateEventDayTaskInput, actor: LiveOpsActor) {
     const prisma = this.requirePrisma();
@@ -295,13 +297,15 @@ export class LiveOpsTaskIssueCommandService {
   }
 
   private async resolveUserEmailByRole(role: string) {
-    const user = await this.prisma.opsUser.findFirst({ where: { role, approvalStatus: 'approved' }, orderBy: { createdAt: 'asc' }, select: { email: true } });
-    return user?.email?.trim().toLowerCase().includes('@') ? user.email.trim().toLowerCase() : null;
+    const email = await this.accountContacts.findApprovedEmailByRole(role);
+    const normalized = email?.trim().toLowerCase();
+    return normalized?.includes('@') ? normalized : null;
   }
 
   private async resolveUserEmailByName(name: string) {
-    const user = await this.prisma.opsUser.findFirst({ where: { name, approvalStatus: 'approved' }, select: { email: true } });
-    return user?.email?.trim().toLowerCase().includes('@') ? user.email.trim().toLowerCase() : null;
+    const email = await this.accountContacts.findApprovedEmailByName(name);
+    const normalized = email?.trim().toLowerCase();
+    return normalized?.includes('@') ? normalized : null;
   }
 
   async createUrgentIssue(eventId: string, input: CreateUrgentIssueInput, actor: LiveOpsActor) {

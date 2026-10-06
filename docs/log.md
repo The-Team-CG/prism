@@ -1,5 +1,14 @@
 # Documentation bundle update log
 
+## 2026-10-06
+
+- **Reconciled:** Updated the canonical schema map to the final staging source layout: seven owner schemas, 93 tables, 1,181 columns, 75 same-domain foreign keys, and no cross-domain foreign keys. Clarified that shared database application is a separate operational action.
+- **Extended:** Recorded the new Lifecycle-owned floorplan grant in `event_lifecycle`, after the schema cutover; the target inventory is 94 tables, 1,191 columns, and 76 same-domain foreign keys.
+- **Mapped:** Added before/after schema diagrams and refreshed the 93-table / 1,181-column owner inventory. The baseline is ten physical schemas with mixed ownership; the target is seven domain schemas, one per write owner.
+- **Rehearsed:** On a disposable synthetic PostgreSQL clone, replayed the four pending forward migrations and the cutover SQL. All 93 manifest tables preserved relation OIDs, row counts, and index counts; the final catalog had 68 same-schema foreign keys and zero cross-schema foreign keys. This used psql because Prisma deploy authentication was unavailable; it did not modify staging or production.
+- **Bounded:** Floorplan draft batches now use `row_number()` partitioned by event ID, so one event cannot consume another event's draft limit. A rollback-only PostgreSQL fixture selected the newest draft independently for two events; four focused API suites passed (33 tests).
+- **Still required:** A Prisma `migrate deploy` run, preflight artifact on a completed migration ledger, representative sanitized dataset, and alternate-database restore rehearsal remain unverified.
+
 ## 2026-10-05
 
 - **Aligned:** Added the approved Platform legal-hold table to the DDD cutover ownership manifest, preflight/backup inventory expectations, and migration history; it remains in `platform_ops` and does not change the planned namespace or cross-domain FK cutover.
@@ -272,3 +281,21 @@
 - **Enforced:** added Commercial quote-request orphan preflight and a same-domain FK that preserves submitted bid evidence by restricting deletion of referenced requests.
 - **Aligned:** declared the existing GIN, composite event-date, and partial active-event indexes in Prisma for exact migration/schema parity.
 - **Updated:** documented the PostgreSQL 16 migration replay/equivalence workflow and preflight guidance for schema changes.
+- **Aligned:** updated the context contract and cutover runbook to describe the completed local schema migration and its verification limits; recorded that no tables or columns were removed and linked the evidence-based trim candidate register.
+- **Corrected:** replaced the legacy ten-schema tables in the persistence ownership register and migration runbook with the seven owner schemas, and updated the audit-chain runbook scope.
+- **Recorded:** documented the guest endpoint abuse limits.
+- **Added:** the database roles and audit privileges runbook.
+- **Recorded:** documented the AI governance provenance foreign keys.
+- **Recorded:** documented the approval request to account foreign key.
+- **Recorded:** documented the Lifecycle row-level CHECK constraints.
+- **Recorded:** documented the LiveOps row-level CHECK constraints.
+- **Recorded:** documented the Operations row-level CHECK constraints.
+- **Recorded:** documented the structured JSON column shape checks and the floorplan canvas authority.
+- **Recorded:** documented the LiveOps same-event foreign keys.
+- **Recorded:** documented the Operations guest provenance foreign keys.
+- **Recorded:** documented the Commercial same-event composite foreign keys in the persistence ownership register.
+- **Recorded:** documented the Commercial row-level CHECK constraints.
+- **Recorded:** documented the one-active-draft rule for official floorplans.
+- **Recorded:** logged the quote-request link lifecycle.
+- **Recorded:** documented the canonical account email rule in the persistence ownership register.
+- **Recorded:** logged the registration-platform index removal.

@@ -26,3 +26,4 @@ export * from './application/queries/closeout-issue-reader';
 export * from './application/services/event-read-models.service';
 export * from './application/services/live-ops-read-models.service';
 export * from './application/services/platform-reference-read-models.service';
+export * from './commercial-facts-reader';

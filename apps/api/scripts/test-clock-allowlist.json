@@ -1,5 +1,12 @@
 {
   "files": {
+    "event-lifecycle/application/onboarding/operations-event-reference.service.test.ts": "actualEndedAt is a required-shape fixture field returned by a mocked reader; no elapsed-time rule is exercised.",
+    "event-lifecycle/application/onboarding/post-event-lifecycle-state-reader.service.test.ts": "actualEndedAt is a fixture value compared for presence only; no current-clock comparison is exercised.",
+    "identity-access/application/auth/auth-operations.service.test.ts": "Challenge and lockout expiry fixtures are fixed offsets from Date.now (1 ms to 10 minutes), so no absolute calendar date drives an assertion.",
+    "operations/application/guest/walk-in-policy.service.test.ts": "actualEndedAt is a required-state fixture; the policy compares thresholds, not elapsed time.",
+    "operations/application/staffing/coordinator-suggestions.service.test.ts": "actualEndedAt is a required-shape fixture field; suggestions rank by availability and are not time-sensitive.",
+    "operations/application/staffing/coordinators.service.integration.test.ts": "actualEndedAt is a required-shape fixture field; event dates are persisted setup data with no live-clock assertion.",
+    "read-models/lifecycle-facts/lifecycle-facts-reader.service.test.ts": "Planned and actual end values are projected fixture fields and are never compared with the current clock.",
     "operations/application/guest/registration-platform.service.test.ts": "actualEndedAt is used only as a required-state fixture; registration platform production code checks presence, not elapsed time.",
     "operations/application/staffing/coordinators.service.test.ts": "Coordinator dates are event and persistence fixtures; the reminder sweep is not exercised.",
     "live-ops/application/live-operations.service.test.ts": "The current-time assertion is already covered by a fake clock; the remaining dates are fixture metadata.",

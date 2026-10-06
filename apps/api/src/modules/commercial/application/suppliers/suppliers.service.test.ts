@@ -4,6 +4,14 @@ import { describe, expect, it, vi } from 'vitest';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { SuppliersService } from './suppliers.service';
 
+const eventReferences = {
+  findOperationsEvents: async () => [],
+} as any;
+const commercialFacts = {
+  findSupplierReviewEventEligibility: vi.fn(async (_eventId: string, client?: any) =>
+    client ? client.opsEvent.findUnique({ where: { id: _eventId } }) : { id: _eventId, status: 'closed', actualEndedAt: new Date('2026-01-02') }),
+} as any;
+
 function makeP2002(target: string[] | string): unknown {
   const error = Object.create(Prisma.PrismaClientKnownRequestError.prototype);
   error.code = 'P2002';
@@ -50,7 +58,7 @@ describe('SuppliersService', () => {
       },
     };
 
-    const service = new SuppliersService(prisma as any);
+    const service = new SuppliersService(prisma as any, eventReferences, commercialFacts);
     const supplier = await service.resolveQuoteSupplier({ categoryId: 'cat_av' });
 
     if (!supplier) throw new Error('Expected tier 1 supplier to resolve');
@@ -67,7 +75,7 @@ describe('SuppliersService', () => {
       },
     };
 
-    const service = new SuppliersService(prisma as any);
+    const service = new SuppliersService(prisma as any, eventReferences, commercialFacts);
 
     await expect(service.resolveQuoteSupplier({ categoryId: 'cat_doc' })).rejects.toBeInstanceOf(
       BadRequestException,
@@ -91,7 +99,7 @@ describe('SuppliersService', () => {
       },
     };
 
-    const service = new SuppliersService(prisma as any);
+    const service = new SuppliersService(prisma as any, eventReferences, commercialFacts);
     const result = await service.addSupplierReview('sup_1', {
       rating: 5,
       eventId: 'evt_1', notes: 'Great work',
@@ -108,6 +116,8 @@ describe('SuppliersService', () => {
 
   it('uses the transaction client for eligibility, dimensions, persistence, and result reads', async () => {
     const rootEvent = async () => { throw new Error('root client must not be used'); };
+    const findEligibility = vi.fn(async (_eventId: string, client: any) => client.opsEvent.findUnique({ where: { id: _eventId } }));
+    const facts = { ...commercialFacts, findSupplierReviewEventEligibility: findEligibility };
     const rootDimensions = async () => { throw new Error('root client must not be used'); };
     const tx = {
       opsSupplier: { findUnique: async () => baseSupplierRow() },
@@ -125,7 +135,7 @@ describe('SuppliersService', () => {
       opsSupplierReviewDimension: { findMany: rootDimensions },
       opsSupplierReview: { create: async () => ({ id: 'review_root' }) },
     };
-    const service = new SuppliersService(root as never);
+    const service = new SuppliersService(root as never, eventReferences, facts);
 
     const result = await service.addSupplierReview('sup_1', { eventId: 'evt_1', rating: 5, notes: 'Tx' }, 'Reviewer Two', {
       prisma: tx as never,
@@ -133,6 +143,7 @@ describe('SuppliersService', () => {
     } satisfies PrismTransactionContext);
 
     expect(result.reviewId).toMatch(/^review_/);
+    expect(findEligibility).toHaveBeenCalledWith('evt_1', tx);
   });
 
   it('replays a completed supplier promotion after the supplier tier changes', async () => {
@@ -157,7 +168,7 @@ describe('SuppliersService', () => {
         create: createPromotion,
       },
     };
-    const service = new SuppliersService(prisma as never);
+    const service = new SuppliersService(prisma as never, eventReferences, commercialFacts);
     const input = { eventId: 'evt_1', tier: 'tier_1' as const, reason: 'Completed assessment', idempotencyKey: 'promotion-key-1' };
 
     const first = await service.promoteSupplier('sup_1', input, 'Verified Reviewer');
@@ -171,7 +182,7 @@ describe('SuppliersService', () => {
     expect(createPromotion).toHaveBeenCalledTimes(1);
   });
   it('maps an existing review with no dimension ratings back without error', () => {
-    const service = new SuppliersService({} as any);
+    const service = new SuppliersService({} as any, eventReferences, commercialFacts);
     const mapped = service.mapSupplier({
       id: 'sup_1',
       name: 'Acme AV',
@@ -218,7 +229,7 @@ describe('SuppliersService', () => {
       },
     };
 
-    const service = new SuppliersService(prisma as any);
+    const service = new SuppliersService(prisma as any, eventReferences, commercialFacts);
     const result = await service.addSupplierReview('sup_1', {
       eventId: 'evt_1', rating: 5,
       notes: 'Retry',
@@ -244,7 +255,7 @@ describe('SuppliersService', () => {
       },
     };
 
-    const service = new SuppliersService(prisma as any);
+    const service = new SuppliersService(prisma as any, eventReferences, commercialFacts);
 
     await expect(
         service.addSupplierReview('sup_1', { eventId: 'evt_1', rating: 5, notes: 'Retry', idempotencyKey: 'draft-key-1' }, 'Reviewer Four'),

@@ -2,12 +2,14 @@ import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundEx
 import type { OpsSupplier, OpsSupplierCategory, OpsSupplierQuote, OpsSupplierQuoteRequest, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole, SupplierQuoteRequestStatus, SupplierQuoteStatus, WorkflowCommandService, isOpsConstantValue } from '@prism/kernel/event-core';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import {
+  QUOTE_ACCESS_TOKEN_TTL_DAYS,
+  isQuoteAccessTokenUsable,
   isSupplierQuoteLocked,
   isSupplierQuoteRequestClosed,
   resolveExpiredQuoteRequestStatus,
@@ -174,7 +176,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
           });
           // Transaction scope: DB reads/writes only. No external IO inside this callback.
           const requestData = suppliersToRequest.map((supplier) => {
-            const token = randomUUID();
+            const token = randomBytes(32).toString('base64url');
             return {
               id: `qr_${randomUUID()}`,
               eventId,
@@ -184,6 +186,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
               category: category!.name,
               dueDate,
               accessToken: token,
+              accessTokenExpiresAt: new Date(Date.now() + QUOTE_ACCESS_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000),
               confidentialBid: Boolean(input.confidentialBid),
               message: input.confidentialBid
                 ? `${event!.eventName} quote request with client details hidden until selection.`
@@ -331,7 +334,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
 
   async getQuoteRequestByToken(token: string): Promise<QuoteRequestTokenDetail> {
     const request = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { accessToken: token } });
-    if (!request) throw new NotFoundException('Quote request not found');
+    if (!request || !isQuoteAccessTokenUsable(request)) throw new NotFoundException('Quote request not found');
 
     const requestWithStatus = await this.expireQuoteRequestIfNeeded(request);
     const [event, quote] = await Promise.all([
@@ -493,7 +496,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
       name: requestedMode === 'submit' ? 'submit_supplier_quote_by_token' : 'revise_supplier_quote_by_token',
       validateState: async () => {
         const foundRequest = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { accessToken: token } });
-        if (!foundRequest) throw new NotFoundException('Quote request not found');
+        if (!foundRequest || !isQuoteAccessTokenUsable(foundRequest)) throw new NotFoundException('Quote request not found');
 
         request = await this.expireQuoteRequestIfNeeded(foundRequest);
         if (isSupplierQuoteRequestClosed(request.status)) {

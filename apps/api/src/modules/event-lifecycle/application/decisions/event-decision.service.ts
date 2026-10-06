@@ -12,6 +12,7 @@ import {
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import type { EventDecisionInput } from '@prism/types';
 import { STAFFING_COMMANDS, type StaffingCommands } from '@prism/contexts/operations';
+import { EVENT_DECISION_SUPPLIER_OWNER, type EventDecisionSupplierOwner } from '@prism/contexts/commercial';
 
 @Injectable()
 export class EventDecisionService {
@@ -21,6 +22,7 @@ export class EventDecisionService {
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationWriter: NotificationOutboxWriter,
     @Inject(STAFFING_COMMANDS) private readonly staffingCommands: StaffingCommands,
+    @Inject(EVENT_DECISION_SUPPLIER_OWNER) private readonly supplierDecisionOwner: EventDecisionSupplierOwner,
   ) {}
 
   async list(eventId: string, actor: ResolvedEventOpsActor) {
@@ -63,30 +65,11 @@ export class EventDecisionService {
     prisma: Prisma.TransactionClient | PrismaService = this.prisma,
   ) {
     if (replay.eventId !== eventId) throw new BadRequestException('Decision idempotency key belongs to another event');
-    const impact = replay.financialImpact;
-    const storedImpact = impact && typeof impact === 'object' && !Array.isArray(impact) ? impact : {};
+    const storedImpact = this.asJsonRecord(replay.financialImpact);
     const hasStoredNewEventDate = Object.prototype.hasOwnProperty.call(storedImpact, 'newEventDate');
-    let targetDateMatches = (storedImpact.newEventDate ?? null) === (input.newEventDate ?? null);
-    if (!hasStoredNewEventDate) {
-      const assignmentImpact = replay.assignmentImpact;
-      const storedAssignmentImpact = assignmentImpact && typeof assignmentImpact === 'object' && !Array.isArray(assignmentImpact)
-        ? assignmentImpact
-        : {};
-      const reschedule = storedAssignmentImpact.reschedule;
-      const storedReschedule = reschedule && typeof reschedule === 'object' && !Array.isArray(reschedule) ? reschedule : {};
-      const storedTarget = storedReschedule.toDate;
-      if (typeof storedTarget === 'string') {
-        targetDateMatches = Boolean(input.newEventDate && this.sameEventDate(input.newEventDate, storedTarget));
-      } else if (replay.decision === 'postponed' && input.newEventDate) {
-        // Legacy records did not persist the requested date in financialImpact.
-        // Use the persisted reschedule impact when present; otherwise current event
-        // state is the only available proof and may reject a replay after later changes.
-        const currentEvent = await prisma.opsEvent.findUnique({ where: { id: eventId }, select: { eventDate: true } });
-        targetDateMatches = Boolean(currentEvent && this.sameEventDate(input.newEventDate, currentEvent.eventDate));
-      } else {
-        targetDateMatches = !input.newEventDate;
-      }
-    }
+    const targetDateMatches = hasStoredNewEventDate
+      ? (storedImpact.newEventDate ?? null) === (input.newEventDate ?? null)
+      : await this.legacyTargetDateMatches(replay, eventId, input, prisma);
     const samePayload = replay.decision === input.decision
       && replay.reason === input.reason
       && replay.supplierImpact === input.supplierImpact
@@ -95,6 +78,31 @@ export class EventDecisionService {
       && targetDateMatches;
     if (!samePayload) throw new BadRequestException('Decision idempotency key was reused for different content');
     return replay;
+  }
+
+  private asJsonRecord(value: unknown): Record<string, unknown> {
+    return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  }
+
+  private async legacyTargetDateMatches(
+    replay: OpsEventDecision,
+    eventId: string,
+    input: EventDecisionInput,
+    prisma: Prisma.TransactionClient | PrismaService,
+  ): Promise<boolean> {
+    const storedReschedule = this.asJsonRecord(this.asJsonRecord(replay.assignmentImpact).reschedule);
+    const storedTarget = storedReschedule.toDate;
+    if (typeof storedTarget === 'string') {
+      return Boolean(input.newEventDate && this.sameEventDate(input.newEventDate, storedTarget));
+    }
+    if (replay.decision === 'postponed' && input.newEventDate) {
+      // Legacy records did not persist the requested date in financialImpact.
+      // Use the persisted reschedule impact when present; otherwise current event
+      // state is the only available proof and may reject a replay after later changes.
+      const currentEvent = await prisma.opsEvent.findUnique({ where: { id: eventId }, select: { eventDate: true } });
+      return Boolean(currentEvent && this.sameEventDate(input.newEventDate, currentEvent.eventDate));
+    }
+    return !input.newEventDate;
   }
 
   private sameEventDate(requestedDate: string, storedDate: Date | string): boolean {
@@ -128,22 +136,20 @@ export class EventDecisionService {
     nextDate: Date,
     actor: ResolvedEventOpsActor,
   ) {
+    const transactionContext = {
+      prisma: tx,
+      correlationId: `event-decision:${eventId}:${input.idempotencyKey ?? input.decision}`,
+      actorId: actor.id,
+    };
     const assignmentImpact = await this.staffingCommands.applyEventDecisionAssignments(
       eventId,
       input,
       currentDate.toISOString(),
       nextDate.toISOString(),
       actor,
-      {
-        prisma: tx,
-        correlationId: `event-decision:${eventId}:${input.idempotencyKey ?? input.decision}`,
-        actorId: actor.id,
-      },
+      transactionContext,
     );
-    const supplierRows = await tx.opsSupplierQuoteRequest.findMany({
-      where: { eventId, assignmentStatus: { not: 'withdrawn' } },
-      select: { id: true, supplierName: true, assignmentStatus: true },
-    });
+    const supplierRows = await this.supplierDecisionOwner.findEventDecisionSupplierImpact(eventId, transactionContext);
     return {
       supplierRows,
       assignmentImpact,
@@ -161,7 +167,12 @@ export class EventDecisionService {
 
   private async applyTransition(tx: Prisma.TransactionClient, eventId: string, input: EventDecisionInput, impacts: Awaited<ReturnType<EventDecisionService['loadImpacts']>>, nextDate: Date) {
     await tx.opsEvent.update({ where: { id: eventId }, data: { status: input.decision, eventDate: nextDate } });
-    if (input.decision === 'cancelled' || input.supplierImpact === 'release_obligations') await tx.opsSupplierQuoteRequest.updateMany({ where: { id: { in: impacts.supplierRows.map((row) => row.id) } }, data: { assignmentStatus: 'withdrawn' } });
+    if (input.decision === 'cancelled' || input.supplierImpact === 'release_obligations') {
+      await this.supplierDecisionOwner.releaseEventSupplierObligations(eventId, {
+        prisma: tx,
+        correlationId: `event-decision:${eventId}:${input.idempotencyKey ?? input.decision}`,
+      });
+    }
   }
 
   private async queueNotification(tx: Prisma.TransactionClient, event: Awaited<ReturnType<EventDecisionService['requireEvent']>>, eventId: string, input: EventDecisionInput, decisionId: string) {

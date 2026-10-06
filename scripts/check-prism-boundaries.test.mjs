@@ -184,6 +184,20 @@ describe("findBoundaryViolations", () => {
     }
   });
 
+  it("allows focused account, commercial, and lifecycle read-model entrypoints only", () => {
+    const path = "apps/api/src/modules/event-lifecycle/application/compliance/compliance-workflow.service.ts";
+    for (const imported of [
+      "@prism/contexts/read-models/account-contacts",
+      "@prism/contexts/read-models/commercial-facts-reader",
+      "@prism/contexts/read-models/lifecycle-facts",
+    ]) {
+      assert.deepEqual(findBoundaryViolations({ [path]: `import { reader } from \"${imported}\";` }), []);
+      assert.deepEqual(findBoundaryViolations({ [path]: `import { reader } from \"${imported}/private\";` }), [
+        `${path}: backend code must use public context and kernel entrypoints`,
+      ]);
+    }
+  });
+
   it("allows Operations to check linked coordinator identity through the public Identity seam", () => {
     const path = "apps/api/src/modules/operations/application/staffing/coordinator-assignment-command.service.ts";
     assert.deepEqual(findBoundaryViolations({ [path]:

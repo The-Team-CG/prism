@@ -313,6 +313,8 @@ databaseSuite("actor-scoped event reads PostgreSQL behavior", () => {
         policy,
         {} as never,
         {} as never,
+        {} as never,
+        {} as never,
       );
       const archivedHits = await archiveService.searchArchive(
         {},

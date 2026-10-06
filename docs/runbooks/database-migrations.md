@@ -85,9 +85,10 @@ The owner-to-schema policy is in
 and the domain explanation is in the
 [persistence ownership register](../architecture/persistence-ownership.md).
 The current policy buckets are `event-lifecycle`, `commercial`, `operations`,
-`live-ops`, `floorplan`, `identity-access`, and `platform-ops`. `staffing_ops`
-is intentionally shared by `operations` and `live-ops`; a physical schema is
-not blanket permission to change another context's tables.
+`live-ops`, `floorplan`, `identity-access`, and `platform-ops`. Each owns exactly
+one schema (`event_lifecycle`, `commercial`, `operations`, `live_ops`, `floorplan`,
+`identity_access`, `platform_ops`); a schema is not permission to change another
+context's tables.
 
 New migrations use a name such as:
 
@@ -115,14 +116,11 @@ The owning reviewer must still inspect locks, row counts, foreign keys, RLS,
 backfill duration, and application compatibility; the static level is a gate,
 not a deployment approval.
 
-The shared `staffing_ops` schema has explicit table-owner mappings in the
-policy. `operations` owns coordinator and coverage tables; `live-ops` owns
-event-day task, schedule, handoff, issue, log, and reliability tables;
-assignment and acknowledgement history remain explicit transitional exceptions.
-New tables in `staffing_ops` need a policy mapping in the same reviewed change.
-Other documented physical/logical mismatches, such as platform trust tables in
-`identity`, are also explicit table exceptions rather than blanket schema
-permission.
+Migrations before the cutover keep their original schema names (`event_core`,
+`supplier_ops`, `finance_ops`, `staffing_ops`, `guest_ops`, `compliance_ops`,
+`trust_ops`, `identity`) under the frozen historical policy; the cutover
+migration moves the tables. New tables go in the owner's schema and need a
+table mapping in the same reviewed change.
 
 The guard fails closed for procedural or otherwise unsupported migration SQL,
 including `DO` blocks, dynamic `EXECUTE`, stored function/procedure definitions,

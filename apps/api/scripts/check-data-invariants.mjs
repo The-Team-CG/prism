@@ -211,7 +211,7 @@ export function validateInvariantDeclarations(declarations) {
 
 export function loadInvariantDeclarations(
   declarationsPath = DEFAULT_DECLARATIONS_PATH,
-  { final = false, ownershipManifest = loadOwnershipManifest() } = {},
+  { final = true, ownershipManifest = loadOwnershipManifest() } = {},
 ) {
   let declarations;
   try {
@@ -317,13 +317,14 @@ export function formatTextReport(report) {
 }
 
 function parseArguments(argv) {
-  const allowed = new Set(['--dry-run', '--json', '--final']);
+  const allowed = new Set(['--dry-run', '--json', '--final', '--pre-cutover']);
   const unknown = argv.filter((argument) => !allowed.has(argument));
   if (unknown.length > 0) throw new Error(`unknown argument(s): ${unknown.join(', ')}`);
   return {
     dryRun: argv.includes('--dry-run'),
     json: argv.includes('--json'),
-    final: argv.includes('--final'),
+    // The seven-schema layout is current; --pre-cutover renders the legacy namespaces for an unmigrated copy.
+    final: !argv.includes('--pre-cutover'),
   };
 }
 
