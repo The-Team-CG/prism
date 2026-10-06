@@ -266,6 +266,13 @@ that reference it.
 | OpsEventDayTask, OpsUrgentIssue, OpsEventDayLog | live_ops | live-ops; event-day task, issue, log, and escalation workflows. |
 | OpsCoordinatorReliabilityNote | operations | operations; coordinator reliability history, matching its focused writer. |
 
+LiveOps event-day records agree with their parent on the event through
+composite same-schema foreign keys on `(id, event_id)`: a task reassignment
+request to its task, and a handoff or end-of-day report to its schedule day. They
+use `RESTRICT` because they are event-day evidence and nothing in the application
+deletes them. Assignment IDs on handoffs stay external references with no foreign
+key; Operations validates them through its capability.
+
 ### Platform trust, notifications, and AI governance
 
 | Models | Physical schema | Write owner and boundary |
