@@ -281,3 +281,4 @@
 - **Updated:** documented the PostgreSQL 16 migration replay/equivalence workflow and preflight guidance for schema changes.
 - **Aligned:** updated the context contract and cutover runbook to describe the completed local schema migration and its verification limits; recorded that no tables or columns were removed and linked the evidence-based trim candidate register.
 - **Corrected:** replaced the legacy ten-schema tables in the persistence ownership register and migration runbook with the seven owner schemas, and updated the audit-chain runbook scope.
+- **Recorded:** documented the one-active-draft rule for official floorplans.
