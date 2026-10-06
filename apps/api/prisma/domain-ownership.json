@@ -3,8 +3,8 @@
     "totalTables": 93,
     "targetSchemas": 7,
     "tableMoves": 83,
-    "currentCrossSchemaFks": 49,
-    "targetSameDomainFks": 72,
+    "currentCrossSchemaFks": 50,
+    "targetSameDomainFks": 75,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -1185,6 +1185,22 @@
     },
     {
       "schema": "finance_ops",
+      "table": "billing_corrections",
+      "name": "billing_corrections_statement_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (statement_id, event_id) REFERENCES finance_ops.billing_statements(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "statement_id",
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "finance_ops",
+      "targetTable": "billing_statements",
+      "sameDomain": true
+    },
+    {
+      "schema": "finance_ops",
       "table": "billing_disputes",
       "name": "billing_disputes_event_id_fkey",
       "kind": "f",
@@ -1197,6 +1213,38 @@
       "targetCurrentSchema": "event_core",
       "targetTable": "events",
       "sameDomain": false
+    },
+    {
+      "schema": "finance_ops",
+      "table": "billing_disputes",
+      "name": "billing_disputes_milestone_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (milestone_id, event_id) REFERENCES finance_ops.payment_milestones(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "milestone_id",
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "finance_ops",
+      "targetTable": "payment_milestones",
+      "sameDomain": true
+    },
+    {
+      "schema": "finance_ops",
+      "table": "billing_disputes",
+      "name": "billing_disputes_statement_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (statement_id, event_id) REFERENCES finance_ops.billing_statements(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "statement_id",
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "finance_ops",
+      "targetTable": "billing_statements",
+      "sameDomain": true
     },
     {
       "schema": "finance_ops",
@@ -1533,6 +1581,22 @@
     },
     {
       "schema": "guest_ops",
+      "table": "guest_roster_entries",
+      "name": "guest_roster_entries_import_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (import_batch_id, event_id) REFERENCES guest_ops.guest_roster_imports(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "import_batch_id",
+        "event_id"
+      ],
+      "sourceDomain": "operations",
+      "targetDomain": "operations",
+      "targetCurrentSchema": "guest_ops",
+      "targetTable": "guest_roster_imports",
+      "sameDomain": true
+    },
+    {
+      "schema": "guest_ops",
       "table": "guest_roster_imports",
       "name": "guest_roster_imports_event_id_fkey",
       "kind": "f",
@@ -1560,6 +1624,21 @@
       "targetCurrentSchema": "event_core",
       "targetTable": "events",
       "sameDomain": false
+    },
+    {
+      "schema": "identity",
+      "table": "approval_requests",
+      "name": "approval_requests_user_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES identity.users(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "user_id"
+      ],
+      "sourceDomain": "identity-access",
+      "targetDomain": "identity-access",
+      "targetCurrentSchema": "identity",
+      "targetTable": "users",
+      "sameDomain": true
     },
     {
       "schema": "identity",
@@ -1605,6 +1684,21 @@
       "targetCurrentSchema": "event_core",
       "targetTable": "events",
       "sameDomain": false
+    },
+    {
+      "schema": "platform_ops",
+      "table": "pare_dispatches",
+      "name": "pare_dispatches_approval_record_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (approval_record_id) REFERENCES trust_ops.ai_approval_records(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "approval_record_id"
+      ],
+      "sourceDomain": "platform-ops",
+      "targetDomain": "platform-ops",
+      "targetCurrentSchema": "trust_ops",
+      "targetTable": "ai_approval_records",
+      "sameDomain": true
     },
     {
       "schema": "platform_ops",
@@ -2137,21 +2231,6 @@
     {
       "schema": "supplier_ops",
       "table": "quotes",
-      "name": "quotes_request_id_fkey",
-      "kind": "f",
-      "definition": "FOREIGN KEY (request_id) REFERENCES supplier_ops.quote_requests(id) ON UPDATE CASCADE ON DELETE RESTRICT",
-      "columns": [
-        "request_id"
-      ],
-      "sourceDomain": "commercial",
-      "targetDomain": "commercial",
-      "targetCurrentSchema": "supplier_ops",
-      "targetTable": "quote_requests",
-      "sameDomain": true
-    },
-    {
-      "schema": "supplier_ops",
-      "table": "quotes",
       "name": "quotes_category_id_fkey",
       "kind": "f",
       "definition": "FOREIGN KEY (category_id) REFERENCES supplier_ops.supplier_categories(id) ON UPDATE CASCADE ON DELETE SET NULL",
@@ -2178,6 +2257,21 @@
       "targetCurrentSchema": "event_core",
       "targetTable": "events",
       "sameDomain": false
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "quotes",
+      "name": "quotes_request_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (request_id) REFERENCES supplier_ops.quote_requests(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "request_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "quote_requests",
+      "sameDomain": true
     },
     {
       "schema": "supplier_ops",
@@ -2438,6 +2532,21 @@
     {
       "schema": "trust_ops",
       "table": "ai_approval_records",
+      "name": "ai_approval_records_ai_audit_log_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (ai_audit_log_id) REFERENCES trust_ops.ai_audit_logs(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "ai_audit_log_id"
+      ],
+      "sourceDomain": "platform-ops",
+      "targetDomain": "platform-ops",
+      "targetCurrentSchema": "trust_ops",
+      "targetTable": "ai_audit_logs",
+      "sameDomain": true
+    },
+    {
+      "schema": "trust_ops",
+      "table": "ai_approval_records",
       "name": "ai_approval_records_event_id_fkey",
       "kind": "f",
       "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
@@ -2509,70 +2618,6 @@
       "targetCurrentSchema": "event_core",
       "targetTable": "events",
       "sameDomain": false
-    },
-    {
-      "schema": "finance_ops",
-      "table": "billing_corrections",
-      "name": "billing_corrections_statement_event_fkey",
-      "kind": "f",
-      "definition": "FOREIGN KEY (statement_id, event_id) REFERENCES finance_ops.billing_statements(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
-      "columns": [
-        "statement_id",
-        "event_id"
-      ],
-      "sourceDomain": "commercial",
-      "targetDomain": "commercial",
-      "targetCurrentSchema": "finance_ops",
-      "targetTable": "billing_statements",
-      "sameDomain": true
-    },
-    {
-      "schema": "finance_ops",
-      "table": "billing_disputes",
-      "name": "billing_disputes_statement_event_fkey",
-      "kind": "f",
-      "definition": "FOREIGN KEY (statement_id, event_id) REFERENCES finance_ops.billing_statements(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
-      "columns": [
-        "statement_id",
-        "event_id"
-      ],
-      "sourceDomain": "commercial",
-      "targetDomain": "commercial",
-      "targetCurrentSchema": "finance_ops",
-      "targetTable": "billing_statements",
-      "sameDomain": true
-    },
-    {
-      "schema": "finance_ops",
-      "table": "billing_disputes",
-      "name": "billing_disputes_milestone_event_fkey",
-      "kind": "f",
-      "definition": "FOREIGN KEY (milestone_id, event_id) REFERENCES finance_ops.payment_milestones(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
-      "columns": [
-        "milestone_id",
-        "event_id"
-      ],
-      "sourceDomain": "commercial",
-      "targetDomain": "commercial",
-      "targetCurrentSchema": "finance_ops",
-      "targetTable": "payment_milestones",
-      "sameDomain": true
-    },
-    {
-      "schema": "guest_ops",
-      "table": "guest_roster_entries",
-      "name": "guest_roster_entries_import_event_fkey",
-      "kind": "f",
-      "definition": "FOREIGN KEY (import_batch_id, event_id) REFERENCES guest_ops.guest_roster_imports(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
-      "columns": [
-        "import_batch_id",
-        "event_id"
-      ],
-      "sourceDomain": "operations",
-      "targetDomain": "operations",
-      "targetCurrentSchema": "guest_ops",
-      "targetTable": "guest_roster_imports",
-      "sameDomain": true
     }
   ]
 }

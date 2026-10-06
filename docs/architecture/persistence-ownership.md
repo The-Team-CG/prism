@@ -206,6 +206,13 @@ lookup through `canonicalAccountEmail`, and enforced by CHECK constraints on
 beside the existing unique key. The migration rewrites existing rows and aborts
 on a case-only collision; accounts are never merged automatically.
 
+An approval request belongs to its account through a same-schema foreign key
+(`approval_requests.user_id`, `RESTRICT`). The request is the retained history of
+the account's approval decisions and keeps its own snapshot of name, email, role
+and organization, so an account is retired by disabling it (approval status or
+lockout), not by deleting it. A request whose account is missing aborts the
+migration for an explicit owner decision.
+
 ### Event lifecycle and compliance
 
 | Models | Physical schema | Write owner and boundary |
@@ -213,6 +220,13 @@ on a case-only collision; accounts are never merged automatically.
 | `OpsInquiry`, `OpsEvent`, `OpsBriefing` | `event_lifecycle` | `event-lifecycle`; inquiry intake, event creation, onboarding, and briefing state. |
 | OpsDocument (all kinds) | event_lifecycle | event-lifecycle; document metadata, registration, eligibility and retention. |
 | `OpsComplianceRule`, `OpsComplianceCheck`, `OpsPostEventDocument`, `OpsEventInsight` | `event_lifecycle` | `event-lifecycle`; compliance, closure gates, post-event records, and lifecycle insights. |
+
+Lifecycle rows carry stable row-local CHECK constraints: non-negative event
+counters (walk-in threshold, proposal revisions, projection version), follow-up
+intervals, briefing guest counts and budgets, document sizes and compliance rule
+counts; compliance runs complete no earlier than they start, wrap-up deadlines
+are not before activation, freeze exception decisions are not before the
+request, and addendum versions start at 1. Financial deltas stay signed.
 
 OpsDocument metadata has one owner: event-lifecycle. Commercial retains
 business decisions and statuses, but validates and registers document IDs
@@ -238,6 +252,13 @@ milestones). Payment history, proposal versions, corrections and disputes use
 derived data and still goes with its request. The retained same-domain
 foreign-key count is 71 (68 at the cutover plus the three new links).
 
+Commercial rows also carry stable row-local CHECK constraints that match the
+shared contracts: review ratings 1 to 5, positive payment receipts, milestone
+percentage 0 to 100, non-negative milestone, quote, estimate, proposal, billing
+source and additional billing amounts, supplier schedule end not before start,
+quote acceptable minimum not above maximum, and non-negative supplier capacity.
+Milestone balances and adjustments are deliberately unconstrained so signed
+refunds and adjustments stay legal.
 Quote-request links carry a bearer token with an expiry and a revocation time
 (`quote_requests.access_token_expires_at`, `access_token_revoked_at`). New
 tokens are 256-bit random values that expire after 90 days; links that existed
@@ -272,6 +293,11 @@ a hashed address. The limits are deliberately generous so a venue entrance shari
 one address can still check guests in. The counters are per API instance, so a
 multi-instance deployment multiplies the effective ceiling; a shared store is the
 next step if abuse is observed.
+Operations rows also carry stable row-local CHECK constraints that match the
+shared contracts: coordinator availability ends after it starts, coverage
+requirements and feedback media sizes and import row counts are non-negative,
+feedback ratings are 1 to 5, and registration platform headcounts are
+non-negative with the maximum not below the minimum.
 | OpsEventDayTask, OpsUrgentIssue, OpsEventDayLog | live_ops | live-ops; event-day task, issue, log, and escalation workflows. |
 | OpsCoordinatorReliabilityNote | operations | operations; coordinator reliability history, matching its focused writer. |
 
@@ -282,6 +308,12 @@ use `RESTRICT` because they are event-day evidence and nothing in the applicatio
 deletes them. Assignment IDs on handoffs stay external references with no foreign
 key; Operations validates them through its capability.
 
+LiveOps rows also carry stable row-local CHECK constraints: a schedule segment
+ends no earlier than it starts (planned and, when recorded, actual) and has a
+non-negative sequence, an operator revocation is not before its designation, and
+a task reassignment request is auto-approved and decided no earlier than it was
+requested.
+
 ### Platform trust, notifications, and AI governance
 
 | Models | Physical schema | Write owner and boundary |
@@ -291,6 +323,13 @@ key; Operations validates them through its capability.
 | `OpsPrivacyLegalHold` | `platform_ops` | `platform-ops`; PMCM-admin placement/release, subject and optional event scope, with release provenance. `event_id` is a scalar reference and has no cross-domain FK. |
 | `OpsAiAuditLog`, `OpsAiApprovalRecord` | `platform_ops` | `platform-ops`; AI sanitisation, human approval, and governance records. |
 
+AI governance records keep their provenance through same-schema foreign keys
+with `RESTRICT`: an approval record names its AI audit log, and a PARE dispatch
+may name the approval record it produced. An approval whose audit log is missing
+aborts the migration for an owner decision; a legacy dispatch that points at a
+missing approval record has the link cleared and keeps running. Event IDs on
+these tables remain nullable external references, so the governance service, not
+a composite key, checks that linked records belong to the same event.
 ## Structured JSON columns
 
 Forty-one NOT NULL JSON columns that default to an empty array or object (in
