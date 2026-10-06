@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Tied guest roster entries to their import batch and check-ins to their roster entry with same-schema composite foreign keys that also require the same event (`RESTRICT`, so guest evidence cannot be deleted under a link). Walk-in check-ins keep a null roster link. The migration clears an untrusted link to NULL and keeps the row, and roster import now writes its batch row before the entries that reference it.
 - Removed the redundant ordinary index `registration_platforms_event_id_idx`; the unique `registration_platforms_event_id_key` serves every lookup, so writes no longer maintain two identical indexes. No other index was added or removed.
 - Restored the staging CI pipeline, which had been stopping at its dependency audit step so lint-level gates never ran. Updated `proxy-addr` and `source-map-js` in the lockfile only, recorded a reviewed, time-bounded exception for the `braces` advisory that reaches only the Next 14 lint configuration, made the domain-persistence and data-invariant gates default to the seven-schema layout, documented seven test files whose dated fixtures are inert, and refactored 13 functions that had grown past the cyclomatic complexity limit of 10 without changing behavior.
 - Brought the persistence ownership register, migration runbook and audit-chain runbook in line with the seven-schema layout and the removed cross-domain foreign keys.
