@@ -4,7 +4,7 @@ title: "Real-data AI activation: declined for the current plan"
 description: "Record Owner D's decision to keep production AI synthetic-only until provider privacy and staging gates are satisfied."
 tags: [ai, ai-governance, activation, privacy, zdr]
 status: declined
-updated: "2026-09-28"
+updated: "2026-10-06"
 authority: normative
 owner: "D (Anthony)"
 audience: [engineers, reviewers, operators]
@@ -14,9 +14,9 @@ sources:
   - id: completion-plan
     resource: "docs/roadmap/ai-provider-interchangeability-completion-plan.md"
     title: "AI provider interchangeability completion plan"
-  - id: gateway-plan
-    resource: "docs/roadmap/ai-provider-gateway-plan.md"
-    title: "Approved AI gateway phase plan and activation gates"
+  - id: provider-routing
+    resource: "docs/runbooks/ai-provider-routing.md"
+    title: "Current provider routing rules and activation gates"
 ---
 # Real-data AI activation decision
 

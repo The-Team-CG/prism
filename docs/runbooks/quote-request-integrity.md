@@ -1,4 +1,37 @@
+---
+type: "Playbook"
+title: "Commercial quote-request integrity"
+description: "Preflight quote references and safely validate their Commercial foreign key before migration deployment."
+tags: [runbook, database, commercial, foreign-keys, preflight]
+status: canonical
+updated: "2026-10-06"
+authority: operational
+owner: "B (Francis)"
+audience: [developers, reviewers, operators, agents]
+scope: "Commercial quotes.request_id references and migration 20261003100000_commercial_quote_request_integrity"
+last_verified: "2026-10-06; preflight command, target schema, Prisma relation, and migration SQL reviewed"
+sources:
+  - id: preflight
+    resource: "apps/api/scripts/db-preflight-quote-request-fk.mjs"
+    title: "Quote-request orphan preflight"
+  - id: migration
+    resource: "apps/api/prisma/migrations/20261003100000_commercial_quote_request_integrity/migration.sql"
+    title: "Quote-request foreign-key migration"
+  - id: prisma-model
+    resource: "apps/api/prisma/schema.prisma"
+    title: "Commercial quote and request models"
+---
 # Commercial quote-request integrity
+
+## At a glance
+
+- **Purpose:** Find orphan quote references before installing the Commercial quote-request foreign key.
+- **Authority:** Operational migration guidance for this one integrity constraint.
+- **Owner:** B (Francis).
+- **Scope:** `quotes.request_id` to `quote_requests.id` and its preflight/migration recovery.
+- **Use when:** Preparing or diagnosing migration `20261003100000_commercial_quote_request_integrity`.
+- **Change when:** Its preflight, Prisma relation, or migration behavior changes.
+- **Verify with:** The focused preflight behavior test and the checked-in migration SQL.
 
 ## Preflight
 
