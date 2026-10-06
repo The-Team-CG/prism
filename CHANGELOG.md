@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Linked AI approval records to their AI audit log and PARE dispatches to the approval record they produced with same-schema foreign keys (`RESTRICT`), so governance evidence cannot be deleted under its dependents. A legacy dispatch pointing at a missing approval record has the link cleared and still runs; an approval with no audit log aborts the migration for an owner decision.
 - Rejected non-SHA-256 audit hashes for every writer with `NOT VALID` constraints on the audit log and chain head (historical rows are left for the guarded repair), and documented the intended runtime, migration and maintenance database privileges with the queries that verify real grants. Audit rows have no foreign key to events, so event deletion cannot remove them.
 - Made account email canonical (trimmed, lower-cased) through one helper for login, password reset, approval requests, participants and privacy redaction, and enforced it with CHECK constraints on account and approval-request emails. The migration rewrites existing rows and aborts on a case-only collision instead of merging accounts.
 - Removed the redundant ordinary index `registration_platforms_event_id_idx`; the unique `registration_platforms_event_id_key` serves every lookup, so writes no longer maintain two identical indexes. No other index was added or removed.

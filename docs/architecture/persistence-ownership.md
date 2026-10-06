@@ -243,6 +243,14 @@ business owner and lifecycle metadata contract.
 | `OpsPrivacyLegalHold` | `platform_ops` | `platform-ops`; PMCM-admin placement/release, subject and optional event scope, with release provenance. `event_id` is a scalar reference and has no cross-domain FK. |
 | `OpsAiAuditLog`, `OpsAiApprovalRecord` | `platform_ops` | `platform-ops`; AI sanitisation, human approval, and governance records. |
 
+AI governance records keep their provenance through same-schema foreign keys
+with `RESTRICT`: an approval record names its AI audit log, and a PARE dispatch
+may name the approval record it produced. An approval whose audit log is missing
+aborts the migration for an owner decision; a legacy dispatch that points at a
+missing approval record has the link cleared and keeps running. Event IDs on
+these tables remain nullable external references, so the governance service, not
+a composite key, checks that linked records belong to the same event.
+
 ## External-reference lifecycle
 
 The exact baseline foreign-key actions and additional scalar references are in
