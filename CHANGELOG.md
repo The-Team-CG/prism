@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Made account email canonical (trimmed, lower-cased) through one helper for login, password reset, approval requests, participants and privacy redaction, and enforced it with CHECK constraints on account and approval-request emails. The migration rewrites existing rows and aborts on a case-only collision instead of merging accounts.
 - Removed the redundant ordinary index `registration_platforms_event_id_idx`; the unique `registration_platforms_event_id_key` serves every lookup, so writes no longer maintain two identical indexes. No other index was added or removed.
 - Restored the staging CI pipeline, which had been stopping at its dependency audit step so lint-level gates never ran. Updated `proxy-addr` and `source-map-js` in the lockfile only, recorded a reviewed, time-bounded exception for the `braces` advisory that reaches only the Next 14 lint configuration, made the domain-persistence and data-invariant gates default to the seven-schema layout, documented seven test files whose dated fixtures are inert, and refactored 13 functions that had grown past the cyclomatic complexity limit of 10 without changing behavior.
 - Brought the persistence ownership register, migration runbook and audit-chain runbook in line with the seven-schema layout and the removed cross-domain foreign keys.
