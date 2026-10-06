@@ -194,6 +194,12 @@ draft-to-event foreign key.
 OpsLoginHistory and OpsSecurityAlert are platform-ops-owned and live in
 platform_ops. Identity reaches platform audit behavior through AUTH_AUDIT.
 
+Account emails are canonical: trimmed and lower-cased on every write and
+lookup through `canonicalAccountEmail`, and enforced by CHECK constraints on
+`identity_access.users.email` and `identity_access.approval_requests.email`
+beside the existing unique key. The migration rewrites existing rows and aborts
+on a case-only collision; accounts are never merged automatically.
+
 ### Event lifecycle and compliance
 
 | Models | Physical schema | Write owner and boundary |

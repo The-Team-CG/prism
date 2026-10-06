@@ -38,6 +38,7 @@ function createApprovalService(options: { requestUpdateFails?: boolean; auditFai
   };
   const opsApprovalRequest = {
     findUnique: vi.fn(async () => ({ ...state.request })),
+    upsert: vi.fn(async ({ create }: { create: Record<string, unknown> }) => ({ ...state.request, ...create })),
     update: vi.fn(async ({ data }: { data: { status: string } }) => {
       if (options.requestUpdateFails) throw new Error('approval request update failed');
       Object.assign(state.request, data);
@@ -195,6 +196,17 @@ describe('AuthOperationsService', () => {
     await expect(service.requestApproval('ana@example.test')).rejects.toThrow(
       'Privacy consent is required before requesting account approval',
     );
+  });
+
+  it('resolves a case-variant approval request to the canonical account and stores its canonical email', async () => {
+    const { service, prisma } = createApprovalService();
+
+    await service.requestApproval({ email: '  Ana@Example.TEST ', privacyConsentAccepted: true });
+
+    expect(prisma.opsUser.findUnique).toHaveBeenCalledWith({ where: { email: 'ana@example.test' } });
+    expect(prisma.opsApprovalRequest.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({ email: 'ana@example.test' }),
+    }));
   });
 
   it.each([

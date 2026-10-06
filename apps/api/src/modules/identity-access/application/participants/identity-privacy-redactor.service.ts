@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { IdentityPrivacyRedactor } from '../../contracts/privacy-redaction.port';
+import { canonicalAccountEmail } from '../auth/account-email';
 
 @Injectable()
 export class IdentityPrivacyRedactorService implements IdentityPrivacyRedactor {
@@ -18,7 +19,7 @@ export class IdentityPrivacyRedactorService implements IdentityPrivacyRedactor {
   ) {
     return transaction.opsApprovalRequest.updateMany({
       where: { email: { equals: input.email, mode: 'insensitive' }, role: input.role },
-      data: { name: 'Redacted data subject', email: input.redactedEmail, organization: '' },
+      data: { name: 'Redacted data subject', email: canonicalAccountEmail(input.redactedEmail), organization: '' },
     });
   }
 }
