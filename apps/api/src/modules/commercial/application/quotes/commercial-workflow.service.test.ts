@@ -59,6 +59,18 @@ function createService() {
 }
 
 describe('CommercialWorkflowService', () => {
+  it.each([
+    ['expired', { accessTokenExpiresAt: new Date('2000-01-01T00:00:00.000Z') }],
+    ['revoked', { accessTokenRevokedAt: new Date('2026-01-01T00:00:00.000Z') }],
+  ])('denies a %s quote link for viewing and for submitting or revising a quote', async (_label, window) => {
+    const { service, request } = createService();
+    Object.assign(request, window);
+
+    await expect(service.getQuoteRequestByToken('token-sample')).rejects.toThrow('Quote request not found');
+    await expect(service.submitSupplierQuoteByToken('token-sample', { amount: 50000 })).rejects.toThrow('Quote request not found');
+    await expect(service.reviseSupplierQuoteByToken('token-sample', { amount: 60000 })).rejects.toThrow('Quote request not found');
+  });
+
   it('loads quote request detail by token and expires overdue open requests', async () => {
     const { service, prisma, event, quote } = createService();
 

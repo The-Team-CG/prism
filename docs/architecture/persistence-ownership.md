@@ -185,6 +185,12 @@ versioned projection writer; direct writes do not transfer event ownership.
 Drafts reference the event by scalar ID only; the cutover removed the
 draft-to-event foreign key.
 
+An event has at most one active draft. Approval deactivates the previous active
+draft inside the event-locked transaction, and a partial unique index on
+`floorplan.floor_plan_drafts(event_id) WHERE is_active` enforces it for every
+writer. Inactive drafts stay as history; the migration deactivates older
+duplicate actives deterministically and deletes nothing.
+
 ### Identity and access
 
 | Models | Physical schema | Write owner and boundary |
@@ -230,6 +236,23 @@ business owner and lifecycle metadata contract.
 | `OpsBillingSource`, `OpsBillingStatement`, `OpsPaymentMilestone`, `OpsPaymentRecord` | `commercial` | `commercial`; proposal-to-billing conversion, statements, milestones, and payment history. |
 | Commercial contract and billing models | commercial | commercial; retains business decisions and scalar document IDs. Lifecycle alone owns document metadata and validates references through its public capability. |
 
+Commercial child rows agree with their parent's event through composite
+same-schema foreign keys on `(parent id, event_id)`: payment records to payment
+milestones, proposal versions to cost estimates, supplier schedules to quote
+requests, and billing corrections and disputes to statements (disputes also to
+milestones). Payment history, proposal versions, corrections and disputes use
+`RESTRICT`, so deleting a parent cannot remove evidence; a supplier schedule is
+derived data and still goes with its request. The retained same-domain
+foreign-key count is 71 (68 at the cutover plus the three new links).
+
+Quote-request links carry a bearer token with an expiry and a revocation time
+(`quote_requests.access_token_expires_at`, `access_token_revoked_at`). New
+tokens are 256-bit random values that expire after 90 days; links that existed
+before the migration keep working for 90 days from the migration and then
+expire; withdrawing a supplier assignment revokes its link immediately. The
+plaintext `access_token` column remains for the PMCM link display and is the
+next retirement step.
+
 ### Operations and live operations
 
 | Models | Physical schema | Write owner and boundary |
@@ -238,8 +261,24 @@ business owner and lifecycle metadata contract.
 | `OpsGuestCheckIn`, `OpsGuestRosterEntry`, `OpsGuestFeedback`, `OpsGuestFeedbackMedia` | `operations` | `operations`; guest roster identity/contact data, check-in, consent, feedback, moderation, and feedback filename metadata. Stored media bytes remain in the storage provider and are outside database redaction. |
 | `OpsGuestCheckIn`, `OpsGuestFeedback`, guest roster and registration records | `operations` | `operations`; guest check-in, consent, feedback, moderation, roster and registration workflows. Event command checks use Lifecycle’s scoped reference capability; Commercial owns supplier/category/selection checks for registration links. |
 | `OpsCoordinator` | `operations` | Reference data is currently fixture-seeded and read through operations; add a real directory owner before introducing administration writes. |
+
+Guest provenance stays inside Operations and agrees on the event: a roster entry
+references its import batch, and a check-in references its roster entry, through
+composite same-schema foreign keys on `(id, event_id)` with `RESTRICT`.
+Roster entries and imports are only withdrawn or retained, never deleted, so the
+links protect check-in evidence. Walk-in check-ins keep a null roster link. The
+migration clears an untrusted link (missing parent or a parent in another event)
+to NULL and keeps the row. The import batch row is now written before the entries
+that reference it.
 | OpsEventDayTask, OpsUrgentIssue, OpsEventDayLog | live_ops | live-ops; event-day task, issue, log, and escalation workflows. |
 | OpsCoordinatorReliabilityNote | operations | operations; coordinator reliability history, matching its focused writer. |
+
+LiveOps event-day records agree with their parent on the event through
+composite same-schema foreign keys on `(id, event_id)`: a task reassignment
+request to its task, and a handoff or end-of-day report to its schedule day. They
+use `RESTRICT` because they are event-day evidence and nothing in the application
+deletes them. Assignment IDs on handoffs stay external references with no foreign
+key; Operations validates them through its capability.
 
 ### Platform trust, notifications, and AI governance
 
