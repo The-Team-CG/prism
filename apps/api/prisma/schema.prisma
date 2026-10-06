@@ -131,6 +131,7 @@ model OpsUser {
   createdAt        DateTime  @default(now()) @map("created_at")
 
   passwordResetTokens OpsPasswordResetToken[]
+  approvalRequests    OpsApprovalRequest[]
 
   @@map("users")
   @@schema("identity_access")
@@ -179,7 +180,10 @@ model OpsApprovalRequest {
   marketingConsentAccepted Boolean  @default(false) @map("marketing_consent_accepted")
   requestedAt              DateTime @default(now()) @map("requested_at")
 
+  user OpsUser @relation(fields: [userId], references: [id], onDelete: Restrict, map: "approval_requests_user_id_fkey")
+
   @@index([status, requestedAt], map: "approval_requests_status_requested_at_idx")
+  @@index([userId], map: "approval_requests_user_id_idx")
   @@map("approval_requests")
   @@schema("identity_access")
 }
