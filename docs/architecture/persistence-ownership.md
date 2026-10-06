@@ -237,6 +237,7 @@ milestones). Payment history, proposal versions, corrections and disputes use
 `RESTRICT`, so deleting a parent cannot remove evidence; a supplier schedule is
 derived data and still goes with its request. The retained same-domain
 foreign-key count is 71 (68 at the cutover plus the three new links).
+
 Quote-request links carry a bearer token with an expiry and a revocation time
 (`quote_requests.access_token_expires_at`, `access_token_revoked_at`). New
 tokens are 256-bit random values that expire after 90 days; links that existed
