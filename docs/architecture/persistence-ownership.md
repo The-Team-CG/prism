@@ -200,6 +200,12 @@ duplicate actives deterministically and deletes nothing.
 OpsLoginHistory and OpsSecurityAlert are platform-ops-owned and live in
 platform_ops. Identity reaches platform audit behavior through AUTH_AUDIT.
 
+Account emails are canonical: trimmed and lower-cased on every write and
+lookup through `canonicalAccountEmail`, and enforced by CHECK constraints on
+`identity_access.users.email` and `identity_access.approval_requests.email`
+beside the existing unique key. The migration rewrites existing rows and aborts
+on a case-only collision; accounts are never merged automatically.
+
 ### Event lifecycle and compliance
 
 | Models | Physical schema | Write owner and boundary |
@@ -222,6 +228,14 @@ business owner and lifecycle metadata contract.
 | `OpsSupplierQuoteRequest`, `OpsSupplierQuote` | `commercial` | `commercial`; request, submission, revision, selection, and withdrawal lifecycle. Deleting a request referenced by submitted quote evidence is restricted; requestId remains nullable for manually entered quotes. |
 | `OpsBillingSource`, `OpsBillingStatement`, `OpsPaymentMilestone`, `OpsPaymentRecord` | `commercial` | `commercial`; proposal-to-billing conversion, statements, milestones, and payment history. |
 | Commercial contract and billing models | commercial | commercial; retains business decisions and scalar document IDs. Lifecycle alone owns document metadata and validates references through its public capability. |
+
+Quote-request links carry a bearer token with an expiry and a revocation time
+(`quote_requests.access_token_expires_at`, `access_token_revoked_at`). New
+tokens are 256-bit random values that expire after 90 days; links that existed
+before the migration keep working for 90 days from the migration and then
+expire; withdrawing a supplier assignment revokes its link immediately. The
+plaintext `access_token` column remains for the PMCM link display and is the
+next retirement step.
 
 ### Operations and live operations
 
