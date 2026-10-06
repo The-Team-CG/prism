@@ -286,6 +286,12 @@ use `RESTRICT` because they are event-day evidence and nothing in the applicatio
 deletes them. Assignment IDs on handoffs stay external references with no foreign
 key; Operations validates them through its capability.
 
+LiveOps rows also carry stable row-local CHECK constraints: a schedule segment
+ends no earlier than it starts (planned and, when recorded, actual) and has a
+non-negative sequence, an operator revocation is not before its designation, and
+a task reassignment request is auto-approved and decided no earlier than it was
+requested.
+
 ### Platform trust, notifications, and AI governance
 
 | Models | Physical schema | Write owner and boundary |
