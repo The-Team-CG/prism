@@ -283,3 +283,7 @@
 - **Corrected:** replaced the legacy ten-schema tables in the persistence ownership register and migration runbook with the seven owner schemas, and updated the audit-chain runbook scope.
 - **Recorded:** documented the Commercial same-event composite foreign keys in the persistence ownership register.
 - **Recorded:** documented the Commercial row-level CHECK constraints.
+- **Recorded:** documented the one-active-draft rule for official floorplans.
+- **Recorded:** logged the quote-request link lifecycle.
+- **Recorded:** documented the canonical account email rule in the persistence ownership register.
+- **Recorded:** logged the registration-platform index removal.
