@@ -249,4 +249,29 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
     });
     await expect(challengeOperations.verifyTwoFactor(thirdLogin.token, '123456')).rejects.toThrow(/invalid|eligible/i);
   });
+
+  it('rejects non-canonical and case-variant account emails in direct SQL', async () => {
+    const candidate = {
+      id: `${prefix}_variant`,
+      name: 'Case variant fixture',
+      email: `${prefix}@example.test`,
+      password: 'test-only-hash',
+      role: 'client',
+      organization: prefix,
+    };
+
+    await expect(prisma.opsUser.create({ data: { ...candidate, email: `${prefix}@EXAMPLE.test` } }))
+      .rejects.toThrow(/users_email_canonical_chk|check constraint/i);
+    await expect(prisma.opsUser.create({ data: { ...candidate, email: ` ${prefix}@example.test ` } }))
+      .rejects.toThrow(/users_email_canonical_chk|check constraint/i);
+    await expect(prisma.opsUser.create({ data: candidate })).rejects.toThrow(/users_email_key|unique/i);
+    await expect(prisma.opsApprovalRequest.create({ data: {
+      id: `${prefix}_variant_request`,
+      userId,
+      name: candidate.name,
+      email: `${prefix}@EXAMPLE.test`,
+      role: 'client',
+      organization: prefix,
+    } })).rejects.toThrow(/approval_requests_email_canonical_chk|check constraint/i);
+  });
 });

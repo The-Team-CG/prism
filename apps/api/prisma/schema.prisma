@@ -435,6 +435,7 @@ model OpsFloorPlanDraft {
 
   @@index([eventId, status], map: "floor_plan_drafts_event_id_status_idx")
   @@index([eventId, isActive], map: "floor_plan_drafts_event_id_is_active_idx")
+  @@unique([eventId], where: { isActive: true }, map: "floor_plan_drafts_one_active_per_event_key")
   @@map("floor_plan_drafts")
   @@schema("floorplan")
 }
@@ -507,6 +508,7 @@ model OpsCostEstimate {
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
   lines        OpsCostEstimateLine[]
   proposals    OpsProposalVersion[]
+  @@unique([id, eventId], map: "cost_estimates_id_event_id_key")
   @@index([eventId, createdAt], map: "cost_estimates_event_id_created_at_idx")
   @@map("cost_estimates")
   @@schema("commercial")
@@ -539,7 +541,7 @@ model OpsProposalVersion {
   revisionNote   String   @default("") @map("revision_note")
   issuedAt       DateTime? @map("issued_at")
   createdAt      DateTime @default(now()) @map("created_at")
-  costEstimate   OpsCostEstimate @relation(fields: [costEstimateId], references: [id], onDelete: Restrict)
+  costEstimate   OpsCostEstimate @relation(fields: [costEstimateId, eventId], references: [id, eventId], onDelete: Restrict, map: "proposal_versions_cost_estimate_event_fkey")
   @@unique([eventId, versionNumber], map: "proposal_versions_event_version_key")
   @@index([eventId, status], map: "proposal_versions_event_id_status_idx")
   @@map("proposal_versions")
@@ -617,6 +619,8 @@ model OpsSupplierQuoteRequest {
   message                    String    @default("")
   dueDate                    DateTime? @map("due_date")
   accessToken                String    @unique(map: "quote_requests_access_token_key") @map("access_token")
+  accessTokenExpiresAt       DateTime? @map("access_token_expires_at") @db.Timestamptz(6)
+  accessTokenRevokedAt       DateTime? @map("access_token_revoked_at") @db.Timestamptz(6)
   confidentialBid            Boolean   @default(false) @map("confidential_bid")
   status                     String    @default("open")
   assignmentStatus           String    @default("pending_confirmation") @map("assignment_status")
@@ -642,6 +646,7 @@ model OpsSupplierQuoteRequest {
   roundId          String? @map("round_id")
   quotes           OpsSupplierQuote[]
 
+  @@unique([id, eventId], map: "quote_requests_id_event_id_key")
   @@index([eventId, status], map: "quote_requests_event_id_status_idx")
   @@index([eventId, supplierId, status], map: "quote_requests_event_supplier_status_idx")
   @@index([supplierId], map: "quote_requests_supplier_id_idx")
@@ -664,9 +669,10 @@ model OpsSupplierSchedule {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
 
-  request OpsSupplierQuoteRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  request OpsSupplierQuoteRequest @relation(fields: [requestId, eventId], references: [id, eventId], onDelete: Cascade, map: "supplier_schedules_request_event_fkey")
 
   @@index([eventId, ingressAt], map: "supplier_schedules_event_id_ingress_at_idx")
+  @@unique([requestId, eventId], map: "supplier_schedules_request_id_event_id_key")
   @@map("supplier_schedules")
   @@schema("commercial")
 }
@@ -1072,6 +1078,7 @@ model OpsEventDayTask {
   reassignmentRequests OpsEventTaskReassignmentRequest[]
 
   @@index([eventId, status], map: "event_day_tasks_event_id_status_idx")
+  @@unique([id, eventId], map: "event_day_tasks_id_event_id_key")
   @@index([eventId, assignedRole], map: "event_day_tasks_event_id_assigned_role_idx")
   @@index([eventId, slaStatus], map: "event_day_tasks_event_id_sla_status_idx")
   @@map("event_day_tasks")
@@ -1098,7 +1105,7 @@ model OpsEventTaskReassignmentRequest {
   createdAt     DateTime   @default(now()) @map("created_at")
   updatedAt     DateTime   @default(now()) @updatedAt @map("updated_at")
 
-  task  OpsEventDayTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task  OpsEventDayTask @relation(fields: [taskId, eventId], references: [id, eventId], onDelete: Restrict, map: "task_reassignment_requests_task_event_fkey")
 
   @@index([eventId, status, requestedAt], map: "task_reassignment_requests_event_status_requested_idx")
   @@index([taskId, createdAt], map: "task_reassignment_requests_task_created_idx")
@@ -1120,6 +1127,7 @@ model OpsEventScheduleDay {
   eodReports OpsEventEodReport[]
 
   @@unique([eventId, dayDate], map: "event_schedule_days_event_id_day_date_key")
+  @@unique([id, eventId], map: "event_schedule_days_id_event_id_key")
   @@map("event_schedule_days")
   @@schema("live_ops")
 }
@@ -1177,7 +1185,7 @@ model OpsEventHandoff {
   outstandingItems   Json     @default("[]") @map("outstanding_items")
   createdAt          DateTime @default(now()) @map("created_at")
 
-  day   OpsEventScheduleDay  @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  day   OpsEventScheduleDay  @relation(fields: [dayId, eventId], references: [id, eventId], onDelete: Restrict, map: "event_handoffs_day_event_fkey")
 
   @@index([eventId, dayId, handedOffAt], map: "event_handoffs_event_day_time_idx")
   @@index([fromAssignmentId], map: "event_handoffs_from_assignment_idx")
@@ -1199,7 +1207,7 @@ model OpsEventEodReport {
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  day     OpsEventScheduleDay  @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  day     OpsEventScheduleDay  @relation(fields: [dayId, eventId], references: [id, eventId], onDelete: Restrict, map: "event_eod_reports_day_event_fkey")
   replies OpsEventEodReply[]
 
   @@unique([eventId, dayId], map: "event_eod_reports_event_id_day_id_key")
@@ -1474,6 +1482,10 @@ model OpsBillingStatement {
 
   source OpsBillingSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
 
+  corrections OpsBillingCorrection[]
+  disputes    OpsBillingDispute[]
+
+  @@unique([id, eventId], map: "billing_statements_id_event_id_key")
   @@index([eventId, generatedAt], map: "billing_statements_event_id_generated_at_idx")
   @@index([sourceId], map: "billing_statements_source_id_idx")
   @@map("billing_statements")
@@ -1501,7 +1513,9 @@ model OpsPaymentMilestone {
   createdAt        DateTime @default(now()) @map("created_at")
 
   records OpsPaymentRecord[]
+  disputes OpsBillingDispute[]
 
+  @@unique([id, eventId], map: "payment_milestones_id_event_id_key")
   @@index([eventId, status], map: "payment_milestones_event_id_status_idx")
   @@index([eventId, dueDate, id], map: "payment_milestones_event_due_date_idx")
   @@map("payment_milestones")
@@ -1520,7 +1534,7 @@ model OpsPaymentRecord {
   payloadHash     String?  @map("payload_hash")
   recordedAt      DateTime @default(now()) @map("recorded_at")
 
-  milestone OpsPaymentMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  milestone OpsPaymentMilestone @relation(fields: [milestoneId, eventId], references: [id, eventId], onDelete: Restrict, map: "payment_records_milestone_event_fkey")
 
   @@index([eventId, recordedAt], map: "payment_records_event_id_recorded_at_idx")
   @@index([milestoneId, recordedAt], map: "payment_records_milestone_id_recorded_at_idx")
@@ -1543,6 +1557,7 @@ model OpsBillingCorrection {
   createdAt        DateTime  @default(now()) @map("created_at")
   resolvedAt       DateTime? @map("resolved_at")
 
+  statement OpsBillingStatement @relation(fields: [statementId, eventId], references: [id, eventId], onDelete: Restrict, map: "billing_corrections_statement_event_fkey")
 
   @@index([eventId, status], map: "billing_corrections_event_id_status_idx")
   @@index([statementId, createdAt], map: "billing_corrections_statement_id_created_at_idx")
@@ -1566,6 +1581,8 @@ model OpsBillingDispute {
   createdAt        DateTime  @default(now()) @map("created_at")
   resolvedAt       DateTime? @map("resolved_at")
 
+  statement OpsBillingStatement @relation(fields: [statementId, eventId], references: [id, eventId], onDelete: Restrict, map: "billing_disputes_statement_event_fkey")
+  milestone OpsPaymentMilestone? @relation(fields: [milestoneId, eventId], references: [id, eventId], onDelete: Restrict, map: "billing_disputes_milestone_event_fkey")
 
   @@index([eventId, status], map: "billing_disputes_event_id_status_idx")
   @@index([statementId, createdAt], map: "billing_disputes_statement_id_created_at_idx")
