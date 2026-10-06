@@ -261,8 +261,24 @@ next retirement step.
 | `OpsGuestCheckIn`, `OpsGuestRosterEntry`, `OpsGuestFeedback`, `OpsGuestFeedbackMedia` | `operations` | `operations`; guest roster identity/contact data, check-in, consent, feedback, moderation, and feedback filename metadata. Stored media bytes remain in the storage provider and are outside database redaction. |
 | `OpsGuestCheckIn`, `OpsGuestFeedback`, guest roster and registration records | `operations` | `operations`; guest check-in, consent, feedback, moderation, roster and registration workflows. Event command checks use Lifecycle’s scoped reference capability; Commercial owns supplier/category/selection checks for registration links. |
 | `OpsCoordinator` | `operations` | Reference data is currently fixture-seeded and read through operations; add a real directory owner before introducing administration writes. |
+
+Guest provenance stays inside Operations and agrees on the event: a roster entry
+references its import batch, and a check-in references its roster entry, through
+composite same-schema foreign keys on `(id, event_id)` with `RESTRICT`.
+Roster entries and imports are only withdrawn or retained, never deleted, so the
+links protect check-in evidence. Walk-in check-ins keep a null roster link. The
+migration clears an untrusted link (missing parent or a parent in another event)
+to NULL and keeps the row. The import batch row is now written before the entries
+that reference it.
 | OpsEventDayTask, OpsUrgentIssue, OpsEventDayLog | live_ops | live-ops; event-day task, issue, log, and escalation workflows. |
 | OpsCoordinatorReliabilityNote | operations | operations; coordinator reliability history, matching its focused writer. |
+
+LiveOps event-day records agree with their parent on the event through
+composite same-schema foreign keys on `(id, event_id)`: a task reassignment
+request to its task, and a handoff or end-of-day report to its schedule day. They
+use `RESTRICT` because they are event-day evidence and nothing in the application
+deletes them. Assignment IDs on handoffs stay external references with no foreign
+key; Operations validates them through its capability.
 
 ### Platform trust, notifications, and AI governance
 
