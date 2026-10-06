@@ -8,6 +8,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- Guest check-in preserves consent evidence and safely retries submissions under the New-CL1 review policy.
 - Clients can track source-backed planning milestones and required next actions in their event workspace.
 - PMCM can enable client-visible event-day progress, which exposes only a generic status.
 - Clients can request an ocular visit; PMCM can schedule, complete, or waive it with an audit reason.

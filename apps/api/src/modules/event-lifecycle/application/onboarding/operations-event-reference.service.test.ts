@@ -15,6 +15,75 @@ describe('OperationsEventReferenceService', () => {
     walkInThreshold: 200,
   };
 
+  it('reads event privacy and the newest persisted briefing guest count with a stable tie-break', async () => {
+    const eventReference = {
+      id: event.id,
+      eventName: event.eventName,
+      walkInPolicy: event.walkInPolicy,
+      walkInThreshold: event.walkInThreshold,
+      guestPrivacyClassification: 'unclassified',
+    };
+    const findUnique = vi.fn(async () => eventReference);
+    const findFirst = vi.fn(async () => ({ guestCount: 199 }));
+    const service = new OperationsEventReferenceService({
+      opsEvent: { findUnique },
+      opsBriefing: { findFirst },
+    } as never);
+
+    await expect(service.findGuestCheckInEventReference(event.id)).resolves.toEqual({
+      id: event.id,
+      eventName: event.eventName,
+      walkInPolicy: event.walkInPolicy,
+      walkInThreshold: event.walkInThreshold,
+      guestPrivacyClassification: 'unclassified',
+      briefingGuestCount: 199,
+    });
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { eventId: event.id },
+      orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
+      select: { guestCount: true },
+    });
+  });
+
+  it('updates Lifecycle-owned guest privacy and skips writes when classification is unchanged', async () => {
+    const eventReference = { ...event, guestPrivacyClassification: 'unclassified' };
+    const findUnique = vi.fn(async () => eventReference);
+    const update = vi.fn(async ({ data }: { data: { guestPrivacyClassification: string } }) => ({
+      ...eventReference,
+      ...data,
+    }));
+    const findFirst = vi.fn(async () => null);
+    const queryRaw = vi.fn(async () => [{ id: event.id }]);
+    const service = new OperationsEventReferenceService({} as never);
+    const transaction = {
+      prisma: { $queryRawUnsafe: queryRaw, opsEvent: { findUnique, update }, opsBriefing: { findFirst } },
+    } as unknown as PrismTransactionContext;
+
+    await expect(service.updateGuestPrivacyClassification(
+      event.id,
+      { classification: 'private' },
+      transaction,
+    )).resolves.toEqual({
+      before: { eventId: event.id, eventName: event.eventName, classification: 'unclassified' },
+      after: { eventId: event.id, eventName: event.eventName, classification: 'private' },
+    });
+    expect(update).toHaveBeenCalledWith({
+      where: { id: event.id },
+      data: { guestPrivacyClassification: 'private' },
+      select: { id: true, eventName: true, guestPrivacyClassification: true },
+    });
+
+    await expect(service.updateGuestPrivacyClassification(
+      event.id,
+      { classification: 'unclassified' },
+      transaction,
+    )).resolves.toEqual({
+      before: { eventId: event.id, eventName: event.eventName, classification: 'unclassified' },
+      after: { eventId: event.id, eventName: event.eventName, classification: 'unclassified' },
+    });
+    expect(update).toHaveBeenCalledTimes(1);
+  });
+
   it('locks and returns only Lifecycle fields needed by Operations commands', async () => {
     const findUnique = vi.fn(async () => event);
     const queryRaw = vi.fn(async () => [{ id: event.id }]);

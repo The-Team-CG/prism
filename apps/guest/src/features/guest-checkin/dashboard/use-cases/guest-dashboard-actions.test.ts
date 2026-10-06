@@ -21,9 +21,7 @@ const session = {
   readiness: "Registration open",
   floorPlanStatus: "approved",
   guestAccessCode: "AYALA-TECH-MPLE",
-  attendanceCount: 1,
-  watermark: "2026-06-01T00:00:00.000Z:1",
-  guestName: "Sofia Lim",
+  watermark: "2026-06-01T00:00:00.000Z",
   openedAt: "2026-06-01T00:00:00.000Z",
 } as GuestSession;
 
@@ -41,11 +39,11 @@ describe("refreshGuestEventIfChanged", () => {
   });
 
   it("fetches and persists the full event when the watermark changes", async () => {
-    repository.fetchWatermark.mockResolvedValue({ watermark: "2026-06-01T00:00:00.000Z:2" });
-    repository.fetchEvent.mockResolvedValue({ ...session, attendanceCount: 2, watermark: "2026-06-01T00:00:00.000Z:2" });
+    repository.fetchWatermark.mockResolvedValue({ watermark: "2026-06-02T00:00:00.000Z" });
+    repository.fetchEvent.mockResolvedValue({ ...session, watermark: "2026-06-02T00:00:00.000Z" });
 
-    await expect(refreshGuestEventIfChanged(session)).resolves.toMatchObject({ attendanceCount: 2 });
+    await expect(refreshGuestEventIfChanged(session)).resolves.toMatchObject({ watermark: "2026-06-02T00:00:00.000Z" });
     expect(repository.fetchEvent).toHaveBeenCalledWith(session);
-    expect(repository.saveSession).toHaveBeenCalledWith(expect.objectContaining({ attendanceCount: 2 }));
+    expect(repository.saveSession).toHaveBeenCalledWith(expect.objectContaining({ watermark: "2026-06-02T00:00:00.000Z" }));
   });
 });

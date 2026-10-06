@@ -383,6 +383,8 @@ export function EventWorkspaceRegistrationTab() {
       walkInPolicy={vm.selectedEvent.walkInPolicy ?? "closed"}
       walkInThreshold={vm.selectedEvent.walkInThreshold ?? 200}
       onUpdateWalkInPolicy={vm.updateWalkInPolicy}
+      guestPrivacyClassification={vm.guestPrivacyClassification?.classification ?? "unclassified"}
+      onUpdateGuestPrivacyClassification={vm.updateGuestPrivacyClassification}
     />
   );
 }

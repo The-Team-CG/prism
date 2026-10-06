@@ -1,5 +1,5 @@
-import { FormEvent, useState } from "react";
-import { QrCode, Upload, Users, UserRoundCheck } from "lucide-react";
+import { FormEvent, useEffect, useState } from "react";
+import { QrCode, ShieldCheck, Upload, Users, UserRoundCheck } from "lucide-react";
 
 import type {
   PrismRegistrationPlatform,
@@ -11,6 +11,8 @@ import type {
   PrismGuestRosterEntry,
   GuestRosterSearchInput,
   UpdateWalkInPolicyInput,
+  GuestPrivacyClassification,
+  UpdateGuestPrivacyClassificationInput,
   UpdateGuestVerificationInput,
 } from "@prism/types";
 import { createRegistrationPlatformSchema, importGuestRosterSchema, importHeadcountSchema, parseContract } from "@prism/types";
@@ -479,19 +481,91 @@ function GuestRosterSection({ eventId, busy, onSearch, onImport, onCheckIn, onVe
   const [payload, setPayload] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   async function search() { setRows(await onSearch({ namePrefix: query, eligibility: eligibility || undefined, checkedIn: checkedIn === "all" ? undefined : checkedIn === "yes" })); }
+  async function updateVerification(id: string, status: UpdateGuestVerificationInput["status"]) { await onVerify(id, status); await search(); }
+  async function checkIn(id: string) { await onCheckIn(id); await search(); }
   async function importRows() {
     try {
       const parsed = parseContract(importGuestRosterSchema, JSON.parse(payload), "Guest roster import");
       const result = await onImport(parsed); setRows(result); setPayload(""); setMessage(`Imported ${result.length} roster rows`);
     } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to import roster"); }
   }
-  return <Panel title="Guest roster and registration desk" icon={UserRoundCheck}><div className="flex flex-col gap-3"><p className="text-sm text-muted-foreground">PMCM imports authoritative guest rows. Coordinators add walk-ins to this roster pending verification; verified walk-ins can then be checked in by registration staff.</p><textarea value={payload} onChange={(e) => setPayload(e.target.value)} rows={4} className="rounded-md border border-border bg-background px-3 py-2 font-mono text-xs" placeholder={'{"source":"xperto","rows":[{"sourceKey":"A-1","guestName":"Ada Lovelace","category":"VIP","table":"T1"}]}'}/><div className="flex gap-2"><button type="button" disabled={busy || !payload} onClick={() => void importRows()} className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Import roster</button>{message ? <span className="self-center text-sm text-muted-foreground">{message}</span> : null}</div><div className="flex flex-wrap gap-2"><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void search(); }} className="h-10 min-w-48 flex-1 rounded-md border border-border bg-background px-3 text-sm" placeholder="Name prefix"/><select value={eligibility} onChange={(e) => setEligibility(e.target.value as typeof eligibility)} className="h-10 rounded-md border border-border bg-background px-3 text-sm"><option value="">All eligibility</option><option value="eligible">Eligible</option><option value="ineligible">Ineligible</option></select><select value={checkedIn} onChange={(e) => setCheckedIn(e.target.value as typeof checkedIn)} className="h-10 rounded-md border border-border bg-background px-3 text-sm"><option value="all">All attendance</option><option value="yes">Checked in</option><option value="no">Not checked in</option></select><button type="button" onClick={() => void search()} className="rounded-lg border border-border px-4 py-2 text-sm font-bold">Search</button></div><div className="divide-y divide-border border-y border-border">{rows.map((row) => <div key={`${eventId}-${row.id}`} className="flex items-center justify-between gap-2 py-2 text-sm"><span><strong>{row.guestName}</strong><span className="ml-2 text-muted-foreground">{row.category || row.table || row.email || row.phone || row.sourceKey}</span></span><div className="flex items-center gap-2"><select aria-label={`Verification for ${row.guestName}`} value={row.verificationStatus} disabled={busy || Boolean(row.checkedInAt)} onChange={(event) => void onVerify(row.id, event.target.value as UpdateGuestVerificationInput["status"])} className="h-8 rounded-md border border-border bg-background px-2 text-xs"><option value="pending">Pending</option><option value="verified">Verified</option><option value="rejected">Rejected</option></select><button type="button" disabled={busy || !canCheckInRosterRow(row)} onClick={() => void onCheckIn(row.id)} className="rounded-md border border-border px-3 py-1.5 text-xs font-bold">Check in</button></div></div>)}{rows.length === 0 ? <p className="py-3 text-sm text-muted-foreground">No roster rows match.</p> : null}</div></div></Panel>;
+  return <Panel title="Guest roster and registration desk" icon={UserRoundCheck}><div className="flex flex-col gap-3"><p className="text-sm text-muted-foreground">PMCM imports authoritative guest rows. Coordinators add walk-ins to this roster pending verification; verified walk-ins can then be checked in by registration staff.</p><textarea value={payload} onChange={(e) => setPayload(e.target.value)} rows={4} className="rounded-md border border-border bg-background px-3 py-2 font-mono text-xs" placeholder={'{"source":"xperto","rows":[{"sourceKey":"A-1","guestName":"Ada Lovelace","category":"VIP","table":"T1"}]}'}/><div className="flex gap-2"><button type="button" disabled={busy || !payload} onClick={() => void importRows()} className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Import roster</button>{message ? <span className="self-center text-sm text-muted-foreground">{message}</span> : null}</div><div className="flex flex-wrap gap-2"><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void search(); }} className="h-10 min-w-48 flex-1 rounded-md border border-border bg-background px-3 text-sm" placeholder="Name prefix"/><select value={eligibility} onChange={(e) => setEligibility(e.target.value as typeof eligibility)} className="h-10 rounded-md border border-border bg-background px-3 text-sm"><option value="">All eligibility</option><option value="eligible">Eligible</option><option value="ineligible">Ineligible</option></select><select value={checkedIn} onChange={(e) => setCheckedIn(e.target.value as typeof checkedIn)} className="h-10 rounded-md border border-border bg-background px-3 text-sm"><option value="all">All attendance</option><option value="yes">Checked in</option><option value="no">Not checked in</option></select><button type="button" onClick={() => void search()} className="rounded-lg border border-border px-4 py-2 text-sm font-bold">Search</button></div><div className="divide-y divide-border border-y border-border">{rows.map((row) => <div key={`${eventId}-${row.id}`} className="flex items-center justify-between gap-2 py-2 text-sm"><span><strong>{row.guestName}</strong><span className="ml-2 text-muted-foreground">{row.category || row.table || row.email || row.phone || row.sourceKey}</span></span><div className="flex items-center gap-2"><select aria-label={`Verification for ${row.guestName}`} value={row.verificationStatus} disabled={busy || Boolean(row.checkedInAt)} onChange={(event) => void updateVerification(row.id, event.target.value as UpdateGuestVerificationInput["status"])} className="h-8 rounded-md border border-border bg-background px-2 text-xs"><option value="pending">Pending</option><option value="verified">Verified</option><option value="rejected">Rejected</option></select><button type="button" disabled={busy || !canCheckInRosterRow(row)} onClick={() => void checkIn(row.id)} className="rounded-md border border-border px-3 py-1.5 text-xs font-bold">Check in</button></div></div>)}{rows.length === 0 ? <p className="py-3 text-sm text-muted-foreground">No roster rows match.</p> : null}</div></div></Panel>;
 }
 
 function WalkInPolicySection({ policy, threshold, busy, onUpdate }: { policy: "closed" | "open" | "threshold"; threshold: number; busy: boolean; onUpdate: (input: UpdateWalkInPolicyInput) => void }) {
   const [selectedPolicy, setSelectedPolicy] = useState(policy);
   const [selectedThreshold, setSelectedThreshold] = useState(String(threshold));
   return <Panel title="Walk-in policy" icon={Users}><div className="flex flex-col gap-3"><p className="text-sm text-muted-foreground">PMCM owns this event setting. Threshold walk-ins are admitted only while checked-in attendance is below the limit; the API enforces the limit during check-in.</p><div className="flex flex-wrap items-end gap-3"><label className="flex min-w-44 flex-col gap-1 text-xs font-semibold text-muted-foreground">Policy<select value={selectedPolicy} onChange={(event) => setSelectedPolicy(event.target.value as typeof selectedPolicy)} className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground"><option value="closed">Closed</option><option value="open">Open</option><option value="threshold">Threshold</option></select></label>{selectedPolicy === "threshold" ? <label className="flex w-32 flex-col gap-1 text-xs font-semibold text-muted-foreground">Limit<input type="number" min={1} value={selectedThreshold} onChange={(event) => setSelectedThreshold(event.target.value)} className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground" /></label> : null}<button type="button" disabled={busy} onClick={() => onUpdate({ policy: selectedPolicy, ...(selectedPolicy === "threshold" || selectedThreshold !== String(threshold) ? { threshold: Number(selectedThreshold) } : {}) })} className="h-10 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground">Save policy</button></div></div></Panel>;
+}
+
+function GuestPrivacyClassificationSection({
+  classification,
+  busy,
+  onUpdate,
+}: {
+  classification: GuestPrivacyClassification;
+  busy: boolean;
+  onUpdate: (input: UpdateGuestPrivacyClassificationInput) => Promise<boolean>;
+}) {
+  const [selected, setSelected] = useState(classification);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelected(classification);
+    setMessage(null);
+  }, [classification]);
+
+  async function save() {
+    setSaving(true);
+    setMessage(null);
+    try {
+      const saved = await onUpdate({ classification: selected });
+      setMessage(saved ? "Privacy classification saved." : "Unable to save privacy classification.");
+    } catch {
+      setMessage("Unable to save privacy classification.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Panel title="Event privacy classification" icon={ShieldCheck}>
+      <div className="flex flex-col gap-3">
+        <p className="text-sm text-muted-foreground">
+          Set the event privacy status used with the confirmed briefing guest count to determine
+          whether unregistered guest submissions need staff verification.
+        </p>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex min-w-44 flex-col gap-1 text-xs font-semibold text-muted-foreground">
+            Event privacy
+            <select
+              value={selected}
+              onChange={(event) => setSelected(event.target.value as GuestPrivacyClassification)}
+              className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground"
+            >
+              <option value="unclassified">Unclassified</option>
+              <option value="private">Private</option>
+              <option value="public">Public</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            disabled={busy || saving}
+            onClick={() => void save()}
+            className="h-10 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground"
+          >
+            {saving ? "Saving…" : "Save privacy classification"}
+          </button>
+          {message ? (
+            <span role={message.startsWith("Unable") ? "alert" : "status"} className="self-center text-sm text-muted-foreground">
+              {message}
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </Panel>
+  );
 }
 
 export function EventRegistrationTab({
@@ -510,6 +584,8 @@ export function EventRegistrationTab({
   walkInPolicy,
   walkInThreshold,
   onUpdateWalkInPolicy,
+  guestPrivacyClassification,
+  onUpdateGuestPrivacyClassification,
 }: {
   eventId: string;
   platform: PrismRegistrationPlatform | null;
@@ -526,6 +602,8 @@ export function EventRegistrationTab({
   walkInPolicy: "closed" | "open" | "threshold";
   walkInThreshold: number;
   onUpdateWalkInPolicy: (input: UpdateWalkInPolicyInput) => void;
+  guestPrivacyClassification: GuestPrivacyClassification;
+  onUpdateGuestPrivacyClassification: (input: UpdateGuestPrivacyClassificationInput) => Promise<boolean>;
 }) {
   const digitalRegSuppliers = suppliers.filter((s) => s.categorySlug === "digital-registration");
   return (
@@ -542,6 +620,11 @@ export function EventRegistrationTab({
         onUpsert={onUpsert}
         onUpdate={onUpdate}
       />
+      <GuestPrivacyClassificationSection
+        classification={guestPrivacyClassification}
+        busy={busy}
+        onUpdate={onUpdateGuestPrivacyClassification}
+      />
       <WalkInPolicySection policy={walkInPolicy} threshold={walkInThreshold} busy={busy} onUpdate={onUpdateWalkInPolicy} />
       {platform ? <HeadcountSection platform={platform} busy={busy} onImportHeadcount={onImportHeadcount} /> : null}
       <GuestRosterSection eventId={eventId} busy={busy} onSearch={onSearchRoster} onImport={onImportRoster} onCheckIn={onCheckInRoster} onVerify={onVerifyRoster} />
@@ -551,5 +634,6 @@ export function EventRegistrationTab({
 
 function canCheckInRosterRow(row: PrismGuestRosterEntry): boolean {
   if (row.withdrawnAt || row.checkedInAt || row.verificationStatus === "rejected") return false;
-  return row.source !== "coordinator-walk-in" || row.verificationStatus === "verified";
+  return !["coordinator-walk-in", "guest-review", "guest-review-headcount"].includes(row.source)
+    || row.verificationStatus === "verified";
 }
