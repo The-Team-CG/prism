@@ -4,7 +4,7 @@
     "targetSchemas": 7,
     "tableMoves": 83,
     "currentCrossSchemaFks": 49,
-    "targetSameDomainFks": 68,
+    "targetSameDomainFks": 71,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -1306,11 +1306,12 @@
     {
       "schema": "finance_ops",
       "table": "payment_records",
-      "name": "payment_records_milestone_id_fkey",
+      "name": "payment_records_milestone_event_fkey",
       "kind": "f",
-      "definition": "FOREIGN KEY (milestone_id) REFERENCES finance_ops.payment_milestones(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "definition": "FOREIGN KEY (milestone_id, event_id) REFERENCES finance_ops.payment_milestones(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
       "columns": [
-        "milestone_id"
+        "milestone_id",
+        "event_id"
       ],
       "sourceDomain": "commercial",
       "targetDomain": "commercial",
@@ -1321,11 +1322,12 @@
     {
       "schema": "finance_ops",
       "table": "proposal_versions",
-      "name": "proposal_versions_cost_estimate_id_fkey",
+      "name": "proposal_versions_cost_estimate_event_fkey",
       "kind": "f",
-      "definition": "FOREIGN KEY (cost_estimate_id) REFERENCES finance_ops.cost_estimates(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "definition": "FOREIGN KEY (cost_estimate_id, event_id) REFERENCES finance_ops.cost_estimates(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
       "columns": [
-        "cost_estimate_id"
+        "cost_estimate_id",
+        "event_id"
       ],
       "sourceDomain": "commercial",
       "targetDomain": "commercial",
@@ -2401,11 +2403,12 @@
     {
       "schema": "supplier_ops",
       "table": "supplier_schedules",
-      "name": "supplier_schedules_request_id_fkey",
+      "name": "supplier_schedules_request_event_fkey",
       "kind": "f",
-      "definition": "FOREIGN KEY (request_id) REFERENCES supplier_ops.quote_requests(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "definition": "FOREIGN KEY (request_id, event_id) REFERENCES supplier_ops.quote_requests(id, event_id) ON UPDATE CASCADE ON DELETE CASCADE",
       "columns": [
-        "request_id"
+        "request_id",
+        "event_id"
       ],
       "sourceDomain": "commercial",
       "targetDomain": "commercial",
@@ -2502,6 +2505,54 @@
       "targetCurrentSchema": "event_core",
       "targetTable": "events",
       "sameDomain": false
+    },
+    {
+      "schema": "finance_ops",
+      "table": "billing_corrections",
+      "name": "billing_corrections_statement_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (statement_id, event_id) REFERENCES finance_ops.billing_statements(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "statement_id",
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "finance_ops",
+      "targetTable": "billing_statements",
+      "sameDomain": true
+    },
+    {
+      "schema": "finance_ops",
+      "table": "billing_disputes",
+      "name": "billing_disputes_statement_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (statement_id, event_id) REFERENCES finance_ops.billing_statements(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "statement_id",
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "finance_ops",
+      "targetTable": "billing_statements",
+      "sameDomain": true
+    },
+    {
+      "schema": "finance_ops",
+      "table": "billing_disputes",
+      "name": "billing_disputes_milestone_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (milestone_id, event_id) REFERENCES finance_ops.payment_milestones(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "milestone_id",
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "finance_ops",
+      "targetTable": "payment_milestones",
+      "sameDomain": true
     }
   ]
 }
