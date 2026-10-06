@@ -177,6 +177,7 @@ model OpsApprovalRequest {
   status                   String   @default("pending")
   privacyConsentAccepted   Boolean  @default(false) @map("privacy_consent_accepted")
   privacyNoticeVersion     String   @default("") @map("privacy_notice_version")
+  privacyConsentCapturedAt DateTime? @map("privacy_consent_captured_at") @db.Timestamptz(6)
   marketingConsentAccepted Boolean  @default(false) @map("marketing_consent_accepted")
   requestedAt              DateTime @default(now()) @map("requested_at")
 
@@ -1898,6 +1899,9 @@ model OpsGuestRosterEntry {
   eligibility     String    @default("eligible")
   verificationStatus String  @default("pending") @map("verification_status")
   source          String    @default("manual")
+  privacyConsentAccepted Boolean @default(false) @map("privacy_consent_accepted")
+  privacyNoticeVersion String @default("") @map("privacy_notice_version")
+  privacyConsentCapturedAt DateTime? @map("privacy_consent_captured_at") @db.Timestamptz(6)
   importBatchId   String?   @map("import_batch_id")
   checkedInAt     DateTime? @map("checked_in_at")
   withdrawnAt     DateTime? @map("withdrawn_at")
