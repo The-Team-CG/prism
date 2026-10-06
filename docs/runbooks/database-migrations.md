@@ -4,12 +4,12 @@ title: "Prism database migrations"
 description: "Create, review, deploy, and recover Prism's Prisma migrations without changing the applied history by hand."
 tags: [runbook, database, migrations, prisma, drift, recovery]
 status: canonical
-updated: "2026-10-03"
+updated: "2026-10-06"
 authority: operational
 owner: "D (Anthony)"
 audience: [developers, reviewers, QA, operators, agents]
 scope: "apps/api Prisma migration creation, static review, deployment, and drift recovery"
-last_verified: "codex/db-integrity-ci; PostgreSQL workflow source reviewed"
+last_verified: "2026-10-06; seven baselines applied on disposable PostgreSQL 16; status and live schema diff clean"
 sources:
   - id: migration-config
     resource: "apps/api/prisma.config.ts"
@@ -37,96 +37,77 @@ sources:
 
 ## At a glance
 
-- **Purpose:** Keep one trustworthy Prisma migration history while making new
-  changes visibly owned, ordered, schema-scoped, and risk-reviewed.
-- **Runtime source of truth:** `apps/api/prisma/migrations` and Prisma's
-  `_prisma_migrations` ledger; the policy also records normalized SHA-256
-  checksums for the immutable legacy SQL files.
-- **Owner:** D (Anthony), with the owning bounded context responsible for its
-  schema change and review evidence.
-- **Verify with:** `npm run check:migrations`, `npm run check:invariants`,
-  focused migration tests, Prisma validation, migration status, and a live
-  diff when database access is intentionally available.
-- **Important boundary:** This runbook does not authorize a reset, baseline,
-  `migrate resolve`, or live schema repair.
-
-## Runtime structure
+- **Purpose:** Keep one clean Prisma migration history with a schema baseline for each bounded context and immutable forward changes.
+- **Runtime source of truth:** `apps/api/prisma/migrations` and Prisma's `_prisma_migrations` ledger; the policy freezes checksums for the seven owner-scoped baselines.
+- **Owner:** D (Anthony), with each bounded context responsible for its own schema changes and review evidence.
+- **Verify with:** Prisma validation, a fresh PostgreSQL 16 replay, migration status, and live schema equivalence.
+- **Important boundary:** The history replacement targets pre-production only. A database with the retired ledger needs a verified backup and an approved rebuild before the new history is applied.
+ ## Runtime structure
 
 Prism uses the standard Prisma layout:
 
-```text
-apps/api/prisma/
-  schema.prisma
-  migration-policy.json
-  migrations/
-    migration_lock.toml
-    <version>_<owner>_<change_slug>/
-      migration.sql
-```
+    apps/api/prisma/
+      schema.prisma
+      migration-policy.json
+      migrations/
+        migration_lock.toml
+        <version>_<owner>_<change_slug>/
+          migration.sql
 
-The current history is a flat set of timestamped Prisma directories. Do not
-create `migrations/<owner>/...` folders: standard `prisma migrate dev` and
-`prisma migrate deploy` discover direct migration directories, not an
-AlphaCI-style recursive owner tree. The AlphaCI-style organization is applied
-here through owner-aware names, machine-readable policy, static checks, and
-this runbook while Prisma remains the execution engine.
+Migration directories are direct children. Do not create
+`migrations/<owner>/...` folders: Prisma discovers direct migration
+directories only. Owner-scoped folder names, SQL metadata, and the policy
+preserve domain ownership while Prisma remains the execution engine.
 
-Do not rename, move, rewrite, or regenerate an applied migration directory.
-Prisma records its migration name and checksum in `_prisma_migrations`; a
-historical correction belongs in a new forward migration or a reviewed
-operator reconciliation, never in an edited old directory. The static guard
-also compares the normalized legacy SQL checksums, so a same-name historical
-edit fails CI before it can reach a database.
-
+The checked-in history now contains seven bootstrap migrations, one for each
+write domain and schema. The old 102-folder pre-production history was removed
+in a one-time rebaseline. The new baseline files are immutable once any
+environment adopts them. Do not rename, move, rewrite, or regenerate them;
+future changes use new forward migrations. Existing databases retain their old
+`_prisma_migrations` rows until separately rebuilt.
 ## Ownership and metadata
 
 The owner-to-schema policy is in
 [`apps/api/prisma/migration-policy.json`](../../apps/api/prisma/migration-policy.json)
 and the domain explanation is in the
 [persistence ownership register](../architecture/persistence-ownership.md).
-The current policy buckets are `event-lifecycle`, `commercial`, `operations`,
-`live-ops`, `floorplan`, `identity-access`, and `platform-ops`. Each owns exactly
-one schema (`event_lifecycle`, `commercial`, `operations`, `live_ops`, `floorplan`,
-`identity_access`, `platform_ops`); a schema is not permission to change another
-context's tables.
+The seven owners each own one schema: event-lifecycle/event_lifecycle,
+commercial/commercial, operations/operations, live-ops/live_ops,
+floorplan/floorplan, identity-access/identity_access, and
+platform-ops/platform_ops.
 
-New migrations use a name such as:
+The initial migration sequence is:
 
-```text
-20260911123000_commercial_supplier_reconciliation
-```
+    20261006120000_commercial_schema_baseline
+    20261006120001_event-lifecycle_schema_baseline
+    20261006120002_floorplan_schema_baseline
+    20261006120003_identity-access_schema_baseline
+    20261006120004_live-ops_schema_baseline
+    20261006120005_operations_schema_baseline
+    20261006120006_platform-ops_schema_baseline
 
-The top of its `migration.sql` declares:
+Each baseline creates exactly its owner's schema objects and keeps only
+same-domain foreign keys. Future migrations use a later timestamp and a
+specific owner, for example
+`20261007123000_commercial_supplier_reconciliation`. The top of its
+`migration.sql` declares:
 
-```sql
--- prism-owner: commercial
--- prism-kind: schema
--- prism-risk: medium
-```
+    -- prism-owner: commercial
+    -- prism-kind: schema
+    -- prism-risk: medium
 
 `prism-kind` is `schema`, `data`, or `mixed`. The guard infers the kind from
 DDL and data-write statements. `prism-risk` is `low`, `medium`, or `high`; a
 declaration may be more conservative than the inference, never less.
 
-The static risk rules treat these as high risk: dropping schemas, tables,
-views, sequences, types, functions, columns, or constraints; truncation or
-deletion; and type changes. Table changes, index creation/removal, schema
-creation, inserts, and updates are at least medium.
-The owning reviewer must still inspect locks, row counts, foreign keys, RLS,
-backfill duration, and application compatibility; the static level is a gate,
-not a deployment approval.
+The static risk rules treat drops, truncation, deletion, and type changes as
+high risk. Table/schema changes, index changes, inserts, and updates are at
+least medium. The owning reviewer must still inspect locks, row counts,
+foreign keys, RLS, backfill duration, and application compatibility.
 
-Migrations before the cutover keep their original schema names (`event_core`,
-`supplier_ops`, `finance_ops`, `staffing_ops`, `guest_ops`, `compliance_ops`,
-`trust_ops`, `identity`) under the frozen historical policy; the cutover
-migration moves the tables. New tables go in the owner's schema and need a
-table mapping in the same reviewed change.
-
-The guard fails closed for procedural or otherwise unsupported migration SQL,
-including `DO` blocks, dynamic `EXECUTE`, stored function/procedure definitions,
-`CALL`, `MERGE`, and `COPY`. Move that work behind a separately reviewed
-mechanism or extend the checker and its tests before adding it to a migration.
-
+The guard rejects SQL it cannot safely classify, including `DO` blocks,
+dynamic `EXECUTE`, stored function/procedure definitions, `CALL`, `MERGE`,
+and `COPY`. Extend the checker and its tests before adding such SQL.
 ## Create and review a migration
 
 Run these commands from the repository root after confirming the owning context
@@ -153,7 +134,8 @@ Then review the generated SQL and confirm:
    in the same review.
 4. The declared kind and risk cover the SQL, with no unreviewed data write,
    destructive operation, type conversion, or long-running index/table lock.
-5. No old migration directory was renamed or modified.
+5. The seven baseline SQL files and checksums remain unchanged after adoption;
+   future changes get new owner-scoped directories.
 
 The root checker is also available through the API workspace as
 `npm --workspace prism-api run db:check:migrations`. The focused tests run with
@@ -200,66 +182,42 @@ means Prisma found a non-empty diff that needs review; exit `1` means the
 comparison failed. A non-empty diff is evidence to investigate, not permission
 to apply the generated SQL automatically.
 
-## Controlled schema cutover
+## One-time pre-production baseline adoption
 
-Ordinary backward-compatible deployments leave
-`PRISM_SCHEMA_COMPATIBILITY_MODE=disabled`. During a deliberately controlled
-schema release, the API can run with `PRISM_SCHEMA_COMPATIBILITY_MODE=exact`
-and `PRISM_SCHEMA_REQUIRED_HEAD=<reviewed migration directory>`. Before the
-API listens, it compares every bundled migration name and SHA-256 checksum
-with completed rows in `public._prisma_migrations`, rejects unfinished,
-missing, unknown, or checksum-mismatched rows, and requires the checked-out
-head to equal `PRISM_SCHEMA_REQUIRED_HEAD`. This verifies the ledger only;
-`db:diff:live` remains necessary to detect physical schema drift.
-The startup query uses the API's runtime database identity, while the preflight
-uses `DIRECT_URL`; the preflight therefore does not prove that the runtime role
-can read `public._prisma_migrations`. Confirm that privilege in staging before
-enabling exact mode. If the runtime query is denied, API startup fails closed.
+The seven migration files describe the final schema generated from
+`apps/api/prisma/schema.prisma`. They replace the retired pre-production
+history; they do not move data or reconcile the old migration ledger.
 
-Use this order for an approved cutover:
+### Fresh disposable database
 
-1. Set the repository Actions variable `PRISM_SCHEMA_CUTOVER_HOLD=true`.
-   Confirm all automatic Deploy, Promote, Rollback, and non-dry-run environment
-   sync jobs have settled. The hold blocks new repository workflow mutations;
-   it does not pause a provider service or cancel an already running job.
-2. Take and verify a restorable backup. Stop or drain the API and every other
-   database writer, and verify no provider deploy is in flight.
-3. Set the exact compatibility mode and reviewed migration head in repository
-   Actions variables. Ensure both are included in the API entries in
-   `ENV_SYNC_MANIFEST_JSON` so the exact API artifact receives those values.
-4. Dispatch **Schema cutover preflight (read-only)** from `staging` for
-   staging, or `prod` for production. Confirm the backup and drain inputs. The
-   workflow checks the migration artifacts and Prisma model, confirms that the
-   target ledger is a checksum-validated prefix with no unknown or failed
-   entries, and prints a read-only SQL diff for owner review. Pending migration
-   names are expected; review the SQL diff for unintended drift. It performs no
-   database or provider writes. The selected GitHub Environment must provide
-   `DIRECT_URL`.
-5. Review the pending migration list, schema diff, backup, and ownership/risk
-   review. An approved operator applies the checked-in history with
-   `npm --workspace prism-api run db:migrate:deploy`, then runs
-   `npm --workspace prism-api run db:status` and
-   `npm --workspace prism-api run db:diff:live` against the same target.
-6. While the hold remains active and writers remain stopped, configure the
-   provider runtime with the exact mode/head and deploy the reviewed SHA using
-   the approved maintenance procedure. Confirm API health and startup evidence
-   that the ledger exactly matches the required head; deploy portals only after
-   the API passes health checks. Provider-side operations are outside the
-   read-only preflight and repository hold controls.
-7. While the hold remains active, set the API runtime compatibility mode back
-   to `disabled` through the approved provider maintenance procedure, clear the
-   one-time required head in the repository variables/manifest, and verify API
-   health again after any provider restart. Then resume writers and clear the
-   hold only after database and application acceptance. This keeps ordinary
-   backward-compatible releases on the default path; a later schema release
-   enables `exact` again with its own required head.
+On an empty PostgreSQL 16 database, apply the full history and inspect the
+migration status and live schema diff:
 
-The normal manual environment-sync workflow refuses non-dry-run provider sync
-while the hold is active. Do not clear the hold merely to make it run. If any
-preflight or post-migration check fails, keep the hold, leave writers stopped,
-and follow the recovery procedure below. Do not roll an old API image onto a
-new schema without a verified compatibility decision.
+    npm --workspace prism-api run db:migrate:deploy
+    npm --workspace prism-api run db:status
+    npm --workspace prism-api run db:diff:live
 
+Use an isolated disposable target. Do not point these commands at a shared or
+hosted database.
+
+### Existing staging database
+
+Do not run the new history against a database whose ledger contains the retired
+102 migration names. Do not use `migrate resolve --applied` alone: it does not
+remove unknown rows or prove schema equivalence.
+
+Before adopting the baseline, place staging writers and deploy jobs on hold,
+take a backup, and verify a restore to another disposable database. Review
+fixture and operator data with its owner. If the data is disposable, recreate
+only the staging database using the approved provider procedure, deploy the
+seven baselines, and check status, live diff, runtime compatibility, and
+application acceptance before resuming writes.
+
+If any data must be preserved, stop before recreating the database. This
+baseline contains no data-copy or in-place schema-move migration. Recover the
+retired history from the pre-rebaseline Git revision and plan a separate
+owner-reviewed conversion and restore path. This rebaseline is not a
+production migration.
 ## Data invariants
 
 Schema changes and data backfills are not the only migration risks. Any
@@ -344,71 +302,16 @@ The normal recovery sequence is:
 `db:reset` is destructive and is not part of this procedure. The migration
 guard itself performs no database mutation and cannot approve emergency repair.
 
-## Required PostgreSQL replay and equivalence gate
+## Migration review evidence
 
-The dedicated database integrity workflow at .github/workflows/db-integrity.yml
-runs on pull requests and pushes targeting staging or prod. It provisions an
-ephemeral PostgreSQL 16 service and invokes:
+For a fresh baseline, retain the concise output for Prisma validation, migration
+status, and a zero-diff schema comparison. Record which database was used;
+local evidence does not qualify a different staging or production target.
 
-    npm --workspace prism-api run db:integrity:ci
+Never commit database credentials or raw secret-bearing output.
 
-The runner accepts only DB_INTEGRITY_ADMIN_URL resolving to
-127.0.0.1:55437/postgres with DB_SSL=false. It checks the server major,
-refuses to reuse any of its five fixed database names if they already exist,
-and creates them without dropping or resetting databases. The service lifetime
-provides cleanup in CI. For local rehearsal, use an isolated disposable
-PostgreSQL service on that exact loopback endpoint; never point this command at
-a shared or hosted database.
+## PR review
 
-The gate uses separate databases for a clean full replay (prism_ci_fresh),
-an upgrade from the recorded checkpoint (prism_ci_upgraded), and guarded
-behavior tests (prism_p0). The upgrade checkpoint is
-20260909100000_command_receipt_event_scope; the script applies that historical
-prefix first and then the remaining checked-in migrations. The DB tests receive
-only P0_TEST_DATABASE_URL=postgresql://...@127.0.0.1:55437/prism_p0. Their
-machine-readable Vitest report must show every test passed with zero skipped
-or pending tests.
-
-For each schema verification, the script inventories SQL objects Prisma
-cannot represent and requires an exact match to
-apps/api/prisma/schema-sql-exceptions.json, including object definition,
-owning domain, and rationale. It then runs
-prisma migrate diff --from-config-datasource --to-schema ... --exit-code.
-Ordinary tables, columns, constraints, defaults, and supported indexes must
-match Prisma. A missing quote-request foreign key therefore fails as Prisma
-drift; it is not added to the SQL-only exception list. The currently approved
-SQL-only object list is empty. GIN, composite, and partial indexes are declared
-in Prisma.
-
-Two isolated negative cases verify that the gate itself fails closed: one
-applies a temporary copy of the migration history with the quote-request FK
-omitted, and one creates an unexpected expression index. Both are confined to
-disposable databases and a temporary migration directory. The temporary
-directory is removed only after its resolved path is verified to be under the
-OS temp directory.
-
-db:verify:schema runs the read-only catalog and Prisma comparison against
-PRISMA_DATABASE_URL. It does not apply migrations or repair drift. It is
-distinct from db:verify:offline, which validates a model and prints SQL from an
-empty schema but does not compare the migration history to a live database.
-
-The DB integration fixtures explicitly remove their own test records. The audit
-chain test intentionally retains its append-only audit evidence in the
-disposable database; deleting a tail could invalidate a concurrent writer.
-No test teardown relies on deleting an event or account to cascade across
-context-owned data.
-## CI and evidence
-
-Pull-request CI runs the static guard and focused tests without database
-credentials. A migration PR should retain the command output for:
-
-```text
-npm run check:migrations
-npm run test:migrations
-npm --workspace prism-api run prisma:validate
-```
-
-If a live target was used, record the target identity, preflight status,
-planned migration names, operator/approver, start/end time, result, post-deploy
-status, and any remaining diff. Never commit database credentials or raw
-secret-bearing output.
+A migration change should identify the target database class, the migration
+names, the pre-production adoption boundary, and the post-replay status.
+Do not include credentials or raw secret-bearing output.

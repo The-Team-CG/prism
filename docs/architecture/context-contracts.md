@@ -9,7 +9,7 @@ authority: normative
 owner: "D (Anthony)"
 audience: [agents, backend-engineers, reviewers]
 scope: "apps/api/src/modules and kernel seams"
-last_verified: "2026-10-06 local s11-cutover review; owner readers and context dependency direction checked against current module exports"
+last_verified: "2026-10-06; owner readers and context dependency direction checked against current module exports"
 sources:
   - id: context-source
     resource: "apps/api/src/modules"
@@ -95,11 +95,13 @@ reference and same-event agreement in the command transaction. The initiating
 context still authorizes its actor. Historical attribution is retained without
 becoming current authorization. See the [external-reference lifecycle
 register](external-reference-lifecycle.md) and the machine policy at
-apps/api/prisma/domain-reference-policy.json. The reviewed staging baseline
-contained 45 cross-domain foreign keys and 28 additional scalar references.
-The coordinated domain-schema cutover removes those 45 constraints after
-owner-reference validation is in place; the target database retains only
-same-domain foreign keys. Cross-domain scalar references remain subject to
+apps/api/prisma/domain-reference-policy.json. That register preserves 45
+former cross-domain foreign-key behaviors and 28 scalar references from the
+legacy pre-production layout. The current Prisma schema and seven baseline
+migrations create 94 tables across seven owner schemas, with 76 same-domain
+foreign keys and no cross-domain foreign keys. An existing staging database
+remains on its old schema and ledger until separately rebuilt; the repository
+change does not mutate it. Cross-domain scalar references remain subject to
 the owner validation and recovery rules in the policy register.
 
 ## Technical kernel surfaces
@@ -133,7 +135,7 @@ legacy relation or changing schema placement.
 | modules/operations | Commercial registration supplier-reference capability | Validate supplier category and event selection before registration links | Commercial locks supplier, category, and selected quote rows in the caller transaction. A category must be active when a link is new or changed; existing registration history remains editable. |
 | modules/live-ops | Operations staffing and LiveOps-reference capabilities; Lifecycle event-reference capability | Owner-validated assignment transitions, current operator/handoff eligibility, and event-state checks | Operations validates and mutates assignment state, attendance, reliability and audit effects; for designation and handoff, it locks and rechecks profiles and same-event assignment state in the LiveOps transaction. Lifecycle supplies transaction-aware event state. LiveOps retains event-day authorization, history, and event-day log composition. |
 | modules/event-lifecycle | Operations staffing capability | Owner-validated assignment cancellation/postponement transitions | Event decisions pass their caller transaction to Operations, which validates and applies assignment changes atomically; Lifecycle continues to coordinate the event decision. |
-| modules/floorplan | Lifecycle event capabilities | `FLOORPLAN_EVENT_REFERENCE_READER` and `FLOORPLAN_PROJECTION_WRITER` | Lifecycle supplies locked event, conforme, ocular, archive, freeze, portal, and projection facts. Floorplan validates official-draft gates and blocks archived/frozen writes; its versioned projection clock and draft changes commit with Lifecycle's compare-and-set. Cross-domain FKs remain until the coordinated schema cutover. |
+| modules/floorplan | Lifecycle event capabilities | `FLOORPLAN_EVENT_REFERENCE_READER` and `FLOORPLAN_PROJECTION_WRITER` | Lifecycle supplies locked event, conforme, ocular, archive, freeze, portal, and projection facts. Floorplan validates official-draft gates and blocks archived/frozen writes; its versioned projection clock and draft changes commit with Lifecycle's compare-and-set. The fresh owner-schema baselines retain same-domain FKs only; existing databases remain unchanged until separately rebuilt. |
 | kernel/event-core | Platform receipt storage | `CommandReceiptStore` port with caller transaction | Platform implements receipt persistence and binds it at the root; kernel keeps command authorization and replay policy, while reservation, command writes, and completion share the caller transaction. |
 | modules/platform-ops | each affected data-owning context | Focused redaction/retention capability | Platform coordinates approved privacy requests; data-owner mutations and resumable partial execution remain to be made explicit. Document metadata stays retained and redaction stays disabled while the PMCM document-retention policy is pending. Operations redaction covers guest roster identity/contact fields and feedback filename metadata, while stored media bytes remain outside database redaction. |
 | modules/platform-ops | read-models reference projection | `PLATFORM_REFERENCE_READ_MODEL`, bound by `PlatformReferenceReadersModule` at the API composition root | Supplies narrow event/storage scope, PARE request/event/supplier facts, trust-recipient email, and privacy consent inventory. Reads only; no owning-context writes. |
