@@ -17,7 +17,9 @@ export type GuestNextAction = {
   status: "pending" | "complete";
 };
 
-export type CheckInPayload = CreateGuestCheckInInput;
+type WithoutIdempotencyKey<T> = T extends { idempotencyKey: string } ? Omit<T, "idempotencyKey"> : never;
+
+export type CheckInPayload = WithoutIdempotencyKey<CreateGuestCheckInInput>;
 
 export type FeedbackMediaMeta = {
   fileName: string;

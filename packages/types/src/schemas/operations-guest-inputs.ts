@@ -9,10 +9,12 @@ import {
 
 export const createGuestCheckInSchema = z.discriminatedUnion("checkInMode", [
   privacyConsentSchema.extend({
+    idempotencyKey: z.string().uuid(),
     checkInMode: z.literal("name_search"),
     guestName: nonEmptyStringSchema,
   }).strict(),
   privacyConsentSchema.extend({
+    idempotencyKey: z.string().uuid(),
     checkInMode: z.literal("headcount"),
   }).strict(),
 ]);

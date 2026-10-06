@@ -1,7 +1,7 @@
 import { Inject, Injectable, BadRequestException, ForbiddenException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import type { OpsGuestCheckIn, OpsGuestFeedback, OpsGuestRosterEntry, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { validateUploadMetadata } from '@prism/kernel/shared';
@@ -159,7 +159,8 @@ export class GuestWorkflowService implements GuestCommands {
   }
 
   async checkInByAccessCode(accessCode: string, input: GuestCheckInInput): Promise<PrismGuestCheckInReceipt> {
-    return this.createCheckIn(() => this.resolveGuestEventByAccessCode(accessCode), input);
+    const accessCodeScope = createHash('sha256').update(this.normalizeGuestAccessCode(accessCode)).digest('hex');
+    return this.createCheckIn(() => this.resolveGuestEventByAccessCode(accessCode), input, accessCodeScope);
   }
 
   async registerWalkIn(eventId: string, input: CoordinatorWalkInCheckInInput, actor: GuestWorkflowActor) {
@@ -176,6 +177,7 @@ export class GuestWorkflowService implements GuestCommands {
       this.assertWalkInAllowed(event, checkedInCount);
 
       const id = `gre_${randomUUID()}`;
+      const privacyConsentCapturedAt = new Date();
       const rosterEntry = await tx.opsGuestRosterEntry.create({
         data: {
           id,
@@ -187,6 +189,9 @@ export class GuestWorkflowService implements GuestCommands {
           eligibility: 'eligible',
           verificationStatus: 'pending',
           source: 'coordinator-walk-in',
+          privacyConsentAccepted: true,
+          privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
+          privacyConsentCapturedAt,
         },
       });
       await writeAudit(this.auditWriter, eventId, actor.name, `Walk-in added to guest roster: ${guestName}`, {
@@ -201,6 +206,7 @@ export class GuestWorkflowService implements GuestCommands {
           verificationStatus: 'pending',
           privacyConsentAccepted: input.privacyConsentAccepted,
           privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
+          privacyConsentCapturedAt: privacyConsentCapturedAt.toISOString(),
           actorId: actor.id,
         },
       }, { prisma: tx, correlationId, actorId: actor.id });
@@ -211,6 +217,7 @@ export class GuestWorkflowService implements GuestCommands {
   private async createCheckIn(
     resolveEvent: () => Promise<EventWithDrafts>,
     input: GuestCheckInInput,
+    accessCodeScope: string,
     actor?: { id?: string; name: string; role: string },
   ): Promise<PrismGuestCheckInReceipt> {
     let event: EventWithDrafts | null = null;
@@ -220,6 +227,7 @@ export class GuestWorkflowService implements GuestCommands {
     let requiresNewCl1Review = false;
     let ambiguousNameMatch = false;
     let requiresStaffReview = false;
+    let privacyConsentCapturedAt: Date | null = null;
     let audit: {
       actionType: (typeof AuditActionType)[keyof typeof AuditActionType];
       affectedType: 'guest_roster_entry' | 'guest_check_in';
@@ -229,17 +237,29 @@ export class GuestWorkflowService implements GuestCommands {
       metadata: Record<string, unknown>;
     } | null = null;
 
+    const privacyNoticeVersion = input.privacyNoticeVersion || PRISM_PRIVACY_NOTICE_VERSION;
+    const payloadHash = createHash('sha256').update(JSON.stringify({
+      checkInMode: input.checkInMode,
+      guestName: input.checkInMode === 'name_search' ? input.guestName.trim().toLowerCase() : null,
+      privacyConsentAccepted: input.privacyConsentAccepted === true,
+      privacyNoticeVersion,
+      marketingConsentAccepted: input.marketingConsentAccepted === true,
+    })).digest('hex');
+
     return this.workflowCommandService.execute<PrismGuestCheckInReceipt>({
       name: 'guest_check_in',
       sideEffectMode: 'same_tx',
+      idempotencyPayloadHash: payloadHash,
       context: {
         actorId: actor?.id ?? actor?.name ?? 'guest',
         actorRole: actor?.role ?? OpsUserRole.Guest,
         correlationId: `guest_check_in_${randomUUID()}`,
+        idempotencyKey: `guest-check-in:${accessCodeScope}:${input.idempotencyKey}`,
       },
       validateState: async () => {
         event = await resolveEvent();
         this.requireCheckInConsent(input);
+        privacyConsentCapturedAt = new Date();
         if (input.checkInMode === 'name_search') {
           resolvedGuestName = input.guestName.trim();
           if (!resolvedGuestName) throw new BadRequestException('Guest name is required');
@@ -315,18 +335,6 @@ export class GuestWorkflowService implements GuestCommands {
         }
 
         if (ambiguousNameMatch || requiresNewCl1Review) {
-          if (input.checkInMode === 'name_search') {
-            const pendingReview = await db.opsGuestRosterEntry.findFirst({
-              where: {
-                eventId: event.id,
-                normalizedName: resolvedGuestName!.toLowerCase(),
-                source: 'guest-review',
-                verificationStatus: { not: 'rejected' },
-                withdrawnAt: null,
-              },
-            });
-            if (pendingReview) return { accepted: true };
-          }
           const rosterEntryId = `gre_${randomUUID()}`;
           const anonymousHeadcount = input.checkInMode === 'headcount';
           const reviewName = anonymousHeadcount ? 'Anonymous headcount' : resolvedGuestName!;
@@ -343,6 +351,9 @@ export class GuestWorkflowService implements GuestCommands {
               eligibility: 'eligible',
               verificationStatus: 'pending',
               source: input.checkInMode === 'headcount' ? 'guest-review-headcount' : 'guest-review',
+              privacyConsentAccepted: input.privacyConsentAccepted === true,
+              privacyNoticeVersion,
+              privacyConsentCapturedAt,
               importBatchId: null,
             },
           });
@@ -351,15 +362,18 @@ export class GuestWorkflowService implements GuestCommands {
             affectedType: 'guest_roster_entry',
             affectedId: rosterEntry.id,
             affectedLabel: reviewName,
-              description: ambiguousNameMatch
-                ? 'Guest check-in queued for ambiguous roster review'
-                : 'Guest check-in queued for New-CL1 review',
+            description: ambiguousNameMatch
+              ? 'Guest check-in queued for ambiguous roster review'
+              : 'Guest check-in queued for New-CL1 review',
             metadata: {
-                source: input.checkInMode === 'headcount' ? 'guest-review-headcount' : 'guest-review',
+              source: input.checkInMode === 'headcount' ? 'guest-review-headcount' : 'guest-review',
               verificationStatus: 'pending',
               checkInMode: input.checkInMode,
               anonymous: anonymousHeadcount,
-                reviewReason: ambiguousNameMatch ? 'ambiguous_name' : 'new_cl1',
+              privacyConsentAccepted: input.privacyConsentAccepted === true,
+              privacyNoticeVersion,
+              privacyConsentCapturedAt: privacyConsentCapturedAt?.toISOString(),
+              reviewReason: ambiguousNameMatch ? 'ambiguous_name' : 'new_cl1',
             },
           };
           return { accepted: true };
@@ -376,7 +390,8 @@ export class GuestWorkflowService implements GuestCommands {
             walkIn,
             verificationStatus: walkIn ? 'flagged' : 'verified',
             privacyConsentAccepted: input.privacyConsentAccepted === true,
-            privacyNoticeVersion: input.privacyNoticeVersion ?? PRISM_PRIVACY_NOTICE_VERSION,
+            privacyNoticeVersion,
+            privacyConsentCapturedAt,
             marketingConsentAccepted: Boolean(input.marketingConsentAccepted),
           },
         });
@@ -600,8 +615,9 @@ export class GuestWorkflowService implements GuestCommands {
           status: 'checked_in',
           walkIn,
           verificationStatus: 'verified',
-          privacyConsentAccepted: walkIn,
-          privacyNoticeVersion: walkIn ? PRISM_PRIVACY_NOTICE_VERSION : '',
+          privacyConsentAccepted: roster.privacyConsentAccepted,
+          privacyNoticeVersion: roster.privacyNoticeVersion,
+          privacyConsentCapturedAt: roster.privacyConsentCapturedAt,
           marketingConsentAccepted: false,
         },
       });

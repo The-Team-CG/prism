@@ -1,7 +1,47 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
+import type { CommandReceiptCreate, CommandReceiptKey, CommandReceiptRecord, CommandReceiptStore } from '@prism/kernel/event-core';
 import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
 import { GuestWorkflowService } from './guest-workflow.service';
+
+let guestCheckInRequestSequence = 0;
+
+function withGuestCheckInKey<T extends { checkInMode: 'name_search' | 'headcount' }>(input: T): T & { idempotencyKey: string } {
+  guestCheckInRequestSequence += 1;
+  const suffix = guestCheckInRequestSequence.toString(16).padStart(12, '0');
+  return { ...input, idempotencyKey: `00000000-0000-4000-8000-${suffix}` };
+}
+
+function createCommandReceiptStore(): CommandReceiptStore {
+  const receipts = new Map<string, CommandReceiptRecord>();
+  const byId = new Map<string, CommandReceiptRecord>();
+  const keyOf = (key: CommandReceiptKey) => JSON.stringify([key.commandName, key.idempotencyKey, key.actorId, key.eventScope]);
+  let sequence = 0;
+  return {
+    find: vi.fn(async (key: CommandReceiptKey) => receipts.get(keyOf(key)) ?? null),
+    create: vi.fn(async (input: CommandReceiptCreate) => {
+      sequence += 1;
+      const receipt: CommandReceiptRecord = {
+        ...input,
+        id: `cmd_receipt_${sequence}`,
+        eventId: input.eventId ?? null,
+        payloadHash: input.payloadHash ?? null,
+        result: null,
+        completedAt: new Date(),
+      };
+      receipts.set(keyOf(receipt), receipt);
+      byId.set(receipt.id, receipt);
+      return { id: receipt.id };
+    }),
+    complete: vi.fn(async (id: string, result: unknown) => {
+      const receipt = byId.get(id);
+      if (receipt) {
+        receipt.result = result;
+        receipt.completedAt = new Date();
+      }
+    }),
+  };
+}
 
 const testEventReferences = {
   findOperationsEvent: vi.fn(async (id: string) => ({
@@ -200,7 +240,7 @@ function createGuestWorkflowFixture() {
   const service = new GuestWorkflowService(
     prisma as any,
     auditWriter as any,
-    new WorkflowCommandService(new PrismTransactionRunner(prisma as any)),
+    new WorkflowCommandService(new PrismTransactionRunner(prisma as any), createCommandReceiptStore()),
     staffingReader as any,
     eventReferences as any,
     eventProjections as any,
@@ -223,6 +263,9 @@ function guestRosterFixture(overrides: Record<string, unknown> = {}) {
     eligibility: 'eligible',
     verificationStatus: 'verified',
     source: 'PMCM',
+    privacyConsentAccepted: false,
+    privacyNoticeVersion: '',
+    privacyConsentCapturedAt: null,
     importBatchId: null,
     checkedInAt: null,
     withdrawnAt: null,
@@ -295,7 +338,7 @@ describe('GuestWorkflowService', () => {
     const { service, state, prisma } = createGuestWorkflowFixture();
     state.guestCheckIns.length = 0;
     state.guestRoster.push(guestRosterFixture({ id: 'gre_sofia', normalizedName: 'sofia lim' }));
-    const input = { checkInMode: 'name_search' as const, guestName: ' SOFIA LIM ', privacyConsentAccepted: true };
+    const input = withGuestCheckInKey({ checkInMode: 'name_search' as const, guestName: ' SOFIA LIM ', privacyConsentAccepted: true });
 
     await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', input)).resolves.toEqual({ accepted: true });
     await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', input)).resolves.toEqual({ accepted: true });
@@ -311,6 +354,34 @@ describe('GuestWorkflowService', () => {
     });
   });
 
+  it('makes retries idempotent when a name does not match an existing roster row', async () => {
+    const { service, state, prisma } = createGuestWorkflowFixture();
+    state.guestCheckIns.length = 0;
+    const request = withGuestCheckInKey({
+      checkInMode: 'name_search', guestName: 'Unmatched Guest', privacyConsentAccepted: true,
+    });
+
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', request)).resolves.toEqual({ accepted: true });
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', request)).resolves.toEqual({ accepted: true });
+
+    expect(prisma.opsGuestCheckIn.create).toHaveBeenCalledTimes(1);
+    expect(state.guestCheckIns).toHaveLength(1);
+  });
+
+  it('rejects reuse of a guest check-in key for different content', async () => {
+    const { service, state } = createGuestWorkflowFixture();
+    state.guestCheckIns.length = 0;
+    const request = withGuestCheckInKey({
+      checkInMode: 'name_search', guestName: 'First Guest', privacyConsentAccepted: true,
+    });
+
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', request)).resolves.toEqual({ accepted: true });
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', {
+      ...request, guestName: 'Different Guest',
+    })).rejects.toThrow('Command idempotency key was reused for different content');
+    expect(state.guestCheckIns).toHaveLength(1);
+  });
+
   it('queues ambiguous roster matches for staff review even when New-CL1 does not apply', async () => {
     const { service, state } = createGuestWorkflowFixture();
     state.guestCheckIns.length = 0;
@@ -318,7 +389,7 @@ describe('GuestWorkflowService', () => {
       guestRosterFixture({ id: 'gre_one', guestName: 'Sofia Lim', normalizedName: 'sofia lim' }),
       guestRosterFixture({ id: 'gre_two', guestName: 'Sofia Lim', normalizedName: 'sofia lim' }),
     );
-    const input = { checkInMode: 'name_search' as const, guestName: 'Sofia Lim', privacyConsentAccepted: true };
+    const input = withGuestCheckInKey({ checkInMode: 'name_search' as const, guestName: 'Sofia Lim', privacyConsentAccepted: true });
 
     await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', input)).resolves.toEqual({ accepted: true });
     await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', input)).resolves.toEqual({ accepted: true });
@@ -342,9 +413,9 @@ describe('GuestWorkflowService', () => {
     state.events[0].guestPrivacyClassification = 'private';
     state.events[0].briefingGuestCount = 199;
 
-    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', {
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
       checkInMode: 'name_search', guestName: 'New Guest', privacyConsentAccepted: true,
-    })).resolves.toEqual({ accepted: true });
+    }))).resolves.toEqual({ accepted: true });
 
     const pending = state.guestRoster.find((entry) => entry.source === 'guest-review');
     expect(pending).toMatchObject({
@@ -365,9 +436,11 @@ describe('GuestWorkflowService', () => {
       guestName: 'New Guest', normalizedName: 'new guest', verificationStatus: 'pending',
     }));
 
-    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', {
+    const request = withGuestCheckInKey({
       checkInMode: 'name_search', guestName: 'New Guest', privacyConsentAccepted: true,
-    })).resolves.toEqual({ accepted: true });
+    });
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', request)).resolves.toEqual({ accepted: true });
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', request)).resolves.toEqual({ accepted: true });
 
     expect(state.guestRoster).toHaveLength(1);
     expect(state.guestRoster[0]?.checkedInAt).toBeNull();
@@ -382,9 +455,9 @@ describe('GuestWorkflowService', () => {
       guestName: 'Walk-In Guest', normalizedName: 'walk-in guest', verificationStatus: 'pending',
     }));
 
-    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', {
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
       checkInMode: 'name_search', guestName: 'Walk-In Guest', privacyConsentAccepted: true,
-    })).resolves.toEqual({ accepted: true });
+    }))).resolves.toEqual({ accepted: true });
 
     expect(state.guestRoster).toHaveLength(1);
     expect(state.guestRoster[0]?.checkedInAt).toBeNull();
@@ -403,9 +476,9 @@ describe('GuestWorkflowService', () => {
     state.events[0].guestPrivacyClassification = classification;
     (state.events[0] as any).briefingGuestCount = guestCount;
 
-    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', {
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
       checkInMode: 'name_search', guestName: 'Walk In Guest', privacyConsentAccepted: true,
-    })).resolves.toEqual({ accepted: true });
+    }))).resolves.toEqual({ accepted: true });
 
     expect(state.guestRoster.some((entry) => entry.source === 'guest-review' || entry.source === 'guest-review-headcount')).toBe(queued);
     expect(state.guestCheckIns).toHaveLength(queued ? 0 : 1);
@@ -416,9 +489,9 @@ describe('GuestWorkflowService', () => {
     const { service, state, prisma } = createGuestWorkflowFixture();
     state.guestCheckIns.length = 0;
 
-    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', {
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
       checkInMode: 'headcount', privacyConsentAccepted: true,
-    })).resolves.toEqual({ accepted: true });
+    }))).resolves.toEqual({ accepted: true });
 
     expect(prisma.opsGuestRosterEntry.findMany).not.toHaveBeenCalled();
     expect(state.guestCheckIns).toHaveLength(1);
@@ -433,15 +506,18 @@ describe('GuestWorkflowService', () => {
     state.events[0].guestPrivacyClassification = 'private';
     state.events[0].briefingGuestCount = 199;
 
-    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', {
+    const request = withGuestCheckInKey({
       checkInMode: 'headcount', privacyConsentAccepted: true,
-    })).resolves.toEqual({ accepted: true });
+    });
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', request)).resolves.toEqual({ accepted: true });
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', request)).resolves.toEqual({ accepted: true });
 
     expect(prisma.opsGuestRosterEntry.findMany).not.toHaveBeenCalled();
     expect(state.guestRoster).toContainEqual(expect.objectContaining({
       guestName: 'Anonymous headcount', normalizedName: 'anonymous headcount', email: '', phone: '',
       source: 'guest-review-headcount', verificationStatus: 'pending', checkedInAt: null,
     }));
+    expect(state.guestRoster.filter((entry) => entry.source === 'guest-review-headcount')).toHaveLength(1);
     expect(state.guestCheckIns).toHaveLength(0);
   });
 
@@ -454,13 +530,20 @@ describe('GuestWorkflowService', () => {
     state.events[0].walkInThreshold = 1;
     const registrationActor = { id: 'usr_registration', name: 'Registration Staff', role: 'coordinator' };
 
-    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', {
-      checkInMode: 'headcount', privacyConsentAccepted: true,
-    })).resolves.toEqual({ accepted: true });
+    const request = withGuestCheckInKey({
+      checkInMode: 'headcount', privacyConsentAccepted: true, privacyNoticeVersion: '2026-04-01',
+    });
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', request)).resolves.toEqual({ accepted: true });
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', request)).resolves.toEqual({ accepted: true });
     expect(state.guestCheckIns).toHaveLength(0);
 
     const pending = state.guestRoster[0]!;
     expect(pending).toMatchObject({ guestName: 'Anonymous headcount', source: 'guest-review-headcount', verificationStatus: 'pending', checkedInAt: null });
+    expect(pending).toMatchObject({
+      privacyConsentAccepted: true,
+      privacyNoticeVersion: '2026-04-01',
+      privacyConsentCapturedAt: expect.any(Date),
+    });
     await expect(service.checkInRosterEntry('evt_sample', pending.id, registrationActor)).rejects.toThrow('must be verified');
 
     await service.updateVerification('evt_sample', pending.id, { status: 'verified' }, registrationActor);
@@ -469,6 +552,9 @@ describe('GuestWorkflowService', () => {
     expect(checkIn).toMatchObject({
       guestName: null, rosterEntryId: pending.id, checkInMode: 'headcount',
       walkIn: true, verificationStatus: 'verified', status: 'checked_in',
+      privacyConsentAccepted: true,
+      privacyNoticeVersion: '2026-04-01',
+      privacyConsentCapturedAt: pending.privacyConsentCapturedAt,
     });
     expect(pending.checkedInAt).toBeInstanceOf(Date);
     expect(state.guestCheckIns).toHaveLength(1);
@@ -490,9 +576,9 @@ describe('GuestWorkflowService', () => {
       state.events[0].walkInThreshold = 1;
     }
 
-    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', {
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
       checkInMode: 'name_search', guestName: 'New Guest', privacyConsentAccepted: true,
-    })).rejects.toThrow(message);
+    }))).rejects.toThrow(message);
     expect(state.guestRoster).toHaveLength(0);
     expect(state.guestCheckIns).toHaveLength(1);
   });
@@ -515,7 +601,7 @@ describe('GuestWorkflowService', () => {
   it('requires privacy consent before guest check-in writes', async () => {
     const { service } = createGuestWorkflowFixture();
 
-    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', { checkInMode: 'name_search', guestName: 'Sofia Lim' })).rejects.toThrow(
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({ checkInMode: 'name_search', guestName: 'Sofia Lim' }))).rejects.toThrow(
       'Privacy consent is required before guest check-in',
     );
   });
@@ -524,21 +610,21 @@ describe('GuestWorkflowService', () => {
     const { service, prisma } = createGuestWorkflowFixture();
     delete (prisma as { opsGuestRosterEntry?: unknown }).opsGuestRosterEntry;
 
-    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', {
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
       checkInMode: 'name_search',
       guestName: 'Sofia Lim',
       privacyConsentAccepted: true,
-    })).rejects.toThrow('Guest roster persistence is unavailable');
+    }))).rejects.toThrow('Guest roster persistence is unavailable');
     expect(prisma.opsGuestCheckIn.create).not.toHaveBeenCalled();
   });
 
   it('does not allow archived events to resolve ordinary guest check-in access', async () => {
     const { service, state } = createGuestWorkflowFixture();
     state.events[0].archived = true;
-    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', {
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
       checkInMode: 'name_search',
       guestName: 'Archived Guest', privacyConsentAccepted: true,
-    })).rejects.toThrow('Guest event code was not found');
+    }))).rejects.toThrow('Guest event code was not found');
   });
 
   it('records guest check-ins and moderated feedback through command methods', async () => {
@@ -546,11 +632,11 @@ describe('GuestWorkflowService', () => {
     vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
     const { service, auditWriter } = createGuestWorkflowFixture();
 
-    const checkIn = await service.checkInByAccessCode('AYALA-TECH-MPLE', {
+    const checkIn = await service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
       guestName: 'Sofia Lim',
       checkInMode: 'name_search',
       privacyConsentAccepted: true,
-    });
+    }));
     const feedback = await service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', {
       guestName: 'Sofia Lim',
       rating: 5,
@@ -577,22 +663,22 @@ describe('GuestWorkflowService', () => {
     } else {
       (state.events[0] as any).walkInPolicy = 'closed';
     }
-    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', {
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
       checkInMode: 'name_search', guestName: 'Walk In Guest', privacyConsentAccepted: true,
-    })).rejects.toThrow(message);
+    }))).rejects.toThrow(message);
   });
 
   it('permits open and available threshold walk-ins', async () => {
     const { service, state } = createGuestWorkflowFixture();
     (state.events[0] as any).walkInPolicy = 'open';
-    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', {
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
       checkInMode: 'name_search', guestName: 'Open Walk In', privacyConsentAccepted: true,
-    })).resolves.toEqual({ accepted: true });
+    }))).resolves.toEqual({ accepted: true });
     (state.events[0] as any).walkInPolicy = 'threshold';
     (state.events[0] as any).walkInThreshold = 4;
-    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', {
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
       checkInMode: 'name_search', guestName: 'Threshold Walk In', privacyConsentAccepted: true,
-    })).resolves.toEqual({ accepted: true });
+    }))).resolves.toEqual({ accepted: true });
     expect(state.guestCheckIns.slice(-2).map((checkIn) => checkIn.guestName)).toEqual(['Open Walk In', 'Threshold Walk In']);
   });
 
@@ -914,7 +1000,9 @@ describe('GuestWorkflowService', () => {
     const { service, state, auditWriter } = createGuestWorkflowFixture();
     state.events[0].archived = true;
     const feedback = await service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'Archived Guest', rating: 4, privacyConsentAccepted: true });
-    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', { checkInMode: 'name_search', guestName: 'Archived Guest', privacyConsentAccepted: true })).rejects.toThrow('Guest event code was not found');
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
+      checkInMode: 'name_search', guestName: 'Archived Guest', privacyConsentAccepted: true,
+    }))).rejects.toThrow('Guest event code was not found');
     const updated = await service.moderateFeedback('evt_sample', feedback.id, { action: 'reject', reason: 'Contains private details' }, { id: 'pmcm-1', name: 'Maxine', role: 'pmcm-admin' });
     expect(updated).toMatchObject({ moderationStatus: 'rejected', moderationReason: 'Contains private details', moderatedById: 'pmcm-1', moderatedBy: 'Maxine' });
     expect(auditWriter.write).toHaveBeenCalledTimes(2);

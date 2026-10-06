@@ -207,29 +207,33 @@ describe("event-ops write schemas", () => {
     expect(createGuestCheckInSchema.parse({
       checkInMode: "name_search",
       guestName: "  Ana Reyes  ",
+      idempotencyKey: "00000000-0000-4000-8000-000000000001",
       privacyConsentAccepted: true,
       privacyNoticeVersion: "2026-10",
       marketingConsentAccepted: false,
     })).toEqual({
       checkInMode: "name_search",
       guestName: "Ana Reyes",
+      idempotencyKey: "00000000-0000-4000-8000-000000000001",
       privacyConsentAccepted: true,
       privacyNoticeVersion: "2026-10",
       marketingConsentAccepted: false,
     });
     expect(createGuestCheckInSchema.parse({
       checkInMode: "headcount",
+      idempotencyKey: "00000000-0000-4000-8000-000000000002",
       privacyConsentAccepted: true,
     })).toEqual({
       checkInMode: "headcount",
+      idempotencyKey: "00000000-0000-4000-8000-000000000002",
       privacyConsentAccepted: true,
     });
   });
 
   it.each([
-    ["blank name", { checkInMode: "name_search", guestName: "   ", privacyConsentAccepted: true }],
-    ["headcount with a name", { checkInMode: "headcount", guestName: "Ana Reyes", privacyConsentAccepted: true }],
-    ["unsupported mode", { checkInMode: "walk_in", guestName: "Ana Reyes", privacyConsentAccepted: true }],
+    ["blank name", { checkInMode: "name_search", guestName: "   ", idempotencyKey: "00000000-0000-4000-8000-000000000003", privacyConsentAccepted: true }],
+    ["headcount with a name", { checkInMode: "headcount", guestName: "Ana Reyes", idempotencyKey: "00000000-0000-4000-8000-000000000004", privacyConsentAccepted: true }],
+    ["unsupported mode", { checkInMode: "walk_in", guestName: "Ana Reyes", idempotencyKey: "00000000-0000-4000-8000-000000000005", privacyConsentAccepted: true }],
   ])("rejects malformed public check-in shape: %s", (_label, input) => {
     expect(createGuestCheckInSchema.safeParse(input).success).toBe(false);
   });
@@ -243,13 +247,23 @@ describe("event-ops write schemas", () => {
     expect(createGuestCheckInSchema.safeParse({
       checkInMode: "name_search",
       guestName: "Ana Reyes",
+      idempotencyKey: "00000000-0000-4000-8000-000000000006",
       privacyConsentAccepted: true,
       ...serverState,
     }).success).toBe(false);
     expect(createGuestCheckInSchema.safeParse({
       checkInMode: "headcount",
+      idempotencyKey: "00000000-0000-4000-8000-000000000007",
       privacyConsentAccepted: true,
       ...serverState,
+    }).success).toBe(false);
+  });
+
+  it("requires a UUID request key for public check-in retries", () => {
+    expect(createGuestCheckInSchema.safeParse({
+      checkInMode: "headcount",
+      idempotencyKey: "not-a-uuid",
+      privacyConsentAccepted: true,
     }).success).toBe(false);
   });
 
