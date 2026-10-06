@@ -13,6 +13,12 @@ describe('OpsGuestController', () => {
   });
 
   it('serves guest event, check-in, and feedback routes through GuestWorkflowService', async () => {
+    const checkInInput = {
+      idempotencyKey: '00000000-0000-4000-8000-000000000001',
+      checkInMode: 'name_search' as const,
+      guestName: 'Sofia Lim',
+      privacyConsentAccepted: true as const,
+    };
     const guestWorkflowService = {
       getEventByAccessCode: vi.fn(async () => ({ id: 'evt_sample', eventName: 'Ayala Summit' })),
       getEventWatermarkByAccessCode: vi.fn(async () => ({ watermark: '2026-06-01T00:00:00.000Z' })),
@@ -29,7 +35,7 @@ describe('OpsGuestController', () => {
 
     await expect(controller.eventByAccessCode('AYALA-TECH-MPLE')).resolves.toEqual({ id: 'evt_sample' });
     await expect(controller.eventWatermarkByAccessCode('AYALA-TECH-MPLE')).resolves.toEqual({ watermark: '2026-06-01T00:00:00.000Z' });
-    await expect(controller.checkIn('AYALA-TECH-MPLE', { checkInMode: 'name_search', guestName: 'Sofia Lim', privacyConsentAccepted: true })).resolves.toEqual({ accepted: true });
+    await expect(controller.checkIn('AYALA-TECH-MPLE', checkInInput)).resolves.toEqual({ accepted: true });
     const feedbackReceipt = await controller.submitFeedback('AYALA-TECH-MPLE', { guestName: 'Sofia Lim', rating: 5, privacyConsentAccepted: true });
     expect(feedbackReceipt).toEqual({
       id: 'gfb_1',
@@ -43,7 +49,7 @@ describe('OpsGuestController', () => {
     expect(guestWorkflowService.getEventByAccessCode).toHaveBeenCalledWith('AYALA-TECH-MPLE');
     expect(guestWorkflowService.getEventWatermarkByAccessCode).toHaveBeenCalledWith('AYALA-TECH-MPLE');
     expect(guestWorkflowService.countCheckInsForEvent).not.toHaveBeenCalled();
-    expect(guestWorkflowService.checkInByAccessCode).toHaveBeenCalledWith('AYALA-TECH-MPLE', { checkInMode: 'name_search', guestName: 'Sofia Lim', privacyConsentAccepted: true });
+    expect(guestWorkflowService.checkInByAccessCode).toHaveBeenCalledWith('AYALA-TECH-MPLE', checkInInput);
     expect(guestWorkflowService.submitFeedbackByAccessCode).toHaveBeenCalledWith('AYALA-TECH-MPLE', { guestName: 'Sofia Lim', rating: 5, privacyConsentAccepted: true });
   });
 
