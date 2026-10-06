@@ -9,7 +9,7 @@ authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, reviewers]
 scope: "all Prism portals, API, packages, and runtime boundaries"
-last_verified: "2026-10-06; local s11-cutover worktree; Prisma validation, domain-persistence ownership guard, boundary scan, and populated PostgreSQL cutover replay passed; Prisma migrate deploy was not exercised"
+last_verified: "2026-10-06; runtime and context ownership reconciled with current staging source and the domain schema map"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
@@ -284,7 +284,7 @@ Cross-domain references remain scalar IDs and use an owner's public capability
 for writes that need current eligibility. Read-models composes explicitly
 scoped, read-only projections. Do not introduce a Prisma relation or FK between
 different domains.
-The database remains one shared Postgres/Prisma boundary. The currently applied staging layout has ten physical schemas and 45 cross-domain foreign keys; it is transitional. The cutover branch maps 93 models to seven owner schemas and no cross-domain relations. Same-domain relations remain permitted. The actual schema move is a coordinated forward migration and has only been replayed on a disposable database so far.
+The database remains one shared Postgres/Prisma boundary. The staging database baseline has ten physical schemas and 45 cross-domain foreign keys; it is transitional. The merged staging source maps 93 models to seven owner schemas, with 75 same-domain foreign keys and no cross-domain relations. Same-domain relations remain permitted. Applying the coordinated schema migration to a shared database is a separate operational action; see the [domain schema cutover runbook](../runbooks/domain-schema-cutover.md).
 
 Replacing owner capabilities and relations precedes the coordinated move; source movement alone does not imply database isolation.
 
