@@ -446,6 +446,7 @@ export function useCoordinatorViewModel({
     activeDraft,
     busy,
     roleView,
+    refreshRoleView,
     roleViewLoading: roleViewStatus === "loading",
     roleViewError,
     roleDataStatus: coordinatorRoleDataStatus(roleViewStatus, Boolean(roleView)),

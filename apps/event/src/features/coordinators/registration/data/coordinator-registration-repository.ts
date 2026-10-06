@@ -2,8 +2,11 @@ import type { CoordinatorWalkInCheckInInput, PrismCoordinatorRegistrationEntry, 
 import { eventApi } from "@/lib/prism-api";
 
 export const coordinatorRegistrationRepository = {
-  search(eventId: string, query: string): Promise<PrismCoordinatorRegistrationEntry[]> {
-    return eventApi.guest.registrationRoster(eventId, { query });
+  search(eventId: string, query: string, reviewQueue = false): Promise<PrismCoordinatorRegistrationEntry[]> {
+    return eventApi.guest.registrationRoster(eventId, {
+      ...(query ? { query } : {}),
+      ...(reviewQueue ? { reviewQueue: true } : {}),
+    });
   },
   checkIn(eventId: string, rosterEntryId: string): Promise<PrismGuestCheckIn> {
     return eventApi.guest.checkInRoster(eventId, rosterEntryId);

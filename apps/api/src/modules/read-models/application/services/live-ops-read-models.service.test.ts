@@ -37,6 +37,7 @@ function eventFixture(): OpsEvent & { floorPlanDrafts: OpsFloorPlanDraft[] } {
     archived: false,
     walkInPolicy: 'closed',
     walkInThreshold: 200,
+    guestPrivacyClassification: 'unclassified',
     actualEndedAt: null,
     actualEndedBy: null,
     archivedAt: null,
@@ -336,6 +337,23 @@ describe('LiveOpsReadModelsService', () => {
     expect(result.supplierStatuses).toEqual([]);
     expect(result.taskReassignmentRequests).toEqual([]);
   });
+
+  it.each(['Registration Staff', 'PMCM Admin'])(
+    'retains guest names in the authorized %s live-ops view',
+    async (role) => {
+      const { service } = createService({
+        assignment: role === 'Registration Staff' ? assignmentFixture(role) : undefined,
+        guestCheckIns: [guestFixture()],
+      });
+
+      const result = await service.getEventLiveOps(
+        EVENT_ID,
+        actor(role === 'Registration Staff' ? OpsUserRole.Coordinator : OpsUserRole.PmcmAdmin),
+      );
+
+      expect(result.guestCheckIns).toEqual([expect.objectContaining({ guestName: 'Guest One' })]);
+    },
+  );
 
   it('exposes supplier setup statuses to ingress coordinators while stripping private supplier details', async () => {
     const { service } = createService({

@@ -5,6 +5,7 @@ export const PRISM_SESSION_STORAGE_KEYS = {
   event: "prism:event-command-session",
   supplier: "prism:supplier-session",
   guest: "prism:guest-session",
+  guestCheckInRequest: "prism:guest-check-in-request",
 } as const;
 
 export const PRISM_LEGACY_SESSION_STORAGE_KEYS = {

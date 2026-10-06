@@ -9,10 +9,13 @@ import {
 import type { PrismGuestEventPass } from "@prism/types";
 
 const sampleEvent = {
+  id: "evt_1",
   eventName: "Yala Tech Night",
   eventDate: "2026-08-01",
   clientName: "Ayala",
   guestAccessCode: "AYALA-TECH-YALA",
+  watermark: "2026-08-01T00:00:00.000Z",
+  guestName: "Legacy Name",
   readiness: "ready_for_event_day",
   floorPlanStatus: "approved",
   attendanceCount: 12,
@@ -24,18 +27,18 @@ describe("guest-access-open-rules", () => {
   });
 
   it("validates draft fields", () => {
-    expect(isOpenDraftValid({ guestName: "Sofia", accessCode: "CODE" })).toBe(true);
-    expect(isOpenDraftValid({ guestName: "  ", accessCode: "CODE" })).toBe(false);
-    expect(isOpenDraftValid({ guestName: "Sofia", accessCode: "" })).toBe(false);
+    expect(isOpenDraftValid({ accessCode: "CODE" })).toBe(true);
+    expect(isOpenDraftValid({ accessCode: "  " })).toBe(false);
   });
 
   it("encodes path segment from raw code", () => {
     expect(encodeAccessCodePath("a b")).toBe(encodeURIComponent("A B"));
   });
 
-  it("builds session from event + guest name", () => {
-    const session = buildGuestSession(sampleEvent, "  Sofia Lim  ", "2026-07-01T00:00:00.000Z");
-    expect(session.guestName).toBe("Sofia Lim");
+  it("builds a guest session without retaining a guest name or attendance count", () => {
+    const session = buildGuestSession(sampleEvent, "2026-07-01T00:00:00.000Z");
+    expect(session).not.toHaveProperty("guestName");
+    expect(session).not.toHaveProperty("attendanceCount");
     expect(session.guestAccessCode).toBe("AYALA-TECH-YALA");
     expect(session.openedAt).toBe("2026-07-01T00:00:00.000Z");
   });

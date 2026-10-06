@@ -7,7 +7,6 @@ import {
   ClipboardCheck,
   ImagePlus,
   MessageCircleHeart,
-  ShieldCheck,
   Star,
   TicketCheck,
   Users,
@@ -15,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
+import { Input } from "@/app/components/ui/input";
 import { PrismSectionPanel, PrismTextarea } from "@prism/ui";
 import {
   checkInModeButtonClass,
@@ -38,10 +38,7 @@ export function GuestCheckInPanel({ vm }: { vm: GuestDashboardVm }) {
           <button
             type="button"
             disabled={vm.checkedIn}
-            onClick={() => {
-              vm.setCheckInMode("name_search");
-              vm.setWalkIn(false);
-            }}
+            onClick={() => vm.setCheckInMode("name_search")}
             className={`flex-1 rounded-md px-3 py-2 text-sm font-bold transition ${checkInModeButtonClass(vm.checkInMode === "name_search")}`}
           >
             <ClipboardCheck className="mr-1.5 inline size-3.5" />
@@ -50,10 +47,7 @@ export function GuestCheckInPanel({ vm }: { vm: GuestDashboardVm }) {
           <button
             type="button"
             disabled={vm.checkedIn}
-            onClick={() => {
-              vm.setCheckInMode("headcount");
-              vm.setWalkIn(false);
-            }}
+            onClick={() => vm.setCheckInMode("headcount")}
             className={`flex-1 rounded-md px-3 py-2 text-sm font-bold transition ${checkInModeButtonClass(vm.checkInMode === "headcount")}`}
           >
             <Users className="mr-1.5 inline size-3.5" />
@@ -62,12 +56,23 @@ export function GuestCheckInPanel({ vm }: { vm: GuestDashboardVm }) {
         </div>
 
         <CheckInModeHelp mode={vm.checkInMode} />
-        <WalkInFlag vm={vm} />
+        {vm.checkInMode === "name_search" ? (
+          <label className="grid gap-1.5">
+            <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
+              Guest name
+            </span>
+            <Input
+              value={vm.checkInGuestName}
+              onChange={(event) => vm.setCheckInGuestName(event.target.value)}
+              autoComplete="name"
+              placeholder="Name at registration"
+            />
+          </label>
+        ) : null}
         <CheckInConsent vm={vm} />
-        <WalkInWarning vm={vm} />
 
         <Button
-          disabled={vm.busy === "check-in" || vm.checkedIn || !vm.checkInConsentAccepted}
+          disabled={!vm.canCheckIn}
           onClick={() => void vm.checkIn()}
           className="h-14 rounded-md px-5 font-bold sm:w-fit"
         >
@@ -85,9 +90,9 @@ function CheckInModeHelp({ mode }: { mode: GuestDashboardVm["checkInMode"] }) {
       <div className="border-l border-(--prism-sage) bg-background/60 px-3 py-2.5 text-sm">
         <p className="font-bold text-foreground">Name-based check-in</p>
         <p className="mt-0.5 leading-6 text-muted-foreground">
-          This browser-based check-in records guest name, check-in
-          mode, consent version, and attendance time for PMCM
-          registration review.
+          The name you enter is matched against the event roster. Unmatched
+          or ambiguous submissions receive the same confirmation and may need
+          staff review before they count as attendance.
         </p>
       </div>
     );
@@ -106,27 +111,6 @@ function CheckInModeHelp({ mode }: { mode: GuestDashboardVm["checkInMode"] }) {
   return null;
 }
 
-function WalkInFlag({ vm }: { vm: GuestDashboardVm }) {
-  if (vm.checkInMode !== "name_search") return null;
-  return (
-    <label className="flex cursor-pointer items-center gap-3 border-l border-border px-3 py-2.5 text-sm font-semibold">
-      <input
-        type="checkbox"
-        checked={vm.walkIn}
-        onChange={(ev) => vm.setWalkIn(ev.target.checked)}
-        className="size-4 accent-(--prism-amber)"
-      />
-      <span className="flex flex-col gap-0.5">
-        <span className="text-foreground">Flag as walk-in for PMCM verification</span>
-        <span className="text-xs font-medium leading-5 text-muted-foreground">
-          Use this only when the guest is not on the registration
-          list or needs operator approval.
-        </span>
-      </span>
-    </label>
-  );
-}
-
 function CheckInConsent({ vm }: { vm: GuestDashboardVm }) {
   const headcount = vm.checkInMode === "headcount";
   return (
@@ -140,23 +124,9 @@ function CheckInConsent({ vm }: { vm: GuestDashboardVm }) {
       <span>
         {headcount
           ? "I consent to this attendance being recorded for event headcount."
-          : "I consent to PMCM recording my name, check-in mode, attendance time, and this privacy notice version for registration and walk-in review."}
+          : "I consent to PMCM recording the name I provide, check-in mode, attendance time, and this privacy notice version for event registration."}
       </span>
     </label>
-  );
-}
-
-function WalkInWarning({ vm }: { vm: GuestDashboardVm }) {
-  if (!vm.walkIn || vm.checkInMode !== "name_search") return null;
-  return (
-    <div className="flex items-start gap-2 rounded-lg border border-(--prism-amber)/25 bg-(--prism-amber)/8 p-3 text-sm leading-6 text-(--prism-amber)">
-      <ShieldCheck className="mt-0.5 size-4 shrink-0" />
-      <span>
-        Walk-ins are recorded as flagged first. PMCM or the
-        event-day operator verifies authorization before treating the
-        entry as cleared.
-      </span>
-    </div>
   );
 }
 
@@ -282,6 +252,18 @@ export function GuestFeedbackPanel({ vm }: { vm: GuestDashboardVm }) {
           </p>
         </div>
 
+        <label className="grid gap-1.5">
+          <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
+            Name for feedback
+          </span>
+          <Input
+            value={vm.feedbackGuestName}
+            onChange={(event) => vm.setFeedbackGuestName(event.target.value)}
+            autoComplete="name"
+            placeholder="Your name"
+          />
+        </label>
+
         <div className="grid gap-2">
           <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Rating</span>
           <div className="flex gap-2" role="radiogroup" aria-label="Feedback rating">
@@ -368,7 +350,7 @@ export function GuestFeedbackPanel({ vm }: { vm: GuestDashboardVm }) {
         </label>
 
         <Button
-          disabled={vm.busy === "feedback" || !vm.feedbackConsentAccepted}
+          disabled={!vm.canSubmitFeedback}
           className="h-12 rounded-md px-5 font-bold sm:w-fit"
           type="submit"
         >

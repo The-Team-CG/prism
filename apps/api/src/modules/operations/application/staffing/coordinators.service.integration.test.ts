@@ -41,6 +41,25 @@ function createOperationsEventReferences(prisma: PrismaService) {
       }
       return database.opsEvent.findUnique({ where: { id: eventId }, select });
     },
+    findGuestCheckInEventReference: async (eventId: string) => {
+      const event = await prisma.opsEvent.findUnique({
+        where: { id: eventId },
+        select: {
+          id: true,
+          eventName: true,
+          walkInPolicy: true,
+          walkInThreshold: true,
+          guestPrivacyClassification: true,
+        },
+      });
+      if (!event) return null;
+      const briefing = await prisma.opsBriefing.findFirst({
+        where: { eventId },
+        orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
+        select: { guestCount: true },
+      });
+      return { ...event, briefingGuestCount: briefing?.guestCount ?? null };
+    },
     findOperationsEvents: async (eventIds: readonly string[]) => eventIds.length === 0
       ? []
       : prisma.opsEvent.findMany({ where: { id: { in: [...eventIds] } }, select }),

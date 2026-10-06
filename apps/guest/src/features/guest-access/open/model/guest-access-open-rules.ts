@@ -8,7 +8,7 @@ export function normalizeAccessCode(raw: string): string {
 }
 
 export function isOpenDraftValid(draft: GuestAccessOpenDraft): boolean {
-  return draft.guestName.trim().length > 0 && draft.accessCode.trim().length > 0;
+  return draft.accessCode.trim().length > 0;
 }
 
 export function encodeAccessCodePath(accessCode: string): string {
@@ -17,12 +17,18 @@ export function encodeAccessCodePath(accessCode: string): string {
 
 export function buildGuestSession(
   event: PrismGuestEventPass,
-  guestName: string,
   openedAt: string = new Date().toISOString(),
 ): GuestSession {
   return {
-    ...event,
-    guestName: guestName.trim(),
+    id: event.id,
+    eventName: event.eventName,
+    eventDate: event.eventDate,
+    clientName: event.clientName,
+    readiness: event.readiness,
+    floorPlanStatus: event.floorPlanStatus,
+    ...(event.activeFloorPlanDraftId ? { activeFloorPlanDraftId: event.activeFloorPlanDraftId } : {}),
+    guestAccessCode: event.guestAccessCode,
+    watermark: event.watermark,
     openedAt,
   };
 }
