@@ -435,6 +435,7 @@ model OpsFloorPlanDraft {
 
   @@index([eventId, status], map: "floor_plan_drafts_event_id_status_idx")
   @@index([eventId, isActive], map: "floor_plan_drafts_event_id_is_active_idx")
+  @@unique([eventId], where: { isActive: true }, map: "floor_plan_drafts_one_active_per_event_key")
   @@map("floor_plan_drafts")
   @@schema("floorplan")
 }
