@@ -4,16 +4,16 @@ title: "AI provider interchangeability completion"
 description: "Complete the governed AI gateway and make provider/model switching configuration-only across supported adapters, while separately qualifying staging and real-data routes."
 tags: [ai, ai-governance, pare, platform-ops, provider-routing, zdr]
 status: active
-updated: "2026-09-28"
+updated: "2026-10-06"
 authority: informative
 owner: "D (Anthony)"
 audience: [engineers, agents, reviewers]
 scope: "Completion work after the AI gateway PR 0-7 stack: provider-neutral PARE, route configuration, synthetic and live provider interchangeability, staging evidence, governance closeout, and separately approved real-data activation"
 last_verified: "2026-09-28; local Task 3 migration rehearsal and Task 5 PMCM walkthrough recorded; provider/model environment selection implemented but untested; staging and live-provider gates remain open"
 sources:
-  - id: gateway-plan
-    resource: "docs/roadmap/ai-provider-gateway-plan.md"
-    title: "Approved gateway phase plan and PR 0-7 exit gates"
+  - id: provider-routing
+    resource: "docs/runbooks/ai-provider-routing.md"
+    title: "Current provider routing rules and activation gates"
   - id: governance
     resource: "docs/product/evolution-governance.md"
     title: "Owner goals and AI feature review gates"
@@ -157,7 +157,7 @@ dependencies.
 
 ## Task 1: Reconcile the current PR stack
 
-**Files:** `docs/roadmap/ai-provider-gateway-plan.md`, PR descriptions, and
+**Files:** Merged PR descriptions, the current provider routing runbook, and
 the tests or files changed by Tasks 2-5 in the existing stack.
 
 - [x] Refresh the current stack. GitHub PR #65 is phase PR 0; #66 through #71
@@ -179,12 +179,12 @@ the tests or files changed by Tasks 2-5 in the existing stack.
 **Exit:** A reviewer can see exactly which PR introduced each change, which
 tests ran on its current head, and which runtime gates remain open.
 
-**Completed (2026-09-26):** Current phase PR 0-6 heads, immediate bases, and
-green CI are recorded in `ai-provider-gateway-plan.md`; phase PR 7 is not
-opened. PR #71 remains a draft because full PARE provenance, staging, the
-20-run pilot, and PMCM sign-off remain pending. The updated PR 6 exit record
-and verification results are committed locally on
-`codex/ai-gateway-task1-evidence`; no PR was marked ready or merged.
+**Completed (2026-09-26):** The stack review recorded PR 0-6 heads, immediate
+bases, and CI status. Phase PR 7 was not open at that time. PR #71 was a draft
+because full PARE provenance, staging, the 20-run pilot, and PMCM sign-off
+remained pending. The updated PR 6 exit record
+and verification results were recorded at that checkpoint; PR 7 was not open
+and PR #71 remained a draft.
 
 ## Task 2: Make route selection and evidence provider-neutral
 
@@ -322,8 +322,8 @@ or terminally cancelled; its recipient and outbox action remain server-owned.
 ## Task 6: Set acceptance thresholds and run the staging pilot
 
 **Files:** Fixed conformance/evaluation fixtures and tests; staged deployment
-configuration; `docs/roadmap/ai-provider-gateway-plan.md` results table;
-database migration evidence under the deployment runbook's record location.
+configuration; the Task 6 route-results table below; database migration
+evidence under the deployment runbook's record location.
 
 **Frozen thresholds before the measured pilot:** All schema, provenance,
 privacy, forbidden-role, audit, abort, and no-autonomous-send checks pass;
@@ -334,6 +334,12 @@ daily budget. Record actual mean cost and a route-specific spend cap approved
 by D before any non-synthetic activation. A failed or blocked call counts as
 a failed sample, not as a discarded warm-up. D, B, and A sign the fixed fixture
 set and edit-classification rubric before those 20 calls begin.
+
+Add one row per route and use case. This blank row is a template, not evidence.
+
+| Route / use case | Endpoint/model | Calls | Schema/tools | Usable | p50/p95 | Tokens/cost | Failures | Review |
+| --- | --- | ---: | --- | ---: | --- | --- | ---: | --- |
+| Pending measured staging run | — | — | — | — | — | — | — | — |
 
 - [ ] Restore an approved database snapshot, rehearse both AI-related Prisma
   migrations, run schema/invariant checks, and record backup plus rollback

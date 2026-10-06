@@ -1,4 +1,37 @@
+---
+type: "Playbook"
+title: "Parallel worktrees"
+description: "Run Prism checkouts concurrently with isolated ports and safe linked-worktree setup and removal."
+tags: [runbook, git, worktrees, local-development]
+status: canonical
+updated: "2026-10-06"
+authority: operational
+owner: "D (Anthony)"
+audience: [developers, agents]
+scope: "Prism linked worktree ports, environment setup, and safe removal"
+last_verified: "2026-10-06; referenced scripts and package commands reviewed; runtime behavior not rerun"
+sources:
+  - id: ports
+    resource: "scripts/prism-ports.mjs"
+    title: "Per-worktree port assignment"
+  - id: worktree
+    resource: "scripts/prism-worktree.mjs"
+    title: "Worktree setup and removal"
+  - id: worktree-tests
+    resource: "scripts/prism-worktree.test.mjs"
+    title: "Worktree safety behavior tests"
+---
 # Parallel worktrees
+
+## At a glance
+
+- **Purpose:** Run multiple Prism worktrees without port conflicts or unsafe cleanup.
+- **Authority:** Operational guide for local linked worktrees.
+- **Owner:** D (Anthony).
+- **Scope:** Port allocation, environment preparation, local processes, and teardown.
+- **Use when:** Creating or removing a linked worktree for concurrent development.
+- **Change when:** Worktree or launcher scripts change.
+- **Verify with:** The referenced scripts and focused worktree safety tests.
 
 Two linked worktrees could not run the stack at the same time. Port assignments
 are now persisted in shared Git metadata, and the port guard uses a durable
