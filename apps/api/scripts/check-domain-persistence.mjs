@@ -190,7 +190,9 @@ export function validateDomainPersistence({ ownershipManifest, schemaText, final
     }
     foreignKeyNames.add(foreignKeyName);
     const sourceOwner = ownerByCurrentTable.get(`${fk.schema}.${fk.table}`);
-    const targetOwner = ownerByCurrentTable.get(`${target.schema}.${target.table}`);
+    const targetKey = `${target.schema}.${target.table}`;
+    const targetOwner = ownerByCurrentTable.get(targetKey)
+      ?? (sourceOwner?.introducedAfterCutover ? ownerByTargetTable.get(targetKey) : undefined);
     if (!sourceOwner) errors.push(`foreign key ${fk.name} has no source owner mapping`);
     if (!targetOwner) errors.push(`foreign key ${fk.name} has no target owner mapping`);
     if (sourceOwner?.domain !== fk.sourceDomain) errors.push(`foreign key ${fk.name} source owner differs from ownership manifest`);

@@ -35,6 +35,7 @@ import { ClientEventDayViewController } from './api/client-visibility/client-eve
 import { ClientEventDayViewService } from './application/client-visibility/client-event-day-view.service';
 import { OcularVisitController } from './api/ocular-visit/ocular-visit.controller';
 import { OcularVisitService } from './application/ocular-visit/ocular-visit.service';
+import { EventClientFloorplanAccessController } from './api/client-visibility/event-client-floorplan-access.controller';
 import { LifecyclePrivacyRedactorService } from './application/onboarding/lifecycle-privacy-redactor.service';
 import { LIFECYCLE_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 import { EventLifecycleReferenceModule } from './event-lifecycle-reference.module';
@@ -43,6 +44,7 @@ import { CommercialAddendumImpactModule } from '@prism/contexts/commercial';
 import { EventDecisionSupplierOwnerModule } from '@prism/contexts/commercial';
 import { EventLifecycleProjectionModule } from './event-lifecycle-projection.module';
 import { FloorplanReferenceModule } from './floorplan-reference.module';
+import { ClientFloorplanAccessModule } from './client-floorplan-access.module';
 import { LifecycleFactsReaderModule } from '@prism/contexts/read-models/lifecycle-facts';
 import { CommercialFactsReaderModule } from '@prism/contexts/read-models/commercial-facts-reader';
 import { ProposalReviewOwnerService } from './application/onboarding/proposal-review-owner.service';
@@ -62,6 +64,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
  * (`onboarding`, `compliance`, `closure`, `files`) under one context.
  *
  * Owned tables: OpsBriefing, OpsDocument (all document metadata), OpsEvent,
+ * OpsEventClientFloorplanAccessGrant,
  * OpsInquiry, OpsPostEventDocument, OpsEventWrapUp, OpsComplianceCheck,
  * OpsComplianceRule, and OpsEventInsight. Lifecycle owns addendum records and
  * impact history; Commercial applies billing-source and selected-quote changes
@@ -83,6 +86,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     EventDecisionSupplierOwnerModule,
     EventLifecycleProjectionModule,
     FloorplanReferenceModule,
+    ClientFloorplanAccessModule,
     LifecycleFactsReaderModule,
     CommercialFactsReaderModule,
     AccessControlModule,
@@ -100,6 +104,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     ChangeManagementController,
     ClientEventDayViewController,
     OcularVisitController,
+    EventClientFloorplanAccessController,
   ],
   providers: [
     InquiriesService,
@@ -154,6 +159,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     EventLifecycleProjectionModule,
     FloorplanReferenceModule,
     OperationsEventReferenceModule,
+    ClientFloorplanAccessModule,
   ],
 })
 export class EventLifecycleModule {}

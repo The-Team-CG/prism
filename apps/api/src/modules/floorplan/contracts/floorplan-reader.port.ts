@@ -1,4 +1,8 @@
-import type { PrismFloorPlanDraft, PrismFloorPlanSnapshot } from '@prism/types';
+import type {
+  PrismClientSharedFloorplanEntry,
+  PrismFloorPlanDraft,
+  PrismFloorPlanSnapshot,
+} from '@prism/types';
 
 /**
  * ORM-agnostic in-process input for the owning context's read-model mapper.
@@ -27,6 +31,13 @@ export interface FloorPlanDraftProjection {
 }
 
 export interface FloorplanReader {
-  getFloorPlanSnapshot(eventId: string, draftId: string, type?: 'submitted' | 'approved'): Promise<PrismFloorPlanSnapshot>;
+  listClientSnapshotEntries(
+    eventIds: string[],
+  ): Promise<Array<Omit<PrismClientSharedFloorplanEntry, 'eventName' | 'eventDate'>>>;
+  getFloorPlanSnapshot(
+    eventId: string,
+    draftId: string,
+    type?: 'submitted' | 'approved',
+  ): Promise<PrismFloorPlanSnapshot>;
   mapFloorPlanDraft(draft: FloorPlanDraftProjection): PrismFloorPlanDraft;
 }
