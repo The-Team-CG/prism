@@ -18,6 +18,7 @@ import type { AuthenticationFailureDetails } from '@prism/contexts/platform-ops'
 import { AuthSecurityService } from './auth-security.service';
 import { TotpService } from './totp.service';
 import { LOGIN_LOCKOUT_THRESHOLD, loginFailureUpdate, nextLoginFailureState } from './login-lockout.policy';
+import { canonicalAccountEmail } from './account-email';
 import { INQUIRY_COMMANDS } from '../../../event-lifecycle/contracts/inquiry-onboarding.tokens';
 import type { InquiryCommands } from '../../../event-lifecycle/contracts/inquiry-commands.port';
 import { AUTH_AUDIT, type AuthAuditPort } from '../../contracts/auth-audit.port';
@@ -51,7 +52,7 @@ export class AuthOperationsService {
   ) {}
 
   async login(email: string, password: string) {
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = canonicalAccountEmail(email);
     const user = await this.prisma.opsUser.findUnique({ where: { email: normalizedEmail } });
 
     if (!user) {
@@ -293,7 +294,7 @@ export class AuthOperationsService {
   }
 
   private matchesTwoFactorIdentity(user: OpsUser, verifiedToken: VerifiedTwoFactorToken): boolean {
-    return user.email.trim().toLowerCase() === verifiedToken.email.trim().toLowerCase()
+    return canonicalAccountEmail(user.email) === canonicalAccountEmail(verifiedToken.email)
       && user.role === OpsUserRole.PmcmAdmin
       && user.sessionVersion === verifiedToken.sessionVersion;
   }
@@ -372,7 +373,7 @@ export class AuthOperationsService {
     }
     const approvalInput = input;
     const user = await this.prisma.opsUser.findUnique({
-      where: { email: approvalInput.email.trim().toLowerCase() },
+      where: { email: canonicalAccountEmail(approvalInput.email) },
     });
 
     if (!user) throw new NotFoundException('User not found');
@@ -383,7 +384,7 @@ export class AuthOperationsService {
         id: `approval_${user.id}`,
         userId: user.id,
         name: user.name,
-        email: user.email,
+        email: canonicalAccountEmail(user.email),
         role: user.role as PrismUser['role'],
         organization: user.organization,
         status: 'pending',
