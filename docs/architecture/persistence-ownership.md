@@ -217,6 +217,15 @@ business owner and lifecycle metadata contract.
 | `OpsBillingSource`, `OpsBillingStatement`, `OpsPaymentMilestone`, `OpsPaymentRecord` | `commercial` | `commercial`; proposal-to-billing conversion, statements, milestones, and payment history. |
 | Commercial contract and billing models | commercial | commercial; retains business decisions and scalar document IDs. Lifecycle alone owns document metadata and validates references through its public capability. |
 
+Commercial child rows agree with their parent's event through composite
+same-schema foreign keys on `(parent id, event_id)`: payment records to payment
+milestones, proposal versions to cost estimates, supplier schedules to quote
+requests, and billing corrections and disputes to statements (disputes also to
+milestones). Payment history, proposal versions, corrections and disputes use
+`RESTRICT`, so deleting a parent cannot remove evidence; a supplier schedule is
+derived data and still goes with its request. The retained same-domain
+foreign-key count is 71 (68 at the cutover plus the three new links).
+
 ### Operations and live operations
 
 | Models | Physical schema | Write owner and boundary |
