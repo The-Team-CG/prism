@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Marked EP-05-S03 (approved floorplan access) complete in TODO.md.
+
 - Reconciled the canonical schema map with the completed staging PR stack: seven owner schemas, 93 business tables, 1,181 columns, 75 same-domain foreign keys, and zero cross-domain foreign keys. Clarified that merging the source stack does not itself apply the cutover to a shared database.
 - Bounded abuse of the unauthenticated guest endpoints (access-code lookup, check-in, feedback and consent withdrawal) with an in-process limiter: lookups are limited per client address and writes per client address and access code, over the limit returns 429 with Retry-After, and denials are logged with a hashed address. Limits are generous enough for a venue entrance that shares one address, and the limiter is per API instance and bounded in memory.
 - Linked AI approval records to their AI audit log and PARE dispatches to the approval record they produced with same-schema foreign keys (`RESTRICT`), so governance evidence cannot be deleted under its dependents. A legacy dispatch pointing at a missing approval record has the link cleared and still runs; an approval with no audit log aborts the migration for an owner decision.
