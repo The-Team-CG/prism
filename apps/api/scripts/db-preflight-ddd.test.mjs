@@ -55,9 +55,9 @@ describe('DDD preflight ownership and data checks', () => {
   it('compares every current FK and requires only same-domain FKs in the target layout', () => {
     const current = expectedForeignKeyCatalog(manifest);
     const final = expectedForeignKeyCatalog(manifest, { final: true });
-    assert.equal(current.length, 117);
+    assert.equal(current.length, 118);
     assert.equal(current.filter(({ sourceSchema, targetSchema }) => sourceSchema !== targetSchema).length, 49);
-    assert.equal(final.length, 72);
+    assert.equal(final.length, 73);
     assert.ok(final.every(({ sourceSchema, targetSchema }) => sourceSchema === targetSchema));
   });
 

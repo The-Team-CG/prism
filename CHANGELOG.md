@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Linked each approval request to its account with a same-schema foreign key (`RESTRICT`), so an account with approval history is retired by disabling it rather than deleting it. A request whose account no longer exists aborts the migration so an owner decides explicitly; nothing is deleted.
 - Added Lifecycle row-level CHECK constraints: non-negative event counters, follow-up intervals, briefing guest counts and budgets, document sizes and compliance rule counts; compliance runs, wrap-up deadlines and freeze decisions in time order; addendum versions from 1. Financial deltas stay signed. Each is added `NOT VALID` and validated, so a violating row aborts the migration instead of being rewritten.
 - Added LiveOps row-level CHECK constraints: schedule segments end no earlier than they start (planned and actual) with a non-negative sequence, operator revocations are not before designation, and reassignment requests are decided and auto-approved no earlier than requested. Each is added `NOT VALID` and validated, so a violating row aborts the migration instead of being rewritten.
 - Added Operations row-level CHECK constraints that match the shared contracts: availability ends after it starts, non-negative coverage, import row counts and media sizes, feedback ratings 1 to 5, and registration headcounts that are non-negative with maximum not below minimum. Each is added `NOT VALID` and validated, so a violating row aborts the migration instead of being rewritten.
@@ -330,4 +331,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Added focused route, sidebar, loading-copy, compatibility-path, and selector coverage so the event workspace satisfies the repository's branch-coverage gate.
 - Portal `dev`/`start` now clear a stale listener on the app port so `next start` cannot fail to bind while an old build keeps serving 200s.
 - Documented a CI audit exception for Prisma's unused MySQL client (`mysql2` GHSA-3f6p-5ww8-9rcr) until Prisma ships a patched pin.
-
