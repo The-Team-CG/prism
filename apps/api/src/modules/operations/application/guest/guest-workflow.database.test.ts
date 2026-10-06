@@ -6,6 +6,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { AuditService, AuditWriterAdapter, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
 import { GuestWorkflowService } from './guest-workflow.service';
+import { GuestEventProjectionService } from '../../../read-models/application/services/guest-event-projection.service';
 
 const databaseUrl = process.env.P0_TEST_DATABASE_URL;
 
@@ -50,16 +51,7 @@ describe.skipIf(!databaseUrl)('guest feedback PostgreSQL transaction acceptance'
           select: { id: true, eventName: true, eventDate: true, updatedAt: true, archived: true },
           orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
         }),
-        findGuestEvent: (eventId: string) => prisma.opsEvent.findUnique({
-          where: { id: eventId },
-          include: {
-            floorPlanDrafts: {
-              select: { id: true, floorPlanId: true, isActive: true },
-              orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
-              take: 100,
-            },
-          },
-        }),
+        findGuestEvent: (eventId: string) => new GuestEventProjectionService(prisma as never).findGuestEvent(eventId),
         listCoordinatorWorkspaceEvents: async () => [],
       } as never,
     );

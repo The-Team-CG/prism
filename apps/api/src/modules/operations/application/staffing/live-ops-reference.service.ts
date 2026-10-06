@@ -33,7 +33,7 @@ export class LiveOpsReferenceService implements OperationsLiveOpsReferenceReader
     const prisma = transaction.prisma;
 
     // QUERY_AUDIT_RAW_SQL: serialize operator eligibility with Operations profile deactivation.
-    await prisma.$queryRaw(Prisma.sql`SELECT "id" FROM "staffing_ops"."coordinators" WHERE "id" = ${coordinatorId} FOR UPDATE`);
+    await prisma.$queryRaw(Prisma.sql`SELECT "id" FROM "operations"."coordinators" WHERE "id" = ${coordinatorId} FOR UPDATE`);
     const coordinator = await prisma.opsCoordinator.findUnique({
       where: { id: coordinatorId },
       select: { id: true, name: true, active: true },
@@ -53,7 +53,7 @@ export class LiveOpsReferenceService implements OperationsLiveOpsReferenceReader
 
     const assignmentIds = candidates.map(({ id }) => id);
     // QUERY_AUDIT_RAW_SQL: lock candidate assignments before LiveOps records the operator designation.
-    await prisma.$queryRaw(Prisma.sql`SELECT "id" FROM "staffing_ops"."coordinator_assignments" WHERE "id" IN (${Prisma.join(assignmentIds)}) ORDER BY "id" FOR UPDATE`);
+    await prisma.$queryRaw(Prisma.sql`SELECT "id" FROM "operations"."coordinator_assignments" WHERE "id" IN (${Prisma.join(assignmentIds)}) ORDER BY "id" FOR UPDATE`);
 
     const [assignment] = await prisma.opsCoordinatorAssignment.findMany({
       where: {
@@ -86,9 +86,9 @@ export class LiveOpsReferenceService implements OperationsLiveOpsReferenceReader
 
     const coordinatorIds = [...new Set(initial.map(({ coordinatorId }) => coordinatorId!))].sort();
     // QUERY_AUDIT_RAW_SQL: lock Operations profiles before referenced assignments in a LiveOps handoff.
-    await prisma.$queryRaw(Prisma.sql`SELECT "id" FROM "staffing_ops"."coordinators" WHERE "id" IN (${Prisma.join(coordinatorIds)}) ORDER BY "id" FOR UPDATE`);
+    await prisma.$queryRaw(Prisma.sql`SELECT "id" FROM "operations"."coordinators" WHERE "id" IN (${Prisma.join(coordinatorIds)}) ORDER BY "id" FOR UPDATE`);
     // QUERY_AUDIT_RAW_SQL: serialize handoff eligibility with Operations cancellation and replacement.
-    await prisma.$queryRaw(Prisma.sql`SELECT "id" FROM "staffing_ops"."coordinator_assignments" WHERE "id" IN (${Prisma.join(ids)}) ORDER BY "id" FOR UPDATE`);
+    await prisma.$queryRaw(Prisma.sql`SELECT "id" FROM "operations"."coordinator_assignments" WHERE "id" IN (${Prisma.join(ids)}) ORDER BY "id" FOR UPDATE`);
 
     const [assignments, activeCoordinators] = await Promise.all([
       prisma.opsCoordinatorAssignment.findMany({

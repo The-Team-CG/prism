@@ -260,8 +260,8 @@ async function assertUpgradeFixturePreserved(connection, fixture) {
   try {
     const { rows } = await pool.query(
       'SELECT quote.id, quote.request_id, quote.amount, request.id AS found_request_id '
-      + 'FROM supplier_ops.quotes AS quote '
-      + 'JOIN supplier_ops.quote_requests AS request ON request.id = quote.request_id '
+      + 'FROM commercial.quotes AS quote '
+      + 'JOIN commercial.quote_requests AS request ON request.id = quote.request_id '
       + 'WHERE quote.id = $1 AND quote.event_id = $2',
       [fixture.quoteId, fixture.eventId],
     );
@@ -273,7 +273,7 @@ async function assertUpgradeFixturePreserved(connection, fixture) {
     const constraints = await pool.query(
       'SELECT convalidated, confdeltype FROM pg_constraint '
       + 'WHERE conrelid = to_regclass($1) AND conname = $2 AND contype = \'f\'',
-      ['supplier_ops.quotes', 'quotes_request_id_fkey'],
+      ['commercial.quotes', 'quotes_request_id_fkey'],
     );
     assert.equal(constraints.rows.length, 1, 'The upgraded same-domain quote/request FK must exist.');
     assert.equal(constraints.rows[0].convalidated, true);
@@ -453,7 +453,7 @@ async function main() {
         'An omitted same-domain quote request FK',
         () => runDatabaseProbe(
           missingFk,
-          'ALTER TABLE "supplier_ops"."quotes" DROP CONSTRAINT "quotes_request_id_fkey"',
+          'ALTER TABLE "commercial"."quotes" DROP CONSTRAINT "quotes_request_id_fkey"',
         ),
       );
     });
@@ -468,7 +468,7 @@ async function main() {
         () => runDatabaseProbe(
           unexpected,
           'CREATE INDEX ' + quoteSqlIdentifier('prism_ci_unexpected_expression_idx')
-          + ' ON "supplier_ops"."quotes" (lower("request_id"))',
+          + ' ON "commercial"."quotes" (lower("request_id"))',
         ),
       );
     });

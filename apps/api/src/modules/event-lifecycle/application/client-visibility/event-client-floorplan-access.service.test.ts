@@ -148,6 +148,25 @@ describe('EventClientFloorplanAccessService', () => {
     }), expect.objectContaining({ prisma: expect.any(Object) }));
   });
 
+  it('treats a serializable transaction conflict as successful when the concurrent grant is active', async () => {
+    expect(AccessService).toBeDefined();
+    if (!AccessService) return;
+    const h = createService();
+    if (!h.service) return;
+    const concurrentGrant: Grant = {
+      id: 'grant_concurrent', eventId: event.id, clientUserId: candidate.id, active: true,
+      grantedAt: new Date('2026-10-06T00:00:00.000Z'), grantedBy: 'admin_2',
+      revokedAt: null, revokedBy: null,
+    };
+    h.prisma.$transaction.mockImplementationOnce(async () => {
+      h.rows.push(concurrentGrant);
+      throw Object.assign(new Error('serialization conflict'), { code: 'P2034' });
+    });
+
+    await expect(h.service.grant(event.id, candidate.id, admin)).resolves.toMatchObject({ eventId: event.id });
+    expect(h.rows.filter((row) => row.clientUserId === candidate.id && row.active)).toEqual([concurrentGrant]);
+  });
+
   it('rejects primary-contact or currently unapproved grant targets', async () => {
     expect(AccessService).toBeDefined();
     if (!AccessService) return;

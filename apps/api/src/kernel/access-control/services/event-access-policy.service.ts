@@ -92,14 +92,18 @@ export class EventAccessPolicyService {
     if (actor.role === OpsUserRole.Client) {
       return event.clientPortalStatus === 'unlocked' && this.clientOwnsEvent(actor, event);
     }
-    if (actor.role === OpsUserRole.Coordinator) {
-      return Boolean((actor.eventId && actor.eventId === event.id) || scope.coordinatorEventIds?.includes(event.id));
-    }
-    if (actor.role === OpsUserRole.Supplier) {
-      if (actor.eventId && actor.eventId !== event.id) return false;
-      return Boolean(scope.supplierEventIds?.includes(event.id));
-    }
+    if (actor.role === OpsUserRole.Coordinator) return this.coordinatorCanReadEvent(actor, event, scope);
+    if (actor.role === OpsUserRole.Supplier) return this.supplierCanReadEvent(actor, event, scope);
     return false;
+  }
+
+  private coordinatorCanReadEvent(actor: ResolvedEventOpsActor, event: ReadableEvent, scope: EventAccessScope) {
+    return Boolean((actor.eventId && actor.eventId === event.id) || scope.coordinatorEventIds?.includes(event.id));
+  }
+
+  private supplierCanReadEvent(actor: ResolvedEventOpsActor, event: ReadableEvent, scope: EventAccessScope) {
+    if (actor.eventId && actor.eventId !== event.id) return false;
+    return Boolean(scope.supplierEventIds?.includes(event.id));
   }
 
   private clientOwnsEvent(actor: ResolvedEventOpsActor, event: ReadableEvent) {

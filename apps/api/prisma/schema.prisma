@@ -5,7 +5,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  schemas  = ["public", "floorplan", "identity", "event_core", "supplier_ops", "staffing_ops", "finance_ops", "compliance_ops", "guest_ops", "trust_ops", "platform_ops"]
+  schemas  = ["public", "commercial", "event_lifecycle", "floorplan", "identity_access", "live_ops", "operations", "platform_ops"]
 }
 
 model FloorPlan {
@@ -130,12 +130,11 @@ model OpsUser {
   twoFactorChallengeConsumedAt DateTime? @map("two_factor_challenge_consumed_at")
   createdAt        DateTime  @default(now()) @map("created_at")
 
-  loginHistory       OpsLoginHistory[]
   passwordResetTokens OpsPasswordResetToken[]
-  coordinatorProfile OpsCoordinator?
+  approvalRequests    OpsApprovalRequest[]
 
   @@map("users")
-  @@schema("identity")
+  @@schema("identity_access")
 }
 
 model OpsPasswordResetToken {
@@ -151,7 +150,7 @@ model OpsPasswordResetToken {
   @@index([userId, expiresAt], map: "password_reset_tokens_user_id_expires_at_idx")
   @@index([expiresAt], map: "password_reset_tokens_expires_at_idx")
   @@map("password_reset_tokens")
-  @@schema("identity")
+  @@schema("identity_access")
 }
 
 model OpsPasswordResetRateLimit {
@@ -165,7 +164,7 @@ model OpsPasswordResetRateLimit {
   @@unique([normalizedEmail, clientIp], map: "password_reset_rate_limits_email_ip_key")
   @@index([windowStartedAt], map: "password_reset_rate_limits_window_started_at_idx")
   @@map("password_reset_rate_limits")
-  @@schema("identity")
+  @@schema("identity_access")
 }
 
 model OpsApprovalRequest {
@@ -181,9 +180,12 @@ model OpsApprovalRequest {
   marketingConsentAccepted Boolean  @default(false) @map("marketing_consent_accepted")
   requestedAt              DateTime @default(now()) @map("requested_at")
 
+  user OpsUser @relation(fields: [userId], references: [id], onDelete: Restrict, map: "approval_requests_user_id_fkey")
+
   @@index([status, requestedAt], map: "approval_requests_status_requested_at_idx")
+  @@index([userId], map: "approval_requests_user_id_idx")
   @@map("approval_requests")
-  @@schema("identity")
+  @@schema("identity_access")
 }
 
 model OpsInquiry {
@@ -234,7 +236,7 @@ model OpsInquiry {
   @@index([duplicateOfInquiryId], map: "inquiries_duplicate_of_inquiry_id_idx")
   @@index([previousDeclinedInquiryId], map: "inquiries_previous_declined_inquiry_id_idx")
   @@map("inquiries")
-  @@schema("event_core")
+  @@schema("event_lifecycle")
 }
 
 model OpsInquiryStatusHistory {
@@ -254,7 +256,7 @@ model OpsInquiryStatusHistory {
   @@index([inquiryId, createdAt], map: "inquiry_status_history_inquiry_id_created_at_idx")
   @@index([eventId, createdAt], map: "inquiry_status_history_event_id_created_at_idx")
   @@map("inquiry_status_history")
-  @@schema("event_core")
+  @@schema("event_lifecycle")
 }
 
 model OpsEvent {
@@ -295,54 +297,13 @@ model OpsEvent {
   inquiry                     OpsInquiry                      @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
   documents                   OpsDocument[]
   briefings                   OpsBriefing[]
-  supplierQuoteRequests       OpsSupplierQuoteRequest[]
-  supplierQuotes              OpsSupplierQuote[]
-  supplierSchedules           OpsSupplierSchedule[]
-  supplierQuoteRounds         OpsSupplierQuoteRound[]
-  supplierReviews             OpsSupplierReview[]
-  supplierReliabilityNotes    OpsSupplierReliabilityNote[]
-  coordinatorAssignments      OpsCoordinatorAssignment[]
-  coordinatorCoverage         OpsEventCoverageRequirement[]
-  eventDayTasks               OpsEventDayTask[]
-  taskReassignmentRequests    OpsEventTaskReassignmentRequest[]
-  urgentIssues                OpsUrgentIssue[]
-  eventDayLogs                OpsEventDayLog[]
-  coordinatorReliabilityNotes OpsCoordinatorReliabilityNote[]
   complianceRules             OpsComplianceRule[]
   complianceChecks            OpsComplianceCheck[]
   complianceRuns              OpsComplianceRun[]
   complianceRisks             OpsComplianceRisk[]
-  billingSources              OpsBillingSource[]
-  billingStatements           OpsBillingStatement[]
-  paymentMilestones           OpsPaymentMilestone[]
-  paymentRecords              OpsPaymentRecord[]
-  billingCorrections          OpsBillingCorrection[]
-  billingDisputes             OpsBillingDispute[]
-  additionalBillings          OpsAdditionalBilling[]
   postEventDocuments          OpsPostEventDocument[]
   wrapUpRecords               OpsEventWrapUp[]
   eventInsights               OpsEventInsight[]
-  guestCheckIns               OpsGuestCheckIn[]
-  guestRosterEntries          OpsGuestRosterEntry[]
-  guestRosterImports          OpsGuestRosterImport[]
-  guestFeedback               OpsGuestFeedback[]
-  registrationPlatforms       OpsRegistrationPlatform[]
-  privacyRequests             OpsPrivacyRequest[]
-  auditLogs                   OpsAuditLog[]
-  notificationLogs            OpsNotificationLog[]
-  pareDispatches              OpsPareDispatch[]
-  communicationThreads        OpsCommunicationThread[]
-  securityAlerts              OpsSecurityAlert[]
-  aiAuditLogs                 OpsAiAuditLog[]
-  aiApprovalRecords           OpsAiApprovalRecord[]
-  floorPlanDrafts             OpsFloorPlanDraft[]
-  scheduleDays                OpsEventScheduleDay[]
-  operatorDesignations        OpsEventOperatorDesignation[]
-  handoffs                     OpsEventHandoff[]
-  eodReports                   OpsEventEodReport[]
-  storedObjects               OpsStoredObject[]
-  costEstimates               OpsCostEstimate[]
-  proposalVersions            OpsProposalVersion[]
   decisionRecords             OpsEventDecision[]
   freezeExceptions            OpsEventFreezeException[]
   addenda                     OpsAddendum[]
@@ -355,7 +316,7 @@ model OpsEvent {
   @@index([eventDate, id], map: "events_event_date_id_idx")
   @@index([eventDate, id], where: { archived: false }, map: "events_active_event_date_idx")
   @@map("events")
-  @@schema("event_core")
+  @@schema("event_lifecycle")
 }
 
 model OpsOcularVisitRequest {
@@ -376,7 +337,7 @@ model OpsOcularVisitRequest {
 
   @@index([status, requestedAt], map: "ocular_visit_requests_status_requested_at_idx")
   @@map("ocular_visit_requests")
-  @@schema("event_core")
+  @@schema("event_lifecycle")
 }
 
 model OpsEventClientFloorplanAccessGrant {
@@ -396,7 +357,7 @@ model OpsEventClientFloorplanAccessGrant {
   @@unique([eventId, clientUserId], map: "client_floorplan_access_grants_event_user_key")
   @@index([clientUserId, active], map: "client_floorplan_access_grants_user_active_idx")
   @@map("client_floorplan_access_grants")
-  @@schema("event_core")
+  @@schema("event_lifecycle")
 }
 
 model OpsEventDecision {
@@ -422,7 +383,7 @@ model OpsEventDecision {
 
   @@index([eventId, decidedAt], map: "event_decisions_event_id_decided_at_idx")
   @@map("event_decisions")
-  @@schema("event_core")
+  @@schema("event_lifecycle")
 }
 
 model OpsPrivacyRequest {
@@ -444,13 +405,12 @@ model OpsPrivacyRequest {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  event OpsEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
   @@index([status, createdAt], map: "privacy_requests_status_created_at_idx")
   @@index([subjectEmail], map: "privacy_requests_subject_email_idx")
   @@index([eventId], map: "privacy_requests_event_id_idx")
   @@map("privacy_requests")
-  @@schema("event_core")
+  @@schema("platform_ops")
 }
 
 model OpsPrivacyLegalHold {
@@ -496,11 +456,11 @@ model OpsFloorPlanDraft {
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  event     OpsEvent  @relation(fields: [eventId], references: [id], onDelete: Cascade)
   floorPlan FloorPlan @relation("OpsDraftLayout", fields: [floorPlanId], references: [id], onDelete: Cascade)
 
   @@index([eventId, status], map: "floor_plan_drafts_event_id_status_idx")
   @@index([eventId, isActive], map: "floor_plan_drafts_event_id_is_active_idx")
+  @@unique([eventId], where: { isActive: true }, map: "floor_plan_drafts_one_active_per_event_key")
   @@map("floor_plan_drafts")
   @@schema("floorplan")
 }
@@ -533,11 +493,10 @@ model OpsDocument {
   uploadedAt        DateTime @default(now()) @map("uploaded_at")
 
   event                 OpsEvent                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  contractQuoteRequests OpsSupplierQuoteRequest[]
 
   @@index([eventId, type], map: "documents_event_id_type_idx")
   @@map("documents")
-  @@schema("event_core")
+  @@schema("event_lifecycle")
 }
 
 model OpsBriefing {
@@ -560,7 +519,7 @@ model OpsBriefing {
 
   @@index([eventId, submittedAt], map: "briefings_event_id_submitted_at_idx")
   @@map("briefings")
-  @@schema("event_core")
+  @@schema("event_lifecycle")
 }
 
 model OpsCostEstimate {
@@ -572,12 +531,12 @@ model OpsCostEstimate {
   notes        String   @default("")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
-  event        OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   lines        OpsCostEstimateLine[]
   proposals    OpsProposalVersion[]
+  @@unique([id, eventId], map: "cost_estimates_id_event_id_key")
   @@index([eventId, createdAt], map: "cost_estimates_event_id_created_at_idx")
   @@map("cost_estimates")
-  @@schema("finance_ops")
+  @@schema("commercial")
 }
 
 model OpsCostEstimateLine {
@@ -592,7 +551,7 @@ model OpsCostEstimateLine {
   estimate       OpsCostEstimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
   @@index([estimateId, category], map: "cost_estimate_lines_estimate_id_category_idx")
   @@map("cost_estimate_lines")
-  @@schema("finance_ops")
+  @@schema("commercial")
 }
 
 model OpsProposalVersion {
@@ -607,12 +566,11 @@ model OpsProposalVersion {
   revisionNote   String   @default("") @map("revision_note")
   issuedAt       DateTime? @map("issued_at")
   createdAt      DateTime @default(now()) @map("created_at")
-  event          OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  costEstimate   OpsCostEstimate @relation(fields: [costEstimateId], references: [id], onDelete: Restrict)
+  costEstimate   OpsCostEstimate @relation(fields: [costEstimateId, eventId], references: [id, eventId], onDelete: Restrict, map: "proposal_versions_cost_estimate_event_fkey")
   @@unique([eventId, versionNumber], map: "proposal_versions_event_version_key")
   @@index([eventId, status], map: "proposal_versions_event_id_status_idx")
   @@map("proposal_versions")
-  @@schema("finance_ops")
+  @@schema("commercial")
 }
 
 model OpsEventFreezeException {
@@ -630,7 +588,7 @@ model OpsEventFreezeException {
   addenda         OpsAddendum[]
   @@index([eventId, status, requestedAt], map: "event_freeze_exceptions_event_status_requested_idx")
   @@map("event_freeze_exceptions")
-  @@schema("event_core")
+  @@schema("event_lifecycle")
 }
 
 model OpsAddendum {
@@ -656,7 +614,7 @@ model OpsAddendum {
   @@unique([eventId, versionNumber], map: "addenda_event_version_key")
   @@index([eventId, issuedAt], map: "addenda_event_issued_at_idx")
   @@map("addenda")
-  @@schema("event_core")
+  @@schema("event_lifecycle")
 }
 
 model OpsAddendumImpact {
@@ -673,7 +631,7 @@ model OpsAddendumImpact {
   addendum    OpsAddendum @relation(fields: [addendumId], references: [id], onDelete: Cascade)
   @@index([eventId, targetType, targetId], map: "addendum_impacts_event_target_idx")
   @@map("addendum_impacts")
-  @@schema("event_core")
+  @@schema("event_lifecycle")
 }
 
 model OpsSupplierQuoteRequest {
@@ -686,6 +644,8 @@ model OpsSupplierQuoteRequest {
   message                    String    @default("")
   dueDate                    DateTime? @map("due_date")
   accessToken                String    @unique(map: "quote_requests_access_token_key") @map("access_token")
+  accessTokenExpiresAt       DateTime? @map("access_token_expires_at") @db.Timestamptz(6)
+  accessTokenRevokedAt       DateTime? @map("access_token_revoked_at") @db.Timestamptz(6)
   confidentialBid            Boolean   @default(false) @map("confidential_bid")
   status                     String    @default("open")
   assignmentStatus           String    @default("pending_confirmation") @map("assignment_status")
@@ -704,15 +664,14 @@ model OpsSupplierQuoteRequest {
   contractDocumentId         String?   @map("contract_document_id")
   createdAt                  DateTime  @default(now()) @map("created_at")
 
-  event            OpsEvent             @relation(fields: [eventId], references: [id], onDelete: Cascade)
   supplier         OpsSupplier?         @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   categoryRef      OpsSupplierCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  contractDocument OpsDocument?         @relation(fields: [contractDocumentId], references: [id], onDelete: SetNull)
   schedule         OpsSupplierSchedule?
   round            OpsSupplierQuoteRound? @relation(fields: [roundId], references: [id], onDelete: SetNull)
   roundId          String? @map("round_id")
   quotes           OpsSupplierQuote[]
 
+  @@unique([id, eventId], map: "quote_requests_id_event_id_key")
   @@index([eventId, status], map: "quote_requests_event_id_status_idx")
   @@index([eventId, supplierId, status], map: "quote_requests_event_supplier_status_idx")
   @@index([supplierId], map: "quote_requests_supplier_id_idx")
@@ -720,7 +679,7 @@ model OpsSupplierQuoteRequest {
   @@index([contractDocumentId], map: "quote_requests_contract_document_id_idx")
   @@index([roundId], map: "quote_requests_round_id_idx")
   @@map("quote_requests")
-  @@schema("supplier_ops")
+  @@schema("commercial")
 }
 
 model OpsSupplierSchedule {
@@ -735,12 +694,12 @@ model OpsSupplierSchedule {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
 
-  event   OpsEvent               @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  request OpsSupplierQuoteRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  request OpsSupplierQuoteRequest @relation(fields: [requestId, eventId], references: [id, eventId], onDelete: Cascade, map: "supplier_schedules_request_event_fkey")
 
   @@index([eventId, ingressAt], map: "supplier_schedules_event_id_ingress_at_idx")
+  @@unique([requestId, eventId], map: "supplier_schedules_request_id_event_id_key")
   @@map("supplier_schedules")
-  @@schema("supplier_ops")
+  @@schema("commercial")
 }
 
 model OpsSupplierQuoteRound {
@@ -752,14 +711,13 @@ model OpsSupplierQuoteRound {
   createdAt  DateTime @default(now()) @map("created_at")
   closedAt   DateTime? @map("closed_at")
 
-  event    OpsEvent             @relation(fields: [eventId], references: [id], onDelete: Cascade)
   category OpsSupplierCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   requests OpsSupplierQuoteRequest[]
 
   @@unique([eventId, categoryId, roundNumber], map: "supplier_quote_rounds_event_category_number_key")
   @@index([eventId, categoryId, status], map: "supplier_quote_rounds_event_category_status_idx")
   @@map("quote_rounds")
-  @@schema("supplier_ops")
+  @@schema("commercial")
 }
 
 model OpsSupplierQuote {
@@ -785,7 +743,6 @@ model OpsSupplierQuote {
   createdAt              DateTime  @default(now()) @map("created_at")
   updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  event       OpsEvent             @relation(fields: [eventId], references: [id], onDelete: Cascade)
   request     OpsSupplierQuoteRequest? @relation(fields: [requestId], references: [id], onDelete: Restrict, map: "quotes_request_id_fkey")
   supplier    OpsSupplier?         @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   categoryRef OpsSupplierCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -796,7 +753,7 @@ model OpsSupplierQuote {
   @@index([requestId], map: "quotes_request_id_idx")
   @@index([categoryId], map: "quotes_category_id_idx")
   @@map("quotes")
-  @@schema("supplier_ops")
+  @@schema("commercial")
 }
 
 model OpsSupplierCategory {
@@ -818,7 +775,7 @@ model OpsSupplierCategory {
 
   @@index([active, sortOrder], map: "supplier_categories_active_sort_order_idx")
   @@map("supplier_categories")
-  @@schema("supplier_ops")
+  @@schema("commercial")
 }
 
 model OpsSupplier {
@@ -849,7 +806,7 @@ model OpsSupplier {
   @@index([categoryId, tier], map: "suppliers_category_id_tier_idx")
   @@index([bniMember], map: "suppliers_bni_member_idx")
   @@map("suppliers")
-  @@schema("supplier_ops")
+  @@schema("commercial")
 }
 
 model OpsSupplierAvailability {
@@ -867,7 +824,7 @@ model OpsSupplierAvailability {
   @@unique([supplierId, availableOn], map: "supplier_availability_supplier_date_key")
   @@index([availableOn, blocked], map: "supplier_availability_date_blocked_idx")
   @@map("supplier_availability")
-  @@schema("supplier_ops")
+  @@schema("commercial")
 }
 
 model OpsSupplierReview {
@@ -881,14 +838,13 @@ model OpsSupplierReview {
   createdAt      DateTime @default(now()) @map("created_at")
 
   supplier         OpsSupplier                        @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  event            OpsEvent?                          @relation(fields: [eventId], references: [id], onDelete: SetNull)
   dimensionRatings OpsSupplierReviewDimensionRating[]
   promotions       OpsSupplierPromotion[]
 
   @@index([supplierId, createdAt], map: "supplier_reviews_supplier_id_created_at_idx")
   @@index([eventId], map: "supplier_reviews_event_id_idx")
   @@map("supplier_reviews")
-  @@schema("supplier_ops")
+  @@schema("commercial")
 }
 
 model OpsSupplierReviewDimension {
@@ -906,7 +862,7 @@ model OpsSupplierReviewDimension {
   @@unique([categoryId, slug], map: "supplier_review_dimensions_category_id_slug_key")
   @@index([categoryId, active, sortOrder], map: "supplier_review_dimensions_category_id_active_sort_order_idx")
   @@map("supplier_review_dimensions")
-  @@schema("supplier_ops")
+  @@schema("commercial")
 }
 
 model OpsSupplierReviewDimensionRating {
@@ -920,7 +876,7 @@ model OpsSupplierReviewDimensionRating {
 
   @@unique([reviewId, dimensionId], map: "supplier_review_dimension_ratings_review_id_dimension_id_key")
   @@map("supplier_review_dimension_ratings")
-  @@schema("supplier_ops")
+  @@schema("commercial")
 }
 
 model OpsSupplierReliabilityNote {
@@ -933,12 +889,11 @@ model OpsSupplierReliabilityNote {
   createdAt  DateTime @default(now()) @map("created_at")
 
   supplier OpsSupplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  event    OpsEvent?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
   @@index([supplierId, createdAt], map: "supplier_reliability_notes_supplier_id_created_at_idx")
   @@index([eventId], map: "supplier_reliability_notes_event_id_idx")
   @@map("supplier_reliability_notes")
-  @@schema("supplier_ops")
+  @@schema("commercial")
 }
 
 model OpsSupplierCertification {
@@ -956,7 +911,7 @@ model OpsSupplierCertification {
 
   @@index([supplierId, uploadedAt], map: "supplier_certifications_supplier_id_uploaded_at_idx")
   @@map("supplier_certifications")
-  @@schema("supplier_ops")
+  @@schema("commercial")
 }
 
 model OpsSupplierApplication {
@@ -992,7 +947,7 @@ model OpsSupplierApplication {
   @@index([normalizedEmail, createdAt], map: "supplier_applications_normalized_email_created_at_idx")
   @@index([status], map: "supplier_applications_status_idx")
   @@map("supplier_applications")
-  @@schema("supplier_ops")
+  @@schema("commercial")
 }
 
 model OpsSupplierPromotion {
@@ -1013,7 +968,7 @@ model OpsSupplierPromotion {
   @@index([supplierId, createdAt], map: "supplier_promotions_supplier_id_created_at_idx")
   @@index([reviewId], map: "supplier_promotions_review_id_idx")
   @@map("supplier_promotions")
-  @@schema("supplier_ops")
+  @@schema("commercial")
 }
 
 model OpsCoordinator {
@@ -1027,17 +982,15 @@ model OpsCoordinator {
   active     Boolean  @default(true)
   createdAt  DateTime @default(now()) @map("created_at")
 
-  user             OpsUser?                        @relation(fields: [userId], references: [id], onDelete: SetNull)
   assignments      OpsCoordinatorAssignment[]
   availability     OpsCoordinatorAvailability[]
   reliabilityNotes OpsCoordinatorReliabilityNote[]
-  operatorDesignations OpsEventOperatorDesignation[]
 
   @@index([active, name], map: "coordinators_active_name_idx")
   @@index([roleTags], type: Gin, map: "coordinators_role_tags_gin_idx")
   @@index([skillsTags], type: Gin, map: "coordinators_skills_tags_gin_idx")
   @@map("coordinators")
-  @@schema("staffing_ops")
+  @@schema("operations")
 }
 
 model OpsCoordinatorAvailability {
@@ -1054,7 +1007,7 @@ model OpsCoordinatorAvailability {
 
   @@index([coordinatorId, startsAt, endsAt], map: "coordinator_availability_coordinator_id_starts_at_ends_at_idx")
   @@map("coordinator_availability")
-  @@schema("staffing_ops")
+  @@schema("operations")
 }
 
 model OpsEventCoverageRequirement {
@@ -1068,12 +1021,11 @@ model OpsEventCoverageRequirement {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, role], map: "event_coverage_requirements_event_id_role_key")
   @@index([eventId], map: "event_coverage_requirements_event_id_idx")
   @@map("event_coverage_requirements")
-  @@schema("staffing_ops")
+  @@schema("operations")
 }
 
 model OpsCoordinatorAssignment {
@@ -1102,7 +1054,6 @@ model OpsCoordinatorAssignment {
   withdrawnBy             String?   @map("withdrawn_by")
   createdAt              DateTime  @default(now()) @map("created_at")
 
-  event            OpsEvent                        @relation(fields: [eventId], references: [id], onDelete: Cascade)
   coordinator      OpsCoordinator?                 @relation(fields: [coordinatorId], references: [id], onDelete: SetNull)
   reliabilityNotes OpsCoordinatorReliabilityNote[]
   acknowledgmentHistory OpsCoordinatorAssignmentAcknowledgment[]
@@ -1111,7 +1062,7 @@ model OpsCoordinatorAssignment {
   @@index([coordinatorId, eventDate], map: "coordinator_assignments_coordinator_id_event_date_idx")
   @@index([eventId, attendanceStatus], map: "coordinator_assignments_event_id_attendance_status_idx")
   @@map("coordinator_assignments")
-  @@schema("staffing_ops")
+  @@schema("operations")
 }
 
 model OpsCoordinatorAssignmentAcknowledgment {
@@ -1126,7 +1077,7 @@ model OpsCoordinatorAssignmentAcknowledgment {
 
   @@index([assignmentId, createdAt], map: "coordinator_assignment_ack_history_assignment_id_created_at_idx")
   @@map("coordinator_assignment_acknowledgments")
-  @@schema("staffing_ops")
+  @@schema("operations")
 }
 
 model OpsEventDayTask {
@@ -1149,14 +1100,14 @@ model OpsEventDayTask {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   reassignmentRequests OpsEventTaskReassignmentRequest[]
 
   @@index([eventId, status], map: "event_day_tasks_event_id_status_idx")
+  @@unique([id, eventId], map: "event_day_tasks_id_event_id_key")
   @@index([eventId, assignedRole], map: "event_day_tasks_event_id_assigned_role_idx")
   @@index([eventId, slaStatus], map: "event_day_tasks_event_id_sla_status_idx")
   @@map("event_day_tasks")
-  @@schema("staffing_ops")
+  @@schema("live_ops")
 }
 
 model OpsEventTaskReassignmentRequest {
@@ -1179,13 +1130,12 @@ model OpsEventTaskReassignmentRequest {
   createdAt     DateTime   @default(now()) @map("created_at")
   updatedAt     DateTime   @default(now()) @updatedAt @map("updated_at")
 
-  event OpsEvent       @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  task  OpsEventDayTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task  OpsEventDayTask @relation(fields: [taskId, eventId], references: [id, eventId], onDelete: Restrict, map: "task_reassignment_requests_task_event_fkey")
 
   @@index([eventId, status, requestedAt], map: "task_reassignment_requests_event_status_requested_idx")
   @@index([taskId, createdAt], map: "task_reassignment_requests_task_created_idx")
   @@map("task_reassignment_requests")
-  @@schema("staffing_ops")
+  @@schema("live_ops")
 }
 
 model OpsEventScheduleDay {
@@ -1197,14 +1147,14 @@ model OpsEventScheduleDay {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
-  event    OpsEvent                @relation(fields: [eventId], references: [id], onDelete: Cascade)
   segments OpsEventScheduleSegment[]
   handoffs OpsEventHandoff[]
   eodReports OpsEventEodReport[]
 
   @@unique([eventId, dayDate], map: "event_schedule_days_event_id_day_date_key")
+  @@unique([id, eventId], map: "event_schedule_days_id_event_id_key")
   @@map("event_schedule_days")
-  @@schema("staffing_ops")
+  @@schema("live_ops")
 }
 
 model OpsEventScheduleSegment {
@@ -1227,7 +1177,7 @@ model OpsEventScheduleSegment {
   @@unique([dayId, sequence], map: "event_schedule_segments_day_id_sequence_key")
   @@index([dayId, plannedStartAt], map: "event_schedule_segments_day_id_start_idx")
   @@map("event_schedule_segments")
-  @@schema("staffing_ops")
+  @@schema("live_ops")
 }
 
 model OpsEventOperatorDesignation {
@@ -1240,13 +1190,11 @@ model OpsEventOperatorDesignation {
   revokedBy     String?   @map("revoked_by")
   createdAt     DateTime  @default(now()) @map("created_at")
 
-  event       OpsEvent      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  coordinator OpsCoordinator @relation(fields: [coordinatorId], references: [id], onDelete: Restrict)
 
   @@index([eventId, revokedAt], map: "event_operator_designations_event_id_revoked_at_idx")
   @@index([coordinatorId, revokedAt], map: "event_operator_designations_coordinator_id_revoked_at_idx")
   @@map("event_operator_designations")
-  @@schema("staffing_ops")
+  @@schema("live_ops")
 }
 
 model OpsEventHandoff {
@@ -1262,14 +1210,13 @@ model OpsEventHandoff {
   outstandingItems   Json     @default("[]") @map("outstanding_items")
   createdAt          DateTime @default(now()) @map("created_at")
 
-  event OpsEvent             @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  day   OpsEventScheduleDay  @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  day   OpsEventScheduleDay  @relation(fields: [dayId, eventId], references: [id, eventId], onDelete: Restrict, map: "event_handoffs_day_event_fkey")
 
   @@index([eventId, dayId, handedOffAt], map: "event_handoffs_event_day_time_idx")
   @@index([fromAssignmentId], map: "event_handoffs_from_assignment_idx")
   @@index([toAssignmentId], map: "event_handoffs_to_assignment_idx")
   @@map("event_handoffs")
-  @@schema("staffing_ops")
+  @@schema("live_ops")
 }
 
 model OpsEventEodReport {
@@ -1285,14 +1232,13 @@ model OpsEventEodReport {
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  event   OpsEvent             @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  day     OpsEventScheduleDay  @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  day     OpsEventScheduleDay  @relation(fields: [dayId, eventId], references: [id, eventId], onDelete: Restrict, map: "event_eod_reports_day_event_fkey")
   replies OpsEventEodReply[]
 
   @@unique([eventId, dayId], map: "event_eod_reports_event_id_day_id_key")
   @@index([eventId, submittedAt], map: "event_eod_reports_event_id_submitted_at_idx")
   @@map("event_eod_reports")
-  @@schema("staffing_ops")
+  @@schema("live_ops")
 }
 
 model OpsEventEodReply {
@@ -1307,7 +1253,7 @@ model OpsEventEodReply {
 
   @@index([reportId, createdAt], map: "event_eod_replies_report_id_created_at_idx")
   @@map("event_eod_replies")
-  @@schema("staffing_ops")
+  @@schema("live_ops")
 }
 
 model OpsUrgentIssue {
@@ -1332,13 +1278,12 @@ model OpsUrgentIssue {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId, status], map: "urgent_issues_event_id_status_idx")
   @@index([eventId, severity], map: "urgent_issues_event_id_severity_idx")
   @@index([eventId, slaStatus], map: "urgent_issues_event_id_sla_status_idx")
   @@map("urgent_issues")
-  @@schema("staffing_ops")
+  @@schema("live_ops")
 }
 
 model OpsEventDayLog {
@@ -1353,12 +1298,11 @@ model OpsEventDayLog {
   metadata    Json     @default("{}")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId, createdAt], map: "event_day_logs_event_id_created_at_idx")
   @@index([eventId, actionType], map: "event_day_logs_event_id_action_type_idx")
   @@map("event_day_logs")
-  @@schema("staffing_ops")
+  @@schema("live_ops")
 }
 
 model OpsCoordinatorReliabilityNote {
@@ -1370,7 +1314,6 @@ model OpsCoordinatorReliabilityNote {
   severity      String   @default("warning")
   createdAt     DateTime @default(now()) @map("created_at")
 
-  event       OpsEvent?                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
   coordinator OpsCoordinator?           @relation(fields: [coordinatorId], references: [id], onDelete: SetNull)
   assignment  OpsCoordinatorAssignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
 
@@ -1378,7 +1321,7 @@ model OpsCoordinatorReliabilityNote {
   @@index([coordinatorId, createdAt], map: "coordinator_reliability_notes_coordinator_id_created_at_idx")
   @@index([assignmentId], map: "coordinator_reliability_notes_assignment_id_idx")
   @@map("coordinator_reliability_notes")
-  @@schema("staffing_ops")
+  @@schema("operations")
 }
 
 model OpsComplianceRule {
@@ -1405,7 +1348,7 @@ model OpsComplianceRule {
   @@index([eventType, phase], map: "compliance_rules_event_type_phase_idx")
   @@index([eventId], map: "compliance_rules_event_id_idx")
   @@map("compliance_rules")
-  @@schema("compliance_ops")
+  @@schema("event_lifecycle")
 }
 
 model OpsComplianceCheck {
@@ -1440,7 +1383,7 @@ model OpsComplianceCheck {
   @@index([phase, severity], map: "compliance_checks_phase_severity_idx")
   @@index([runId], map: "compliance_checks_run_id_idx")
   @@map("compliance_checks")
-  @@schema("compliance_ops")
+  @@schema("event_lifecycle")
 }
 
 model OpsComplianceRun {
@@ -1460,7 +1403,7 @@ model OpsComplianceRun {
   @@index([eventId, createdAt], map: "compliance_runs_event_id_created_at_idx")
   @@index([eventId, phase, status], map: "compliance_runs_event_id_phase_status_idx")
   @@map("compliance_runs")
-  @@schema("compliance_ops")
+  @@schema("event_lifecycle")
 }
 
 model OpsComplianceRisk {
@@ -1486,7 +1429,7 @@ model OpsComplianceRisk {
   @@index([eventId, phase, status], map: "compliance_risks_event_id_phase_status_idx")
   @@index([ruleId], map: "compliance_risks_rule_id_idx")
   @@map("compliance_risks")
-  @@schema("compliance_ops")
+  @@schema("event_lifecycle")
 }
 
 model OpsComplianceRiskHistory {
@@ -1506,7 +1449,7 @@ model OpsComplianceRiskHistory {
 
   @@index([riskId, createdAt], map: "compliance_risk_history_risk_id_created_at_idx")
   @@map("compliance_risk_history")
-  @@schema("compliance_ops")
+  @@schema("event_lifecycle")
 }
 
 model OpsBillingSource {
@@ -1531,12 +1474,11 @@ model OpsBillingSource {
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  event             OpsEvent              @relation(fields: [eventId], references: [id], onDelete: Cascade)
   billingStatements OpsBillingStatement[]
 
   @@index([eventId, status], map: "billing_sources_event_id_status_idx")
   @@map("billing_sources")
-  @@schema("finance_ops")
+  @@schema("commercial")
 }
 
 model OpsBillingStatement {
@@ -1563,13 +1505,16 @@ model OpsBillingStatement {
   sentAt          DateTime? @map("sent_at")
   generatedAt     DateTime  @default(now()) @map("generated_at")
 
-  event  OpsEvent          @relation(fields: [eventId], references: [id], onDelete: Cascade)
   source OpsBillingSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
 
+  corrections OpsBillingCorrection[]
+  disputes    OpsBillingDispute[]
+
+  @@unique([id, eventId], map: "billing_statements_id_event_id_key")
   @@index([eventId, generatedAt], map: "billing_statements_event_id_generated_at_idx")
   @@index([sourceId], map: "billing_statements_source_id_idx")
   @@map("billing_statements")
-  @@schema("finance_ops")
+  @@schema("commercial")
 }
 
 model OpsBillingStatementSequence {
@@ -1577,7 +1522,7 @@ model OpsBillingStatementSequence {
   nextNumber Int @default(1) @map("next_number")
 
   @@map("billing_statement_sequences")
-  @@schema("finance_ops")
+  @@schema("commercial")
 }
 
 model OpsPaymentMilestone {
@@ -1592,13 +1537,14 @@ model OpsPaymentMilestone {
   status           String   @default("pending")
   createdAt        DateTime @default(now()) @map("created_at")
 
-  event   OpsEvent           @relation(fields: [eventId], references: [id], onDelete: Cascade)
   records OpsPaymentRecord[]
+  disputes OpsBillingDispute[]
 
+  @@unique([id, eventId], map: "payment_milestones_id_event_id_key")
   @@index([eventId, status], map: "payment_milestones_event_id_status_idx")
   @@index([eventId, dueDate, id], map: "payment_milestones_event_due_date_idx")
   @@map("payment_milestones")
-  @@schema("finance_ops")
+  @@schema("commercial")
 }
 
 model OpsPaymentRecord {
@@ -1613,13 +1559,12 @@ model OpsPaymentRecord {
   payloadHash     String?  @map("payload_hash")
   recordedAt      DateTime @default(now()) @map("recorded_at")
 
-  event     OpsEvent            @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  milestone OpsPaymentMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  milestone OpsPaymentMilestone @relation(fields: [milestoneId, eventId], references: [id, eventId], onDelete: Restrict, map: "payment_records_milestone_event_fkey")
 
   @@index([eventId, recordedAt], map: "payment_records_event_id_recorded_at_idx")
   @@index([milestoneId, recordedAt], map: "payment_records_milestone_id_recorded_at_idx")
   @@map("payment_records")
-  @@schema("finance_ops")
+  @@schema("commercial")
 }
 
 model OpsBillingCorrection {
@@ -1637,12 +1582,12 @@ model OpsBillingCorrection {
   createdAt        DateTime  @default(now()) @map("created_at")
   resolvedAt       DateTime? @map("resolved_at")
 
-  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  statement OpsBillingStatement @relation(fields: [statementId, eventId], references: [id, eventId], onDelete: Restrict, map: "billing_corrections_statement_event_fkey")
 
   @@index([eventId, status], map: "billing_corrections_event_id_status_idx")
   @@index([statementId, createdAt], map: "billing_corrections_statement_id_created_at_idx")
   @@map("billing_corrections")
-  @@schema("finance_ops")
+  @@schema("commercial")
 }
 
 model OpsBillingDispute {
@@ -1661,12 +1606,13 @@ model OpsBillingDispute {
   createdAt        DateTime  @default(now()) @map("created_at")
   resolvedAt       DateTime? @map("resolved_at")
 
-  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  statement OpsBillingStatement @relation(fields: [statementId, eventId], references: [id, eventId], onDelete: Restrict, map: "billing_disputes_statement_event_fkey")
+  milestone OpsPaymentMilestone? @relation(fields: [milestoneId, eventId], references: [id, eventId], onDelete: Restrict, map: "billing_disputes_milestone_event_fkey")
 
   @@index([eventId, status], map: "billing_disputes_event_id_status_idx")
   @@index([statementId, createdAt], map: "billing_disputes_statement_id_created_at_idx")
   @@map("billing_disputes")
-  @@schema("finance_ops")
+  @@schema("commercial")
 }
 
 model OpsAdditionalBilling {
@@ -1684,12 +1630,11 @@ model OpsAdditionalBilling {
   createdAt        DateTime  @default(now()) @map("created_at")
   waivedAt         DateTime? @map("waived_at")
 
-  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId, status], map: "additional_billings_event_id_status_idx")
   @@index([urgentIssueId], map: "additional_billings_urgent_issue_id_idx")
   @@map("additional_billings")
-  @@schema("finance_ops")
+  @@schema("commercial")
 }
 
 model OpsPostEventDocument {
@@ -1707,7 +1652,7 @@ model OpsPostEventDocument {
 
   @@index([eventId, status], map: "post_event_documents_event_id_status_idx")
   @@map("post_event_documents")
-  @@schema("compliance_ops")
+  @@schema("event_lifecycle")
 }
 
 model OpsEventWrapUp {
@@ -1734,7 +1679,7 @@ model OpsEventWrapUp {
 
   @@index([deadlineAt, status], map: "event_wrap_ups_deadline_status_idx")
   @@map("event_wrap_ups")
-  @@schema("compliance_ops")
+  @@schema("event_lifecycle")
 }
 
 model OpsEventInsight {
@@ -1756,7 +1701,7 @@ model OpsEventInsight {
 
   @@index([generatedAt], map: "event_insights_generated_at_idx")
   @@map("event_insights")
-  @@schema("compliance_ops")
+  @@schema("event_lifecycle")
 }
 
 model OpsAuditChainLock {
@@ -1766,7 +1711,7 @@ model OpsAuditChainLock {
   headHash String?   @map("head_hash")
 
   @@map("audit_chain_locks")
-  @@schema("trust_ops")
+  @@schema("platform_ops")
 }
 
 model OpsAuditLog {
@@ -1789,7 +1734,6 @@ model OpsAuditLog {
   previousHash  String?  @map("previous_hash")
   createdAt     DateTime @default(now()) @map("created_at")
 
-  event OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId, createdAt], map: "audit_logs_event_id_created_at_idx")
   @@index([eventId, createdAt(sort: Desc), id], map: "audit_logs_event_created_at_id_idx")
@@ -1799,7 +1743,7 @@ model OpsAuditLog {
   @@index([actionType, createdAt], map: "audit_logs_action_type_created_at_idx")
   @@index([severity, createdAt], map: "audit_logs_severity_created_at_idx")
   @@map("audit_logs")
-  @@schema("trust_ops")
+  @@schema("platform_ops")
 }
 
 model OpsNotificationLog {
@@ -1823,7 +1767,6 @@ model OpsNotificationLog {
   acknowledgedAt DateTime? @map("acknowledged_at")
   createdAt      DateTime  @default(now()) @map("created_at")
 
-  event OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId, createdAt], map: "notification_logs_event_id_created_at_idx")
   @@index([status, createdAt], map: "notification_logs_status_created_at_idx")
@@ -1831,7 +1774,7 @@ model OpsNotificationLog {
   @@index([correlationId], map: "notification_logs_correlation_id_idx")
   @@index([status, nextAttemptAt], map: "notification_logs_status_next_attempt_at_idx")
   @@map("notification_logs")
-  @@schema("trust_ops")
+  @@schema("platform_ops")
 }
 
 model OpsPareDispatch {
@@ -1852,10 +1795,11 @@ model OpsPareDispatch {
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  event   OpsEvent               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  approvalRecord   OpsAiApprovalRecord? @relation(fields: [approvalRecordId], references: [id], onDelete: Restrict, map: "pare_dispatches_approval_record_id_fkey")
 
   @@unique([requestId, sourceUpdatedAt], map: "pare_dispatches_request_source_updated_key")
   @@index([eventId, status], map: "pare_dispatches_event_status_idx")
+  @@index([approvalRecordId], map: "pare_dispatches_approval_record_id_idx")
   @@index([status, nextAttemptAt], map: "pare_dispatches_status_next_attempt_idx")
   @@index([status, nextAttemptAt, createdAt, id], map: "pare_dispatches_worker_claim_idx")
   @@index([correlationId], map: "pare_dispatches_correlation_id_idx")
@@ -1881,7 +1825,7 @@ model OpsCommandReceipt {
   @@index([eventId, createdAt], map: "command_receipts_event_id_created_at_idx")
   @@index([actorId, createdAt], map: "command_receipts_actor_id_created_at_idx")
   @@map("command_receipts")
-  @@schema("trust_ops")
+  @@schema("platform_ops")
 }
 
 model OpsStoredObject {
@@ -1909,7 +1853,6 @@ model OpsStoredObject {
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, usage, logicalTarget], map: "stored_objects_event_usage_logical_target_key")
   @@index([eventId, lifecycleState], map: "stored_objects_event_id_lifecycle_state_idx")
@@ -1932,14 +1875,13 @@ model OpsGuestCheckIn {
   marketingConsentAccepted Boolean  @default(false) @map("marketing_consent_accepted")
   checkedInAt              DateTime @default(now()) @map("checked_in_at")
 
-  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  rosterEntry OpsGuestRosterEntry? @relation(fields: [rosterEntryId], references: [id], onDelete: SetNull)
+  rosterEntry OpsGuestRosterEntry? @relation(fields: [rosterEntryId, eventId], references: [id, eventId], onDelete: Restrict, map: "check_ins_roster_entry_event_fkey")
 
   @@index([eventId, checkedInAt], map: "check_ins_event_id_checked_in_at_idx")
   @@index([eventId, guestName], map: "check_ins_event_id_guest_name_idx")
   @@unique([eventId, rosterEntryId], map: "check_ins_event_id_roster_entry_id_key")
   @@map("check_ins")
-  @@schema("guest_ops")
+  @@schema("operations")
 }
 
 model OpsGuestRosterEntry {
@@ -1961,14 +1903,16 @@ model OpsGuestRosterEntry {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   checkIns OpsGuestCheckIn[]
 
+  importBatch OpsGuestRosterImport? @relation(fields: [importBatchId, eventId], references: [id, eventId], onDelete: Restrict, map: "guest_roster_entries_import_event_fkey")
+
+  @@unique([id, eventId], map: "guest_roster_entries_id_event_id_key")
   @@unique([eventId, sourceKey], map: "guest_roster_event_source_key")
   @@index([eventId, normalizedName], map: "guest_roster_event_name_idx")
   @@index([eventId, eligibility], map: "guest_roster_event_eligibility_idx")
   @@map("guest_roster_entries")
-  @@schema("guest_ops")
+  @@schema("operations")
 }
 
 model OpsGuestRosterImport {
@@ -1981,11 +1925,12 @@ model OpsGuestRosterImport {
   rowCount     Int      @map("row_count")
   rawFileUploadBlocked Boolean @default(true) @map("raw_file_upload_blocked")
 
-  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  entries OpsGuestRosterEntry[]
 
   @@index([eventId, importedAt], map: "guest_roster_imports_event_imported_at_idx")
+  @@unique([id, eventId], map: "guest_roster_imports_id_event_id_key")
   @@map("guest_roster_imports")
-  @@schema("guest_ops")
+  @@schema("operations")
 }
 
 model OpsGuestFeedback {
@@ -2008,12 +1953,11 @@ model OpsGuestFeedback {
   marketingConsentWithdrawnAt DateTime? @map("marketing_consent_withdrawn_at")
   submittedAt              DateTime @default(now()) @map("submitted_at")
 
-  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   mediaAttachments OpsGuestFeedbackMedia[]
 
   @@index([eventId, moderationStatus], map: "feedback_event_id_moderation_status_idx")
   @@map("feedback")
-  @@schema("guest_ops")
+  @@schema("operations")
 }
 
 model OpsGuestFeedbackMedia {
@@ -2031,7 +1975,7 @@ model OpsGuestFeedbackMedia {
 
   @@index([feedbackId], map: "feedback_media_feedback_id_idx")
   @@map("feedback_media")
-  @@schema("guest_ops")
+  @@schema("operations")
 }
 
 model OpsRegistrationPlatform {
@@ -2051,11 +1995,8 @@ model OpsRegistrationPlatform {
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
-  @@index([eventId], map: "registration_platforms_event_id_idx")
   @@map("registration_platforms")
-  @@schema("guest_ops")
+  @@schema("operations")
 }
 
 model OpsAiAuditLog {
@@ -2092,13 +2033,13 @@ model OpsAiAuditLog {
   budgetDate            DateTime? @db.Date @map("budget_date")
   reservedTokens        Int      @default(0) @map("reserved_tokens")
 
-  event OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  approvals             OpsAiApprovalRecord[]
 
   @@index([eventId], map: "ai_audit_logs_event_id_idx")
   @@index([featureName, createdAt], map: "ai_audit_logs_feature_name_created_at_idx")
   @@index([status, createdAt], map: "ai_audit_logs_status_created_at_idx")
   @@map("ai_audit_logs")
-  @@schema("trust_ops")
+  @@schema("platform_ops")
 }
 
 model OpsAiDailyTokenUsage {
@@ -2111,7 +2052,7 @@ model OpsAiDailyTokenUsage {
 
   @@unique([useCaseId, usageDate], map: "ai_daily_token_usage_use_case_date_key")
   @@map("ai_daily_token_usage")
-  @@schema("trust_ops")
+  @@schema("platform_ops")
 }
 
 model OpsAiApprovalRecord {
@@ -2128,14 +2069,15 @@ model OpsAiApprovalRecord {
   sourceDispatchId String? @unique(map: "ai_approval_records_source_dispatch_id_key") @map("source_dispatch_id")
   reviewPayload Json      @default("{}") @map("review_payload")
 
-  event OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
   conformeCommsDraft OpsConformeCommsDraft?
+  auditLog           OpsAiAuditLog @relation(fields: [aiAuditLogId], references: [id], onDelete: Restrict, map: "ai_approval_records_ai_audit_log_id_fkey")
+  dispatches         OpsPareDispatch[]
 
   @@index([aiAuditLogId], map: "ai_approval_records_ai_audit_log_id_idx")
   @@index([eventId], map: "ai_approval_records_event_id_idx")
   @@index([status, requestedAt], map: "ai_approval_records_status_requested_at_idx")
   @@map("ai_approval_records")
-  @@schema("trust_ops")
+  @@schema("platform_ops")
 }
 
 // PMCM-only review text lives outside the sanitized AI audit log.
@@ -2154,7 +2096,7 @@ model OpsConformeCommsDraft {
 
   @@index([inquiryId, createdAt], map: "conforme_comms_drafts_inquiry_id_created_at_idx")
   @@map("conforme_comms_drafts")
-  @@schema("trust_ops")
+  @@schema("platform_ops")
 }
 
 model OpsLoginHistory {
@@ -2169,13 +2111,12 @@ model OpsLoginHistory {
   failureReason String?  @map("failure_reason")
   createdAt     DateTime @default(now()) @map("created_at")
 
-  user OpsUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt], map: "login_history_user_id_created_at_idx")
   @@index([email, createdAt], map: "login_history_email_created_at_idx")
   @@index([status, createdAt], map: "login_history_status_created_at_idx")
   @@map("login_history")
-  @@schema("identity")
+  @@schema("platform_ops")
 }
 
 model OpsSecurityAlert {
@@ -2191,14 +2132,13 @@ model OpsSecurityAlert {
   createdAt   DateTime  @default(now()) @map("created_at")
   resolvedAt  DateTime? @map("resolved_at")
 
-  event OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId], map: "security_alerts_event_id_idx")
   @@index([status, createdAt], map: "security_alerts_status_created_at_idx")
   @@index([type, createdAt], map: "security_alerts_type_created_at_idx")
   @@index([severity, createdAt], map: "security_alerts_severity_created_at_idx")
   @@map("security_alerts")
-  @@schema("identity")
+  @@schema("platform_ops")
 }
 
 model OpsCommunicationThread {
@@ -2210,12 +2150,11 @@ model OpsCommunicationThread {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
-  event        OpsEvent                     @relation(fields: [eventId], references: [id], onDelete: Cascade)
   participants OpsCommunicationParticipant[]
   messages     OpsCommunicationMessage[]
 
   @@index([eventId, updatedAt], map: "communication_threads_event_id_updated_at_idx")
-  @@schema("supplier_ops")
+  @@schema("commercial")
   @@map("communication_threads")
 }
 
@@ -2233,7 +2172,7 @@ model OpsCommunicationParticipant {
 
   @@unique([threadId, actorId], map: "communication_participants_thread_actor_key")
   @@index([actorId, active], map: "communication_participants_actor_active_idx")
-  @@schema("supplier_ops")
+  @@schema("commercial")
   @@map("communication_participants")
 }
 
@@ -2252,6 +2191,6 @@ model OpsCommunicationMessage {
 
   @@index([threadId, createdAt], map: "communication_messages_thread_id_created_at_idx")
   @@unique([threadId, idempotencyKey], map: "communication_messages_thread_id_idempotency_key_key")
-  @@schema("supplier_ops")
+  @@schema("commercial")
   @@map("communication_messages")
 }

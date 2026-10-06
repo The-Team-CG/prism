@@ -22,6 +22,7 @@ import {
   type PrismVerifiedEventActor,
 } from '@prism/types';
 import { GuestWorkflowService } from '../../application/guest/guest-workflow.service';
+import { GuestAccessRateLimitGuard } from './guest-access-rate-limit.guard';
 
 @Controller('guest')
 export class OpsGuestController {
@@ -110,6 +111,7 @@ export class OpsGuestController {
   }
 
   @Get('events/:accessCode')
+  @UseGuards(GuestAccessRateLimitGuard)
   async eventByAccessCode(@Param('accessCode') accessCode: string) {
     const event = await this.guestWorkflowService.getEventByAccessCode(accessCode);
     const attendanceCount = await this.guestWorkflowService.countCheckInsForEvent(event.id);
@@ -117,12 +119,14 @@ export class OpsGuestController {
   }
 
   @Get('events/:accessCode/watermark')
+  @UseGuards(GuestAccessRateLimitGuard)
   async eventWatermarkByAccessCode(@Param('accessCode') accessCode: string) {
     return this.guestWorkflowService.getEventWatermarkByAccessCode(accessCode);
   }
 
   @Post('events/:accessCode/check-ins')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(GuestAccessRateLimitGuard)
   async checkIn(
     @Param('accessCode') accessCode: string,
     @Body(zodBody(createGuestCheckInSchema)) dto: CreateGuestCheckInInput,
@@ -132,6 +136,7 @@ export class OpsGuestController {
 
   @Post('events/:accessCode/feedback')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(GuestAccessRateLimitGuard)
   async submitFeedback(
     @Param('accessCode') accessCode: string,
     @Body(zodBody(createGuestFeedbackSchema)) dto: CreateGuestFeedbackInput,
@@ -141,6 +146,7 @@ export class OpsGuestController {
 
   @Post('events/:accessCode/feedback/:feedbackId/consent-withdrawal')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(GuestAccessRateLimitGuard)
   async withdrawFeedbackConsent(
     @Param('accessCode') accessCode: string,
     @Param('feedbackId') feedbackId: string,

@@ -77,35 +77,8 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
       throw new BadRequestException('Event is not active for coordinator assignment changes');
     }
     const coordinator = await this.resolveCoordinator(input, prisma, transactionContext);
-    if (input.role !== undefined && !coordinatorRoleSchema.safeParse(input.role).success) {
-      throw new BadRequestException('Choose a role from the coordinator role catalog.');
-    }
-    const taggedRole = coordinator.roleTags
-      .map(canonicalCoordinatorRole)
-      .find((candidate): candidate is (typeof COORDINATOR_ROLES)[number] => candidate !== undefined);
-    const role = input.role ?? taggedRole ?? 'General Coordinator';
-
-    if (!coordinator.roleTags.some((tag) => canonicalCoordinatorRole(tag) === role)) {
-      throw new BadRequestException(`${coordinator.name} is not tagged for ${role}`);
-    }
-
-    const eventDateEnd = new Date(event.eventDate.getTime() + 24 * 60 * 60 * 1000);
-    const availabilityModel = 'opsCoordinatorAvailability' in prisma ? prisma.opsCoordinatorAvailability : undefined;
-    const unavailable = availabilityModel
-      ? await availabilityModel.findFirst({
-          where: { coordinatorId: coordinator.id, startsAt: { lt: eventDateEnd }, endsAt: { gt: event.eventDate } },
-          orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
-        })
-      : null;
-    if (unavailable) {
-      throw new BadRequestException({
-        code: 'COORDINATOR_UNAVAILABLE',
-        message: `${coordinator.name} is unavailable for ${isoDate(event.eventDate)}.`,
-        availabilityId: unavailable.id,
-        kind: unavailable.kind,
-        note: unavailable.note,
-      });
-    }
+    const role = this.resolveAssignmentRole(coordinator, input.role);
+    await this.assertCoordinatorAvailable(prisma, coordinator, event.eventDate);
 
     const conflict = await prisma.opsCoordinatorAssignment.findFirst({
       where: {
@@ -132,6 +105,47 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
     }
 
     return { event, coordinator, role, conflict, conflictEventName };
+  }
+
+  private resolveAssignmentRole(
+    coordinator: { name: string; roleTags: string[] },
+    requestedRole: CreateCoordinatorAssignmentInput['role'],
+  ) {
+    if (requestedRole !== undefined && !coordinatorRoleSchema.safeParse(requestedRole).success) {
+      throw new BadRequestException('Choose a role from the coordinator role catalog.');
+    }
+    const taggedRole = coordinator.roleTags
+      .map(canonicalCoordinatorRole)
+      .find((candidate): candidate is (typeof COORDINATOR_ROLES)[number] => candidate !== undefined);
+    const role = requestedRole ?? taggedRole ?? 'General Coordinator';
+    if (!coordinator.roleTags.some((tag) => canonicalCoordinatorRole(tag) === role)) {
+      throw new BadRequestException(`${coordinator.name} is not tagged for ${role}`);
+    }
+    return role;
+  }
+
+  private async assertCoordinatorAvailable(
+    prisma: Prisma.TransactionClient | PrismaService,
+    coordinator: { id: string; name: string },
+    eventDate: Date,
+  ) {
+    const eventDateEnd = new Date(eventDate.getTime() + 24 * 60 * 60 * 1000);
+    const availabilityModel = 'opsCoordinatorAvailability' in prisma ? prisma.opsCoordinatorAvailability : undefined;
+    const unavailable = availabilityModel
+      ? await availabilityModel.findFirst({
+          where: { coordinatorId: coordinator.id, startsAt: { lt: eventDateEnd }, endsAt: { gt: eventDate } },
+          orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
+        })
+      : null;
+    if (unavailable) {
+      throw new BadRequestException({
+        code: 'COORDINATOR_UNAVAILABLE',
+        message: `${coordinator.name} is unavailable for ${isoDate(eventDate)}.`,
+        availabilityId: unavailable.id,
+        kind: unavailable.kind,
+        note: unavailable.note,
+      });
+    }
   }
 
   private buildAssignmentCreateData(
@@ -462,8 +476,37 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
     );
     const prisma = context.prisma;
     const event = await this.requireEvent(eventId, prisma, context);
-    if (event.archived || event.status === 'cancelled') throw new BadRequestException('Event is not active for assignment changes');
+    const { currentDate, targetDate } = this.resolveDecisionDates(event, input, currentEventDate, nextEventDate);
 
+    const assignmentRows = await prisma.opsCoordinatorAssignment.findMany({
+      where: { eventId, status: { notIn: [...INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES] } },
+      select: { id: true, status: true, coordinatorId: true, coordinatorName: true },
+    });
+    const release = input.decision === 'cancelled' || input.supplierImpact === 'release_obligations';
+    const keptRows = release ? [] : assignmentRows;
+    const reschedule = keptRows.length > 0 && targetDate.getTime() !== currentDate.getTime()
+      ? await this.planEventDecisionReschedule(prisma, eventId, keptRows, targetDate)
+      : null;
+
+    if (release && assignmentRows.length > 0) {
+      await this.releaseDecisionAssignments(prisma, eventId, assignmentRows.map((row) => row.id), `Event ${input.decision}: ${input.reason}`, actor);
+    }
+    if (reschedule) await this.moveDecisionAssignments(prisma, eventId, reschedule, targetDate);
+
+    return {
+      releasedAssignmentIds: release ? assignmentRows.map((row) => row.id) : [],
+      priorAssignments: assignmentRows.map(({ id, status, coordinatorId, coordinatorName }) => ({ id, status, coordinatorId, coordinatorName })),
+      ...(reschedule ? { reschedule } : {}),
+    };
+  }
+
+  private resolveDecisionDates(
+    event: { archived: boolean; status: string; eventDate: Date },
+    input: Pick<EventDecisionInput, 'decision' | 'newEventDate'>,
+    currentEventDate: string,
+    nextEventDate: string,
+  ): { currentDate: Date; targetDate: Date } {
+    if (event.archived || event.status === 'cancelled') throw new BadRequestException('Event is not active for assignment changes');
     const currentDate = new Date(currentEventDate);
     const targetDate = new Date(nextEventDate);
     if (Number.isNaN(currentDate.getTime()) || Number.isNaN(targetDate.getTime())) {
@@ -478,58 +521,47 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
     if (event.eventDate.getTime() !== currentDate.getTime()) {
       throw new BadRequestException('Event date changed before assignment updates were applied');
     }
+    return { currentDate, targetDate };
+  }
 
-    const assignmentRows = await prisma.opsCoordinatorAssignment.findMany({
-      where: { eventId, status: { notIn: [...INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES] } },
-      select: { id: true, status: true, coordinatorId: true, coordinatorName: true },
+  private async releaseDecisionAssignments(
+    prisma: PrismTransactionContext['prisma'],
+    eventId: string,
+    assignmentIds: string[],
+    withdrawalReason: string,
+    actor: ResolvedEventOpsActor,
+  ) {
+    const released = await prisma.opsCoordinatorAssignment.updateMany({
+      where: { eventId, id: { in: assignmentIds }, status: { notIn: [...INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES] } },
+      data: {
+        status: CoordinatorAssignmentStatus.Cancelled,
+        withdrawalReason,
+        withdrawnAt: new Date(),
+        withdrawnBy: actor.id ?? actor.name,
+      },
     });
-    const release = input.decision === 'cancelled' || input.supplierImpact === 'release_obligations';
-    const keptRows = release ? [] : assignmentRows;
-    const reschedule = keptRows.length > 0 && targetDate.getTime() !== currentDate.getTime()
-      ? await this.planEventDecisionReschedule(prisma, eventId, keptRows, targetDate)
-      : null;
+    if (released.count !== assignmentIds.length) throw new BadRequestException('Coordinator assignments changed during the event decision');
+  }
 
-    if (release && assignmentRows.length > 0) {
-      const released = await prisma.opsCoordinatorAssignment.updateMany({
-        where: {
-          eventId,
-          id: { in: assignmentRows.map((row) => row.id) },
-          status: { notIn: [...INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES] },
-        },
-        data: {
-          status: CoordinatorAssignmentStatus.Cancelled,
-          withdrawalReason: `Event ${input.decision}: ${input.reason}`,
-          withdrawnAt: new Date(),
-          withdrawnBy: actor.id ?? actor.name,
-        },
+  private async moveDecisionAssignments(
+    prisma: PrismTransactionContext['prisma'],
+    eventId: string,
+    reschedule: NonNullable<PrismEventDecisionAssignmentImpact['reschedule']>,
+    targetDate: Date,
+  ) {
+    const moved = await prisma.opsCoordinatorAssignment.updateMany({
+      where: { eventId, id: { in: reschedule.assignmentIds }, status: { notIn: [...INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES] } },
+      data: { eventDate: targetDate, doubleBookingWarning: false, conflictEventId: null, conflictEventName: null },
+    });
+    if (moved.count !== reschedule.assignmentIds.length) throw new BadRequestException('Coordinator assignments changed during the event decision');
+    for (const conflict of reschedule.conflicts) { // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: each event-scoped active assignment can need distinct persisted conflict metadata.
+      if (conflict.reason !== 'double_booking') continue;
+      const marked = await prisma.opsCoordinatorAssignment.updateMany({
+        where: { id: conflict.assignmentId, eventId, status: { notIn: [...INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES] } },
+        data: { doubleBookingWarning: true, conflictEventId: conflict.conflictEventId ?? null, conflictEventName: conflict.conflictEventName ?? null },
       });
-      if (released.count !== assignmentRows.length) throw new BadRequestException('Coordinator assignments changed during the event decision');
+      if (marked.count !== 1) throw new BadRequestException('Coordinator assignments changed during the event decision');
     }
-    if (reschedule) {
-      const moved = await prisma.opsCoordinatorAssignment.updateMany({
-        where: {
-          eventId,
-          id: { in: reschedule.assignmentIds },
-          status: { notIn: [...INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES] },
-        },
-        data: { eventDate: targetDate, doubleBookingWarning: false, conflictEventId: null, conflictEventName: null },
-      });
-      if (moved.count !== reschedule.assignmentIds.length) throw new BadRequestException('Coordinator assignments changed during the event decision');
-      for (const conflict of reschedule.conflicts) { // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: each event-scoped active assignment can need distinct persisted conflict metadata.
-        if (conflict.reason !== 'double_booking') continue;
-        const marked = await prisma.opsCoordinatorAssignment.updateMany({
-          where: { id: conflict.assignmentId, eventId, status: { notIn: [...INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES] } },
-          data: { doubleBookingWarning: true, conflictEventId: conflict.conflictEventId ?? null, conflictEventName: conflict.conflictEventName ?? null },
-        });
-        if (marked.count !== 1) throw new BadRequestException('Coordinator assignments changed during the event decision');
-      }
-    }
-
-    return {
-      releasedAssignmentIds: release ? assignmentRows.map((row) => row.id) : [],
-      priorAssignments: assignmentRows.map(({ id, status, coordinatorId, coordinatorName }) => ({ id, status, coordinatorId, coordinatorName })),
-      ...(reschedule ? { reschedule } : {}),
-    };
   }
 
   async withdrawCoordinator(
@@ -795,7 +827,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
 
     if (transactionContext) {
       // QUERY_AUDIT_RAW_SQL: serialize current Operations coordinator eligibility with assignment writes.
-      await transactionContext.prisma.$queryRaw`SELECT id FROM staffing_ops.coordinators WHERE id = ${candidate.id} FOR UPDATE`;
+      await transactionContext.prisma.$queryRaw`SELECT id FROM operations.coordinators WHERE id = ${candidate.id} FOR UPDATE`;
     }
     const coordinator = transactionContext
       ? await prisma.opsCoordinator.findUnique({ where: { id: candidate.id } })

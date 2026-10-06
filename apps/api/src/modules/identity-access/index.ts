@@ -9,8 +9,5 @@ export * from './contracts/participant-reader.port';
 export * from './contracts/privacy-redaction.port';
 export * from './application/participants/identity-privacy-redactor.service';
 export * from './application/participants/participant-reader.service';
-export * from './contracts/approved-client-account-reader.port';
-export * from './application/accounts/approved-client-account-reader.service';
-
 export * from './contracts/coordinator-account-reference.port';
 export { CoordinatorAccountReferenceModule } from './coordinator-account-reference.module';

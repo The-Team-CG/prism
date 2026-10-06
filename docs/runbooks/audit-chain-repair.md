@@ -8,7 +8,7 @@ updated: "2026-10-04"
 authority: operational
 owner: "D (Anthony)"
 audience: [developers, reviewers, operators, agents]
-scope: "apps/api trust_ops.audit_logs hash verification and the guarded preproduction repair CLI"
+scope: "apps/api platform_ops.audit_logs hash verification and the guarded preproduction repair CLI"
 last_verified: "codex/pr17g-audit-hash-stability-on-pr17f"
 sources:
   - id: audit-chain

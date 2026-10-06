@@ -18,6 +18,7 @@ import type { AuthenticationFailureDetails } from '@prism/contexts/platform-ops'
 import { AuthSecurityService } from './auth-security.service';
 import { TotpService } from './totp.service';
 import { LOGIN_LOCKOUT_THRESHOLD, loginFailureUpdate, nextLoginFailureState } from './login-lockout.policy';
+import { canonicalAccountEmail } from './account-email';
 import { INQUIRY_COMMANDS } from '../../../event-lifecycle/contracts/inquiry-onboarding.tokens';
 import type { InquiryCommands } from '../../../event-lifecycle/contracts/inquiry-commands.port';
 import { AUTH_AUDIT, type AuthAuditPort } from '../../contracts/auth-audit.port';
@@ -51,7 +52,7 @@ export class AuthOperationsService {
   ) {}
 
   async login(email: string, password: string) {
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = canonicalAccountEmail(email);
     const user = await this.prisma.opsUser.findUnique({ where: { email: normalizedEmail } });
 
     if (!user) {
@@ -279,17 +280,7 @@ export class AuthOperationsService {
   }
 
   private assertTwoFactorUser(user: OpsUser | null, verifiedToken: VerifiedTwoFactorToken, now: Date) {
-    if (
-      !user ||
-      user.email.trim().toLowerCase() !== verifiedToken.email.trim().toLowerCase() ||
-      user.role !== OpsUserRole.PmcmAdmin ||
-      user.sessionVersion !== verifiedToken.sessionVersion ||
-      user.twoFactorChallengeHash !== hashTwoFactorChallenge(verifiedToken.challengeId) ||
-      !user.twoFactorChallengeExpiresAt ||
-      user.twoFactorChallengeExpiresAt <= now ||
-      user.twoFactorChallengeConsumedAt !== null ||
-      user.twoFactorChallengeAttempts >= LOGIN_LOCKOUT_THRESHOLD
-    ) {
+    if (!user || !this.matchesTwoFactorIdentity(user, verifiedToken) || !this.isTwoFactorChallengeLive(user, verifiedToken, now)) {
       throw new UnauthorizedException('Invalid, expired, or already-used two-factor token');
     }
     if (
@@ -300,6 +291,20 @@ export class AuthOperationsService {
       throw new ForbiddenException('This account is not eligible to complete two-factor authentication');
     }
     return user;
+  }
+
+  private matchesTwoFactorIdentity(user: OpsUser, verifiedToken: VerifiedTwoFactorToken): boolean {
+    return canonicalAccountEmail(user.email) === canonicalAccountEmail(verifiedToken.email)
+      && user.role === OpsUserRole.PmcmAdmin
+      && user.sessionVersion === verifiedToken.sessionVersion;
+  }
+
+  private isTwoFactorChallengeLive(user: OpsUser, verifiedToken: VerifiedTwoFactorToken, now: Date): boolean {
+    return user.twoFactorChallengeHash === hashTwoFactorChallenge(verifiedToken.challengeId)
+      && Boolean(user.twoFactorChallengeExpiresAt)
+      && user.twoFactorChallengeExpiresAt! > now
+      && user.twoFactorChallengeConsumedAt === null
+      && user.twoFactorChallengeAttempts < LOGIN_LOCKOUT_THRESHOLD;
   }
 
   private twoFactorChallengeWhere(verifiedToken: VerifiedTwoFactorToken, now: Date): Prisma.OpsUserWhereInput {
@@ -368,7 +373,7 @@ export class AuthOperationsService {
     }
     const approvalInput = input;
     const user = await this.prisma.opsUser.findUnique({
-      where: { email: approvalInput.email.trim().toLowerCase() },
+      where: { email: canonicalAccountEmail(approvalInput.email) },
     });
 
     if (!user) throw new NotFoundException('User not found');
@@ -379,7 +384,7 @@ export class AuthOperationsService {
         id: `approval_${user.id}`,
         userId: user.id,
         name: user.name,
-        email: user.email,
+        email: canonicalAccountEmail(user.email),
         role: user.role as PrismUser['role'],
         organization: user.organization,
         status: 'pending',

@@ -5,6 +5,8 @@ import { PrismaService } from '@prism/kernel/database';
 import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit, EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { FileRequirementsMatrixService } from '../files/file-requirements-matrix.service';
+import { COMMERCIAL_FACTS_READER, type CommercialFactsReader } from '@prism/contexts/read-models/commercial-facts-reader';
+import { LIFECYCLE_FACTS_READER, type LifecycleFactsReader } from '@prism/contexts/read-models/lifecycle-facts';
 import { COMPLIANCE_RULE_REGISTRY, evaluateComplianceRuleForPhase, type ComplianceEvaluationContext } from './compliance-rule-registry';
 
 export type ComplianceRunInput = { phase?: string; trigger?: 'manual' | 'scheduled' | 'state_change' };
@@ -25,6 +27,8 @@ export class ComplianceWorkflowService {
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     private readonly workflowCommandService: WorkflowCommandService,
+    @Inject(COMMERCIAL_FACTS_READER) private readonly commercialFactsReader: CommercialFactsReader,
+    @Inject(LIFECYCLE_FACTS_READER) private readonly lifecycleFactsReader: LifecycleFactsReader,
     @Optional() private readonly fileRequirementsMatrixService?: FileRequirementsMatrixService,
   ) {}
 
@@ -147,18 +151,15 @@ export class ComplianceWorkflowService {
   private async loadContext(eventId: string): Promise<ComplianceEvaluationContext> {
     const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
-    const [inquiry, briefings, documents, suppliers, coverageRequirements, coordinatorAssignments, billingSources, matrix, guestRoster] = await Promise.all([
+    const [inquiry, briefings, documents, commercialFacts, lifecycleFacts, matrix] = await Promise.all([
       this.prisma.opsInquiry.findUnique({ where: { id: event.inquiryId } }),
       this.prisma.opsBriefing.findMany({ where: { eventId } }),
       this.prisma.opsDocument.findMany({ where: { eventId } }),
-      this.prisma.opsSupplierQuoteRequest.findMany({ where: { eventId }, select: { id: true, supplierName: true, assignmentStatus: true, readinessStatus: true } }),
-      this.prisma.opsEventCoverageRequirement.findMany({ where: { eventId }, select: { role: true, required: true } }),
-      this.prisma.opsCoordinatorAssignment.findMany({ where: { eventId }, select: { role: true, status: true, withdrawnAt: true } }),
-      this.prisma.opsBillingSource.findMany({ where: { eventId }, select: { id: true, status: true } }),
+      this.commercialFactsReader.getLifecycleFacts(eventId),
+      this.lifecycleFactsReader.getComplianceFacts(eventId),
       this.fileRequirementsMatrixService?.buildForEvent(eventId) ?? Promise.resolve({ eventId, items: [] }),
-      this.prisma.opsGuestRosterEntry.count({ where: { eventId } }),
     ]);
-    return { event: { id: event.id, status: event.status, eventDate: event.eventDate, walkInPolicy: event.walkInPolicy, walkInThreshold: event.walkInThreshold }, inquiry, briefings, documents, suppliers, coverageRequirements, coordinatorAssignments, billingSources, fileRequirements: matrix.items, guestRosterCount: guestRoster };
+    return { event: { id: event.id, status: event.status, eventDate: event.eventDate, walkInPolicy: event.walkInPolicy, walkInThreshold: event.walkInThreshold }, inquiry, briefings, documents, suppliers: commercialFacts.supplierQuoteRequests, coverageRequirements: lifecycleFacts.coverageRequirements, coordinatorAssignments: lifecycleFacts.coordinatorAssignments, billingSources: commercialFacts.billingSources, fileRequirements: matrix.items, guestRosterCount: lifecycleFacts.guestRosterCount };
   }
 
   private async mutateRisk(eventId: string, input: CreateComplianceRiskInput | UpdateComplianceRiskInput, actor: ResolvedEventOpsActor, action: 'create' | 'update', riskId?: string) {

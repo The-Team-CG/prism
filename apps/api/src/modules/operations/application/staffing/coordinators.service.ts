@@ -302,6 +302,7 @@ export class CoordinatorsService {
     const firstReminderDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     const endExclusive = new Date(firstReminderDate);
     endExclusive.setUTCDate(endExclusive.getUTCDate() + leadTimeDays + 1);
+    const eventIdsInWindow = await this.eventReferences.findEventIdsByDateRange(firstReminderDate, endExclusive);
     const results = [] as Array<{ assignmentId: string; status: string; reason: string | null }>;
     let cursorAfter: string | undefined;
     while (true) { // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: stable ID keyset pages the due reminder set in batches of 500.
@@ -312,22 +313,24 @@ export class CoordinatorsService {
           status: { in: ['pending', CoordinatorAssignmentStatus.PendingAcknowledgement] },
           OR: [
             { eventDate: { gte: firstReminderDate, lt: endExclusive } },
-            {
-              eventDate: null,
-              event: { is: { eventDate: { gte: firstReminderDate, lt: endExclusive } } },
-            },
+            { eventDate: null, eventId: { in: eventIdsInWindow } },
           ],
         },
-        include: { event: { select: { eventName: true, eventDate: true } }, coordinator: { select: { email: true } } },
+        include: { coordinator: { select: { email: true } } },
         orderBy: { id: 'asc' },
         take: MAX_STAFFING_ASSIGNMENTS,
       });
+      const eventIds = [...new Set(assignments.flatMap((assignment) => assignment.eventId ? [assignment.eventId] : []))];
+      const eventReferences = await this.eventReferences.findOperationsEvents(eventIds);
+      const eventById = new Map(eventReferences.map((event) => [event.id, event]));
       for (const assignment of assignments) {
-        const cycle = isoDate(assignment.eventDate ?? assignment.event.eventDate);
+        const event = eventById.get(assignment.eventId ?? '');
+        if (!event) continue;
+        const cycle = isoDate(assignment.eventDate ?? event.eventDate);
         const queued = await this.notificationOutboxWriter.write({
           eventId: assignment.eventId,
           recipient: assignment.coordinator?.email ?? assignment.coordinatorName,
-          message: `Acknowledgment reminder: confirm your ${assignment.role} assignment for ${assignment.event.eventName}.`,
+          message: `Acknowledgment reminder: confirm your ${assignment.role} assignment for ${event.eventName}.`,
           channel: 'email',
           correlationId: `coord-ack-reminder:${assignment.id}:${cycle}`,
           idempotencyKey: `coord-ack-reminder:${assignment.id}:${cycle}`,
