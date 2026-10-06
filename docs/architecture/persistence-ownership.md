@@ -9,7 +9,7 @@ authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, reviewers]
 scope: "apps/api/prisma/schema.prisma and apps/api/src/modules"
-last_verified: "2026-10-06; 94-table manifest, seven-schema target, and owner-local foreign-key counts reconciled"
+last_verified: "2026-10-06; 94-table manifest, seven owner baselines, and local replay counts reconciled"
 sources:
   - id: prisma-schema
     resource: "apps/api/prisma/schema.prisma"
@@ -75,35 +75,36 @@ policy does not create microservices or a database authorization boundary.
 | platform-ops | platform_ops | 14 | 201 | Privacy requests and legal holds, security, login history, audit, notifications, AI, storage, command receipts |
 | **Total** | **7 schemas** | **94** | **1,191** | Every business table has one owner |
 
-The machine-readable domain ownership manifest linked above is the complete
-target inventory. It records each current and target schema, domain owner,
-table name, and scalar column count. Of the 93 pre-cutover tables, ten already
-reside in their owner schema and the coordinated cutover moves the other 83.
-The client floorplan-grant table is introduced by a later owner migration.
+The machine-readable domain ownership manifest linked above is the current
+target inventory. It records each owner schema, domain owner, table name, and
+scalar column count. The legacy physical snapshot had 93 tables; 83 were
+assigned to a different target schema, and the client floorplan-grant table
+was added later. The seven baselines create all 94 current tables on an empty
+database; they do not move rows in an existing database.
 
-The cutover retires no tables or columns. The separate
-[column authority register](column-authority-register.md) records the reviewed
-trim candidate (`OpsEventDecision.storage_intent`) and why response
-compatibility, historical values, and owner approval must be resolved before a
-separate retirement migration. Other columns remain pending owner or usage
-evidence; none is treated as removable based on lexical search alone.
+The migration-history replacement removes no table or column from the current
+Prisma model. The separate [column authority register](column-authority-register.md)
+preserves a legacy per-column snapshot and records the reviewed trim candidate
+(`OpsEventDecision.storage_intent`). Response compatibility, historical values,
+and owner approval still need resolution before a separate retirement
+migration. Other columns remain pending owner or usage evidence; lexical
+search alone does not justify removal.
 
-The [domain schema map](domain-schema-map.md) shows the reviewed baseline and
-the one-schema-per-domain target. It distinguishes the current physical
-database from the target Prisma layout represented on the cutover branch.
+The [domain schema map](domain-schema-map.md) shows the legacy physical
+snapshot and the clean-database owner-schema baseline. The CSV column
+inventory describes the older database; use the current Prisma schema and
+ownership manifest for the target model.
 
-Use the [active column authority register](column-authority-register.md) for each baseline field's
-physical type, nullability, default, provisional semantics, candidate consumers, sensitivity and DDL
-disposition. The register does not approve unresolved business units, timezones or retention periods.
+The column register does not approve unresolved business units, timezones or
+retention periods.
 
-The reviewed staging database baseline has ten populated application schemas
-and 45 cross-domain foreign keys. The current migration target has seven owner
-schemas, 94 tables, 1,191 columns, 76 same-domain foreign keys, and no
-cross-domain foreign keys. The quote-to-request relation remains a valid same-Commercial
-constraint and is repaired in its existing namespace before cutover. The
-schema migrations are merged into the `staging` source branch; applying them to
-a shared database is a separate operational action described in the
-[cutover runbook](../runbooks/domain-schema-cutover.md).
+The reviewed pre-rebaseline staging snapshot had ten populated application
+schemas and 45 cross-domain foreign keys. The replacement baseline defines
+seven owner schemas, 94 tables, 1,191 columns, and 76 same-domain foreign keys,
+with no cross-domain foreign keys. The quote-to-request relation remains a
+same-Commercial constraint. Replacing migration source history does not alter
+an existing database; adoption requires the backed-up pre-production rebuild
+described in the [cutover runbook](../runbooks/domain-schema-cutover.md).
 
 The rule is based on owning domain, not current namespace: a key between two
 Commercial tables is permitted even if their tables currently live in
@@ -346,14 +347,13 @@ kept until publisher, template and live readers reach parity, and the latest
 
 ## External-reference lifecycle
 
-The exact baseline foreign-key actions and additional scalar references are in
-the [external-reference lifecycle register](external-reference-lifecycle.md)
-and linked machine policy. The pre-cutover baseline had 45 cross-domain foreign
-keys (38 CASCADE, 6 SET NULL, 1 RESTRICT) and 28 additional scalar references.
-Those delete actions describe baseline database behavior, not approved
-retention policy. The cutover migration removed all 45 constraints and kept the
-scalar references and indexes. It has been replayed on disposable PostgreSQL
-only; no shared or production database has run it.
+The historical foreign-key actions and additional scalar references are in the
+[external-reference lifecycle register](external-reference-lifecycle.md) and
+linked machine policy. The replaced staging history recorded 45 cross-domain
+foreign keys (38 CASCADE, 6 SET NULL, 1 RESTRICT) and 28 additional scalar
+references. Those delete actions describe legacy database behavior, not
+retention policy. The new clean-database baselines create only same-domain
+foreign keys; existing databases are unchanged until separately rebuilt.
 
 ## Intentional cross-context joins and writes
 
@@ -373,7 +373,7 @@ contract is introduced.
 | event-lifecycle | Commercial billing capability | Initialize billing and request owner-approved billing changes | Commercial owns these records; direct lifecycle writes remain transitional until routed through the capability. Preserve eligibility, replay, and outbox atomicity. |
 | commercial | event-lifecycle document-vault capability | Register and validate contract/billing document references | Commercial retains business state; lifecycle owns metadata and validates event, kind, and eligibility. |
 
-| floorplan | event-lifecycle reference and projection capabilities | Validate event/conforme/ocular/freeze/archive state and publish a versioned floorplan-state projection | Implemented through `FLOORPLAN_EVENT_REFERENCE_READER` and Lifecycle's compare-and-set writer. Floorplan locks Lifecycle state before local draft changes and projection-clock reservation; cross-domain FKs remain until cutover. |
+| floorplan | event-lifecycle reference and projection capabilities | Validate event/conforme/ocular/freeze/archive state and publish a versioned floorplan-state projection | Implemented through `FLOORPLAN_EVENT_REFERENCE_READER` and Lifecycle's compare-and-set writer. Floorplan locks Lifecycle state before local draft changes and projection-clock reservation; the fresh baseline contains same-domain FKs only; existing databases remain unchanged until separately rebuilt. |
 | live-ops | Operations staffing capability | Request owner-validated assignment, replacement, and attendance transitions | LiveOps currently writes assignment rows directly; Operations owns the mutation and applies it under event scope. |
 | event-lifecycle | Operations staffing capability | Request owner-validated cancellation and postponement transitions | Event-decision workflows currently write assignments directly; Operations applies the transition within the caller transaction. |
 | `platform-ops` privacy workflow | identity, event, commercial, guest records | Locate and anonymise/delete subject data when an approved privacy request executes | Governance requires a coordinated erasure transaction. Each affected model is named in the workflow; this is not general write permission. |

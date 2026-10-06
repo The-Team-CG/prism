@@ -1,5 +1,5 @@
 {
   "version": 1,
   "postgresMajor": 16,
-  "upgradeBaselineMigration": "20260909100000_command_receipt_event_scope"
+  "upgradeBaselineMigration": "20261006120001_event-lifecycle_schema_baseline"
 }

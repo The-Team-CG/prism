@@ -6,10 +6,12 @@ implementation and verification history.
 
 ## 2026-10-06
 
-- Reconciled the architecture and persistence registers with the manifest: the
-  target is 94 tables, 1,191 columns, and 76 same-domain foreign keys across seven
-  owner schemas. Clarified the 93-table pre-cutover baseline and separate
-  shared-database cutover.
+- Reconciled architecture, persistence, and column inventories with the
+  94-table, 1,191-column, seven-owner-schema baseline. Clarified that replacing
+  migration history does not alter an existing database and documented the
+  backup-gated pre-production rebuild.
+- Replaced the 102-folder pre-production migration history with seven
+  owner-scoped baselines and updated local replay/adoption guidance.
 - Simplified onboarding and changelog guidance, indexed active roadmaps, and fixed
   stale references. Removed superseded review reports, the duplicate TODO, and
   stale Playwright snapshots.

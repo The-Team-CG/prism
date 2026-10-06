@@ -1,7 +1,7 @@
 ---
 type: "Architecture Map"
 title: "P.R.I.S.M domain schema map"
-description: "Before-and-after view of the database namespace cutover to one schema per write domain."
+description: "Before-and-after view of the legacy pre-production database and its seven-schema owner baseline."
 tags: [architecture, database, postgres, ddd, schema, migration]
 status: canonical
 updated: "2026-10-06"
@@ -9,39 +9,38 @@ authority: normative
 owner: "D (Anthony)"
 audience: [engineers, reviewers, operators, agents]
 scope: "PostgreSQL application schemas, model ownership, and domain foreign-key policy"
-last_verified: "2026-10-06; schema and owner counts reconciled with the merged staging ownership manifest"
+last_verified: "2026-10-06; seven baselines replayed on disposable PostgreSQL 16; no shared database changed"
 sources:
   - id: ownership-manifest
     resource: "apps/api/prisma/domain-ownership.json"
     title: "Per-model owner and schema manifest"
   - id: migration
-    resource: "apps/api/prisma/migrations/20261006000000_platform-ops_domain_schema_cutover/migration.sql"
-    title: "Coordinated domain schema cutover"
+    resource: "apps/api/prisma/migrations/"
+    title: "Seven owner-scoped schema baselines"
   - id: persistence-register
     resource: "docs/architecture/persistence-ownership.md"
     title: "Persistence ownership register"
   - id: cutover-runbook
     resource: "docs/runbooks/domain-schema-cutover.md"
-    title: "Cutover rehearsal and recovery gates"
+    title: "Baseline adoption and recovery procedure"
 ---
 # P.R.I.S.M domain schema map
 
 ## At a glance
 
-The current staging layout uses ten application schemas for 93 business
-tables. Several schemas mix owners, and some of those tables have foreign keys
-across domains. The target puts every business table in its owning context's
-schema. A later migration adds the client grant table to `event_lifecycle`
-after the cutover. Same-domain foreign keys remain valid; cross-domain identifiers remain
-scalar references checked through owner capabilities where a command needs
-live state.
+The previous pre-production database layout has ten application schemas for 93
+business tables. Some schemas mix owners and include cross-domain foreign keys.
+The new baseline creates the final 94-table schema from the Prisma model,
+including the client floorplan grant. Same-domain foreign keys remain; all
+cross-domain identifiers are scalar references checked through owner
+capabilities when a command needs live state.
 
 The target remains one PostgreSQL database, one Prisma client, and one API
 deployment. Schema ownership is not a service boundary or a database
 authorization boundary. `public._prisma_migrations` is excluded from the
 business-table counts below.
 
-## Before: current staging namespace
+## Before: previous pre-production namespace
 
 The labels show physical schema, total table count, and owner split. Arrows
 show where each owner slice belongs in the target. Mixed legacy schemas split
@@ -49,7 +48,7 @@ across owner schemas.
 
 ```mermaid
 flowchart LR
-  subgraph Before["Before: staging physical schemas"]
+  subgraph Before["Before: previous pre-production database"]
     c_ops["compliance_ops<br/>8 tables<br/>event-lifecycle"]
     e_core["event_core<br/>11 tables<br/>10 event-lifecycle<br/>1 platform-ops"]
     f_ops["finance_ops<br/>11 tables<br/>commercial"]
@@ -103,11 +102,13 @@ flowchart LR
 
 ## After: target owner schemas
 
-The cutover moves 83 existing tables and leaves ten already in their target schema.
-The later floorplan grant migration adds one table directly to `event_lifecycle`.
-It drops 45 cross-domain foreign keys. The current target has 76 same-domain
-foreign keys, including later owner-local integrity links. No cross-domain
-Prisma relation or PostgreSQL foreign key remains in the target.
+The baseline creates all 94 tables in their owner schemas, including the
+floorplan-access grant. The target assigns 83 of the 93 legacy tables to a
+different owner schema; ten already used their target schema name. This clean
+baseline copies no existing rows.
+The old history recorded 45 cross-domain foreign-key behaviors; the baseline
+does not recreate those constraints. Its 76 foreign keys are same-domain, and
+the target Prisma schema contains no cross-domain relation.
 
 | Write domain | Target schema | Tables | Columns |
 | --- | --- | ---: | ---: |
@@ -122,8 +123,8 @@ Prisma relation or PostgreSQL foreign key remains in the target.
 
 ## Operational boundary
 
-The schema layout and constraints are merged into the `staging` source branch.
-That does not indicate that a shared staging or production database has been
-cut over. Database application remains a separate operational action; use the
-[cutover runbook](../runbooks/domain-schema-cutover.md) for its prerequisites
-and recovery path.
+The seven baseline migrations define the target in source control; they do not
+change an existing database. A database with the old migration ledger needs a
+verified backup and an approved pre-production rebuild before adopting this
+history. Follow the
+[baseline adoption runbook](../runbooks/domain-schema-cutover.md).
