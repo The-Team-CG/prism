@@ -166,4 +166,31 @@ databaseSuite('Floorplan lifecycle projection PostgreSQL invariants', () => {
       await cleanupFixture(prisma, fixture);
     }
   });
+
+  it('allows at most one active draft per event while keeping inactive history', async () => {
+    const fixture = await createFixture(prisma);
+    const createDraft = async (suffix: string, isActive: boolean) => {
+      const floorPlanId = `${fixture.eventId}_plan_${suffix}`;
+      await prisma.floorPlan.create({ data: { id: floorPlanId, name: suffix, ownerId: actor.actorId, eventId: fixture.eventId } });
+      return prisma.opsFloorPlanDraft.create({ data: {
+        id: `${fixture.eventId}_draft_${suffix}`,
+        eventId: fixture.eventId,
+        floorPlanId,
+        name: suffix,
+        status: 'approved',
+        isActive,
+        createdByRole: 'pmcm-admin',
+      } });
+    };
+
+    try {
+      await createDraft('first', true);
+      await createDraft('history', false);
+      await expect(createDraft('second', true)).rejects.toThrow(/floor_plan_drafts_one_active_per_event_key|unique/i);
+      expect(await prisma.opsFloorPlanDraft.count({ where: { eventId: fixture.eventId, isActive: true } })).toBe(1);
+      expect(await prisma.opsFloorPlanDraft.count({ where: { eventId: fixture.eventId } })).toBe(2);
+    } finally {
+      await cleanupFixture(prisma, fixture);
+    }
+  });
 });

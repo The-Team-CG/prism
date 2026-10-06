@@ -6,6 +6,7 @@ import { AuditCategory, OpsUserRole } from '../../../../kernel/event-core';
 import { AuthSecurityService } from './auth-security.service';
 import { PASSWORD_RESET_DELIVERY, type PasswordResetDeliveryPort } from '../../contracts/password-reset-delivery.port';
 import { AUTH_AUDIT, type AuthAuditPort } from '../../contracts/auth-audit.port';
+import { canonicalAccountEmail } from './account-email';
 
 export const PASSWORD_RESET_TTL_MS = 15 * 60 * 1000;
 const GENERIC_MESSAGE = 'If an account exists for that email, password reset instructions will be sent.';
@@ -27,7 +28,7 @@ export class PasswordResetService {
   ) {}
 
   async request(email: string, clientIp = 'unknown') {
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = canonicalAccountEmail(email);
     const deliveryAvailable = Boolean(this.delivery && this.buildTrustedResetUrl('placeholder'));
     const rateLimited = await this.consumeRateLimit(normalizedEmail, clientIp);
     const user = await this.prisma.opsUser.findUnique({ where: { email: normalizedEmail } });
