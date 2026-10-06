@@ -121,6 +121,8 @@ function supplierRequestFixture(): OpsSupplierQuoteRequest {
     message: 'Provide event-day support.',
     dueDate: null,
     accessToken: 'secret-quote-token',
+    accessTokenExpiresAt: null,
+    accessTokenRevokedAt: null,
     confidentialBid: true,
     status: 'open',
     assignmentStatus: 'confirmed',
