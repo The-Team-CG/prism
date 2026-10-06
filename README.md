@@ -5,10 +5,11 @@ portals use one NestJS API and PostgreSQL database.
 
 ## Run locally
 
-Requires Node.js 24 or later and npm 11.6.2, as pinned in `package.json`. Configure
-`apps/api/.env` from `apps/api/.env.example` with a development database. The
-launcher does not apply migrations. Before changing a database, read:
-[database migration runbook](docs/runbooks/database-migrations.md).
+Requires Node.js 24 or later and npm 11.6.2, as pinned in `package.json`.
+Configure `apps/api/.env` from `apps/api/.env.example` with a development
+database. Read the [database migration runbook](docs/runbooks/database-migrations.md)
+before applying its checked-in migrations with
+`npm --workspace prism-api run db:setup`. The launcher does not apply migrations.
 
 On Windows, run from the repository root:
 
