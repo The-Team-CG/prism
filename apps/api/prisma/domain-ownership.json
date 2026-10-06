@@ -1819,11 +1819,12 @@
     {
       "schema": "staffing_ops",
       "table": "event_eod_reports",
-      "name": "event_eod_reports_day_id_fkey",
+      "name": "event_eod_reports_day_event_fkey",
       "kind": "f",
-      "definition": "FOREIGN KEY (day_id) REFERENCES staffing_ops.event_schedule_days(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "definition": "FOREIGN KEY (day_id, event_id) REFERENCES staffing_ops.event_schedule_days(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
       "columns": [
-        "day_id"
+        "day_id",
+        "event_id"
       ],
       "sourceDomain": "live-ops",
       "targetDomain": "live-ops",
@@ -1849,11 +1850,12 @@
     {
       "schema": "staffing_ops",
       "table": "event_handoffs",
-      "name": "event_handoffs_day_id_fkey",
+      "name": "event_handoffs_day_event_fkey",
       "kind": "f",
-      "definition": "FOREIGN KEY (day_id) REFERENCES staffing_ops.event_schedule_days(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "definition": "FOREIGN KEY (day_id, event_id) REFERENCES staffing_ops.event_schedule_days(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
       "columns": [
-        "day_id"
+        "day_id",
+        "event_id"
       ],
       "sourceDomain": "live-ops",
       "targetDomain": "live-ops",
@@ -1954,11 +1956,12 @@
     {
       "schema": "staffing_ops",
       "table": "task_reassignment_requests",
-      "name": "task_reassignment_requests_task_id_fkey",
+      "name": "task_reassignment_requests_task_event_fkey",
       "kind": "f",
-      "definition": "FOREIGN KEY (task_id) REFERENCES staffing_ops.event_day_tasks(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "definition": "FOREIGN KEY (task_id, event_id) REFERENCES staffing_ops.event_day_tasks(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
       "columns": [
-        "task_id"
+        "task_id",
+        "event_id"
       ],
       "sourceDomain": "live-ops",
       "targetDomain": "live-ops",
