@@ -9,7 +9,7 @@ authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, reviewers]
 scope: "apps/api/prisma/schema.prisma and apps/api/src/modules"
-last_verified: "local s11-cutover worktree; 93-model manifest, Prisma validation, persistence guard, and populated PostgreSQL cutover replay passed 2026-10-06; Prisma migrate deploy was not exercised"
+last_verified: "2026-10-06; 93-model ownership inventory and seven-schema target reconciled with current staging source"
 sources:
   - id: prisma-schema
     resource: "apps/api/prisma/schema.prisma"
@@ -95,16 +95,14 @@ Use the [active column authority register](column-authority-register.md) for eac
 physical type, nullability, default, provisional semantics, candidate consumers, sensitivity and DDL
 disposition. The register does not approve unresolved business units, timezones or retention periods.
 
-The reviewed staging baseline has ten populated application schemas and 45
-cross-domain foreign keys. By target owner, 68 same-domain foreign keys are
-retained. The cutover migration removes the 45 external constraints while
-preserving same-domain constraints. A populated disposable PostgreSQL replay
-confirmed 93 tables retained their relation OIDs, row counts, and index counts;
-the post-cutover catalog had 68 same-schema foreign keys and no cross-schema
-foreign keys. The replay used psql after applying the branch's four pending
-forward migrations; Prisma's migrate deploy command was not exercised.
-The quote-to-request relation remains a valid same-Commercial constraint and
-is repaired in its existing namespace before cutover.
+The reviewed staging database baseline has ten populated application schemas
+and 45 cross-domain foreign keys. The source target has seven owner schemas,
+93 tables, 1,181 columns, 75 same-domain foreign keys, and no cross-domain
+foreign keys. The quote-to-request relation remains a valid same-Commercial
+constraint and is repaired in its existing namespace before cutover. The
+schema migrations are merged into the `staging` source branch; applying them to
+a shared database is a separate operational action described in the
+[cutover runbook](../runbooks/domain-schema-cutover.md).
 
 The rule is based on owning domain, not current namespace: a key between two
 Commercial tables is permitted even if their tables currently live in
@@ -249,8 +247,8 @@ milestones, proposal versions to cost estimates, supplier schedules to quote
 requests, and billing corrections and disputes to statements (disputes also to
 milestones). Payment history, proposal versions, corrections and disputes use
 `RESTRICT`, so deleting a parent cannot remove evidence; a supplier schedule is
-derived data and still goes with its request. The retained same-domain
-foreign-key count is 71 (68 at the cutover plus the three new links).
+derived data and still goes with its request. The manifest records 75
+same-domain foreign keys across the current target model.
 
 Commercial rows also carry stable row-local CHECK constraints that match the
 shared contracts: review ratings 1 to 5, positive payment receipts, milestone
