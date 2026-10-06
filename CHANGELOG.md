@@ -36,9 +36,10 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
-- The schema target assigns 94 business tables and 1,191 columns to seven owner
-  schemas, with 76 same-domain foreign keys and no cross-domain foreign keys.
-  Applying the cutover to a shared database remains a separate operation.
+- Replaced 102 pre-production migration folders with seven owner-scoped schema
+  baselines. Fresh databases get 94 tables, 1,191 columns, 76 same-domain
+  foreign keys, and no cross-domain foreign keys. Existing databases require
+  a verified backup and approved rebuild before adopting the new history.
 - Cross-domain writes use owner capabilities; role-scoped reads compose through
   read models.
 - Shared write contracts use Zod schemas in `@prism/types`.
