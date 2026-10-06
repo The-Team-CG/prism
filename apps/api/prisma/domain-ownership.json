@@ -4,7 +4,7 @@
     "targetSchemas": 7,
     "tableMoves": 83,
     "currentCrossSchemaFks": 49,
-    "targetSameDomainFks": 71,
+    "targetSameDomainFks": 72,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -1473,11 +1473,12 @@
     {
       "schema": "guest_ops",
       "table": "check_ins",
-      "name": "check_ins_roster_entry_id_fkey",
+      "name": "check_ins_roster_entry_event_fkey",
       "kind": "f",
-      "definition": "FOREIGN KEY (roster_entry_id) REFERENCES guest_ops.guest_roster_entries(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "definition": "FOREIGN KEY (roster_entry_id, event_id) REFERENCES guest_ops.guest_roster_entries(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
       "columns": [
-        "roster_entry_id"
+        "roster_entry_id",
+        "event_id"
       ],
       "sourceDomain": "operations",
       "targetDomain": "operations",
@@ -2552,6 +2553,22 @@
       "targetDomain": "commercial",
       "targetCurrentSchema": "finance_ops",
       "targetTable": "payment_milestones",
+      "sameDomain": true
+    },
+    {
+      "schema": "guest_ops",
+      "table": "guest_roster_entries",
+      "name": "guest_roster_entries_import_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (import_batch_id, event_id) REFERENCES guest_ops.guest_roster_imports(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "import_batch_id",
+        "event_id"
+      ],
+      "sourceDomain": "operations",
+      "targetDomain": "operations",
+      "targetCurrentSchema": "guest_ops",
+      "targetTable": "guest_roster_imports",
       "sameDomain": true
     }
   ]
