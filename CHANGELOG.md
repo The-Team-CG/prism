@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Made at most one official floorplan draft active per event, enforced by a partial unique index in addition to the existing atomic approval path. The migration keeps the most recently approved active draft and deactivates older duplicates without deleting history.
 - Restored the staging CI pipeline, which had been stopping at its dependency audit step so lint-level gates never ran. Updated `proxy-addr` and `source-map-js` in the lockfile only, recorded a reviewed, time-bounded exception for the `braces` advisory that reaches only the Next 14 lint configuration, made the domain-persistence and data-invariant gates default to the seven-schema layout, documented seven test files whose dated fixtures are inert, and refactored 13 functions that had grown past the cyclomatic complexity limit of 10 without changing behavior.
 - Brought the persistence ownership register, migration runbook and audit-chain runbook in line with the seven-schema layout and the removed cross-domain foreign keys.
 - Wrapped the domain schema cutover in an explicit PostgreSQL transaction so its 5-second lock timeout and 60-second statement timeout apply to the full atomic move. Replayed the pending forward SQL and cutover against a disposable populated clone: all 93 tables retained OIDs, row counts, and index counts; the final catalog had 68 same-schema and zero cross-schema foreign keys. Prisma `migrate deploy` and a representative-data restore remain unverified.
