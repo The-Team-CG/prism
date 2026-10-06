@@ -1,11 +1,10 @@
-import type { PrismGuestEventPass } from "@prism/types";
+import type { CreateGuestCheckInInput, PrismGuestEventPass } from "@prism/types";
 
 export type GuestSession = PrismGuestEventPass & {
-  guestName: string;
   openedAt: string;
 };
 
-export type CheckInMode = "name_search" | "headcount";
+export type CheckInMode = CreateGuestCheckInInput["checkInMode"];
 
 export type GuestDashboardStatus = "idle" | "loading" | "ready" | "error";
 
@@ -18,15 +17,7 @@ export type GuestNextAction = {
   status: "pending" | "complete";
 };
 
-export type CheckInPayload = {
-  guestName: string;
-  checkInMode: CheckInMode;
-  walkIn: boolean;
-  verificationStatus: "verified" | "flagged";
-  privacyConsentAccepted: boolean;
-  privacyNoticeVersion: string;
-  marketingConsentAccepted: boolean;
-};
+export type CheckInPayload = CreateGuestCheckInInput;
 
 export type FeedbackMediaMeta = {
   fileName: string;

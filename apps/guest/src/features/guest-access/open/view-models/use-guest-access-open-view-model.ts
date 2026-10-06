@@ -17,8 +17,7 @@ import {
 export function useGuestAccessOpenViewModel() {
   const router = useRouter();
   const [draft, setDraft] = useState<GuestAccessOpenDraft>({
-    guestName: "Sofia Lim",
-    accessCode: "AYALA-TECH-YALA",
+    accessCode: "",
   });
   const [preview, setPreview] = useState<PrismGuestEventPass | null>(null);
   const [existing, setExisting] = useState<GuestSession | null>(null);
@@ -28,10 +27,6 @@ export function useGuestAccessOpenViewModel() {
   useEffect(() => {
     setExisting(loadExistingGuestSession());
   }, []);
-
-  function updateGuestName(guestName: string) {
-    setDraft((prev) => ({ ...prev, guestName }));
-  }
 
   function updateAccessCode(accessCode: string) {
     setDraft((prev) => ({ ...prev, accessCode }));
@@ -55,7 +50,6 @@ export function useGuestAccessOpenViewModel() {
           : null;
       const result = await openGuestEventPass({
         accessCode: draft.accessCode,
-        guestName: draft.guestName,
         preview,
         nextPath: next,
       });
@@ -75,7 +69,6 @@ export function useGuestAccessOpenViewModel() {
     error,
     canSubmit: isOpenDraftValid(draft) && status !== "loading",
     busy: status === "loading",
-    updateGuestName,
     updateAccessCode,
     submit,
   };

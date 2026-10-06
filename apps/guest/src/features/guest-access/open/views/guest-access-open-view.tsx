@@ -54,23 +54,10 @@ export function GuestAccessOpenView() {
                 </p>
                 <h1 className="mt-1 text-3xl font-black leading-tight">Open your event pass</h1>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Preview the event first, then continue into the code-gated dashboard.
+                  Preview the event, then choose whether to check in by name or anonymous headcount.
                 </p>
               </div>
             </div>
-
-            <label className="grid gap-1.5">
-              <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
-                Guest name
-              </span>
-              <Input
-                value={vm.draft.guestName}
-                onChange={(event) => vm.updateGuestName(event.target.value)}
-                autoComplete="name"
-                className="h-12 bg-white"
-                placeholder="Name at registration"
-              />
-            </label>
 
             <label className="grid gap-1.5">
               <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">

@@ -20,39 +20,37 @@ export function guestApiPath(session: GuestSession, suffix = ""): string {
 export function buildCheckInPayload(input: {
   session: GuestSession;
   checkInMode: CheckInMode;
-  walkIn: boolean;
+  guestName?: string;
   consentAccepted: boolean;
 }): CheckInPayload {
-  const headcount = input.checkInMode === "headcount";
-  return {
-    guestName: headcount ? "Walk-in guest" : input.session.guestName,
-    checkInMode: input.checkInMode,
-    walkIn: headcount ? false : input.walkIn,
-    verificationStatus: headcount ? "verified" : input.walkIn ? "flagged" : "verified",
-    privacyConsentAccepted: input.consentAccepted,
+  if (!input.consentAccepted) {
+    throw new Error("Privacy consent is required to check in.");
+  }
+
+  const consent = {
+    privacyConsentAccepted: true as const,
     privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
     marketingConsentAccepted: false,
   };
+  if (input.checkInMode === "headcount") {
+    return { checkInMode: "headcount", ...consent };
+  }
+  const guestName = input.guestName?.trim();
+  if (!guestName) throw new Error("Enter your name for name-based check-in.");
+  return {
+    checkInMode: "name_search",
+    guestName,
+    ...consent,
+  };
 }
 
-export function checkInSuccessNotice(
-  checkInMode: CheckInMode,
-  walkIn: boolean,
-): string {
-  if (checkInMode === "headcount") return "Attendance recorded.";
-  if (walkIn) return "Walk-in flagged for PMCM review.";
-  return "Check-in successful.";
+export function checkInSuccessNotice(): string {
+  return "Check-in submitted.";
 }
 
-export function checkInButtonLabel(input: {
-  checkedIn: boolean;
-  checkInMode: CheckInMode;
-  walkIn: boolean;
-}): string {
-  if (input.checkedIn) return "Attendance recorded";
-  if (input.checkInMode === "headcount") return "Record attendance";
-  if (input.walkIn) return "Submit walk-in for verification";
-  return "Record name check-in";
+export function checkInButtonLabel(checkedIn: boolean): string {
+  if (checkedIn) return "Check-in submitted";
+  return "Submit check-in";
 }
 
 export function isFileWithinSizeLimit(sizeBytes: number): boolean {
@@ -79,14 +77,17 @@ export function toMediaMeta(file: File): FeedbackMediaMeta {
 
 export function buildFeedbackPayload(input: {
   session: GuestSession;
+  guestName: string;
   rating: string;
   comment: string;
   consentAccepted: boolean;
   photo?: File | null;
   video?: File | null;
 }): FeedbackPayload {
+  const guestName = input.guestName.trim();
+  if (!guestName) throw new Error("Enter your name for feedback.");
   const payload: FeedbackPayload = {
-    guestName: input.session.guestName,
+    guestName,
     rating: Number(input.rating),
     comment: input.comment,
     privacyConsentAccepted: input.consentAccepted,

@@ -20,8 +20,6 @@ const session = {
   guestAccessCode: "AYALA-TECH-YALA",
   readiness: "ready_for_event_day",
   floorPlanStatus: "approved",
-  attendanceCount: 1,
-  guestName: "Sofia Lim",
   openedAt: "2026-07-01T00:00:00.000Z",
 } as GuestSession;
 
@@ -33,36 +31,45 @@ describe("guest-dashboard-rules", () => {
     );
   });
 
-  it("builds name and headcount check-in payloads", () => {
+  it("builds only the fields allowed for the selected check-in mode", () => {
     const named = buildCheckInPayload({
       session,
       checkInMode: "name_search",
-      walkIn: true,
+      guestName: "  Tess Green  ",
       consentAccepted: true,
     });
-    expect(named.guestName).toBe("Sofia Lim");
-    expect(named.walkIn).toBe(true);
-    expect(named.verificationStatus).toBe("flagged");
+    expect(named).toEqual({
+      checkInMode: "name_search",
+      guestName: "Tess Green",
+      privacyConsentAccepted: true,
+      privacyNoticeVersion: "2026-05-01",
+      marketingConsentAccepted: false,
+    });
 
     const headcount = buildCheckInPayload({
       session,
       checkInMode: "headcount",
-      walkIn: true,
       consentAccepted: true,
     });
-    expect(headcount.guestName).toBe("Walk-in guest");
-    expect(headcount.walkIn).toBe(false);
-    expect(headcount.verificationStatus).toBe("verified");
+    expect(headcount).toEqual({
+      checkInMode: "headcount",
+      privacyConsentAccepted: true,
+      privacyNoticeVersion: "2026-05-01",
+      marketingConsentAccepted: false,
+    });
   });
 
-  it("derives check-in notices and button labels", () => {
-    expect(checkInSuccessNotice("headcount", false)).toBe("Attendance recorded.");
-    expect(checkInSuccessNotice("name_search", true)).toBe(
-      "Walk-in flagged for PMCM review.",
-    );
-    expect(
-      checkInButtonLabel({ checkedIn: false, checkInMode: "name_search", walkIn: true }),
-    ).toBe("Submit walk-in for verification");
+  it("does not build a public check-in payload without privacy consent", () => {
+    expect(() => buildCheckInPayload({
+      session,
+      checkInMode: "headcount",
+      consentAccepted: false,
+    })).toThrow("Privacy consent is required to check in.");
+  });
+
+  it("uses generic check-in receipts and never exposes server review state", () => {
+    expect(checkInSuccessNotice()).toBe("Check-in submitted.");
+    expect(checkInButtonLabel(false)).toBe("Submit check-in");
   });
 
   it("enforces media size and video duration limits", () => {
@@ -76,12 +83,14 @@ describe("guest-dashboard-rules", () => {
     const photo = new File(["x"], "shot.jpg", { type: "image/jpeg" });
     const payload = buildFeedbackPayload({
       session,
+      guestName: "Maya Santos",
       rating: "4",
       comment: "Great",
       consentAccepted: true,
       photo,
     });
     expect(payload.rating).toBe(4);
+    expect(payload.guestName).toBe("Maya Santos");
     expect(payload.photo?.fileName).toBe("shot.jpg");
     expect(payload.video).toBeUndefined();
   });

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { OpsUserRole } from '@prism/kernel/event-core';
@@ -14,6 +14,7 @@ import {
   type GuestRosterSearchInput,
   type UpdateGuestVerificationInput,
   type CreateGuestCheckInInput,
+  type PrismGuestCheckInReceipt,
   type CreateGuestFeedbackInput,
   type ModerateGuestFeedbackInput,
   type WithdrawGuestFeedbackConsentInput,
@@ -60,11 +61,21 @@ export class OpsGuestController {
     @Query('namePrefix') namePrefix: string | undefined,
     @Query('eligibility') eligibility: GuestRosterSearchInput['eligibility'],
     @Query('checkedIn') checkedIn: string | undefined,
+    @Query('reviewQueue') reviewQueue: string | undefined,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator], 'guest roster search', eventId);
-    const filters = { query, namePrefix, eligibility, checkedIn: checkedIn === undefined ? undefined : checkedIn === 'true' };
+    if (reviewQueue !== undefined && reviewQueue !== 'true' && reviewQueue !== 'false') {
+      throw new BadRequestException('Invalid guest review queue filter');
+    }
+    const filters = {
+      query,
+      namePrefix,
+      eligibility,
+      checkedIn: checkedIn === undefined ? undefined : checkedIn === 'true',
+      reviewQueue: reviewQueue === undefined ? undefined : reviewQueue === 'true',
+    };
     return actor.role === OpsUserRole.Coordinator
       ? this.guestWorkflowService.searchCoordinatorRoster(eventId, actor, filters)
       : this.guestWorkflowService.searchRoster(eventId, filters);
@@ -114,8 +125,7 @@ export class OpsGuestController {
   @UseGuards(GuestAccessRateLimitGuard)
   async eventByAccessCode(@Param('accessCode') accessCode: string) {
     const event = await this.guestWorkflowService.getEventByAccessCode(accessCode);
-    const attendanceCount = await this.guestWorkflowService.countCheckInsForEvent(event.id);
-    return this.guestWorkflowService.mapGuestEvent(event, attendanceCount);
+    return this.guestWorkflowService.mapGuestEvent(event);
   }
 
   @Get('events/:accessCode/watermark')
@@ -130,8 +140,9 @@ export class OpsGuestController {
   async checkIn(
     @Param('accessCode') accessCode: string,
     @Body(zodBody(createGuestCheckInSchema)) dto: CreateGuestCheckInInput,
-  ) {
-    return this.guestWorkflowService.checkInByAccessCode(accessCode, dto);
+  ): Promise<PrismGuestCheckInReceipt> {
+    await this.guestWorkflowService.checkInByAccessCode(accessCode, dto);
+    return { accepted: true };
   }
 
   @Post('events/:accessCode/feedback')

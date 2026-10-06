@@ -44,10 +44,6 @@ export function GuestDashboardView() {
               Code-gated check-in and moderated feedback. Enter your name or
               record headcount for this event.
             </p>
-            <p className="mt-4 text-sm text-sidebar-foreground/50">
-              {session.attendanceCount} guest
-              {session.attendanceCount === 1 ? "" : "s"} checked in
-            </p>
           </div>
 
           <div className="hidden w-56 shrink-0 rounded-lg border border-white/10 bg-white/6 p-5 text-sidebar-foreground sm:block">

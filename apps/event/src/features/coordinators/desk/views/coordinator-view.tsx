@@ -165,7 +165,14 @@ export function CoordinatorView({
           taskActions={vm.taskActions}
           operatorActions={vm.operatorActions}
         />
-        {registrationRole && event ? <CoordinatorRegistrationDesk key={event.id} eventId={event.id} /> : null}
+        {registrationRole && event ? (
+          <CoordinatorRegistrationDesk
+            key={event.id}
+            eventId={event.id}
+            guestAttendanceCount={roleView?.guestAttendanceCount}
+            onAttendanceChange={vm.refreshRoleView}
+          />
+        ) : null}
         </fieldset>
       </div>
     </PrismDashboardShell>

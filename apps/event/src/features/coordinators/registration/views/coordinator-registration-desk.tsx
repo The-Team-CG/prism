@@ -14,8 +14,22 @@ function checkedInLabel(entry: PrismCoordinatorRegistrationEntry): string {
   return Number.isNaN(checkedInAt.getTime()) ? "Checked in" : `Checked in at ${checkedInAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
 }
 
-export function CoordinatorRegistrationDesk({ eventId }: { eventId: string }) {
-  const vm = useCoordinatorRegistrationDeskViewModel(eventId);
+function submittedLabel(entry: PrismCoordinatorRegistrationEntry): string {
+  if (!entry.reviewSubmittedAt) return "—";
+  const submittedAt = new Date(entry.reviewSubmittedAt);
+  return Number.isNaN(submittedAt.getTime()) ? "—" : submittedAt.toLocaleString();
+}
+
+export function CoordinatorRegistrationDesk({
+  eventId,
+  guestAttendanceCount,
+  onAttendanceChange,
+}: {
+  eventId: string;
+  guestAttendanceCount?: number;
+  onAttendanceChange?: () => Promise<void>;
+}) {
+  const vm = useCoordinatorRegistrationDeskViewModel(eventId, onAttendanceChange);
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -32,6 +46,9 @@ export function CoordinatorRegistrationDesk({ eventId }: { eventId: string }) {
       <header className="border-b border-border px-5 py-4">
         <h2 id="coordinator-registration-title" className="text-base font-bold text-foreground">Registration desk</h2>
         <p className="mt-1 text-sm text-muted-foreground">Search assigned-event guests, verify roster details, and record arrivals.</p>
+        <p className="mt-2 text-sm font-semibold text-foreground" aria-live="polite" aria-atomic="true">
+          {guestAttendanceCount === undefined ? "Attendance count unavailable." : `${guestAttendanceCount} guests checked in.`}
+        </p>
       </header>
 
       <div className="space-y-6 px-5 py-4">
@@ -48,6 +65,9 @@ export function CoordinatorRegistrationDesk({ eventId }: { eventId: string }) {
           <button className={`${buttonClass} sm:min-w-36`} type="submit" disabled={vm.status === "loading" || vm.query.trim().length < 2}>
             {vm.status === "loading" ? "Searching…" : "Search guests"}
           </button>
+          <button className={buttonClass} type="button" onClick={() => void vm.loadPendingReviews()} disabled={vm.status === "loading"}>
+            Pending reviews
+          </button>
         </form>
 
         {vm.status === "ready" ? (
@@ -61,6 +81,7 @@ export function CoordinatorRegistrationDesk({ eventId }: { eventId: string }) {
                     <th scope="col" className="px-3 py-2.5">Table</th>
                     <th scope="col" className="px-3 py-2.5">Eligibility</th>
                     <th scope="col" className="px-3 py-2.5">Verification</th>
+                    {vm.pendingQueue ? <th scope="col" className="px-3 py-2.5">Submitted</th> : null}
                     <th scope="col" className="px-3 py-2.5">Arrival</th>
                     <th scope="col" className="px-3 py-2.5">Actions</th>
                   </tr>
@@ -76,6 +97,11 @@ export function CoordinatorRegistrationDesk({ eventId }: { eventId: string }) {
                         <td className="px-3 py-3 text-muted-foreground">{entry.table || "—"}</td>
                         <td className="px-3 py-3 text-muted-foreground">{entry.eligibility}</td>
                         <td className="px-3 py-3 text-muted-foreground">{entry.verificationStatus}</td>
+                        {vm.pendingQueue ? (
+                          <td className="px-3 py-3 text-muted-foreground">
+                            {entry.reviewSubmittedAt ? <time dateTime={entry.reviewSubmittedAt}>{submittedLabel(entry)}</time> : "—"}
+                          </td>
+                        ) : null}
                         <td className="px-3 py-3 text-muted-foreground">{checkedInLabel(entry)}</td>
                         <td className="px-3 py-3">
                           <div className="flex flex-wrap gap-2">
@@ -102,8 +128,8 @@ export function CoordinatorRegistrationDesk({ eventId }: { eventId: string }) {
                 </tbody>
               </table>
             </div>
-          ) : <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">No guests match this search.</p>
-        ) : <p className="text-sm text-muted-foreground">Enter at least two letters, then search the roster.</p>}
+          ) : <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">{vm.pendingQueue ? "No pending reviews." : "No guests match this search."}</p>
+        ) : <p className="text-sm text-muted-foreground">{vm.pendingQueue ? "Loading pending reviews." : "Enter at least two letters, then search the roster."}</p>}
 
         <form onSubmit={submitWalkIn} className="space-y-3 rounded-xl border border-border bg-muted/20 p-4">
           <div>

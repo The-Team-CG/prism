@@ -31,7 +31,7 @@ export async function refreshGuestEventIfChanged(
 export async function submitGuestCheckIn(input: {
   session: GuestSession;
   checkInMode: CheckInMode;
-  walkIn: boolean;
+  guestName?: string;
   consentAccepted: boolean;
 }): Promise<{ session: GuestSession; notice: string }> {
   const payload = buildCheckInPayload(input);
@@ -44,12 +44,13 @@ export async function submitGuestCheckIn(input: {
   }
   return {
     session,
-    notice: checkInSuccessNotice(input.checkInMode, input.walkIn),
+    notice: checkInSuccessNotice(),
   };
 }
 
 export async function submitGuestFeedback(input: {
   session: GuestSession;
+  guestName: string;
   rating: string;
   comment: string;
   consentAccepted: boolean;
