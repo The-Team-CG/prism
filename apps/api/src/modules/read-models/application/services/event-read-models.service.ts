@@ -1,4 +1,4 @@
-import { Inject, Injectable, InternalServerErrorException, NotFoundException, Optional } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, InternalServerErrorException, NotFoundException, Optional } from '@nestjs/common';
 import type {
   OpsAuditLog,
   OpsBillingSource,
@@ -23,10 +23,17 @@ import type {
   OpsSupplierQuoteRequest,
   OpsUser,
 } from '@prisma/client';
-import { CLOSURE_READINESS_READER, type ClosureReadinessReader } from '@prism/contexts/event-lifecycle';
+import {
+  CLOSURE_READINESS_READER,
+  EVENT_CLIENT_FLOORPLAN_ACCESS_READER,
+  type ClosureReadinessReader,
+  type EventClientFloorplanAccessReader,
+} from '@prism/contexts/event-lifecycle';
+import { FLOORPLAN_READER, type FloorplanReader } from '@prism/contexts/floorplan';
 import { OpsUserRole, SupplierQuoteRequestStatus, isOpsConstantValue } from '@prism/kernel/event-core';
 import type {
   PrismClientEventTimeline,
+  PrismClientSharedFloorplanEntry,
   PrismClientTimelineMilestoneKey,
   PrismClientTimelineMilestoneStatus,
   PrismCommandInboxSeverity,
@@ -322,6 +329,9 @@ export class EventReadModelsService {
     private readonly policy: EventAccessPolicyService,
     @Inject(GUEST_READER) private readonly guestReader: GuestReader,
     @Inject(STAFFING_READER) private readonly staffingReader: StaffingReader,
+    @Inject(FLOORPLAN_READER) private readonly floorplanReader: FloorplanReader,
+    @Inject(EVENT_CLIENT_FLOORPLAN_ACCESS_READER)
+    private readonly eventClientFloorplanAccessReader: EventClientFloorplanAccessReader,
     @Optional() @Inject(CLOSURE_READINESS_READER) private readonly closureReadinessReader?: ClosureReadinessReader,
     @Optional() @Inject(REGISTRATION_PLATFORM_READER) private readonly registrationPlatformReader?: RegistrationPlatformReader,
   ) {}
@@ -442,6 +452,31 @@ export class EventReadModelsService {
       ocularVisits: ocularVisits.map(mapClientOcularVisit),
       pagination: eventPage.pagination,
     };
+  }
+
+  async clientSharedFloorplans(actor: ResolvedEventOpsActor): Promise<PrismClientSharedFloorplanEntry[]> {
+    await this.policy.requireActorRole(actor, [OpsUserRole.Client], 'client shared floorplans');
+    if (!actor.id || !actor.verified) {
+      await this.policy.recordForbiddenAccess(actor, 'client shared floorplans');
+      throw new ForbiddenException('A verified Client session is required for shared floorplans');
+    }
+
+    const sharedEvents = await this.eventClientFloorplanAccessReader.listActiveSharedEvents(actor.id);
+    if (sharedEvents.length === 0) return [];
+
+    const sharedEventById = new Map(sharedEvents.map((event) => [event.eventId, event]));
+    const entries = await this.floorplanReader.listClientSnapshotEntries(sharedEvents.map((event) => event.eventId));
+    const entriesByEventId = new Map<string, typeof entries>();
+    for (const entry of entries) {
+      if (!sharedEventById.has(entry.eventId)) continue;
+      const eventEntries = entriesByEventId.get(entry.eventId) ?? [];
+      eventEntries.push(entry);
+      entriesByEventId.set(entry.eventId, eventEntries);
+    }
+
+    return sharedEvents.flatMap((event) =>
+      (entriesByEventId.get(event.eventId) ?? []).map((entry) => ({ ...event, ...entry })),
+    );
   }
 
   async clientActionCenter(actor: ResolvedEventOpsActor) {

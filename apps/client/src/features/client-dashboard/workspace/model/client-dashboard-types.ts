@@ -14,6 +14,7 @@ export type DetailTab =
 
 export type ClientDashboardRoute =
   | "home"
+  | "shared-floorplans"
   | "request"
   | "events"
   | "calendar"

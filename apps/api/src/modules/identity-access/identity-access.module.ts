@@ -28,7 +28,17 @@ import { IDENTITY_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 @Module({
   imports: [DatabaseModule, AccessControlModule, PlatformOpsModule, forwardRef(() => EventLifecycleModule), EventSessionModule, ParticipantFactsModule],
   controllers: [OpsAuthController],
-  providers: [AuthOperationsService, PasswordResetService, TotpService, AuthAuditAdapter, ParticipantReaderService, IdentityPrivacyRedactorService, { provide: AUTH_AUDIT, useExisting: AuthAuditAdapter }, { provide: PARTICIPANT_READER, useExisting: ParticipantReaderService }, { provide: IDENTITY_PRIVACY_REDACTOR, useExisting: IdentityPrivacyRedactorService }],
+  providers: [
+    AuthOperationsService,
+    PasswordResetService,
+    TotpService,
+    AuthAuditAdapter,
+    ParticipantReaderService,
+    IdentityPrivacyRedactorService,
+    { provide: AUTH_AUDIT, useExisting: AuthAuditAdapter },
+    { provide: PARTICIPANT_READER, useExisting: ParticipantReaderService },
+    { provide: IDENTITY_PRIVACY_REDACTOR, useExisting: IdentityPrivacyRedactorService },
+  ],
   exports: [AuthOperationsService, PARTICIPANT_READER, IDENTITY_PRIVACY_REDACTOR],
 })
 export class IdentityAccessModule {}

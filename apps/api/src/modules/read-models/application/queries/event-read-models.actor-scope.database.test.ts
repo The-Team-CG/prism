@@ -249,8 +249,8 @@ databaseSuite("actor-scoped event reads PostgreSQL behavior", () => {
         policy,
         {} as never,
         {} as never,
-        {} as never,
-        {} as never,
+        { listClientSnapshotEntries: vi.fn().mockResolvedValue([]) } as never,
+        { listActiveSharedEvents: vi.fn().mockResolvedValue([]) } as never,
       );
       const clientActor = policy.resolveActor({
         actorRole: OpsUserRole.Client,

@@ -31,7 +31,8 @@ sources:
 The current staging layout uses ten application schemas for 93 business
 tables. Several schemas mix owners, and some of those tables have foreign keys
 across domains. The target puts every business table in its owning context's
-schema. Same-domain foreign keys remain valid; cross-domain identifiers remain
+schema. A later migration adds the client grant table to `event_lifecycle`
+after the cutover. Same-domain foreign keys remain valid; cross-domain identifiers remain
 scalar references checked through owner capabilities where a command needs
 live state.
 
@@ -62,7 +63,7 @@ flowchart LR
   end
 
   subgraph After["After: one schema per write domain"]
-    lifecycle["event_lifecycle<br/>18 tables"]
+    lifecycle["event_lifecycle<br/>19 tables"]
     commercial["commercial<br/>28 tables"]
     operations["operations<br/>12 tables"]
     floorplan["floorplan<br/>7 tables"]
@@ -102,21 +103,22 @@ flowchart LR
 
 ## After: target owner schemas
 
-The cutover moves 83 tables and leaves ten already in their target schema. It
-drops 45 cross-domain foreign keys. The current target has 75 same-domain
+The cutover moves 83 existing tables and leaves ten already in their target schema.
+The later floorplan grant migration adds one table directly to `event_lifecycle`.
+It drops 45 cross-domain foreign keys. The current target has 76 same-domain
 foreign keys, including later owner-local integrity links. No cross-domain
 Prisma relation or PostgreSQL foreign key remains in the target.
 
 | Write domain | Target schema | Tables | Columns |
 | --- | --- | ---: | ---: |
-| event-lifecycle | `event_lifecycle` | 18 | 280 |
+| event-lifecycle | `event_lifecycle` | 19 | 290 |
 | commercial | `commercial` | 28 | 319 |
 | operations | `operations` | 12 | 142 |
 | live-ops | `live_ops` | 10 | 122 |
 | floorplan | `floorplan` | 7 | 75 |
 | identity-access | `identity_access` | 4 | 42 |
 | platform-ops | `platform_ops` | 14 | 201 |
-| **Total** | **7 schemas** | **93** | **1,181** |
+| **Total** | **7 schemas** | **94** | **1,191** |
 
 ## Operational boundary
 

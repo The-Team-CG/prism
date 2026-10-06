@@ -53,6 +53,7 @@ import {
   submitClientOcularVisitSchema,
   scheduleOcularVisitSchema,
   waiveOcularVisitSchema,
+  grantSecondaryClientAccessSchema,
   parseContract,
   PrismContractError,
 } from "./index.js";
@@ -143,6 +144,15 @@ describe("coordinator role contracts", () => {
   });
 });
 describe("event-ops write schemas", () => {
+  it("accepts a non-empty secondary Client account id and rejects blank or missing ids", () => {
+    expect(grantSecondaryClientAccessSchema.safeParse({ userId: " client_123 " })).toEqual({
+      success: true,
+      data: { userId: "client_123" },
+    });
+    expect(grantSecondaryClientAccessSchema.safeParse({ userId: "   " }).success).toBe(false);
+    expect(grantSecondaryClientAccessSchema.safeParse({}).success).toBe(false);
+  });
+
   it("validates supplier creation fields used by the PMCM command adapter", () => {
     expect(createSupplierSchema.safeParse({ categoryId: "cat_1", name: " " }).success).toBe(false);
     expect(

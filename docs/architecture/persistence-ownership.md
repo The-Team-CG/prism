@@ -216,6 +216,7 @@ migration for an explicit owner decision.
 | Models | Physical schema | Write owner and boundary |
 | --- | --- | --- |
 | `OpsInquiry`, `OpsEvent`, `OpsBriefing` | `event_lifecycle` | `event-lifecycle`; inquiry intake, event creation, onboarding, and briefing state. |
+| `OpsEventClientFloorplanAccessGrant` | `event_lifecycle` | `event-lifecycle`; audited event-scoped grants for approved secondary Client floorplan access. |
 | OpsDocument (all kinds) | event_lifecycle | event-lifecycle; document metadata, registration, eligibility and retention. |
 | `OpsComplianceRule`, `OpsComplianceCheck`, `OpsPostEventDocument`, `OpsEventInsight` | `event_lifecycle` | `event-lifecycle`; compliance, closure gates, post-event records, and lifecycle insights. |
 

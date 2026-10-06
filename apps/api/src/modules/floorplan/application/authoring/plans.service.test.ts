@@ -1,6 +1,7 @@
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { EventAccessPolicyService, type AuditWriter } from '@prism/kernel/access-control';
+import { OpsUserRole } from '@prism/kernel/event-core';
 import type { PrismaService } from '@prism/kernel/database';
 import type { PrismVerifiedEventActor, UpdatePlanInput } from '@prism/types';
 import { PlansService } from './plans.service';
@@ -163,6 +164,43 @@ describe('PlansService floorplan permissions and versioning', () => {
       id: 'plan_event_1',
     });
   });
+
+  it('blocks a linked secondary client from reading the raw preference plan', async () => {
+    const { service } = createService(draft('client_submitted'));
+
+    await expect(service.getPlan('plan_event_1', clientActor('secondary@example.test'))).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+  });
+
+  it('requires a verified identity even when the primary email matches', async () => {
+    const { service } = createService(draft('client_submitted'));
+    const actor = { ...clientActor('owner@example.test'), verified: false };
+
+    await expect(service.getPlan('plan_event_1', actor)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it.each(['pmcm_draft', 'in_review', 'revision_requested', 'approved'])(
+    'blocks Client raw-plan read and write for official %s drafts',
+    async (status) => {
+      const { service, prisma } = createService(draft(status, 'Ana Reyes', 'owner@example.test', 'blank'));
+      const owner = clientActor('owner@example.test');
+
+      await expect(service.getPlan('plan_event_1', owner)).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.updatePlan('plan_event_1', changes(), owner)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([OpsUserRole.Supplier, OpsUserRole.Coordinator, OpsUserRole.Guest])(
+    'blocks %s raw-plan access to client preferences',
+    async (role) => {
+      const { service } = createService(draft('client_submitted'));
+      const actor = { ...clientActor('owner@example.test'), role };
+
+      await expect(service.getPlan('plan_event_1', actor)).rejects.toBeInstanceOf(ForbiddenException);
+    },
+  );
 
   it('blocks a different verified client with the same display name from reading a preference', async () => {
     const { service, audit } = createService(draft('client_submitted'));
@@ -364,5 +402,16 @@ describe('PlansService floorplan permissions and versioning', () => {
       actorEmail: 'pmcm@example.test',
       actionType: 'update',
     }), expect.objectContaining({ actorId: 'user_pmcm@example.test' }));
+  });
+
+  it('preserves System raw-plan access for official plans', async () => {
+    const { service, prisma } = createService(draft('pmcm_draft'));
+    const systemActor = { role: OpsUserRole.System, name: 'System', explicit: true, verified: true };
+
+    await expect(service.getPlan('plan_event_1', systemActor)).resolves.toMatchObject({ id: 'plan_event_1' });
+    await expect(service.updatePlan('plan_event_1', changes(), systemActor)).resolves.toMatchObject({
+      id: 'plan_event_1',
+    });
+    expect(prisma.floorPlan.update).toHaveBeenCalled();
   });
 });

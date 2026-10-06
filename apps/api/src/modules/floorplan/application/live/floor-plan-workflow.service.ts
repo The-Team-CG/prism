@@ -5,6 +5,7 @@ import {
   prismFloorPlanSnapshotSchema,
   type CreateFloorPlanDraftInput,
   type CreateFloorPlanPreferenceInput,
+  type PrismClientSharedFloorplanEntry,
   type PrismFloorPlanDraft,
   type PrismFloorPlanSnapshot,
 } from '@prism/types';
@@ -278,6 +279,24 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
       },
       project: (approved) => this.mapFloorPlanDraft(approved),
     });
+  }
+
+  async listClientSnapshotEntries(
+    eventIds: string[],
+  ): Promise<Array<Omit<PrismClientSharedFloorplanEntry, 'eventName' | 'eventDate'>>> {
+    if (eventIds.length === 0) return [];
+    const drafts = await this.prisma.opsFloorPlanDraft.findMany({
+      where: { eventId: { in: eventIds }, status: { in: ['in_review', 'revision_requested', 'approved'] } },
+      select: { eventId: true, id: true, name: true, status: true, updatedAt: true },
+      orderBy: [{ eventId: 'asc' }, { updatedAt: 'desc' }, { id: 'asc' }],
+    });
+    return drafts.map((draft) => ({
+      eventId: draft.eventId,
+      draftId: draft.id,
+      draftName: draft.name,
+      draftStatus: draft.status,
+      availableSnapshots: draft.status === 'approved' ? ['submitted', 'approved'] : ['submitted'],
+    }));
   }
 
   async getFloorPlanSnapshot(eventId: string, draftId: string, type: 'submitted' | 'approved' = 'approved'): Promise<PrismFloorPlanSnapshot> {

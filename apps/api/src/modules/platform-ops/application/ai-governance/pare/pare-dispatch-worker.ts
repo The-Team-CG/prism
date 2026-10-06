@@ -75,7 +75,7 @@ function settlement(
   outcome: { approvalRecordId?: string; error?: unknown },
   maxAttempts: number,
   now: Date,
-): Prisma.OpsPareDispatchUpdateManyMutationInput {
+): Prisma.OpsPareDispatchUncheckedUpdateManyInput {
   const release = { leaseToken: null, leaseExpiresAt: null };
   if (outcome.approvalRecordId) {
     return { ...release, status: 'succeeded', approvalRecordId: outcome.approvalRecordId, completedAt: now, failedAt: null, failureReason: null };

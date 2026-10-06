@@ -161,6 +161,56 @@ describe('domain persistence ownership', () => {
     assert.match(result.errors.join('\n'), /Prisma relation is not classified in the ownership manifest: commercial\.quotes\(event_id\)/);
   });
 
+  it('accepts a same-domain FK from a table introduced after cutover', () => {
+    const manifest = {
+      summary: {
+        totalTables: 2,
+        targetSchemas: 1,
+        targetSameDomainFks: 1,
+        crossDomainFksToDrop: 0,
+        currentCrossSchemaFks: 0,
+        domains: [{ domain: 'event-lifecycle', schema: 'event_lifecycle' }],
+      },
+      ownership: [
+        {
+          model: 'OpsEvent', currentSchema: 'event_core', table: 'events',
+          domain: 'event-lifecycle', targetSchema: 'event_lifecycle',
+        },
+        {
+          model: 'OpsEventClientFloorplanAccessGrant', currentSchema: 'event_lifecycle',
+          table: 'client_floorplan_access_grants', domain: 'event-lifecycle',
+          targetSchema: 'event_lifecycle', introducedAfterCutover: true,
+        },
+      ],
+      foreignKeys: [{
+        schema: 'event_lifecycle', table: 'client_floorplan_access_grants',
+        name: 'client_floorplan_access_grants_event_id_fkey',
+        definition: 'FOREIGN KEY (event_id) REFERENCES event_lifecycle.events(id) ON DELETE CASCADE',
+        columns: ['event_id'], sourceDomain: 'event-lifecycle', targetDomain: 'event-lifecycle',
+        targetCurrentSchema: 'event_lifecycle', targetTable: 'events', sameDomain: true,
+      }],
+    };
+    const schema = `
+model OpsEvent {
+  id String @id
+  @@map("events")
+  @@schema("event_lifecycle")
+}
+model OpsEventClientFloorplanAccessGrant {
+  id String @id
+  eventId String @map("event_id")
+  event OpsEvent @relation(fields: [eventId], references: [id])
+  @@map("client_floorplan_access_grants")
+  @@schema("event_lifecycle")
+}
+`;
+
+    const result = validateDomainPersistence({ ownershipManifest: manifest, schemaText: schema, final: true });
+
+    assert.deepEqual(result.errors, []);
+    assert.deepEqual(result.summary, { models: 2, foreignKeys: 1, crossDomainForeignKeys: 0 });
+  });
+
   it('allows an owning context to mutate its own Prisma model', () => {
     const findings = validatePrivateWrites({
       ownershipManifest,

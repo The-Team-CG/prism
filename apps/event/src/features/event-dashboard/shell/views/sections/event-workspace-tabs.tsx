@@ -17,6 +17,8 @@ import { PmcmSupplierReadinessBoard } from "@/features/suppliers/readiness";
 import { EventRegistrationTab } from "@/app/components/pmcm/event-registration-tab";
 import { EventMessagesWorkspace } from "@/features/event-dashboard/messages/views/event-messages-workspace";
 import { FeedbackModerationPanel } from "@/features/feedback/moderation";
+import { EventClientFloorplanAccessPanel } from "@/features/event-dashboard/client-floorplan-access/views/event-client-floorplan-access-panel";
+import { canManageClientFloorplanAccess } from "@/features/event-dashboard/client-floorplan-access/model/client-floorplan-access";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { Card, CardBody, CardHeader } from "./shell-ui";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
@@ -26,23 +28,28 @@ export function EventWorkspaceOverviewTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   return (
-    <EventOverviewPanels
-      event={vm.selectedEvent}
-      defenseReadiness={vm.defenseReadiness}
-      drafts={vm.drafts}
-      activeDraft={vm.activeDraft}
-      quoteRequestCount={vm.quoteRequests.length}
-      quoteCount={vm.quotes.length}
-      openCheckCount={vm.openCheckCount}
-      onSubmitBriefing={vm.submitBriefing}
-      onOpenSupplierDesk={() => vm.navigateEventTab("suppliers")}
-      onRunCompliance={vm.runPlanningCompliance}
-      onOpenCoordinatorDesk={() => vm.navigateEventTab("coordinators")}
-      onOpenLiveOps={() => vm.navigateEventTab("live-ops")}
-      onOpenFloorplans={() => vm.navigateEventTab("floorplans")}
-      onOpenBilling={() => vm.navigateEventTab("billing")}
-      onOpenClosure={() => vm.navigateEventTab("closure")}
-    />
+    <div className="space-y-5">
+      <EventOverviewPanels
+        event={vm.selectedEvent}
+        defenseReadiness={vm.defenseReadiness}
+        drafts={vm.drafts}
+        activeDraft={vm.activeDraft}
+        quoteRequestCount={vm.quoteRequests.length}
+        quoteCount={vm.quotes.length}
+        openCheckCount={vm.openCheckCount}
+        onSubmitBriefing={vm.submitBriefing}
+        onOpenSupplierDesk={() => vm.navigateEventTab("suppliers")}
+        onRunCompliance={vm.runPlanningCompliance}
+        onOpenCoordinatorDesk={() => vm.navigateEventTab("coordinators")}
+        onOpenLiveOps={() => vm.navigateEventTab("live-ops")}
+        onOpenFloorplans={() => vm.navigateEventTab("floorplans")}
+        onOpenBilling={() => vm.navigateEventTab("billing")}
+        onOpenClosure={() => vm.navigateEventTab("closure")}
+      />
+      {canManageClientFloorplanAccess(String(vm.session.role)) ? (
+        <EventClientFloorplanAccessPanel eventId={vm.selectedEvent.id} />
+      ) : null}
+    </div>
   );
 }
 
