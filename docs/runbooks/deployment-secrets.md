@@ -1,4 +1,34 @@
+---
+type: "Playbook"
+title: "Deployment secrets and schema cutover controls"
+description: "Configure and verify repository-owned deployment secrets, variables, and database schema cutover gates."
+tags: [runbook, deployment, github-actions, secrets, migrations]
+status: canonical
+updated: "2026-10-06"
+authority: operational
+owner: "D (Anthony)"
+audience: [developers, reviewers, operators, agents]
+scope: "GitHub Actions deployment configuration and repository-controlled schema cutover gates"
+last_verified: "2026-10-05; repository workflow sources reviewed; external provider and deployment settings not verified"
+sources:
+  - id: deploy-workflow
+    resource: ".github/workflows/deploy.yml"
+    title: "Deployment workflow"
+  - id: promotion-workflow
+    resource: ".github/workflows/promote.yml"
+    title: "Staging promotion workflow"
+---
 # Deployment secrets
+
+## At a glance
+
+- **Purpose:** Configure the Actions inputs required to deploy and safely hold schema-changing workflows.
+- **Authority:** Operational guide for repository-owned workflow behavior.
+- **Owner:** D (Anthony).
+- **Scope:** Repository/organization variables and secrets consumed by deployment workflows.
+- **Use when:** Setting up or diagnosing a deployment gate.
+- **Change when:** Workflow inputs or cutover controls change.
+- **Verify with:** The named workflow sources and a successful deployment run; provider state is external.
 
 This runbook covers the repository-owned inputs consumed by
 `.github/workflows/deploy.yml`. The workflow deploys only after a successful

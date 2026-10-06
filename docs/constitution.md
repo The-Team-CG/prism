@@ -4,12 +4,12 @@ title: "P.R.I.S.M documentation and architecture constitution"
 description: "Current invariants for role ownership, bounded contexts, shared contracts, compatibility paths, frontend layering, and documentation maintenance."
 tags: [architecture, constitution, contracts, documentation]
 status: canonical
-updated: "2026-09-02"
+updated: "2026-10-06"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, maintainers, engineers]
 scope: "repository-wide cross-cutting rules"
-last_verified: "2026-09-02"
+last_verified: "2026-10-06; documentation hierarchy, changelog guidance, and bundle navigation reviewed"
 sources:
   - id: prism-agent-rules
     resource: "AGENTS.md"
@@ -42,7 +42,11 @@ affected source of truth and its verification evidence in the same change.
 Every user-requested code, architecture, documentation, or operational delivery
 also updates the root `CHANGELOG.md`; documentation-bundle changes additionally
 update `docs/log.md`. Keep release notes under `[Unreleased]` until a release
-workflow cuts a version.
+workflow cuts a version. Release notes follow Keep a Changelog categories and
+describe notable user- or developer-visible effects. Use one concise bullet
+per coherent change; omit PR-by-PR implementation details, test logs, and
+commit-history summaries. `docs/log.md` records only structural or contract
+changes to the documentation bundle; Git history preserves the detailed record.
 
 ## Authority order
 
@@ -140,7 +144,9 @@ architecture pattern.
 The bundle uses OKF v0.2-style Markdown:
 
 - `docs/index.md` is the bundle landing; each directory `index.md` is a
-  navigation listing; `docs/log.md` records structural/contract updates.
+  navigation listing; `docs/log.md` records structural/contract updates only.
+- `docs/log.md` is a curated bundle log, so it is exempt from concept
+  frontmatter and `At a glance` metadata.
 - Every non-index concept under `docs/` has `type`, `title`, `description`,
   `tags`, `status`, `updated`, `authority`, `owner`, `audience`, `scope`,
   `last_verified`, and `sources` frontmatter. Prefer repository-relative
@@ -162,6 +168,8 @@ The bundle uses OKF v0.2-style Markdown:
 - Completed plans and dated reviews are promoted into durable documents and
   removed from the working tree. Git history is the archive; the V4 catalog is
   the deliberate reference exception.
+- Active plans remain only while they have open decisions or acceptance work;
+  keep them indexed and repair source links when supporting artifacts are retired.
 - The canonical landing and directory indexes are the only navigation authority;
   do not add duplicate pointer documents.
 

@@ -9,7 +9,7 @@ authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, reviewers]
 scope: "apps/api/prisma/schema.prisma and apps/api/src/modules"
-last_verified: "2026-10-06; 93-model ownership inventory and seven-schema target reconciled with current staging source"
+last_verified: "2026-10-06; 94-table manifest, seven-schema target, and owner-local foreign-key counts reconciled"
 sources:
   - id: prisma-schema
     resource: "apps/api/prisma/schema.prisma"
@@ -66,19 +66,20 @@ policy does not create microservices or a database authorization boundary.
 
 | Write domain | Target schema | Tables | Columns | Owns |
 | --- | --- | ---: | ---: | --- |
-| event-lifecycle | event_lifecycle | 18 | 280 | Inquiry, events, lifecycle documents, briefing, compliance, decisions, freeze/addenda, closure |
+| event-lifecycle | event_lifecycle | 19 | 290 | Inquiry, events, lifecycle documents, briefing, compliance, decisions, freeze/addenda, closure, client floorplan grants |
 | commercial | commercial | 28 | 319 | Suppliers, quotes, communications, estimates, proposals, billing, receipts |
 | operations | operations | 12 | 142 | Coordinator pool, availability, coverage, assignments, acknowledgment/reliability, guest operations |
 | live-ops | live_ops | 10 | 122 | Event-day tasks, schedule, operators, handoffs, end-of-day, urgent issues/logs |
 | floorplan | floorplan | 7 | 75 | Plans, objects, templates, layout instances, published copies, official drafts, projection clock |
 | identity-access | identity_access | 4 | 42 | Accounts, approvals, password reset and authentication state |
 | platform-ops | platform_ops | 14 | 201 | Privacy requests and legal holds, security, login history, audit, notifications, AI, storage, command receipts |
-| **Total** | **7 schemas** | **93** | **1,181** | Every business table has one owner |
+| **Total** | **7 schemas** | **94** | **1,191** | Every business table has one owner |
 
 The machine-readable domain ownership manifest linked above is the complete
-model-level inventory. It records each current and target schema, domain owner,
-table name, and scalar column count. Ten tables already reside in their owner
-schema; the coordinated cutover moves the other 83.
+target inventory. It records each current and target schema, domain owner,
+table name, and scalar column count. Of the 93 pre-cutover tables, ten already
+reside in their owner schema and the coordinated cutover moves the other 83.
+The client floorplan-grant table is introduced by a later owner migration.
 
 The cutover retires no tables or columns. The separate
 [column authority register](column-authority-register.md) records the reviewed
@@ -96,9 +97,9 @@ physical type, nullability, default, provisional semantics, candidate consumers,
 disposition. The register does not approve unresolved business units, timezones or retention periods.
 
 The reviewed staging database baseline has ten populated application schemas
-and 45 cross-domain foreign keys. The source target has seven owner schemas,
-93 tables, 1,181 columns, 75 same-domain foreign keys, and no cross-domain
-foreign keys. The quote-to-request relation remains a valid same-Commercial
+and 45 cross-domain foreign keys. The current migration target has seven owner
+schemas, 94 tables, 1,191 columns, 76 same-domain foreign keys, and no
+cross-domain foreign keys. The quote-to-request relation remains a valid same-Commercial
 constraint and is repaired in its existing namespace before cutover. The
 schema migrations are merged into the `staging` source branch; applying them to
 a shared database is a separate operational action described in the
@@ -129,7 +130,8 @@ Approved domain ownership decisions:
 - Platform-ops owns command-receipt persistence behind the kernel technical
   port, and coordinates privacy work through domain-owned retention/redaction
   capabilities.
-- Read-models composes authorized reads and never becomes a write owner.
+- The read-models context composes authorized reads and never becomes a write
+  owner.
 
 ## Current migration placement and historical ownership
 
