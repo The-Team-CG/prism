@@ -4,12 +4,12 @@ title: "P.R.I.S.M column authority and disposition register"
 description: "Per-column baseline facts, provisional domain authority, data semantics, consumer candidates, sensitivity, retention and migration disposition."
 tags: [architecture, persistence, prisma, ddd, schema, data-dictionary]
 status: active
-updated: "2026-10-04"
+updated: "2026-10-06"
 authority: informative
 owner: "B (Francis) and D (Anthony); C (Ethan) for shared contracts"
 audience: [domain_owners, engineers, reviewers]
 scope: "apps/api/prisma/schema.prisma, apps/api/prisma/migrations, and current owner-context readers/writers"
-last_verified: "staging 7f64c0b; disposable PostgreSQL 16 replay; source scan at PR11 commit 2143269"
+last_verified: "Legacy column snapshot traced to staging 7f64c0b; current target counts reconciled with the owner manifest on 2026-10-06"
 sources:
   - id: prisma-schema
     resource: "apps/api/prisma/schema.prisma"
@@ -34,36 +34,38 @@ ownership cutover.
 - **Authority:** Informative inventory; owner confirmation is required before changing business
 meaning or stored values.
 - **Owner:** B (Francis) and D (Anthony), with C (Ethan) for shared contracts.
-- **Scope:** The 91 Prisma models and 1,159 scalar columns in the staging baseline, mapped to the
-approved seven write-domain schemas.
+- **Scope:** The legacy staging snapshot of 91 Prisma models and 1,159 scalar columns, plus the
+current seven-domain target inventory in the ownership manifest.
 - **Use when:** Changing a column, default, nullability, JSON payload, time or money representation;
 planning retention; or proposing a trim.
-- **Verify with:** Reconcile the CSV with the exact schema/migrations, check owner writers and
-role-safe projections, then run populated migration and behavior evidence before conversion.
+- **Verify with:** Treat the CSV as a legacy physical-column snapshot; reconcile proposed changes
+against the current Prisma schema, owner manifest, and seven baseline migrations.
 
 ## Baseline and target ownership
 
-The register records the staging schema at commit 7f64c0baa12be39fed17d1cbffeb3477d4d74a0a. The
+The CSV preserves the legacy staging schema at commit 7f64c0baa12be39fed17d1cbffeb3477d4d74a0a. Its
 physical types, nullability and defaults were checked against a disposable PostgreSQL 16 database
-produced by replaying all 76 migration files. No production database or production data was
-inspected or changed.
+made from the then-current 76-migration history. Its source-line and schema references describe
+that snapshot, not current file locations. No production database or production data was inspected
+or changed.
 
-The baseline has 91 tables, 1,159 scalar columns, ten populated application schemas and 112 foreign
-keys. The approved DDD target assigns each table to one of seven schemas. Same-domain foreign keys
-are permitted; cross-domain foreign keys are not. The 45 cross-domain references retain their scalar
-ID columns and need owner capability, retention and delete-behavior gates before their database
-constraints are removed.
+The CSV preserves the older physical snapshot: 91 tables, 1,159 scalar columns,
+ten application schemas, and 112 foreign keys. The current target is defined by
+the Prisma schema and ownership manifest: 94 tables, 1,191 columns, seven owner
+schemas, 76 same-domain foreign keys, and no cross-domain foreign keys. The
+retired 45 cross-domain FK behaviors remain documented as historical behavior;
+the replacement baselines do not recreate those constraints.
 
 | Write domain | Target schema | Tables | Columns |
 | --- | --- | ---: | ---: |
-| event-lifecycle | event_lifecycle | 18 | 279 |
+| event-lifecycle | event_lifecycle | 19 | 290 |
 | commercial | commercial | 28 | 319 |
 | operations | operations | 12 | 142 |
 | live-ops | live_ops | 10 | 122 |
-| floorplan | floorplan | 6 | 72 |
-| identity-access | identity_access | 4 | 38 |
-| platform-ops | platform_ops | 13 | 187 |
-| **Total** | **7 schemas** | **91** | **1,159** |
+| floorplan | floorplan | 7 | 75 |
+| identity-access | identity_access | 4 | 42 |
+| platform-ops | platform_ops | 14 | 201 |
+| **Total** | **7 schemas** | **94** | **1,191** |
 
 ## Register contents
 

@@ -1,127 +1,99 @@
 ---
 type: "Playbook"
-title: "Domain schema cutover rehearsal"
-description: "Safely inspect disposable PostgreSQL copies before moving Prism tables to their owning domain schemas and removing cross-domain foreign keys."
-tags: [runbook, database, ddd, preflight, recovery]
+title: "Pre-production domain-schema baseline adoption"
+description: "Safely replay the owner-scoped Prisma baseline and prepare a backed-up pre-production database rebuild."
+tags: [runbook, database, ddd, migrations, recovery]
 status: canonical
 updated: "2026-10-06"
 authority: operational
 owner: "D (Anthony)"
 audience: [developers, reviewers, QA, operators, agents]
-scope: "Read-only DDD preflight and populated rehearsal for the Prism domain schema cutover"
-last_verified: "2026-10-06; ownership manifest and migration map reviewed; populated disposable PostgreSQL replay verified with psql; Prisma migrate deploy not exercised"
+scope: "Local disposable replay and approved pre-production adoption of the seven-schema Prisma baseline"
+last_verified: "2026-10-06; seven baselines applied on disposable PostgreSQL 16; status and live schema diff clean"
 sources:
-  - id: persistence-register
-    resource: "docs/architecture/persistence-ownership.md"
-    title: "Persistence ownership register"
-  - id: ownership-manifest
+  - id: schema
+    resource: "apps/api/prisma/schema.prisma"
+    title: "Current Prisma schema"
+  - id: ownership
     resource: "apps/api/prisma/domain-ownership.json"
-    title: "Database table ownership manifest"
+    title: "Domain table ownership"
+  - id: migration-policy
+    resource: "apps/api/prisma/migration-policy.json"
+    title: "Owner-scoped baseline names and checksums"
   - id: migration-runbook
     resource: "docs/runbooks/database-migrations.md"
     title: "Prisma migration operations"
 ---
-# Domain schema cutover rehearsal
+# Pre-production domain-schema baseline adoption
 
 ## At a glance
 
-- **Purpose:** Inspect a disposable PostgreSQL copy before and after the DDD schema move.
-- **Authority:** Operational preflight and rehearsal guide; it does not authorize production migration.
+- **Purpose:** Replay the final seven-domain schema from a clean database and safely prepare a pre-production database rebuild.
+- **Authority:** Operational instructions; this document does not authorize a shared-database reset.
 - **Owner:** D (Anthony).
-- **Scope:** Read-only checks, populated rehearsal, evidence retention, and recovery for the domain-schema cutover.
-- **Use when:** Preparing or reviewing a disposable cutover rehearsal.
-- **Change when:** The ownership manifest, preflight, backup, or cutover migrations change.
-- **Verify with:** The referenced preflight and migration runbook; this documents psql replay evidence and states that Prisma migrate deploy remains unverified.
+- **Scope:** Seven schema baselines, disposable PostgreSQL replay, and legacy staging ledger handling.
+- **Use when:** Reviewing or running the migration-history replacement.
+- **Verify with:** A fresh-database replay, Prisma migration status, and live schema equivalence.
 
-Use this runbook to inspect a disposable PostgreSQL copy before applying the
-domain-schema cutover migration that moves tables to their owning schemas and
-removes cross-domain foreign keys. The preflight is read-only. It does not
-repair rows, apply migrations, or stop database sessions. The migration was
-rehearsed with psql against a populated disposable copy; the Prisma migration
-CLI path remains unverified and no staging or production database was changed.
+The repository replaces 102 pre-production migration folders with seven
+owner-scoped schema baselines. Each baseline is generated from the current
+Prisma schema and creates one owner schema. Together they create 94 business
+tables, 1,191 columns, and 76 same-domain foreign keys across seven schemas;
+they create no cross-domain foreign keys. Each file is wrapped in a PostgreSQL
+transaction with bounded lock and statement timeouts.
 
-## Target and report safety
+The baseline represents the final schema on an empty database. It is not an
+in-place upgrade from the retired migration ledger, and this change has not
+modified staging or production databases.
 
-The preflight reads only `PRISM_DDD_PREFLIGHT_DATABASE_URL`. It does not fall
-back to `DATABASE_URL`, `DIRECT_URL`, or the API `.env` file. The URL must point
-to loopback and a database named `prism_p0`, `prism_preflight_*`,
-`prism_upgrade_*`, or `prism_restore_*`.
+## Run the local disposable replay
 
-The required JSON artifact includes opaque row identifiers, catalog details,
-migration names, payload checksums, and financial totals. Choose an existing
-ACL-protected directory outside the repository. The script creates the file
-with owner-only mode where the host filesystem supports POSIX modes, refuses
-to overwrite an existing report, and prints aggregate counts only. Protect and
-retain the artifact according to the database-data handling policy.
+Use an isolated PostgreSQL 16 server bound to loopback port 55437. Do not point
+these migration commands at a shared or hosted database.
 
-```powershell
-$env:PRISM_DDD_PREFLIGHT_DATABASE_URL = '<loopback URL for prism_p0 or another approved disposable database>'
-npm --workspace prism-api run db:preflight:ddd -- --artifact 'C:\private\prism-ddd-preflight.json'
-```
+    $env:PRISMA_DATABASE_URL = 'postgresql://postgres:<local-password>@127.0.0.1:55437/prism_migration_replay?schema=public'
+    $env:DIRECT_URL = $env:PRISMA_DATABASE_URL
+    $env:DATABASE_URL = $env:PRISMA_DATABASE_URL
+    $env:SUPABASE_DB_URL = $env:PRISMA_DATABASE_URL
+    $env:DB_SSL = 'false'
+    npm --workspace prism-api run db:migrate:deploy
+    npm --workspace prism-api run db:status
+    npm --workspace prism-api run db:diff:live
 
-Pass `--final` after the schema move rehearsal to check the target schema map
-and require only same-domain foreign keys:
+Use a disposable PostgreSQL service with no persistent volume. The database must
+be empty before applying this baseline. The live diff command is read-only.
 
-```powershell
-npm --workspace prism-api run db:preflight:ddd -- --final --artifact 'C:\private\prism-ddd-preflight-final.json'
-```
+## Existing pre-production database
 
-The current-mode check expects the current owner table locations and all
-manifested foreign keys. Final mode expects each table in its owner schema,
-no old-schema copy, and only same-domain foreign keys. Both modes check the
-Prisma migration ledger and compare stored SQL checksums. Pending checked-in
-migrations are reported for the planned upgrade; unknown migrations,
-checksum differences, unresolved migration rows, catalog differences, or
-blocking data findings stop the preflight.
+The previous staging database may still contain the old schema and its
+102-entry Prisma ledger. Do not run the new `migrate deploy` history against
+that database. The old ledger entries are not in the new migration folders,
+and `migrate resolve` alone would not prove the physical schema or remove the
+unknown history.
 
-`ready` means the catalog and blocking data checks match the selected mode.
-`review-required` means recoverable expired notification or PARE leases need
-their owning operator's review. `blocked` means the catalog, migration ledger,
-or a blocking data check needs investigation. No status authorizes a repair.
+Before adopting the new baseline in staging:
 
-## Data review
+1. Put staging deployments and writers on hold.
+2. Take a database backup and verify a restore to a separate disposable database.
+3. Review any fixture or operator data with its owner and confirm whether it
+   must be kept.
+4. If the staging contents are disposable, recreate only the pre-production
+   database through the approved provider procedure, then apply the seven
+   baselines with `npm --workspace prism-api run db:migrate:deploy`.
+5. Verify `db:status`, `db:diff:live`, the runtime schema compatibility head,
+   and application acceptance before resuming deployments.
 
-The preflight checks duplicate normalized account emails and active floorplan
-drafts; orphan quote-to-request links; same-domain links whose related rows
-disagree on event; invalid money, ratings, registration ranges, JSON shapes,
-and billing sequences; audit chain and head integrity; PARE review-payload
-digests; notification and PARE states; and expired queue leases. It reports
-bounded opaque IDs in the artifact and counts in the console. Each finding
-belongs to the owner named in the report.
-Resolve it through that owner's reviewed repair and retain the original
-evidence. Do not delete a row, fabricate a default, or relink by a name or
-email to make the report pass.
+If any staging data must be preserved, stop before recreating the database.
+This baseline contains no data-copy migration. Recover the retired history
+from the pre-rebaseline Git revision and prepare a separate data-preserving
+conversion with an owner-reviewed backup and restore plan. Production requires
+its own migration plan; this pre-production history replacement is not a
+production migration.
 
-## Populated upgrade and recovery evidence
+## Recovery
 
-The manifest-driven `db:backup:json` command exports the 93 owner-manifest
-tables plus `public._prisma_migrations` from one repeatable-read snapshot. It
-writes with owner-only file mode where supported and refuses to replace an
-existing timestamped export. It is useful for local inspection, but it is not
-a complete database backup or a restore strategy.
-
-Before the schema cutover is accepted:
-
-1. Create a real PostgreSQL backup of the approved sanitized representative
-   dataset and record the matching old application artifact.
-2. Restore it to a second loopback disposable database; never use the source
-   database as the rehearsal target.
-3. Capture the current-mode preflight artifact, apply the checked-in forward
-   migrations with the matching application artifact, and capture the final
-   artifact.
-4. Compare row counts, sampled keys, table OIDs, constraints, indexes, selected
-   historical-payload checksums, audit head, and money totals. A table move
-   must preserve its OID and all retained data.
-5. Restore the backup again to a different disposable database and verify the
-   documented recovery path.
-
-If a sanitized representative dataset is unavailable, add synthetic fixtures
-for each known failure class and label that result synthetic. Synthetic data
-does not prove compatibility with a real historical dataset.
-
-The planned metadata-only move budget is a 5-second `lock_timeout` and a
-60-second `statement_timeout`. Measure these on the populated rehearsal and
-adjust the reviewed budget if legitimate workloads need more time. Production
-blockers are never killed automatically. Full PostgreSQL replay, populated
-upgrade, and alternate-database restore remain required acceptance gates; a
-preflight dry-run or JSON export alone does not satisfy them.
+If the disposable replay or adoption checks fail, keep the deployment hold,
+preserve the database and migration output, and restore the verified backup
+when needed. Do not retry a failed baseline against a database with an
+unknown ledger or partial schema. Classify and reconcile that database before
+any further migration command.

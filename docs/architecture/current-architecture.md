@@ -9,7 +9,7 @@ authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, reviewers]
 scope: "all Prism portals, API, packages, and runtime boundaries"
-last_verified: "2026-10-06; runtime and context ownership reconciled with current staging source and the domain schema map"
+last_verified: "2026-10-06; runtime/context ownership and the seven-schema baseline reconciled with source and owner manifest"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
@@ -275,25 +275,26 @@ microservice or authorization boundary.
 | **Total** | **7 schemas** | **94 tables / 1,191 columns** | One write owner per table |
 
 The full assignment is in `apps/api/prisma/domain-ownership.json`. It records
-the 94 target tables, their current and target schemas, owners, and column
-counts. Of the 93 pre-cutover tables, the coordinated cutover moves 83. A
-separate owner migration adds the client floorplan-grant table. ADR-0008 and
-the persistence ownership register define the policy and transition.
+the 94 tables in the current Prisma model, their owner schemas, and column
+counts. The replacement migration history contains seven schema baselines,
+one per write domain. A fresh database reaches this model through those
+baselines; the history replacement does not alter an existing database.
+ADR-0008 and the persistence ownership register define the policy and
+pre-production adoption path.
 
 A PostgreSQL foreign key may connect records owned by the same domain.
 Cross-domain references remain scalar IDs and use an owner's public capability
 for writes that need current eligibility. The read-models module composes
 explicitly scoped, read-only projections. Do not introduce a Prisma relation or FK between
 different domains.
-The database remains one shared Postgres/Prisma boundary. The reviewed staging
-database baseline has ten physical schemas and 45 cross-domain foreign keys;
-it is transitional. The current migration target maps 94 tables to seven owner
-schemas, with 76 same-domain foreign keys and no cross-domain relations.
-Applying the coordinated schema migration to a shared database is a separate
-operational action; see the
-[domain schema cutover runbook](../runbooks/domain-schema-cutover.md).
-
-Replacing owner capabilities and relations precedes the coordinated move; source movement alone does not imply database isolation.
+The database remains one shared Postgres/Prisma boundary. The reviewed
+pre-rebaseline staging snapshot had ten physical schemas and 45 cross-domain
+foreign keys. The replacement clean-database baseline maps 94 tables to seven
+owner schemas, with 76 same-domain foreign keys and no cross-domain relations.
+Changing the migration source does not change an existing database. Adopt it
+only through the backed-up pre-production rebuild in the
+[domain schema runbook](../runbooks/domain-schema-cutover.md); schema names do
+not provide database or authorization isolation.
 
 Supplier withdrawal is a durable asynchronous boundary: `commercial` writes the
 withdrawal and audit, then uses the public platform-ops dispatch-writer contract

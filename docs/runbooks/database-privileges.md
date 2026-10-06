@@ -49,9 +49,10 @@ sources:
   chain lock row, links `previous_hash` to the head, and writes the new row in
   one transaction. The runtime role therefore needs no `UPDATE` or `DELETE` on
   `audit_logs`.
-- `audit_logs.event_id` is a scalar reference. Since the schema cutover there is
-  no foreign key to the event, so deleting or archiving an event never removes
-  audit rows. Physical event deletion remains unsupported.
+- `audit_logs.event_id` is a scalar reference in the current Prisma target. The
+  replacement baselines create no FK to the event; an existing staging database
+  may retain its legacy constraint until its separately approved rebuild.
+  Archiving does not remove audit rows. Physical event deletion remains unsupported.
 - New rows must carry lower-case SHA-256 digests. Constraints on
   `audit_logs` and `audit_chain_locks` reject anything else for every writer.
   They are `NOT VALID`, so historical rows are untouched and are handled by the

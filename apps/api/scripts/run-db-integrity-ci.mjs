@@ -213,29 +213,29 @@ async function seedUpgradeCheckpoint(connection) {
   try {
     await client.query('BEGIN');
     await client.query(
-      'INSERT INTO event_core.inquiries (id, client_name, email, event_name, event_date, client_type, normalized_email) '
+      'INSERT INTO event_lifecycle.inquiries (id, client_name, email, event_name, event_date, client_type, normalized_email) '
       + 'VALUES ($1, $2, $3, $4, $5, $6, $7)',
       [fixture.inquiryId, 'Upgrade checkpoint client', suffix + '@upgrade.test', 'Upgrade checkpoint event', '2032-06-18', 'corporate', suffix + '@upgrade.test'],
     );
     await client.query(
-      'INSERT INTO event_core.events (id, inquiry_id, client_name, event_name, event_date) VALUES ($1, $2, $3, $4, $5)',
+      'INSERT INTO event_lifecycle.events (id, inquiry_id, client_name, event_name, event_date) VALUES ($1, $2, $3, $4, $5)',
       [fixture.eventId, fixture.inquiryId, 'Upgrade checkpoint client', 'Upgrade checkpoint event', '2032-06-18'],
     );
     await client.query(
-      'INSERT INTO supplier_ops.supplier_categories (id, slug, name) VALUES ($1, $2, $3)',
+      'INSERT INTO commercial.supplier_categories (id, slug, name) VALUES ($1, $2, $3)',
       [fixture.categoryId, fixture.categoryId + '-slug', 'Upgrade checkpoint category'],
     );
     await client.query(
-      'INSERT INTO supplier_ops.suppliers (id, category_id, name, email) VALUES ($1, $2, $3, $4)',
+      'INSERT INTO commercial.suppliers (id, category_id, name, email) VALUES ($1, $2, $3, $4)',
       [fixture.supplierId, fixture.categoryId, 'Upgrade checkpoint supplier', suffix + '@supplier.test'],
     );
     await client.query(
-      'INSERT INTO supplier_ops.quote_requests (id, event_id, supplier_id, category_id, supplier_name, category, access_token) '
+      'INSERT INTO commercial.quote_requests (id, event_id, supplier_id, category_id, supplier_name, category, access_token) '
       + 'VALUES ($1, $2, $3, $4, $5, $6, $7)',
       [fixture.requestId, fixture.eventId, fixture.supplierId, fixture.categoryId, 'Upgrade checkpoint supplier', 'Upgrade checkpoint category', fixture.requestId + '-token'],
     );
     await client.query(
-      'INSERT INTO supplier_ops.quotes (id, event_id, request_id, supplier_id, category_id, supplier_name, category, amount) '
+      'INSERT INTO commercial.quotes (id, event_id, request_id, supplier_id, category_id, supplier_name, category, amount) '
       + 'VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
       [fixture.quoteId, fixture.eventId, fixture.requestId, fixture.supplierId, fixture.categoryId, 'Upgrade checkpoint supplier', 'Upgrade checkpoint category', 12500],
     );
