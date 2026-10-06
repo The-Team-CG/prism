@@ -281,6 +281,7 @@
 - **Updated:** documented the PostgreSQL 16 migration replay/equivalence workflow and preflight guidance for schema changes.
 - **Aligned:** updated the context contract and cutover runbook to describe the completed local schema migration and its verification limits; recorded that no tables or columns were removed and linked the evidence-based trim candidate register.
 - **Corrected:** replaced the legacy ten-schema tables in the persistence ownership register and migration runbook with the seven owner schemas, and updated the audit-chain runbook scope.
+- **Recorded:** documented the Operations row-level CHECK constraints.
 - **Recorded:** documented the structured JSON column shape checks and the floorplan canvas authority.
 - **Recorded:** documented the LiveOps same-event foreign keys.
 - **Recorded:** documented the Operations guest provenance foreign keys.
