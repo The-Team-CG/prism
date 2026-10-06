@@ -5,6 +5,8 @@ import type {
   ModerateGuestFeedbackInput,
   WithdrawGuestFeedbackConsentInput,
   PrismGuestCheckIn,
+  PrismGuestCheckInReceipt,
+  PrismGuestPrivacyClassification,
   PrismCoordinatorRegistrationEntry,
   PrismGuestRosterEntry,
   PrismGuestEventPass,
@@ -13,6 +15,7 @@ import type {
   GuestRosterSearchInput,
   UpdateWalkInPolicyInput,
   UpdateGuestVerificationInput,
+  UpdateGuestPrivacyClassificationInput,
 } from "@prism/types";
 import type { EventOpsActorQuery } from "./primitives";
 
@@ -22,7 +25,7 @@ export interface EventOpsGuestContract {
     checkIn(
       accessCode: string,
       input: CreateGuestCheckInInput,
-    ): Promise<PrismGuestCheckIn>;
+    ): Promise<PrismGuestCheckInReceipt>;
     feedback(
       accessCode: string,
       input: CreateGuestFeedbackInput,
@@ -81,6 +84,11 @@ export interface EventOpsGuestContract {
       eventId: string,
       input: CoordinatorWalkInCheckInInput,
     ): Promise<PrismCoordinatorRegistrationEntry>;
+    guestPrivacyClassification(eventId: string): Promise<PrismGuestPrivacyClassification>;
+    updateGuestPrivacyClassification(
+      eventId: string,
+      input: UpdateGuestPrivacyClassificationInput,
+    ): Promise<PrismGuestPrivacyClassification>;
     walkInPolicy(
       eventId: string,
       actor?: EventOpsActorQuery,

@@ -479,6 +479,43 @@ describe("createEventOpsClient", () => {
     });
   });
 
+  it("requests the pending registration review queue through the scoped roster API", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.guest.registrationRoster("evt_1", { reviewQueue: true });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:4000/api/guest/events/evt_1/roster/search?reviewQueue=true",
+      { headers: { "Content-Type": "application/json" } },
+    );
+  });
+
+  it("loads and updates guest privacy classification through the authenticated event contract", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({
+      eventId: "evt_1",
+      classification: "private",
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({
+      baseUrl: "http://localhost:4000/api",
+      getAuthToken: () => "pmcm-session-token",
+    });
+    await client.guest.guestPrivacyClassification("evt_1");
+    await client.guest.updateGuestPrivacyClassification("evt_1", { classification: "private" });
+
+    expect(fetchMock.mock.calls[0][0]).toBe("http://localhost:4000/api/events/evt_1/guest-privacy");
+    expect(fetchMock.mock.calls[1][0]).toBe("http://localhost:4000/api/events/evt_1/guest-privacy");
+    expect(new Headers(fetchMock.mock.calls[0][1]?.headers).get("authorization")).toContain("Bearer");
+    expect(fetchMock.mock.calls[1][1]).toMatchObject({
+      method: "PATCH",
+      body: JSON.stringify({ classification: "private" }),
+    });
+    expect(new Headers(fetchMock.mock.calls[1][1]?.headers).get("authorization")).toContain("Bearer");
+  });
+
   it("posts inquiry payloads", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: "inq_1" }), { status: 201 }));
     vi.stubGlobal("fetch", fetchMock);
