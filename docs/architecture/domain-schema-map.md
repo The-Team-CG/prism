@@ -9,7 +9,7 @@ authority: normative
 owner: "D (Anthony)"
 audience: [engineers, reviewers, operators, agents]
 scope: "PostgreSQL application schemas, model ownership, and domain foreign-key policy"
-last_verified: "domain-ownership manifest plus populated synthetic PostgreSQL replay on local s11-cutover, 2026-10-06"
+last_verified: "2026-10-06; schema and owner counts reconciled with the merged staging ownership manifest"
 sources:
   - id: ownership-manifest
     resource: "apps/api/prisma/domain-ownership.json"
@@ -103,9 +103,9 @@ flowchart LR
 ## After: target owner schemas
 
 The cutover moves 83 tables and leaves ten already in their target schema. It
-drops 45 cross-domain foreign keys and retains the 68 same-domain foreign
-keys. No cross-domain Prisma relation or PostgreSQL foreign key remains in the
-target.
+drops 45 cross-domain foreign keys. The current target has 75 same-domain
+foreign keys, including later owner-local integrity links. No cross-domain
+Prisma relation or PostgreSQL foreign key remains in the target.
 
 | Write domain | Target schema | Tables | Columns |
 | --- | --- | ---: | ---: |
@@ -118,19 +118,10 @@ target.
 | platform-ops | `platform_ops` | 14 | 201 |
 | **Total** | **7 schemas** | **93** | **1,181** |
 
-## Verification status
+## Operational boundary
 
-A disposable synthetic PostgreSQL clone was brought up through the branch's
-four pending forward migrations, then the cutover SQL was applied inside an
-explicit transaction. The rehearsal compared every manifest table before and
-after: all 93 kept their PostgreSQL relation OID, row count, and index count.
-The final catalog had the expected per-schema table totals, 68 same-schema
-foreign keys, and zero cross-schema foreign keys. Old mixed-owner schemas were
-removed by the migration.
-
-The SQL replay used `psql`; `prisma migrate deploy` was not exercised because
-the isolated rehearsal database did not provide Prisma-compatible login
-credentials. The cutover has not been applied to staging or production. A
-sanitized representative dataset, completed migration-ledger preflight,
-alternate-database restore, and release-window approval remain operational
-gates. See the [cutover runbook](../runbooks/domain-schema-cutover.md).
+The schema layout and constraints are merged into the `staging` source branch.
+That does not indicate that a shared staging or production database has been
+cut over. Database application remains a separate operational action; use the
+[cutover runbook](../runbooks/domain-schema-cutover.md) for its prerequisites
+and recovery path.

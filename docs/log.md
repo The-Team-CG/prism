@@ -2,6 +2,7 @@
 
 ## 2026-10-06
 
+- **Reconciled:** Updated the canonical schema map to the final staging source layout: seven owner schemas, 93 tables, 1,181 columns, 75 same-domain foreign keys, and no cross-domain foreign keys. Clarified that shared database application is a separate operational action.
 - **Mapped:** Added before/after schema diagrams and refreshed the 93-table / 1,181-column owner inventory. The baseline is ten physical schemas with mixed ownership; the target is seven domain schemas, one per write owner.
 - **Rehearsed:** On a disposable synthetic PostgreSQL clone, replayed the four pending forward migrations and the cutover SQL. All 93 manifest tables preserved relation OIDs, row counts, and index counts; the final catalog had 68 same-schema foreign keys and zero cross-schema foreign keys. This used psql because Prisma deploy authentication was unavailable; it did not modify staging or production.
 - **Bounded:** Floorplan draft batches now use `row_number()` partitioned by event ID, so one event cannot consume another event's draft limit. A rollback-only PostgreSQL fixture selected the newest draft independently for two events; four focused API suites passed (33 tests).
