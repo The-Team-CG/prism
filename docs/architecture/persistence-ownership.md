@@ -185,6 +185,12 @@ versioned projection writer; direct writes do not transfer event ownership.
 Drafts reference the event by scalar ID only; the cutover removed the
 draft-to-event foreign key.
 
+An event has at most one active draft. Approval deactivates the previous active
+draft inside the event-locked transaction, and a partial unique index on
+`floorplan.floor_plan_drafts(event_id) WHERE is_active` enforces it for every
+writer. Inactive drafts stay as history; the migration deactivates older
+duplicate actives deterministically and deletes nothing.
+
 ### Identity and access
 
 | Models | Physical schema | Write owner and boundary |
