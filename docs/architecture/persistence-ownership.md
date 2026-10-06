@@ -214,6 +214,13 @@ on a case-only collision; accounts are never merged automatically.
 | OpsDocument (all kinds) | event_lifecycle | event-lifecycle; document metadata, registration, eligibility and retention. |
 | `OpsComplianceRule`, `OpsComplianceCheck`, `OpsPostEventDocument`, `OpsEventInsight` | `event_lifecycle` | `event-lifecycle`; compliance, closure gates, post-event records, and lifecycle insights. |
 
+Lifecycle rows carry stable row-local CHECK constraints: non-negative event
+counters (walk-in threshold, proposal revisions, projection version), follow-up
+intervals, briefing guest counts and budgets, document sizes and compliance rule
+counts; compliance runs complete no earlier than they start, wrap-up deadlines
+are not before activation, freeze exception decisions are not before the
+request, and addendum versions start at 1. Financial deltas stay signed.
+
 OpsDocument metadata has one owner: event-lifecycle. Commercial retains
 business decisions and statuses, but validates and registers document IDs
 through the document-vault capability. New kinds require an explicit
