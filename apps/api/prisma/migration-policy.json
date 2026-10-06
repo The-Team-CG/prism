@@ -259,6 +259,11 @@
     }
   },
   "indexOwners": {
+    "operations": {
+      "registration_platforms_event_id_idx": [
+        "operations"
+      ]
+    },
     "staffing_ops": {
       "event_schedule_days_event_id_day_date_idx": [
         "live-ops"
