@@ -1948,8 +1948,6 @@ model OpsRegistrationPlatform {
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-
-  @@index([eventId], map: "registration_platforms_event_id_idx")
   @@map("registration_platforms")
   @@schema("operations")
 }
