@@ -76,35 +76,35 @@ function decodeEventCursor(cursor?: string): EventReadCursor | undefined {
 
 function visibleEventsWhere(actor: ResolvedEventOpsActor, assignedEventIds: string[] = []): Prisma.OpsEventWhereInput {
   if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return { archived: false };
-  if (actor.role === OpsUserRole.Client) {
-    if (actor.email?.trim()) {
-      return {
-        archived: false,
-        clientPortalStatus: 'unlocked',
-        inquiry: {
-          is: { email: { equals: actor.email.trim(), mode: 'insensitive' } },
-        },
-      };
-    }
-    if (actor.verified) return { id: { in: [] } };
-    if (actor.clientName?.trim()) {
-      return {
-        archived: false,
-        clientPortalStatus: 'unlocked',
-        clientName: { equals: actor.clientName.trim(), mode: 'insensitive' },
-      };
-    }
-    return { id: { in: [] } };
-  }
-  if (actor.role === OpsUserRole.Supplier) {
-    return actor.supplierId || actor.email?.trim()
-      ? { archived: false, id: { in: assignedEventIds } }
-      : { id: { in: [] } };
-  }
+  if (actor.role === OpsUserRole.Client) return clientVisibleEventsWhere(actor);
+  if (actor.role === OpsUserRole.Supplier) return assignedEventsWhere(Boolean(actor.supplierId || actor.email?.trim()), assignedEventIds);
   if (actor.role === OpsUserRole.Coordinator) {
-    return actor.coordinatorId || actor.id || actor.email?.trim()
-      ? { archived: false, id: { in: assignedEventIds } }
-      : { id: { in: [] } };
+    return assignedEventsWhere(Boolean(actor.coordinatorId || actor.id || actor.email?.trim()), assignedEventIds);
+  }
+  return { id: { in: [] } };
+}
+
+function assignedEventsWhere(hasIdentity: boolean, assignedEventIds: string[]): Prisma.OpsEventWhereInput {
+  return hasIdentity ? { archived: false, id: { in: assignedEventIds } } : { id: { in: [] } };
+}
+
+function clientVisibleEventsWhere(actor: ResolvedEventOpsActor): Prisma.OpsEventWhereInput {
+  if (actor.email?.trim()) {
+    return {
+      archived: false,
+      clientPortalStatus: 'unlocked',
+      inquiry: {
+        is: { email: { equals: actor.email.trim(), mode: 'insensitive' } },
+      },
+    };
+  }
+  if (actor.verified) return { id: { in: [] } };
+  if (actor.clientName?.trim()) {
+    return {
+      archived: false,
+      clientPortalStatus: 'unlocked',
+      clientName: { equals: actor.clientName.trim(), mode: 'insensitive' },
+    };
   }
   return { id: { in: [] } };
 }

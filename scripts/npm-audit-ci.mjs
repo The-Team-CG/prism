@@ -7,6 +7,11 @@ import { execFileSync } from "node:child_process";
 const ALLOWED_ADVISORIES = new Set([
   "GHSA-3f6p-5ww8-9rcr",
   "GHSA-rgwj-5xj2-c3m3",
+  // braces uncontrolled resource consumption, reached only through eslint-config-next@14 ->
+  // @next/eslint-plugin-next -> fast-glob -> micromatch. These run in lint tooling on repository-controlled
+  // glob patterns, never on request input or in a shipped bundle. Clearing it needs the Next 15+ lint config.
+  // Reviewed 2026-10-06; revisit by 2026-12-01 or when the apps move to Next 15.
+  "GHSA-vfj7-8cjw-p6xm",
 ]);
 
 function advisoryIds(vulnerability) {

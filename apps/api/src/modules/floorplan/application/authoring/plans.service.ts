@@ -163,27 +163,7 @@ export class PlansService {
 
       if (Object.keys(requestedChanges).length === 0) return latestPlan;
 
-      let saved: PlanWithObjects;
-      if (objects !== undefined) {
-        const typedObjects = objects ?? [];
-        saved = await updatePlanWithObjects(tx, planId, scalarChanges, typedObjects, expectedUpdatedAt);
-      } else {
-        saved = await tx.floorPlan
-          .update({
-            where: { id: planId, updatedAt: expectedUpdatedAt },
-            data: floorPlanScalarPatch(scalarChanges),
-            include: {
-              objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] },
-              opsDraft: { select: { eventId: true, sourceType: true, status: true } },
-            },
-          })
-          .catch((error: unknown) => {
-            if (isPrismaRecordMissing(error)) {
-              throw new ConflictException('Floorplan changed since it was loaded; reload before saving');
-            }
-            throw error;
-          });
-      }
+      const saved = await this.savePlanChanges(tx, planId, scalarChanges, objects, expectedUpdatedAt);
 
       await writeAudit(
         this.auditWriter,
@@ -213,6 +193,33 @@ export class PlansService {
     return this.mapPlan(updated, objects);
   }
 
+  private async savePlanChanges(
+    tx: Prisma.TransactionClient,
+    planId: string,
+    scalarChanges: Omit<UpdatePlanChanges, 'objects'>,
+    objects: UpdatePlanChanges['objects'],
+    expectedUpdatedAt: Date,
+  ): Promise<PlanWithObjects> {
+    if (objects !== undefined) {
+      return updatePlanWithObjects(tx, planId, scalarChanges, objects ?? [], expectedUpdatedAt);
+    }
+    return tx.floorPlan
+      .update({
+        where: { id: planId, updatedAt: expectedUpdatedAt },
+        data: floorPlanScalarPatch(scalarChanges),
+        include: {
+          objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] },
+          opsDraft: { select: { eventId: true, sourceType: true, status: true } },
+        },
+      })
+      .catch((error: unknown) => {
+        if (isPrismaRecordMissing(error)) {
+          throw new ConflictException('Floorplan changed since it was loaded; reload before saving');
+        }
+        throw error;
+      });
+  }
+
   private async assertCanReadPlan(plan: PlanWithObjects, actor: ResolvedEventOpsActor) {
     const eventId = plan.opsDraft?.eventId ?? plan.eventId ?? undefined;
     if (actor.role === OpsUserRole.System) return;
@@ -223,6 +230,15 @@ export class PlansService {
       await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'floorplan', eventId);
       throw new ForbiddenException('A verified PMCM identity is required to read this floorplan');
     }
+    await this.assertClientCanReadPreference(plan, actor, eventId, lifecycleEvent);
+  }
+
+  private async assertClientCanReadPreference(
+    plan: PlanWithObjects,
+    actor: ResolvedEventOpsActor,
+    eventId: string | undefined,
+    lifecycleEvent: FloorplanEventReference | null,
+  ) {
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Client], 'floorplan', eventId);
     const draft = plan.opsDraft;
     if (!draft || !eventId || draft.sourceType !== 'client_preference' || draft.status !== 'client_submitted') {
@@ -248,43 +264,57 @@ export class PlansService {
   ) {
     const eventId = plan.opsDraft?.eventId ?? plan.eventId ?? undefined;
     if (actor.role === OpsUserRole.Client) {
-      if (!lifecycleEvent || !eventId) throw new NotFoundException('Event not found');
-      const draft = plan.opsDraft;
-      if (!draft || draft.sourceType !== 'client_preference' || draft.status !== 'client_submitted') {
-        await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'official floorplan mutation', eventId);
-        throw new ForbiddenException('Official floorplans are read-only for clients');
-      }
-      if (!actor.verified || !actor.email?.trim()) {
-        await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'client floorplan preference mutation', eventId);
-        throw new ForbiddenException('A verified client identity is required to update this preference');
-      }
-      await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Client], 'floorplan', eventId);
-      await this.eventAccessPolicyService.requireCanReadEvent(
-        actor,
-        this.toReadableEvent(lifecycleEvent),
-        'client floorplan preference',
-      );
-      const forbiddenFields = Object.keys(changes).filter(
-        (field) => !['venue', 'width', 'height', 'gridSize', 'pax', 'objects'].includes(field),
-      );
-      if (forbiddenFields.length > 0) {
-        await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'client floorplan preference mutation', eventId);
-        throw new ForbiddenException('Clients may only update layout preferences');
-      }
+      await this.assertClientCanUpdatePreference(plan, actor, changes, lifecycleEvent, eventId);
     } else {
-      await this.eventAccessPolicyService.requireActorRole(
-        actor,
-        [OpsUserRole.PmcmAdmin, OpsUserRole.System],
-        'official floorplan mutation',
-        eventId,
-      );
-      if (actor.role === OpsUserRole.PmcmAdmin && !actor.verified) {
-        await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'official floorplan mutation', eventId);
-        throw new ForbiddenException('A verified PMCM identity is required to update this floorplan');
-      }
+      await this.assertOfficialUpdater(actor, eventId);
     }
 
     this.assertPlanMutableState(plan, actor, lifecycleEvent);
+  }
+
+  private async assertClientCanUpdatePreference(
+    plan: PlanWithObjects,
+    actor: ResolvedEventOpsActor,
+    changes: UpdatePlanChanges,
+    lifecycleEvent: FloorplanEventReference | null,
+    eventId: string | undefined,
+  ) {
+    if (!lifecycleEvent || !eventId) throw new NotFoundException('Event not found');
+    const draft = plan.opsDraft;
+    if (!draft || draft.sourceType !== 'client_preference' || draft.status !== 'client_submitted') {
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'official floorplan mutation', eventId);
+      throw new ForbiddenException('Official floorplans are read-only for clients');
+    }
+    if (!actor.verified || !actor.email?.trim()) {
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'client floorplan preference mutation', eventId);
+      throw new ForbiddenException('A verified client identity is required to update this preference');
+    }
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Client], 'floorplan', eventId);
+    await this.eventAccessPolicyService.requireCanReadEvent(
+      actor,
+      this.toReadableEvent(lifecycleEvent),
+      'client floorplan preference',
+    );
+    const forbiddenFields = Object.keys(changes).filter(
+      (field) => !['venue', 'width', 'height', 'gridSize', 'pax', 'objects'].includes(field),
+    );
+    if (forbiddenFields.length > 0) {
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'client floorplan preference mutation', eventId);
+      throw new ForbiddenException('Clients may only update layout preferences');
+    }
+  }
+
+  private async assertOfficialUpdater(actor: ResolvedEventOpsActor, eventId: string | undefined) {
+    await this.eventAccessPolicyService.requireActorRole(
+      actor,
+      [OpsUserRole.PmcmAdmin, OpsUserRole.System],
+      'official floorplan mutation',
+      eventId,
+    );
+    if (actor.role === OpsUserRole.PmcmAdmin && !actor.verified) {
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'official floorplan mutation', eventId);
+      throw new ForbiddenException('A verified PMCM identity is required to update this floorplan');
+    }
   }
 
   private assertPlanMutableState(

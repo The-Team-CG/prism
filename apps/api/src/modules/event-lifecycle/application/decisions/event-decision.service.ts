@@ -65,30 +65,11 @@ export class EventDecisionService {
     prisma: Prisma.TransactionClient | PrismaService = this.prisma,
   ) {
     if (replay.eventId !== eventId) throw new BadRequestException('Decision idempotency key belongs to another event');
-    const impact = replay.financialImpact;
-    const storedImpact = impact && typeof impact === 'object' && !Array.isArray(impact) ? impact : {};
+    const storedImpact = this.asJsonRecord(replay.financialImpact);
     const hasStoredNewEventDate = Object.prototype.hasOwnProperty.call(storedImpact, 'newEventDate');
-    let targetDateMatches = (storedImpact.newEventDate ?? null) === (input.newEventDate ?? null);
-    if (!hasStoredNewEventDate) {
-      const assignmentImpact = replay.assignmentImpact;
-      const storedAssignmentImpact = assignmentImpact && typeof assignmentImpact === 'object' && !Array.isArray(assignmentImpact)
-        ? assignmentImpact
-        : {};
-      const reschedule = storedAssignmentImpact.reschedule;
-      const storedReschedule = reschedule && typeof reschedule === 'object' && !Array.isArray(reschedule) ? reschedule : {};
-      const storedTarget = storedReschedule.toDate;
-      if (typeof storedTarget === 'string') {
-        targetDateMatches = Boolean(input.newEventDate && this.sameEventDate(input.newEventDate, storedTarget));
-      } else if (replay.decision === 'postponed' && input.newEventDate) {
-        // Legacy records did not persist the requested date in financialImpact.
-        // Use the persisted reschedule impact when present; otherwise current event
-        // state is the only available proof and may reject a replay after later changes.
-        const currentEvent = await prisma.opsEvent.findUnique({ where: { id: eventId }, select: { eventDate: true } });
-        targetDateMatches = Boolean(currentEvent && this.sameEventDate(input.newEventDate, currentEvent.eventDate));
-      } else {
-        targetDateMatches = !input.newEventDate;
-      }
-    }
+    const targetDateMatches = hasStoredNewEventDate
+      ? (storedImpact.newEventDate ?? null) === (input.newEventDate ?? null)
+      : await this.legacyTargetDateMatches(replay, eventId, input, prisma);
     const samePayload = replay.decision === input.decision
       && replay.reason === input.reason
       && replay.supplierImpact === input.supplierImpact
@@ -97,6 +78,31 @@ export class EventDecisionService {
       && targetDateMatches;
     if (!samePayload) throw new BadRequestException('Decision idempotency key was reused for different content');
     return replay;
+  }
+
+  private asJsonRecord(value: unknown): Record<string, unknown> {
+    return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  }
+
+  private async legacyTargetDateMatches(
+    replay: OpsEventDecision,
+    eventId: string,
+    input: EventDecisionInput,
+    prisma: Prisma.TransactionClient | PrismaService,
+  ): Promise<boolean> {
+    const storedReschedule = this.asJsonRecord(this.asJsonRecord(replay.assignmentImpact).reschedule);
+    const storedTarget = storedReschedule.toDate;
+    if (typeof storedTarget === 'string') {
+      return Boolean(input.newEventDate && this.sameEventDate(input.newEventDate, storedTarget));
+    }
+    if (replay.decision === 'postponed' && input.newEventDate) {
+      // Legacy records did not persist the requested date in financialImpact.
+      // Use the persisted reschedule impact when present; otherwise current event
+      // state is the only available proof and may reject a replay after later changes.
+      const currentEvent = await prisma.opsEvent.findUnique({ where: { id: eventId }, select: { eventDate: true } });
+      return Boolean(currentEvent && this.sameEventDate(input.newEventDate, currentEvent.eventDate));
+    }
+    return !input.newEventDate;
   }
 
   private sameEventDate(requestedDate: string, storedDate: Date | string): boolean {
