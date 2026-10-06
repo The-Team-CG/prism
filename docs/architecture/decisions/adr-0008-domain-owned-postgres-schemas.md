@@ -4,12 +4,12 @@ title: "One PostgreSQL schema per owning domain"
 description: "Assign every business table to exactly one write domain and keep foreign keys within that domain."
 tags: [architecture, decision, persistence, ddd, postgres]
 status: canonical
-updated: "2026-10-03"
+updated: "2026-10-06"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, reviewers, operators]
 scope: "apps/api Prisma models, PostgreSQL namespaces, relations, and cross-context persistence contracts"
-last_verified: "approved manifest validated against 91 source models at staging 7f64c0b"
+last_verified: "2026-10-06; seven baselines replayed on disposable PostgreSQL 16 and matched the Prisma schema"
 decision_date: "2026-10-03"
 sources:
   - id: approved-ownership
@@ -29,12 +29,12 @@ sources:
 - **Decision:** Every business table has one owning write domain and resides in that domain's PostgreSQL schema in the target design.
 - **Foreign keys:** Allowed within one domain; prohibited between different domains.
 - **Deployment:** Keep one PostgreSQL database, one Prisma client, and the existing NestJS modular monolith.
-- **Transition:** The accepted target does not claim that staging has already moved. Replace cross-domain writes and relations first, then move namespaces and remove external constraints in one rehearsed release.
+- **Transition:** The approved pre-production history replacement uses seven owner-schema baselines on a clean database. Existing databases are unchanged and require a verified backup plus an approved rebuild before adopting the new ledger.
 - **Verify with:** The approved ownership manifest, persistence guard, PostgreSQL replay/equivalence checks, and a final zero-cross-domain-FK catalog query.
 
 ## Context
 
-The codebase has seven write domains but the reviewed staging database has ten populated application schemas. Some schemas contain tables owned by multiple contexts, and 45 of 112 reviewed foreign keys cross domain boundaries under the approved owner map. A PostgreSQL namespace therefore does not consistently represent business ownership, and a cross-domain relation can make one domain's deletion policy mutate another domain's evidence.
+The codebase has seven write domains. The pre-rebaseline staging snapshot had ten populated application schemas and 45 cross-domain foreign keys among 112 reviewed constraints. Some legacy schemas mixed tables owned by different contexts, and cross-domain delete actions could affect another domain's evidence. The replacement baseline now defines one schema per owner and no cross-domain relations on a fresh database.
 
 Prism remains an internal PMCM event operating system and a modular monolith. This decision makes write ownership explicit without introducing microservices, separate databases, or a claim that schemas alone enforce authorization.
 
@@ -52,7 +52,7 @@ The target schemas are:
 | identity-access | identity_access | Accounts, approval requests, password recovery and account-authentication state |
 | platform-ops | platform_ops | Audit, security, privacy orchestration, notifications, AI governance, storage metadata and command-receipt persistence |
 
-The complete assignment of all 91 Prisma models, current namespaces, target namespaces, and column counts is maintained in apps/api/prisma/domain-ownership.json. Each model is assigned exactly once. A model move or reassignment updates that manifest and the canonical persistence register in the same review.
+The complete assignment of all 94 current Prisma models, owner schemas, and column counts is maintained in apps/api/prisma/domain-ownership.json. Each model is assigned exactly once. A model move or reassignment updates that manifest and the canonical persistence register in the same review.
 
 A foreign key may target a table owned by the same domain. A foreign key may not target another domain, even when both tables are in the same current physical schema. Cross-domain identifiers remain scalar values. The writing owner validates them through a focused public capability or transaction-aware contract when the operation requires live eligibility. Read-only cross-domain composition remains in read-models with explicit scope and public projections.
 
@@ -68,26 +68,38 @@ The schema boundary is a persistence organization rule, not a security boundary.
 - Platform-ops coordinates privacy requests. Each data-owning domain performs its own redaction/retention mutation through an owner capability; global audit and issued evidence follow their own retention rules.
 - Coordinator reliability notes belong to Operations, matching the staffing writer and approved model manifest.
 
-## Transition and constraints
+## Migration-history adoption (approved 2026-10-06)
 
-1. Preserve all applied migration directories and their SQL byte-for-byte. Record new forward migrations only.
-2. Keep the current physical schema map documented as transitional until owner capabilities and persistence tools are ready.
-3. Before dropping a cross-domain FK or Prisma relation, prove that every write path uses the owning capability, historical reads survive, and deletion/disable behavior is explicit.
-4. Convert only the approved 45 cross-domain FKs to scalar references in a coordinated, rehearsed namespace release. Keep same-domain FKs and add justified local constraints after orphan/event-scope preflight.
-5. Move all 83 reassigned tables without changing IDs, rows, columns, or audit/receipt/outbox history. The exact table-to-schema transition comes from the manifest, not a broad schema rename.
-6. Rehearse clean replay, a populated upgrade, query/tool/fixture updates, restore, and application/schema compatibility before integration.
-7. Do not treat removal of an FK as a data cleanup. Preserve the identifier and replace its behavior with an owner contract.
+The owner approved replacing the pre-production migration ledger before real
+data is introduced. The former 102 migration folders are replaced by seven
+ordered, owner-scoped schema baselines. The order is deterministic and each
+baseline creates objects for exactly one domain schema. Same-domain foreign
+keys remain; cross-domain foreign keys are not recreated. This is a
+clean-database baseline, not a forward data migration.
 
-The reviewed baseline includes 112 applied FKs: 67 classified local and 45 classified cross-domain. The approved quote-request repair adds a further same-Commercial constraint; this is a valid local integrity relation. Do not carry the baseline count forward after migrations without querying the resulting catalog.
+The source change does not rewrite an existing database. An existing
+pre-production database may still have the old Prisma ledger and physical
+constraints. Before adopting the new history, take a backup, verify a restore,
+confirm any data is disposable with its owner, and rebuild only the approved
+pre-production database. If data must be kept, restore the retired migration
+chain and design a separate data-preserving conversion.
+
+1. Keep cross-domain IDs as scalar values and validate live references through owner capabilities.
+2. Keep same-domain foreign keys and add only justified local constraints after owner review.
+3. Do not interpret schema ownership as database privilege isolation.
+4. Rehearse fresh replay, restore, schema equivalence, and application compatibility before rebuilding a shared pre-production database.
+5. Never apply this pre-production history replacement to production; production requires its own plan.
+
+The legacy staging snapshot recorded 112 FKs: 67 classified local and 45 cross-domain. The quote-request repair added a same-Commercial constraint in that history. The new clean-database baseline contains 76 same-domain FKs and zero cross-domain FKs, confirmed by the local PostgreSQL replay.
 
 ## Consequences
 
 - Each owner has a clear namespace and can enforce local invariants with same-domain keys and constraints.
-- Cross-domain deletion no longer cascades into another owner's tables. Owners must define retention, redaction, archival, and missing-owner behavior before the coordinated cutover.
+- Fresh databases created from these baselines do not cascade deletes across domains. Existing databases keep their legacy constraints until the approved rebuild; owner retention, redaction, archival, and missing-owner behavior remains explicit.
 - Scalar cross-domain IDs require explicit capability checks for writes that depend on the referenced object. Read joins remain authorized and bounded.
-- The Prisma schema temporarily contains external relations until replacement capabilities are implemented. The persistence migration is not complete until those relations and physical constraints are removed together.
+- The current Prisma schema and fresh-database baselines contain no cross-domain relations. Existing databases may still retain legacy physical constraints until separately rebuilt.
 - One database and deployable remain; no independent data plane is implied.
 
 ## Verification
 
-Run the migration and boundary checks for source changes. During the coordinated schema release, require PostgreSQL 16 clean and populated replay, exact Prisma/catalog equivalence, a zero-cross-domain-FK query, all owner behavior suites, and tested restore/recovery. Static owner files or Prisma validation alone do not prove a live catalog is aligned.
+The seven baselines were applied to a fresh disposable PostgreSQL 16 database; migration status was current, the Prisma/catalog diff was empty, and the catalog showed 94 tables, 76 same-domain FKs, and zero cross-domain FKs. Existing staging adoption remains a separate backup-and-rebuild operation.
