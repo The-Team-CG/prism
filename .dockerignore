@@ -5,7 +5,6 @@
 .claude
 .codex
 .local-dev
-.playwright-cli
 .tmp
 .tmp-pmcm-standalone-assets
 .turbo

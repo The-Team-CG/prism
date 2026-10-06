@@ -17,7 +17,7 @@ single agent entrypoint.
 | Import packages by role (table below); thin `lib/prism-api` | Re-export domain types from app facades; fat god facades for new code |
 | Name owner goal A–D on redesign/capability work | Treat owners as loose assignees |
 | Typecheck + focused behavior tests in touched workspaces; `check:boundaries` when imports move | Commit secrets / `.env*` with credentials; casual `db:reset` |
-| Update root `CHANGELOG.md` for every user-requested code, architecture, documentation, or operational delivery; update `docs/log.md` for documentation-bundle changes | Leave a delivery undocumented |
+| Update root `CHANGELOG.md` for each delivery with a concise, notable user/developer effect; update `docs/log.md` only for documentation-bundle structure or contract changes | Turn either log into a PR, commit, or test diary |
 | Preserve unrelated uncommitted work | Drive-by reverts outside task scope |
 
 **Owners:** A Maxine (UX) · B Francis (PMCM ops) · C Ethan (external portals) · D Anthony (platform trust).
@@ -161,6 +161,7 @@ npm --workspace @prism/api-client run test
 - Prefer extending the nearest behavior-oriented test over creating a new test file. Combine trivial cases into one table-driven or grouped test when that stays readable.
 - When tests change, use `.github/pull_request_template.md` to summarize the observable behavior and focused checks. Reviewers assess test value from the behavior covered; a template response and green CI do not prove that a test is useful.
 - While editing, run focused checks for the touched module/workspace. Defer unrelated full suites and portal smoke tests to release milestones or final verification.
+- Keep broad CI gates until timing data supports a safe change. Any selective CI must include affected workspaces and dependents, preserve migration/security/invariant gates, and fall back to full checks when impact mapping is uncertain.
 
 ---
 
@@ -232,7 +233,7 @@ artifacts from Git history if forensic context is needed.
 | Governance and readiness | `docs/product/evolution-governance.md`, `docs/product/readiness-foundation.md` |
 | Redesign inventory | `docs/product/redesign-inventory.md` |
 | Runbooks and demo accounts | `docs/runbooks/` |
-| Current system and target state | `docs/product/actual-system.md`, `docs/product/future-state.md` |
+| Target system state | `docs/product/future-state.md` |
 | V4 baseline catalog | `docs/reference/prism-v4/complete-feature-catalog.md` (traceability; not a hard ceiling) |
 
 Typed concept documents use OKF-style frontmatter with authority, owner, scope,

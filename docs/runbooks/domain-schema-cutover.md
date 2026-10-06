@@ -9,7 +9,7 @@ authority: operational
 owner: "D (Anthony)"
 audience: [developers, reviewers, QA, operators, agents]
 scope: "Read-only DDD preflight and populated rehearsal for the Prism domain schema cutover"
-last_verified: "local s11-cutover; migration and map reviewed; populated disposable PostgreSQL replay verified with psql; Prisma migrate deploy not exercised"
+last_verified: "2026-10-06; ownership manifest and migration map reviewed; populated disposable PostgreSQL replay verified with psql; Prisma migrate deploy not exercised"
 sources:
   - id: persistence-register
     resource: "docs/architecture/persistence-ownership.md"
@@ -22,6 +22,16 @@ sources:
     title: "Prisma migration operations"
 ---
 # Domain schema cutover rehearsal
+
+## At a glance
+
+- **Purpose:** Inspect a disposable PostgreSQL copy before and after the DDD schema move.
+- **Authority:** Operational preflight and rehearsal guide; it does not authorize production migration.
+- **Owner:** D (Anthony).
+- **Scope:** Read-only checks, populated rehearsal, evidence retention, and recovery for the domain-schema cutover.
+- **Use when:** Preparing or reviewing a disposable cutover rehearsal.
+- **Change when:** The ownership manifest, preflight, backup, or cutover migrations change.
+- **Verify with:** The referenced preflight and migration runbook; this documents psql replay evidence and states that Prisma migrate deploy remains unverified.
 
 Use this runbook to inspect a disposable PostgreSQL copy before applying the
 domain-schema cutover migration that moves tables to their owning schemas and

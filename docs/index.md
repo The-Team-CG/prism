@@ -18,8 +18,11 @@ scope, verification, and source/provenance entries.
    contexts, seams, frontend structure, and accepted decisions.
 3. [Product](product/index.md) — current system, product direction, feature
    decisions, readiness, and redesign evidence.
-4. [Runbooks](runbooks/index.md) — local operation, database migrations, Docker, and demo accounts.
-5. [Reference](reference/index.md) — source-preserving V4 catalog material.
+4. [Roadmap](roadmap/index.md) — active plans and explicit product/activation
+   decisions.
+5. [Runbooks](runbooks/index.md) — local operation, database migrations, Docker,
+   and demo accounts.
+6. [Reference](reference/index.md) — source-preserving V4 catalog material.
 
 ## Metadata at a glance
 

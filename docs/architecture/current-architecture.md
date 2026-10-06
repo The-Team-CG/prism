@@ -265,26 +265,33 @@ microservice or authorization boundary.
 
 | Write domain | Target schema | Model/column inventory | Ownership |
 | --- | --- | ---: | --- |
-| event-lifecycle | event_lifecycle | 18 tables / 280 columns | Inquiry, event lifecycle, document metadata, briefing, compliance, decisions, freeze/addenda, closure |
+| event-lifecycle | event_lifecycle | 19 tables / 290 columns | Inquiry, event lifecycle, document metadata, briefing, compliance, decisions, freeze/addenda, closure, client floorplan grants |
 | commercial | commercial | 28 tables / 319 columns | Supplier network, quotes, communications, estimates, proposals, billing, payments |
 | operations | operations | 12 tables / 142 columns | Coordinator pool, assignments, acknowledgments, reliability history, guest operations |
 | live-ops | live_ops | 10 tables / 122 columns | Event-day tasks, schedules, operators, handoffs, end-of-day, issues and logs |
 | floorplan | floorplan | 7 tables / 75 columns | Official plans, drafts, projection clock, templates, published copies, review state |
 | identity-access | identity_access | 4 tables / 42 columns | Accounts, approvals, password recovery, authentication state |
 | platform-ops | platform_ops | 14 tables / 201 columns | Privacy requests and legal holds, security, login history, audit, notifications, AI, storage, command receipts |
-| **Total** | **7 schemas** | **93 tables / 1,181 columns** | One write owner per table |
+| **Total** | **7 schemas** | **94 tables / 1,191 columns** | One write owner per table |
 
-The full assignment is in apps/api/prisma/domain-ownership.json. It records
-each of the 93 models once, including its current schema, owner, target schema,
-table name and column count. ADR-0008 and the persistence ownership register
-define the policy and transitional behavior.
+The full assignment is in `apps/api/prisma/domain-ownership.json`. It records
+the 94 target tables, their current and target schemas, owners, and column
+counts. Of the 93 pre-cutover tables, the coordinated cutover moves 83. A
+separate owner migration adds the client floorplan-grant table. ADR-0008 and
+the persistence ownership register define the policy and transition.
 
 A PostgreSQL foreign key may connect records owned by the same domain.
 Cross-domain references remain scalar IDs and use an owner's public capability
-for writes that need current eligibility. Read-models composes explicitly
-scoped, read-only projections. Do not introduce a Prisma relation or FK between
+for writes that need current eligibility. The read-models module composes
+explicitly scoped, read-only projections. Do not introduce a Prisma relation or FK between
 different domains.
-The database remains one shared Postgres/Prisma boundary. The staging database baseline has ten physical schemas and 45 cross-domain foreign keys; it is transitional. The merged staging source maps 93 models to seven owner schemas, with 75 same-domain foreign keys and no cross-domain relations. Same-domain relations remain permitted. Applying the coordinated schema migration to a shared database is a separate operational action; see the [domain schema cutover runbook](../runbooks/domain-schema-cutover.md).
+The database remains one shared Postgres/Prisma boundary. The reviewed staging
+database baseline has ten physical schemas and 45 cross-domain foreign keys;
+it is transitional. The current migration target maps 94 tables to seven owner
+schemas, with 76 same-domain foreign keys and no cross-domain relations.
+Applying the coordinated schema migration to a shared database is a separate
+operational action; see the
+[domain schema cutover runbook](../runbooks/domain-schema-cutover.md).
 
 Replacing owner capabilities and relations precedes the coordinated move; source movement alone does not imply database isolation.
 
