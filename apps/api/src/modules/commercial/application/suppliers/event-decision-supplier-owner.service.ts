@@ -14,7 +14,7 @@ export class EventDecisionSupplierOwnerService implements EventDecisionSupplierO
   async releaseEventSupplierObligations(eventId: string, transaction: PrismTransactionContext) {
     const result = await transaction.prisma.opsSupplierQuoteRequest.updateMany({
       where: { eventId, assignmentStatus: { not: 'withdrawn' } },
-      data: { assignmentStatus: 'withdrawn' },
+      data: { assignmentStatus: 'withdrawn', accessTokenRevokedAt: new Date() },
     });
     return result.count;
   }

@@ -618,6 +618,8 @@ model OpsSupplierQuoteRequest {
   message                    String    @default("")
   dueDate                    DateTime? @map("due_date")
   accessToken                String    @unique(map: "quote_requests_access_token_key") @map("access_token")
+  accessTokenExpiresAt       DateTime? @map("access_token_expires_at") @db.Timestamptz(6)
+  accessTokenRevokedAt       DateTime? @map("access_token_revoked_at") @db.Timestamptz(6)
   confidentialBid            Boolean   @default(false) @map("confidential_bid")
   status                     String    @default("open")
   assignmentStatus           String    @default("pending_confirmation") @map("assignment_status")
@@ -1947,8 +1949,6 @@ model OpsRegistrationPlatform {
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-
-  @@index([eventId], map: "registration_platforms_event_id_idx")
   @@map("registration_platforms")
   @@schema("operations")
 }
