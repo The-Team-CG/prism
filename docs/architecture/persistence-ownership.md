@@ -217,6 +217,14 @@ business owner and lifecycle metadata contract.
 | `OpsBillingSource`, `OpsBillingStatement`, `OpsPaymentMilestone`, `OpsPaymentRecord` | `commercial` | `commercial`; proposal-to-billing conversion, statements, milestones, and payment history. |
 | Commercial contract and billing models | commercial | commercial; retains business decisions and scalar document IDs. Lifecycle alone owns document metadata and validates references through its public capability. |
 
+Quote-request links carry a bearer token with an expiry and a revocation time
+(`quote_requests.access_token_expires_at`, `access_token_revoked_at`). New
+tokens are 256-bit random values that expire after 90 days; links that existed
+before the migration keep working for 90 days from the migration and then
+expire; withdrawing a supplier assignment revokes its link immediately. The
+plaintext `access_token` column remains for the PMCM link display and is the
+next retirement step.
+
 ### Operations and live operations
 
 | Models | Physical schema | Write owner and boundary |
