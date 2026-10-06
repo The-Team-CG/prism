@@ -1846,7 +1846,7 @@ model OpsGuestCheckIn {
   marketingConsentAccepted Boolean  @default(false) @map("marketing_consent_accepted")
   checkedInAt              DateTime @default(now()) @map("checked_in_at")
 
-  rosterEntry OpsGuestRosterEntry? @relation(fields: [rosterEntryId], references: [id], onDelete: SetNull)
+  rosterEntry OpsGuestRosterEntry? @relation(fields: [rosterEntryId, eventId], references: [id, eventId], onDelete: Restrict, map: "check_ins_roster_entry_event_fkey")
 
   @@index([eventId, checkedInAt], map: "check_ins_event_id_checked_in_at_idx")
   @@index([eventId, guestName], map: "check_ins_event_id_guest_name_idx")
@@ -1876,6 +1876,9 @@ model OpsGuestRosterEntry {
 
   checkIns OpsGuestCheckIn[]
 
+  importBatch OpsGuestRosterImport? @relation(fields: [importBatchId, eventId], references: [id, eventId], onDelete: Restrict, map: "guest_roster_entries_import_event_fkey")
+
+  @@unique([id, eventId], map: "guest_roster_entries_id_event_id_key")
   @@unique([eventId, sourceKey], map: "guest_roster_event_source_key")
   @@index([eventId, normalizedName], map: "guest_roster_event_name_idx")
   @@index([eventId, eligibility], map: "guest_roster_event_eligibility_idx")
@@ -1893,8 +1896,10 @@ model OpsGuestRosterImport {
   rowCount     Int      @map("row_count")
   rawFileUploadBlocked Boolean @default(true) @map("raw_file_upload_blocked")
 
+  entries OpsGuestRosterEntry[]
 
   @@index([eventId, importedAt], map: "guest_roster_imports_event_imported_at_idx")
+  @@unique([id, eventId], map: "guest_roster_imports_id_event_id_key")
   @@map("guest_roster_imports")
   @@schema("operations")
 }
