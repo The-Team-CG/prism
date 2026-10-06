@@ -123,13 +123,8 @@ export class AuthSessionService {
     const payload = this.verifySignedPayload(token);
     if (
       !isRecord(payload) ||
-      typeof payload.sub !== 'string' ||
-      typeof payload.email !== 'string' ||
-      payload.role !== 'pmcm-admin' ||
-      typeof payload.jti !== 'string' ||
-      !/^[A-Za-z0-9_-]{43}$/.test(payload.jti) ||
-      (payload.sessionVersion !== undefined &&
-        (typeof payload.sessionVersion !== 'number' || !Number.isSafeInteger(payload.sessionVersion) || payload.sessionVersion < 0)) ||
+      !this.hasTwoFactorIdentity(payload) ||
+      !this.isValidSessionVersion(payload.sessionVersion) ||
       (payload.purpose !== 'setup' && payload.purpose !== 'challenge')
     ) {
       throw new UnauthorizedException('Invalid two-factor token');
@@ -142,6 +137,20 @@ export class AuthSessionService {
       challengeId: payload.jti,
       sessionVersion: typeof payload.sessionVersion === 'number' ? payload.sessionVersion : 0,
     };
+  }
+
+  private hasTwoFactorIdentity(
+    payload: Record<string, unknown>,
+  ): payload is Record<string, unknown> & { sub: string; email: string; role: 'pmcm-admin'; jti: string } {
+    return typeof payload.sub === 'string'
+      && typeof payload.email === 'string'
+      && payload.role === 'pmcm-admin'
+      && typeof payload.jti === 'string'
+      && /^[A-Za-z0-9_-]{43}$/.test(payload.jti);
+  }
+
+  private isValidSessionVersion(value: unknown): boolean {
+    return value === undefined || (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0);
   }
 
   private signPayload(payload: Record<string, unknown>) {
