@@ -270,6 +270,12 @@ links protect check-in evidence. Walk-in check-ins keep a null roster link. The
 migration clears an untrusted link (missing parent or a parent in another event)
 to NULL and keeps the row. The import batch row is now written before the entries
 that reference it.
+
+Operations rows also carry stable row-local CHECK constraints that match the
+shared contracts: coordinator availability ends after it starts, coverage
+requirements and feedback media sizes and import row counts are non-negative,
+feedback ratings are 1 to 5, and registration platform headcounts are
+non-negative with the maximum not below the minimum.
 | OpsEventDayTask, OpsUrgentIssue, OpsEventDayLog | live_ops | live-ops; event-day task, issue, log, and escalation workflows. |
 | OpsCoordinatorReliabilityNote | operations | operations; coordinator reliability history, matching its focused writer. |
 
