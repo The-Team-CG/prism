@@ -4,6 +4,7 @@
 * [Database migrations](database-migrations.md) - Prisma migration ownership, preflight, deployment, drift diagnosis, and recovery.
 * [Domain schema cutover rehearsal](domain-schema-cutover.md) - disposable-target guards, sanitized preflight, populated upgrade evidence, and restore acceptance.
 * [Audit-chain repair](audit-chain-repair.md) - backup-gated, single-chain rehashing for preproduction JSONB hash-order corruption.
+* [Database roles and audit privileges](database-privileges.md) - intended runtime, migration and maintenance privileges, append-only audit evidence, and the queries that verify real grants.
 * [Parallel worktrees](parallel-worktrees.md) - checkout-derived dev ports and junction-safe worktree teardown.
 * [Portal accounts](portal-accounts.md) - local fixture accounts and role-boundary notes.
 * [Deployment secrets](deployment-secrets.md) - GitHub Actions secrets, variables, provider targets, and deployment verification.
