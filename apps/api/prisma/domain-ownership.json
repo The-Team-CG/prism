@@ -3,8 +3,8 @@
     "totalTables": 93,
     "targetSchemas": 7,
     "tableMoves": 83,
-    "currentCrossSchemaFks": 49,
-    "targetSameDomainFks": 68,
+    "currentCrossSchemaFks": 50,
+    "targetSameDomainFks": 70,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -2502,6 +2502,36 @@
       "targetCurrentSchema": "event_core",
       "targetTable": "events",
       "sameDomain": false
+    },
+    {
+      "schema": "trust_ops",
+      "table": "ai_approval_records",
+      "name": "ai_approval_records_ai_audit_log_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (ai_audit_log_id) REFERENCES trust_ops.ai_audit_logs(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "ai_audit_log_id"
+      ],
+      "sourceDomain": "platform-ops",
+      "targetDomain": "platform-ops",
+      "targetCurrentSchema": "trust_ops",
+      "targetTable": "ai_audit_logs",
+      "sameDomain": true
+    },
+    {
+      "schema": "platform_ops",
+      "table": "pare_dispatches",
+      "name": "pare_dispatches_approval_record_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (approval_record_id) REFERENCES trust_ops.ai_approval_records(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "approval_record_id"
+      ],
+      "sourceDomain": "platform-ops",
+      "targetDomain": "platform-ops",
+      "targetCurrentSchema": "trust_ops",
+      "targetTable": "ai_approval_records",
+      "sameDomain": true
     }
   ]
 }
