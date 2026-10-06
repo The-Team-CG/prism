@@ -4,7 +4,7 @@
     "targetSchemas": 7,
     "tableMoves": 83,
     "currentCrossSchemaFks": 49,
-    "targetSameDomainFks": 68,
+    "targetSameDomainFks": 69,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -2502,6 +2502,21 @@
       "targetCurrentSchema": "event_core",
       "targetTable": "events",
       "sameDomain": false
+    },
+    {
+      "schema": "identity",
+      "table": "approval_requests",
+      "name": "approval_requests_user_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES identity.users(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "user_id"
+      ],
+      "sourceDomain": "identity-access",
+      "targetDomain": "identity-access",
+      "targetCurrentSchema": "identity",
+      "targetTable": "users",
+      "sameDomain": true
     }
   ]
 }
