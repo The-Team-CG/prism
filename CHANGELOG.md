@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Added Lifecycle row-level CHECK constraints: non-negative event counters, follow-up intervals, briefing guest counts and budgets, document sizes and compliance rule counts; compliance runs, wrap-up deadlines and freeze decisions in time order; addendum versions from 1. Financial deltas stay signed. Each is added `NOT VALID` and validated, so a violating row aborts the migration instead of being rewritten.
 - Removed the redundant ordinary index `registration_platforms_event_id_idx`; the unique `registration_platforms_event_id_key` serves every lookup, so writes no longer maintain two identical indexes. No other index was added or removed.
 - Restored the staging CI pipeline, which had been stopping at its dependency audit step so lint-level gates never ran. Updated `proxy-addr` and `source-map-js` in the lockfile only, recorded a reviewed, time-bounded exception for the `braces` advisory that reaches only the Next 14 lint configuration, made the domain-persistence and data-invariant gates default to the seven-schema layout, documented seven test files whose dated fixtures are inert, and refactored 13 functions that had grown past the cyclomatic complexity limit of 10 without changing behavior.
 - Brought the persistence ownership register, migration runbook and audit-chain runbook in line with the seven-schema layout and the removed cross-domain foreign keys.
