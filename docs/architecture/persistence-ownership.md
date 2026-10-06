@@ -221,6 +221,13 @@ migration for an explicit owner decision.
 | OpsDocument (all kinds) | event_lifecycle | event-lifecycle; document metadata, registration, eligibility and retention. |
 | `OpsComplianceRule`, `OpsComplianceCheck`, `OpsPostEventDocument`, `OpsEventInsight` | `event_lifecycle` | `event-lifecycle`; compliance, closure gates, post-event records, and lifecycle insights. |
 
+Lifecycle rows carry stable row-local CHECK constraints: non-negative event
+counters (walk-in threshold, proposal revisions, projection version), follow-up
+intervals, briefing guest counts and budgets, document sizes and compliance rule
+counts; compliance runs complete no earlier than they start, wrap-up deadlines
+are not before activation, freeze exception decisions are not before the
+request, and addendum versions start at 1. Financial deltas stay signed.
+
 OpsDocument metadata has one owner: event-lifecycle. Commercial retains
 business decisions and statuses, but validates and registers document IDs
 through the document-vault capability. New kinds require an explicit
@@ -245,6 +252,13 @@ milestones). Payment history, proposal versions, corrections and disputes use
 derived data and still goes with its request. The retained same-domain
 foreign-key count is 71 (68 at the cutover plus the three new links).
 
+Commercial rows also carry stable row-local CHECK constraints that match the
+shared contracts: review ratings 1 to 5, positive payment receipts, milestone
+percentage 0 to 100, non-negative milestone, quote, estimate, proposal, billing
+source and additional billing amounts, supplier schedule end not before start,
+quote acceptable minimum not above maximum, and non-negative supplier capacity.
+Milestone balances and adjustments are deliberately unconstrained so signed
+refunds and adjustments stay legal.
 Quote-request links carry a bearer token with an expiry and a revocation time
 (`quote_requests.access_token_expires_at`, `access_token_revoked_at`). New
 tokens are 256-bit random values that expire after 90 days; links that existed
@@ -270,6 +284,12 @@ links protect check-in evidence. Walk-in check-ins keep a null roster link. The
 migration clears an untrusted link (missing parent or a parent in another event)
 to NULL and keeps the row. The import batch row is now written before the entries
 that reference it.
+
+Operations rows also carry stable row-local CHECK constraints that match the
+shared contracts: coordinator availability ends after it starts, coverage
+requirements and feedback media sizes and import row counts are non-negative,
+feedback ratings are 1 to 5, and registration platform headcounts are
+non-negative with the maximum not below the minimum.
 | OpsEventDayTask, OpsUrgentIssue, OpsEventDayLog | live_ops | live-ops; event-day task, issue, log, and escalation workflows. |
 | OpsCoordinatorReliabilityNote | operations | operations; coordinator reliability history, matching its focused writer. |
 
@@ -280,6 +300,12 @@ use `RESTRICT` because they are event-day evidence and nothing in the applicatio
 deletes them. Assignment IDs on handoffs stay external references with no foreign
 key; Operations validates them through its capability.
 
+LiveOps rows also carry stable row-local CHECK constraints: a schedule segment
+ends no earlier than it starts (planned and, when recorded, actual) and has a
+non-negative sequence, an operator revocation is not before its designation, and
+a task reassignment request is auto-approved and decided no earlier than it was
+requested.
+
 ### Platform trust, notifications, and AI governance
 
 | Models | Physical schema | Write owner and boundary |
@@ -288,6 +314,19 @@ key; Operations validates them through its capability.
 | OpsCommandReceipt | platform_ops | platform-ops owns technical receipt persistence behind the kernel `CommandReceiptStore` port. Business authorization and replay remain in the caller transaction; reservation, command writes, and completion are atomic. |
 | `OpsPrivacyLegalHold` | `platform_ops` | `platform-ops`; PMCM-admin placement/release, subject and optional event scope, with release provenance. `event_id` is a scalar reference and has no cross-domain FK. |
 | `OpsAiAuditLog`, `OpsAiApprovalRecord` | `platform_ops` | `platform-ops`; AI sanitisation, human approval, and governance records. |
+
+## Structured JSON columns
+
+Forty-one NOT NULL JSON columns that default to an empty array or object (in
+Lifecycle, Commercial, LiveOps, Floorplan and Platform) reject any other
+top-level shape through `NOT VALID` CHECK constraints, one migration per owner.
+They apply to every new or updated row; historical rows, unparseable legacy
+payloads and issued, sanitized or review snapshots are left untouched for
+explicit compatibility handling. Payload versions and field-level shapes stay
+with the shared Zod contracts. For floorplans, normalized `floor_plan_objects`
+rows are the authority for live authoring; the aggregate `objects` column is
+kept until publisher, template and live readers reach parity, and the latest
+`PublishedSnapshot` is a current copy, not revision history.
 
 ## External-reference lifecycle
 
