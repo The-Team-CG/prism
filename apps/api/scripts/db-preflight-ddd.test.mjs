@@ -37,14 +37,17 @@ describe('DDD database preflight safety', () => {
   });
 
   it('requires a private absolute report path outside the repository', () => {
+    const repoRoot = path.resolve('workspace', 'prism');
+    const repositoryArtifactPath = path.join(repoRoot, 'report.json');
+    const privateArtifactPath = path.join(os.tmpdir(), 'prism-preflight.json');
     assert.throws(() => resolveProtectedArtifactPath('report.json'), /absolute artifact path/);
     assert.throws(
-      () => resolveProtectedArtifactPath('C:\\workspace\\prism\\report.json', { repoRoot: 'C:\\workspace\\prism' }),
+      () => resolveProtectedArtifactPath(repositoryArtifactPath, { repoRoot }),
       /outside the repository/,
     );
     assert.equal(
-      resolveProtectedArtifactPath('C:\\private\\prism-preflight.json', { repoRoot: 'C:\\workspace\\prism' }),
-      'C:\\private\\prism-preflight.json',
+      resolveProtectedArtifactPath(privateArtifactPath, { repoRoot }),
+      privateArtifactPath,
     );
   });
 });
@@ -55,9 +58,9 @@ describe('DDD preflight ownership and data checks', () => {
   it('compares every current FK and requires only same-domain FKs in the target layout', () => {
     const current = expectedForeignKeyCatalog(manifest);
     const final = expectedForeignKeyCatalog(manifest, { final: true });
-    assert.equal(current.length, 115);
+    assert.equal(current.length, 120);
     assert.equal(current.filter(({ sourceSchema, targetSchema }) => sourceSchema !== targetSchema).length, 50);
-    assert.equal(final.length, 70);
+    assert.equal(final.length, 75);
     assert.ok(final.every(({ sourceSchema, targetSchema }) => sourceSchema === targetSchema));
   });
 
@@ -205,3 +208,4 @@ describe('DDD preflight ownership and data checks', () => {
     }
   });
 });
+
