@@ -282,6 +282,19 @@ key; Operations validates them through its capability.
 | `OpsPrivacyLegalHold` | `platform_ops` | `platform-ops`; PMCM-admin placement/release, subject and optional event scope, with release provenance. `event_id` is a scalar reference and has no cross-domain FK. |
 | `OpsAiAuditLog`, `OpsAiApprovalRecord` | `platform_ops` | `platform-ops`; AI sanitisation, human approval, and governance records. |
 
+## Structured JSON columns
+
+Forty-one NOT NULL JSON columns that default to an empty array or object (in
+Lifecycle, Commercial, LiveOps, Floorplan and Platform) reject any other
+top-level shape through `NOT VALID` CHECK constraints, one migration per owner.
+They apply to every new or updated row; historical rows, unparseable legacy
+payloads and issued, sanitized or review snapshots are left untouched for
+explicit compatibility handling. Payload versions and field-level shapes stay
+with the shared Zod contracts. For floorplans, normalized `floor_plan_objects`
+rows are the authority for live authoring; the aggregate `objects` column is
+kept until publisher, template and live readers reach parity, and the latest
+`PublishedSnapshot` is a current copy, not revision history.
+
 ## External-reference lifecycle
 
 The exact baseline foreign-key actions and additional scalar references are in
