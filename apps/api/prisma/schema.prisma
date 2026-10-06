@@ -1072,6 +1072,7 @@ model OpsEventDayTask {
   reassignmentRequests OpsEventTaskReassignmentRequest[]
 
   @@index([eventId, status], map: "event_day_tasks_event_id_status_idx")
+  @@unique([id, eventId], map: "event_day_tasks_id_event_id_key")
   @@index([eventId, assignedRole], map: "event_day_tasks_event_id_assigned_role_idx")
   @@index([eventId, slaStatus], map: "event_day_tasks_event_id_sla_status_idx")
   @@map("event_day_tasks")
@@ -1098,7 +1099,7 @@ model OpsEventTaskReassignmentRequest {
   createdAt     DateTime   @default(now()) @map("created_at")
   updatedAt     DateTime   @default(now()) @updatedAt @map("updated_at")
 
-  task  OpsEventDayTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task  OpsEventDayTask @relation(fields: [taskId, eventId], references: [id, eventId], onDelete: Restrict, map: "task_reassignment_requests_task_event_fkey")
 
   @@index([eventId, status, requestedAt], map: "task_reassignment_requests_event_status_requested_idx")
   @@index([taskId, createdAt], map: "task_reassignment_requests_task_created_idx")
@@ -1120,6 +1121,7 @@ model OpsEventScheduleDay {
   eodReports OpsEventEodReport[]
 
   @@unique([eventId, dayDate], map: "event_schedule_days_event_id_day_date_key")
+  @@unique([id, eventId], map: "event_schedule_days_id_event_id_key")
   @@map("event_schedule_days")
   @@schema("live_ops")
 }
@@ -1177,7 +1179,7 @@ model OpsEventHandoff {
   outstandingItems   Json     @default("[]") @map("outstanding_items")
   createdAt          DateTime @default(now()) @map("created_at")
 
-  day   OpsEventScheduleDay  @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  day   OpsEventScheduleDay  @relation(fields: [dayId, eventId], references: [id, eventId], onDelete: Restrict, map: "event_handoffs_day_event_fkey")
 
   @@index([eventId, dayId, handedOffAt], map: "event_handoffs_event_day_time_idx")
   @@index([fromAssignmentId], map: "event_handoffs_from_assignment_idx")
@@ -1199,7 +1201,7 @@ model OpsEventEodReport {
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  day     OpsEventScheduleDay  @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  day     OpsEventScheduleDay  @relation(fields: [dayId, eventId], references: [id, eventId], onDelete: Restrict, map: "event_eod_reports_day_event_fkey")
   replies OpsEventEodReply[]
 
   @@unique([eventId, dayId], map: "event_eod_reports_event_id_day_id_key")
