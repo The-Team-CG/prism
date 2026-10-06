@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Linked AI approval records to their AI audit log and PARE dispatches to the approval record they produced with same-schema foreign keys (`RESTRICT`), so governance evidence cannot be deleted under its dependents. A legacy dispatch pointing at a missing approval record has the link cleared and still runs; an approval with no audit log aborts the migration for an owner decision.
 - Rejected non-SHA-256 audit hashes for every writer with `NOT VALID` constraints on the audit log and chain head (historical rows are left for the guarded repair), and documented the intended runtime, migration and maintenance database privileges with the queries that verify real grants. Audit rows have no foreign key to events, so event deletion cannot remove them.
 - Linked each approval request to its account with a same-schema foreign key (`RESTRICT`), so an account with approval history is retired by disabling it rather than deleting it. A request whose account no longer exists aborts the migration so an owner decides explicitly; nothing is deleted.
 - Added Lifecycle row-level CHECK constraints: non-negative event counters, follow-up intervals, briefing guest counts and budgets, document sizes and compliance rule counts; compliance runs, wrap-up deadlines and freeze decisions in time order; addendum versions from 1. Financial deltas stay signed. Each is added `NOT VALID` and validated, so a violating row aborts the migration instead of being rewritten.
