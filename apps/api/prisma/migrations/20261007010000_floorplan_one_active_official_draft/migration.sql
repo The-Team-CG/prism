@@ -25,4 +25,4 @@ WHERE "id" IN (
 
 CREATE UNIQUE INDEX "floor_plan_drafts_one_active_per_event_key"
   ON "floorplan"."floor_plan_drafts" ("event_id")
-  WHERE "is_active";
+  WHERE "is_active" = true;
