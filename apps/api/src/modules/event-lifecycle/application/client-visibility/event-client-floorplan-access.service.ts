@@ -22,9 +22,9 @@ import type {
 } from '@prism/types';
 import { randomUUID } from 'node:crypto';
 import {
-  APPROVED_CLIENT_ACCOUNT_READER,
-  type ApprovedClientAccountReader,
-} from '../../../identity-access/contracts/approved-client-account-reader.port';
+  ACCOUNT_CONTACT_READ_MODEL,
+  type AccountContactReadModel,
+} from '@prism/contexts/read-models/account-contacts';
 
 type ClientFloorplanAccessEvent = Prisma.OpsEventGetPayload<{
   include: { inquiry: { select: { email: true } } };
@@ -36,8 +36,8 @@ export class EventClientFloorplanAccessService {
     private readonly prisma: PrismaService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
-    @Inject(APPROVED_CLIENT_ACCOUNT_READER)
-    private readonly approvedClientAccountReader: ApprovedClientAccountReader,
+    @Inject(ACCOUNT_CONTACT_READ_MODEL)
+    private readonly accountContacts: AccountContactReadModel,
   ) {}
 
   async listAccess(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismEventClientAccess> {
@@ -48,7 +48,7 @@ export class EventClientFloorplanAccessService {
       select: { clientUserId: true },
       orderBy: [{ grantedAt: 'asc' }, { clientUserId: 'asc' }],
     });
-    const secondaryContacts = await this.approvedClientAccountReader.getApprovedClientAccounts(
+    const secondaryContacts = await this.accountContacts.getApprovedClientAccounts(
       grants.map((grant) => grant.clientUserId),
       actor,
     );
@@ -67,7 +67,7 @@ export class EventClientFloorplanAccessService {
     await this.requireAdmin(actor, eventId);
     const event = await this.requireEvent(this.prisma, eventId);
     const [accounts, activeGrants] = await Promise.all([
-      this.approvedClientAccountReader.searchApprovedClientAccounts(query.trim(), actor, 25),
+      this.accountContacts.searchApprovedClientAccounts(query.trim(), actor, 25),
       this.prisma.opsEventClientFloorplanAccessGrant.findMany({
         where: { eventId, active: true },
         select: { clientUserId: true },
@@ -86,7 +86,7 @@ export class EventClientFloorplanAccessService {
   ): Promise<PrismEventClientAccess> {
     const actorId = await this.requireAdmin(actor, eventId);
     const event = await this.requireEvent(this.prisma, eventId);
-    const target = (await this.approvedClientAccountReader.getApprovedClientAccounts([userId], actor))[0];
+    const target = (await this.accountContacts.getApprovedClientAccounts([userId], actor))[0];
     if (!target) throw new BadRequestException('Only existing approved Client accounts can receive floorplan access');
     if (this.normalizeEmail(target.email) === this.normalizeEmail(event.inquiry.email)) {
       throw new BadRequestException('The primary inquiry contact already has implicit floorplan access');
@@ -132,7 +132,7 @@ export class EventClientFloorplanAccessService {
         );
       }, { isolationLevel: 'Serializable' });
     } catch (error) {
-      if (!this.isUniqueConstraintError(error)) throw error;
+      if (!this.isGrantConflictError(error)) throw error;
       const concurrentlyCreated = await this.prisma.opsEventClientFloorplanAccessGrant.findUnique({
         where: { eventId_clientUserId: { eventId, clientUserId: userId } },
         select: { active: true },
@@ -149,7 +149,7 @@ export class EventClientFloorplanAccessService {
   ): Promise<PrismEventClientAccess> {
     const actorId = await this.requireAdmin(actor, eventId);
     const event = await this.requireEvent(this.prisma, eventId);
-    const target = (await this.approvedClientAccountReader.getApprovedClientAccounts([userId], actor))[0];
+    const target = (await this.accountContacts.getApprovedClientAccounts([userId], actor))[0];
     await this.prisma.$transaction(async (tx) => {
       const existing = await tx.opsEventClientFloorplanAccessGrant.findUnique({
         where: { eventId_clientUserId: { eventId, clientUserId: userId } },
@@ -174,7 +174,7 @@ export class EventClientFloorplanAccessService {
   }
 
   async hasActiveGrant(eventId: string, userId: string): Promise<boolean> {
-    if (!(await this.approvedClientAccountReader.isApprovedClientAccount(userId))) return false;
+    if (!(await this.accountContacts.isApprovedClientAccount(userId))) return false;
     const [event, grant] = await Promise.all([
       this.prisma.opsEvent.findUnique({
         where: { id: eventId },
@@ -189,7 +189,7 @@ export class EventClientFloorplanAccessService {
   }
 
   async listActiveSharedEvents(userId: string): Promise<PrismClientSharedFloorplanEvent[]> {
-    if (!(await this.approvedClientAccountReader.isApprovedClientAccount(userId))) return [];
+    if (!(await this.accountContacts.isApprovedClientAccount(userId))) return [];
     const grants = await this.prisma.opsEventClientFloorplanAccessGrant.findMany({
       where: {
         clientUserId: userId,
@@ -261,7 +261,12 @@ export class EventClientFloorplanAccessService {
     return email.trim().toLowerCase();
   }
 
-  private isUniqueConstraintError(error: unknown): boolean {
-    return Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'P2002');
+  private isGrantConflictError(error: unknown): boolean {
+    return Boolean(
+      error
+      && typeof error === 'object'
+      && 'code' in error
+      && (error.code === 'P2002' || error.code === 'P2034'),
+    );
   }
 }

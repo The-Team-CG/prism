@@ -1,4 +1,4 @@
-import { forwardRef, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/kernel/database';
 import { AccessControlModule } from '@prism/kernel/access-control';
 import { EventCoreModule } from '@prism/kernel/event-core';
@@ -35,16 +35,20 @@ import { ClientEventDayViewController } from './api/client-visibility/client-eve
 import { ClientEventDayViewService } from './application/client-visibility/client-event-day-view.service';
 import { OcularVisitController } from './api/ocular-visit/ocular-visit.controller';
 import { OcularVisitService } from './application/ocular-visit/ocular-visit.service';
-import { IdentityAccessModule } from '../identity-access/identity-access.module';
 import { EventClientFloorplanAccessController } from './api/client-visibility/event-client-floorplan-access.controller';
 import { LifecyclePrivacyRedactorService } from './application/onboarding/lifecycle-privacy-redactor.service';
 import { LIFECYCLE_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 import { EventLifecycleReferenceModule } from './event-lifecycle-reference.module';
 import { OperationsEventReferenceModule } from './operations-reference.module';
 import { CommercialAddendumImpactModule } from '@prism/contexts/commercial';
+import { EventDecisionSupplierOwnerModule } from '@prism/contexts/commercial';
 import { EventLifecycleProjectionModule } from './event-lifecycle-projection.module';
 import { FloorplanReferenceModule } from './floorplan-reference.module';
 import { ClientFloorplanAccessModule } from './client-floorplan-access.module';
+import { LifecycleFactsReaderModule } from '@prism/contexts/read-models/lifecycle-facts';
+import { CommercialFactsReaderModule } from '@prism/contexts/read-models/commercial-facts-reader';
+import { ProposalReviewOwnerService } from './application/onboarding/proposal-review-owner.service';
+import { PROPOSAL_REVIEW_OWNER } from './contracts/proposal-review-owner.port';
 
 const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const };
 
@@ -60,6 +64,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
  * (`onboarding`, `compliance`, `closure`, `files`) under one context.
  *
  * Owned tables: OpsBriefing, OpsDocument (all document metadata), OpsEvent,
+ * OpsEventClientFloorplanAccessGrant,
  * OpsInquiry, OpsPostEventDocument, OpsEventWrapUp, OpsComplianceCheck,
  * OpsComplianceRule, and OpsEventInsight. Lifecycle owns addendum records and
  * impact history; Commercial applies billing-source and selected-quote changes
@@ -78,12 +83,14 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     EventLifecycleReferenceModule,
     OperationsEventReferenceModule,
     CommercialAddendumImpactModule,
+    EventDecisionSupplierOwnerModule,
     EventLifecycleProjectionModule,
     FloorplanReferenceModule,
     ClientFloorplanAccessModule,
+    LifecycleFactsReaderModule,
+    CommercialFactsReaderModule,
     AccessControlModule,
     EventSessionModule,
-    forwardRef(() => IdentityAccessModule),
   ],
   controllers: [
     OpsInquiriesController,
@@ -123,6 +130,8 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     ChangeManagementService,
     ClientEventDayViewService,
     OcularVisitService,
+    ProposalReviewOwnerService,
+    { provide: PROPOSAL_REVIEW_OWNER, useExisting: ProposalReviewOwnerService },
     LifecyclePrivacyRedactorService,
     { provide: LIFECYCLE_PRIVACY_REDACTOR, useExisting: LifecyclePrivacyRedactorService },
   ],
@@ -145,6 +154,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     FILE_REQUIREMENT_COMMANDS,
     ChangeManagementService,
     LIFECYCLE_PRIVACY_REDACTOR,
+    PROPOSAL_REVIEW_OWNER,
     EventLifecycleReferenceModule,
     EventLifecycleProjectionModule,
     FloorplanReferenceModule,

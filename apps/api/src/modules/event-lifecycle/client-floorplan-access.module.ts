@@ -1,8 +1,8 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { AccessControlModule } from '@prism/kernel/access-control';
 import { DatabaseModule } from '@prism/kernel/database';
 import { PlatformOpsModule } from '../platform-ops/platform-ops.module';
-import { IdentityAccessModule } from '../identity-access/identity-access.module';
+import { AccountContactReadModelModule } from '@prism/contexts/read-models/account-contacts';
 import { EventClientFloorplanAccessService } from './application/client-visibility/event-client-floorplan-access.service';
 import {
   EVENT_CLIENT_FLOORPLAN_ACCESS_COMMANDS,
@@ -15,7 +15,7 @@ import {
     DatabaseModule,
     AccessControlModule,
     PlatformOpsModule,
-    forwardRef(() => IdentityAccessModule),
+    AccountContactReadModelModule,
   ],
   providers: [
     EventClientFloorplanAccessService,

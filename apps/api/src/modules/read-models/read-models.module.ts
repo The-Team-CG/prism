@@ -27,6 +27,7 @@ import { LiveOpsReadModelsService } from './application/services/live-ops-read-m
 import { PlatformReferenceReadModelsService } from './application/services/platform-reference-read-models.service';
 import { LIVE_OPS_READ_MODEL } from './contracts/ports/live-ops-read-models.tokens';
 import { GuestEventProjectionModule } from './guest-event-projection.module';
+import { CommercialFactsReaderModule } from './commercial-facts-reader.module';
 
 /**
  * Read-only composition context. It owns no writes and composes the public
@@ -43,6 +44,7 @@ import { GuestEventProjectionModule } from './guest-event-projection.module';
     EventLifecycleModule,
     IdentityAccessModule,
     GuestEventProjectionModule,
+    CommercialFactsReaderModule,
   ],
   controllers: [
     OpsBillingController,
@@ -74,6 +76,7 @@ import { GuestEventProjectionModule } from './guest-event-projection.module';
     LIVE_OPS_READ_MODEL,
     PlatformReferenceReadModelsService,
     GuestEventProjectionModule,
+    CommercialFactsReaderModule,
   ],
 })
 export class ReadModelsModule {}

@@ -61,6 +61,9 @@ function createParePrisma() {
       }
       return [];
     },
+    opsEvent: {
+      findUnique: async ({ where }: { where: { id?: string } }) => where.id === event.id ? event : null,
+    },
     opsSupplierQuoteRequest: {
       findUnique: async ({ where }: { where: { id?: string } }) =>
         where.id === quoteRequest.id

@@ -74,6 +74,8 @@ async function main() {
   const secondaryAccountId = `p0_http_secondary_client_${randomUUID()}`;
   const primaryEmail = `${primaryAccountId}@example.test`;
   const secondaryEmail = `${secondaryAccountId}@example.test`;
+  const primaryPassword = randomBytes(32).toString('base64url');
+  const secondaryPassword = randomBytes(32).toString('base64url');
   const officialPlanId = `p0_http_official_plan_${randomUUID()}`;
   const officialDraftId = `p0_http_official_draft_${randomUUID()}`;
   const supplierId = `p0_http_supplier_${randomUUID()}`;
@@ -101,7 +103,7 @@ async function main() {
       id: primaryAccountId,
       name: client.name,
       email: primaryEmail,
-      password: 'p0-smoke-fixture',
+      password: primaryPassword,
       role: 'client',
       organization: client.organization,
       approvalStatus: 'approved',
@@ -110,7 +112,7 @@ async function main() {
       id: secondaryAccountId,
       name: secondaryClient.name,
       email: secondaryEmail,
-      password: 'p0-smoke-fixture',
+      password: secondaryPassword,
       role: 'client',
       organization: secondaryClient.organization,
       approvalStatus: 'approved',

@@ -140,8 +140,9 @@ function createPrisma(coverageRequirements: { role: string; requiredSkills: stri
           if (where?.OR) {
             const matchesWindow = where.OR.some((condition: any) => {
               if (condition.eventDate === null && assignment.eventDate !== null) return false;
-              const date = condition.eventDate === null ? assignment.event?.eventDate : assignment.eventDate;
-              const range = condition.eventDate === null ? condition.event?.is?.eventDate : condition.eventDate;
+              if (condition.eventDate === null) return Boolean(condition.eventId?.in?.includes(assignment.eventId));
+              const range = condition.eventDate;
+              const date = assignment.eventDate;
               return Boolean(
                 date && range &&
                 (!range.gte || date >= range.gte) &&
@@ -232,7 +233,7 @@ function createPrisma(coverageRequirements: { role: string; requiredSkills: stri
       return {
         id: eventId,
         eventName: linkedEvent?.eventName ?? source.eventName,
-        eventDate: source.eventDate,
+        eventDate: linkedEvent?.eventDate ?? source.eventDate,
         status: source.status,
         archived: source.archived,
         actualEndedAt: null,
@@ -246,7 +247,7 @@ function createPrisma(coverageRequirements: { role: string; requiredSkills: stri
       return {
         id: eventId,
         eventName: linkedEvent?.eventName ?? source.eventName,
-        eventDate: source.eventDate,
+        eventDate: linkedEvent?.eventDate ?? source.eventDate,
         status: source.status,
         archived: source.archived,
         actualEndedAt: null,
@@ -254,6 +255,9 @@ function createPrisma(coverageRequirements: { role: string; requiredSkills: stri
         walkInThreshold: 0,
       };
     }))),
+    findEventIdsByDateRange: vi.fn(async (startsAt: Date, endsBefore: Date) => [...new Set(assignments
+      .filter((item) => item.event?.eventDate && item.event.eventDate >= startsAt && item.event.eventDate < endsBefore)
+      .map((item) => item.eventId))]),
     findEventReadAccess: vi.fn(),
   };
   (prisma as any).eventReferences = eventReferences;
@@ -300,6 +304,7 @@ function eventReferencesFor(prisma: any) {
   return {
     findOperationsEvent: vi.fn(read),
     findOperationsEvents: vi.fn(async (eventIds: readonly string[]) => Promise.all(eventIds.map((eventId) => read(eventId)))),
+    findEventIdsByDateRange: vi.fn(async () => []),
     findEventReadAccess: vi.fn(async () => null),
   };
 }

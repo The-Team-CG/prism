@@ -12,12 +12,18 @@ import { PrismaService } from '@prism/kernel/database';
 import { AuditCategory, CoordinatorAssignmentStatus, OpsUserRole } from '@prism/kernel/event-core';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { PRISM_PMCM_COMMAND_INBOX_MAX_PAGE } from '@prism/types';
+import { findFloorPlanDraftsByEvent, withFloorPlanDrafts } from '@prism/contexts/floorplan/event-drafts';
 
-type SupplierWithProfile = OpsSupplier & {
+type SupplierEventReference = Pick<OpsEvent, 'id' | 'eventName' | 'eventDate' | 'clientName'>;
+type SupplierProfileBase = OpsSupplier & {
   category: OpsSupplierCategory;
-  reviews: Array<OpsSupplierReview & { event: OpsEvent | null }>;
-  reliabilityNotes: Array<OpsSupplierReliabilityNote & { event: OpsEvent | null }>;
+  reviews: OpsSupplierReview[];
+  reliabilityNotes: OpsSupplierReliabilityNote[];
   certifications: OpsSupplierCertification[];
+};
+type SupplierWithProfile = Omit<SupplierProfileBase, 'reviews' | 'reliabilityNotes'> & {
+  reviews: Array<OpsSupplierReview & { event: SupplierEventReference | null }>;
+  reliabilityNotes: Array<OpsSupplierReliabilityNote & { event: Pick<OpsEvent, 'id' | 'eventName'> | null }>;
 };
 
 export const MAX_VISIBLE_EVENTS = 500;
@@ -68,61 +74,36 @@ function decodeEventCursor(cursor?: string): EventReadCursor | undefined {
   }
 }
 
-function visibleEventsWhere(actor: ResolvedEventOpsActor): Prisma.OpsEventWhereInput {
+function visibleEventsWhere(actor: ResolvedEventOpsActor, assignedEventIds: string[] = []): Prisma.OpsEventWhereInput {
   if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return { archived: false };
-  if (actor.role === OpsUserRole.Client) {
-    if (actor.email?.trim()) {
-      return {
-        archived: false,
-        clientPortalStatus: 'unlocked',
-        inquiry: {
-          is: { email: { equals: actor.email.trim(), mode: 'insensitive' } },
-        },
-      };
-    }
-    if (actor.verified) return { id: { in: [] } };
-    if (actor.clientName?.trim()) {
-      return {
-        archived: false,
-        clientPortalStatus: 'unlocked',
-        clientName: { equals: actor.clientName.trim(), mode: 'insensitive' },
-      };
-    }
-    return { id: { in: [] } };
-  }
-  if (actor.role === OpsUserRole.Supplier) {
-    const supplierRequestWhere: Prisma.OpsSupplierQuoteRequestWhereInput | undefined = actor.supplierId
-      ? { supplierId: actor.supplierId }
-      : actor.email?.trim()
-        ? { supplier: { is: { email: { equals: actor.email.trim(), mode: 'insensitive' } } } }
-        : undefined;
-    return supplierRequestWhere
-      ? { archived: false, supplierQuoteRequests: { some: supplierRequestWhere } }
-      : { id: { in: [] } };
-  }
+  if (actor.role === OpsUserRole.Client) return clientVisibleEventsWhere(actor);
+  if (actor.role === OpsUserRole.Supplier) return assignedEventsWhere(Boolean(actor.supplierId || actor.email?.trim()), assignedEventIds);
   if (actor.role === OpsUserRole.Coordinator) {
-    const coordinatorIdentity: Prisma.OpsCoordinatorWhereInput | undefined = actor.coordinatorId
-      ? { id: actor.coordinatorId }
-      : actor.id
-        ? { userId: actor.id }
-        : actor.email?.trim()
-          ? { email: { equals: actor.email.trim(), mode: 'insensitive' } }
-          : undefined;
-    if (!coordinatorIdentity) return { id: { in: [] } };
+    return assignedEventsWhere(Boolean(actor.coordinatorId || actor.id || actor.email?.trim()), assignedEventIds);
+  }
+  return { id: { in: [] } };
+}
+
+function assignedEventsWhere(hasIdentity: boolean, assignedEventIds: string[]): Prisma.OpsEventWhereInput {
+  return hasIdentity ? { archived: false, id: { in: assignedEventIds } } : { id: { in: [] } };
+}
+
+function clientVisibleEventsWhere(actor: ResolvedEventOpsActor): Prisma.OpsEventWhereInput {
+  if (actor.email?.trim()) {
     return {
       archived: false,
-      coordinatorAssignments: {
-        some: {
-          status: {
-            notIn: [
-              CoordinatorAssignmentStatus.Cancelled,
-              CoordinatorAssignmentStatus.Replaced,
-              CoordinatorAssignmentStatus.Declined,
-            ],
-          },
-          coordinator: { is: { active: true, ...coordinatorIdentity } },
-        },
+      clientPortalStatus: 'unlocked',
+      inquiry: {
+        is: { email: { equals: actor.email.trim(), mode: 'insensitive' } },
       },
+    };
+  }
+  if (actor.verified) return { id: { in: [] } };
+  if (actor.clientName?.trim()) {
+    return {
+      archived: false,
+      clientPortalStatus: 'unlocked',
+      clientName: { equals: actor.clientName.trim(), mode: 'insensitive' },
     };
   }
   return { id: { in: [] } };
@@ -178,7 +159,8 @@ export class EventReadModelQueries {
 
   // Query budget: actor scope and keyset are applied in Postgres before each bounded page.
   async visibleEvents(actor: ResolvedEventOpsActor, cursor?: string) {
-    const where = visibleEventsWhere(actor);
+    const assignedEventIds = await this.assignedEventIds(actor);
+    const where = visibleEventsWhere(actor, assignedEventIds);
     const decodedCursor = decodeEventCursor(cursor);
     const pageWhere: Prisma.OpsEventWhereInput = decodedCursor
       ? {
@@ -201,10 +183,6 @@ export class EventReadModelQueries {
         where: pageWhere,
         include: {
           inquiry: { select: { email: true } },
-          floorPlanDrafts: {
-            orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
-            take: MAX_EVENT_FLOORPLAN_DRAFTS,
-          },
         },
         orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
         take: EVENT_READ_PAGE_SIZE + 1,
@@ -213,8 +191,14 @@ export class EventReadModelQueries {
     ]);
     const hasMore = rows.length > EVENT_READ_PAGE_SIZE;
     const items = hasMore ? rows.slice(0, EVENT_READ_PAGE_SIZE) : rows;
+    const draftsByEvent = await findFloorPlanDraftsByEvent(
+      this.prisma,
+      items.map((event) => event.id),
+      { perEventLimit: MAX_EVENT_FLOORPLAN_DRAFTS },
+    );
+    const eventsWithDrafts = withFloorPlanDrafts(items, draftsByEvent);
     return {
-      items,
+      items: eventsWithDrafts,
       pagination: {
         nextCursor: hasMore && items.length ? encodeEventCursor(items[items.length - 1]) : null,
         hasMore,
@@ -223,18 +207,59 @@ export class EventReadModelQueries {
     };
   }
 
-  // Query budget: one selected-event query with floorplan drafts, no per-row Prisma loop.
-  eventWithDrafts(eventId: string) {
-    return this.prisma.opsEvent.findUnique({
+  private async assignedEventIds(actor: ResolvedEventOpsActor) {
+    if (actor.role === OpsUserRole.Supplier) {
+      const supplierId = actor.supplierId ?? (actor.email?.trim()
+        ? (await this.prisma.opsSupplier.findFirst({
+            where: { email: { equals: actor.email.trim(), mode: 'insensitive' } },
+            select: { id: true },
+          }))?.id
+        : undefined);
+      if (!supplierId) return [];
+      const rows = await this.prisma.opsSupplierQuoteRequest.findMany({
+        where: { supplierId },
+        select: { eventId: true },
+      });
+      return [...new Set(rows.map((row) => row.eventId))];
+    }
+    if (actor.role === OpsUserRole.Coordinator) {
+      const coordinator = await this.prisma.opsCoordinator.findFirst({
+        where: {
+          active: true,
+          ...(actor.coordinatorId ? { id: actor.coordinatorId } : actor.id ? { userId: actor.id } : actor.email?.trim()
+            ? { email: { equals: actor.email.trim(), mode: 'insensitive' } }
+            : { id: { in: [] } }),
+        },
+        select: { id: true },
+      });
+      if (!coordinator) return [];
+      const rows = await this.prisma.opsCoordinatorAssignment.findMany({
+        where: {
+          coordinatorId: coordinator.id,
+          status: { notIn: [CoordinatorAssignmentStatus.Cancelled, CoordinatorAssignmentStatus.Replaced, CoordinatorAssignmentStatus.Declined] },
+        },
+        select: { eventId: true },
+      });
+      return [...new Set(rows.map((row) => row.eventId))];
+    }
+    return [];
+  }
+
+  // Query budget: one selected-event query plus one bounded Floorplan-owner draft query.
+  async eventWithDrafts(eventId: string) {
+    const event = await this.prisma.opsEvent.findUnique({
       where: { id: eventId },
       include: {
         inquiry: { select: { email: true } },
-        floorPlanDrafts: {
-          orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
-          take: MAX_EVENT_FLOORPLAN_DRAFTS,
-        },
       },
     });
+    if (!event) return null;
+    const floorPlanDrafts = await this.prisma.opsFloorPlanDraft.findMany({
+      where: { eventId },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+      take: MAX_EVENT_FLOORPLAN_DRAFTS,
+    });
+    return { ...event, floorPlanDrafts };
   }
 
   // Query budget: one selected event query plus five event-day/readiness queries, no per-row Prisma loop.
@@ -334,8 +359,10 @@ export class EventReadModelQueries {
   }
 
   // Query budget: one bounded client milestone projection for visible event ids.
-  clientEventTimelineForEvents(eventIds: string[]) {
-    return this.prisma.opsEvent.findMany({
+  // Floorplan drafts and payment milestones hold only the event id, so each is read from its owner table
+  // (one row per event) and composed here instead of through a cross-domain Prisma relation.
+  async clientEventTimelineForEvents(eventIds: string[]) {
+    const events = await this.prisma.opsEvent.findMany({
       where: { id: { in: eventIds } },
       select: {
         id: true,
@@ -345,26 +372,40 @@ export class EventReadModelQueries {
         proposalClientStatus: true,
         proposalReviewedAt: true,
         inquiry: { select: { conformeSignedAt: true } },
-        floorPlanDrafts: {
-          where: { status: 'approved', sourceType: { not: 'client_preference' } },
-          select: { isActive: true, approvedAt: true },
-          orderBy: [
-            { isActive: 'desc' },
-            { approvedAt: { sort: 'desc', nulls: 'last' } },
-            { id: 'asc' },
-          ],
-          take: 1,
-        },
-        paymentMilestones: {
-          where: { label: { contains: 'balance', mode: 'insensitive' } },
-          select: { dueDate: true, status: true, remainingBalance: true },
-          orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
-          take: 1,
-        },
       },
       orderBy: [{ id: 'asc' }],
       take: MAX_VISIBLE_EVENTS,
     });
+    if (events.length === 0) return [];
+    const visibleIds = events.map((event) => event.id);
+    const [drafts, milestones] = await Promise.all([
+      this.prisma.opsFloorPlanDraft.findMany({
+        where: { eventId: { in: visibleIds }, status: 'approved', sourceType: { not: 'client_preference' } },
+        select: { eventId: true, isActive: true, approvedAt: true },
+        distinct: ['eventId'],
+        orderBy: [
+          { eventId: 'asc' },
+          { isActive: 'desc' },
+          { approvedAt: { sort: 'desc', nulls: 'last' } },
+          { id: 'asc' },
+        ],
+        take: MAX_VISIBLE_EVENTS,
+      }),
+      this.prisma.opsPaymentMilestone.findMany({
+        where: { eventId: { in: visibleIds }, label: { contains: 'balance', mode: 'insensitive' } },
+        select: { eventId: true, dueDate: true, status: true, remainingBalance: true },
+        distinct: ['eventId'],
+        orderBy: [{ eventId: 'asc' }, { dueDate: 'asc' }, { id: 'asc' }],
+        take: MAX_VISIBLE_EVENTS,
+      }),
+    ]);
+    const draftByEvent = new Map(drafts.map(({ eventId, ...draft }) => [eventId, draft]));
+    const milestoneByEvent = new Map(milestones.map(({ eventId, ...milestone }) => [eventId, milestone]));
+    return events.map((event) => ({
+      ...event,
+      floorPlanDrafts: draftByEvent.has(event.id) ? [draftByEvent.get(event.id)!] : [],
+      paymentMilestones: milestoneByEvent.has(event.id) ? [milestoneByEvent.get(event.id)!] : [],
+    }));
   }
 
   // Each client collection is loaded through bounded keyset pages after the actor-scoped event page.
@@ -483,12 +524,43 @@ export class EventReadModelQueries {
     ] as const;
   }
   // Supplier and event eligibility is applied before each bounded keyset page.
+  // Quote requests and quotes carry only the event id, so archived events are excluded by resolving the
+  // supplier's active event ids from the owner tables instead of filtering through a cross-domain relation.
+  private async activeEventIdsForSupplier(supplierId: string): Promise<string[]> {
+    const [requestEvents, quoteEvents] = await Promise.all([
+      this.prisma.opsSupplierQuoteRequest.findMany({
+        where: { supplierId },
+        select: { eventId: true },
+        distinct: ['eventId'],
+        orderBy: { eventId: 'asc' },
+        take: MAX_SUPPLIER_WORKSPACE_ROWS,
+      }),
+      this.prisma.opsSupplierQuote.findMany({
+        where: { supplierId },
+        select: { eventId: true },
+        distinct: ['eventId'],
+        orderBy: { eventId: 'asc' },
+        take: MAX_SUPPLIER_WORKSPACE_ROWS,
+      }),
+    ]);
+    const candidateIds = [...new Set([...requestEvents, ...quoteEvents].map(({ eventId }) => eventId))];
+    if (candidateIds.length === 0) return [];
+    const activeEvents = await this.prisma.opsEvent.findMany({
+      where: { id: { in: candidateIds }, archived: false },
+      select: { id: true },
+      orderBy: { id: 'asc' },
+      take: MAX_SUPPLIER_EVENTS,
+    });
+    return activeEvents.map(({ id }) => id);
+  }
+
   async supplierWorkspaceForSupplier(supplierId: string) {
+    const activeEventIds = await this.activeEventIdsForSupplier(supplierId);
     const activeRequestWhere = {
       supplierId,
-      event: { is: { archived: false } },
+      eventId: { in: activeEventIds },
     };
-    const activeQuoteWhere = { supplierId, event: { is: { archived: false } } };
+    const activeQuoteWhere = { supplierId, eventId: { in: activeEventIds } };
     const [requests, quotes] = await Promise.all([
       readAllRowsById(MAX_SUPPLIER_WORKSPACE_ROWS, (afterId) =>
         this.prisma.opsSupplierQuoteRequest.findMany({ where: {
@@ -522,8 +594,9 @@ export class EventReadModelQueries {
   }
 
   async supplierReadinessRequests(supplierId: string) {
+    const activeEventIds = await this.activeEventIdsForSupplier(supplierId);
     const requests = await readAllRowsById(MAX_SUPPLIER_WORKSPACE_ROWS, (afterId) =>
-      this.prisma.opsSupplierQuoteRequest.findMany({ where: { supplierId, event: { is: { archived: false } }, ...(afterId ? { id: { gt: afterId } } : {}) },
+      this.prisma.opsSupplierQuoteRequest.findMany({ where: { supplierId, eventId: { in: activeEventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
         orderBy: { id: 'asc' }, take: MAX_SUPPLIER_WORKSPACE_ROWS }),
     );
     return sortByDate(requests, (row) => row.createdAt, 'desc');
@@ -643,9 +716,23 @@ export class EventReadModelQueries {
       this.prisma.opsUser.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }),
       this.prisma.opsInquiry.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
       this.prisma.opsEvent.findMany({
-        include: { floorPlanDrafts: { orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], take: MAX_EVENT_FLOORPLAN_DRAFTS } },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: MAX_VISIBLE_EVENTS,
+      }).then(async (events) => {
+        const drafts = events.length
+          ? await this.prisma.opsFloorPlanDraft.findMany({
+              where: { eventId: { in: events.map((event) => event.id) } },
+              orderBy: [{ eventId: 'asc' }, { updatedAt: 'desc' }, { id: 'desc' }],
+              take: events.length * MAX_EVENT_FLOORPLAN_DRAFTS,
+            })
+          : [];
+        const draftsByEvent = new Map<string, typeof drafts>();
+        for (const draft of drafts) {
+          const eventDrafts = draftsByEvent.get(draft.eventId) ?? [];
+          if (eventDrafts.length < MAX_EVENT_FLOORPLAN_DRAFTS) eventDrafts.push(draft);
+          draftsByEvent.set(draft.eventId, eventDrafts);
+        }
+        return events.map((event) => ({ ...event, floorPlanDrafts: draftsByEvent.get(event.id) ?? [] }));
       }),
       this.prisma.opsDocument.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }] }),
       this.prisma.opsBriefing.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }] }),
@@ -676,16 +763,21 @@ export class EventReadModelQueries {
     return this.prisma.opsCoordinatorAssignment.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] });
   }
 
-  coordinatorReliabilityHistory(coordinatorId: string) {
-    return this.prisma.opsCoordinatorReliabilityNote.findMany({
+  async coordinatorReliabilityHistory(coordinatorId: string) {
+    const notes = await this.prisma.opsCoordinatorReliabilityNote.findMany({
       where: { coordinatorId },
       include: {
-        event: { select: { eventName: true, eventDate: true } },
         assignment: { select: { role: true } },
       },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: MAX_COORDINATOR_RELIABILITY_HISTORY_ROWS,
     });
+    const eventIds = [...new Set(notes.flatMap((note) => note.eventId ? [note.eventId] : []))];
+    const events = eventIds.length
+      ? await this.prisma.opsEvent.findMany({ where: { id: { in: eventIds } }, select: { id: true, eventName: true, eventDate: true } })
+      : [];
+    const eventById = new Map(events.map((event) => [event.id, event]));
+    return notes.map((note) => ({ ...note, event: note.eventId ? eventById.get(note.eventId) ?? null : null }));
   }
 
   async supplierForActor(supplierId?: string, email?: string) {
@@ -700,12 +792,10 @@ export class EventReadModelQueries {
       include: {
         category: true,
         reviews: {
-          include: { event: true },
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           take: MAX_SUPPLIER_HISTORY_ROWS,
         },
         reliabilityNotes: {
-          include: { event: true },
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           take: MAX_SUPPLIER_HISTORY_ROWS,
         },
@@ -716,6 +806,7 @@ export class EventReadModelQueries {
       },
     });
     if (!supplier) return null;
+    const [profile] = await this.attachSupplierEvents([supplier]);
     const aggregates =
       typeof this.prisma.opsSupplierReview.groupBy === 'function'
         ? await this.prisma.opsSupplierReview.groupBy({
@@ -724,7 +815,7 @@ export class EventReadModelQueries {
             _avg: { rating: true },
           })
         : [];
-    return this.mapSupplier(supplier, aggregates[0]?._avg.rating);
+    return this.mapSupplier(profile, aggregates[0]?._avg.rating);
   }
   // Query budget: one active supplier directory query, no per-row Prisma loop.
   activeSuppliers() {
@@ -733,14 +824,15 @@ export class EventReadModelQueries {
         take: MAX_ACTIVE_SUPPLIERS,
         include: {
           category: true,
-          reviews: { include: { event: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_SUPPLIER_HISTORY_ROWS },
-          reliabilityNotes: { include: { event: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_SUPPLIER_HISTORY_ROWS },
+          reviews: { orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_SUPPLIER_HISTORY_ROWS },
+          reliabilityNotes: { orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_SUPPLIER_HISTORY_ROWS },
           certifications: { orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }], take: MAX_SUPPLIER_CERTIFICATIONS },
         },
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
       })
       .then(async (suppliers) => {
         if (suppliers.length === 0) return [];
+        const profiles = await this.attachSupplierEvents(suppliers);
         // Some Prisma test doubles may not expose groupBy; production
         // Prisma does, and uses the exact aggregate to keep capped review rows
         // from changing the displayed supplier rating.
@@ -754,8 +846,27 @@ export class EventReadModelQueries {
         const aggregateRatingBySupplier = new Map(
           reviewAggregates.map((aggregate) => [aggregate.supplierId, aggregate._avg.rating]),
         );
-        return suppliers.map((supplier) => this.mapSupplier(supplier, aggregateRatingBySupplier.get(supplier.id)));
+        return profiles.map((supplier) => this.mapSupplier(supplier, aggregateRatingBySupplier.get(supplier.id)));
       });
+  }
+
+  private async attachSupplierEvents(suppliers: readonly SupplierProfileBase[]): Promise<SupplierWithProfile[]> {
+    const eventIds = [...new Set(suppliers.flatMap((supplier) => [
+      ...supplier.reviews.flatMap((review) => review.eventId ? [review.eventId] : []),
+      ...supplier.reliabilityNotes.flatMap((note) => note.eventId ? [note.eventId] : []),
+    ]))];
+    const events = eventIds.length
+      ? await this.prisma.opsEvent.findMany({ where: { id: { in: eventIds } }, select: { id: true, eventName: true, eventDate: true, clientName: true } })
+      : [];
+    const eventById = new Map(events.map((event) => [event.id, event]));
+    return suppliers.map((supplier) => ({
+      ...supplier,
+      reviews: supplier.reviews.map((review) => ({ ...review, event: review.eventId ? eventById.get(review.eventId) ?? null : null })),
+      reliabilityNotes: supplier.reliabilityNotes.map((note) => {
+        const event = note.eventId ? eventById.get(note.eventId) : undefined;
+        return { ...note, event: event ? { id: event.id, eventName: event.eventName } : null };
+      }),
+    }));
   }
 
   // Query budget: one supplier category query, no per-row Prisma loop.

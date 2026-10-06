@@ -259,6 +259,11 @@
     }
   },
   "indexOwners": {
+    "operations": {
+      "registration_platforms_event_id_idx": [
+        "operations"
+      ]
+    },
     "staffing_ops": {
       "event_schedule_days_event_id_day_date_idx": [
         "live-ops"
@@ -313,7 +318,436 @@
       "note": "Storage metadata, audit, notification, security, and AI governance records."
     }
   },
-  "schemaMoveMigrations": {},
+  "schemaMoveMigrations": {
+    "20261006000000_platform-ops_domain_schema_cutover": {
+      "owner": "platform-ops",
+      "coordinatedDomains": [
+        "commercial",
+        "event-lifecycle",
+        "floorplan",
+        "identity-access",
+        "live-ops",
+        "operations"
+      ],
+      "moves": [
+        {
+          "fromSchema": "identity",
+          "table": "users",
+          "toSchema": "identity_access"
+        },
+        {
+          "fromSchema": "identity",
+          "table": "password_reset_tokens",
+          "toSchema": "identity_access"
+        },
+        {
+          "fromSchema": "identity",
+          "table": "password_reset_rate_limits",
+          "toSchema": "identity_access"
+        },
+        {
+          "fromSchema": "identity",
+          "table": "approval_requests",
+          "toSchema": "identity_access"
+        },
+        {
+          "fromSchema": "event_core",
+          "table": "inquiries",
+          "toSchema": "event_lifecycle"
+        },
+        {
+          "fromSchema": "event_core",
+          "table": "inquiry_status_history",
+          "toSchema": "event_lifecycle"
+        },
+        {
+          "fromSchema": "event_core",
+          "table": "events",
+          "toSchema": "event_lifecycle"
+        },
+        {
+          "fromSchema": "event_core",
+          "table": "ocular_visit_requests",
+          "toSchema": "event_lifecycle"
+        },
+        {
+          "fromSchema": "event_core",
+          "table": "event_decisions",
+          "toSchema": "event_lifecycle"
+        },
+        {
+          "fromSchema": "event_core",
+          "table": "privacy_requests",
+          "toSchema": "platform_ops"
+        },
+        {
+          "fromSchema": "event_core",
+          "table": "documents",
+          "toSchema": "event_lifecycle"
+        },
+        {
+          "fromSchema": "event_core",
+          "table": "briefings",
+          "toSchema": "event_lifecycle"
+        },
+        {
+          "fromSchema": "finance_ops",
+          "table": "cost_estimates",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "finance_ops",
+          "table": "cost_estimate_lines",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "finance_ops",
+          "table": "proposal_versions",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "event_core",
+          "table": "event_freeze_exceptions",
+          "toSchema": "event_lifecycle"
+        },
+        {
+          "fromSchema": "event_core",
+          "table": "addenda",
+          "toSchema": "event_lifecycle"
+        },
+        {
+          "fromSchema": "event_core",
+          "table": "addendum_impacts",
+          "toSchema": "event_lifecycle"
+        },
+        {
+          "fromSchema": "supplier_ops",
+          "table": "quote_requests",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "supplier_ops",
+          "table": "supplier_schedules",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "supplier_ops",
+          "table": "quote_rounds",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "supplier_ops",
+          "table": "quotes",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "supplier_ops",
+          "table": "supplier_categories",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "supplier_ops",
+          "table": "suppliers",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "supplier_ops",
+          "table": "supplier_availability",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "supplier_ops",
+          "table": "supplier_reviews",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "supplier_ops",
+          "table": "supplier_review_dimensions",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "supplier_ops",
+          "table": "supplier_review_dimension_ratings",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "supplier_ops",
+          "table": "supplier_reliability_notes",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "supplier_ops",
+          "table": "supplier_certifications",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "supplier_ops",
+          "table": "supplier_applications",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "supplier_ops",
+          "table": "supplier_promotions",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "staffing_ops",
+          "table": "coordinators",
+          "toSchema": "operations"
+        },
+        {
+          "fromSchema": "staffing_ops",
+          "table": "coordinator_availability",
+          "toSchema": "operations"
+        },
+        {
+          "fromSchema": "staffing_ops",
+          "table": "event_coverage_requirements",
+          "toSchema": "operations"
+        },
+        {
+          "fromSchema": "staffing_ops",
+          "table": "coordinator_assignments",
+          "toSchema": "operations"
+        },
+        {
+          "fromSchema": "staffing_ops",
+          "table": "coordinator_assignment_acknowledgments",
+          "toSchema": "operations"
+        },
+        {
+          "fromSchema": "staffing_ops",
+          "table": "event_day_tasks",
+          "toSchema": "live_ops"
+        },
+        {
+          "fromSchema": "staffing_ops",
+          "table": "task_reassignment_requests",
+          "toSchema": "live_ops"
+        },
+        {
+          "fromSchema": "staffing_ops",
+          "table": "event_schedule_days",
+          "toSchema": "live_ops"
+        },
+        {
+          "fromSchema": "staffing_ops",
+          "table": "event_schedule_segments",
+          "toSchema": "live_ops"
+        },
+        {
+          "fromSchema": "staffing_ops",
+          "table": "event_operator_designations",
+          "toSchema": "live_ops"
+        },
+        {
+          "fromSchema": "staffing_ops",
+          "table": "event_handoffs",
+          "toSchema": "live_ops"
+        },
+        {
+          "fromSchema": "staffing_ops",
+          "table": "event_eod_reports",
+          "toSchema": "live_ops"
+        },
+        {
+          "fromSchema": "staffing_ops",
+          "table": "event_eod_replies",
+          "toSchema": "live_ops"
+        },
+        {
+          "fromSchema": "staffing_ops",
+          "table": "urgent_issues",
+          "toSchema": "live_ops"
+        },
+        {
+          "fromSchema": "staffing_ops",
+          "table": "event_day_logs",
+          "toSchema": "live_ops"
+        },
+        {
+          "fromSchema": "staffing_ops",
+          "table": "coordinator_reliability_notes",
+          "toSchema": "operations"
+        },
+        {
+          "fromSchema": "compliance_ops",
+          "table": "compliance_rules",
+          "toSchema": "event_lifecycle"
+        },
+        {
+          "fromSchema": "compliance_ops",
+          "table": "compliance_checks",
+          "toSchema": "event_lifecycle"
+        },
+        {
+          "fromSchema": "compliance_ops",
+          "table": "compliance_runs",
+          "toSchema": "event_lifecycle"
+        },
+        {
+          "fromSchema": "compliance_ops",
+          "table": "compliance_risks",
+          "toSchema": "event_lifecycle"
+        },
+        {
+          "fromSchema": "compliance_ops",
+          "table": "compliance_risk_history",
+          "toSchema": "event_lifecycle"
+        },
+        {
+          "fromSchema": "finance_ops",
+          "table": "billing_sources",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "finance_ops",
+          "table": "billing_statements",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "finance_ops",
+          "table": "billing_statement_sequences",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "finance_ops",
+          "table": "payment_milestones",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "finance_ops",
+          "table": "payment_records",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "finance_ops",
+          "table": "billing_corrections",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "finance_ops",
+          "table": "billing_disputes",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "finance_ops",
+          "table": "additional_billings",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "compliance_ops",
+          "table": "post_event_documents",
+          "toSchema": "event_lifecycle"
+        },
+        {
+          "fromSchema": "compliance_ops",
+          "table": "event_wrap_ups",
+          "toSchema": "event_lifecycle"
+        },
+        {
+          "fromSchema": "compliance_ops",
+          "table": "event_insights",
+          "toSchema": "event_lifecycle"
+        },
+        {
+          "fromSchema": "trust_ops",
+          "table": "audit_chain_locks",
+          "toSchema": "platform_ops"
+        },
+        {
+          "fromSchema": "trust_ops",
+          "table": "audit_logs",
+          "toSchema": "platform_ops"
+        },
+        {
+          "fromSchema": "trust_ops",
+          "table": "notification_logs",
+          "toSchema": "platform_ops"
+        },
+        {
+          "fromSchema": "trust_ops",
+          "table": "command_receipts",
+          "toSchema": "platform_ops"
+        },
+        {
+          "fromSchema": "guest_ops",
+          "table": "check_ins",
+          "toSchema": "operations"
+        },
+        {
+          "fromSchema": "guest_ops",
+          "table": "guest_roster_entries",
+          "toSchema": "operations"
+        },
+        {
+          "fromSchema": "guest_ops",
+          "table": "guest_roster_imports",
+          "toSchema": "operations"
+        },
+        {
+          "fromSchema": "guest_ops",
+          "table": "feedback",
+          "toSchema": "operations"
+        },
+        {
+          "fromSchema": "guest_ops",
+          "table": "feedback_media",
+          "toSchema": "operations"
+        },
+        {
+          "fromSchema": "guest_ops",
+          "table": "registration_platforms",
+          "toSchema": "operations"
+        },
+        {
+          "fromSchema": "trust_ops",
+          "table": "ai_audit_logs",
+          "toSchema": "platform_ops"
+        },
+        {
+          "fromSchema": "trust_ops",
+          "table": "ai_daily_token_usage",
+          "toSchema": "platform_ops"
+        },
+        {
+          "fromSchema": "trust_ops",
+          "table": "ai_approval_records",
+          "toSchema": "platform_ops"
+        },
+        {
+          "fromSchema": "trust_ops",
+          "table": "conforme_comms_drafts",
+          "toSchema": "platform_ops"
+        },
+        {
+          "fromSchema": "identity",
+          "table": "login_history",
+          "toSchema": "platform_ops"
+        },
+        {
+          "fromSchema": "identity",
+          "table": "security_alerts",
+          "toSchema": "platform_ops"
+        },
+        {
+          "fromSchema": "supplier_ops",
+          "table": "communication_threads",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "supplier_ops",
+          "table": "communication_participants",
+          "toSchema": "commercial"
+        },
+        {
+          "fromSchema": "supplier_ops",
+          "table": "communication_messages",
+          "toSchema": "commercial"
+        }
+      ]
+    }
+  },
   "owners": {
     "commercial": {
       "schema": "commercial",

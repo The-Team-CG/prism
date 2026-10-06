@@ -1092,7 +1092,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
     return this.prisma.$transaction(async (tx) => {
       // QUERY_AUDIT_RAW_SQL: reserve usage atomically so concurrent requests cannot exceed the daily token budget.
       const rows = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
-        INSERT INTO "trust_ops"."ai_daily_token_usage" AS daily_usage
+        INSERT INTO "platform_ops"."ai_daily_token_usage" AS daily_usage
           ("id", "use_case_id", "usage_date", "reserved_tokens", "consumed_tokens", "updated_at")
         VALUES (${`aib_${randomUUID()}`}, ${useCaseId}, ${usageDate}::date, ${amount}, 0, NOW())
         ON CONFLICT ("use_case_id", "usage_date") DO UPDATE
@@ -1123,7 +1123,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
     await this.prisma.$transaction(async (tx) => {
       // QUERY_AUDIT_RAW_SQL: reconcile reserved and consumed tokens in one atomic update.
       await tx.$executeRaw(Prisma.sql`
-        UPDATE "trust_ops"."ai_daily_token_usage"
+        UPDATE "platform_ops"."ai_daily_token_usage"
         SET "reserved_tokens" = "reserved_tokens" - ${reserved},
             "consumed_tokens" = "consumed_tokens" + ${actual},
             "updated_at" = NOW()
@@ -1149,7 +1149,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
     await this.prisma.$transaction(async (tx) => {
       // QUERY_AUDIT_RAW_SQL: treat an unknown provider outcome as consumed without releasing the budget.
       await tx.$executeRaw(Prisma.sql`
-        UPDATE "trust_ops"."ai_daily_token_usage"
+        UPDATE "platform_ops"."ai_daily_token_usage"
         SET "reserved_tokens" = "reserved_tokens" - ${reserved},
             "consumed_tokens" = "consumed_tokens" + ${reserved},
             "updated_at" = NOW()
@@ -1171,7 +1171,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
     await this.prisma.$transaction(async (tx) => {
       // QUERY_AUDIT_RAW_SQL: release a known-unused reservation atomically.
       await tx.$executeRaw(Prisma.sql`
-        UPDATE "trust_ops"."ai_daily_token_usage"
+        UPDATE "platform_ops"."ai_daily_token_usage"
         SET "reserved_tokens" = "reserved_tokens" - ${reserved},
             "updated_at" = NOW()
         WHERE "use_case_id" = ${useCaseId} AND "usage_date" = ${usageDate}::date

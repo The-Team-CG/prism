@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { AuditExportService } from './audit-export.service';
 import { AuditReadService } from './audit-read.service';
 import { AuditService } from './audit.service';
@@ -90,10 +90,22 @@ function independentAuditRows() {
 }
 
 function securityOperationsService(prisma: unknown, outbox?: unknown) {
-  return new SecurityOperationsService(prisma as never, new AuditService(prisma as never), outbox as never);
+  const accountContacts = { findApprovedEmailByRole: vi.fn(async () => 'trust@example.test'), findApprovedEmailByName: vi.fn(async () => null) };
+  return new SecurityOperationsService(prisma as never, new AuditService(prisma as never), accountContacts as never, outbox as never);
 }
 
 describe('AuditService', () => {
+  it('fails closed when the account contact read model is unavailable', async () => {
+    const createAlert = vi.fn();
+    const prisma = { opsSecurityAlert: { create: createAlert } };
+    const auditService = new AuditService(prisma as never);
+    const service = new SecurityOperationsService(prisma as never, auditService, undefined as never);
+
+    await expect(service.createSecurityAlert({ type: 'test', title: 'Security alert', description: 'Test alert' }))
+      .rejects.toThrow('Account contact read model is unavailable');
+    expect(createAlert).not.toHaveBeenCalled();
+  });
+
   it('uses explicit unknown metadata when login request context is unavailable', async () => {
     const create = async ({ data }: { data: unknown }) => data;
     const prisma = { opsLoginHistory: { create } };
@@ -690,10 +702,11 @@ describe('AuditService', () => {
 
     const outbox = { queue: async (...args: unknown[]) => { notifications.push(args); return args; } };
     const auditService = new AuditService(prisma as never);
+    const accountContacts = { findApprovedEmailByRole: vi.fn(async () => 'trust@example.test'), findApprovedEmailByName: vi.fn(async () => null) };
     const exportService = new AuditExportService(
       new AuditReadService(prisma as never),
       auditService,
-      new SecurityOperationsService(prisma as never, auditService, outbox as never),
+      new SecurityOperationsService(prisma as never, auditService, accountContacts as never, outbox as never),
     );
     const exported = await exportService.exportAuditLogs({}, { id: 'verified-pmcm-id', name: 'Verified PMCM', role: 'pmcm-admin', email: 'pmcm@example.test' });
 
@@ -701,6 +714,7 @@ describe('AuditService', () => {
     expect(alerts).toHaveLength(1);
     expect(createdAuditRows).toHaveLength(2);
     expect(notifications).toHaveLength(2);
+    expect(accountContacts.findApprovedEmailByRole).toHaveBeenCalledWith('pmcm-admin');
     expect(notifications).toEqual(expect.arrayContaining([
       expect.arrayContaining(['trust@example.test', 'Bulk audit export threshold exceeded', expect.anything(), expect.objectContaining({ idempotencyKey: expect.stringContaining('security-alert:') })]),
     ]));

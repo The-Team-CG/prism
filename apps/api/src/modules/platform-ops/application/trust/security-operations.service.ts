@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import type { OpsLoginHistory, OpsSecurityAlert, OpsUser } from '@prisma/client';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
@@ -13,6 +13,7 @@ import { NotificationOutboxService } from '../notifications/notification-outbox.
 import { AuditService, AuditIntegrityConflictException } from './audit.service';
 import type { AuditLogInput } from './audit.service';
 import type { AuthenticationFailureDetails } from '../../contracts/trust/authentication-failure-details';
+import { ACCOUNT_CONTACT_READ_MODEL, type AccountContactReadModel } from '@prism/contexts/read-models/account-contacts';
 
 export type IntegrityIncidentInput = {
   source: string;
@@ -83,6 +84,7 @@ export class SecurityOperationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    @Inject(ACCOUNT_CONTACT_READ_MODEL) private readonly accountContacts?: AccountContactReadModel,
     private readonly notificationOutbox?: NotificationOutboxService,
   ) {}
 
@@ -316,12 +318,8 @@ export class SecurityOperationsService {
   }
 
   private async resolveTrustRecipient() {
-    const recipient = await this.prisma.opsUser.findFirst({
-      where: { role: OpsUserRole.PmcmAdmin, approvalStatus: 'approved' },
-      orderBy: { createdAt: 'asc' },
-      select: { email: true },
-    });
-    const email = recipient?.email?.trim().toLowerCase();
+    if (!this.accountContacts) throw new ServiceUnavailableException('Account contact read model is unavailable');
+    const email = (await this.accountContacts.findApprovedEmailByRole(OpsUserRole.PmcmAdmin))?.trim().toLowerCase();
     return email && email.includes('@') ? email : null;
   }
 

@@ -45,7 +45,7 @@ import type {
 import { mapSupplierQuoteRequest, mapSupplierSchedule } from '../quotes/supplier-quote.mappers';
 
 async function lockSupplierQuoteRequest(prisma: Prisma.TransactionClient, requestId: string) {
-  await prisma.$queryRaw`SELECT id FROM "supplier_ops"."quote_requests" WHERE id = ${requestId} FOR UPDATE`; // QUERY_AUDIT_RAW_SQL: parameterized primary-key row lock rechecks assignment state and identity.
+  await prisma.$queryRaw`SELECT id FROM "commercial"."quote_requests" WHERE id = ${requestId} FOR UPDATE`; // QUERY_AUDIT_RAW_SQL: parameterized primary-key row lock rechecks assignment state and identity.
 }
 
 function requireLockedConfirmationRequest(
@@ -246,7 +246,7 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
             status: 'selected',
             assignmentStatus: expectedAssignmentStatus,
           },
-          data: { assignmentStatus: 'withdrawn' },
+          data: { assignmentStatus: 'withdrawn', accessTokenRevokedAt: new Date() },
         });
         if (changed.count !== 1) throw new BadRequestException('Supplier assignment changed before withdrawal');
         const sourceUpdatedAt = new Date();
