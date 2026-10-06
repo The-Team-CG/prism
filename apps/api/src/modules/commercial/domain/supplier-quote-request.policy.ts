@@ -21,6 +21,21 @@ const EXPIRABLE_REQUEST_STATUSES: ReadonlySet<string> = new Set([
   SupplierQuoteRequestStatus.RevisionRequested,
 ]);
 
+/** A quote-request link stays valid for this long after it is issued. */
+export const QUOTE_ACCESS_TOKEN_TTL_DAYS = 90;
+
+/**
+ * A quote-request link is usable until it expires or is revoked. A request with no expiry recorded (legacy local
+ * rows) never ages out, but a revocation always denies it.
+ */
+export function isQuoteAccessTokenUsable(
+  window: { accessTokenExpiresAt?: Date | null; accessTokenRevokedAt?: Date | null },
+  now: Date = new Date(),
+): boolean {
+  if (window.accessTokenRevokedAt) return false;
+  return !window.accessTokenExpiresAt || window.accessTokenExpiresAt.getTime() > now.getTime();
+}
+
 /**
  * A quote request is closed once a supplier has been Selected for the
  * category, the request itself was explicitly Closed (e.g. superseded by

@@ -246,7 +246,7 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
             status: 'selected',
             assignmentStatus: expectedAssignmentStatus,
           },
-          data: { assignmentStatus: 'withdrawn' },
+          data: { assignmentStatus: 'withdrawn', accessTokenRevokedAt: new Date() },
         });
         if (changed.count !== 1) throw new BadRequestException('Supplier assignment changed before withdrawal');
         const sourceUpdatedAt = new Date();
