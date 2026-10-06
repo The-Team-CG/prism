@@ -282,5 +282,10 @@
 - **Aligned:** updated the context contract and cutover runbook to describe the completed local schema migration and its verification limits; recorded that no tables or columns were removed and linked the evidence-based trim candidate register.
 - **Corrected:** replaced the legacy ten-schema tables in the persistence ownership register and migration runbook with the seven owner schemas, and updated the audit-chain runbook scope.
 - **Recorded:** documented the approval request to account foreign key.
+- **Recorded:** documented the LiveOps same-event foreign keys.
+- **Recorded:** documented the Operations guest provenance foreign keys.
+- **Recorded:** documented the Commercial same-event composite foreign keys in the persistence ownership register.
+- **Recorded:** documented the one-active-draft rule for official floorplans.
+- **Recorded:** logged the quote-request link lifecycle.
 - **Recorded:** documented the canonical account email rule in the persistence ownership register.
 - **Recorded:** logged the registration-platform index removal.
