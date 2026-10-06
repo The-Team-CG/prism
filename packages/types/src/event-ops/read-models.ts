@@ -36,6 +36,36 @@ import type {
 } from "./compliance-billing.js";
 import type { PrismAuditLog, PrismNotificationLog } from "./trust.js";
 
+export interface PrismApprovedClientAccount {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface PrismEventClientAccess {
+  eventId: string;
+  primaryContact: { name: string; email: string };
+  secondaryContacts: PrismApprovedClientAccount[];
+}
+
+export interface PrismClientSharedFloorplanEvent {
+  eventId: string;
+  eventName: string;
+  eventDate: string;
+}
+
+export type PrismClientFloorplanSnapshotType = "submitted" | "approved";
+
+export interface PrismClientSharedFloorplanEntry {
+  eventId: string;
+  eventName: string;
+  eventDate: string;
+  draftId: string;
+  draftName: string;
+  draftStatus: string;
+  availableSnapshots: PrismClientFloorplanSnapshotType[];
+}
+
 export interface PrismCursorPageInfo {
   nextCursor: string | null;
   hasMore: boolean;

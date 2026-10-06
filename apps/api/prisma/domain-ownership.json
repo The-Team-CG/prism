@@ -1,10 +1,10 @@
 {
   "summary": {
-    "totalTables": 93,
+    "totalTables": 94,
     "targetSchemas": 7,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
-    "targetSameDomainFks": 75,
+    "targetSameDomainFks": 76,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -20,8 +20,8 @@
       {
         "domain": "event-lifecycle",
         "schema": "event_lifecycle",
-        "tables": 18,
-        "columns": 280
+        "tables": 19,
+        "columns": 290
       },
       {
         "domain": "commercial",
@@ -157,6 +157,15 @@
       "domain": "event-lifecycle",
       "targetSchema": "event_lifecycle",
       "columnCount": 33
+    },
+    {
+      "model": "OpsEventClientFloorplanAccessGrant",
+      "currentSchema": "event_lifecycle",
+      "table": "client_floorplan_access_grants",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "introducedAfterCutover": true,
+      "columnCount": 10
     },
     {
       "model": "OpsOcularVisitRequest",
@@ -2618,6 +2627,21 @@
       "targetCurrentSchema": "event_core",
       "targetTable": "events",
       "sameDomain": false
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "client_floorplan_access_grants",
+      "name": "client_floorplan_access_grants_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_lifecycle.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "events",
+      "sameDomain": true
     }
   ]
 }

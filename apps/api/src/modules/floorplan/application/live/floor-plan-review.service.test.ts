@@ -211,7 +211,7 @@ describe('FloorPlanReviewService', () => {
     expect(notificationOutboxWriter.write).toHaveBeenCalledTimes(1);
   });
 
-  it('rejects a non-primary client contact', async () => {
+  it('rejects revision comments from a secondary Client without the primary inquiry email', async () => {
     const { service } = createService();
 
     await expect(
@@ -219,7 +219,7 @@ describe('FloorPlanReviewService', () => {
         ...clientActor,
         email: 'other@example.test',
       }),
-    ).rejects.toThrow(ForbiddenException);
+    ).rejects.toThrow('Only the primary client contact can send floorplan revision comments');
     expect(service).toBeDefined();
   });
 
