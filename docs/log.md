@@ -283,5 +283,16 @@
 - **Corrected:** replaced the legacy ten-schema tables in the persistence ownership register and migration runbook with the seven owner schemas, and updated the audit-chain runbook scope.
 - **Added:** the database roles and audit privileges runbook.
 - **Recorded:** documented the AI governance provenance foreign keys.
+- **Recorded:** documented the approval request to account foreign key.
+- **Recorded:** documented the Lifecycle row-level CHECK constraints.
+- **Recorded:** documented the LiveOps row-level CHECK constraints.
+- **Recorded:** documented the Operations row-level CHECK constraints.
+- **Recorded:** documented the structured JSON column shape checks and the floorplan canvas authority.
+- **Recorded:** documented the LiveOps same-event foreign keys.
+- **Recorded:** documented the Operations guest provenance foreign keys.
+- **Recorded:** documented the Commercial same-event composite foreign keys in the persistence ownership register.
+- **Recorded:** documented the Commercial row-level CHECK constraints.
+- **Recorded:** documented the one-active-draft rule for official floorplans.
+- **Recorded:** logged the quote-request link lifecycle.
 - **Recorded:** documented the canonical account email rule in the persistence ownership register.
 - **Recorded:** logged the registration-platform index removal.
