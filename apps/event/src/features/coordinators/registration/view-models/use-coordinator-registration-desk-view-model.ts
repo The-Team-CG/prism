@@ -10,9 +10,10 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message.trim() ? error.message : fallback;
 }
 
-export function useCoordinatorRegistrationDeskViewModel(eventId: string) {
+export function useCoordinatorRegistrationDeskViewModel(eventId: string, onAttendanceChange?: () => Promise<void>) {
   const [query, setQuery] = useState("");
   const [entries, setEntries] = useState<PrismCoordinatorRegistrationEntry[]>([]);
+  const [pendingQueue, setPendingQueue] = useState(false);
   const [status, setStatus] = useState<DeskStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -24,6 +25,7 @@ export function useCoordinatorRegistrationDeskViewModel(eventId: string) {
   useEffect(() => {
     setQuery("");
     setEntries([]);
+    setPendingQueue(false);
     setStatus("idle");
     setError(null);
     setNotice(null);
@@ -32,14 +34,17 @@ export function useCoordinatorRegistrationDeskViewModel(eventId: string) {
     setPrivacyConsentAccepted(false);
   }, [eventId]);
 
-  async function loadRoster(searchTerm: string) {
-    const rows = await coordinatorRegistrationRepository.search(eventId, searchTerm);
+  async function loadRoster(searchTerm: string, reviewQueue = false) {
+    const rows = reviewQueue
+      ? await coordinatorRegistrationRepository.search(eventId, searchTerm, true)
+      : await coordinatorRegistrationRepository.search(eventId, searchTerm);
     setEntries(rows);
     setStatus("ready");
   }
 
   async function search() {
     const searchTerm = query.trim();
+    setPendingQueue(false);
     if (searchTerm.length < 2) {
       setError("Enter at least two letters to search the guest roster.");
       return;
@@ -55,7 +60,27 @@ export function useCoordinatorRegistrationDeskViewModel(eventId: string) {
     }
   }
 
+  async function loadPendingReviews() {
+    setPendingQueue(true);
+    setQuery("");
+    setStatus("loading");
+    setError(null);
+    setNotice(null);
+    try {
+      await loadRoster("", true);
+    } catch (searchError) {
+      setStatus("idle");
+      setError(errorMessage(searchError, "Unable to load pending guest reviews."));
+    }
+  }
+
   async function refreshRoster() {
+    if (pendingQueue) {
+      const rows = await coordinatorRegistrationRepository.search(eventId, "", true);
+      setEntries(rows);
+      setStatus("ready");
+      return;
+    }
     const searchTerm = query.trim();
     if (searchTerm.length < 2) return;
     const rows = await coordinatorRegistrationRepository.search(eventId, searchTerm);
@@ -70,6 +95,7 @@ export function useCoordinatorRegistrationDeskViewModel(eventId: string) {
     try {
       await coordinatorRegistrationRepository.checkIn(eventId, entry.id);
       await refreshRoster();
+      await onAttendanceChange?.();
       setNotice(`${entry.guestName} checked in.`);
     } catch (checkInError) {
       setError(errorMessage(checkInError, "Unable to check in this guest."));
@@ -85,6 +111,7 @@ export function useCoordinatorRegistrationDeskViewModel(eventId: string) {
     try {
       await coordinatorRegistrationRepository.verify(eventId, entry.id, status);
       await refreshRoster();
+      await onAttendanceChange?.();
       setNotice(`${entry.guestName} marked ${status}.`);
     } catch (verificationError) {
       setError(errorMessage(verificationError, "Unable to update guest verification."));
@@ -107,7 +134,9 @@ export function useCoordinatorRegistrationDeskViewModel(eventId: string) {
     setNotice(null);
     try {
       const entry = await coordinatorRegistrationRepository.registerWalkIn(eventId, parsed.data);
+      await onAttendanceChange?.();
       setEntries((current) => [entry, ...current.filter((candidate) => candidate.id !== entry.id)]);
+      setPendingQueue(false);
       setStatus("ready");
       setQuery(entry.guestName);
       setWalkInName("");
@@ -124,11 +153,13 @@ export function useCoordinatorRegistrationDeskViewModel(eventId: string) {
     query,
     setQuery,
     entries,
+    pendingQueue,
     status,
     error,
     notice,
     busyEntryId,
     search,
+    loadPendingReviews,
     checkIn,
     updateVerification,
     walkInName,

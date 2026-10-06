@@ -1,4 +1,4 @@
-import type { PrismApprovalRequest, PrismDefenseReadiness, PrismEventDayStatusFeed, PrismLiveOps, PrismPmcmEventWorkspace, PrismRegistrationPlatform } from "@prism/types";
+import type { PrismApprovalRequest, PrismDefenseReadiness, PrismEventDayStatusFeed, PrismGuestPrivacyClassification, PrismLiveOps, PrismPmcmEventWorkspace, PrismRegistrationPlatform } from "@prism/types";
 import { eventApi, eventApiRequest } from "@/lib/prism-api";
 
 type TimedCache<T> = { value: T; loadedAt: number };
@@ -7,6 +7,7 @@ export type EventCommandData = {
   statusFeed: PrismEventDayStatusFeed;
   defenseReadiness: PrismDefenseReadiness;
   registrationPlatform: PrismRegistrationPlatform | null;
+  guestPrivacyClassification: PrismGuestPrivacyClassification | null;
 };
 
 export type EventCommandDataErrors = {
@@ -14,6 +15,7 @@ export type EventCommandDataErrors = {
   statusFeed?: string;
   defenseReadiness?: string;
   registrationPlatform?: string;
+  guestPrivacyClassification?: string;
 };
 
 const EVENT_WORKSPACE_CACHE_MS = 20_000;
@@ -93,11 +95,12 @@ export const eventWorkspaceRepository = {
           return null as T;
         });
 
-      const [liveOps, statusFeed, defenseReadiness, registrationPlatform] = await Promise.all([
+      const [liveOps, statusFeed, defenseReadiness, registrationPlatform, guestPrivacyClassification] = await Promise.all([
         settle("liveOps", eventApi.liveOps.eventDayWorkspace(eventId)),
         settle("statusFeed", eventApiRequest<PrismEventDayStatusFeed>(`/api/events/${eventId}/event-day/status-feed`)),
         settle("defenseReadiness", eventApiRequest<PrismDefenseReadiness>(`/api/events/${eventId}/defense-readiness`)),
         settle("registrationPlatform", eventApi.pmcm.registrationPlatform(eventId)),
+        settle("guestPrivacyClassification", eventApi.guest.guestPrivacyClassification(eventId)),
       ]);
 
       const next: EventCommandData = {
@@ -105,6 +108,7 @@ export const eventWorkspaceRepository = {
         statusFeed: statusFeed!,
         defenseReadiness: defenseReadiness!,
         registrationPlatform,
+        guestPrivacyClassification,
       };
       eventCommandDataCache.set(eventId, { value: next, loadedAt: Date.now() });
       return { data: next, errors };

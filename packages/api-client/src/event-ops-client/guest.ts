@@ -2,9 +2,12 @@ import type {
   CoordinatorWalkInCheckInInput,
   PrismCoordinatorRegistrationEntry,
   PrismGuestCheckIn,
+  PrismGuestCheckInReceipt,
   PrismGuestRosterEntry,
   PrismGuestEventPass,
   PrismGuestFeedback,
+  PrismGuestPrivacyClassification,
+  UpdateGuestPrivacyClassificationInput,
 } from "@prism/types";
 import { prismRequest, toQueryString } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
@@ -21,7 +24,7 @@ export function createGuestClient(
           withBase(options),
         ),
       checkIn: (accessCode, input) =>
-        prismRequest<PrismGuestCheckIn>(
+        prismRequest<PrismGuestCheckInReceipt>(
           `/guest/events/${encodeURIComponent(accessCode)}/check-ins`,
           withBase(options, { method: "POST", body: input }),
         ),
@@ -102,6 +105,16 @@ export function createGuestClient(
         prismRequest<PrismCoordinatorRegistrationEntry>(
           `/guest/events/${eventId}/walk-ins`,
           withBase(options, { method: "POST", body: input }),
+        ),
+      guestPrivacyClassification: (eventId) =>
+        prismRequest<PrismGuestPrivacyClassification>(
+          `/events/${encodeURIComponent(eventId)}/guest-privacy`,
+          withBase(options),
+        ),
+      updateGuestPrivacyClassification: (eventId, input) =>
+        prismRequest<PrismGuestPrivacyClassification>(
+          `/events/${encodeURIComponent(eventId)}/guest-privacy`,
+          withBase(options, { method: "PATCH", body: input }),
         ),
       walkInPolicy: (eventId, actor = {}) =>
         prismRequest(

@@ -1,4 +1,4 @@
-import type { UpdateWalkInPolicyInput } from '@prism/types';
+import type { UpdateGuestPrivacyClassificationInput, UpdateWalkInPolicyInput } from '@prism/types';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 
 export type EventReadAccessReference = {
@@ -22,6 +22,25 @@ export type OperationsEventReference = {
 };
 
 
+export type GuestCheckInEventReference = Pick<
+  OperationsEventReference,
+  'id' | 'eventName' | 'walkInPolicy' | 'walkInThreshold'
+> & {
+  guestPrivacyClassification: string;
+  briefingGuestCount: number | null;
+};
+
+export type GuestPrivacyClassificationSnapshot = {
+  eventId: string;
+  eventName: string;
+  classification: string;
+};
+
+export type GuestPrivacyClassificationChange = {
+  before: GuestPrivacyClassificationSnapshot;
+  after: GuestPrivacyClassificationSnapshot;
+};
+
 export type WalkInPolicySnapshot = {
   eventId: string;
   eventName: string;
@@ -37,6 +56,7 @@ export type WalkInPolicyChange = {
 /** Lifecycle-owned event state used by Operations command eligibility checks. */
 export interface OperationsEventReferenceReader {
   findOperationsEvent(eventId: string, transaction?: PrismTransactionContext): Promise<OperationsEventReference | null>;
+  findGuestCheckInEventReference(eventId: string, transaction?: PrismTransactionContext): Promise<GuestCheckInEventReference | null>;
   findOperationsEvents(eventIds: readonly string[]): Promise<OperationsEventReference[]>;
   findEventIdsByDateRange(startsAt: Date, endsBefore: Date): Promise<string[]>;
   findEventReadAccess(eventId: string): Promise<EventReadAccessReference | null>;
@@ -51,5 +71,15 @@ export interface WalkInPolicyOwner {
   ): Promise<WalkInPolicyChange | null>;
 }
 
+/** Lifecycle-owned mutation for PMCM-managed guest privacy classification. */
+export interface GuestPrivacyClassificationOwner {
+  updateGuestPrivacyClassification(
+    eventId: string,
+    input: UpdateGuestPrivacyClassificationInput,
+    transaction: PrismTransactionContext,
+  ): Promise<GuestPrivacyClassificationChange | null>;
+}
+
 export const OPERATIONS_EVENT_REFERENCE_READER = Symbol('OPERATIONS_EVENT_REFERENCE_READER');
 export const WALK_IN_POLICY_OWNER = Symbol('WALK_IN_POLICY_OWNER');
+export const GUEST_PRIVACY_CLASSIFICATION_OWNER = Symbol('GUEST_PRIVACY_CLASSIFICATION_OWNER');

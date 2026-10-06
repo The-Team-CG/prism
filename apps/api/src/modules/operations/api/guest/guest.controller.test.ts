@@ -15,11 +15,10 @@ describe('OpsGuestController', () => {
   it('serves guest event, check-in, and feedback routes through GuestWorkflowService', async () => {
     const guestWorkflowService = {
       getEventByAccessCode: vi.fn(async () => ({ id: 'evt_sample', eventName: 'Ayala Summit' })),
-      getEventWatermarkByAccessCode: vi.fn(async () => ({ watermark: '2026-06-01T00:00:00.000Z:2' })),
+      getEventWatermarkByAccessCode: vi.fn(async () => ({ watermark: '2026-06-01T00:00:00.000Z' })),
       countCheckInsForEvent: vi.fn(async () => 2),
-      mapGuestEvent: vi.fn((event, attendanceCount) => ({ id: event.id, attendanceCount })),
-      checkInByAccessCode: vi.fn(async () => ({ id: 'gci_1', guestName: 'Sofia Lim' })),
-      mapGuestCheckIn: vi.fn((checkIn) => ({ id: checkIn.id, guestName: checkIn.guestName })),
+      mapGuestEvent: vi.fn((event) => ({ id: event.id })),
+      checkInByAccessCode: vi.fn(async () => ({ accepted: true })),
       submitFeedbackByAccessCode: vi.fn(async () => ({
         id: 'gfb_1',
         eventId: 'evt_sample',
@@ -28,9 +27,9 @@ describe('OpsGuestController', () => {
     };
   const controller = new OpsGuestController(guestWorkflowService as any, { resolveActor: vi.fn(() => ({ role: OpsUserRole.PmcmAdmin, name: 'Maxine' })), requireActorRole: vi.fn(async () => undefined) } as any);
 
-    await expect(controller.eventByAccessCode('AYALA-TECH-MPLE')).resolves.toEqual({ id: 'evt_sample', attendanceCount: 2 });
-    await expect(controller.eventWatermarkByAccessCode('AYALA-TECH-MPLE')).resolves.toEqual({ watermark: '2026-06-01T00:00:00.000Z:2' });
-    await expect(controller.checkIn('AYALA-TECH-MPLE', { guestName: 'Sofia Lim', privacyConsentAccepted: true })).resolves.toEqual({ id: 'gci_1', guestName: 'Sofia Lim' });
+    await expect(controller.eventByAccessCode('AYALA-TECH-MPLE')).resolves.toEqual({ id: 'evt_sample' });
+    await expect(controller.eventWatermarkByAccessCode('AYALA-TECH-MPLE')).resolves.toEqual({ watermark: '2026-06-01T00:00:00.000Z' });
+    await expect(controller.checkIn('AYALA-TECH-MPLE', { checkInMode: 'name_search', guestName: 'Sofia Lim', privacyConsentAccepted: true })).resolves.toEqual({ accepted: true });
     const feedbackReceipt = await controller.submitFeedback('AYALA-TECH-MPLE', { guestName: 'Sofia Lim', rating: 5, privacyConsentAccepted: true });
     expect(feedbackReceipt).toEqual({
       id: 'gfb_1',
@@ -43,8 +42,8 @@ describe('OpsGuestController', () => {
     expect(feedbackReceipt).not.toHaveProperty('mediaAttachments');
     expect(guestWorkflowService.getEventByAccessCode).toHaveBeenCalledWith('AYALA-TECH-MPLE');
     expect(guestWorkflowService.getEventWatermarkByAccessCode).toHaveBeenCalledWith('AYALA-TECH-MPLE');
-    expect(guestWorkflowService.countCheckInsForEvent).toHaveBeenCalledWith('evt_sample');
-    expect(guestWorkflowService.checkInByAccessCode).toHaveBeenCalledWith('AYALA-TECH-MPLE', { guestName: 'Sofia Lim', privacyConsentAccepted: true });
+    expect(guestWorkflowService.countCheckInsForEvent).not.toHaveBeenCalled();
+    expect(guestWorkflowService.checkInByAccessCode).toHaveBeenCalledWith('AYALA-TECH-MPLE', { checkInMode: 'name_search', guestName: 'Sofia Lim', privacyConsentAccepted: true });
     expect(guestWorkflowService.submitFeedbackByAccessCode).toHaveBeenCalledWith('AYALA-TECH-MPLE', { guestName: 'Sofia Lim', rating: 5, privacyConsentAccepted: true });
   });
 
@@ -77,14 +76,28 @@ describe('OpsGuestController', () => {
     };
     const controller = new OpsGuestController(guestWorkflowService as any, eventAccessPolicyService as any);
 
-    await expect(controller.searchRosterWithFilters('evt_1', 'Mia', '', undefined, undefined, {} as any)).resolves.toEqual([
+    await expect(controller.searchRosterWithFilters('evt_1', 'Mia', '', undefined, undefined, 'true', {} as any)).resolves.toEqual([
       { id: 'gre_1', guestName: 'Mia Santos' },
     ]);
 
     expect(guestWorkflowService.searchCoordinatorRoster).toHaveBeenCalledWith('evt_1', actor, {
-      query: 'Mia', namePrefix: '', eligibility: undefined, checkedIn: undefined,
+      query: 'Mia', namePrefix: '', eligibility: undefined, checkedIn: undefined, reviewQueue: true,
     });
     expect(guestWorkflowService.searchRoster).not.toHaveBeenCalled();
+  });
+
+  it('rejects malformed review queue filters', async () => {
+    const actor = { id: 'usr_coord', name: 'Registration Staff', role: OpsUserRole.Coordinator };
+    const guestWorkflowService = { searchCoordinatorRoster: vi.fn(), searchRoster: vi.fn() };
+    const eventAccessPolicyService = {
+      resolveActor: vi.fn(() => actor),
+      requireActorRole: vi.fn(async () => undefined),
+    };
+    const controller = new OpsGuestController(guestWorkflowService as any, eventAccessPolicyService as any);
+
+    await expect(controller.searchRosterWithFilters('evt_1', undefined, undefined, undefined, undefined, 'yes', {} as any))
+      .rejects.toThrow('Invalid guest review queue filter');
+    expect(guestWorkflowService.searchCoordinatorRoster).not.toHaveBeenCalled();
   });
 
   it('exposes the event-id walk-in route only to coordinator actors and records through the workflow service', async () => {

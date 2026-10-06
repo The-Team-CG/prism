@@ -7,6 +7,7 @@ import type {
   PrismCoordinatorWorkspace,
   PrismDefenseReadiness,
   PrismEventDayStatusFeed,
+  PrismGuestPrivacyClassification,
   PrismLiveOps,
   PrismPmcmCommandInbox,
   PrismPmcmDashboardWorkspace,
@@ -66,6 +67,7 @@ export function useEventDashboardWorkspaceViewModel({
   const [statusFeed, setStatusFeed] = useState<PrismEventDayStatusFeed | null>(null);
   const [defenseReadiness, setDefenseReadiness] = useState<PrismDefenseReadiness | null>(null);
   const [registrationPlatform, setRegistrationPlatform] = useState<PrismRegistrationPlatform | null>(null);
+  const [guestPrivacyClassification, setGuestPrivacyClassification] = useState<PrismGuestPrivacyClassification | null>(null);
   const [floorPlanTemplates, setFloorPlanTemplates] = useState<FloorPlanTemplate[]>([]);
   const [commandInbox, setCommandInbox] = useState<PrismPmcmCommandInbox | null>(null);
   const [conformeUploadTarget, setConformeUploadTarget] = useState<PrismPmcmDashboardWorkspace["inquiries"][number] | null>(null);
@@ -213,6 +215,7 @@ export function useEventDashboardWorkspaceViewModel({
     setStatusFeed(result.data.statusFeed);
     setDefenseReadiness(result.data.defenseReadiness);
     setRegistrationPlatform(result.data.registrationPlatform);
+    setGuestPrivacyClassification(result.data.guestPrivacyClassification);
     setCommandDataErrors(result.errors);
   }, []);
 
@@ -222,6 +225,7 @@ export function useEventDashboardWorkspaceViewModel({
       setStatusFeed(null);
       setDefenseReadiness(null);
       setRegistrationPlatform(null);
+      setGuestPrivacyClassification(null);
       setCommandDataErrors({});
       return;
     }
@@ -249,6 +253,7 @@ export function useEventDashboardWorkspaceViewModel({
       setStatusFeed(null);
       setDefenseReadiness(null);
       setRegistrationPlatform(null);
+      setGuestPrivacyClassification(null);
       setCommandDataErrors({});
       return;
     }
@@ -302,6 +307,7 @@ export function useEventDashboardWorkspaceViewModel({
     statusFeed,
     defenseReadiness,
     registrationPlatform,
+    guestPrivacyClassification,
     commandDataErrors,
     floorPlanTemplates,
     commandInbox,

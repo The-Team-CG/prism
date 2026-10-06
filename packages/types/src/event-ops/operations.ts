@@ -1,5 +1,8 @@
 import type { PrismBriefing, PrismEvent } from "./lifecycle.js";
 import type { PrismSupplierQuoteRequest } from "./commercial.js";
+import type { GuestPrivacyClassification } from "../schemas/operations-guest-inputs.js";
+
+export type { GuestCheckInReceipt as PrismGuestCheckInReceipt } from "../schemas/operations-guest-inputs.js";
 
 export interface PrismCommunicationParticipant {
   id: string;
@@ -171,11 +174,16 @@ export interface PrismEventOperatorDesignation {
   } | null;
 }
 
+export interface PrismGuestPrivacyClassification {
+  eventId: string;
+  classification: GuestPrivacyClassification;
+}
+
 export interface PrismGuestCheckIn {
   id: string;
   eventId: string;
   rosterEntryId?: string | null;
-  guestName: string;
+  guestName: string | null;
   checkInMode: string;
   status: string;
   walkIn: boolean;
@@ -213,6 +221,7 @@ export interface PrismCoordinatorRegistrationEntry {
   verificationStatus: "pending" | "verified" | "rejected";
   checkedInAt?: string | null;
   walkIn: boolean;
+  reviewSubmittedAt?: string | null;
 }
 
 export interface PrismGuestEventPass {
@@ -224,7 +233,6 @@ export interface PrismGuestEventPass {
   floorPlanStatus: string;
   activeFloorPlanDraftId?: string;
   guestAccessCode: string;
-  attendanceCount: number;
   watermark: string;
 }
 

@@ -7,14 +7,29 @@ import {
 } from "./common.js";
 /* Guest check-in and feedback. */
 
-export const createGuestCheckInSchema = privacyConsentSchema.extend({
-  guestName: nonEmptyStringSchema,
-  rosterEntryId: optionalTrimmedStringSchema,
-  checkInMode: z.enum(["name_search", "walk_in"]).or(z.string().trim().min(1)).optional(),
-  walkIn: z.boolean().optional(),
-  verificationStatus: z.enum(["verified", "flagged"]).or(z.string().trim().min(1)).optional(),
-});
+export const createGuestCheckInSchema = z.discriminatedUnion("checkInMode", [
+  privacyConsentSchema.extend({
+    checkInMode: z.literal("name_search"),
+    guestName: nonEmptyStringSchema,
+  }).strict(),
+  privacyConsentSchema.extend({
+    checkInMode: z.literal("headcount"),
+  }).strict(),
+]);
 export type CreateGuestCheckInInput = z.infer<typeof createGuestCheckInSchema>;
+
+export const guestCheckInReceiptSchema = z.object({
+  accepted: z.literal(true),
+}).strict();
+export type GuestCheckInReceipt = z.infer<typeof guestCheckInReceiptSchema>;
+
+export const guestPrivacyClassificationSchema = z.enum(["private", "public", "unclassified"]);
+export type GuestPrivacyClassification = z.infer<typeof guestPrivacyClassificationSchema>;
+
+export const updateGuestPrivacyClassificationSchema = z.object({
+  classification: guestPrivacyClassificationSchema,
+}).strict();
+export type UpdateGuestPrivacyClassificationInput = z.infer<typeof updateGuestPrivacyClassificationSchema>;
 
 /** Event-scoped registration-staff walk-in input. The server fixes walk-in and verification state. */
 export const coordinatorWalkInCheckInSchema = z.object({
@@ -126,6 +141,7 @@ export const guestRosterSearchSchema = z.object({
   namePrefix: optionalTrimmedStringSchema,
   eligibility: z.enum(["eligible", "ineligible"]).optional(),
   checkedIn: z.boolean().optional(),
+  reviewQueue: z.boolean().optional(),
 });
 export type GuestRosterSearchInput = z.infer<typeof guestRosterSearchSchema>;
 
