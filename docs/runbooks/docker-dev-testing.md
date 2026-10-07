@@ -68,7 +68,7 @@ hosting setup. No CLI login, project link or hosted push is part of startup.
 
 Development wrappers generate these ignored files:
 
-- `.local-dev/api.env`: host connection, local flags, CORS, mock AI and local session secret.
+- `.local-dev/api.env`: host connection, local API/portal URLs, local flags, CORS, mock AI and local session secret.
 - `.local-dev/docker.env`: container connection via `host.docker.internal`.
 - `.local-dev/database.json`: project ID, ports and Studio URL; no database password.
 - `.local-dev/supabase/supabase/config.toml`: checkout-specific infrastructure.
