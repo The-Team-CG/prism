@@ -9,11 +9,33 @@ import {
   submittedBidCopy,
   supplierMatchesDirectoryFilters,
   toggleSupplierSelection,
+  normalizeSupplierDirectoryRoute,
 } from "./suppliers-directory-rules";
 
 describe("suppliers-directory-rules", () => {
   it("normalizes names", () => {
     expect(normalizeSupplierName("  Acme   Lights ")).toBe("Acme Lights");
+  });
+
+  it("maps supplier presets to Prism category IDs and keeps missing presets empty", () => {
+    const categories = [
+      { id: "cat-food", slug: "food-and-beverages", name: "Food and beverages", sortOrder: 1, active: true, reviewDimensions: [] },
+      { id: "cat-tech", slug: "technicals", name: "Technicals", sortOrder: 2, active: true, reviewDimensions: [] },
+    ];
+    expect(normalizeSupplierDirectoryRoute("catering", new URLSearchParams(), categories).query.categoryId).toBe("cat-food");
+    expect(normalizeSupplierDirectoryRoute("lights-sounds", new URLSearchParams(), categories).query.categoryId).toBe("cat-tech");
+    expect(normalizeSupplierDirectoryRoute("venues", new URLSearchParams(), categories).query.categoryId).toBe("unmatched-preset:venues");
+  });
+
+  it("normalizes malformed URL filters and retains explicit filters over route presets", () => {
+    const categories = [{ id: "cat-food", slug: "food-and-beverages", name: "Food and beverages", sortOrder: 1, active: true, reviewDimensions: [] }];
+    const preferred = normalizeSupplierDirectoryRoute("preferred", new URLSearchParams("q=  catering  "), categories);
+    expect(preferred.query).toMatchObject({ q: "catering", tier: "tier_1", page: 0, pageSize: 25 });
+    const explicit = normalizeSupplierDirectoryRoute("catering", new URLSearchParams("categoryId=cat-tech&page=bad&rating=invalid"), categories);
+    expect(explicit.query.categoryId).toBe("cat-tech");
+    expect(explicit.query.page).toBe(0);
+    expect(explicit.query.rating).toBe("all");
+    expect(normalizeSupplierDirectoryRoute("old-unknown-view", new URLSearchParams("supplierId=sup_1"), categories)).toMatchObject({ view: "all", supplierId: "sup_1" });
   });
 
   it("validates create draft", () => {
