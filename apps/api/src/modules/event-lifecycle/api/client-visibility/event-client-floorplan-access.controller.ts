@@ -1,15 +1,16 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Inject, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { zodBody } from '@prism/kernel/shared';
 import { grantSecondaryClientAccessSchema, type GrantSecondaryClientAccessInput, type PrismVerifiedEventActor } from '@prism/types';
 import { OpsUserRole } from '@prism/kernel/event-core';
-import { EventClientFloorplanAccessService } from '../../application/client-visibility/event-client-floorplan-access.service';
+import { EVENT_CLIENT_FLOORPLAN_ACCESS_COMMANDS, type EventClientFloorplanAccessCommands } from '../../contracts/client-floorplan-access.port';
 
 @Controller('events')
 export class EventClientFloorplanAccessController {
   constructor(
-    private readonly eventClientFloorplanAccessService: EventClientFloorplanAccessService,
+    @Inject(EVENT_CLIENT_FLOORPLAN_ACCESS_COMMANDS)
+    private readonly eventClientFloorplanAccessService: EventClientFloorplanAccessCommands,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
   ) {}
 

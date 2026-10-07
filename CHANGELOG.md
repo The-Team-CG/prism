@@ -8,6 +8,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- Development launchers start persistent local Supabase, isolate API/database targets, and support scoped Docker builds and source syncing.
 - Guest check-in preserves consent evidence and safely retries submissions under the New-CL1 review policy.
 - Clients can track source-backed planning milestones and required next actions in their event workspace.
 - PMCM can enable client-visible event-day progress, which exposes only a generic status.
@@ -51,6 +52,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- API startup resolves context contract tokens and privacy module database dependencies.
 - Signing a conforme no longer creates fabricated billing.
 - Client billing balances now use recorded payments.
 - Floorplan approval rejects a draft changed by a concurrent client revision.
