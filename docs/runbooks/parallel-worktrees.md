@@ -74,6 +74,16 @@ Linked worktrees use local Node processes. Docker Compose exposes the canonical
 primary-checkout ports, so `start-prism.ps1 -Docker` fails clearly from a linked
 worktree instead of starting a colliding stack.
 
+## Isolated local Supabase
+
+Startup renders a local Supabase project under each checkout's `.local-dev`.
+A hash of the normalized path and initial migration baseline identifies the project. Its database, Studio, gateway and
+shadow ports use the persisted checkout slot in blocks of ten, independent of
+app port overrides. Each checkout has separate schema/data. The primary uses
+54322 for the DB and 54323 for Studio; linked worktrees add their assigned offset.
+Normal stops preserve data and operate only on that checkout's project.
+Removing a checkout does not automatically delete its retained Supabase data.
+
 ## Why removal is not a recursive delete
 
 A worktree's `node_modules` is a tree of junctions pointing into the primary

@@ -1,95 +1,79 @@
 name: prism-dev
 
 x-dev-service: &dev-service
+  image: prism-dev:local
   build:
     context: .
     dockerfile: Dockerfile
     target: dev
   init: true
-  volumes:
-    - .:/app
-    - prism-root-node-modules:/app/node_modules
-    - prism-api-node-modules:/app/apps/api/node_modules
-    - prism-client-node-modules:/app/apps/client/node_modules
-    - prism-event-node-modules:/app/apps/event/node_modules
-    - prism-guest-node-modules:/app/apps/guest/node_modules
-    - prism-supplier-node-modules:/app/apps/supplier/node_modules
-    - prism-api-client-node-modules:/app/packages/api-client/node_modules
-    - prism-types-node-modules:/app/packages/types/node_modules
-    - prism-client-next:/app/apps/client/.next
-    - prism-event-next:/app/apps/event/.next
-    - prism-guest-next:/app/apps/guest/.next
-    - prism-supplier-next:/app/apps/supplier/.next
-    - prism-api-dist:/app/apps/api/dist
   environment:
     NODE_ENV: development
     NEXT_TELEMETRY_DISABLED: "1"
-    CHOKIDAR_USEPOLLING: "true"
-    WATCHPACK_POLLING: "true"
-
-x-web-service: &web-service
-  <<: *dev-service
-  environment:
-    NODE_ENV: development
-    NEXT_TELEMETRY_DISABLED: "1"
-    CHOKIDAR_USEPOLLING: "true"
-    WATCHPACK_POLLING: "true"
     NEXT_PUBLIC_API_URL: http://localhost:4000
     NEXT_PUBLIC_PRISM_API_BASE_URL: http://localhost:4000/api
-  depends_on:
-    api:
-      condition: service_started
+  develop:
+    watch:
+      - action: sync
+        path: ./apps
+        target: /app/apps
+        initial_sync: true
+        ignore: ["**/node_modules/", "**/.next/", "**/dist/", "**/.env*", "**/package.json", "**/*.tsbuildinfo"]
+      - action: sync
+        path: ./packages
+        target: /app/packages
+        initial_sync: true
+        ignore: ["**/node_modules/", "**/dist/", "**/package.json", "**/*.tsbuildinfo"]
+      - action: sync
+        path: ./scripts
+        target: /app/scripts
+# Dependency changes: rerun start-prism-docker.cmd -Dev to rebuild the shared image once.
 
 services:
   api:
     <<: *dev-service
-    env_file:
-      - path: .env.docker
-        required: false
+    env_file: .local-dev/docker.env
     environment:
       NODE_ENV: development
+      PRISM_ENV_FILE: /dev/null
       PORT: 4000
       CORS_ORIGIN: http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:3004
       PRISM_DISABLE_CONFORME_REMINDER_JOB: "1"
-    command: ["sh", "-c", "npm --workspace prism-api exec -- nest start api --watch"]
-    ports:
-      - "4000:4000"
-
+    command: ["node", "scripts/docker-dev.mjs", "api"]
+    ports: ["127.0.0.1:4000:4000"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
   client:
-    <<: *web-service
-    command: ["sh", "-c", "npm --workspace @prism/client run dev -- --hostname 0.0.0.0"]
-    ports:
-      - "3001:3001"
-
+    <<: *dev-service
+    command: ["node", "scripts/docker-dev.mjs", "client"]
+    ports: ["127.0.0.1:3001:3001"]
+    volumes: ["client-next:/app/apps/client/.next"]
+    depends_on: {api: {condition: service_healthy}}
   supplier:
-    <<: *web-service
-    command: ["sh", "-c", "npm --workspace @prism/supplier run dev -- --hostname 0.0.0.0"]
-    ports:
-      - "3002:3002"
-
+    <<: *dev-service
+    command: ["node", "scripts/docker-dev.mjs", "supplier"]
+    ports: ["127.0.0.1:3002:3002"]
+    volumes: ["supplier-next:/app/apps/supplier/.next"]
+    depends_on: {api: {condition: service_healthy}}
   guest:
-    <<: *web-service
-    command: ["sh", "-c", "npm --workspace @prism/guest run dev -- --hostname 0.0.0.0"]
-    ports:
-      - "3003:3003"
-
+    <<: *dev-service
+    command: ["node", "scripts/docker-dev.mjs", "guest"]
+    ports: ["127.0.0.1:3003:3003"]
+    volumes: ["guest-next:/app/apps/guest/.next"]
+    depends_on: {api: {condition: service_healthy}}
   event:
-    <<: *web-service
-    command: ["sh", "-c", "npm --workspace @prism/event run dev -- --hostname 0.0.0.0"]
-    ports:
-      - "3004:3004"
+    <<: *dev-service
+    command: ["node", "scripts/docker-dev.mjs", "event"]
+    ports: ["127.0.0.1:3004:3004"]
+    volumes: ["event-next:/app/apps/event/.next"]
+    depends_on: {api: {condition: service_healthy}}
 
 volumes:
-  prism-root-node-modules:
-  prism-api-node-modules:
-  prism-client-node-modules:
-  prism-event-node-modules:
-  prism-guest-node-modules:
-  prism-supplier-node-modules:
-  prism-api-client-node-modules:
-  prism-types-node-modules:
-  prism-client-next:
-  prism-event-next:
-  prism-guest-next:
-  prism-supplier-next:
-  prism-api-dist:
+  client-next:
+  supplier-next:
+  guest-next:
+  event-next:

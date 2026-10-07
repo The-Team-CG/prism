@@ -36,6 +36,7 @@ import { CommercialFactsReaderModule } from './commercial-facts-reader.module';
 @Module({
   imports: [
     DatabaseModule,
+    EventSessionModule,
     AccessControlModule,
     OperationsModule,
     CommercialModule,

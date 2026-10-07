@@ -50,3 +50,9 @@ OwnerB_PRISM_StoryLogs
 
 Thumbs.db
 .DS_Store
+
+# Keep runtime portal and shared package assets in the small context.
+!apps/**/public/**
+!packages/**/assets/**
+.worktrees
+supabase/.temp

@@ -1,444 +1,159 @@
 ---
 type: "Playbook"
-title: "P.R.I.S.M Docker development and testing"
-description: "Local Docker development modes, environment setup, ports, rebuilds, and troubleshooting for Prism."
-tags: [runbook, docker, development, testing]
+title: "P.R.I.S.M local Supabase and Docker development"
+description: "Isolated local database startup, Docker modes, source syncing, and persistent development data."
+tags: [runbook, docker, supabase, development]
 status: canonical
-updated: "2026-09-02"
+updated: "2026-10-07"
 authority: operational
 owner: "D (Anthony)"
 audience: [developers, QA, agents]
-scope: "local Prism Node/Docker development and verification"
-last_verified: "2026-09-02"
+scope: "local Prism Node/Docker startup and database isolation"
+last_verified: "2026-10-07"
 sources:
-  - id: compose-local
-    resource: "compose.local.yml"
-    title: "Production-style local compose"
-  - id: compose-dev
-    resource: "compose.dev.yml"
-    title: "Hot-reload development compose"
-  - id: root-readme
-    resource: "README.md"
-    title: "Prism setup runbook"
+  - id: startup
+    resource: "start-prism.ps1"
+    title: "Development startup wrapper"
+  - id: local-database
+    resource: "scripts/local-supabase.mjs"
+    title: "Local Supabase lifecycle"
+  - id: containers
+    resource: "Dockerfile"
+    title: "Scoped builds and runtime images"
 ---
-# P.R.I.S.M Docker development and testing
+# Local Supabase and Docker development
 
 ## At a glance
 
-- **Purpose:** Start, stop, and verify Prism locally with Node or Docker.
-- **Authority:** Operational procedure; repository scripts and environment examples provide exact values.
-- **Owner:** D (Anthony).
-- **Scope:** Local ports, environment files, Docker modes, hot reload, logs, and troubleshooting.
-- **Use when:** Running the local stack or diagnosing local Docker/API/portal startup.
-- **Change when:** Scripts, ports, environment files, services, or supported local modes change.
-- **Verify with:** The wrapper command, service health, and relevant repository checks.
+- **Purpose:** Start Prism on a persistent local database without hosted credentials.
+- **Owner:** D (Anthony), platform trust and development isolation.
+- **Prerequisites:** Node 24, npm, Docker Desktop with its Linux engine.
+- **Database:** Supabase CLI 2.115.0, Postgres 17, Studio, metadata, gateway and REST dependencies. This CLI rejects Postgres 16; the repository's migration CI still replays PostgreSQL 16. Supabase Auth, Storage, Realtime, functions, analytics, SMTP and pooler are disabled.
+- **Schema:** Prisma migrations in `apps/api/prisma/migrations`; Supabase application migrations and automatic seeding are disabled.
+- **Verification:** Launch the selected mode, check API/portal HTTP readiness, and confirm source reload and database persistence when changing startup behavior.
 
-This guide explains how to run P.R.I.S.M with Docker for local testing. It assumes you are new to Docker and want clear commands you can copy into a terminal.
-
-## What Docker Does Here
-
-Docker lets you run the whole system in containers instead of installing and starting every app manually.
-
-P.R.I.S.M has five local services:
-
-| Service | What it is | URL |
-| --- | --- | --- |
-| API | Shared NestJS backend | `http://localhost:4000` |
-| Client portal | Client-facing app | `http://localhost:3001` |
-| Supplier portal | Supplier-facing app | `http://localhost:3002` |
-| Guest portal | Guest-facing app | `http://localhost:3003` |
-| Event command | PMCM/admin event app | `http://localhost:3004` |
-
-The repo has two Docker Compose files:
-
-| File | Use it when | Behavior |
-| --- | --- | --- |
-| `compose.local.yml` | You want a production-style local test | Builds the apps, then runs optimized production servers. Changes in code do not hot reload. |
-| `compose.dev.yml` | You are actively editing code | Runs dev servers with hot reload and mounts your local files into the containers. |
-
-Most day-to-day development should use `compose.dev.yml`.
-
-## Before You Start
-
-Install Docker Desktop first.
-
-On Windows:
-
-1. Install Docker Desktop.
-2. Use the WSL 2 backend if Docker asks.
-3. Start Docker Desktop before running any commands.
-4. Open PowerShell in the repo root: `C:\Codes\prism`.
-
-Check Docker is working:
+## Start and stop
 
 ```powershell
-docker --version
-docker compose version
+npm install
+.\start-prism.cmd                       # Node dev servers + local Supabase
+.\start-prism.cmd -DatabaseOnly         # database + migrations only
+.\start-prism-docker.cmd -Dev           # container dev servers + Compose Watch
+.\start-prism-docker.cmd                # built local images
+.\start-prism-docker.cmd -Dev -Foreground
+.\stop-prism.cmd                       # Node apps and Supabase; preserve DB data
+.\stop-prism-docker.cmd                # Compose apps and Supabase; preserve DB data
+.\stop-prism.cmd -All
 ```
 
-If either command fails, Docker Desktop is not installed, not running, or not on your PATH.
+The first start downloads images. Every start verifies the local target, waits
+for database readiness, applies pending Prisma migrations, and launches the
+apps only after success. A readiness timeout exits with failure.
 
-## Environment File
+The primary checkout exposes portals on 3001–3004 and API on 4000. Supabase
+uses database port 54322 and Studio at `http://127.0.0.1:54323`.
+`start-prism.cmd -Prod` builds and starts the Node apps while still using the
+local database; it does not select a production database.
 
-The API container reads `.env.docker`.
+The Supabase CLI publishes its ports on the Docker host; these are local
+infrastructure endpoints with development credentials, not an internet-facing
+hosting setup. No CLI login, project link or hosted push is part of startup.
 
-Create it from the example:
+## One database URL
+
+`DATABASE_URL` is sufficient for the API, Prisma and database scripts.
+`DIRECT_URL` is an optional migration-only override. `SUPABASE_DB_URL` and
+`PRISMA_DATABASE_URL` remain fallback aliases for existing installations;
+`DATABASE_URL` wins over those aliases.
+
+Development wrappers generate these ignored files:
+
+- `.local-dev/api.env`: host connection, local flags, CORS, mock AI and local session secret.
+- `.local-dev/docker.env`: container connection via `host.docker.internal`.
+- `.local-dev/database.json`: project ID, ports and Studio URL; no database password.
+- `.local-dev/supabase/supabase/config.toml`: checkout-specific infrastructure.
+
+They do not read `apps/api/.env` or `.env.docker`. API and Prisma respect
+`PRISM_ENV_FILE`. Local mode validates host, port and database name and rejects
+remote migration/shadow overrides before opening a connection.
+
+To run a database command in a separate PowerShell terminal:
 
 ```powershell
-Copy-Item .env.docker.example .env.docker
+$env:PRISM_ENV_FILE = (Resolve-Path .local-dev/api.env).Path
+npm --workspace prism-api run db:doctor
+npm --workspace prism-api run db:status
 ```
 
-macOS/Linux equivalent:
+A fresh local database contains migrated schema, not production users/events.
+Startup does not insert fixtures. The existing fixture CLI remains guarded to
+an empty loopback database named `prism_sample_disposable`; see
+[portal accounts](portal-accounts.md). Do not run that command against the
+Supabase `postgres` database or change its safety acknowledgement casually.
 
-```bash
-cp .env.docker.example .env.docker
-```
+## Docker development
 
-Then edit `.env.docker` and fill in the database values.
+All five dev services reuse `prism-dev:local`. Linux dependencies live in the
+image, so rebuilding after package/lock changes replaces dependencies without
+stale node_modules volumes. Compose Watch syncs source/config changes. After
+dependency manifests, lockfile or Dockerfile changes, rerun
+`start-prism-docker.cmd -Dev` to rebuild the shared image once and recreate all
+consumers. Automatic rebuild triggers are omitted to avoid concurrent builds
+of the same tag. Watch ignores `.env`, Windows dependencies,
+compiled output and caches. Containers watch Linux files without forced polling.
 
-Important notes:
+Shared types are built in the image and watched in each consuming container;
+containers own their compiled output independently. Each portal retains its
+own `.next` cache volume. API compilation output is container-local.
 
-- Do not commit `.env.docker`.
-- Hosted database TLS is verified by default; keep `DB_SSL=true` for Supabase. Set `DB_SSL_CA_FILE` to an absolute PEM CA path only when the host uses a private CA. With Docker, the file must exist and be readable at that path inside the API container.
-- `DB_SSL=false` is accepted only when the selected database URL targets `localhost`, `127.0.0.0/8`, or `::1`.
-- If using the Supabase pooler on a free tier, keep `ALLOW_POOLER_FOR_PRISMA=1`.
-- If the database is paused, wake the Supabase project, then run `npm --workspace prism-api run db:setup`. The API may fail until the project is resumed.
-- If you do not have a real database URL yet, the containers can build, but API runtime/database tests may fail.
+Detached startup launches a hidden Compose Watch process with a saved process
+creation identity. Stop removes only the matching owned watcher. Logs:
+`.local-dev/compose-watch.log`. Foreground startup uses `up --watch` directly.
 
-The example file has these keys:
-
-```dotenv
-SUPABASE_DB_URL=
-DATABASE_URL=
-PRISMA_DATABASE_URL=
-DIRECT_URL=
-DB_SSL=true
-DB_SSL_CA_FILE=
-ALLOW_POOLER_FOR_PRISMA=1
-PARE_MODE=mock
-```
-
-Runtime uses `SUPABASE_DB_URL` then `DATABASE_URL`; Prisma CLI and administration prefer `PRISMA_DATABASE_URL` then `DIRECT_URL`. Keep the runtime pooler URL separate from the direct migration URL when both are available. For local non-TLS Postgres, set `DB_SSL=false` and use a loopback hostname; remote hosts cannot disable certificate verification.
-
-## One-command wrappers
-
-Docker is **separate** from the normal local scripts (local Node is faster for day-to-day work).
-
-```powershell
-.\start-prism.cmd                 # local Node (npm run dev) — preferred
-.\stop-prism.cmd
-
-.\start-prism-docker.cmd          # compose.local.yml — build + start
-.\start-prism-docker.cmd -Dev     # compose.dev.yml — hot reload
-.\stop-prism-docker.cmd           # compose down only
-```
-
-Docker wrappers create/sync `.env.docker` when needed, then run Docker Compose.
-
-## Option 1: Dev Mode With Hot Reload
-
-Use this when you are editing code and want the app to update while containers are running.
-
-Start the full dev stack:
-
-```powershell
-.\start-prism-docker.cmd -Dev
-# or:
-docker compose -f compose.dev.yml up --build
-```
-
-What this does:
-
-- Builds the Docker image using the `dev` target in `Dockerfile`.
-- Starts the API in watch mode.
-- Starts all four Next.js apps in dev mode.
-- Mounts your repo into `/app` inside each container.
-- Keeps Linux `node_modules` in Docker volumes so Windows `node_modules` do not conflict with container dependencies.
-
-After startup, open:
-
-- Event command: `http://localhost:3004`
-- Client portal: `http://localhost:3001`
-- Supplier portal: `http://localhost:3002`
-- Guest portal: `http://localhost:3003`
-- API health: `http://localhost:4000/health`
-
-Stop the stack:
-
-```powershell
-Ctrl+C
-```
-
-Or, from another terminal:
-
-```powershell
-docker compose -f compose.dev.yml down
-```
-
-### Run Dev Mode In The Background
-
-```powershell
-docker compose -f compose.dev.yml up --build -d
-```
-
-View logs:
-
-```powershell
-docker compose -f compose.dev.yml logs -f
-```
-
-View logs for one service:
+Built images use scoped Turbo dependency builds. Portal images use standalone
+Next output plus their own static/public assets. API images carry compiled API
+output, generated Prisma dependencies and shared types; its dependency install
+includes only API runtime workspaces. The shared dev image omits npm's download
+cache. Builds remain serial
+because parallel builds/cache mounts previously crashed Docker Desktop here.
 
 ```powershell
 docker compose -f compose.dev.yml logs -f api
-docker compose -f compose.dev.yml logs -f event
+docker compose -f compose.dev.yml ps
+docker compose -f compose.local.yml logs -f
 ```
 
-Stop background containers:
-
-```powershell
-docker compose -f compose.dev.yml down
-```
-
-## Option 2: Production-Style Local Mode
-
-Use this when you want to test the built system closer to how it runs after a production build.
-
-Start the production-style local stack:
-
-```powershell
-docker compose -f compose.local.yml up --build
-```
-
-What this does:
-
-- Builds the repo with `npm run build` inside Docker.
-- Starts the API from compiled NestJS output.
-- Starts each Next.js app with `next start`.
-- Does not hot reload code changes.
-
-Use this before calling something ready for review if you want a stronger local runtime check.
-
-Stop it:
-
-```powershell
-docker compose -f compose.local.yml down
-```
-
-## Hot Reload Explained
-
-Hot reload means you can edit code on your machine and the running app updates without rebuilding the full Docker image.
-
-In this repo, hot reload is provided by `compose.dev.yml`.
-
-Examples:
-
-- Edit a React component in `apps/event`.
-- Save the file.
-- The event app container detects the change.
-- Refresh `http://localhost:3004` if the browser does not update automatically.
-
-When hot reload may not be enough:
-
-- You changed `package.json` or `package-lock.json`.
-- You added a new dependency.
-- You changed Dockerfile or compose files.
-- You changed generated Prisma/client behavior and need a clean rebuild.
-
-In those cases, rebuild:
-
-```powershell
-docker compose -f compose.dev.yml up --build
-```
-
-If it still behaves strangely, reset Docker volumes as shown below.
-
-## Useful Docker Commands
-
-See running containers:
-
-```powershell
-docker ps
-```
-
-See all containers, including stopped ones:
-
-```powershell
-docker ps -a
-```
-
-Build without starting:
-
-```powershell
-docker compose -f compose.dev.yml build
-```
-
-Start only the API and event command app in dev mode:
-
-```powershell
-docker compose -f compose.dev.yml up --build api event
-```
-
-Run a command inside the API container:
-
-```powershell
-docker compose -f compose.dev.yml exec api npm --workspace prism-api run typecheck
-```
-
-Run API tests inside the API container:
-
-```powershell
-docker compose -f compose.dev.yml exec api npm --workspace prism-api run test
-```
-
-Run a shell inside the API container:
-
-```powershell
-docker compose -f compose.dev.yml exec api sh
-```
-
-## Clean Rebuilds
-
-Use a normal rebuild first:
-
-```powershell
-docker compose -f compose.dev.yml down
-docker compose -f compose.dev.yml up --build
-```
-
-If dependencies or caches are broken, remove Docker volumes too:
-
-```powershell
-docker compose -f compose.dev.yml down -v
-docker compose -f compose.dev.yml up --build
-```
-
-Be careful with `down -v`:
-
-- It deletes Docker named volumes for this compose project.
-- In this repo, those volumes mainly hold container `node_modules`, `.next`, and API `dist` output.
-- It does not delete your source code.
-- It may make the next startup slower because dependencies must be recreated.
-
-For a full no-cache rebuild:
-
-```powershell
-docker compose -f compose.dev.yml build --no-cache
-docker compose -f compose.dev.yml up
-```
-
-## Common Problems
-
-### Fresh pull typechecks against stale `@prism/types` dist
-
-`packages/types/dist/` is gitignored. After a clean pull, run `npm install` (root `postinstall` builds `@prism/types`) or `npm --workspace @prism/types run build`. `start-prism.cmd` also builds types before launching portals.
-
-### next build compiled but typecheck failed
-
-`next build` writes `.next/types/` and does not delete `.next/dev/`. Portal `prebuild` and `typecheck` scripts remove `.next/dev`. If a leftover cache still fails, delete that app’s `.next/dev/` directory and rebuild.
-
-### Stale process still serving an old portal build
-
-`next start` fails silently if the port is already bound, so a previous listener can keep serving the old build. Portal `dev`/`start` scripts now clear the app’s port first (same pattern as the API). `start-prism.cmd` still clears 3001–3004 and 4000 before launch.
-
-### Docker says the port is already allocated
-
-Example: port `3004` or `4000` is already in use.
-
-Fix:
-
-1. Stop other local Prism scripts or dev servers.
-2. Check running containers:
-
-```powershell
-docker ps
-```
-
-3. Stop the current Docker stack:
-
-```powershell
-docker compose -f compose.dev.yml down
-```
-
-If a non-Docker process owns the port, stop that process before starting Docker again.
-
-### API starts but web apps cannot call it
-
-Check:
-
-- API health: `http://localhost:4000/health`
-- `.env.docker` exists.
-- Database URL values are filled in.
-- Supabase project is not paused.
-- `DB_SSL=true` for Supabase.
-
-View API logs:
-
-```powershell
-docker compose -f compose.dev.yml logs -f api
-```
-
-### Changes do not show in the browser
-
-Try:
-
-1. Refresh the browser.
-2. Check the service logs.
-3. Restart the dev stack.
-
-```powershell
-docker compose -f compose.dev.yml down
-docker compose -f compose.dev.yml up --build
-```
-
-If a dependency changed, use `down -v` and rebuild.
-
-### Build is slow the first time
-
-This is expected.
-
-The first build downloads Node packages and builds app caches. Later builds should be faster because Docker reuses layers and named volumes.
-
-### `node_modules` looks confusing
-
-This is normal for the dev Docker setup.
-
-`compose.dev.yml` uses named Docker volumes for container `node_modules`. That means:
-
-- The container gets Linux-compatible dependencies.
-- Your Windows files stay mounted for editing.
-- You should not manually copy local Windows `node_modules` into the container.
-
-## Which Mode Should I Use?
-
-Use this quick rule:
-
-| Goal | Command |
-| --- | --- |
-| I am editing code | `docker compose -f compose.dev.yml up --build` |
-| I want hot reload | `docker compose -f compose.dev.yml up --build` |
-| I want a production-style local test | `docker compose -f compose.local.yml up --build` |
-| I changed dependencies | `docker compose -f compose.dev.yml down -v`, then `docker compose -f compose.dev.yml up --build` |
-| I only need API and event command | `docker compose -f compose.dev.yml up --build api event` |
-
-## Quick Start
-
-For most local development:
-
-```powershell
-Copy-Item .env.docker.example .env.docker
-# Edit .env.docker and fill database values.
-docker compose -f compose.dev.yml up --build
-```
-
-Then open:
-
-```text
-http://localhost:3004
-```
-
-For production-style testing:
-
-```powershell
-docker compose -f compose.local.yml up --build
-```
+Direct Compose commands require the generated database environment and a running
+local Supabase first. Use `start-prism.cmd -DatabaseOnly` to prepare it.
+
+## Data and cache lifetime
+
+Normal stop uses `supabase stop` without `--no-backup`; schema and data survive.
+Supabase resources belong to its checkout-specific CLI project and are separate
+from the Compose app projects. `stop-prism-docker.cmd -Volumes` removes app
+caches only. It does not delete Supabase database data.
+
+A reset or `supabase stop --no-backup` is destructive and requires explicit
+approval. Cache trouble is not a reason to reset the database.
+
+## Worktrees and troubleshooting
+
+Project IDs derive from the normalized checkout path and initial migration baseline. A replaced baseline selects a separate database after backing up the current project; normal forward migrations retain data. Supabase port blocks use
+the persisted Git worktree slot, independent of app port overrides. Node
+worktrees therefore have isolated data and ports. Docker app mode remains
+restricted to the primary checkout.
+
+- Docker unavailable: start Docker Desktop's Linux engine; the wrapper waits for it.
+- Migration failure: apps are not launched; inspect the local migration error.
+- DB target rejection: use the generated env file; remove unintended CLI overrides.
+- Hot reload absent: inspect the Compose Watch log or use `-Dev -Foreground`.
+- Stale package exports: rebuild `@prism/types`; dependency edits require an image rebuild.
+- Port in use: stop the owning stack. Preserve foreign processes and other Supabase projects.
+
+## Validation
+
+Use API health and actual portal responses after startup; a Compose config or
+successful image build alone does not prove the stack can run. API runtime
+images include the checked-in migration SQL for the exact-ledger startup gate.
+When changing migrations, also use the repository's PostgreSQL 16 replay gate;
+the pinned local Supabase stack runs PostgreSQL 17.

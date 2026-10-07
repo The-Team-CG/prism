@@ -4,6 +4,10 @@ This log tracks changes to documentation structure and durable contracts. Releas
 notes are in [`../CHANGELOG.md`](../CHANGELOG.md); Git history retains detailed
 implementation and verification history.
 
+## 2026-10-07
+
+- Local operation now uses generated Supabase environments, one canonical database URL, and preserved databases per migration baseline. Docker runbooks describe source syncing and scoped standalone images.
+
 ## 2026-10-06
 
 - Reconciled architecture, persistence, and column inventories with the
