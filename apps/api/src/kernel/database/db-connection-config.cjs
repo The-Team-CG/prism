@@ -5,8 +5,8 @@ const { isIP } = require('node:net');
 const path = require('node:path');
 
 const URL_PRIORITY = Object.freeze({
-  runtime: ['SUPABASE_DB_URL', 'DATABASE_URL', 'PRISMA_DATABASE_URL', 'DIRECT_URL'],
-  migration: ['PRISMA_DATABASE_URL', 'DIRECT_URL', 'SUPABASE_DB_URL', 'DATABASE_URL'],
+  runtime: ['DATABASE_URL', 'SUPABASE_DB_URL', 'PRISMA_DATABASE_URL', 'DIRECT_URL'],
+  migration: ['DIRECT_URL', 'DATABASE_URL', 'PRISMA_DATABASE_URL', 'SUPABASE_DB_URL'],
 });
 
 const PG_SSL_QUERY_PARAMETERS = [
@@ -88,7 +88,30 @@ function readCertificate(file, label) {
   }
 }
 
+function assertLocalDatabaseUrl(value, env, shadow = false) {
+  let valid = false;
+  try {
+    const url = new URL(value);
+    const host = env.PRISM_LOCAL_DATABASE_HOST || '127.0.0.1';
+    valid = ['postgres:', 'postgresql:'].includes(url.protocol)
+      && ['127.0.0.1', 'localhost', '[::1]', 'host.docker.internal'].includes(host)
+      && url.hostname === host && Boolean(env.PRISM_LOCAL_DATABASE_PORT)
+      && url.port === env.PRISM_LOCAL_DATABASE_PORT
+      && url.pathname === (shadow ? '/prism_shadow' : '/postgres')
+      && ![...url.searchParams.keys()].some((key) => ['host', 'hostaddr', 'port'].includes(key.toLowerCase()));
+  } catch { /* Reject before connecting. */ }
+  if (!valid) throw new DatabaseConnectionConfigError('Local development requires the generated local Supabase target. Run start-prism.cmd.', 'INVALID_LOCAL_DATABASE');
+}
+
 function makeConnection(rawUrl, { source, purpose, env, cwd }) {
+  const localDevelopment = env.PRISM_LOCAL_DEV === '1';
+  if (localDevelopment) {
+    const shadow = source === 'SHADOW_DATABASE_URL';
+    assertLocalDatabaseUrl(rawUrl, env, shadow);
+    const runtime = URL_PRIORITY.runtime.map((key) => env[key]?.trim()).find(Boolean);
+    if (purpose === 'migration' && !shadow && runtime !== rawUrl) throw new DatabaseConnectionConfigError('Local runtime and migration targets must match.', 'INVALID_LOCAL_DATABASE');
+    if (env.SHADOW_DATABASE_URL?.trim()) assertLocalDatabaseUrl(env.SHADOW_DATABASE_URL.trim(), env, true);
+  }
   let url;
   try {
     url = new URL(rawUrl);
@@ -139,7 +162,7 @@ function makeConnection(rawUrl, { source, purpose, env, cwd }) {
   if (rawDbSsl === 'false' && urlRequestsTls) {
     throw new DatabaseConnectionConfigError('DB_SSL=false conflicts with a database URL that enables TLS.', 'INVALID_SSL_OPTIONS');
   }
-  if (!loopback && (rawDbSsl === 'false' || urlDisablesTls)) {
+  if (!loopback && !localDevelopment && (rawDbSsl === 'false' || urlDisablesTls)) {
     throw new DatabaseConnectionConfigError('TLS can be disabled only for a loopback database target.', 'INSECURE_SSL_OPTIONS');
   }
 
@@ -222,16 +245,16 @@ function selectDatabaseConnection(options = {}) {
     if (value) return makeConnection(value, { source, purpose, env, cwd });
   }
 
+  if (env.PRISM_LOCAL_DEV === '1') assertLocalDatabaseUrl('', env);
   if (options.required === false) return null;
   throw new DatabaseConnectionConfigError(
-    purpose === 'migration'
-      ? 'Set PRISMA_DATABASE_URL or DIRECT_URL for Prisma CLI and database administration.'
-      : 'Set SUPABASE_DB_URL or DATABASE_URL for runtime database connections.',
+    'Set DATABASE_URL for runtime and Prisma; DIRECT_URL is an optional migration override.',
     'DATABASE_URL_MISSING',
   );
 }
 
 module.exports = {
+  assertLocalDatabaseUrl,
   DatabaseConnectionConfigError,
   normalizeDatabaseConnection,
   selectDatabaseConnection,

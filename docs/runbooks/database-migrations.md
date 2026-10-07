@@ -4,7 +4,7 @@ title: "Prism database migrations"
 description: "Create, review, deploy, and recover Prism's Prisma migrations without changing the applied history by hand."
 tags: [runbook, database, migrations, prisma, drift, recovery]
 status: canonical
-updated: "2026-10-06"
+updated: "2026-10-07"
 authority: operational
 owner: "D (Anthony)"
 audience: [developers, reviewers, QA, operators, agents]
@@ -42,7 +42,20 @@ sources:
 - **Owner:** D (Anthony), with each bounded context responsible for its own schema changes and review evidence.
 - **Verify with:** Prisma validation, a fresh PostgreSQL 16 replay, migration status, and live schema equivalence.
 - **Important boundary:** The history replacement targets pre-production only. A database with the retired ledger needs a verified backup and an approved rebuild before the new history is applied.
- ## Runtime structure
+
+## Local development target
+
+The launchers start local Supabase, apply checked-in migrations, and require the
+API ledger to match the checked-in head. DATABASE_URL is canonical; DIRECT_URL
+is an optional migration override. Hosted connections retain verified TLS.
+
+In a separate terminal, set PRISM_ENV_FILE to the absolute path of
+.local-dev/api.env before running database commands. A replaced initial baseline
+selects a separate local Supabase project and preserves the previous database
+as a CLI backup. Appending migrations retains the same database. Startup never
+resets or adopts an existing retired migration ledger.
+
+## Runtime structure
 
 Prism uses the standard Prisma layout:
 
