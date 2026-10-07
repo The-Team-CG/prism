@@ -6,7 +6,7 @@ implementation and verification history.
 
 ## 2026-10-07
 
-- Local operation now uses generated Supabase environments, one canonical database URL, and preserved databases per migration baseline. Docker runbooks describe source syncing and scoped standalone images.
+- Local operation now uses generated Supabase environments with local API/portal URLs, one canonical database URL, and preserved databases per migration baseline. Docker runbooks describe source syncing and scoped standalone images.
 
 ## 2026-10-06
 
