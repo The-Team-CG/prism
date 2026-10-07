@@ -45,6 +45,10 @@ export function developmentEnv(url, project, ports, sessionSecret) {
     DB_SSL: 'false', DB_SSL_CA_FILE: '', ALLOW_POOLER_FOR_PRISMA: '', NODE_ENV: 'development',
     PRISMA_MIGRATIONS_PATH: '', PRISM_SCHEMA_COMPATIBILITY_MODE: 'exact', PRISM_SCHEMA_REQUIRED_HEAD: project.migrationHead || '',
     PORT: String(ports.api), CORS_ORIGIN: corsOriginFor(ports),
+    NEXT_PUBLIC_API_URL: `http://localhost:${ports.api}`,
+    NEXT_PUBLIC_PRISM_API_BASE_URL: `http://localhost:${ports.api}/api`,
+    NEXT_PUBLIC_CLIENT_ORIGIN: `http://localhost:${ports.client}`,
+    ...Object.fromEntries(['client', 'supplier', 'guest', 'event'].map((app) => [`NEXT_PUBLIC_${app.toUpperCase()}_PORTAL_URL`, `http://localhost:${ports[app]}`])),
     PRISM_SESSION_SECRET: sessionSecret, AI_ROUTE_PROFILE: 'mock', AI_PROVIDER: 'mock', PARE_MODE: 'mock',
     PRISM_DISABLE_CONFORME_REMINDER_JOB: '1',
   };
