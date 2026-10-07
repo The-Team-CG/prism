@@ -87,7 +87,7 @@ export function useEventDashboardWorkspaceViewModel({
     refresh: refreshSelectedEventWorkspace,
     workspace: selectedEventWorkspace,
   } = usePmcmSelectedEventWorkspace({
-    eventId: session && isPmcmAdmin(session.role) ? selectedEventId : null,
+    eventId: session && isPmcmAdmin(session.role) && section !== "suppliers" ? selectedEventId : null,
     loadWorkspace: eventWorkspaceRepository.loadWorkspace,
     onError: reportSelectedEventWorkspaceError,
   });
@@ -104,6 +104,19 @@ export function useEventDashboardWorkspaceViewModel({
         return;
       }
       if (current.role !== "pmcm-admin") {
+        setStatus("ready");
+        return;
+      }
+      if (section === "suppliers") {
+        const [requests, inboxResult] = await Promise.all([
+          loadApprovalRequests(true),
+          loadCommandInbox(true, commandInbox?.page.index ?? 0),
+        ]);
+        setState(null);
+        setApprovalRequests(requests);
+        setCommandInbox(inboxResult);
+        setCommandInboxLoadFailed(false);
+        setCoordinatorState(null);
         setStatus("ready");
         return;
       }
@@ -140,7 +153,7 @@ export function useEventDashboardWorkspaceViewModel({
 
   useEffect(() => {
     if (!session || session.role !== "pmcm-admin") return;
-    if (section === "dashboard" || section === "command-inbox") {
+    if (section === "dashboard" || section === "command-inbox" || section === "suppliers") {
       setState(null);
       return;
     }
@@ -161,6 +174,7 @@ export function useEventDashboardWorkspaceViewModel({
   }, [session, section]);
 
   useEffect(() => {
+    if (section === "suppliers") return;
     let cancelled = false;
     loadTemplates()
       .then((templates) => {
@@ -173,7 +187,7 @@ export function useEventDashboardWorkspaceViewModel({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [section]);
 
   const isEventDayLiveOpsView = isLiveOpsWorkspaceVisible(screenName, section, tab, selectedEventId);
   const isActivePmcmLiveOpsView = Boolean(session && isPmcmAdmin(session.role) && isEventDayLiveOpsView);
@@ -247,6 +261,17 @@ export function useEventDashboardWorkspaceViewModel({
 
   useEffect(() => {
     let cancelled = false;
+    if (section === "suppliers") {
+      eventCommandDataRequestIdRef.current += 1;
+      setLiveOps(null);
+      setStatusFeed(null);
+      setDefenseReadiness(null);
+      setRegistrationPlatform(null);
+      setCommandDataErrors({});
+      return () => {
+        cancelled = true;
+      };
+    }
     if (!selectedEventId) {
       eventCommandDataRequestIdRef.current += 1;
       setLiveOps(null);
@@ -293,7 +318,7 @@ export function useEventDashboardWorkspaceViewModel({
     return () => {
       cancelled = true;
     };
-  }, [applyEventCommandData, isEventDayLiveOpsView, selectedEventId]);
+  }, [applyEventCommandData, isEventDayLiveOpsView, section, selectedEventId]);
 
   return {
     status,
