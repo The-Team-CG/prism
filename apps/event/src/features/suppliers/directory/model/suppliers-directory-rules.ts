@@ -1,4 +1,71 @@
+import {
+  pmcmSupplierDirectoryQuerySchema,
+  type PmcmSupplierDirectoryQuery,
+  type PrismSupplierCategory,
+} from "@prism/types";
+
 /** Pure supplier directory rules. */
+
+const SUPPLIER_VIEW_CATEGORY_SLUGS: Record<string, string> = {
+  venues: "venues",
+  catering: "food-and-beverages",
+  "photography-videography": "documentation",
+  "lights-sounds": "technicals",
+  decorations: "decorations",
+  transportation: "logistics",
+};
+
+const KNOWN_SUPPLIER_VIEWS = new Set([
+  "all",
+  "preferred",
+  "venues",
+  "catering",
+  "photography-videography",
+  "lights-sounds",
+  "decorations",
+  "transportation",
+  "contracts",
+  "payments",
+]);
+
+function parseOrDefault<T>(schema: { safeParse(value: unknown): { success: true; data: T } | { success: false } }, value: unknown, fallback: T): T {
+  const parsed = schema.safeParse(value);
+  return parsed.success ? parsed.data : fallback;
+}
+
+export function normalizeSupplierDirectoryRoute(
+  view: string,
+  search: URLSearchParams,
+  categories: PrismSupplierCategory[],
+): { view: string; supplierId: string | null; query: PmcmSupplierDirectoryQuery } {
+  const normalizedView = KNOWN_SUPPLIER_VIEWS.has(view) ? view : "all";
+  const queryFields = ["q", "categoryId", "tier", "rating", "sort", "direction", "page", "pageSize"];
+  const input = Object.fromEntries(queryFields.flatMap((field) => {
+    const value = search.get(field);
+    return value === null ? [] : [[field, value]];
+  }));
+  const defaults = pmcmSupplierDirectoryQuerySchema.parse({});
+  const query = {
+    q: parseOrDefault(pmcmSupplierDirectoryQuerySchema.shape.q, input.q, defaults.q),
+    categoryId: parseOrDefault(pmcmSupplierDirectoryQuerySchema.shape.categoryId, input.categoryId, undefined),
+    tier: parseOrDefault(pmcmSupplierDirectoryQuerySchema.shape.tier, input.tier, undefined),
+    rating: parseOrDefault(pmcmSupplierDirectoryQuerySchema.shape.rating, input.rating, defaults.rating),
+    sort: parseOrDefault(pmcmSupplierDirectoryQuerySchema.shape.sort, input.sort, defaults.sort),
+    direction: parseOrDefault(pmcmSupplierDirectoryQuerySchema.shape.direction, input.direction, defaults.direction),
+    page: parseOrDefault(pmcmSupplierDirectoryQuerySchema.shape.page, input.page, defaults.page),
+    pageSize: parseOrDefault(pmcmSupplierDirectoryQuerySchema.shape.pageSize, input.pageSize, defaults.pageSize),
+  };
+  const hasCategoryFilter = search.has("categoryId");
+  const hasTierFilter = search.has("tier");
+
+  if (normalizedView === "preferred" && !hasTierFilter) query.tier = "tier_1";
+  const categorySlug = SUPPLIER_VIEW_CATEGORY_SLUGS[normalizedView];
+  if (categorySlug && !hasCategoryFilter) {
+    query.categoryId = categories.find((category) => category.slug === categorySlug)?.id ?? `unmatched-preset:${categorySlug}`;
+  }
+
+  return { view: normalizedView, supplierId: search.get("supplierId") || null, query };
+}
 
 export function normalizeSupplierName(name: string): string {
   return name.trim().replace(/\s+/g, " ");
