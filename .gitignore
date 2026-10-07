@@ -70,7 +70,7 @@ Thumbs.db
 
 .next
 
-# Docker local secrets (synced from apps/api/.env; never commit)
+# Separate deployment secrets (development uses ignored .local-dev env files)
 .env.docker
 
 # Local-only story logs and audits (removed from main by 0867515; recovered

@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { DatabaseModule } from '@prism/kernel/database';
+import { EventSessionModule } from '@prism/kernel/event-session';
 import { CommercialModule } from '../commercial/commercial.module';
 import { EventLifecycleModule } from '../event-lifecycle/event-lifecycle.module';
 import { IdentityAccessModule } from '../identity-access/identity-access.module';
@@ -14,6 +16,8 @@ import { PlatformOpsModule } from './platform-ops.module';
  */
 @Module({
   imports: [
+    DatabaseModule,
+    EventSessionModule,
     PlatformOpsModule,
     EventLifecycleModule,
     CommercialModule,

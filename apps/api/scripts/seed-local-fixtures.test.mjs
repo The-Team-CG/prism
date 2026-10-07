@@ -38,8 +38,8 @@ test('local fixture seed command', async (t) => {
         args,
         env: {
           ...validEnv,
-          SUPABASE_DB_URL: `postgresql://remote:secret@db.example.com/${SAMPLE_DISPOSABLE_DATABASE}`,
-          DATABASE_URL: validEnv.SUPABASE_DB_URL,
+          DATABASE_URL: `postgresql://remote:secret@db.example.com/${SAMPLE_DISPOSABLE_DATABASE}`,
+          SUPABASE_DB_URL: validEnv.SUPABASE_DB_URL,
         },
         createContext: async () => (created = true),
       }),
