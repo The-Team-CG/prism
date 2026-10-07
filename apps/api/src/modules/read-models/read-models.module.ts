@@ -22,6 +22,7 @@ import { RunSheetReadModelsService } from './application/services/run-sheet-read
 import { OpsPmcmCommandInboxController } from './api/pmcm-command-inbox.controller';
 import { OpsPmcmDashboardController } from './api/pmcm-dashboard.controller';
 import { OpsSupplierWorkspaceReadsController } from './api/supplier-workspace.controller';
+import { OpsPmcmSupplierEngagementsController } from './api/pmcm-supplier-engagements.controller';
 import {
   BILLING_READ_MODEL,
   CLIENT_EVENT_READ_MODEL,
@@ -36,6 +37,8 @@ import { PlatformRetentionReadModelsService } from './application/services/platf
 import { LIVE_OPS_READ_MODEL } from './contracts/ports/live-ops-read-models.tokens';
 import { GuestEventProjectionModule } from './guest-event-projection.module';
 import { CommercialFactsReaderModule } from './commercial-facts-reader.module';
+import { PmcmSupplierEventHeadersQueries } from './application/queries/pmcm-supplier-event-headers.queries';
+import { PmcmSupplierEngagementsService } from './application/services/pmcm-supplier-engagements.service';
 
 /**
  * Read-only composition context. It owns no writes and composes the public
@@ -67,10 +70,13 @@ import { CommercialFactsReaderModule } from './commercial-facts-reader.module';
     OpsPmcmDashboardController,
     OpsRunSheetController,
     OpsSupplierWorkspaceReadsController,
+    OpsPmcmSupplierEngagementsController,
   ],
   providers: [
     EventReadModelQueries,
+    PmcmSupplierEventHeadersQueries,
     EventReadModelsService,
+    PmcmSupplierEngagementsService,
     LiveOpsReadModelsService,
     HandoffBriefReadModelsService,
     DecisionLogReadModelsService,
