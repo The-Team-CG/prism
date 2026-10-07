@@ -123,7 +123,7 @@ function close(server) {
   });
 }
 
-test('runtime uses the runtime pool URL while migration tools prefer direct URLs', () => {
+test('canonical URL wins over legacy aliases while migrations allow a direct override', () => {
   const env = {
     SUPABASE_DB_URL: 'postgresql://pool:secret@pooler.example.test:6543/prism',
     DATABASE_URL: 'postgresql://runtime:secret@runtime.example.test:5432/prism',
@@ -133,8 +133,8 @@ test('runtime uses the runtime pool URL while migration tools prefer direct URLs
   const runtime = selectDatabaseConnection({ purpose: 'runtime', env });
   const migration = selectDatabaseConnection({ purpose: 'migration', env });
 
-  assert.equal(runtime.source, 'SUPABASE_DB_URL');
-  assert.equal(runtime.isPooler, true);
+  assert.equal(runtime.source, 'DATABASE_URL');
+  assert.equal(runtime.isPooler, false);
   assert.equal(migration.source, 'DIRECT_URL');
   assert.equal(migration.hostname, 'db.example.test');
 });
@@ -289,5 +289,5 @@ test('malformed database URLs report source without echoing secrets', () => {
 
 test('missing optional URL is accepted by offline Prisma config only', () => {
   assert.equal(selectDatabaseConnection({ purpose: 'migration', env: {}, required: false }), null);
-  assert.throws(() => selectDatabaseConnection({ purpose: 'migration', env: {} }), /Set PRISMA_DATABASE_URL or DIRECT_URL/);
+  assert.throws(() => selectDatabaseConnection({ purpose: 'migration', env: {} }), /Set DATABASE_URL/);
 });

@@ -126,10 +126,10 @@ npm run dev:api | dev:api:watch | dev:client | dev:event | dev:supplier | dev:gu
 
 ```bat
 start-prism.cmd                 rem local Node npm run dev (default, faster)
-stop-prism.cmd                  rem stop local Node only
+stop-prism.cmd                  rem stop local Node + local Supabase (data retained)
 start-prism-docker.cmd          rem Docker compose (slow first build)
 start-prism-docker.cmd -Dev     rem Docker hot reload
-stop-prism-docker.cmd           rem docker compose down
+stop-prism-docker.cmd           rem stop Compose + local Supabase (data retained)
 ```
 
 ```bash
@@ -148,9 +148,9 @@ npm --workspace @prism/types run build|test|typecheck
 npm --workspace @prism/api-client run test
 ```
 
-**Env:** `apps/api/.env` ← `.env.example` (`SUPABASE_DB_URL`/`DATABASE_URL`, `DIRECT_URL` for migrations, `CORS_ORIGIN`, `PARE_MODE=mock`). Docker: `.env.docker` ← `.env.docker.example`. Portals: each `.env.example` → `.env.local`. **Never commit secrets.** Accounts: `docs/runbooks/portal-accounts.md`.
+**Env:** Development wrappers generate `.local-dev/api.env` and `.local-dev/docker.env` from local Supabase. Node mode also requires Docker. Deployments use `apps/api/.env` ← `.env.example`: one `DATABASE_URL` for runtime and Prisma; `DIRECT_URL` is an optional migration-only override. `PRISM_ENV_FILE` selects an explicit env file for API and database tools. Portals: each `.env.example` → `.env.local`. **Never commit secrets.** Accounts: `docs/runbooks/portal-accounts.md`.
 
-**Env limits:** live DB audits / `db:perf:report` need DB creds; `smoke:ui` needs running stack; Docker scripts need Desktop (or `-Local` / `dev:*`). Failures in typecheck, unit tests, boundaries, `prisma:validate` are real bugs.
+**Env limits:** live DB audits / `db:perf:report` need DB creds; `smoke:ui` needs running stack; startup wrappers need Docker Desktop for local Supabase. Direct `dev:*` commands require an already prepared database environment. Failures in typecheck, unit tests, boundaries, `prisma:validate` are real bugs.
 
 **After change (narrow → wide):** typecheck and behavior tests for touched workspaces (plus required dependencies) → `check:boundaries` if imports moved → `prisma:validate` + `db:verify:offline` if schema/queries changed → manual role path / `smoke:ui` if UX/API wiring changed → monorepo build and broad suites at milestones/final verification.
 
@@ -246,11 +246,11 @@ navigation only, and completed plans are not current sources of truth.
 
 | Symptom | Check |
 | --- | --- |
-| API down | `apps/api/.env` DB URLs, port 4000, `db:generate` |
+| API down | local Supabase, `.local-dev/api.env` (or deployed env), port 4000, `db:generate` |
 | Portal ↔ API | API up, CORS, portal `NEXT_PUBLIC_*` |
 | Stale types / Zod | rebuild `@prism/types` / `dev:api:watch` |
 | Zod 400s | shared schema in `@prism/types`; Nest uses `zodBody`; FE uses `parseContract` |
-| Migrate vs pooler | migrations use `DIRECT_URL` |
+| Migrate vs pooler | `DATABASE_URL` is shared; optional `DIRECT_URL` overrides migrations only |
 | Boundary fail | no cross-app imports; share via `packages/*` or API |
 | Auth oddities | test actor/role headers + `access-control` event scope |
 | New screen wants whole-system demo state | stop → scoped read model / capability route |

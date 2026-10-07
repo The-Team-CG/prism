@@ -20,16 +20,15 @@ services:
       dockerfile: Dockerfile
       target: api
     init: true
-    env_file:
-      - path: .env.docker
-        required: false
+    env_file: .local-dev/docker.env
     environment:
       NODE_ENV: production
+      PRISM_ENV_FILE: /dev/null
       PORT: 4000
       CORS_ORIGIN: http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:3004
       PRISM_DISABLE_CONFORME_REMINDER_JOB: "1"
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
@@ -44,10 +43,10 @@ services:
       dockerfile: Dockerfile
       target: web
       args:
-        WORKSPACE: "@prism/client"
+        APP: "client"
         PORT: "3001"
     ports:
-      - "3001:3001"
+      - "127.0.0.1:3001:3001"
 
   supplier:
     <<: *web-service
@@ -56,10 +55,10 @@ services:
       dockerfile: Dockerfile
       target: web
       args:
-        WORKSPACE: "@prism/supplier"
+        APP: "supplier"
         PORT: "3002"
     ports:
-      - "3002:3002"
+      - "127.0.0.1:3002:3002"
 
   guest:
     <<: *web-service
@@ -68,10 +67,10 @@ services:
       dockerfile: Dockerfile
       target: web
       args:
-        WORKSPACE: "@prism/guest"
+        APP: "guest"
         PORT: "3003"
     ports:
-      - "3003:3003"
+      - "127.0.0.1:3003:3003"
 
   event:
     <<: *web-service
@@ -80,7 +79,7 @@ services:
       dockerfile: Dockerfile
       target: web
       args:
-        WORKSPACE: "@prism/event"
+        APP: "event"
         PORT: "3004"
     ports:
-      - "3004:3004"
+      - "127.0.0.1:3004:3004"

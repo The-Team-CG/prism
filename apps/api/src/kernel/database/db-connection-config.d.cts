@@ -25,6 +25,7 @@ declare class DatabaseConnectionConfigError extends Error {
 }
 
 declare const connectionConfig: {
+  assertLocalDatabaseUrl(value: string, env: Record<string, string | undefined>, shadow?: boolean): void;
   DatabaseConnectionConfigError: typeof DatabaseConnectionConfigError;
   normalizeDatabaseConnection(
     rawUrl: string,

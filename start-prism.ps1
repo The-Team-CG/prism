@@ -13,6 +13,8 @@ param(
   [switch]$NoPortCleanup,
   [switch]$SkipPrismaGenerate,
   [switch]$SkipBuild,
+  # Prepare local Supabase and migrations without launching apps.
+  [switch]$DatabaseOnly,
   [int]$TimeoutSeconds = 180
 )
 
@@ -47,79 +49,29 @@ if ($Docker -and -not $portInfo.isPrimary) {
   throw "Docker mode uses the canonical compose ports and is supported only from the primary checkout. Run start-prism.ps1 without -Docker for linked worktrees."
 }
 
-function Ensure-DockerEnvFile {
-  $envFile = Join-Path $root ".env.docker"
-  $example = Join-Path $root ".env.docker.example"
-  $apiEnv = Join-Path $root "apps\api\.env"
-  $requiredKeys = @(
-    "SUPABASE_DB_URL",
-    "DATABASE_URL",
-    "PRISMA_DATABASE_URL",
-    "DIRECT_URL",
-    "DB_SSL",
-    "ALLOW_POOLER_FOR_PRISMA",
-    "PARE_MODE"
-  )
-
-  function Read-DotEnvMap {
-    param([string]$Path)
-    $map = @{}
-    if (-not (Test-Path -LiteralPath $Path)) { return $map }
-    foreach ($line in Get-Content -LiteralPath $Path) {
-      if ($line -match '^\s*#' -or $line -match '^\s*$') { continue }
-      if ($line -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$') {
-        $map[$Matches[1]] = $Matches[2].Trim().Trim('"').Trim("'")
-      }
-    }
-    return $map
+function Prepare-LocalDatabase {
+  & node.exe (Join-Path $root "scripts\local-supabase.mjs") start
+  if ($LASTEXITCODE -ne 0) { throw "Local Supabase preparation failed. Apps were not started." }
+  $env:PRISM_ENV_FILE = Join-Path $root ".local-dev\api.env"
+  # Clear inherited hosted values. The generated environment is the only dev input.
+  foreach ($key in @("SUPABASE_DB_URL", "PRISMA_DATABASE_URL", "DIRECT_URL", "SHADOW_DATABASE_URL", "DATABASE_URL")) {
+    [Environment]::SetEnvironmentVariable($key, $null, "Process")
   }
-
-  function Write-DotEnvFile {
-    param([string]$Path, [hashtable]$Map, [string[]]$Keys)
-    $lines = New-Object System.Collections.Generic.List[string]
-    $lines.Add("# Synced for Docker compose. Do not commit.")
-    $lines.Add("")
-    foreach ($key in $Keys) {
-      if ($Map.ContainsKey($key) -and -not [string]::IsNullOrWhiteSpace([string]$Map[$key])) {
-        $lines.Add("$key=$($Map[$key])")
-      }
-    }
-    [System.IO.File]::WriteAllLines($Path, $lines, [System.Text.UTF8Encoding]::new($false))
-  }
-
-  $existing = Read-DotEnvMap -Path $envFile
-  $needsSync = $false
-  foreach ($key in @("DATABASE_URL", "SUPABASE_DB_URL", "PRISMA_DATABASE_URL", "DIRECT_URL")) {
-    if (-not $existing.ContainsKey($key) -or [string]::IsNullOrWhiteSpace([string]$existing[$key])) {
-      $needsSync = $true
-      break
+  foreach ($line in Get-Content -LiteralPath $env:PRISM_ENV_FILE) {
+    if ($line -match '^([A-Z0-9_]+)=(.*)$') {
+      $key = $Matches[1]
+      $value = $Matches[2] | ConvertFrom-Json
+      [Environment]::SetEnvironmentVariable($key, [string]$value, "Process")
     }
   }
+}
 
-  if (-not (Test-Path -LiteralPath $envFile) -or $needsSync) {
-    $apiMap = Read-DotEnvMap -Path $apiEnv
-    $merged = @{}
-    foreach ($key in $requiredKeys) {
-      if ($existing.ContainsKey($key) -and -not [string]::IsNullOrWhiteSpace([string]$existing[$key])) {
-        $merged[$key] = $existing[$key]
-      } elseif ($apiMap.ContainsKey($key) -and -not [string]::IsNullOrWhiteSpace([string]$apiMap[$key])) {
-        $merged[$key] = $apiMap[$key]
-      }
-    }
-
-    if (-not $merged.ContainsKey("DATABASE_URL") -and -not $merged.ContainsKey("SUPABASE_DB_URL")) {
-      if (Test-Path -LiteralPath $example) {
-        Copy-Item -LiteralPath $example -Destination $envFile -Force
-        Write-Host "Created .env.docker from .env.docker.example"
-        Write-Host "Fill database URLs in .env.docker (or apps/api/.env) then re-run."
-        return
-      }
-      throw "Missing database URLs. Set them in apps/api/.env or .env.docker."
-    }
-
-    Write-DotEnvFile -Path $envFile -Map $merged -Keys $requiredKeys
-    Write-Host "Updated .env.docker from apps/api/.env (UTF-8, no BOM)."
+function Assert-LocalDevelopmentEnvironment {
+  if ($env:PRISM_LOCAL_DEV -ne "1" -or -not $env:PRISM_ENV_FILE) {
+    throw "Local database preparation is required before launching Prism."
   }
+  & node.exe (Join-Path $root "scripts\local-supabase.mjs") check
+  if ($LASTEXITCODE -ne 0) { throw "Refusing to launch Prism against an unexpected database." }
 }
 
 function Wait-HttpReady {
@@ -152,15 +104,17 @@ function Wait-HttpReady {
   $failed = @($Targets | Where-Object { -not $ready.ContainsKey($_.Name) })
   if ($failed.Count -gt 0) {
     $names = ($failed | ForEach-Object { $_.Name }) -join ", "
-    Write-Warning "Still waiting or timed out: $names"
     Write-Warning "Stack may still be starting. Check: docker compose -f $($script:composeFile) ps"
     Write-Warning "Logs: docker compose -f $($script:composeFile) logs -f"
+    throw "Docker services did not become ready: $names"
   }
 }
 
 function Show-Urls {
   Write-Host ""
-  Write-Host "P.R.I.S.M is running."
+  Write-Host "P.R.I.S.M is running against local Supabase."
+  $databaseInfo = Get-Content -LiteralPath (Join-Path $root ".local-dev\database.json") -Raw | ConvertFrom-Json
+  Write-Host "  Studio:   $($databaseInfo.studioUrl)"
   Write-Host "  Client:   http://localhost:$($prismPorts.client)/"
   Write-Host "  Supplier: http://localhost:$($prismPorts.supplier)/"
   Write-Host "  Guest:    http://localhost:$($prismPorts.guest)/"
@@ -201,7 +155,7 @@ function Wait-DockerEngine {
 
   if ($dockerDesktop) {
     Write-Host "Docker engine is not running. Starting Docker Desktop..."
-    Start-Process -FilePath $dockerDesktop | Out-Null
+    Start-Process -FilePath $dockerDesktop -WindowStyle Hidden | Out-Null
   } else {
     Write-Warning "Docker engine is not running and Docker Desktop.exe was not found."
   }
@@ -222,7 +176,9 @@ function Wait-DockerEngine {
 if ($Docker) {
   Assert-Command -Name "docker"
   Wait-DockerEngine
-  Ensure-DockerEnvFile
+  Prepare-LocalDatabase
+  Assert-LocalDevelopmentEnvironment
+  if ($DatabaseOnly) { exit 0 }
 
   $script:composeFile = if ($Dev) { "compose.dev.yml" } else { "compose.local.yml" }
   $modeLabel = if ($Dev) { "dev (hot reload)" } else { "built images" }
@@ -233,29 +189,38 @@ if ($Docker) {
   $env:COMPOSE_PARALLEL_LIMIT = "1"
   $env:DOCKER_BUILDKIT = "1"
 
+  # Compose Bake can build several targets concurrently despite PARALLEL_LIMIT.
+  # Build one service at a time; dev services all share the API's image tag.
+  if (-not $SkipBuild) {
+    $buildServices = if ($Dev) { @("api") } else { @("api", "client", "supplier", "guest", "event") }
+    foreach ($service in $buildServices) {
+      & docker compose -f $composeFile build $service
+      if ($LASTEXITCODE -ne 0) { throw "Docker build failed for $service. Apps were not started." }
+    }
+  }
+
   function Invoke-DockerComposeUp {
-    param([switch]$Build)
-    $composeArgs = @("compose", "-f", $composeFile, "up")
-    if ($Build) { $composeArgs += "--build" }
+    $composeArgs = @("compose", "-f", $composeFile, "up", "--no-build")
+    if ($Dev -and $Foreground) { $composeArgs += "--watch" }
     if (-not $Foreground) { $composeArgs += "-d" }
     $prev = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     try {
-      & docker @composeArgs
+      & docker @composeArgs | Out-Host
       return $LASTEXITCODE
     } finally {
       $ErrorActionPreference = $prev
     }
   }
 
-  $exitCode = Invoke-DockerComposeUp -Build
+  $exitCode = Invoke-DockerComposeUp
   if ($exitCode -ne 0) {
-    Write-Warning "docker compose up --build failed (exit $exitCode). Retrying once..."
+    Write-Warning "docker compose up failed (exit $exitCode). Retrying once..."
     Start-Sleep -Seconds 5
     if (-not (Test-DockerEngineReady)) {
       Wait-DockerEngine
     }
-    $exitCode = Invoke-DockerComposeUp -Build
+    $exitCode = Invoke-DockerComposeUp
   }
   if ($exitCode -ne 0) {
     throw "docker compose up failed with exit code $exitCode."
@@ -263,6 +228,11 @@ if ($Docker) {
 
   if ($Foreground) {
     exit 0
+  }
+
+  if ($Dev) {
+    & node.exe (Join-Path $root "scripts\compose-watch.mjs") start
+    if ($LASTEXITCODE -ne 0) { throw "Compose Watch could not start." }
   }
 
   $targets = @(
@@ -372,6 +342,11 @@ if (-not $NoPortCleanup) {
 }
 
 Ensure-WorkspaceInstall
+Assert-Command -Name "docker"
+Wait-DockerEngine
+Prepare-LocalDatabase
+Assert-LocalDevelopmentEnvironment
+if ($DatabaseOnly) { exit 0 }
 
 if (-not $SkipPrismaGenerate) {
   Invoke-External -Label "Generating Prisma client" -WorkingDirectory $root -FilePath "npm.cmd" -ArgumentList @("run", "db:generate")
@@ -392,6 +367,7 @@ if ($shouldBuild) {
 }
 
 "name,pid,port,directory" | Set-Content -LiteralPath $pidFile
+Assert-LocalDevelopmentEnvironment
 
 foreach ($app in $apps) {
   $directory = Join-Path $root $app.Directory
