@@ -24,7 +24,7 @@ import { PlatformPrivacyModule } from './modules/platform-ops/platform-privacy.m
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: process.env.PRISM_ENV_FILE || '.env' }),
     HealthModule,
     PlatformOpsCommandReceiptModule,
     EventCoreModule,

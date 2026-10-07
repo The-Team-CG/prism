@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-  # Prefer stop-prism-docker.cmd. Stops compose stacks only (not local Node).
+  # Prefer stop-prism-docker.cmd. Stops Compose apps and local Supabase.
   [switch]$Docker,
   # When used with -Docker, also remove named volumes.
   [switch]$Volumes,
@@ -13,6 +13,8 @@ $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $root
 
 function Stop-DockerStacks {
+  & node.exe (Join-Path $root "scripts\compose-watch.mjs") stop
+  if ($LASTEXITCODE -ne 0) { throw "Could not stop Compose Watch." }
   if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Write-Host "Docker not on PATH; skipping compose down."
     return
@@ -35,6 +37,11 @@ function Stop-DockerStacks {
   } finally {
     $ErrorActionPreference = $prev
   }
+}
+
+function Stop-LocalDatabase {
+  & node.exe (Join-Path $root "scripts\local-supabase.mjs") stop
+  if ($LASTEXITCODE -ne 0) { throw "Could not stop local Supabase. Check Docker and service logs." }
 }
 
 function Stop-LocalProcesses {
@@ -64,8 +71,9 @@ function Stop-LocalProcesses {
 }
 
 if ($Docker -and -not $All) {
-  Write-Host "Stopping Docker stacks only."
+  Write-Host "Stopping Docker apps and local Supabase."
   Stop-DockerStacks
+  Stop-LocalDatabase
   Write-Host "P.R.I.S.M Docker stop complete."
   exit 0
 }
@@ -74,11 +82,13 @@ if ($All) {
   Write-Host "Stopping Docker stacks and local Node processes."
   Stop-DockerStacks
   Stop-LocalProcesses
+  Stop-LocalDatabase
   Write-Host "P.R.I.S.M stop complete (all)."
   exit 0
 }
 
-Write-Host "Stopping local Node processes only (not Docker)."
+Write-Host "Stopping local Node apps and local Supabase."
 Stop-LocalProcesses
+Stop-LocalDatabase
 Write-Host "P.R.I.S.M local stop complete."
 Write-Host "Docker: .\stop-prism-docker.cmd"
