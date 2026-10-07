@@ -36,7 +36,7 @@ export const createSupplierSchema = z.object({
 });
 export type CreateSupplierInput = z.infer<typeof createSupplierSchema>;
 
-export const updateSupplierSchema = createSupplierSchema.partial();
+export const updateSupplierSchema = createSupplierSchema.omit({ tier: true }).partial().strict();
 export type UpdateSupplierInput = z.infer<typeof updateSupplierSchema>;
 
 export const changeSupplierTierSchema = z.object({
@@ -49,7 +49,7 @@ export const createSupplierCertificationSchema = z.object({
   fileName: nonEmptyStringSchema,
   documentType: nonEmptyStringSchema,
   issuer: optionalTrimmedStringSchema,
-  expiresAt: optionalTrimmedStringSchema,
+  expiresAt: z.string().trim().pipe(z.iso.date()).optional(),
   status: z.enum(["submitted", "verified", "expired", "rejected"]).optional(),
   notes: optionalTrimmedStringSchema,
 });
