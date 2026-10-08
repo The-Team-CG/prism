@@ -234,6 +234,22 @@ export {
   aiGovernanceDryRunSchema,
   type AiGovernanceDryRunInput,
 } from "./session-trust-inputs.js";
+export {
+  prismEventGameKindSchema,
+  createEventGameSchema,
+  updateEventGameSchema,
+  createGameSessionSchema,
+  gameHostCommandSchema,
+  joinActiveMultiplayerGameSessionSchema,
+  startIndependentSingleplayerGameSessionSchema,
+  type PrismEventGameKind,
+  type PrismCreateEventGameInput,
+  type PrismUpdateEventGameInput,
+  type PrismCreateGameSessionInput,
+  type PrismGameHostCommandInput,
+  type PrismJoinActiveMultiplayerGameSessionInput,
+  type PrismStartIndependentSingleplayerGameInput,
+} from "./event-games-inputs.js";
 export { supplierWithdrawalSchema, type SupplierWithdrawalInput, createEventFromTemplateSchema, type CreateEventFromTemplateInput, createTemplateSchema, type CreateTemplateInput, updateTemplateSchema, type UpdateTemplateInput, updatePlanSchema, type UpdatePlanInput } from "./session-spatial-inputs.js";
 export {
   storageUsageSchema,
