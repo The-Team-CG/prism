@@ -79,6 +79,23 @@ describe("shared Prism session storage helpers", () => {
     });
     expect(storage.snapshot()).toEqual({});
   });
+
+  it("keeps game participation separate from guest check-in state", () => {
+    const checkInRequest = { eventId: "event-check-in", submittedAt: "2026-10-08T09:00:00.000Z" };
+    const gameParticipant = { eventId: "event-game", credential: "opaque-game-token" };
+    const storage = createStorage();
+
+    savePrismSession(PRISM_SESSION_STORAGE_KEYS.guestCheckInRequest, checkInRequest, { storage });
+    savePrismSession(PRISM_SESSION_STORAGE_KEYS.gameParticipant, gameParticipant, { storage });
+
+    expect(readPrismSession(PRISM_SESSION_STORAGE_KEYS.guestCheckInRequest, { storage })).toEqual(checkInRequest);
+    expect(readPrismSession(PRISM_SESSION_STORAGE_KEYS.gameParticipant, { storage })).toEqual(gameParticipant);
+
+    clearPrismSession(PRISM_SESSION_STORAGE_KEYS.gameParticipant, { storage });
+
+    expect(readPrismSession(PRISM_SESSION_STORAGE_KEYS.guestCheckInRequest, { storage })).toEqual(checkInRequest);
+    expect(readPrismSession(PRISM_SESSION_STORAGE_KEYS.gameParticipant, { storage })).toBeNull();
+  });
 });
 
 describe("Prism authenticated session validation", () => {
