@@ -1,0 +1,106 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "api": {
+      "root": "apps/api",
+      "framework": "nestjs",
+      "entrypoint": "src/main.ts",
+      "buildCommand": "node ../../scripts/vercel-service.mjs build api",
+      "devCommand": "node ../../scripts/vercel-service.mjs dev api"
+    },
+    "client": {
+      "root": "apps/client",
+      "framework": "nextjs",
+      "buildCommand": "node ../../scripts/vercel-service.mjs build client",
+      "devCommand": "node ../../scripts/vercel-service.mjs dev client",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "api",
+          "format": "url",
+          "env": "PRISM_API_URL"
+        }
+      ]
+    },
+    "event": {
+      "root": "apps/event",
+      "framework": "nextjs",
+      "buildCommand": "node ../../scripts/vercel-service.mjs build event",
+      "devCommand": "node ../../scripts/vercel-service.mjs dev event",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "api",
+          "format": "url",
+          "env": "PRISM_API_URL"
+        }
+      ]
+    },
+    "guest": {
+      "root": "apps/guest",
+      "framework": "nextjs",
+      "buildCommand": "node ../../scripts/vercel-service.mjs build guest",
+      "devCommand": "node ../../scripts/vercel-service.mjs dev guest",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "api",
+          "format": "url",
+          "env": "PRISM_API_URL"
+        }
+      ]
+    },
+    "supplier": {
+      "root": "apps/supplier",
+      "framework": "nextjs",
+      "buildCommand": "node ../../scripts/vercel-service.mjs build supplier",
+      "devCommand": "node ../../scripts/vercel-service.mjs dev supplier",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "api",
+          "format": "url",
+          "env": "PRISM_API_URL"
+        }
+      ]
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": {
+        "service": "api"
+      }
+    },
+    {
+      "source": "/health",
+      "destination": {
+        "service": "api"
+      }
+    },
+    {
+      "source": "/event/:path*",
+      "destination": {
+        "service": "event"
+      }
+    },
+    {
+      "source": "/guest/:path*",
+      "destination": {
+        "service": "guest"
+      }
+    },
+    {
+      "source": "/supplier/:path*",
+      "destination": {
+        "service": "supplier"
+      }
+    },
+    {
+      "source": "/:path*",
+      "destination": {
+        "service": "client"
+      }
+    }
+  ]
+}

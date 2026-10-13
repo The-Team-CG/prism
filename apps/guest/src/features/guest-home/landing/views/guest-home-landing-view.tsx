@@ -1,5 +1,7 @@
 "use client";
 
+import { portalHref } from "@prism/ui/portal-path";
+
 import {
   ArrowRight,
   CheckCircle2,
@@ -41,7 +43,7 @@ function GuestPassPanel() {
                 <span key={index} className={index === 0 ? "grid aspect-square place-items-center rounded-md border-2 border-primary text-xl font-black text-primary" : "aspect-square rounded-md border border-border bg-background"}>{index === 0 ? "I" : ""}</span>
               ))}
             </div>
-            <a href="/open" className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-primary font-black text-primary-foreground">
+            <a href={portalHref("/open")} className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-primary font-black text-primary-foreground">
               <LockKeyhole className="size-5" />
               Open pass
             </a>
@@ -111,7 +113,7 @@ export function GuestHomeLandingView() {
                 <a key={label} href={href} className="rounded-md px-2 py-2 transition hover:text-primary">{label}</a>
               ))}
             </nav>
-            <a href="/open" className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-black text-primary-foreground shadow-[0_16px_36px_rgba(192,24,103,0.22)]">
+            <a href={portalHref("/open")} className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-black text-primary-foreground shadow-[0_16px_36px_rgba(192,24,103,0.22)]">
               <DoorOpen className="size-4" />
               Open with code
             </a>
@@ -126,7 +128,7 @@ export function GuestHomeLandingView() {
                 Open your private event pass with a code, confirm consent, check in quickly, and share feedback after the event.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <a href="/open" className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-primary px-6 text-base font-black text-primary-foreground shadow-[0_18px_40px_rgba(192,24,103,0.22)]">
+                <a href={portalHref("/open")} className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-primary px-6 text-base font-black text-primary-foreground shadow-[0_18px_40px_rgba(192,24,103,0.22)]">
                   Open with code <ArrowRight className="size-5" />
                 </a>
                 <a href="#access" className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-card px-6 text-base font-black text-foreground">
@@ -270,7 +272,7 @@ export function GuestHomeLandingView() {
             <h2 className="mt-3 max-w-2xl prism-serif text-4xl font-black leading-tight text-(--prism-ink)">Open your event pass</h2>
           </div>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row lg:mt-0">
-            <a href="/open" className="inline-flex h-12 items-center justify-center rounded-md bg-primary px-6 font-black text-primary-foreground">Open with code</a>
+            <a href={portalHref("/open")} className="inline-flex h-12 items-center justify-center rounded-md bg-primary px-6 font-black text-primary-foreground">Open with code</a>
             <a href="#access" className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-background px-6 font-black text-foreground"><HelpCircle className="size-4" /> Help</a>
           </div>
         </div>

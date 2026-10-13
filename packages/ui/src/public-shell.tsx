@@ -1,5 +1,7 @@
 "use client";
 
+import { portalHref } from "./portal-path";
+
 import type * as React from "react";
 import { ArrowRight, type LucideIcon } from "lucide-react";
 import { PrismBrandLogo } from "./brand";
@@ -32,7 +34,7 @@ export function PrismPublicShell({
         <div className="absolute inset-0 opacity-35 [background-image:linear-gradient(var(--border)_1px,transparent_1px),linear-gradient(90deg,var(--border)_1px,transparent_1px)] [background-size:38px_38px]" />
         <div className="relative mx-auto grid min-h-[calc(100vh-3rem)] max-w-[1180px] grid-cols-1 items-center gap-6 lg:grid-cols-[minmax(0,0.95fr)_420px]">
           <div className="max-w-3xl">
-            <PrismBrandLogo href="/" detail={productDetail} className="mb-10" markClassName="size-12 bg-transparent ring-0" />
+            <PrismBrandLogo href={portalHref("/")} detail={productDetail} className="mb-10" markClassName="size-12 bg-transparent ring-0" />
 
             <h1 className="text-5xl font-black leading-[0.96] text-foreground sm:text-6xl lg:text-7xl">{title}</h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground">{description}</p>
@@ -144,7 +146,7 @@ function MarketingHeader({
       marketingHeaderClass(dark),
     )}>
       <PrismBrandLogo
-        href="/"
+        href={portalHref("/")}
         detail={productDetail}
         dark={dark}
         markClassName="size-12 bg-transparent ring-0"
@@ -156,7 +158,7 @@ function MarketingHeader({
         {actions.slice(0, 2).map((action) => (
           <a
             key={action.href}
-            href={action.href}
+            href={portalHref(action.href)}
             className={cn(
               "inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-black transition",
               marketingActionClass(dark, action.variant),
@@ -178,7 +180,7 @@ function MarketingNav({ items, dark }: { items: PrismMarketingNavItem[]; dark: b
       {items.map((item) => (
         <a
           key={item.href}
-          href={item.href}
+          href={portalHref(item.href)}
           className={cn("rounded-md px-3 py-2 text-sm font-bold transition", marketingNavLinkClass(dark))}
         >
           {item.label}
@@ -194,7 +196,7 @@ function MarketingHeroActions({ actions, dark }: { actions: PrismMarketingAction
       {actions.map((action) => (
         <a
           key={`${action.href}-${action.label}`}
-          href={action.href}
+          href={portalHref(action.href)}
           className={cn(
             "inline-flex min-h-12 items-center justify-center gap-2 rounded-md px-5 text-sm font-black uppercase tracking-[0.12em] transition",
             marketingHeroActionClass(dark, action.variant),

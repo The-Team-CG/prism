@@ -1,7 +1,4 @@
-# SHA-256 checksum of an immutable migration's SQL, keyed by a migration name
-# that happens to contain "password_reset". It is a content hash, not a credential.
-#
-# Gitleaks fingerprints pin a line number, so this entry breaks whenever anything
-# above it in migration-policy.json moves. If the central Gitleaks workflow gains
-# config support, replace this with a path/rule allowlist.
-apps/api/prisma/migration-policy.json:generic-api-key:120
+# SHA-256 checksum of the immutable identity-access schema baseline SQL.
+# This is a content hash, not a credential; verify against the LF-normalized SQL.
+# Fingerprints pin the current file and line, so moving the checksum invalidates this exclusion.
+apps/api/prisma/migration-policy.json:generic-api-key:22
