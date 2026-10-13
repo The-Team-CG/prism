@@ -1,5 +1,7 @@
 "use client";
 
+import { portalHref } from "./portal-path";
+
 import type { HTMLAttributes, ReactNode } from "react";
 import { ArrowRight, CheckCircle2, ClipboardList, LockKeyhole, ShieldCheck, type LucideIcon } from "lucide-react";
 import {
@@ -51,7 +53,7 @@ export function PrismPublicRoleGrid({ roles }: { roles: PrismPublicRoleCard[] })
             <p className="text-sm leading-6 text-muted-foreground">{role.description}</p>
             {role.href && role.actionLabel ? (
               <a
-                href={role.href}
+                href={portalHref(role.href)}
                 className="mt-5 inline-flex h-10 w-full items-center justify-between gap-2 rounded-md border border-border bg-card px-4 text-sm font-bold text-foreground transition hover:bg-secondary"
               >
                 {role.actionLabel}

@@ -1,5 +1,7 @@
 "use client";
 
+import { portalHref } from "./portal-path";
+
 import type * as React from "react";
 import { cn } from "./utils";
 
@@ -83,7 +85,7 @@ export function PrismBrandLogo({
 
   if (href) {
     return (
-      <a href={href} className={cn("inline-flex min-w-0 items-center gap-3 no-underline", className)}>
+      <a href={portalHref(href)} className={cn("inline-flex min-w-0 items-center gap-3 no-underline", className)}>
         {content}
       </a>
     );
