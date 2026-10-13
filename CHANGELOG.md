@@ -53,6 +53,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- Client portal installs declare their UI test dependencies, so scoped deployment builds and tests no longer rely on the PMCM workspace.
+
 - Vercel service installs include repository build tooling and development dependencies, fixing builds that could not resolve Turborepo.
 
 - Secret scanning recognizes the immutable identity-access migration checksum as a content hash.
