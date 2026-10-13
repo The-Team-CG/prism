@@ -4,6 +4,10 @@ This log tracks changes to documentation structure and durable contracts. Releas
 notes are in [`../CHANGELOG.md`](../CHANGELOG.md); Git history retains detailed
 implementation and verification history.
 
+## 2026-10-14
+
+- Added the Vercel services deployment runbook and runbook index entry, defining public mounts, runtime binding use, shared environment setup, and worker, storage, and workflow cutover limits.
+
 ## 2026-10-07
 
 - Local operation now uses generated Supabase environments with local API/portal URLs, one canonical database URL, and preserved databases per migration baseline. Docker runbooks describe source syncing and scoped standalone images.
