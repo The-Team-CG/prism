@@ -4,8 +4,7 @@ import type {
   CreateGuestFeedbackInput,
 } from "@prism/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-const eventOpsClient = createEventOpsClient({ baseUrl: `${API_URL}/api` });
+const eventOpsClient = createEventOpsClient();
 
 /** Thin guest HTTP surface — contracts from `@prism/types`, client from `@prism/api-client`. */
 export const prismApi = {

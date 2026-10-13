@@ -1,5 +1,7 @@
 "use client";
 
+import { portalHref } from "@prism/ui/portal-path";
+
 import { FormEvent } from "react";
 import { ArrowLeft, Eye, EyeOff, Handshake, Shield } from "lucide-react";
 import { PrismBrandLogo } from "@prism/ui";
@@ -126,7 +128,7 @@ export function EventSignInView() {
     <main className="min-h-screen bg-[#f6f6f6]">
       <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
         <a
-          href="/"
+          href={portalHref("/")}
           aria-label="Back to P.R.I.S.M. home"
           className="inline-flex size-10 items-center justify-center rounded-full text-[#444] transition hover:bg-white hover:text-[#c01867] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c01867]/40"
         >
@@ -187,7 +189,7 @@ export function EventSignInView() {
                 >
                   {signInSubmitLabel(vm.busy, vm.phase)}
                 </button>
-                <a hidden={!passwordPhase} href="/password-reset" className="block text-center text-sm text-[#c01867] transition hover:text-[#a81459]">
+                <a hidden={!passwordPhase} href={portalHref("/password-reset")} className="block text-center text-sm text-[#c01867] transition hover:text-[#a81459]">
                   Forgot password?
                 </a>
               </form>

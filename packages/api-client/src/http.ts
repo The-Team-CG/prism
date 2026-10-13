@@ -97,8 +97,16 @@ export interface PrismRequestInit extends Omit<RequestInit, "body"> {
   body?: unknown;
 }
 
+/** Read at request time: service bindings exist only in server functions at runtime. */
+export function resolvePrismApiOrigin(): string {
+  const boundUrl = typeof window === "undefined" ? process.env.PRISM_API_URL : undefined;
+  return (boundUrl ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/+$/, "");
+}
+
 export function resolvePrismApiBaseUrl(explicitBaseUrl?: string): string {
-  return explicitBaseUrl ?? process.env.NEXT_PUBLIC_PRISM_API_BASE_URL ?? DEFAULT_PRISM_API_BASE_URL;
+  if (explicitBaseUrl !== undefined) return explicitBaseUrl;
+  if (typeof window === "undefined" && process.env.PRISM_API_URL) return `${resolvePrismApiOrigin()}/api`;
+  return process.env.NEXT_PUBLIC_PRISM_API_BASE_URL ?? `${resolvePrismApiOrigin()}/api`;
 }
 
 export function toQueryString<T extends object>(

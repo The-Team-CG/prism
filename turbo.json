@@ -3,7 +3,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "env": ["PRISM_DOCKER_STANDALONE"],
+      "env": ["PRISM_DOCKER_STANDALONE", "PRISM_VERCEL_SERVICES"],
       "outputs": [".next/**", "dist/**", "!.next/cache/**"]
     },
     "typecheck": {

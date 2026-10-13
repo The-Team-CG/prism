@@ -8,6 +8,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- The API and four role portals can deploy as one Vercel project, with runtime API bindings and shared-domain portal routing.
 - Development launchers start persistent local Supabase, isolate API/database targets, and support scoped Docker builds and source syncing.
 - Guest check-in preserves consent evidence and safely retries submissions under the New-CL1 review policy.
 - Clients can track source-backed planning milestones and required next actions in their event workspace.
