@@ -53,6 +53,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- Secret scanning recognizes the immutable identity-access migration checksum as a content hash.
 - API startup resolves context contract tokens and privacy module database dependencies.
 - Signing a conforme no longer creates fabricated billing.
 - Client billing balances now use recorded payments.
