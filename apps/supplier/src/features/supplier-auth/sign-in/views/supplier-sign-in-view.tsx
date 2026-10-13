@@ -1,5 +1,7 @@
 "use client";
 
+import { portalHref } from "@prism/ui/portal-path";
+
 import { ArrowRight, Eye, EyeOff, PackageCheck, Shield, ShieldCheck } from "lucide-react";
 import { PrismBrandLogo } from "@prism/ui";
 import { Input } from "@/app/components/ui/input";
@@ -8,7 +10,7 @@ import { useSupplierSignInViewModel } from "../view-models/use-supplier-sign-in-
 function ExistingSessionBanner({ name, organization }: { name: string; organization: string }) {
   return (
     <a
-      href="/dashboard"
+      href={portalHref("/dashboard")}
       className="mt-6 flex items-center justify-between rounded-xl border border-[#d9d9d9] bg-white px-5 py-4 shadow-sm transition hover:border-[#c01867]/40 sm:mt-8"
     >
       <div>
@@ -102,7 +104,7 @@ function ApprovalRequestPanel({
           >
             <ShieldCheck className="size-4" /> Request PMCM approval
           </button>
-          <a href="/password-reset" className="block text-center text-sm text-[#c01867] transition hover:text-[#a81459]">Forgot password?</a>
+          <a href={portalHref("/password-reset")} className="block text-center text-sm text-[#c01867] transition hover:text-[#a81459]">Forgot password?</a>
         </div>
       ) : null}
     </div>

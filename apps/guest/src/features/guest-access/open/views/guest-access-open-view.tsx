@@ -1,5 +1,7 @@
 "use client";
 
+import { portalHref } from "@prism/ui/portal-path";
+
 import { FormEvent } from "react";
 import { ArrowRight, KeyRound, QrCode, ShieldCheck, TicketCheck } from "lucide-react";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
@@ -105,7 +107,7 @@ export function GuestAccessOpenView() {
 
             {vm.existing && (
               <a
-                href="/dashboard"
+                href={portalHref("/dashboard")}
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-secondary text-sm font-black text-foreground"
               >
                 <TicketCheck className="size-4" /> Continue to {vm.existing.eventName}
