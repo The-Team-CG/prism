@@ -74,8 +74,10 @@ An explicit per-request `baseUrl` remains an override.
 Use one Vercel project with the repository root as its Root Directory. The
 service roots come from `vercel.json`. Use Node 24 and npm workspaces. The Services build/dev wrapper enables that flag automatically. Existing
 standalone Vercel projects do not enable it. Each
-service builds its workspace and dependencies from the repository root;
-installation generates Prisma and builds `@prism/types` through existing hooks.
+service installs its workspace with `npm ci --include=dev --include-workspace-root --workspace <package-name>`, then builds from the repository root. Including the
+root installs Turborepo; including development dependencies retains build tools
+when `NODE_ENV=production`. Installation generates Prisma and builds
+`@prism/types` through existing hooks.
 Do not put build or install fields at the top level of `vercel.json`.
 
 Configure real deployment inputs through Vercel environment settings:
@@ -122,6 +124,10 @@ deployment target and does not migrate provider credentials, project IDs or the
 promotion workflow. Confirm workflow migration separately before cutover.
 
 ## Local verification
+
+To reproduce a service build, run its `installCommand` and `buildCommand` from
+its service directory in a fresh checkout. Checking an existing root install
+can conceal missing build dependencies.
 
 Run from the repository root with a CLI that supports Services:
 
