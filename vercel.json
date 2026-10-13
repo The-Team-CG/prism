@@ -6,7 +6,8 @@
       "framework": "nestjs",
       "entrypoint": "src/main.ts",
       "buildCommand": "node ../../scripts/vercel-service.mjs build api",
-      "devCommand": "node ../../scripts/vercel-service.mjs dev api"
+      "devCommand": "node ../../scripts/vercel-service.mjs dev api",
+      "installCommand": "npm ci --include=dev --include-workspace-root --workspace prism-api"
     },
     "client": {
       "root": "apps/client",
@@ -20,7 +21,8 @@
           "format": "url",
           "env": "PRISM_API_URL"
         }
-      ]
+      ],
+      "installCommand": "npm ci --include=dev --include-workspace-root --workspace @prism/client"
     },
     "event": {
       "root": "apps/event",
@@ -34,7 +36,8 @@
           "format": "url",
           "env": "PRISM_API_URL"
         }
-      ]
+      ],
+      "installCommand": "npm ci --include=dev --include-workspace-root --workspace @prism/event"
     },
     "guest": {
       "root": "apps/guest",
@@ -48,7 +51,8 @@
           "format": "url",
           "env": "PRISM_API_URL"
         }
-      ]
+      ],
+      "installCommand": "npm ci --include=dev --include-workspace-root --workspace @prism/guest"
     },
     "supplier": {
       "root": "apps/supplier",
@@ -62,7 +66,8 @@
           "format": "url",
           "env": "PRISM_API_URL"
         }
-      ]
+      ],
+      "installCommand": "npm ci --include=dev --include-workspace-root --workspace @prism/supplier"
     }
   },
   "rewrites": [
