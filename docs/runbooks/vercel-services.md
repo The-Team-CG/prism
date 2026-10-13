@@ -143,9 +143,9 @@ prove a cloud deployment, database migration or durable worker execution.
 ## Verification evidence
 
 The Services-mode monorepo build and monorepo typecheck passed. Shared API
-transport tests passed 33/33; client, event, supplier and guest suites passed
-61/61, 230/230, 26/26 and 13/13. The boundary scan and 53 boundary tooling tests
-passed. Built portal landing pages and one prefixed Next asset per portal
+transport tests passed 36/36; client, event, supplier and guest suites passed
+72/72, 247/247, 26/26 and 17/17. The boundary scan passed for 1,460 files,
+and 59 boundary tooling tests passed. Built portal landing pages and one prefixed Next asset per portal
 returned HTTP 200, with role-prefixed native links. Runbook metadata,
 relative links and diff whitespace checks passed.
 
