@@ -1,5 +1,7 @@
 "use client";
 
+import { portalHref } from "@prism/ui/portal-path";
+
 import { FormEvent, type ReactNode } from "react";
 import {
   ArrowRight,
@@ -217,7 +219,7 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
             </nav>
 
             <Button asChild className="h-11 rounded-md px-5 font-black shadow-[0_16px_36px_rgba(192,24,103,0.22)]">
-              <a href="/sign-in">
+              <a href={portalHref("/sign-in")}>
                 <Radio className="size-4" />
                 Sign in
               </a>
@@ -234,7 +236,7 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button asChild className="h-12 rounded-md px-6 text-base font-black shadow-[0_18px_40px_rgba(192,24,103,0.22)]">
-                  <a href="/sign-in">
+                  <a href={portalHref("/sign-in")}>
                     <LayoutGrid className="size-5" />
                     Sign in
                   </a>
@@ -380,7 +382,7 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
             <div>
               <SectionTitle className="text-3xl sm:text-4xl">Real-time visibility. Calm operational control.</SectionTitle>
               <p className="mt-4 text-base leading-7 text-muted-foreground">One workspace to see what matters, act faster, and deliver every event with confidence.</p>
-              <Button asChild className="mt-6 h-11 rounded-md font-black"><a href="/sign-in">Sign in</a></Button>
+              <Button asChild className="mt-6 h-11 rounded-md font-black"><a href={portalHref("/sign-in")}>Sign in</a></Button>
             </div>
             <div className="grid gap-4 sm:grid-cols-4">
               {[
@@ -415,7 +417,7 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
             <p className="mt-3 max-w-2xl text-muted-foreground">Bring plans, people, and progress together in one workspace that keeps every event on track.</p>
           </div>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row lg:mt-0">
-            <Button asChild className="h-12 rounded-md px-6 font-black"><a href="/sign-in">Sign in <ArrowRight className="size-4" /></a></Button>
+            <Button asChild className="h-12 rounded-md px-6 font-black"><a href={portalHref("/sign-in")}>Sign in <ArrowRight className="size-4" /></a></Button>
             <Button asChild variant="outline" className="h-12 rounded-md px-6 font-black"><a href="#command">Learn how it works</a></Button>
           </div>
         </div>
@@ -434,7 +436,7 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
               <div className="mt-3 grid gap-2 text-sm text-muted-foreground">{items.map((item) => <span key={item}>{item}</span>)}</div>
             </div>
           ))}
-          <Button asChild className="h-11 rounded-md font-black"><a href="/sign-in">Sign in</a></Button>
+          <Button asChild className="h-11 rounded-md font-black"><a href={portalHref("/sign-in")}>Sign in</a></Button>
         </div>
       </footer>
 

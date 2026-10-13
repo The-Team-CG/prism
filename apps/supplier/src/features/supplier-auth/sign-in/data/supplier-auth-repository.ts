@@ -19,9 +19,8 @@ import {
 } from "@prism/types";
 import { SUPPLIER_AUTH_API_OFFLINE_MESSAGE } from "../model/supplier-sign-in-rules";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const SESSION_KEY = PRISM_SESSION_STORAGE_KEYS.supplier;
-const supplierAuthClient = createEventOpsClient({ baseUrl: `${API_URL}/api` });
+const supplierAuthClient = createEventOpsClient();
 
 function apiErrorMessage(error: PrismApiError, fallback: string) {
   const body = error.body;
