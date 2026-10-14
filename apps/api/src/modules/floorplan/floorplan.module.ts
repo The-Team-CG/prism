@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { DatabaseModule } from '@prism/kernel/database';
 import { AccessControlModule } from '@prism/kernel/access-control';
 import { EventCoreModule } from '@prism/kernel/event-core';
@@ -37,7 +37,7 @@ import { TemplatesService } from './application/authoring/templates.service';
  * event reference, and no cross-domain FK is introduced for that clock.
  */
 @Module({
-  imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, IdentityAccessModule, EventSessionModule, EventLifecycleProjectionModule, FloorplanReferenceModule, ClientFloorplanAccessModule],
+  imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, forwardRef(() => IdentityAccessModule), EventSessionModule, EventLifecycleProjectionModule, FloorplanReferenceModule, ClientFloorplanAccessModule],
   controllers: [OpsEventFloorplansController, EventFloorPlanReviewController, LayoutEventsController, PlansController, PublishController, TemplatesController],
   providers: [
     FloorPlanWorkflowService,
