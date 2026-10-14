@@ -7,7 +7,7 @@
       "entrypoint": "src/main.ts",
       "buildCommand": "node ../../scripts/vercel-service.mjs build api",
       "devCommand": "node ../../scripts/vercel-service.mjs dev api",
-      "installCommand": "node ../../scripts/vercel-service.mjs install api"
+      "installCommand": "node \"$(npm prefix)/scripts/vercel-service.mjs\" install api"
     },
     "client": {
       "root": "apps/client",
@@ -22,7 +22,7 @@
           "env": "PRISM_API_URL"
         }
       ],
-      "installCommand": "node ../../scripts/vercel-service.mjs install client"
+      "installCommand": "node \"$(npm prefix)/scripts/vercel-service.mjs\" install client"
     },
     "event": {
       "root": "apps/event",
@@ -37,7 +37,7 @@
           "env": "PRISM_API_URL"
         }
       ],
-      "installCommand": "node ../../scripts/vercel-service.mjs install event"
+      "installCommand": "node \"$(npm prefix)/scripts/vercel-service.mjs\" install event"
     },
     "guest": {
       "root": "apps/guest",
@@ -52,7 +52,7 @@
           "env": "PRISM_API_URL"
         }
       ],
-      "installCommand": "node ../../scripts/vercel-service.mjs install guest"
+      "installCommand": "node \"$(npm prefix)/scripts/vercel-service.mjs\" install guest"
     },
     "supplier": {
       "root": "apps/supplier",
@@ -67,7 +67,7 @@
           "env": "PRISM_API_URL"
         }
       ],
-      "installCommand": "node ../../scripts/vercel-service.mjs install supplier"
+      "installCommand": "node \"$(npm prefix)/scripts/vercel-service.mjs\" install supplier"
     }
   },
   "rewrites": [
