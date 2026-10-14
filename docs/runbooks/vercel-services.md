@@ -74,10 +74,14 @@ An explicit per-request `baseUrl` remains an override.
 Use one Vercel project with the repository root as its Root Directory. The
 service roots come from `vercel.json`. Use Node 24 and npm workspaces. The Services build/dev wrapper enables that flag automatically. Existing
 standalone Vercel projects do not enable it. Each
-service installs its workspace with `npm ci --include=dev --include-workspace-root --workspace <package-name>`, then builds from the repository root. Including the
-root installs Turborepo; including development dependencies retains build tools
-when `NODE_ENV=production`. Installation generates Prisma and builds
-`@prism/types` through existing hooks.
+service runs `node ../../scripts/vercel-service.mjs install <service>`. Vercel runs
+all five installs in one checkout, and `npm ci` deletes `node_modules` before
+installing. The first call therefore installs the whole workspace with
+`npm ci --include=dev` and records the lockfile hash; the other services reuse
+that install. Every service keeps its dependencies until Vercel packages the
+functions, and development dependencies remain available when
+`NODE_ENV=production`. Installation generates Prisma and builds `@prism/types`
+through existing hooks. Each service then builds from the repository root.
 Do not put build or install fields at the top level of `vercel.json`.
 
 Configure real deployment inputs through Vercel environment settings:
@@ -125,9 +129,10 @@ promotion workflow. Confirm workflow migration separately before cutover.
 
 ## Local verification
 
-To reproduce a service build, run its `installCommand` and `buildCommand` from
-its service directory in a fresh checkout. Checking an existing root install
-can conceal missing build dependencies.
+To reproduce a deployment build, use a fresh checkout and run every service
+`installCommand` in order, then each `buildCommand`, from the service
+directories. A single existing install can hide missing or deleted
+dependencies.
 
 Run from the repository root with a CLI that supports Services:
 

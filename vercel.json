@@ -7,7 +7,7 @@
       "entrypoint": "src/main.ts",
       "buildCommand": "node ../../scripts/vercel-service.mjs build api",
       "devCommand": "node ../../scripts/vercel-service.mjs dev api",
-      "installCommand": "npm ci --include=dev --include-workspace-root --workspace prism-api"
+      "installCommand": "node ../../scripts/vercel-service.mjs install api"
     },
     "client": {
       "root": "apps/client",
@@ -22,7 +22,7 @@
           "env": "PRISM_API_URL"
         }
       ],
-      "installCommand": "npm ci --include=dev --include-workspace-root --workspace @prism/client"
+      "installCommand": "node ../../scripts/vercel-service.mjs install client"
     },
     "event": {
       "root": "apps/event",
@@ -37,7 +37,7 @@
           "env": "PRISM_API_URL"
         }
       ],
-      "installCommand": "npm ci --include=dev --include-workspace-root --workspace @prism/event"
+      "installCommand": "node ../../scripts/vercel-service.mjs install event"
     },
     "guest": {
       "root": "apps/guest",
@@ -52,7 +52,7 @@
           "env": "PRISM_API_URL"
         }
       ],
-      "installCommand": "npm ci --include=dev --include-workspace-root --workspace @prism/guest"
+      "installCommand": "node ../../scripts/vercel-service.mjs install guest"
     },
     "supplier": {
       "root": "apps/supplier",
@@ -67,7 +67,7 @@
           "env": "PRISM_API_URL"
         }
       ],
-      "installCommand": "npm ci --include=dev --include-workspace-root --workspace @prism/supplier"
+      "installCommand": "node ../../scripts/vercel-service.mjs install supplier"
     }
   },
   "rewrites": [
