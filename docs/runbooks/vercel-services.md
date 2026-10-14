@@ -74,7 +74,9 @@ An explicit per-request `baseUrl` remains an override.
 Use one Vercel project with the repository root as its Root Directory. The
 service roots come from `vercel.json`. Use Node 24 and npm workspaces. The Services build/dev wrapper enables that flag automatically. Existing
 standalone Vercel projects do not enable it. Each
-service runs `node ../../scripts/vercel-service.mjs install <service>`. Vercel runs
+service runs `node "$(npm prefix)/scripts/vercel-service.mjs" install <service>`.
+Vercel may run an install command below the service root (the API install runs
+in `apps/api/src`), so `npm prefix` locates the workspace root. Vercel runs
 all five installs in one checkout, and `npm ci` deletes `node_modules` before
 installing. The first call therefore installs the whole workspace with
 `npm ci --include=dev` and records the lockfile hash; the other services reuse
@@ -129,9 +131,9 @@ promotion workflow. Confirm workflow migration separately before cutover.
 
 ## Local verification
 
-To reproduce a deployment build, use a fresh checkout and run every service
-`installCommand` in order, then each `buildCommand`, from the service
-directories. A single existing install can hide missing or deleted
+To reproduce a deployment build, use a fresh Linux checkout and run every
+service `installCommand` in order with `sh`, then each `buildCommand`, from the
+service directories. A single existing install can hide missing or deleted
 dependencies.
 
 Run from the repository root with a CLI that supports Services:
