@@ -1,4 +1,4 @@
-import { Inject, Injectable, BadRequestException, ForbiddenException, NotFoundException, Optional } from '@nestjs/common';
+import { Inject, Injectable, BadRequestException, ForbiddenException, NotFoundException, Optional, forwardRef } from '@nestjs/common';
 import { Prisma, type OpsBillingStatement, type OpsBillingSource } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
@@ -85,7 +85,7 @@ export class BillingOperationsService {
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     private readonly workflowCommandService: WorkflowCommandService,
     @Inject(DOCUMENT_VAULT) private readonly documentVault: DocumentVault,
-    @Optional() private readonly storageObjectService?: StorageObjectService,
+    @Optional() @Inject(forwardRef(() => StorageObjectService)) private readonly storageObjectService?: StorageObjectService,
   ) {}
 
   async createBillingSource(eventId: string, input: CreateBillingSourceInput, actor: BillingActor) {
