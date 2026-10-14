@@ -6,7 +6,7 @@ implementation and verification history.
 
 ## 2026-10-14
 
-- Clarified the Vercel service installation contract: scoped locked installs include repository build tooling and development dependencies before each service build.
+- Clarified the Vercel service installation contract: services share one complete locked workspace install, including build tooling and development dependencies, before each service build.
 
 - Added the Vercel services deployment runbook and runbook index entry, defining public mounts, runtime binding use, shared environment setup, and worker, storage, and workflow cutover limits.
 
