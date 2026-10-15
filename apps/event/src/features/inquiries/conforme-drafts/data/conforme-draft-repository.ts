@@ -4,7 +4,6 @@ import { readStoredEventSession } from '@/app/lib/session';
 import { parseConformeDraftReview } from '../model/conforme-draft-review';
 
 const client = createEventOpsClient({
-  baseUrl: `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'}/api`,
   getAuthToken: () => readStoredEventSession()?.accessToken ?? null,
 });
 

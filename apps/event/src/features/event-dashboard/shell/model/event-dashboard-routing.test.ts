@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { portalHref } from "@prism/ui/portal-path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RouteState } from "./event-dashboard-routing";
 import {
   activeSidebarItemFromRoute,
@@ -12,7 +13,17 @@ import {
   routeShellCopy,
 } from "./event-dashboard-routing";
 
+afterEach(() => vi.unstubAllEnvs());
+
 describe("event-dashboard-routing", () => {
+  it("keeps native navigation inside its hosting prefix without changing external links", () => {
+    vi.stubEnv("NEXT_PUBLIC_PORTAL_BASE_PATH", "/event");
+    expect(["/", "/sign-in?next=%2Fdashboard", "/event/dashboard", "https://supplier.example.test/", "//cdn.example.test/logo.png", "#section"].map(portalHref)).toEqual([
+      "/event/", "/event/sign-in?next=%2Fdashboard", "/event/dashboard", "https://supplier.example.test/", "//cdn.example.test/logo.png", "#section",
+    ]);
+    vi.stubEnv("NEXT_PUBLIC_PORTAL_BASE_PATH", "");
+    expect(portalHref("/dashboard")).toBe("/dashboard");
+  });
   it("keeps explicit dashboard and event routes typed at the feature boundary", () => {
     expect(dashboardRouteState("upcoming-events")).toEqual({
       section: "dashboard",

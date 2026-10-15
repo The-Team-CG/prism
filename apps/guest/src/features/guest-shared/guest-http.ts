@@ -2,11 +2,10 @@
  * Shared guest-portal HTTP helper (DRY across feature repositories).
  */
 
+import { resolvePrismApiOrigin } from "@prism/api-client";
 import { GUEST_API_OFFLINE_MESSAGE } from "./guest-messages";
 
 export { GUEST_API_OFFLINE_MESSAGE } from "./guest-messages";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 function errorMessage(body: { message?: unknown }, fallback: string): string {
   if (Array.isArray(body.message)) return body.message.join(", ");
@@ -21,7 +20,7 @@ export async function guestJson<T>(
 ): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`${API_URL}${path}`, {
+    response = await fetch(`${resolvePrismApiOrigin()}${path}`, {
       ...init,
       headers: {
         ...(init.body ? { "Content-Type": "application/json" } : {}),

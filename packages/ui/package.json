@@ -11,6 +11,7 @@
     "./client-blocks": "./src/client-blocks.tsx",
     "./dashboard-shell": "./src/dashboard-shell.tsx",
     "./empty-state": "./src/empty-state.tsx",
+    "./portal-path": "./src/portal-path.ts",
     "./primitives": "./src/primitives.tsx",
     "./public-blocks": "./src/public-blocks.tsx",
     "./public-shell": "./src/public-shell.tsx",
