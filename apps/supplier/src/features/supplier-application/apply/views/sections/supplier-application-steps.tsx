@@ -1,5 +1,7 @@
 "use client";
 
+import { portalHref } from "@prism/ui/portal-path";
+
 import type { FormEvent, ReactNode } from "react";
 import {
   ArrowRight,
@@ -61,7 +63,7 @@ export function SupplierApplicationSubmitted({ applicationId, onReset }: { appli
               <div className="mx-auto mt-6 max-w-sm rounded-lg border border-primary/10 bg-background p-4 text-sm font-bold text-primary">
                 Reference # {applicationId}
               </div>
-              <a href="/status" className="mt-4 inline-block text-sm font-semibold text-primary underline-offset-4 hover:underline">
+              <a href={portalHref("/status")} className="mt-4 inline-block text-sm font-semibold text-primary underline-offset-4 hover:underline">
                 Check application status
               </a>
               <Button type="button" onClick={onReset} variant="outline" className="mt-7 h-12 rounded-lg px-6 font-black">

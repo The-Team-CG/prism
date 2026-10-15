@@ -1,5 +1,7 @@
 "use client";
 
+import { portalHref } from "../portal-path";
+
 import { CalendarDays, CircleUserRound, FileText, LogOut, Settings } from "lucide-react";
 import * as React from "react";
 import { cn } from "../utils";
@@ -137,7 +139,7 @@ export function PrismAccountMenu({
                 <React.Fragment key={item.id}>
                   {item.separatorBefore ? <div className="my-1 border-t border-border" /> : null}
                   {item.href ? (
-                    <a href={item.href} role="menuitem" className={className} onClick={() => setOpen(false)}>
+                    <a href={portalHref(item.href)} role="menuitem" className={className} onClick={() => setOpen(false)}>
                       {content}
                     </a>
                   ) : (

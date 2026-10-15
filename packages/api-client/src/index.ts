@@ -29,6 +29,7 @@ export {
   prismRequest,
   prismSse,
   resolvePrismApiBaseUrl,
+  resolvePrismApiOrigin,
   toQueryString,
   type PrismRequestInit,
 } from "./http";
