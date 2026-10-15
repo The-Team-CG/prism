@@ -4,9 +4,57 @@ import { PrismApiError, createEventOpsClient, normalizePrismApiProblem, prismReq
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
 });
 
 describe("prismRequest", () => {
+  it("resolves API bindings when a request runs, preserving bearer authentication", async () => {
+    vi.stubGlobal("window", undefined);
+    vi.stubEnv("PRISM_API_URL", undefined);
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "");
+    const client = createEventOpsClient({ getAuthToken: () => "role-session" });
+    // Constructing a client during build must not capture a missing binding.
+    vi.stubEnv("PRISM_API_URL", "https://internal.example.test/");
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ data: [] })));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await client.events.list();
+
+    expect(fetchMock).toHaveBeenCalledWith("https://internal.example.test/api/events", {
+      headers: { "Content-Type": "application/json", Authorization: "Bearer role-session" },
+    });
+  });
+
+  it("uses the public same-origin API in browsers even when a binding is present", async () => {
+    vi.stubGlobal("window", {});
+    vi.stubEnv("PRISM_API_URL", "https://internal.example.test");
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_PRISM_API_BASE_URL", "/api");
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ data: [] })));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await createEventOpsClient().events.list();
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/events", {
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+
+  it("keeps an explicit API target and local development defaults", async () => {
+    vi.stubGlobal("window", undefined);
+    vi.stubEnv("PRISM_API_URL", undefined);
+    vi.stubEnv("NEXT_PUBLIC_API_URL", undefined);
+    vi.stubEnv("NEXT_PUBLIC_PRISM_API_BASE_URL", undefined);
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ data: [] })));
+    vi.stubGlobal("fetch", fetchMock);
+    await prismRequest("/events");
+    vi.stubEnv("PRISM_API_URL", "https://internal.example.test");
+    await prismRequest("/events", { baseUrl: "https://explicit.example.test/api" });
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "http://localhost:4000/api/events", expect.any(Object));
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "https://explicit.example.test/api/events", expect.any(Object));
+  });
+
   it("builds JSON requests from a base URL and path", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);

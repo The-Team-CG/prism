@@ -10,7 +10,7 @@ export type {
   SubmitSupplierQuoteInput as SubmitQuoteInput,
 } from "@prism/types";
 
-import { createEventOpsClient } from "@prism/api-client";
+import { createEventOpsClient, resolvePrismApiOrigin } from "@prism/api-client";
 import { PRISM_SESSION_STORAGE_KEYS, isPrismAuthenticatedSession } from "@prism/types";
 import type {
   PrismAuthenticatedSession,
@@ -38,7 +38,6 @@ export type QuoteRequestDetail = {
   eventDate: string | null;
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const API_OFFLINE_MESSAGE = "P.R.I.S.M API is offline. Start `prism-api` on port 4000, then try again.";
 
 /**
@@ -59,7 +58,6 @@ export function storedSupplierAccessToken() {
 }
 
 const eventOpsClient = createEventOpsClient({
-  baseUrl: `${API_URL}/api`,
   getAuthToken: storedSupplierAccessToken,
 });
 
@@ -70,7 +68,7 @@ function actorFromSession(session: PrismAuthenticatedSession) {
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`${API_URL}${path}`, {
+    response = await fetch(`${resolvePrismApiOrigin()}${path}`, {
       ...init,
       headers: {
         "Content-Type": "application/json",

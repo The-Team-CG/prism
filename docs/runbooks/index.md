@@ -8,6 +8,7 @@
 * [Parallel worktrees](parallel-worktrees.md) - checkout-derived dev ports and junction-safe worktree teardown.
 * [Portal accounts](portal-accounts.md) - local fixture accounts and role-boundary notes.
 * [Deployment secrets](deployment-secrets.md) - GitHub Actions secrets, variables, provider targets, and deployment verification.
+* [Vercel services](vercel-services.md) - proposed single-project service routes, API bindings, builds and operational limits.
 * [AI provider routing](ai-provider-routing.md) - local provider/model selection, synthetic-only limits, and production gates.
 
 Runbooks describe current procedures and required evidence. They do not
