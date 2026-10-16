@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import { requestApprovalSchema } from "./auth-inputs.js";
 import { pmcmCommandInboxQuerySchema } from "./event-ops-inputs.js";
+import type { PrismGuestQrPassStatus } from "../event-ops/operations.js";
 import {
   createPrismInquirySchema,
   createGuestFeedbackSchema,
@@ -228,6 +229,45 @@ describe("event-ops write schemas", () => {
       idempotencyKey: "00000000-0000-4000-8000-000000000002",
       privacyConsentAccepted: true,
     });
+  });
+
+  it("accepts an opaque QR pass with the existing consent fields", () => {
+    const input = {
+      checkInMode: "qr_pass",
+      passToken: "Q".repeat(43),
+      idempotencyKey: "00000000-0000-4000-8000-000000000010",
+      privacyConsentAccepted: true,
+      privacyNoticeVersion: "2026-10",
+      marketingConsentAccepted: false,
+    };
+
+    expect(createGuestCheckInSchema.parse(input)).toEqual(input);
+  });
+
+  it.each([
+    ["blank pass token", { passToken: "   " }],
+    ["oversized pass token", { passToken: "Q".repeat(513) }],
+    ["missing privacy consent", { privacyConsentAccepted: undefined }],
+    ["forged event id", { eventId: "evt_other" }],
+    ["forged roster id", { rosterEntryId: "roster_other" }],
+    ["guest name", { guestName: "Ana Reyes" }],
+    ["email", { email: "ana@example.test" }],
+    ["server-owned eligibility", { eligibility: "eligible" }],
+  ])("rejects QR check-in payload with %s", (_label, invalidField) => {
+    expect(createGuestCheckInSchema.safeParse({
+      checkInMode: "qr_pass",
+      passToken: "Q".repeat(43),
+      idempotencyKey: "00000000-0000-4000-8000-000000000011",
+      privacyConsentAccepted: true,
+      ...invalidField,
+    }).success).toBe(false);
+  });
+
+  it("keeps the guest QR pass status contract free of delivery secrets", () => {
+    expectTypeOf<PrismGuestQrPassStatus>().not.toHaveProperty("passToken");
+    expectTypeOf<PrismGuestQrPassStatus>().not.toHaveProperty("qrValue");
+    expectTypeOf<PrismGuestQrPassStatus>().not.toHaveProperty("email");
+    expectTypeOf<PrismGuestQrPassStatus>().not.toHaveProperty("passUrl");
   });
 
   it.each([

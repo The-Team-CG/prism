@@ -32,6 +32,7 @@ import { GuestWorkflowService } from './application/guest/guest-workflow.service
 import { RegistrationPlatformService } from './application/guest/registration-platform.service';
 import { WalkInPolicyService } from './application/guest/walk-in-policy.service';
 import { GuestPrivacyClassificationService } from './application/guest/guest-privacy-classification.service';
+import { GuestQrDemoPolicyService } from './application/guest/guest-qr-demo-policy.service';
 import { OperationsPrivacyRedactorService } from './application/guest/operations-privacy-redactor.service';
 import { OPERATIONS_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 
@@ -67,6 +68,7 @@ import { OPERATIONS_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port'
     RegistrationPlatformService,
     WalkInPolicyService,
     GuestPrivacyClassificationService,
+    GuestQrDemoPolicyService,
     OperationsPrivacyRedactorService,
     { provide: OPERATIONS_PRIVACY_REDACTOR, useExisting: OperationsPrivacyRedactorService },
     { provide: STAFFING_COMMANDS, useExisting: CoordinatorAssignmentCommandService },

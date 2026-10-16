@@ -1,10 +1,10 @@
 {
   "summary": {
-    "totalTables": 107,
+    "totalTables": 108,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
-    "targetSameDomainFks": 88,
+    "targetSameDomainFks": 89,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -32,8 +32,8 @@
       {
         "domain": "operations",
         "schema": "operations",
-        "tables": 12,
-        "columns": 142
+        "tables": 13,
+        "columns": 155
       },
       {
         "domain": "floorplan",
@@ -936,6 +936,15 @@
       "domain": "event-games",
       "targetSchema": "event_games",
       "columnCount": 4,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsGuestQrPass",
+      "currentSchema": "operations",
+      "table": "guest_qr_passes",
+      "domain": "operations",
+      "targetSchema": "operations",
+      "columnCount": 13,
       "introducedAfterCutover": true
     }
   ],
@@ -2962,6 +2971,22 @@
       "targetDomain": "event-games",
       "targetCurrentSchema": "event_games",
       "targetTable": "session_participation_grants",
+      "sameDomain": true
+    },
+    {
+      "schema": "operations",
+      "table": "guest_qr_passes",
+      "name": "guest_qr_passes_roster_entry_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (roster_entry_id, event_id) REFERENCES operations.guest_roster_entries(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "roster_entry_id",
+        "event_id"
+      ],
+      "sourceDomain": "operations",
+      "targetDomain": "operations",
+      "targetCurrentSchema": "operations",
+      "targetTable": "guest_roster_entries",
       "sameDomain": true
     }
   ]

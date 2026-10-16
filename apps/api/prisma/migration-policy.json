@@ -310,6 +310,9 @@
       "check_ins": [
         "operations"
       ],
+      "guest_qr_passes": [
+        "operations"
+      ],
       "guest_roster_entries": [
         "operations"
       ],
@@ -633,6 +636,18 @@
         "operations"
       ],
       "check_ins": [
+        "operations"
+      ],
+      "guest_qr_passes_token_hash_key": [
+        "operations"
+      ],
+      "guest_qr_passes_active_roster_key": [
+        "operations"
+      ],
+      "guest_qr_passes_event_status_idx": [
+        "operations"
+      ],
+      "guest_qr_passes_notification_idx": [
         "operations"
       ],
       "guest_roster_entries": [
