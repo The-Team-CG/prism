@@ -6,6 +6,7 @@ import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { formatDate } from "../../model/supplier-workspace-rules";
 import type { PrismAuthenticatedSession } from "@prism/types";
+import type { PrismSupplierWorkflowWorkspace } from "@prism/types";
 import type { SupplierWorkspace } from "../../model/supplier-workspace-types";
 import { Card, CardBody, CardHeader } from "./shell-ui";
 import { SupplierFileRequirementsMatrix } from "./supplier-file-requirements-matrix";
@@ -13,11 +14,15 @@ import { SupplierFileRequirementsMatrix } from "./supplier-file-requirements-mat
 export function FilesPage({
   workspace,
   session,
+  workflowWorkspace,
+  onDownloadObject,
 }: {
   workspace: SupplierWorkspace;
   session: PrismAuthenticatedSession;
+  workflowWorkspace: PrismSupplierWorkflowWorkspace | null;
+  onDownloadObject: (objectId: string) => void;
 }) {
-  const fileRequests = workspace.quoteRequests.filter((r) => r.contractDocumentId);
+  const contracts = workflowWorkspace?.contracts ?? [];
 
   return (
     <div className="space-y-4">
@@ -28,24 +33,25 @@ export function FilesPage({
             <FileCheck2 className="size-4 text-(--prism-signal)" />
             <h2 className="text-sm font-bold text-foreground">Contract files</h2>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">Contract metadata saved for each booking. Full documents are managed by PMCM.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Your uploaded contract versions and PMCM review status.</p>
         </CardHeader>
-        {fileRequests.length === 0 ? (
+        {contracts.length === 0 ? (
           <CardBody>
-            <EmptyState icon={FileCheck2} title="No contract files saved." description="Save contract metadata in the Bookings section after PMCM selects your quote." />
+            <EmptyState icon={FileCheck2} title="No contract files uploaded." description="Upload a signed contract from the Bookings section after PMCM selects your quote." />
           </CardBody>
         ) : (
           <div className="divide-y divide-border">
-            {fileRequests.map((req) => (
-              <div key={req.id} className="flex items-center gap-4 px-6 py-4">
+            {contracts.map((contract) => (
+              <div key={contract.id} className="flex flex-wrap items-center gap-4 px-6 py-4">
                 <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted text-(--prism-signal)">
                   <FileText className="size-5" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-foreground">{req.contractDocumentId}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{req.category}</p>
+                  <p className="truncate text-sm font-bold text-foreground">v{contract.version} · {contract.fileName}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Uploaded {formatDate(contract.uploadedAt)}{contract.reviewReason ? ` · ${contract.reviewReason}` : ""}</p>
                 </div>
-                <Badge variant="outline" className="rounded-full border-(--prism-success)/25 bg-(--prism-success)/8 text-[10px] text-(--prism-success)">Saved</Badge>
+                <StatusBadge status={contract.reviewStatus} />
+                <button type="button" onClick={() => onDownloadObject(contract.storedObjectId)} className="text-xs font-bold text-(--prism-signal) hover:underline">Download</button>
               </div>
             ))}
           </div>

@@ -47,6 +47,10 @@ import { CommercialAddendumImpactModule } from './commercial-addendum-impact.mod
 import { RegistrationSupplierReferenceModule } from './registration-supplier-reference.module';
 import { EventDecisionSupplierOwnerModule } from './event-decision-supplier-owner.module';
 import { CommercialFactsReaderModule } from '@prism/contexts/read-models/commercial-facts-reader';
+import { SupplierWorkflowService } from './application/suppliers/supplier-workflow.service';
+import { OpsSupplierWorkflowController } from './api/suppliers/supplier-workflow.controller';
+import { OpsClientReviewItemsController } from './api/quotes/client-review-items.controller';
+import { ClientReviewItemsService } from './application/quotes/client-review-items.service';
 
 const supplierDirectoryProvider = {
   provide: SUPPLIER_DIRECTORY,
@@ -107,6 +111,8 @@ const supplierCommandsProvider = {
     OpsEventBillingController,
     CommunicationController,
     ProposalLifecycleController,
+    OpsSupplierWorkflowController,
+    OpsClientReviewItemsController,
   ],
   providers: [
     CommercialWorkflowService,
@@ -130,6 +136,8 @@ const supplierCommandsProvider = {
     ProposalLifecycleService,
     CommercialPrivacyRedactorService,
     { provide: COMMERCIAL_PRIVACY_REDACTOR, useExisting: CommercialPrivacyRedactorService },
+    SupplierWorkflowService,
+    ClientReviewItemsService,
     { provide: PAYMENT_STATUS_READER, useExisting: PaymentOperationsService },
   ],
   exports: [

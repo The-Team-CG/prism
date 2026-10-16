@@ -4,12 +4,12 @@ title: "P.R.I.S.M actual system"
 description: "Current product identity, actors, lifecycle, workflows, ownership, and completion evidence for PMCM's event operating system."
 tags: [product, current-state, lifecycle, roles]
 status: canonical
-updated: "2026-09-29"
+updated: "2026-10-16"
 authority: informative
 owner: "B (Francis)"
 audience: [product, engineering, design, reviewers]
 scope: "PMCM product identity, actors, lifecycle, workflows, and ownership"
-last_verified: "2026-09-08"
+last_verified: "2026-10-16; selected client and supplier workflows"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
@@ -85,7 +85,7 @@ P.R.I.S.M is not a public SaaS product. It is not a generic venue, ticketing, su
 | PMCM team member | Operates event planning work, task queues, client/supplier follow-up, documents, and event-day coordination. | `apps/event` |
 | Coordinator | Receives role-safe event-day assignments, updates status, responds to tasks/issues, and supports live operations. | `apps/event` coordinator-safe views |
 | Client | Submits inquiry, signs conforme, reviews approved planning outputs, completes required actions, submits preferences, pays/acknowledges billing, and reviews closeout items. | `apps/client` |
-| Supplier | Receives quote requests, submits/revises quotes, confirms awarded assignments, uploads/records contract metadata, reports readiness, and updates event-day status. | `apps/supplier` |
+| Supplier | Receives quote requests, submits/revises quotes, confirms awarded assignments, submits versioned contract files and creative deliverables, acknowledges ingress/egress revisions, reports readiness and event-day status, and sees its recorded payable releases. | `apps/supplier` |
 | Guest | Uses lightweight event access, checks in with consent, may be flagged as walk-in, and may submit moderated feedback. | `apps/guest` |
 | Public visitor | Views public entry points and submits inquiry or supplier application where enabled. | `apps/client` public pages and future supplier application path |
 

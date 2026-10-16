@@ -246,6 +246,73 @@ export class GuestWorkflowService implements GuestCommands {
       marketingConsentAccepted: input.marketingConsentAccepted === true,
     })).digest('hex');
 
+    const validateMatchedRoster = async (db: Prisma.TransactionClient, currentEvent: OperationsEventReference, eventId: string, roster: OpsGuestRosterEntry) => {
+      resolvedGuestName = roster.guestName;
+      if (roster.source === 'guest-review') {
+        requiresStaffReview = true;
+        return;
+      }
+      if (roster.source !== 'coordinator-walk-in') return;
+      if (roster.verificationStatus !== 'verified') {
+        requiresStaffReview = true;
+        return;
+      }
+      walkIn = true;
+      const existing = await db.opsGuestCheckIn.findFirst({
+        where: { eventId, rosterEntryId: roster.id, status: 'checked_in' },
+      });
+      if (!existing) {
+        const checkedIn = await db.opsGuestCheckIn.count({ where: { eventId, status: 'checked_in' } });
+        this.assertWalkInAllowed(currentEvent, checkedIn);
+      }
+    };
+
+    const queueReview = async (db: Prisma.TransactionClient, eventId: string): Promise<PrismGuestCheckInReceipt> => {
+      const rosterEntryId = `gre_${randomUUID()}`;
+      const anonymousHeadcount = input.checkInMode === 'headcount';
+      const reviewName = anonymousHeadcount ? 'Anonymous headcount' : resolvedGuestName!;
+      const reviewSource = anonymousHeadcount ? 'guest-review-headcount' : 'guest-review';
+      const rosterEntry = await db.opsGuestRosterEntry.create({
+        data: {
+          id: rosterEntryId,
+          eventId,
+          sourceKey: `${reviewSource}:${rosterEntryId}`,
+          guestName: reviewName,
+          normalizedName: reviewName.toLowerCase(),
+          email: '',
+          phone: '',
+          category: 'Walk-in',
+          eligibility: 'eligible',
+          verificationStatus: 'pending',
+          source: reviewSource,
+          privacyConsentAccepted: input.privacyConsentAccepted === true,
+          privacyNoticeVersion,
+          privacyConsentCapturedAt,
+          importBatchId: null,
+        },
+      });
+      audit = {
+        actionType: AuditActionType.Create,
+        affectedType: 'guest_roster_entry',
+        affectedId: rosterEntry.id,
+        affectedLabel: reviewName,
+        description: ambiguousNameMatch
+          ? 'Guest check-in queued for ambiguous roster review'
+          : 'Guest check-in queued for New-CL1 review',
+        metadata: {
+          source: reviewSource,
+          verificationStatus: 'pending',
+          checkInMode: input.checkInMode,
+          anonymous: anonymousHeadcount,
+          privacyConsentAccepted: input.privacyConsentAccepted === true,
+          privacyNoticeVersion,
+          privacyConsentCapturedAt: privacyConsentCapturedAt?.toISOString(),
+          reviewReason: ambiguousNameMatch ? 'ambiguous_name' : 'new_cl1',
+        },
+      };
+      return { accepted: true };
+    };
+
     return this.workflowCommandService.execute<PrismGuestCheckInReceipt>({
       name: 'guest_check_in',
       sideEffectMode: 'same_tx',
@@ -292,25 +359,7 @@ export class GuestWorkflowService implements GuestCommands {
         }
 
         if (matchedRoster) {
-          resolvedGuestName = matchedRoster.guestName;
-          if (matchedRoster.source === 'guest-review') {
-            requiresStaffReview = true;
-            return;
-          }
-          if (matchedRoster.source === 'coordinator-walk-in') {
-            if (matchedRoster.verificationStatus !== 'verified') {
-              requiresStaffReview = true;
-              return;
-            }
-            walkIn = true;
-            const existing = await context.prisma.opsGuestCheckIn.findFirst({
-              where: { eventId: event.id, rosterEntryId: matchedRoster.id, status: 'checked_in' },
-            });
-            if (!existing) {
-              const checkedIn = await context.prisma.opsGuestCheckIn.count({ where: { eventId: event.id, status: 'checked_in' } });
-              this.assertWalkInAllowed(currentEvent, checkedIn);
-            }
-          }
+          await validateMatchedRoster(context.prisma, currentEvent, event.id, matchedRoster);
           return;
         }
 
@@ -335,48 +384,7 @@ export class GuestWorkflowService implements GuestCommands {
         }
 
         if (ambiguousNameMatch || requiresNewCl1Review) {
-          const rosterEntryId = `gre_${randomUUID()}`;
-          const anonymousHeadcount = input.checkInMode === 'headcount';
-          const reviewName = anonymousHeadcount ? 'Anonymous headcount' : resolvedGuestName!;
-          const rosterEntry = await db.opsGuestRosterEntry.create({
-            data: {
-              id: rosterEntryId,
-              eventId: event.id,
-              sourceKey: `${input.checkInMode === 'headcount' ? 'guest-review-headcount' : 'guest-review'}:${rosterEntryId}`,
-              guestName: reviewName,
-              normalizedName: reviewName.toLowerCase(),
-              email: '',
-              phone: '',
-              category: 'Walk-in',
-              eligibility: 'eligible',
-              verificationStatus: 'pending',
-              source: input.checkInMode === 'headcount' ? 'guest-review-headcount' : 'guest-review',
-              privacyConsentAccepted: input.privacyConsentAccepted === true,
-              privacyNoticeVersion,
-              privacyConsentCapturedAt,
-              importBatchId: null,
-            },
-          });
-          audit = {
-            actionType: AuditActionType.Create,
-            affectedType: 'guest_roster_entry',
-            affectedId: rosterEntry.id,
-            affectedLabel: reviewName,
-            description: ambiguousNameMatch
-              ? 'Guest check-in queued for ambiguous roster review'
-              : 'Guest check-in queued for New-CL1 review',
-            metadata: {
-              source: input.checkInMode === 'headcount' ? 'guest-review-headcount' : 'guest-review',
-              verificationStatus: 'pending',
-              checkInMode: input.checkInMode,
-              anonymous: anonymousHeadcount,
-              privacyConsentAccepted: input.privacyConsentAccepted === true,
-              privacyNoticeVersion,
-              privacyConsentCapturedAt: privacyConsentCapturedAt?.toISOString(),
-              reviewReason: ambiguousNameMatch ? 'ambiguous_name' : 'new_cl1',
-            },
-          };
-          return { accepted: true };
+          return queueReview(db, event.id);
         }
 
         const checkIn = await db.opsGuestCheckIn.create({

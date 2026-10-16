@@ -2,13 +2,14 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ForbiddenException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LocalFileSystemStorageAdapter } from '../../infrastructure/storage/local-filesystem-storage.adapter';
 import { StorageObjectService } from './storage-object.service';
 import { StorageValidationService } from './storage-validation.service';
 
-const actor = { id: 'user_pmcm', role: 'pmcm-admin', name: 'PMCM Admin', explicit: true, verified: true } as never;
+const actorSnapshot = { id: 'user_pmcm', role: 'pmcm-admin', name: 'PMCM Admin', explicit: true, verified: true };
+const actor = actorSnapshot as never;
 const client = { id: 'user_client', role: 'client', email: 'client@example.test', name: 'Client', eventId: 'evt_1', explicit: true, verified: true } as never;
 
 function createStore() {
@@ -47,8 +48,12 @@ function createStore() {
       findMany: vi.fn(async ({ where }: { where: { eventId: string } }) => objects.filter((object) => object.eventId === where.eventId)),
     },
     opsEvent: {
-      findUnique: vi.fn(async () => ({ id: 'evt_1', clientName: 'Client', clientPortalStatus: 'unlocked', inquiry: { email: 'client@example.test' }, supplierQuoteRequests: [] })),
+      findUnique: vi.fn(async () => ({ id: 'evt_1', archived: false, clientName: 'Client', clientPortalStatus: 'unlocked', inquiry: { email: 'client@example.test' }, supplierQuoteRequests: [] })),
     },
+    opsSupplierQuoteRequest: { findFirst: vi.fn(async () => ({ id: 'req_1' })) },
+    opsSupplierCreativeTask: { findFirst: vi.fn(async () => ({ id: 'task_1' })) },
+    $queryRaw: vi.fn(async () => [{ id: 'evt_1' }]),
+    $transaction: vi.fn(async (work: (tx: unknown) => Promise<unknown>) => work(prisma)),
   };
   const accessPolicy = {
     requireActorRole: vi.fn(async (candidate: { role: string }, roles: readonly string[], resource: string) => {
@@ -59,7 +64,7 @@ function createStore() {
   };
   const platformReferences = {
     findStorageEventScope: vi.fn(async (eventId: string) => eventId === 'evt_1' ? ({
-      id: 'evt_1', clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test', supplierIds: [] as string[],
+      id: 'evt_1', archived: false, clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test', supplierIds: [] as string[],
     }) : null),
   };
   return {
@@ -71,7 +76,7 @@ function createStore() {
   };
 }
 
-const bytes = Buffer.from('provider-neutral storage bytes');
+const bytes = Buffer.from('%PDF-1.7\nprovider-neutral storage bytes');
 const checksumSha256 = createHash('sha256').update(bytes).digest('hex');
 const request = {
   eventId: 'evt_1', ownerRecordType: 'billing_statement', ownerRecordId: 'bill_1', logicalTarget: 'billing-statement:bill_1', usage: 'event_deliverable' as const,
@@ -256,6 +261,16 @@ describe('StorageObjectService', () => {
     expect(store.prisma.opsStoredObject.create).not.toHaveBeenCalled();
     expect(store.platformReferences.findStorageEventScope).not.toHaveBeenCalled();
     expect(store.accessPolicy.requireActorRole).not.toHaveBeenCalled();
+  });
+
+  it('rejects writes to an archived event before requesting provider authorization', async () => {
+    const store = createStore();
+    store.platformReferences.findStorageEventScope.mockResolvedValue({
+      id: 'evt_1', archived: true, clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test', supplierIds: [],
+    });
+    const adapter = { requestUploadLocation: vi.fn(), confirmUpload: vi.fn(), issueDownloadAuthorization: vi.fn(), deleteObject: vi.fn() };
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter, store.platformReferences as never);
+    await expect(service.requestUpload({ ...request, actor })).rejects.toThrow(/Archived events/);
     expect(adapter.requestUploadLocation).not.toHaveBeenCalled();
   });
 
@@ -268,11 +283,29 @@ describe('StorageObjectService', () => {
     const requested = await service.requestUpload({ ...request, actor });
     expect(requested.status).toBe('ready');
     if (requested.status !== 'ready') throw new Error('expected upload location');
-    const stored = await service.confirmUpload({ objectId: requested.object.id, byteSize: bytes.byteLength, checksumSha256, bytes, actor });
+    await service.writeAuthorizedUpload({ objectId: requested.object.id, uploadUrl: requested.location.uploadUrl, bytes, actor });
+    const stored = await service.confirmUpload({ objectId: requested.object.id, byteSize: bytes.byteLength, checksumSha256, actor });
     expect(stored).toMatchObject({ lifecycleState: 'stored', providerName: 'local-filesystem-development' });
     const authorization = await service.issueDownloadAuthorization({ objectId: stored.id, actor });
     await expect(adapter.readBytes(authorization.downloadUrl)).resolves.toEqual(bytes);
     await expect(service.deleteObject({ objectId: stored.id, actor })).resolves.toMatchObject({ lifecycleState: 'deleted' });
+  });
+
+  it('keeps supplier workflow evidence immutable through generic deletion', async () => {
+    const store = createStore();
+    const adapter = { requestUploadLocation: vi.fn(), confirmUpload: vi.fn(), issueDownloadAuthorization: vi.fn(), deleteObject: vi.fn() };
+    store.objects.push({
+      id: 'obj_supplier_evidence', eventId: 'evt_1', ownerRecordType: 'supplier', ownerRecordId: 'supplier_1',
+      logicalTarget: 'supplier-contract:req_1:123e4567-e89b-12d3-a456-426614174000', usage: 'supplier_document',
+      lifecycleState: 'stored', providerName: 'test', providerObjectKey: 'supplier/evidence.pdf', originalFileName: 'evidence.pdf',
+      contentType: 'application/pdf', declaredByteSize: bytes.byteLength, checksumSha256, uploaderActorId: 'user_supplier',
+      uploaderActorRole: 'supplier', createdAt: new Date(), updatedAt: new Date(), requestedAt: new Date(), storedAt: new Date(),
+      failedAt: null, deletedAt: null, idempotencyKey: null, failureReason: null,
+    });
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter, store.platformReferences as never);
+    await expect(service.deleteObject({ objectId: 'obj_supplier_evidence', actor })).rejects.toBeInstanceOf(ConflictException);
+    expect(adapter.deleteObject).not.toHaveBeenCalled();
+    expect(store.objects[0].lifecycleState).toBe('stored');
   });
 
   it('keeps a logical target idempotent and rejects changed content', async () => {
@@ -334,6 +367,20 @@ describe('StorageObjectService', () => {
     expect(store.objects[0].lifecycleState).toBe('requested');
   });
 
+  it('marks provider bytes failed when actual file signature does not match the declared PDF type', async () => {
+    const store = createStore();
+    const invalidPdf = Buffer.from('not a PDF payload');
+    const invalidChecksum = createHash('sha256').update(invalidPdf).digest('hex');
+    const root = await mkdtemp(join(tmpdir(), 'prism-storage-invalid-'));
+    roots.push(root);
+    const adapter = new LocalFileSystemStorageAdapter(root);
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter, store.platformReferences as never);
+    const requested = await service.requestUpload({ ...request, declaredByteSize: invalidPdf.byteLength, checksumSha256: invalidChecksum, actor });
+    if (requested.status !== 'ready') throw new Error('expected upload location');
+    await expect(service.confirmUpload({ objectId: requested.object.id, byteSize: invalidPdf.byteLength, checksumSha256: invalidChecksum, bytes: invalidPdf, actor })).rejects.toThrow(/file type/);
+    expect(store.objects[0].lifecycleState).toBe('failed');
+  });
+
   it('denies a client downloading an object outside the actor event scope', async () => {
     const store = createStore();
     store.objects.push({ id: 'obj_other', eventId: 'evt_other', ownerRecordType: 'billing_statement', ownerRecordId: 'bill_other', usage: 'event_deliverable', lifecycleState: 'stored', providerObjectKey: 'events/evt_other/obj.pdf', contentType: 'application/pdf', declaredByteSize: 1, checksumSha256: 'a'.repeat(64), originalFileName: 'obj.pdf' });
@@ -345,7 +392,7 @@ describe('StorageObjectService', () => {
     const store = createStore();
     const supplier = { id: 'supplier-user', role: 'supplier', supplierId: 'sup_1', eventId: 'evt_1', name: 'Supplier', explicit: true, verified: true } as never;
     store.platformReferences.findStorageEventScope.mockResolvedValue({
-      id: 'evt_1', clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test', supplierIds: ['sup_1'],
+      id: 'evt_1', archived: false, clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test', supplierIds: ['sup_1'],
     });
 
     await expect(store.service.listEventObjects('evt_1', supplier)).resolves.toEqual([]);
@@ -361,7 +408,31 @@ describe('StorageObjectService', () => {
     const store = createStore();
     store.objects.push({ id: 'obj_supplier', eventId: 'evt_1', ownerRecordType: 'supplier', ownerRecordId: 'sup_1', usage: 'supplier_document', lifecycleState: 'stored', providerObjectKey: 'events/evt_1/supplier.pdf', contentType: 'application/pdf', declaredByteSize: 1, checksumSha256: 'a'.repeat(64), originalFileName: 'supplier.pdf' });
     const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), {} as never, store.platformReferences as never);
-    await expect(service.issueDownloadAuthorization({ objectId: 'obj_supplier', actor: client })).rejects.toThrow(/owner reference is not supported/);
+    await expect(service.issueDownloadAuthorization({ objectId: 'obj_supplier', actor: client })).rejects.toThrow(/cannot access/);
+  });
+
+  it('denies a supplier retrying a logical target owned by another supplier', async () => {
+    const store = createStore();
+    store.objects.push({
+      id: 'obj_other_supplier', eventId: 'evt_1', usage: 'supplier_document', logicalTarget: 'supplier-contract:req_1:123e4567-e89b-42d3-a456-426614174000',
+      ownerRecordType: 'supplier', ownerRecordId: 'sup_other', uploaderActorId: 'other-user', uploaderActorRole: 'supplier',
+      contentType: 'application/pdf', declaredByteSize: bytes.byteLength, checksumSha256, originalFileName: 'signed.pdf', lifecycleState: 'stored',
+    });
+    const supplier = { id: 'supplier-user', role: 'supplier', supplierId: 'sup_1', eventId: 'evt_1', name: 'Supplier', explicit: true } as never;
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), {} as never, store.platformReferences as never);
+    await expect(service.requestUpload({
+      ...request, usage: 'supplier_document' as const, ownerRecordType: 'supplier', ownerRecordId: 'sup_other',
+      logicalTarget: 'supplier-contract:req_1:123e4567-e89b-42d3-a456-426614174000', actor: supplier,
+    })).rejects.toThrow(/verified supplier|outside/);
+  });
+
+  it('prevents a different actor from reusing the uploader logical target', async () => {
+    const store = createStore();
+    const adapter = { requestUploadLocation: vi.fn(async (input: { providerObjectKey: string }) => ({ providerName: 'test', providerObjectKey: input.providerObjectKey, uploadUrl: 'test://upload', expiresAt: new Date(Date.now() + 1000) })), confirmUpload: vi.fn(), issueDownloadAuthorization: vi.fn(), deleteObject: vi.fn() };
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter, store.platformReferences as never);
+    await service.requestUpload({ ...request, actor });
+    const otherActor = { ...actorSnapshot, id: 'other-pmcm-user' } as never;
+    await expect(service.requestUpload({ ...request, actor: otherActor })).rejects.toThrow(/different content/);
   });
 
   it('denies a supplier deleting an object even when the event is in scope', async () => {

@@ -333,7 +333,7 @@ export function sectionMeta(
     files: {
       eyebrow: "Files",
       title: "Files & documents",
-      description: "Contract metadata and certification documents.",
+      description: "Uploaded contract versions, review status, and certification documents.",
     },
     payments: {
       eyebrow: "Payments",

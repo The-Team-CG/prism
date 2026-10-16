@@ -49,6 +49,10 @@ import { LifecycleFactsReaderModule } from '@prism/contexts/read-models/lifecycl
 import { CommercialFactsReaderModule } from '@prism/contexts/read-models/commercial-facts-reader';
 import { ProposalReviewOwnerService } from './application/onboarding/proposal-review-owner.service';
 import { PROPOSAL_REVIEW_OWNER } from './contracts/proposal-review-owner.port';
+import { ClientCloseoutController } from './api/closure/client-closeout.controller';
+import { ClientCloseoutService } from './application/closure/client-closeout.service';
+import { ConformeSigningController } from './api/onboarding/conforme-signing.controller';
+import { ConformeSigningService } from './application/onboarding/conforme-signing.service';
 
 const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const };
 
@@ -105,6 +109,8 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     ClientEventDayViewController,
     OcularVisitController,
     EventClientFloorplanAccessController,
+    ClientCloseoutController,
+    ConformeSigningController,
   ],
   providers: [
     InquiriesService,
@@ -134,6 +140,8 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     { provide: PROPOSAL_REVIEW_OWNER, useExisting: ProposalReviewOwnerService },
     LifecyclePrivacyRedactorService,
     { provide: LIFECYCLE_PRIVACY_REDACTOR, useExisting: LifecyclePrivacyRedactorService },
+    ClientCloseoutService,
+    ConformeSigningService,
   ],
   exports: [
     InquiriesService,

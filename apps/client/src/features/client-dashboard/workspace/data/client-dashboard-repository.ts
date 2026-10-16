@@ -12,6 +12,8 @@ import {
   type PrismFloorPlanSnapshot,
   type PrismClientOcularVisit,
   type SubmitClientOcularVisitInput,
+  type SubmitBriefingInput,
+  type PrismBriefing,
 } from "@prism/types";
 import { clientApi, clientApiRequest } from "@/lib/prism-api";
 import type { Project } from "@/features/floorplan/editor";
@@ -106,6 +108,13 @@ export const clientDashboardRepository = {
       `/events/${eventId}/ocular-visit`,
       { method: "POST", body: input },
     );
+  },
+
+  submitBriefing(eventId: string, input: SubmitBriefingInput): Promise<PrismBriefing> {
+    return clientApiRequest<PrismBriefing>(`/events/${eventId}/briefing`, {
+      method: "POST",
+      body: input,
+    });
   },
 
   createInquiry(input: CreatePrismInquiryInput) {

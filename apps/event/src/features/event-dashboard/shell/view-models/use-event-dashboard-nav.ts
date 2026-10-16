@@ -7,6 +7,7 @@ import {
   FileCheck2,
   FileSignature,
   Gamepad2,
+  FileText,
   Home,
   Inbox,
   LayoutGrid,
@@ -47,7 +48,8 @@ function eventWorkspaceNavItems(
   return [
     { id: "event-overview", icon: LayoutGrid, label: "Overview", section: eventSection },
     { id: "event-planning", icon: FileCheck2, label: "Briefing", section: eventSection },
-    { id: "event-files", icon: MapPinned, label: "Floorplans", section: eventSection, badge: optionalNavBadge(counts.draftCount) },
+    { id: "event-files", icon: FileText, label: "Files", section: eventSection },
+    { id: "event-floorplans", icon: MapPinned, label: "Floorplans", section: eventSection, badge: optionalNavBadge(counts.draftCount) },
     { id: "event-suppliers", icon: Truck, label: "Suppliers", section: eventSection, badge: optionalNavBadge(counts.quoteCount) },
     { id: "event-staff", icon: UsersRound, label: "Coordinators", section: eventSection, badge: optionalNavBadge(counts.assignmentCount) },
     { id: "event-timeline", icon: Radio, label: "Live Ops", section: eventSection },

@@ -8,6 +8,28 @@ import type {
 } from '@prism/types';
 
 export const STORAGE_ADAPTER = Symbol('STORAGE_ADAPTER');
+export const STORED_SUPPLIER_UPLOAD_READER = Symbol('STORED_SUPPLIER_UPLOAD_READER');
+
+export type StoredSupplierUploadReference = {
+  id: string;
+  originalFileName: string;
+  contentType: string;
+  declaredByteSize: number;
+  checksumSha256: string;
+};
+
+export type StoredSupplierUploadLookup = {
+  objectId: string;
+  eventId: string;
+  supplierId: string;
+  logicalTargetPrefix: string;
+  checksumSha256?: string;
+};
+
+/** Narrow storage-owner capability for commercial supplier workflow attachments. */
+export interface StoredSupplierUploadReader {
+  findConfirmedSupplierUpload(input: StoredSupplierUploadLookup): Promise<StoredSupplierUploadReference | null>;
+}
 
 export type StorageLifecycleState = PrismStoredObject['lifecycleState'];
 
@@ -23,6 +45,7 @@ export type StorageConfirmation = {
   providerObjectKey: string;
   byteSize: number;
   checksumSha256: string;
+  observedBytes?: Uint8Array;
 };
 
 export type StorageDownloadAuthorization = {
@@ -30,6 +53,12 @@ export type StorageDownloadAuthorization = {
   providerObjectKey: string;
   downloadUrl: string;
   expiresAt: Date;
+};
+
+export type StorageObjectDownloadResult = StorageDownloadAuthorization & {
+  fileName: string;
+  contentType: string;
+  byteSize: number;
 };
 
 export type StorageAdapterRequest = {
@@ -52,6 +81,10 @@ export interface StorageAdapter {
   confirmUpload(input: StorageAdapterConfirmRequest): Promise<StorageConfirmation>;
   issueDownloadAuthorization(input: StorageAdapterRequest): Promise<StorageDownloadAuthorization>;
   deleteObject(input: Pick<StorageAdapterRequest, 'objectId' | 'providerObjectKey'>): Promise<void>;
+  /** Adapter-specific byte bridge for development providers with non-HTTP upload URLs. */
+  writeAuthorizedUpload?(uploadUrl: string, expectedObjectKey: string, contentType: string, bytes: Uint8Array): Promise<void>;
+  /** Adapter-specific byte bridge for development providers with non-HTTP download URLs. */
+  readAuthorizedDownload?(downloadUrl: string, expectedObjectKey: string): Promise<Uint8Array>;
 }
 
 export type StorageRequestResult =
@@ -74,6 +107,15 @@ export type StorageServiceConfirmation = ConfirmStorageUploadInput & {
 export type StorageServiceDownload = {
   objectId: string;
   actor: ResolvedEventOpsActor;
+};
+
+export type StorageServiceByteUpload = StorageServiceDownload & {
+  uploadUrl: string;
+  bytes: Uint8Array;
+};
+
+export type StorageServiceByteDownload = StorageServiceDownload & {
+  downloadUrl: string;
 };
 
 export type StorageServiceDeletion = StorageServiceDownload & { context?: PrismTransactionContext };

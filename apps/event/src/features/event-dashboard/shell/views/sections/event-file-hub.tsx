@@ -1,15 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Download,
   Eye,
   FileText,
   Grid2X2,
   List,
   Search,
-  Share2,
-  Upload,
 } from "lucide-react";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { formatShortDate, humanizeToken } from "@/features/pmcm-kit/model/formatters";
@@ -18,19 +15,6 @@ import type { EventFileHubItem } from "./event-file-types";
 import { EventFileThumbnail } from "./event-file-thumbnail";
 import { EventFilePreview } from "./event-file-preview";
 
-
-function StorageGatedAction({ children }: { children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      disabled
-      title="Binary object storage is gated. File metadata is tracked until a storage adapter is approved."
-      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground disabled:cursor-not-allowed disabled:opacity-60"
-    >
-      {children}
-    </button>
-  );
-}
 
 export function EventFileHub({
   event,
@@ -221,11 +205,9 @@ export function EventFileHub({
               <input value={query} onChange={(event) => setQuery(event.target.value)} className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm outline-none focus:border-primary" placeholder="Search event files..." />
             </label>
             <div className="mt-3 flex flex-wrap gap-2">
-              <StorageGatedAction><Share2 className="size-3.5" /> Share Selected</StorageGatedAction>
-              <StorageGatedAction><Download className="size-3.5" /> Download</StorageGatedAction>
               <button type="button" onClick={openSelected} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground"><Eye className="size-3.5" /> Open</button>
             </div>
-            <p className="mt-2 text-[11px] text-muted-foreground">Share, download, and new-version upload stay gated. Open jumps to the owning workflow.</p>
+            <p className="mt-2 text-[11px] text-muted-foreground">Open jumps to the owning workflow. Binary deliverables can be uploaded and downloaded in the stored event files panel.</p>
           </div>
 
           <div className="px-4 py-4">
@@ -265,14 +247,7 @@ export function EventFileHub({
                   <p className="truncate text-base font-black text-foreground">{selected.title}</p>
                   <p className="mt-1 truncate text-xs font-semibold text-muted-foreground">{selected.extension} - {selected.category} - {selected.date}</p>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <StorageGatedAction>Share</StorageGatedAction>
-                  <button type="button" onClick={openSelected} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground">Open</button>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2 border-t border-border px-5 py-3">
-                <StorageGatedAction><Download className="size-3.5" /> Download</StorageGatedAction>
-                <StorageGatedAction><Upload className="size-3.5" /> Upload new version</StorageGatedAction>
+                <button type="button" onClick={openSelected} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground">Open</button>
               </div>
             </div>
             <EventFilePreview event={event} item={selected} />

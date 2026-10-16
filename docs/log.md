@@ -4,6 +4,10 @@ This log tracks changes to documentation structure and durable contracts. Releas
 notes are in [`../CHANGELOG.md`](../CHANGELOG.md); Git history retains detailed
 implementation and verification history.
 
+## 2026-10-18
+
+- Prepared client and supplier workflow publication against current staging, preserving owner-schema baselines, guest games, registration, and context reader boundaries. The delivery combines shared storage, supplier workflows, client reviews/closeout, and conforme signing. Original local acceptance is retained as historical evidence; integrated-head verification is a separate merge gate.
+
 ## 2026-10-14
 
 - Clarified the Vercel service installation contract: services share one complete locked workspace install, including build tooling and development dependencies, before each service build.
