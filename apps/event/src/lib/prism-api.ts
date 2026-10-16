@@ -8,7 +8,7 @@ import { PRISM_SESSION_STORAGE_KEYS, isPrismAuthenticatedSession } from "@prism/
 
 const API_OFFLINE_MESSAGE = "P.R.I.S.M API is offline. Start `prism-api` on port 4000, then try again.";
 
-function storedEventAccessToken() {
+export function storedEventAccessToken() {
   if (typeof window === "undefined") return null;
   const raw = window.localStorage.getItem(PRISM_SESSION_STORAGE_KEYS.event);
   if (!raw) return null;

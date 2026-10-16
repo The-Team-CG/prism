@@ -32,6 +32,7 @@ export default defineConfig({
       '@prism/contexts/read-models/account-contacts': resolve(__dirname, './src/modules/read-models/account-contacts/index.ts'),
       '@prism/contexts/read-models/commercial-facts-reader': resolve(__dirname, './src/modules/read-models/commercial-facts-reader.ts'),
       '@prism/contexts/read-models/lifecycle-facts': resolve(__dirname, './src/modules/read-models/lifecycle-facts/index.ts'),
+      '@prism/contexts/read-models/file-evidence': resolve(__dirname, './src/modules/read-models/file-evidence.ts'),
       '@prism/contexts/read-models': resolve(__dirname, './src/modules/read-models/index.ts'),
       '@prism/kernel/event-core': resolve(__dirname, './src/kernel/event-core/index.ts'),
       '@prism/kernel/access-control': resolve(__dirname, './src/kernel/access-control/index.ts'),

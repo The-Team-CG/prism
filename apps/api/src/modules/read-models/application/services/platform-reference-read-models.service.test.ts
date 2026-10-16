@@ -41,6 +41,7 @@ describe('PlatformReferenceReadModelsService', () => {
   it('returns only the event fields Platform needs for storage authorization', async () => {
     const findUnique = vi.fn(async () => ({
       id: 'evt_1',
+      archived: false,
       clientName: 'Client',
       clientPortalStatus: 'unlocked',
       inquiry: { email: 'client@example.test' },
@@ -53,6 +54,7 @@ describe('PlatformReferenceReadModelsService', () => {
 
     await expect(service.findStorageEventScope('evt_1')).resolves.toEqual({
       id: 'evt_1',
+      archived: false,
       clientName: 'Client',
       clientPortalStatus: 'unlocked',
       clientEmail: 'client@example.test',
@@ -61,6 +63,7 @@ describe('PlatformReferenceReadModelsService', () => {
     expect(findUnique).toHaveBeenCalledWith(expect.objectContaining({
       select: expect.objectContaining({
         id: true,
+        archived: true,
         clientName: true,
         clientPortalStatus: true,
         inquiry: { select: { email: true } },

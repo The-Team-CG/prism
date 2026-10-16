@@ -72,6 +72,7 @@ export function SupplierWorkspaceView() {
           section={section}
           session={session}
           workspace={workspace}
+          workflowWorkspace={vm.workflowWorkspace}
           error={error}
           quoteByRequest={quoteByRequest}
           openRequests={openRequests}
@@ -85,18 +86,21 @@ export function SupplierWorkspaceView() {
           forms={vm.forms}
           busy={busy}
           readinessNotes={vm.readinessNotes}
-          contractFiles={vm.contractFiles}
           statusNotes={vm.statusNotes}
           onNavigate={setSection}
           onUpdateForm={vm.updateForm}
           onSubmitQuote={vm.submitQuote}
           onReadinessNoteChange={vm.setReadinessNote}
-          onContractFileChange={vm.setContractFile}
           onStatusNoteChange={vm.setStatusNote}
           onConfirmAssignment={(req) => void vm.confirmAssignment(req)}
           onConfirmReadiness={(req) => void vm.confirmReadiness(req)}
-          onSaveContract={(req) => void vm.saveContract(req)}
+          onSaveContract={(req, file) => void vm.saveContract(req, file)}
           onUpdateStatus={(req, status) => void vm.updateStatus(req, status)}
+          onAcknowledgeSchedule={(requestId, revision) => void vm.acknowledgeSchedule(requestId, revision)}
+          onRequestScheduleChange={(requestId, revision, reason) => void vm.requestScheduleChange(requestId, revision, reason)}
+          onUpdateProgress={(taskId, note) => void vm.updateCreativeProgress(taskId, note)}
+          onSubmitCreativeTask={(requestId, taskId, note, file) => void vm.submitCreativeTask(requestId, taskId, note, file)}
+          onDownloadObject={(objectId) => void vm.downloadObject(objectId)}
         />
       </div>
     </PrismDashboardShell>

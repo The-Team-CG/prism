@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { AuditExportService } from './audit-export.service';
 import { AuditReadService } from './audit-read.service';
+import { verifyAuditIntegrity } from './audit-chain';
 import { AuditService } from './audit.service';
 import { SecurityOperationsService } from './security-operations.service';
 
@@ -48,14 +49,6 @@ function expectedHash(row: TestAuditRow) {
   })).digest('hex');
 }
 
-function postgresJsonbRoundTrip(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(postgresJsonbRoundTrip);
-  if (!value || typeof value !== 'object') return value;
-  return Object.fromEntries(Object.entries(value)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, entry]) => [key, postgresJsonbRoundTrip(entry)]));
-}
-
 function auditRow(overrides: Partial<TestAuditRow> = {}): TestAuditRow {
   const row: TestAuditRow = {
     id: `aud_${Math.random()}`,
@@ -79,6 +72,21 @@ function auditRow(overrides: Partial<TestAuditRow> = {}): TestAuditRow {
     ...overrides,
   };
   return { ...row, immutableHash: expectedHash(row) };
+}
+
+function jsonbRoundTrip(value: unknown): unknown {
+  const serialized = JSON.stringify(value ?? {});
+  return reorderJsonbKeys(serialized === undefined ? {} : JSON.parse(serialized) as unknown);
+}
+
+function reorderJsonbKeys(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(reorderJsonbKeys);
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => Buffer.byteLength(left) - Buffer.byteLength(right) || Buffer.compare(Buffer.from(left), Buffer.from(right)))
+      .map(([key, child]) => [key, reorderJsonbKeys(child)]));
+  }
+  return value;
 }
 
 function independentAuditRows() {
@@ -175,41 +183,69 @@ describe('AuditService', () => {
     expect(lock).toMatchObject({ headId: created[1].id, headHash: created[1].immutableHash });
   });
 
-  it('keeps new audit hashes valid after PostgreSQL JSONB reorders nested metadata keys', async () => {
-    const logs: any[] = [];
-    const created: any[] = [];
+  it('keeps audit hashes valid after JSONB reorders nested metadata keys', async () => {
+    const logs: TestAuditRow[] = [];
     const lock = { id: 'global', revision: 0, headId: null as string | null, headHash: null as string | null };
     const prisma = {
       $transaction: async (callback: (tx: unknown) => unknown): Promise<unknown> => callback(prisma),
       opsAuditChainLock: {
-        update: async ({ data }: { data: any }) => {
-          if (data.revision?.increment) lock.revision += data.revision.increment;
-          if (data.headId !== undefined) lock.headId = data.headId;
-          if (data.headHash !== undefined) lock.headHash = data.headHash;
+        update: async ({ data }: { data: Record<string, unknown> }) => {
+          if (typeof data.revision === 'object' && data.revision !== null && 'increment' in data.revision) {
+            lock.revision += Number((data.revision as { increment: number }).increment);
+          }
+          if (typeof data.headId === 'string') lock.headId = data.headId;
+          if (typeof data.headHash === 'string') lock.headHash = data.headHash;
           return { ...lock };
         },
       },
       opsAuditLog: {
         findMany: async () => [...logs],
-        findFirst: async ({ where }: { where: any }) => logs.find((log) => log.createdAt >= where.createdAt.gte && log.id !== where.id.not) ?? null,
-        findUnique: async ({ where }: { where: { id: string } }) => logs.find((log) => log.id === where.id) ?? null,
-        create: async ({ data }: { data: any }) => {
-          const persisted = { ...data, metadata: postgresJsonbRoundTrip(data.metadata) };
-          created.push(persisted);
-          logs.push(persisted);
-          return persisted;
+        findUnique: async ({ where }: { where: { id: string } }) => logs.find((row) => row.id === where.id) ?? null,
+        findFirst: async () => null,
+        create: async ({ data }: { data: TestAuditRow }) => {
+          const row = { ...data, metadata: jsonbRoundTrip(data.metadata) as Record<string, unknown> };
+          logs.push(row);
+          return row;
         },
       },
     };
+
     const service = new AuditService(prisma as never);
-
-    await service.audit(undefined, 'PMCM Admin', 'First JSONB-backed append', {
-      metadata: { zLast: { yNested: 2, aNested: 1 }, aFirst: true },
+    await service.audit(undefined, 'PMCM Admin', 'Scheduled supplier ingress', {
+      actorRole: 'pmcm-admin',
+      metadata: {
+        requestId: 'request-1',
+        ingressAt: '2026-10-16T10:00:00.000Z',
+        egressAt: '2026-10-16T12:00:00.000Z',
+        lateFlagReset: false,
+        '123': 'numeric-index key',
+        'é': 'UTF-8 key',
+        nested: { alphabet: 'last', beta: 'middle', a: 'first', '9': 'nested numeric-index key', 'é': 'nested UTF-8 key' },
+        list: [{ z: 'last key', a: 'first key' }, ['second array entry', 'first array entry']],
+      },
     });
-    await service.audit(undefined, 'PMCM Admin', 'Second JSONB-backed append');
 
-    expect(created[0].metadata).toEqual({ aFirst: true, zLast: { aNested: 1, yNested: 2 } });
-    expect(created[1].previousHash).toBe(created[0].immutableHash);
+    expect(Object.keys(logs[0]!.metadata)).toEqual(['123', 'é', 'list', 'nested', 'egressAt', 'ingressAt', 'requestId', 'lateFlagReset']);
+    expect(Object.keys(logs[0]!.metadata.nested as Record<string, unknown>)).toEqual(['9', 'a', 'é', 'beta', 'alphabet']);
+    expect(Object.keys((logs[0]!.metadata.list as Array<Record<string, unknown>>)[0]!)).toEqual(['a', 'z']);
+    expect((logs[0]!.metadata.list as unknown[])[1]).toEqual(['second array entry', 'first array entry']);
+    await expect(verifyAuditIntegrity(prisma as never)).resolves.toMatchObject({ valid: true, checkedCount: 1 });
+  });
+
+  it('keeps legacy JSONB-ordered hashes valid and leaves mismatched historical hashes fail-closed', async () => {
+    const legacy = auditRow({
+      id: 'aud_legacy_canonical',
+      metadata: { '123': 'integer-index', a: 'first', beta: 'second' },
+    });
+    const legacyMismatch = auditRow({
+      id: 'aud_legacy_order_mismatch',
+      previousHash: legacy.immutableHash,
+      metadata: { requestId: 'request-1', ingressAt: '2026-10-16T10:00:00.000Z', egressAt: '2026-10-16T12:00:00.000Z' },
+    });
+    const persistedRows = [legacy, { ...legacyMismatch, metadata: jsonbRoundTrip(legacyMismatch.metadata) as Record<string, unknown> }];
+    const result = await verifyAuditIntegrity({ opsAuditLog: { findMany: async () => persistedRows } } as never);
+
+    expect(result).toMatchObject({ valid: false, firstBrokenLogId: legacyMismatch.id });
   });
 
   it('revalidates and reconciles an untracked tail left by an older writer', async () => {

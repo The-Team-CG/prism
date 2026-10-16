@@ -10,6 +10,7 @@ import { CommercialFactsReaderService } from '@prism/contexts/read-models/commer
 import { SupplierNetworkWorkflowService } from '../../src/modules/commercial/application/suppliers/supplier-network-workflow.service';
 import type { PareApprovalGovernance } from '@prism/contexts/platform-ops';
 import { DocumentVaultService } from '@prism/contexts/event-lifecycle';
+import { OperationsEventReferenceService } from '../../src/modules/event-lifecycle/application/onboarding/operations-event-reference.service';
 import type { SupplierProfileCommandsService } from '../../src/modules/commercial/application/suppliers/supplier-profile-commands.service';
 import { EventReadModelQueries } from '../../src/modules/read-models/application/queries/event-read-models.queries';
 import { EventReadModelsService } from '../../src/modules/read-models/application/services/event-read-models.service';
@@ -141,6 +142,7 @@ describe.skipIf(!live)('supplier identity ownership against PostgreSQL', () => {
         pareService,
         { queue: async () => ({}) },
         documentVault,
+        new OperationsEventReferenceService(prisma),
       );
 
       const own = await service.supplierWorkspace(

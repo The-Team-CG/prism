@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { PRISM_PRIVACY_NOTICE_VERSION, type CreatePrismInquiryInput, type PrismEvent, type PrismFloorPlanDraft } from "@prism/types";
+import { PRISM_PRIVACY_NOTICE_VERSION, type CreatePrismInquiryInput, type PrismEvent, type PrismFloorPlanDraft, type SubmitBriefingInput } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
 import { cloneTemplateObjects, type FloorPlanTemplate, type Project } from "@/features/floorplan/editor";
 import { ClientPortalSidebar } from "./sections/client-portal-sidebar";
@@ -59,6 +59,7 @@ import {
   signOutClientSession,
   submitClientInquiry,
   submitClientOcularVisit,
+  submitClientBriefing,
   submitFloorPlanPreference,
   submitFloorPlanRevisionComment,
 } from "../use-cases/client-dashboard-actions";
@@ -282,6 +283,22 @@ export function ClientDashboardWorkspaceView({
     }
   }
 
+  async function submitBriefing(eventFor: string, input: SubmitBriefingInput) {
+    if (!selectedEvent || selectedEvent.id !== eventFor) return;
+    setBusy("briefing");
+    setError(null);
+    setNotice(null);
+    try {
+      await submitClientBriefing(eventFor, input);
+      await refresh();
+      setNotice("Your briefing was sent to PMCM and added to the event history.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to submit event briefing");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function submitFloorPlanReview(ev: FormEvent<HTMLFormElement>) {
     ev.preventDefault();
     if (!selectedEvent || !officialDraft) return;
@@ -457,6 +474,7 @@ export function ClientDashboardWorkspaceView({
     setSelectedEventId,
     ocularVisit,
     submitOcularVisit,
+    submitBriefing,
     eventDrafts,
     officialDraft,
     preferenceDrafts,

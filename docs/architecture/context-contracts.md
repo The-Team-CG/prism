@@ -4,12 +4,12 @@ title: "P.R.I.S.M context contracts"
 description: "Current public context surfaces, dependency direction, read-model composition, and focused seams in the Prism modular monolith."
 tags: [architecture, contracts, boundaries, ddd]
 status: canonical
-updated: "2026-10-06"
+updated: "2026-10-18"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, backend-engineers, reviewers]
 scope: "apps/api/src/modules and kernel seams"
-last_verified: "2026-10-06; owner readers and context dependency direction checked against current module exports"
+last_verified: "2026-10-18; staging integration of portal storage and signing seams"
 sources:
   - id: context-source
     resource: "apps/api/src/modules"
@@ -141,6 +141,7 @@ legacy relation or changing schema placement.
 | modules/platform-ops | read-models reference projection | `PLATFORM_REFERENCE_READ_MODEL`, bound by `PlatformReferenceReadersModule` at the API composition root | Supplies narrow event/storage scope, PARE request/event/supplier facts, trust-recipient email, and privacy consent inventory. Reads only; no owning-context writes. |
 | modules/identity-access | read-models participant event facts | `PARTICIPANT_FACTS` from `read-models/participant-facts`, whose submodule imports only DatabaseModule | Supplies serializable event/inquiry, supplier-assignment, and coordinator-assignment facts; Identity retains approved-account lookup, role eligibility, email matching, actor stamping, and EventAccessPolicy decisions. The focused submodule avoids importing full ReadModelsModule and its Identity/Commercial module cycle. |
 | modules/platform-ops | stored-object owner/usage pairs | Closed owner/usage registry | Only `billing_statement` + `event_deliverable` is production-wired; unregistered pairs fail closed before upload side effects and on stored-object confirmation, retrieval, listing, and deletion. The allowlist does not prove the referenced statement exists or matches the event on later reads; target-owner revalidation remains open. |
+| modules/event-lifecycle | `@prism/contexts/read-models/file-evidence` | Pure read seam | Returns confirmed signed-conforme object identity without provider paths or credentials. |
 | context composition roots | other Nest context modules | Module import only at composition root | Allowed for one-process assembly; not a private application dependency. |
 | API controllers | owning context application services | Owner service and public mapper | Controllers do not expose Prisma models or perform cross-context persistence lookups. |
 

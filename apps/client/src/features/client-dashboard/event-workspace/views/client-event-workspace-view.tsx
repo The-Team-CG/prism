@@ -13,7 +13,7 @@ export function ClientEventWorkspaceView() {
       <EmptyState
         icon={LockKeyhole}
         title="No active event portal"
-        description="The client portal opens after your inquiry is accepted and the signed conforme is uploaded."
+        description="The client event workspace opens after PMCM accepts your inquiry and both you and PMCM acknowledge the conforme."
         className="mt-8"
       />
     );

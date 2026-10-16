@@ -261,4 +261,10 @@ export interface PrismBriefing {
   serviceRequirements: string[];
   notes: string;
   submittedAt: string;
+  confirmedDate?: string | null;
+  confirmedStartTime?: string | null;
+  confirmedEndTime?: string | null;
+  program?: unknown[];
+  moodAndStyling?: string;
+  stylingBudget?: number | null;
 }

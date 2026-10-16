@@ -5,7 +5,7 @@ import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { humanizeToken } from "@/features/pmcm-kit/model/formatters";
 import { useFileRequirementsMatrixViewModel } from "../view-models/use-file-requirements-matrix-view-model";
-import { STORAGE_GATE_COPY, fileRequirementCounts, sortFileRequirementItems } from "../model/file-requirements-matrix-rules";
+import { FILE_HUB_HELP_COPY, fileRequirementCounts, sortFileRequirementItems } from "../model/file-requirements-matrix-rules";
 
 export function FileRequirementsMatrixPanel({ eventId }: { eventId?: string }) {
   const { matrix, status, error } = useFileRequirementsMatrixViewModel(eventId);
@@ -19,7 +19,7 @@ export function FileRequirementsMatrixPanel({ eventId }: { eventId?: string }) {
           <FileCheck2 className="size-4 text-(--prism-signal)" />
           <h2 className="text-sm font-bold text-foreground">File requirements matrix</h2>
         </div>
-        <p className="mt-1 text-xs text-muted-foreground">{STORAGE_GATE_COPY}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{FILE_HUB_HELP_COPY}</p>
         {counts.total > 0 ? (
           <p className="mt-2 text-xs font-semibold text-muted-foreground">
             {counts.open} open of {counts.total} required files

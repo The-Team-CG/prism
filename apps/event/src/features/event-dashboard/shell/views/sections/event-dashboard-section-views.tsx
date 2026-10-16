@@ -2,6 +2,7 @@
 
 import { Card, CardBody, CardHeader, SectionAccent } from "./shell-ui";
 import { FileRequirementsMatrixPanel } from "@/features/files/matrix";
+import { PmcmDocumentHubView } from "@/features/files/hub";
 import { EventFileHub } from "./event-file-hub";
 import { EventCalendarWorkspace } from "./event-calendar-workspace";
 import { EventTasksWorkspace } from "./event-tasks-workspace";
@@ -385,6 +386,7 @@ export function EventDashboardFilesSectionView() {
           selectedEvent ? (
             <div className="space-y-5">
               <FileRequirementsMatrixPanel eventId={selectedEvent.id} />
+              <PmcmDocumentHubView eventId={selectedEvent.id} />
               <EventFileHub
                 event={selectedEvent}
                 documents={documents}

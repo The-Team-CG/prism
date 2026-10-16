@@ -52,6 +52,7 @@ function createService(existing = [inquiry()]) {
   const notifications: any[] = [];
   const audits: any[] = [];
   const transaction = {
+    $queryRaw: vi.fn(async () => []),
     opsEvent: {
       findFirst: vi.fn(async () => null),
       create: vi.fn(async ({ data }) => { const row = { ...data }; events.push(row); return row; }),
@@ -62,6 +63,7 @@ function createService(existing = [inquiry()]) {
       create: vi.fn(async ({ data }) => { const row = { ...data }; documents.push(row); return row; }),
     },
     opsInquiry: {
+      findUnique: vi.fn(async ({ where }) => records.find((item) => item.id === where.id) ?? null),
       findUniqueOrThrow: vi.fn(async ({ where }) => {
         const row = records.find((item) => item.id === where.id);
         if (!row) throw new Error('Inquiry not found');

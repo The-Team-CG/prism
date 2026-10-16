@@ -5,6 +5,7 @@ import { ShieldCheck } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import type { PrismAuthenticatedSession } from "@prism/types";
+import type { PrismSupplierWorkflowWorkspace } from "@prism/types";
 import type {
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
@@ -84,6 +85,7 @@ function WorkspaceLoadError({ workspace, error }: { workspace: SupplierWorkspace
 type SectionContext = {
   session: PrismAuthenticatedSession;
   workspace: SupplierWorkspace | null;
+  workflowWorkspace: PrismSupplierWorkflowWorkspace | null;
   quoteByRequest: Map<string, PrismSupplierQuote>;
   openRequests: PrismSupplierQuoteRequest[];
   selectedRequests: PrismSupplierQuoteRequest[];
@@ -96,18 +98,21 @@ type SectionContext = {
   forms: Record<string, QuoteFormState>;
   busy: string | null;
   readinessNotes: Record<string, string>;
-  contractFiles: Record<string, string>;
   statusNotes: Record<string, string>;
   onNavigate: (section: SupplierDashboardSection) => void;
   onUpdateForm: (id: string, patch: Partial<QuoteFormState>) => void;
   onSubmitQuote: (ev: FormEvent<HTMLFormElement>, req: PrismSupplierQuoteRequest) => void;
   onReadinessNoteChange: (id: string, value: string) => void;
-  onContractFileChange: (id: string, value: string) => void;
   onStatusNoteChange: (id: string, value: string) => void;
   onConfirmAssignment: (req: PrismSupplierQuoteRequest) => void;
   onConfirmReadiness: (req: PrismSupplierQuoteRequest) => void;
-  onSaveContract: (req: PrismSupplierQuoteRequest) => void;
+  onSaveContract: (req: PrismSupplierQuoteRequest, file: File) => void;
   onUpdateStatus: (req: PrismSupplierQuoteRequest, status: string) => void;
+  onAcknowledgeSchedule: (requestId: string, revision: number) => void;
+  onRequestScheduleChange: (requestId: string, revision: number, reason: string) => void;
+  onUpdateProgress: (taskId: string, note: string) => void;
+  onSubmitCreativeTask: (requestId: string, taskId: string, note: string, file?: File) => void;
+  onDownloadObject: (objectId: string) => void;
 };
 
 function renderDashboard(ctx: SectionContext) {
@@ -140,15 +145,19 @@ function renderBookings(ctx: SectionContext) {
   return (
     <BookingsPage
       selectedRequests={ctx.selectedRequests} session={ctx.session}
-      readinessNotes={ctx.readinessNotes} contractFiles={ctx.contractFiles} statusNotes={ctx.statusNotes}
+      readinessNotes={ctx.readinessNotes} workflowWorkspace={ctx.workflowWorkspace} statusNotes={ctx.statusNotes}
       busy={ctx.busy}
       onReadinessNoteChange={ctx.onReadinessNoteChange}
-      onContractFileChange={ctx.onContractFileChange}
       onStatusNoteChange={ctx.onStatusNoteChange}
       onConfirmAssignment={ctx.onConfirmAssignment}
       onConfirmReadiness={ctx.onConfirmReadiness}
       onSaveContract={ctx.onSaveContract}
       onUpdateStatus={ctx.onUpdateStatus}
+      onAcknowledgeSchedule={ctx.onAcknowledgeSchedule}
+      onRequestScheduleChange={ctx.onRequestScheduleChange}
+      onUpdateProgress={ctx.onUpdateProgress}
+      onSubmitCreativeTask={ctx.onSubmitCreativeTask}
+      onDownloadObject={ctx.onDownloadObject}
     />
   );
 }
@@ -165,12 +174,12 @@ function renderQuotations(ctx: SectionContext) {
 
 function renderFiles(ctx: SectionContext) {
   if (!ctx.workspace) return null;
-  return <FilesPage workspace={ctx.workspace} session={ctx.session} />;
+  return <FilesPage workspace={ctx.workspace} session={ctx.session} workflowWorkspace={ctx.workflowWorkspace} onDownloadObject={ctx.onDownloadObject} />;
 }
 
 function renderPayments(ctx: SectionContext) {
   if (!ctx.workspace) return null;
-  return <PaymentsPage workspace={ctx.workspace} />;
+  return <PaymentsPage workspace={ctx.workspace} workflowWorkspace={ctx.workflowWorkspace} />;
 }
 
 function renderProfile(ctx: SectionContext) {

@@ -454,6 +454,23 @@ describe('Prisma migration policy', () => {
     assert.match(result.errors.join('\n'), /unsupported SQL requires manual review/);
   });
 
+  it('accepts an owner-scoped INSERT ON CONFLICT DO NOTHING data migration', () => {
+    const result = auditMigrationSet(
+      [
+        ownerAwareMigration({
+          owner: 'platform-ops',
+          slug: 'initialize_audit_chain_lock',
+          kind: 'data',
+          risk: 'medium',
+          sql: 'INSERT INTO "platform_ops"."audit_chain_locks" ("id", "revision", "head_id", "head_hash") VALUES (\'global\', 0, NULL, NULL) ON CONFLICT ("id") DO NOTHING;',
+        }),
+      ],
+      futurePolicy,
+    );
+
+    assert.deepEqual(result.errors, []);
+  });
+
   it('ignoresOnUpdateCascadeForeignKeyWhenClassifyingSchemaDdl', () => {
     const result = auditMigrationSet(
       [
@@ -611,6 +628,17 @@ describe('Prisma migration policy', () => {
     );
 
     assert.deepEqual(result.errors, []);
+  });
+
+  it('rejects cross-domain foreign references even when a legacy policy lists them', () => {
+    const referencePolicy = {
+      ...futurePolicy,
+      tableOwners: { event_core: { events: ['event-lifecycle'] } },
+      referenceOwners: { event_core: { events: ['commercial'] } },
+    };
+    const foreignKey = 'ALTER TABLE "supplier_ops"."quotes" ADD CONSTRAINT "quotes_event_fk" FOREIGN KEY ("event_id") REFERENCES "event_core"."events"("id");';
+    const rejected = auditMigrationSet([ownerAwareMigration({ sql: foreignKey })], referencePolicy);
+    assert.ok(rejected.errors.length > 0, 'foreign-table references are outside the owning context');
   });
 
   it('rejects a high-risk operation declared as low risk', () => {

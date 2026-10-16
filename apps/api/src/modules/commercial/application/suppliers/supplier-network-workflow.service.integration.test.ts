@@ -10,6 +10,7 @@ import { SupplierNetworkWorkflowService } from './supplier-network-workflow.serv
 import { SupplierProfileCommandsService } from './supplier-profile-commands.service';
 import type { PareApprovalGovernance } from '@prism/contexts/platform-ops';
 import { DocumentVaultService } from '@prism/contexts/event-lifecycle';
+import { OperationsEventReferenceService } from '../../../event-lifecycle/application/onboarding/operations-event-reference.service';
 
 const databaseUrl = process.env.P0_TEST_DATABASE_URL?.trim();
 
@@ -180,6 +181,7 @@ function createService(
     pareService,
     { queue: async (input, context) => { pareCalls += 1; return pareOutbox.queue(input, context); } },
     new DocumentVaultService(servicePrisma),
+    new OperationsEventReferenceService(servicePrisma),
   );
 }
 

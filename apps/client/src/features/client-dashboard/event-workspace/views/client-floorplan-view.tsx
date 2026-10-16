@@ -8,6 +8,7 @@ import {
   FloorPlanTemplates,
   GuidedLayoutNotes,
 } from "./sections/client-floorplan-sections";
+import { ClientFloorplanReviewPanel } from "../../floorplan-review/views/client-floorplan-review-panel";
 
 export function ClientFloorPlanView() {
   const {
@@ -59,6 +60,9 @@ export function ClientFloorPlanView() {
         busy={busy === "floorplan-revision"}
         onSubmit={submitRevisionComment}
       />
+      {selectedEvent && officialDraft && (officialDraft.status === "in_review" || officialDraft.status === "approved") ? (
+        <ClientFloorplanReviewPanel eventId={selectedEvent.id} draftId={officialDraft.id} />
+      ) : null}
       <GuidedLayoutNotes
         approved={approved}
         form={form}

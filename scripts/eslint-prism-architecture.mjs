@@ -17,6 +17,7 @@ const contexts = [
 const publicContextSubpaths = new Set([
   "read-models/closeout",
   "read-models/event-scope",
+  "read-models/file-evidence",
   "event-lifecycle/conforme-reminder-window",
 ]);
 

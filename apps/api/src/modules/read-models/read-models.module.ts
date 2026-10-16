@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/kernel/database';
 import { AccessControlModule } from '@prism/kernel/access-control';
 import { EventLifecycleModule } from '../event-lifecycle/event-lifecycle.module';
+import { OperationsEventReferenceModule } from '@prism/contexts/event-lifecycle/operations-reference';
 import { FloorplanModule } from '../floorplan/floorplan.module';
 import { OperationsModule } from '../operations/operations.module';
 import { IdentityAccessModule } from '../identity-access/identity-access.module';
@@ -43,6 +44,7 @@ import { CommercialFactsReaderModule } from './commercial-facts-reader.module';
     FloorplanModule,
     PlatformOpsModule,
     EventLifecycleModule,
+    OperationsEventReferenceModule,
     IdentityAccessModule,
     GuestEventProjectionModule,
     CommercialFactsReaderModule,

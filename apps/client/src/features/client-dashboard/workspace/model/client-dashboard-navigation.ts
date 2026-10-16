@@ -10,6 +10,8 @@ import {
 
 import type { ClientDashboardRoute, ClientPortalView, ClientSidebarLink, ClientSidebarNavItem, ClientSidebarSubItem, DetailTab } from "./client-dashboard-types";
 
+export const CLIENT_CONFORME_REVIEW_HREF = "/conforme";
+
 export const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
   {
     id: "client-dashboard",

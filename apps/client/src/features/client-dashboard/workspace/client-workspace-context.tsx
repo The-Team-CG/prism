@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
-import type { PrismBillingStatement, PrismBriefing, PrismClientActionCenter, PrismClientOcularVisit, PrismClientWorkspace, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone, PrismAuditLog, PrismNotificationLog } from "@prism/types";
+import type { PrismBillingStatement, PrismBriefing, PrismClientActionCenter, PrismClientOcularVisit, PrismClientWorkspace, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone, PrismAuditLog, PrismNotificationLog, SubmitBriefingInput } from "@prism/types";
 import type { FloorPlanTemplate, Project } from "@/features/floorplan/editor";
 import type { ClientDashboardRoute, ClientPortalView, ClientSession, DetailTab } from "./model/client-dashboard-types";
 import type { ClientDashboardAction } from "./model/client-dashboard-view-rules";
@@ -55,6 +55,7 @@ export type ClientWorkspaceValue = {
   setSelectedEventId: (id: string | null) => void;
   ocularVisit: PrismClientOcularVisit | null;
   submitOcularVisit: (clientNote: string) => Promise<void>;
+  submitBriefing: (eventId: string, input: SubmitBriefingInput) => Promise<void>;
   eventDrafts: PrismFloorPlanDraft[];
   officialDraft: PrismFloorPlanDraft | undefined;
   preferenceDrafts: PrismFloorPlanDraft[];

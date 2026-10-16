@@ -41,4 +41,21 @@ describe('LocalFileSystemStorageAdapter', () => {
     await expect(adapter.confirmUpload({ ...request, bytes })).rejects.toThrow(/size or checksum/);
     await expect(adapter.issueDownloadAuthorization({ ...request, byteSize: bytes.byteLength, checksumSha256: createHash('sha256').update(bytes).digest('hex') })).rejects.toThrow(/not found/);
   });
+
+  it('allows only one concurrent write to claim an immutable object key', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'prism-storage-race-'));
+    roots.push(root);
+    const adapter = new LocalFileSystemStorageAdapter(root);
+    const request = {
+      objectId: 'obj_immutable', eventId: 'evt_test', usage: 'event_deliverable' as const, contentType: 'application/pdf',
+      byteSize: 1, checksumSha256: 'a'.repeat(64), providerObjectKey: 'events/evt_test/objects/event_deliverable/immutable.pdf',
+    };
+    const upload = await adapter.requestUploadLocation(request);
+    const candidates = [Buffer.from('%PDF-first'), Buffer.from('%PDF-second')];
+    const attempts = await Promise.allSettled(candidates.map((bytes) => adapter.writeBytes(upload.uploadUrl, bytes)));
+    expect(attempts.filter((attempt) => attempt.status === 'fulfilled')).toHaveLength(1);
+    const download = await adapter.issueDownloadAuthorization(request);
+    const saved = await adapter.readBytes(download.downloadUrl);
+    expect(candidates.map((candidate) => candidate.toString())).toContain(saved.toString());
+  });
 });
