@@ -24,6 +24,10 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function isNotFoundError(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "status" in error && error.status === 404;
+}
+
 export function ConformeUploadModal({ inquiry, onUpload, onPrepareDigital, onRefreshDigital, onSignDigital, onClose }: ConformeUploadModalProps) {
   const [phase, setPhase] = useState<ModalPhase>("pick");
   const [file, setFile] = useState<File | null>(null);
@@ -34,6 +38,8 @@ export function ConformeUploadModal({ inquiry, onUpload, onPrepareDigital, onRef
   const [digitalConsent, setDigitalConsent] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const selectButtonRef = useRef<HTMLButtonElement>(null);
+  const refreshDigitalRef = useRef(onRefreshDigital);
+  refreshDigitalRef.current = onRefreshDigital;
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -48,6 +54,22 @@ export function ConformeUploadModal({ inquiry, onUpload, onPrepareDigital, onRef
   useEffect(() => {
     selectButtonRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    setDigitalBusy(true);
+    setApiError(null);
+    setDigitalExecution(null);
+    setDigitalConsent(false);
+    refreshDigitalRef.current()
+      .then((execution) => { if (active) setDigitalExecution(execution); })
+      .catch((error: unknown) => {
+        if (!active || isNotFoundError(error)) return;
+        setApiError(error instanceof Error ? error.message : "Unable to load the current in-app conforme.");
+      })
+      .finally(() => { if (active) setDigitalBusy(false); });
+    return () => { active = false; };
+  }, [inquiry.id]);
 
   useEffect(() => {
     if (phase !== "success") return;
@@ -117,17 +139,18 @@ export function ConformeUploadModal({ inquiry, onUpload, onPrepareDigital, onRef
 
   return <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4" role="dialog" aria-modal="true" aria-label="Upload signed conforme">
     <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
-      <DigitalExecutionPanel execution={digitalExecution} busy={digitalBusy} consent={digitalConsent} onConsent={setDigitalConsent} onRefresh={refreshDigital} onSign={signDigital} />
+      <DigitalExecutionPanel execution={digitalExecution} busy={digitalBusy} consent={digitalConsent} onConsent={setDigitalConsent} onRefresh={refreshDigital} onPrepare={prepareDigital} onSign={signDigital} />
       {phase === "success" ? <UploadSuccess inquiry={inquiry} /> : <ConformeUploadForm inquiry={inquiry} phase={phase} file={file} validationError={validationError} apiError={apiError} digitalBusy={digitalBusy} fileInputRef={fileInputRef} selectButtonRef={selectButtonRef} onClose={onClose} onFileChange={handleFileChange} onPrepareDigital={prepareDigital} onSubmit={handleSubmit} />}
     </div>
   </div>;
 }
 
-function DigitalExecutionPanel({ execution, busy, consent, onConsent, onRefresh, onSign }: { execution: PrismConformeExecution | null; busy: boolean; consent: boolean; onConsent: (value: boolean) => void; onRefresh: () => Promise<void>; onSign: () => Promise<void> }) {
+function DigitalExecutionPanel({ execution, busy, consent, onConsent, onRefresh, onPrepare, onSign }: { execution: PrismConformeExecution | null; busy: boolean; consent: boolean; onConsent: (value: boolean) => void; onRefresh: () => Promise<void>; onPrepare: () => Promise<void>; onSign: () => Promise<void> }) {
   if (!execution) return null;
   const canRefresh = execution.status === "awaiting_client" || execution.status === "awaiting_pmcm";
   return <section className="mb-5 space-y-3 border-b border-border pb-5"><h3 className="text-base font-bold text-foreground">In-app conforme · version {execution.templateVersion}</h3><p className="text-sm text-muted-foreground">The client reviews this immutable document at <span className="font-semibold">/conforme</span>. A version with a recorded signature cannot be replaced.</p><pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-background p-3 font-sans text-xs leading-5 text-foreground">{execution.documentContent}</pre><p className="text-xs text-muted-foreground">Status: {execution.status.replaceAll("_", " ")}</p>
     {canRefresh ? <button type="button" disabled={busy} onClick={() => void onRefresh()} className="text-sm font-semibold text-primary hover:underline">{busy ? "Refreshing…" : "Refresh signing status"}</button> : null}
+    {execution.status === "awaiting_client" && execution.signatures.length === 0 ? <button type="button" disabled={busy} onClick={() => void onPrepare()} className="block text-sm font-semibold text-primary hover:underline">{busy ? "Preparing…" : "Prepare replacement version"}</button> : null}
     {execution.status === "awaiting_pmcm" ? <div className="space-y-3 rounded-lg bg-muted/50 p-3"><p className="text-sm leading-5 text-foreground">The client has acknowledged this version. Review the document and countersign to activate the client workspace.</p><label className="flex items-start gap-2 text-xs leading-5 text-foreground"><input type="checkbox" checked={consent} onChange={(event) => onConsent(event.target.checked)} className="mt-1 size-4 accent-primary" />I reviewed this exact version and approve the in-app record.</label><Button type="button" disabled={busy || !consent} onClick={() => void onSign()} className="rounded-lg font-bold">{busy ? "Recording…" : "Countersign and activate"}</Button></div> : null}
     {execution.status === "completed" ? <p className="text-sm text-muted-foreground">Both acknowledgments are recorded; the client workspace is active.</p> : null}
   </section>;

@@ -567,6 +567,7 @@ export class EventReadModelQueries {
             ...activeRequestWhere,
             ...(afterId ? { id: { gt: afterId } } : {}),
           },
+          include: { contractVersions: { select: { reviewStatus: true }, orderBy: { version: 'desc' }, take: 1 } },
           orderBy: { id: 'asc' }, take: MAX_SUPPLIER_WORKSPACE_ROWS }),
       ),
       readAllRowsById(MAX_SUPPLIER_WORKSPACE_ROWS, (afterId) =>
@@ -600,6 +601,17 @@ export class EventReadModelQueries {
         orderBy: { id: 'asc' }, take: MAX_SUPPLIER_WORKSPACE_ROWS }),
     );
     return sortByDate(requests, (row) => row.createdAt, 'desc');
+  async supplierReadinessRequests(supplierId: string) {
+    const activeEventIds = await this.activeEventIdsForSupplier(supplierId);
+    const requests = await readAllRowsById(MAX_SUPPLIER_WORKSPACE_ROWS, (afterId) =>
+      this.prisma.opsSupplierQuoteRequest.findMany({
+        where: { supplierId, eventId: { in: activeEventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+        include: { contractVersions: { select: { reviewStatus: true }, orderBy: { version: 'desc' }, take: 1 } },
+        orderBy: { id: 'asc' }, take: MAX_SUPPLIER_WORKSPACE_ROWS,
+      }),
+    );
+    return sortByDate(requests, (row) => row.createdAt, 'desc');
+  }
   }
 
   // Each actionable source has its own deterministic page so combined queue rows are never silently dropped.

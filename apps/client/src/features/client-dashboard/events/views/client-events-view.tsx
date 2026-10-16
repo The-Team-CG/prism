@@ -9,7 +9,10 @@ import { EventSummaryCard, eventProgressDots } from "../../workspace/shared";
 import {
   CLIENT_PORTAL_VIEW_META,
   clientFloorplanDashboardActionLabel,
+  clientEventCardOpenRoute,
   dashboardHref,
+  selectClientEventHistoryEvents,
+  clientEventMatchesFilter,
 } from "../../workspace/shared";
 import { useClientWorkspace } from "../../workspace/shared";
 
@@ -18,12 +21,13 @@ export function ClientEventsView() {
     router,
     portalView,
     state,
-    events,
+    session,
     setSelectedEventId,
     eventSearch,
     setEventSearch,
   } = useClientWorkspace();
   if (!state) return null;
+  const historyEvents = selectClientEventHistoryEvents(state, session);
   const portalViewMeta = portalView ? CLIENT_PORTAL_VIEW_META[portalView] : undefined;
 
     type EventFilterId = "events-all" | "events-upcoming" | "events-in-planning" | "events-completed" | "events-cancelled";
@@ -33,30 +37,30 @@ export function ClientEventsView() {
       href: string;
       matches: (ev: PrismEvent) => boolean;
     }> = [
-      { id: "events-all", label: "All", href: "/dashboard/events", matches: () => true },
+      { id: "events-all", label: "All", href: "/dashboard/events", matches: (ev) => clientEventMatchesFilter(ev, "events-all") },
       {
         id: "events-upcoming",
         label: "Upcoming",
         href: "/dashboard/events/upcoming",
-        matches: (ev) => ev.status !== "completed" && ev.status !== "cancelled",
+        matches: (ev) => clientEventMatchesFilter(ev, "events-upcoming"),
       },
       {
         id: "events-in-planning",
         label: "In planning",
         href: "/dashboard/events/in-planning",
-        matches: (ev) => /planning|confirmed|active|pending/i.test(ev.status),
+        matches: (ev) => clientEventMatchesFilter(ev, "events-in-planning"),
       },
       {
         id: "events-completed",
         label: "Completed",
         href: "/dashboard/events/completed",
-        matches: (ev) => /completed|closed|archived/i.test(ev.status),
+        matches: (ev) => clientEventMatchesFilter(ev, "events-completed"),
       },
       {
         id: "events-cancelled",
         label: "Cancelled",
         href: "/dashboard/events/cancelled",
-        matches: (ev) => /cancelled|canceled/i.test(ev.status),
+        matches: (ev) => clientEventMatchesFilter(ev, "events-cancelled"),
       },
     ];
     const activeEventFilterId =
@@ -66,7 +70,7 @@ export function ClientEventsView() {
           ? portalView as EventFilterId
           : "events-all";
     const activeEventFilter = eventFilterOptions.find((option) => option.id === activeEventFilterId) ?? eventFilterOptions[0];
-    const visibleEvents = events.filter((ev) => {
+    const visibleEvents = historyEvents.filter((ev) => {
       const query = eventSearch.trim().toLowerCase();
       if (!activeEventFilter.matches(ev)) return false;
       if (!query) return true;
@@ -79,7 +83,7 @@ export function ClientEventsView() {
           <div>
             <h1 className="text-2xl font-black text-foreground">{portalViewMeta?.title ?? "My events"}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {portalViewMeta?.description ?? `${events.length} confirmed event${events.length === 1 ? "" : "s"} with PMCM`}
+              {portalViewMeta?.description ?? `${historyEvents.length} confirmed event${historyEvents.length === 1 ? "" : "s"} with PMCM`}
             </p>
           </div>
           <Button className="rounded-lg font-bold" onClick={() => router.push("/dashboard/request")}>
@@ -107,7 +111,7 @@ export function ClientEventsView() {
                 >
                   {filter.label}
                   <span className={cn("text-xs", active ? "text-(--prism-signal)" : "text-muted-foreground")}>
-                    {events.filter(filter.matches).length}
+              {historyEvents.filter(filter.matches).length}
                   </span>
                 </button>
               );
@@ -138,9 +142,9 @@ export function ClientEventsView() {
                   documentCount={eventDocs.length}
                   onOpen={() => {
                     setSelectedEventId(ev.id);
-                    router.push(dashboardHref("overview", ev.id));
+                    router.push(dashboardHref(clientEventCardOpenRoute(ev), ev.id));
                   }}
-                  onOpenFloorplan={() => {
+                  onOpenFloorplan={ev.archived ? undefined : () => {
                     setSelectedEventId(ev.id);
                     router.push(dashboardHref("floorplan", ev.id));
                   }}
