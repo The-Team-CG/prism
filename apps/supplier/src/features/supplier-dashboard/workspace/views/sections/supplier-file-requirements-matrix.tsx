@@ -1,49 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { PrismAuthenticatedSession, PrismFileRequirementsMatrix } from "@prism/types";
 import { FileCheck2 } from "lucide-react";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
-import { supplierWorkspaceRepository } from "../../data/supplier-workspace-repository";
+import { buildSupplierContractRequirements } from "../../model/supplier-workspace-rules";
 import type { SupplierWorkspace } from "../../model/supplier-workspace-types";
 
 export function SupplierFileRequirementsMatrix({
   workspace,
-  session,
 }: {
   workspace: SupplierWorkspace;
-  session: PrismAuthenticatedSession;
 }) {
-  const eventIds = useMemo(
-    () => Array.from(new Set(workspace.quoteRequests.map((request) => request.eventId))),
-    [workspace.quoteRequests],
-  );
-  const [matrices, setMatrices] = useState<PrismFileRequirementsMatrix[]>([]);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (eventIds.length === 0) {
-      setMatrices([]);
-      return;
-    }
-    let alive = true;
-    Promise.all(eventIds.map((eventId) => supplierWorkspaceRepository.fetchFileRequirements(eventId, session)))
-      .then((next) => {
-        if (alive) {
-          setMatrices(next);
-          setError(null);
-        }
-      })
-      .catch((err) => {
-        if (alive) setError(err instanceof Error ? err.message : "Unable to load file requirements.");
-      });
-    return () => {
-      alive = false;
-    };
-  }, [eventIds, session.email, session.name]);
-
-  const items = matrices.flatMap((matrix) => matrix.items);
+  const items = buildSupplierContractRequirements(workspace);
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm">
       <div className="border-b border-border px-6 py-4">
@@ -55,9 +23,7 @@ export function SupplierFileRequirementsMatrix({
           Requirements are limited to your bookings. Upload signed contracts in Bookings; your versions and PMCM review status appear in Files.
         </p>
       </div>
-      {error ? (
-        <p className="px-6 py-4 text-sm text-muted-foreground">{error}</p>
-      ) : items.length === 0 ? (
+      {items.length === 0 ? (
         <div className="px-6 py-6">
           <EmptyState icon={FileCheck2} title="No supplier file requirements yet" description="Visible items appear after PMCM requests a contract or supporting file for your booking." />
         </div>

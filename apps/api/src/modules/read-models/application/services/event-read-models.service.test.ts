@@ -45,7 +45,8 @@ function createSupplierWorkspaceService() {
       eventDayStatus: null,
       eventDayVerificationStatus: null,
       verificationStatus: null,
-      contractDocumentId: null,
+      contractDocumentId: null as string | null,
+      contractVersions: [] as Array<{ reviewStatus: string }>,
       createdAt: new Date('2026-05-01T00:00:00.000Z'),
     },
     {
@@ -62,6 +63,7 @@ function createSupplierWorkspaceService() {
       eventDayVerificationStatus: null,
       verificationStatus: null,
       contractDocumentId: null,
+      contractVersions: [] as Array<{ reviewStatus: string }>,
       createdAt: new Date('2026-05-01T00:00:00.000Z'),
     },
   ];
@@ -356,14 +358,14 @@ describe('EventReadModelsService', () => {
     );
   });
 
-  it('clientWorkspaceRedactsOcularWaiverFields', async () => {
+  it.each([false, true])('scopes client workspace by email and redacts ocular waiver fields, archived=%s', async (archived) => {
     const event = {
       id: 'evt_ocular',
-      clientName: 'Ana Reyes',
+      clientName: 'Client event contact display name',
       clientPortalStatus: 'unlocked',
       eventDate: new Date('2026-10-20T00:00:00.000Z'),
       status: 'planning',
-      archived: false,
+      archived,
       proposalClientStatus: 'pending',
       proposalReviewedAt: null,
       inquiry: { email: 'ana@example.test' },
@@ -399,7 +401,7 @@ describe('EventReadModelsService', () => {
       createFloorplanReader(),
       createEventClientFloorplanAccessReader(),
     );
-    const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes', actorEmail: 'ana@example.test' });
     const mappers = {
       mapEvent: (value: typeof event) => value,
       mapDocument: (value: unknown) => value,
@@ -411,6 +413,10 @@ describe('EventReadModelsService', () => {
     };
 
     const workspace = await service.clientWorkspace(actor, mappers as never);
+
+    expect(workspace.events).toEqual([event]);
+    expect(queries.visibleEvents).toHaveBeenCalledWith(true);
+    expect(queries.clientWorkspaceForEvents).toHaveBeenCalledWith([event.id]);
 
     expect(workspace.ocularVisits).toEqual([{
       eventId: event.id,
@@ -496,6 +502,19 @@ describe('EventReadModelsService', () => {
     ]);
     expect(board.counts.warning).toBe(1);
   });
+
+  it.each(['missing', 'submitted', 'changes_requested', 'accepted'])(
+    'uses latest real contract review evidence for supplier readiness: %s', async (status) => {
+      const { service, policy, prisma } = createSupplierWorkspaceService();
+      const request = (await prisma.opsSupplierQuoteRequest.findMany())[0];
+      request.contractDocumentId = 'legacy-metadata';
+      request.readinessStatus = 'confirmed';
+      request.contractVersions = status === 'missing' ? [] : [{ reviewStatus: status }];
+      const actor = policy.resolveActor({ actorRole: OpsUserRole.Supplier, supplierId: 'sup_sonicline', actorEmail: 'supplier@example.com' });
+      const board = await service.supplierReadinessBoard(actor);
+      expect(board.items[0]).toMatchObject({ contractStatus: status, priority: status === 'accepted' ? 'info' : 'warning' });
+    },
+  );
 
   it('builds a PMCM-only defense readiness checklist through reader ports', async () => {
     const policy = new EventAccessPolicyService({ write: vi.fn() } as any);

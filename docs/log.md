@@ -8,6 +8,8 @@ implementation and verification history.
 
 - Prepared client and supplier workflow publication against current staging, preserving owner-schema baselines, guest games, registration, and context reader boundaries. The delivery combines shared storage, supplier workflows, client reviews/closeout, and conforme signing. Original local acceptance is retained as historical evidence; integrated-head verification is a separate merge gate.
 
+- Documented supplier identity and contract-review evidence, conforme execution reopening, archived closeout access, and supplier evidence preservation.
+
 ## 2026-10-14
 
 - Clarified the Vercel service installation contract: services share one complete locked workspace install, including build tooling and development dependencies, before each service build.

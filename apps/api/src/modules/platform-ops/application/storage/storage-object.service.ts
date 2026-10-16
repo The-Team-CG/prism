@@ -7,6 +7,7 @@ import { OpsUserRole, type OpsUserRole as OpsUserRoleValue } from '@prism/kernel
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type { PrismEventGameLobbyLogoUploadTicket, PrismEventGameMediaAuthorization, PrismEventGameMediaUploadTicket, PrismStorageDownloadAuthorization, PrismStoredObject, StorageUsage } from '@prism/types';
 import { PLATFORM_REFERENCE_READ_MODEL, type PlatformReferenceReadModel } from '@prism/contexts/read-models';
+import { readEventAccessScope, scopeActorToEvent } from '@prism/contexts/read-models/event-scope';
 import {
   STORAGE_ADAPTER,
   type StorageAdapter,
@@ -98,7 +99,7 @@ export class StorageObjectService implements StoredSupplierUploadReader {
     this.assertEventGameLobbyLogoOwner(input);
     this.assertSupportedOwner(input.ownerRecordType, input.usage);
     const prisma = this.database(input.context);
-    await this.authorizeEvent(input.eventId, input.actor, input.usage, 'request storage upload');
+    input = { ...input, actor: await this.authorizeEvent(input.eventId, input.actor, input.usage, 'request storage upload') };
     await this.assertUploadOwner(input);
     const declaration = this.declaration(input);
     const objectId = `obj_${randomUUID()}`;
@@ -198,7 +199,7 @@ export class StorageObjectService implements StoredSupplierUploadReader {
       usage: current.usage as StorageUsage,
     });
     this.assertSupportedOwner(current.ownerRecordType, current.usage);
-    await this.authorizeEvent(current.eventId, input.actor, current.usage as StorageServiceRequest['usage'], 'confirm storage upload');
+    input = { ...input, actor: await this.authorizeEvent(current.eventId, input.actor, current.usage as StorageServiceRequest['usage'], 'confirm storage upload') };
     await this.assertCanAccessObject(input.actor, current, 'confirm storage upload');
     if (current.lifecycleState === 'stored') return this.confirmAlreadyStored(current, input);
     if (current.lifecycleState !== 'requested') throw new ConflictException('Only a requested upload can be confirmed');
@@ -312,7 +313,7 @@ export class StorageObjectService implements StoredSupplierUploadReader {
       throw new ForbiddenException('Event game media requires an approved game access path');
     }
     this.assertSupportedOwner(object.ownerRecordType, object.usage);
-    await this.authorizeEvent(object.eventId, input.actor, object.usage as StorageServiceRequest['usage'], 'download storage object');
+    input = { ...input, actor: await this.authorizeEvent(object.eventId, input.actor, object.usage as StorageServiceRequest['usage'], 'download storage object') };
     await this.assertCanAccessObject(input.actor, object, 'download storage object');
     if (object.lifecycleState !== 'stored' || !object.providerObjectKey || !this.adapter) {
       throw new ServiceUnavailableException(object.lifecycleState === 'stored' ? 'Storage provider is not configured' : 'Stored object is not available');
@@ -330,7 +331,7 @@ export class StorageObjectService implements StoredSupplierUploadReader {
   async writeAuthorizedUpload(input: StorageServiceByteUpload): Promise<void> {
     const object = await this.prisma.opsStoredObject.findUnique({ where: { id: input.objectId } });
     if (!object) throw new NotFoundException('Stored object not found');
-    await this.authorizeEvent(object.eventId, input.actor, object.usage as StorageServiceRequest['usage'], 'confirm storage upload');
+    input = { ...input, actor: await this.authorizeEvent(object.eventId, input.actor, object.usage as StorageServiceRequest['usage'], 'confirm storage upload') };
     await this.assertCanAccessObject(input.actor, object, 'write storage bytes');
     if (object.lifecycleState !== 'requested') throw new ConflictException('Only a requested upload can receive bytes');
     if (!this.adapter?.writeAuthorizedUpload) throw new ServiceUnavailableException('This storage provider requires a direct HTTP upload');
@@ -352,7 +353,7 @@ export class StorageObjectService implements StoredSupplierUploadReader {
   async readAuthorizedDownload(input: StorageServiceByteDownload): Promise<Uint8Array> {
     const object = await this.prisma.opsStoredObject.findUnique({ where: { id: input.objectId } });
     if (!object) throw new NotFoundException('Stored object not found');
-    await this.authorizeEvent(object.eventId, input.actor, object.usage as StorageServiceRequest['usage'], 'download storage object');
+    input = { ...input, actor: await this.authorizeEvent(object.eventId, input.actor, object.usage as StorageServiceRequest['usage'], 'download storage object') };
     await this.assertCanAccessObject(input.actor, object, 'download storage object');
     if (object.lifecycleState !== 'stored' || !this.adapter?.readAuthorizedDownload) {
       throw new ServiceUnavailableException(object.lifecycleState === 'stored' ? 'This storage provider requires a direct HTTP download' : 'Stored object is not available');
@@ -513,9 +514,11 @@ export class StorageObjectService implements StoredSupplierUploadReader {
   async listEventObjects(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismStoredObject[]> {
     const event = await this.findEvent(eventId);
     await this.requireActorEventScope(actor, eventId, 'list event documents');
-    await this.accessPolicy.requireCanReadEvent(actor, event, 'list event documents', {
-      supplierEventIds: this.supplierEventScope(actor, event.id, event.supplierIds),
-    });
+    const scopeEvent = await readEventAccessScope(this.prisma, eventId);
+    if (!scopeEvent) throw new NotFoundException('Event not found');
+    const scoped = scopeActorToEvent(actor, scopeEvent);
+    actor = scoped.actor;
+    await this.accessPolicy.requireCanReadEvent(actor, event, 'list event documents', scoped.scope);
     const objects = await this.prisma.opsStoredObject.findMany({
       where: { eventId, lifecycleState: { in: ['requested', 'stored', 'failed'] } },
       orderBy: { createdAt: 'desc' },
@@ -565,7 +568,7 @@ export class StorageObjectService implements StoredSupplierUploadReader {
     const match = /^supplier-(contract|creative):([A-Za-z0-9_-]{1,100}):([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.exec(input.logicalTarget);
     if (!match) throw new ForbiddenException('Supplier document target is outside the verified booking');
     const request = await this.prisma.opsSupplierQuoteRequest.findFirst({
-      where: { id: match[2], eventId: input.eventId, supplierId: input.ownerRecordId }, select: { id: true },
+      where: { id: match[2], eventId: input.eventId, supplierId: input.ownerRecordId, status: 'selected', assignmentStatus: 'confirmed' }, select: { id: true },
     });
     if (!request) throw new ForbiddenException('Supplier document target is outside the verified booking');
     await this.assertCreativeTaskOwner(input, match);
@@ -619,8 +622,12 @@ export class StorageObjectService implements StoredSupplierUploadReader {
     if (!upload && usage === 'supplier_document') await this.requireSupplierDocumentRole(actor, resource, eventId);
     const event = await this.findEvent(eventId);
     if (upload && event.archived) throw new ConflictException('Archived events do not accept file uploads');
-    if (this.canSkipEventRead(actor, usage, upload)) return;
-    await this.accessPolicy.requireCanReadEvent(actor, event, resource, { supplierEventIds: this.supplierEventScope(actor, event.id, event.supplierIds) });
+    if (this.canSkipEventRead(actor, usage, upload)) return actor;
+    const accessScope = await readEventAccessScope(this.prisma, eventId);
+    if (!accessScope) throw new NotFoundException('Event not found');
+    const scoped = scopeActorToEvent(actor, accessScope);
+    await this.accessPolicy.requireCanReadEvent(scoped.actor, event, resource, scoped.scope);
+    return scoped.actor;
   }
 
   private async requireActorEventScope(actor: ResolvedEventOpsActor, eventId: string, resource: string) {
@@ -652,10 +659,6 @@ export class StorageObjectService implements StoredSupplierUploadReader {
 
   private canSkipEventRead(actor: ResolvedEventOpsActor, usage: StorageServiceRequest['usage'], upload: boolean) {
     return (upload && (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System || (actor.role === OpsUserRole.Guest && usage === 'guest_feedback_media')));
-  }
-
-  private supplierEventScope(actor: ResolvedEventOpsActor, eventId: string, supplierIds: string[]) {
-    return actor.supplierId && supplierIds.includes(actor.supplierId) ? [eventId] : [];
   }
 
   private async findEvent(eventId: string) {

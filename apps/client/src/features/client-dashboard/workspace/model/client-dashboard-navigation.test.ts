@@ -5,6 +5,7 @@ import {
   dashboardHref,
   dashboardLoadingVariant,
   findClientSidebarLink,
+  clientEventWorkspaceAvailable,
   sidebarActiveItemId,
 } from "./client-dashboard-navigation";
 
@@ -37,5 +38,11 @@ describe("client-dashboard navigation", () => {
     expect(dashboardLoadingVariant("home")).toBe("home");
     expect(dashboardLoadingVariant("floorplan")).toBe("floorplan");
     expect(dashboardLoadingVariant("billing")).toBe("event");
+  });
+
+  it("does not expose event workspace navigation for archived events", () => {
+    expect(clientEventWorkspaceAvailable({ archived: true })).toBe(false);
+    expect(clientEventWorkspaceAvailable({ archived: false })).toBe(true);
+    expect(clientEventWorkspaceAvailable(undefined)).toBe(false);
   });
 });

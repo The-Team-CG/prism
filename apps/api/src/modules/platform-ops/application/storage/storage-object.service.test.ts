@@ -14,6 +14,7 @@ const client = { id: 'user_client', role: 'client', email: 'client@example.test'
 
 function createStore() {
   const objects: Array<Record<string, any>> = [];
+  const bookings = [{ id: 'req_1', eventId: 'evt_1', supplierId: 'sup_1', status: 'selected', assignmentStatus: 'confirmed' }];
   const now = () => new Date('2026-09-08T00:00:00.000Z');
   const prisma = {
     opsStoredObject: {
@@ -48,9 +49,11 @@ function createStore() {
       findMany: vi.fn(async ({ where }: { where: { eventId: string } }) => objects.filter((object) => object.eventId === where.eventId)),
     },
     opsEvent: {
-      findUnique: vi.fn(async () => ({ id: 'evt_1', archived: false, clientName: 'Client', clientPortalStatus: 'unlocked', inquiry: { email: 'client@example.test' }, supplierQuoteRequests: [] })),
+      findUnique: vi.fn(async () => ({ id: 'evt_1', archived: false, clientName: 'Client', clientPortalStatus: 'unlocked', inquiry: { email: 'client@example.test' }, supplierQuoteRequests: [] as Array<{ supplierId: string; supplier: { email: string } }> })),
     },
-    opsSupplierQuoteRequest: { findFirst: vi.fn(async () => ({ id: 'req_1' })) },
+    opsSupplierQuoteRequest: {
+      findFirst: vi.fn(async ({ where }: { where: Record<string, string> }) => bookings.find((booking) => Object.entries(where).every(([key, value]) => booking[key as keyof typeof booking] === value)) ?? null),
+    },
     opsSupplierCreativeTask: { findFirst: vi.fn(async () => ({ id: 'task_1' })) },
     $queryRaw: vi.fn(async () => [{ id: 'evt_1' }]),
     $transaction: vi.fn(async (work: (tx: unknown) => Promise<unknown>) => work(prisma)),
@@ -69,6 +72,7 @@ function createStore() {
   };
   return {
     objects,
+    bookings,
     prisma,
     accessPolicy,
     platformReferences,
@@ -424,6 +428,31 @@ describe('StorageObjectService', () => {
       ...request, usage: 'supplier_document' as const, ownerRecordType: 'supplier', ownerRecordId: 'sup_other',
       logicalTarget: 'supplier-contract:req_1:123e4567-e89b-42d3-a456-426614174000', actor: supplier,
     })).rejects.toThrow(/verified supplier|outside/);
+  });
+
+  it('resolves a signed-in supplier by persisted booking email for upload, confirmation and download', async () => {
+    const store = createStore();
+    const event = await store.prisma.opsEvent.findUnique();
+    event.supplierQuoteRequests = [{ supplierId: 'sup_1', supplier: { email: 'supplier@example.test' } }];
+    store.prisma.opsEvent.findUnique.mockResolvedValue(event);
+    const root = await mkdtemp(join(tmpdir(), 'prism-supplier-storage-'));
+    roots.push(root);
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), new LocalFileSystemStorageAdapter(root));
+    const supplier = { id: 'supplier-user', role: 'supplier', email: 'SUPPLIER@example.test', name: 'Supplier', explicit: true, verified: true } as never;
+    const declaration = { ...request, usage: 'supplier_document' as const, ownerRecordType: 'supplier', ownerRecordId: 'sup_1', logicalTarget: 'supplier-contract:req_1:123e4567-e89b-42d3-a456-426614174000' };
+    store.bookings[0].status = 'submitted';
+    await expect(service.requestUpload({ ...declaration, actor: supplier })).rejects.toThrow(/outside the verified booking/);
+    expect(store.objects).toHaveLength(0);
+    store.bookings[0].status = 'selected';
+    const requested = await service.requestUpload({ ...declaration, actor: supplier });
+    if (requested.status !== 'ready') throw new Error('expected upload location');
+    await service.writeAuthorizedUpload({ objectId: requested.object.id, uploadUrl: requested.location.uploadUrl, bytes, actor: supplier });
+    const stored = await service.confirmUpload({ objectId: requested.object.id, byteSize: bytes.byteLength, checksumSha256, actor: supplier });
+    const authorization = await service.issueDownloadAuthorization({ objectId: stored.id, actor: supplier });
+    await expect(service.readAuthorizedDownload({ objectId: stored.id, downloadUrl: authorization.downloadUrl, actor: supplier })).resolves.toEqual(bytes);
+    await expect(service.requestUpload({ ...declaration, ownerRecordId: 'sup_other', actor: supplier })).rejects.toThrow(/verified supplier/);
+    const other = { id: 'other-user', role: 'supplier', email: 'other@example.test', name: 'Other supplier', explicit: true, verified: true } as never;
+    await expect(service.issueDownloadAuthorization({ objectId: stored.id, actor: other })).rejects.toThrow(/outside.*scope/);
   });
 
   it('prevents a different actor from reusing the uploader logical target', async () => {

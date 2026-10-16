@@ -26,7 +26,7 @@ export function FilesPage({
 
   return (
     <div className="space-y-4">
-      <SupplierFileRequirementsMatrix workspace={workspace} session={session} />
+      <SupplierFileRequirementsMatrix workspace={workspace} />
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">

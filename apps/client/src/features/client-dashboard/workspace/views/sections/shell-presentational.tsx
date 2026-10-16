@@ -114,7 +114,7 @@ export function EventSummaryCard({
   briefing?: PrismBriefing;
   documentCount: number;
   onOpen: () => void;
-  onOpenFloorplan: () => void;
+  onOpenFloorplan?: () => void;
   floorplanActionLabel: string;
   className?: string;
 }) {
@@ -174,9 +174,11 @@ export function EventSummaryCard({
           <Button className="w-full rounded-lg font-bold" onClick={onOpen}>
             Open workspace <ArrowRight className="size-3.5" />
           </Button>
-          <Button variant="outline" className="w-full rounded-lg font-bold" onClick={onOpenFloorplan}>
-            {floorplanActionLabel} <MapPinned className="size-3.5" />
-          </Button>
+          {onOpenFloorplan && (
+            <Button variant="outline" className="w-full rounded-lg font-bold" onClick={onOpenFloorplan}>
+              {floorplanActionLabel} <MapPinned className="size-3.5" />
+            </Button>
+          )}
         </div>
       </div>
     </article>

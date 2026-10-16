@@ -4,11 +4,33 @@ import { actionCenterItemToDashboardAction, draftIsOfficial, type ClientDashboar
 export function selectClientEvents(
   state: Pick<PrismClientWorkspace, "events"> | null | undefined,
   session: Pick<PrismUser, "name"> | null | undefined,
+  includeArchivedEventId?: string,
 ): PrismEvent[] {
   if (!state || !session) return [];
   return state.events.filter(
-    (event) => event.clientName === session.name && !event.archived && event.clientPortalStatus === "unlocked",
+    (event) =>
+      event.clientPortalStatus === "unlocked" &&
+      (!event.archived || event.id === includeArchivedEventId),
   );
+}
+
+export function selectClientEventHistoryEvents(
+  state: Pick<PrismClientWorkspace, "events"> | null | undefined,
+  session: Pick<PrismUser, "name"> | null | undefined,
+): PrismEvent[] {
+  if (!state || !session) return [];
+  return state.events.filter((event) => event.clientPortalStatus === "unlocked");
+}
+
+export function clientEventMatchesFilter(
+  event: PrismEvent,
+  filter: "events-all" | "events-upcoming" | "events-in-planning" | "events-completed" | "events-cancelled",
+): boolean {
+  if (filter === "events-upcoming") return !event.archived && event.status !== "completed" && event.status !== "cancelled";
+  if (filter === "events-in-planning") return !event.archived && /planning|confirmed|active|pending/i.test(event.status);
+  if (filter === "events-completed") return /completed|closed|archived/i.test(event.status);
+  if (filter === "events-cancelled") return /cancelled|canceled/i.test(event.status);
+  return true;
 }
 
 export function selectSelectedClientEvent(

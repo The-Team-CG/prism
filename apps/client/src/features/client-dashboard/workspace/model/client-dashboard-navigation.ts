@@ -286,6 +286,14 @@ export function dashboardHref(route: ClientDashboardRoute, eventId?: string, por
   return `/dashboard/events/${eventId}/${EVENT_PATH_SEGMENT[route] ?? route}`;
 }
 
+export function clientEventCardOpenRoute(event: { archived: boolean }): ClientDashboardRoute {
+  return event.archived ? "summary" : "overview";
+}
+
+export function clientEventWorkspaceAvailable(event: { archived: boolean } | undefined): boolean {
+  return Boolean(event && !event.archived);
+}
+
 const LOADING_ROUTE_VARIANTS = {
   request: "request",
   events: "events",

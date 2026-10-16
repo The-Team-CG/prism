@@ -14,6 +14,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Added distinct event Files navigation, persistent client conforme entry, and floorplan load retry. Supplier task retries cannot duplicate an assignment, unchanged schedule publication preserves acknowledgments, and signed storage URLs must match the configured project and exact object path.
 - Adapted portal persistence to staging's owner schemas and transaction-aware owner capabilities. Portal database behavior suites now run in the standard isolated PostgreSQL CI job. Updated Sharp and shell-quote to patched versions required by the dependency gate. Owner D.
 
+- Fixed supplier storage identity and current contract-review status, restored existing conforme executions on dialog reopen, and linked archived client history to consent withdrawal. Owners C and D.
+
 ### Added
 
 - The API and four role portals can deploy as one Vercel project, with runtime API bindings and shared-domain portal routing.

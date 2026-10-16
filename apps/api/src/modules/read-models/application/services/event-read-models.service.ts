@@ -567,14 +567,16 @@ export class EventReadModelsService {
       .filter((request) => eventsById.has(request.eventId))
       .map((request) => {
         const event = eventsById.get(request.eventId);
-        const contractStatus = request.contractDocumentId ? 'uploaded' : 'missing';
+        const latestContractStatus = request.contractVersions?.[0]?.reviewStatus;
+        const contractStatus = latestContractStatus === 'submitted' || latestContractStatus === 'accepted' || latestContractStatus === 'changes_requested'
+          ? latestContractStatus : 'missing';
         const assignmentStatus = request.assignmentStatus ?? 'pending';
         const readinessStatus = request.readinessStatus ?? 'not_confirmed';
         const verificationStatus = request.eventDayVerificationStatus ?? 'unverified';
         const overdueUnselected = isPast(request.dueDate) && request.status !== 'selected';
         const priority: PrismCommandInboxSeverity = overdueUnselected
           ? 'critical'
-          : contractStatus === 'missing' || readinessStatus !== 'confirmed'
+          : contractStatus !== 'accepted' || readinessStatus !== 'confirmed'
             ? 'warning'
             : verificationStatus === 'rejected'
               ? 'attention'
