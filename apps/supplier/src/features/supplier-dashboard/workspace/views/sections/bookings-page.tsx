@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import {
   BadgeCheck,
   CalendarClock,
@@ -49,6 +49,7 @@ import {
   readinessTone,
 } from "../../model/supplier-workspace-rules";
 import type { PrismAuthenticatedSession } from "@prism/types";
+import type { PrismSupplierWorkflowWorkspace } from "@prism/types";
 import type { PrismSupplier, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierDashboardSection, SupplierWorkspace } from "../../model/supplier-workspace-types";
 import { useSupplierWorkspaceViewModel } from "../../view-models/use-supplier-workspace-view-model";
 
@@ -56,24 +57,33 @@ import { useSupplierWorkspaceViewModel } from "../../view-models/use-supplier-wo
 import { Card, CardBody, CardHeader, SectionAccent, StatCell } from "./shell-ui";
 
 export function BookingsPage({
-  selectedRequests, session, readinessNotes, contractFiles, statusNotes, busy,
-  onReadinessNoteChange, onContractFileChange, onStatusNoteChange,
+  selectedRequests, session, readinessNotes, workflowWorkspace, statusNotes, busy,
+  onReadinessNoteChange, onStatusNoteChange,
   onConfirmAssignment, onConfirmReadiness, onSaveContract, onUpdateStatus,
+  onAcknowledgeSchedule, onRequestScheduleChange, onUpdateProgress, onSubmitCreativeTask, onDownloadObject,
 }: {
   selectedRequests: PrismSupplierQuoteRequest[];
   session: PrismAuthenticatedSession;
   readinessNotes: Record<string, string>;
-  contractFiles: Record<string, string>;
+  workflowWorkspace: PrismSupplierWorkflowWorkspace | null;
   statusNotes: Record<string, string>;
   busy: string | null;
   onReadinessNoteChange: (id: string, v: string) => void;
-  onContractFileChange: (id: string, v: string) => void;
   onStatusNoteChange: (id: string, v: string) => void;
   onConfirmAssignment: (req: PrismSupplierQuoteRequest) => void;
   onConfirmReadiness: (req: PrismSupplierQuoteRequest) => void;
-  onSaveContract: (req: PrismSupplierQuoteRequest) => void;
+  onSaveContract: (req: PrismSupplierQuoteRequest, file: File) => void;
   onUpdateStatus: (req: PrismSupplierQuoteRequest, status: string) => void;
+  onAcknowledgeSchedule: (requestId: string, revision: number) => void;
+  onRequestScheduleChange: (requestId: string, revision: number, reason: string) => void;
+  onUpdateProgress: (taskId: string, note: string) => void;
+  onSubmitCreativeTask: (requestId: string, taskId: string, note: string, file?: File) => void;
+  onDownloadObject: (objectId: string) => void;
 }) {
+  const [contractUploads, setContractUploads] = useState<Record<string, File | null>>({});
+  const [scheduleReasons, setScheduleReasons] = useState<Record<string, string>>({});
+  const [taskNotes, setTaskNotes] = useState<Record<string, string>>({});
+  const [taskFiles, setTaskFiles] = useState<Record<string, File | null>>({});
   if (!selectedRequests.length) {
     return (
       <Card><CardBody>
@@ -134,15 +144,15 @@ export function BookingsPage({
               {/* Step 2 */}
               <div className="rounded-xl border border-border bg-muted/30 p-4">
                 <p className="text-sm font-bold text-foreground">2. Readiness &amp; contract</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">Confirm readiness and save your contract filename for PMCM records.</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">Confirm readiness and upload the signed contract for PMCM review.</p>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <label className="grid gap-1.5 text-sm font-bold text-foreground">
                     Readiness notes
                     <Input value={readinessNotes[req.id] ?? req.readinessNotes ?? ""} onChange={(e) => onReadinessNoteChange(req.id, e.target.value)} className="h-10 rounded-xl" placeholder="Setup constraints or no concerns" />
                   </label>
                   <label className="grid gap-1.5 text-sm font-bold text-foreground">
-                    Contract filename
-                    <Input value={contractFiles[req.id] ?? "supplier-contract.pdf"} onChange={(e) => onContractFileChange(req.id, e.target.value)} className="h-10 rounded-xl" placeholder="supplier-contract.pdf" />
+                    Signed contract file
+                    <Input type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(e) => setContractUploads((current) => ({ ...current, [req.id]: e.target.files?.[0] ?? null }))} className="h-10 rounded-xl pt-2" />
                   </label>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -151,11 +161,49 @@ export function BookingsPage({
                     onClick={() => onConfirmReadiness(req)} className="rounded-xl font-bold">
                     <PackageCheck className="size-4" />{req.readinessStatus === "confirmed" ? "Readiness confirmed" : "Confirm readiness"}
                   </Button>
-                  <Button type="button" size="sm" variant="outline" disabled={busy === `${req.id}:contract`} onClick={() => onSaveContract(req)} className="rounded-xl font-bold">
-                    <FileText className="size-4" /> Save contract
+                  <Button type="button" size="sm" variant="outline" disabled={!contractUploads[req.id] || busy === `${req.id}:contract`} onClick={() => { const file = contractUploads[req.id]; if (file) onSaveContract(req, file); }} className="rounded-xl font-bold">
+                    <FileText className="size-4" /> Upload contract
                   </Button>
                 </div>
+                {workflowWorkspace?.contracts.filter((contract) => contract.requestId === req.id).map((contract) => (
+                  <div key={contract.id} className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs">
+                    <span className="truncate font-semibold">v{contract.version} · {contract.fileName}</span>
+                    <span>{contract.reviewStatus.replaceAll("_", " ")}{contract.reviewReason ? ` · ${contract.reviewReason}` : ""}</span>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => onDownloadObject(contract.storedObjectId)}>Download</Button>
+                  </div>
+                ))}
               </div>
+
+              {workflowWorkspace?.schedules.filter((schedule) => schedule.requestId === req.id).map((schedule) => (
+                <div key={schedule.id} className="rounded-xl border border-border bg-muted/30 p-4">
+                  <p className="text-sm font-bold text-foreground">Supplier schedule · revision {schedule.revision}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Ingress {new Date(schedule.ingressAt).toLocaleString()} · Egress {new Date(schedule.egressAt).toLocaleString()} · {schedule.location}</p>
+                  {schedule.notes ? <p className="mt-1 text-xs text-muted-foreground">{schedule.notes}</p> : null}
+                  {schedule.acknowledgedRevision === schedule.revision ? <p className="mt-2 text-xs font-semibold text-(--prism-success)">You acknowledged this revision.</p> : (
+                    <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+                      <Input value={scheduleReasons[schedule.id] ?? ""} onChange={(e) => setScheduleReasons((current) => ({ ...current, [schedule.id]: e.target.value }))} placeholder="Reason for requested change" className="h-9 rounded-lg" />
+                      <Button type="button" size="sm" onClick={() => onAcknowledgeSchedule(req.id, schedule.revision)} className="rounded-lg">Acknowledge</Button>
+                      <Button type="button" size="sm" variant="outline" disabled={!scheduleReasons[schedule.id]?.trim()} onClick={() => onRequestScheduleChange(req.id, schedule.revision, scheduleReasons[schedule.id]!.trim())} className="rounded-lg">Request change</Button>
+                    </div>
+                  )}
+                  {schedule.changeRequestNote ? <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">Change requested: {schedule.changeRequestNote}</p> : null}
+                </div>
+              ))}
+
+              {workflowWorkspace?.creativeTasks.filter((task) => task.requestId === req.id).map((task) => (
+                <div key={task.id} className="rounded-xl border border-border bg-muted/30 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-sm font-bold">{task.title}</p><p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{task.brief}</p></div><StatusBadge status={task.status} /></div>
+                  {task.dueAt ? <p className="mt-2 text-xs text-muted-foreground">Due {new Date(task.dueAt).toLocaleString()}</p> : null}
+                  {["open", "in_progress", "changes_requested"].includes(task.status) ? <>
+                    <Input className="mt-3 h-9 rounded-lg" value={taskNotes[task.id] ?? task.supplierProgressNote} disabled={busy === `creative:${task.id}`} onChange={(e) => setTaskNotes((current) => ({ ...current, [task.id]: e.target.value }))} placeholder="Progress note for PMCM" />
+                    <div className="mt-2 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" disabled={busy === `creative:${task.id}`} onClick={() => onUpdateProgress(task.id, taskNotes[task.id] ?? task.supplierProgressNote)} className="rounded-lg">Save progress</Button>
+                    <Input type="file" disabled={busy === `creative:${task.id}`} onChange={(e) => setTaskFiles((current) => ({ ...current, [task.id]: e.target.files?.[0] ?? null }))} className="h-9 max-w-xs rounded-lg pt-1.5" />
+                    <Button type="button" size="sm" disabled={busy === `creative:${task.id}` || (!taskNotes[task.id]?.trim() && !taskFiles[task.id])} onClick={() => onSubmitCreativeTask(req.id, task.id, taskNotes[task.id] ?? "", taskFiles[task.id] ?? undefined)} className="rounded-lg">Submit deliverable</Button></div>
+                  </> : null}
+                  {task.reviewNote ? <p className="mt-2 text-xs text-muted-foreground">PMCM review: {task.reviewNote}</p> : null}
+                  {task.submissions.map((submission) => <div key={submission.id} className="mt-2 flex items-center justify-between gap-2 text-xs"><span>Submission v{submission.version} · {submission.note}</span>{submission.storedObjectId ? <Button type="button" size="sm" variant="ghost" onClick={() => onDownloadObject(submission.storedObjectId!)}>Download</Button> : null}</div>)}
+                </div>
+              ))}
 
               {/* Step 3 — event day */}
               <div className="rounded-xl border border-border bg-muted/30 p-4">

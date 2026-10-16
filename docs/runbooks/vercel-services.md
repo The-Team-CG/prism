@@ -120,9 +120,10 @@ worker runtime or adding authenticated scheduled functions are possible follow-u
 designs. Neither is configured by this change. Do not claim operational parity
 or rely on request-driven function lifetimes for scheduled work.
 
-The local filesystem storage adapter is not durable deployment storage. Use an
-external production object-storage adapter when uploads are enabled; otherwise
-keep the existing upload configuration gates.
+The local filesystem storage adapter is not durable deployment storage. The
+private Supabase adapter supports direct signed uploads and verified byte
+confirmation. Follow the [portal storage runbook](portal-storage.md) to configure
+server secrets and verify the deployed role paths before claiming activation.
 
 The existing GitHub Actions deployment workflow still targets a Render API and
 four separate Vercel projects. This single-project configuration is an additional

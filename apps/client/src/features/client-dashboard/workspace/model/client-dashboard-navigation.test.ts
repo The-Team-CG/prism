@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   activeNavItemId,
+  CLIENT_CONFORME_REVIEW_HREF,
   dashboardHref,
   dashboardLoadingVariant,
   findClientSidebarLink,
@@ -12,6 +13,7 @@ describe("client-dashboard navigation", () => {
     expect(dashboardHref("home")).toBe("/dashboard");
     expect(dashboardHref("shared-floorplans")).toBe("/dashboard/shared-floorplans");
     expect(findClientSidebarLink("shared-floorplans")?.label).toBe("Shared floorplans");
+    expect(CLIENT_CONFORME_REVIEW_HREF).toBe("/conforme");
     expect(dashboardHref("request")).toBe("/dashboard/request");
     expect(dashboardHref("events")).toBe("/dashboard/events");
     expect(dashboardHref("billing")).toBe("/dashboard/billing");

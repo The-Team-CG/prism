@@ -281,13 +281,16 @@ model OpsEventClientFloorplanAccessGrant {
       sourceFiles: {
         'apps/api/src/modules/commercial/application/quotes.service.ts': [
           'await this.prisma.$executeRaw`INSERT INTO "event_core"."events" ("id") VALUES (${id}) ON CONFLICT ("id") DO UPDATE SET "id" = EXCLUDED."id"`;',
+          'await this.prisma.$queryRaw`WITH eligible AS MATERIALIZED (SELECT "id" FROM "event_core"."events" FOR UPDATE OF "events") INSERT INTO "event_core"."events" ("id") SELECT "id" FROM eligible ON CONFLICT ("id") DO UPDATE SET "id" = EXCLUDED."id"`;',
           'await this.prisma.$queryRaw`SELECT "id" FROM "event_core"."events" FOR UPDATE`;',
           'await this.prisma.$executeRawUnsafe(sql);',
         ].join('\n'),
+        'apps/api/src/modules/event-lifecycle/application/events.service.ts':
+          'await this.prisma.$queryRaw`WITH eligible AS MATERIALIZED (SELECT "id" FROM "event_core"."events" FOR UPDATE OF "events") INSERT INTO "event_core"."events" ("id") SELECT "id" FROM eligible ON CONFLICT ("id") DO UPDATE SET "id" = EXCLUDED."id"`;',
       },
     });
 
-    assert.equal(findings.length, 2);
+    assert.equal(findings.length, 3);
     assert.ok(
       findings.some(({ targetDomain, model }) => targetDomain === 'event-lifecycle' && model === 'event_core.events'),
       JSON.stringify(findings),

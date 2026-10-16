@@ -52,7 +52,7 @@ export function SupplierFileRequirementsMatrix({
           <h2 className="text-sm font-bold text-foreground">File requirements</h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Supplier-visible requirements only. Contract binaries stay with PMCM; object storage remains gated.
+          Requirements are limited to your bookings. Upload signed contracts in Bookings; your versions and PMCM review status appear in Files.
         </p>
       </div>
       {error ? (

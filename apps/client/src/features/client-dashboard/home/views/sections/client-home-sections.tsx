@@ -43,12 +43,14 @@ export function ClientHomeGreeting({
   daysToEvent,
   onRequest,
   onEvents,
+  onReviewConforme,
 }: {
   sessionName: string;
   eventCount: number;
   daysToEvent: number | null;
   onRequest: () => void;
   onEvents: () => void;
+  onReviewConforme: () => void;
 }) {
   return (
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[var(--prism-signal)] to-[#8b0f48] px-6 py-7 text-white shadow-lg sm:px-8 sm:py-8">
@@ -62,7 +64,7 @@ export function ClientHomeGreeting({
             <p className="mt-2 max-w-xl text-sm leading-6 text-white/80">
               {eventCount > 0
                 ? `You have ${eventCount} active event${eventCount === 1 ? "" : "s"} with PMCM. Select an event to review approvals, documents, billing, and planning updates.`
-                : "Your portal opens once PMCM accepts your inquiry and records the signed conforme."}
+                : "Your event workspace opens after PMCM accepts your inquiry and both you and PMCM acknowledge the conforme. Review it here when PMCM has prepared it."}
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
               <Button
@@ -80,6 +82,13 @@ export function ClientHomeGreeting({
                   My events <ArrowRight className="size-4" />
                 </Button>
               ) : null}
+              <Button
+                variant="ghost"
+                className="rounded-lg font-semibold text-white hover:bg-white/15 hover:text-white"
+                onClick={onReviewConforme}
+              >
+                Review conforme <ArrowRight className="size-4" />
+              </Button>
             </div>
           </div>
           {daysToEvent !== null ? (
@@ -232,7 +241,7 @@ export function ClientHomeEvents({
         </span>
         <h3 className="mt-4 text-base font-black text-foreground">No events yet.</h3>
         <p className="mt-2 max-w-sm mx-auto text-sm leading-6 text-muted-foreground">
-          Your event workspace opens after PMCM accepts your inquiry and records the signed conforme. Submit a request to get started.
+          Your event workspace opens after PMCM accepts your inquiry and both you and PMCM acknowledge the conforme. If PMCM has prepared one, review it here; otherwise, submit a request to get started.
         </p>
         <Button className="mt-5 rounded-lg font-bold" onClick={onRequest}>
           <Send className="size-4" /> Submit an event request

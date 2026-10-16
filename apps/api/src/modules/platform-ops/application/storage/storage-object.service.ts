@@ -1,23 +1,27 @@
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
-import type { OpsStoredObject } from '@prisma/client';
+import type { OpsStoredObject, Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '@prism/kernel/database';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { OpsUserRole, type OpsUserRole as OpsUserRoleValue } from '@prism/kernel/event-core';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
-import type { PrismEventGameLobbyLogoUploadTicket, PrismEventGameMediaAuthorization, PrismEventGameMediaUploadTicket, PrismStoredObject, StorageUsage } from '@prism/types';
+import type { PrismEventGameLobbyLogoUploadTicket, PrismEventGameMediaAuthorization, PrismEventGameMediaUploadTicket, PrismStorageDownloadAuthorization, PrismStoredObject, StorageUsage } from '@prism/types';
 import { PLATFORM_REFERENCE_READ_MODEL, type PlatformReferenceReadModel } from '@prism/contexts/read-models';
 import {
   STORAGE_ADAPTER,
   type StorageAdapter,
   type StorageAdapterRequest,
-  type StorageDownloadAuthorization,
   type StorageRequestResult,
   type StorageServiceConfirmation,
+  type StorageServiceByteDownload,
+  type StorageServiceByteUpload,
   type StorageServiceDeletion,
   type StorageServiceDownload,
   type StorageServiceRequest,
   type StorageUploadLocation,
+  type StoredSupplierUploadLookup,
+  type StoredSupplierUploadReader,
+  type StoredSupplierUploadReference,
 } from '../../contracts/storage/storage.port';
 import { StorageValidationService } from './storage-validation.service';
 
@@ -27,16 +31,40 @@ export const STORAGE_RETENTION_POLICY_SEAM = 'Retention and legal-hold policy is
 // This allowlist does not validate target-row existence; each owner capability must do that.
 const STORAGE_OWNER_USAGE_REGISTRY: Readonly<Record<string, readonly StorageUsage[]>> = {
   billing_statement: ['event_deliverable'],
+  event: ['client_document', 'signed_conforme'],
   event_game_definition: ['event_game_media'],
   event_game_lobby: ['event_game_branding'],
+  supplier: ['supplier_document'],
 };
+
+function isConfirmedSupplierUpload(object: OpsStoredObject | null, input: StoredSupplierUploadLookup): object is OpsStoredObject {
+  if (!object) return false;
+  const targetSuffix = object.logicalTarget.slice(input.logicalTargetPrefix.length);
+  const validTarget = object.logicalTarget.startsWith(input.logicalTargetPrefix) &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(targetSuffix);
+  const validChecksum = !input.checksumSha256 || object.checksumSha256.toLowerCase() === input.checksumSha256.toLowerCase();
+  return object.eventId === input.eventId && object.usage === 'supplier_document' &&
+    object.ownerRecordType === 'supplier' && object.ownerRecordId === input.supplierId &&
+    object.lifecycleState === 'stored' && validTarget && validChecksum;
+}
 
 function isSupportedStorageOwner(ownerRecordType: string, usage: string) {
   return STORAGE_OWNER_USAGE_REGISTRY[ownerRecordType]?.includes(usage as StorageUsage) ?? false;
 }
 
+function sameUploadOwnerAndActor(object: OpsStoredObject, input: StorageServiceRequest) {
+  return object.eventId === input.eventId && object.ownerRecordType === input.ownerRecordType &&
+    object.ownerRecordId === input.ownerRecordId && object.uploaderActorId === (input.actor.id ?? 'unknown') &&
+    object.uploaderActorRole === input.actor.role && object.usage === input.usage && object.logicalTarget === input.logicalTarget;
+}
+
+function sameUploadContent(object: OpsStoredObject, input: StorageServiceRequest, declaration: ReturnType<StorageValidationService['validateDeclaration']>) {
+  return object.contentType === declaration.contentType && object.declaredByteSize === declaration.byteSize &&
+    object.checksumSha256 === declaration.checksumSha256 && object.eventId === input.eventId;
+}
+
 @Injectable()
-export class StorageObjectService {
+export class StorageObjectService implements StoredSupplierUploadReader {
   constructor(
     private readonly prisma: PrismaService,
     private readonly accessPolicy: EventAccessPolicyService,
@@ -44,6 +72,18 @@ export class StorageObjectService {
     @Optional() @Inject(STORAGE_ADAPTER) private readonly adapter?: StorageAdapter,
     @Optional() @Inject(PLATFORM_REFERENCE_READ_MODEL) private readonly platformReferences?: PlatformReferenceReadModel,
   ) {}
+
+  async findConfirmedSupplierUpload(input: StoredSupplierUploadLookup): Promise<StoredSupplierUploadReference | null> {
+    const object = await this.prisma.opsStoredObject.findUnique({ where: { id: input.objectId } });
+    if (!isConfirmedSupplierUpload(object, input)) return null;
+    return {
+      id: object.id,
+      originalFileName: object.originalFileName,
+      contentType: object.contentType,
+      declaredByteSize: object.declaredByteSize,
+      checksumSha256: object.checksumSha256,
+    };
+  }
 
   async requestUpload(input: StorageServiceRequest): Promise<StorageRequestResult> {
     if (input.usage === 'event_game_media') {
@@ -59,18 +99,22 @@ export class StorageObjectService {
     this.assertSupportedOwner(input.ownerRecordType, input.usage);
     const prisma = this.database(input.context);
     await this.authorizeEvent(input.eventId, input.actor, input.usage, 'request storage upload');
+    await this.assertUploadOwner(input);
     const declaration = this.declaration(input);
     const objectId = `obj_${randomUUID()}`;
     const providerObjectKey = this.providerObjectKey(input.eventId, input.usage, objectId, declaration.fileName);
     const existing = await this.findExisting(input, input.context);
-    if (existing) this.assertSameLogicalContent(existing, input, declaration);
+    if (existing) {
+      this.assertSameLogicalContent(existing, input, declaration);
+      await this.assertCanAccessObject(input.actor, existing, 'reuse storage upload');
+    }
     if (existing?.lifecycleState === 'stored') return { status: 'stored', object: this.mapObject(existing) };
     if (!this.adapter) return this.recordUnavailable(input, declaration, objectId, providerObjectKey);
     const adapterInput = this.adapterRequestForDeclaration(input, declaration, objectId, providerObjectKey, existing);
     const location = await this.requestLocation(adapterInput);
     if (!location) return this.recordUnavailable(input, declaration, objectId, providerObjectKey, 'Storage provider could not issue an upload location');
-    if (existing) return this.resumeRequest(prisma, existing, location);
-    return this.createRequest(prisma, input, declaration, objectId, location);
+    if (existing) return this.resumeRequest(existing, location, input.context);
+    return this.createRequest(input, declaration, objectId, location);
   }
 
   async requestEventGameLobbyLogoUpload(input: StorageServiceRequest): Promise<PrismEventGameLobbyLogoUploadTicket> {
@@ -155,11 +199,12 @@ export class StorageObjectService {
     });
     this.assertSupportedOwner(current.ownerRecordType, current.usage);
     await this.authorizeEvent(current.eventId, input.actor, current.usage as StorageServiceRequest['usage'], 'confirm storage upload');
+    await this.assertCanAccessObject(input.actor, current, 'confirm storage upload');
     if (current.lifecycleState === 'stored') return this.confirmAlreadyStored(current, input);
     if (current.lifecycleState !== 'requested') throw new ConflictException('Only a requested upload can be confirmed');
     this.assertConfirmationDeclaration(current, input);
     const confirmation = await this.confirmWithAdapter(current, input);
-    return this.persistStored(current, confirmation, prisma);
+    return this.persistStored(current, confirmation, input.context);
   }
 
   async confirmEventGameLobbyLogoUpload(
@@ -219,26 +264,48 @@ export class StorageObjectService {
     return { status: 'failed', object, reason };
   }
 
-  private async resumeRequest(prisma: ReturnType<StorageObjectService['database']>, existing: OpsStoredObject, location: StorageUploadLocation): Promise<StorageRequestResult> {
-    if (existing.lifecycleState === 'requested') return { status: 'ready', object: this.mapObject(existing), location };
-    const replaced = await prisma.opsStoredObject.update({ where: { id: existing.id }, data: { lifecycleState: 'requested', providerName: location.providerName, providerObjectKey: location.providerObjectKey, failureReason: null, failedAt: null, deletedAt: null, requestedAt: new Date() } });
-    return { status: 'ready', object: this.mapObject(replaced), location };
+  private async resumeRequest(existing: OpsStoredObject, location: StorageUploadLocation, context?: PrismTransactionContext): Promise<StorageRequestResult> {
+    return this.withWritableEventLock(existing.eventId, async (prisma) => {
+      const current = await prisma.opsStoredObject.findUnique({ where: { id: existing.id } });
+      if (!current) throw new NotFoundException('Stored object not found');
+      if (current.lifecycleState === 'stored') return { status: 'stored', object: this.mapObject(current) };
+      if (current.lifecycleState === 'requested') {
+        if (current.providerObjectKey !== location.providerObjectKey || current.providerName !== location.providerName) {
+          throw new ConflictException('Upload request changed while preparing storage authorization; retry');
+        }
+        return { status: 'ready', object: this.mapObject(current), location };
+      }
+      if (current.lifecycleState !== 'failed') throw new ConflictException('Only a failed storage request can be resumed');
+      const replaced = await prisma.opsStoredObject.update({ where: { id: current.id }, data: { lifecycleState: 'requested', providerName: location.providerName, providerObjectKey: location.providerObjectKey, failureReason: null, failedAt: null, deletedAt: null, requestedAt: new Date() } });
+      return { status: 'ready', object: this.mapObject(replaced), location };
+    }, context);
   }
 
-  private async createRequest(prisma: ReturnType<StorageObjectService['database']>, input: StorageServiceRequest, declaration: ReturnType<StorageValidationService['validateDeclaration']>, objectId: string, location: StorageUploadLocation): Promise<StorageRequestResult> {
+  private async createRequest(input: StorageServiceRequest, declaration: ReturnType<StorageValidationService['validateDeclaration']>, objectId: string, location: StorageUploadLocation): Promise<StorageRequestResult> {
     try {
-      const object = await prisma.opsStoredObject.create({ data: { id: objectId, eventId: input.eventId, ownerRecordType: input.ownerRecordType, ownerRecordId: input.ownerRecordId, usage: input.usage, logicalTarget: input.logicalTarget, originalFileName: declaration.fileName, contentType: declaration.contentType, declaredByteSize: declaration.byteSize, checksumSha256: declaration.checksumSha256, uploaderActorId: input.actor.id ?? 'unknown', uploaderActorRole: input.actor.role, lifecycleState: 'requested', providerName: location.providerName, providerObjectKey: location.providerObjectKey, idempotencyKey: input.idempotencyKey ?? null } });
+      const object = await this.withWritableEventLock(input.eventId, (lockedPrisma) => lockedPrisma.opsStoredObject.create({
+        data: {
+          id: objectId, eventId: input.eventId, ownerRecordType: input.ownerRecordType, ownerRecordId: input.ownerRecordId,
+          usage: input.usage, logicalTarget: input.logicalTarget, originalFileName: declaration.fileName,
+          contentType: declaration.contentType, declaredByteSize: declaration.byteSize, checksumSha256: declaration.checksumSha256,
+          uploaderActorId: input.actor.id ?? 'unknown', uploaderActorRole: input.actor.role, lifecycleState: 'requested',
+          providerName: location.providerName, providerObjectKey: location.providerObjectKey, idempotencyKey: input.idempotencyKey ?? null,
+        },
+      }), input.context);
       return { status: 'ready', object: this.mapObject(object), location };
     } catch (error) {
       const race = await this.findExisting(input, input.context);
       if (!race) throw error;
       this.assertSameLogicalContent(race, input, declaration);
+      await this.assertCanAccessObject(input.actor, race, 'reuse storage upload');
       if (race.lifecycleState === 'stored') return { status: 'stored', object: this.mapObject(race) };
-      return { status: 'ready', object: this.mapObject(race), location };
+      const raceLocation = await this.requestLocation(this.adapterRequest(race));
+      if (!raceLocation) throw new ServiceUnavailableException('Storage provider could not issue an upload location for the existing object');
+      return this.resumeRequest(race, raceLocation, input.context);
     }
   }
 
-  async issueDownloadAuthorization(input: StorageServiceDownload): Promise<StorageDownloadAuthorization> {
+  async issueDownloadAuthorization(input: StorageServiceDownload): Promise<PrismStorageDownloadAuthorization> {
     const object = await this.prisma.opsStoredObject.findUnique({ where: { id: input.objectId } });
     if (!object) throw new NotFoundException('Stored object not found');
     if (object.usage === 'event_game_media' || object.usage === 'event_game_branding') {
@@ -246,10 +313,60 @@ export class StorageObjectService {
     }
     this.assertSupportedOwner(object.ownerRecordType, object.usage);
     await this.authorizeEvent(object.eventId, input.actor, object.usage as StorageServiceRequest['usage'], 'download storage object');
+    await this.assertCanAccessObject(input.actor, object, 'download storage object');
     if (object.lifecycleState !== 'stored' || !object.providerObjectKey || !this.adapter) {
       throw new ServiceUnavailableException(object.lifecycleState === 'stored' ? 'Storage provider is not configured' : 'Stored object is not available');
     }
-    return this.adapter.issueDownloadAuthorization(this.adapterRequest(object));
+    const authorization = await this.adapter.issueDownloadAuthorization(this.adapterRequest(object));
+    return {
+      ...authorization,
+      expiresAt: authorization.expiresAt.toISOString(),
+      fileName: object.originalFileName,
+      contentType: object.contentType,
+      byteSize: object.declaredByteSize,
+    };
+  }
+
+  async writeAuthorizedUpload(input: StorageServiceByteUpload): Promise<void> {
+    const object = await this.prisma.opsStoredObject.findUnique({ where: { id: input.objectId } });
+    if (!object) throw new NotFoundException('Stored object not found');
+    await this.authorizeEvent(object.eventId, input.actor, object.usage as StorageServiceRequest['usage'], 'confirm storage upload');
+    await this.assertCanAccessObject(input.actor, object, 'write storage bytes');
+    if (object.lifecycleState !== 'requested') throw new ConflictException('Only a requested upload can receive bytes');
+    if (!this.adapter?.writeAuthorizedUpload) throw new ServiceUnavailableException('This storage provider requires a direct HTTP upload');
+    const usage = object.usage as StorageServiceRequest['usage'];
+    const declaration = this.validation.validateBytes({
+      fileName: object.originalFileName,
+      contentType: object.contentType,
+      byteSize: object.declaredByteSize,
+      usage,
+      checksumSha256: object.checksumSha256,
+    }, input.bytes);
+    const validAuthorization = input.uploadUrl.startsWith('localfs://upload/') || input.uploadUrl === `prismapi://upload/${object.id}`;
+    if (!validAuthorization) throw new ForbiddenException('Upload authorization is invalid');
+    await this.adapter.writeAuthorizedUpload(input.uploadUrl, object.providerObjectKey ?? '', object.contentType, input.bytes);
+    // Persist the checksum-bound metadata declaration before the later confirmation call.
+    if (declaration.checksumSha256 !== object.checksumSha256) throw new ConflictException('Uploaded bytes do not match the declaration');
+  }
+
+  async readAuthorizedDownload(input: StorageServiceByteDownload): Promise<Uint8Array> {
+    const object = await this.prisma.opsStoredObject.findUnique({ where: { id: input.objectId } });
+    if (!object) throw new NotFoundException('Stored object not found');
+    await this.authorizeEvent(object.eventId, input.actor, object.usage as StorageServiceRequest['usage'], 'download storage object');
+    await this.assertCanAccessObject(input.actor, object, 'download storage object');
+    if (object.lifecycleState !== 'stored' || !this.adapter?.readAuthorizedDownload) {
+      throw new ServiceUnavailableException(object.lifecycleState === 'stored' ? 'This storage provider requires a direct HTTP download' : 'Stored object is not available');
+    }
+    if (!input.downloadUrl.startsWith('localfs://download/')) throw new ForbiddenException('Download authorization is invalid');
+    const bytes = await this.adapter.readAuthorizedDownload(input.downloadUrl, object.providerObjectKey ?? '');
+    this.validation.validateBytes({
+      fileName: object.originalFileName,
+      contentType: object.contentType,
+      byteSize: object.declaredByteSize,
+      usage: object.usage as StorageServiceRequest['usage'],
+      checksumSha256: object.checksumSha256,
+    }, bytes);
+    return bytes;
   }
 
   async validateEventGameMediaReferences(
@@ -402,6 +519,7 @@ export class StorageObjectService {
     const objects = await this.prisma.opsStoredObject.findMany({
       where: { eventId, lifecycleState: { in: ['requested', 'stored', 'failed'] } },
       orderBy: { createdAt: 'desc' },
+      take: 500,
     });
     return objects
       .filter((object) => this.canSeeObject(actor, object))
@@ -417,6 +535,7 @@ export class StorageObjectService {
 
   private canSeeObjectByUsage(actor: ResolvedEventOpsActor, object: OpsStoredObject) {
     if (object.usage === 'signed_conforme') return actor.role === OpsUserRole.Client;
+    if (object.usage === 'client_document') return actor.role === OpsUserRole.Client || actor.role === OpsUserRole.Coordinator;
     if (object.usage === 'event_deliverable') return actor.role === OpsUserRole.Client || actor.role === OpsUserRole.Coordinator;
     if (object.usage === 'supplier_document') return actor.role === OpsUserRole.Supplier && object.ownerRecordId === actor.supplierId;
     return false;
@@ -428,6 +547,49 @@ export class StorageObjectService {
     }
   }
 
+  private async assertCanAccessObject(actor: ResolvedEventOpsActor, object: OpsStoredObject, resource: string) {
+    if (!this.canSeeObject(actor, object)) {
+      await this.accessPolicy.recordForbiddenAccess(actor, resource, object.eventId);
+      throw new ForbiddenException('Stored object is outside the actor role scope');
+    }
+  }
+
+  private async assertUploadOwner(input: StorageServiceRequest) {
+    if (input.usage === 'supplier_document') await this.assertSupplierUploadOwner(input);
+    if (input.usage === 'client_document' || input.usage === 'signed_conforme') await this.assertClientUploadOwner(input);
+  }
+
+  private async assertSupplierUploadOwner(input: StorageServiceRequest) {
+    const actor = input.actor;
+    if (input.ownerRecordType !== 'supplier') throw new BadRequestException('Supplier documents must belong to a supplier');
+    const match = /^supplier-(contract|creative):([A-Za-z0-9_-]{1,100}):([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.exec(input.logicalTarget);
+    if (!match) throw new ForbiddenException('Supplier document target is outside the verified booking');
+    const request = await this.prisma.opsSupplierQuoteRequest.findFirst({
+      where: { id: match[2], eventId: input.eventId, supplierId: input.ownerRecordId }, select: { id: true },
+    });
+    if (!request) throw new ForbiddenException('Supplier document target is outside the verified booking');
+    await this.assertCreativeTaskOwner(input, match);
+    if (actor.role === OpsUserRole.Supplier && (!actor.supplierId || input.ownerRecordId !== actor.supplierId)) {
+      await this.accessPolicy.recordForbiddenAccess(actor, 'request supplier document upload', input.eventId);
+      throw new ForbiddenException('Supplier documents must belong to the verified supplier');
+    }
+  }
+
+  private async assertCreativeTaskOwner(input: StorageServiceRequest, match: RegExpExecArray) {
+    if (match[1].toLowerCase() !== 'creative') return;
+    const task = await this.prisma.opsSupplierCreativeTask.findFirst({
+      where: { requestId: match[2], eventId: input.eventId, supplierId: input.ownerRecordId }, select: { id: true },
+    });
+    if (!task) throw new ForbiddenException('Supplier creative upload is outside the verified task');
+  }
+
+  private async assertClientUploadOwner(input: StorageServiceRequest) {
+    const target = new RegExp(`^client-upload:${input.eventId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}:([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$`, 'i');
+    if (input.ownerRecordType === 'event' && input.ownerRecordId === input.eventId && target.test(input.logicalTarget)) return;
+    if (input.actor.role === OpsUserRole.Client) await this.accessPolicy.recordForbiddenAccess(input.actor, 'request client document upload', input.eventId);
+    throw new ForbiddenException('Client documents must target the current event');
+  }
+
   async deleteObject(input: StorageServiceDeletion): Promise<PrismStoredObject> {
     const prisma = this.database(input.context);
     const object = await prisma.opsStoredObject.findUnique({ where: { id: input.objectId } });
@@ -435,6 +597,9 @@ export class StorageObjectService {
     this.assertSupportedOwner(object.ownerRecordType, object.usage);
     await this.accessPolicy.requireActorRole(input.actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'delete storage object', object.eventId);
     if (object.lifecycleState === 'deleted') return this.mapObject(object);
+    if (object.ownerRecordType === 'supplier' && object.usage === 'supplier_document') {
+      throw new ConflictException('Supplier workflow evidence is immutable; submit a new version instead');
+    }
     if (object.lifecycleState !== 'stored') throw new ConflictException('Only a stored object can be deleted');
     if (!this.adapter) throw new ServiceUnavailableException('Storage provider is not configured');
     await this.adapter.deleteObject({ objectId: object.id, providerObjectKey: object.providerObjectKey ?? '' });
@@ -453,6 +618,7 @@ export class StorageObjectService {
     if (upload) await this.requireUploadRole(actor, usage, resource, eventId);
     if (!upload && usage === 'supplier_document') await this.requireSupplierDocumentRole(actor, resource, eventId);
     const event = await this.findEvent(eventId);
+    if (upload && event.archived) throw new ConflictException('Archived events do not accept file uploads');
     if (this.canSkipEventRead(actor, usage, upload)) return;
     await this.accessPolicy.requireCanReadEvent(actor, event, resource, { supplierEventIds: this.supplierEventScope(actor, event.id, event.supplierIds) });
   }
@@ -470,6 +636,7 @@ export class StorageObjectService {
   private async requireUploadRole(actor: ResolvedEventOpsActor, usage: StorageServiceRequest['usage'], resource: string, eventId: string) {
     const roles: Record<StorageServiceRequest['usage'], OpsUserRoleValue[]> = {
       signed_conforme: [OpsUserRole.PmcmAdmin, OpsUserRole.Client],
+      client_document: [OpsUserRole.PmcmAdmin, OpsUserRole.Client],
       supplier_document: [OpsUserRole.PmcmAdmin, OpsUserRole.Supplier],
       guest_feedback_media: [OpsUserRole.PmcmAdmin, OpsUserRole.Guest],
       event_deliverable: [OpsUserRole.PmcmAdmin, OpsUserRole.Coordinator, OpsUserRole.System],
@@ -558,6 +725,14 @@ export class StorageObjectService {
       }
     }
     const confirmation = await this.adapter.confirmUpload({ objectId: object.id, eventId: object.eventId, usage, contentType: object.contentType, byteSize: object.declaredByteSize, checksumSha256: object.checksumSha256, providerObjectKey: object.providerObjectKey ?? '', bytes: input.bytes });
+    if (confirmation.observedBytes) {
+      try {
+        this.validation.validateBytes({ ...declaration, usage }, confirmation.observedBytes);
+      } catch (error) {
+        await this.markFailed(object.id, error instanceof Error ? error.message : 'Provider bytes failed validation', input.context);
+        throw error;
+      }
+    }
     if (confirmation.byteSize !== object.declaredByteSize || confirmation.checksumSha256.toLowerCase() !== object.checksumSha256) {
       await this.markFailed(object.id, 'Storage provider returned bytes that do not match the declaration', input.context);
       throw new ConflictException('Storage provider returned bytes that do not match the declaration');
@@ -565,11 +740,25 @@ export class StorageObjectService {
     return confirmation;
   }
 
-  private async persistStored(object: OpsStoredObject, confirmation: { providerName: string; providerObjectKey: string }, prisma: ReturnType<StorageObjectService['database']>) {
-    const updated = await prisma.opsStoredObject.updateMany({ where: { id: object.id, lifecycleState: 'requested' }, data: { lifecycleState: 'stored', providerName: confirmation.providerName, providerObjectKey: confirmation.providerObjectKey, storedAt: new Date(), failureReason: null } });
-    const saved = await prisma.opsStoredObject.findUniqueOrThrow({ where: { id: object.id } });
-    if (updated.count !== 1 && saved.lifecycleState !== 'stored') throw new ConflictException('Storage object state changed; refresh before confirming');
-    return this.mapObject(saved);
+  private async persistStored(object: OpsStoredObject, confirmation: { providerName: string; providerObjectKey: string }, context?: PrismTransactionContext) {
+    return this.withWritableEventLock(object.eventId, async (prisma) => {
+      const updated = await prisma.opsStoredObject.updateMany({ where: { id: object.id, lifecycleState: 'requested', providerObjectKey: object.providerObjectKey }, data: { lifecycleState: 'stored', providerName: confirmation.providerName, providerObjectKey: confirmation.providerObjectKey, storedAt: new Date(), failureReason: null } });
+      const saved = await prisma.opsStoredObject.findUniqueOrThrow({ where: { id: object.id } });
+      if (updated.count !== 1 && saved.lifecycleState !== 'stored') throw new ConflictException('Storage object state changed; refresh before confirming');
+      return this.mapObject(saved);
+    }, context);
+  }
+
+  private async withWritableEventLock<T>(eventId: string, operation: (prisma: Prisma.TransactionClient) => Promise<T>, context?: PrismTransactionContext): Promise<T> {
+    const run = async (prisma: Prisma.TransactionClient) => {
+      if (!this.platformReferences) throw new ServiceUnavailableException('Event access read model is unavailable');
+      const event = await this.platformReferences.findStorageEventScope(eventId, { prisma, correlationId: `storage-event:${eventId}` });
+      if (!event) throw new NotFoundException('Event not found');
+      if (event.archived) throw new ConflictException('Archived events do not accept file uploads');
+      return operation(prisma);
+    };
+    if (context) return run(context.prisma);
+    return this.prisma.$transaction((tx) => run(tx));
   }
 
   private findExisting(input: Pick<StorageServiceRequest, 'eventId' | 'usage' | 'logicalTarget' | 'idempotencyKey'>, context?: PrismTransactionContext) {
@@ -583,7 +772,7 @@ export class StorageObjectService {
 
   private assertSameLogicalContent(object: OpsStoredObject, input: StorageServiceRequest, declaration: ReturnType<StorageValidationService['validateDeclaration']>) {
     this.assertSupportedOwner(object.ownerRecordType, object.usage);
-    if (object.eventId !== input.eventId || object.ownerRecordType !== input.ownerRecordType || object.ownerRecordId !== input.ownerRecordId || object.usage !== input.usage || object.logicalTarget !== input.logicalTarget || object.contentType !== declaration.contentType || object.declaredByteSize !== declaration.byteSize || object.checksumSha256 !== declaration.checksumSha256) {
+    if (!sameUploadOwnerAndActor(object, input) || !sameUploadContent(object, input, declaration)) {
       throw new ConflictException('Storage logical target is already bound to different content');
     }
   }

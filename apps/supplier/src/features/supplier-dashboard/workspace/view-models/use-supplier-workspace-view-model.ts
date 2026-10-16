@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PrismAuthenticatedSession } from "@prism/types";
+import type { PrismSupplierWorkflowWorkspace } from "@prism/types";
 import {
   deriveWorkspace,
   initialForm,
@@ -21,13 +22,18 @@ import type {
 import {
   confirmSupplierAssignment,
   confirmSupplierReadiness,
+  acknowledgeSupplierSchedule,
   loadSupplierDashboardSession,
   loadSupplierWorkspace,
+  requestSupplierScheduleChange,
   saveSupplierContract,
+  submitSupplierCreativeTask,
   signOutSupplier,
   submitOrReviseQuote,
   updateSupplierEventStatus,
+  updateSupplierCreativeProgress,
 } from "../use-cases/supplier-workspace-actions";
+import { supplierWorkflowRepository } from "../data/supplier-workflow-repository";
 
 export function useSupplierWorkspaceViewModel() {
   const router = useRouter();
@@ -36,11 +42,11 @@ export function useSupplierWorkspaceViewModel() {
   const [readinessBoard, setReadinessBoard] = useState<PrismSupplierReadinessBoard | null>(
     null,
   );
+  const [workflowWorkspace, setWorkflowWorkspace] = useState<PrismSupplierWorkflowWorkspace | null>(null);
   const [section, setSection] = useState<SupplierDashboardSection>("dashboard");
   const [forms, setForms] = useState<Record<string, QuoteFormState>>({});
   const [readinessNotes, setReadinessNotes] = useState<Record<string, string>>({});
   const [statusNotes, setStatusNotes] = useState<Record<string, string>>({});
-  const [contractFiles, setContractFiles] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -62,6 +68,7 @@ export function useSupplierWorkspaceViewModel() {
       const next = await loadSupplierWorkspace(current);
       setWorkspace(next.workspace);
       setReadinessBoard(next.readinessBoard);
+      setWorkflowWorkspace(next.workflows);
       setForms((existing) => mergeQuoteForms(existing, next.workspace));
     } catch (err) {
       setError(mapSupplierWorkspaceError(err));
@@ -141,13 +148,13 @@ export function useSupplierWorkspaceViewModel() {
   return {
     session,
     workspace,
+    workflowWorkspace,
     readinessBoard,
     section,
     setSection,
     forms,
     readinessNotes,
     statusNotes,
-    contractFiles,
     error,
     notice,
     busy,
@@ -158,8 +165,6 @@ export function useSupplierWorkspaceViewModel() {
     submitQuote,
     setReadinessNote: (id: string, v: string) =>
       setReadinessNotes((c) => ({ ...c, [id]: v })),
-    setContractFile: (id: string, v: string) =>
-      setContractFiles((c) => ({ ...c, [id]: v })),
     setStatusNote: (id: string, v: string) =>
       setStatusNotes((c) => ({ ...c, [id]: v })),
     confirmAssignment: (req: PrismSupplierQuoteRequest) =>
@@ -174,19 +179,39 @@ export function useSupplierWorkspaceViewModel() {
           readinessNotes[req.id] ?? req.readinessNotes ?? "",
         ),
       ),
-    saveContract: (req: PrismSupplierQuoteRequest) => {
-      const fileName = contractFiles[req.id] ?? "supplier-contract.pdf";
-      const fingerprint = JSON.stringify([req.id, fileName.trim()]);
-      const existing = contractSubmissionKeys.current[req.id];
-      const key = existing?.fingerprint === fingerprint
-        ? existing.key
-        : `supplier-contract:${globalThis.crypto.randomUUID()}`;
-      contractSubmissionKeys.current[req.id] = { fingerprint, key };
-      return runAction(req, "contract", async () => {
-        const result = await saveSupplierContract(session!, req, fileName, key);
-        delete contractSubmissionKeys.current[req.id];
-        return result;
-      });
+    saveContract: (req: PrismSupplierQuoteRequest, file: File) =>
+      runAction(req, "contract", () =>
+        saveSupplierContract(
+          session!,
+          workspace!.supplier,
+          req,
+          file,
+        ),
+      ),
+    acknowledgeSchedule: (requestId: string, revision: number) =>
+      runWorkflowAction(`schedule:${requestId}`, () => acknowledgeSupplierSchedule(session!, requestId, revision)),
+    requestScheduleChange: (requestId: string, revision: number, reason: string) =>
+      runWorkflowAction(`schedule:${requestId}`, () => requestSupplierScheduleChange(session!, requestId, revision, reason)),
+    updateCreativeProgress: (taskId: string, note: string) =>
+      runWorkflowAction(`creative:${taskId}`, () => updateSupplierCreativeProgress(session!, taskId, note)),
+    submitCreativeTask: (requestId: string, taskId: string, note: string, file?: File) => {
+      const request = workspace?.quoteRequests.find((item) => item.id === requestId);
+      if (!request || !workspace || !session) return;
+      return runWorkflowAction(`creative:${taskId}`, () => submitSupplierCreativeTask(session, workspace.supplier, request, taskId, note, file));
+    },
+    downloadObject: async (objectId: string) => {
+      if (!session) return;
+      try {
+        const download = await supplierWorkflowRepository.download(session, objectId);
+        const url = URL.createObjectURL(download.blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = download.fileName;
+        link.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        setError(mapSupplierWorkspaceError(err, "Unable to download file"));
+      }
     },
     updateStatus: (req: PrismSupplierQuoteRequest, status: string) =>
       runAction(req, status, () =>
@@ -201,4 +226,19 @@ export function useSupplierWorkspaceViewModel() {
     signOut,
     goToSignIn: () => router.replace("/sign-in"),
   };
+
+  async function runWorkflowAction(key: string, task: () => Promise<{ notice: string }>) {
+    setBusy(key);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await task();
+      setNotice(result.notice);
+      await refresh();
+    } catch (err) {
+      setError(mapSupplierWorkspaceError(err, "Action failed"));
+    } finally {
+      setBusy(null);
+    }
+  }
 }

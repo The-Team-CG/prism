@@ -125,7 +125,7 @@ describe("findBoundaryViolations", () => {
     assert.deepEqual(violations, []);
   });
 
-  it("allows only the focused closeout read entrypoint, not its private implementation", () => {
+  it("allows only the focused read entrypoints, not their private implementations", () => {
     const path = 'apps/api/src/modules/event-lifecycle/application/files/matrix.service.ts';
     assert.deepEqual(findBoundaryViolations({ [path]:
       'import { readUnresolvedCloseoutIssues } from "@prism/contexts/read-models/closeout";',
@@ -133,7 +133,10 @@ describe("findBoundaryViolations", () => {
     assert.deepEqual(findBoundaryViolations({ [path]:
       'import { readEventAccessScope } from "@prism/contexts/read-models/event-scope";',
     }), []);
-    for (const imported of ['@prism/contexts/read-models/application/queries/closeout-issue-reader', '@prism/contexts/read-models/closeout/private', '@prism/contexts/read-models/event-scope/private']) {
+    assert.deepEqual(findBoundaryViolations({ [path]:
+      'import { readStoredConformeEvidence } from "@prism/contexts/read-models/file-evidence";',
+    }), []);
+    for (const imported of ['@prism/contexts/read-models/application/queries/closeout-issue-reader', '@prism/contexts/read-models/closeout/private', '@prism/contexts/read-models/event-scope/private', '@prism/contexts/read-models/file-evidence/private']) {
       assert.deepEqual(findBoundaryViolations({ [path]: `import { reader } from "${imported}";` }), [
         `${path}: backend code must use public context and kernel entrypoints`,
       ]);

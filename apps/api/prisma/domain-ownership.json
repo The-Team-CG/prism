@@ -1,10 +1,10 @@
 {
   "summary": {
-    "totalTables": 107,
+    "totalTables": 119,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
-    "targetSameDomainFks": 88,
+    "targetSameDomainFks": 108,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -20,26 +20,26 @@
       {
         "domain": "event-lifecycle",
         "schema": "event_lifecycle",
-        "tables": 19,
-        "columns": 290
+        "tables": 22,
+        "columns": 324
       },
       {
         "domain": "commercial",
         "schema": "commercial",
-        "tables": 28,
-        "columns": 319
+        "tables": 35,
+        "columns": 428
       },
       {
         "domain": "operations",
         "schema": "operations",
         "tables": 12,
-        "columns": 142
+        "columns": 148
       },
       {
         "domain": "floorplan",
         "schema": "floorplan",
-        "tables": 7,
-        "columns": 75
+        "tables": 9,
+        "columns": 97
       },
       {
         "domain": "live-ops",
@@ -51,7 +51,7 @@
         "domain": "identity-access",
         "schema": "identity_access",
         "tables": 4,
-        "columns": 42
+        "columns": 43
       },
       {
         "domain": "platform-ops",
@@ -63,7 +63,7 @@
         "domain": "event-games",
         "schema": "event_games",
         "tables": 13,
-        "columns": 129
+        "columns": 128
       }
     ]
   },
@@ -162,7 +162,7 @@
       "table": "events",
       "domain": "event-lifecycle",
       "targetSchema": "event_lifecycle",
-      "columnCount": 33
+      "columnCount": 34
     },
     {
       "model": "OpsEventClientFloorplanAccessGrant",
@@ -291,7 +291,7 @@
       "table": "quote_requests",
       "domain": "commercial",
       "targetSchema": "commercial",
-      "columnCount": 27
+      "columnCount": 29
     },
     {
       "model": "OpsSupplierSchedule",
@@ -299,7 +299,7 @@
       "table": "supplier_schedules",
       "domain": "commercial",
       "targetSchema": "commercial",
-      "columnCount": 10
+      "columnCount": 16
     },
     {
       "model": "OpsSupplierQuoteRound",
@@ -707,7 +707,7 @@
       "table": "check_ins",
       "domain": "operations",
       "targetSchema": "operations",
-      "columnCount": 12
+      "columnCount": 13
     },
     {
       "model": "OpsGuestRosterEntry",
@@ -715,7 +715,7 @@
       "table": "guest_roster_entries",
       "domain": "operations",
       "targetSchema": "operations",
-      "columnCount": 17
+      "columnCount": 20
     },
     {
       "model": "OpsGuestRosterImport",
@@ -723,7 +723,7 @@
       "table": "guest_roster_imports",
       "domain": "operations",
       "targetSchema": "operations",
-      "columnCount": 8
+      "columnCount": 11
     },
     {
       "model": "OpsGuestFeedback",
@@ -890,7 +890,7 @@
       "table": "session_participation_grants",
       "domain": "event-games",
       "targetSchema": "event_games",
-      "columnCount": 9,
+      "columnCount": 11,
       "introducedAfterCutover": true
     },
     {
@@ -899,7 +899,7 @@
       "table": "submissions",
       "domain": "event-games",
       "targetSchema": "event_games",
-      "columnCount": 9,
+      "columnCount": 10,
       "introducedAfterCutover": true
     },
     {
@@ -936,6 +936,114 @@
       "domain": "event-games",
       "targetSchema": "event_games",
       "columnCount": 4,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsSupplierContractVersion",
+      "currentSchema": "commercial",
+      "table": "supplier_contract_versions",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 17,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsSupplierCreativeTask",
+      "currentSchema": "commercial",
+      "table": "supplier_creative_tasks",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 19,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsSupplierCreativeSubmission",
+      "currentSchema": "commercial",
+      "table": "supplier_creative_submissions",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 7,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsSupplierPayableMilestone",
+      "currentSchema": "commercial",
+      "table": "supplier_payable_milestones",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 14,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsSupplierPayoutRecord",
+      "currentSchema": "commercial",
+      "table": "supplier_payout_records",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 17,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsClientReviewItem",
+      "currentSchema": "commercial",
+      "table": "client_review_items",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 15,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsClientReviewDecision",
+      "currentSchema": "commercial",
+      "table": "client_review_decisions",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 12,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsConformeExecution",
+      "currentSchema": "event_lifecycle",
+      "table": "conforme_executions",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 11,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsConformeSignature",
+      "currentSchema": "event_lifecycle",
+      "table": "conforme_signatures",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 11,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsClientCloseoutResponse",
+      "currentSchema": "event_lifecycle",
+      "table": "client_closeout_responses",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 11,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsFloorPlanClientDecision",
+      "currentSchema": "floorplan",
+      "table": "client_decisions",
+      "domain": "floorplan",
+      "targetSchema": "floorplan",
+      "columnCount": 11,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsFloorPlanClientAnnotation",
+      "currentSchema": "floorplan",
+      "table": "client_annotations",
+      "domain": "floorplan",
+      "targetSchema": "floorplan",
+      "columnCount": 11,
       "introducedAfterCutover": true
     }
   ],
@@ -2962,6 +3070,306 @@
       "targetDomain": "event-games",
       "targetCurrentSchema": "event_games",
       "targetTable": "session_participation_grants",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_contract_versions",
+      "name": "supplier_contract_versions_request_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (request_id) REFERENCES commercial.quote_requests(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "request_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "quote_requests",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_contract_versions",
+      "name": "supplier_contract_versions_supplier_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (supplier_id) REFERENCES commercial.suppliers(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "supplier_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "suppliers",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_creative_tasks",
+      "name": "supplier_creative_tasks_request_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (request_id) REFERENCES commercial.quote_requests(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "request_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "quote_requests",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_creative_tasks",
+      "name": "supplier_creative_tasks_supplier_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (supplier_id) REFERENCES commercial.suppliers(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "supplier_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "suppliers",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_creative_submissions",
+      "name": "supplier_creative_submissions_task_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (task_id) REFERENCES commercial.supplier_creative_tasks(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "task_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "supplier_creative_tasks",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_payable_milestones",
+      "name": "supplier_payable_milestones_request_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (request_id) REFERENCES commercial.quote_requests(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "request_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "quote_requests",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_payable_milestones",
+      "name": "supplier_payable_milestones_quote_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (quote_id) REFERENCES commercial.quotes(id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "quote_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "quotes",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_payable_milestones",
+      "name": "supplier_payable_milestones_supplier_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (supplier_id) REFERENCES commercial.suppliers(id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "supplier_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "suppliers",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_payout_records",
+      "name": "supplier_payout_records_milestone_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (milestone_id) REFERENCES commercial.supplier_payable_milestones(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "milestone_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "supplier_payable_milestones",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_payout_records",
+      "name": "supplier_payout_records_request_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (request_id) REFERENCES commercial.quote_requests(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "request_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "quote_requests",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_payout_records",
+      "name": "supplier_payout_records_quote_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (quote_id) REFERENCES commercial.quotes(id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "quote_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "quotes",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_payout_records",
+      "name": "supplier_payout_records_supplier_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (supplier_id) REFERENCES commercial.suppliers(id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "supplier_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "suppliers",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_payout_records",
+      "name": "supplier_payout_records_reverses_record_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (reverses_record_id) REFERENCES commercial.supplier_payout_records(id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "reverses_record_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "supplier_payout_records",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "client_review_decisions",
+      "name": "client_review_decisions_item_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (item_id) REFERENCES commercial.client_review_items(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "item_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "client_review_items",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "conforme_executions",
+      "name": "conforme_executions_inquiry_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (inquiry_id) REFERENCES event_lifecycle.inquiries(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "inquiry_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "inquiries",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "conforme_executions",
+      "name": "conforme_executions_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_lifecycle.events(id) ON DELETE SET NULL ON UPDATE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "conforme_signatures",
+      "name": "conforme_signatures_execution_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (execution_id) REFERENCES event_lifecycle.conforme_executions(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "execution_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "conforme_executions",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "client_closeout_responses",
+      "name": "client_closeout_responses_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_lifecycle.events(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "floorplan",
+      "table": "client_decisions",
+      "name": "client_decisions_draft_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (draft_id) REFERENCES floorplan.floor_plan_drafts(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "draft_id"
+      ],
+      "sourceDomain": "floorplan",
+      "targetDomain": "floorplan",
+      "targetCurrentSchema": "floorplan",
+      "targetTable": "floor_plan_drafts",
+      "sameDomain": true
+    },
+    {
+      "schema": "floorplan",
+      "table": "client_annotations",
+      "name": "client_annotations_draft_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (draft_id) REFERENCES floorplan.floor_plan_drafts(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "draft_id"
+      ],
+      "sourceDomain": "floorplan",
+      "targetDomain": "floorplan",
+      "targetCurrentSchema": "floorplan",
+      "targetTable": "floor_plan_drafts",
       "sameDomain": true
     }
   ]
