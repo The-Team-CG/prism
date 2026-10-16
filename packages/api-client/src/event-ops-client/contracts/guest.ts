@@ -16,12 +16,19 @@ import type {
   UpdateWalkInPolicyInput,
   UpdateGuestVerificationInput,
   UpdateGuestPrivacyClassificationInput,
+  PrismGuestQrPassIssueResult,
+  PrismGuestQrPassStatus,
 } from "@prism/types";
 import type { EventOpsActorQuery } from "./primitives";
 
 export interface EventOpsGuestContract {
   guest: {
     eventPass(accessCode: string): Promise<PrismGuestEventPass>;
+    guestQrPasses(eventId: string): Promise<PrismGuestQrPassStatus[]>;
+    issueGuestQrPass(eventId: string, rosterEntryId: string): Promise<PrismGuestQrPassIssueResult>;
+    retryGuestQrPass(eventId: string, passId: string): Promise<PrismGuestQrPassStatus>;
+    reissueGuestQrPass(eventId: string, passId: string): Promise<PrismGuestQrPassIssueResult>;
+    revokeGuestQrPass(eventId: string, passId: string): Promise<PrismGuestQrPassStatus>;
     checkIn(
       accessCode: string,
       input: CreateGuestCheckInInput,

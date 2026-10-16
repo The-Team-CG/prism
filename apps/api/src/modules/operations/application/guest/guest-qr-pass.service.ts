@@ -37,6 +37,10 @@ export class GuestQrPassService implements GuestQrPassCommands, GuestQrPassLifec
     private readonly demoPolicy: GuestQrDemoPolicyService,
   ) {}
 
+  isDemoEnabledForEvent(eventId: string): boolean {
+    return this.demoPolicy.isEnabledForEvent(eventId);
+  }
+
   async issue(eventId: string, rosterEntryId: string, actor: ResolvedEventOpsActor): Promise<PrismGuestQrPassIssueResult> {
     this.requirePmcm(actor);
     this.requireDemo(eventId);

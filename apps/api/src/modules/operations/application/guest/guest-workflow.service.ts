@@ -31,6 +31,8 @@ import type {
 import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 import { guestAccessCodeForEvent } from './guest-access-code';
 import { GuestQrPassService } from './guest-qr-pass.service';
+import { findGuestQrPassRosterEntry, GUEST_QR_REDEMPTION_ERROR, isGuestQrPassToken } from './guest-qr-pass-redemption';
+import { writeCanonicalGuestCheckIn } from './guest-check-in-writer';
 import {
   OPERATIONS_EVENT_REFERENCE_READER,
   type GuestCheckInEventReference,
@@ -231,6 +233,10 @@ export class GuestWorkflowService implements GuestCommands {
     let ambiguousNameMatch = false;
     let requiresStaffReview = false;
     let privacyConsentCapturedAt: Date | null = null;
+    const isQrPass = input.checkInMode === 'qr_pass';
+    const passTokenHash = isQrPass && isGuestQrPassToken(input.passToken)
+      ? createHash('sha256').update(input.passToken).digest('hex')
+      : null;
     let audit: {
       actionType: (typeof AuditActionType)[keyof typeof AuditActionType];
       affectedType: 'guest_roster_entry' | 'guest_check_in';
@@ -241,13 +247,22 @@ export class GuestWorkflowService implements GuestCommands {
     } | null = null;
 
     const privacyNoticeVersion = input.privacyNoticeVersion || PRISM_PRIVACY_NOTICE_VERSION;
-    const payloadHash = createHash('sha256').update(JSON.stringify({
-      checkInMode: input.checkInMode,
-      guestName: input.checkInMode === 'name_search' ? input.guestName.trim().toLowerCase() : null,
-      privacyConsentAccepted: input.privacyConsentAccepted === true,
-      privacyNoticeVersion,
-      marketingConsentAccepted: input.marketingConsentAccepted === true,
-    })).digest('hex');
+    const idempotencyPayload = isQrPass
+      ? {
+          checkInMode: input.checkInMode,
+          passTokenHash,
+          privacyConsentAccepted: input.privacyConsentAccepted === true,
+          privacyNoticeVersion,
+          marketingConsentAccepted: input.marketingConsentAccepted === true,
+        }
+      : {
+          checkInMode: input.checkInMode,
+          guestName: input.checkInMode === 'name_search' ? input.guestName.trim().toLowerCase() : null,
+          privacyConsentAccepted: input.privacyConsentAccepted === true,
+          privacyNoticeVersion,
+          marketingConsentAccepted: input.marketingConsentAccepted === true,
+        };
+    const payloadHash = createHash('sha256').update(JSON.stringify(idempotencyPayload)).digest('hex');
 
     return this.workflowCommandService.execute<PrismGuestCheckInReceipt>({
       name: 'guest_check_in',
@@ -260,7 +275,19 @@ export class GuestWorkflowService implements GuestCommands {
         idempotencyKey: `guest-check-in:${accessCodeScope}:${input.idempotencyKey}`,
       },
       validateState: async () => {
-        event = await resolveEvent();
+        if (isQrPass && !passTokenHash) throw new NotFoundException(GUEST_QR_REDEMPTION_ERROR);
+        try {
+          event = await resolveEvent();
+        } catch (error) {
+          if (isQrPass) throw new NotFoundException(GUEST_QR_REDEMPTION_ERROR);
+          throw error;
+        }
+        if (isQrPass && input.privacyConsentAccepted !== true) {
+          throw new NotFoundException(GUEST_QR_REDEMPTION_ERROR);
+        }
+        if (isQrPass && !this.guestQrPassService.isDemoEnabledForEvent(event.id)) {
+          throw new NotFoundException(GUEST_QR_REDEMPTION_ERROR);
+        }
         this.requireCheckInConsent(input);
         privacyConsentCapturedAt = new Date();
         if (input.checkInMode === 'name_search') {
@@ -269,11 +296,31 @@ export class GuestWorkflowService implements GuestCommands {
         }
       },
       validateStateInTransaction: async (context) => {
-        if (!event) throw new NotFoundException('Guest event code was not found');
+        if (!event) {
+          if (isQrPass) throw new NotFoundException(GUEST_QR_REDEMPTION_ERROR);
+          throw new NotFoundException('Guest event code was not found');
+        }
         const currentEvent = await this.eventReferences.findOperationsEvent(event.id, context);
-        if (!currentEvent || currentEvent.archived) throw new NotFoundException('Guest event was not found or archived');
+        if (!currentEvent) {
+          if (isQrPass) throw new NotFoundException(GUEST_QR_REDEMPTION_ERROR);
+          throw new NotFoundException('Guest event was not found or archived');
+        }
+        if (isQrPass && (currentEvent.archived || currentEvent.actualEndedAt !== null || currentEvent.status === 'archived')) {
+          throw new NotFoundException(GUEST_QR_REDEMPTION_ERROR);
+        }
+        if (!isQrPass && currentEvent.archived) throw new NotFoundException('Guest event was not found or archived');
         const checkInEvent = await this.eventReferences.findGuestCheckInEventReference(event.id, context);
-        if (!checkInEvent) throw new NotFoundException('Guest event was not found or archived');
+        if (!checkInEvent) {
+          if (isQrPass) throw new NotFoundException(GUEST_QR_REDEMPTION_ERROR);
+          throw new NotFoundException('Guest event was not found or archived');
+        }
+
+        if (isQrPass) {
+          const roster = await findGuestQrPassRosterEntry(context.prisma, event.id, passTokenHash!);
+          matchedRoster = roster;
+          resolvedGuestName = roster.guestName;
+          return;
+        }
 
         if (input.checkInMode === 'name_search') {
           const rosterDelegate = context.prisma.opsGuestRosterEntry;
@@ -325,7 +372,10 @@ export class GuestWorkflowService implements GuestCommands {
         }
       },
       write: async (context) => {
-        if (!event) throw new NotFoundException('Guest event code was not found');
+        if (!event) {
+          if (isQrPass) throw new NotFoundException(GUEST_QR_REDEMPTION_ERROR);
+          throw new NotFoundException('Guest event code was not found');
+        }
         const db = context?.prisma ?? this.prisma;
 
         if (requiresStaffReview) return { accepted: true };
@@ -336,6 +386,8 @@ export class GuestWorkflowService implements GuestCommands {
           });
           if (existingRosterCheckIn) return { accepted: true };
         }
+
+        if (isQrPass && !matchedRoster) throw new NotFoundException(GUEST_QR_REDEMPTION_ERROR);
 
         if (ambiguousNameMatch || requiresNewCl1Review) {
           const rosterEntryId = `gre_${randomUUID()}`;
@@ -382,25 +434,21 @@ export class GuestWorkflowService implements GuestCommands {
           return { accepted: true };
         }
 
-        const checkIn = await db.opsGuestCheckIn.create({
-          data: {
-            id: `gci_${randomUUID()}`,
-            eventId: event.id,
-            rosterEntryId: matchedRoster?.id ?? null,
-            guestName: matchedRoster?.guestName ?? resolvedGuestName,
-            checkInMode: input.checkInMode,
-            status: 'checked_in',
-            walkIn,
-            verificationStatus: walkIn ? 'flagged' : 'verified',
-            privacyConsentAccepted: input.privacyConsentAccepted === true,
-            privacyNoticeVersion,
-            privacyConsentCapturedAt,
-            marketingConsentAccepted: Boolean(input.marketingConsentAccepted),
-          },
-        });
-        if (matchedRoster) {
-          await db.opsGuestRosterEntry.update({ where: { id: matchedRoster.id }, data: { checkedInAt: checkIn.checkedInAt } });
-        }
+        const checkInMode = input.checkInMode === 'qr_pass' ? 'name_search' : input.checkInMode;
+        const checkInWalkIn = isQrPass ? false : walkIn;
+        const checkIn = await writeCanonicalGuestCheckIn(db, {
+          eventId: event.id,
+          rosterEntryId: matchedRoster?.id ?? null,
+          guestName: matchedRoster?.guestName ?? resolvedGuestName ?? null,
+          checkInMode,
+          walkIn: checkInWalkIn,
+          verificationStatus: checkInWalkIn ? 'flagged' : 'verified',
+          privacyConsentAccepted: isQrPass || input.privacyConsentAccepted === true,
+          privacyNoticeVersion,
+          privacyConsentCapturedAt,
+          marketingConsentAccepted: Boolean(input.marketingConsentAccepted),
+        }, { duplicateSafeRosterWrite: isQrPass });
+        if (!checkIn) return { accepted: true };
 
         const label = matchedRoster?.guestName ?? resolvedGuestName ?? 'Anonymous headcount';
         audit = {
@@ -409,7 +457,12 @@ export class GuestWorkflowService implements GuestCommands {
           affectedId: checkIn.id,
           affectedLabel: label,
           description: `Guest checked in: ${label}`,
-          metadata: { walkIn, checkInMode: input.checkInMode, verificationStatus: walkIn ? 'flagged' : 'verified' },
+          metadata: {
+            walkIn: checkInWalkIn,
+            checkInMode,
+            verificationStatus: checkInWalkIn ? 'flagged' : 'verified',
+            ...(isQrPass ? { qrOrigin: true } : {}),
+          },
         };
         return { accepted: true };
       },

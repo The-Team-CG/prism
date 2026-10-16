@@ -242,10 +242,12 @@ describe("event-ops write schemas", () => {
     };
 
     expect(createGuestCheckInSchema.parse(input)).toEqual(input);
+    const malformedToken = { ...input, passToken: "   " };
+    expect(createGuestCheckInSchema.parse(malformedToken).passToken).toBe("   ");
   });
 
   it.each([
-    ["blank pass token", { passToken: "   " }],
+    ["empty pass token", { passToken: "" }],
     ["oversized pass token", { passToken: "Q".repeat(513) }],
     ["missing privacy consent", { privacyConsentAccepted: undefined }],
     ["forged event id", { eventId: "evt_other" }],

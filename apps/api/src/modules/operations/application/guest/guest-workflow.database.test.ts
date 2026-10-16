@@ -1,10 +1,11 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuditService, AuditWriterAdapter, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
+import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
 import { GuestWorkflowService } from './guest-workflow.service';
 import { GuestEventProjectionService } from '../../../read-models/application/services/guest-event-projection.service';
 
@@ -34,14 +35,21 @@ describe.skipIf(!databaseUrl)('guest feedback PostgreSQL transaction acceptance'
     service = new GuestWorkflowService(
       prisma as never,
       auditWriter,
-      new WorkflowCommandService(),
-      { findAssignmentForEventActor: vi.fn() } as never,
+      new WorkflowCommandService(new PrismTransactionRunner(prisma as never)),
+      { findAssignmentForEventActor: vi.fn(async () => ({ id: 'w23_registration', role: 'Registration Staff', status: 'acknowledged' })) } as never,
       {
         findOperationsEvent: async (eventId: string, context?: { prisma: any }) => {
           const database = context?.prisma ?? prisma;
           return database.opsEvent.findUnique({
             where: { id: eventId },
             select: { id: true, eventName: true, eventDate: true, status: true, archived: true, actualEndedAt: true, walkInPolicy: true, walkInThreshold: true },
+          });
+        },
+        findGuestCheckInEventReference: async (eventId: string, context?: { prisma: any }) => {
+          const database = context?.prisma ?? prisma;
+          return database.opsEvent.findUnique({
+            where: { id: eventId },
+            select: { id: true, eventName: true, walkInPolicy: true, walkInThreshold: true, guestPrivacyClassification: true, briefingGuestCount: true },
           });
         },
       } as never,
@@ -54,7 +62,7 @@ describe.skipIf(!databaseUrl)('guest feedback PostgreSQL transaction acceptance'
         findGuestEvent: (eventId: string) => new GuestEventProjectionService(prisma as never).findGuestEvent(eventId),
         listCoordinatorWorkspaceEvents: async () => [],
       } as never,
-      { revokeForRosterEntries: vi.fn(async () => undefined) } as never,
+      { isDemoEnabledForEvent: vi.fn(() => true), revokeForRosterEntries: vi.fn(async () => undefined) } as never,
     );
   });
 
@@ -81,5 +89,49 @@ describe.skipIf(!databaseUrl)('guest feedback PostgreSQL transaction acceptance'
     const moderated = await service.moderateFeedback(event.id, feedback.id, { action: 'approve' }, { id: 'w23-pmcm', name: 'PMCM', role: 'pmcm-admin' });
     expect(moderated).toMatchObject({ moderationStatus: 'approved', moderatedById: 'w23-pmcm' });
     expect(await prisma.opsAuditLog.count({ where: { eventId: event.id, affectedId: feedback.id } })).toBe(2);
+  });
+
+  it('redeems concurrent QR scans once and exposes canonical attendance to existing reads', async () => {
+    const inquiryId = id();
+    const event = await prisma.opsEvent.create({ data: {
+      id: id(), clientName: 'W23 QR client', eventName: 'W23 QR event',
+      eventDate: new Date('2026-09-07T00:00:00Z'), actualEndedAt: null,
+      status: 'event_day', archived: false, clientPortalStatus: 'unlocked',
+      walkInPolicy: 'open', walkInThreshold: 200,
+      guestPrivacyClassification: 'public', briefingGuestCount: 200,
+      inquiry: { create: { id: inquiryId, clientName: 'W23 QR client', email: `${inquiryId}@w23.test`, eventName: 'W23 QR event', clientType: 'Private', eventDate: new Date('2026-09-07T00:00:00Z') } },
+    } });
+    const batchId = id();
+    await prisma.opsGuestRosterImport.create({ data: {
+      id: batchId, eventId: event.id, source: 'csv-import', importedById: 'w23-test', importedBy: 'W23 test', rowCount: 1,
+    } });
+    const rosterEntryId = id();
+    await prisma.opsGuestRosterEntry.create({ data: {
+      id: rosterEntryId, eventId: event.id, sourceKey: `w23:${rosterEntryId}`,
+      guestName: 'QR Guest', normalizedName: 'qr guest', email: `${rosterEntryId}@w23.test`,
+      eligibility: 'eligible', verificationStatus: 'verified', source: 'csv-import', importBatchId: batchId,
+    } });
+    const token = randomBytes(32).toString('base64url');
+    await prisma.opsGuestQrPass.create({ data: {
+      id: id(), eventId: event.id, rosterEntryId,
+      tokenHash: createHash('sha256').update(token).digest('hex'),
+      status: 'active', deliveryStatus: 'queued', issuedById: 'w23-test',
+    } });
+    const accessCode = service.guestAccessCode(event);
+
+    await expect(Promise.all([
+      service.checkInByAccessCode(accessCode, { idempotencyKey: randomUUID(), checkInMode: 'qr_pass', passToken: token, privacyConsentAccepted: true }),
+      service.checkInByAccessCode(accessCode, { idempotencyKey: randomUUID(), checkInMode: 'qr_pass', passToken: token, privacyConsentAccepted: true }),
+    ])).resolves.toEqual([{ accepted: true }, { accepted: true }]);
+
+    expect(await prisma.opsGuestCheckIn.count({ where: { eventId: event.id, rosterEntryId, status: 'checked_in' } })).toBe(1);
+    expect(await prisma.opsGuestCheckIn.findFirst({ where: { eventId: event.id, rosterEntryId, status: 'checked_in' } }))
+      .toMatchObject({ guestName: 'QR Guest', checkInMode: 'name_search', walkIn: false, verificationStatus: 'verified' });
+    expect(await service.countCheckInsForEvent(event.id)).toBe(1);
+    expect(await service.listCheckInsForEvent(event.id)).toEqual([
+      expect.objectContaining({ checkInMode: 'name_search', rosterEntryId, guestName: 'QR Guest' }),
+    ]);
+    expect(await service.searchCoordinatorRoster(event.id, { id: 'w23-registration', name: 'Registration Staff', role: 'coordinator' }))
+      .toEqual([expect.objectContaining({ id: rosterEntryId, checkedInAt: expect.any(String), walkIn: false })]);
   });
 });

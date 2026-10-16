@@ -85,4 +85,30 @@ describe("guest dashboard session storage", () => {
     expect(retry.idempotencyKey).toBe(firstRequest.idempotencyKey);
     expect(pendingRequests.size).toBe(0);
   });
+
+  it("loads an event-code preview and submits QR check-in without persisting the token or IDs", async () => {
+    http.guestJson.mockResolvedValueOnce(storedSession);
+    await expect(guestDashboardRepository.fetchEventByAccessCode("DEMO/ACCESS" as never)).resolves.toEqual(storedSession);
+    expect(http.guestJson).toHaveBeenNthCalledWith(1, "/api/guest/events/DEMO%2FACCESS");
+
+    const input = {
+      checkInMode: "qr_pass" as const,
+      passToken: "opaque-token",
+      privacyConsentAccepted: true as const,
+      privacyNoticeVersion: "2026-05-01",
+      marketingConsentAccepted: false,
+      idempotencyKey: "11111111-1111-4111-8111-111111111111",
+    };
+    http.guestJson.mockResolvedValueOnce({ accepted: true });
+
+    await expect(guestDashboardRepository.checkInQr("DEMO/ACCESS" as never, input)).resolves.toEqual({ accepted: true });
+
+    const [path, request] = http.guestJson.mock.calls[1] as [string, RequestInit];
+    expect(path).toBe("/api/guest/events/DEMO%2FACCESS/check-ins");
+    expect(JSON.parse(request.body as string)).toEqual(input);
+    expect(JSON.parse(request.body as string)).not.toHaveProperty("eventId");
+    expect(JSON.parse(request.body as string)).not.toHaveProperty("rosterEntryId");
+    expect(storage.save).not.toHaveBeenCalled();
+    expect(pendingRequests.size).toBe(0);
+  });
 });

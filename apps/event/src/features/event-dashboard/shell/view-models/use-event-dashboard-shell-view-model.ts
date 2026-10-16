@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { CoordinatorRole, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismSupplier } from "@prism/types";
+import type { CoordinatorRole, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismSupplier, PrismGuestQrPassIssueResult, PrismGuestQrPassStatus } from "@prism/types";
 import { type FloorPlanTemplate, type Project, cloneTemplateObjects } from "@/features/floorplan/editor";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
+import { canManageGuestQrPasses as hasGuestQrPassManagementRole } from "@/features/event-dashboard/guest-qr/model/guest-qr-access";
 import { eventPortalNavItems, loadingShellNavItems } from "./use-event-dashboard-nav";
 import { useEventDashboardNavigationViewModel } from "./use-event-dashboard-navigation-view-model";
 import {
@@ -290,6 +291,7 @@ export function useEventDashboardShellViewModel({
   return {
     routeState,
     session,
+    canManageGuestQrPasses: Boolean(session && hasGuestQrPassManagementRole(session.role)),
     state,
     coordinatorState,
     screen,
@@ -482,6 +484,21 @@ export function useEventDashboardShellViewModel({
     searchGuestRoster: (filters = {}) => selectedEvent ? commands.searchGuestRosterWithFilters(selectedEvent.id, filters) : Promise.resolve([]),
     importGuestRoster: (input: Parameters<typeof commands.importGuestRoster>[1]) => selectedEvent ? commands.importGuestRoster(selectedEvent.id, input) : Promise.resolve([]),
     checkInGuestRoster: (rosterEntryId: string) => selectedEvent ? run("check in guest", () => commands.checkInGuestRoster(selectedEvent.id, rosterEntryId)) : Promise.resolve(),
+    listGuestQrPasses: () => selectedEvent && session && hasGuestQrPassManagementRole(session.role)
+      ? commands.listGuestQrPasses(selectedEvent.id)
+      : Promise.resolve([] as PrismGuestQrPassStatus[]),
+    issueGuestQrPass: (rosterEntryId: string) => selectedEvent && session && hasGuestQrPassManagementRole(session.role)
+      ? runForResult<PrismGuestQrPassIssueResult>("issue guest QR pass", () => commands.issueGuestQrPass(selectedEvent.id, rosterEntryId))
+      : Promise.resolve(null),
+    retryGuestQrPass: (passId: string) => selectedEvent && session && hasGuestQrPassManagementRole(session.role)
+      ? runForResult<PrismGuestQrPassStatus>("retry guest QR pass", () => commands.retryGuestQrPass(selectedEvent.id, passId))
+      : Promise.resolve(null),
+    reissueGuestQrPass: (passId: string) => selectedEvent && session && hasGuestQrPassManagementRole(session.role)
+      ? runForResult<PrismGuestQrPassIssueResult>("reissue guest QR pass", () => commands.reissueGuestQrPass(selectedEvent.id, passId))
+      : Promise.resolve(null),
+    revokeGuestQrPass: (passId: string) => selectedEvent && session && hasGuestQrPassManagementRole(session.role)
+      ? runForResult<PrismGuestQrPassStatus>("revoke guest QR pass", () => commands.revokeGuestQrPass(selectedEvent.id, passId))
+      : Promise.resolve(null),
     verifyGuestRoster: (rosterEntryId: string, status: Parameters<typeof commands.verifyGuestRoster>[2]) => selectedEvent ? run("verify guest", () => commands.verifyGuestRoster(selectedEvent.id, rosterEntryId, status)) : Promise.resolve(),
     getWalkInPolicy: () => selectedEvent ? commands.getWalkInPolicy(selectedEvent.id) : Promise.resolve(null),
     updateWalkInPolicy: (input: Parameters<typeof commands.updateWalkInPolicy>[1]) => selectedEvent ? run("walk-in policy", () => commands.updateWalkInPolicy(selectedEvent.id, input)) : Promise.resolve(),

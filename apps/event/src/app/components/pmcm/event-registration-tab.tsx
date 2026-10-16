@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { QrCode, ShieldCheck, Upload, Users, UserRoundCheck } from "lucide-react";
 
 import type {
@@ -14,10 +14,17 @@ import type {
   GuestPrivacyClassification,
   UpdateGuestPrivacyClassificationInput,
   UpdateGuestVerificationInput,
+  PrismGuestQrPassIssueResult,
+  PrismGuestQrPassStatus,
 } from "@prism/types";
 import { createRegistrationPlatformSchema, importGuestRosterSchema, importHeadcountSchema, parseContract } from "@prism/types";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { Panel } from "@/features/pmcm-kit/primitives";
+import {
+  canIssueGuestQrPass,
+  GuestQrPassActionsView,
+  latestGuestQrPassForRosterEntry,
+} from "@/features/event-dashboard/guest-qr";
 
 const PLATFORM_LABELS: Record<string, string> = {
   xperto: "XPERTO Registration",
@@ -473,23 +480,126 @@ function HeadcountSection({
   );
 }
 
-function GuestRosterSection({ eventId, busy, onSearch, onImport, onCheckIn, onVerify }: { eventId: string; busy: boolean; onSearch: (filters?: GuestRosterSearchInput) => Promise<PrismGuestRosterEntry[]>; onImport: (input: ImportGuestRosterInput) => Promise<PrismGuestRosterEntry[]>; onCheckIn: (id: string) => Promise<unknown>; onVerify: (id: string, status: UpdateGuestVerificationInput["status"]) => Promise<unknown> }) {
+function GuestRosterSection({
+  eventId,
+  busy,
+  canManageQrPasses,
+  onSearch,
+  onImport,
+  onCheckIn,
+  onVerify,
+  onLoadGuestQrPasses,
+  onIssueGuestQrPass,
+  onRetryGuestQrPass,
+  onReissueGuestQrPass,
+  onRevokeGuestQrPass,
+}: {
+  eventId: string;
+  busy: boolean;
+  canManageQrPasses: boolean;
+  onSearch: (filters?: GuestRosterSearchInput) => Promise<PrismGuestRosterEntry[]>;
+  onImport: (input: ImportGuestRosterInput) => Promise<PrismGuestRosterEntry[]>;
+  onCheckIn: (id: string) => Promise<unknown>;
+  onVerify: (id: string, status: UpdateGuestVerificationInput["status"]) => Promise<unknown>;
+  onLoadGuestQrPasses: () => Promise<PrismGuestQrPassStatus[]>;
+  onIssueGuestQrPass: (rosterEntryId: string) => Promise<PrismGuestQrPassIssueResult | null>;
+  onRetryGuestQrPass: (passId: string) => Promise<PrismGuestQrPassStatus | null>;
+  onReissueGuestQrPass: (passId: string) => Promise<PrismGuestQrPassIssueResult | null>;
+  onRevokeGuestQrPass: (passId: string) => Promise<PrismGuestQrPassStatus | null>;
+}) {
   const [query, setQuery] = useState("");
   const [eligibility, setEligibility] = useState<"eligible" | "ineligible" | "">("");
   const [checkedIn, setCheckedIn] = useState<"all" | "yes" | "no">("all");
   const [rows, setRows] = useState<PrismGuestRosterEntry[]>([]);
   const [payload, setPayload] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [guestQrPasses, setGuestQrPasses] = useState<PrismGuestQrPassStatus[]>([]);
+  const [guestQrPassLoadError, setGuestQrPassLoadError] = useState<string | null>(null);
+  const onLoadGuestQrPassesRef = useRef(onLoadGuestQrPasses);
+  onLoadGuestQrPassesRef.current = onLoadGuestQrPasses;
+
+  useEffect(() => {
+    let active = true;
+    setGuestQrPassLoadError(null);
+    if (!canManageQrPasses) {
+      setGuestQrPasses([]);
+      return () => { active = false; };
+    }
+    void onLoadGuestQrPassesRef.current().then((passes) => {
+      if (active) setGuestQrPasses(passes);
+    }).catch(() => {
+      if (active) setGuestQrPassLoadError("Unable to load guest QR pass status.");
+    });
+    return () => { active = false; };
+  }, [canManageQrPasses, eventId]);
+
   async function search() { setRows(await onSearch({ namePrefix: query, eligibility: eligibility || undefined, checkedIn: checkedIn === "all" ? undefined : checkedIn === "yes" })); }
   async function updateVerification(id: string, status: UpdateGuestVerificationInput["status"]) { await onVerify(id, status); await search(); }
   async function checkIn(id: string) { await onCheckIn(id); await search(); }
+  async function refreshGuestQrPasses() {
+    try {
+      setGuestQrPasses(await onLoadGuestQrPassesRef.current());
+      setGuestQrPassLoadError(null);
+    } catch {
+      setGuestQrPassLoadError("Unable to load guest QR pass status.");
+    }
+  }
   async function importRows() {
     try {
       const parsed = parseContract(importGuestRosterSchema, JSON.parse(payload), "Guest roster import");
       const result = await onImport(parsed); setRows(result); setPayload(""); setMessage(`Imported ${result.length} roster rows`);
     } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to import roster"); }
   }
-  return <Panel title="Guest roster and registration desk" icon={UserRoundCheck}><div className="flex flex-col gap-3"><p className="text-sm text-muted-foreground">PMCM imports authoritative guest rows. Coordinators add walk-ins to this roster pending verification; verified walk-ins can then be checked in by registration staff.</p><textarea value={payload} onChange={(e) => setPayload(e.target.value)} rows={4} className="rounded-md border border-border bg-background px-3 py-2 font-mono text-xs" placeholder={'{"source":"xperto","rows":[{"sourceKey":"A-1","guestName":"Ada Lovelace","category":"VIP","table":"T1"}]}'}/><div className="flex gap-2"><button type="button" disabled={busy || !payload} onClick={() => void importRows()} className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Import roster</button>{message ? <span className="self-center text-sm text-muted-foreground">{message}</span> : null}</div><div className="flex flex-wrap gap-2"><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void search(); }} className="h-10 min-w-48 flex-1 rounded-md border border-border bg-background px-3 text-sm" placeholder="Name prefix"/><select value={eligibility} onChange={(e) => setEligibility(e.target.value as typeof eligibility)} className="h-10 rounded-md border border-border bg-background px-3 text-sm"><option value="">All eligibility</option><option value="eligible">Eligible</option><option value="ineligible">Ineligible</option></select><select value={checkedIn} onChange={(e) => setCheckedIn(e.target.value as typeof checkedIn)} className="h-10 rounded-md border border-border bg-background px-3 text-sm"><option value="all">All attendance</option><option value="yes">Checked in</option><option value="no">Not checked in</option></select><button type="button" onClick={() => void search()} className="rounded-lg border border-border px-4 py-2 text-sm font-bold">Search</button></div><div className="divide-y divide-border border-y border-border">{rows.map((row) => <div key={`${eventId}-${row.id}`} className="flex items-center justify-between gap-2 py-2 text-sm"><span><strong>{row.guestName}</strong><span className="ml-2 text-muted-foreground">{row.category || row.table || row.email || row.phone || row.sourceKey}</span></span><div className="flex items-center gap-2"><select aria-label={`Verification for ${row.guestName}`} value={row.verificationStatus} disabled={busy || Boolean(row.checkedInAt)} onChange={(event) => void updateVerification(row.id, event.target.value as UpdateGuestVerificationInput["status"])} className="h-8 rounded-md border border-border bg-background px-2 text-xs"><option value="pending">Pending</option><option value="verified">Verified</option><option value="rejected">Rejected</option></select><button type="button" disabled={busy || !canCheckInRosterRow(row)} onClick={() => void checkIn(row.id)} className="rounded-md border border-border px-3 py-1.5 text-xs font-bold">Check in</button></div></div>)}{rows.length === 0 ? <p className="py-3 text-sm text-muted-foreground">No roster rows match.</p> : null}</div></div></Panel>;
+  return (
+    <Panel title="Guest roster and registration desk" icon={UserRoundCheck}>
+      <div className="flex flex-col gap-3">
+        <p className="text-sm text-muted-foreground">PMCM imports authoritative guest rows. Coordinators add walk-ins to this roster pending verification; verified walk-ins can then be checked in by registration staff.</p>
+        <textarea value={payload} onChange={(event) => setPayload(event.target.value)} rows={4} className="rounded-md border border-border bg-background px-3 py-2 font-mono text-xs" placeholder={'{"source":"xperto","rows":[{"sourceKey":"A-1","guestName":"Ada Lovelace","category":"VIP","table":"T1"}]}'}/>
+        <div className="flex gap-2">
+          <button type="button" disabled={busy || !payload} onClick={() => void importRows()} className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Import roster</button>
+          {message ? <span role="status" className="self-center text-sm text-muted-foreground">{message}</span> : null}
+          {guestQrPassLoadError ? <span role="alert" className="self-center text-sm text-destructive">{guestQrPassLoadError}</span> : null}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <input value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void search(); }} className="h-10 min-w-48 flex-1 rounded-md border border-border bg-background px-3 text-sm" placeholder="Name prefix" />
+          <select value={eligibility} onChange={(event) => setEligibility(event.target.value as typeof eligibility)} className="h-10 rounded-md border border-border bg-background px-3 text-sm"><option value="">All eligibility</option><option value="eligible">Eligible</option><option value="ineligible">Ineligible</option></select>
+          <select value={checkedIn} onChange={(event) => setCheckedIn(event.target.value as typeof checkedIn)} className="h-10 rounded-md border border-border bg-background px-3 text-sm"><option value="all">All attendance</option><option value="yes">Checked in</option><option value="no">Not checked in</option></select>
+          <button type="button" onClick={() => void search()} className="rounded-lg border border-border px-4 py-2 text-sm font-bold">Search</button>
+        </div>
+        <div className="divide-y divide-border border-y border-border">
+          {rows.map((row) => {
+            const pass = latestGuestQrPassForRosterEntry(guestQrPasses, row.id);
+            const canIssue = canIssueGuestQrPass(row);
+            return (
+              <div key={`${eventId}-${row.id}`} className="py-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span><strong>{row.guestName}</strong><span className="ml-2 text-muted-foreground">{row.category || row.table || row.email || row.phone || row.sourceKey}</span></span>
+                  <div className="flex items-center gap-2">
+                    <select aria-label={`Verification for ${row.guestName}`} value={row.verificationStatus} disabled={busy || Boolean(row.checkedInAt)} onChange={(event) => void updateVerification(row.id, event.target.value as UpdateGuestVerificationInput["status"])} className="h-8 rounded-md border border-border bg-background px-2 text-xs"><option value="pending">Pending</option><option value="verified">Verified</option><option value="rejected">Rejected</option></select>
+                    <button type="button" disabled={busy || !canCheckInRosterRow(row)} onClick={() => void checkIn(row.id)} className="rounded-md border border-border px-3 py-1.5 text-xs font-bold">Check in</button>
+                  </div>
+                </div>
+                {canManageQrPasses && (pass || canIssue) ? (
+                  <GuestQrPassActionsView
+                    rosterEntryId={row.id}
+                    pass={pass}
+                    canIssue={canIssue}
+                    disabled={busy}
+                    onIssue={() => onIssueGuestQrPass(row.id)}
+                    onRetry={onRetryGuestQrPass}
+                    onReissue={onReissueGuestQrPass}
+                    onRevoke={onRevokeGuestQrPass}
+                    onRefresh={refreshGuestQrPasses}
+                  />
+                ) : null}
+              </div>
+            );
+          })}
+          {rows.length === 0 ? <p className="py-3 text-sm text-muted-foreground">No roster rows match.</p> : null}
+        </div>
+      </div>
+    </Panel>
+  );
 }
 
 function WalkInPolicySection({ policy, threshold, busy, onUpdate }: { policy: "closed" | "open" | "threshold"; threshold: number; busy: boolean; onUpdate: (input: UpdateWalkInPolicyInput) => void }) {
@@ -570,6 +680,12 @@ function GuestPrivacyClassificationSection({
 
 export function EventRegistrationTab({
   eventId,
+  canManageGuestQrPasses,
+  onLoadGuestQrPasses,
+  onIssueGuestQrPass,
+  onRetryGuestQrPass,
+  onReissueGuestQrPass,
+  onRevokeGuestQrPass,
   platform,
   suppliers,
   busy,
@@ -588,6 +704,12 @@ export function EventRegistrationTab({
   onUpdateGuestPrivacyClassification,
 }: {
   eventId: string;
+  canManageGuestQrPasses: boolean;
+  onLoadGuestQrPasses: () => Promise<PrismGuestQrPassStatus[]>;
+  onIssueGuestQrPass: (rosterEntryId: string) => Promise<PrismGuestQrPassIssueResult | null>;
+  onRetryGuestQrPass: (passId: string) => Promise<PrismGuestQrPassStatus | null>;
+  onReissueGuestQrPass: (passId: string) => Promise<PrismGuestQrPassIssueResult | null>;
+  onRevokeGuestQrPass: (passId: string) => Promise<PrismGuestQrPassStatus | null>;
   platform: PrismRegistrationPlatform | null;
   suppliers: PrismSupplier[];
   busy: boolean;
@@ -627,7 +749,20 @@ export function EventRegistrationTab({
       />
       <WalkInPolicySection policy={walkInPolicy} threshold={walkInThreshold} busy={busy} onUpdate={onUpdateWalkInPolicy} />
       {platform ? <HeadcountSection platform={platform} busy={busy} onImportHeadcount={onImportHeadcount} /> : null}
-      <GuestRosterSection eventId={eventId} busy={busy} onSearch={onSearchRoster} onImport={onImportRoster} onCheckIn={onCheckInRoster} onVerify={onVerifyRoster} />
+      <GuestRosterSection
+        eventId={eventId}
+        busy={busy}
+        canManageQrPasses={canManageGuestQrPasses}
+        onSearch={onSearchRoster}
+        onImport={onImportRoster}
+        onCheckIn={onCheckInRoster}
+        onVerify={onVerifyRoster}
+        onLoadGuestQrPasses={onLoadGuestQrPasses}
+        onIssueGuestQrPass={onIssueGuestQrPass}
+        onRetryGuestQrPass={onRetryGuestQrPass}
+        onReissueGuestQrPass={onReissueGuestQrPass}
+        onRevokeGuestQrPass={onRevokeGuestQrPass}
+      />
     </div>
   );
 }

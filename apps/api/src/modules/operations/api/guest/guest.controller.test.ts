@@ -53,6 +53,25 @@ describe('OpsGuestController', () => {
     expect(guestWorkflowService.submitFeedbackByAccessCode).toHaveBeenCalledWith('AYALA-TECH-MPLE', { guestName: 'Sofia Lim', rating: 5, privacyConsentAccepted: true });
   });
 
+  it('routes QR pass redemption through the same public check-in command and returns only its generic receipt', async () => {
+    const guestWorkflowService = {
+      checkInByAccessCode: vi.fn(async () => ({ accepted: true })),
+    };
+    const controller = new OpsGuestController(guestWorkflowService as any, {} as any);
+    const input = {
+      idempotencyKey: '00000000-0000-4000-8000-000000000010',
+      checkInMode: 'qr_pass' as const,
+      passToken: 'A'.repeat(43),
+      privacyConsentAccepted: true as const,
+    };
+
+    const receipt = await controller.checkIn('AYALA-TECH-MPLE', input);
+
+    expect(receipt).toEqual({ accepted: true });
+    expect(JSON.stringify(receipt)).not.toContain(input.passToken);
+    expect(guestWorkflowService.checkInByAccessCode).toHaveBeenCalledWith('AYALA-TECH-MPLE', input);
+  });
+
   it('forbids non-PMCM actors from moderation mutations', async () => {
     const guestWorkflowService = { moderateFeedback: vi.fn() };
     const eventAccessPolicyService = {

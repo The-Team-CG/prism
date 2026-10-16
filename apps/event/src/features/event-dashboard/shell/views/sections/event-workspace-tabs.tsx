@@ -377,6 +377,12 @@ export function EventWorkspaceRegistrationTab() {
       onUpdate={vm.updateRegistrationPlatform}
       onImportHeadcount={vm.importHeadcount}
       eventId={vm.selectedEvent.id}
+      canManageGuestQrPasses={vm.canManageGuestQrPasses}
+      onLoadGuestQrPasses={vm.listGuestQrPasses}
+      onIssueGuestQrPass={vm.issueGuestQrPass}
+      onRetryGuestQrPass={vm.retryGuestQrPass}
+      onReissueGuestQrPass={vm.reissueGuestQrPass}
+      onRevokeGuestQrPass={vm.revokeGuestQrPass}
       onSearchRoster={vm.searchGuestRoster}
       onImportRoster={vm.importGuestRoster}
       onCheckInRoster={vm.checkInGuestRoster}
