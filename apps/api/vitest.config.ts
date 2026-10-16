@@ -29,6 +29,7 @@ export default defineConfig({
       '@prism/contexts/read-models/event-scope': resolve(__dirname, './src/modules/read-models/event-scope.ts'),
       '@prism/contexts/read-models/participant-facts': resolve(__dirname, './src/modules/read-models/participant-facts/index.ts'),
       '@prism/contexts/read-models/guest-events': resolve(__dirname, './src/modules/read-models/guest-events.ts'),
+      '@prism/contexts/read-models/guest-pass-delivery-eligibility': resolve(__dirname, './src/modules/read-models/guest-pass-delivery-eligibility/index.ts'),
       '@prism/contexts/read-models/account-contacts': resolve(__dirname, './src/modules/read-models/account-contacts/index.ts'),
       '@prism/contexts/read-models/commercial-facts-reader': resolve(__dirname, './src/modules/read-models/commercial-facts-reader.ts'),
       '@prism/contexts/read-models/lifecycle-facts': resolve(__dirname, './src/modules/read-models/lifecycle-facts/index.ts'),

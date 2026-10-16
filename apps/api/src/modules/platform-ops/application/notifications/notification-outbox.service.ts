@@ -1,15 +1,28 @@
-import { ConflictException, ForbiddenException, Inject, Injectable, Logger, NotFoundException, Optional, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Inject, Injectable, Logger, NotFoundException, Optional, ServiceUnavailableException, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { OpsNotificationLog } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { createHash, randomUUID } from 'node:crypto';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { NotificationChannel } from '@prism/kernel/event-core';
-import type { NotificationOutboxChannel } from '../../contracts/notifications/notification-outbox-writer.port';
+import type { GuestPassDeliveryWriteInput, NotificationOutboxChannel } from '../../contracts/notifications/notification-outbox-writer.port';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { NOTIFICATION_DELIVERY, type NotificationDeliveryPort } from '../../contracts/notifications/notification-delivery.port';
+import {
+  GUEST_PASS_DELIVERY_ELIGIBILITY_READER,
+  type GuestPassDeliveryEligibilityReader,
+} from '@prism/contexts/read-models/guest-pass-delivery-eligibility';
+import {
+  encryptGuestPassPayload,
+  guestPassPayloadHash,
+  GUEST_PASS_MESSAGE_PLACEHOLDER,
+  parseGuestPassEncryptionKey,
+} from '../../infrastructure/notifications/notification-sensitive-payload.crypto';
 import { processNotificationQueue } from './notification-delivery-worker';
 
 export type { NotificationOutboxChannel } from '../../contracts/notifications/notification-outbox-writer.port';
+
+type NotificationConfigReader = { get(key: string): unknown };
 
 @Injectable()
 export class NotificationOutboxService implements OnApplicationBootstrap, OnApplicationShutdown {
@@ -19,6 +32,9 @@ export class NotificationOutboxService implements OnApplicationBootstrap, OnAppl
   constructor(
     private readonly prisma: PrismaService,
     @Optional() @Inject(NOTIFICATION_DELIVERY) private readonly delivery?: NotificationDeliveryPort,
+    @Optional() @Inject(ConfigService) private readonly config?: NotificationConfigReader,
+    @Optional() @Inject(GUEST_PASS_DELIVERY_ELIGIBILITY_READER)
+    private readonly guestPassDeliveryEligibilityReader?: GuestPassDeliveryEligibilityReader,
   ) {}
 
   async queue(
@@ -60,8 +76,77 @@ export class NotificationOutboxService implements OnApplicationBootstrap, OnAppl
     return saved;
   }
 
+  async writeGuestPassDelivery(input: GuestPassDeliveryWriteInput, context?: PrismTransactionContext) {
+    const key = parseGuestPassEncryptionKey(this.config?.get('GUEST_QR_DELIVERY_ENCRYPTION_KEY'));
+    if (!key || this.delivery?.deliveryMode !== 'capture') {
+      throw new ServiceUnavailableException('Guest pass delivery is not available without capture-only delivery and its managed key');
+    }
+    if (!input.eventId.trim() || !input.passId.trim() || !input.recipient.trim() || !input.plaintextMessage.trim() || !input.idempotencyKey.trim()) {
+      throw new ServiceUnavailableException('Guest pass delivery is not available');
+    }
+
+    let sensitivePayload: string;
+    let payloadHash: string;
+    try {
+      sensitivePayload = encryptGuestPassPayload(input.plaintextMessage, key);
+      payloadHash = guestPassPayloadHash([
+        input.eventId,
+        input.passId,
+        input.recipient,
+        input.plaintextMessage,
+        NotificationChannel.Email,
+      ], key);
+    } catch {
+      throw new ServiceUnavailableException('Guest pass delivery is not available');
+    }
+
+    const prisma = context?.prisma ?? this.prisma;
+    const data = {
+      id: `not_${randomUUID()}`,
+      eventId: input.eventId,
+      guestPassId: input.passId,
+      channel: NotificationChannel.Email,
+      recipient: input.recipient,
+      message: GUEST_PASS_MESSAGE_PLACEHOLDER,
+      sensitivePayload,
+      status: 'queued',
+      attempts: 0,
+      correlationId: input.idempotencyKey,
+      idempotencyKey: input.idempotencyKey,
+      payloadHash,
+      failureReason: null,
+    };
+    const saved = await prisma.opsNotificationLog.upsert({
+      where: { idempotencyKey: input.idempotencyKey },
+      create: data,
+      update: { idempotencyKey: input.idempotencyKey },
+    });
+    if (saved.payloadHash !== payloadHash) {
+      throw new ConflictException('Guest pass notification idempotency key is bound to different content');
+    }
+    return { notificationId: saved.id, status: 'queued' as const };
+  }
+
+  async cancelGuestPassDelivery(notificationId: string, context?: PrismTransactionContext): Promise<void> {
+    const prisma = context?.prisma ?? this.prisma;
+    await prisma.opsNotificationLog.updateMany({
+      where: { id: notificationId, guestPassId: { not: null }, status: 'queued' },
+      data: {
+        status: 'cancelled',
+        sensitivePayload: null,
+        leaseToken: null,
+        leaseExpiresAt: null,
+        failureReason: 'Guest pass delivery canceled',
+      },
+    });
+  }
+
   async processQueued(options: { maxAttempts?: number } = {}) {
-    return processNotificationQueue(this.prisma, this.delivery, options.maxAttempts);
+    return processNotificationQueue(this.prisma, this.delivery, {
+      ...options,
+      encryptionKey: this.config?.get('GUEST_QR_DELIVERY_ENCRYPTION_KEY'),
+      guestPassDeliveryEligibilityReader: this.guestPassDeliveryEligibilityReader,
+    });
   }
 
   onApplicationBootstrap() {

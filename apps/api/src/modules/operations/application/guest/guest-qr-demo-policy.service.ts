@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+
+type DemoPolicyConfigReader = { get(key: string): unknown };
 
 @Injectable()
 export class GuestQrDemoPolicyService {
-  constructor(private readonly config: Pick<ConfigService, 'get'>) {}
+  constructor(@Inject(ConfigService) private readonly config: DemoPolicyConfigReader) {}
 
   isEnabledForEvent(eventId: string): boolean {
     const environment = this.getString('NODE_ENV')?.trim().toLowerCase();
@@ -38,7 +40,7 @@ export class GuestQrDemoPolicyService {
   }
 
   private getString(key: string): string | undefined {
-    const value = this.config.get<unknown>(key);
+    const value = this.config.get(key);
     return typeof value === 'string' ? value : undefined;
   }
 }

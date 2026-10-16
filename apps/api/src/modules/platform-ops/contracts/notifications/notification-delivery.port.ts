@@ -2,6 +2,7 @@ export const NOTIFICATION_DELIVERY = Symbol('NOTIFICATION_DELIVERY');
 
 export type NotificationDeliveryResult =
   | { status: 'accepted'; receipt: string }
+  | { status: 'captured'; receipt: string }
   | { status: 'unconfigured' }
   | { status: 'retryable_failure' }
   | { status: 'permanent_failure' };
@@ -13,6 +14,7 @@ export type NotificationDeliveryResult =
  * transport request. An uncertain timeout may be retried with the same key.
  */
 export interface NotificationDeliveryPort {
+  readonly deliveryMode: 'capture' | 'provider';
   deliver(input: {
     idempotencyKey: string;
     channel: string;

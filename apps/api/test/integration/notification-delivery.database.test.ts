@@ -32,15 +32,15 @@ describe.skipIf(!live)('durable notification delivery', () => {
       expect((await service.processQueued())[0]).toMatchObject({ status: 'queued', attempts: 0, sentAt: null, providerReceipt: null });
       await prisma.opsNotificationLog.update({ where: { id: first.id }, data: { nextAttemptAt: new Date(0) } });
       const deliver = vi.fn<NotificationDeliveryPort['deliver']>().mockResolvedValue({ status: 'retryable_failure' });
-      const worker = new NotificationOutboxService(fixturePrisma, { deliver });
+      const worker = new NotificationOutboxService(fixturePrisma, { deliveryMode: 'provider', deliver });
       await Promise.all([worker.processQueued(), worker.processQueued()]);
       expect(deliver).toHaveBeenCalledTimes(1);
       expect(await prisma.opsNotificationLog.findUniqueOrThrow({ where: { id: first.id } })).toMatchObject({ status: 'queued', attempts: 1, sentAt: null });
       expect(await worker.processQueued()).toEqual([]);
       const failureAdapters: NotificationDeliveryPort[] = [
-        { deliver: async () => ({ status: 'permanent_failure' }) },
-        { deliver: async () => ({ status: 'accepted', receipt: '' }) },
-        { deliver: async () => { throw new Error('private provider diagnostic'); } },
+        { deliveryMode: 'provider', deliver: async () => ({ status: 'permanent_failure' }) },
+        { deliveryMode: 'provider', deliver: async () => ({ status: 'accepted', receipt: '' }) },
+        { deliveryMode: 'provider', deliver: async () => { throw new Error('private provider diagnostic'); } },
       ];
       for (const [index, adapter] of failureAdapters.entries()) {
         const row = await service.queue(undefined, 'fixture@example.test', 'Failure test', 'email', { idempotencyKey: `${prefix}_${index}` });

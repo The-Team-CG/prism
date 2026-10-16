@@ -78,7 +78,11 @@ async function cleanupFixture(prisma: PrismaService, fixture: { inquiryId: strin
 
 function createWorkflow(prisma: PrismaService, projectionWriter = new FloorplanProjectionService()) {
   const auditWriter: AuditWriter = { write: async () => undefined };
-  const notificationWriter: NotificationOutboxWriter = { write: async () => undefined };
+  const notificationWriter: NotificationOutboxWriter = {
+    write: async () => undefined,
+    writeGuestPassDelivery: async () => ({ notificationId: 'not_test', status: 'queued' }),
+    cancelGuestPassDelivery: async () => undefined,
+  };
   const workflow = new FloorPlanWorkflowService(
     prisma,
     auditWriter,

@@ -1,8 +1,10 @@
+import { ConfigService } from '@nestjs/config';
 import { describe, expect, it, vi } from 'vitest';
 import { NotificationOutboxService } from './notification-outbox.service';
 import { processNotificationQueue } from './notification-delivery-worker';
+import type { NotificationDeliveryPort } from '../../contracts/notifications/notification-delivery.port';
 
-function createService() {
+function createService(options: { encryptionKey?: string; delivery?: NotificationDeliveryPort } = {}) {
   const notifications: Array<Record<string, unknown>> = [];
   const prisma = {
     opsNotificationLog: {
@@ -50,7 +52,11 @@ function createService() {
   return {
     notifications,
     prisma,
-    service: new NotificationOutboxService(prisma as never),
+    service: new NotificationOutboxService(
+      prisma as never,
+      options.delivery,
+      new ConfigService(options.encryptionKey ? { GUEST_QR_DELIVERY_ENCRYPTION_KEY: options.encryptionKey } : {}),
+    ),
   };
 }
 
@@ -71,7 +77,7 @@ describe('NotificationOutboxService', () => {
         findUnique: vi.fn(async () => row),
       },
     };
-    const delivery = { deliver: vi.fn(async () => ({ status: 'accepted' as const, receipt: 'provider-receipt' })) };
+    const delivery = { deliveryMode: 'provider' as const, deliver: vi.fn(async () => ({ status: 'accepted' as const, receipt: 'provider-receipt' })) };
 
     const processed = await processNotificationQueue(prisma as never, delivery);
 
@@ -151,5 +157,95 @@ describe('NotificationOutboxService', () => {
     expect(notifications).toHaveLength(1);
     expect(prisma.opsNotificationLog.upsert).toHaveBeenCalledWith(expect.objectContaining({ where: { idempotencyKey: 'notif-key-1' } }));
     expect(prisma.opsNotificationLog.create).not.toHaveBeenCalled();
+  });
+
+  it('stores guest pass content only as ciphertext and returns sanitized queue status', async () => {
+    const encryptionKey = Buffer.alloc(32, 17).toString('base64');
+    const delivery: NotificationDeliveryPort = {
+      deliveryMode: 'capture',
+      deliver: async () => ({ status: 'captured', receipt: 'capture_receipt_1' }),
+    };
+    const { notifications, service } = createService({ encryptionKey, delivery });
+    const plaintextMessage = 'Open https://guest.prism.test/e/EVT-DEMO#pass=high-entropy-secret';
+
+    const result = await service.writeGuestPassDelivery({
+      eventId: 'evt_synthetic',
+      passId: 'pass_1',
+      recipient: 'guest@example.test',
+      plaintextMessage,
+      idempotencyKey: 'guest-pass:pass_1:issue_1',
+    });
+
+    expect(result).toMatchObject({ status: 'queued' });
+    expect(JSON.stringify(result)).not.toContain(plaintextMessage);
+    expect(notifications).toHaveLength(1);
+    expect(notifications[0]).toMatchObject({
+      eventId: 'evt_synthetic',
+      guestPassId: 'pass_1',
+      recipient: 'guest@example.test',
+      message: '[Guest pass delivery]',
+      status: 'queued',
+    });
+    expect(notifications[0].sensitivePayload).toEqual(expect.any(String));
+    expect(notifications[0].sensitivePayload).not.toContain(plaintextMessage);
+  });
+
+  it('fails closed without the managed encryption key before writing a guest pass notification', async () => {
+    const delivery: NotificationDeliveryPort = {
+      deliveryMode: 'capture',
+      deliver: async () => ({ status: 'captured', receipt: 'capture_receipt_1' }),
+    };
+    const { notifications, prisma, service } = createService({ delivery });
+
+    await expect(service.writeGuestPassDelivery({
+      eventId: 'evt_synthetic',
+      passId: 'pass_1',
+      recipient: 'guest@example.test',
+      plaintextMessage: 'secret pass URL',
+      idempotencyKey: 'guest-pass:pass_1:issue_1',
+    })).rejects.toThrow(/guest pass delivery is not available/i);
+
+    expect(notifications).toHaveLength(0);
+    expect(prisma.opsNotificationLog.upsert).not.toHaveBeenCalled();
+    expect(prisma.opsNotificationLog.create).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['missing delivery adapter', undefined],
+    ['provider-mode delivery adapter', { deliveryMode: 'provider' as const, deliver: async () => ({ status: 'accepted' as const, receipt: 'provider_receipt' }) }],
+  ])('refuses guest pass queueing with a %s', async (_label, delivery) => {
+    const encryptionKey = Buffer.alloc(32, 17).toString('base64');
+    const { notifications, service } = createService({ encryptionKey, delivery });
+
+    await expect(service.writeGuestPassDelivery({
+      eventId: 'evt_synthetic',
+      passId: 'pass_1',
+      recipient: 'guest@example.test',
+      plaintextMessage: 'secret pass URL',
+      idempotencyKey: 'guest-pass:pass_1:issue_1',
+    })).rejects.toThrow(/capture-only/i);
+
+    expect(notifications).toHaveLength(0);
+  });
+
+  it('cancels queued guest-pass delivery and clears its encrypted payload', async () => {
+    const { notifications, service } = createService();
+    notifications.push({
+      id: 'not_guest_pass',
+      guestPassId: 'pass_1',
+      sensitivePayload: 'v1.ciphertext',
+      status: 'queued',
+      leaseToken: 'lease_current',
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+    });
+
+    await service.cancelGuestPassDelivery('not_guest_pass');
+
+    expect(notifications[0]).toMatchObject({
+      status: 'cancelled',
+      sensitivePayload: null,
+      leaseToken: null,
+      leaseExpiresAt: null,
+    });
   });
 });

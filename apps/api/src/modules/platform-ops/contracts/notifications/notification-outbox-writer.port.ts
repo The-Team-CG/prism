@@ -11,8 +11,21 @@ export interface NotificationOutboxWriteInput {
   idempotencyKey?: string;
 }
 
+export interface GuestPassDeliveryWriteInput {
+  eventId: string;
+  passId: string;
+  recipient: string;
+  plaintextMessage: string;
+  idempotencyKey: string;
+}
+
 export interface NotificationOutboxWriter {
   write(input: NotificationOutboxWriteInput, context?: PrismTransactionContext): Promise<unknown>;
+  writeGuestPassDelivery(
+    input: GuestPassDeliveryWriteInput,
+    context?: PrismTransactionContext,
+  ): Promise<{ notificationId: string; status: 'queued' }>;
+  cancelGuestPassDelivery(notificationId: string, context?: PrismTransactionContext): Promise<void>;
 }
 
 export type NotificationOutboxWriteOptions = Omit<NotificationOutboxWriteInput, 'eventId' | 'recipient' | 'message' | 'channel'>;

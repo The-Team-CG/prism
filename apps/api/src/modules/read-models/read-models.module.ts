@@ -27,6 +27,7 @@ import { LiveOpsReadModelsService } from './application/services/live-ops-read-m
 import { PlatformReferenceReadModelsService } from './application/services/platform-reference-read-models.service';
 import { LIVE_OPS_READ_MODEL } from './contracts/ports/live-ops-read-models.tokens';
 import { GuestEventProjectionModule } from './guest-event-projection.module';
+import { GuestPassDeliveryEligibilityModule } from './guest-pass-delivery-eligibility/guest-pass-delivery-eligibility.module';
 import { CommercialFactsReaderModule } from './commercial-facts-reader.module';
 
 /**
@@ -45,6 +46,7 @@ import { CommercialFactsReaderModule } from './commercial-facts-reader.module';
     EventLifecycleModule,
     IdentityAccessModule,
     GuestEventProjectionModule,
+    GuestPassDeliveryEligibilityModule,
     CommercialFactsReaderModule,
   ],
   controllers: [
@@ -77,6 +79,7 @@ import { CommercialFactsReaderModule } from './commercial-facts-reader.module';
     LIVE_OPS_READ_MODEL,
     PlatformReferenceReadModelsService,
     GuestEventProjectionModule,
+    GuestPassDeliveryEligibilityModule,
     CommercialFactsReaderModule,
   ],
 })

@@ -9,7 +9,11 @@ function harness() {
   const gates = { ready: false, missingKeys: ['logistics'], gates: [{ key: 'logistics', passed: false }] };
   const fileMatrix = { closeGates: vi.fn(async () => gates) };
   const audit = { write: vi.fn(async () => { if (failures.audit) throw new Error('Audit failed'); }) };
-  const notification = { write: vi.fn(async () => { if (failures.notification) throw new Error('Outbox failed'); }) };
+  const notification = {
+    write: vi.fn(async () => { if (failures.notification) throw new Error('Outbox failed'); }),
+    writeGuestPassDelivery: vi.fn(async () => ({ notificationId: 'not_test', status: 'queued' as const })),
+    cancelGuestPassDelivery: vi.fn(async () => undefined),
+  };
   const eventModel = (draft: typeof state) => ({
     findUnique: vi.fn(async () => draft.event),
     update: vi.fn(async ({ data }: { data: Partial<typeof state.event> }) => { Object.assign(draft.event, data); return draft.event; }),
