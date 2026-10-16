@@ -1754,6 +1754,8 @@ model OpsNotificationLog {
   channel        String
   recipient      String
   message        String
+  guestPassId    String?   @map("guest_pass_id")
+  sensitivePayload String? @map("sensitive_payload")
   status         String    @default("queued")
   attempts       Int       @default(0)
   correlationId  String?   @map("correlation_id")

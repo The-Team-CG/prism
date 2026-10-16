@@ -2,7 +2,11 @@ import { Injectable } from '@nestjs/common';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { NotificationChannel } from '@prism/kernel/event-core';
 import { NotificationOutboxService } from '../../application/notifications/notification-outbox.service';
-import type { NotificationOutboxWriteInput, NotificationOutboxWriter } from '../../contracts/notifications/notification-outbox-writer.port';
+import type {
+  GuestPassDeliveryWriteInput,
+  NotificationOutboxWriteInput,
+  NotificationOutboxWriter,
+} from '../../contracts/notifications/notification-outbox-writer.port';
 
 @Injectable()
 export class NotificationOutboxWriterAdapter implements NotificationOutboxWriter {
@@ -20,5 +24,13 @@ export class NotificationOutboxWriterAdapter implements NotificationOutboxWriter
       },
       context,
     );
+  }
+
+  writeGuestPassDelivery(input: GuestPassDeliveryWriteInput, context?: PrismTransactionContext) {
+    return this.notificationOutboxService.writeGuestPassDelivery(input, context);
+  }
+
+  cancelGuestPassDelivery(notificationId: string, context?: PrismTransactionContext) {
+    return this.notificationOutboxService.cancelGuestPassDelivery(notificationId, context);
   }
 }

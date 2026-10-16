@@ -5,6 +5,7 @@ import { EventSessionModule } from '@prism/kernel/event-session';
 import { AccessControlModule } from '@prism/kernel/access-control';
 import { ConformeReminderWindowModule } from '@prism/contexts/event-lifecycle/conforme-reminder-window';
 import { AccountContactReadModelModule } from '../read-models/account-contact-read-model.module';
+import { GuestPassDeliveryEligibilityModule } from '@prism/contexts/read-models/guest-pass-delivery-eligibility';
 import { OpsAuditController } from './api/trust/audit-privacy.controller';
 import { OpsNotificationsController } from './api/notifications/notifications.controller';
 import { OpsAiGovernanceController } from './api/ai-governance/ai-governance.controller';
@@ -12,6 +13,9 @@ import { AuditWriterAdapter } from './infrastructure/trust/audit-writer.adapter'
 import { AUDIT_WRITER } from './contracts/trust/trust-ops.tokens';
 import { NotificationOutboxWriterAdapter } from './infrastructure/notifications/notification-outbox-writer.adapter';
 import { NOTIFICATION_OUTBOX_WRITER } from './contracts/notifications/notification-ops.tokens';
+import { NOTIFICATION_DELIVERY, type NotificationDeliveryPort } from './contracts/notifications/notification-delivery.port';
+import { CaptureNotificationDeliveryAdapter } from './infrastructure/notifications/capture-notification-delivery.adapter';
+import { resolveGuestPassNotificationDelivery } from './infrastructure/notifications/notification-delivery.binding';
 import { AuditService } from './application/trust/audit.service';
 import { AuditExportService } from './application/trust/audit-export.service';
 import { AuditReadService } from './application/trust/audit-read.service';
@@ -53,6 +57,17 @@ const auditWriterProvider = {
 const notificationOutboxWriterProvider = {
   provide: NOTIFICATION_OUTBOX_WRITER,
   useExisting: NotificationOutboxWriterAdapter,
+};
+
+const notificationDeliveryProvider = {
+  provide: NOTIFICATION_DELIVERY,
+  inject: [ConfigService, { token: CaptureNotificationDeliveryAdapter, optional: true }],
+  useFactory: (config: ConfigService, captureAdapter: CaptureNotificationDeliveryAdapter): NotificationDeliveryPort | undefined => {
+    return resolveGuestPassNotificationDelivery(
+      config.get<unknown>('GUEST_QR_DEMO_ENABLED'),
+      captureAdapter,
+    );
+  },
 };
 
 const storageAdapterProvider = {
@@ -124,7 +139,7 @@ export function createAiProviderAdapters(
  * capabilities rather than writing their tables from Platform.
  */
 @Module({
-  imports: [DatabaseModule, EventSessionModule, ConfigModule, AccessControlModule, ConformeReminderWindowModule, AccountContactReadModelModule],
+  imports: [DatabaseModule, EventSessionModule, ConfigModule, AccessControlModule, ConformeReminderWindowModule, AccountContactReadModelModule, GuestPassDeliveryEligibilityModule],
   controllers: [OpsAuditController, OpsNotificationsController, OpsAiGovernanceController, StorageController, ConformeCommsDraftsController],
   providers: [
     AuditService,
@@ -136,6 +151,8 @@ export function createAiProviderAdapters(
     NotificationOutboxService,
     NotificationOutboxWriterAdapter,
     notificationOutboxWriterProvider,
+    CaptureNotificationDeliveryAdapter,
+    notificationDeliveryProvider,
     AiGovernanceService,
     ConformeCommsDraftService,
     MockAiProviderAdapter,

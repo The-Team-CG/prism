@@ -95,7 +95,7 @@ function createPrisma() {
 describe('SupplierApplicationService inbox', () => {
   it('rejects a client from listing or reviewing applications', async () => {
     const fake = createPrisma();
-    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never, { write: async () => ({}) }, { write: async () => ({}) });
+    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never, { write: async () => ({}) }, createNotificationWriter());
     await expect(service.listInbox(clientActor)).rejects.toBeInstanceOf(ForbiddenException);
     await expect(
       service.reviewApplication('sap_1', { action: 'request_proposal' }, clientActor),
@@ -104,7 +104,7 @@ describe('SupplierApplicationService inbox', () => {
 
   it('lets PMCM request a proposal from the inbox', async () => {
     const fake = createPrisma();
-    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never, { write: async () => ({}) }, { write: async () => ({}) });
+    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never, { write: async () => ({}) }, createNotificationWriter());
     const listed = await service.listInbox(pmcmAdminActor);
     expect(listed[0]?.status).toBe('pending');
     const reviewed = await service.reviewApplication(
@@ -118,7 +118,7 @@ describe('SupplierApplicationService inbox', () => {
 
   it('returns a redacted public status only when the submitting email matches', async () => {
     const fake = createPrisma();
-    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never, { write: async () => ({}) }, { write: async () => ({}) });
+    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never, { write: async () => ({}) }, createNotificationWriter());
     const result = await service.getPublicStatus({ applicationId: 'sap_1', email: 'AVA@NORTHSTAR.TEST' });
     expect(result).toMatchObject({
       id: 'sap_1', companyName: 'Northstar', status: 'pending', submittedAt: '2026-09-01T00:00:00.000Z', reviewedAt: null,
@@ -131,7 +131,7 @@ describe('SupplierApplicationService inbox', () => {
   it('rejects reviewing an application after a terminal transition', async () => {
     const fake = createPrisma();
     fake.applications[0].status = 'proposal_requested';
-    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never, { write: async () => ({}) }, { write: async () => ({}) });
+    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never, { write: async () => ({}) }, createNotificationWriter());
     await expect(service.reviewApplication('sap_1', { action: 'decline', declineReason: 'No fit' }, pmcmAdminActor))
       .rejects.toBeInstanceOf(BadRequestException);
   });
@@ -173,3 +173,11 @@ describe('SupplierApplicationService inbox', () => {
     expect(notifications[0]?.context).toMatchObject({ correlationId: `supplier-application:${application.id}:submitted:v1` });
   });
 });
+
+function createNotificationWriter() {
+  return {
+    write: async () => ({}),
+    writeGuestPassDelivery: async () => ({ notificationId: 'not_test', status: 'queued' as const }),
+    cancelGuestPassDelivery: async () => undefined,
+  };
+}
