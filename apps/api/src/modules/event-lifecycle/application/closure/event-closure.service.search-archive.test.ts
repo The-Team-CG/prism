@@ -20,6 +20,7 @@ describe('EventClosureService.searchArchive', () => {
       {} as never,
       {} as never,
       {} as never,
+      { expireEventGuestQrPasses: async () => undefined } as never,
     );
     await expect(
       service.searchArchive({}, { role: OpsUserRole.Client, name: 'Ana', email: 'ana@ayala.test', explicit: true }),

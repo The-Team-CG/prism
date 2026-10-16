@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/kernel/database';
 import { OperationsEventReferenceModule } from '@prism/contexts/event-lifecycle/operations-reference';
-import { GUEST_PASS_DELIVERY_ELIGIBILITY_READER } from './guest-pass-delivery-eligibility.port';
+import {
+  GUEST_PASS_DELIVERY_ELIGIBILITY_READER,
+  GUEST_PASS_DELIVERY_STATUS_READER,
+} from './guest-pass-delivery-eligibility.port';
 import { GuestPassDeliveryEligibilityService } from './guest-pass-delivery-eligibility.service';
 
 /** Narrow read-only composition for the platform notification worker. */
@@ -10,7 +13,8 @@ import { GuestPassDeliveryEligibilityService } from './guest-pass-delivery-eligi
   providers: [
     GuestPassDeliveryEligibilityService,
     { provide: GUEST_PASS_DELIVERY_ELIGIBILITY_READER, useExisting: GuestPassDeliveryEligibilityService },
+    { provide: GUEST_PASS_DELIVERY_STATUS_READER, useExisting: GuestPassDeliveryEligibilityService },
   ],
-  exports: [GUEST_PASS_DELIVERY_ELIGIBILITY_READER],
+  exports: [GUEST_PASS_DELIVERY_ELIGIBILITY_READER, GUEST_PASS_DELIVERY_STATUS_READER],
 })
 export class GuestPassDeliveryEligibilityModule {}

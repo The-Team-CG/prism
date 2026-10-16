@@ -141,6 +141,23 @@ export class NotificationOutboxService implements OnApplicationBootstrap, OnAppl
     });
   }
 
+  async retryGuestPassDelivery(notificationId: string, context?: PrismTransactionContext): Promise<void> {
+    const prisma = context?.prisma ?? this.prisma;
+    const updated = await prisma.opsNotificationLog.updateMany({
+      where: {
+        id: notificationId,
+        guestPassId: { not: null },
+        status: 'queued',
+        sensitivePayload: { not: null },
+        leaseToken: null,
+      },
+      data: { nextAttemptAt: new Date(), failureReason: null, failedAt: null },
+    });
+    if (updated.count !== 1) {
+      throw new ConflictException('Guest pass delivery cannot be retried; reissue the pass');
+    }
+  }
+
   async processQueued(options: { maxAttempts?: number } = {}) {
     return processNotificationQueue(this.prisma, this.delivery, {
       ...options,

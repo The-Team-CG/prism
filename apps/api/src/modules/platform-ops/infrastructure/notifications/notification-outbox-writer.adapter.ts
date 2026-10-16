@@ -30,6 +30,10 @@ export class NotificationOutboxWriterAdapter implements NotificationOutboxWriter
     return this.notificationOutboxService.writeGuestPassDelivery(input, context);
   }
 
+  retryGuestPassDelivery(notificationId: string, context?: PrismTransactionContext) {
+    return this.notificationOutboxService.retryGuestPassDelivery(notificationId, context);
+  }
+
   cancelGuestPassDelivery(notificationId: string, context?: PrismTransactionContext) {
     return this.notificationOutboxService.cancelGuestPassDelivery(notificationId, context);
   }

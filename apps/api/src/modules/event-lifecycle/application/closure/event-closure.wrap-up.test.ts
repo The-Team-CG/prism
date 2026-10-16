@@ -32,7 +32,7 @@ function harness(actualEndedAt: Date | null = new Date('2026-09-07T00:00:00.000Z
     issues: [{ id: 'issue_1' }], scheduleDays: [{ id: 'day_1', segments: [{ id: 'segment_1', actualEndedAt: new Date('2026-09-07T13:00:00.000Z'), plannedEndAt: new Date('2026-09-07T12:00:00.000Z') }] }],
   })) };
   const service = new EventClosureService(prisma, {} as any, {} as any, { write: vi.fn(async () => undefined) } as any, policy, notifications as any, {} as any,
-    commercialFactsReader as any, lifecycleFactsReader as any);
+    commercialFactsReader as any, lifecycleFactsReader as any, { expireEventGuestQrPasses: vi.fn(async () => undefined) } as any);
   return { service, prisma, tx, records, policy, notifications, commercialFactsReader, lifecycleFactsReader };
 }
 
