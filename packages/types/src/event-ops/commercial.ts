@@ -77,6 +77,7 @@ export interface PrismSupplierQuoteRequest {
   verificationNotes?: string;
   statusPhotoFileName?: string | null;
   contractDocumentId?: string | null;
+  contractReviewStatus?: "missing" | "submitted" | "accepted" | "changes_requested";
   createdAt: string;
 }
 

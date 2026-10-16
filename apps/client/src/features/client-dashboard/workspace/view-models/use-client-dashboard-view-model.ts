@@ -118,7 +118,7 @@ export function useClientDashboardViewModel({
       setState(next);
       setError(null);
       const firstClientEvent = next.events.find(
-        (event) => event.clientName === current.name && event.clientPortalStatus === "unlocked",
+        (event) => !event.archived && event.clientPortalStatus === "unlocked",
       );
       setSelectedEventId(eventId ?? firstClientEvent?.id ?? null);
     };

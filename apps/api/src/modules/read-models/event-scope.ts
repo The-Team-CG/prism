@@ -101,11 +101,12 @@ export function scopeActorToEvent(actor: ResolvedEventOpsActor, event: ScopedEve
     sameId(actor.id, assignment.coordinator?.userId) ||
     sameEmail(actor.email, assignment.coordinator?.email),
   );
-  const supplierAssigned = actor.role === 'supplier' && event.supplierQuoteRequests?.some((request) =>
+  const supplierAssignment = actor.role === 'supplier' ? event.supplierQuoteRequests?.find((request) =>
     sameId(actor.supplierId, request.supplierId) || sameEmail(actor.email, request.supplier?.email),
-  );
+  ) : undefined;
   return {
-    actor: actor.role === 'coordinator' ? { ...actor, eventId: coordinatorAssigned ? event.id : undefined } : actor,
-    scope: { supplierEventIds: supplierAssigned ? [event.id] : [] },
+    actor: actor.role === 'coordinator' ? { ...actor, eventId: coordinatorAssigned ? event.id : undefined }
+      : actor.role === 'supplier' ? { ...actor, supplierId: supplierAssignment?.supplierId ?? undefined } : actor,
+    scope: { supplierEventIds: supplierAssignment ? [event.id] : [] },
   };
 }
