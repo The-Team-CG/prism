@@ -1909,6 +1909,7 @@ model OpsGuestRosterEntry {
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
   checkIns OpsGuestCheckIn[]
+  qrPasses OpsGuestQrPass[]
 
   importBatch OpsGuestRosterImport? @relation(fields: [importBatchId, eventId], references: [id, eventId], onDelete: Restrict, map: "guest_roster_entries_import_event_fkey")
 
@@ -1935,6 +1936,30 @@ model OpsGuestRosterImport {
   @@index([eventId, importedAt], map: "guest_roster_imports_event_imported_at_idx")
   @@unique([id, eventId], map: "guest_roster_imports_id_event_id_key")
   @@map("guest_roster_imports")
+  @@schema("operations")
+}
+
+model OpsGuestQrPass {
+  id             String    @id
+  eventId        String    @map("event_id")
+  rosterEntryId  String    @map("roster_entry_id")
+  tokenHash      String    @unique(map: "guest_qr_passes_token_hash_key") @map("token_hash")
+  status         String    @default("active")
+  deliveryStatus String    @default("queued") @map("delivery_status")
+  notificationId String?   @map("notification_id")
+  issuedById     String    @map("issued_by_id")
+  issuedAt       DateTime  @default(now()) @map("issued_at") @db.Timestamptz(6)
+  revokedById    String?   @map("revoked_by_id")
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  rosterEntry OpsGuestRosterEntry @relation(fields: [rosterEntryId, eventId], references: [id, eventId], onDelete: Restrict, map: "guest_qr_passes_roster_entry_event_fkey")
+
+  @@unique([eventId, rosterEntryId], where: { status: "active" }, map: "guest_qr_passes_active_roster_key")
+  @@index([eventId, status], map: "guest_qr_passes_event_status_idx")
+  @@index([notificationId], map: "guest_qr_passes_notification_idx")
+  @@map("guest_qr_passes")
   @@schema("operations")
 }
 

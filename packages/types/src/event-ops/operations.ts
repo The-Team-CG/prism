@@ -191,6 +191,26 @@ export interface PrismGuestCheckIn {
   checkedInAt: string;
 }
 
+export type PrismGuestQrPassStatusValue = "active" | "revoked";
+export type PrismGuestQrPassDeliveryStatus = "queued" | "captured" | "failed" | "revoked";
+
+/** Sanitized PMCM pass status; the token, QR URL, and guest email never appear here. */
+export interface PrismGuestQrPassStatus {
+  id: string;
+  eventId: string;
+  rosterEntryId: string;
+  status: PrismGuestQrPassStatusValue;
+  deliveryStatus: PrismGuestQrPassDeliveryStatus;
+  issuedAt: string;
+  revokedAt: string | null;
+}
+
+/** One-time issue response used only to render an in-memory PMCM demo QR. */
+export interface PrismGuestQrPassIssueResult {
+  pass: PrismGuestQrPassStatus;
+  qrValue: string;
+}
+
 export interface PrismGuestRosterEntry {
   id: string;
   eventId: string;

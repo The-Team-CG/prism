@@ -7,6 +7,13 @@ import {
 } from "./common.js";
 /* Guest check-in and feedback. */
 
+export const guestQrPassCheckInSchema = privacyConsentSchema.extend({
+  idempotencyKey: z.string().uuid(),
+  checkInMode: z.literal("qr_pass"),
+  passToken: z.string().trim().min(1).max(512),
+}).strict();
+export type GuestQrPassCheckInInput = z.infer<typeof guestQrPassCheckInSchema>;
+
 export const createGuestCheckInSchema = z.discriminatedUnion("checkInMode", [
   privacyConsentSchema.extend({
     idempotencyKey: z.string().uuid(),
@@ -17,6 +24,7 @@ export const createGuestCheckInSchema = z.discriminatedUnion("checkInMode", [
     idempotencyKey: z.string().uuid(),
     checkInMode: z.literal("headcount"),
   }).strict(),
+  guestQrPassCheckInSchema,
 ]);
 export type CreateGuestCheckInInput = z.infer<typeof createGuestCheckInSchema>;
 
