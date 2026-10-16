@@ -16,6 +16,8 @@ import type { CheckInPayload, GuestSession } from "../model/guest-dashboard-type
 
 const SESSION_KEY = PRISM_SESSION_STORAGE_KEYS.guest;
 
+type GuestQrCheckInInput = Extract<CreateGuestCheckInInput, { checkInMode: "qr_pass" }>;
+
 type PendingGuestCheckIn = {
   sessionId: string;
   payloadFingerprint: string;
@@ -135,6 +137,10 @@ export const guestDashboardRepository = {
     return guestJson<PrismGuestEventPass>(guestApiPath(session));
   },
 
+  fetchEventByAccessCode(accessCode: string): Promise<PrismGuestEventPass> {
+    return guestJson<PrismGuestEventPass>(`/api/guest/events/${encodeURIComponent(accessCode)}`);
+  },
+
   fetchWatermark(session: GuestSession): Promise<PrismGuestEventWatermark> {
     return guestJson<PrismGuestEventWatermark>(guestApiPath(session, "/watermark"));
   },
@@ -147,6 +153,13 @@ export const guestDashboardRepository = {
     }).then((receipt) => {
       clearPendingCheckIn(session, idempotencyKey);
       return receipt;
+    });
+  },
+
+  checkInQr(accessCode: string, input: GuestQrCheckInInput): Promise<PrismGuestCheckInReceipt> {
+    return guestJson<PrismGuestCheckInReceipt>(`/api/guest/events/${encodeURIComponent(accessCode)}/check-ins`, {
+      method: "POST",
+      body: JSON.stringify(input),
     });
   },
 

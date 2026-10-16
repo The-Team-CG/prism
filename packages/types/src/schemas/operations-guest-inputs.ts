@@ -10,7 +10,9 @@ import {
 export const guestQrPassCheckInSchema = privacyConsentSchema.extend({
   idempotencyKey: z.string().uuid(),
   checkInMode: z.literal("qr_pass"),
-  passToken: z.string().trim().min(1).max(512),
+  // Keep the opaque credential byte-for-byte intact; the Operations workflow
+  // applies one generic redemption error to malformed token values.
+  passToken: z.string().min(1).max(512),
 }).strict();
 export type GuestQrPassCheckInInput = z.infer<typeof guestQrPassCheckInSchema>;
 

@@ -62,4 +62,29 @@ describe("PMCM dashboard command transport", () => {
       overrideReason: "archive approved by PMCM",
     });
   });
+
+  it("sends guest pass management through authenticated event routes without caller authority", async () => {
+    await eventDashboardCommands.listGuestQrPasses("evt_1");
+    await eventDashboardCommands.issueGuestQrPass("evt_1", "gre_1");
+    await eventDashboardCommands.retryGuestQrPass("evt_1", "gqp_1");
+    await eventDashboardCommands.reissueGuestQrPass("evt_1", "gqp_1");
+    await eventDashboardCommands.revokeGuestQrPass("evt_1", "gqp_1");
+
+    const fetchMock = vi.mocked(fetch);
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      "http://localhost:4000/api/events/evt_1/guest-qr-passes",
+      "http://localhost:4000/api/events/evt_1/guest-qr-passes/roster/gre_1",
+      "http://localhost:4000/api/events/evt_1/guest-qr-passes/gqp_1/retry",
+      "http://localhost:4000/api/events/evt_1/guest-qr-passes/gqp_1/reissue",
+      "http://localhost:4000/api/events/evt_1/guest-qr-passes/gqp_1/revoke",
+    ]);
+    for (const [url, requestInit] of fetchMock.mock.calls) {
+      expect(new URL(String(url)).search).toBe("");
+      expect(new Headers(requestInit?.headers).get("authorization")).toBe("Bearer session-token");
+      expect(requestInit?.body).toBeUndefined();
+    }
+    expect(fetchMock.mock.calls.map(([, init]) => init?.method ?? "GET")).toEqual([
+      "GET", "POST", "POST", "POST", "POST",
+    ]);
+  });
 });

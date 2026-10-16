@@ -8,6 +8,8 @@ import type {
   PrismGuestFeedback,
   PrismGuestPrivacyClassification,
   UpdateGuestPrivacyClassificationInput,
+  PrismGuestQrPassIssueResult,
+  PrismGuestQrPassStatus,
 } from "@prism/types";
 import { prismRequest, toQueryString } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
@@ -22,6 +24,31 @@ export function createGuestClient(
         prismRequest<PrismGuestEventPass>(
           `/guest/events/${encodeURIComponent(accessCode)}`,
           withBase(options),
+        ),
+      guestQrPasses: (eventId) =>
+        prismRequest<PrismGuestQrPassStatus[]>(
+          `/events/${encodeURIComponent(eventId)}/guest-qr-passes`,
+          withBase(options),
+        ),
+      issueGuestQrPass: (eventId, rosterEntryId) =>
+        prismRequest<PrismGuestQrPassIssueResult>(
+          `/events/${encodeURIComponent(eventId)}/guest-qr-passes/roster/${encodeURIComponent(rosterEntryId)}`,
+          withBase(options, { method: "POST" }),
+        ),
+      retryGuestQrPass: (eventId, passId) =>
+        prismRequest<PrismGuestQrPassStatus>(
+          `/events/${encodeURIComponent(eventId)}/guest-qr-passes/${encodeURIComponent(passId)}/retry`,
+          withBase(options, { method: "POST" }),
+        ),
+      reissueGuestQrPass: (eventId, passId) =>
+        prismRequest<PrismGuestQrPassIssueResult>(
+          `/events/${encodeURIComponent(eventId)}/guest-qr-passes/${encodeURIComponent(passId)}/reissue`,
+          withBase(options, { method: "POST" }),
+        ),
+      revokeGuestQrPass: (eventId, passId) =>
+        prismRequest<PrismGuestQrPassStatus>(
+          `/events/${encodeURIComponent(eventId)}/guest-qr-passes/${encodeURIComponent(passId)}/revoke`,
+          withBase(options, { method: "POST" }),
         ),
       checkIn: (accessCode, input) =>
         prismRequest<PrismGuestCheckInReceipt>(

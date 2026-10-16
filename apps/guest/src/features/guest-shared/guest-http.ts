@@ -7,6 +7,13 @@ import { GUEST_API_OFFLINE_MESSAGE } from "./guest-messages";
 
 export { GUEST_API_OFFLINE_MESSAGE } from "./guest-messages";
 
+export class GuestHttpError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = "GuestHttpError";
+  }
+}
+
 function errorMessage(body: { message?: unknown }, fallback: string): string {
   if (Array.isArray(body.message)) return body.message.join(", ");
   if (typeof body.message === "string" && body.message.trim()) return body.message;
@@ -34,7 +41,7 @@ export async function guestJson<T>(
 
   const body = (await response.json().catch(() => ({}))) as { message?: unknown; data?: T };
   if (!response.ok) {
-    throw new Error(errorMessage(body, `${fallbackError}: ${response.status}`));
+    throw new GuestHttpError(errorMessage(body, `${fallbackError}: ${response.status}`), response.status);
   }
   return body.data as T;
 }

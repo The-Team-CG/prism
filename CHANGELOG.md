@@ -8,6 +8,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- The synthetic guest QR demo supports PMCM-only issue, reissue, retry, and revoke controls; guest check-in reuses S02 consent and attendance, while production use remains gated by PA-66.
 - The API and four role portals can deploy as one Vercel project, with runtime API bindings and shared-domain portal routing.
 - Development launchers start persistent local Supabase, isolate API/database targets, and support scoped Docker builds and source syncing.
 - Guest check-in preserves consent evidence and safely retries submissions under the New-CL1 review policy.

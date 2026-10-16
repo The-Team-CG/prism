@@ -946,6 +946,59 @@ describe("createEventOpsClient", () => {
     });
   });
 
+  it("posts QR check-in through the event-code endpoint without caller IDs", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      new Response(JSON.stringify({ data: { accepted: true } }), { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    const input = {
+      checkInMode: "qr_pass" as const,
+      passToken: "opaque-token",
+      privacyConsentAccepted: true as const,
+      privacyNoticeVersion: "2026-05-01",
+      marketingConsentAccepted: false,
+      idempotencyKey: "11111111-1111-4111-8111-111111111111",
+    };
+    await client.guest.checkIn("DEMO/ACCESS", input);
+
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/guest/events/DEMO%2FACCESS/check-ins", {
+      method: "POST",
+      body: JSON.stringify(input),
+      headers: { "Content-Type": "application/json" },
+    });
+    expect(JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string)).not.toHaveProperty("eventId");
+    expect(JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string)).not.toHaveProperty("rosterEntryId");
+  });
+
+  it("uses the authenticated guest pass routes without caller-supplied authority", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      new Response(JSON.stringify({ data: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.guest.guestQrPasses("evt/1");
+    await client.guest.issueGuestQrPass("evt/1", "roster/1");
+    await client.guest.retryGuestQrPass("evt/1", "pass/1");
+    await client.guest.reissueGuestQrPass("evt/1", "pass/1");
+    await client.guest.revokeGuestQrPass("evt/1", "pass/1");
+
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      "http://localhost:4000/api/events/evt%2F1/guest-qr-passes",
+      "http://localhost:4000/api/events/evt%2F1/guest-qr-passes/roster/roster%2F1",
+      "http://localhost:4000/api/events/evt%2F1/guest-qr-passes/pass%2F1/retry",
+      "http://localhost:4000/api/events/evt%2F1/guest-qr-passes/pass%2F1/reissue",
+      "http://localhost:4000/api/events/evt%2F1/guest-qr-passes/pass%2F1/revoke",
+    ]);
+    expect(fetchMock.mock.calls.map(([, init]) => init?.method ?? "GET")).toEqual([
+      "GET", "POST", "POST", "POST", "POST",
+    ]);
+    for (const [requestUrl, init] of fetchMock.mock.calls) {
+      expect(new URL(String(requestUrl)).search).toBe("");
+      expect(init?.body).toBeUndefined();
+    }
+  });
+
   it("searches the role-scoped registration roster and posts an event-scoped walk-in", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: "gci_1" }), { status: 201 }));
     vi.stubGlobal("fetch", fetchMock);

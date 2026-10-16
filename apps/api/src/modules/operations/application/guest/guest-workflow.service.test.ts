@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createHash } from 'node:crypto';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
 import type { CommandReceiptCreate, CommandReceiptKey, CommandReceiptRecord, CommandReceiptStore } from '@prism/kernel/event-core';
 import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
@@ -6,7 +7,7 @@ import { GuestWorkflowService } from './guest-workflow.service';
 
 let guestCheckInRequestSequence = 0;
 
-function withGuestCheckInKey<T extends { checkInMode: 'name_search' | 'headcount' }>(input: T): T & { idempotencyKey: string } {
+function withGuestCheckInKey<T extends { checkInMode: 'name_search' | 'headcount' | 'qr_pass' }>(input: T): T & { idempotencyKey: string } {
   guestCheckInRequestSequence += 1;
   const suffix = guestCheckInRequestSequence.toString(16).padStart(12, '0');
   return { ...input, idempotencyKey: `00000000-0000-4000-8000-${suffix}` };
@@ -70,7 +71,10 @@ const createTestGuestEventProjections = () => ({
   listCoordinatorWorkspaceEvents: vi.fn(async () => []),
 });
 
-function createGuestWorkflowFixture(guestQrPassService = { revokeForRosterEntries: vi.fn(async (_eventId: string, _rosterIds: readonly string[], _actor: unknown, _context?: unknown) => undefined) }) {
+function createGuestWorkflowFixture(guestQrPassService = {
+  isDemoEnabledForEvent: vi.fn(() => true),
+  revokeForRosterEntries: vi.fn(async (_eventId: string, _rosterIds: readonly string[], _actor: unknown, _context?: unknown) => undefined),
+}) {
   const state = {
     events: [
       {
@@ -81,7 +85,7 @@ function createGuestWorkflowFixture(guestQrPassService = { revokeForRosterEntrie
         eventDate: new Date('2026-06-18T00:00:00.000Z'),
         // Load-bearing: the seven-day window boundary test asserts against this
         // exact instant. Tests that write feedback must pin the clock.
-        actualEndedAt: new Date('2026-09-07T12:00:00.000Z'),
+        actualEndedAt: new Date('2026-09-07T12:00:00.000Z') as Date | null,
         actualEndedBy: 'user_pmcm',
         status: 'event_day',
         clientPortalStatus: 'unlocked',
@@ -102,7 +106,7 @@ function createGuestWorkflowFixture(guestQrPassService = { revokeForRosterEntrie
       {
         id: 'gci_existing',
         eventId: 'evt_sample',
-        rosterEntryId: null,
+        rosterEntryId: null as string | null,
         guestName: 'Existing Guest',
         checkInMode: 'name_search',
         status: 'checked_in',
@@ -115,6 +119,7 @@ function createGuestWorkflowFixture(guestQrPassService = { revokeForRosterEntrie
       },
     ],
     guestRoster: [] as any[],
+    guestQrPasses: [] as any[],
     guestFeedback: [] as any[],
   };
 
@@ -139,6 +144,9 @@ function createGuestWorkflowFixture(guestQrPassService = { revokeForRosterEntrie
         && (!where?.eventId || entry.eventId === where.eventId)
         && (where?.normalizedName === undefined || entry.normalizedName === where.normalizedName)
         && (where?.source === undefined || entry.source === where.source)
+        && (where?.eligibility === undefined || entry.eligibility === where.eligibility)
+        && (where?.source?.not === undefined || entry.source !== where.source.not)
+        && (where?.source?.notIn === undefined || !where.source.notIn.includes(entry.source))
         && (where?.verificationStatus === undefined || (typeof where.verificationStatus === 'object'
           ? where.verificationStatus.not === undefined || entry.verificationStatus !== where.verificationStatus.not
           : entry.verificationStatus === where.verificationStatus))
@@ -152,6 +160,11 @@ function createGuestWorkflowFixture(guestQrPassService = { revokeForRosterEntrie
       }),
       update: vi.fn(async ({ where, data }: any) => Object.assign(state.guestRoster.find((entry) => entry.id === where.id)!, data)),
     },
+    opsGuestQrPass: {
+      findFirst: vi.fn(async ({ where }: any) => state.guestQrPasses.find((pass) =>
+        pass.eventId === where.eventId && pass.tokenHash === where.tokenHash && pass.status === where.status,
+      ) ?? null),
+    },
     opsGuestCheckIn: {
       count: vi.fn(async ({ where }: any = {}) =>
         state.guestCheckIns.filter((item) =>
@@ -159,7 +172,7 @@ function createGuestWorkflowFixture(guestQrPassService = { revokeForRosterEntrie
         ).length,
       ),
       findFirst: vi.fn(async ({ where }: any) => state.guestCheckIns.find((item) =>
-        item.eventId === where.eventId && item.rosterEntryId === where.rosterEntryId && item.status === where.status,
+        item.eventId === where.eventId && item.rosterEntryId === where.rosterEntryId && (!where.status || item.status === where.status),
       ) ?? null),
       findMany: vi.fn(async ({ where }: any = {}) => {
         const eventIds = where?.eventId?.in as string[] | undefined;
@@ -172,6 +185,19 @@ function createGuestWorkflowFixture(guestQrPassService = { revokeForRosterEntrie
         const row = { ...data, checkedInAt: new Date('2026-06-18T09:00:00.000Z') };
         state.guestCheckIns.push(row);
         return row;
+      }),
+      createMany: vi.fn(async ({ data, skipDuplicates }: any) => {
+        let count = 0;
+        for (const item of Array.isArray(data) ? data : [data]) {
+          const duplicate = state.guestCheckIns.some((checkIn) =>
+            checkIn.eventId === item.eventId && checkIn.rosterEntryId === item.rosterEntryId,
+          );
+          if (duplicate && skipDuplicates) continue;
+          if (duplicate) throw Object.assign(new Error('duplicate attendance'), { code: 'P2002' });
+          state.guestCheckIns.push({ ...item, checkedInAt: new Date('2026-06-18T09:00:00.000Z') });
+          count += 1;
+        }
+        return { count };
       }),
     },
     opsGuestFeedback: {
@@ -276,6 +302,44 @@ function guestRosterFixture(overrides: Record<string, unknown> = {}) {
   };
 }
 
+const QR_TEST_TOKEN = 'A'.repeat(43);
+const qrTokenHash = (token: string) => createHash('sha256').update(token).digest('hex');
+
+function addActiveQrPass(
+  state: ReturnType<typeof createGuestWorkflowFixture>['state'],
+  token = QR_TEST_TOKEN,
+  rosterOverrides: Record<string, unknown> = {},
+) {
+  state.events[0]!.actualEndedAt = null;
+  state.events[0]!.status = 'event_day';
+  state.guestCheckIns.length = 0;
+  const roster = guestRosterFixture({
+    id: 'gre_qr_guest',
+    source: 'csv-import',
+    importBatchId: 'batch_qr_1',
+    email: 'sofia@example.test',
+    ...rosterOverrides,
+  });
+  state.guestRoster.push(roster);
+  state.guestQrPasses.push({
+    id: 'gqp_1',
+    eventId: 'evt_sample',
+    rosterEntryId: roster.id,
+    tokenHash: qrTokenHash(token),
+    status: 'active',
+  });
+  return roster;
+}
+
+function qrCheckInInput(token = QR_TEST_TOKEN, overrides: Record<string, unknown> = {}) {
+  return withGuestCheckInKey({
+    checkInMode: 'qr_pass' as const,
+    passToken: token,
+    privacyConsentAccepted: true,
+    ...overrides,
+  });
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
@@ -369,6 +433,144 @@ describe('GuestWorkflowService', () => {
 
     expect(prisma.opsGuestCheckIn.create).toHaveBeenCalledTimes(1);
     expect(state.guestCheckIns).toHaveLength(1);
+  });
+
+  it('redeems an active event-bound QR pass as canonical name-search attendance', async () => {
+    const { service, state, prisma, auditWriter } = createGuestWorkflowFixture();
+    const roster = addActiveQrPass(state);
+
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', qrCheckInInput())).resolves.toEqual({ accepted: true });
+
+    expect(prisma.opsGuestQrPass.findFirst).toHaveBeenCalledWith({
+      where: { eventId: 'evt_sample', tokenHash: qrTokenHash(QR_TEST_TOKEN), status: 'active' },
+    });
+    expect(state.guestCheckIns).toHaveLength(1);
+    expect(state.guestCheckIns[0]).toMatchObject({
+      eventId: 'evt_sample',
+      rosterEntryId: roster.id,
+      guestName: 'Sofia Lim',
+      checkInMode: 'name_search',
+      status: 'checked_in',
+      walkIn: false,
+      verificationStatus: 'verified',
+      privacyConsentAccepted: true,
+    });
+    expect(state.guestRoster[0]?.checkedInAt).toBeInstanceOf(Date);
+    expect(JSON.stringify(auditWriter.write.mock.calls)).not.toContain(QR_TEST_TOKEN);
+    expect(JSON.stringify(auditWriter.write.mock.calls)).not.toContain(qrTokenHash(QR_TEST_TOKEN));
+  });
+
+  it('keeps QR redemption disabled when the synthetic demo gate is off', async () => {
+    const { service, state, prisma, guestQrPassService } = createGuestWorkflowFixture();
+    addActiveQrPass(state);
+    guestQrPassService.isDemoEnabledForEvent.mockReturnValue(false);
+
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', qrCheckInInput()))
+      .rejects.toThrow('Guest check-in could not be completed');
+
+    expect(prisma.opsGuestQrPass.findFirst).not.toHaveBeenCalled();
+    expect(state.guestCheckIns).toHaveLength(0);
+  });
+
+  it('does not acknowledge a QR pass when a non-checked-in row occupies its attendance key', async () => {
+    const { service, state } = createGuestWorkflowFixture();
+    const roster = addActiveQrPass(state);
+    state.guestCheckIns.push({
+      id: 'gci_pending_qr',
+      eventId: 'evt_sample',
+      rosterEntryId: roster.id,
+      guestName: roster.guestName,
+      checkInMode: 'name_search',
+      status: 'pending',
+      walkIn: false,
+      verificationStatus: 'pending',
+      privacyConsentAccepted: true,
+      privacyNoticeVersion: '2026-10-01',
+      marketingConsentAccepted: false,
+      checkedInAt: new Date('2026-06-18T09:00:00.000Z'),
+    });
+
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', qrCheckInInput()))
+      .rejects.toThrow('Guest check-in could not be completed');
+    expect(state.guestCheckIns).toHaveLength(1);
+    expect(roster.checkedInAt).toBeNull();
+  });
+
+  it('binds a QR pass to the event resolved from the access code', async () => {
+    const { service, state } = createGuestWorkflowFixture();
+    addActiveQrPass(state);
+    const otherEvent = {
+      ...state.events[0],
+      id: 'evt_other',
+      eventName: 'Other Event',
+      actualEndedAt: null,
+    };
+    state.events.push(otherEvent);
+    const otherAccessCode = service.guestAccessCode(otherEvent as any);
+
+    await expect(service.checkInByAccessCode(otherAccessCode, qrCheckInInput())).rejects.toThrow('Guest check-in could not be completed');
+    expect(state.guestCheckIns).toHaveLength(0);
+  });
+
+  it.each([
+    ['malformed token', () => 'not a base64url token!', (_state: any) => undefined],
+    ['unknown token', () => 'B'.repeat(43), (_state: any) => undefined],
+    ['revoked pass', () => QR_TEST_TOKEN, (state: any) => { state.guestQrPasses[0]!.status = 'revoked'; }],
+    ['withdrawn roster entry', () => QR_TEST_TOKEN, (state: any) => { state.guestRoster[0]!.withdrawnAt = new Date(); }],
+    ['ineligible roster entry', () => QR_TEST_TOKEN, (state: any) => { state.guestRoster[0]!.eligibility = 'ineligible'; }],
+    ['rejected roster entry', () => QR_TEST_TOKEN, (state: any) => { state.guestRoster[0]!.verificationStatus = 'rejected'; }],
+    ['no longer imported roster entry', () => QR_TEST_TOKEN, (state: any) => { state.guestRoster[0]!.importBatchId = null; }],
+    ['review roster entry', () => QR_TEST_TOKEN, (state: any) => { state.guestRoster[0]!.source = 'guest-review'; }],
+  ])('returns the same generic error for a %s', async (_label, tokenFor, invalidate) => {
+    const { service, state } = createGuestWorkflowFixture();
+    addActiveQrPass(state);
+    invalidate(state);
+
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', qrCheckInInput(tokenFor()))).rejects.toThrow('Guest check-in could not be completed');
+    expect(state.guestCheckIns).toHaveLength(0);
+  });
+
+  it.each([
+    ['actual-ended event', (event: any) => { event.actualEndedAt = new Date('2026-09-07T12:00:00.000Z'); }],
+    ['archived event flag', (event: any) => { event.archived = true; }],
+    ['archived event status', (event: any) => { event.status = 'archived'; }],
+  ])('does not redeem a QR pass for an %s', async (_label, closeEvent) => {
+    const { service, state } = createGuestWorkflowFixture();
+    addActiveQrPass(state);
+    closeEvent(state.events[0]);
+
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', qrCheckInInput())).rejects.toThrow('Guest check-in could not be completed');
+    expect(state.guestCheckIns).toHaveLength(0);
+  });
+
+  it('requires the existing S02 privacy consent before QR attendance can be written', async () => {
+    const { service, state } = createGuestWorkflowFixture();
+    addActiveQrPass(state);
+
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', qrCheckInInput(QR_TEST_TOKEN, { privacyConsentAccepted: false })))
+      .rejects.toThrow('Guest check-in could not be completed');
+    expect(state.guestCheckIns).toHaveLength(0);
+  });
+
+  it('deduplicates simultaneous scans and feeds existing attendance and Registration Desk projections', async () => {
+    const { service, state, prisma, auditWriter } = createGuestWorkflowFixture();
+    addActiveQrPass(state);
+
+    await expect(Promise.all([
+      service.checkInByAccessCode('AYALA-TECH-MPLE', qrCheckInInput()),
+      service.checkInByAccessCode('AYALA-TECH-MPLE', qrCheckInInput()),
+    ])).resolves.toEqual([{ accepted: true }, { accepted: true }]);
+
+    expect(prisma.opsGuestCheckIn.createMany).toHaveBeenCalledTimes(2);
+    expect(state.guestCheckIns).toHaveLength(1);
+    expect(state.guestCheckIns[0]).toMatchObject({ checkInMode: 'name_search', rosterEntryId: 'gre_qr_guest' });
+    await expect(service.countCheckInsForEvent('evt_sample')).resolves.toBe(1);
+    await expect(service.listCheckInsForEvent('evt_sample')).resolves.toEqual([
+      expect.objectContaining({ checkInMode: 'name_search', rosterEntryId: 'gre_qr_guest', guestName: 'Sofia Lim' }),
+    ]);
+    await expect(service.searchCoordinatorRoster('evt_sample', { id: 'usr_registration', name: 'Registration Staff', role: 'coordinator' }))
+      .resolves.toEqual([expect.objectContaining({ id: 'gre_qr_guest', checkedInAt: expect.any(String), walkIn: false })]);
+    expect(auditWriter.write).toHaveBeenCalledTimes(1);
   });
 
   it('rejects reuse of a guest check-in key for different content', async () => {
