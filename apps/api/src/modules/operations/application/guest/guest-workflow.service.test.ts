@@ -70,7 +70,7 @@ const createTestGuestEventProjections = () => ({
   listCoordinatorWorkspaceEvents: vi.fn(async () => []),
 });
 
-function createGuestWorkflowFixture() {
+function createGuestWorkflowFixture(guestQrPassService = { revokeForRosterEntries: vi.fn(async (_eventId: string, _rosterIds: readonly string[], _actor: unknown, _context?: unknown) => undefined) }) {
   const state = {
     events: [
       {
@@ -244,9 +244,10 @@ function createGuestWorkflowFixture() {
     staffingReader as any,
     eventReferences as any,
     eventProjections as any,
+    guestQrPassService as any,
   );
 
-  return { service, state, prisma, auditWriter, staffingReader, eventReferences, eventProjections };
+  return { service, state, prisma, auditWriter, staffingReader, eventReferences, eventProjections, guestQrPassService };
 }
 
 function guestRosterFixture(overrides: Record<string, unknown> = {}) {
@@ -269,6 +270,8 @@ function guestRosterFixture(overrides: Record<string, unknown> = {}) {
     importBatchId: null,
     checkedInAt: null,
     withdrawnAt: null,
+    createdAt: new Date('2026-10-02T09:00:00.000Z'),
+    updatedAt: new Date('2026-10-02T09:00:00.000Z'),
     ...overrides,
   };
 }
@@ -705,7 +708,7 @@ describe('GuestWorkflowService', () => {
     };
     const prisma = { $transaction: async (work: (context: typeof tx) => Promise<unknown>) => work(tx) };
     const staffingReader = { findAssignmentForEventActor: vi.fn(async () => ({ id: 'asg_registration', role: 'Registration Staff', status: 'acknowledged' })) };
-    const service = new GuestWorkflowService(prisma as any, { write: vi.fn() } as any, new WorkflowCommandService(), staffingReader as any, testEventReferences as any, createTestGuestEventProjections() as any);
+    const service = new GuestWorkflowService(prisma as any, { write: vi.fn() } as any, new WorkflowCommandService(), staffingReader as any, testEventReferences as any, createTestGuestEventProjections() as any, { revokeForRosterEntries: vi.fn(async () => undefined) } as any);
 
     const first = await service.checkInRosterEntry('evt_sample', 'gre_one', { name: 'Registration', role: 'coordinator' });
     const second = await service.checkInRosterEntry('evt_sample', 'gre_two', { name: 'Registration', role: 'coordinator' });
@@ -729,6 +732,7 @@ describe('GuestWorkflowService', () => {
       staffingReader as any,
       testEventReferences as any,
       createTestGuestEventProjections() as any,
+      { revokeForRosterEntries: vi.fn(async () => undefined) } as any,
     );
     const actor = { id: 'usr_coord', email: 'coord@example.test', name: 'Mia Registration', role: 'coordinator' };
 
@@ -770,6 +774,7 @@ describe('GuestWorkflowService', () => {
       staffingReader as any,
       testEventReferences as any,
       createTestGuestEventProjections() as any,
+      { revokeForRosterEntries: vi.fn(async () => undefined) } as any,
     );
 
     await expect(service.updateVerification('evt_1', 'gre_1', { status: 'verified' }, {
@@ -791,6 +796,7 @@ describe('GuestWorkflowService', () => {
       staffingReader as any,
       testEventReferences as any,
       createTestGuestEventProjections() as any,
+      { revokeForRosterEntries: vi.fn(async () => undefined) } as any,
     );
     const actor = { id: 'usr_coord', email: 'coord@example.test', name: 'Usher', role: 'coordinator' };
 
@@ -912,12 +918,61 @@ describe('GuestWorkflowService', () => {
       { findAssignmentForEventActor: vi.fn() } as any,
       testEventReferences as any,
       createTestGuestEventProjections() as any,
+      { revokeForRosterEntries: vi.fn(async () => undefined) } as any,
     );
 
     await expect(service.importRoster('evt_1', { source: ' Coordinator-Walk-In ', rows: [] } as any, {
       id: 'usr_pmcm', name: 'PMCM Admin', role: 'pmcm-admin',
     })).rejects.toThrow('reserved roster source');
     expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it('revokes passes for import name or email changes, ineligibility, and removed rows in one transaction', async () => {
+    const { service, state, prisma, guestQrPassService } = createGuestWorkflowFixture();
+    const imported = 'Vendor List';
+    state.guestRoster.push(
+      guestRosterFixture({ id: 'gre_changed', sourceKey: 'vendor:changed', guestName: 'Before Name', normalizedName: 'before name', email: 'before@example.test', source: imported, importBatchId: 'old_batch' }),
+      guestRosterFixture({ id: 'gre_ineligible', sourceKey: 'vendor:ineligible', guestName: 'Ineligible Guest', normalizedName: 'ineligible guest', email: 'ineligible@example.test', source: imported, importBatchId: 'old_batch' }),
+      guestRosterFixture({ id: 'gre_removed', sourceKey: 'vendor:removed', guestName: 'Removed Guest', normalizedName: 'removed guest', email: 'removed@example.test', source: imported, importBatchId: 'old_batch' }),
+    );
+    const rosterModel = (prisma as any).opsGuestRosterEntry;
+    rosterModel.findMany.mockImplementation(async ({ where = {} }: any = {}) => state.guestRoster.filter((entry) =>
+      (!where.eventId || entry.eventId === where.eventId)
+      && (!where.source || entry.source === where.source)
+      && (!where.sourceKey?.in || where.sourceKey.in.includes(entry.sourceKey))
+      && (!where.sourceKey?.notIn || !where.sourceKey.notIn.includes(entry.sourceKey))
+      && (where.withdrawnAt !== null || entry.withdrawnAt == null),
+    ));
+    rosterModel.upsert = vi.fn(async ({ where, create, update }: any) => {
+      const row = state.guestRoster.find((entry) => entry.eventId === where.eventId_sourceKey.eventId && entry.sourceKey === where.eventId_sourceKey.sourceKey);
+      if (row) return Object.assign(row, update, { updatedAt: new Date() });
+      const created = { ...create, checkedInAt: null, withdrawnAt: null, createdAt: new Date(), updatedAt: new Date() };
+      state.guestRoster.push(created);
+      return created;
+    });
+    rosterModel.updateMany = vi.fn(async ({ where, data }: any) => {
+      const matches = state.guestRoster.filter((entry) => entry.eventId === where.eventId && entry.source === where.source
+        && !where.sourceKey.notIn.includes(entry.sourceKey) && entry.withdrawnAt == null);
+      matches.forEach((entry) => Object.assign(entry, data));
+      return { count: matches.length };
+    });
+    (prisma as any).opsGuestRosterImport = { create: vi.fn(async ({ data }: any) => data) };
+
+    await service.importRoster('evt_sample', { source: imported, rows: [
+      { sourceKey: 'vendor:changed', guestName: 'Updated Name', email: ' UPDATED@example.test ', eligibility: 'eligible' },
+      { sourceKey: 'vendor:ineligible', guestName: 'Ineligible Guest', email: 'ineligible@example.test', eligibility: 'ineligible' },
+    ] } as any, { id: 'usr_pmcm', name: 'PMCM Admin', role: 'pmcm-admin' });
+
+    expect(state.guestRoster.find((entry) => entry.id === 'gre_removed')?.withdrawnAt).toBeInstanceOf(Date);
+    expect(state.guestRoster.find((entry) => entry.id === 'gre_changed')?.email).toBe('UPDATED@example.test');
+    expect(guestQrPassService.revokeForRosterEntries).toHaveBeenCalledTimes(1);
+    const [eventId, rosterIds, actor] = guestQrPassService.revokeForRosterEntries.mock.calls[0]!;
+    const context = guestQrPassService.revokeForRosterEntries.mock.calls[0]?.[3] as { prisma: unknown; correlationId: string };
+    expect(eventId).toBe('evt_sample');
+    expect(rosterIds).toEqual(expect.arrayContaining(['gre_changed', 'gre_ineligible', 'gre_removed']));
+    expect(actor).toMatchObject({ id: 'usr_pmcm', role: 'pmcm-admin' });
+    expect(context.prisma).toBe(prisma);
+    expect(context.correlationId).toMatch(/^roster_/);
   });
 
   it('maps guest event, check-in, and feedback payloads without PMCM-only fields', async () => {

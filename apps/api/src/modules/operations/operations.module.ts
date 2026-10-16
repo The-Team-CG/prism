@@ -9,18 +9,21 @@ import { OperationsEventReferenceModule } from '@prism/contexts/event-lifecycle/
 import { CoordinatorAccountReferenceModule } from '@prism/contexts/identity-access/coordinator-reference';
 import { RegistrationSupplierReferenceModule } from '@prism/contexts/commercial/registration-supplier-reference';
 import { GuestEventProjectionModule } from '@prism/contexts/read-models/guest-events';
+import { GuestPassDeliveryEligibilityModule } from '@prism/contexts/read-models/guest-pass-delivery-eligibility';
 import { OpsCoordinatorWorkspaceController } from './api/staffing/coordinator-workspace.controller';
 import { OpsEventCoordinatorAssignmentsController } from './api/staffing/event-coordinator-assignments.controller';
 import { OpsCoordinatorsController } from './api/staffing/coordinators.controller';
 import { OpsCoordinatorCapacityController } from './api/staffing/coordinator-capacity.controller';
 import { OpsGuestController } from './api/guest/guest.controller';
+import { OpsGuestQrPassController } from './api/guest/guest-qr-pass.controller';
 import { OpsRegistrationPlatformController } from './api/guest/registration-platform.controller';
 import { WalkInPolicyController } from './api/guest/walk-in-policy.controller';
 import { GuestPrivacyClassificationController } from './api/guest/guest-privacy-classification.controller';
 import { STAFFING_COMMANDS, STAFFING_READER } from './contracts/staffing-ops.tokens';
 import { COORDINATOR_RELIABILITY_WRITER } from './contracts/coordinator-reliability-writer.token';
 import { COORDINATOR_INSIGHT_FACTS_READER } from './contracts/coordinator-insight-facts-reader.port';
-import { GUEST_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER } from './contracts/guest-ops.tokens';
+import { GUEST_COMMANDS, GUEST_QR_PASS_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER } from './contracts/guest-ops.tokens';
+import { GUEST_QR_PASS_LIFECYCLE_OWNER } from './contracts/guest-qr-pass-lifecycle.port';
 import { CoordinatorWorkspaceReadService } from './application/staffing/coordinator-workspace-read.service';
 import { CoordinatorsService } from './application/staffing/coordinators.service';
 import { CoordinatorAssignmentCommandService } from './application/staffing/coordinator-assignment-command.service';
@@ -33,6 +36,7 @@ import { RegistrationPlatformService } from './application/guest/registration-pl
 import { WalkInPolicyService } from './application/guest/walk-in-policy.service';
 import { GuestPrivacyClassificationService } from './application/guest/guest-privacy-classification.service';
 import { GuestQrDemoPolicyService } from './application/guest/guest-qr-demo-policy.service';
+import { GuestQrPassService } from './application/guest/guest-qr-pass.service';
 import { OperationsPrivacyRedactorService } from './application/guest/operations-privacy-redactor.service';
 import { OPERATIONS_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 
@@ -54,8 +58,8 @@ import { OPERATIONS_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port'
  * command checks use Lifecycle, and guest/workspace projections use read-models.
  */
 @Module({
-  imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, FloorplanModule, EventSessionModule, OperationsEventReferenceModule, CoordinatorAccountReferenceModule, RegistrationSupplierReferenceModule, GuestEventProjectionModule],
-  controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsCoordinatorCapacityController, OpsGuestController, OpsRegistrationPlatformController, WalkInPolicyController, GuestPrivacyClassificationController],
+  imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, FloorplanModule, EventSessionModule, OperationsEventReferenceModule, CoordinatorAccountReferenceModule, RegistrationSupplierReferenceModule, GuestEventProjectionModule, GuestPassDeliveryEligibilityModule],
+  controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsCoordinatorCapacityController, OpsGuestController, OpsGuestQrPassController, OpsRegistrationPlatformController, WalkInPolicyController, GuestPrivacyClassificationController],
   providers: [
     CoordinatorsService,
     CoordinatorAssignmentCommandService,
@@ -65,6 +69,7 @@ import { OPERATIONS_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port'
     CoordinatorAcknowledgementReminderScheduler,
     CoordinatorWorkspaceReadService,
     GuestWorkflowService,
+    GuestQrPassService,
     RegistrationPlatformService,
     WalkInPolicyService,
     GuestPrivacyClassificationService,
@@ -76,9 +81,11 @@ import { OPERATIONS_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port'
     { provide: COORDINATOR_INSIGHT_FACTS_READER, useExisting: CoordinatorInsightFactsReaderService },
     { provide: STAFFING_READER, useExisting: CoordinatorsService },
     { provide: GUEST_COMMANDS, useExisting: GuestWorkflowService },
+    { provide: GUEST_QR_PASS_COMMANDS, useExisting: GuestQrPassService },
+    { provide: GUEST_QR_PASS_LIFECYCLE_OWNER, useExisting: GuestQrPassService },
     { provide: GUEST_READER, useExisting: GuestWorkflowService },
     { provide: REGISTRATION_PLATFORM_READER, useExisting: RegistrationPlatformService },
   ],
-  exports: [CoordinatorsService, CoordinatorWorkspaceReadService, STAFFING_COMMANDS, STAFFING_READER, COORDINATOR_RELIABILITY_WRITER, COORDINATOR_INSIGHT_FACTS_READER, GuestWorkflowService, RegistrationPlatformService, WalkInPolicyService, GUEST_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER, OPERATIONS_PRIVACY_REDACTOR],
+  exports: [CoordinatorsService, CoordinatorWorkspaceReadService, STAFFING_COMMANDS, STAFFING_READER, COORDINATOR_RELIABILITY_WRITER, COORDINATOR_INSIGHT_FACTS_READER, GuestWorkflowService, GuestQrPassService, RegistrationPlatformService, WalkInPolicyService, GUEST_COMMANDS, GUEST_QR_PASS_COMMANDS, GUEST_QR_PASS_LIFECYCLE_OWNER, GUEST_READER, REGISTRATION_PLATFORM_READER, OPERATIONS_PRIVACY_REDACTOR],
 })
 export class OperationsModule {}

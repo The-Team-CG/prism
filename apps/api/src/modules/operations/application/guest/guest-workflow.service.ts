@@ -29,6 +29,8 @@ import type {
   PrismGuestEventWatermark,
 } from '@prism/types';
 import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
+import { guestAccessCodeForEvent } from './guest-access-code';
+import { GuestQrPassService } from './guest-qr-pass.service';
 import {
   OPERATIONS_EVENT_REFERENCE_READER,
   type GuestCheckInEventReference,
@@ -73,6 +75,7 @@ export class GuestWorkflowService implements GuestCommands {
     @Inject(STAFFING_READER) private readonly staffingReader: StaffingReader,
     @Inject(OPERATIONS_EVENT_REFERENCE_READER) private readonly eventReferences: OperationsEventReferenceReader,
     @Inject(GUEST_EVENT_PROJECTION_READER) private readonly eventProjections: GuestEventProjectionReader,
+    private readonly guestQrPassService: GuestQrPassService,
   ) {}
 
   async getEventByAccessCode(accessCode: string) {
@@ -508,20 +511,48 @@ export class GuestWorkflowService implements GuestCommands {
       // The batch row must exist before roster entries reference it (same-event composite foreign key).
       await tx.opsGuestRosterImport.create({ data: { id: batchId, eventId, source: input.source, importedById: actor.id ?? null, importedBy: actor.name, rowCount: input.rows.length, rawFileUploadBlocked: true } });
       const keys = input.rows.map((row) => row.sourceKey);
+      const invalidatedRosterIds = new Set<string>();
       // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: input is capped at 1000 rows by the shared contract.
       const rows = [];
       // Keep the transaction bounded both by input size and by concurrent database work.
       for (let offset = 0; offset < input.rows.length; offset += 100) {
         const batch = input.rows.slice(offset, offset + 100);
+        const existingRows = await tx.opsGuestRosterEntry.findMany({
+          where: { eventId, sourceKey: { in: batch.map((row) => row.sourceKey) } },
+          select: { id: true, sourceKey: true, guestName: true, normalizedName: true, email: true, eligibility: true, source: true, withdrawnAt: true },
+        });
+        const existingBySourceKey = new Map(existingRows.map((row) => [row.sourceKey, row]));
+        for (const row of batch) {
+          const existing = existingBySourceKey.get(row.sourceKey);
+          if (!existing) continue;
+          const nextName = row.guestName.trim().toLowerCase();
+          const priorName = (existing.normalizedName || existing.guestName).trim().toLowerCase();
+          const nextEmail = this.normalizeGuestEmail(row.email ?? '');
+          const priorEmail = this.normalizeGuestEmail(existing.email ?? '');
+          const nextSource = input.source.trim().toLowerCase();
+          const isIneligible = (row.eligibility ?? 'eligible') !== 'eligible'
+            || COORDINATOR_REVIEW_SOURCES.includes(nextSource as (typeof COORDINATOR_REVIEW_SOURCES)[number]);
+          if (existing.withdrawnAt !== null || priorName !== nextName || priorEmail !== nextEmail || isIneligible) {
+            invalidatedRosterIds.add(existing.id);
+          }
+        }
         rows.push(...await Promise.all(batch.map(
           // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: each chunk is sliced to at most 100 input rows.
           (row) => tx.opsGuestRosterEntry.upsert({
             where: { eventId_sourceKey: { eventId, sourceKey: row.sourceKey } },
-            create: { id: `gre_${randomUUID()}`, eventId, sourceKey: row.sourceKey, guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email ?? '', phone: row.phone ?? '', category: row.category ?? '', table: row.table ?? '', eligibility: row.eligibility ?? 'eligible', verificationStatus: 'pending', source: input.source, importBatchId: batchId, withdrawnAt: null },
-            update: { guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email ?? '', phone: row.phone ?? '', category: row.category ?? '', table: row.table ?? '', eligibility: row.eligibility ?? 'eligible', source: input.source, importBatchId: batchId, withdrawnAt: null },
+            create: { id: `gre_${randomUUID()}`, eventId, sourceKey: row.sourceKey, guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email?.trim() ?? '', phone: row.phone ?? '', category: row.category ?? '', table: row.table ?? '', eligibility: row.eligibility ?? 'eligible', verificationStatus: 'pending', source: input.source, importBatchId: batchId, withdrawnAt: null },
+            update: { guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email?.trim() ?? '', phone: row.phone ?? '', category: row.category ?? '', table: row.table ?? '', eligibility: row.eligibility ?? 'eligible', source: input.source, importBatchId: batchId, withdrawnAt: null },
           }))));
       }
+      const removedRows = await tx.opsGuestRosterEntry.findMany({
+        where: { eventId, source: input.source, sourceKey: { notIn: keys }, withdrawnAt: null },
+        select: { id: true },
+      });
+      removedRows.forEach((row) => invalidatedRosterIds.add(row.id));
       await tx.opsGuestRosterEntry.updateMany({ where: { eventId, source: input.source, sourceKey: { notIn: keys }, withdrawnAt: null }, data: { withdrawnAt: new Date() } });
+      if (invalidatedRosterIds.size > 0) {
+        await this.guestQrPassService.revokeForRosterEntries(eventId, [...invalidatedRosterIds], actor, { prisma: tx, correlationId: batchId });
+      }
       await writeAudit(this.auditWriter, eventId, actor.name, 'Guest roster imported and reconciled', { actorRole: actor.role, category: AuditCategory.Events, actionType: AuditActionType.Update, affectedType: 'guest_roster', affectedId: eventId, metadata: { batchId, rowCount: rows.length, source: input.source, actorId: actor.id, rawFileUploadBlocked: true } }, { prisma: tx, correlationId: batchId });
       return rows.map((row) => this.mapGuestRosterEntry(row));
     });
@@ -735,20 +766,15 @@ export class GuestWorkflowService implements GuestCommands {
   }
 
   guestAccessCode(event: Pick<PrismEvent, 'id' | 'eventName'>) {
-    const namePart =
-      event.eventName
-        .toUpperCase()
-        .replace(/[^A-Z0-9]+/g, '-')
-        .split('-')
-        .filter(Boolean)
-        .slice(0, 2)
-        .join('-') || 'PRISM';
-    const idPart = event.id.replace(/[^a-zA-Z0-9]/g, '').slice(-4).toUpperCase() || 'EVNT';
-    return `${namePart}-${idPart}`;
+    return guestAccessCodeForEvent(event);
   }
 
   private normalizeGuestAccessCode(accessCode: string) {
     return accessCode.trim().toUpperCase().replace(/\s+/g, '-');
+  }
+
+  private normalizeGuestEmail(email: string) {
+    return email.trim().toLowerCase();
   }
 
   private assertWalkInAllowed(event: Pick<OperationsEventReference, 'walkInPolicy' | 'walkInThreshold'>, checkedInCount: number) {

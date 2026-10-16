@@ -81,6 +81,7 @@ function createWorkflow(prisma: PrismaService, projectionWriter = new FloorplanP
   const notificationWriter: NotificationOutboxWriter = {
     write: async () => undefined,
     writeGuestPassDelivery: async () => ({ notificationId: 'not_test', status: 'queued' }),
+    retryGuestPassDelivery: async () => undefined,
     cancelGuestPassDelivery: async () => undefined,
   };
   const workflow = new FloorPlanWorkflowService(

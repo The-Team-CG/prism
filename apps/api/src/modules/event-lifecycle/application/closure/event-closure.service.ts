@@ -9,6 +9,7 @@ import type { ArchiveSearchFilters, PrismCoordinatorInsightFacts, RecordActualEv
 import { EventAccessPolicyService, type EventOpsActorInput, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { FileRequirementsMatrixService } from '../files/file-requirements-matrix.service';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
+import { GUEST_QR_PASS_LIFECYCLE_OWNER, type GuestQrPassLifecycleOwner } from '@prism/contexts/operations';
 import { archivedEventMatchesSearch } from '../../domain/archive-search.policy';
 import { mapArchivedEventSearchHit } from './closure.mappers';
 import { COMMERCIAL_FACTS_READER, type CommercialFactsReader } from '@prism/contexts/read-models/commercial-facts-reader';
@@ -40,6 +41,7 @@ export class EventClosureService {
     private readonly workflowCommandService: WorkflowCommandService,
     @Inject(COMMERCIAL_FACTS_READER) private readonly commercialFactsReader: CommercialFactsReader,
     @Inject(LIFECYCLE_FACTS_READER) private readonly lifecycleFactsReader: LifecycleFactsReader,
+    @Inject(GUEST_QR_PASS_LIFECYCLE_OWNER) private readonly guestQrPassLifecycleOwner: GuestQrPassLifecycleOwner,
   ) {}
 
   async closeGates(eventId: string) {
@@ -65,8 +67,9 @@ export class EventClosureService {
         where: { id: eventId, actualEndedAt: current.actualEndedAt },
         data: { actualEndedAt, actualEndedBy: actor.id },
       });
-      await this.syncWrapUpAtActualEnd(tx, eventId, actualEndedAt, isChanged);
       const context = { prisma: tx, correlationId: `actual_end_${randomUUID()}` };
+      await this.guestQrPassLifecycleOwner.expireEventGuestQrPasses(eventId, 'event-ended', context);
+      await this.syncWrapUpAtActualEnd(tx, eventId, actualEndedAt, isChanged);
       if (!isChanged) return event;
       await writeAudit(this.auditWriter, eventId, actor.name, current.actualEndedAt ? 'Corrected actual event end' : 'Recorded actual event end', {
         actorRole: actor.role,
@@ -195,6 +198,7 @@ export class EventClosureService {
           archiveChecklist: toPrismaJson(closeGates), status: 'archived', readiness: 'Closed',
         },
       });
+      await this.guestQrPassLifecycleOwner.expireEventGuestQrPasses(eventId, 'event-archived', context);
       await writeAudit(this.auditWriter, eventId, actorName, overrideReason ? 'Archived event with override' : 'Archived event', {
         actorRole: actor.role, actorEmail: actor.email,
         actionType: AuditActionType.Archive, category: AuditCategory.Events,

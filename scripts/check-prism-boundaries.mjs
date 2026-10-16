@@ -43,6 +43,7 @@ function hasPrivateModuleImport(source) {
     '@prism/contexts/read-models/account-contacts',
     '@prism/contexts/read-models/commercial-facts-reader',
     '@prism/contexts/read-models/lifecycle-facts',
+    '@prism/contexts/read-models/guest-pass-delivery-eligibility',
     '@prism/contexts/event-lifecycle/conforme-reminder-window',
     '@prism/contexts/event-lifecycle/post-event-reference',
     '@prism/contexts/event-lifecycle/operations-reference',

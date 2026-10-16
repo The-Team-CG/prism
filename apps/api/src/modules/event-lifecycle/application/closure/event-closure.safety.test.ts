@@ -12,6 +12,7 @@ function harness() {
   const notification = {
     write: vi.fn(async () => { if (failures.notification) throw new Error('Outbox failed'); }),
     writeGuestPassDelivery: vi.fn(async () => ({ notificationId: 'not_test', status: 'queued' as const })),
+    retryGuestPassDelivery: vi.fn(async () => undefined),
     cancelGuestPassDelivery: vi.fn(async () => undefined),
   };
   const eventModel = (draft: typeof state) => ({
@@ -38,8 +39,9 @@ function harness() {
     resolveActor: (input: { actorRole?: string; actorName?: string }) => ({ role: input.actorRole ?? 'unknown', name: input.actorName ?? 'Verified PMCM', email: 'pmcm@example.test' }),
     requireActorRole: vi.fn(async (actor: { role: string }) => { if (actor.role !== 'pmcm-admin') throw new ForbiddenException(); }),
   };
-  const service = new EventClosureService(prisma as never, fileMatrix as never, new EventLifecycleService(), audit, access as never, notification, new WorkflowCommandService(), { getLifecycleFacts: vi.fn() } as never, { getClosureFacts: vi.fn() } as never);
-  return { service, prisma, state, failures, fileMatrix, audit, notification, foreignDocument };
+  const guestQrPassLifecycleOwner = { expireEventGuestQrPasses: vi.fn(async () => undefined) };
+  const service = new EventClosureService(prisma as never, fileMatrix as never, new EventLifecycleService(), audit, access as never, notification, new WorkflowCommandService(), { getLifecycleFacts: vi.fn() } as never, { getClosureFacts: vi.fn() } as never, guestQrPassLifecycleOwner as never);
+  return { service, prisma, state, failures, fileMatrix, audit, notification, guestQrPassLifecycleOwner, foreignDocument };
 }
 
 describe('archive command safety', () => {
@@ -58,7 +60,7 @@ describe('archive command safety', () => {
   });
 
   it('records the exact failed gates, actor and reason in the archive transaction', async () => {
-    const { service, prisma, fileMatrix, audit, notification } = harness();
+    const { service, prisma, fileMatrix, audit, notification, guestQrPassLifecycleOwner } = harness();
     const saved = await service.archiveEvent('event_1', { actorRole: 'pmcm-admin', actorName: 'Verified PMCM', overrideReason: ' Asset returns verified offline ' });
     expect(saved).toMatchObject({ archived: true, archiveOverrideReason: 'Asset returns verified offline', archiveOverrideBy: 'Verified PMCM' });
     expect(prisma.$transaction).toHaveBeenCalledOnce();
@@ -66,6 +68,7 @@ describe('archive command safety', () => {
     expect(fileMatrix.closeGates).toHaveBeenCalledWith('event_1', expect.objectContaining({ opsEvent: expect.anything() }));
     expect(audit.write).toHaveBeenCalledWith(expect.objectContaining({ actor: 'Verified PMCM', actorRole: 'pmcm-admin', metadata: expect.objectContaining({ missingKeys: ['logistics'] }) }), expect.objectContaining({ prisma: expect.anything() }));
     expect(notification.write).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ prisma: expect.anything() }));
+    expect(guestQrPassLifecycleOwner.expireEventGuestQrPasses).toHaveBeenCalledWith('event_1', 'event-archived', expect.objectContaining({ prisma: expect.anything() }));
   });
 
   it('cannot skip planning even with an override', async () => {

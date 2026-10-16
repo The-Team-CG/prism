@@ -315,6 +315,7 @@ databaseSuite("actor-scoped event reads PostgreSQL behavior", () => {
         {} as never,
         {} as never,
         {} as never,
+        { expireEventGuestQrPasses: vi.fn(async () => undefined) } as never,
       );
       const archivedHits = await archiveService.searchArchive(
         {},

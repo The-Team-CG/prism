@@ -10,6 +10,7 @@ import { AuditService, AuditWriterAdapter, NotificationOutboxService, Notificati
 import { FileRequirementsMatrixService } from '../files/file-requirements-matrix.service';
 import { CommercialFactsReaderService } from '@prism/contexts/read-models/commercial-facts-reader';
 import { LifecycleFactsReaderService } from '@prism/contexts/read-models/lifecycle-facts';
+import { GuestQrPassService } from '@prism/contexts/operations';
 import { EventClosureService } from './event-closure.service';
 
 const databaseUrl = process.env.P0_TEST_DATABASE_URL;
@@ -36,9 +37,18 @@ describe.skipIf(!databaseUrl)('closeout against PostgreSQL', () => {
     const auditService = new AuditService(database);
     auditWriter = new AuditWriterAdapter(auditService, new SecurityOperationsService(database, auditService));
     outboxWriter = new NotificationOutboxWriterAdapter(new NotificationOutboxService(database));
+    const guestQrPassService = new GuestQrPassService(
+      database,
+      auditWriter,
+      outboxWriter,
+      { getGuestPassDeliveryStatuses: vi.fn(async () => new Map()) } as never,
+      { findOperationsEvent: vi.fn(async () => null) } as never,
+      { get: vi.fn() } as never,
+      { isEnabledForEvent: vi.fn(() => true) } as never,
+    );
     service = new EventClosureService(database, new FileRequirementsMatrixService(database),
       new EventLifecycleService(), auditWriter, new EventAccessPolicyService(auditWriter),
-      outboxWriter, new WorkflowCommandService(), new CommercialFactsReaderService(database), new LifecycleFactsReaderService(database));
+      outboxWriter, new WorkflowCommandService(), new CommercialFactsReaderService(database), new LifecycleFactsReaderService(database), guestQrPassService);
   });
 
   afterEach(() => {
@@ -60,12 +70,70 @@ describe.skipIf(!databaseUrl)('closeout against PostgreSQL', () => {
     } });
   }
 
+  async function activeGuestPass(fixture: { id: string }) {
+    const rosterImportId = id();
+    const rosterEntryId = id();
+    const passId = id();
+    const notificationId = id();
+    await prisma.opsGuestRosterImport.create({ data: {
+      id: rosterImportId, eventId: fixture.id, source: 'P0 masterlist', importedBy: operator.actorName, rowCount: 1,
+    } });
+    await prisma.opsGuestRosterEntry.create({ data: {
+      id: rosterEntryId, eventId: fixture.id, sourceKey: rosterEntryId, guestName: 'P0 Guest', normalizedName: 'p0 guest',
+      email: 'p0-guest@example.test', source: 'P0 masterlist', importBatchId: rosterImportId,
+    } });
+    await prisma.opsGuestQrPass.create({ data: {
+      id: passId, eventId: fixture.id, rosterEntryId, tokenHash: `hash_${passId}`, issuedById: 'p0_operator',
+      notificationId, deliveryStatus: 'queued',
+    } });
+    await prisma.opsNotificationLog.create({ data: {
+      id: notificationId, eventId: fixture.id, guestPassId: passId, channel: 'email', recipient: 'p0-guest@example.test',
+      message: 'Redacted guest pass message', sensitivePayload: 'v1.test-ciphertext', status: 'queued',
+      idempotencyKey: `guest-pass:${passId}`,
+    } });
+    return { notificationId, passId };
+  }
+
+  const lifecycleActor = { id: 'p0_operator', name: operator.actorName, email: 'operator@p0.test', role: 'pmcm-admin' } as const;
+
   it('blocks missing source evidence instead of treating empty lists as complete', async () => {
     const fixture = await event();
     const gates = await service.closeGates(fixture.id);
     expect(gates.missingKeys).toEqual(['documents', 'billing', 'logistics', 'feedback']);
     await expect(service.archiveEvent(fixture.id, operator)).rejects.toThrow();
     expect((await prisma.opsEvent.findUniqueOrThrow({ where: { id: fixture.id } })).archived).toBe(false);
+  });
+
+  it('expires active guest passes and clears encrypted delivery atomically on actual end, repeat, and correction', async () => {
+    const fixture = await event();
+    const { passId, notificationId } = await activeGuestPass(fixture);
+    const actualEndedAt = new Date(Date.now() - 60_000);
+    vi.spyOn(outboxWriter, 'cancelGuestPassDelivery').mockRejectedValueOnce(new Error('injected guest pass cancellation failure'));
+
+    await expect(service.recordActualEventEnd(fixture.id, { actualEndedAt: actualEndedAt.toISOString() }, lifecycleActor as never))
+      .rejects.toThrow('injected guest pass cancellation failure');
+    expect((await prisma.opsEvent.findUniqueOrThrow({ where: { id: fixture.id } })).actualEndedAt).toBeNull();
+    expect((await prisma.opsGuestQrPass.findUniqueOrThrow({ where: { id: passId } })).status).toBe('active');
+    expect((await prisma.opsNotificationLog.findUniqueOrThrow({ where: { id: notificationId } })).sensitivePayload).toBe('v1.test-ciphertext');
+
+    await service.recordActualEventEnd(fixture.id, { actualEndedAt: actualEndedAt.toISOString() }, lifecycleActor as never);
+    await service.recordActualEventEnd(fixture.id, { actualEndedAt: actualEndedAt.toISOString() }, lifecycleActor as never);
+    await service.recordActualEventEnd(fixture.id, {
+      actualEndedAt: new Date(actualEndedAt.getTime() + 1_000).toISOString(), correctionReason: 'Verified revised venue log',
+    }, lifecycleActor as never);
+
+    expect(await prisma.opsGuestQrPass.findUniqueOrThrow({ where: { id: passId } })).toMatchObject({ status: 'revoked', deliveryStatus: 'revoked' });
+    expect(await prisma.opsNotificationLog.findUniqueOrThrow({ where: { id: notificationId } })).toMatchObject({ status: 'cancelled', sensitivePayload: null, leaseToken: null });
+  });
+
+  it('expires active guest passes and clears encrypted delivery in the archive transaction', async () => {
+    const fixture = await event();
+    const { passId, notificationId } = await activeGuestPass(fixture);
+
+    await service.archiveEvent(fixture.id, override);
+
+    expect(await prisma.opsGuestQrPass.findUniqueOrThrow({ where: { id: passId } })).toMatchObject({ status: 'revoked', deliveryStatus: 'revoked' });
+    expect(await prisma.opsNotificationLog.findUniqueOrThrow({ where: { id: notificationId } })).toMatchObject({ status: 'cancelled', sensitivePayload: null, leaseToken: null });
   });
 
   it('reads unresolved issues and preserves the exact failed gates in an audited override', async () => {

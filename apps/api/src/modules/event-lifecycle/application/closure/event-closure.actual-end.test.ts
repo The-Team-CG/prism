@@ -8,9 +8,10 @@ function harness(actualEndedAt: Date | null = null) {
   const tx = { opsEvent: { findUnique: vi.fn(async () => event), update: vi.fn(async ({ data }: any) => ({ ...event, ...data })) }, opsEventWrapUp: { upsert: vi.fn(async ({ create }: any) => create) } };
   const prisma = { $transaction: vi.fn(async (fn: any) => fn(tx)) };
   const auditWriter = { write: vi.fn(async () => undefined) };
+  const guestQrPassLifecycleOwner = { expireEventGuestQrPasses: vi.fn(async () => undefined) };
   const service = new EventClosureService(prisma as any, {} as any, {} as any, auditWriter as any, {} as any, {} as any, {} as any,
-    { getLifecycleFacts: vi.fn() } as any, { getClosureFacts: vi.fn() } as any);
-  return { service, tx, auditWriter };
+    { getLifecycleFacts: vi.fn() } as any, { getClosureFacts: vi.fn() } as any, guestQrPassLifecycleOwner as any);
+  return { service, tx, auditWriter, guestQrPassLifecycleOwner };
 }
 const actor = { id: 'user_pmcm', name: 'Maxine', email: 'mys@test', role: OpsUserRole.PmcmAdmin } as any;
 
@@ -25,9 +26,10 @@ describe('EventClosureService actual end', () => {
   });
 
   it('records a past actual end and audits the verified actor', async () => {
-    const { service, tx, auditWriter } = harness();
+    const { service, tx, auditWriter, guestQrPassLifecycleOwner } = harness();
     await service.recordActualEventEnd('evt_1', { actualEndedAt: '2026-09-07T12:00:00.000Z' }, actor);
     expect(tx.opsEvent.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ actualEndedBy: 'user_pmcm' }) }));
+    expect(guestQrPassLifecycleOwner.expireEventGuestQrPasses).toHaveBeenCalledWith('evt_1', 'event-ended', expect.objectContaining({ prisma: tx }));
     expect(auditWriter.write).toHaveBeenCalled();
   });
   it('rejects future timestamps', async () => {
@@ -41,9 +43,10 @@ describe('EventClosureService actual end', () => {
     expect(auditWriter.write).toHaveBeenCalledWith(expect.objectContaining({ metadata: expect.objectContaining({ correctionReason: 'Verified venue log' }) }), expect.anything());
   });
   it('accepts an idempotent same-timestamp correction', async () => {
-    const { service, tx, auditWriter } = harness(new Date('2026-09-07T12:00:00.000Z'));
+    const { service, tx, auditWriter, guestQrPassLifecycleOwner } = harness(new Date('2026-09-07T12:00:00.000Z'));
     await service.recordActualEventEnd('evt_1', { actualEndedAt: '2026-09-07T12:00:00.000Z' }, actor);
     expect(tx.opsEvent.update).toHaveBeenCalledTimes(1);
+    expect(guestQrPassLifecycleOwner.expireEventGuestQrPasses).toHaveBeenCalledOnce();
     expect(auditWriter.write).not.toHaveBeenCalled();
   });
 });

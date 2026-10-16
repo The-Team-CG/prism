@@ -34,11 +34,17 @@ function createService(options: { encryptionKey?: string; delivery?: Notificatio
         if (!found) throw new Error('Missing notification');
         return found;
       }),
-      updateMany: vi.fn(async ({ where, data }: { where: { id: string; status: string }; data: Record<string, unknown> }) => {
-        const found = notifications.find((row) => row.id === where.id && row.status === where.status);
-        if (!found) return { count: 0 };
-        Object.assign(found, data);
-        return { count: 1 };
+      updateMany: vi.fn(async ({ where, data }: { where: any; data: Record<string, unknown> }) => {
+        const matchesCondition = (condition: any, value: unknown) => condition && typeof condition === 'object' && 'not' in condition
+          ? value !== condition.not
+          : value === condition;
+        const matches = notifications.filter((row) => row.id === where.id
+          && (where.status === undefined || row.status === where.status)
+          && (where.guestPassId === undefined || matchesCondition(where.guestPassId, row.guestPassId))
+          && (where.sensitivePayload === undefined || matchesCondition(where.sensitivePayload, row.sensitivePayload))
+          && (where.leaseToken === undefined || row.leaseToken === where.leaseToken));
+        matches.forEach((row) => Object.assign(row, data));
+        return { count: matches.length };
       }),
       update: vi.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
         const index = notifications.findIndex((notification) => notification.id === where.id);
@@ -247,5 +253,39 @@ describe('NotificationOutboxService', () => {
       leaseToken: null,
       leaseExpiresAt: null,
     });
+  });
+
+  it('retries queued guest-pass delivery only when its encrypted body remains available and unleased', async () => {
+    const { notifications, service } = createService();
+    const originalAttempt = new Date('2026-10-16T12:00:00.000Z');
+    notifications.push({
+      id: 'not_guest_pass', guestPassId: 'pass_1', sensitivePayload: 'v1.ciphertext', status: 'queued',
+      attempts: 3, nextAttemptAt: originalAttempt, failureReason: 'temporary provider failure', failedAt: originalAttempt,
+      leaseToken: null, leaseExpiresAt: null,
+    });
+
+    await service.retryGuestPassDelivery('not_guest_pass');
+
+    expect(notifications[0]).toMatchObject({
+      guestPassId: 'pass_1', sensitivePayload: 'v1.ciphertext', status: 'queued',
+      failureReason: null, failedAt: null, leaseToken: null,
+    });
+    expect(notifications[0].nextAttemptAt).toBeInstanceOf(Date);
+    expect((notifications[0].nextAttemptAt as Date).getTime()).toBeGreaterThan(originalAttempt.getTime());
+  });
+
+  it.each([
+    ['captured', { status: 'captured' }],
+    ['redacted', { sensitivePayload: null }],
+    ['leased', { leaseToken: 'lease_current' }],
+    ['unlinked', { guestPassId: null }],
+  ])('rejects retry of a %s guest-pass notification', async (_label, overrides) => {
+    const { notifications, service } = createService();
+    notifications.push({
+      id: 'not_guest_pass', guestPassId: 'pass_1', sensitivePayload: 'v1.ciphertext', status: 'queued',
+      leaseToken: null, leaseExpiresAt: null, ...overrides,
+    });
+
+    await expect(service.retryGuestPassDelivery('not_guest_pass')).rejects.toThrow('Guest pass delivery cannot be retried');
   });
 });
