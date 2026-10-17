@@ -23,6 +23,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Coordinators can submit end-of-day reports for their assigned events.
 - Registration staff can import and search rosters, verify guests, and check them in.
 - Walk-ins follow PMCM policy and consent.
+- PMCM can configure and host 12 Active (Multiplayer) and Independent (Singleplayer) game templates; guests join multiplayer sessions by PIN and play independent games from the event lobby.
+- PMCM Admins retain game responses for one year after moderation or event archive; expired response content is redacted while moderation decisions remain recorded.
 - Guests can submit feedback for seven days after the recorded event end, and PMCM can moderate it.
 - Assigned suppliers can submit or revise quotes through expiring, revocable request links.
 - PMCM can review supplier readiness for assigned suppliers.
@@ -36,6 +38,40 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   and real-data AI remains disabled.
 - Operators have a preproduction-only, backup- and approval-gated command to
   repair and checkpoint legacy audit chains.
+- Shared game-entry contracts distinguish PIN joins for Active (Multiplayer) sessions from
+  Independent (Singleplayer) event-lobby starts and reserve a separate participant-session key.
+- The event-games API context authorizes host writes by verified event access and records their audit details.
+- Guest game-action contracts reject client-supplied identity, score, timing,
+  and moderation fields; scoring fails closed without a registered template rule.
+- PMCM hosts can moderate submissions, remove participants, and assign recorded
+  awards; PMCM Admin can review retained responses through a paginated event-scoped route.
+- The event-games API exposes host-only participation and completion aggregates
+  without returning participant-level details.
+- Event-game APIs accept bounded PNG/JPEG media references; participant-session
+  credentials receive scoped, short-lived reads, while general file listings hide
+  these assets and generic downloads deny them.
+- Organizers can configure private Would You Rather polls and This or That (Solo)
+  rounds with a separate guest opt-in for anonymous aggregate results; neither mode
+  creates competitive rankings.
+- PMCM can manage event game drafts, host sessions, rotate one-time PINs, inspect
+  aggregate analytics and leaderboards, moderate retained responses, and assign
+  event-scoped points, badges, or prize records. Hosts can configure and publish
+  Live Trivia, Bingo, Guess the Picture, and Spin the Wheel; game rules verify
+  answers, calls, image guesses, and persisted wheel results on the server.
+- Guests can play those four Active (Multiplayer) templates through the shared
+  session view, while the host dashboard exposes round context and a paused-only
+  trivia answer reveal.
+- PMCM can select an audited lobby theme and upload an event-scoped logo; public
+  game views receive allowlisted colors and signed storage URLs instead of
+  arbitrary CSS or external image URLs.
+- Host and participant game views refresh session state while visible, and round
+  countdowns use server timestamps.
+- Guests can join Active (Multiplayer) games by PIN or open an event lobby for
+  available Independent (Singleplayer) games, with anonymous event-scoped access.
+- Hosts can configure This or That, Family Feud, and Split the Room with server-validated votes, team assignments, score rules, and bounded response text.
+- Family Feud alternatives remain unscored until a host matches them to a configured answer or records no award; the decision and board-derived points are stored together and reflected in the team score.
+- Split the Room responses stay private until a host approves them; guests see approved responses only after the host pauses the round. Participant answers and votes use persistent event-scoped rate limits.
+- Hosts select one server-randomized Spin the Wheel outcome for a live session; guests see the shared result and privacy-safe competitive standings, while solo choices remain participant-private.
 
 ### Changed
 
@@ -59,6 +95,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Vercel services share one complete workspace install with build tooling, located from any service directory, so builds find Turborepo and packaging keeps every service's dependencies.
 - Secret scanning recognizes the immutable identity-access migration checksum as a content hash.
 - API startup resolves context contract tokens and privacy module database dependencies.
+- Event-game PIN issuance, joining, and rate limiting inject their clocks through the shared game clock token.
+- Event-games controllers resolve the shared event-session guard and authentication providers in their module context.
 - Signing a conforme no longer creates fabricated billing.
 - Client billing balances now use recorded payments.
 - Floorplan approval rejects a draft changed by a concurrent client revision.
