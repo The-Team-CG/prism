@@ -154,8 +154,10 @@ function sanitizeCurrentRound(value: unknown): PrismGamePublicState["currentRoun
 
 function hasParticipantStateShape(
   value: unknown,
-): value is Record<string, unknown> & { hasSubmitted: boolean; score: number | null; hasVoted?: boolean } {
-  return isRecord(value) && typeof value.hasSubmitted === "boolean" && isNullableFiniteNumber(value.score)
+): value is Record<string, unknown> & { participantAlias: string; hasSubmitted: boolean; score: number | null; hasVoted?: boolean } {
+  return isRecord(value) && typeof value.participantAlias === "string"
+    && /^Guest [A-F0-9]{10}$/.test(value.participantAlias)
+    && typeof value.hasSubmitted === "boolean" && isNullableFiniteNumber(value.score)
     && (value.hasVoted === undefined || typeof value.hasVoted === "boolean");
 }
 
@@ -169,6 +171,7 @@ function sanitizeParticipant(value: unknown): PrismGamePublicState["participant"
   const participantResult = sanitizeParticipantResult(value.result);
   const gameData = sanitizeParticipantGameData(value.gameData);
   return {
+    participantAlias: value.participantAlias,
     hasSubmitted: value.hasSubmitted,
     ...(typeof value.hasVoted === "boolean" ? { hasVoted: value.hasVoted } : {}),
     score: value.score,

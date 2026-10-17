@@ -7,7 +7,6 @@ const participant = vi.hoisted(() => ({
   getState: vi.fn(),
   getMedia: vi.fn(),
   leave: vi.fn(),
-  readSession: vi.fn(),
   submit: vi.fn(),
 }));
 const router = vi.hoisted(() => ({ replace: vi.fn() }));
@@ -17,7 +16,6 @@ vi.mock("../use-cases/event-game-participant", () => ({
   getEventGameParticipantState: participant.getState,
   getEventGameParticipantMediaAuthorization: participant.getMedia,
   leaveEventGamesFromSession: participant.leave,
-  readEventGameParticipantSession: participant.readSession,
   submitEventGameParticipantAction: participant.submit,
 }));
 
@@ -31,7 +29,7 @@ function state(kind: PrismGamePublicState["game"]["kind"]): PrismGamePublicState
     startedAt: "2026-10-17T10:00:00.000Z",
     currentRound: { key: "round-1", number: 1, total: 1 },
     currentPrompt: "Choose an answer",
-    participant: { hasSubmitted: false, score: 0 },
+    participant: { participantAlias: "Guest A1B2C3D4E5", hasSubmitted: false, score: 0 },
     aggregateResults: [],
   };
 }
@@ -39,7 +37,6 @@ function state(kind: PrismGamePublicState["game"]["kind"]): PrismGamePublicState
 describe("useEventGamePlayViewModel session refresh", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    participant.readSession.mockReturnValue({ eventId: "event-1", participantCredential: "credential" });
     participant.getState.mockResolvedValue(state("live-trivia"));
     participant.submit.mockResolvedValue(state("live-trivia"));
   });
@@ -58,6 +55,17 @@ describe("useEventGamePlayViewModel session refresh", () => {
     expect(result.current.state).toBe(goodState);
     expect(result.current.status).toBe("ready");
     expect(result.current.error).toBe("Temporary network error");
+  });
+
+  it("uses the server-issued anonymous alias shown in the host leaderboard", async () => {
+    const serverState = state("live-trivia");
+    serverState.participant.participantAlias = "Guest 00D1C1C9F0";
+    participant.getState.mockResolvedValueOnce(serverState);
+    const { result } = renderHook(() => useEventGamePlayViewModel("session-1"));
+
+    await waitFor(() => expect(result.current.state).toBe(serverState));
+
+    expect(result.current.participantAlias).toBe("Guest 00D1C1C9F0");
   });
 
   it("refreshes immediately after a submitted answer and polls only Active (Multiplayer) sessions", async () => {
