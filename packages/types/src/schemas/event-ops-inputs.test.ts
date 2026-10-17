@@ -243,7 +243,11 @@ describe("event-ops write schemas", () => {
 
     expect(createGuestCheckInSchema.parse(input)).toEqual(input);
     const malformedToken = { ...input, passToken: "   " };
-    expect(createGuestCheckInSchema.parse(malformedToken).passToken).toBe("   ");
+    const parsedMalformedToken = createGuestCheckInSchema.parse(malformedToken);
+    expect(parsedMalformedToken).toMatchObject({
+      checkInMode: "qr_pass",
+      passToken: "   ",
+    });
   });
 
   it.each([
