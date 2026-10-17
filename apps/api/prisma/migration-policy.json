@@ -357,6 +357,47 @@
       "event_day_logs": [
         "live-ops"
       ]
+    },
+    "event_games": {
+      "game_definitions": [
+        "event-games"
+      ],
+      "lobby_slugs": [
+        "event-games"
+      ],
+      "game_config_versions": [
+        "event-games"
+      ],
+      "game_sessions": [
+        "event-games"
+      ],
+      "active_pin_reservations": [
+        "event-games"
+      ],
+      "pin_history": [
+        "event-games"
+      ],
+      "participant_credentials": [
+        "event-games"
+      ],
+      "session_participation_grants": [
+        "event-games"
+      ],
+      "submissions": [
+        "event-games"
+      ],
+      "score_ledger": [
+        "event-games"
+      ],
+      "awards": [
+        "event-games"
+      ],
+      "moderation_actions": [
+        "event-games"
+      ],
+      "rate_limit_buckets": [
+        "event-games"
+      ]
     }
   },
   "historicalRequireTableOwnerMappingsForSchemas": [],
@@ -641,6 +682,56 @@
       "event_day_logs": [
         "live-ops"
       ]
+    },
+    "event_games": {
+      "game_definitions": [
+        "event-games"
+      ],
+      "lobby_slugs": [
+        "event-games"
+      ],
+      "game_config_versions": [
+        "event-games"
+      ],
+      "game_sessions": [
+        "event-games"
+      ],
+      "active_pin_reservations": [
+        "event-games"
+      ],
+      "pin_history": [
+        "event-games"
+      ],
+      "participant_credentials": [
+        "event-games"
+      ],
+      "participant_credentials_event_digest_key": [
+        "event-games"
+      ],
+      "session_participation_grants_event_id_idempotency_key": [
+        "event-games"
+      ],
+      "active_pin_reservations_event_issue_key_key": [
+        "event-games"
+      ],
+      "session_participation_grants": [
+        "event-games"
+      ],
+      "submissions": [
+        "event-games"
+      ],
+      "score_ledger": [
+        "event-games"
+      ],
+      "awards": [
+        "event-games"
+      ],
+      "moderation_actions": [
+        "event-games"
+      ],
+      "rate_limit_buckets": [
+        "event-games"
+      ]
     }
   },
   "owners": {
@@ -651,6 +742,10 @@
     "event-lifecycle": {
       "schema": "event_lifecycle",
       "note": "Inquiry, event, briefing, compliance, closure, and lifecycle records."
+    },
+    "event-games": {
+      "schema": "event_games",
+      "note": "Event game definitions, sessions, participant credentials, and play records."
     },
     "floorplan": {
       "schema": "floorplan",
