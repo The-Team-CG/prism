@@ -109,7 +109,7 @@ describe('EventGamesPrismaStoreAdapter event analytics', () => {
       leaderboard: [
         {
           rank: 1,
-          label: 'Player 1',
+          label: expect.stringMatching(/^Guest [A-F0-9]{10}$/),
           awardRecipient: { type: 'participant', participationGrantId: 'participation-1' },
         },
         {
@@ -120,6 +120,43 @@ describe('EventGamesPrismaStoreAdapter event analytics', () => {
         },
       ],
     });
+  });
+
+  it('keeps an individual leaderboard alias stable when the participant rank changes', async () => {
+    const session = {
+      event_id: 'event-1', session_id: 'session-1', game_id: 'game-1', title: 'Trivia',
+      game_kind: 'live-trivia', status: 'live', scheduled_start_at: null,
+      started_at: new Date('2026-10-16T09:00:00.000Z'), ended_at: null,
+      participant_count: 2,
+    };
+    const participantOne = {
+      group_key: 'participant:participation-1', team_id: null, team_label: null, score: 100, rank: 1,
+    };
+    const participantTwo = {
+      group_key: 'participant:participation-2', team_id: null, team_label: null, score: 80, rank: 2,
+    };
+    const queryRaw = vi.fn()
+      .mockResolvedValueOnce([session])
+      .mockResolvedValueOnce([participantOne, participantTwo])
+      .mockResolvedValueOnce([session])
+      .mockResolvedValueOnce([
+        { ...participantTwo, score: 100, rank: 1 },
+        { ...participantOne, score: 80, rank: 2 },
+      ]);
+    const transaction = { prisma: { $queryRaw: queryRaw } } as unknown as PrismTransactionContext;
+    const adapter = new EventGamesPrismaStoreAdapter();
+
+    const first = await adapter.getHostState({ eventId: 'event-1', sessionId: 'session-1' }, transaction);
+    const second = await adapter.getHostState({ eventId: 'event-1', sessionId: 'session-1' }, transaction);
+    const firstParticipant = first?.leaderboard.find((entry) => entry.awardRecipient?.type === 'participant' &&
+      entry.awardRecipient.participationGrantId === 'participation-1');
+    const secondParticipant = second?.leaderboard.find((entry) => entry.awardRecipient?.type === 'participant' &&
+      entry.awardRecipient.participationGrantId === 'participation-1');
+
+    expect(firstParticipant?.rank).toBe(1);
+    expect(secondParticipant?.rank).toBe(2);
+    expect(firstParticipant?.label).toMatch(/^Guest [A-F0-9]{10}$/);
+    expect(secondParticipant?.label).toBe(firstParticipant?.label);
   });
 
   it('rejects counts that cannot be represented safely as numbers', async () => {
