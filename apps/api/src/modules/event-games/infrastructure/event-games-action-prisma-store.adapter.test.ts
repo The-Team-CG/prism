@@ -159,4 +159,39 @@ describe('EventGamesActionPrismaStoreAdapter participant state and action persis
     expect(sql).toContain("latest.\"action\" = 'approve_submission'");
     expect(sql).not.toContain('participation_grant_id" AS');
   });
+
+  it('finds only events with response content old enough for retention review', async () => {
+    const now = new Date('2026-10-17T00:00:00Z');
+    const { transaction, queryRaw } = transactionWithQueryResults([{ event_id: 'event-1' }]);
+
+    await expect(new EventGamesActionPrismaStoreAdapter().listResponseRetentionEventIds(now, transaction))
+      .resolves.toEqual(['event-1']);
+
+    const sql = Array.from(queryRaw.mock.calls[0]?.[0] ?? []).join(' ');
+    expect(sql).toContain('SELECT DISTINCT "event_id"');
+    expect(sql).toContain('"created_at" <=');
+    expect(sql).toContain("INTERVAL '1 year'");
+    expect(queryRaw.mock.calls[0]).toContain(now);
+  });
+
+  it('redacts expired response content while preserving moderation decisions', async () => {
+    const now = new Date('2026-10-17T00:00:00Z');
+    const archivedAt = new Date('2025-01-01T00:00:00Z');
+    const { transaction, queryRaw } = transactionWithQueryResults([{ redacted_count: 2 }]);
+
+    await expect(new EventGamesActionPrismaStoreAdapter().redactExpiredResponses({
+      eventId: 'event-1', archivedAt, now,
+    }, transaction)).resolves.toBe(2);
+
+    const sql = Array.from(queryRaw.mock.calls[0]?.[0] ?? []).join(' ');
+    expect(sql).toContain('COALESCE(latest."created_at",');
+    expect(sql).toContain("INTERVAL '1 year'");
+    expect(sql).toContain("SET \"payload\" = '{\"redacted\":true}'::jsonb, \"score_result\" = NULL");
+    expect(sql).toContain('SET "reason" = NULL');
+    expect(sql).toContain("CASE WHEN m.\"resolved_answer\" IS NULL THEN NULL ELSE '' END");
+    expect(sql).not.toContain('SET "action"');
+    expect(queryRaw.mock.calls[0]).toContain('event-1');
+    expect(queryRaw.mock.calls[0]).toContain(archivedAt);
+    expect(queryRaw.mock.calls[0]).toContain(now);
+  });
 });
