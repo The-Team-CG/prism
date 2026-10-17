@@ -1,8 +1,9 @@
-import { Controller, Get, HttpCode, HttpStatus, Inject, Param, Post, ServiceUnavailableException, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Param, Post, ServiceUnavailableException, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
-import type { PrismVerifiedEventActor } from '@prism/types';
+import { guestQrPassRosterStatusQuerySchema, type GuestQrPassRosterStatusQuery, type PrismVerifiedEventActor } from '@prism/types';
+import { zodBody } from '@prism/kernel/shared';
 import { GUEST_QR_PASS_COMMANDS } from '../../contracts/guest-ops.tokens';
 import type { GuestQrPassCommands } from '../../contracts/guest-qr-pass.port';
 import { GuestQrDemoPolicyService } from '../../application/guest/guest-qr-demo-policy.service';
@@ -18,10 +19,15 @@ export class OpsGuestQrPassController {
     @Inject(GUEST_QR_PASS_COMMANDS) private readonly guestQrPassCommands: GuestQrPassCommands,
   ) {}
 
-  @Get()
-  async list(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
-    const actor = await this.requirePmcm(verifiedActor, eventId);
-    return this.guestQrPassCommands.list(eventId, actor);
+  @Post('status')
+  @HttpCode(HttpStatus.OK)
+  async listForRoster(
+    @Param('eventId') eventId: string,
+    @Body(zodBody(guestQrPassRosterStatusQuerySchema)) input: GuestQrPassRosterStatusQuery,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = await this.requirePmcmRole(verifiedActor, eventId);
+    return this.guestQrPassCommands.listForRoster(eventId, input.rosterEntryIds, actor);
   }
 
   @Get(':passId')
@@ -79,11 +85,16 @@ export class OpsGuestQrPassController {
   }
 
   private async requirePmcm(verifiedActor: PrismVerifiedEventActor, eventId: string) {
-    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
-    await this.eventAccessPolicyService.requireActorRole(actor, [...PMCM_ROLES], 'guest QR pass management', eventId);
+    const actor = await this.requirePmcmRole(verifiedActor, eventId);
     if (!this.demoPolicy.isEnabledForEvent(eventId)) {
       throw new ServiceUnavailableException('Guest QR passes are unavailable');
     }
+    return actor;
+  }
+
+  private async requirePmcmRole(verifiedActor: PrismVerifiedEventActor, eventId: string) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    await this.eventAccessPolicyService.requireActorRole(actor, [...PMCM_ROLES], 'guest QR pass management', eventId);
     return actor;
   }
 }

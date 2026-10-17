@@ -205,6 +205,12 @@ export interface PrismGuestQrPassStatus {
   revokedAt: string | null;
 }
 
+/** Server-derived availability and bounded active-pass status for displayed roster rows. */
+export interface PrismGuestQrPassRosterStatus {
+  available: boolean;
+  passes: PrismGuestQrPassStatus[];
+}
+
 /** One-time issue response used only to render an in-memory PMCM demo QR. */
 export interface PrismGuestQrPassIssueResult {
   pass: PrismGuestQrPassStatus;

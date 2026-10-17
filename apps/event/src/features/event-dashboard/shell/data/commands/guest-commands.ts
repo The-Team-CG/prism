@@ -4,7 +4,7 @@ import type { CreateRegistrationPlatformInput, ImportHeadcountInput, ImportGuest
 export const guestCommands = {
 checkInGuestRoster: (eventId: string, rosterEntryId: string) => eventOpsClient.guest.checkInRoster(eventId, rosterEntryId),
 getGuestPrivacyClassification: (eventId: string) => eventOpsClient.guest.guestPrivacyClassification(eventId),
-listGuestQrPasses: (eventId: string) => eventOpsClient.guest.guestQrPasses(eventId),
+listGuestQrPasses: (eventId: string, rosterEntryIds: readonly string[]) => eventOpsClient.guest.guestQrPasses(eventId, rosterEntryIds),
 issueGuestQrPass: (eventId: string, rosterEntryId: string) => eventOpsClient.guest.issueGuestQrPass(eventId, rosterEntryId),
 retryGuestQrPass: (eventId: string, passId: string) => eventOpsClient.guest.retryGuestQrPass(eventId, passId),
 reissueGuestQrPass: (eventId: string, passId: string) => eventOpsClient.guest.reissueGuestQrPass(eventId, passId),

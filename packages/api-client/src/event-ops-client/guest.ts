@@ -9,6 +9,7 @@ import type {
   PrismGuestPrivacyClassification,
   UpdateGuestPrivacyClassificationInput,
   PrismGuestQrPassIssueResult,
+  PrismGuestQrPassRosterStatus,
   PrismGuestQrPassStatus,
 } from "@prism/types";
 import { prismRequest, toQueryString } from "../http";
@@ -25,10 +26,10 @@ export function createGuestClient(
           `/guest/events/${encodeURIComponent(accessCode)}`,
           withBase(options),
         ),
-      guestQrPasses: (eventId) =>
-        prismRequest<PrismGuestQrPassStatus[]>(
-          `/events/${encodeURIComponent(eventId)}/guest-qr-passes`,
-          withBase(options),
+      guestQrPasses: (eventId, rosterEntryIds) =>
+        prismRequest<PrismGuestQrPassRosterStatus>(
+          `/events/${encodeURIComponent(eventId)}/guest-qr-passes/status`,
+          withBase(options, { method: "POST", body: { rosterEntryIds } }),
         ),
       issueGuestQrPass: (eventId, rosterEntryId) =>
         prismRequest<PrismGuestQrPassIssueResult>(

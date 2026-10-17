@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { QrCode, ShieldCheck, Upload, Users, UserRoundCheck } from "lucide-react";
 
 import type {
@@ -15,6 +15,7 @@ import type {
   UpdateGuestPrivacyClassificationInput,
   UpdateGuestVerificationInput,
   PrismGuestQrPassIssueResult,
+  PrismGuestQrPassRosterStatus,
   PrismGuestQrPassStatus,
 } from "@prism/types";
 import { createRegistrationPlatformSchema, importGuestRosterSchema, importHeadcountSchema, parseContract } from "@prism/types";
@@ -501,7 +502,7 @@ function GuestRosterSection({
   onImport: (input: ImportGuestRosterInput) => Promise<PrismGuestRosterEntry[]>;
   onCheckIn: (id: string) => Promise<unknown>;
   onVerify: (id: string, status: UpdateGuestVerificationInput["status"]) => Promise<unknown>;
-  onLoadGuestQrPasses: () => Promise<PrismGuestQrPassStatus[]>;
+  onLoadGuestQrPasses: (rosterEntryIds: readonly string[]) => Promise<PrismGuestQrPassRosterStatus>;
   onIssueGuestQrPass: (rosterEntryId: string) => Promise<PrismGuestQrPassIssueResult | null>;
   onRetryGuestQrPass: (passId: string) => Promise<PrismGuestQrPassStatus | null>;
   onReissueGuestQrPass: (passId: string) => Promise<PrismGuestQrPassIssueResult | null>;
@@ -513,42 +514,92 @@ function GuestRosterSection({
   const [rows, setRows] = useState<PrismGuestRosterEntry[]>([]);
   const [payload, setPayload] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const [guestQrPasses, setGuestQrPasses] = useState<PrismGuestQrPassStatus[]>([]);
+  const [guestQrPassStatus, setGuestQrPassStatus] = useState<PrismGuestQrPassRosterStatus>({ available: false, passes: [] });
   const [guestQrPassLoadError, setGuestQrPassLoadError] = useState<string | null>(null);
   const onLoadGuestQrPassesRef = useRef(onLoadGuestQrPasses);
+  const guestQrPassStatusRequestId = useRef(0);
   onLoadGuestQrPassesRef.current = onLoadGuestQrPasses;
 
-  useEffect(() => {
-    let active = true;
+  const invalidateGuestQrPassStatus = useCallback(() => {
+    const requestId = ++guestQrPassStatusRequestId.current;
+    setGuestQrPassStatus({ available: false, passes: [] });
+    setGuestQrPassLoadError(null);
+    return requestId;
+  }, []);
+
+  const refreshGuestQrPasses = useCallback(async (rosterEntryIds: readonly string[]) => {
+    const requestId = ++guestQrPassStatusRequestId.current;
     setGuestQrPassLoadError(null);
     if (!canManageQrPasses) {
-      setGuestQrPasses([]);
-      return () => { active = false; };
+      setGuestQrPassStatus({ available: false, passes: [] });
+      return;
     }
-    void onLoadGuestQrPassesRef.current().then((passes) => {
-      if (active) setGuestQrPasses(passes);
-    }).catch(() => {
-      if (active) setGuestQrPassLoadError("Unable to load guest QR pass status.");
-    });
-    return () => { active = false; };
-  }, [canManageQrPasses, eventId]);
-
-  async function search() { setRows(await onSearch({ namePrefix: query, eligibility: eligibility || undefined, checkedIn: checkedIn === "all" ? undefined : checkedIn === "yes" })); }
-  async function updateVerification(id: string, status: UpdateGuestVerificationInput["status"]) { await onVerify(id, status); await search(); }
-  async function checkIn(id: string) { await onCheckIn(id); await search(); }
-  async function refreshGuestQrPasses() {
     try {
-      setGuestQrPasses(await onLoadGuestQrPassesRef.current());
-      setGuestQrPassLoadError(null);
+      const status = await onLoadGuestQrPassesRef.current(rosterEntryIds);
+      if (requestId === guestQrPassStatusRequestId.current) setGuestQrPassStatus(status);
     } catch {
-      setGuestQrPassLoadError("Unable to load guest QR pass status.");
+      if (requestId === guestQrPassStatusRequestId.current) {
+        setGuestQrPassStatus({ available: false, passes: [] });
+        setGuestQrPassLoadError("Unable to load guest QR pass status.");
+      }
+    }
+  }, [canManageQrPasses]);
+
+  useEffect(() => {
+    invalidateGuestQrPassStatus();
+    if (canManageQrPasses) void refreshGuestQrPasses([]);
+    return () => { guestQrPassStatusRequestId.current += 1; };
+  }, [canManageQrPasses, eventId, invalidateGuestQrPassStatus, refreshGuestQrPasses]);
+
+  async function search() {
+    const requestId = invalidateGuestQrPassStatus();
+    try {
+      const result = await onSearch({ namePrefix: query, eligibility: eligibility || undefined, checkedIn: checkedIn === "all" ? undefined : checkedIn === "yes" });
+      if (requestId !== guestQrPassStatusRequestId.current) return;
+      setRows(result);
+      await refreshGuestQrPasses(result.map((row) => row.id));
+    } catch (error) {
+      if (requestId === guestQrPassStatusRequestId.current) await refreshGuestQrPasses(rows.map((row) => row.id));
+      throw error;
+    }
+  }
+  async function updateVerification(id: string, status: UpdateGuestVerificationInput["status"]) {
+    const requestId = invalidateGuestQrPassStatus();
+    try {
+      await onVerify(id, status);
+      await search();
+    } catch (error) {
+      if (requestId === guestQrPassStatusRequestId.current) await refreshGuestQrPasses(rows.map((row) => row.id));
+      throw error;
+    }
+  }
+  async function checkIn(id: string) {
+    const requestId = invalidateGuestQrPassStatus();
+    try {
+      await onCheckIn(id);
+      await search();
+    } catch (error) {
+      if (requestId === guestQrPassStatusRequestId.current) await refreshGuestQrPasses(rows.map((row) => row.id));
+      throw error;
     }
   }
   async function importRows() {
+    let requestId: number | null = null;
     try {
       const parsed = parseContract(importGuestRosterSchema, JSON.parse(payload), "Guest roster import");
-      const result = await onImport(parsed); setRows(result); setPayload(""); setMessage(`Imported ${result.length} roster rows`);
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to import roster"); }
+      requestId = invalidateGuestQrPassStatus();
+      const result = await onImport(parsed);
+      setPayload("");
+      setMessage(`Imported ${result.length} roster rows`);
+      if (requestId !== guestQrPassStatusRequestId.current) return;
+      setRows(result);
+      await refreshGuestQrPasses(result.map((row) => row.id));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to import roster");
+      if (requestId !== null && requestId === guestQrPassStatusRequestId.current) {
+        await refreshGuestQrPasses(rows.map((row) => row.id));
+      }
+    }
   }
   return (
     <Panel title="Guest roster and registration desk" icon={UserRoundCheck}>
@@ -568,8 +619,8 @@ function GuestRosterSection({
         </div>
         <div className="divide-y divide-border border-y border-border">
           {rows.map((row) => {
-            const pass = latestGuestQrPassForRosterEntry(guestQrPasses, row.id);
-            const canIssue = canIssueGuestQrPass(row);
+            const pass = latestGuestQrPassForRosterEntry(guestQrPassStatus.passes, row.id);
+            const canIssue = guestQrPassStatus.available && canIssueGuestQrPass(row);
             return (
               <div key={`${eventId}-${row.id}`} className="py-3 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -579,7 +630,7 @@ function GuestRosterSection({
                     <button type="button" disabled={busy || !canCheckInRosterRow(row)} onClick={() => void checkIn(row.id)} className="rounded-md border border-border px-3 py-1.5 text-xs font-bold">Check in</button>
                   </div>
                 </div>
-                {canManageQrPasses && (pass || canIssue) ? (
+                {canManageQrPasses && guestQrPassStatus.available && (pass || canIssue) ? (
                   <GuestQrPassActionsView
                     rosterEntryId={row.id}
                     pass={pass}
@@ -589,7 +640,7 @@ function GuestRosterSection({
                     onRetry={onRetryGuestQrPass}
                     onReissue={onReissueGuestQrPass}
                     onRevoke={onRevokeGuestQrPass}
-                    onRefresh={refreshGuestQrPasses}
+                    onRefresh={() => refreshGuestQrPasses(rows.map((rosterRow) => rosterRow.id))}
                   />
                 ) : null}
               </div>
@@ -705,7 +756,7 @@ export function EventRegistrationTab({
 }: {
   eventId: string;
   canManageGuestQrPasses: boolean;
-  onLoadGuestQrPasses: () => Promise<PrismGuestQrPassStatus[]>;
+  onLoadGuestQrPasses: (rosterEntryIds: readonly string[]) => Promise<PrismGuestQrPassRosterStatus>;
   onIssueGuestQrPass: (rosterEntryId: string) => Promise<PrismGuestQrPassIssueResult | null>;
   onRetryGuestQrPass: (passId: string) => Promise<PrismGuestQrPassStatus | null>;
   onReissueGuestQrPass: (passId: string) => Promise<PrismGuestQrPassIssueResult | null>;
@@ -750,6 +801,7 @@ export function EventRegistrationTab({
       <WalkInPolicySection policy={walkInPolicy} threshold={walkInThreshold} busy={busy} onUpdate={onUpdateWalkInPolicy} />
       {platform ? <HeadcountSection platform={platform} busy={busy} onImportHeadcount={onImportHeadcount} /> : null}
       <GuestRosterSection
+        key={eventId}
         eventId={eventId}
         busy={busy}
         canManageQrPasses={canManageGuestQrPasses}

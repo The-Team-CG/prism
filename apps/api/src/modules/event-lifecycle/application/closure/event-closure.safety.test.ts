@@ -14,6 +14,7 @@ function harness() {
     writeGuestPassDelivery: vi.fn(async () => ({ notificationId: 'not_test', status: 'queued' as const })),
     retryGuestPassDelivery: vi.fn(async () => undefined),
     cancelGuestPassDelivery: vi.fn(async () => undefined),
+    cancelGuestPassDeliveriesForEvent: vi.fn(async () => undefined),
   };
   const eventModel = (draft: typeof state) => ({
     findUnique: vi.fn(async () => draft.event),

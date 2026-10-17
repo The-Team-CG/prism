@@ -658,7 +658,8 @@ export class GuestWorkflowService implements GuestCommands {
   async updateVerification(eventId: string, rosterEntryId: string, input: UpdateGuestVerificationInput, actor: GuestWorkflowActor) {
     await this.requireRegistrationDeskAccess(eventId, actor);
     const updated = await this.prisma.$transaction(async (tx) => {
-      const event = await this.eventReferences.findOperationsEvent(eventId, { prisma: tx, correlationId: `roster_verify_${rosterEntryId}` });
+      const context = { prisma: tx, correlationId: `roster_verify_${rosterEntryId}`, actorId: actor.id };
+      const event = await this.eventReferences.findOperationsEvent(eventId, context);
       if (!event || event.archived) throw new NotFoundException('Event not found or archived');
       const roster = await tx.opsGuestRosterEntry.findFirst({ where: { id: rosterEntryId, eventId, withdrawnAt: null } });
       if (!roster) throw new NotFoundException('Roster entry not found');
@@ -666,7 +667,10 @@ export class GuestWorkflowService implements GuestCommands {
         throw new BadRequestException('Guest verification cannot change after check-in');
       }
       const updated = await tx.opsGuestRosterEntry.update({ where: { id: rosterEntryId }, data: { verificationStatus: input.status } });
-      await writeAudit(this.auditWriter, eventId, actor.name, `Guest verification changed: ${roster.guestName}`, { actorRole: actor.role, category: AuditCategory.Events, actionType: AuditActionType.Update, affectedType: 'guest_roster_verification', affectedId: rosterEntryId, affectedLabel: roster.guestName, metadata: { previousStatus: roster.verificationStatus, status: input.status, actorId: actor.id } }, { prisma: tx, correlationId: `roster_verify_${rosterEntryId}`, actorId: actor.id });
+      if (input.status === 'rejected') {
+        await this.guestQrPassService.revokeForRosterEntries(eventId, [rosterEntryId], actor, context);
+      }
+      await writeAudit(this.auditWriter, eventId, actor.name, `Guest verification changed: ${roster.guestName}`, { actorRole: actor.role, category: AuditCategory.Events, actionType: AuditActionType.Update, affectedType: 'guest_roster_verification', affectedId: rosterEntryId, affectedLabel: roster.guestName, metadata: { previousStatus: roster.verificationStatus, status: input.status, actorId: actor.id } }, context);
       return updated;
     });
     return actor.role === OpsUserRole.Coordinator

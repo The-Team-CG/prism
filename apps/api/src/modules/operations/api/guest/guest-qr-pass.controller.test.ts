@@ -1,12 +1,18 @@
 import { ForbiddenException, ServiceUnavailableException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
+import type { PrismVerifiedEventActor } from '@prism/types';
 import { OpsGuestQrPassController } from './guest-qr-pass.controller';
 
-const verifiedActor = {
+const verifiedActor: PrismVerifiedEventActor = {
+  id: 'user_pmcm',
   actorId: 'user_pmcm',
+  role: 'pmcm-admin',
   actorRole: 'pmcm-admin',
   actorName: 'PMCM Admin',
   actorEmail: 'admin@example.test',
+  name: 'PMCM Admin',
+  email: 'admin@example.test',
+  expiresAt: '2026-10-18T00:00:00.000Z',
 };
 const passStatus = {
   id: 'pass_1',
@@ -28,7 +34,7 @@ function createController(role = 'pmcm-admin', demoEnabled = true) {
   };
   const demoPolicy = { isEnabledForEvent: vi.fn(() => demoEnabled) };
   const passService = {
-    list: vi.fn(async () => [passStatus]),
+    listForRoster: vi.fn(async () => ({ available: demoEnabled, passes: demoEnabled ? [passStatus] : [] })),
     get: vi.fn(async () => passStatus),
     issue: vi.fn(async () => ({ pass: passStatus, qrValue: 'https://guest.prism.test/qr-check-in?accessCode=EVT-1234#opaque-secret-token' })),
     retry: vi.fn(async () => passStatus),
@@ -40,16 +46,26 @@ function createController(role = 'pmcm-admin', demoEnabled = true) {
 }
 
 describe('OpsGuestQrPassController', () => {
-  it.each(['list', 'get', 'issue', 'retry', 'reissue', 'revoke'] as const)(
+  it('returns server-derived availability with statuses scoped to submitted roster IDs', async () => {
+    const harness = createController('pmcm-admin', false);
+
+    const result = await harness.controller.listForRoster('evt_1', { rosterEntryIds: ['gre_1'] }, verifiedActor);
+
+    expect(result).toEqual({ available: false, passes: [] });
+    expect(harness.demoPolicy.isEnabledForEvent).not.toHaveBeenCalled();
+    expect(harness.passService.listForRoster).toHaveBeenCalledWith('evt_1', ['gre_1'], harness.actor);
+  });
+
+  it.each(['listForRoster', 'get', 'issue', 'retry', 'reissue', 'revoke'] as const)(
     'requires a verified PMCM Admin or System role before dispatching %s',
     async (command) => {
       const harness = createController('coordinator');
-      const request = command === 'list' ? harness.controller.list('evt_1', verifiedActor as never)
-        : command === 'get' ? harness.controller.get('evt_1', 'pass_1', verifiedActor as never)
-          : command === 'issue' ? harness.controller.issue('evt_1', 'gre_1', verifiedActor as never)
-            : command === 'retry' ? harness.controller.retry('evt_1', 'pass_1', verifiedActor as never)
-              : command === 'reissue' ? harness.controller.reissue('evt_1', 'pass_1', verifiedActor as never)
-                : harness.controller.revoke('evt_1', 'pass_1', verifiedActor as never);
+      const request = command === 'listForRoster' ? harness.controller.listForRoster('evt_1', { rosterEntryIds: ['gre_1'] }, verifiedActor)
+        : command === 'get' ? harness.controller.get('evt_1', 'pass_1', verifiedActor)
+          : command === 'issue' ? harness.controller.issue('evt_1', 'gre_1', verifiedActor)
+            : command === 'retry' ? harness.controller.retry('evt_1', 'pass_1', verifiedActor)
+              : command === 'reissue' ? harness.controller.reissue('evt_1', 'pass_1', verifiedActor)
+                : harness.controller.revoke('evt_1', 'pass_1', verifiedActor);
 
       await expect(request).rejects.toBeInstanceOf(ForbiddenException);
       expect(harness.passService[command]).not.toHaveBeenCalled();
@@ -57,19 +73,21 @@ describe('OpsGuestQrPassController', () => {
     },
   );
 
-  it('fails closed when the server demo policy is disabled', async () => {
+  it('returns unavailable from the server without loading pass rows when demo policy is disabled', async () => {
     const harness = createController('pmcm-admin', false);
 
-    await expect(harness.controller.list('evt_1', verifiedActor as never)).rejects.toBeInstanceOf(ServiceUnavailableException);
-    expect(harness.passService.list).not.toHaveBeenCalled();
+    await expect(harness.controller.listForRoster('evt_1', { rosterEntryIds: ['gre_1'] }, verifiedActor as never))
+      .resolves.toEqual({ available: false, passes: [] });
+    expect(harness.demoPolicy.isEnabledForEvent).not.toHaveBeenCalled();
+    expect(harness.passService.listForRoster).toHaveBeenCalledWith('evt_1', ['gre_1'], harness.actor);
   });
 
-  it('returns status fields without QR, email, or token data', async () => {
+  it('returns scoped status fields without QR, email, or token data', async () => {
     const harness = createController();
 
-    const status = await harness.controller.list('evt_1', verifiedActor as never);
+    const status = await harness.controller.listForRoster('evt_1', { rosterEntryIds: ['gre_1'] }, verifiedActor as never);
 
-    expect(status).toEqual([passStatus]);
+    expect(status).toEqual({ available: true, passes: [passStatus] });
     expect(JSON.stringify(status)).not.toMatch(/qrValue|token|email|recipient|message/i);
   });
 

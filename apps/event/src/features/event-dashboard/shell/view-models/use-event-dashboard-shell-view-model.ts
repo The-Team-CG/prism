@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { CoordinatorRole, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismSupplier, PrismGuestQrPassIssueResult, PrismGuestQrPassStatus } from "@prism/types";
+import type { CoordinatorRole, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismSupplier, PrismGuestQrPassIssueResult, PrismGuestQrPassRosterStatus, PrismGuestQrPassStatus } from "@prism/types";
 import { type FloorPlanTemplate, type Project, cloneTemplateObjects } from "@/features/floorplan/editor";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { canManageGuestQrPasses as hasGuestQrPassManagementRole } from "@/features/event-dashboard/guest-qr/model/guest-qr-access";
@@ -484,9 +484,9 @@ export function useEventDashboardShellViewModel({
     searchGuestRoster: (filters = {}) => selectedEvent ? commands.searchGuestRosterWithFilters(selectedEvent.id, filters) : Promise.resolve([]),
     importGuestRoster: (input: Parameters<typeof commands.importGuestRoster>[1]) => selectedEvent ? commands.importGuestRoster(selectedEvent.id, input) : Promise.resolve([]),
     checkInGuestRoster: (rosterEntryId: string) => selectedEvent ? run("check in guest", () => commands.checkInGuestRoster(selectedEvent.id, rosterEntryId)) : Promise.resolve(),
-    listGuestQrPasses: () => selectedEvent && session && hasGuestQrPassManagementRole(session.role)
-      ? commands.listGuestQrPasses(selectedEvent.id)
-      : Promise.resolve([] as PrismGuestQrPassStatus[]),
+    listGuestQrPasses: (rosterEntryIds: readonly string[]) => selectedEvent && session && hasGuestQrPassManagementRole(session.role)
+      ? commands.listGuestQrPasses(selectedEvent.id, rosterEntryIds)
+      : Promise.resolve({ available: false, passes: [] } as PrismGuestQrPassRosterStatus),
     issueGuestQrPass: (rosterEntryId: string) => selectedEvent && session && hasGuestQrPassManagementRole(session.role)
       ? runForResult<PrismGuestQrPassIssueResult>("issue guest QR pass", () => commands.issueGuestQrPass(selectedEvent.id, rosterEntryId))
       : Promise.resolve(null),

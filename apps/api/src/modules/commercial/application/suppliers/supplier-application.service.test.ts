@@ -180,5 +180,6 @@ function createNotificationWriter() {
     writeGuestPassDelivery: async () => ({ notificationId: 'not_test', status: 'queued' as const }),
     retryGuestPassDelivery: async () => undefined,
     cancelGuestPassDelivery: async () => undefined,
+    cancelGuestPassDeliveriesForEvent: async () => undefined,
   };
 }

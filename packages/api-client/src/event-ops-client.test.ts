@@ -977,23 +977,24 @@ describe("createEventOpsClient", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
-    await client.guest.guestQrPasses("evt/1");
+    await client.guest.guestQrPasses("evt/1", ["gre_1", "gre_2"]);
     await client.guest.issueGuestQrPass("evt/1", "roster/1");
     await client.guest.retryGuestQrPass("evt/1", "pass/1");
     await client.guest.reissueGuestQrPass("evt/1", "pass/1");
     await client.guest.revokeGuestQrPass("evt/1", "pass/1");
 
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
-      "http://localhost:4000/api/events/evt%2F1/guest-qr-passes",
+      "http://localhost:4000/api/events/evt%2F1/guest-qr-passes/status",
       "http://localhost:4000/api/events/evt%2F1/guest-qr-passes/roster/roster%2F1",
       "http://localhost:4000/api/events/evt%2F1/guest-qr-passes/pass%2F1/retry",
       "http://localhost:4000/api/events/evt%2F1/guest-qr-passes/pass%2F1/reissue",
       "http://localhost:4000/api/events/evt%2F1/guest-qr-passes/pass%2F1/revoke",
     ]);
     expect(fetchMock.mock.calls.map(([, init]) => init?.method ?? "GET")).toEqual([
-      "GET", "POST", "POST", "POST", "POST",
+      "POST", "POST", "POST", "POST", "POST",
     ]);
-    for (const [requestUrl, init] of fetchMock.mock.calls) {
+    expect(fetchMock.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ rosterEntryIds: ["gre_1", "gre_2"] }));
+    for (const [requestUrl, init] of fetchMock.mock.calls.slice(1)) {
       expect(new URL(String(requestUrl)).search).toBe("");
       expect(init?.body).toBeUndefined();
     }

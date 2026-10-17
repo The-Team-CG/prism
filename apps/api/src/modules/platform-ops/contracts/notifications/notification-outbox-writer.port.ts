@@ -27,6 +27,7 @@ export interface NotificationOutboxWriter {
   ): Promise<{ notificationId: string; status: 'queued' }>;
   retryGuestPassDelivery(notificationId: string, context?: PrismTransactionContext): Promise<void>;
   cancelGuestPassDelivery(notificationId: string, context?: PrismTransactionContext): Promise<void>;
+  cancelGuestPassDeliveriesForEvent(eventId: string, context?: PrismTransactionContext): Promise<void>;
 }
 
 export type NotificationOutboxWriteOptions = Omit<NotificationOutboxWriteInput, 'eventId' | 'recipient' | 'message' | 'channel'>;

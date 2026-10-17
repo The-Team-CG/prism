@@ -38,7 +38,8 @@ function createService(options: { encryptionKey?: string; delivery?: Notificatio
         const matchesCondition = (condition: any, value: unknown) => condition && typeof condition === 'object' && 'not' in condition
           ? value !== condition.not
           : value === condition;
-        const matches = notifications.filter((row) => row.id === where.id
+        const matches = notifications.filter((row) => (where.id === undefined || row.id === where.id)
+          && (where.eventId === undefined || row.eventId === where.eventId)
           && (where.status === undefined || row.status === where.status)
           && (where.guestPassId === undefined || matchesCondition(where.guestPassId, row.guestPassId))
           && (where.sensitivePayload === undefined || matchesCondition(where.sensitivePayload, row.sensitivePayload))
@@ -277,6 +278,25 @@ describe('NotificationOutboxService', () => {
       leaseToken: null,
       leaseExpiresAt: null,
     });
+  });
+
+  it('bulk-cancels queued guest-pass deliveries only for the closing event', async () => {
+    const { notifications, service } = createService();
+    notifications.push(
+      { id: 'not_event_guest', eventId: 'evt_1', guestPassId: 'pass_1', sensitivePayload: 'v1.one', status: 'queued', leaseToken: 'lease_1', leaseExpiresAt: new Date() },
+      { id: 'not_event_ordinary', eventId: 'evt_1', guestPassId: null, sensitivePayload: null, status: 'queued' },
+      { id: 'not_other_event', eventId: 'evt_2', guestPassId: 'pass_2', sensitivePayload: 'v1.two', status: 'queued' },
+      { id: 'not_event_sent', eventId: 'evt_1', guestPassId: 'pass_3', sensitivePayload: 'v1.three', status: 'sent' },
+    );
+
+    await service.cancelGuestPassDeliveriesForEvent('evt_1');
+
+    expect(notifications[0]).toMatchObject({ status: 'cancelled', sensitivePayload: null, leaseToken: null, leaseExpiresAt: null });
+    expect(notifications.slice(1)).toMatchObject([
+      { status: 'queued', eventId: 'evt_1', guestPassId: null },
+      { status: 'queued', eventId: 'evt_2', guestPassId: 'pass_2' },
+      { status: 'sent', eventId: 'evt_1', guestPassId: 'pass_3' },
+    ]);
   });
 
   it('retries queued guest-pass delivery only when its encrypted body remains available and unleased', async () => {
