@@ -1,7 +1,7 @@
 import { afterEach, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -10,6 +10,7 @@ import {
   discoverMigrations,
   parseMigrationName,
 } from './check-prisma-migrations.mjs';
+import { loadOwnershipManifest } from './domain-persistence-catalog.mjs';
 
 const policy = {
   policyVersion: 1,
@@ -221,6 +222,30 @@ describe('Prisma migration policy', () => {
 
     assert.deepEqual(result.errors, []);
     assert.equal(result.summary.ownerAware, 1);
+  });
+
+  it('accepts the event-games foundation migration only under its registered schema owner and inferred risk', () => {
+    const migrationPolicy = JSON.parse(readFileSync(
+      new URL('../prisma/migration-policy.json', import.meta.url),
+      'utf8',
+    ));
+    const result = auditMigrationSet([
+      ...discoverMigrations(),
+      ownerAwareMigration({
+        version: '20261015150000',
+        owner: 'event-games',
+        slug: 'schema_owner_guard_fixture',
+        kind: 'schema',
+        risk: 'medium',
+        sql: [
+          'CREATE SCHEMA "event_games";',
+          'CREATE TABLE "event_games"."game_definitions" ("id" TEXT PRIMARY KEY);',
+        ].join('\n'),
+      }),
+    ], migrationPolicy, loadOwnershipManifest());
+
+    assert.deepEqual(result.errors, []);
+    assert.ok(result.summary.ownerAware >= 1);
   });
 
   it('requires metadata on an otherwise valid future migration', () => {

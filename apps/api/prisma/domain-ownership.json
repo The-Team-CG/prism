@@ -1,10 +1,10 @@
 {
   "summary": {
-    "totalTables": 94,
-    "targetSchemas": 7,
+    "totalTables": 107,
+    "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
-    "targetSameDomainFks": 76,
+    "targetSameDomainFks": 88,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -58,6 +58,12 @@
         "schema": "platform_ops",
         "tables": 14,
         "columns": 201
+      },
+      {
+        "domain": "event-games",
+        "schema": "event_games",
+        "tables": 13,
+        "columns": 129
       }
     ]
   },
@@ -814,6 +820,123 @@
       "domain": "commercial",
       "targetSchema": "commercial",
       "columnCount": 9
+    },
+    {
+      "model": "EventGameDefinition",
+      "currentSchema": "event_games",
+      "table": "game_definitions",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 15,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGameLobbySlug",
+      "currentSchema": "event_games",
+      "table": "lobby_slugs",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 9,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGameConfigVersion",
+      "currentSchema": "event_games",
+      "table": "game_config_versions",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 7,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGameSession",
+      "currentSchema": "event_games",
+      "table": "game_sessions",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 19,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGameActivePinReservation",
+      "currentSchema": "event_games",
+      "table": "active_pin_reservations",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 8,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGamePinHistory",
+      "currentSchema": "event_games",
+      "table": "pin_history",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 7,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGameParticipantCredential",
+      "currentSchema": "event_games",
+      "table": "participant_credentials",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 6,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGameSessionParticipationGrant",
+      "currentSchema": "event_games",
+      "table": "session_participation_grants",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 9,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGameSubmission",
+      "currentSchema": "event_games",
+      "table": "submissions",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 9,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGameScoreLedger",
+      "currentSchema": "event_games",
+      "table": "score_ledger",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 8,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGameAward",
+      "currentSchema": "event_games",
+      "table": "awards",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 14,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGameModerationAction",
+      "currentSchema": "event_games",
+      "table": "moderation_actions",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 10,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGameRateLimitBucket",
+      "currentSchema": "event_games",
+      "table": "rate_limit_buckets",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 4,
+      "introducedAfterCutover": true
     }
   ],
   "foreignKeys": [
@@ -2641,6 +2764,204 @@
       "targetDomain": "event-lifecycle",
       "targetCurrentSchema": "event_lifecycle",
       "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "game_config_versions",
+      "name": "game_config_versions_event_definition_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, game_definition_id) REFERENCES event_games.game_definitions(event_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "game_definition_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "game_definitions",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "game_sessions",
+      "name": "game_sessions_event_definition_config_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, game_definition_id, config_version_id) REFERENCES event_games.game_config_versions(event_id, game_definition_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "game_definition_id",
+        "config_version_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "game_config_versions",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "active_pin_reservations",
+      "name": "active_pin_reservations_event_session_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, session_id) REFERENCES event_games.game_sessions(event_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "session_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "game_sessions",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "pin_history",
+      "name": "pin_history_event_session_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, session_id) REFERENCES event_games.game_sessions(event_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "session_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "game_sessions",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "session_participation_grants",
+      "name": "session_participation_grants_event_session_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, session_id) REFERENCES event_games.game_sessions(event_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "session_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "game_sessions",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "session_participation_grants",
+      "name": "session_participation_grants_event_credential_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, participant_credential_id) REFERENCES event_games.participant_credentials(event_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "participant_credential_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "participant_credentials",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "submissions",
+      "name": "submissions_event_session_grant_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, session_id, participation_grant_id) REFERENCES event_games.session_participation_grants(event_id, session_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "session_id",
+        "participation_grant_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "session_participation_grants",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "score_ledger",
+      "name": "score_ledger_event_session_grant_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, session_id, participation_grant_id) REFERENCES event_games.session_participation_grants(event_id, session_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "session_id",
+        "participation_grant_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "session_participation_grants",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "awards",
+      "name": "awards_event_session_grant_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, session_id, participation_grant_id) REFERENCES event_games.session_participation_grants(event_id, session_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "session_id",
+        "participation_grant_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "session_participation_grants",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "awards",
+      "name": "awards_event_session_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, session_id) REFERENCES event_games.game_sessions(event_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "session_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "game_sessions",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "moderation_actions",
+      "name": "moderation_actions_event_submission_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, session_id, submission_id) REFERENCES event_games.submissions(event_id, session_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "session_id",
+        "submission_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "submissions",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "moderation_actions",
+      "name": "moderation_actions_event_participation_grant_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, session_id, participation_grant_id) REFERENCES event_games.session_participation_grants(event_id, session_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "session_id",
+        "participation_grant_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "session_participation_grants",
       "sameDomain": true
     }
   ]
