@@ -82,6 +82,141 @@ const roots: string[] = [];
 afterEach(async () => { await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))); });
 
 describe('StorageObjectService', () => {
+  it('returns a scoped lobby logo upload ticket without exposing storage metadata', async () => {
+    const store = createStore();
+    const adapter = {
+      requestUploadLocation: vi.fn(async (input: { providerObjectKey: string }) => ({
+        providerName: 'test',
+        providerObjectKey: input.providerObjectKey,
+        uploadUrl: 'https://storage.example.test/upload-token',
+        expiresAt: new Date('2026-09-08T00:05:00.000Z'),
+      })),
+      confirmUpload: vi.fn(),
+      issueDownloadAuthorization: vi.fn(),
+      deleteObject: vi.fn(),
+    };
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter as never, store.platformReferences as never);
+
+    const result = await service.requestEventGameLobbyLogoUpload({
+      eventId: 'evt_1',
+      ownerRecordType: 'event_game_lobby',
+      ownerRecordId: 'evt_1',
+      logicalTarget: 'lobby-logo:key-1',
+      usage: 'event_game_branding',
+      fileName: 'logo.png',
+      contentType: 'image/png',
+      declaredByteSize: 3,
+      checksumSha256: createHash('sha256').update('png').digest('hex'),
+      idempotencyKey: 'lobby-logo-key-1',
+      actor,
+    });
+
+    expect(result).toEqual({
+      objectId: expect.stringMatching(/^obj_[\da-f-]{36}$/i),
+      uploadUrl: 'https://storage.example.test/upload-token',
+      expiresAt: '2026-09-08T00:05:00.000Z',
+      alreadyStored: false,
+    });
+    expect(JSON.stringify(result)).not.toContain('providerObjectKey');
+    expect(store.objects[0]).toMatchObject({ ownerRecordType: 'event_game_lobby', ownerRecordId: 'evt_1', usage: 'event_game_branding' });
+  });
+
+  it('issues game-media upload tickets only through the game-scoped storage capability', async () => {
+    const store = createStore();
+    const adapter = {
+      requestUploadLocation: vi.fn(async (input: { providerObjectKey: string }) => ({
+        providerName: 'test', providerObjectKey: input.providerObjectKey,
+        uploadUrl: 'https://storage.example.test/game-upload', expiresAt: new Date('2026-09-08T00:05:00.000Z'),
+      })),
+      confirmUpload: vi.fn(), issueDownloadAuthorization: vi.fn(), deleteObject: vi.fn(),
+    };
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter as never, store.platformReferences as never);
+    const request = {
+      eventId: 'evt_1', gameId: 'game-1', fileName: 'clue.png', contentType: 'image/png',
+      declaredByteSize: 3, checksumSha256: createHash('sha256').update('png').digest('hex'),
+      idempotencyKey: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5', actor,
+    };
+
+    const result = await service.requestEventGameMediaUpload(request);
+
+    expect(result).toMatchObject({
+      objectId: expect.stringMatching(/^obj_[\da-f-]{36}$/i),
+      uploadUrl: 'https://storage.example.test/game-upload', alreadyStored: false,
+    });
+    expect(store.objects[0]).toMatchObject({
+      eventId: 'evt_1', ownerRecordType: 'event_game_definition', ownerRecordId: 'game-1',
+      usage: 'event_game_media', logicalTarget: 'game-media:game-1:a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5',
+    });
+    await expect(service.requestUpload({
+      ...request, ownerRecordType: 'event_game_definition', ownerRecordId: 'game-1',
+      logicalTarget: 'game-media:generic-route', usage: 'event_game_media',
+    })).rejects.toThrow(/game-scoped route/i);
+  });
+
+  it('does not confirm game media through a different game route', async () => {
+    const store = createStore();
+    store.objects.push({
+      id: 'obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444', eventId: 'evt_1',
+      ownerRecordType: 'event_game_definition', ownerRecordId: 'game-a', usage: 'event_game_media',
+      logicalTarget: 'game-media:key', lifecycleState: 'requested', checksumSha256,
+      declaredByteSize: bytes.byteLength, originalFileName: 'clue.png', contentType: 'image/png',
+      providerObjectKey: 'events/evt_1/objects/event_game_media/clue.png',
+    });
+    const adapter = { confirmUpload: vi.fn() };
+
+    await expect(store.service.confirmEventGameMediaUpload({
+      eventId: 'evt_1', gameId: 'game-b', objectId: 'obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444',
+      checksumSha256, byteSize: bytes.byteLength, actor,
+    })).rejects.toThrow(/not found/i);
+    expect(adapter.confirmUpload).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when lobby logo storage cannot issue an upload ticket', async () => {
+    const store = createStore();
+    await expect(store.service.requestEventGameLobbyLogoUpload({
+      eventId: 'evt_1',
+      ownerRecordType: 'event_game_lobby',
+      ownerRecordId: 'evt_1',
+      logicalTarget: 'lobby-logo:key-2',
+      usage: 'event_game_branding',
+      fileName: 'logo.png',
+      contentType: 'image/png',
+      declaredByteSize: 3,
+      checksumSha256: createHash('sha256').update('png').digest('hex'),
+      idempotencyKey: 'lobby-logo-key-2',
+      actor,
+    })).rejects.toThrow(/lobby logo storage is not available/i);
+  });
+
+  it('does not confirm a lobby logo through a different event route', async () => {
+    const store = createStore();
+    store.objects.push({
+      id: 'obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444',
+      eventId: 'evt_other',
+      ownerRecordType: 'event_game_lobby',
+      ownerRecordId: 'evt_other',
+      usage: 'event_game_branding',
+      logicalTarget: 'lobby-logo:key',
+      lifecycleState: 'requested',
+      checksumSha256,
+      declaredByteSize: bytes.byteLength,
+      originalFileName: 'logo.png',
+      contentType: 'image/png',
+      providerObjectKey: 'events/evt_other/objects/event_game_branding/logo.png',
+    });
+    const adapter = { confirmUpload: vi.fn() };
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter as never, store.platformReferences as never);
+
+    await expect(service.confirmEventGameLobbyLogoUpload({
+      eventId: 'evt_1',
+      objectId: 'obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444',
+      checksumSha256,
+      byteSize: bytes.byteLength,
+      actor,
+    })).rejects.toThrow(/not found/i);
+    expect(adapter.confirmUpload).not.toHaveBeenCalled();
+  });
+
   it('records an explicit failed request and no success when no provider is configured', async () => {
     const { service, objects } = createStore();
     const result = await service.requestUpload({ ...request, actor });
@@ -235,5 +370,150 @@ describe('StorageObjectService', () => {
     const supplier = { id: 'supplier-user', role: 'supplier', supplierId: 'sup_1', eventId: 'evt_1', name: 'Supplier', explicit: true } as never;
     const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), {} as never, store.platformReferences as never);
     await expect(service.deleteObject({ objectId: 'obj_supplier', actor: supplier })).rejects.toThrow(/cannot access/);
+  });
+  it('validates event, game, stored state, image type, and size for referenced media', async () => {
+    const objectId = 'obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5';
+    const store = createStore();
+    const object = {
+      id: objectId, eventId: 'evt_1', ownerRecordType: 'event_game_definition',
+      ownerRecordId: 'game-1', usage: 'event_game_media', lifecycleState: 'stored',
+      providerObjectKey: 'events/evt_1/game-media/picture.png', contentType: 'image/png',
+      declaredByteSize: 1024, checksumSha256: 'a'.repeat(64), originalFileName: 'picture.png',
+    };
+    store.prisma.opsStoredObject.findMany.mockResolvedValueOnce([object]);
+    const mediaStorage = store.service as unknown as {
+      validateEventGameMediaReferences(input: { eventId: string; gameId: string; objectIds: string[] }): Promise<void>;
+    };
+
+    await expect(mediaStorage.validateEventGameMediaReferences({
+      eventId: 'evt_1', gameId: 'game-1', objectIds: [objectId],
+    })).resolves.toBeUndefined();
+    expect(store.prisma.opsStoredObject.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        id: { in: [objectId] }, eventId: 'evt_1', ownerRecordType: 'event_game_definition',
+        ownerRecordId: 'game-1', usage: 'event_game_media', lifecycleState: 'stored',
+      }),
+    }));
+
+    store.prisma.opsStoredObject.findMany.mockResolvedValueOnce([{ ...object, eventId: 'evt_other' }]);
+    await expect(mediaStorage.validateEventGameMediaReferences({
+      eventId: 'evt_1', gameId: 'game-1', objectIds: [objectId],
+    })).rejects.toThrow(/media objects are unavailable/);
+  });
+
+  it('issues a participant authorization only for stored media owned by the exact event game', async () => {
+    const store = createStore();
+    const object = {
+      id: 'obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5',
+      eventId: 'evt_1',
+      ownerRecordType: 'event_game_definition',
+      ownerRecordId: 'game-1',
+      usage: 'event_game_media',
+      lifecycleState: 'stored',
+      providerObjectKey: 'events/evt_1/objects/event_game_media/clue.png',
+      contentType: 'image/png',
+      declaredByteSize: 1024,
+      checksumSha256: 'a'.repeat(64),
+      originalFileName: 'clue.png',
+      deletedAt: null,
+    };
+    store.objects.push(object);
+    const expiresAt = new Date('2026-10-16T12:05:00.000Z');
+    const issueDownloadAuthorization = vi.fn().mockResolvedValue({
+      providerName: 'test-storage',
+      providerObjectKey: object.providerObjectKey,
+      downloadUrl: 'https://storage.example.test/signed-image',
+      expiresAt,
+    });
+    const service = new StorageObjectService(
+      store.prisma as never,
+      store.accessPolicy as never,
+      new StorageValidationService(),
+      { issueDownloadAuthorization } as never,
+      store.platformReferences as never,
+    );
+
+    await expect(service.issueEventGameMediaDownloadAuthorization({
+      eventId: 'evt_1', gameId: 'game-1', objectId: object.id,
+    })).resolves.toEqual({
+      downloadUrl: 'https://storage.example.test/signed-image',
+      expiresAt: expiresAt.toISOString(),
+    });
+    expect(issueDownloadAuthorization).toHaveBeenCalledWith(expect.objectContaining({
+      eventId: 'evt_1',
+      usage: 'event_game_media',
+      providerObjectKey: object.providerObjectKey,
+    }));
+
+    await expect(service.issueEventGameMediaDownloadAuthorization({
+      eventId: 'evt_other', gameId: 'game-1', objectId: object.id,
+    })).rejects.toThrow(/media objects are unavailable/);
+    expect(issueDownloadAuthorization).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps game media off the generic event-object download route', async () => {
+    const store = createStore();
+    store.objects.push({
+      id: 'obj_game_media', eventId: 'evt_1', ownerRecordType: 'event_game_definition',
+      ownerRecordId: 'game-1', usage: 'event_game_media', lifecycleState: 'stored',
+      providerObjectKey: 'events/evt_1/game-media/picture.png', contentType: 'image/png',
+      declaredByteSize: 1024, checksumSha256: 'a'.repeat(64), originalFileName: 'picture.png',
+    });
+
+    await expect(store.service.issueDownloadAuthorization({ objectId: 'obj_game_media', actor }))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    await expect(store.service.listEventObjects('evt_1', actor)).resolves.toEqual([]);
+  });
+
+  it('serves a stored lobby logo only through its exact event-owned public branding path', async () => {
+    const store = createStore();
+    const object = {
+      id: 'obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5',
+      eventId: 'evt_1',
+      ownerRecordType: 'event_game_lobby',
+      ownerRecordId: 'evt_1',
+      usage: 'event_game_branding',
+      lifecycleState: 'stored',
+      providerObjectKey: 'events/evt_1/objects/event_game_branding/logo.png',
+      contentType: 'image/png',
+      declaredByteSize: 1024,
+      checksumSha256: 'a'.repeat(64),
+      originalFileName: 'logo.png',
+      deletedAt: null,
+    };
+    store.objects.push(object);
+    const expiresAt = new Date('2026-10-16T12:05:00.000Z');
+    const issueDownloadAuthorization = vi.fn().mockResolvedValue({
+      providerName: 'test-storage',
+      providerObjectKey: object.providerObjectKey,
+      downloadUrl: 'https://storage.example.test/signed-logo',
+      expiresAt,
+    });
+    const service = new StorageObjectService(
+      store.prisma as never,
+      store.accessPolicy as never,
+      new StorageValidationService(),
+      { issueDownloadAuthorization } as never,
+      store.platformReferences as never,
+    );
+
+    await expect(service.issueEventGameLobbyLogoDownloadAuthorization({ eventId: 'evt_1', objectId: object.id }))
+      .resolves.toEqual({ downloadUrl: 'https://storage.example.test/signed-logo', expiresAt: expiresAt.toISOString() });
+    await expect(service.validateEventGameLobbyLogoReference({ eventId: 'evt_1', objectId: object.id })).resolves.toBeUndefined();
+    await expect(service.issueEventGameLobbyLogoDownloadAuthorization({ eventId: 'evt_other', objectId: object.id }))
+      .rejects.toThrow(/logo is unavailable/);
+    await expect(service.issueDownloadAuthorization({ objectId: object.id, actor }))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.listEventObjects('evt_1', actor)).resolves.toEqual([]);
+    expect(issueDownloadAuthorization).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects lobby logo uploads whose owner does not match the event', async () => {
+    const { service } = createStore();
+    await expect(service.requestUpload({
+      eventId: 'evt_1', ownerRecordType: 'event_game_lobby', ownerRecordId: 'evt_other',
+      logicalTarget: 'lobby-logo:upload-1', usage: 'event_game_branding', fileName: 'logo.png',
+      contentType: 'image/png', declaredByteSize: 1024, checksumSha256: 'a'.repeat(64), actor,
+    })).rejects.toThrow(/scoped to its event lobby/);
   });
 });

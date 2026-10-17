@@ -45,6 +45,14 @@ export const STORAGE_USAGE_RULES: Record<StorageUsage, StorageUsageRule> = {
       'video/quicktime',
     ],
   },
+  event_game_media: {
+    maxBytes: 8 * 1024 * 1024,
+    contentTypes: ['image/jpeg', 'image/png'],
+  },
+  event_game_branding: {
+    maxBytes: 1024 * 1024,
+    contentTypes: ['image/jpeg', 'image/png', 'image/webp'],
+  },
 };
 
 const EXTENSIONS: Record<string, readonly string[]> = {
@@ -53,6 +61,7 @@ const EXTENSIONS: Record<string, readonly string[]> = {
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['xlsx'],
   'image/jpeg': ['jpg', 'jpeg'],
   'image/png': ['png'],
+  'image/webp': ['webp'],
   'video/mp4': ['mp4'],
   'video/quicktime': ['mov'],
 };
