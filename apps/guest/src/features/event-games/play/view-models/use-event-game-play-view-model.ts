@@ -3,13 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PrismGamePublicState, PrismSubmitEventGameActionInput } from "@prism/types";
-import { createAnonymousParticipantAlias } from "../../model/event-game-entry-rules";
 import { useEventGameSessionUpdates } from "./use-event-game-session-updates";
 import {
   getEventGameParticipantState,
   getEventGameParticipantMediaAuthorization,
   leaveEventGamesFromSession,
-  readEventGameParticipantSession,
   submitEventGameParticipantAction,
 } from "../use-cases/event-game-participant";
 
@@ -27,20 +25,16 @@ export function useEventGamePlayViewModel(sessionId: string) {
 
   const refresh = useCallback(async () => {
     if (!stateRef.current) setStatus("loading");
-    const saved = readEventGameParticipantSession();
-    setParticipantAlias(saved ? createAnonymousParticipantAlias(saved.participantCredential) : null);
     try {
       const nextState = await getEventGameParticipantState(sessionId);
       stateRef.current = nextState;
       setState(nextState);
-      const current = readEventGameParticipantSession();
-      setParticipantAlias(current ? createAnonymousParticipantAlias(current.participantCredential) : null);
+      setParticipantAlias(nextState.participant.participantAlias);
       setStatus("ready");
       setError(null);
       return true;
     } catch (cause) {
-      const current = readEventGameParticipantSession();
-      setParticipantAlias(current ? createAnonymousParticipantAlias(current.participantCredential) : null);
+      setParticipantAlias(stateRef.current?.participant.participantAlias ?? null);
       setStatus(stateRef.current ? "ready" : "error");
       setError(cause instanceof Error ? cause.message : "Game updates are unavailable. Try again in a moment.");
       return false;
@@ -87,6 +81,7 @@ export function useEventGamePlayViewModel(sessionId: string) {
       const nextState = await submitEventGameParticipantAction(sessionId, action);
       stateRef.current = nextState;
       setState(nextState);
+      setParticipantAlias(nextState.participant.participantAlias);
       setStatus("ready");
       void refreshNow();
       return nextState;
