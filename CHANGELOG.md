@@ -90,6 +90,9 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- Issued and reissued guest QR codes now open the guest check-in page with the access code and one-time token in the locations that page reads.
+- Guest QR demo capture now processes only guest-pass notifications, leaving ordinary notifications queued with an unavailable-provider diagnostic.
+- Guest pass delivery retry is offered only while queued; failed delivery keeps the reissue action.
 - Guest roster entry consent fields now match the Prisma schema on fresh and upgraded databases.
 - Guest check-in consent capture timestamps now map through the generated Prisma client.
 - Fresh and upgraded databases now seed the global audit-chain lock required before the first audit record can be written.

@@ -23,6 +23,7 @@ function createHarness(options: {
   deliveryResult?: NotificationDeliveryResult;
   deliveryError?: Error;
   supersedeLeaseOnRead?: boolean;
+  includeOrdinary?: boolean;
 } = {}) {
   const sequence: string[] = [];
   const current = {
@@ -40,23 +41,42 @@ function createHarness(options: {
     leaseExpiresAt: null as Date | null,
     createdAt: new Date('2026-10-17T00:00:00.000Z'),
   };
+  const ordinary = {
+    id: 'not_ordinary',
+    eventId: 'evt_other',
+    guestPassId: null,
+    channel: 'email',
+    recipient: 'other-guest@example.test',
+    message: 'ordinary notification for another event',
+    sensitivePayload: null,
+    status: 'queued',
+    attempts: 0,
+    nextAttemptAt: new Date(Date.now() - 1_000),
+    leaseToken: null as string | null,
+    leaseExpiresAt: null as Date | null,
+    createdAt: new Date('2026-10-16T00:00:00.000Z'),
+  };
+  const rows = options.includeOrdinary ? [ordinary, current] : [current];
   const prisma = {
     opsNotificationLog: {
-      findMany: vi.fn(async () => [{ ...current }]),
+      findMany: vi.fn(async ({ where }: { where?: { guestPassId?: { not?: string | null } } } = {}) =>
+        rows.filter((row) => where?.guestPassId?.not !== null || row.guestPassId !== null).map((row) => ({ ...row }))),
       updateMany: vi.fn(async ({ where, data }: {
         where: { id?: string; status?: string; leaseToken?: string };
         data: Record<string, unknown>;
       }) => {
-        if (where.id && where.id !== current.id) return { count: 0 };
-        if (where.status && where.status !== current.status) return { count: 0 };
-        if (where.leaseToken && where.leaseToken !== current.leaseToken) return { count: 0 };
-        Object.assign(current, data);
+        const row = rows.find((candidate) => candidate.id === where.id);
+        if (!row) return { count: 0 };
+        if (where.status && where.status !== row.status) return { count: 0 };
+        if (where.leaseToken && where.leaseToken !== row.leaseToken) return { count: 0 };
+        Object.assign(row, data);
         return { count: 1 };
       }),
-      findUnique: vi.fn(async () => {
+      findUnique: vi.fn(async ({ where }: { where: { id: string } }) => {
         sequence.push('reread');
-        if (options.supersedeLeaseOnRead) current.leaseToken = 'another-worker-lease';
-        return { ...current };
+        const row = rows.find((candidate) => candidate.id === where.id);
+        if (options.supersedeLeaseOnRead && row?.id === current.id) row.leaseToken = 'another-worker-lease';
+        return row ? { ...row } : null;
       }),
     },
   };
@@ -75,10 +95,35 @@ function createHarness(options: {
     }),
   };
 
-  return { current, delivery, guestPassDeliveryEligibilityReader, prisma, sequence };
+  return { current, ordinary, delivery, guestPassDeliveryEligibilityReader, prisma, sequence };
 }
 
 describe('notification delivery worker guest-pass handling', () => {
+  it('leaves ordinary notifications queued while capturing eligible guest-pass deliveries', async () => {
+    const harness = createHarness({ includeOrdinary: true });
+
+    const processed = await processNotificationQueue(harness.prisma as never, harness.delivery, {
+      encryptionKey: encryptionKeyText,
+      guestPassDeliveryEligibilityReader: harness.guestPassDeliveryEligibilityReader,
+    });
+
+    expect(processed.map((row) => row.id)).toEqual(['not_guest_pass']);
+    expect(harness.delivery.deliver).toHaveBeenCalledTimes(1);
+    expect(harness.delivery.deliver).toHaveBeenCalledWith(expect.objectContaining({
+      recipient: 'guest@example.test',
+      message: plaintextMessage,
+    }));
+    expect(harness.ordinary).toMatchObject({
+      eventId: 'evt_other',
+      guestPassId: null,
+      status: 'queued',
+      attempts: 0,
+      sensitivePayload: null,
+      leaseToken: null,
+      leaseExpiresAt: null,
+    });
+  });
+
   it('decrypts only for a capture adapter and redacts after capture without marking sent', async () => {
     const harness = createHarness();
 

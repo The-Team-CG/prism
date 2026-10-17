@@ -67,7 +67,7 @@ export class NotificationOutboxService implements OnApplicationBootstrap, OnAppl
         correlationId,
         idempotencyKey: options.idempotencyKey ?? null,
         payloadHash,
-        failureReason: this.delivery ? null : 'Delivery provider is not configured',
+        failureReason: this.delivery?.deliveryMode === 'provider' ? null : 'Delivery provider is not configured',
       };
     if (!options.idempotencyKey) return prisma.opsNotificationLog.create({ data });
     // A non-empty no-op update keeps Prisma on PostgreSQL's atomic ON CONFLICT path.

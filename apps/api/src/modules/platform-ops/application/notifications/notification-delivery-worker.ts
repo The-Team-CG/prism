@@ -221,7 +221,10 @@ export async function processNotificationQueue(
   const encryptionKey = parseGuestPassEncryptionKey(options.encryptionKey);
   const now = new Date();
   const rows = await prisma.opsNotificationLog.findMany({
-    where: available(now),
+    where: {
+      ...available(now),
+      ...(adapter?.deliveryMode === 'capture' ? { guestPassId: { not: null } } : {}),
+    },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     take: 100,
   });

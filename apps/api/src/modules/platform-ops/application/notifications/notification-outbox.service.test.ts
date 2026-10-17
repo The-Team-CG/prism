@@ -66,6 +66,24 @@ function createService(options: { encryptionKey?: string; delivery?: Notificatio
   };
 }
 
+const deliveryDiagnosticCases: Array<{
+  label: string;
+  delivery: NotificationDeliveryPort | undefined;
+  failureReason: string | null;
+}> = [
+  { label: 'no adapter', delivery: undefined, failureReason: 'Delivery provider is not configured' },
+  {
+    label: 'capture adapter',
+    delivery: { deliveryMode: 'capture', deliver: async () => ({ status: 'captured', receipt: 'capture_receipt' }) },
+    failureReason: 'Delivery provider is not configured',
+  },
+  {
+    label: 'provider adapter',
+    delivery: { deliveryMode: 'provider', deliver: async () => ({ status: 'accepted', receipt: 'provider_receipt' }) },
+    failureReason: null,
+  },
+];
+
 describe('NotificationOutboxService', () => {
   it('delivers and retains queued evidence when its optional event reference is absent', async () => {
     const row: Record<string, any> = {
@@ -118,30 +136,36 @@ describe('NotificationOutboxService', () => {
     await expect(service.acknowledge('not_1', actor)).rejects.toThrow(/event scope/);
   });
 
-  it('persists audit correlation when queueing notification work', async () => {
-    const { prisma, service } = createService();
+  it.each(deliveryDiagnosticCases)(
+    'persists queued notification work with the correct delivery diagnostic for $label',
+    async ({ delivery, failureReason }) => {
+      const { notifications, prisma, service } = createService({ delivery });
 
-    const queued = await service.queue('evt_1', 'client@example.test', 'Conforme ready', 'email', {
-      correlationId: 'audit_123',
-    });
-
-    expect(queued).toMatchObject({
-      eventId: 'evt_1',
-      channel: 'email',
-      recipient: 'client@example.test',
-      message: 'Conforme ready',
-      status: 'queued',
-      attempts: 0,
-      correlationId: 'audit_123',
-    });
-    expect(prisma.opsNotificationLog.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
+      const queued = await service.queue('evt_1', 'client@example.test', 'Conforme ready', 'email', {
         correlationId: 'audit_123',
+      });
+
+      expect(queued).toMatchObject({
+        eventId: 'evt_1',
+        channel: 'email',
+        recipient: 'client@example.test',
+        message: 'Conforme ready',
         status: 'queued',
         attempts: 0,
-      }),
-    });
-  });
+        correlationId: 'audit_123',
+        failureReason,
+      });
+      expect(notifications[0]).toMatchObject({ status: 'queued', failureReason });
+      expect(prisma.opsNotificationLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          correlationId: 'audit_123',
+          status: 'queued',
+          attempts: 0,
+          failureReason,
+        }),
+      });
+    },
+  );
 
   it('rejects an idempotency key reused for different message content', async () => {
     const { service, notifications } = createService();

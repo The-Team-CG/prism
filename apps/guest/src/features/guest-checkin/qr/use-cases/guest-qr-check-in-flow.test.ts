@@ -14,13 +14,14 @@ const event = {
   watermark: "2026-10-17T00:00:00.000Z",
 } as PrismGuestEventPass;
 
-function setup(options: { protocol?: string; hash?: string } = {}) {
+function setup(options: { protocol?: string; hash?: string; qrValue?: string } = {}) {
   const historyCalls: string[] = [];
+  const qrUrl = new URL(options.qrValue ?? 'https://guest.example/qr-check-in?accessCode=DEMO-ACCESS-CODE#opaque-token');
   const location = {
     protocol: options.protocol ?? "https:",
-    pathname: "/qr-check-in",
-    search: "?accessCode=DEMO-ACCESS-CODE",
-    hash: options.hash ?? "#opaque-token",
+    pathname: qrUrl.pathname,
+    search: qrUrl.search,
+    hash: options.hash ?? qrUrl.hash,
   };
   const history = {
     state: { entry: "current" },
@@ -54,6 +55,19 @@ describe("guest QR check-in flow", () => {
     expect(location.hash).toBe("");
     expect(repository.fetchEventByAccessCode).toHaveBeenCalledWith("DEMO-ACCESS-CODE");
     expect(flow.getState()).toMatchObject({ status: "ready", event, secure: true, hasPass: true });
+  });
+
+  it("checks in from the complete URL shape issued for a guest QR pass", async () => {
+    const qrValue = "https://guest.example/qr-check-in?accessCode=DEMO-ACCESS-CODE#opaque-token";
+    const { flow, repository, location, history } = setup({ qrValue });
+
+    await flow.initialize(location, history);
+    await flow.submit(true);
+
+    expect(repository.fetchEventByAccessCode).toHaveBeenCalledWith("DEMO-ACCESS-CODE");
+    expect(repository.checkInQr).toHaveBeenCalledWith("DEMO-ACCESS-CODE", expect.objectContaining({
+      passToken: "opaque-token",
+    }));
   });
 
   it("requires privacy consent and HTTPS before any check-in submission", async () => {

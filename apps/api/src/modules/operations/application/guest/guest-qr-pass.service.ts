@@ -327,8 +327,9 @@ export class GuestQrPassService implements GuestQrPassCommands, GuestQrPassLifec
   }
 
   private buildQrValue(origin: string, event: OperationsEventReference, token: string) {
-    const url = new URL(`/check-in/${encodeURIComponent(guestAccessCodeForEvent(event))}`, origin);
-    url.hash = `pass=${token}`;
+    const url = new URL('/qr-check-in', origin);
+    url.searchParams.set('accessCode', guestAccessCodeForEvent(event));
+    url.hash = token;
     return url.toString();
   }
 
