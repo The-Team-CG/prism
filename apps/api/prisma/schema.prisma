@@ -5,7 +5,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  schemas  = ["public", "commercial", "event_lifecycle", "floorplan", "identity_access", "live_ops", "operations", "platform_ops"]
+  schemas  = ["public", "commercial", "event_games", "event_lifecycle", "floorplan", "identity_access", "live_ops", "operations", "platform_ops"]
 }
 
 model FloorPlan {
@@ -2198,4 +2198,271 @@ model OpsCommunicationMessage {
   @@unique([threadId, idempotencyKey], map: "communication_messages_thread_id_idempotency_key_key")
   @@schema("commercial")
   @@map("communication_messages")
+}
+
+model EventGameDefinition {
+  id          String    @id
+  eventId     String    @map("event_id")
+  slug        String
+  title       String
+  gameKind    String    @map("game_kind")
+  entryMode   String    @map("entry_mode")
+  status      String    @default("draft")
+  createdBy   String    @map("created_by")
+  updatedBy   String?   @map("updated_by")
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(6)
+  archivedAt  DateTime? @map("archived_at") @db.Timestamptz(6)
+  availableFrom DateTime? @map("available_from") @db.Timestamptz(6)
+  availableUntil DateTime? @map("available_until") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  configVersions EventGameConfigVersion[]
+  @@unique([eventId, slug], map: "game_definitions_event_slug_key")
+  @@unique([eventId, id], map: "game_definitions_event_id_id_key")
+  @@index([eventId, status], map: "game_definitions_event_status_idx")
+  @@schema("event_games")
+  @@map("game_definitions")
+}
+
+model EventGameLobbySlug {
+  eventId        String   @id @map("event_id")
+  lobbySlug      String   @unique(map: "lobby_slugs_slug_key") @map("lobby_slug")
+  brandTheme     String   @default("prism") @map("brand_theme")
+  brandPrimaryColor   String?  @map("brand_primary_color")
+  brandSecondaryColor String?  @map("brand_secondary_color")
+  brandLogoObjectId   String?  @map("brand_logo_object_id")
+  brandUpdatedAt DateTime @default(now()) @map("brand_updated_at") @db.Timestamptz(6)
+  brandUpdatedBy String?  @map("brand_updated_by")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@schema("event_games")
+  @@map("lobby_slugs")
+}
+
+model EventGameConfigVersion {
+  id              String   @id
+  gameDefinitionId String   @map("game_definition_id")
+  eventId         String   @map("event_id")
+  version         Int
+  config          Json     @db.JsonB
+  createdBy       String   @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  definition EventGameDefinition @relation(fields: [eventId, gameDefinitionId], references: [eventId, id], onDelete: Restrict, map: "game_config_versions_event_definition_fkey")
+  sessions   EventGameSession[]
+
+  @@unique([eventId, gameDefinitionId, version], map: "game_config_versions_event_definition_version_key")
+  @@unique([eventId, gameDefinitionId, id], map: "game_config_versions_event_definition_id_key")
+  @@index([eventId, gameDefinitionId], map: "game_config_versions_event_definition_idx")
+  @@schema("event_games")
+  @@map("game_config_versions")
+}
+
+model EventGameSession {
+  id                 String    @id
+  eventId            String    @map("event_id")
+  gameDefinitionId   String    @map("game_definition_id")
+  configVersionId    String    @map("config_version_id")
+  configSnapshot     Json      @map("config_snapshot") @db.JsonB
+  entryMode          String    @map("entry_mode")
+  status             String    @default("scheduled")
+  scheduledStartAt   DateTime? @map("scheduled_start_at") @db.Timestamptz(6)
+  startedAt          DateTime? @map("started_at") @db.Timestamptz(6)
+  pausedAt           DateTime? @map("paused_at") @db.Timestamptz(6)
+  totalPausedMs      BigInt    @default(0) @map("total_paused_ms")
+  roundOffsetMs      Int       @default(0) @map("round_offset_ms")
+  wheelResult        Json?     @map("wheel_result") @db.JsonB
+  endedAt            DateTime? @map("ended_at") @db.Timestamptz(6)
+  archivedAt         DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdBy          String    @map("created_by")
+  startIdempotencyKey String?  @map("start_idempotency_key")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  configVersion EventGameConfigVersion @relation(fields: [eventId, gameDefinitionId, configVersionId], references: [eventId, gameDefinitionId, id], onDelete: Restrict, map: "game_sessions_event_definition_config_fkey")
+  activePin    EventGameActivePinReservation?
+  pinHistory   EventGamePinHistory[]
+  grants       EventGameSessionParticipationGrant[]
+  awards       EventGameAward[]
+
+  @@unique([eventId, startIdempotencyKey], map: "game_sessions_event_start_idempotency_key")
+  @@unique([eventId, id], map: "game_sessions_event_id_id_key")
+  @@index([eventId, status, scheduledStartAt], map: "game_sessions_event_status_schedule_idx")
+  @@schema("event_games")
+  @@map("game_sessions")
+}
+
+model EventGameActivePinReservation {
+  id                       String   @id
+  eventId                  String   @map("event_id")
+  sessionId                String   @unique(map: "active_pin_reservations_session_key") @map("session_id")
+  pinDigest                String   @unique(map: "active_pin_reservations_digest_key") @map("pin_digest")
+  issueIdempotencyKeyDigest String?  @map("issue_idempotency_key_digest")
+  generationAttempt        Int?     @map("generation_attempt")
+  expiresAt                DateTime @map("expires_at") @db.Timestamptz(6)
+  reservedAt               DateTime @default(now()) @map("reserved_at") @db.Timestamptz(6)
+
+  session EventGameSession @relation(fields: [eventId, sessionId], references: [eventId, id], onDelete: Restrict, map: "active_pin_reservations_event_session_fkey")
+
+  @@index([expiresAt], map: "active_pin_reservations_expires_at_idx")
+  @@unique([eventId, sessionId], map: "active_pin_reservations_event_session_key")
+  @@unique([eventId, issueIdempotencyKeyDigest], map: "active_pin_reservations_event_issue_key_key")
+  @@schema("event_games")
+  @@map("active_pin_reservations")
+}
+
+model EventGamePinHistory {
+  id        String   @id
+  eventId   String   @map("event_id")
+  sessionId String   @map("session_id")
+  pinDigest String   @map("pin_digest")
+  action    String
+  actorId   String   @map("actor_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  session EventGameSession @relation(fields: [eventId, sessionId], references: [eventId, id], onDelete: Restrict, map: "pin_history_event_session_fkey")
+
+  @@index([sessionId, createdAt], map: "pin_history_session_created_idx")
+  @@index([eventId, createdAt], map: "pin_history_event_created_idx")
+  @@schema("event_games")
+  @@map("pin_history")
+}
+
+model EventGameParticipantCredential {
+  id          String    @id
+  eventId     String    @map("event_id")
+  tokenDigest String    @unique(map: "participant_credentials_token_digest_key") @map("token_digest")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastSeenAt  DateTime? @map("last_seen_at") @db.Timestamptz(6)
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(6)
+
+  grants EventGameSessionParticipationGrant[]
+
+  @@unique([eventId, id], map: "participant_credentials_event_id_id_key")
+  @@index([eventId, revokedAt], map: "participant_credentials_event_revoked_idx")
+  @@schema("event_games")
+  @@map("participant_credentials")
+}
+
+model EventGameSessionParticipationGrant {
+  id                     String    @id
+  eventId                String    @map("event_id")
+  sessionId              String    @map("session_id")
+  participantCredentialId String   @map("participant_credential_id")
+  joinIdempotencyKeyDigest String? @map("join_idempotency_key_digest")
+  entryMode              String    @map("entry_mode")
+  grantedAt              DateTime  @default(now()) @map("granted_at") @db.Timestamptz(6)
+  revokedAt              DateTime? @map("revoked_at") @db.Timestamptz(6)
+  revokedBy              String?   @map("revoked_by")
+
+  session               EventGameSession               @relation(fields: [eventId, sessionId], references: [eventId, id], onDelete: Restrict, map: "session_participation_grants_event_session_fkey")
+  participantCredential EventGameParticipantCredential @relation(fields: [eventId, participantCredentialId], references: [eventId, id], onDelete: Restrict, map: "session_participation_grants_event_credential_fkey")
+  submissions           EventGameSubmission[]
+  scores                EventGameScoreLedger[]
+  awards                EventGameAward[]
+  moderationActions     EventGameModerationAction[]
+
+  @@unique([eventId, sessionId, participantCredentialId], map: "session_participation_grants_event_session_credential_key")
+  @@unique([eventId, sessionId, id], map: "session_participation_grants_event_session_id_key")
+  @@unique([eventId, joinIdempotencyKeyDigest], map: "session_participation_grants_event_id_idempotency_key")
+  @@index([eventId, sessionId, revokedAt], map: "session_participation_grants_event_session_revoked_idx")
+  @@schema("event_games")
+  @@map("session_participation_grants")
+}
+
+model EventGameSubmission {
+  id                     String   @id
+  eventId                String   @map("event_id")
+  sessionId              String   @map("session_id")
+  participationGrantId   String   @map("participation_grant_id")
+  roundKey               String   @map("round_key")
+  actionKind             String   @map("action_kind")
+  payload                Json     @db.JsonB
+  scoreResult            Json?    @map("score_result") @db.JsonB
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  grant EventGameSessionParticipationGrant @relation(fields: [eventId, sessionId, participationGrantId], references: [eventId, sessionId, id], onDelete: Restrict, map: "submissions_event_session_grant_fkey")
+  moderationActions EventGameModerationAction[]
+
+  @@unique([sessionId, participationGrantId, roundKey, actionKind], map: "submissions_session_grant_round_action_key")
+  @@unique([eventId, sessionId, id], map: "submissions_event_session_id_key")
+  @@index([eventId, sessionId, createdAt], map: "submissions_event_session_created_idx")
+  @@schema("event_games")
+  @@map("submissions")
+}
+
+model EventGameScoreLedger {
+  id                   String   @id
+  eventId              String   @map("event_id")
+  sessionId            String   @map("session_id")
+  participationGrantId String   @map("participation_grant_id")
+  sourceEventId        String   @map("source_event_id")
+  points               Int
+  reason               String
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  grant EventGameSessionParticipationGrant @relation(fields: [eventId, sessionId, participationGrantId], references: [eventId, sessionId, id], onDelete: Restrict, map: "score_ledger_event_session_grant_fkey")
+
+  @@unique([eventId, sessionId, sourceEventId], map: "score_ledger_event_session_source_key")
+  @@index([eventId, sessionId, participationGrantId, createdAt], map: "score_ledger_event_session_grant_created_idx")
+  @@schema("event_games")
+  @@map("score_ledger")
+}
+
+model EventGameAward {
+  id                   String   @id
+  eventId              String   @map("event_id")
+  sessionId            String   @map("session_id")
+  recipientType        String   @map("recipient_type")
+  recipientKey         String   @map("recipient_key")
+  participationGrantId String?  @map("participation_grant_id")
+  teamId               String?  @map("team_id")
+  awardKind            String   @map("award_kind")
+  label                String
+  points               Int?
+  prizeReference       String?  @map("prize_reference")
+  assignedBy           String   @map("assigned_by")
+  sourceEventId        String   @map("source_event_id")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  grant EventGameSessionParticipationGrant? @relation(fields: [eventId, sessionId, participationGrantId], references: [eventId, sessionId, id], onDelete: Restrict, map: "awards_event_session_grant_fkey")
+  session EventGameSession @relation(fields: [eventId, sessionId], references: [eventId, id], onDelete: Restrict, map: "awards_event_session_fkey")
+
+  @@unique([eventId, sessionId, sourceEventId, recipientKey], map: "awards_event_source_recipient_key")
+  @@index([eventId, sessionId, createdAt], map: "awards_event_session_created_idx")
+  @@schema("event_games")
+  @@map("awards")
+}
+
+model EventGameModerationAction {
+  id                   String   @id
+  eventId              String   @map("event_id")
+  sessionId            String   @map("session_id")
+  submissionId         String?  @map("submission_id")
+  participationGrantId String?  @map("participation_grant_id")
+  action               String
+  reason               String?
+  resolvedAnswer       String?  @map("resolved_answer")
+  actorId              String   @map("actor_id")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  submission EventGameSubmission? @relation(fields: [eventId, sessionId, submissionId], references: [eventId, sessionId, id], onDelete: Restrict, map: "moderation_actions_event_submission_fkey")
+  grant      EventGameSessionParticipationGrant? @relation(fields: [eventId, sessionId, participationGrantId], references: [eventId, sessionId, id], onDelete: Restrict, map: "moderation_actions_event_participation_grant_fkey")
+
+  @@index([eventId, sessionId, createdAt], map: "moderation_actions_event_session_created_idx")
+  @@schema("event_games")
+  @@map("moderation_actions")
+}
+
+model EventGameRateLimitBucket {
+  bucketKey       String   @map("bucket_key")
+  bucketStartedAt DateTime @map("bucket_started_at") @db.Timestamptz(6)
+  requestCount    Int      @default(1) @map("request_count")
+  expiresAt       DateTime @map("expires_at") @db.Timestamptz(6)
+
+  @@id([bucketKey, bucketStartedAt], map: "rate_limit_buckets_pkey")
+  @@index([expiresAt], map: "rate_limit_buckets_expires_at_idx")
+  @@schema("event_games")
+  @@map("rate_limit_buckets")
 }

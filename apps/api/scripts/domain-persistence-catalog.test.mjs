@@ -16,12 +16,12 @@ describe('domain persistence catalog', () => {
 
     assert.equal(current.tables.length, 93);
     assert.equal(current.schemas.length, 10);
-    assert.equal(target.tables.length, 94);
+    assert.equal(target.tables.length, 107);
     assert.equal(current.tables.some(({ table }) => table === 'client_floorplan_access_grants'), false);
     assert.equal(target.tables.find(({ table }) => table === 'client_floorplan_access_grants').schema, 'event_lifecycle');
     assert.equal(current.tables.find(({ table }) => table === 'privacy_legal_holds').schema, 'platform_ops');
     assert.equal(target.tables.find(({ table }) => table === 'privacy_legal_holds').schema, 'platform_ops');
-    assert.equal(target.schemas.length, 7);
+    assert.equal(target.schemas.length, 8);
     assert.equal(current.tables.find(({ table }) => table === 'quotes').schema, 'supplier_ops');
     assert.equal(target.tables.find(({ table }) => table === 'quotes').schema, 'commercial');
   });
@@ -70,5 +70,39 @@ describe('domain persistence catalog', () => {
 
   it('rejects missing ownership rows', () => {
     assert.throws(() => domainPersistenceCatalog({ ownership: [] }), /must contain ownership rows/);
+  });
+
+  it('registers each event-games table under its dedicated owner schema', () => {
+    const manifest = loadOwnershipManifest();
+    const expectedTables = [
+      'active_pin_reservations',
+      'awards',
+      'game_config_versions',
+      'game_definitions',
+      'game_sessions',
+      'lobby_slugs',
+      'moderation_actions',
+      'participant_credentials',
+      'pin_history',
+      'rate_limit_buckets',
+      'score_ledger',
+      'session_participation_grants',
+      'submissions',
+    ];
+    const rows = manifest.ownership.filter(({ domain }) => domain === 'event-games');
+
+    assert.deepEqual(rows.map(({ table }) => table).sort(), expectedTables);
+    assert.ok(rows.every(({ currentSchema, targetSchema, introducedAfterCutover }) => (
+      currentSchema === 'event_games'
+      && targetSchema === 'event_games'
+      && introducedAfterCutover === true
+    )));
+
+    const catalog = domainPersistenceCatalog(manifest, { final: true });
+    assert.deepEqual(
+      catalog.tables.filter(({ domain }) => domain === 'event-games').map(({ schema, table }) => ({ schema, table })).sort((a, b) => a.table.localeCompare(b.table)),
+      expectedTables.map((table) => ({ schema: 'event_games', table })),
+    );
+    assert.ok(catalog.schemas.includes('event_games'));
   });
 });

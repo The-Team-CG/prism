@@ -5,7 +5,7 @@ import { PrismaService } from '@prism/kernel/database';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { OpsUserRole, type OpsUserRole as OpsUserRoleValue } from '@prism/kernel/event-core';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
-import type { PrismStoredObject, StorageUsage } from '@prism/types';
+import type { PrismEventGameLobbyLogoUploadTicket, PrismEventGameMediaAuthorization, PrismEventGameMediaUploadTicket, PrismStoredObject, StorageUsage } from '@prism/types';
 import { PLATFORM_REFERENCE_READ_MODEL, type PlatformReferenceReadModel } from '@prism/contexts/read-models';
 import {
   STORAGE_ADAPTER,
@@ -27,6 +27,8 @@ export const STORAGE_RETENTION_POLICY_SEAM = 'Retention and legal-hold policy is
 // This allowlist does not validate target-row existence; each owner capability must do that.
 const STORAGE_OWNER_USAGE_REGISTRY: Readonly<Record<string, readonly StorageUsage[]>> = {
   billing_statement: ['event_deliverable'],
+  event_game_definition: ['event_game_media'],
+  event_game_lobby: ['event_game_branding'],
 };
 
 function isSupportedStorageOwner(ownerRecordType: string, usage: string) {
@@ -44,6 +46,16 @@ export class StorageObjectService {
   ) {}
 
   async requestUpload(input: StorageServiceRequest): Promise<StorageRequestResult> {
+    if (input.usage === 'event_game_media') {
+      throw new ForbiddenException('Game media uploads must use the game-scoped route');
+    }
+    return this.requestUploadThroughOwnerCapability(input);
+  }
+
+  private async requestUploadThroughOwnerCapability(
+    input: StorageServiceRequest,
+  ): Promise<StorageRequestResult> {
+    this.assertEventGameLobbyLogoOwner(input);
     this.assertSupportedOwner(input.ownerRecordType, input.usage);
     const prisma = this.database(input.context);
     await this.authorizeEvent(input.eventId, input.actor, input.usage, 'request storage upload');
@@ -61,10 +73,86 @@ export class StorageObjectService {
     return this.createRequest(prisma, input, declaration, objectId, location);
   }
 
+  async requestEventGameLobbyLogoUpload(input: StorageServiceRequest): Promise<PrismEventGameLobbyLogoUploadTicket> {
+    this.assertEventGameLobbyLogoOwner(input);
+    if (input.ownerRecordType !== 'event_game_lobby' || input.usage !== 'event_game_branding') {
+      throw new BadRequestException('Lobby logo storage must stay scoped to its event lobby');
+    }
+    const result = await this.requestUpload(input);
+    if (result.status === 'stored') {
+      return { objectId: result.object.id, uploadUrl: null, expiresAt: null, alreadyStored: true };
+    }
+    if (result.status === 'ready') {
+      return {
+        objectId: result.object.id,
+        uploadUrl: result.location.uploadUrl,
+        expiresAt: result.location.expiresAt.toISOString(),
+        alreadyStored: false,
+      };
+    }
+    throw new ServiceUnavailableException('Event game lobby logo storage is not available');
+  }
+
+  async requestEventGameMediaUpload(input: {
+    eventId: string;
+    gameId: string;
+    fileName: string;
+    contentType: string;
+    declaredByteSize: number;
+    checksumSha256: string;
+    idempotencyKey: string;
+    actor: ResolvedEventOpsActor;
+    context?: PrismTransactionContext;
+  }): Promise<PrismEventGameMediaUploadTicket> {
+    const result = await this.requestUploadThroughOwnerCapability({
+      eventId: input.eventId,
+      ownerRecordType: 'event_game_definition',
+      ownerRecordId: input.gameId,
+      logicalTarget: `game-media:${input.gameId}:${input.idempotencyKey}`,
+      usage: 'event_game_media',
+      fileName: input.fileName,
+      contentType: input.contentType,
+      declaredByteSize: input.declaredByteSize,
+      checksumSha256: input.checksumSha256,
+      idempotencyKey: input.idempotencyKey,
+      actor: input.actor,
+      context: input.context,
+    });
+    if (result.status === 'stored') {
+      return { objectId: result.object.id, uploadUrl: null, expiresAt: null, alreadyStored: true };
+    }
+    if (result.status === 'ready') {
+      return {
+        objectId: result.object.id,
+        uploadUrl: result.location.uploadUrl,
+        expiresAt: result.location.expiresAt.toISOString(),
+        alreadyStored: false,
+      };
+    }
+    throw new ServiceUnavailableException('Event game media storage is not available');
+  }
+
   async confirmUpload(input: StorageServiceConfirmation): Promise<PrismStoredObject> {
+    const existing = await this.database(input.context).opsStoredObject.findUnique({ where: { id: input.objectId } });
+    if (existing?.usage === 'event_game_media') {
+      throw new ForbiddenException('Game media uploads must use the game-scoped route');
+    }
+    return this.confirmUploadThroughOwnerCapability(input);
+  }
+
+  private async confirmUploadThroughOwnerCapability(
+    input: StorageServiceConfirmation,
+  ): Promise<PrismStoredObject> {
     const prisma = this.database(input.context);
     const current = await prisma.opsStoredObject.findUnique({ where: { id: input.objectId } });
     if (!current) throw new NotFoundException('Stored object not found');
+    this.assertEventGameLobbyLogoOwner({
+      eventId: current.eventId,
+      ownerRecordType: current.ownerRecordType,
+      ownerRecordId: current.ownerRecordId,
+      logicalTarget: current.logicalTarget,
+      usage: current.usage as StorageUsage,
+    });
     this.assertSupportedOwner(current.ownerRecordType, current.usage);
     await this.authorizeEvent(current.eventId, input.actor, current.usage as StorageServiceRequest['usage'], 'confirm storage upload');
     if (current.lifecycleState === 'stored') return this.confirmAlreadyStored(current, input);
@@ -72,6 +160,34 @@ export class StorageObjectService {
     this.assertConfirmationDeclaration(current, input);
     const confirmation = await this.confirmWithAdapter(current, input);
     return this.persistStored(current, confirmation, prisma);
+  }
+
+  async confirmEventGameLobbyLogoUpload(
+    input: StorageServiceConfirmation & { eventId: string },
+  ): Promise<PrismStoredObject> {
+    const object = await this.database(input.context).opsStoredObject.findUnique({ where: { id: input.objectId } });
+    if (!object
+      || object.eventId !== input.eventId
+      || object.ownerRecordType !== 'event_game_lobby'
+      || object.ownerRecordId !== input.eventId
+      || object.usage !== 'event_game_branding'
+      || !object.logicalTarget.startsWith('lobby-logo:')) {
+      throw new NotFoundException('Stored object not found');
+    }
+    return this.confirmUpload(input);
+  }
+
+  async confirmEventGameMediaUpload(input: StorageServiceConfirmation & { eventId: string; gameId: string }): Promise<PrismStoredObject> {
+    const object = await this.database(input.context).opsStoredObject.findUnique({ where: { id: input.objectId } });
+    if (!object
+      || object.eventId !== input.eventId
+      || object.ownerRecordType !== 'event_game_definition'
+      || object.ownerRecordId !== input.gameId
+      || object.usage !== 'event_game_media'
+      || !object.logicalTarget.startsWith('game-media:')) {
+      throw new NotFoundException('Stored object not found');
+    }
+    return this.confirmUploadThroughOwnerCapability(input);
   }
 
   private declaration(input: StorageServiceRequest) {
@@ -125,12 +241,155 @@ export class StorageObjectService {
   async issueDownloadAuthorization(input: StorageServiceDownload): Promise<StorageDownloadAuthorization> {
     const object = await this.prisma.opsStoredObject.findUnique({ where: { id: input.objectId } });
     if (!object) throw new NotFoundException('Stored object not found');
+    if (object.usage === 'event_game_media' || object.usage === 'event_game_branding') {
+      throw new ForbiddenException('Event game media requires an approved game access path');
+    }
     this.assertSupportedOwner(object.ownerRecordType, object.usage);
     await this.authorizeEvent(object.eventId, input.actor, object.usage as StorageServiceRequest['usage'], 'download storage object');
     if (object.lifecycleState !== 'stored' || !object.providerObjectKey || !this.adapter) {
       throw new ServiceUnavailableException(object.lifecycleState === 'stored' ? 'Storage provider is not configured' : 'Stored object is not available');
     }
     return this.adapter.issueDownloadAuthorization(this.adapterRequest(object));
+  }
+
+  async validateEventGameMediaReferences(
+    input: { eventId: string; gameId: string; objectIds: string[] },
+    context?: PrismTransactionContext,
+  ): Promise<void> {
+    if (input.objectIds.length === 0) return;
+    const objectIds = new Set(input.objectIds);
+    if (objectIds.size !== input.objectIds.length) {
+      throw new NotFoundException('Game media objects are unavailable for this game');
+    }
+
+    const objects = await this.database(context).opsStoredObject.findMany({
+      where: {
+        id: { in: [...objectIds] },
+        eventId: input.eventId,
+        ownerRecordType: 'event_game_definition',
+        ownerRecordId: input.gameId,
+        usage: 'event_game_media',
+        lifecycleState: 'stored',
+      },
+    });
+    if (objects.length !== objectIds.size) {
+      throw new NotFoundException('Game media objects are unavailable for this game');
+    }
+    for (const object of objects) {
+      if (!objectIds.has(object.id)) {
+        throw new NotFoundException('Game media objects are unavailable for this game');
+      }
+      this.assertEventGameMediaObject(object, input);
+    }
+  }
+
+  async issueEventGameMediaDownloadAuthorization(
+    input: { eventId: string; gameId: string; objectId: string },
+    context?: PrismTransactionContext,
+  ): Promise<PrismEventGameMediaAuthorization> {
+    const object = await this.database(context).opsStoredObject.findUnique({
+      where: { id: input.objectId },
+    });
+    if (!object) throw new NotFoundException('Game media objects are unavailable for this game');
+    this.assertEventGameMediaObject(object, input);
+    if (!this.adapter) throw new ServiceUnavailableException('Storage provider is not configured');
+
+    const authorization = await this.adapter.issueDownloadAuthorization(this.adapterRequest(object));
+    return {
+      downloadUrl: authorization.downloadUrl,
+      expiresAt: authorization.expiresAt.toISOString(),
+    };
+  }
+
+  async validateEventGameLobbyLogoReference(
+    input: { eventId: string; objectId: string },
+    context?: PrismTransactionContext,
+  ): Promise<void> {
+    const object = await this.database(context).opsStoredObject.findUnique({ where: { id: input.objectId } });
+    if (!object) throw new NotFoundException('Event lobby logo is unavailable');
+    this.assertEventGameLobbyLogoObject(object, input);
+  }
+
+  async issueEventGameLobbyLogoDownloadAuthorization(
+    input: { eventId: string; objectId: string },
+    context?: PrismTransactionContext,
+  ): Promise<PrismEventGameMediaAuthorization> {
+    const object = await this.database(context).opsStoredObject.findUnique({ where: { id: input.objectId } });
+    if (!object) throw new NotFoundException('Event lobby logo is unavailable');
+    this.assertEventGameLobbyLogoObject(object, input);
+    if (!this.adapter) throw new ServiceUnavailableException('Storage provider is not configured');
+    const authorization = await this.adapter.issueDownloadAuthorization(this.adapterRequest(object));
+    return { downloadUrl: authorization.downloadUrl, expiresAt: authorization.expiresAt.toISOString() };
+  }
+
+  private assertEventGameLobbyLogoObject(
+    object: OpsStoredObject,
+    scope: { eventId: string; objectId: string },
+  ): void {
+    const validScope = object.id === scope.objectId
+      && object.eventId === scope.eventId
+      && object.ownerRecordType === 'event_game_lobby'
+      && object.ownerRecordId === scope.eventId
+      && object.usage === 'event_game_branding';
+    if (!validScope || object.lifecycleState !== 'stored' || Boolean(object.deletedAt) || !object.providerObjectKey) {
+      throw new NotFoundException('Event lobby logo is unavailable');
+    }
+    try {
+      this.validation.validateDeclaration({
+        fileName: object.originalFileName,
+        contentType: object.contentType,
+        byteSize: object.declaredByteSize,
+        usage: 'event_game_branding',
+        checksumSha256: object.checksumSha256,
+      });
+    } catch {
+      throw new NotFoundException('Event lobby logo is unavailable');
+    }
+  }
+
+  private assertEventGameLobbyLogoOwner(input: Pick<StorageServiceRequest, 'eventId' | 'ownerRecordType' | 'ownerRecordId' | 'logicalTarget' | 'usage'>) {
+    if (input.ownerRecordType !== 'event_game_lobby' && input.usage !== 'event_game_branding') return;
+    if (input.ownerRecordType !== 'event_game_lobby'
+      || input.usage !== 'event_game_branding'
+      || input.ownerRecordId !== input.eventId
+      || !input.logicalTarget.startsWith('lobby-logo:')) {
+      throw new BadRequestException('Lobby logo storage must stay scoped to its event lobby');
+    }
+  }
+
+  private assertEventGameMediaObject(
+    object: OpsStoredObject,
+    scope: { eventId: string; gameId: string; objectId?: string },
+  ): void {
+    if (this.hasInvalidEventGameMediaScope(object, scope) || this.isUnavailableEventGameMedia(object)) {
+      throw new NotFoundException('Game media objects are unavailable for this game');
+    }
+    try {
+      this.validation.validateDeclaration({
+        fileName: object.originalFileName,
+        contentType: object.contentType,
+        byteSize: object.declaredByteSize,
+        usage: 'event_game_media',
+        checksumSha256: object.checksumSha256,
+      });
+    } catch {
+      throw new NotFoundException('Game media objects are unavailable for this game');
+    }
+  }
+
+  private hasInvalidEventGameMediaScope(
+    object: OpsStoredObject,
+    scope: { eventId: string; gameId: string; objectId?: string },
+  ): boolean {
+    const wrongOwner = object.ownerRecordType !== 'event_game_definition' || object.ownerRecordId !== scope.gameId;
+    return (scope.objectId !== undefined && object.id !== scope.objectId)
+      || object.eventId !== scope.eventId
+      || wrongOwner
+      || object.usage !== 'event_game_media';
+  }
+
+  private isUnavailableEventGameMedia(object: OpsStoredObject): boolean {
+    return object.lifecycleState !== 'stored' || Boolean(object.deletedAt) || !object.providerObjectKey;
   }
 
   /** Returns the event file hub metadata after applying the same event and role policy as downloads. */
@@ -150,8 +409,13 @@ export class StorageObjectService {
   }
 
   private canSeeObject(actor: ResolvedEventOpsActor, object: OpsStoredObject) {
+    if (object.usage === 'event_game_media' || object.usage === 'event_game_branding') return false;
     if (!isSupportedStorageOwner(object.ownerRecordType, object.usage)) return false;
     if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return true;
+    return this.canSeeObjectByUsage(actor, object);
+  }
+
+  private canSeeObjectByUsage(actor: ResolvedEventOpsActor, object: OpsStoredObject) {
     if (object.usage === 'signed_conforme') return actor.role === OpsUserRole.Client;
     if (object.usage === 'event_deliverable') return actor.role === OpsUserRole.Client || actor.role === OpsUserRole.Coordinator;
     if (object.usage === 'supplier_document') return actor.role === OpsUserRole.Supplier && object.ownerRecordId === actor.supplierId;
@@ -209,6 +473,8 @@ export class StorageObjectService {
       supplier_document: [OpsUserRole.PmcmAdmin, OpsUserRole.Supplier],
       guest_feedback_media: [OpsUserRole.PmcmAdmin, OpsUserRole.Guest],
       event_deliverable: [OpsUserRole.PmcmAdmin, OpsUserRole.Coordinator, OpsUserRole.System],
+      event_game_media: [OpsUserRole.PmcmAdmin, OpsUserRole.Coordinator],
+      event_game_branding: [OpsUserRole.PmcmAdmin, OpsUserRole.Coordinator],
     };
     await this.accessPolicy.requireActorRole(actor, roles[usage], resource, eventId);
   }
