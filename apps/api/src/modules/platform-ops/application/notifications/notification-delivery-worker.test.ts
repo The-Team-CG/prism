@@ -36,6 +36,7 @@ function createHarness(options: {
     sensitivePayload: encryptedPayload(plaintextMessage),
     status: 'queued',
     attempts: 0,
+    failureReason: null as string | null,
     nextAttemptAt: new Date(Date.now() - 1_000),
     leaseToken: null as string | null,
     leaseExpiresAt: null as Date | null,
@@ -159,6 +160,69 @@ describe('notification delivery worker guest-pass handling', () => {
     expect(harness.sequence.indexOf('reread')).toBeLessThan(harness.sequence.indexOf('eligibility'));
     expect(harness.delivery.deliver).not.toHaveBeenCalled();
     expect(harness.current).toMatchObject({ status: 'cancelled', sensitivePayload: null, leaseToken: null, leaseExpiresAt: null });
+  });
+
+  it('defers a temporary eligibility lookup error with the lease and ciphertext intact, then recovers', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-10-18T08:00:00.000Z'));
+      const harness = createHarness();
+      const ciphertext = harness.current.sensitivePayload;
+      harness.guestPassDeliveryEligibilityReader.canDeliverGuestPass
+        .mockRejectedValueOnce(new Error(`temporary lookup failure: ${plaintextMessage}`));
+
+      await processNotificationQueue(harness.prisma as never, harness.delivery, {
+        encryptionKey: encryptionKeyText,
+        guestPassDeliveryEligibilityReader: harness.guestPassDeliveryEligibilityReader,
+      });
+
+      const retryAt = harness.current.nextAttemptAt;
+      expect(retryAt.getTime()).toBeGreaterThan(Date.now());
+      expect(retryAt.getTime()).toBeLessThan(Date.now() + 5 * 60_000);
+      expect(harness.current).toMatchObject({
+        status: 'queued',
+        attempts: 0,
+        guestPassId: 'pass_1',
+        sensitivePayload: ciphertext,
+        leaseToken: null,
+        leaseExpiresAt: null,
+        failureReason: 'Guest pass eligibility could not be verified; retry scheduled',
+      });
+      expect(harness.current.failureReason).not.toContain(plaintextMessage);
+      expect(harness.delivery.deliver).not.toHaveBeenCalled();
+
+      vi.setSystemTime(new Date(retryAt.getTime() + 1));
+      const recovered = await processNotificationQueue(harness.prisma as never, harness.delivery, {
+        encryptionKey: encryptionKeyText,
+        guestPassDeliveryEligibilityReader: harness.guestPassDeliveryEligibilityReader,
+      });
+
+      expect(harness.guestPassDeliveryEligibilityReader.canDeliverGuestPass).toHaveBeenCalledTimes(2);
+      expect(harness.delivery.deliver).toHaveBeenCalledOnce();
+      expect(recovered[0]).toMatchObject({ status: 'captured', guestPassId: null, sensitivePayload: null });
+      expect(harness.current).toMatchObject({ status: 'captured', guestPassId: 'pass_1', sensitivePayload: null });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('defers guest-pass delivery when the eligibility reader is unavailable', async () => {
+    const harness = createHarness();
+    const ciphertext = harness.current.sensitivePayload;
+
+    await processNotificationQueue(harness.prisma as never, harness.delivery, { encryptionKey: encryptionKeyText });
+
+    expect(harness.current).toMatchObject({
+      status: 'queued',
+      attempts: 0,
+      guestPassId: 'pass_1',
+      sensitivePayload: ciphertext,
+      leaseToken: null,
+      leaseExpiresAt: null,
+      failureReason: 'Guest pass eligibility could not be verified; retry scheduled',
+    });
+    expect(harness.current.nextAttemptAt.getTime()).toBeGreaterThan(Date.now());
+    expect(harness.delivery.deliver).not.toHaveBeenCalled();
   });
 
   it('does not deliver or retain ciphertext when the demo worker is configured with provider mode', async () => {
