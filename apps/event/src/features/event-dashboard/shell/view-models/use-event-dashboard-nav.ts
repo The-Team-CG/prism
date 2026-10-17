@@ -6,6 +6,7 @@ import {
   CircleUserRound,
   FileCheck2,
   FileSignature,
+  Gamepad2,
   Home,
   Inbox,
   LayoutGrid,
@@ -52,6 +53,7 @@ function eventWorkspaceNavItems(
     { id: "event-timeline", icon: Radio, label: "Live Ops", section: eventSection },
     { id: "event-budget", icon: ReceiptText, label: "Billing", section: eventSection, badge: optionalNavBadge(counts.paymentCount) },
     { id: "event-report", icon: Archive, label: "Closure", section: eventSection, badge: optionalNavBadge(counts.closeoutCount) },
+    { id: "event-games", icon: Gamepad2, label: "Games", section: eventSection },
     { id: "event-messages", icon: MessageSquareText, label: "Activity", section: eventSection },
   ];
 }
