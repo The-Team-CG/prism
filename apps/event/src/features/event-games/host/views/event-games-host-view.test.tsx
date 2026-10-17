@@ -272,6 +272,31 @@ describe("EventGamesHostView", () => {
     expect(screen.queryByRole("button", { name: /create host session/i })).toBeNull();
   });
 
+  it("keeps scheduled start times independent for each active game", () => {
+    Object.assign(state, {
+      games: [
+        { id: "game-one", title: "Trivia", kind: "live-trivia", entryMode: "active", version: 1, status: "published", hasStartedSession: true },
+        { id: "game-two", title: "Bingo", kind: "bingo", entryMode: "active", version: 1, status: "published", hasStartedSession: true },
+      ],
+    });
+    render(<EventGamesHostView eventId="event-1" role="pmcm-admin" eventStatus="confirmed" archived={false} />);
+
+    const firstStart = "2026-10-17T18:00";
+    const secondStart = "2026-10-17T20:00";
+    fireEvent.change(screen.getByLabelText("Scheduled session start", { selector: "#session-start-game-one" }), {
+      target: { value: firstStart },
+    });
+    fireEvent.change(screen.getByLabelText("Scheduled session start", { selector: "#session-start-game-two" }), {
+      target: { value: secondStart },
+    });
+    const scheduleButtons = screen.getAllByRole("button", { name: "Schedule session" });
+    fireEvent.click(scheduleButtons[0]!);
+    fireEvent.click(scheduleButtons[1]!);
+
+    expect(state.scheduleSession).toHaveBeenNthCalledWith(1, "game-one", new Date(firstStart).toISOString());
+    expect(state.scheduleSession).toHaveBeenNthCalledWith(2, "game-two", new Date(secondStart).toISOString());
+  });
+
   it("lets organizers configure Bingo and saves the strict template contract", async () => {
     Object.assign(state, { games: [{
       id: "bingo-draft", eventId: "event-1", slug: "bingo", title: "Bingo draft",

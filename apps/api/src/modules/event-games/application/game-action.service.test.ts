@@ -97,7 +97,11 @@ describe('GameActionService', () => {
       startedAt: '2026-10-16T11:59:00.000Z',
       currentRound: { key: 'round-1', number: 1, total: 3 },
       currentPrompt: 'Question?',
-      participant: { hasSubmitted: true, score: 20 },
+      participant: {
+        participantAlias: expect.stringMatching(/^Guest [A-F0-9]{10}$/),
+        hasSubmitted: true,
+        score: 20,
+      },
       aggregateResults: [],
     });
     expect(store.findParticipantActionContext).toHaveBeenCalledWith({

@@ -8,6 +8,7 @@ import { EventGamesSessionJoinService } from './application/game-session-join.se
 import { EventGamesSessionPinService } from './application/game-session-pin.service';
 import { EventGamesHostCommandService } from './application/event-games-host-command.service';
 import { GameScheduledStartWorker } from './application/game-scheduled-start.worker';
+import { GameResponseRetentionWorker } from './application/game-response-retention.worker';
 import { GAME_SCHEDULER } from './contracts/game-scheduler.port';
 import { GAME_ACTION_CLOCK } from './contracts/game-action-store.port';
 import { GAME_EVENT_ACCESS } from './contracts/game-event-access.port';
@@ -111,6 +112,12 @@ describe('EventGamesModule PIN wiring', () => {
 
     expect(providers).toContain(GameScheduledStartWorker);
     expect(providers).toContainEqual({ provide: GAME_SCHEDULER, useExisting: GameScheduledStartWorker });
+  });
+
+  it('registers the event-game response retention worker', () => {
+    const providers = Reflect.getMetadata('providers', EventGamesModule) as unknown[];
+
+    expect(providers).toContain(GameResponseRetentionWorker);
   });
 
   it('wires participant game media through the storage capability', () => {

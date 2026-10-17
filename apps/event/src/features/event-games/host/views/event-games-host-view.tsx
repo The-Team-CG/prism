@@ -49,7 +49,6 @@ function responseText(response: PrismGameSessionResponse["response"]): string {
 
 export function EventGamesHostView({ eventId, role, eventStatus, archived, actualEndedAt }: Props) {
   const vm = useEventGamesHostViewModel({ eventId, role, eventStatus, archived, actualEndedAt });
-  const [scheduleAt, setScheduleAt] = useState("");
   const [responseSessionId, setResponseSessionId] = useState("");
 
   if (!eventId) {
@@ -85,8 +84,6 @@ export function EventGamesHostView({ eventId, role, eventStatus, archived, actua
                 key={game.id}
                 game={game}
                 busy={Boolean(vm.busy)}
-                scheduleAt={scheduleAt}
-                setScheduleAt={setScheduleAt}
                 onUpdate={vm.updateDraft}
                 onArchive={vm.archiveGame}
                 onPublish={vm.publishDraft}
@@ -134,8 +131,6 @@ export function EventGamesHostView({ eventId, role, eventStatus, archived, actua
 function GameDefinitionRow({
   game,
   busy,
-  scheduleAt,
-  setScheduleAt,
   onUpdate,
   onArchive,
   onPublish,
@@ -144,8 +139,6 @@ function GameDefinitionRow({
 }: {
   game: PrismEventGameDefinition;
   busy: boolean;
-  scheduleAt: string;
-  setScheduleAt: (value: string) => void;
   onUpdate: (gameId: string, input: PrismUpdateEventGameInput) => Promise<unknown>;
   onArchive: (gameId: string) => Promise<unknown>;
   onPublish: (gameId: string) => Promise<unknown>;
@@ -154,6 +147,7 @@ function GameDefinitionRow({
 }) {
   const [editing, setEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(game.title);
+  const [scheduleAt, setScheduleAt] = useState("");
 
   return (
     <article className="rounded-lg border border-border bg-background p-4">
