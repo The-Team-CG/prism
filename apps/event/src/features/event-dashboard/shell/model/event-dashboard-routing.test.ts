@@ -38,6 +38,18 @@ describe("event-dashboard-routing", () => {
     });
   });
 
+  it("routes the event games workspace to its own tab and event-scoped URL", () => {
+    expect(eventRouteState("event-42", "games")).toEqual({
+      section: "events",
+      eventId: "event-42",
+      tab: "games",
+      view: "games",
+    });
+    expect(routeStateFromPath("/dashboard/events/event-42/games")).toEqual(
+      eventRouteState("event-42", "games"),
+    );
+  });
+
   it("centralizes event-list view recognition without requiring literal route folders", () => {
     expect(isEventListView("upcoming")).toBe(true);
     expect(isEventListView("unknown")).toBe(false);
