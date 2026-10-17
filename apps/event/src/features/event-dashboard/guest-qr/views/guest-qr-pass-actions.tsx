@@ -139,10 +139,12 @@ export function GuestQrPassActionsView({
           <button type="button" disabled={disabled || actionBusy} onClick={() => setConfirmation("reissue")} className="rounded-md border border-border px-3 py-1.5 text-xs font-bold">
             Reissue QR pass
           </button>
-          <button type="button" disabled={disabled || actionBusy} onClick={() => setConfirmation("revoke")} className="rounded-md border border-border px-3 py-1.5 text-xs font-bold">
-            Revoke QR pass
-          </button>
         </>
+      ) : null}
+      {pass?.status === "active" ? (
+        <button type="button" disabled={disabled || actionBusy} onClick={() => setConfirmation("revoke")} className="rounded-md border border-border px-3 py-1.5 text-xs font-bold">
+          Revoke QR pass
+        </button>
       ) : null}
       {message ? <span role="alert" className="text-xs text-destructive">{message}</span> : null}
       {confirmation ? (

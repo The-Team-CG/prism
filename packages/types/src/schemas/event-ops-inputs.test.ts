@@ -6,6 +6,7 @@ import {
   createPrismInquirySchema,
   createGuestFeedbackSchema,
   createGuestCheckInSchema,
+  guestQrPassRosterStatusQuerySchema,
   guestRosterSearchSchema,
   guestCheckInReceiptSchema,
   guestPrivacyClassificationSchema,
@@ -63,6 +64,15 @@ import {
   parseContract,
   PrismContractError,
 } from "./index.js";
+
+describe("guest QR pass status lookup contract", () => {
+  it("requires a bounded list of roster IDs in the request body", () => {
+    expect(guestQrPassRosterStatusQuerySchema.safeParse({ rosterEntryIds: ["gre_1"] }).success).toBe(true);
+    expect(guestQrPassRosterStatusQuerySchema.safeParse({ rosterEntryIds: [] }).success).toBe(true);
+    expect(guestQrPassRosterStatusQuerySchema.safeParse({ rosterEntryIds: Array.from({ length: 1001 }, (_, index) => `gre_${index}`) }).success).toBe(false);
+    expect(guestQrPassRosterStatusQuerySchema.safeParse({ rosterEntryIds: [" "] }).success).toBe(false);
+  });
+});
 
 describe("privacy legal hold contracts", () => {
   it("requires a supported identity and reason while allowing optional event scope", () => {

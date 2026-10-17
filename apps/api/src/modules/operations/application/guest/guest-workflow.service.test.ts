@@ -1010,7 +1010,7 @@ describe('GuestWorkflowService', () => {
   });
 
   it('serializes verification rejection with check-in and prevents rejecting an already checked-in guest', async () => {
-    const { service, state, prisma, eventReferences } = createGuestWorkflowFixture();
+    const { service, state, prisma, eventReferences, guestQrPassService } = createGuestWorkflowFixture();
     const actor = { id: 'usr_registration', name: 'Registration Staff', role: 'coordinator' };
     const roster = {
       id: 'gre_race', eventId: 'evt_sample', sourceKey: 'race-1', guestName: 'Mia Santos', normalizedName: 'mia santos',
@@ -1034,6 +1034,10 @@ describe('GuestWorkflowService', () => {
     await service.updateVerification('evt_sample', rejectedRoster.id, { status: 'rejected' }, actor);
     await expect(service.checkInRosterEntry('evt_sample', rejectedRoster.id, actor)).rejects.toThrow('verification was rejected');
     expect(rejectedRoster.checkedInAt).toBeNull();
+    expect(guestQrPassService.revokeForRosterEntries).toHaveBeenCalledWith(
+      'evt_sample', ['gre_rejected'], actor,
+      expect.objectContaining({ prisma, correlationId: `roster_verify_${rejectedRoster.id}` }),
+    );
   });
 
   it('keeps archived registration records readable and rejects writes after the event lock', async () => {

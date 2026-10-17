@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import { BadRequestException, ConflictException, ForbiddenException, ServiceUnavailableException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
+import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
+import { OpsUserRole } from '@prism/kernel/event-core';
 import type { PrismGuestQrPassDeliveryStatus } from '@prism/types';
 import { GuestQrPassService } from './guest-qr-pass.service';
 
@@ -134,6 +136,7 @@ function createHarness(options: {
     }),
     retryGuestPassDelivery: vi.fn(async () => { sequence.push('notification-retry'); }),
     cancelGuestPassDelivery: vi.fn(async () => { sequence.push('notification-cancel'); }),
+    cancelGuestPassDeliveriesForEvent: vi.fn(async () => { sequence.push('notification-cancel-event'); }),
   };
   const deliveryStatusReader = {
     getGuestPassDeliveryStatuses: vi.fn(async (_eventId: string, passIds: readonly string[]) =>
@@ -153,20 +156,28 @@ function createHarness(options: {
     config as never,
     demoPolicy as never,
   );
-  const actor = (role: string) => ({ id: 'user_pmcm', name: 'PMCM Admin', email: 'admin@example.test', role });
+  const actor = (role: ResolvedEventOpsActor['role']): ResolvedEventOpsActor => ({ id: 'user_pmcm', name: 'PMCM Admin', email: 'admin@example.test', role, explicit: false });
 
   return { actor, auditWriter, config, demoPolicy, deliveryStatusReader, eventReferences, notificationWriter, prisma, sequence, service, state, tx };
 }
 
 describe('GuestQrPassService', () => {
-  it.each(['coordinator', 'client', 'supplier', 'guest'])('denies %s from guest pass commands', async (role) => {
+  it.each([
+    { role: OpsUserRole.Coordinator },
+    { role: OpsUserRole.Client },
+    { role: OpsUserRole.Supplier },
+    { role: OpsUserRole.Guest },
+  ])('denies $role from guest pass commands', async ({ role }) => {
     const harness = createHarness();
 
     await expect(harness.service.issue('evt_1234', 'gre_1', harness.actor(role) as never)).rejects.toBeInstanceOf(ForbiddenException);
     expect(harness.notificationWriter.writeGuestPassDelivery).not.toHaveBeenCalled();
   });
 
-  it.each(['pmcm-admin', 'system'])('allows %s to issue one-time guest QR data', async (role) => {
+  it.each([
+    { role: OpsUserRole.PmcmAdmin },
+    { role: OpsUserRole.System },
+  ])('allows $role to issue one-time guest QR data', async ({ role }) => {
     const harness = createHarness();
 
     const result = await harness.service.issue('evt_1234', 'gre_1', harness.actor(role) as never);
@@ -328,22 +339,49 @@ describe('GuestQrPassService', () => {
     expect(JSON.stringify(auditInput)).not.toMatch(/token|email|qrValue/i);
   });
 
-  it('returns sanitized event status with current delivery state only', async () => {
-    const harness = createHarness({ passes: [pass()], notificationStatus: 'captured' });
+  it('returns only active pass status for the displayed roster IDs', async () => {
+    const history = Array.from({ length: 1000 }, (_, index) => pass({
+      id: `history_${index}`,
+      rosterEntryId: `gre_history_${index}`,
+      status: 'revoked',
+      issuedAt: new Date('2026-10-17T00:00:00.000Z'),
+    }));
+    const harness = createHarness({ passes: [
+      pass({ issuedAt: new Date('2024-01-01T00:00:00.000Z') }),
+      ...history,
+      pass({ id: 'old_revoked', status: 'revoked', rosterEntryId: 'gre_1' }),
+      pass({ id: 'other_guest', rosterEntryId: 'gre_2' }),
+    ], notificationStatus: 'captured' });
 
-    const statuses = await harness.service.list('evt_1234', harness.actor('system') as never);
+    const result = await harness.service.listForRoster('evt_1234', ['gre_1'], harness.actor('system'));
 
-    expect(statuses).toEqual([expect.objectContaining({
+    expect(result).toMatchObject({ available: true, passes: [expect.objectContaining({
       id: 'pass_1',
       eventId: 'evt_1234',
       rosterEntryId: 'gre_1',
       status: 'active',
       deliveryStatus: 'captured',
-    })]);
-    expect(JSON.stringify(statuses)).not.toMatch(/tokenHash|token|email|qrValue|notificationId/i);
+    })] });
+    expect(harness.tx.opsGuestQrPass.findMany).toHaveBeenCalledWith({
+      where: { eventId: 'evt_1234', rosterEntryId: { in: ['gre_1'] }, status: 'active' },
+    });
+    expect(JSON.stringify(result)).not.toMatch(/tokenHash|token|email|qrValue|notificationId/i);
   });
 
-  it('expires event passes idempotently and cancels every linked notification in the supplied transaction', async () => {
+  it('reports unavailable events without querying pass rows', async () => {
+    const disabled = createHarness({ demoEnabled: false, passes: [pass()] });
+    const ended = createHarness({ event: { ...activeEvent, actualEndedAt: new Date() }, passes: [pass()] });
+
+    await expect(disabled.service.listForRoster('evt_1234', ['gre_1'], disabled.actor('system')))
+      .resolves.toEqual({ available: false, passes: [] });
+    await expect(ended.service.listForRoster('evt_1234', ['gre_1'], ended.actor('system')))
+      .resolves.toEqual({ available: false, passes: [] });
+
+    expect(disabled.tx.opsGuestQrPass.findMany).not.toHaveBeenCalled();
+    expect(ended.tx.opsGuestQrPass.findMany).not.toHaveBeenCalled();
+  });
+
+  it('expires event passes with one set update and bulk-cancels queued deliveries in the supplied transaction', async () => {
     const harness = createHarness({ passes: [pass(), pass({ id: 'pass_2', notificationId: 'not_2', rosterEntryId: 'gre_2' })] });
     const context = { prisma: harness.tx, correlationId: 'event-end' };
 
@@ -351,8 +389,14 @@ describe('GuestQrPassService', () => {
     await harness.service.expireEventGuestQrPasses('evt_1234', 'event-ended', context as never);
 
     expect(harness.state.passes.every((row) => row.status === 'revoked' && row.deliveryStatus === 'revoked')).toBe(true);
-    expect(harness.notificationWriter.cancelGuestPassDelivery).toHaveBeenCalledTimes(2);
-    expect(harness.notificationWriter.cancelGuestPassDelivery).toHaveBeenCalledWith('not_1', context);
-    expect(harness.notificationWriter.cancelGuestPassDelivery).toHaveBeenCalledWith('not_2', context);
+    expect(harness.tx.opsGuestQrPass.findMany).not.toHaveBeenCalled();
+    expect(harness.tx.opsGuestQrPass.updateMany).toHaveBeenCalledTimes(2);
+    expect(harness.tx.opsGuestQrPass.updateMany).toHaveBeenCalledWith({
+      where: { eventId: 'evt_1234', status: 'active' },
+      data: expect.objectContaining({ status: 'revoked', deliveryStatus: 'revoked', revokedAt: expect.any(Date), revokedById: null }),
+    });
+    expect(harness.notificationWriter.cancelGuestPassDeliveriesForEvent).toHaveBeenCalledTimes(2);
+    expect(harness.notificationWriter.cancelGuestPassDeliveriesForEvent).toHaveBeenCalledWith('evt_1234', context);
+    expect(harness.notificationWriter.cancelGuestPassDelivery).not.toHaveBeenCalled();
   });
 });

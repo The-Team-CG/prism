@@ -7,6 +7,13 @@ import {
 } from "./common.js";
 /* Guest check-in and feedback. */
 
+export const GUEST_QR_PASS_ROSTER_STATUS_MAX_IDS = 1000;
+
+export const guestQrPassRosterStatusQuerySchema = z.object({
+  rosterEntryIds: z.array(z.string().trim().min(1).max(128)).max(GUEST_QR_PASS_ROSTER_STATUS_MAX_IDS),
+}).strict();
+export type GuestQrPassRosterStatusQuery = z.infer<typeof guestQrPassRosterStatusQuerySchema>;
+
 export const guestQrPassCheckInSchema = privacyConsentSchema.extend({
   idempotencyKey: z.string().uuid(),
   checkInMode: z.literal("qr_pass"),

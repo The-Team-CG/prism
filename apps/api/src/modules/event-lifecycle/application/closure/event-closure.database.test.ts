@@ -108,7 +108,7 @@ describe.skipIf(!databaseUrl)('closeout against PostgreSQL', () => {
     const fixture = await event();
     const { passId, notificationId } = await activeGuestPass(fixture);
     const actualEndedAt = new Date(Date.now() - 60_000);
-    vi.spyOn(outboxWriter, 'cancelGuestPassDelivery').mockRejectedValueOnce(new Error('injected guest pass cancellation failure'));
+    vi.spyOn(outboxWriter, 'cancelGuestPassDeliveriesForEvent').mockRejectedValueOnce(new Error('injected guest pass cancellation failure'));
 
     await expect(service.recordActualEventEnd(fixture.id, { actualEndedAt: actualEndedAt.toISOString() }, lifecycleActor as never))
       .rejects.toThrow('injected guest pass cancellation failure');

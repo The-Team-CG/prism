@@ -141,6 +141,20 @@ export class NotificationOutboxService implements OnApplicationBootstrap, OnAppl
     });
   }
 
+  async cancelGuestPassDeliveriesForEvent(eventId: string, context?: PrismTransactionContext): Promise<void> {
+    const prisma = context?.prisma ?? this.prisma;
+    await prisma.opsNotificationLog.updateMany({
+      where: { eventId, guestPassId: { not: null }, status: 'queued' },
+      data: {
+        status: 'cancelled',
+        sensitivePayload: null,
+        leaseToken: null,
+        leaseExpiresAt: null,
+        failureReason: 'Guest pass delivery canceled',
+      },
+    });
+  }
+
   async retryGuestPassDelivery(notificationId: string, context?: PrismTransactionContext): Promise<void> {
     const prisma = context?.prisma ?? this.prisma;
     const updated = await prisma.opsNotificationLog.updateMany({

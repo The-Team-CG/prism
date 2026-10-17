@@ -6,12 +6,12 @@ import { EventClosureService } from './event-closure.service';
 function harness(actualEndedAt: Date | null = null) {
   const event = { id: 'evt_1', actualEndedAt, actualEndedBy: actualEndedAt ? 'old' : null, status: 'event_day', archived: false };
   const tx = { opsEvent: { findUnique: vi.fn(async () => event), update: vi.fn(async ({ data }: any) => ({ ...event, ...data })) }, opsEventWrapUp: { upsert: vi.fn(async ({ create }: any) => create) } };
-  const prisma = { $transaction: vi.fn(async (fn: any) => fn(tx)) };
+  const prisma = { $transaction: vi.fn(async (fn: any, _options?: unknown) => fn(tx)) };
   const auditWriter = { write: vi.fn(async () => undefined) };
   const guestQrPassLifecycleOwner = { expireEventGuestQrPasses: vi.fn(async () => undefined) };
   const service = new EventClosureService(prisma as any, {} as any, {} as any, auditWriter as any, {} as any, {} as any, {} as any,
     { getLifecycleFacts: vi.fn() } as any, { getClosureFacts: vi.fn() } as any, guestQrPassLifecycleOwner as any);
-  return { service, tx, auditWriter, guestQrPassLifecycleOwner };
+  return { service, prisma, tx, auditWriter, guestQrPassLifecycleOwner };
 }
 const actor = { id: 'user_pmcm', name: 'Maxine', email: 'mys@test', role: OpsUserRole.PmcmAdmin } as any;
 
@@ -26,11 +26,14 @@ describe('EventClosureService actual end', () => {
   });
 
   it('records a past actual end and audits the verified actor', async () => {
-    const { service, tx, auditWriter, guestQrPassLifecycleOwner } = harness();
+    const { service, prisma, tx, auditWriter, guestQrPassLifecycleOwner } = harness();
     await service.recordActualEventEnd('evt_1', { actualEndedAt: '2026-09-07T12:00:00.000Z' }, actor);
+    expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: 'Serializable' });
     expect(tx.opsEvent.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ actualEndedBy: 'user_pmcm' }) }));
     expect(guestQrPassLifecycleOwner.expireEventGuestQrPasses).toHaveBeenCalledWith('evt_1', 'event-ended', expect.objectContaining({ prisma: tx }));
     expect(auditWriter.write).toHaveBeenCalled();
+    expect(guestQrPassLifecycleOwner.expireEventGuestQrPasses.mock.invocationCallOrder[0])
+      .toBeLessThan(auditWriter.write.mock.invocationCallOrder[0]!);
   });
   it('rejects future timestamps', async () => {
     const { service } = harness();

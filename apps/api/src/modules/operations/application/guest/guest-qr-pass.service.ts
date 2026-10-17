@@ -5,7 +5,7 @@ import type { OpsGuestQrPass, OpsGuestRosterEntry, Prisma } from '@prisma/client
 import { PrismaService } from '@prism/kernel/database';
 import { OpsUserRole, AuditActionType, AuditCategory } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, writeAudit, type AuditWriter, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
-import type { PrismGuestQrPassDeliveryStatus, PrismGuestQrPassIssueResult, PrismGuestQrPassStatus } from '@prism/types';
+import type { PrismGuestQrPassDeliveryStatus, PrismGuestQrPassIssueResult, PrismGuestQrPassRosterStatus, PrismGuestQrPassStatus } from '@prism/types';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter } from '@prism/contexts/platform-ops';
 import { GUEST_PASS_DELIVERY_STATUS_READER, type GuestPassDeliveryStatusReader } from '@prism/contexts/read-models/guest-pass-delivery-eligibility';
@@ -23,7 +23,6 @@ type GuestQrPassRow = Pick<OpsGuestQrPass, 'id' | 'eventId' | 'rosterEntryId' | 
 const PMCM_ROLES = new Set<string>([OpsUserRole.PmcmAdmin, OpsUserRole.System]);
 const REVIEW_SOURCES = new Set(['guest-review', 'guest-review-headcount', 'coordinator-walk-in']);
 const PUBLIC_GUEST_ORIGIN_KEY = 'GUEST_QR_PUBLIC_ORIGIN';
-const PASS_INVALIDATION_BATCH_SIZE = 250;
 
 @Injectable()
 export class GuestQrPassService implements GuestQrPassCommands, GuestQrPassLifecycleOwner {
@@ -113,17 +112,21 @@ export class GuestQrPassService implements GuestQrPassCommands, GuestQrPassLifec
     }, { isolationLevel: 'Serializable' });
   }
 
-  async list(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismGuestQrPassStatus[]> {
+  async listForRoster(eventId: string, rosterEntryIds: readonly string[], actor: ResolvedEventOpsActor): Promise<PrismGuestQrPassRosterStatus> {
     this.requirePmcm(actor);
-    this.requireDemo(eventId);
-    await this.requireEvent(eventId);
+    if (!this.demoPolicy.isEnabledForEvent(eventId)) return { available: false, passes: [] };
+    const event = await this.requireEvent(eventId);
+    if (!this.isEventAvailable(event)) return { available: false, passes: [] };
+    const scopedRosterEntryIds = [...new Set(rosterEntryIds)];
+    if (scopedRosterEntryIds.length === 0) return { available: true, passes: [] };
     const passes = await this.prisma.opsGuestQrPass.findMany({
-      where: { eventId },
-      orderBy: [{ issuedAt: 'desc' }, { id: 'desc' }],
-      take: 1000,
+      where: { eventId, rosterEntryId: { in: scopedRosterEntryIds }, status: 'active' },
     });
     const deliveryStatuses = await this.deliveryStatusReader.getGuestPassDeliveryStatuses(eventId, passes.map((pass) => pass.id));
-    return passes.map((pass) => this.mapStatus(pass, deliveryStatuses.get(pass.id) ?? this.fallbackDeliveryStatus(pass)));
+    return {
+      available: true,
+      passes: passes.map((pass) => this.mapStatus(pass, deliveryStatuses.get(pass.id) ?? this.fallbackDeliveryStatus(pass))),
+    };
   }
 
   async get(eventId: string, passId: string, actor: ResolvedEventOpsActor): Promise<PrismGuestQrPassStatus> {
@@ -162,19 +165,11 @@ export class GuestQrPassService implements GuestQrPassCommands, GuestQrPassLifec
   ): Promise<void> {
     void reason;
     const tx = context.prisma;
-    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: each query is capped at 250; revocation removes that batch from the next query.
-    while (true) {
-      const passes = await tx.opsGuestQrPass.findMany({
-        where: { eventId, status: 'active' },
-        orderBy: [{ issuedAt: 'asc' }, { id: 'asc' }],
-        take: PASS_INVALIDATION_BATCH_SIZE,
-        select: { id: true, eventId: true, rosterEntryId: true, notificationId: true },
-      });
-      if (passes.length === 0) return;
-      for (const pass of passes) {
-        await this.revokePassRecord(tx, pass, undefined, context, false);
-      }
-    }
+    await tx.opsGuestQrPass.updateMany({
+      where: { eventId, status: 'active' },
+      data: { status: 'revoked', deliveryStatus: 'revoked', revokedAt: new Date(), revokedById: null },
+    });
+    await this.notificationOutboxWriter.cancelGuestPassDeliveriesForEvent(eventId, context);
   }
 
   private async issuePass(
@@ -218,10 +213,14 @@ export class GuestQrPassService implements GuestQrPassCommands, GuestQrPassLifec
 
   private async requireOpenEvent(eventId: string, context: PrismTransactionContext) {
     const event = await this.requireEvent(eventId, context);
-    if (event.actualEndedAt !== null || event.archived || event.status === 'archived') {
+    if (!this.isEventAvailable(event)) {
       throw new ConflictException('Guest QR passes are unavailable for this event');
     }
     return event;
+  }
+
+  private isEventAvailable(event: Pick<OperationsEventReference, 'actualEndedAt' | 'archived' | 'status'>): boolean {
+    return event.actualEndedAt === null && !event.archived && event.status !== 'archived';
   }
 
   private async requireEvent(eventId: string, context?: PrismTransactionContext) {

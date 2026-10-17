@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   PrismGuestQrPassIssueResult,
+  PrismGuestQrPassRosterStatus,
   PrismGuestQrPassStatus,
   PrismGuestRosterEntry,
 } from "@prism/types";
@@ -41,7 +42,7 @@ function registrationTabElement(overrides: Partial<ComponentProps<typeof EventRe
       guestPrivacyClassification="unclassified"
       onUpdateGuestPrivacyClassification={vi.fn().mockResolvedValue(true)}
       canManageGuestQrPasses={false}
-      onLoadGuestQrPasses={vi.fn().mockResolvedValue([])}
+      onLoadGuestQrPasses={vi.fn().mockResolvedValue({ available: true, passes: [] })}
       onIssueGuestQrPass={vi.fn().mockResolvedValue(null)}
       onRetryGuestQrPass={vi.fn().mockResolvedValue(null)}
       onReissueGuestQrPass={vi.fn().mockResolvedValue(null)}
@@ -115,7 +116,7 @@ describe("EventRegistrationTab", () => {
   });
 
   it("keeps QR management hidden from registration coordinators", async () => {
-    const onLoadGuestQrPasses = vi.fn().mockResolvedValue([]);
+    const onLoadGuestQrPasses = vi.fn().mockResolvedValue({ available: true, passes: [] });
     renderRegistrationTab({
       canManageGuestQrPasses: false,
       onLoadGuestQrPasses,
@@ -127,6 +128,24 @@ describe("EventRegistrationTab", () => {
 
     expect(screen.queryByRole("button", { name: /QR pass/i })).toBeNull();
     expect(onLoadGuestQrPasses).not.toHaveBeenCalled();
+  });
+
+  it("clears roster rows and guest QR actions when switching events", async () => {
+    const props = {
+      canManageGuestQrPasses: true,
+      onLoadGuestQrPasses: vi.fn().mockResolvedValue({ available: true, passes: [] }),
+      onSearchRoster: vi.fn().mockResolvedValue([eligibleGuest]),
+    };
+    const rendered = renderRegistrationTab(props);
+
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    expect(await screen.findByText("Ada Lovelace")).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Issue QR pass" })).toBeTruthy();
+
+    rendered.rerender(registrationTabElement({ ...props, eventId: "evt_2" }));
+
+    await waitFor(() => expect(screen.queryByText("Ada Lovelace")).toBeNull());
+    expect(screen.queryByRole("button", { name: "Issue QR pass" })).toBeNull();
   });
 
   it("issues a PMCM-only one-time QR without rendering its token as text", async () => {
@@ -144,9 +163,10 @@ describe("EventRegistrationTab", () => {
       qrValue: "https://guest.example/qr-check-in?accessCode=DEMO#opaque-secret",
     };
     const onIssueGuestQrPass = vi.fn().mockResolvedValue(issueResult);
+    const onLoadGuestQrPasses = vi.fn().mockResolvedValue({ available: true, passes: [] });
     renderRegistrationTab({
       canManageGuestQrPasses: true,
-      onLoadGuestQrPasses: vi.fn().mockResolvedValue([]),
+      onLoadGuestQrPasses,
       onIssueGuestQrPass,
       onSearchRoster: vi.fn().mockResolvedValue([eligibleGuest]),
     });
@@ -159,6 +179,8 @@ describe("EventRegistrationTab", () => {
     expect(dialog.textContent).not.toContain("opaque-secret");
     expect(screen.getByRole("img", { name: "One-time guest QR pass" })).toBeTruthy();
     expect(onIssueGuestQrPass).toHaveBeenCalledWith(eligibleGuest.id);
+    expect(onLoadGuestQrPasses).toHaveBeenNthCalledWith(1, []);
+    expect(onLoadGuestQrPasses).toHaveBeenNthCalledWith(2, [eligibleGuest.id]);
 
     fireEvent.click(screen.getByRole("button", { name: "Close QR" }));
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -167,7 +189,7 @@ describe("EventRegistrationTab", () => {
   it("removes the one-time QR from the view when QR management access is lost", async () => {
     const props = {
       canManageGuestQrPasses: true,
-      onLoadGuestQrPasses: vi.fn().mockResolvedValue([]),
+      onLoadGuestQrPasses: vi.fn().mockResolvedValue({ available: true, passes: [] }),
       onIssueGuestQrPass: vi.fn().mockResolvedValue({
         pass: {
           id: "gqp_1",
@@ -205,7 +227,7 @@ describe("EventRegistrationTab", () => {
     const onReissueGuestQrPass = vi.fn().mockResolvedValue(null);
     renderRegistrationTab({
       canManageGuestQrPasses: true,
-      onLoadGuestQrPasses: vi.fn().mockResolvedValue([failedPass]),
+      onLoadGuestQrPasses: vi.fn().mockResolvedValue({ available: true, passes: [failedPass] }),
       onReissueGuestQrPass,
       onSearchRoster: vi.fn().mockResolvedValue([eligibleGuest]),
     });
@@ -225,7 +247,7 @@ describe("EventRegistrationTab", () => {
     cleanup();
     renderRegistrationTab({
       canManageGuestQrPasses: true,
-      onLoadGuestQrPasses: vi.fn().mockResolvedValue([failedPass]),
+      onLoadGuestQrPasses: vi.fn().mockResolvedValue({ available: true, passes: [failedPass] }),
       onRevokeGuestQrPass,
       onSearchRoster: vi.fn().mockResolvedValue([eligibleGuest]),
     });
@@ -252,7 +274,7 @@ describe("EventRegistrationTab", () => {
     };
     renderRegistrationTab({
       canManageGuestQrPasses: true,
-      onLoadGuestQrPasses: vi.fn().mockResolvedValue([failedPass]),
+      onLoadGuestQrPasses: vi.fn().mockResolvedValue({ available: true, passes: [failedPass] }),
       onSearchRoster: vi.fn().mockResolvedValue([eligibleGuest]),
     });
 
@@ -267,7 +289,7 @@ describe("EventRegistrationTab", () => {
     const onRetryGuestQrPass = vi.fn().mockResolvedValue(queuedPass);
     renderRegistrationTab({
       canManageGuestQrPasses: true,
-      onLoadGuestQrPasses: vi.fn().mockResolvedValue([queuedPass]),
+      onLoadGuestQrPasses: vi.fn().mockResolvedValue({ available: true, passes: [queuedPass] }),
       onRetryGuestQrPass,
       onSearchRoster: vi.fn().mockResolvedValue([eligibleGuest]),
     });
@@ -277,6 +299,157 @@ describe("EventRegistrationTab", () => {
     fireEvent.click(screen.getByRole("button", { name: "Retry delivery" }));
 
     await waitFor(() => expect(onRetryGuestQrPass).toHaveBeenCalledWith("gqp_queued"));
+  });
+
+  it("keeps revoke available for an active pass when the roster row is no longer issueable", async () => {
+    const activePass: PrismGuestQrPassStatus = {
+      id: "gqp_ineligible",
+      eventId: "evt_1",
+      rosterEntryId: eligibleGuest.id,
+      status: "active",
+      deliveryStatus: "queued",
+      issuedAt: "2026-10-17T00:00:00.000Z",
+      revokedAt: null,
+    };
+    const ineligibleGuest = { ...eligibleGuest, eligibility: "ineligible" };
+    renderRegistrationTab({
+      canManageGuestQrPasses: true,
+      onLoadGuestQrPasses: vi.fn().mockResolvedValue({ available: true, passes: [activePass] }),
+      onSearchRoster: vi.fn().mockResolvedValue([ineligibleGuest]),
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+
+    expect(await screen.findByText(/QR pass active/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Revoke QR pass" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Retry delivery" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Reissue QR pass" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Issue QR pass" })).toBeNull();
+  });
+
+  it("refreshes scoped pass status after a verification rejection", async () => {
+    const rejectedGuest = { ...eligibleGuest, verificationStatus: "rejected" as const };
+    const onLoadGuestQrPasses = vi.fn().mockResolvedValue({ available: true, passes: [] });
+    const onSearchRoster = vi.fn()
+      .mockResolvedValueOnce([eligibleGuest])
+      .mockResolvedValueOnce([rejectedGuest]);
+    renderRegistrationTab({
+      canManageGuestQrPasses: true,
+      onLoadGuestQrPasses,
+      onSearchRoster,
+      onVerifyRoster: vi.fn().mockResolvedValue(rejectedGuest),
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    await screen.findByText("Ada Lovelace");
+    fireEvent.change(screen.getByLabelText("Verification for Ada Lovelace"), { target: { value: "rejected" } });
+
+    await waitFor(() => expect(onLoadGuestQrPasses).toHaveBeenCalledTimes(3));
+    expect(onLoadGuestQrPasses).toHaveBeenNthCalledWith(2, [eligibleGuest.id]);
+    expect(onLoadGuestQrPasses).toHaveBeenNthCalledWith(3, [eligibleGuest.id]);
+  });
+
+  it("hides issue controls when the server reports guest QR unavailable", async () => {
+    const loadStatuses = vi.fn().mockResolvedValue({ available: false, passes: [] });
+    renderRegistrationTab({
+      canManageGuestQrPasses: true,
+      onLoadGuestQrPasses: loadStatuses,
+      onSearchRoster: vi.fn().mockResolvedValue([eligibleGuest]),
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+
+    expect(await screen.findByText("Ada Lovelace")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Issue QR pass" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Issue new QR pass" })).toBeNull();
+  });
+
+  it("ignores a slower mount status response after scoped pass status has loaded", async () => {
+    let resolveMountStatus!: (status: PrismGuestQrPassRosterStatus) => void;
+    const delayedMountStatus = new Promise<PrismGuestQrPassRosterStatus>((resolve) => { resolveMountStatus = resolve; });
+    let resolveScopedStatus!: (status: PrismGuestQrPassRosterStatus) => void;
+    const delayedScopedStatus = new Promise<PrismGuestQrPassRosterStatus>((resolve) => { resolveScopedStatus = resolve; });
+    const activePass: PrismGuestQrPassStatus = {
+      id: "gqp_existing",
+      eventId: "evt_1",
+      rosterEntryId: eligibleGuest.id,
+      status: "active",
+      deliveryStatus: "queued",
+      issuedAt: "2026-10-17T00:00:00.000Z",
+      revokedAt: null,
+    };
+    const onLoadGuestQrPasses = vi.fn((rosterEntryIds: readonly string[]) => rosterEntryIds.length === 0
+      ? delayedMountStatus
+      : delayedScopedStatus);
+    renderRegistrationTab({
+      canManageGuestQrPasses: true,
+      onLoadGuestQrPasses,
+      onSearchRoster: vi.fn().mockResolvedValue([eligibleGuest]),
+    });
+
+    await waitFor(() => expect(onLoadGuestQrPasses).toHaveBeenCalledWith([]));
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    expect(await screen.findByText("Ada Lovelace")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Issue QR pass" })).toBeNull();
+
+    resolveScopedStatus({ available: true, passes: [activePass] });
+    expect(await screen.findByText(/QR pass active/)).toBeTruthy();
+
+    resolveMountStatus({ available: true, passes: [] });
+
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Issue QR pass" })).toBeNull());
+    expect(screen.getByRole("button", { name: "Revoke QR pass" })).toBeTruthy();
+  });
+
+  it("hides issue controls while a new roster's scoped pass status is loading", async () => {
+    let resolveScopedStatus!: (status: PrismGuestQrPassRosterStatus) => void;
+    const delayedScopedStatus = new Promise<PrismGuestQrPassRosterStatus>((resolve) => { resolveScopedStatus = resolve; });
+    const activePass: PrismGuestQrPassStatus = {
+      id: "gqp_existing_during_search",
+      eventId: "evt_1",
+      rosterEntryId: eligibleGuest.id,
+      status: "active",
+      deliveryStatus: "queued",
+      issuedAt: "2026-10-17T00:00:00.000Z",
+      revokedAt: null,
+    };
+    const onLoadGuestQrPasses = vi.fn((rosterEntryIds: readonly string[]) => rosterEntryIds.length === 0
+      ? Promise.resolve({ available: true, passes: [] })
+      : delayedScopedStatus);
+    renderRegistrationTab({
+      canManageGuestQrPasses: true,
+      onLoadGuestQrPasses,
+      onSearchRoster: vi.fn().mockResolvedValue([eligibleGuest]),
+    });
+
+    await waitFor(() => expect(onLoadGuestQrPasses).toHaveBeenCalledWith([]));
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    expect(await screen.findByText("Ada Lovelace")).toBeTruthy();
+    expect(onLoadGuestQrPasses).toHaveBeenCalledWith([eligibleGuest.id]);
+    expect(screen.queryByRole("button", { name: "Issue QR pass" })).toBeNull();
+
+    resolveScopedStatus({ available: true, passes: [activePass] });
+    expect(await screen.findByText(/QR pass active/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Issue QR pass" })).toBeNull();
+  });
+
+  it("refreshes imported rows' pass status without changing a successful import result", async () => {
+    const onLoadGuestQrPasses = vi.fn()
+      .mockResolvedValueOnce({ available: true, passes: [] })
+      .mockRejectedValueOnce(new Error("status lookup failed"));
+    const onImportRoster = vi.fn().mockResolvedValue([eligibleGuest]);
+    renderRegistrationTab({ canManageGuestQrPasses: true, onLoadGuestQrPasses, onImportRoster });
+    fireEvent.change(screen.getByPlaceholderText(/\{"source":"xperto"/), {
+      target: { value: JSON.stringify({ source: "xperto", rows: [{ sourceKey: "import-1", guestName: "Ada Lovelace", email: "ada@example.test" }] }) },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Import roster" }));
+
+    expect(await screen.findByText("Imported 1 roster rows")).toBeTruthy();
+    expect(screen.getByRole("alert").textContent).toBe("Unable to load guest QR pass status.");
+    expect(onLoadGuestQrPasses).toHaveBeenNthCalledWith(1, []);
+    expect(onLoadGuestQrPasses).toHaveBeenNthCalledWith(2, [eligibleGuest.id]);
+    expect(onImportRoster).toHaveBeenCalledOnce();
   });
 });
 
