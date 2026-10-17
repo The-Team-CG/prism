@@ -21,6 +21,7 @@ import { EventInsightGenerationService } from './composition/event-insight-gener
 import { TransformInterceptor } from './common/transform.interceptor';
 import { PlatformReferenceReadersModule } from './composition/platform-reference-readers.module';
 import { PlatformPrivacyModule } from './modules/platform-ops/platform-privacy.module';
+import { EventGamesModule } from './modules/event-games/event-games.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { PlatformPrivacyModule } from './modules/platform-ops/platform-privacy.m
     OperationsModule,
     LiveOpsModule,
     ReadModelsModule,
+    EventGamesModule,
   ],
   controllers: [OpsEventClosureController, EventInsightGenerationController],
   providers: [
