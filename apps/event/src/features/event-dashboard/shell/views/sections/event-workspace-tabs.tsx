@@ -15,6 +15,7 @@ import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
 import { SupplierQuotePlanner } from "@/features/suppliers/directory";
 import { PmcmSupplierReadinessBoard } from "@/features/suppliers/readiness";
 import { EventRegistrationTab } from "@/app/components/pmcm/event-registration-tab";
+import { EventGamesHostView } from "@/features/event-games/host";
 import { EventMessagesWorkspace } from "@/features/event-dashboard/messages/views/event-messages-workspace";
 import { FeedbackModerationPanel } from "@/features/feedback/moderation";
 import { EventClientFloorplanAccessPanel } from "@/features/event-dashboard/client-floorplan-access/views/event-client-floorplan-access-panel";
@@ -385,6 +386,21 @@ export function EventWorkspaceRegistrationTab() {
       onUpdateWalkInPolicy={vm.updateWalkInPolicy}
       guestPrivacyClassification={vm.guestPrivacyClassification?.classification ?? "unclassified"}
       onUpdateGuestPrivacyClassification={vm.updateGuestPrivacyClassification}
+    />
+  );
+}
+
+
+export function EventWorkspaceGamesTab() {
+  const vm = useEventDashboardLoadedRouteViewModel();
+  if (!vm.selectedEvent) return null;
+  return (
+    <EventGamesHostView
+      eventId={vm.selectedEvent.id}
+      role={vm.session.role}
+      eventStatus={vm.selectedEvent.status}
+      archived={vm.selectedEvent.archived}
+      actualEndedAt={vm.selectedEvent.actualEndedAt}
     />
   );
 }

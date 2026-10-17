@@ -23,6 +23,7 @@ export type EventDashboardClientProps = Partial<RouteState>;
 
 export const EVENT_TAB_ROUTES: Record<DetailTab, string> = {
   overview: "overview",
+  games: "games",
   floorplans: "floorplans",
   briefing: "briefing",
   suppliers: "suppliers",
@@ -87,6 +88,7 @@ export function eventListRouteState(view = "all"): RouteState {
 
 export const EVENT_WORKSPACE_ROUTE_TABS: Record<string, DetailTab> = {
   overview: "overview",
+  games: "games",
   "planning-checklist": "briefing",
   schedule: "live-ops",
   attendees: "live-ops",
@@ -109,6 +111,7 @@ export const EVENT_WORKSPACE_ROUTE_TABS: Record<string, DetailTab> = {
 
 export const EVENT_WORKSPACE_ROUTE_ITEMS: Record<string, string> = {
   overview: "event-overview",
+  games: "event-games",
   "planning-checklist": "event-planning",
   briefing: "event-planning",
   schedule: "event-timeline",
@@ -340,6 +343,7 @@ export const EVENT_DETAIL_ROUTES: Record<string, string> = {
   "event-messages": "activity",
   "event-timeline": "live-ops",
   "event-report": "closure",
+  "event-games": "games",
 };
 
 export function dashboardRouteState(view = "overview"): RouteState {
