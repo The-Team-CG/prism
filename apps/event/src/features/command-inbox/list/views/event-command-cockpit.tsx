@@ -9,6 +9,7 @@ import {
   CircleDot,
   ClipboardList,
   FileCheck2,
+  Gamepad2,
   LayoutGrid,
   ListChecks,
   MapPinned,
@@ -190,6 +191,7 @@ export type PmcmDetailTab =
   | "briefing"
   | "suppliers"
   | "registration"
+  | "games"
   | "coordinators"
   | "live-ops"
   | "billing"
@@ -226,11 +228,14 @@ export function buildEventWorkflowTabs({
     { id: "registration", label: "Registration", icon: QrCode },
     { id: "coordinators", label: "Coordinators", icon: UserCheck, badge: assignmentsCount || undefined },
     { id: "live-ops", label: "Live ops", icon: Radio },
+    { id: "games", label: "Games", icon: Gamepad2 },
     { id: "billing", label: "Finance", icon: ReceiptText, badge: paymentsCount || undefined },
     { id: "closure", label: "Closure", icon: Archive, badge: openChecksCount || undefined },
     { id: "activity", label: "Messages", icon: MessageSquareText },
   ];
-  return isPmcmAdmin(role) ? tabs : tabs.filter((t) => t.id !== "floorplans");
+  return isPmcmAdmin(role)
+    ? tabs
+    : tabs.filter((tab) => tab.id !== "floorplans" && (role === "coordinator" || tab.id !== "games"));
 }
 
 export function EventQueuePanel({

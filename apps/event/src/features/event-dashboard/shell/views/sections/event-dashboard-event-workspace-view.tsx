@@ -11,6 +11,7 @@ import {
   EventWorkspaceClosureTab,
   EventWorkspaceCoordinatorsTab,
   EventWorkspaceFloorplansTab,
+  EventWorkspaceGamesTab,
   EventWorkspaceLiveOpsTab,
   EventWorkspaceOverviewTab,
   EventWorkspaceRegistrationTab,
@@ -20,6 +21,7 @@ import {
 const EVENT_TAB_VIEWS: Record<DetailTab, () => ReactElement> = {
   overview: () => <EventWorkspaceOverviewTab />,
   floorplans: () => <EventWorkspaceFloorplansTab />,
+  games: () => <EventWorkspaceGamesTab />,
   briefing: () => <EventWorkspaceBriefingTab />,
   suppliers: () => <EventWorkspaceSuppliersTab />,
   registration: () => <EventWorkspaceRegistrationTab />,
