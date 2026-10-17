@@ -90,6 +90,10 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- Guest roster entry consent fields now match the Prisma schema on fresh and upgraded databases.
+- Guest check-in consent capture timestamps now map through the generated Prisma client.
+- Fresh and upgraded databases now seed the global audit-chain lock required before the first audit record can be written.
+
 - The Vercel services deployment serves the client landing page at `/`.
 - The API starts from Vercel's bundled build: floorplan composition and billing storage injection no longer read circular imports before they finish loading.
 - Client portal installs declare their UI test dependencies, so scoped deployment builds and tests no longer rely on the PMCM workspace.
