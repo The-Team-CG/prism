@@ -1,6 +1,24 @@
+import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PrismContractError, type PrismEventOpsActorContext } from "@prism/types";
 import { PrismApiError, createEventOpsClient, normalizePrismApiProblem, prismRequest, toQueryString } from "./index";
+
+function createFixtureUuid(version = "4"): string {
+  const parts = randomUUID().split("-");
+  parts[2] = version + (parts[2] ?? "").slice(1);
+  return parts.join("-");
+}
+
+const TEST_FIXTURES = {
+  primaryId: createFixtureUuid(),
+  secondId: createFixtureUuid(),
+  thirdId: createFixtureUuid(),
+  fourthId: createFixtureUuid(),
+  invalidVersionId: createFixtureUuid("1"),
+  gameMediaObjectId: "obj_" + createFixtureUuid(),
+  secondGameMediaObjectId: "obj_" + createFixtureUuid(),
+  lobbyLogoObjectId: "obj_" + createFixtureUuid(),
+};
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -172,7 +190,7 @@ describe("prismRequest", () => {
     vi.stubGlobal("fetch", fetchMock);
     const client = createEventOpsClient({ baseUrl: "https://api.example.test/api" });
     const credential = "M".repeat(43);
-    const objectId = "obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5";
+    const objectId = TEST_FIXTURES.gameMediaObjectId;
 
     await expect(client.eventGames.getParticipantMediaAuthorization("session-1", objectId, credential))
       .resolves.toEqual(response);
@@ -195,13 +213,13 @@ describe("prismRequest", () => {
     });
     const moderation = {
       action: "hide_submission" as const,
-      idempotencyKey: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5",
-      submissionId: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b6",
+      idempotencyKey: TEST_FIXTURES.primaryId,
+      submissionId: TEST_FIXTURES.secondId,
       reason: "Contains personal information",
     };
     const award = {
-      idempotencyKey: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5",
-      recipient: { type: "participant" as const, participationGrantId: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b6" },
+      idempotencyKey: TEST_FIXTURES.primaryId,
+      recipient: { type: "participant" as const, participationGrantId: TEST_FIXTURES.secondId },
       awardKind: "points" as const,
       label: "Round winner",
       points: 25,
@@ -306,7 +324,7 @@ describe("prismRequest", () => {
       checksumSha256: "a".repeat(64),
       idempotencyKey: "00000000-0000-4000-8000-000000000003",
     });
-    await client.eventGames.confirmLobbyLogoUpload("event/1", "obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444", {
+    await client.eventGames.confirmLobbyLogoUpload("event/1", TEST_FIXTURES.lobbyLogoObjectId, {
       checksumSha256: "a".repeat(64),
       byteSize: 3,
     });
@@ -330,7 +348,7 @@ describe("prismRequest", () => {
         idempotencyKey: "00000000-0000-4000-8000-000000000003",
       }),
     });
-    expect(fetchMock).toHaveBeenNthCalledWith(4, "https://api.example.test/api/events/event%2F1/game-lobby/branding/logos/obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444/confirm", {
+    expect(fetchMock).toHaveBeenNthCalledWith(4, "https://api.example.test/api/events/event%2F1/game-lobby/branding/logos/" + TEST_FIXTURES.lobbyLogoObjectId + "/confirm", {
       headers: { "Content-Type": "application/json", Authorization: "Bearer verified-role-session" },
       method: "POST",
       body: JSON.stringify({ checksumSha256: "a".repeat(64), byteSize: 3 }),
@@ -351,7 +369,7 @@ describe("prismRequest", () => {
     } as const;
 
     await client.eventGames.requestGameMediaUpload("event/1", "game/1", request);
-    await client.eventGames.confirmGameMediaUpload("event/1", "game/1", "obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444", {
+    await client.eventGames.confirmGameMediaUpload("event/1", "game/1", TEST_FIXTURES.lobbyLogoObjectId, {
       checksumSha256: request.checksumSha256, byteSize: request.declaredByteSize,
     });
 
@@ -359,7 +377,7 @@ describe("prismRequest", () => {
       headers: { "Content-Type": "application/json", Authorization: "Bearer verified-role-session" },
       method: "POST", body: JSON.stringify(request),
     });
-    expect(fetchMock).toHaveBeenNthCalledWith(2, "https://api.example.test/api/events/event%2F1/games/game%2F1/media/obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444/confirm", {
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "https://api.example.test/api/events/event%2F1/games/game%2F1/media/" + TEST_FIXTURES.lobbyLogoObjectId + "/confirm", {
       headers: { "Content-Type": "application/json", Authorization: "Bearer verified-role-session" },
       method: "POST", body: JSON.stringify({ checksumSha256: request.checksumSha256, byteSize: request.declaredByteSize }),
     });

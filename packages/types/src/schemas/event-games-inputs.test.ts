@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import type {
   PrismEventGameKind,
@@ -26,6 +27,23 @@ import {
   updateEventGameSchema,
 } from "./event-games-inputs.js";
 import { storageUsageSchema } from "./storage.js";
+
+function createFixtureUuid(version = "4"): string {
+  const parts = randomUUID().split("-");
+  parts[2] = version + (parts[2] ?? "").slice(1);
+  return parts.join("-");
+}
+
+const TEST_FIXTURES = {
+  primaryId: createFixtureUuid(),
+  secondId: createFixtureUuid(),
+  thirdId: createFixtureUuid(),
+  fourthId: createFixtureUuid(),
+  invalidVersionId: createFixtureUuid("1"),
+  gameMediaObjectId: "obj_" + createFixtureUuid(),
+  secondGameMediaObjectId: "obj_" + createFixtureUuid(),
+  lobbyLogoObjectId: "obj_" + createFixtureUuid(),
+};
 
 const GAME_KINDS = [
   "live-trivia",
@@ -79,7 +97,7 @@ describe("event game shared contracts", () => {
         callIntervalSeconds: 10, winPattern: "line", points: 100,
       },
       {
-        kind: "guess-picture", mediaObjectId: "obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5",
+        kind: "guess-picture", mediaObjectId: TEST_FIXTURES.gameMediaObjectId,
         acceptedAnswers: ["A cat"],
         stages: [{ afterSeconds: 0, hint: "Look closely", points: 100 }],
       },
@@ -96,8 +114,8 @@ describe("event game shared contracts", () => {
       {
         kind: "family-feud",
         teams: [
-          { id: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5", label: "Blue" },
-          { id: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b6", label: "Gold" },
+          { id: TEST_FIXTURES.primaryId, label: "Blue" },
+          { id: TEST_FIXTURES.secondId, label: "Gold" },
         ],
         rounds: [{
           key: "round-1", prompt: "Name a popular fruit.", durationSeconds: 30,
@@ -132,8 +150,8 @@ describe("event game shared contracts", () => {
   });
 
   it("accepts strict Independent (Singleplayer) puzzle configurations without exposing answer geometry", () => {
-    const mediaA = "obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5";
-    const mediaB = "obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b6";
+    const mediaA = TEST_FIXTURES.gameMediaObjectId;
+    const mediaB = TEST_FIXTURES.secondGameMediaObjectId;
     const spotDifferenceConfiguration = {
       kind: "spot-the-difference",
       rounds: [{
@@ -224,13 +242,13 @@ describe("event game shared contracts", () => {
     }).success).toBe(false);
     expect(activeMultiplayerGameActionSchema.safeParse({
       templateId: "spin-wheel", roundKey: "spin-1", actionKind: "spin",
-      payload: { spinRequestId: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5" },
+      payload: { spinRequestId: TEST_FIXTURES.primaryId },
     }).success).toBe(false);
     expect(activeMultiplayerGameActionSchema.safeParse({
       ...actions[3], payload: { option: "Unknown" },
     }).success).toBe(true);
     expect(activeMultiplayerGameActionSchema.safeParse({
-      ...actions[5], payload: { answer: "Mango", teamId: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5" },
+      ...actions[5], payload: { answer: "Mango", teamId: TEST_FIXTURES.primaryId },
     }).success).toBe(false);
     expect(activeMultiplayerGameActionSchema.safeParse({
       ...actions[6], payload: { response: "x".repeat(501) },
@@ -240,10 +258,10 @@ describe("event game shared contracts", () => {
 
   it("allows a host to request one session-level Spin the Wheel result", () => {
     expect(gameHostCommandSchema.safeParse({
-      command: "spin-wheel", idempotencyKey: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5",
+      command: "spin-wheel", idempotencyKey: TEST_FIXTURES.primaryId,
     }).success).toBe(true);
     expect(gameHostCommandSchema.safeParse({
-      command: "spin-wheel", idempotencyKey: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5", roundKey: "spin-1",
+      command: "spin-wheel", idempotencyKey: TEST_FIXTURES.primaryId, roundKey: "spin-1",
     }).success).toBe(false);
   });
 
@@ -315,7 +333,7 @@ describe("event game shared contracts", () => {
     expect(updateEventGameSchema.safeParse({ actorId: "guest-1" }).success).toBe(false);
   });
   it("accepts only bounded storage IDs for game media", () => {
-    const mediaObjectId = "obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5";
+    const mediaObjectId = TEST_FIXTURES.gameMediaObjectId;
 
     expect(updateEventGameSchema.safeParse({ mediaObjectIds: [mediaObjectId] }).success).toBe(true);
     expect(updateEventGameSchema.safeParse({ mediaObjectIds: ["https://example.test/image.png"] }).success).toBe(false);
@@ -324,13 +342,13 @@ describe("event game shared contracts", () => {
   });
 
   it("creates a session with a game reference and optional ISO schedule only", () => {
-    expect(createGameSessionSchema.safeParse({ gameId: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5" }).success).toBe(true);
+    expect(createGameSessionSchema.safeParse({ gameId: TEST_FIXTURES.primaryId }).success).toBe(true);
     expect(createGameSessionSchema.safeParse({
-      gameId: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5",
+      gameId: TEST_FIXTURES.primaryId,
       scheduledStartAt: "2026-10-08T10:00:00.000Z",
     }).success).toBe(true);
     expect(createGameSessionSchema.safeParse({
-      gameId: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5",
+      gameId: TEST_FIXTURES.primaryId,
       eventId: "event-1",
     }).success).toBe(false);
   });
@@ -338,29 +356,29 @@ describe("event game shared contracts", () => {
   it("accepts only the shared host lifecycle commands", () => {
     expect(gameHostCommandSchema.safeParse({
       command: "start",
-      idempotencyKey: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5",
+      idempotencyKey: TEST_FIXTURES.primaryId,
     }).success).toBe(true);
     expect(gameHostCommandSchema.safeParse({
       command: "start",
-      idempotencyKey: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5",
+      idempotencyKey: TEST_FIXTURES.primaryId,
       score: 500,
     }).success).toBe(false);
     expect(gameHostCommandSchema.safeParse({
       command: "reveal-answer",
-      idempotencyKey: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5",
+      idempotencyKey: TEST_FIXTURES.primaryId,
     }).success).toBe(false);
   });
 
   it("requires a current round key for the host next-round command", () => {
-    const idempotencyKey = "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5";
+    const idempotencyKey = TEST_FIXTURES.primaryId;
     expect(gameHostCommandSchema.safeParse({ command: "advance-round", idempotencyKey, roundKey: "round-2" }).success).toBe(true);
     expect(gameHostCommandSchema.safeParse({ command: "advance-round", idempotencyKey }).success).toBe(false);
     expect(gameHostCommandSchema.safeParse({ command: "pause", idempotencyKey, roundKey: "round-2" }).success).toBe(false);
   });
 
   it("validates lobby colors, logo object references, and idempotency keys", () => {
-    const idempotencyKey = "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5";
-    const logoObjectId = "obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444";
+    const idempotencyKey = TEST_FIXTURES.primaryId;
+    const logoObjectId = TEST_FIXTURES.lobbyLogoObjectId;
     expect(prismEventGameBrandThemeSchema.safeParse("forest").success).toBe(true);
     expect(prismEventGameBrandThemeSchema.safeParse("custom").success).toBe(false);
     expect(updateEventGameLobbyBrandingSchema.safeParse({ theme: "forest", idempotencyKey }).success).toBe(true);
@@ -437,10 +455,10 @@ describe("event game shared contracts", () => {
   });
 
   it("requires audited moderation targets and bounded, role-neutral awards", () => {
-    const idempotencyKey = "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5";
-    const submissionId = "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b6";
-    const participationGrantId = "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b7";
-    const teamId = "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b8";
+    const idempotencyKey = TEST_FIXTURES.primaryId;
+    const submissionId = TEST_FIXTURES.secondId;
+    const participationGrantId = TEST_FIXTURES.thirdId;
+    const teamId = TEST_FIXTURES.fourthId;
 
     expect(moderateEventGameSchema.safeParse({
       action: "approve_submission", idempotencyKey, submissionId,
@@ -486,47 +504,47 @@ describe("event game shared contracts", () => {
 
   it("accepts PIN only for Active joins and rejects it for Independent starts", () => {
     expect(joinActiveMultiplayerGameSessionSchema.safeParse({
-      idempotencyKey: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5",
+      idempotencyKey: TEST_FIXTURES.primaryId,
       pin: "042681",
     }).success).toBe(true);
     expect(startIndependentSingleplayerGameSessionSchema.safeParse({
-      idempotencyKey: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5",
+      idempotencyKey: TEST_FIXTURES.primaryId,
       pin: "042681",
     }).success).toBe(false);
     expect(startIndependentSingleplayerGameSessionSchema.safeParse({
-      idempotencyKey: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5",
+      idempotencyKey: TEST_FIXTURES.primaryId,
     }).success).toBe(true);
     expect(startIndependentSingleplayerGameSessionSchema.safeParse({
-      idempotencyKey: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5",
+      idempotencyKey: TEST_FIXTURES.primaryId,
       participantToken: "A".repeat(43),
     }).success).toBe(false);
     expect(startIndependentSingleplayerGameSessionSchema.safeParse({
-      idempotencyKey: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5",
+      idempotencyKey: TEST_FIXTURES.primaryId,
       participantCredential: "A".repeat(43),
     }).success).toBe(true);
     expect(startIndependentSingleplayerGameSessionSchema.safeParse({
-      idempotencyKey: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5",
+      idempotencyKey: TEST_FIXTURES.primaryId,
       participantCredential: "caller-chosen",
     }).success).toBe(false);
   });
 
   it("leaves malformed PIN rejection to the guest-safe join response and requires UUIDv4 idempotency", () => {
     expect(joinActiveMultiplayerGameSessionSchema.safeParse({
-      idempotencyKey: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5",
+      idempotencyKey: TEST_FIXTURES.primaryId,
       pin: "bad-pin",
     }).success).toBe(true);
     expect(joinActiveMultiplayerGameSessionSchema.safeParse({
-      idempotencyKey: "a78bde2c-61a1-1e5f-b9ba-dbe21ca203b5",
+      idempotencyKey: TEST_FIXTURES.invalidVersionId,
       pin: "042681",
     }).success).toBe(false);
   });
 
   it("requires UUIDv4 start idempotency keys", () => {
     expect(startIndependentSingleplayerGameSessionSchema.safeParse({
-      idempotencyKey: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5",
+      idempotencyKey: TEST_FIXTURES.primaryId,
     }).success).toBe(true);
     expect(startIndependentSingleplayerGameSessionSchema.safeParse({
-      idempotencyKey: "a78bde2c-61a1-1e5f-b9ba-dbe21ca203b5",
+      idempotencyKey: TEST_FIXTURES.invalidVersionId,
     }).success).toBe(false);
   });
 
