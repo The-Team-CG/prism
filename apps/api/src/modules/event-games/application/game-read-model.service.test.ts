@@ -112,7 +112,11 @@ describe('GameReadModelService', () => {
       serverTime: '2026-10-16T12:00:00.000Z',
       currentRound: { key: 'round-1', number: 2, total: 5, deadlineAt: null },
       currentPrompt: 'Q2?',
-      participant: { hasSubmitted: true, score: 20 },
+      participant: {
+        participantAlias: expect.stringMatching(/^Guest [A-F0-9]{10}$/),
+        hasSubmitted: true,
+        score: 20,
+      },
       aggregateResults: [],
     });
     expect(actionStore.findParticipantActionContext).toHaveBeenCalledWith({

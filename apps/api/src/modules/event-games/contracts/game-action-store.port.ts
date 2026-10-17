@@ -104,4 +104,9 @@ export interface GameActionStorePort {
     },
     transaction: PrismTransactionContext,
   ): Promise<GameResponseHistoryPage | null>;
+  listResponseRetentionEventIds(now: Date, transaction: PrismTransactionContext): Promise<string[]>;
+  redactExpiredResponses(
+    input: { eventId: string; archivedAt: Date | null; now: Date },
+    transaction: PrismTransactionContext,
+  ): Promise<number>;
 }

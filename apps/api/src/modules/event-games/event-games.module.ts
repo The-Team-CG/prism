@@ -27,6 +27,7 @@ import { EventGamesLobbyPrismaStoreAdapter } from './infrastructure/event-games-
 import { GameDefinitionService } from './application/game-definition.service';
 import { GameSessionService } from './application/game-session.service';
 import { GameScheduledStartWorker } from './application/game-scheduled-start.worker';
+import { GameResponseRetentionWorker } from './application/game-response-retention.worker';
 import { GameScoringService } from './application/game-scoring.service';
 import { GameRuleRegistry } from './application/game-rule-registry';
 import { createDefaultGameRuleRegistry } from './application/default-game-rules';
@@ -58,6 +59,7 @@ import { EventGamesMediaStorageAdapter } from './infrastructure/event-games-medi
     GameDefinitionService,
     GameSessionService,
     GameScheduledStartWorker,
+    GameResponseRetentionWorker,
     EventGamesSessionJoinService,
     GameParticipantGuard,
     GameScoringService,
