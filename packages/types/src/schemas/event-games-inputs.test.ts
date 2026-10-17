@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import type {
   PrismEventGameKind,
@@ -28,10 +27,11 @@ import {
 } from "./event-games-inputs.js";
 import { storageUsageSchema } from "./storage.js";
 
+let fixtureUuidSequence = 0;
+
 function createFixtureUuid(version = "4"): string {
-  const parts = randomUUID().split("-");
-  parts[2] = version + (parts[2] ?? "").slice(1);
-  return parts.join("-");
+  const suffix = (++fixtureUuidSequence).toString(16).padStart(12, "0");
+  return `00000000-0000-${version}${suffix.slice(0, 3)}-8000-${suffix}`;
 }
 
 const TEST_FIXTURES = {
@@ -582,7 +582,7 @@ describe("event game shared contracts", () => {
       startedAt: "2026-10-08T10:00:00.000Z",
       currentRound: { key: "round-1", number: 1, total: 5 },
       currentPrompt: "Tea or coffee?",
-      participant: { hasSubmitted: false, score: null },
+      participant: { participantAlias: "Guest A1B2C3D4E5", hasSubmitted: false, score: null },
       aggregateResults: [],
     };
     const responses: PrismGameSessionResponsePage = {

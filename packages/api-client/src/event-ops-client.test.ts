@@ -1,12 +1,12 @@
-import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PrismContractError, type PrismEventOpsActorContext } from "@prism/types";
 import { PrismApiError, createEventOpsClient, normalizePrismApiProblem, prismRequest, toQueryString } from "./index";
 
+let fixtureUuidSequence = 0;
+
 function createFixtureUuid(version = "4"): string {
-  const parts = randomUUID().split("-");
-  parts[2] = version + (parts[2] ?? "").slice(1);
-  return parts.join("-");
+  const suffix = (++fixtureUuidSequence).toString(16).padStart(12, "0");
+  return `00000000-0000-${version}${suffix.slice(0, 3)}-8000-${suffix}`;
 }
 
 const TEST_FIXTURES = {
