@@ -22,6 +22,7 @@ import { GAME_RULES, type GameRuleRegistryPort } from '../contracts/game-rule.po
 import { GAME_RATE_LIMITER, type GameRateLimiterPort } from '../contracts/game-rate-limiter.port';
 import { GameScoringService } from './game-scoring.service';
 import { readConfiguredVoteAggregate } from './game-vote-aggregates';
+import { createAnonymousGameParticipantAlias } from '../domain/anonymous-game-participant-alias';
 
 const PARTICIPANT_CREDENTIAL_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const ACTION_UNAVAILABLE = 'Game action is not available';
@@ -178,6 +179,7 @@ export class GameActionService {
         currentRound: { key: currentRound.key, number: currentRound.number, total: currentRound.total },
         currentPrompt: currentRound.prompt,
         participant: {
+          participantAlias: createAnonymousGameParticipantAlias(session.participationGrantId),
           hasSubmitted: true,
           ...(action.actionKind === 'vote' ? { hasVoted: true } : {}),
           score: participant.points,

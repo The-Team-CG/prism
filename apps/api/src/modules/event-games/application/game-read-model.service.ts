@@ -26,6 +26,7 @@ import { GAME_RULES, type GameRuleRegistryPort } from '../contracts/game-rule.po
 import { GAME_SESSION_STORE, type GameHostReadContext, type GameSessionStorePort } from '../contracts/game-session-store.port';
 import { GAME_MEDIA_STORAGE, type GameMediaStoragePort } from '../contracts/game-media-storage.port';
 import { readConfiguredVoteAggregate } from './game-vote-aggregates';
+import { createAnonymousGameParticipantAlias } from '../domain/anonymous-game-participant-alias';
 
 const PARTICIPANT_CREDENTIAL_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const COMPETITIVE_GAME_KINDS = new Set([
@@ -105,6 +106,7 @@ function publicParticipantState(
     currentPrompt: round?.prompt ?? null,
     participant: {
       ...data.participant,
+      participantAlias: createAnonymousGameParticipantAlias(session.participationGrantId),
       ...(round?.participantData ? { gameData: round.participantData } : {}),
     },
     ...(session.wheelResult ? { sessionResult: session.wheelResult } : {}),
