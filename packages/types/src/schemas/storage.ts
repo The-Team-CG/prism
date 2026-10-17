@@ -6,6 +6,8 @@ export const storageUsageSchema = z.enum([
   "supplier_document",
   "guest_feedback_media",
   "event_deliverable",
+  "event_game_media",
+  "event_game_branding",
 ]);
 export type StorageUsage = z.infer<typeof storageUsageSchema>;
 
