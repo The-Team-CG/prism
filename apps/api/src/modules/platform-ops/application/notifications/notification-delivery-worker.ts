@@ -11,6 +11,7 @@ import {
 
 const LEASE_MS = 5 * 60_000;
 const UNCONFIGURED_DELAY_MS = 60 * 60_000;
+const ELIGIBILITY_RETRY_DELAY_MS = 60_000;
 const logger = new Logger('NotificationDeliveryWorker');
 
 export interface NotificationQueueOptions {
@@ -170,19 +171,21 @@ async function failAndRedactGuestPass(
   if (saved) appendProcessed(processed, saved);
 }
 
-async function retryUnavailableGuestPass(
+async function deferUnavailableGuestPass(
   prisma: PrismaService,
   row: OpsNotificationLog,
   leaseToken: string,
   processed: OpsNotificationLog[],
+  failureReason: string,
+  retryDelayMs: number,
 ) {
   const updated = await prisma.opsNotificationLog.updateMany({
     where: { id: row.id, guestPassId: { not: null }, status: 'queued', leaseToken },
     data: {
       leaseToken: null,
       leaseExpiresAt: null,
-      failureReason: 'Guest pass delivery key is not configured',
-      nextAttemptAt: new Date(Date.now() + UNCONFIGURED_DELAY_MS),
+      failureReason,
+      nextAttemptAt: new Date(Date.now() + retryDelayMs),
     },
   });
   if (updated.count !== 1) return;
@@ -248,27 +251,51 @@ export async function processNotificationQueue(
     if (!claimedRow || !holdsLease(claimedRow, leaseToken)) continue;
     const passId = claimedRow.guestPassId;
     const eventId = claimedRow.eventId;
-    if (!passId || !eventId || adapter?.deliveryMode !== 'capture' || !options.guestPassDeliveryEligibilityReader) {
+    if (!passId || !eventId || adapter?.deliveryMode !== 'capture') {
       await cancelClaimedGuestPass(prisma, claimedRow, leaseToken, processed);
       continue;
     }
 
-    let eligible = false;
-    try {
-      eligible = await options.guestPassDeliveryEligibilityReader.canDeliverGuestPass(passId, eventId);
-    } catch {
-      // Fail closed when the pass/event owner cannot confirm current eligibility.
+    let eligible: boolean | undefined;
+    if (options.guestPassDeliveryEligibilityReader) {
+      try {
+        eligible = await options.guestPassDeliveryEligibilityReader.canDeliverGuestPass(passId, eventId);
+      } catch {
+        // Lookup failures are unknown; defer without exposing exception details or discarding the encrypted delivery.
+      }
     }
 
     const currentRow = await readSaved(prisma, row.id);
     if (!currentRow || !holdsLease(currentRow, leaseToken)) continue;
-    if (!eligible || currentRow.guestPassId !== passId || currentRow.eventId !== eventId) {
+    if (currentRow.guestPassId !== passId || currentRow.eventId !== eventId) {
+      await cancelClaimedGuestPass(prisma, currentRow, leaseToken, processed);
+      continue;
+    }
+    if (eligible === undefined) {
+      await deferUnavailableGuestPass(
+        prisma,
+        currentRow,
+        leaseToken,
+        processed,
+        'Guest pass eligibility could not be verified; retry scheduled',
+        ELIGIBILITY_RETRY_DELAY_MS,
+      );
+      continue;
+    }
+    if (!eligible) {
       await cancelClaimedGuestPass(prisma, currentRow, leaseToken, processed);
       continue;
     }
 
     if (!encryptionKey) {
-      await retryUnavailableGuestPass(prisma, currentRow, leaseToken, processed);
+      await deferUnavailableGuestPass(
+        prisma,
+        currentRow,
+        leaseToken,
+        processed,
+        'Guest pass delivery key is not configured',
+        UNCONFIGURED_DELAY_MS,
+      );
       continue;
     }
 

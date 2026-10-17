@@ -92,6 +92,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - Issued and reissued guest QR codes now open the guest check-in page with the access code and one-time token in the locations that page reads.
 - Guest QR demo capture now processes only guest-pass notifications, leaving ordinary notifications queued with an unavailable-provider diagnostic.
+- Temporary guest-pass eligibility lookup failures now defer delivery without discarding encrypted pass data; confirmed ineligibility still cancels it.
 - Guest pass delivery retry is offered only while queued; failed delivery keeps the reissue action.
 - PMCM pass controls use server availability and active-pass status scoped to visible roster rows; rejected rows revoke passes transactionally, and event closure expires passes and cancels queued delivery in bulk.
 - Guest roster entry consent fields now match the Prisma schema on fresh and upgraded databases.
