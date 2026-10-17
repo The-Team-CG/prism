@@ -171,11 +171,12 @@ describe('GuestQrPassService', () => {
 
     const result = await harness.service.issue('evt_1234', 'gre_1', harness.actor(role) as never);
     const url = new URL(result.qrValue);
-    const token = url.hash.slice('#pass='.length);
+    const token = url.hash.slice(1);
 
     expect(url.origin).toBe('https://guest.prism.test');
-    expect(url.pathname).toBe('/check-in/AUTUMN-GALA-1234');
-    expect(url.search).toBe('');
+    expect(url.pathname).toBe('/qr-check-in');
+    expect(url.searchParams.get('accessCode')).toBe('AUTUMN-GALA-1234');
+    expect([...url.searchParams.keys()]).toEqual(['accessCode']);
     expect(token).toMatch(/^[A-Za-z0-9_-]{40,}$/);
     expect(harness.state.passes).toHaveLength(1);
     expect(harness.state.passes[0]).toMatchObject({
@@ -288,7 +289,10 @@ describe('GuestQrPassService', () => {
     expect(harness.state.passes[0]).toMatchObject({ status: 'revoked', deliveryStatus: 'revoked' });
     expect(harness.state.passes[1]).toMatchObject({ status: 'active', rosterEntryId: 'gre_1' });
     expect(result.pass.id).toBe(harness.state.passes[1].id);
-    expect(result.qrValue).toContain('#pass=');
+    const url = new URL(result.qrValue);
+    expect(url.pathname).toBe('/qr-check-in');
+    expect(url.searchParams.get('accessCode')).toBe('AUTUMN-GALA-1234');
+    expect(url.hash.slice(1)).toMatch(/^[A-Za-z0-9_-]{40,}$/);
     const auditInput = JSON.stringify(harness.auditWriter.write.mock.calls[0]?.[0]);
     expect(auditInput).toContain('reissue');
     expect(auditInput).not.toMatch(/email|token|qrValue/i);

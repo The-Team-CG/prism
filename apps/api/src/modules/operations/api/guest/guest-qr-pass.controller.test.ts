@@ -30,9 +30,9 @@ function createController(role = 'pmcm-admin', demoEnabled = true) {
   const passService = {
     list: vi.fn(async () => [passStatus]),
     get: vi.fn(async () => passStatus),
-    issue: vi.fn(async () => ({ pass: passStatus, qrValue: 'https://guest.prism.test/check-in/EVT-1234#pass=opaque-secret-token' })),
+    issue: vi.fn(async () => ({ pass: passStatus, qrValue: 'https://guest.prism.test/qr-check-in?accessCode=EVT-1234#opaque-secret-token' })),
     retry: vi.fn(async () => passStatus),
-    reissue: vi.fn(async () => ({ pass: passStatus, qrValue: 'https://guest.prism.test/check-in/EVT-1234#pass=opaque-secret-token' })),
+    reissue: vi.fn(async () => ({ pass: passStatus, qrValue: 'https://guest.prism.test/qr-check-in?accessCode=EVT-1234#opaque-secret-token' })),
     revoke: vi.fn(async () => ({ ...passStatus, status: 'revoked', deliveryStatus: 'revoked' })),
   };
   const controller = new OpsGuestQrPassController(accessPolicy as never, demoPolicy as never, passService as never);
@@ -94,8 +94,12 @@ describe('OpsGuestQrPassController', () => {
     const issued = await harness.controller.issue('evt_1', 'gre_1', verifiedActor as never);
     const reissued = await harness.controller.reissue('evt_1', 'pass_1', verifiedActor as never);
 
-    expect(issued.qrValue).toContain('#pass=');
-    expect(reissued.qrValue).toContain('#pass=');
+    for (const result of [issued, reissued]) {
+      const qrUrl = new URL(result.qrValue);
+      expect(qrUrl.pathname).toBe('/qr-check-in');
+      expect(qrUrl.searchParams.get('accessCode')).toBe('EVT-1234');
+      expect(qrUrl.hash).toBe('#opaque-secret-token');
+    }
     expect(await harness.controller.get('evt_1', 'pass_1', verifiedActor as never)).not.toHaveProperty('qrValue');
     expect(await harness.controller.retry('evt_1', 'pass_1', verifiedActor as never)).not.toHaveProperty('qrValue');
     expect(await harness.controller.revoke('evt_1', 'pass_1', verifiedActor as never)).not.toHaveProperty('qrValue');

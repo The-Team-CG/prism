@@ -131,7 +131,7 @@ export function GuestQrPassActionsView({
       ) : null) : null}
       {pass?.status === "active" && canIssue ? (
         <>
-          {pass.deliveryStatus === "failed" ? (
+          {pass.deliveryStatus === "queued" ? (
             <button type="button" disabled={disabled || actionBusy} onClick={() => void retry()} className="rounded-md border border-border px-3 py-1.5 text-xs font-bold">
               Retry delivery
             </button>

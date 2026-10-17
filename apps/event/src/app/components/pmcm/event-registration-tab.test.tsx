@@ -239,6 +239,45 @@ describe("EventRegistrationTab", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onRevokeGuestQrPass).not.toHaveBeenCalled();
   });
+
+  it("offers delivery retry only while queued and keeps reissue available after failure", async () => {
+    const failedPass: PrismGuestQrPassStatus = {
+      id: "gqp_failed",
+      eventId: "evt_1",
+      rosterEntryId: eligibleGuest.id,
+      status: "active",
+      deliveryStatus: "failed",
+      issuedAt: "2026-10-17T00:00:00.000Z",
+      revokedAt: null,
+    };
+    renderRegistrationTab({
+      canManageGuestQrPasses: true,
+      onLoadGuestQrPasses: vi.fn().mockResolvedValue([failedPass]),
+      onSearchRoster: vi.fn().mockResolvedValue([eligibleGuest]),
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    await screen.findByText(/Failed/);
+
+    expect(screen.queryByRole("button", { name: "Retry delivery" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Reissue QR pass" })).toBeTruthy();
+
+    cleanup();
+    const queuedPass: PrismGuestQrPassStatus = { ...failedPass, id: "gqp_queued", deliveryStatus: "queued" };
+    const onRetryGuestQrPass = vi.fn().mockResolvedValue(queuedPass);
+    renderRegistrationTab({
+      canManageGuestQrPasses: true,
+      onLoadGuestQrPasses: vi.fn().mockResolvedValue([queuedPass]),
+      onRetryGuestQrPass,
+      onSearchRoster: vi.fn().mockResolvedValue([eligibleGuest]),
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    await screen.findByRole("button", { name: "Retry delivery" });
+    fireEvent.click(screen.getByRole("button", { name: "Retry delivery" }));
+
+    await waitFor(() => expect(onRetryGuestQrPass).toHaveBeenCalledWith("gqp_queued"));
+  });
 });
 
 const eligibleGuest: PrismGuestRosterEntry = {
