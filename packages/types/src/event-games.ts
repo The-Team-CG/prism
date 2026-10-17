@@ -251,6 +251,8 @@ export interface PrismGamePublicState {
   currentRound: { key: string; number: number; total: number; deadlineAt?: string | null } | null;
   currentPrompt: string | null;
   participant: {
+    /** Anonymous, stable label shared with this session's public leaderboard. */
+    participantAlias: string;
     hasSubmitted: boolean;
     hasVoted?: boolean;
     score: number | null;
