@@ -51,7 +51,7 @@ const participantState = {
   startedAt: "2026-10-17T10:00:00.000Z",
   currentRound: { key: 'round-1', number: 1, total: 3 },
   currentPrompt: "Choose the correct answer",
-  participant: { hasSubmitted: false, score: 0 },
+  participant: { participantAlias: "Guest A1B2C3D4E5", hasSubmitted: false, score: 0 },
   aggregateResults: [],
 };
 
@@ -230,6 +230,7 @@ describe("event games guest repository", () => {
     api.getParticipantState.mockResolvedValueOnce({
       ...participantState,
       participant: {
+        participantAlias: "Guest A1B2C3D4E5",
         hasSubmitted: true,
         score: 40,
         result: { kind: "spin-wheel", outcomeId: "large", label: "Large prize", points: 40 },
@@ -243,6 +244,7 @@ describe("event games guest repository", () => {
     const state = await eventGamesGuestRepository.getParticipantState("session-a1");
 
     expect(state.participant).toEqual({
+      participantAlias: "Guest A1B2C3D4E5",
       hasSubmitted: true,
       score: 40,
       gameData: { kind: "live-trivia", options: ["A", "B"] },
@@ -272,6 +274,18 @@ describe("event games guest repository", () => {
     ]);
     expect(JSON.stringify(state)).not.toContain("grant-secret");
     expect(JSON.stringify(state)).not.toContain("team-secret");
+  });
+
+  it("rejects participant state without a canonical server-issued alias", async () => {
+    savePrismSession(PRISM_SESSION_STORAGE_KEYS.gameParticipant, {
+      eventId: "event-a", currentSessionId: "session-a1", participantCredential: "A".repeat(43),
+    });
+    api.getParticipantState.mockResolvedValueOnce({
+      ...participantState,
+      participant: { ...participantState.participant, participantAlias: "Guest 1234" },
+    });
+
+    await expect(eventGamesGuestRepository.getParticipantState("session-a1")).rejects.toThrow();
   });
 
   it("submits a typed game action with only the saved current-session credential", async () => {
@@ -428,6 +442,7 @@ describe("event games guest repository", () => {
       ...participantState,
       game: { title: "Family Feud", kind: "family-feud" },
       participant: {
+        participantAlias: "Guest A1B2C3D4E5",
         hasSubmitted: false, hasVoted: false, score: 0,
         gameData: {
           kind: "family-feud", teamLabel: "Blue", teamId: "internal-team-id",
@@ -456,12 +471,13 @@ describe("event games guest repository", () => {
       {
         ...shared,
         game: { title: "Word Scramble", kind: "word-scramble" },
-        participant: { hasSubmitted: false, score: 0, gameData: { kind: "word-scramble", answer: "secret" } },
+        participant: { participantAlias: "Guest A1B2C3D4E5", hasSubmitted: false, score: 0, gameData: { kind: "word-scramble", answer: "secret" } },
       },
       {
         ...shared,
         game: { title: "Picture Solo", kind: "guess-picture-solo" },
         participant: {
+          participantAlias: "Guest A1B2C3D4E5",
           hasSubmitted: false, score: 0,
           gameData: { kind: "guess-picture-solo", mediaObjectId: "obj_123e4567-e89b-42d3-a456-426614174000", stage: 2, totalStages: 2, acceptedAnswers: ["secret"] },
         },
@@ -470,6 +486,7 @@ describe("event games guest repository", () => {
         ...shared,
         game: { title: "Spot the Difference", kind: "spot-the-difference" },
         participant: {
+          participantAlias: "Guest A1B2C3D4E5",
           hasSubmitted: false, score: 0,
           gameData: {
             kind: "spot-the-difference", originalMediaObjectId: "obj_123e4567-e89b-42d3-a456-426614174000",

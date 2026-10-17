@@ -23,6 +23,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Coordinators can submit end-of-day reports for their assigned events.
 - Registration staff can import and search rosters, verify guests, and check them in.
 - Walk-ins follow PMCM policy and consent.
+- PMCM can configure and host 12 Active (Multiplayer) and Independent (Singleplayer) game templates; guests join multiplayer sessions by PIN and play independent games from the event lobby.
+- PMCM Admins retain game responses for one year after moderation or event archive; expired response content is redacted while moderation decisions remain recorded.
 - Guests can submit feedback for seven days after the recorded event end, and PMCM can moderate it.
 - Assigned suppliers can submit or revise quotes through expiring, revocable request links.
 - PMCM can review supplier readiness for assigned suppliers.
