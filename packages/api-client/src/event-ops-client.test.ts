@@ -1,6 +1,24 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { PrismEventOpsActorContext } from "@prism/types";
+import { PrismContractError, type PrismEventOpsActorContext } from "@prism/types";
 import { PrismApiError, createEventOpsClient, normalizePrismApiProblem, prismRequest, toQueryString } from "./index";
+
+let fixtureUuidSequence = 0;
+
+function createFixtureUuid(version = "4"): string {
+  const suffix = (++fixtureUuidSequence).toString(16).padStart(12, "0");
+  return `00000000-0000-${version}${suffix.slice(0, 3)}-8000-${suffix}`;
+}
+
+const TEST_FIXTURES = {
+  primaryId: createFixtureUuid(),
+  secondId: createFixtureUuid(),
+  thirdId: createFixtureUuid(),
+  fourthId: createFixtureUuid(),
+  invalidVersionId: createFixtureUuid("1"),
+  gameMediaObjectId: "obj_" + createFixtureUuid(),
+  secondGameMediaObjectId: "obj_" + createFixtureUuid(),
+  lobbyLogoObjectId: "obj_" + createFixtureUuid(),
+};
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -9,6 +27,431 @@ afterEach(() => {
 });
 
 describe("prismRequest", () => {
+  it("sends event-game host commands to the scoped API route with bearer auth", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ status: "live" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({
+      baseUrl: "https://api.example.test/api",
+      getAuthToken: () => "verified-role-session",
+    });
+
+    await client.eventGames.executeHostCommand("event-1", "session-1", {
+      command: "start",
+      idempotencyKey: "00000000-0000-4000-8000-000000000001",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.example.test/api/events/event-1/game-sessions/session-1/commands",
+      {
+        method: "POST",
+        body: JSON.stringify({ command: "start", idempotencyKey: "00000000-0000-4000-8000-000000000001" }),
+        headers: { "Content-Type": "application/json", Authorization: "Bearer verified-role-session" },
+      },
+    );
+  });
+
+  it("returns the one-time typed host PIN issue result", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      eventId: "event-1",
+      resourceType: "session",
+      resourceId: "session-1",
+      action: "enable_joins",
+      outcome: "joins_enabled",
+      resultId: "session-1",
+      requestReceiptId: "digest-only-receipt",
+      transition: { beforeStatus: "closed", afterStatus: "open", beforeVersion: null, afterVersion: null },
+      pin: "042681",
+      expiresAt: "2026-10-17T12:00:00.000Z",
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({
+      baseUrl: "https://api.example.test/api",
+      getAuthToken: () => "verified-role-session",
+    });
+
+    const result = await client.eventGames.executeHostCommand("event-1", "session-1", {
+      command: "enable-joins",
+      idempotencyKey: "00000000-0000-4000-8000-000000000004",
+    });
+
+    expect(result.action).toBe("enable_joins");
+    if (result.action === "enable_joins") {
+      expect(result.pin).toBe("042681");
+      expect(result.expiresAt).toBe("2026-10-17T12:00:00.000Z");
+    }
+  });
+
+  it("joins multiplayer by PIN without organizer auth and sends a retained credential only as a header", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      eventId: "event-1",
+      sessionId: "session-1",
+      game: { title: "Opening Trivia", kind: "live-trivia" },
+      status: "lobby",
+      participantCredential: "A".repeat(43),
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({ baseUrl: "https://api.example.test/api" });
+    const input = { idempotencyKey: "00000000-0000-4000-8000-000000000001", pin: "042681" };
+
+    await client.eventGames.joinActiveMultiplayerGameSession(input);
+    await client.eventGames.joinActiveMultiplayerGameSession(input, "R".repeat(43));
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "https://api.example.test/api/game-sessions/join", {
+      method: "POST",
+      body: JSON.stringify(input),
+      headers: { "Content-Type": "application/json" },
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "https://api.example.test/api/game-sessions/join", {
+      method: "POST",
+      body: JSON.stringify(input),
+      headers: { "Content-Type": "application/json", "x-prism-game-credential": "R".repeat(43) },
+    });
+  });
+
+  it("rejects a malformed successful PIN join response", async () => {
+    vi.stubGlobal("window", undefined);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      sessionId: "session-1",
+      game: { title: "Opening Trivia", kind: "live-trivia" },
+      status: "lobby",
+    }), { status: 200 })));
+    const client = createEventOpsClient({ baseUrl: "https://api.example.test/api" });
+
+    await expect(client.eventGames.joinActiveMultiplayerGameSession({
+      idempotencyKey: "00000000-0000-4000-8000-000000000001",
+      pin: "042681",
+    })).rejects.toBeInstanceOf(PrismContractError);
+  });
+
+  it("surfaces the same generic unavailable message returned for rejected PIN joins", async () => {
+    vi.stubGlobal("window", undefined);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      statusCode: 404,
+      message: "Game session could not be joined",
+    }), { status: 404 })));
+    const client = createEventOpsClient({ baseUrl: "https://api.example.test/api" });
+
+    await expect(client.eventGames.joinActiveMultiplayerGameSession({
+      idempotencyKey: "00000000-0000-4000-8000-000000000001",
+      pin: "042681",
+    })).rejects.toMatchObject({ name: "PrismApiError", status: 404, message: "Game session could not be joined" });
+  });
+
+  it("submits a participant action with its credential in a header only", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      sessionId: "session-1",
+      game: { title: "Opening Trivia", kind: "live-trivia" },
+      status: "live",
+      startedAt: "2026-10-16T12:00:00.000Z",
+      currentRound: { key: 'round-1', number: 1, total: 5 },
+      currentPrompt: "Question?",
+      participant: { hasSubmitted: true, score: 20 },
+      aggregateResults: [],
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({ baseUrl: "https://api.example.test/api" });
+    const input = { roundKey: "round-1", actionKind: "answer" as const, payload: { answer: "B" } };
+    const credential = "C".repeat(43);
+
+    await client.eventGames.submitAction("session-1", input, credential);
+
+    expect(fetchMock).toHaveBeenCalledWith("https://api.example.test/api/game-sessions/session-1/actions", {
+      method: "POST",
+      body: JSON.stringify(input),
+      headers: { "Content-Type": "application/json", "x-prism-game-credential": credential },
+    });
+  });
+
+  it("loads participant state with the exact session credential and no organizer identity", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({ baseUrl: "https://api.example.test/api" });
+    const credential = "G".repeat(43);
+
+    await client.eventGames.getParticipantState("session-1", credential);
+
+    expect(fetchMock).toHaveBeenCalledWith("https://api.example.test/api/game-sessions/session-1/state", {
+      headers: { "Content-Type": "application/json", "x-prism-game-credential": credential },
+    });
+  });
+
+  it("requests participant game media with the session credential and no organizer identity", async () => {
+    vi.stubGlobal("window", undefined);
+    const response = {
+      downloadUrl: "https://storage.example.test/signed-image",
+      expiresAt: "2026-10-16T12:05:00.000Z",
+    };
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify(response), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({ baseUrl: "https://api.example.test/api" });
+    const credential = "M".repeat(43);
+    const objectId = TEST_FIXTURES.gameMediaObjectId;
+
+    await expect(client.eventGames.getParticipantMediaAuthorization("session-1", objectId, credential))
+      .resolves.toEqual(response);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `https://api.example.test/api/game-sessions/session-1/media/${objectId}/download-authorization`,
+      {
+        headers: { "Content-Type": "application/json", "x-prism-game-credential": credential },
+      },
+    );
+  });
+
+  it("keeps moderation and awards on verified event-scoped organizer routes", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({
+      baseUrl: "https://api.example.test/api",
+      getAuthToken: () => "verified-role-session",
+    });
+    const moderation = {
+      action: "hide_submission" as const,
+      idempotencyKey: TEST_FIXTURES.primaryId,
+      submissionId: TEST_FIXTURES.secondId,
+      reason: "Contains personal information",
+    };
+    const award = {
+      idempotencyKey: TEST_FIXTURES.primaryId,
+      recipient: { type: "participant" as const, participationGrantId: TEST_FIXTURES.secondId },
+      awardKind: "points" as const,
+      label: "Round winner",
+      points: 25,
+    };
+
+    await client.eventGames.moderate("event-1", "session-1", moderation);
+    await client.eventGames.assignAward("event-1", "session-1", award);
+
+    const [moderationUrl, moderationRequest] = fetchMock.mock.calls[0] ?? [];
+    const [awardUrl, awardRequest] = fetchMock.mock.calls[1] ?? [];
+    expect(moderationUrl).toBe("https://api.example.test/api/events/event-1/game-sessions/session-1/moderation");
+    expect(moderationRequest).toMatchObject({ method: "POST", body: JSON.stringify(moderation) });
+    expect(new Headers(moderationRequest?.headers).get("authorization")).toMatch(/^Bearer /);
+    expect(awardUrl).toBe("https://api.example.test/api/events/event-1/game-sessions/session-1/awards");
+    expect(awardRequest).toMatchObject({ method: "POST", body: JSON.stringify(award) });
+    expect(new Headers(awardRequest?.headers).get("authorization")).toMatch(/^Bearer /);
+  });
+
+  it("loads PMCM response history with scoped pagination and bearer auth", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({
+      sessionId: "session-1",
+      items: [],
+      limit: 25,
+      nextCursor: null,
+      hasMore: false,
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const authToken = "verified-role-session";
+    const client = createEventOpsClient({
+      baseUrl: "https://api.example.test/api",
+      getAuthToken: () => authToken,
+    });
+
+    await client.eventGames.getResponseHistory("event-1", "session-1", {
+      limit: 25,
+      cursor: "cursor:2",
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, request] = fetchMock.mock.calls[0]!;
+    expect(url).toBe(
+      "https://api.example.test/api/events/event-1/game-sessions/session-1/responses?limit=25&cursor=cursor%3A2",
+    );
+    expect(request).toMatchObject({
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+    });
+  });
+
+  it("requests event-scoped game analytics with the verified host session", async () => {
+    vi.stubGlobal("window", undefined);
+    const analytics = {
+      eventId: "event/1",
+      totals: {
+        gamesCreated: 2,
+        sessionsStarted: 2,
+        sessionsCompleted: 1,
+        distinctEventParticipants: 3,
+        participantJoins: 4,
+        roundsAnswered: 8,
+        completionRate: 0.5,
+      },
+      sessions: [],
+      participationOverTime: [],
+    };
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify(analytics), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const authToken = "verified-role-session";
+    const client = createEventOpsClient({
+      baseUrl: "https://api.example.test/api",
+      getAuthToken: () => authToken,
+    });
+
+    await expect(client.eventGames.getEventAnalytics("event/1")).resolves.toEqual(analytics);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.example.test/api/events/event%2F1/game-analytics",
+      {
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+      },
+    );
+  });
+
+  it("keeps lobby branding requests event-scoped and bearer-authenticated", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({}), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({
+      baseUrl: "https://api.example.test/api",
+      getAuthToken: () => "verified-role-session",
+    });
+
+    await client.eventGames.getLobbyBranding("event/1");
+    await client.eventGames.updateLobbyBranding("event/1", {
+      theme: "forest",
+      idempotencyKey: "00000000-0000-4000-8000-000000000002",
+    });
+    await client.eventGames.requestLobbyLogoUpload("event/1", {
+      fileName: "logo.png",
+      contentType: "image/png",
+      declaredByteSize: 3,
+      checksumSha256: "a".repeat(64),
+      idempotencyKey: "00000000-0000-4000-8000-000000000003",
+    });
+    await client.eventGames.confirmLobbyLogoUpload("event/1", TEST_FIXTURES.lobbyLogoObjectId, {
+      checksumSha256: "a".repeat(64),
+      byteSize: 3,
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "https://api.example.test/api/events/event%2F1/game-lobby/branding", {
+      headers: { "Content-Type": "application/json", Authorization: "Bearer verified-role-session" },
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "https://api.example.test/api/events/event%2F1/game-lobby/branding", {
+      headers: { "Content-Type": "application/json", Authorization: "Bearer verified-role-session" },
+      method: "PATCH",
+      body: JSON.stringify({ theme: "forest", idempotencyKey: "00000000-0000-4000-8000-000000000002" }),
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(3, "https://api.example.test/api/events/event%2F1/game-lobby/branding/logo-upload-request", {
+      headers: { "Content-Type": "application/json", Authorization: "Bearer verified-role-session" },
+      method: "POST",
+      body: JSON.stringify({
+        fileName: "logo.png",
+        contentType: "image/png",
+        declaredByteSize: 3,
+        checksumSha256: "a".repeat(64),
+        idempotencyKey: "00000000-0000-4000-8000-000000000003",
+      }),
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(4, "https://api.example.test/api/events/event%2F1/game-lobby/branding/logos/" + TEST_FIXTURES.lobbyLogoObjectId + "/confirm", {
+      headers: { "Content-Type": "application/json", Authorization: "Bearer verified-role-session" },
+      method: "POST",
+      body: JSON.stringify({ checksumSha256: "a".repeat(64), byteSize: 3 }),
+    });
+  });
+
+  it("keeps game image upload requests scoped to an editable event game", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({}), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({
+      baseUrl: "https://api.example.test/api",
+      getAuthToken: () => "verified-role-session",
+    });
+    const request = {
+      fileName: "clue.png", contentType: "image/png", declaredByteSize: 512,
+      checksumSha256: "a".repeat(64), idempotencyKey: "00000000-0000-4000-8000-000000000004",
+    } as const;
+
+    await client.eventGames.requestGameMediaUpload("event/1", "game/1", request);
+    await client.eventGames.confirmGameMediaUpload("event/1", "game/1", TEST_FIXTURES.lobbyLogoObjectId, {
+      checksumSha256: request.checksumSha256, byteSize: request.declaredByteSize,
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "https://api.example.test/api/events/event%2F1/games/game%2F1/media-upload-request", {
+      headers: { "Content-Type": "application/json", Authorization: "Bearer verified-role-session" },
+      method: "POST", body: JSON.stringify(request),
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "https://api.example.test/api/events/event%2F1/games/game%2F1/media/" + TEST_FIXTURES.lobbyLogoObjectId + "/confirm", {
+      headers: { "Content-Type": "application/json", Authorization: "Bearer verified-role-session" },
+      method: "POST", body: JSON.stringify({ checksumSha256: request.checksumSha256, byteSize: request.declaredByteSize }),
+    });
+  });
+
+  it("keeps organizer game and session requests event-scoped and bearer-authenticated", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({}), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({
+      baseUrl: "https://api.example.test/api",
+      getAuthToken: () => "verified-role-session",
+    });
+    const definition = { kind: "live-trivia" as const, title: "Opening Trivia" };
+    const commandOptions = {
+      headers: { "Content-Type": "application/json", Authorization: "Bearer verified-role-session" },
+    };
+
+    await client.eventGames.listForEvent("event-1");
+    await client.eventGames.createDraft("event-1", definition);
+    await client.eventGames.getForEvent("event-1", "game-1");
+    await client.eventGames.updateDraft("event-1", "game-1", { title: "Final Trivia" });
+    await client.eventGames.removeUnstartedGame("event-1", "game-1");
+    await client.eventGames.publishDraft("event-1", "game-1");
+    await client.eventGames.createHostSession("event-1", "game-1", { gameId: "game-1" });
+    await client.eventGames.getHostState("event-1", "session-1");
+    await client.eventGames.ensureLobby("event-1");
+    await client.eventGames.getPublicLobby("opaque-lobby-token");
+    await client.eventGames.startIndependentSingleplayerGameSession("opaque-lobby-token", "game-1", {
+      idempotencyKey: "00000000-0000-4000-8000-000000000002",
+      participantCredential: "A".repeat(43),
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "https://api.example.test/api/events/event-1/games", commandOptions);
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "https://api.example.test/api/events/event-1/games", {
+      ...commandOptions,
+      method: "POST",
+      body: JSON.stringify(definition),
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(3, "https://api.example.test/api/events/event-1/games/game-1", commandOptions);
+    expect(fetchMock).toHaveBeenNthCalledWith(4, "https://api.example.test/api/events/event-1/games/game-1", {
+      ...commandOptions,
+      method: "PATCH",
+      body: JSON.stringify({ title: "Final Trivia" }),
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(5, "https://api.example.test/api/events/event-1/games/game-1", {
+      ...commandOptions,
+      method: "DELETE",
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(6, "https://api.example.test/api/events/event-1/games/game-1/publish", {
+      ...commandOptions,
+      method: "POST",
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(7, "https://api.example.test/api/events/event-1/games/game-1/sessions", {
+      ...commandOptions,
+      method: "POST",
+      body: JSON.stringify({ gameId: "game-1" }),
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(8, "https://api.example.test/api/events/event-1/game-sessions/session-1/host-state", commandOptions);
+    expect(fetchMock).toHaveBeenNthCalledWith(9, "https://api.example.test/api/events/event-1/game-lobby", {
+      ...commandOptions,
+      method: "POST",
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(10, "https://api.example.test/api/game-lobbies/opaque-lobby-token", commandOptions);
+    expect(fetchMock).toHaveBeenNthCalledWith(11, "https://api.example.test/api/game-lobbies/opaque-lobby-token/games/game-1/sessions", {
+      ...commandOptions,
+      method: "POST",
+      body: JSON.stringify({
+        idempotencyKey: "00000000-0000-4000-8000-000000000002",
+        participantCredential: "A".repeat(43),
+      }),
+    });
+  });
+
   it("resolves API bindings when a request runs, preserving bearer authentication", async () => {
     vi.stubGlobal("window", undefined);
     vi.stubEnv("PRISM_API_URL", undefined);
