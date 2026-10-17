@@ -1876,6 +1876,7 @@ model OpsGuestCheckIn {
   verificationStatus       String   @default("verified") @map("verification_status")
   privacyConsentAccepted   Boolean  @default(false) @map("privacy_consent_accepted")
   privacyNoticeVersion     String   @default("") @map("privacy_notice_version")
+  privacyConsentCapturedAt DateTime? @map("privacy_consent_captured_at") @db.Timestamptz(6)
   marketingConsentAccepted Boolean  @default(false) @map("marketing_consent_accepted")
   checkedInAt              DateTime @default(now()) @map("checked_in_at")
 

@@ -6,6 +6,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { AuditService, AuditWriterAdapter, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
 import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
+import { OperationsEventReferenceService } from '../../../event-lifecycle/application/onboarding/operations-event-reference.service';
 import { GuestWorkflowService } from './guest-workflow.service';
 import { GuestEventProjectionService } from '../../../read-models/application/services/guest-event-projection.service';
 
@@ -37,22 +38,7 @@ describe.skipIf(!databaseUrl)('guest feedback PostgreSQL transaction acceptance'
       auditWriter,
       new WorkflowCommandService(new PrismTransactionRunner(prisma as never)),
       { findAssignmentForEventActor: vi.fn(async () => ({ id: 'w23_registration', role: 'Registration Staff', status: 'acknowledged' })) } as never,
-      {
-        findOperationsEvent: async (eventId: string, context?: { prisma: any }) => {
-          const database = context?.prisma ?? prisma;
-          return database.opsEvent.findUnique({
-            where: { id: eventId },
-            select: { id: true, eventName: true, eventDate: true, status: true, archived: true, actualEndedAt: true, walkInPolicy: true, walkInThreshold: true },
-          });
-        },
-        findGuestCheckInEventReference: async (eventId: string, context?: { prisma: any }) => {
-          const database = context?.prisma ?? prisma;
-          return database.opsEvent.findUnique({
-            where: { id: eventId },
-            select: { id: true, eventName: true, walkInPolicy: true, walkInThreshold: true, guestPrivacyClassification: true, briefingGuestCount: true },
-          });
-        },
-      } as never,
+      new OperationsEventReferenceService(prisma as never),
       {
         listGuestAccessCandidates: (includeArchived: boolean) => prisma.opsEvent.findMany({
           where: includeArchived ? {} : { archived: false },
@@ -98,8 +84,11 @@ describe.skipIf(!databaseUrl)('guest feedback PostgreSQL transaction acceptance'
       eventDate: new Date('2026-09-07T00:00:00Z'), actualEndedAt: null,
       status: 'event_day', archived: false, clientPortalStatus: 'unlocked',
       walkInPolicy: 'open', walkInThreshold: 200,
-      guestPrivacyClassification: 'public', briefingGuestCount: 200,
+      guestPrivacyClassification: 'public',
       inquiry: { create: { id: inquiryId, clientName: 'W23 QR client', email: `${inquiryId}@w23.test`, eventName: 'W23 QR event', clientType: 'Private', eventDate: new Date('2026-09-07T00:00:00Z') } },
+    } });
+    await prisma.opsBriefing.create({ data: {
+      id: id(), eventId: event.id, venue: 'W23 test venue', guestCount: 200, budgetRange: 'test',
     } });
     const batchId = id();
     await prisma.opsGuestRosterImport.create({ data: {
