@@ -6,6 +6,7 @@ export const PRISM_SESSION_STORAGE_KEYS = {
   supplier: "prism:supplier-session",
   guest: "prism:guest-session",
   guestCheckInRequest: "prism:guest-check-in-request",
+  gameParticipant: "prism:game-participant-session",
 } as const;
 
 export const PRISM_LEGACY_SESSION_STORAGE_KEYS = {
