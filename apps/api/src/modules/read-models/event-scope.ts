@@ -58,6 +58,31 @@ export async function readEventConformeState(prisma: Prisma.TransactionClient, e
   return { conformeSignedAt: event.inquiry?.conformeSignedAt ?? null };
 }
 
+/** Public game lobby scope. Only event display name and archive state cross into event-games. */
+export async function readEventGameLobbyScope(prisma: Prisma.TransactionClient, eventId: string) {
+  const event = await prisma.opsEvent.findUnique({
+    where: { id: eventId },
+    select: { id: true, eventName: true, archived: true, actualEndedAt: true, status: true },
+  });
+  return event ? { ...event, closed: event.archived || Boolean(event.actualEndedAt) || ['closed', 'archived'].includes(event.status.toLowerCase()) } : null;
+}
+
+export { readEventGameWriteState } from './application/queries/event-game-lifecycle.queries';
+
+/** Event lifecycle facts required to enforce post-event game-response retention. */
+export async function readEventGameResponseRetentionScope(prisma: Prisma.TransactionClient, eventId: string) {
+  const event = await prisma.opsEvent.findUnique({
+    where: { id: eventId },
+    select: { id: true, archivedAt: true, archived: true, actualEndedAt: true, status: true },
+  });
+  if (!event) return null;
+  return {
+    eventId: event.id,
+    archivedAt: event.archivedAt,
+    closed: event.archived || Boolean(event.actualEndedAt) || ['closed', 'archived'].includes(event.status.toLowerCase()),
+  };
+}
+
 type ScopedEvent = NonNullable<Awaited<ReturnType<typeof readEventAccessScope>>>;
 
 function sameId(left: string | null | undefined, right: string | null | undefined) {
