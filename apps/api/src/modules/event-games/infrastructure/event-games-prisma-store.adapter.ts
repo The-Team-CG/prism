@@ -24,6 +24,7 @@ import type {
   GameSessionStorePort,
   PublishedGameDefinitionForSession,
 } from '../contracts/game-session-store.port';
+import { createAnonymousGameParticipantAlias } from '../domain/anonymous-game-participant-alias';
 
 const jsonRecordSchema = z.record(z.string(), z.unknown());
 
@@ -85,7 +86,7 @@ interface ScoreRow {
   rank: number;
 }
 
-function leaderboardAwardRecipient(score: ScoreRow): PrismGameLeaderboardEntry["awardRecipient"] {
+function leaderboardAwardRecipient(score: ScoreRow): NonNullable<PrismGameLeaderboardEntry["awardRecipient"]> {
   if (score.team_id) return { type: "team", teamId: score.team_id };
   const prefix = "participant:";
   if (!score.group_key.startsWith(prefix)) {
@@ -543,13 +544,19 @@ export class EventGamesPrismaStoreAdapter implements GameDefinitionStorePort, Ga
       sessionResult: persistedWheelResult(row.wheel_result),
       participantCount: row.participant_count,
       currentRound: null,
-      leaderboard: scores.map((score) => ({
-        rank: score.rank,
-        label: score.team_id ? (score.team_label ?? 'Team') : `Player ${score.rank}`,
-        score: score.score,
-        ...(score.team_id && score.team_label ? { teamLabel: score.team_label } : {}),
-        awardRecipient: leaderboardAwardRecipient(score),
-      })),
+      leaderboard: scores.map((score) => {
+        const awardRecipient = leaderboardAwardRecipient(score);
+        const label = awardRecipient.type === 'team'
+          ? (score.team_label ?? 'Team')
+          : createAnonymousGameParticipantAlias(awardRecipient.participationGrantId);
+        return {
+          rank: score.rank,
+          label,
+          score: score.score,
+          ...(score.team_id && score.team_label ? { teamLabel: score.team_label } : {}),
+          awardRecipient,
+        };
+      }),
     };
   }
 

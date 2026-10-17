@@ -11,6 +11,7 @@ import type {
   GameResponseHistoryPage,
   StoredGameResponse,
 } from '../contracts/game-action-store.port';
+import { createAnonymousGameParticipantAlias } from '../domain/anonymous-game-participant-alias';
 
 interface ParticipantActionContextRow {
   event_id: string;
@@ -53,7 +54,7 @@ interface ApprovedRoundResponseRow { response: string | null }
 interface GameResponseRow {
   id: string;
   round_number: number;
-  participant_number: number;
+  participation_grant_id: string;
   payload: unknown;
   moderation_action: string | null;
   score_result: unknown;
@@ -61,6 +62,7 @@ interface GameResponseRow {
 }
 
 interface SessionExistsRow { exists: boolean }
+interface RedactedCountRow { redacted_count: number }
 
 const responsePayloadSchema = z.record(
   z.string().trim().min(1).max(64),
@@ -431,8 +433,7 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
     if (!session[0]?.exists) return null;
 
     const rows = await transaction.prisma.$queryRaw<GameResponseRow[]>`
-      SELECT s."id", s."round_number",
-        DENSE_RANK() OVER (ORDER BY g."granted_at", g."id")::integer AS "participant_number",
+      SELECT s."id", s."round_number", g."id" AS "participation_grant_id",
         s."payload",
         CASE
           WHEN latest."action" = 'approve_submission' THEN 'visible'
@@ -475,7 +476,7 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
       return {
         id: row.id,
         roundNumber: row.round_number,
-        participantAlias: `Player ${row.participant_number}`,
+        participantAlias: createAnonymousGameParticipantAlias(row.participation_grant_id),
         response,
         moderationStatus,
         scoreAwarded: score,
@@ -483,5 +484,54 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
       };
     });
     return { items: retained, hasMore };
+  }
+
+  async listResponseRetentionEventIds(now: Date, transaction: PrismTransactionContext): Promise<string[]> {
+    const rows = await transaction.prisma.$queryRaw<Array<{ event_id: string }>>`
+      SELECT DISTINCT "event_id"
+      FROM "event_games"."submissions"
+      WHERE "created_at" <= ${now} - INTERVAL '1 year'
+        AND "payload" <> '{"redacted":true}'::jsonb
+      ORDER BY "event_id"
+    `;
+    return rows.map(({ event_id }) => event_id);
+  }
+
+  async redactExpiredResponses(
+    input: { eventId: string; archivedAt: Date | null; now: Date },
+    transaction: PrismTransactionContext,
+  ): Promise<number> {
+    const rows = await transaction.prisma.$queryRaw<RedactedCountRow[]>`
+      WITH latest_moderation AS (
+        SELECT DISTINCT ON (m."submission_id") m."submission_id", m."created_at"
+        FROM "event_games"."moderation_actions" m
+        WHERE m."event_id" = ${input.eventId}
+        ORDER BY m."submission_id", m."created_at" DESC, m."id" DESC
+      ), expired AS (
+        SELECT s."event_id", s."session_id", s."id"
+        FROM "event_games"."submissions" s
+        LEFT JOIN latest_moderation latest ON latest."submission_id" = s."id"
+        WHERE s."event_id" = ${input.eventId}
+          AND s."payload" <> '{"redacted":true}'::jsonb
+          AND COALESCE(latest."created_at", ${input.archivedAt}::timestamptz) IS NOT NULL
+          AND COALESCE(latest."created_at", ${input.archivedAt}::timestamptz) <= ${input.now} - INTERVAL '1 year'
+      ), cleared_submissions AS (
+        UPDATE "event_games"."submissions" s
+        SET "payload" = '{"redacted":true}'::jsonb, "score_result" = NULL
+        FROM expired e
+        WHERE s."event_id" = e."event_id" AND s."session_id" = e."session_id" AND s."id" = e."id"
+        RETURNING s."event_id", s."session_id", s."id"
+      ), cleared_moderation AS (
+        UPDATE "event_games"."moderation_actions" m
+        SET "reason" = NULL,
+          "resolved_answer" = CASE WHEN m."resolved_answer" IS NULL THEN NULL ELSE '' END
+        FROM cleared_submissions s
+        WHERE m."event_id" = s."event_id" AND m."session_id" = s."session_id"
+          AND m."submission_id" = s."id"
+        RETURNING m."id"
+      )
+      SELECT COUNT(*)::integer AS "redacted_count" FROM cleared_submissions
+    `;
+    return rows[0]?.redacted_count ?? 0;
   }
 }
