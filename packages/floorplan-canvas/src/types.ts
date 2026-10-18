@@ -88,6 +88,20 @@ export type Tool =
   | "line"
   | "text";
 
+/** Why a guest cannot be seated at a table. Stable codes; copy is supplied by the role app. */
+export type TableAssignmentIneligibleReason =
+  | "unknown-guest"
+  | "guest-declined"
+  | "not-a-table"
+  | "table-hidden"
+  | "table-full";
+
+export interface TableAssignmentRejection {
+  guestId: string;
+  objectId: string;
+  reason: TableAssignmentIneligibleReason;
+}
+
 export interface EditorState {
   project: Project;
   viewport: Viewport;
@@ -98,4 +112,6 @@ export interface EditorState {
   clipboard: CanvasObject[] | null;
   gridSize: number; // meters
   snap: boolean;
+  /** Most recent refused table assignment, shown until the next assignment attempt or dismissal. */
+  assignmentRejection: TableAssignmentRejection | null;
 }

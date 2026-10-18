@@ -227,6 +227,7 @@ export function useEventDashboardShellViewModel({
     const draft = await commands.createFloorPlanDraft(selectedEvent.id, {
       name: `${template.name} PMCM draft`,
       sourceType: "template",
+      venueTemplateId: template.id,
       venue: template.venue || selectedEvent.eventName,
       width: template.widthM,
       height: template.heightM,
