@@ -13,6 +13,7 @@ export function ClientPortalBillingView() {
     selectedEvent,
     payments,
     billing,
+    disputes,
   } = useClientWorkspace();
   const portalViewMeta = portalView ? CLIENT_PORTAL_VIEW_META[portalView] : undefined;
 
@@ -27,7 +28,7 @@ export function ClientPortalBillingView() {
           title={portalViewMeta?.title ?? selectedEvent.eventName}
           description={portalViewMeta?.description ?? "Quotations, invoices, payment schedule, receipts, and balance for the selected event."}
         />
-        <ClientBillingTab payments={payments} billing={billing} />
+        <ClientBillingTab payments={payments} billing={billing} disputes={disputes} />
       </div>
     );
 }

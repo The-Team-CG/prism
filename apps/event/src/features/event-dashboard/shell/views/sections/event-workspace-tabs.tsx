@@ -13,6 +13,7 @@ import { ChangeRegisterPanel } from "@/features/change-management/register";
 import { isScopeFrozen } from "@/features/change-management/register/model/change-register-rules";
 import { EventOverviewPanels } from "@/features/command-inbox/list";
 import { FinancialWorkspace } from "@/features/finance/workspace";
+import { BillingAdjustmentsPanel } from "@/features/finance/billing-adjustments/views/billing-adjustments-panel";
 import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
 import { SupplierQuotePlanner } from "@/features/suppliers/directory";
 import { PmcmSupplierReadinessBoard } from "@/features/suppliers/readiness";
@@ -311,16 +312,24 @@ export function EventWorkspaceBillingTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   return (
-    <FinancialWorkspace
-      event={vm.selectedEvent}
-      inquiry={vm.selectedInquiry}
-      billingStatements={vm.billingStatements}
-      payments={vm.payments}
-      notificationLogs={vm.notificationLogs}
-      busy={Boolean(vm.busy)}
-      onRecordPayment={vm.recordPayment}
-      onSendBilling={vm.sendBillingStatement}
-    />
+    <div className="space-y-5">
+      <FinancialWorkspace
+        event={vm.selectedEvent}
+        inquiry={vm.selectedInquiry}
+        billingStatements={vm.billingStatements}
+        payments={vm.payments}
+        notificationLogs={vm.notificationLogs}
+        busy={Boolean(vm.busy)}
+        onRecordPayment={vm.recordPayment}
+        onSendBilling={vm.sendBillingStatement}
+      />
+      <BillingAdjustmentsPanel
+        eventId={vm.selectedEvent.id}
+        statements={vm.billingStatements}
+        billingSources={vm.billingSources}
+        payments={vm.payments}
+      />
+    </div>
   );
 }
 
