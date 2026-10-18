@@ -262,6 +262,7 @@ databaseSuite("actor-scoped event reads PostgreSQL behavior", () => {
         mapDocument: (row) => row,
         mapBriefing: (row) => row,
         mapBillingStatement: (row) => row,
+        mapClientBillingDispute: (row) => row,
         mapPaymentMilestone: (row) => row,
         mapFloorPlanDraft: (row) => row,
         mapAuditLog: (row) => row,

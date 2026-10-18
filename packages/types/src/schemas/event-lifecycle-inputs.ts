@@ -5,20 +5,48 @@ import {
   optionalTrimmedStringSchema,
   privacyConsentSchema,
 } from "./common.js";
-export const eventDecisionSchema = z.object({
+const eventDecisionFields = z.object({
   decision: z.enum(["cancelled", "postponed", "date_to_be_confirmed"]),
   reason: nonEmptyStringSchema,
   newEventDate: isoDateStringSchema.optional(),
   cancellationFeeAmount: z.number().int().nonnegative().default(0),
   depositTreatment: z.enum(["retain", "credit", "waive", "pending_review"]).default("pending_review"),
   supplierImpact: z.enum(["release_obligations", "preserve_obligations", "pending_review"]).default("pending_review"),
+  // Required on frozen events; the service verifies it is an approved, unused exception for this event.
+  freezeExceptionId: optionalTrimmedStringSchema,
   idempotencyKey: nonEmptyStringSchema.optional(),
-}).superRefine((value, ctx) => {
+});
+
+type EventDecisionFields = z.infer<typeof eventDecisionFields>;
+
+function refineEventDecision(value: EventDecisionFields, ctx: z.RefinementCtx) {
   if (value.decision === "postponed" && !value.newEventDate) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["newEventDate"], message: "A new date is required for postponement" });
   }
-});
+  // Impact review cannot be silently skipped: unresolved supplier impact is rejected outright.
+  if (value.supplierImpact === "pending_review") {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["supplierImpact"], message: "Supplier impact must be resolved before recording this decision" });
+  }
+  const billingRequiresTreatment = value.decision === "cancelled" || value.cancellationFeeAmount > 0;
+  if (billingRequiresTreatment && value.depositTreatment === "pending_review") {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["depositTreatment"], message: "Deposit treatment must be resolved when cancelling or charging a cancellation fee" });
+  }
+}
+
+/** Decision treatment rules shared by the service-facing input and the PMCM write boundary. */
+export const eventDecisionSchema = eventDecisionFields.superRefine(refineEventDecision);
 export type EventDecisionInput = z.infer<typeof eventDecisionSchema>;
+
+/**
+ * PMCM write boundary: a decision is recorded only after the coordinator, supplier, and billing impact review
+ * has been confirmed, so the flag is required here rather than defaulted.
+ */
+export const recordEventDecisionSchema = eventDecisionFields
+  .extend({
+    impactReviewAcknowledged: z.literal(true, { message: "Confirm the coordinator, supplier, and billing impact review before recording this decision" }),
+  })
+  .superRefine(refineEventDecision);
+export type RecordEventDecisionInput = z.infer<typeof recordEventDecisionSchema>;
 
 /**
  * Write DTOs for portal ↔ API mutations.
@@ -27,6 +55,24 @@ export type EventDecisionInput = z.infer<typeof eventDecisionSchema>;
  */
 
 /* ── Inquiry / onboarding ─────────────────────────────────────── */
+
+/** Client categories offered for new inquiries (product policy, 2026-09-08). */
+export const INQUIRY_CLIENT_CATEGORIES = ["Corporate", "Government", "Individual", "Non-profit"] as const;
+export type InquiryClientCategory = (typeof INQUIRY_CLIENT_CATEGORIES)[number];
+
+/** Legacy values rewritten to a current category on write. School/Other have no mapping and remain historical values. */
+const LEGACY_INQUIRY_CLIENT_TYPE_MAPPINGS: ReadonlyMap<string, InquiryClientCategory> = new Map([["Private", "Individual"]]);
+
+export function normalizeInquiryClientType(value: string): string {
+  const trimmed = value.trim();
+  return LEGACY_INQUIRY_CLIENT_TYPE_MAPPINGS.get(trimmed) ?? trimmed;
+}
+
+export const inquiryClientCategorySchema = z
+  .string()
+  .transform(normalizeInquiryClientType)
+  .pipe(z.enum(INQUIRY_CLIENT_CATEGORIES));
+
 export const createPrismInquirySchema = privacyConsentSchema.extend({
   clientName: nonEmptyStringSchema,
   companyName: optionalTrimmedStringSchema,
@@ -34,7 +80,7 @@ export const createPrismInquirySchema = privacyConsentSchema.extend({
   eventName: nonEmptyStringSchema,
   eventType: optionalTrimmedStringSchema,
   eventDate: isoDateStringSchema,
-  clientType: nonEmptyStringSchema,
+  clientType: inquiryClientCategorySchema,
   source: z.enum([
     "P.R.I.S.M Website",
     "PMCM Facebook",
@@ -45,11 +91,16 @@ export const createPrismInquirySchema = privacyConsentSchema.extend({
   ]),
   channel: optionalTrimmedStringSchema,
   referralDetails: optionalTrimmedStringSchema,
-  loggedByRole: optionalTrimmedStringSchema,
-  loggedByName: optionalTrimmedStringSchema,
   message: nonEmptyStringSchema,
 });
 export type CreatePrismInquiryInput = z.infer<typeof createPrismInquirySchema>;
+
+/** PMCM-only organization merge. The target inquiry comes from the route; public writers cannot reach this schema. */
+export const mergeInquirySchema = z.object({
+  sourceInquiryId: nonEmptyStringSchema,
+  reason: nonEmptyStringSchema,
+});
+export type MergeInquiryInput = z.infer<typeof mergeInquirySchema>;
 
 export const updateInquiryStatusSchema = z.object({
   status: z.enum(["new", "accepted", "pending", "declined"]),
@@ -116,15 +167,40 @@ export type StartEventWrapUpInput = z.infer<typeof startEventWrapUpSchema>;
 export const updateEventWrapUpSchema = z.object({
   mode: wrapUpModeSchema.optional(),
   requiredItems: z.record(z.string(), z.boolean()).optional(),
+  // Logistics is not writable here: its checklist state mirrors the PMCM logistics completion record.
   sections: z.object({
-    logistics: wrapUpSectionSchema.optional(),
     issues: wrapUpSectionSchema.optional(),
     feedback: wrapUpSectionSchema.optional(),
-  }).optional(),
+  }).strict().optional(),
   clientAcknowledged: z.boolean().optional(),
   clientAcknowledgementNote: z.string().trim().max(2000).optional(),
 });
 export type UpdateEventWrapUpInput = z.infer<typeof updateEventWrapUpSchema>;
+
+/** PMCM-recorded logistics completion. Notes are PMCM-only and never returned to portals. */
+export const recordLogisticsCompletionSchema = z.object({
+  assetReturnsVerified: z.literal(true),
+  completionSummary: z.string().trim().min(1).max(2000),
+  privateNotes: z.string().trim().max(4000).default(""),
+  correctionReason: z.string().trim().min(1).max(500).optional(),
+});
+export type RecordLogisticsCompletionInput = z.infer<typeof recordLogisticsCompletionSchema>;
+
+/** Side-by-side archive comparison: 2 to 4 distinct archived event ids, comma-separated in the query. */
+export const archiveComparisonQuerySchema = z.object({
+  eventIds: z
+    .string()
+    .trim()
+    .transform((value) => value.split(",").map((id) => id.trim()).filter(Boolean))
+    .pipe(
+      z
+        .array(z.string().min(1))
+        .min(2, "Select at least two archived events to compare")
+        .max(4, "Compare at most four archived events")
+        .refine((ids) => new Set(ids).size === ids.length, "Compared events must be distinct"),
+    ),
+});
+export type ArchiveComparisonQuery = z.infer<typeof archiveComparisonQuerySchema>;
 export const setClientEventDayViewSchema = z.object({
   enabled: z.boolean(),
 });
