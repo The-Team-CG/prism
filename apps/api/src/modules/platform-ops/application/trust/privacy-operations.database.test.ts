@@ -227,11 +227,102 @@ describe.skipIf(!databaseUrl)('privacy execution against PostgreSQL', () => {
     }
   });
 
-  it.each(['access', 'correction'])('keeps unsupported %s approved without a completion audit', async (requestType) => {
-    const pending = await request(`${id()}@privacy.test`, { requestType });
-    await expect(service.executeRequest(pending.id, {}, operator)).rejects.toThrow('not supported yet');
+  const auditRows = (requestId: string) => prisma.opsAuditLog.findMany({
+    where: { OR: [{ affectedId: requestId }, { affectedId: { startsWith: `${requestId}:` } }] },
+  });
+
+  it('exports an access request in the execution transaction and audits counts without personal values', async () => {
+    const fixture = await createClient();
+    const pending = await request(fixture.email, { requestType: 'access' });
+    const result = await service.executeRequest(pending.id, {}, operator);
+
+    expect(result.status).toBe('executed');
+    const inquirySection = result.export?.sections.find((section) => section.surface === 'inquiry');
+    expect(inquirySection?.records).toEqual([expect.objectContaining({ id: fixture.inquiryId, clientName: 'Identifiable client' })]);
+    expect((await prisma.opsPrivacyRequest.findUniqueOrThrow({ where: { id: pending.id } })).status).toBe('executed');
+    expect((await prisma.opsInquiry.findUniqueOrThrow({ where: { id: fixture.inquiryId } })).email).toBe(fixture.email.toUpperCase());
+
+    const rows = await auditRows(pending.id);
+    expect(rows.filter((row) => row.affectedId === pending.id)).toHaveLength(1);
+    expect(rows.some((row) => row.affectedType === 'privacy_owner_export_receipt' && row.affectedId === `${pending.id}:event-lifecycle`)).toBe(true);
+    const audited = JSON.stringify(rows.map((row) => row.metadata));
+    expect(audited).not.toContain(fixture.email);
+    expect(audited).not.toContain('Identifiable client');
+  });
+
+  it('rolls back an export when its completion audit cannot persist', async () => {
+    const fixture = await createClient();
+    const pending = await request(fixture.email, { requestType: 'access' });
+    vi.spyOn(audit, 'audit').mockRejectedValueOnce(new Error('injected audit failure'));
+    await expect(service.executeRequest(pending.id, {}, operator)).rejects.toThrow('injected audit failure');
     expect((await prisma.opsPrivacyRequest.findUniqueOrThrow({ where: { id: pending.id } })).status).toBe('approved');
-    expect(await prisma.opsAuditLog.count({ where: { affectedId: pending.id } })).toBe(0);
+    expect(await auditRows(pending.id)).toHaveLength(0);
+  });
+
+  it.each([
+    ['without a patch', undefined, 'explicit name or email patch'],
+    ['with a patch that carries a non-allowed field', { name: 'Corrected Client', role: 'pmcm-admin' }, 'valid name or email'],
+  ])('keeps a correction %s approved without a completion audit', async (_label, correction, message) => {
+    const fixture = await createClient();
+    const pending = await request(fixture.email, { requestType: 'correction' });
+    await expect(service.executeRequest(pending.id, { correction }, operator)).rejects.toThrow(message);
+    expect((await prisma.opsPrivacyRequest.findUniqueOrThrow({ where: { id: pending.id } })).status).toBe('approved');
+    expect((await prisma.opsInquiry.findUniqueOrThrow({ where: { id: fixture.inquiryId } })).clientName).toBe('Identifiable client');
+    expect(await auditRows(pending.id)).toHaveLength(0);
+  });
+
+  it('keeps a guest correction unsupported and approved without a completion audit', async () => {
+    const fixture = await createClient();
+    const pending = await request('', { requestType: 'correction', subjectType: 'guest', subjectName: 'Some Guest', eventId: fixture.event.id });
+    await expect(service.executeRequest(pending.id, { correction: { name: 'Corrected Guest' } }, operator))
+      .rejects.toThrow('Correction for this subject type is not supported');
+    expect((await prisma.opsPrivacyRequest.findUniqueOrThrow({ where: { id: pending.id } })).status).toBe('approved');
+    expect(await auditRows(pending.id)).toHaveLength(0);
+  });
+
+  it('applies a validated correction to the subject identity copies only and audits field names without values', async () => {
+    const fixture = await createClient();
+    const other = await createClient();
+    const billing = await prisma.opsBillingStatement.create({ data: {
+      id: id(), number: id(), eventId: fixture.event.id, totalAmount: 100,
+      clientName: 'Identifiable client', clientContact: fixture.email,
+    } });
+    const correctedEmail = `${id()}@Corrected.test`;
+    const pending = await request(fixture.email, { requestType: 'correction' });
+    const result = await service.executeRequest(pending.id, {
+      correction: { name: 'Corrected Client', email: correctedEmail },
+    }, operator);
+
+    expect(result.status).toBe('executed');
+    expect(await prisma.opsInquiry.findUniqueOrThrow({ where: { id: fixture.inquiryId } })).toMatchObject({
+      clientName: 'Corrected Client', email: correctedEmail.toLowerCase(), normalizedEmail: correctedEmail.toLowerCase(),
+      eventName: 'P0 privacy fixture',
+    });
+    expect((await prisma.opsEvent.findUniqueOrThrow({ where: { id: fixture.event.id } })).clientName).toBe('Corrected Client');
+    expect(await prisma.opsBillingStatement.findUniqueOrThrow({ where: { id: billing.id } })).toMatchObject({
+      clientName: 'Corrected Client', clientContact: correctedEmail.toLowerCase(),
+    });
+    expect((await prisma.opsInquiry.findUniqueOrThrow({ where: { id: other.inquiryId } })).clientName).toBe('Identifiable client');
+
+    const rows = await auditRows(pending.id);
+    expect(rows.filter((row) => row.affectedId === pending.id)).toHaveLength(1);
+    expect(rows.some((row) => row.affectedType === 'privacy_owner_correction_receipt')).toBe(true);
+    expect(rows.find((row) => row.affectedId === pending.id)?.metadata).toMatchObject({ changedFields: ['name', 'email'] });
+    const audited = JSON.stringify(rows.map((row) => row.metadata));
+    expect(audited).not.toContain('Corrected Client');
+    expect(audited).not.toContain(correctedEmail.toLowerCase());
+  });
+
+  it('rolls back every corrected copy and the completion status when the correction audit cannot persist', async () => {
+    const fixture = await createClient();
+    const pending = await request(fixture.email, { requestType: 'correction' });
+    vi.spyOn(audit, 'audit').mockRejectedValueOnce(new Error('injected audit failure'));
+    await expect(service.executeRequest(pending.id, { correction: { name: 'Corrected Client' } }, operator))
+      .rejects.toThrow('injected audit failure');
+    expect((await prisma.opsInquiry.findUniqueOrThrow({ where: { id: fixture.inquiryId } })).clientName).toBe('Identifiable client');
+    expect((await prisma.opsEvent.findUniqueOrThrow({ where: { id: fixture.event.id } })).clientName).toBe('Identifiable client');
+    expect((await prisma.opsPrivacyRequest.findUniqueOrThrow({ where: { id: pending.id } })).status).toBe('approved');
+    expect(await auditRows(pending.id)).toHaveLength(0);
   });
 
   it('redacts only the selected event guest and keeps a namesake in another event', async () => {
