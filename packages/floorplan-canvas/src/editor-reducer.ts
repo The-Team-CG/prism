@@ -35,6 +35,7 @@ export type Action =
   | { type: "DELETE_GUEST"; id: string }
   | { type: "ASSIGN_GUEST"; guestId: string; objectId: string }
   | { type: "UNASSIGN_GUEST"; guestId: string }
+  | { type: "DISMISS_ASSIGNMENT_REJECTION" }
   | { type: "ADD_SUPPLIER"; supplier: Supplier }
   | { type: "UPDATE_SUPPLIER"; id: string; patch: Partial<Supplier> }
   | { type: "DELETE_SUPPLIER"; id: string }
@@ -312,12 +313,23 @@ export const handlers: ActionHandlers = {
       guestId: action.guestId,
       objectId: action.objectId,
     });
-    if (!eligibility.eligible) return state;
+    if (!eligibility.eligible) {
+      return {
+        ...state,
+        assignmentRejection: { guestId: action.guestId, objectId: action.objectId, reason: eligibility.reason },
+      };
+    }
     const s = pushHistory(state);
-    return withTouchedProject(s, {
-      ...s.project,
-      objects: s.project.objects.map((o) => assignGuestOnObject(o, action.guestId, action.objectId)),
-    });
+    return {
+      ...withTouchedProject(s, {
+        ...s.project,
+        objects: s.project.objects.map((o) => assignGuestOnObject(o, action.guestId, action.objectId)),
+      }),
+      assignmentRejection: null,
+    };
+  },
+  DISMISS_ASSIGNMENT_REJECTION(state) {
+    return state.assignmentRejection ? { ...state, assignmentRejection: null } : state;
   },
   UNASSIGN_GUEST(state, action) {
     const s = pushHistory(state);
