@@ -91,7 +91,7 @@ describe('OpsEventBillingController', () => {
     await expect(controller.resolveBillingCorrection('evt_sample', 'corr_new', { action: 'approve' }, actor as never)).resolves.toEqual({ id: 'corr_new', status: 'approved' });
     await expect(controller.createBillingDispute('evt_sample', { statementId: 'bill_new', amount: 500, reason: 'Duplicate charge', idempotencyKey: 'dispute-controller-1' }, actor as never)).resolves.toEqual({ id: 'dispute_new' });
     await expect(controller.resolveBillingDispute('evt_sample', 'dispute_new', { action: 'resolve', resolutionNotes: 'Reviewed' }, actor as never)).resolves.toEqual({ id: 'dispute_new', status: 'resolved' });
-    await expect(controller.createAdditionalBilling('evt_sample', { urgentIssueId: 'issue_new', description: 'Overtime', amount: 500, idempotencyKey: 'additional-controller-1' }, actor as never)).resolves.toEqual({ id: 'addbill_new' });
+    await expect(controller.createAdditionalBilling('evt_sample', { urgentIssueId: 'issue_new', billingSourceId: 'bsrc_approved', description: 'Overtime', amount: 500, idempotencyKey: 'additional-controller-1' }, actor as never)).resolves.toEqual({ id: 'addbill_new' });
     await expect(controller.waiveAdditionalBilling('evt_sample', 'addbill_new', { reason: 'Approved goodwill' }, actor as never)).resolves.toEqual({ id: 'addbill_new', status: 'waived' });
 
     expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledTimes(12);
@@ -127,7 +127,7 @@ describe('OpsEventBillingController', () => {
     expect(billingAdjustmentService.resolveBillingCorrection).toHaveBeenCalledWith('evt_sample', 'corr_new', { action: 'approve' }, expect.objectContaining({ id: 'user_maxine' }));
     expect(billingAdjustmentService.createBillingDispute).toHaveBeenCalledWith('evt_sample', { statementId: 'bill_new', amount: 500, reason: 'Duplicate charge', idempotencyKey: 'dispute-controller-1' }, expect.objectContaining({ id: 'user_maxine' }));
     expect(billingAdjustmentService.resolveBillingDispute).toHaveBeenCalledWith('evt_sample', 'dispute_new', { action: 'resolve', resolutionNotes: 'Reviewed' }, expect.objectContaining({ id: 'user_maxine' }));
-    expect(billingAdjustmentService.createAdditionalBilling).toHaveBeenCalledWith('evt_sample', { urgentIssueId: 'issue_new', description: 'Overtime', amount: 500, idempotencyKey: 'additional-controller-1' }, expect.objectContaining({ id: 'user_maxine' }));
+    expect(billingAdjustmentService.createAdditionalBilling).toHaveBeenCalledWith('evt_sample', { urgentIssueId: 'issue_new', billingSourceId: 'bsrc_approved', description: 'Overtime', amount: 500, idempotencyKey: 'additional-controller-1' }, expect.objectContaining({ id: 'user_maxine' }));
     expect(billingAdjustmentService.waiveAdditionalBilling).toHaveBeenCalledWith('evt_sample', 'addbill_new', { reason: 'Approved goodwill' }, expect.objectContaining({ id: 'user_maxine' }));
   });
 

@@ -779,6 +779,7 @@ describe('EventReadModelsService', () => {
         mapDocument: (document) => document,
         mapBriefing: (briefing) => briefing,
         mapBillingStatement: (statement) => statement,
+        mapClientBillingDispute: (dispute) => dispute,
         mapPaymentMilestone: (payment) => payment,
         mapFloorPlanDraft: (draft) => draft,
         mapAuditLog: (log) => log,
