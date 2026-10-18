@@ -116,11 +116,11 @@ export type StartEventWrapUpInput = z.infer<typeof startEventWrapUpSchema>;
 export const updateEventWrapUpSchema = z.object({
   mode: wrapUpModeSchema.optional(),
   requiredItems: z.record(z.string(), z.boolean()).optional(),
+  // Logistics is not writable here: its checklist state mirrors the PMCM logistics completion record.
   sections: z.object({
-    logistics: wrapUpSectionSchema.optional(),
     issues: wrapUpSectionSchema.optional(),
     feedback: wrapUpSectionSchema.optional(),
-  }).optional(),
+  }).strict().optional(),
   clientAcknowledged: z.boolean().optional(),
   clientAcknowledgementNote: z.string().trim().max(2000).optional(),
 });

@@ -81,16 +81,19 @@ describe('EventClosureService wrap-up', () => {
     await expect(service.startWrapUp('evt_1', { mode: 'full' }, { ...actor, role: 'client' })).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('persists section completion evidence and client acknowledgement', async () => {
+  it('persists issue and feedback evidence and client acknowledgement, while logistics stays owned by the logistics record', async () => {
     const { service, records } = harness();
     const completed = { status: 'complete' as const, evidence: 'Verified by PMCM', completedAt: null };
     const updated = await service.updateWrapUp('evt_1', {
       requiredItems: { post_event_documents: true, billing: true, logistics: true, issues: true, feedback: true },
-      sections: { logistics: completed, issues: completed, feedback: completed },
+      sections: { issues: completed, feedback: completed },
       clientAcknowledged: true,
     }, actor);
-    expect(updated.status).toBe('complete');
-    expect(records[0].sections.logistics.completedAt).toEqual(expect.any(String));
+    // No logistics completion record exists in this harness, so the checklist cannot complete.
+    expect(updated.status).toBe('pending');
+    expect(records[0].sections.issues.status).toBe('complete');
+    expect(records[0].sections.logistics).toMatchObject({ status: 'pending' });
+    expect(records[0].requiredItems.logistics).toBe(false);
     expect(records[0].acknowledgementRecordedBy).toBe(actor.id);
     expect(records[0].acknowledgementSource).toBe('pmcm_recorded');
   });
