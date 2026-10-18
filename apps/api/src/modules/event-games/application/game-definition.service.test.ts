@@ -199,7 +199,7 @@ describe('GameDefinitionService', () => {
     );
   });
   it('validates event-owned media references before appending a draft version', async () => {
-    const mediaObjectIds = ['obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5'];
+    const mediaObjectIds = ['obj_00000000-0000-4000-8000-000000000101'];
     const { service, store, mediaStorage, transaction } = createDefinitionService();
 
     await service.updateDraft(eventId, gameId, actor(), { mediaObjectIds });
@@ -215,7 +215,7 @@ describe('GameDefinitionService', () => {
   });
 
   it('links a picture template to its event-owned media object before saving the draft version', async () => {
-    const mediaObjectId = 'obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5';
+    const mediaObjectId = 'obj_00000000-0000-4000-8000-000000000101';
     const { service, store, mediaStorage, transaction } = createDefinitionService();
     const configuration = {
       kind: 'guess-picture' as const,
@@ -237,8 +237,8 @@ describe('GameDefinitionService', () => {
   });
 
   it('links and validates every Singleplayer picture and comparison image from its strict configuration', async () => {
-    const mediaA = 'obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5';
-    const mediaB = 'obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b6';
+    const mediaA = 'obj_00000000-0000-4000-8000-000000000101';
+    const mediaB = 'obj_00000000-0000-4000-8000-000000000102';
     const { service, store, mediaStorage, transaction } = createDefinitionService();
     store.findDraftForUpdate.mockResolvedValue({
       id: gameId, eventId, kind: 'spot-the-difference', entryMode: 'independent', status: 'draft',
@@ -261,8 +261,8 @@ describe('GameDefinitionService', () => {
   });
 
   it('rejects Singleplayer media lists that do not match all configured images', async () => {
-    const mediaA = 'obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5';
-    const mediaB = 'obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b6';
+    const mediaA = 'obj_00000000-0000-4000-8000-000000000101';
+    const mediaB = 'obj_00000000-0000-4000-8000-000000000102';
     const { service, store, audit } = createDefinitionService();
     store.findDraftForUpdate.mockResolvedValue({
       id: gameId, eventId, kind: 'spot-the-difference', entryMode: 'independent', status: 'draft',
@@ -304,7 +304,7 @@ describe('GameDefinitionService', () => {
     const { service, store, audit } = createDefinitionService({ mediaStorage });
 
     await expect(service.updateDraft(eventId, gameId, actor(), {
-      mediaObjectIds: ['obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5'],
+      mediaObjectIds: ['obj_00000000-0000-4000-8000-000000000101'],
     })).rejects.toBeInstanceOf(NotFoundException);
 
     expect(store.appendDraftVersion).not.toHaveBeenCalled();
@@ -445,7 +445,7 @@ describe('GameDefinitionService', () => {
   });
 
   it('revalidates stored media references before publishing a draft', async () => {
-    const mediaObjectIds = ['obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5'];
+    const mediaObjectIds = ['obj_00000000-0000-4000-8000-000000000101'];
     const rule = { validateConfiguration: vi.fn().mockReturnValue([]) };
     const { service, store, mediaStorage, transaction } = createDefinitionService({
       rules: { get: vi.fn().mockReturnValue(rule) },
@@ -474,17 +474,17 @@ describe('GameDefinitionService', () => {
   it('requests game image uploads only for an editable game in an open event', async () => {
     const request: RequestEventGameMediaUploadInput = {
       fileName: 'clue.png', contentType: 'image/png', declaredByteSize: 512,
-      checksumSha256: 'a'.repeat(64), idempotencyKey: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5',
+      checksumSha256: 'a'.repeat(64), idempotencyKey: '00000000-0000-4000-8000-000000000101',
     };
     const requestGameMediaUpload = vi.fn().mockResolvedValue({
-      objectId: 'obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444',
+      objectId: 'obj_00000000-0000-4000-8000-000000000107',
       uploadUrl: 'https://storage.example.test/upload', expiresAt: '2026-10-17T04:15:00.000Z', alreadyStored: false,
     });
     const mediaStorage = { validateReferences: vi.fn(), requestGameMediaUpload };
     const { service, store, transaction } = createDefinitionService({ mediaStorage });
 
     await expect(service.requestGameMediaUpload(eventId, gameId, actor(), request)).resolves.toMatchObject({
-      objectId: 'obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444',
+      objectId: 'obj_00000000-0000-4000-8000-000000000107',
     });
 
     expect(store.findDraftForUpdate).toHaveBeenCalledWith({ eventId, gameId }, transaction);
@@ -494,7 +494,7 @@ describe('GameDefinitionService', () => {
   it('does not request game media for a closed event or an unavailable game draft', async () => {
     const request = {
       fileName: 'clue.png', contentType: 'image/png', declaredByteSize: 512,
-      checksumSha256: 'a'.repeat(64), idempotencyKey: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5',
+      checksumSha256: 'a'.repeat(64), idempotencyKey: '00000000-0000-4000-8000-000000000101',
     } as RequestEventGameMediaUploadInput;
     const requestGameMediaUpload = vi.fn();
     const closedAccess = { assertHostAccess: vi.fn(), isEventOpen: vi.fn().mockResolvedValue(false) };
