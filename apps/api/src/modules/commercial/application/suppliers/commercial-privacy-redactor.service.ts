@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
+import type { PrismPrivacyExportSection } from '@prism/types';
 import type { CommercialPrivacyRedactor, CommercialRedactionResult } from '../../contracts/privacy-redaction.port';
 
 @Injectable()
@@ -49,5 +50,93 @@ export class CommercialPrivacyRedactorService implements CommercialPrivacyRedact
       ],
       touchedRecords: suppliers.count + applications.count,
     };
+  }
+
+  /** Billing copies for the subject's own events. Statement line items stay out of the export. */
+  async exportClientBilling(input: { eventIds: string[] }, transaction: Prisma.TransactionClient): Promise<PrismPrivacyExportSection[]> {
+    const statements = input.eventIds.length
+      ? await transaction.opsBillingStatement.findMany({
+          where: { eventId: { in: input.eventIds } },
+          select: {
+            id: true, eventId: true, number: true, clientName: true, clientContact: true, eventName: true,
+            eventDate: true, totalAmount: true, status: true, sentAt: true, generatedAt: true,
+          },
+        })
+      : [];
+    return statements.length
+      ? [{
+          owner: 'commercial',
+          surface: 'billing_client_copy',
+          records: statements.map((statement) => ({
+            id: statement.id,
+            eventId: statement.eventId,
+            number: statement.number,
+            clientName: statement.clientName,
+            clientContact: statement.clientContact,
+            eventName: statement.eventName,
+            eventDate: statement.eventDate?.toISOString() ?? null,
+            totalAmount: statement.totalAmount,
+            status: statement.status,
+            sentAt: statement.sentAt?.toISOString() ?? null,
+            generatedAt: statement.generatedAt.toISOString(),
+          })),
+        }]
+      : [];
+  }
+
+  /** Supplier profile and applications. PMCM performance notes and decline reasons are internal and stay out. */
+  async exportSupplier(input: { email: string }, transaction: Prisma.TransactionClient): Promise<PrismPrivacyExportSection[]> {
+    const suppliers = await transaction.opsSupplier.findMany({
+      where: { email: { equals: input.email, mode: 'insensitive' } },
+      select: { id: true, name: true, contactName: true, email: true, phone: true, tier: true, serviceInclusions: true, applicationDate: true, createdAt: true },
+    });
+    const applications = await transaction.opsSupplierApplication.findMany({
+      where: { OR: [{ email: { equals: input.email, mode: 'insensitive' } }, { normalizedEmail: input.email.trim().toLowerCase() }] },
+      select: {
+        id: true, companyName: true, contactName: true, email: true, phone: true, pastEvents: true, serviceInclusions: true,
+        certifications: true, priceRange: true, portfolioUrl: true, additionalNotes: true, status: true,
+        privacyConsentAccepted: true, privacyNoticeVersion: true, createdAt: true, reviewedAt: true,
+      },
+    });
+    const sections: PrismPrivacyExportSection[] = [
+      {
+        owner: 'commercial',
+        surface: 'supplier',
+        records: suppliers.map((supplier) => ({
+          id: supplier.id,
+          name: supplier.name,
+          contactName: supplier.contactName,
+          email: supplier.email,
+          phone: supplier.phone,
+          tier: supplier.tier,
+          serviceInclusions: supplier.serviceInclusions,
+          applicationDate: supplier.applicationDate.toISOString(),
+          createdAt: supplier.createdAt.toISOString(),
+        })),
+      },
+      {
+        owner: 'commercial',
+        surface: 'supplier_application',
+        records: applications.map((application) => ({
+          id: application.id,
+          companyName: application.companyName,
+          contactName: application.contactName,
+          email: application.email,
+          phone: application.phone,
+          pastEvents: application.pastEvents,
+          serviceInclusions: application.serviceInclusions,
+          certifications: application.certifications,
+          priceRange: application.priceRange,
+          portfolioUrl: application.portfolioUrl,
+          additionalNotes: application.additionalNotes,
+          status: application.status,
+          privacyConsentAccepted: application.privacyConsentAccepted,
+          privacyNoticeVersion: application.privacyNoticeVersion,
+          createdAt: application.createdAt.toISOString(),
+          reviewedAt: application.reviewedAt?.toISOString() ?? null,
+        })),
+      },
+    ];
+    return sections.filter((section) => section.records.length > 0);
   }
 }
