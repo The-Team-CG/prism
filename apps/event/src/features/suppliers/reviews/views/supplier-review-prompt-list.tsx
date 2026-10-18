@@ -1,5 +1,4 @@
 import { CheckCircle2, ClipboardCheck } from "lucide-react";
-import { useState } from "react";
 import type {
   CreateSupplierReviewInput,
   PrismEvent,
@@ -7,14 +6,12 @@ import type {
   PrismSupplierCategory,
   PrismSupplierQuoteRequest,
 } from "@prism/types";
-import {
-  SupplierReviewPanel,
-  type SupplierReviewForm,
-} from "./supplier-review-panel";
+import { SupplierReviewPanel } from "./supplier-review-panel";
 import {
   selectSupplierReviewSubjects,
   type SupplierReviewSubject,
 } from "../model/supplier-review-rules";
+import { useSupplierAssessmentForm } from "../view-models/use-supplier-assessment-form";
 
 export type SupplierReviewPromptListProps = {
   event: PrismEvent;
@@ -24,13 +21,6 @@ export type SupplierReviewPromptListProps = {
   busy: boolean;
   onAddReview: (supplierId: string, input: CreateSupplierReviewInput) => Promise<boolean>;
 };
-
-function newIdempotencyKey() {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  return `supplier-review-${Date.now()}`;
-}
 
 export function SupplierReviewPromptList({
   event,
@@ -90,31 +80,13 @@ function SupplierReviewPromptCard({
   busy: boolean;
   onAddReview: (supplierId: string, input: CreateSupplierReviewInput) => Promise<boolean>;
 }) {
-  const [reviewForm, setReviewForm] = useState<SupplierReviewForm>({ rating: "4", notes: "" });
-  const [reviewDimensionRatings, setReviewDimensionRatings] = useState<Record<string, string>>({});
-  const [completed, setCompleted] = useState(subject.completed);
-  const [idempotencyKey] = useState(newIdempotencyKey);
-
-  async function submitReview() {
-    if (completed || !reviewForm.notes.trim()) return;
-
-    const dimensionRatings = Object.entries(reviewDimensionRatings)
-      .filter(([, value]) => value)
-      .map(([dimensionId, value]) => ({ dimensionId, rating: Number(value) }));
-    const input: CreateSupplierReviewInput = {
-      rating: Number(reviewForm.rating),
-      notes: reviewForm.notes,
-      dimensionRatings: dimensionRatings.length > 0 ? dimensionRatings : undefined,
-      idempotencyKey,
-    };
-
-    try {
-      const succeeded = await onAddReview(subject.supplier.id, input);
-      if (succeeded) setCompleted(true);
-    } catch {
-      // The dashboard adapter owns the shared error channel; keep this draft editable.
-    }
-  }
+  const form = useSupplierAssessmentForm({
+    supplierId: subject.supplier.id,
+    dimensions: category?.reviewDimensions ?? [],
+    initiallyCompleted: subject.completed,
+    onAddReview,
+  });
+  const { completed } = form;
 
   return (
     <article className="rounded-lg border border-border bg-background p-4">
@@ -131,13 +103,16 @@ function SupplierReviewPromptCard({
       </div>
       {!completed && (
         <SupplierReviewPanel
-          reviewForm={reviewForm}
-          reviewDimensionRatings={reviewDimensionRatings}
+          reviewForm={{ rating: form.draft.rating, notes: form.draft.notes }}
+          reviewDimensionRatings={form.dimensionRatings}
           dimensions={category?.reviewDimensions ?? []}
           busy={busy}
-          onReviewForm={(patch) => setReviewForm((current) => ({ ...current, ...patch }))}
-          onReviewDimension={(dimensionId, value) => setReviewDimensionRatings((current) => ({ ...current, [dimensionId]: value }))}
-          onSubmitReview={() => { void submitReview(); }}
+          onReviewForm={form.updateDraft}
+          onReviewDimension={form.updateDimension}
+          onSubmitReview={() => { void form.submit(); }}
+          canSubmit={form.canSubmit}
+          missingDimensionNames={form.missingDimensionNames}
+          validationMessage={form.validationMessage}
         />
       )}
     </article>
