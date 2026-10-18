@@ -1,4 +1,5 @@
-import type { OpsDocument, OpsEvent, OpsFloorPlanDraft, OpsInquiry } from '@prisma/client';
+import type { OpsDocument, OpsEvent, OpsFloorPlanDraft, OpsInquiry, OpsInquiryMerge } from '@prisma/client';
+import { isDeterministicHighFitInquiry } from '../../domain/inquiry-triage.policy';
 
 type EventWithDrafts = OpsEvent & { floorPlanDrafts?: OpsFloorPlanDraft[] };
 
@@ -74,9 +75,74 @@ function inquiryTriageFields(inquiry: OpsInquiry) {
   };
 }
 
-export function mapInquiry(inquiry: OpsInquiry) {
+export type InquiryMergeRow = OpsInquiryMerge & { mergedInquiry?: Pick<OpsInquiry, 'clientName'> & { eventName?: string } };
+
+export type InquiryCueRow = OpsInquiry & {
+  statusHistory?: Array<{ id: string; fromStatus: string | null; toStatus: string; transition: string; actorId: string | null; actorRole: string | null; actorName: string | null; createdAt: Date }>;
+  mergedInto?: OpsInquiryMerge | null;
+  mergesAsPrimary?: InquiryMergeRow[];
+};
+
+/** Same-organization inquiries that are still open; computed by the list query, not stored. */
+export interface InquiryListCues {
+  parallelInquiryIds: string[];
+}
+
+export function mapInquiry(inquiry: InquiryCueRow, cues?: InquiryListCues) {
   const reminderDueAt = inquiryReminderDueAt(inquiry);
-  const statusHistory = (inquiry as OpsInquiry & { statusHistory?: Array<{ id: string; fromStatus: string | null; toStatus: string; transition: string; actorId: string | null; actorRole: string | null; actorName: string | null; createdAt: Date }> }).statusHistory;
+  const statusHistory = inquiry.statusHistory;
+  return {
+    ...mapInquiryCore(inquiry, reminderDueAt, statusHistory),
+    organizationKey: inquiry.organizationKey ?? null,
+    mergedIntoInquiryId: inquiry.mergedInto?.primaryInquiryId ?? null,
+    mergeHistory: (inquiry.mergesAsPrimary ?? []).map((merge) => ({
+      id: merge.id,
+      primaryInquiryId: merge.primaryInquiryId,
+      mergedInquiryId: merge.mergedInquiryId,
+      mergedInquiryName: merge.mergedInquiry?.clientName ?? '',
+      matchBasis: merge.matchBasis === 'organization' ? 'organization' : 'email',
+      reason: merge.reason,
+      actorName: merge.actorName,
+      actorRole: merge.actorRole,
+      createdAt: timestamp(merge.createdAt),
+    })),
+    parallelInquiryIds: cues?.parallelInquiryIds ?? [],
+    highFit: isDeterministicHighFitInquiry(
+      { clientType: inquiry.clientType, companyName: inquiry.companyName, eventDate: inquiry.eventDate },
+      new Date(),
+    ),
+  };
+}
+
+/**
+ * Public inquiry response. Strips every PMCM triage field (duplicate and previous-decline flags,
+ * logged-by, organization, merge and high-fit cues) so the public path never echoes PMCM state.
+ */
+export function mapPublicInquiryReceipt(inquiry: OpsInquiry) {
+  const mapped = mapInquiry(inquiry);
+  const {
+    duplicateOfInquiryId: _duplicateOfInquiryId,
+    previousDeclinedInquiryId: _previousDeclinedInquiryId,
+    previousDeclineReason: _previousDeclineReason,
+    duplicate: _duplicate,
+    previouslyDeclined: _previouslyDeclined,
+    loggedByRole: _loggedByRole,
+    loggedByName: _loggedByName,
+    organizationKey: _organizationKey,
+    mergedIntoInquiryId: _mergedIntoInquiryId,
+    mergeHistory: _mergeHistory,
+    parallelInquiryIds: _parallelInquiryIds,
+    highFit: _highFit,
+    ...publicFields
+  } = mapped;
+  return publicFields;
+}
+
+function mapInquiryCore(
+  inquiry: OpsInquiry,
+  reminderDueAt: Date | null,
+  statusHistory: InquiryCueRow['statusHistory'],
+) {
   return {
     id: inquiry.id,
     clientName: inquiry.clientName,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { useEffect, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import {
   AlertCircle,
   CalendarDays,
@@ -20,8 +20,11 @@ import { EmptyState } from "@/app/components/ui/empty-state";
 import type { PrismInquiry } from "@prism/types";
 import { compactTimestamp, label } from "@/features/pmcm-kit";
 import {
+  canMergeInquiry,
   declineReasons,
   inquiryExtraDetailFields,
+  inquiryHistoryCues,
+  inquiryMergeCandidates,
   inquiryStatusAccent,
   isInquiryLogFormReady,
   logFormChannels,
@@ -246,6 +249,8 @@ export function InquiryDetailDrawer({
   onAccept,
   onPend,
   onDecline,
+  allInquiries,
+  onMerge,
 }: {
   inquiry: PrismInquiry;
   busy: boolean;
@@ -253,6 +258,8 @@ export function InquiryDetailDrawer({
   onAccept: () => void;
   onPend: () => void;
   onDecline: () => void;
+  allInquiries: PrismInquiry[];
+  onMerge: (primary: PrismInquiry, reason: string) => Promise<void>;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/35">
@@ -262,6 +269,7 @@ export function InquiryDetailDrawer({
         <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
           <InquiryDetailFlags inquiry={inquiry} />
           <InquiryDetailFields inquiry={inquiry} />
+          <InquiryHistorySection inquiry={inquiry} allInquiries={allInquiries} busy={busy} onMerge={onMerge} />
           <section className="rounded-lg border border-border bg-background px-4 py-3">
             <div className="flex items-center gap-2">
               <MessageSquareText className="size-4 text-(--prism-signal)" />
@@ -335,6 +343,99 @@ function InquiryDetailFields({ inquiry }: { inquiry: PrismInquiry }) {
       <DetailField label="Source" value={inquiry.source} />
       <DetailField label="Received" value={compactTimestamp(inquiry.createdAt)} />
       <DetailField label="Status updated" value={compactTimestamp(inquiry.acceptedAt || inquiry.pendingAt || inquiry.declinedAt)} />
+    </div>
+  );
+}
+
+function InquiryHistorySection({
+  inquiry,
+  allInquiries,
+  busy,
+  onMerge,
+}: {
+  inquiry: PrismInquiry;
+  allInquiries: PrismInquiry[];
+  busy: boolean;
+  onMerge: (primary: PrismInquiry, reason: string) => Promise<void>;
+}) {
+  const cues = inquiryHistoryCues(inquiry, allInquiries);
+  const candidates = inquiryMergeCandidates(inquiry, allInquiries);
+  const mergeAllowed = canMergeInquiry(inquiry);
+  return (
+    <section className="space-y-3 rounded-lg border border-border bg-background px-4 py-3">
+      <div className="flex items-center gap-2">
+        <ClipboardList className="size-4 text-(--prism-signal)" />
+        <h4 className="text-sm font-bold text-foreground">Organization and history</h4>
+      </div>
+      {cues.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No duplicate, decline, or organization history on record.</p>
+      ) : (
+        <ul className="space-y-1.5 text-sm text-muted-foreground">
+          {cues.map((cue) => (
+            <li key={cue}>{cue}</li>
+          ))}
+        </ul>
+      )}
+      {mergeAllowed && candidates.length > 0 ? (
+        <InquiryMergeForm candidates={candidates} busy={busy} onMerge={onMerge} />
+      ) : null}
+    </section>
+  );
+}
+
+function InquiryMergeForm({
+  candidates,
+  busy,
+  onMerge,
+}: {
+  candidates: PrismInquiry[];
+  busy: boolean;
+  onMerge: (primary: PrismInquiry, reason: string) => Promise<void>;
+}) {
+  const [primaryId, setPrimaryId] = useState(candidates[0]?.id ?? "");
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const primary = candidates.find((candidate) => candidate.id === primaryId) ?? candidates[0];
+
+  async function submit() {
+    if (!primary || !reason.trim()) return;
+    setError(null);
+    try {
+      await onMerge(primary, reason.trim());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Merge failed");
+    }
+  }
+
+  return (
+    <div className="space-y-2 border-t border-border pt-3">
+      <label className="block text-xs font-bold text-muted-foreground" htmlFor="inquiry-merge-primary">
+        Merge this inquiry into
+      </label>
+      <select
+        id="inquiry-merge-primary"
+        value={primary?.id ?? ""}
+        onChange={(event) => setPrimaryId(event.target.value)}
+        className="h-9 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground"
+      >
+        {candidates.map((candidate) => (
+          <option key={candidate.id} value={candidate.id}>
+            {candidate.clientName} - {candidate.eventName} ({candidate.status})
+          </option>
+        ))}
+      </select>
+      <Input
+        aria-label="Merge reason"
+        placeholder="Reason for merging (kept in the audit trail)"
+        value={reason}
+        onChange={(event) => setReason(event.target.value)}
+      />
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <div className="flex justify-end">
+        <Button size="sm" variant="outline" disabled={busy || !reason.trim() || !primary} onClick={() => void submit()} className="rounded-lg font-bold">
+          Merge inquiry
+        </Button>
+      </div>
     </div>
   );
 }

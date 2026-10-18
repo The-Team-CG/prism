@@ -92,6 +92,7 @@ describe('SuppliersService', () => {
         findMany: async () => [{ id: 'dim_quality' }],
       },
       opsSupplierReview: {
+        findFirst: async () => null,
         create: async (args: any) => {
           createCalls.push(args);
           return { id: args.data.id };
@@ -125,6 +126,7 @@ describe('SuppliersService', () => {
       opsSupplierQuoteRequest: { findFirst: async () => ({ id: 'req_1' }) },
       opsSupplierReviewDimension: { findMany: async () => [{ id: 'dim_quality' }] },
       opsSupplierReview: {
+        findFirst: async () => null,
         create: async () => ({ id: 'review_tx' }),
       },
     };
@@ -137,7 +139,9 @@ describe('SuppliersService', () => {
     };
     const service = new SuppliersService(root as never, eventReferences, facts);
 
-    const result = await service.addSupplierReview('sup_1', { eventId: 'evt_1', rating: 5, notes: 'Tx' }, 'Reviewer Two', {
+    const result = await service.addSupplierReview('sup_1', {
+      eventId: 'evt_1', rating: 5, notes: 'Tx', dimensionRatings: [{ dimensionId: 'dim_quality', rating: 4 }],
+    }, 'Reviewer Two', {
       prisma: tx as never,
       correlationId: 'test',
     } satisfies PrismTransactionContext);
@@ -221,11 +225,12 @@ describe('SuppliersService', () => {
       opsSupplier: { findUnique: async () => baseSupplierRow() },
       opsEvent: { findUnique: async () => ({ eventDate: new Date('2026-01-01'), status: 'closed' }) },
       opsSupplierQuoteRequest: { findFirst: async () => ({ id: 'req_1' }) },
+      opsSupplierReviewDimension: { findMany: async () => [] },
       opsSupplierReview: {
         create: async () => {
           throw makeP2002(['idempotencyKey']);
         },
-        findFirst: async () => ({ id: 'review_existing', supplierId: 'sup_1', eventId: 'evt_1', rating: 5, notes: 'Retry', reviewedBy: 'Reviewer Three' }),
+        findFirst: async () => ({ id: 'review_existing', supplierId: 'sup_1', eventId: 'evt_1', rating: 5, notes: 'Retry', reviewedBy: 'Reviewer Three', idempotencyKey: 'draft-key-1' }),
       },
     };
 
@@ -239,18 +244,99 @@ describe('SuppliersService', () => {
     expect(result.reviewId).toBe('review_existing');
   });
 
+  it('rejects a second assessment for the same supplier and event under a different key', async () => {
+    const create = vi.fn();
+    const prisma = {
+      opsSupplier: { findUnique: async () => baseSupplierRow() },
+      opsEvent: { findUnique: async () => ({ eventDate: new Date('2026-01-01'), status: 'closed' }) },
+      opsSupplierQuoteRequest: { findFirst: async () => ({ id: 'req_1' }) },
+      opsSupplierReviewDimension: { findMany: async () => [] },
+      opsSupplierReview: {
+        findFirst: async () => ({ id: 'review_first', idempotencyKey: 'first-key' }),
+        create,
+      },
+    };
+
+    const service = new SuppliersService(prisma as any, eventReferences, commercialFacts);
+    await expect(service.addSupplierReview('sup_1', {
+      eventId: 'evt_1', rating: 3, notes: 'Second pass', idempotencyKey: 'second-key',
+    }, 'Reviewer Two')).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.addSupplierReview('sup_1', {
+      eventId: 'evt_1', rating: 3, notes: 'Second pass',
+    }, 'Reviewer Two')).rejects.toBeInstanceOf(BadRequestException);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { name: 'omits an active dimension', ratings: [{ dimensionId: 'dim_quality', rating: 4 }], message: 'Every active supplier review dimension must be rated' },
+    { name: 'rates no dimensions at all', ratings: undefined, message: 'Every active supplier review dimension must be rated' },
+    { name: 'includes a dimension outside the category', ratings: [{ dimensionId: 'dim_quality', rating: 4 }, { dimensionId: 'dim_foreign', rating: 2 }], message: "Dimension rating does not belong to the supplier's category" },
+  ])('rejects a review that $name for the category', async ({ ratings, message }) => {
+    const create = vi.fn();
+    const prisma = {
+      opsSupplier: { findUnique: async () => baseSupplierRow() },
+      opsEvent: { findUnique: async () => ({ eventDate: new Date('2026-01-01'), status: 'closed' }) },
+      opsSupplierQuoteRequest: { findFirst: async () => ({ id: 'req_1' }) },
+      opsSupplierReviewDimension: { findMany: async () => [{ id: 'dim_quality' }, { id: 'dim_speed' }] },
+      opsSupplierReview: { findFirst: async () => null, create },
+    };
+
+    const service = new SuppliersService(prisma as any, eventReferences, commercialFacts);
+    await expect(service.addSupplierReview('sup_1', {
+      eventId: 'evt_1', rating: 4, notes: 'Incomplete', dimensionRatings: ratings,
+    }, 'Reviewer Five')).rejects.toMatchObject({ status: 400, message });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('accepts a review without dimension ratings when the category has no active dimensions', async () => {
+    const create = vi.fn(async (args: any) => ({ id: args.data.id }));
+    const prisma = {
+      opsSupplier: { findUnique: async () => baseSupplierRow() },
+      opsEvent: { findUnique: async () => ({ eventDate: new Date('2026-01-01'), status: 'closed' }) },
+      opsSupplierQuoteRequest: { findFirst: async () => ({ id: 'req_1' }) },
+      opsSupplierReviewDimension: { findMany: async () => [] },
+      opsSupplierReview: { findFirst: async () => null, create },
+    };
+
+    const service = new SuppliersService(prisma as any, eventReferences, commercialFacts);
+    await service.addSupplierReview('sup_1', { eventId: 'evt_1', rating: 4, notes: 'No dimensions configured' }, 'Reviewer Six');
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it('maps a racing second assessment caught by the database unique index to the same 400 conflict', async () => {
+    const prisma = {
+      opsSupplier: { findUnique: async () => baseSupplierRow() },
+      opsEvent: { findUnique: async () => ({ eventDate: new Date('2026-01-01'), status: 'closed' }) },
+      opsSupplierQuoteRequest: { findFirst: async () => ({ id: 'req_1' }) },
+      opsSupplierReviewDimension: { findMany: async () => [] },
+      opsSupplierReview: {
+        findFirst: async () => null,
+        create: async () => {
+          throw makeP2002(['supplierId', 'eventId']);
+        },
+      },
+    };
+
+    const service = new SuppliersService(prisma as any, eventReferences, commercialFacts);
+    await expect(service.addSupplierReview('sup_1', {
+      eventId: 'evt_1', rating: 4, notes: 'Racing write',
+    }, 'Reviewer Four')).rejects.toMatchObject({ status: 400, message: 'A supplier assessment already exists for this event' });
+  });
+
   it('rethrows a P2002 that does not name the idempotency key (e.g. a PK collision)', async () => {
     const error = makeP2002(['id']);
     const prisma = {
       opsSupplier: { findUnique: async () => baseSupplierRow() },
       opsEvent: { findUnique: async () => ({ eventDate: new Date('2026-01-01'), status: 'closed' }) },
       opsSupplierQuoteRequest: { findFirst: async () => ({ id: 'req_1' }) },
+      opsSupplierReviewDimension: { findMany: async () => [] },
       opsSupplierReview: {
         create: async () => {
           throw error;
         },
-        findFirst: async () => {
-          throw new Error('should not be called: this P2002 does not name the idempotency key');
+        findFirst: async (args: { where: { idempotencyKey?: string } }) => {
+          if (args.where.idempotencyKey) throw new Error('should not be called: this P2002 does not name the idempotency key');
+          return null;
         },
       },
     };

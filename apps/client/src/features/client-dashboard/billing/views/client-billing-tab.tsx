@@ -18,7 +18,7 @@ import {
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
-import type { PrismAuditLog, PrismBillingStatement, PrismBriefing, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone } from "@prism/types";
+import type { PrismAuditLog, PrismBillingStatement, PrismBriefing, PrismClientBillingDispute, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -46,9 +46,11 @@ import { clientBillingSummary, clientMilestoneFollowUpCopy, clientMilestoneRemai
 export function ClientBillingTab({
   payments,
   billing,
+  disputes = [],
 }: {
   payments: PrismPaymentMilestone[];
   billing?: PrismBillingStatement;
+  disputes?: PrismClientBillingDispute[];
 }) {
   const { totalAmount, totalPaid, balance } = clientBillingSummary(payments, billing);
 
@@ -79,6 +81,29 @@ export function ClientBillingTab({
           </div>
           <StatusBadge status={billing.status} label={formatLabel(billing.status)} />
         </div>
+      )}
+
+      {/* Dispute status: read-only; PMCM reasons and resolution notes are not shown to the client. */}
+      {disputes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <h2 className="text-sm font-bold text-foreground">Billing disputes</h2>
+            <p className="mt-1 text-xs text-muted-foreground">Status of disputes raised on your statement. PMCM will follow up on open items.</p>
+          </CardHeader>
+          <CardBody>
+            <div className="space-y-2">
+              {disputes.map((dispute) => (
+                <div key={dispute.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
+                  <div>
+                    <p className="text-sm font-bold text-foreground">{money.format(dispute.amount)} disputed</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Opened {formatDayLabel(dispute.createdAt)}{dispute.resolvedAt ? `, closed ${formatDayLabel(dispute.resolvedAt)}` : ""}</p>
+                  </div>
+                  <StatusBadge status={dispute.status} label={formatLabel(dispute.status)} />
+                </div>
+              ))}
+            </div>
+          </CardBody>
+        </Card>
       )}
 
       {/* Milestones */}
