@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
-import type { PrismBillingStatement, PrismBriefing, PrismClientActionCenter, PrismClientOcularVisit, PrismClientWorkspace, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone, PrismAuditLog, PrismNotificationLog, SubmitBriefingInput, InquiryClientCategory } from "@prism/types";
+import type { PrismBillingStatement, PrismBriefing, PrismClientActionCenter, PrismClientBillingDispute, PrismClientOcularVisit, PrismClientWorkspace, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone, PrismAuditLog, PrismNotificationLog, SubmitBriefingInput, InquiryClientCategory } from "@prism/types";
 import type { FloorPlanTemplate, Project } from "@/features/floorplan/editor";
 import type { ClientDashboardRoute, ClientPortalView, ClientSession, DetailTab } from "./model/client-dashboard-types";
 import type { ClientDashboardAction } from "./model/client-dashboard-view-rules";
@@ -64,6 +64,7 @@ export type ClientWorkspaceValue = {
   briefing: PrismBriefing | undefined;
   documents: PrismDocument[];
   payments: PrismPaymentMilestone[];
+  disputes: PrismClientBillingDispute[];
   clientActions: ClientDashboardAction[];
   nextAction: ClientDashboardAction | undefined;
   form: PreferenceForm;

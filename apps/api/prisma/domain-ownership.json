@@ -4,7 +4,7 @@
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
-    "targetSameDomainFks": 108,
+    "targetSameDomainFks": 109,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -1392,6 +1392,21 @@
       "targetCurrentSchema": "event_core",
       "targetTable": "events",
       "sameDomain": false
+    },
+    {
+      "schema": "finance_ops",
+      "table": "additional_billings",
+      "name": "additional_billings_billing_source_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (billing_source_id) REFERENCES finance_ops.billing_sources(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "billing_source_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "finance_ops",
+      "targetTable": "billing_sources",
+      "sameDomain": true
     },
     {
       "schema": "finance_ops",
