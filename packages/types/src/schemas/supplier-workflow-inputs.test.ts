@@ -5,7 +5,7 @@ describe('supplier creative workflow inputs', () => {
   it('requires a UUID idempotency key for PMCM task creation', () => {
     const payload = { requestId: 'request-1', title: 'Artwork', brief: 'Submit final artwork', dueAt: null };
 
-    expect(createSupplierCreativeTaskSchema.safeParse({ ...payload, idempotencyKey: 'e1736ec7-819c-4bd4-994e-453a8c0b48b4' }).success).toBe(true);
+    expect(createSupplierCreativeTaskSchema.safeParse({ ...payload, idempotencyKey: '00000000-0000-4000-8000-000000000001' }).success).toBe(true);
     expect(createSupplierCreativeTaskSchema.safeParse({ ...payload, idempotencyKey: 'not-a-uuid' }).success).toBe(false);
     expect(createSupplierCreativeTaskSchema.safeParse(payload).success).toBe(false);
   });

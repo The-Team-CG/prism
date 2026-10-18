@@ -143,7 +143,7 @@ describe('StorageObjectService', () => {
     const request = {
       eventId: 'evt_1', gameId: 'game-1', fileName: 'clue.png', contentType: 'image/png',
       declaredByteSize: 3, checksumSha256: createHash('sha256').update('png').digest('hex'),
-      idempotencyKey: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5', actor,
+      idempotencyKey: '00000000-0000-4000-8000-000000000002', actor,
     };
 
     const result = await service.requestEventGameMediaUpload(request);
@@ -154,7 +154,7 @@ describe('StorageObjectService', () => {
     });
     expect(store.objects[0]).toMatchObject({
       eventId: 'evt_1', ownerRecordType: 'event_game_definition', ownerRecordId: 'game-1',
-      usage: 'event_game_media', logicalTarget: 'game-media:game-1:a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5',
+      usage: 'event_game_media', logicalTarget: 'game-media:game-1:00000000-0000-4000-8000-000000000002',
     });
     await expect(service.requestUpload({
       ...request, ownerRecordType: 'event_game_definition', ownerRecordId: 'game-1',
