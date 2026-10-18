@@ -41,7 +41,7 @@ export function HandoffBriefPanel({ eventId }: { eventId: string }) {
             <Detail label="Status" value={words(brief.keyDetails.status)} />
             <Detail label="Venue" value={brief.keyDetails.venue ?? "Not recorded"} />
             <Detail label="Guests" value={brief.keyDetails.guestCount === null ? "Not recorded" : String(brief.keyDetails.guestCount)} />
-            <Detail label="Walk-in policy" value={words(brief.keyDetails.walkInPolicy)} />
+            <Detail label="Walk-in policy" value={brief.keyDetails.walkInPolicy ? words(brief.keyDetails.walkInPolicy) : "Not set"} />
             {brief.keyDetails.clientName ? <Detail label="Client" value={brief.keyDetails.clientName} /> : null}
             {brief.keyDetails.archived ? <Detail label="Archive" value="Archived, read-only" /> : null}
           </dl>

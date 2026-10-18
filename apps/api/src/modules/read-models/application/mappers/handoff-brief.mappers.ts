@@ -9,7 +9,6 @@ import type {
   PrismBriefing,
   PrismCoordinatorAssignment,
   PrismEvent,
-  PrismSupplierQuoteRequest,
   PrismUrgentIssue,
 } from '@prism/types';
 import { UrgentIssueStatus } from '@prism/kernel/event-core';
@@ -47,21 +46,31 @@ export function projectHandoffKeyDetails(
     archived: event.archived,
     venue: briefing?.venue ?? null,
     guestCount: briefing?.guestCount ?? null,
-    walkInPolicy: event.walkInPolicy,
+    walkInPolicy: event.walkInPolicy ?? null,
     clientName: includeClient ? event.clientName : null,
   };
 }
 
 /** Supplier readiness projection: status fields only, so readiness/verification notes stay private. */
-export function projectHandoffSupplier(request: PrismSupplierQuoteRequest): PrismHandoffBriefSupplier {
+export type HandoffSupplierInput = {
+  id: string;
+  supplierName: string;
+  category: string;
+  assignmentStatus?: string;
+  readinessStatus?: string;
+  eventDayStatus?: string;
+  verificationStatus?: string;
+};
+
+export function projectHandoffSupplier(request: HandoffSupplierInput): PrismHandoffBriefSupplier {
   return {
     id: request.id,
     supplierName: request.supplierName,
     category: request.category,
-    assignmentStatus: request.assignmentStatus,
-    readinessStatus: request.readinessStatus,
-    eventDayStatus: request.eventDayStatus,
-    verificationStatus: request.verificationStatus,
+    assignmentStatus: request.assignmentStatus ?? '',
+    readinessStatus: request.readinessStatus ?? '',
+    eventDayStatus: request.eventDayStatus ?? '',
+    verificationStatus: request.verificationStatus ?? '',
   };
 }
 
@@ -89,7 +98,7 @@ export function projectHandoffIssue(issue: PrismUrgentIssue): PrismHandoffBriefI
     affectedArea: issue.affectedArea,
     ownerRole: issue.ownerRole,
     ownerName: issue.ownerName,
-    slaStatus: issue.slaStatus,
+    slaStatus: issue.slaStatus ?? '',
   };
 }
 
