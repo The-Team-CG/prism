@@ -35,6 +35,7 @@ export const MAX_LIVE_OPS_LOGS = 50;
 export const MAX_EVENT_SCHEDULE_DAYS = 100;
 export const MAX_EVENT_SCHEDULE_SEGMENTS = 200;
 export const MAX_TASK_REASSIGNMENT_REQUESTS = 100;
+export const MAX_EVENT_HANDOFFS = 200;
 export const MAX_READINESS_ROWS = 500;
 export const MAX_BILLING_ROWS = 500;
 export const MAX_CLIENT_WORKSPACE_ROWS = 500;
@@ -301,6 +302,14 @@ export class EventReadModelQueries {
       include: { segments: { orderBy: [{ sequence: 'asc' }, { id: 'asc' }], take: MAX_EVENT_SCHEDULE_SEGMENTS } },
       orderBy: [{ dayDate: 'asc' }, { id: 'asc' }],
       take: MAX_EVENT_SCHEDULE_DAYS,
+    });
+  }
+
+  handoffsForEvent(eventId: string) {
+    return this.prisma.opsEventHandoff.findMany({
+      where: { eventId },
+      orderBy: [{ handedOffAt: 'desc' }, { id: 'desc' }],
+      take: MAX_EVENT_HANDOFFS,
     });
   }
 
