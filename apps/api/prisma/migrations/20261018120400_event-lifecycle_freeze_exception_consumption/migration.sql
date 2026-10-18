@@ -1,6 +1,6 @@
 -- prism-owner: event-lifecycle
 -- prism-kind: schema
--- prism-risk: low
+-- prism-risk: medium
 
 -- AlterTable
 ALTER TABLE "event_lifecycle"."event_freeze_exceptions" ADD COLUMN "consumed_at" TIMESTAMP(3),
