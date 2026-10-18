@@ -6,6 +6,7 @@ import type {
   PrismBillingDispute,
   PrismBillingWorkspace,
   RequestBillingCorrectionInput,
+  ResolveBillingCorrectionInput,
   ResolveBillingDisputeInput,
   WaiveAdditionalBillingInput,
 } from "@prism/types";
@@ -19,6 +20,8 @@ export const billingAdjustmentRepository = {
     eventApiRequest<PrismBillingDispute>(`/api/events/${eventId}/billing-disputes/${disputeId}`, { method: "PATCH", body: input }),
   createCorrection: (eventId: string, input: RequestBillingCorrectionInput) =>
     eventApiRequest<PrismBillingCorrection>(`/api/events/${eventId}/billing-corrections`, { method: "POST", body: input }),
+  resolveCorrection: (eventId: string, correctionId: string, input: ResolveBillingCorrectionInput) =>
+    eventApiRequest<PrismBillingCorrection>(`/api/events/${eventId}/billing-corrections/${correctionId}`, { method: "PATCH", body: input }),
   createAdditionalBilling: (eventId: string, input: CreateAdditionalBillingInput) =>
     eventApiRequest<PrismAdditionalBilling>(`/api/events/${eventId}/additional-billing`, { method: "POST", body: input }),
   waiveAdditionalBilling: (eventId: string, additionalBillingId: string, input: WaiveAdditionalBillingInput) =>

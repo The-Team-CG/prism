@@ -8,6 +8,8 @@ import {
   type CreateAdditionalBillingInput,
   type CreateBillingDisputeInput,
   type RequestBillingCorrectionInput,
+  resolveBillingCorrectionSchema,
+  type ResolveBillingCorrectionInput,
   type ResolveBillingDisputeInput,
   type WaiveAdditionalBillingInput,
 } from "@prism/types";
@@ -21,6 +23,7 @@ export type BillingAdjustmentCommands = {
   createDispute: (eventId: string, input: CreateBillingDisputeInput) => Promise<unknown>;
   resolveDispute: (eventId: string, disputeId: string, input: ResolveBillingDisputeInput) => Promise<unknown>;
   createCorrection: (eventId: string, input: RequestBillingCorrectionInput) => Promise<unknown>;
+  resolveCorrection: (eventId: string, correctionId: string, input: ResolveBillingCorrectionInput) => Promise<unknown>;
   createAdditionalBilling: (eventId: string, input: CreateAdditionalBillingInput) => Promise<unknown>;
   waiveAdditionalBilling: (eventId: string, additionalBillingId: string, input: WaiveAdditionalBillingInput) => Promise<unknown>;
 };
@@ -62,6 +65,18 @@ export async function submitBillingCorrection(
   failLocalRule(blankReasonError(draft.reason, "Correction reason"));
   const input = parseContract(requestBillingCorrectionSchema, { ...draft, idempotencyKey: crypto.randomUUID() }, "Billing correction");
   return writer.createCorrection(eventId, input);
+}
+
+/** Rejecting a correction requires a reason; approval needs none. The shared schema enforces the same rule. */
+export async function submitCorrectionResolution(
+  writer: Pick<BillingAdjustmentCommands, "resolveCorrection">,
+  eventId: string,
+  correctionId: string,
+  draft: ResolveBillingCorrectionInput,
+): Promise<unknown> {
+  if (draft.action === "reject") failLocalRule(blankReasonError(draft.resolutionNotes ?? "", "Rejection reason"));
+  const input = parseContract(resolveBillingCorrectionSchema, draft, "Correction resolution");
+  return writer.resolveCorrection(eventId, correctionId, input);
 }
 
 export async function submitAdditionalBilling(

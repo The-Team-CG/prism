@@ -80,10 +80,31 @@ export function BillingAdjustmentsPanel({
             <input className={fieldClass} inputMode="numeric" value={vm.correctionDraft.correctedTotalAmount} onChange={(e) => vm.setCorrectionDraft({ ...vm.correctionDraft, correctedTotalAmount: e.target.value })} />
           </label>
           <button type="submit" className={buttonClass} disabled={vm.busy || !vm.statement || !vm.correctionDraft.reason.trim()}>Request correction</button>
-          <ul className="space-y-1 text-xs text-muted-foreground">
-            {vm.corrections.map((correction) => <li key={correction.id}>{correction.reason} ({correction.status})</li>)}
-          </ul>
         </form>
+
+        <div className="space-y-3">
+          <h3 className="text-xs font-bold text-foreground">Correction requests</h3>
+          {vm.corrections.length === 0 ? <p className="text-xs text-muted-foreground">No correction requests.</p> : null}
+          {vm.corrections.map((correction) => (
+            <div key={correction.id} className="space-y-2 rounded-xl border border-border bg-muted/30 p-3">
+              <p className="text-xs font-semibold">{correction.reason} ({correction.status})</p>
+              {correction.status === "pending" ? (
+                <>
+                  <input
+                    className={fieldClass}
+                    placeholder="Rejection reason (required to reject)"
+                    value={vm.correctionNotes[correction.id] ?? ""}
+                    onChange={(e) => vm.setCorrectionNotes({ ...vm.correctionNotes, [correction.id]: e.target.value })}
+                  />
+                  <div className="flex gap-2">
+                    <button type="button" className={buttonClass} disabled={vm.busy} onClick={() => void vm.resolveCorrection(correction.id, "approve")}>Approve</button>
+                    <button type="button" className={buttonClass} disabled={vm.busy || !(vm.correctionNotes[correction.id] ?? "").trim()} onClick={() => void vm.resolveCorrection(correction.id, "reject")}>Reject</button>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          ))}
+        </div>
 
         <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void vm.submitAdditionalBilling(); }}>
           <h3 className="text-xs font-bold text-foreground">Additional billing</h3>
