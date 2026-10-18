@@ -291,6 +291,11 @@ databaseSuite("actor-scoped event reads PostgreSQL behavior", () => {
         ),
       ).toBe(false);
       expect(
+        workspace.archivedEvents?.some(
+          (event) => (event as { id: string }).id === archivedClientEventId,
+        ),
+      ).toBe(true);
+      expect(
         actionCenter.items.some((item) => item.eventId === clientEventId),
       ).toBe(true);
       expect(
