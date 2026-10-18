@@ -34,6 +34,30 @@ describe('OpsInquiriesController', () => {
     expect(guards).toContain(EventSessionGuard);
   });
 
+  it('guards the merge route with EventSessionGuard and forwards the validated merge body with the verified actor', async () => {
+    const guards = Reflect.getMetadata('__guards__', OpsInquiriesController.prototype.mergeInquiry);
+    expect(guards).toContain(EventSessionGuard);
+
+    const inquiryWorkflowService = {
+      mergeInquiry: vi.fn(async () => ({ id: 'merge_1', mergedInquiryId: 'inq_dup' })),
+    };
+    const controller = new OpsInquiriesController(
+      {} as any,
+      inquiryWorkflowService as any,
+      { resolveActor: vi.fn(), requireActorRole: vi.fn() } as any,
+    );
+
+    await expect(
+      controller.mergeInquiry('inq_primary', { sourceInquiryId: 'inq_dup', reason: 'Same company' }, verifiedPmcmActor),
+    ).resolves.toEqual({ id: 'merge_1', mergedInquiryId: 'inq_dup' });
+    expect(inquiryWorkflowService.mergeInquiry).toHaveBeenCalledWith(
+      'inq_primary',
+      { sourceInquiryId: 'inq_dup', reason: 'Same company' },
+      expect.objectContaining({ allowedAdminRoles: ['pmcm-admin', 'system'] }),
+      verifiedPmcmActor,
+    );
+  });
+
   it('serves inquiry routes through InquiryWorkflowService with inquiry-owned context', async () => {
     const inquiriesService = {};
     const inquiryWorkflowService = {

@@ -157,6 +157,7 @@ export function EventDashboardClientsSectionView() {
     acceptInquiry,
     pendInquiry,
     declineInquiry,
+    mergeInquiry,
     logInquiryOnBehalf,
     busy,
     openConformeUpload,
@@ -291,6 +292,7 @@ export function EventDashboardClientsSectionView() {
               onAccept={acceptInquiry}
               onPend={pendInquiry}
               onDecline={declineInquiry}
+              onMerge={mergeInquiry}
               onLogOnBehalf={logInquiryOnBehalf}
               busy={Boolean(busy)}
             />
@@ -509,6 +511,7 @@ export function EventDashboardInquiriesSectionView() {
     acceptInquiry,
     pendInquiry,
     declineInquiry,
+    mergeInquiry,
     logInquiryOnBehalf,
     busy,
     openConformeUpload,
@@ -522,6 +525,7 @@ export function EventDashboardInquiriesSectionView() {
               onAccept={acceptInquiry}
               onPend={pendInquiry}
               onDecline={declineInquiry}
+              onMerge={mergeInquiry}
               onLogOnBehalf={logInquiryOnBehalf}
               busy={Boolean(busy)}
             />
