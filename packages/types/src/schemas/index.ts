@@ -231,6 +231,8 @@ export {
 export {
   executePrivacyRequestSchema,
   type ExecutePrivacyRequestInput,
+  privacyCorrectionPatchSchema,
+  type PrivacyCorrectionPatch,
   aiGovernanceDryRunSchema,
   type AiGovernanceDryRunInput,
 } from "./session-trust-inputs.js";

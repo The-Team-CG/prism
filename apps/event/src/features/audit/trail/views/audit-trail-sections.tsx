@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import {
   AlertTriangle,
   ClipboardList,
@@ -25,6 +27,7 @@ import { Input } from "@/app/components/ui/input";
 import { auditTone, compactTimestamp, cx, label, severityTone } from "@/features/pmcm-kit";
 import { Metric, Panel } from "@/features/pmcm-kit";
 import { auditIconKind, auditIntegrityCopy } from "../model/audit-trail-rules";
+import type { PrivacyCorrectionDraft } from "../model/privacy-correction";
 import type { useAuditTrailViewModel } from "../view-models/use-audit-trail-view-model";
 
 type AuditVm = ReturnType<typeof useAuditTrailViewModel>;
@@ -458,8 +461,10 @@ function PrivacyRequestCard({
   request: PrismPrivacyRequest;
   busy: boolean;
   onReview: (id: string, status: "approved" | "rejected") => void;
-  onExecute: (id: string) => void;
+  onExecute: (id: string, draft?: PrivacyCorrectionDraft) => void;
 }) {
+  const [correctionDraft, setCorrectionDraft] = useState<PrivacyCorrectionDraft>({ name: "", email: "" });
+  const isCorrection = request.requestType === "correction";
   const tone = request.status === "executed" ? severityTone("info") : severityTone(request.status === "rejected" ? "warning" : "info");
   return (
     <div className="rounded-md border border-border bg-background p-3 text-sm">
@@ -480,7 +485,28 @@ function PrivacyRequestCard({
             <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => onReview(request.id, "rejected")}>Reject</Button>
           </>
         ) : null}
-        {request.status === "approved" ? (
+        {request.status === "approved" && isCorrection ? (
+          <div className="grid w-full gap-2 sm:grid-cols-2">
+            <Input
+              aria-label="Corrected name"
+              placeholder="Corrected name (optional)"
+              value={correctionDraft.name}
+              disabled={busy}
+              onChange={(event) => setCorrectionDraft((draft) => ({ ...draft, name: event.target.value }))}
+            />
+            <Input
+              aria-label="Corrected email"
+              placeholder="Corrected email (optional)"
+              value={correctionDraft.email}
+              disabled={busy}
+              onChange={(event) => setCorrectionDraft((draft) => ({ ...draft, email: event.target.value }))}
+            />
+            <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => onExecute(request.id, correctionDraft)}>
+              Apply correction
+            </Button>
+          </div>
+        ) : null}
+        {request.status === "approved" && !isCorrection ? (
           <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => onExecute(request.id)}>Execute</Button>
         ) : null}
       </div>

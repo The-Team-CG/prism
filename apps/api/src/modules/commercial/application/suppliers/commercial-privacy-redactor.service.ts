@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import type { PrismPrivacyExportSection } from '@prism/types';
+import type { PrismPrivacyExportSection, PrivacyCorrectionPatch } from '@prism/types';
 import type { CommercialPrivacyRedactor, CommercialRedactionResult } from '../../contracts/privacy-redaction.port';
 
 @Injectable()
@@ -43,6 +43,58 @@ export class CommercialPrivacyRedactorService implements CommercialPrivacyRedact
         additionalNotes: '[redacted by privacy request]',
       },
     });
+    return {
+      surfaces: [
+        ...(suppliers.count ? ['supplier'] : []),
+        ...(applications.count ? ['supplier_application'] : []),
+      ],
+      touchedRecords: suppliers.count + applications.count,
+    };
+  }
+
+  async correctClientBilling(
+    input: { eventIds: string[]; patch: PrivacyCorrectionPatch },
+    transaction: Prisma.TransactionClient,
+  ): Promise<CommercialRedactionResult> {
+    const data: Prisma.OpsBillingStatementUpdateManyMutationInput = {};
+    if (input.patch.name !== undefined) data.clientName = input.patch.name;
+    if (input.patch.email !== undefined) data.clientContact = input.patch.email;
+    const billing = input.eventIds.length && Object.keys(data).length
+      ? await transaction.opsBillingStatement.updateMany({ where: { eventId: { in: input.eventIds } }, data })
+      : { count: 0 };
+    return {
+      surfaces: billing.count ? ['billing_client_copy'] : [],
+      touchedRecords: billing.count,
+    };
+  }
+
+  async correctSupplier(
+    input: { email: string; patch: PrivacyCorrectionPatch },
+    transaction: Prisma.TransactionClient,
+  ): Promise<CommercialRedactionResult> {
+    const { name, email } = input.patch;
+    const normalizedEmail = email?.toLowerCase();
+    const supplierData: Prisma.OpsSupplierUpdateManyMutationInput = {};
+    const applicationData: Prisma.OpsSupplierApplicationUpdateManyMutationInput = {};
+    if (name !== undefined) {
+      supplierData.contactName = name;
+      applicationData.contactName = name;
+    }
+    if (normalizedEmail !== undefined) {
+      supplierData.email = normalizedEmail;
+      applicationData.email = normalizedEmail;
+      applicationData.normalizedEmail = normalizedEmail;
+    }
+    const hasChange = Object.keys(supplierData).length > 0;
+    const suppliers = hasChange
+      ? await transaction.opsSupplier.updateMany({ where: { email: { equals: input.email, mode: 'insensitive' } }, data: supplierData })
+      : { count: 0 };
+    const applications = hasChange
+      ? await transaction.opsSupplierApplication.updateMany({
+          where: { OR: [{ email: { equals: input.email, mode: 'insensitive' } }, { normalizedEmail: input.email }] },
+          data: applicationData,
+        })
+      : { count: 0 };
     return {
       surfaces: [
         ...(suppliers.count ? ['supplier'] : []),
