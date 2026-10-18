@@ -15,7 +15,7 @@ export interface PrismHandoffBriefKeyDetails {
   archived: boolean;
   venue: string | null;
   guestCount: number | null;
-  walkInPolicy: string;
+  walkInPolicy: string | null;
   /** Null outside PMCM scope. */
   clientName: string | null;
 }

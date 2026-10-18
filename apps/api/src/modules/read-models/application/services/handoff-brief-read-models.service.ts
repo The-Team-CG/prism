@@ -1,10 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { PrismHandoffBrief, PrismHandoffBriefScope, PrismLiveOps } from '@prism/types';
+import type { PrismCoordinatorLiveOps, PrismHandoffBrief, PrismHandoffBriefScope, PrismLiveOps } from '@prism/types';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { FILE_REQUIREMENT_READER, type FileRequirementReader } from '@prism/contexts/event-lifecycle';
 import { EventReadModelQueries } from '../queries/event-read-models.queries';
 import {
+  type HandoffSupplierInput,
   isOpenHandoffIssue,
   mapEventHandoff,
   projectHandoffAssignment,
@@ -41,8 +42,8 @@ export class HandoffBriefReadModelsService {
       eventId,
       scope,
       generatedAt: new Date().toISOString(),
-      keyDetails: projectHandoffKeyDetails(liveOps.event, liveOps.briefing, scope === 'pmcm'),
-      schedule: liveOps.schedule,
+      keyDetails: projectHandoffKeyDetails(liveOps.event, liveOps.briefing ?? null, scope === 'pmcm'),
+      schedule: liveOps.schedule ?? { eventId, authored: false, days: [], serverTime: new Date().toISOString() },
       supplierReadiness: this.supplierReadiness(liveOps, scope),
       staffing: liveOps.coordinatorAssignments.map(projectHandoffAssignment),
       openIssues: liveOps.urgentIssues.filter(isOpenHandoffIssue).map(projectHandoffIssue),
@@ -52,12 +53,13 @@ export class HandoffBriefReadModelsService {
   }
 
   /** Mirrors the live-ops rule: PMCM, designated operators, and ingress/egress roles see supplier readiness. */
-  private supplierReadiness(liveOps: PrismLiveOps, scope: PrismHandoffBriefScope): PrismHandoffBrief['supplierReadiness'] {
+  private supplierReadiness(liveOps: PrismLiveOps | PrismCoordinatorLiveOps, scope: PrismHandoffBriefScope): PrismHandoffBrief['supplierReadiness'] {
     const role = 'role' in liveOps ? liveOps.role : undefined;
     const visible = scope === 'pmcm' || Boolean(liveOps.isDesignatedOperator) || isIngressRole(role);
+    const statuses: HandoffSupplierInput[] = liveOps.supplierStatuses;
     return {
       visible,
-      items: visible ? liveOps.supplierStatuses.map(projectHandoffSupplier) : [],
+      items: visible ? statuses.map(projectHandoffSupplier) : [],
     };
   }
 }

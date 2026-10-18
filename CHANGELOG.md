@@ -19,6 +19,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- PMCM and assigned coordinators can open a selected-event handoff brief composed from scoped read models: key details, schedule, supplier readiness and ingress, staffing, open issues, file status, and recorded handoffs. The coordinator view is a strict subset with no finance, private supplier notes, audit categories, client identity, or guest access codes.
 - The API and four role portals can deploy as one Vercel project, with runtime API bindings and shared-domain portal routing.
 - Development launchers start persistent local Supabase, isolate API/database targets, and support scoped Docker builds and source syncing.
 - Guest check-in preserves consent evidence and safely retries submissions under the New-CL1 review policy.
