@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { ForbiddenException } from '@nestjs/common';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   OpsCoordinatorAssignment,
   OpsEvent,
@@ -233,6 +233,17 @@ function createService(input: {
   const liveOps = new LiveOpsReadModelsService(queries, policy, floorPlanWorkflowService, guestReader, staffingReader);
   return new HandoffBriefReadModelsService(queries, liveOps, fileRequirements);
 }
+
+// Pinned between CREATED_AT (2026-08-01) and the event date (2026-08-20) so the
+// dated fixtures are evaluated against a fixed clock.
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-08-02T09:00:00.000Z'));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('HandoffBriefReadModelsService', () => {
   it('composes the full PMCM brief with open issues, handoff entries, and finance-free file status', async () => {
