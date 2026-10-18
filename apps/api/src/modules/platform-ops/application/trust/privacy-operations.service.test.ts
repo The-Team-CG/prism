@@ -579,7 +579,7 @@ describe('PrivacyOperationsService', () => {
     expect(String(tx.opsUser.updateMany.mock.calls[0][0].data.password)).toMatch(/^erased:/);
     expect(tx.opsPasswordResetToken.deleteMany).toHaveBeenCalledWith({ where: { userId: 'usr_ana' } });
     expect(auditService.audit).toHaveBeenCalledWith(
-      undefined,
+      'evt_sample',
       'Mys',
       'Privacy redaction receipt: identity-access',
       expect.objectContaining({ metadata: expect.objectContaining({ owner: 'identity-access', surfaces: ['approval_request', 'account'], touchedRecords: 2 }) }),
