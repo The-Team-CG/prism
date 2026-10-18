@@ -63,11 +63,16 @@ export const createPrismInquirySchema = privacyConsentSchema.extend({
   ]),
   channel: optionalTrimmedStringSchema,
   referralDetails: optionalTrimmedStringSchema,
-  loggedByRole: optionalTrimmedStringSchema,
-  loggedByName: optionalTrimmedStringSchema,
   message: nonEmptyStringSchema,
 });
 export type CreatePrismInquiryInput = z.infer<typeof createPrismInquirySchema>;
+
+/** PMCM-only organization merge. The target inquiry comes from the route; public writers cannot reach this schema. */
+export const mergeInquirySchema = z.object({
+  sourceInquiryId: nonEmptyStringSchema,
+  reason: nonEmptyStringSchema,
+});
+export type MergeInquiryInput = z.infer<typeof mergeInquirySchema>;
 
 export const updateInquiryStatusSchema = z.object({
   status: z.enum(["new", "accepted", "pending", "declined"]),
