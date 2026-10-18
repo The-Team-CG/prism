@@ -1,4 +1,4 @@
-import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
+import { INQUIRY_CLIENT_CATEGORIES, PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
 
 export type InquiryForm = {
   clientName: string;
@@ -27,7 +27,7 @@ export type InquirySubmitStatus = "idle" | "loading" | "submitted" | "error";
 
 export const INQUIRY_WIZARD_STEPS = ["Contact Info", "Event Details", "Budget & Notes", "Confirm"] as const;
 
-export const INQUIRY_CLIENT_TYPES = ["Corporate", "Private", "Government", "School", "Non-profit", "Other"] as const;
+export const INQUIRY_CLIENT_TYPES = INQUIRY_CLIENT_CATEGORIES;
 export const INQUIRY_EVENT_TYPES = [
   "Corporate event",
   "Conference",
