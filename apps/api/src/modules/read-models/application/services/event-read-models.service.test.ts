@@ -247,6 +247,9 @@ function createPmcmReadModelService() {
     opsComplianceCheck: { findMany: vi.fn(async () => []) },
     opsBillingSource: { findMany: vi.fn(async () => [] as Array<{ id: string; eventId: string }>) },
     opsBillingStatement: { findMany: vi.fn(async () => [] as Array<{ id: string; eventId: string }>) },
+    opsBillingCorrection: { findMany: vi.fn(async () => [] as Array<{ id: string; eventId: string }>) },
+    opsBillingDispute: { findMany: vi.fn(async () => [] as Array<{ id: string; eventId: string }>) },
+    opsAdditionalBilling: { findMany: vi.fn(async () => [] as Array<{ id: string; eventId: string }>) },
     opsPaymentRecord: { findMany: vi.fn(async () => []) },
     opsEventInsight: { findMany: vi.fn(async () => []) },
     opsAuditLog: { findMany: vi.fn(async () => []) },
@@ -714,9 +717,9 @@ describe('EventReadModelsService', () => {
       additionalBillings: [{ id: 'addbill_1', eventId: 'evt_visible', waivedBy: 'Francis' }],
       billingCorrections: [{ id: 'corr_1', eventId: 'evt_visible', reason: 'Tax line' }],
     };
-    prisma.opsBillingCorrection = { findMany: vi.fn(async () => adjustmentRows.billingCorrections) };
-    prisma.opsBillingDispute = { findMany: vi.fn(async () => adjustmentRows.billingDisputes) };
-    prisma.opsAdditionalBilling = { findMany: vi.fn(async () => adjustmentRows.additionalBillings) };
+    prisma.opsBillingCorrection.findMany.mockImplementation(async () => adjustmentRows.billingCorrections);
+    prisma.opsBillingDispute.findMany.mockImplementation(async () => adjustmentRows.billingDisputes);
+    prisma.opsAdditionalBilling.findMany.mockImplementation(async () => adjustmentRows.additionalBillings);
     const mappers = {
       mapEvent: (event: unknown) => event,
       mapBillingSource: (source: unknown) => source,
