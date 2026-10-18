@@ -1,10 +1,10 @@
 {
   "summary": {
-    "totalTables": 120,
+    "totalTables": 121,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
-    "targetSameDomainFks": 110,
+    "targetSameDomainFks": 112,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -20,8 +20,8 @@
       {
         "domain": "event-lifecycle",
         "schema": "event_lifecycle",
-        "tables": 23,
-        "columns": 334
+        "tables": 24,
+        "columns": 345
       },
       {
         "domain": "commercial",
@@ -172,6 +172,15 @@
       "targetSchema": "event_lifecycle",
       "introducedAfterCutover": true,
       "columnCount": 10
+    },
+    {
+      "model": "OpsLogisticsCompletion",
+      "currentSchema": "event_lifecycle",
+      "table": "logistics_completions",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "introducedAfterCutover": true,
+      "columnCount": 11
     },
     {
       "model": "OpsOcularVisitRequest",
@@ -1401,6 +1410,21 @@
       "targetCurrentSchema": "event_core",
       "targetTable": "events",
       "sameDomain": false
+    },
+    {
+      "schema": "finance_ops",
+      "table": "additional_billings",
+      "name": "additional_billings_billing_source_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (billing_source_id) REFERENCES finance_ops.billing_sources(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "billing_source_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "finance_ops",
+      "targetTable": "billing_sources",
+      "sameDomain": true
     },
     {
       "schema": "finance_ops",
@@ -2872,6 +2896,21 @@
       "schema": "event_lifecycle",
       "table": "client_floorplan_access_grants",
       "name": "client_floorplan_access_grants_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_lifecycle.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "logistics_completions",
+      "name": "logistics_completions_event_id_fkey",
       "kind": "f",
       "definition": "FOREIGN KEY (event_id) REFERENCES event_lifecycle.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
       "columns": [

@@ -329,6 +329,7 @@ model OpsEvent {
   complianceRisks             OpsComplianceRisk[]
   postEventDocuments          OpsPostEventDocument[]
   wrapUpRecords               OpsEventWrapUp[]
+  logisticsCompletion         OpsLogisticsCompletion?
   eventInsights               OpsEventInsight[]
   decisionRecords             OpsEventDecision[]
   freezeExceptions            OpsEventFreezeException[]
@@ -1829,6 +1830,7 @@ model OpsBillingSource {
   updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
 
   billingStatements OpsBillingStatement[]
+  additionalBillings OpsAdditionalBilling[]
 
   @@index([eventId, status], map: "billing_sources_event_id_status_idx")
   @@map("billing_sources")
@@ -1973,6 +1975,7 @@ model OpsAdditionalBilling {
   id               String    @id
   eventId          String    @map("event_id")
   urgentIssueId    String    @map("urgent_issue_id")
+  billingSourceId  String?   @map("billing_source_id")
   description      String
   amount           Int
   status           String
@@ -1984,9 +1987,11 @@ model OpsAdditionalBilling {
   createdAt        DateTime  @default(now()) @map("created_at")
   waivedAt         DateTime? @map("waived_at")
 
+  billingSource OpsBillingSource? @relation(fields: [billingSourceId], references: [id], onDelete: Restrict, map: "additional_billings_billing_source_fkey")
 
   @@index([eventId, status], map: "additional_billings_event_id_status_idx")
   @@index([urgentIssueId], map: "additional_billings_urgent_issue_id_idx")
+  @@index([billingSourceId], map: "additional_billings_billing_source_id_idx")
   @@map("additional_billings")
   @@schema("commercial")
 }
@@ -2033,6 +2038,25 @@ model OpsEventWrapUp {
 
   @@index([deadlineAt, status], map: "event_wrap_ups_deadline_status_idx")
   @@map("event_wrap_ups")
+  @@schema("event_lifecycle")
+}
+
+model OpsLogisticsCompletion {
+  id                    String   @id
+  eventId               String   @unique(map: "logistics_completions_event_id_key") @map("event_id")
+  assetReturnsVerified  Boolean  @map("asset_returns_verified")
+  completionSummary     String   @map("completion_summary")
+  privateNotes          String   @default("") @map("private_notes")
+  correctionReason      String?  @map("correction_reason")
+  revision              Int      @default(1)
+  recordedBy            String   @map("recorded_by")
+  recordedAt            DateTime @map("recorded_at")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at")
+
+  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("logistics_completions")
   @@schema("event_lifecycle")
 }
 
