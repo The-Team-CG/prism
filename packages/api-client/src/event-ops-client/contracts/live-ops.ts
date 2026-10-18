@@ -23,6 +23,7 @@ import type {
   PrismEventRunSheet,
   PrismEventHandoff,
   PrismEventEodReport,
+  PrismHandoffBrief,
 } from "@prism/types";
 import type { EventOpsActorQuery } from "./primitives";
 
@@ -79,6 +80,10 @@ export interface EventOpsLiveOpsContract {
       eventId: string,
       actor?: EventOpsActorQuery,
     ): Promise<PrismEventHandoff[]>;
+    handoffBrief(
+      eventId: string,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismHandoffBrief>;
     listEodReports(
       eventId: string,
       actor?: EventOpsActorQuery,
