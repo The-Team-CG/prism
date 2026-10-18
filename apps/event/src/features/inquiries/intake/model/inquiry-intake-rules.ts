@@ -1,4 +1,4 @@
-import type { PrismInquiry } from "@prism/types";
+import { INQUIRY_CLIENT_CATEGORIES, type PrismInquiry, type PrismInquiryMergeRecord } from "@prism/types";
 
 export interface LogInquiryOnBehalfInput {
   clientName: string;
@@ -24,7 +24,7 @@ export const logFormEventTypes = [
   "Training or workshop",
   "Other",
 ];
-export const logFormClientTypes = ["Corporate", "Private", "Government", "School", "Non-profit", "Other"];
+export const logFormClientTypes: readonly string[] = INQUIRY_CLIENT_CATEGORIES;
 export const logFormChannels = ["Walk-In", "Phone"];
 export const logFormReferralSources = [
   "P.R.I.S.M Website",
@@ -116,6 +116,70 @@ export function inquiryExtraDetailFields(inquiry: PrismInquiry) {
   if (inquiry.previousDeclineReason) fields.push({ label: "Previous decline", value: inquiry.previousDeclineReason });
   if (inquiry.declineReason) fields.push({ label: "Decline reason", value: inquiry.declineReason });
   return fields;
+}
+
+/** An inquiry can be merged as a source unless it is already merged or has been accepted into a conforme path. */
+export function canMergeInquiry(inquiry: Pick<PrismInquiry, "status" | "mergedIntoInquiryId">) {
+  return !inquiry.mergedIntoInquiryId && inquiry.status !== "accepted";
+}
+
+/** Primary candidates: open inquiries sharing the organization key or the contact email. The API enforces the same rule. */
+export function inquiryMergeCandidates(inquiry: PrismInquiry, all: PrismInquiry[]) {
+  if (!canMergeInquiry(inquiry)) return [];
+  const email = inquiry.email.trim().toLowerCase();
+  return all.filter(
+    (other) =>
+      other.id !== inquiry.id &&
+      !other.mergedIntoInquiryId &&
+      ((Boolean(inquiry.organizationKey) && other.organizationKey === inquiry.organizationKey) ||
+        other.email.trim().toLowerCase() === email),
+  );
+}
+
+function cueInquiryLabel(item: PrismInquiry | undefined, fallbackId: string) {
+  return item ? `${item.clientName} (${item.eventName})` : fallbackId;
+}
+
+function mergedIntoCue(inquiry: PrismInquiry, byId: Map<string, PrismInquiry>) {
+  if (!inquiry.mergedIntoInquiryId) return null;
+  return `Merged into ${cueInquiryLabel(byId.get(inquiry.mergedIntoInquiryId), inquiry.mergedIntoInquiryId)}`;
+}
+
+function duplicateCue(inquiry: PrismInquiry, byId: Map<string, PrismInquiry>) {
+  if (!inquiry.duplicateOfInquiryId) return null;
+  return `Possible duplicate of ${cueInquiryLabel(byId.get(inquiry.duplicateOfInquiryId), inquiry.duplicateOfInquiryId)}`;
+}
+
+function declinedCue(inquiry: PrismInquiry) {
+  if (!inquiry.previouslyDeclined) return null;
+  return inquiry.previousDeclineReason ? `Previously declined: ${inquiry.previousDeclineReason}` : "Previously declined";
+}
+
+function parallelCue(count: number) {
+  if (count <= 0) return null;
+  return `${count} other open ${count === 1 ? "inquiry" : "inquiries"} for this organization`;
+}
+
+function highFitCue(inquiry: PrismInquiry) {
+  return inquiry.highFit ? "High fit: corporate or government client with a named organization" : null;
+}
+
+function mergeHistoryCue(merge: PrismInquiryMergeRecord) {
+  return `Merged ${merge.mergedInquiryName || "an inquiry"} in by ${merge.actorName} on ${merge.matchBasis} match: ${merge.reason}`;
+}
+
+/** Plain-text history cues for the inquiry drawer. Names come from the loaded inquiry list when available. */
+export function inquiryHistoryCues(inquiry: PrismInquiry, all: PrismInquiry[]) {
+  const byId = new Map(all.map((item) => [item.id, item]));
+  const cues = [
+    mergedIntoCue(inquiry, byId),
+    duplicateCue(inquiry, byId),
+    declinedCue(inquiry),
+    parallelCue(inquiry.parallelInquiryIds?.length ?? 0),
+    highFitCue(inquiry),
+    ...(inquiry.mergeHistory ?? []).map(mergeHistoryCue),
+  ];
+  return cues.filter((cue): cue is string => cue !== null);
 }
 
 export function toLogInquiryInput(form: InquiryLogForm): LogInquiryOnBehalfInput {

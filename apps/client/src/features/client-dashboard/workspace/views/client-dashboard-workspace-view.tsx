@@ -146,7 +146,7 @@ export function ClientDashboardWorkspaceView({
   const eventDrafts = selectEventDrafts(state, selectedEvent);
   const officialDraft = selectOfficialDraft(eventDrafts);
   const preferenceDrafts = selectPreferenceDrafts(eventDrafts);
-  const { audit, billing, briefing, documents, notifications, payments } = selectEventWorkspaceResources(state, selectedEvent);
+  const { audit, billing, briefing, disputes, documents, notifications, payments } = selectEventWorkspaceResources(state, selectedEvent);
   // This is a persisted read model. A failed load must not fall back to
   // browser-clock-derived urgency from workspace data.
   const resolvedActionCenter = actionCenter;
@@ -489,6 +489,7 @@ export function ClientDashboardWorkspaceView({
     audit,
     billing,
     briefing,
+    disputes,
     documents,
     payments,
     clientActions,

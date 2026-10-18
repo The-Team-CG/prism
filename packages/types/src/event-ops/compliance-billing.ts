@@ -165,10 +165,23 @@ export interface PrismBillingDispute {
   resolvedAt?: string | null;
 }
 
+/** Client-safe dispute projection: status and amount only; PMCM reasons, resolver notes, and actors stay internal. */
+export interface PrismClientBillingDispute {
+  id: string;
+  eventId: string;
+  statementId: string;
+  milestoneId?: string | null;
+  amount: number;
+  status: string;
+  createdAt: string;
+  resolvedAt?: string | null;
+}
+
 export interface PrismAdditionalBilling {
   id: string;
   eventId: string;
   urgentIssueId: string;
+  billingSourceId?: string | null;
   description: string;
   amount: number;
   status: string;

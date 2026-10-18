@@ -20,7 +20,7 @@ describe("EventGameTemplateConfigurationEditor social templates", () => {
     });
 
     const markup = renderToStaticMarkup(createElement(EventGameTemplateConfigurationEditor, {
-      game: definition, busy: false, onSave: vi.fn(), onUploadMedia: vi.fn().mockResolvedValue({ objectId: "obj_123e4567-e89b-42d3-a456-426614174000" }),
+      game: definition, busy: false, onSave: vi.fn(), onUploadMedia: vi.fn().mockResolvedValue({ objectId: "obj_00000000-0000-4000-8000-000000000108" }),
     }));
 
     expect(markup).toContain("Choices (exactly two, one per line)");
@@ -29,10 +29,10 @@ describe("EventGameTemplateConfigurationEditor social templates", () => {
   });
 
   it("edits Family Feud teams and host-accepted answer alternatives without rendering team IDs", () => {
-    const teamId = "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5";
+    const teamId = "00000000-0000-4000-8000-000000000101";
     const definition = game("family-feud", {
       kind: "family-feud",
-      teams: [{ id: teamId, label: "Blue" }, { id: "a78bde2c-61a4-4e5f-b9ba-dbe21ca203b6", label: "Gold" }],
+      teams: [{ id: teamId, label: "Blue" }, { id: "00000000-0000-4000-8000-000000000102", label: "Gold" }],
       rounds: [{
         key: "round-1", prompt: "Name a fruit.", durationSeconds: 60,
         answers: [{ answer: "Mango", alternatives: ["Mangga"], points: 10 }],
@@ -40,7 +40,7 @@ describe("EventGameTemplateConfigurationEditor social templates", () => {
     });
 
     const markup = renderToStaticMarkup(createElement(EventGameTemplateConfigurationEditor, {
-      game: definition, busy: false, onSave: vi.fn(), onUploadMedia: vi.fn().mockResolvedValue({ objectId: "obj_123e4567-e89b-42d3-a456-426614174000" }),
+      game: definition, busy: false, onSave: vi.fn(), onUploadMedia: vi.fn().mockResolvedValue({ objectId: "obj_00000000-0000-4000-8000-000000000108" }),
     }));
 
     expect(markup).toContain("Answer board: answer | accepted alternatives | points");
@@ -60,7 +60,7 @@ describe("EventGameTemplateConfigurationEditor social templates", () => {
     });
 
     const markup = renderToStaticMarkup(createElement(EventGameTemplateConfigurationEditor, {
-      game: definition, busy: false, onSave: vi.fn(), onUploadMedia: vi.fn().mockResolvedValue({ objectId: "obj_123e4567-e89b-42d3-a456-426614174000" }),
+      game: definition, busy: false, onSave: vi.fn(), onUploadMedia: vi.fn().mockResolvedValue({ objectId: "obj_00000000-0000-4000-8000-000000000108" }),
     }));
 
     expect(markup).toContain("Left choice");
@@ -76,7 +76,7 @@ describe("EventGameTemplateConfigurationEditor social templates", () => {
     });
 
     const markup = renderToStaticMarkup(createElement(EventGameTemplateConfigurationEditor, {
-      game: definition, busy: false, onSave: vi.fn(), onUploadMedia: vi.fn().mockResolvedValue({ objectId: "obj_123e4567-e89b-42d3-a456-426614174000" }),
+      game: definition, busy: false, onSave: vi.fn(), onUploadMedia: vi.fn().mockResolvedValue({ objectId: "obj_00000000-0000-4000-8000-000000000108" }),
     }));
 
     expect(markup).toContain("Scrambled word");
@@ -90,7 +90,7 @@ describe("EventGameTemplateConfigurationEditor social templates", () => {
     const definition = game("guess-picture-solo", {
       kind: "guess-picture-solo",
       rounds: [{
-        key: "picture-1", mediaObjectId: "obj_123e4567-e89b-42d3-a456-426614174000",
+        key: "picture-1", mediaObjectId: "obj_00000000-0000-4000-8000-000000000108",
         acceptedAnswers: ["Arctic fox"],
         stages: [{ afterSeconds: 0, hint: "An animal", points: 20 }, { afterSeconds: 15, hint: "It lives in the north", points: 10 }],
         durationSeconds: 60,
@@ -98,7 +98,7 @@ describe("EventGameTemplateConfigurationEditor social templates", () => {
     });
 
     const markup = renderToStaticMarkup(createElement(EventGameTemplateConfigurationEditor, {
-      game: definition, busy: false, onSave: vi.fn(), onUploadMedia: vi.fn().mockResolvedValue({ objectId: "obj_123e4567-e89b-42d3-a456-426614174000" }),
+      game: definition, busy: false, onSave: vi.fn(), onUploadMedia: vi.fn().mockResolvedValue({ objectId: "obj_00000000-0000-4000-8000-000000000108" }),
     }));
 
     expect(markup).toContain("Picture image (PNG or JPEG, up to 8 MB)");
@@ -112,14 +112,14 @@ describe("EventGameTemplateConfigurationEditor social templates", () => {
     const definition = game("spot-the-difference", {
       kind: "spot-the-difference",
       rounds: [{
-        key: "difference-1", originalMediaObjectId: "obj_123e4567-e89b-42d3-a456-426614174000",
-        comparisonMediaObjectId: "obj_123e4567-e89b-42d3-a456-426614174001",
+        key: "difference-1", originalMediaObjectId: "obj_00000000-0000-4000-8000-000000000108",
+        comparisonMediaObjectId: "obj_00000000-0000-4000-8000-000000000109",
         differences: [{ x: 0.2, y: 0.3, width: 0.1, height: 0.1, points: 10 }], durationSeconds: 90,
       }],
     });
 
     const markup = renderToStaticMarkup(createElement(EventGameTemplateConfigurationEditor, {
-      game: definition, busy: false, onSave: vi.fn(), onUploadMedia: vi.fn().mockResolvedValue({ objectId: "obj_123e4567-e89b-42d3-a456-426614174000" }),
+      game: definition, busy: false, onSave: vi.fn(), onUploadMedia: vi.fn().mockResolvedValue({ objectId: "obj_00000000-0000-4000-8000-000000000108" }),
     }));
 
     expect(markup).toContain("Original image (PNG or JPEG, up to 8 MB)");
@@ -136,7 +136,7 @@ describe("EventGameTemplateConfigurationEditor social templates", () => {
     });
 
     const markup = renderToStaticMarkup(createElement(EventGameTemplateConfigurationEditor, {
-      game: definition, busy: false, onSave: vi.fn(), onUploadMedia: vi.fn().mockResolvedValue({ objectId: "obj_123e4567-e89b-42d3-a456-426614174000" }),
+      game: definition, busy: false, onSave: vi.fn(), onUploadMedia: vi.fn().mockResolvedValue({ objectId: "obj_00000000-0000-4000-8000-000000000108" }),
     }));
 
     expect(markup).toContain("Would you rather");
@@ -152,7 +152,7 @@ describe("EventGameTemplateConfigurationEditor social templates", () => {
     });
 
     const markup = renderToStaticMarkup(createElement(EventGameTemplateConfigurationEditor, {
-      game: definition, busy: false, onSave: vi.fn(), onUploadMedia: vi.fn().mockResolvedValue({ objectId: "obj_123e4567-e89b-42d3-a456-426614174000" }),
+      game: definition, busy: false, onSave: vi.fn(), onUploadMedia: vi.fn().mockResolvedValue({ objectId: "obj_00000000-0000-4000-8000-000000000108" }),
     }));
 
     expect(markup).toContain("Private This or That (Solo)");

@@ -51,7 +51,7 @@ export class FileRequirementsMatrixService {
   async buildForEvent(eventId: string, prisma: Prisma.TransactionClient = this.prisma): Promise<FileRequirementsMatrix> {
     const event = await prisma.opsEvent.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
-    const [documents, postEventDocuments, billingStatements, milestones, supplierReviews, issues, clientCloseoutResponse, storedConforme, digitalConforme] = await Promise.all([
+    const [documents, postEventDocuments, billingStatements, milestones, supplierReviews, issues, clientCloseoutResponse, storedConforme, digitalConforme, logisticsCompletion] = await Promise.all([
       prisma.opsDocument.findMany({ where: { eventId } }),
       prisma.opsPostEventDocument.findMany({ where: { eventId } }),
       prisma.opsBillingStatement.findMany({ where: { eventId } }),
@@ -61,17 +61,14 @@ export class FileRequirementsMatrixService {
       prisma.opsClientCloseoutResponse.findUnique({ where: { eventId }, select: { id: true, rating: true, submittedAt: true } }),
       readStoredConformeEvidence(prisma, eventId),
       prisma.opsConformeExecution.findFirst({ where: { eventId, status: 'completed' }, orderBy: { templateVersion: 'desc' }, select: { id: true } }),
+      prisma.opsLogisticsCompletion.findUnique({ where: { eventId }, select: { assetReturnsVerified: true, recordedAt: true } }),
     ]);
 
     return {
       eventId,
       items: [
         ...this.itemsForEvent(event, documents, postEventDocuments, billingStatements, milestones, supplierReviews, clientCloseoutResponse, storedConforme, digitalConforme),
-        {
-          key: 'logistics', label: 'Logistics', ownerRole: 'pmcm-admin', visibleToRoles: ['pmcm-admin'],
-          sourceWorkflow: 'closure', status: 'missing', auditCategory: 'events',
-          detail: 'Logistics completion is not recorded by the current workflow. PMCM must verify asset returns and document an archive override.',
-        },
+        this.logisticsItem(logisticsCompletion),
         {
           key: 'issues', label: 'Issues', ownerRole: 'pmcm-admin', visibleToRoles: ['pmcm-admin'],
           sourceWorkflow: 'live_ops', status: issues.length === 0 ? 'complete' : 'pending', auditCategory: 'events',
@@ -120,6 +117,18 @@ export class FileRequirementsMatrixService {
       this.supplierReviewItem(supplierReviews),
       this.clientFeedbackItem(documents, postEventDocuments, clientCloseoutResponse),
     ];
+  }
+
+  /** Detail text is deliberately generic: the completion summary and private notes never enter the matrix. */
+  private logisticsItem(record: { assetReturnsVerified: boolean; recordedAt: Date } | null): FileRequirementMatrixItem {
+    const recorded = record?.assetReturnsVerified === true;
+    return {
+      key: 'logistics', label: 'Logistics', ownerRole: 'pmcm-admin', visibleToRoles: ['pmcm-admin'],
+      sourceWorkflow: 'closure', status: recorded ? 'complete' : 'missing', auditCategory: 'events',
+      detail: recorded && record
+        ? `Logistics completion recorded by PMCM on ${record.recordedAt.toISOString()}; asset returns verified`
+        : 'Logistics completion is not recorded. PMCM must verify asset returns and record completion or document an archive override.',
+    };
   }
 
   private signedConformeItem(documents: OpsDocument[], stored: { id: string } | null, digital: { id: string } | null): FileRequirementMatrixItem {
