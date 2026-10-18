@@ -1806,6 +1806,7 @@ model OpsBillingSource {
   updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
 
   billingStatements OpsBillingStatement[]
+  additionalBillings OpsAdditionalBilling[]
 
   @@index([eventId, status], map: "billing_sources_event_id_status_idx")
   @@map("billing_sources")
@@ -1950,6 +1951,7 @@ model OpsAdditionalBilling {
   id               String    @id
   eventId          String    @map("event_id")
   urgentIssueId    String    @map("urgent_issue_id")
+  billingSourceId  String?   @map("billing_source_id")
   description      String
   amount           Int
   status           String
@@ -1961,9 +1963,11 @@ model OpsAdditionalBilling {
   createdAt        DateTime  @default(now()) @map("created_at")
   waivedAt         DateTime? @map("waived_at")
 
+  billingSource OpsBillingSource? @relation(fields: [billingSourceId], references: [id], onDelete: Restrict, map: "additional_billings_billing_source_fkey")
 
   @@index([eventId, status], map: "additional_billings_event_id_status_idx")
   @@index([urgentIssueId], map: "additional_billings_urgent_issue_id_idx")
+  @@index([billingSourceId], map: "additional_billings_billing_source_id_idx")
   @@map("additional_billings")
   @@schema("commercial")
 }

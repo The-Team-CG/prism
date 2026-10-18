@@ -1405,6 +1405,21 @@
     {
       "schema": "finance_ops",
       "table": "additional_billings",
+      "name": "additional_billings_billing_source_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (billing_source_id) REFERENCES finance_ops.billing_sources(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "billing_source_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "finance_ops",
+      "targetTable": "billing_sources",
+      "sameDomain": true
+    },
+    {
+      "schema": "finance_ops",
+      "table": "additional_billings",
       "name": "additional_billings_event_id_fkey",
       "kind": "f",
       "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",

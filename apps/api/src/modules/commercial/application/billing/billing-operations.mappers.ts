@@ -16,8 +16,13 @@ export function mapBillingDispute(dispute: OpsBillingDispute) {
   return { id: dispute.id, eventId: dispute.eventId, statementId: dispute.statementId, milestoneId: dispute.milestoneId ?? null, amount: dispute.amount, reason: dispute.reason, status: dispute.status, raisedBy: dispute.raisedBy, resolvedBy: dispute.resolvedBy ?? null, resolutionNotes: dispute.resolutionNotes ?? null, createdAt: timestamp(dispute.createdAt), resolvedAt: dispute.resolvedAt ? timestamp(dispute.resolvedAt) : null };
 }
 
+/** Client-safe dispute projection: status and amount only, no PMCM reasons, resolver notes, or actor names. */
+export function mapClientBillingDispute(dispute: OpsBillingDispute) {
+  return { id: dispute.id, eventId: dispute.eventId, statementId: dispute.statementId, milestoneId: dispute.milestoneId ?? null, amount: dispute.amount, status: dispute.status, createdAt: timestamp(dispute.createdAt), resolvedAt: dispute.resolvedAt ? timestamp(dispute.resolvedAt) : null };
+}
+
 export function mapAdditionalBilling(billing: OpsAdditionalBilling) {
-  return { id: billing.id, eventId: billing.eventId, urgentIssueId: billing.urgentIssueId, description: billing.description, amount: billing.amount, status: billing.status, createdBy: billing.createdBy, waiverReason: billing.waiverReason ?? null, waivedBy: billing.waivedBy ?? null, createdAt: timestamp(billing.createdAt), waivedAt: billing.waivedAt ? timestamp(billing.waivedAt) : null };
+  return { id: billing.id, eventId: billing.eventId, urgentIssueId: billing.urgentIssueId, billingSourceId: billing.billingSourceId ?? null, description: billing.description, amount: billing.amount, status: billing.status, createdBy: billing.createdBy, waiverReason: billing.waiverReason ?? null, waivedBy: billing.waivedBy ?? null, createdAt: timestamp(billing.createdAt), waivedAt: billing.waivedAt ? timestamp(billing.waivedAt) : null };
 }
 
 export function mapBillingSource(source: OpsBillingSource) {
