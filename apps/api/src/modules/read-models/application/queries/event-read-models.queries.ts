@@ -372,6 +372,16 @@ export class EventReadModelQueries {
     ]);
   }
 
+  // Query budget: three PMCM-only adjustment queries (corrections, disputes, additional billing) for visible event ids.
+  // Callers must gate on the internal-cost policy; clients never receive these rows.
+  billingAdjustmentsForEvents(eventIds: string[]) {
+    return Promise.all([
+      this.prisma.opsBillingCorrection.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_BILLING_ROWS }),
+      this.prisma.opsBillingDispute.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_BILLING_ROWS }),
+      this.prisma.opsAdditionalBilling.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_BILLING_ROWS }),
+    ]);
+  }
+
   // Query budget: one bounded client milestone projection for visible event ids.
   // Floorplan drafts and payment milestones hold only the event id, so each is read from its owner table
   // (one row per event) and composed here instead of through a cross-domain Prisma relation.

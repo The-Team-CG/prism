@@ -2,6 +2,8 @@ import { ForbiddenException, Inject, Injectable, InternalServerErrorException, N
 import type {
   OpsAuditLog,
   OpsBillingDispute,
+  OpsAdditionalBilling,
+  OpsBillingCorrection,
   OpsBillingSource,
   OpsBillingStatement,
   OpsBriefing,
@@ -174,6 +176,9 @@ export type BillingReadModelMappers = {
   mapEvent: (event: EventWithDrafts) => unknown;
   mapBillingSource: (source: OpsBillingSource) => unknown;
   mapBillingStatement: (statement: OpsBillingStatement) => unknown;
+  mapBillingCorrection: (correction: OpsBillingCorrection) => unknown;
+  mapBillingDispute: (dispute: OpsBillingDispute) => unknown;
+  mapAdditionalBilling: (billing: OpsAdditionalBilling) => unknown;
   mapPaymentMilestone: (payment: OpsPaymentMilestone, history: OpsPaymentRecord[]) => unknown;
   mapPaymentRecord: (record: OpsPaymentRecord) => unknown;
 };
@@ -355,16 +360,25 @@ export class EventReadModelsService {
         billingStatements: [],
         paymentMilestones: [],
         paymentRecords: [],
+        billingCorrections: [],
+        billingDisputes: [],
+        additionalBillings: [],
       };
     }
 
-    const [billingSources, billingStatements, paymentMilestones, paymentRecords] = await this.queries.billingForEvents(
-      eventIds,
-      this.policy.canViewInternalCosts(actor),
-    );
+    const includeInternalCosts = this.policy.canViewInternalCosts(actor);
+    const [[billingSources, billingStatements, paymentMilestones, paymentRecords], adjustments] = await Promise.all([
+      this.queries.billingForEvents(eventIds, includeInternalCosts),
+      includeInternalCosts ? this.queries.billingAdjustmentsForEvents(eventIds) : Promise.resolve([[], [], []] as const),
+    ]);
+    const [billingCorrections, billingDisputes, additionalBillings] = adjustments;
 
     return {
       events: visibleEvents.map((event) => mappers.mapEvent(event)),
+      // PMCM-only: corrections, disputes (with reasons and resolver notes), and additional billing stay internal.
+      billingCorrections: billingCorrections.map((row) => mappers.mapBillingCorrection(row)),
+      billingDisputes: billingDisputes.map((row) => mappers.mapBillingDispute(row)),
+      additionalBillings: additionalBillings.map((row) => mappers.mapAdditionalBilling(row)),
       billingSources: billingSources.map((source) => mappers.mapBillingSource(source)),
       billingStatements: billingStatements.map((statement) => mappers.mapBillingStatement(statement)),
       paymentMilestones: paymentMilestones.map((payment) =>
