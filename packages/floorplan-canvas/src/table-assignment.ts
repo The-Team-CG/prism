@@ -1,17 +1,12 @@
-import type { CanvasObject, Guest } from "./types";
+import type { CanvasObject, Guest, TableAssignmentIneligibleReason } from "./types";
+
+export type { TableAssignmentIneligibleReason } from "./types";
 
 /**
  * Role-neutral table assignment eligibility. A guest may sit at a table only when the guest is
  * known and not declined, the target is a visible seating table with a seat count, and the table
  * still has a free seat once the guest's own existing seat (if any) is discounted.
  */
-export type TableAssignmentIneligibleReason =
-  | "unknown-guest"
-  | "guest-declined"
-  | "not-a-table"
-  | "table-hidden"
-  | "table-full";
-
 export type TableAssignmentEligibility =
   | { eligible: true }
   | { eligible: false; reason: TableAssignmentIneligibleReason };

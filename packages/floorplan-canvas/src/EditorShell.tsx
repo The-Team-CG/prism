@@ -1,13 +1,18 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { EditorProvider, useKeyboard } from "./store";
+import { EditorProvider, useEditor, useKeyboard } from "./store";
 import { TopBar } from "./TopBar";
 import { Toolbar } from "./Toolbar";
 import { LeftPanel } from "./LeftPanel";
 import { RightPanel } from "./RightPanel";
 import { Canvas } from "./Canvas";
 import { StatusBar } from "./StatusBar";
-import type { Project } from "./types";
+import type { Project, TableAssignmentIneligibleReason } from "./types";
 import type { TemplateStore } from "./template-store";
+
+/** Role-supplied copy for each refused table assignment code. */
+export type AssignmentRejectionMessages = Record<TableAssignmentIneligibleReason, string>;
+
+const DEFAULT_ASSIGNMENT_REJECTION_MESSAGE = "This guest cannot be seated at that table.";
 
 interface ShellUI {
   leftOpen: boolean;
@@ -30,6 +35,29 @@ export interface EditorShellProps {
   templateStore: TemplateStore;
   onSave?: (project: Project) => Promise<unknown>;
   onSubmit?: (project: Project) => Promise<unknown>;
+  /** Copy for refused table assignments; read-only shells never trigger them and may omit it. */
+  assignmentRejectionMessages?: AssignmentRejectionMessages;
+}
+
+function AssignmentRejectionNotice({ messages }: { messages?: AssignmentRejectionMessages }) {
+  const { state, dispatch } = useEditor();
+  const rejection = state.assignmentRejection;
+  if (!rejection) return null;
+  return (
+    <div
+      role="alert"
+      className="pointer-events-auto absolute bottom-12 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-700 shadow"
+    >
+      <span>{messages?.[rejection.reason] ?? DEFAULT_ASSIGNMENT_REJECTION_MESSAGE}</span>
+      <button
+        type="button"
+        onClick={() => dispatch({ type: "DISMISS_ASSIGNMENT_REJECTION" })}
+        className="text-neutral-500 underline-offset-2 hover:text-neutral-900"
+      >
+        Dismiss
+      </button>
+    </div>
+  );
 }
 
 const ShellCtx = createContext<ShellUI | null>(null);
@@ -173,6 +201,7 @@ function Inner({
   readOnly = false,
   onSave,
   onSubmit,
+  assignmentRejectionMessages,
 }: Omit<EditorShellProps, "project">) {
   useKeyboard(readOnly);
   const { leftOpen, rightOpen, isNarrow } = useShellUI();
@@ -195,6 +224,7 @@ function Inner({
         <LeftChrome readOnly={readOnly} leftOpen={leftOpen} isNarrow={isNarrow} templateStore={templateStore} />
         <CanvasColumn readOnly={readOnly} />
         <RightChrome readOnly={readOnly} rightOpen={rightOpen} isNarrow={isNarrow} />
+        <AssignmentRejectionNotice messages={assignmentRejectionMessages} />
       </div>
       <StatusBar />
     </div>

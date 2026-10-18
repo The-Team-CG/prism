@@ -78,41 +78,64 @@ describe("table assignment eligibility in the floorplan editor", () => {
       objects: [tableObject({ id: "t1" })],
       guestId: "g-dee",
       objectId: "t1",
+      reason: "guest-declined",
     },
     {
       case: "unknown guest",
       objects: [tableObject({ id: "t1" })],
       guestId: "g-nobody",
       objectId: "t1",
+      reason: "unknown-guest",
     },
     {
       case: "non-furniture object such as a stage",
       objects: [tableObject({ id: "stage", category: "stage", kind: "rect", seats: 4 })],
       guestId: "g-ana",
       objectId: "stage",
+      reason: "not-a-table",
     },
     {
       case: "table without a seat count",
       objects: [tableObject({ id: "t1", seats: undefined })],
       guestId: "g-ana",
       objectId: "t1",
+      reason: "not-a-table",
     },
     {
       case: "hidden table",
       objects: [tableObject({ id: "t1", hidden: true })],
       guestId: "g-ana",
       objectId: "t1",
+      reason: "table-hidden",
     },
     {
       case: "table already at capacity",
       objects: [tableObject({ id: "t1", seats: 1, assignedGuestIds: ["g-ben"] })],
       guestId: "g-ana",
       objectId: "t1",
+      reason: "table-full",
     },
-  ])("rejects an ineligible assignment for a $case without changing the layout", ({ objects, guestId, objectId }) => {
-    const start = withLayout(objects);
-    const result = reducer(start, { type: "ASSIGN_GUEST", guestId, objectId });
-    expect(result).toBe(start);
+  ])(
+    "keeps the layout unchanged and records the $reason rejection for a $case",
+    ({ objects, guestId, objectId, reason }) => {
+      const start = withLayout(objects);
+      const result = reducer(start, { type: "ASSIGN_GUEST", guestId, objectId });
+      expect(result.project).toBe(start.project);
+      expect(result.history).toEqual(start.history);
+      expect(result.assignmentRejection).toEqual({ guestId, objectId, reason });
+    },
+  );
+
+  it("clears a recorded rejection on the next eligible assignment or on dismissal", () => {
+    const start = withLayout([tableObject({ id: "t1", seats: 1 }), tableObject({ id: "t2" })]);
+    const refused = reducer(start, { type: "ASSIGN_GUEST", guestId: "g-dee", objectId: "t1" });
+    expect(refused.assignmentRejection?.reason).toBe("guest-declined");
+
+    expect(reducer(refused, { type: "DISMISS_ASSIGNMENT_REJECTION" }).assignmentRejection).toBeNull();
+
+    const seated = reducer(refused, { type: "ASSIGN_GUEST", guestId: "g-ana", objectId: "t2" });
+    expect(seated.assignmentRejection).toBeNull();
+    expect(seated.project.objects.find((o) => o.id === "t2")?.assignedGuestIds).toEqual(["g-ana"]);
   });
 
   it("keeps a guest's seat at a full table when reassigning them to that same table", () => {
