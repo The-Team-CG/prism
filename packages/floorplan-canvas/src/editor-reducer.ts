@@ -8,6 +8,7 @@ import type {
   Viewport,
 } from "./types";
 import { uid } from "./assetLibrary";
+import { evaluateTableAssignment } from "./table-assignment";
 
 export type Action =
   | { type: "SET_TOOL"; tool: Tool }
@@ -120,8 +121,6 @@ function stripGuestFromObject(o: CanvasObject, guestId: string): CanvasObject {
 function assignGuestOnObject(o: CanvasObject, guestId: string, objectId: string): CanvasObject {
   const without = (o.assignedGuestIds ?? []).filter((gid) => gid !== guestId);
   if (o.id !== objectId) return { ...o, assignedGuestIds: without };
-  const cap = o.seats ?? Infinity;
-  if (without.length >= cap) return { ...o, assignedGuestIds: without };
   return { ...o, assignedGuestIds: [...without, guestId] };
 }
 
@@ -307,6 +306,13 @@ export const handlers: ActionHandlers = {
     });
   },
   ASSIGN_GUEST(state, action) {
+    const eligibility = evaluateTableAssignment({
+      objects: state.project.objects,
+      guests: state.project.guests,
+      guestId: action.guestId,
+      objectId: action.objectId,
+    });
+    if (!eligibility.eligible) return state;
     const s = pushHistory(state);
     return withTouchedProject(s, {
       ...s.project,
