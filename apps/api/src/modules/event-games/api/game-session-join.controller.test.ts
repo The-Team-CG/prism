@@ -4,7 +4,7 @@ import { EventGamesSessionJoinService } from '../application/game-session-join.s
 import { GameSessionJoinController } from './game-session-join.controller';
 
 const input: PrismJoinActiveMultiplayerGameSessionInput = {
-  idempotencyKey: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5',
+  idempotencyKey: '00000000-0000-4000-8000-000000000101',
   pin: '042681',
 };
 
