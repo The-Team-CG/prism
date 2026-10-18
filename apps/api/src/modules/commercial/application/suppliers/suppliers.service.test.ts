@@ -92,6 +92,7 @@ describe('SuppliersService', () => {
         findMany: async () => [{ id: 'dim_quality' }],
       },
       opsSupplierReview: {
+        findFirst: async () => null,
         create: async (args: any) => {
           createCalls.push(args);
           return { id: args.data.id };
@@ -225,7 +226,7 @@ describe('SuppliersService', () => {
         create: async () => {
           throw makeP2002(['idempotencyKey']);
         },
-        findFirst: async () => ({ id: 'review_existing', supplierId: 'sup_1', eventId: 'evt_1', rating: 5, notes: 'Retry', reviewedBy: 'Reviewer Three' }),
+        findFirst: async () => ({ id: 'review_existing', supplierId: 'sup_1', eventId: 'evt_1', rating: 5, notes: 'Retry', reviewedBy: 'Reviewer Three', idempotencyKey: 'draft-key-1' }),
       },
     };
 
@@ -239,6 +240,28 @@ describe('SuppliersService', () => {
     expect(result.reviewId).toBe('review_existing');
   });
 
+  it('rejects a second assessment for the same supplier and event under a different key', async () => {
+    const create = vi.fn();
+    const prisma = {
+      opsSupplier: { findUnique: async () => baseSupplierRow() },
+      opsEvent: { findUnique: async () => ({ eventDate: new Date('2026-01-01'), status: 'closed' }) },
+      opsSupplierQuoteRequest: { findFirst: async () => ({ id: 'req_1' }) },
+      opsSupplierReview: {
+        findFirst: async () => ({ id: 'review_first', idempotencyKey: 'first-key' }),
+        create,
+      },
+    };
+
+    const service = new SuppliersService(prisma as any, eventReferences, commercialFacts);
+    await expect(service.addSupplierReview('sup_1', {
+      eventId: 'evt_1', rating: 3, notes: 'Second pass', idempotencyKey: 'second-key',
+    }, 'Reviewer Two')).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.addSupplierReview('sup_1', {
+      eventId: 'evt_1', rating: 3, notes: 'Second pass',
+    }, 'Reviewer Two')).rejects.toBeInstanceOf(BadRequestException);
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it('rethrows a P2002 that does not name the idempotency key (e.g. a PK collision)', async () => {
     const error = makeP2002(['id']);
     const prisma = {
@@ -249,8 +272,9 @@ describe('SuppliersService', () => {
         create: async () => {
           throw error;
         },
-        findFirst: async () => {
-          throw new Error('should not be called: this P2002 does not name the idempotency key');
+        findFirst: async (args: { where: { idempotencyKey?: string } }) => {
+          if (args.where.idempotencyKey) throw new Error('should not be called: this P2002 does not name the idempotency key');
+          return null;
         },
       },
     };
