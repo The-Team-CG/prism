@@ -1,4 +1,4 @@
-import type { PrismInquiry } from "@prism/types";
+import { INQUIRY_CLIENT_CATEGORIES, type PrismInquiry } from "@prism/types";
 
 export interface LogInquiryOnBehalfInput {
   clientName: string;
@@ -24,7 +24,7 @@ export const logFormEventTypes = [
   "Training or workshop",
   "Other",
 ];
-export const logFormClientTypes = ["Corporate", "Private", "Government", "School", "Non-profit", "Other"];
+export const logFormClientTypes: readonly string[] = INQUIRY_CLIENT_CATEGORIES;
 export const logFormChannels = ["Walk-In", "Phone"];
 export const logFormReferralSources = [
   "P.R.I.S.M Website",

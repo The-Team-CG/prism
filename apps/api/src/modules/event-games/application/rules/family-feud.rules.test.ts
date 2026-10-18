@@ -6,8 +6,8 @@ const configuration = {
   configuration: {
     kind: 'family-feud',
     teams: [
-      { id: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5', label: 'Blue' },
-      { id: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b6', label: 'Gold' },
+      { id: '00000000-0000-4000-8000-000000000101', label: 'Blue' },
+      { id: '00000000-0000-4000-8000-000000000102', label: 'Gold' },
     ],
     rounds: [{ key: 'round-1', prompt: 'Name a popular fruit.', durationSeconds: 30, answers: [
       { answer: 'Mango', alternatives: ['Mangga'], points: 10 },
@@ -16,7 +16,7 @@ const configuration = {
 };
 const currentRound = {
   key: 'round-1', number: 1, total: 1, prompt: 'Name a popular fruit.', deadlineAt: null,
-  teamAssignment: { teamId: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5', teamLabel: 'Blue' },
+  teamAssignment: { teamId: '00000000-0000-4000-8000-000000000101', teamLabel: 'Blue' },
 };
 
 describe('Family Feud rule', () => {
