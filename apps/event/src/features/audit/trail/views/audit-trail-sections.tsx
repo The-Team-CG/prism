@@ -452,6 +452,10 @@ function PrivacyLegalHoldCard({ hold, vm }: { hold: PrismPrivacyLegalHold; vm: A
   );
 }
 
+function privacyRequestStatusTone(status: string) {
+  return severityTone(status === "rejected" ? "warning" : "info");
+}
+
 function PrivacyRequestCard({
   request,
   busy,
@@ -463,9 +467,6 @@ function PrivacyRequestCard({
   onReview: (id: string, status: "approved" | "rejected") => void;
   onExecute: (id: string, draft?: PrivacyCorrectionDraft) => void;
 }) {
-  const [correctionDraft, setCorrectionDraft] = useState<PrivacyCorrectionDraft>({ name: "", email: "" });
-  const isCorrection = request.requestType === "correction";
-  const tone = request.status === "executed" ? severityTone("info") : severityTone(request.status === "rejected" ? "warning" : "info");
   return (
     <div className="rounded-md border border-border bg-background p-3 text-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -473,43 +474,65 @@ function PrivacyRequestCard({
           <p className="font-black capitalize">{label(request.requestType)} request</p>
           <p className="mt-1 text-muted-foreground">{request.subjectEmail || request.subjectName || "Unnamed subject"}</p>
         </div>
-        <span className={cx("rounded-full px-2 py-1 text-[11px] font-black capitalize ring-1", tone)}>
+        <span className={cx("rounded-full px-2 py-1 text-[11px] font-black capitalize ring-1", privacyRequestStatusTone(request.status))}>
           {label(request.status)}
         </span>
       </div>
       {request.requestNotes ? <p className="mt-2 text-xs text-muted-foreground">{request.requestNotes}</p> : null}
       <div className="mt-3 flex flex-wrap gap-2">
-        {request.status === "submitted" ? (
-          <>
-            <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => onReview(request.id, "approved")}>Approve</Button>
-            <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => onReview(request.id, "rejected")}>Reject</Button>
-          </>
-        ) : null}
-        {request.status === "approved" && isCorrection ? (
-          <div className="grid w-full gap-2 sm:grid-cols-2">
-            <Input
-              aria-label="Corrected name"
-              placeholder="Corrected name (optional)"
-              value={correctionDraft.name}
-              disabled={busy}
-              onChange={(event) => setCorrectionDraft((draft) => ({ ...draft, name: event.target.value }))}
-            />
-            <Input
-              aria-label="Corrected email"
-              placeholder="Corrected email (optional)"
-              value={correctionDraft.email}
-              disabled={busy}
-              onChange={(event) => setCorrectionDraft((draft) => ({ ...draft, email: event.target.value }))}
-            />
-            <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => onExecute(request.id, correctionDraft)}>
-              Apply correction
-            </Button>
-          </div>
-        ) : null}
-        {request.status === "approved" && !isCorrection ? (
-          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => onExecute(request.id)}>Execute</Button>
-        ) : null}
+        <PrivacyRequestActions request={request} busy={busy} onReview={onReview} onExecute={onExecute} />
       </div>
+    </div>
+  );
+}
+
+function PrivacyRequestActions({
+  request,
+  busy,
+  onReview,
+  onExecute,
+}: {
+  request: PrismPrivacyRequest;
+  busy: boolean;
+  onReview: (id: string, status: "approved" | "rejected") => void;
+  onExecute: (id: string, draft?: PrivacyCorrectionDraft) => void;
+}) {
+  if (request.status === "submitted") {
+    return (
+      <>
+        <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => onReview(request.id, "approved")}>Approve</Button>
+        <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => onReview(request.id, "rejected")}>Reject</Button>
+      </>
+    );
+  }
+  if (request.status !== "approved") return null;
+  if (request.requestType === "correction") {
+    return <PrivacyCorrectionForm busy={busy} onApply={(draft) => onExecute(request.id, draft)} />;
+  }
+  return <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => onExecute(request.id)}>Execute</Button>;
+}
+
+function PrivacyCorrectionForm({ busy, onApply }: { busy: boolean; onApply: (draft: PrivacyCorrectionDraft) => void }) {
+  const [correctionDraft, setCorrectionDraft] = useState<PrivacyCorrectionDraft>({ name: "", email: "" });
+  return (
+    <div className="grid w-full gap-2 sm:grid-cols-2">
+      <Input
+        aria-label="Corrected name"
+        placeholder="Corrected name (optional)"
+        value={correctionDraft.name}
+        disabled={busy}
+        onChange={(event) => setCorrectionDraft((draft) => ({ ...draft, name: event.target.value }))}
+      />
+      <Input
+        aria-label="Corrected email"
+        placeholder="Corrected email (optional)"
+        value={correctionDraft.email}
+        disabled={busy}
+        onChange={(event) => setCorrectionDraft((draft) => ({ ...draft, email: event.target.value }))}
+      />
+      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => onApply(correctionDraft)}>
+        Apply correction
+      </Button>
     </div>
   );
 }
