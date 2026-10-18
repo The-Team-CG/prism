@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Official floorplan drafts can start from a PMCM venue-library preset (`venueTemplateId`); the API copies the preset's layout server-side, so client-sent objects cannot replace it. The floorplan editor now refuses table assignments that break eligibility (declined or unknown guest, non-table or hidden object, no free seat) and leaves the layout unchanged. Clients remain denied from presets and official layout mutation. Owner B (Francis), with C and A.
 - Added client and supplier file upload/download with verified content, scoped visibility, immutable object identity, and local/private Supabase adapters. Fixed the API response interceptor to preserve binary file streams. Owners C (Ethan) and D (Anthony).
 - Added supplier contract versions and correction reviews, ingress/egress revision acknowledgments and change requests, creative task submissions and reviews, and payable milestones with actual releases and reasoned reversals. Payment status comes from recorded releases; quote locking does not mark a payment paid. Owners B (Francis), C (Ethan), and D (Anthony).
 - Added client briefing submission, official-floorplan snapshot decisions and annotations, versioned venue/styling reviews, deliverable and closeout acknowledgments, client feedback, and consent-based testimonial moderation. PMCM retains official-layout ownership. Owners A (Maxine), B, C, and D.
