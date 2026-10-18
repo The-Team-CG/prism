@@ -13,6 +13,7 @@ import type {
   RequestStorageUploadInput,
   ConfirmStorageUploadInput,
   PrismEventDecision,
+  PrismClientChangeRequest,
 } from "@prism/types";
 import type { EventOpsActorQuery } from "./primitives";
 
@@ -21,6 +22,12 @@ export interface EventOpsEventsContract {
     list(actor?: EventOpsActorQuery, cursor?: string): Promise<PrismEventPage>;
     detail(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEvent>;
     decisionHistory(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventDecision[]>;
+    recordDecision(
+      eventId: string,
+      input: import("@prism/types").RecordEventDecisionInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismEventDecision>;
+    changeRequests(eventId: string, actor?: EventOpsActorQuery): Promise<PrismClientChangeRequest[]>;
     fileRequirements(
       eventId: string,
       actor?: EventOpsActorQuery,

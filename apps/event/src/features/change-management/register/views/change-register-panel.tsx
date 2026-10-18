@@ -5,9 +5,10 @@ import type { PrismEventFreezeException } from "@prism/types";
 import { useChangeRegisterViewModel } from "../view-models/use-change-register-view-model";
 import { freezeExceptionStatusLabel, pendingFreezeExceptions } from "../model/change-register-rules";
 import { PmcmAddendaStatus } from "../../views/pmcm-addenda-status";
+import { RecordDecisionForm } from "./record-decision-form";
 
 export function ChangeRegisterPanel({ eventId, frozen }: { eventId: string; frozen: boolean }) {
-  const vm = useChangeRegisterViewModel(eventId);
+  const vm = useChangeRegisterViewModel(eventId, { frozen });
 
   return (
     <section aria-labelledby="change-register-heading" className="space-y-5 rounded-xl border border-border bg-card p-5">
@@ -39,6 +40,7 @@ export function ChangeRegisterPanel({ eventId, frozen }: { eventId: string; froz
             onApprove={(id) => vm.approveException(id)}
             onReject={(id, note) => vm.rejectException(id, note)}
           />
+          <RecordDecisionForm frozen={frozen} approvedExceptions={vm.approvedExceptions} busy={vm.busy} onSubmit={(draft) => vm.recordDecision(draft)} />
           <PmcmAddendaStatus addenda={vm.addenda} />
         </>
       ) : null}
@@ -128,7 +130,7 @@ function ExceptionRegister({
                 <p className="text-muted-foreground">Reason: {exception.reason}</p>
                 {exception.decisionNote ? <p className="text-muted-foreground">Decision note: {exception.decisionNote}</p> : null}
               </div>
-              <span className="text-xs font-semibold text-muted-foreground">{freezeExceptionStatusLabel(exception.status)}</span>
+              <span className="text-xs font-semibold text-muted-foreground">{freezeExceptionStatusLabel(exception)}</span>
             </div>
             {exception.status === "pending" ? (
               rejectingId === exception.id ? (
