@@ -1,4 +1,4 @@
-import type { PrismInquiry } from "@prism/types";
+import type { PrismInquiry, PrismInquiryMergeRecord } from "@prism/types";
 
 export interface LogInquiryOnBehalfInput {
   clientName: string;
@@ -136,30 +136,50 @@ export function inquiryMergeCandidates(inquiry: PrismInquiry, all: PrismInquiry[
   );
 }
 
+function cueInquiryLabel(item: PrismInquiry | undefined, fallbackId: string) {
+  return item ? `${item.clientName} (${item.eventName})` : fallbackId;
+}
+
+function mergedIntoCue(inquiry: PrismInquiry, byId: Map<string, PrismInquiry>) {
+  if (!inquiry.mergedIntoInquiryId) return null;
+  return `Merged into ${cueInquiryLabel(byId.get(inquiry.mergedIntoInquiryId), inquiry.mergedIntoInquiryId)}`;
+}
+
+function duplicateCue(inquiry: PrismInquiry, byId: Map<string, PrismInquiry>) {
+  if (!inquiry.duplicateOfInquiryId) return null;
+  return `Possible duplicate of ${cueInquiryLabel(byId.get(inquiry.duplicateOfInquiryId), inquiry.duplicateOfInquiryId)}`;
+}
+
+function declinedCue(inquiry: PrismInquiry) {
+  if (!inquiry.previouslyDeclined) return null;
+  return inquiry.previousDeclineReason ? `Previously declined: ${inquiry.previousDeclineReason}` : "Previously declined";
+}
+
+function parallelCue(count: number) {
+  if (count <= 0) return null;
+  return `${count} other open ${count === 1 ? "inquiry" : "inquiries"} for this organization`;
+}
+
+function highFitCue(inquiry: PrismInquiry) {
+  return inquiry.highFit ? "High fit: corporate or government client with a named organization" : null;
+}
+
+function mergeHistoryCue(merge: PrismInquiryMergeRecord) {
+  return `Merged ${merge.mergedInquiryName || "an inquiry"} in by ${merge.actorName} on ${merge.matchBasis} match: ${merge.reason}`;
+}
+
 /** Plain-text history cues for the inquiry drawer. Names come from the loaded inquiry list when available. */
 export function inquiryHistoryCues(inquiry: PrismInquiry, all: PrismInquiry[]) {
   const byId = new Map(all.map((item) => [item.id, item]));
-  const cues: string[] = [];
-  if (inquiry.mergedIntoInquiryId) {
-    const primary = byId.get(inquiry.mergedIntoInquiryId);
-    cues.push(`Merged into ${primary ? `${primary.clientName} (${primary.eventName})` : inquiry.mergedIntoInquiryId}`);
-  }
-  if (inquiry.duplicateOfInquiryId) {
-    const original = byId.get(inquiry.duplicateOfInquiryId);
-    cues.push(`Possible duplicate of ${original ? `${original.clientName} (${original.eventName})` : inquiry.duplicateOfInquiryId}`);
-  }
-  if (inquiry.previouslyDeclined) {
-    cues.push(inquiry.previousDeclineReason ? `Previously declined: ${inquiry.previousDeclineReason}` : "Previously declined");
-  }
-  const parallel = inquiry.parallelInquiryIds?.length ?? 0;
-  if (parallel > 0) cues.push(`${parallel} other open ${parallel === 1 ? "inquiry" : "inquiries"} for this organization`);
-  if (inquiry.highFit) cues.push("High fit: corporate or government client with a named organization");
-  for (const merge of inquiry.mergeHistory ?? []) {
-    cues.push(
-      `Merged ${merge.mergedInquiryName || "an inquiry"} in by ${merge.actorName} on ${merge.matchBasis} match: ${merge.reason}`,
-    );
-  }
-  return cues;
+  const cues = [
+    mergedIntoCue(inquiry, byId),
+    duplicateCue(inquiry, byId),
+    declinedCue(inquiry),
+    parallelCue(inquiry.parallelInquiryIds?.length ?? 0),
+    highFitCue(inquiry),
+    ...(inquiry.mergeHistory ?? []).map(mergeHistoryCue),
+  ];
+  return cues.filter((cue): cue is string => cue !== null);
 }
 
 export function toLogInquiryInput(form: InquiryLogForm): LogInquiryOnBehalfInput {
