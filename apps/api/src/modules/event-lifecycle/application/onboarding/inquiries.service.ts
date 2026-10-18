@@ -494,8 +494,8 @@ export class InquiriesService {
         sourceName = source.clientName;
       },
       write: () => this.prisma.$transaction(async (tx) => {
-        // Lock both rows in id order so concurrent merges serialize; the unique merged_inquiry_id guards double merges.
         const [lowId, highId] = [input.sourceInquiryId, primaryInquiryId].sort();
+        // QUERY_AUDIT_RAW_SQL: row locks in id order so concurrent merges serialize; the unique merged_inquiry_id guards double merges.
         await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM event_lifecycle.inquiries WHERE id IN (${lowId}, ${highId}) ORDER BY id FOR UPDATE`;
         const [source, primary] = await Promise.all([
           tx.opsInquiry.findUnique({ where: { id: input.sourceInquiryId }, include: { mergedInto: true } }),
