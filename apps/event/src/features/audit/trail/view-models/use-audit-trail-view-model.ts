@@ -29,6 +29,8 @@ import {
 import { createAuditTrailRepository } from "../data/audit-trail-repository";
 import { downloadAuditLog } from "../use-cases/export-audit-log";
 import { summarizeAuditTrail } from "../model/audit-trail-rules";
+import { downloadPrivacyExportBundle } from "../model/privacy-export-download";
+import { parsePrivacyCorrectionDraft, type PrivacyCorrectionDraft } from "../model/privacy-correction";
 
 type PrivacyForm = Pick<CreatePrivacyRequestInput, "subjectType" | "requestType" | "subjectEmail" | "subjectName" | "requestNotes">;
 
@@ -187,11 +189,21 @@ export function useAuditTrailViewModel() {
     }
   }, [refreshAudit, repository]);
 
-  const executePrivacyRequest = useCallback(async (requestId: string) => {
+  const executePrivacyRequest = useCallback(async (requestId: string, draft?: PrivacyCorrectionDraft) => {
+    const correction = draft ? parsePrivacyCorrectionDraft(draft) : null;
+    if (correction && !correction.ok) {
+      setError(correction.message);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      await repository.executePrivacyRequest(requestId, "Executed from PMCM privacy operations panel.");
+      const result = await repository.executePrivacyRequest(
+        requestId,
+        "Executed from PMCM privacy operations panel.",
+        correction?.ok ? correction.patch : undefined,
+      );
+      if (result.export) downloadPrivacyExportBundle(result.export);
       await refreshAudit();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to execute privacy request");

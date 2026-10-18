@@ -8,7 +8,9 @@ import type {
   PrismAuditLog,
   PrismEvent,
   PrismLoginHistory,
+  PrismPrivacyExecutionResult,
   PrismPrivacyInventory,
+  PrivacyCorrectionPatch,
   PrismPrivacyLegalHold,
   PrismPrivacyRequest,
   PrismPrivacyRetentionPolicy,
@@ -38,7 +40,7 @@ export type AuditTrailCommands = {
   auditLogs(filters: AuditLogFilters): Promise<PrismAuditLog[]>;
   createLegalHold(input: CreatePrivacyLegalHoldInput): Promise<PrismPrivacyLegalHold>;
   createPrivacyRequest(input: CreatePrivacyRequestInput): Promise<PrismPrivacyRequest>;
-  executePrivacyRequest(requestId: string, notes?: string): Promise<PrismPrivacyRequest>;
+  executePrivacyRequest(requestId: string, notes?: string, correction?: PrivacyCorrectionPatch): Promise<PrismPrivacyExecutionResult>;
   exportAuditLogs(filters: AuditLogFilters): Promise<PrismAuditExport>;
   loginHistory(userId: string): Promise<PrismLoginHistory[]>;
   pmcmState(): Promise<PrismPmcmDashboardWorkspace>;
@@ -66,9 +68,9 @@ const auditTrailCommands = {
     eventApiRequest<PrismPrivacyRequest>("/api/privacy/requests", { method: "POST", body: input }),
   createLegalHold: (input: CreatePrivacyLegalHoldInput) =>
     eventApiRequest<PrismPrivacyLegalHold>("/api/privacy/legal-holds", { method: "POST", body: input }),
-  executePrivacyRequest: (requestId: string, notes?: string) =>
-    eventApiRequest<PrismPrivacyRequest>(`/api/privacy/requests/${requestId}/execute`, {
-      method: "POST", body: { executionNotes: notes },
+  executePrivacyRequest: (requestId: string, notes?: string, correction?: PrivacyCorrectionPatch) =>
+    eventApiRequest<PrismPrivacyExecutionResult>(`/api/privacy/requests/${requestId}/execute`, {
+      method: "POST", body: { executionNotes: notes, ...(correction ? { correction } : {}) },
     }),
   exportAuditLogs: (filters: AuditLogFilters) =>
     eventApiRequest<PrismAuditExport>("/api/audit/export", { method: "POST", body: filters }),
@@ -144,8 +146,8 @@ export function createAuditTrailRepository(commands: AuditTrailCommands = auditT
       return commands.reviewPrivacyRequest(requestId, input);
     },
 
-    executePrivacyRequest(requestId: string, notes: string): Promise<PrismPrivacyRequest> {
-      return commands.executePrivacyRequest(requestId, notes);
+    executePrivacyRequest(requestId: string, notes: string, correction?: PrivacyCorrectionPatch): Promise<PrismPrivacyExecutionResult> {
+      return commands.executePrivacyRequest(requestId, notes, correction);
     },
 
     releaseLegalHold(holdId: string, input: ReleasePrivacyLegalHoldInput): Promise<PrismPrivacyLegalHold> {

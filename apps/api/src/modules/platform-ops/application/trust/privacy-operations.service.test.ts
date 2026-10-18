@@ -243,15 +243,20 @@ describe('PrivacyOperationsService', () => {
         findUnique: vi.fn(async () => request),
         update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => Object.assign(request, data)),
       },
-      opsUser: { findFirst: vi.fn(async (): Promise<{ id: string } | null> => null) },
-      opsInquiry: { findMany: vi.fn(async () => [{ id: 'inq_legacy' }]), updateMany: updateMany() },
-      opsEvent: { findMany: vi.fn(async () => [{ id: 'evt_linked' }]), updateMany: updateMany() },
-      opsBillingStatement: { updateMany: updateMany() },
-      opsApprovalRequest: { updateMany: updateMany() },
-      opsSupplier: { updateMany: updateMany() },
-      opsSupplierApplication: { updateMany: updateMany() },
-      opsGuestCheckIn: { updateMany: updateMany() },
-      opsGuestFeedback: { findMany: vi.fn(async () => [{ id: 'feedback_1' }]), updateMany: updateMany() },
+      opsUser: {
+        findFirst: vi.fn(async (): Promise<{ id: string; role: string } | null> => null),
+        findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []),
+        updateMany: vi.fn(async (_args: { where: unknown; data: Record<string, unknown> }) => ({ count: 1 })),
+      },
+      opsPasswordResetToken: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+      opsBillingStatement: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []), updateMany: updateMany() },
+      opsSupplier: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []), updateMany: updateMany() },
+      opsSupplierApplication: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []), updateMany: updateMany() },
+      opsApprovalRequest: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []), updateMany: updateMany() },
+      opsGuestCheckIn: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []), updateMany: updateMany() },
+      opsInquiry: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => [{ id: 'inq_legacy' }]), updateMany: updateMany() },
+      opsEvent: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => [{ id: 'evt_linked' }]), updateMany: updateMany() },
+      opsGuestFeedback: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => [{ id: 'feedback_1' }]), updateMany: updateMany() },
       opsGuestFeedbackMedia: { updateMany: updateMany() },
       opsGuestRosterEntry: {
         findMany: vi.fn(async () => [] as Array<{ id: string }>),
@@ -324,9 +329,9 @@ describe('PrivacyOperationsService', () => {
     expect(rootPrisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it.each(['access', 'correction'])('does not falsely execute an approved %s request', async (requestType) => {
-    const { execute, request, tx, auditService } = executionFixture({ requestType });
-    await expect(execute()).rejects.toThrow('not supported yet');
+  it('does not falsely execute an approved correction request without an explicit patch', async () => {
+    const { execute, request, tx, auditService } = executionFixture({ requestType: 'correction' });
+    await expect(execute()).rejects.toThrow('requires an explicit name or email patch');
     expect(request.status).toBe('approved');
     expect(tx.opsPrivacyRequest.update).not.toHaveBeenCalled();
     expect(auditService.audit).not.toHaveBeenCalled();
@@ -450,18 +455,36 @@ describe('PrivacyOperationsService', () => {
     );
   });
 
-  it.each(['account', 'unrecognized'])('leaves unsupported %s deletion approved', async (subjectType) => {
-    const { execute, request } = executionFixture({ subjectType });
+  it('leaves an unsupported subject type deletion approved', async () => {
+    const { execute, request } = executionFixture({ subjectType: 'unrecognized' });
     await expect(execute()).rejects.toThrow('not supported');
     expect(request.status).toBe('approved');
   });
 
-  it('does not declare deletion complete while a native account still identifies the subject', async () => {
+  it('does not declare client deletion complete while a native account still identifies the subject', async () => {
     const { execute, request, tx } = executionFixture();
-    tx.opsUser.findFirst.mockResolvedValue({ id: 'usr_subject' });
-    await expect(execute()).rejects.toThrow('account deletion is not supported');
+    tx.opsUser.findFirst.mockResolvedValue({ id: 'usr_subject', role: OpsUserRole.Client });
+    await expect(execute()).rejects.toThrow('submit an account erasure request');
     expect(request.status).toBe('approved');
     expect(tx.opsInquiry.updateMany).not.toHaveBeenCalled();
+    expect(tx.opsUser.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('keeps an account erasure pending when no native account matches', async () => {
+    const { execute, request, tx } = executionFixture({ subjectType: 'account' });
+    await expect(execute()).rejects.toThrow('No native account matches');
+    expect(request.status).toBe('approved');
+    expect(tx.opsInquiry.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('refuses to erase a staff account through a subject privacy request', async () => {
+    const { execute, request, tx, auditService } = executionFixture({ subjectType: 'account' });
+    tx.opsUser.findFirst.mockResolvedValue({ id: 'usr_staff', role: OpsUserRole.PmcmAdmin });
+    await expect(execute()).rejects.toBeInstanceOf(ForbiddenException);
+    expect(request.status).toBe('approved');
+    expect(tx.opsUser.updateMany).not.toHaveBeenCalled();
+    expect(tx.opsInquiry.updateMany).not.toHaveBeenCalled();
+    expect(auditService.audit).not.toHaveBeenCalled();
   });
 
   it('does not mark an unmatched guest request executed', async () => {
@@ -471,5 +494,251 @@ describe('PrivacyOperationsService', () => {
     tx.opsGuestFeedbackMedia.updateMany.mockResolvedValue({ count: 0 });
     await expect(execute()).rejects.toThrow('No supported records matched');
     expect(request.status).toBe('approved');
+  });
+
+  it('exports only the subject-matched records, writes nothing to owners, and audits counts without record contents', async () => {
+    const { execute, request, tx, auditService } = executionFixture({ requestType: 'access', subjectEmail: 'ANA@AYALA.TEST', eventId: null });
+    const eventDate = new Date('2026-11-01T00:00:00.000Z');
+    const createdAt = new Date('2026-09-01T00:00:00.000Z');
+    tx.opsInquiry.findMany.mockResolvedValueOnce([{
+      id: 'inq_legacy', clientName: 'Ana Reyes', companyName: 'Ayala', email: 'ana@ayala.test', eventName: 'Gala', eventType: 'gala',
+      eventDate, clientType: 'corporate', source: 'referral', referralDetails: '', message: 'Gala planning notes', status: 'accepted',
+      privacyConsentAccepted: true, privacyNoticeVersion: 'v1', marketingConsentAccepted: false, createdAt,
+    }]);
+    tx.opsEvent.findMany
+      .mockResolvedValueOnce([{ id: 'evt_linked' }])
+      .mockResolvedValueOnce([{ id: 'evt_linked', clientName: 'Ana Reyes', eventName: 'Gala', eventDate, status: 'planning', clientPortalStatus: 'active', archived: false, createdAt }]);
+    tx.opsBillingStatement.findMany.mockResolvedValueOnce([{
+      id: 'bill_1', eventId: 'evt_linked', number: 'INV-1', clientName: 'Ana Reyes', clientContact: 'ana@ayala.test', eventName: 'Gala',
+      eventDate: null, totalAmount: 100, status: 'sent', sentAt: null, generatedAt: createdAt,
+    }]);
+
+    const result = await execute();
+
+    expect(result.status).toBe('executed');
+    expect(result.export?.sections.map((section) => section.surface)).toEqual(['inquiry', 'event', 'billing_client_copy']);
+    expect(JSON.stringify(result.export)).toContain('Gala planning notes');
+    expect(tx.opsInquiry.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {
+      OR: [{ email: { equals: 'ana@ayala.test', mode: 'insensitive' } }, { normalizedEmail: 'ana@ayala.test' }],
+    } }));
+    expect(tx.opsBillingStatement.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { eventId: { in: ['evt_linked'] } } }));
+    expect(tx.opsSupplier.findMany).not.toHaveBeenCalled();
+    expect(tx.opsGuestCheckIn.findMany).not.toHaveBeenCalled();
+    expect(tx.opsInquiry.updateMany).not.toHaveBeenCalled();
+    expect(tx.opsEvent.updateMany).not.toHaveBeenCalled();
+    expect(tx.opsUser.updateMany).not.toHaveBeenCalled();
+    expect(JSON.stringify(auditService.audit.mock.calls)).not.toContain('Gala planning notes');
+    expect(auditService.audit).toHaveBeenCalledWith(
+      undefined,
+      'Mys',
+      'Privacy export receipt: event-lifecycle',
+      expect.objectContaining({
+        affectedType: 'privacy_owner_export_receipt',
+        metadata: expect.objectContaining({ owner: 'event-lifecycle', outcome: 'completed', touchedRecords: 2 }),
+      }),
+      expect.objectContaining({ prisma: tx, correlationId: 'privacy:priv_1:export:event-lifecycle' }),
+    );
+  });
+
+  it('exports a guest only from the selected event', async () => {
+    const { execute, tx } = executionFixture({ subjectType: 'guest', requestType: 'access' });
+    tx.opsGuestFeedback.findMany.mockResolvedValueOnce([]);
+    await execute();
+    expect(tx.opsGuestCheckIn.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { eventId: 'evt_sample', guestName: { equals: 'Ana Reyes', mode: 'insensitive' } },
+    }));
+    expect(tx.opsInquiry.findMany).not.toHaveBeenCalled();
+    expect(tx.opsUser.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('rejects export execution from unverified actors before opening a transaction', async () => {
+    const { service, request, rootPrisma } = executionFixture({ requestType: 'access' });
+    await expect(service.executeRequest(request.id, {}, { ...verifiedActor, verified: false })).rejects.toBeInstanceOf(ForbiddenException);
+    expect(rootPrisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('erases a native client account with its client surfaces in one transaction and revokes its sessions', async () => {
+    const { execute, request, tx, auditService } = executionFixture({ subjectType: 'account' });
+    tx.opsUser.findFirst.mockResolvedValue({ id: 'usr_ana', role: OpsUserRole.Client });
+
+    const result = await execute();
+
+    expect(result.status).toBe('executed');
+    expect(request.status).toBe('executed');
+    expect(tx.opsInquiry.updateMany).toHaveBeenCalled();
+    expect(tx.opsUser.updateMany).toHaveBeenCalledWith({
+      where: { id: 'usr_ana', email: { equals: 'ana@ayala.test', mode: 'insensitive' } },
+      data: expect.objectContaining({
+        name: 'Redacted account',
+        email: 'redacted+privacy_priv_1@privacy.local',
+        permanentLockout: true,
+        twoFactorSecret: null,
+        sessionVersion: { increment: 1 },
+      }),
+    });
+    expect(String(tx.opsUser.updateMany.mock.calls[0][0].data.password)).toMatch(/^erased:/);
+    expect(tx.opsPasswordResetToken.deleteMany).toHaveBeenCalledWith({ where: { userId: 'usr_ana' } });
+    expect(auditService.audit).toHaveBeenCalledWith(
+      'evt_sample',
+      'Mys',
+      'Privacy redaction receipt: identity-access',
+      expect.objectContaining({ metadata: expect.objectContaining({ owner: 'identity-access', surfaces: ['approval_request', 'account'], touchedRecords: 2 }) }),
+      expect.objectContaining({ prisma: tx, correlationId: 'privacy:priv_1:owner:identity-access' }),
+    );
+  });
+
+  it('does not erase an account twice when an executed request is submitted again', async () => {
+    const { execute, tx, request } = executionFixture({ subjectType: 'account' });
+    tx.opsUser.findFirst.mockResolvedValue({ id: 'usr_ana', role: OpsUserRole.Client });
+    await execute();
+    await expect(execute()).rejects.toThrow('must be approved before execution');
+    expect(tx.opsUser.updateMany).toHaveBeenCalledTimes(1);
+    expect(request.status).toBe('executed');
+  });
+
+  it('blocks account erasure while a legal hold on the account role is active', async () => {
+    const { execute, request, tx } = executionFixture({ subjectType: 'account' });
+    tx.opsUser.findFirst.mockResolvedValue({ id: 'usr_ana', role: OpsUserRole.Client });
+    tx.opsPrivacyLegalHold.findFirst.mockResolvedValueOnce({ id: 'hold_1' });
+    await expect(execute()).rejects.toThrow('active legal hold');
+    expect(tx.opsPrivacyLegalHold.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ subjectType: 'client' }),
+    }));
+    expect(request.status).toBe('approved');
+    expect(tx.opsUser.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('corrects the subject identity and contact copies in one transaction and audits only changed field names', async () => {
+    const { service, request, tx, auditService } = executionFixture({ requestType: 'correction', subjectEmail: 'ANA@AYALA.TEST', eventId: null });
+    const result = await service.executeRequest(request.id, { correction: { name: 'Ana R. Reyes', email: 'Ana.New@Ayala.test' } }, verifiedActor);
+
+    expect(result.status).toBe('executed');
+    expect(result.export).toBeNull();
+    expect(tx.opsInquiry.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ['inq_legacy'] } },
+      data: { clientName: 'Ana R. Reyes', email: 'ana.new@ayala.test', normalizedEmail: 'ana.new@ayala.test' },
+    });
+    expect(tx.opsEvent.updateMany).toHaveBeenCalledWith({ where: { id: { in: ['evt_linked'] } }, data: { clientName: 'Ana R. Reyes' } });
+    expect(tx.opsBillingStatement.updateMany).toHaveBeenCalledWith({
+      where: { eventId: { in: ['evt_linked'] } },
+      data: { clientName: 'Ana R. Reyes', clientContact: 'ana.new@ayala.test' },
+    });
+    expect(tx.opsApprovalRequest.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ role: 'client' }),
+      data: { name: 'Ana R. Reyes', email: 'ana.new@ayala.test' },
+    }));
+    expect(tx.opsSupplier.updateMany).not.toHaveBeenCalled();
+    expect(tx.opsUser.updateMany).not.toHaveBeenCalled();
+    expect(auditService.audit).toHaveBeenCalledWith(
+      undefined,
+      'Mys',
+      'Privacy correction receipt: event-lifecycle',
+      expect.objectContaining({
+        affectedType: 'privacy_owner_correction_receipt',
+        metadata: expect.objectContaining({ owner: 'event-lifecycle', changedFields: ['name', 'email'], touchedRecords: 2 }),
+      }),
+      expect.objectContaining({ prisma: tx, correlationId: 'privacy:priv_1:correction:event-lifecycle' }),
+    );
+    const audited = JSON.stringify(auditService.audit.mock.calls);
+    expect(audited).not.toContain('Ana R. Reyes');
+    expect(audited).not.toContain('ana.new@ayala.test');
+  });
+
+  it('corrects a native account row only when the account subject is the requested identity', async () => {
+    const { service, request, tx } = executionFixture({ requestType: 'correction', subjectType: 'account', subjectEmail: 'ana@ayala.test', eventId: null });
+    tx.opsUser.findFirst.mockResolvedValueOnce({ id: 'usr_ana', role: OpsUserRole.Client }).mockResolvedValueOnce(null);
+
+    await service.executeRequest(request.id, { correction: { email: 'ana.new@ayala.test' } }, verifiedActor);
+
+    expect(tx.opsUser.updateMany).toHaveBeenCalledWith({
+      where: { id: 'usr_ana', email: { equals: 'ana@ayala.test', mode: 'insensitive' } },
+      data: { email: 'ana.new@ayala.test', sessionVersion: { increment: 1 } },
+    });
+    expect(request.status).toBe('executed');
+  });
+
+  it.each([
+    ['a PMCM admin account', { id: 'usr_staff', role: OpsUserRole.PmcmAdmin }, 'Staff and non-subject accounts'],
+    ['a coordinator account', { id: 'usr_coord', role: OpsUserRole.Coordinator }, 'Staff and non-subject accounts'],
+  ])('refuses to correct %s through a subject privacy request', async (_label, account, message) => {
+    const { service, request, tx, auditService } = executionFixture({ requestType: 'correction', subjectType: 'account' });
+    tx.opsUser.findFirst.mockResolvedValue(account);
+
+    await expect(service.executeRequest(request.id, { correction: { name: 'Staff Name' } }, verifiedActor)).rejects.toThrow(message);
+    expect(request.status).toBe('approved');
+    expect(tx.opsUser.updateMany).not.toHaveBeenCalled();
+    expect(tx.opsInquiry.updateMany).not.toHaveBeenCalled();
+    expect(auditService.audit).not.toHaveBeenCalled();
+  });
+
+  it('rejects client correction when the identity has a native account and the account subject was not used', async () => {
+    const { service, request, tx } = executionFixture({ requestType: 'correction' });
+    tx.opsUser.findFirst.mockResolvedValue({ id: 'usr_ana', role: OpsUserRole.Client });
+
+    await expect(service.executeRequest(request.id, { correction: { name: 'Ana R. Reyes' } }, verifiedActor))
+      .rejects.toThrow('submit the correction against the account subject');
+    expect(tx.opsInquiry.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects guest correction, unknown or empty patches, and patches on non-correction requests before any write', async () => {
+    const guest = executionFixture({ requestType: 'correction', subjectType: 'guest' });
+    await expect(guest.service.executeRequest(guest.request.id, { correction: { name: 'Ana' } }, verifiedActor))
+      .rejects.toThrow('not supported');
+
+    const unknownField = executionFixture({ requestType: 'correction' });
+    await expect(unknownField.service.executeRequest(
+      unknownField.request.id,
+      { correction: { name: 'Ana', role: 'pmcm-admin' } as never },
+      verifiedActor,
+    )).rejects.toThrow('valid name or email');
+
+    const empty = executionFixture({ requestType: 'correction' });
+    await expect(empty.service.executeRequest(empty.request.id, { correction: {} }, verifiedActor)).rejects.toThrow('valid name or email');
+
+    const deletionWithPatch = executionFixture();
+    await expect(deletionWithPatch.service.executeRequest(deletionWithPatch.request.id, { correction: { name: 'Ana' } }, verifiedActor))
+      .rejects.toThrow('only accepted for correction requests');
+    expect(deletionWithPatch.tx.opsInquiry.updateMany).not.toHaveBeenCalled();
+    expect(guest.tx.opsInquiry.updateMany).not.toHaveBeenCalled();
+    expect(unknownField.tx.opsInquiry.updateMany).not.toHaveBeenCalled();
+    expect(empty.tx.opsInquiry.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects a corrected email already used by another native account without writing', async () => {
+    const { service, request, tx } = executionFixture({ requestType: 'correction', eventId: null });
+    tx.opsUser.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 'usr_other', role: OpsUserRole.Client });
+
+    await expect(service.executeRequest(request.id, { correction: { email: 'taken@ayala.test' } }, verifiedActor))
+      .rejects.toThrow('already uses the corrected email');
+    expect(request.status).toBe('approved');
+    expect(tx.opsInquiry.updateMany).not.toHaveBeenCalled();
+    expect(tx.opsUser.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('keeps a correction pending when no supported records match and never blocks a second run', async () => {
+    const { service, request, tx } = executionFixture({ requestType: 'correction', eventId: null });
+    tx.opsInquiry.findMany.mockResolvedValueOnce([]);
+    tx.opsEvent.findMany.mockResolvedValueOnce([]);
+    tx.opsApprovalRequest.updateMany.mockResolvedValueOnce({ count: 0 });
+    await expect(service.executeRequest(request.id, { correction: { name: 'Ana R. Reyes' } }, verifiedActor))
+      .rejects.toThrow('remains pending');
+    expect(request.status).toBe('approved');
+  });
+
+  it('does not apply a correction twice when an executed request is submitted again', async () => {
+    const { service, request, tx } = executionFixture({ requestType: 'correction', eventId: null });
+    await service.executeRequest(request.id, { correction: { name: 'Ana R. Reyes' } }, verifiedActor);
+    await expect(service.executeRequest(request.id, { correction: { name: 'Ana R. Reyes' } }, verifiedActor))
+      .rejects.toThrow('must be approved before execution');
+    expect(tx.opsInquiry.updateMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks a correction while a legal hold on the subject is active', async () => {
+    const { service, request, tx } = executionFixture({ requestType: 'correction', eventId: null });
+    tx.opsPrivacyLegalHold.findFirst.mockResolvedValueOnce({ id: 'hold_1' });
+    await expect(service.executeRequest(request.id, { correction: { name: 'Ana R. Reyes' } }, verifiedActor))
+      .rejects.toThrow('active legal hold');
+    expect(request.status).toBe('approved');
+    expect(tx.opsInquiry.updateMany).not.toHaveBeenCalled();
   });
 });
