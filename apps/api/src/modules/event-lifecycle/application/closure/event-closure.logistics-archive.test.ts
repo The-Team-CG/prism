@@ -1,8 +1,16 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { archiveComparisonQuerySchema, recordLogisticsCompletionSchema, updateEventWrapUpSchema } from '@prism/types';
 import { EventClosureService } from './event-closure.service';
+
+// Fixtures are dated 2026-09 to 2026-10-17; the event ended 2026-10-17T18:00Z and the wrap-up deadline is 2026-10-18T18:00Z.
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-10-17T21:00:00.000Z'));
+});
+
+afterEach(() => vi.useRealTimers());
 
 const PRIVATE_NOTE = 'PRIVATE: forklift damage deducted from supplier invoice';
 const SUMMARY = 'All AV and staging returned to the warehouse';
