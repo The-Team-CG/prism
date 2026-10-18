@@ -1,5 +1,5 @@
 import { eventApi as eventOpsClient, eventApiRequest as request } from "@/lib/prism-api";
-import type { PrismBriefing, PrismDocument, PrismEvent, PrismInquiry, PrismPmcmOcularVisit, RecordActualEventEndInput, ScheduleOcularVisitInput, SetClientEventDayViewInput, WaiveOcularVisitInput } from "@prism/types";
+import type { PrismBriefing, PrismDocument, PrismEvent, PrismInquiry, PrismInquiryMergeRecord,PrismPmcmOcularVisit, RecordActualEventEndInput, ScheduleOcularVisitInput, SetClientEventDayViewInput, WaiveOcularVisitInput } from "@prism/types";
 
 export const lifecycleCommands = {
 scheduleOcularVisit: (eventId: string, input: ScheduleOcularVisitInput) =>
@@ -37,6 +37,11 @@ declineInquiry: (inquiryId: string, declineReason: string) =>
     request<PrismInquiry>(`/api/inquiries/${inquiryId}/status`, {
       method: "PATCH",
       body: { status: "declined", declineReason },
+    }),
+mergeInquiry: (primaryInquiryId: string, input: { sourceInquiryId: string; reason: string }) =>
+    request<PrismInquiryMergeRecord>(`/api/inquiries/${primaryInquiryId}/merge`, {
+      method: "POST",
+      body: input,
     }),
 logInquiryOnBehalf: (
     input: {

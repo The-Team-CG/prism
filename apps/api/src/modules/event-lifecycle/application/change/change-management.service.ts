@@ -3,11 +3,18 @@ import type { Prisma } from '@prisma/client';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor, writeAudit } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
-import type { DecideFreezeExceptionInput, FreezeEventInput, IssueAddendumInput, RequestFreezeExceptionInput, PrismAddendum, PrismEventFreezeException } from '@prism/types';
+import type { DecideFreezeExceptionInput, FreezeEventInput, IssueAddendumInput, RequestFreezeExceptionInput, PrismAddendum, PrismClientChangeRequest, PrismEventFreezeException } from '@prism/types';
 import { randomUUID } from 'node:crypto';
 import { COMMERCIAL_ADDENDUM_IMPACT_WRITER, type CommercialAddendumImpactWriter } from '@prism/contexts/commercial';
 
 type SnapshotEntry = Record<string, unknown>;
+
+// Internal exception states map to neutral client wording; a pending request is still under review.
+const CLIENT_CHANGE_REQUEST_STATUS = {
+  pending: 'under_review',
+  approved: 'approved',
+  rejected: 'not_approved',
+} as const;
 
 function stable(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stable).sort().join(',')}]`;
@@ -29,8 +36,21 @@ export function compareSnapshots(previous: SnapshotEntry[], next: SnapshotEntry[
   });
 }
 
-function mapException(value: { id: string; eventId: string; requestedChange: string; reason: string; status: string; requestedBy: string; decidedBy: string | null; decisionNote: string | null; requestedAt: Date; decidedAt: Date | null }): PrismEventFreezeException {
-  return { ...value, status: value.status as PrismEventFreezeException['status'], requestedAt: value.requestedAt.toISOString(), decidedAt: value.decidedAt?.toISOString() ?? null };
+function mapException(value: { id: string; eventId: string; requestedChange: string; reason: string; status: string; requestedBy: string; decidedBy: string | null; decisionNote: string | null; requestedAt: Date; decidedAt: Date | null; consumedAt: Date | null }): PrismEventFreezeException {
+  // Explicit fields: the Prisma row also carries internal columns that must not reach the response.
+  return {
+    id: value.id,
+    eventId: value.eventId,
+    requestedChange: value.requestedChange,
+    reason: value.reason,
+    status: value.status as PrismEventFreezeException['status'],
+    requestedBy: value.requestedBy,
+    decidedBy: value.decidedBy,
+    decisionNote: value.decisionNote,
+    requestedAt: value.requestedAt.toISOString(),
+    decidedAt: value.decidedAt?.toISOString() ?? null,
+    consumedAt: value.consumedAt?.toISOString() ?? null,
+  };
 }
 
 function mapAddendum(value: { id: string; eventId: string; versionNumber: number; title: string; summary: string; status: string; documentId: string | null; documentState: string; signatureMethod: string; comparison: unknown; financialDelta: number; issuedAt: Date }): PrismAddendum {
@@ -87,6 +107,34 @@ export class ChangeManagementService {
     });
   }
 
+  async listFreezeExceptions(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismEventFreezeException[]> {
+    // Exception reasons and decision notes are PMCM-internal; clients see addenda, not the exception register.
+    await this.requireOperator(actor, eventId, 'freeze exception register');
+    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { id: true } });
+    if (!event) throw new NotFoundException('Event not found');
+    const values = await this.prisma.opsEventFreezeException.findMany({ where: { eventId }, orderBy: { requestedAt: 'desc' } });
+    return values.map(mapException);
+  }
+
+  /**
+   * Client-safe change request status. Only the requested change and its status leave the server; the internal
+   * reason, decision note, and actor identities stay in the PMCM register.
+   */
+  async listClientChangeRequests(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismClientChangeRequest[]> {
+    await this.access.requireCanReadEvent(actor, await this.prisma.opsEvent.findUniqueOrThrow({ where: { id: eventId } }), 'change requests');
+    const values = await this.prisma.opsEventFreezeException.findMany({
+      where: { eventId },
+      orderBy: { requestedAt: 'desc' },
+      select: { id: true, requestedChange: true, status: true, requestedAt: true, decidedAt: true },
+    });
+    return values.map((value) => ({
+      id: value.id,
+      requestedChange: value.requestedChange,
+      status: CLIENT_CHANGE_REQUEST_STATUS[value.status as keyof typeof CLIENT_CHANGE_REQUEST_STATUS] ?? 'under_review',
+      updatedAt: (value.decidedAt ?? value.requestedAt).toISOString(),
+    }));
+  }
+
   async listAddenda(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismAddendum[]> {
     await this.access.requireCanReadEvent(actor, await this.prisma.opsEvent.findUniqueOrThrow({ where: { id: eventId } }), 'addenda');
     const values = await this.prisma.opsAddendum.findMany({ where: { eventId }, orderBy: { versionNumber: 'desc' } });
@@ -99,15 +147,19 @@ export class ChangeManagementService {
     if (event.archived) throw new BadRequestException('Archived events cannot receive addenda');
     const document = await tx.opsDocument.findFirst({ where: { id: input.documentId, eventId } });
     if (!document) throw new BadRequestException('Addendum document metadata was not found for this event');
-    const exception = event.freezeStatus === 'frozen' ? await this.requireApprovedException(tx, eventId, input.freezeExceptionId) : null;
+    const exception = event.freezeStatus === 'frozen' ? await this.consumeApprovedException(tx, eventId, input.freezeExceptionId) : null;
     return { event, document, exception };
   }
 
-  private async requireApprovedException(tx: Prisma.TransactionClient, eventId: string, exceptionId?: string) {
+  // Addenda consume the approval the same way decisions do: one conditional write, rejected if already used.
+  private async consumeApprovedException(tx: Prisma.TransactionClient, eventId: string, exceptionId?: string) {
     if (!exceptionId) throw new BadRequestException('Frozen events reject scope changes without an approved exception');
-    const exception = await tx.opsEventFreezeException.findFirst({ where: { id: exceptionId, eventId, status: 'approved' }, select: { id: true } });
-    if (!exception) throw new BadRequestException('Freeze exception is not approved for this event');
-    return exception;
+    const consumed = await tx.opsEventFreezeException.updateMany({
+      where: { id: exceptionId, eventId, status: 'approved', consumedAt: null },
+      data: { consumedAt: new Date() },
+    });
+    if (consumed.count !== 1) throw new BadRequestException('Freeze exception is not an unused approval for this event');
+    return { id: exceptionId };
   }
 
   private async applyCommercialImpacts(

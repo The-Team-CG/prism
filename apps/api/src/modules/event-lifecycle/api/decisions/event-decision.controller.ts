@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { eventDecisionSchema, type EventDecisionInput, type PrismVerifiedEventActor } from '@prism/types';
+import { recordEventDecisionSchema, type RecordEventDecisionInput, type PrismVerifiedEventActor } from '@prism/types';
 import { zodBody } from '@prism/kernel/shared';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
@@ -16,7 +16,7 @@ export class EventDecisionController {
   }
 
   @Post()
-  decide(@Param('eventId') eventId: string, @Body(zodBody(eventDecisionSchema)) input: EventDecisionInput, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+  decide(@Param('eventId') eventId: string, @Body(zodBody(recordEventDecisionSchema)) input: RecordEventDecisionInput, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
     return this.service.decide(eventId, input, this.access.resolveActor({}, verified));
   }
 }

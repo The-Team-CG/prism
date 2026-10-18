@@ -1,6 +1,6 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
-import { mapBillingStatement, mapPaymentMilestone } from '@prism/contexts/commercial';
+import { mapBillingStatement, mapClientBillingDispute, mapPaymentMilestone } from '@prism/contexts/commercial';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { mapAuditLog } from '@prism/contexts/platform-ops';
@@ -27,6 +27,7 @@ export class OpsClientController {
         mapDocument: mapClientDocument,
         mapBriefing: mapClientBriefing,
         mapBillingStatement,
+        mapClientBillingDispute,
         mapPaymentMilestone,
         mapFloorPlanDraft: mapReadModelFloorPlanDraft,
         mapAuditLog,

@@ -29,8 +29,27 @@ function createPrisma() {
     opsStoredObject: { findFirst: vi.fn(async (): Promise<{ id: string } | null> => storedConforme) },
     opsConformeExecution: { findFirst: vi.fn(async (): Promise<{ id: string } | null> => digitalConforme) },
     opsClientCloseoutResponse: { findUnique: vi.fn(async (): Promise<{ id: string; rating: number; submittedAt: Date } | null> => closeoutResponse) },
+    opsLogisticsCompletion: { findUnique: vi.fn(async (): Promise<{ assetReturnsVerified: boolean; recordedAt: Date } | null> => logisticsRecord) },
   };
 }
+
+// Set per test: the PMCM logistics record feeding the logistics close gate.
+let logisticsRecord: { assetReturnsVerified: boolean; recordedAt: Date } | null = null;
+
+describe('logistics close gate', () => {
+  it('stays blocked without a PMCM record and passes once asset returns are verified, without exposing notes', async () => {
+    const missing = await new FileRequirementsMatrixService(createPrisma() as never).closeGates('evt_file');
+    const missingLogistics = missing.gates.find((gate) => gate.key === 'logistics');
+    expect(missingLogistics?.passed).toBe(false);
+    expect(missing.missingKeys).toContain('logistics');
+
+    logisticsRecord = { assetReturnsVerified: true, recordedAt: new Date('2026-10-18T09:00:00Z') };
+    const recorded = await new FileRequirementsMatrixService(createPrisma() as never).closeGates('evt_file');
+    expect(recorded.gates.find((gate) => gate.key === 'logistics')?.passed).toBe(true);
+    expect(JSON.stringify(recorded)).not.toMatch(/privateNotes|completionSummary/);
+    logisticsRecord = null;
+  });
+});
 
 describe('FileRequirementsMatrixService', () => {
   it('builds matrix items and close gates from event-scoped records', async () => {
