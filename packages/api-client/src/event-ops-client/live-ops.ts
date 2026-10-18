@@ -10,6 +10,7 @@ import type {
   PrismEventRunSheet,
   PrismEventHandoff,
   PrismEventEodReport,
+  PrismHandoffBrief,
 } from "@prism/types";
 import { prismRequest } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
@@ -81,6 +82,11 @@ export function createLiveOpsClient(
       listHandoffs: (eventId, actor = {}) =>
         prismRequest<PrismEventHandoff[]>(
           actorPath(`/events/${eventId}/handoffs`, actor),
+          withBase(options),
+        ),
+      handoffBrief: (eventId, actor = {}) =>
+        prismRequest<PrismHandoffBrief>(
+          actorPath(`/events/${eventId}/handoff-brief`, actor),
           withBase(options),
         ),
       listEodReports: (eventId, actor = {}) =>

@@ -15,6 +15,7 @@ import { EventOverviewPanels } from "@/features/command-inbox/list";
 import { FinancialWorkspace } from "@/features/finance/workspace";
 import { BillingAdjustmentsPanel } from "@/features/finance/billing-adjustments/views/billing-adjustments-panel";
 import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
+import { HandoffBriefPanel } from "@/features/live-ops/handoff-brief";
 import { SupplierQuotePlanner } from "@/features/suppliers/directory";
 import { PmcmSupplierReadinessBoard } from "@/features/suppliers/readiness";
 import { PmcmSupplierWorkflowsPanel } from "@/features/suppliers/workflows/views/pmcm-supplier-workflows-panel";
@@ -286,25 +287,28 @@ export function EventWorkspaceLiveOpsTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   return (
-    <LiveOperationsWorkspace
-      event={vm.selectedEvent}
-      liveOps={vm.liveOps}
-      statusFeed={vm.statusFeed}
-      coordinators={vm.coordinators}
-      busy={Boolean(vm.busy)}
-      onReload={vm.loadLiveOps}
-      onCreateTask={vm.createEventDayTask}
-      onUpdateTask={vm.updateEventDayTask}
-      onEscalateTask={vm.escalateEventDayTask}
-      onCreateIssue={vm.createUrgentIssue}
-      onUpdateIssue={vm.updateUrgentIssue}
-      onEscalateIssue={vm.escalateUrgentIssue}
-      onUpdateCoordinatorAttendance={vm.updateCoordinatorAttendance}
-      onReplaceCoordinator={vm.replaceCoordinator}
-      onLoadCoordinatorSuggestions={vm.loadCoordinatorSuggestions}
-      onVerifySupplierStatus={vm.verifySupplierStatus}
-      onDecideTaskReassignment={vm.decideEventTaskReassignment}
-    />
+    <div className="space-y-5">
+    <HandoffBriefPanel eventId={vm.selectedEvent.id} />
+      <LiveOperationsWorkspace
+        event={vm.selectedEvent}
+        liveOps={vm.liveOps}
+        statusFeed={vm.statusFeed}
+        coordinators={vm.coordinators}
+        busy={Boolean(vm.busy)}
+        onReload={vm.loadLiveOps}
+        onCreateTask={vm.createEventDayTask}
+        onUpdateTask={vm.updateEventDayTask}
+        onEscalateTask={vm.escalateEventDayTask}
+        onCreateIssue={vm.createUrgentIssue}
+        onUpdateIssue={vm.updateUrgentIssue}
+        onEscalateIssue={vm.escalateUrgentIssue}
+        onUpdateCoordinatorAttendance={vm.updateCoordinatorAttendance}
+        onReplaceCoordinator={vm.replaceCoordinator}
+        onLoadCoordinatorSuggestions={vm.loadCoordinatorSuggestions}
+        onVerifySupplierStatus={vm.verifySupplierStatus}
+        onDecideTaskReassignment={vm.decideEventTaskReassignment}
+      />
+    </div>
   );
 }
 
