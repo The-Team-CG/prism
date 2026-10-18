@@ -46,7 +46,10 @@ describe('PlatformReferenceReadModelsService', () => {
       clientPortalStatus: 'unlocked',
       inquiry: { email: 'client@example.test' },
     }));
-    const requestFindMany = vi.fn(async () => [{ supplierId: 'supplier_1' }, { supplierId: null }]);
+    const requestFindMany = vi.fn(async () => [
+      { supplierId: 'supplier_1', supplier: { email: 'supplier@example.test' } },
+      { supplierId: null, supplier: null },
+    ]);
     const service = new PlatformReferenceReadModelsService({
       opsEvent: { findUnique },
       opsSupplierQuoteRequest: { findMany: requestFindMany },
@@ -59,6 +62,7 @@ describe('PlatformReferenceReadModelsService', () => {
       clientPortalStatus: 'unlocked',
       clientEmail: 'client@example.test',
       supplierIds: ['supplier_1'],
+      supplierContacts: [{ supplierId: 'supplier_1', email: 'supplier@example.test' }],
     });
     expect(findUnique).toHaveBeenCalledWith(expect.objectContaining({
       select: expect.objectContaining({
@@ -69,7 +73,10 @@ describe('PlatformReferenceReadModelsService', () => {
         inquiry: { select: { email: true } },
       }),
     }));
-    expect(requestFindMany).toHaveBeenCalledWith({ where: { eventId: 'evt_1' }, select: { supplierId: true } });
+    expect(requestFindMany).toHaveBeenCalledWith({
+      where: { eventId: 'evt_1' },
+      select: { supplierId: true, supplier: { select: { email: true } } },
+    });
   });
 
   it('rejects missing or mismatched PARE event references before reading dependent data', async () => {

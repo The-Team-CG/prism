@@ -378,7 +378,7 @@ export class EventReadModelsService {
   async clientWorkspace(actor: ResolvedEventOpsActor, mappers: ClientWorkspaceMappers, cursor?: string) {
     await this.policy.requireActorRole(actor, [OpsUserRole.Client], 'client workspace');
 
-    const eventPage = await this.visibleEventPageForActor(actor, cursor);
+    const eventPage = await this.visibleEventPageForActor(actor, cursor, { includeArchived: true });
     const visibleEvents = eventPage.items;
     const eventIds = visibleEvents.map((event) => event.id);
 
@@ -795,8 +795,8 @@ export class EventReadModelsService {
     };
   }
 
-  private async visibleEventPageForActor(actor: ResolvedEventOpsActor, cursor?: string) {
-    const page = await this.queries.visibleEvents(actor, cursor);
+  private async visibleEventPageForActor(actor: ResolvedEventOpsActor, cursor?: string, options: { includeArchived?: boolean } = {}) {
+    const page = await this.queries.visibleEvents(actor, cursor, options);
     const eventIds = page.items.map((event) => event.id);
     return {
       ...page,

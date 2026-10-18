@@ -67,7 +67,7 @@ function createStore() {
   };
   const platformReferences = {
     findStorageEventScope: vi.fn(async (eventId: string) => eventId === 'evt_1' ? ({
-      id: 'evt_1', archived: false, clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test', supplierIds: [] as string[],
+      id: 'evt_1', archived: false, clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test', supplierIds: [] as string[], supplierContacts: [] as Array<{ supplierId: string; email: string | null }>,
     }) : null),
   };
   return {
@@ -270,7 +270,7 @@ describe('StorageObjectService', () => {
   it('rejects writes to an archived event before requesting provider authorization', async () => {
     const store = createStore();
     store.platformReferences.findStorageEventScope.mockResolvedValue({
-      id: 'evt_1', archived: true, clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test', supplierIds: [],
+      id: 'evt_1', archived: true, clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test', supplierIds: [], supplierContacts: [],
     });
     const adapter = { requestUploadLocation: vi.fn(), confirmUpload: vi.fn(), issueDownloadAuthorization: vi.fn(), deleteObject: vi.fn() };
     const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter, store.platformReferences as never);
@@ -396,7 +396,7 @@ describe('StorageObjectService', () => {
     const store = createStore();
     const supplier = { id: 'supplier-user', role: 'supplier', supplierId: 'sup_1', eventId: 'evt_1', name: 'Supplier', explicit: true, verified: true } as never;
     store.platformReferences.findStorageEventScope.mockResolvedValue({
-      id: 'evt_1', archived: false, clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test', supplierIds: ['sup_1'],
+      id: 'evt_1', archived: false, clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test', supplierIds: ['sup_1'], supplierContacts: [{ supplierId: 'sup_1', email: 'supplier@example.test' }],
     });
 
     await expect(store.service.listEventObjects('evt_1', supplier)).resolves.toEqual([]);
@@ -432,12 +432,13 @@ describe('StorageObjectService', () => {
 
   it('resolves a signed-in supplier by persisted booking email for upload, confirmation and download', async () => {
     const store = createStore();
-    const event = await store.prisma.opsEvent.findUnique();
-    event.supplierQuoteRequests = [{ supplierId: 'sup_1', supplier: { email: 'supplier@example.test' } }];
-    store.prisma.opsEvent.findUnique.mockResolvedValue(event);
+    store.platformReferences.findStorageEventScope.mockResolvedValue({
+      id: 'evt_1', archived: false, clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test',
+      supplierIds: ['sup_1'], supplierContacts: [{ supplierId: 'sup_1', email: 'supplier@example.test' }],
+    });
     const root = await mkdtemp(join(tmpdir(), 'prism-supplier-storage-'));
     roots.push(root);
-    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), new LocalFileSystemStorageAdapter(root));
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), new LocalFileSystemStorageAdapter(root), store.platformReferences as never);
     const supplier = { id: 'supplier-user', role: 'supplier', email: 'SUPPLIER@example.test', name: 'Supplier', explicit: true, verified: true } as never;
     const declaration = { ...request, usage: 'supplier_document' as const, ownerRecordType: 'supplier', ownerRecordId: 'sup_1', logicalTarget: 'supplier-contract:req_1:123e4567-e89b-42d3-a456-426614174000' };
     store.bookings[0].status = 'submitted';

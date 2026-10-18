@@ -6,8 +6,7 @@ import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/ker
 import { OpsUserRole, type OpsUserRole as OpsUserRoleValue } from '@prism/kernel/event-core';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type { PrismEventGameLobbyLogoUploadTicket, PrismEventGameMediaAuthorization, PrismEventGameMediaUploadTicket, PrismStorageDownloadAuthorization, PrismStoredObject, StorageUsage } from '@prism/types';
-import { PLATFORM_REFERENCE_READ_MODEL, type PlatformReferenceReadModel } from '@prism/contexts/read-models';
-import { readEventAccessScope, scopeActorToEvent } from '@prism/contexts/read-models/event-scope';
+import { PLATFORM_REFERENCE_READ_MODEL, type PlatformReferenceReadModel, type PlatformStorageEventScope } from '@prism/contexts/read-models';
 import {
   STORAGE_ADAPTER,
   type StorageAdapter,
@@ -51,6 +50,22 @@ function isConfirmedSupplierUpload(object: OpsStoredObject | null, input: Stored
 
 function isSupportedStorageOwner(ownerRecordType: string, usage: string) {
   return STORAGE_OWNER_USAGE_REGISTRY[ownerRecordType]?.includes(usage as StorageUsage) ?? false;
+}
+
+function sameEmail(left: string | null | undefined, right: string | null | undefined) {
+  const email = left?.trim().toLowerCase();
+  return Boolean(email && email === right?.trim().toLowerCase());
+}
+
+/** Resolve a supplier actor's booked identity from persisted event facts; never trust a session label alone. */
+function scopeActorToStorageEvent(actor: ResolvedEventOpsActor, event: PlatformStorageEventScope) {
+  if (actor.role !== OpsUserRole.Supplier) return { actor, scope: { supplierEventIds: [] as string[] } };
+  const contact = event.supplierContacts.find((candidate) =>
+    (actor.supplierId && candidate.supplierId === actor.supplierId) || sameEmail(actor.email, candidate.email));
+  return {
+    actor: { ...actor, supplierId: contact?.supplierId ?? undefined },
+    scope: { supplierEventIds: contact ? [event.id] : [] },
+  };
 }
 
 function sameUploadOwnerAndActor(object: OpsStoredObject, input: StorageServiceRequest) {
@@ -514,9 +529,7 @@ export class StorageObjectService implements StoredSupplierUploadReader {
   async listEventObjects(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismStoredObject[]> {
     const event = await this.findEvent(eventId);
     await this.requireActorEventScope(actor, eventId, 'list event documents');
-    const scopeEvent = await readEventAccessScope(this.prisma, eventId);
-    if (!scopeEvent) throw new NotFoundException('Event not found');
-    const scoped = scopeActorToEvent(actor, scopeEvent);
+    const scoped = scopeActorToStorageEvent(actor, event);
     actor = scoped.actor;
     await this.accessPolicy.requireCanReadEvent(actor, event, 'list event documents', scoped.scope);
     const objects = await this.prisma.opsStoredObject.findMany({
@@ -565,6 +578,10 @@ export class StorageObjectService implements StoredSupplierUploadReader {
   private async assertSupplierUploadOwner(input: StorageServiceRequest) {
     const actor = input.actor;
     if (input.ownerRecordType !== 'supplier') throw new BadRequestException('Supplier documents must belong to a supplier');
+    if (actor.role === OpsUserRole.Supplier && (!actor.supplierId || input.ownerRecordId !== actor.supplierId)) {
+      await this.accessPolicy.recordForbiddenAccess(actor, 'request supplier document upload', input.eventId);
+      throw new ForbiddenException('Supplier documents must belong to the verified supplier');
+    }
     const match = /^supplier-(contract|creative):([A-Za-z0-9_-]{1,100}):([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.exec(input.logicalTarget);
     if (!match) throw new ForbiddenException('Supplier document target is outside the verified booking');
     const request = await this.prisma.opsSupplierQuoteRequest.findFirst({
@@ -572,10 +589,6 @@ export class StorageObjectService implements StoredSupplierUploadReader {
     });
     if (!request) throw new ForbiddenException('Supplier document target is outside the verified booking');
     await this.assertCreativeTaskOwner(input, match);
-    if (actor.role === OpsUserRole.Supplier && (!actor.supplierId || input.ownerRecordId !== actor.supplierId)) {
-      await this.accessPolicy.recordForbiddenAccess(actor, 'request supplier document upload', input.eventId);
-      throw new ForbiddenException('Supplier documents must belong to the verified supplier');
-    }
   }
 
   private async assertCreativeTaskOwner(input: StorageServiceRequest, match: RegExpExecArray) {
@@ -623,9 +636,7 @@ export class StorageObjectService implements StoredSupplierUploadReader {
     const event = await this.findEvent(eventId);
     if (upload && event.archived) throw new ConflictException('Archived events do not accept file uploads');
     if (this.canSkipEventRead(actor, usage, upload)) return actor;
-    const accessScope = await readEventAccessScope(this.prisma, eventId);
-    if (!accessScope) throw new NotFoundException('Event not found');
-    const scoped = scopeActorToEvent(actor, accessScope);
+    const scoped = scopeActorToStorageEvent(actor, event);
     await this.accessPolicy.requireCanReadEvent(scoped.actor, event, resource, scoped.scope);
     return scoped.actor;
   }

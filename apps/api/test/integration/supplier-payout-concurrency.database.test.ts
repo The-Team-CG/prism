@@ -99,6 +99,11 @@ describe.skipIf(!live)('supplier payout release concurrency against PostgreSQL',
       const milestone = await prisma.opsSupplierPayableMilestone.findUnique({ where: { id: milestoneId } });
       expect(milestone?.status).toBe('partially_released');
     } finally {
+      // Owner schemas have no cross-domain cascades, so remove Commercial rows before Lifecycle rows.
+      await prisma.opsSupplierPayoutRecord.deleteMany({ where: { milestoneId } });
+      await prisma.opsSupplierPayableMilestone.deleteMany({ where: { id: milestoneId } });
+      await prisma.opsSupplierQuote.deleteMany({ where: { id: quoteId } });
+      await prisma.opsSupplierQuoteRequest.deleteMany({ where: { id: requestId } });
       await prisma.opsEvent.deleteMany({ where: { id: eventId } });
       await prisma.opsInquiry.deleteMany({ where: { id: inquiryId } });
       await prisma.opsSupplier.deleteMany({ where: { id: supplierId } });

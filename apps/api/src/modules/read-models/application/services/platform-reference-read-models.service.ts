@@ -37,15 +37,18 @@ export class PlatformReferenceReadModelsService implements PlatformReferenceRead
     if (!event) return null;
     const supplierRequests = await (transaction?.prisma ?? this.prisma).opsSupplierQuoteRequest.findMany({
       where: { eventId },
-      select: { supplierId: true },
+      select: { supplierId: true, supplier: { select: { email: true } } },
     });
+    const supplierContacts = supplierRequests.flatMap(({ supplierId, supplier }) =>
+      supplierId ? [{ supplierId, email: supplier?.email ?? null }] : []);
     return {
       id: event.id,
       archived: event.archived,
       clientName: event.clientName,
       clientPortalStatus: event.clientPortalStatus,
       clientEmail: event.inquiry?.email ?? null,
-      supplierIds: supplierRequests.flatMap(({ supplierId }) => supplierId ? [supplierId] : []),
+      supplierIds: supplierContacts.map(({ supplierId }) => supplierId),
+      supplierContacts,
     };
   }
 

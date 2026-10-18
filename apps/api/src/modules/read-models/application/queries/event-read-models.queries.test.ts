@@ -157,6 +157,11 @@ describe('EventReadModelQueries collection limits', () => {
       expect.objectContaining({ where: scope, take: EVENT_READ_PAGE_SIZE + 1 }),
     );
     expect(opsEvent.count).toHaveBeenCalledWith({ where: scope });
+
+    // The client workspace also lists the client's archived events for read-only closeout.
+    const { archived: _archived, ...archiveInclusiveScope } = scope;
+    await queries.visibleEvents(actor, undefined, { includeArchived: true });
+    expect(opsEvent.count).toHaveBeenLastCalledWith({ where: archiveInclusiveScope });
   });
 
   it('uses a stable eventDate and ID keyset for subsequent event pages', async () => {
