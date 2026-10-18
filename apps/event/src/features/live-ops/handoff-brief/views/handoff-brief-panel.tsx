@@ -1,7 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
+import type { PrismHandoffBrief } from "@prism/types";
 import { useHandoffBriefViewModel } from "../view-models/use-handoff-brief-view-model";
+
+type Brief = PrismHandoffBrief;
 
 const words = (value: string) => value.replaceAll("_", " ");
 
@@ -12,7 +15,6 @@ function formatTime(iso: string) {
 export function HandoffBriefPanel({ eventId }: { eventId: string }) {
   const vm = useHandoffBriefViewModel(eventId);
   const brief = vm.brief;
-  const scheduleSegments = brief?.schedule.days.flatMap((day) => day.segments.map((segment) => ({ day, segment }))) ?? [];
 
   return (
     <section aria-labelledby="handoff-brief-heading" className="space-y-5 rounded-xl border border-border bg-card p-5">
@@ -33,95 +35,137 @@ export function HandoffBriefPanel({ eventId }: { eventId: string }) {
       {vm.loading && !brief ? <p role="status" className="text-sm text-muted-foreground">Loading handoff brief…</p> : null}
       {vm.error ? <p role="alert" className="text-sm text-destructive">{vm.error}</p> : null}
 
-      {brief ? (
-        <>
-          <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-            <Detail label="Event" value={brief.keyDetails.eventName} />
-            <Detail label="Date" value={brief.keyDetails.eventDate} />
-            <Detail label="Status" value={words(brief.keyDetails.status)} />
-            <Detail label="Venue" value={brief.keyDetails.venue ?? "Not recorded"} />
-            <Detail label="Guests" value={brief.keyDetails.guestCount === null ? "Not recorded" : String(brief.keyDetails.guestCount)} />
-            <Detail label="Walk-in policy" value={brief.keyDetails.walkInPolicy ? words(brief.keyDetails.walkInPolicy) : "Not set"} />
-            {brief.keyDetails.clientName ? <Detail label="Client" value={brief.keyDetails.clientName} /> : null}
-            {brief.keyDetails.archived ? <Detail label="Archive" value="Archived, read-only" /> : null}
-          </dl>
-
-          <Section title="Schedule" empty="No schedule has been authored yet." count={scheduleSegments.length}>
-            {scheduleSegments.map(({ day, segment }) => (
-              <li key={segment.id} className="flex flex-wrap justify-between gap-2 py-2 text-sm">
-                <span className="font-semibold text-foreground">{segment.title}</span>
-                <span className="text-muted-foreground">
-                  {day.dayDate} · {formatTime(segment.plannedStartAt)}–{formatTime(segment.plannedEndAt)} · {segment.ownerRole} · {words(segment.status)}
-                </span>
-              </li>
-            ))}
-          </Section>
-
-          <Section
-            title="Supplier readiness"
-            empty={brief.supplierReadiness.visible ? "No suppliers are assigned to this event." : "Supplier readiness is not shared with this role."}
-            count={brief.supplierReadiness.items.length}
-          >
-            {brief.supplierReadiness.items.map((supplier) => (
-              <li key={supplier.id} className="flex flex-wrap justify-between gap-2 py-2 text-sm">
-                <span className="font-semibold text-foreground">{supplier.supplierName} · {supplier.category}</span>
-                <span className="text-muted-foreground">
-                  Readiness {words(supplier.readinessStatus)} · Event day {words(supplier.eventDayStatus)} · Verification {words(supplier.verificationStatus)}
-                </span>
-              </li>
-            ))}
-          </Section>
-
-          <Section title="Staffing" empty="No coordinator assignments visible to this role." count={brief.staffing.length}>
-            {brief.staffing.map((assignment) => (
-              <li key={assignment.id} className="flex flex-wrap justify-between gap-2 py-2 text-sm">
-                <span className="font-semibold text-foreground">{assignment.coordinatorName}</span>
-                <span className="text-muted-foreground">{assignment.role} · {words(assignment.status)} · attendance {words(assignment.attendanceStatus)}</span>
-              </li>
-            ))}
-          </Section>
-
-          <Section title="Open issues" empty="No open issues." count={brief.openIssues.length}>
-            {brief.openIssues.map((issue) => (
-              <li key={issue.id} className="space-y-1 py-2 text-sm">
-                <div className="flex flex-wrap justify-between gap-2">
-                  <span className="font-semibold text-foreground">{issue.title}</span>
-                  <span className="text-muted-foreground">{words(issue.severity)} · {words(issue.status)} · SLA {words(issue.slaStatus)}</span>
-                </div>
-                <p className="text-muted-foreground">
-                  {issue.affectedArea ? `${issue.affectedArea} · ` : ""}Owner {issue.ownerName || issue.ownerRole || "unassigned"}
-                </p>
-              </li>
-            ))}
-          </Section>
-
-          <Section title="Files" empty="No file requirements visible to this role." count={brief.files.length}>
-            {brief.files.map((file) => (
-              <li key={file.key} className="flex flex-wrap justify-between gap-2 py-2 text-sm">
-                <span className="font-semibold text-foreground">{file.label}</span>
-                <span className="text-muted-foreground">{words(file.status)}{file.dueDate ? ` · due ${file.dueDate}` : ""}</span>
-              </li>
-            ))}
-          </Section>
-
-          <Section title="Handoffs" empty="No shift handoffs recorded yet." count={brief.handoffs.length}>
-            {brief.handoffs.map((handoff) => (
-              <li key={handoff.id} className="space-y-1 py-2 text-sm">
-                <div className="flex flex-wrap justify-between gap-2">
-                  <span className="font-semibold text-foreground">{handoff.role}</span>
-                  <span className="text-muted-foreground">{new Date(handoff.handedOffAt).toLocaleString()} · received by {handoff.receivedBy}</span>
-                </div>
-                {handoff.outstandingItems.length ? (
-                  <ul className="list-disc pl-5 text-muted-foreground">
-                    {handoff.outstandingItems.map((item) => <li key={item}>{item}</li>)}
-                  </ul>
-                ) : <p className="text-muted-foreground">No outstanding items.</p>}
-              </li>
-            ))}
-          </Section>
-        </>
-      ) : null}
+      {brief ? <HandoffBriefBody brief={brief} /> : null}
     </section>
+  );
+}
+
+function HandoffBriefBody({ brief }: { brief: Brief }) {
+  return (
+    <>
+      <KeyDetails details={brief.keyDetails} />
+      <ScheduleSection days={brief.schedule.days} />
+      <SupplierReadinessSection readiness={brief.supplierReadiness} />
+      <StaffingSection staffing={brief.staffing} />
+      <OpenIssuesSection issues={brief.openIssues} />
+      <FilesSection files={brief.files} />
+      <HandoffsSection handoffs={brief.handoffs} />
+    </>
+  );
+}
+
+function KeyDetails({ details }: { details: Brief["keyDetails"] }) {
+  return (
+    <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+      <Detail label="Event" value={details.eventName} />
+      <Detail label="Date" value={details.eventDate} />
+      <Detail label="Status" value={words(details.status)} />
+      <Detail label="Venue" value={details.venue ?? "Not recorded"} />
+      <Detail label="Guests" value={details.guestCount === null ? "Not recorded" : String(details.guestCount)} />
+      <Detail label="Walk-in policy" value={details.walkInPolicy ? words(details.walkInPolicy) : "Not set"} />
+      {details.clientName ? <Detail label="Client" value={details.clientName} /> : null}
+      {details.archived ? <Detail label="Archive" value="Archived, read-only" /> : null}
+    </dl>
+  );
+}
+
+function ScheduleSection({ days }: { days: Brief["schedule"]["days"] }) {
+  const segments = days.flatMap((day) => day.segments.map((segment) => ({ day, segment })));
+
+  return (
+    <Section title="Schedule" empty="No schedule has been authored yet." count={segments.length}>
+      {segments.map(({ day, segment }) => (
+        <li key={segment.id} className="flex flex-wrap justify-between gap-2 py-2 text-sm">
+          <span className="font-semibold text-foreground">{segment.title}</span>
+          <span className="text-muted-foreground">
+            {day.dayDate} · {formatTime(segment.plannedStartAt)}–{formatTime(segment.plannedEndAt)} · {segment.ownerRole} · {words(segment.status)}
+          </span>
+        </li>
+      ))}
+    </Section>
+  );
+}
+
+function SupplierReadinessSection({ readiness }: { readiness: Brief["supplierReadiness"] }) {
+  return (
+    <Section
+      title="Supplier readiness"
+      empty={readiness.visible ? "No suppliers are assigned to this event." : "Supplier readiness is not shared with this role."}
+      count={readiness.items.length}
+    >
+      {readiness.items.map((supplier) => (
+        <li key={supplier.id} className="flex flex-wrap justify-between gap-2 py-2 text-sm">
+          <span className="font-semibold text-foreground">{supplier.supplierName} · {supplier.category}</span>
+          <span className="text-muted-foreground">
+            Readiness {words(supplier.readinessStatus)} · Event day {words(supplier.eventDayStatus)} · Verification {words(supplier.verificationStatus)}
+          </span>
+        </li>
+      ))}
+    </Section>
+  );
+}
+
+function StaffingSection({ staffing }: { staffing: Brief["staffing"] }) {
+  return (
+    <Section title="Staffing" empty="No coordinator assignments visible to this role." count={staffing.length}>
+      {staffing.map((assignment) => (
+        <li key={assignment.id} className="flex flex-wrap justify-between gap-2 py-2 text-sm">
+          <span className="font-semibold text-foreground">{assignment.coordinatorName}</span>
+          <span className="text-muted-foreground">{assignment.role} · {words(assignment.status)} · attendance {words(assignment.attendanceStatus)}</span>
+        </li>
+      ))}
+    </Section>
+  );
+}
+
+function OpenIssuesSection({ issues }: { issues: Brief["openIssues"] }) {
+  return (
+    <Section title="Open issues" empty="No open issues." count={issues.length}>
+      {issues.map((issue) => (
+        <li key={issue.id} className="space-y-1 py-2 text-sm">
+          <div className="flex flex-wrap justify-between gap-2">
+            <span className="font-semibold text-foreground">{issue.title}</span>
+            <span className="text-muted-foreground">{words(issue.severity)} · {words(issue.status)} · SLA {words(issue.slaStatus)}</span>
+          </div>
+          <p className="text-muted-foreground">
+            {issue.affectedArea ? `${issue.affectedArea} · ` : ""}Owner {issue.ownerName || issue.ownerRole || "unassigned"}
+          </p>
+        </li>
+      ))}
+    </Section>
+  );
+}
+
+function FilesSection({ files }: { files: Brief["files"] }) {
+  return (
+    <Section title="Files" empty="No file requirements visible to this role." count={files.length}>
+      {files.map((file) => (
+        <li key={file.key} className="flex flex-wrap justify-between gap-2 py-2 text-sm">
+          <span className="font-semibold text-foreground">{file.label}</span>
+          <span className="text-muted-foreground">{words(file.status)}{file.dueDate ? ` · due ${file.dueDate}` : ""}</span>
+        </li>
+      ))}
+    </Section>
+  );
+}
+
+function HandoffsSection({ handoffs }: { handoffs: Brief["handoffs"] }) {
+  return (
+    <Section title="Handoffs" empty="No shift handoffs recorded yet." count={handoffs.length}>
+      {handoffs.map((handoff) => (
+        <li key={handoff.id} className="space-y-1 py-2 text-sm">
+          <div className="flex flex-wrap justify-between gap-2">
+            <span className="font-semibold text-foreground">{handoff.role}</span>
+            <span className="text-muted-foreground">{new Date(handoff.handedOffAt).toLocaleString()} · received by {handoff.receivedBy}</span>
+          </div>
+          {handoff.outstandingItems.length ? (
+            <ul className="list-disc pl-5 text-muted-foreground">
+              {handoff.outstandingItems.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          ) : <p className="text-muted-foreground">No outstanding items.</p>}
+        </li>
+      ))}
+    </Section>
   );
 }
 
