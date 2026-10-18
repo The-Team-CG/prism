@@ -22,11 +22,16 @@ function harness() {
       foreignDocument.status = 'submitted'; return foreignDocument;
     }),
   };
+  const queryRaw = vi.fn(async <T>(strings: TemplateStringsArray, ...values: unknown[]) => {
+    void strings;
+    void values;
+    return [] as T;
+  });
   const prisma = {
     opsEvent: eventModel(state), opsPostEventDocument: documents, opsInquiry: inquiries,
-    $transaction: vi.fn(async <T>(work: (tx: { opsEvent: ReturnType<typeof eventModel>; opsPostEventDocument: typeof documents; opsInquiry: typeof inquiries }) => Promise<T>) => {
+    $transaction: vi.fn(async <T>(work: (tx: { opsEvent: ReturnType<typeof eventModel>; opsPostEventDocument: typeof documents; opsInquiry: typeof inquiries; $queryRaw: typeof queryRaw }) => Promise<T>) => {
       const draft = structuredClone(state);
-      const result = await work({ opsEvent: eventModel(draft), opsPostEventDocument: documents, opsInquiry: inquiries });
+      const result = await work({ opsEvent: eventModel(draft), opsPostEventDocument: documents, opsInquiry: inquiries, $queryRaw: queryRaw });
       state.event = draft.event; return result;
     }),
   };
@@ -35,7 +40,7 @@ function harness() {
     requireActorRole: vi.fn(async (actor: { role: string }) => { if (actor.role !== 'pmcm-admin') throw new ForbiddenException(); }),
   };
   const service = new EventClosureService(prisma as never, fileMatrix as never, new EventLifecycleService(), audit, access as never, notification, new WorkflowCommandService(), { getLifecycleFacts: vi.fn() } as never, { getClosureFacts: vi.fn() } as never);
-  return { service, prisma, state, failures, fileMatrix, audit, notification, foreignDocument };
+  return { service, prisma, state, failures, fileMatrix, audit, notification, foreignDocument, queryRaw };
 }
 
 describe('archive command safety', () => {

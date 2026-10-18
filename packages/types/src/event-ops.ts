@@ -1,4 +1,5 @@
 export * from "./event-ops/core.js";
+export * from "./event-ops/supplier-workflows.js";
 export * from "./event-ops/lifecycle.js";
 export * from "./event-ops/commercial.js";
 export * from "./event-ops/operations.js";

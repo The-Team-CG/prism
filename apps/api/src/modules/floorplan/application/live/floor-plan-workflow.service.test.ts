@@ -527,6 +527,30 @@ describe('FloorPlanWorkflowService', () => {
     expect(state.floorPlanDrafts[0].approvedSnapshot.objects[0].x).toBe(20);
   });
 
+  it('publishes the current canvas snapshot under the Lifecycle event lock and rejects archived events', async () => {
+    const { service, state, lifecycleEventReferences } = createService();
+    const draft = await service.createFloorPlanDraft(
+      'evt_sample',
+      { name: 'Official Layout', sourceType: 'blank', objects: [{ id: 'stage', kind: 'stage', x: 10, y: 10 }] },
+      { actorId: 'user_pmcm_1', name: 'PMCM', role: 'pmcm-admin' },
+    );
+    const plan = state.floorPlans[0];
+    plan.objects = [{ id: 'stage', x: 27 }];
+    const submitted = await service.submitFloorPlanDraft('evt_sample', draft.id, { name: 'PMCM', role: 'pmcm-admin' });
+    expect(lifecycleEventReferences.findFloorplanEvent).toHaveBeenCalledWith(
+      'evt_sample',
+      expect.objectContaining({ correlationId: `floorplan-submit:${draft.id}` }),
+    );
+    const submittedSnapshot = submitted.submittedSnapshot;
+    if (!submittedSnapshot || typeof submittedSnapshot !== 'object' || !('objects' in submittedSnapshot) || !Array.isArray(submittedSnapshot.objects)) {
+      throw new Error('The submitted floorplan snapshot was not persisted');
+    }
+    expect(submittedSnapshot.objects[0]).toMatchObject({ x: 27 });
+
+    state.events[0].archived = true;
+    await expect(service.approveFloorPlanDraft('evt_sample', draft.id, { name: 'PMCM', role: 'pmcm-admin' })).rejects.toThrow('Archived events cannot be changed');
+  });
+
   it('recovers legacy official drafts that predate persisted snapshots', async () => {
     const { service, state } = createService();
     state.floorPlans.push({

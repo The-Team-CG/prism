@@ -38,6 +38,7 @@ export const MAX_TASK_REASSIGNMENT_REQUESTS = 100;
 export const MAX_READINESS_ROWS = 500;
 export const MAX_BILLING_ROWS = 500;
 export const MAX_CLIENT_WORKSPACE_ROWS = 500;
+export const MAX_CLIENT_ARCHIVED_EVENTS = 100;
 export const MAX_CLIENT_ACTION_CENTER_ROWS = 500;
 export const MAX_SUPPLIER_WORKSPACE_ROWS = 500;
 export const MAX_SUPPLIER_EVENTS = 500;
@@ -88,10 +89,11 @@ function assignedEventsWhere(hasIdentity: boolean, assignedEventIds: string[]): 
   return hasIdentity ? { archived: false, id: { in: assignedEventIds } } : { id: { in: [] } };
 }
 
-function clientVisibleEventsWhere(actor: ResolvedEventOpsActor): Prisma.OpsEventWhereInput {
+/** Clients see their own unlocked events; archived history is a separate read-only list. */
+function clientVisibleEventsWhere(actor: ResolvedEventOpsActor, archived = false): Prisma.OpsEventWhereInput {
   if (actor.email?.trim()) {
     return {
-      archived: false,
+      archived,
       clientPortalStatus: 'unlocked',
       inquiry: {
         is: { email: { equals: actor.email.trim(), mode: 'insensitive' } },
@@ -101,7 +103,7 @@ function clientVisibleEventsWhere(actor: ResolvedEventOpsActor): Prisma.OpsEvent
   if (actor.verified) return { id: { in: [] } };
   if (actor.clientName?.trim()) {
     return {
-      archived: false,
+      archived,
       clientPortalStatus: 'unlocked',
       clientName: { equals: actor.clientName.trim(), mode: 'insensitive' },
     };
@@ -205,6 +207,18 @@ export class EventReadModelQueries {
         totalCount,
       },
     };
+  }
+
+  /** The client's own archived events, newest first, for read-only history and testimonial consent withdrawal. */
+  async archivedClientEvents(actor: ResolvedEventOpsActor) {
+    if (actor.role !== OpsUserRole.Client) return [];
+    const rows = await this.prisma.opsEvent.findMany({
+      where: clientVisibleEventsWhere(actor, true),
+      include: { inquiry: { select: { email: true } } },
+      orderBy: [{ eventDate: 'desc' }, { id: 'desc' }],
+      take: MAX_CLIENT_ARCHIVED_EVENTS,
+    });
+    return withFloorPlanDrafts(rows, new Map());
   }
 
   private async assignedEventIds(actor: ResolvedEventOpsActor) {
@@ -567,6 +581,7 @@ export class EventReadModelQueries {
             ...activeRequestWhere,
             ...(afterId ? { id: { gt: afterId } } : {}),
           },
+          include: { contractVersions: { select: { reviewStatus: true }, orderBy: { version: 'desc' }, take: 1 } },
           orderBy: { id: 'asc' }, take: MAX_SUPPLIER_WORKSPACE_ROWS }),
       ),
       readAllRowsById(MAX_SUPPLIER_WORKSPACE_ROWS, (afterId) =>
@@ -596,8 +611,11 @@ export class EventReadModelQueries {
   async supplierReadinessRequests(supplierId: string) {
     const activeEventIds = await this.activeEventIdsForSupplier(supplierId);
     const requests = await readAllRowsById(MAX_SUPPLIER_WORKSPACE_ROWS, (afterId) =>
-      this.prisma.opsSupplierQuoteRequest.findMany({ where: { supplierId, eventId: { in: activeEventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
-        orderBy: { id: 'asc' }, take: MAX_SUPPLIER_WORKSPACE_ROWS }),
+      this.prisma.opsSupplierQuoteRequest.findMany({
+        where: { supplierId, eventId: { in: activeEventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+        include: { contractVersions: { select: { reviewStatus: true }, orderBy: { version: 'desc' }, take: 1 } },
+        orderBy: { id: 'asc' }, take: MAX_SUPPLIER_WORKSPACE_ROWS,
+      }),
     );
     return sortByDate(requests, (row) => row.createdAt, 'desc');
   }

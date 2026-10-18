@@ -354,6 +354,8 @@ function rawSqlTargets(sql) {
   const cleanSql = sql
     .replace(/--[^\r\n]*/g, ' ')
     .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/\bFOR\s+(?:NO\s+KEY\s+)?UPDATE\b/gi, 'FOR ROW LOCK')
+    .replace(/\bDO\s+UPDATE\s+SET\b/gi, 'DO NOTHING')
     .replace(/\bON\s+CONFLICT\b[^;]*?\bDO\s+UPDATE\b/gi, (clause) =>
       clause.replace(/\bDO\s+UPDATE\b/gi, 'DO NOTHING'));
   const identifier = '(?:"[^"]+"|[a-z_][a-z0-9_$]*)';

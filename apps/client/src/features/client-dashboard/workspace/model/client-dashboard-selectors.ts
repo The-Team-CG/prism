@@ -1,14 +1,42 @@
 import type { PrismClientActionItem, PrismClientWorkspace, PrismEvent, PrismFloorPlanDraft, PrismUser } from "@prism/types";
 import { actionCenterItemToDashboardAction, draftIsOfficial, type ClientDashboardAction } from "./client-dashboard-view-rules";
 
+type ClientEventLists = Pick<PrismClientWorkspace, "events" | "archivedEvents">;
+
+function allClientEvents(state: ClientEventLists): PrismEvent[] {
+  return [...state.events, ...(state.archivedEvents ?? [])];
+}
+
 export function selectClientEvents(
-  state: Pick<PrismClientWorkspace, "events"> | null | undefined,
+  state: ClientEventLists | null | undefined,
+  session: Pick<PrismUser, "name"> | null | undefined,
+  includeArchivedEventId?: string,
+): PrismEvent[] {
+  if (!state || !session) return [];
+  return allClientEvents(state).filter(
+    (event) =>
+      event.clientPortalStatus === "unlocked" &&
+      (!event.archived || event.id === includeArchivedEventId),
+  );
+}
+
+export function selectClientEventHistoryEvents(
+  state: ClientEventLists | null | undefined,
   session: Pick<PrismUser, "name"> | null | undefined,
 ): PrismEvent[] {
   if (!state || !session) return [];
-  return state.events.filter(
-    (event) => event.clientName === session.name && !event.archived && event.clientPortalStatus === "unlocked",
-  );
+  return allClientEvents(state).filter((event) => event.clientPortalStatus === "unlocked");
+}
+
+export function clientEventMatchesFilter(
+  event: PrismEvent,
+  filter: "events-all" | "events-upcoming" | "events-in-planning" | "events-completed" | "events-cancelled",
+): boolean {
+  if (filter === "events-upcoming") return !event.archived && event.status !== "completed" && event.status !== "cancelled";
+  if (filter === "events-in-planning") return !event.archived && /planning|confirmed|active|pending/i.test(event.status);
+  if (filter === "events-completed") return /completed|closed|archived/i.test(event.status);
+  if (filter === "events-cancelled") return /cancelled|canceled/i.test(event.status);
+  return true;
 }
 
 export function selectSelectedClientEvent(

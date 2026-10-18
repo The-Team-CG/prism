@@ -11,6 +11,7 @@ import { createLiveOpsClient } from "./event-ops-client/live-ops";
 import { createSupplierApplicationsClient } from "./event-ops-client/supplier-applications";
 import { createCommunicationClient } from "./event-ops-client/communication";
 import { createEventGamesClient } from "./event-ops-client/event-games";
+import { createSupplierWorkflowsClient } from "./event-ops-client/supplier-workflows";
 
 export * from "./event-ops-client/contracts";
 
@@ -27,5 +28,6 @@ export function createEventOpsClient(
     ...createSupplierApplicationsClient(options),
     ...createCommunicationClient(options),
     ...createEventGamesClient(options),
+    ...createSupplierWorkflowsClient(options),
   };
 }

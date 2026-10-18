@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  clientEventMatchesFilter,
+  selectClientEventHistoryEvents,
   selectClientEvents,
   selectEventDrafts,
   selectEventWorkspaceResources,
   selectSelectedClientEvent,
 } from "./client-dashboard-selectors";
+import { clientEventCardOpenRoute, dashboardHref } from "./client-dashboard-navigation";
 import type { PrismClientWorkspace, PrismEvent, PrismUser } from "@prism/types";
 
 const session = { name: "Ana Reyes" } as Pick<PrismUser, "name">;
@@ -62,10 +65,25 @@ const events: PrismEvent[] = [
     floorPlanStatus: "not_started",
     floorPlanId: null,
   },
+  {
+    id: "evt_5",
+    inquiryId: "inq_5",
+    clientName: "Ana Client Acceptance",
+    eventName: "Client name differs from account name",
+    eventDate: "2026-10-16",
+    status: "planning",
+    clientPortalStatus: "unlocked",
+    readiness: "open",
+    archived: false,
+    floorPlanStatus: "not_started",
+    floorPlanId: null,
+  },
 ];
 
 const workspace = {
-  events,
+  // The API lists archived events separately from active workspace events.
+  events: events.filter((event) => !event.archived),
+  archivedEvents: events.filter((event) => event.archived),
   floorPlanDrafts: [
     {
       id: "fpd_1",
@@ -101,10 +119,27 @@ const workspace = {
 } as unknown as PrismClientWorkspace;
 
 describe("client-dashboard selectors", () => {
-  it("selects unlocked non-archived events for the session client", () => {
-    expect(selectClientEvents(workspace, session).map((event) => event.id)).toEqual(["evt_1"]);
+  it("trusts server-scoped event ownership while keeping archived events off active routes", () => {
+    expect(selectClientEvents(workspace, session).map((event) => event.id)).toEqual(["evt_1", "evt_2", "evt_5"]);
     expect(selectClientEvents(null, session)).toEqual([]);
     expect(selectClientEvents(workspace, null)).toEqual([]);
+  });
+
+  it("includes only the route's archived event for final-summary closeout access", () => {
+    expect(selectClientEvents(workspace, session, "evt_3").map((event) => event.id)).toEqual(["evt_1", "evt_2", "evt_5", "evt_3"]);
+  });
+
+  it("lists unlocked archived events in history and opens them on summary while active events keep overview", () => {
+    const history = selectClientEventHistoryEvents(workspace, session);
+    const archived = history.find((event) => event.id === "evt_3");
+    const active = history.find((event) => event.id === "evt_5");
+
+    expect(archived).toBeDefined();
+    expect(dashboardHref(clientEventCardOpenRoute(archived!), archived!.id)).toBe("/dashboard/events/evt_3/summary");
+    expect(dashboardHref(clientEventCardOpenRoute(active!), active!.id)).toBe("/dashboard/events/evt_5/overview");
+    expect(clientEventMatchesFilter(archived!, "events-completed")).toBe(true);
+    expect(clientEventMatchesFilter(archived!, "events-upcoming")).toBe(false);
+    expect(clientEventMatchesFilter(archived!, "events-in-planning")).toBe(false);
   });
 
   it("selects the preferred event by route id, then selection, then first", () => {

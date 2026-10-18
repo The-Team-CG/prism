@@ -6,6 +6,17 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Added client and supplier file upload/download with verified content, scoped visibility, immutable object identity, and local/private Supabase adapters. Fixed the API response interceptor to preserve binary file streams. Owners C (Ethan) and D (Anthony).
+- Added supplier contract versions and correction reviews, ingress/egress revision acknowledgments and change requests, creative task submissions and reviews, and payable milestones with actual releases and reasoned reversals. Payment status comes from recorded releases; quote locking does not mark a payment paid. Owners B (Francis), C (Ethan), and D (Anthony).
+- Added client briefing submission, official-floorplan snapshot decisions and annotations, versioned venue/styling reviews, deliverable and closeout acknowledgments, client feedback, and consent-based testimonial moderation. PMCM retains official-layout ownership. Owners A (Maxine), B, C, and D.
+- Added immutable conforme template prefill and client-first/PMCM countersignature evidence, with event activation only after the signed gate. Added isolated database tests for signing activation, supplier workflow history, payout concurrency, and stale floorplan decisions. Production provider activation remains separate.
+- Fixed audit metadata hashing to survive PostgreSQL JSONB key ordering, including nested objects. Previously valid persisted hashes remain compatible; mismatched historical records still block writes and require integrity review. Added a rolled-back PostgreSQL regression test without rewriting audit history. Owner D.
+- Added distinct event Files navigation, persistent client conforme entry, and floorplan load retry. Supplier task retries cannot duplicate an assignment, unchanged schedule publication preserves acknowledgments, and signed storage URLs must match the configured project and exact object path.
+- Adapted portal persistence to staging's owner schemas and transaction-aware owner capabilities. Portal database behavior suites now run in the standard isolated PostgreSQL CI job. Updated Sharp and shell-quote to patched versions required by the dependency gate. Owner D.
+- Fixed fresh-database drift from the owner-schema rebaseline: restored canonical account email constraints, initialized the audit chain lock, and aligned roster consent columns with the Prisma schema. Existing case-colliding accounts abort the migration for manual resolution. Owner D.
+
+- Fixed supplier storage identity and current contract-review status, restored existing conforme executions on dialog reopen, and linked archived client history to consent withdrawal. Owners C and D.
+
 ### Added
 
 - The API and four role portals can deploy as one Vercel project, with runtime API bindings and shared-domain portal routing.

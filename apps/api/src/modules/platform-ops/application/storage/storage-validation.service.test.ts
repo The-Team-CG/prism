@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { StorageValidationService } from './storage-validation.service';
 
-const bytes = Buffer.from('signed conforme bytes');
+const bytes = Buffer.from('%PDF-1.7\nsigned conforme bytes');
 const checksum = createHash('sha256').update(bytes).digest('hex');
 
 describe('StorageValidationService', () => {
@@ -60,6 +60,11 @@ describe('StorageValidationService', () => {
     };
 
     expect(service.validateDeclaration(logo)).toMatchObject({ contentType: 'image/webp', byteSize: 1024 });
+    const webpBytes = Buffer.from('UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA', 'base64');
+    const webpUpload = { ...logo, byteSize: webpBytes.byteLength, checksumSha256: createHash('sha256').update(webpBytes).digest('hex') };
+    expect(service.validateBytes(webpUpload, webpBytes)).toMatchObject({ contentType: 'image/webp' });
+    expect(() => service.validateBytes({ ...logo, byteSize: bytes.byteLength, checksumSha256: checksum }, bytes))
+      .toThrow(/declared file type/);
     expect(() => service.validateDeclaration({ ...logo, fileName: 'event-logo.svg', contentType: 'image/svg+xml' as const }))
       .toThrow(/not allowed/);
     expect(() => service.validateDeclaration({ ...logo, byteSize: 1_048_577 }))

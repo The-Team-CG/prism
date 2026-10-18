@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '@prism/kernel/database';
+import { OPERATIONS_EVENT_REFERENCE_READER, type OperationsEventReferenceReader } from '@prism/contexts/event-lifecycle/operations-reference';
 import type {
   PareEventSource,
   PareSupplierCandidateSource,
@@ -9,32 +10,45 @@ import type {
   PlatformReferenceReadModel,
   PlatformStorageEventScope,
 } from '../../contracts/ports/platform-reference-read-model.port';
+import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 
 @Injectable()
 export class PlatformReferenceReadModelsService implements PlatformReferenceReadModel {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() @Inject(OPERATIONS_EVENT_REFERENCE_READER) private readonly operationsEventReferences?: OperationsEventReferenceReader,
+  ) {}
 
-  async findStorageEventScope(eventId: string): Promise<PlatformStorageEventScope | null> {
-    const event = await this.prisma.opsEvent.findUnique({
+  async findStorageEventScope(eventId: string, transaction?: PrismTransactionContext): Promise<PlatformStorageEventScope | null> {
+    if (transaction) {
+      if (!this.operationsEventReferences) throw new ServiceUnavailableException('Lifecycle event reference capability is unavailable');
+      if (!await this.operationsEventReferences.findOperationsEvent(eventId, transaction)) return null;
+    }
+    const event = await (transaction?.prisma ?? this.prisma).opsEvent.findUnique({
       where: { id: eventId },
       select: {
         id: true,
+        archived: true,
         clientName: true,
         clientPortalStatus: true,
         inquiry: { select: { email: true } },
       },
     });
     if (!event) return null;
-    const supplierRequests = await this.prisma.opsSupplierQuoteRequest.findMany({
+    const supplierRequests = await (transaction?.prisma ?? this.prisma).opsSupplierQuoteRequest.findMany({
       where: { eventId },
-      select: { supplierId: true },
+      select: { supplierId: true, supplier: { select: { email: true } } },
     });
+    const supplierContacts = supplierRequests.flatMap(({ supplierId, supplier }) =>
+      supplierId ? [{ supplierId, email: supplier?.email ?? null }] : []);
     return {
       id: event.id,
+      archived: event.archived,
       clientName: event.clientName,
       clientPortalStatus: event.clientPortalStatus,
       clientEmail: event.inquiry?.email ?? null,
-      supplierIds: supplierRequests.flatMap(({ supplierId }) => supplierId ? [supplierId] : []),
+      supplierIds: supplierContacts.map(({ supplierId }) => supplierId),
+      supplierContacts,
     };
   }
 

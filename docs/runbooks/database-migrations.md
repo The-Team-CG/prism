@@ -4,7 +4,7 @@ title: "Prism database migrations"
 description: "Create, review, deploy, and recover Prism's Prisma migrations without changing the applied history by hand."
 tags: [runbook, database, migrations, prisma, drift, recovery]
 status: canonical
-updated: "2026-10-07"
+updated: "2026-10-16"
 authority: operational
 owner: "D (Anthony)"
 audience: [developers, reviewers, QA, operators, agents]
@@ -117,6 +117,8 @@ The static risk rules treat drops, truncation, deletion, and type changes as
 high risk. Table/schema changes, index changes, inserts, and updates are at
 least medium. The owning reviewer must still inspect locks, row counts,
 foreign keys, RLS, backfill duration, and application compatibility.
+
+Portal migrations target the current owner schemas. References to another owner are scalar IDs validated by owner capabilities; they must not reintroduce cross-domain foreign keys into the clean baseline.
 
 The guard rejects SQL it cannot safely classify, including `DO` blocks,
 dynamic `EXECUTE`, stored function/procedure definitions, `CALL`, `MERGE`,

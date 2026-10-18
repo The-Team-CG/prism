@@ -16,6 +16,8 @@ import { TemplatesController } from './api/authoring/templates.controller';
 import { FLOORPLAN_COMMANDS, FLOORPLAN_READER } from './contracts/floorplan.tokens';
 import { FloorPlanWorkflowService } from './application/live/floor-plan-workflow.service';
 import { FloorPlanReviewService } from './application/live/floor-plan-review.service';
+import { FloorplanClientReviewController } from './api/live/floorplan-client-review.controller';
+import { FloorPlanClientReviewService } from './application/live/floorplan-client-review.service';
 import { LayoutEventsService } from './application/authoring/layout-events.service';
 import { PlansService } from './application/authoring/plans.service';
 import { PublishService } from './application/authoring/publish.service';
@@ -38,10 +40,11 @@ import { TemplatesService } from './application/authoring/templates.service';
  */
 @Module({
   imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, forwardRef(() => IdentityAccessModule), EventSessionModule, EventLifecycleProjectionModule, FloorplanReferenceModule, ClientFloorplanAccessModule],
-  controllers: [OpsEventFloorplansController, EventFloorPlanReviewController, LayoutEventsController, PlansController, PublishController, TemplatesController],
+  controllers: [OpsEventFloorplansController, EventFloorPlanReviewController, FloorplanClientReviewController, LayoutEventsController, PlansController, PublishController, TemplatesController],
   providers: [
     FloorPlanWorkflowService,
     FloorPlanReviewService,
+    FloorPlanClientReviewService,
     LayoutEventsService,
     PlansService,
     PublishService,

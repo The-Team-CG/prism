@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { PRISM_PRIVACY_NOTICE_VERSION, type CreatePrismInquiryInput, type PrismEvent, type PrismFloorPlanDraft } from "@prism/types";
+import { PRISM_PRIVACY_NOTICE_VERSION, type CreatePrismInquiryInput, type PrismEvent, type PrismFloorPlanDraft, type SubmitBriefingInput } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
 import { cloneTemplateObjects, type FloorPlanTemplate, type Project } from "@/features/floorplan/editor";
 import { ClientPortalSidebar } from "./sections/client-portal-sidebar";
@@ -34,6 +34,7 @@ import {
   EVENT_ROUTE_TO_NAV_ITEM,
   ROUTE_TO_DETAIL_TAB,
   dashboardHref,
+  clientEventWorkspaceAvailable,
   findClientSidebarLink,
   portalViewFromLink,
   sidebarActiveItemId,
@@ -59,6 +60,7 @@ import {
   signOutClientSession,
   submitClientInquiry,
   submitClientOcularVisit,
+  submitClientBriefing,
   submitFloorPlanPreference,
   submitFloorPlanRevisionComment,
 } from "../use-cases/client-dashboard-actions";
@@ -133,7 +135,10 @@ export function ClientDashboardWorkspaceView({
   const [notice, setNotice] = useState<string | null>(null);
   const floorPlanTemplates: FloorPlanTemplate[] = [];
 
-  const events = useMemo(() => selectClientEvents(state, session), [session, state]);
+  const events = useMemo(
+    () => selectClientEvents(state, session, route === "summary" ? eventId : undefined),
+    [eventId, route, session, state],
+  );
   const selectedEvent = selectSelectedClientEvent(events, eventId, selectedEventId);
   const ocularVisit = selectedEvent
     ? state?.ocularVisits?.find((visit) => visit.eventId === selectedEvent.id) ?? null
@@ -282,6 +287,22 @@ export function ClientDashboardWorkspaceView({
     }
   }
 
+  async function submitBriefing(eventFor: string, input: SubmitBriefingInput) {
+    if (!selectedEvent || selectedEvent.id !== eventFor) return;
+    setBusy("briefing");
+    setError(null);
+    setNotice(null);
+    try {
+      await submitClientBriefing(eventFor, input);
+      await refresh();
+      setNotice("Your briefing was sent to PMCM and added to the event history.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to submit event briefing");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function submitFloorPlanReview(ev: FormEvent<HTMLFormElement>) {
     ev.preventDefault();
     if (!selectedEvent || !officialDraft) return;
@@ -313,6 +334,10 @@ export function ClientDashboardWorkspaceView({
     const nextRoute = ROUTE_TO_DETAIL_TAB[next as ClientDashboardRoute]
       ? (next as ClientDashboardRoute)
       : DETAIL_TAB_TO_ROUTE[next as DetailTab];
+    if (selectedEvent?.archived && nextEventId === selectedEvent.id && nextRoute !== "summary") {
+      router.push(dashboardHref("summary", selectedEvent.id));
+      return;
+    }
     router.push(dashboardHref(nextRoute, nextEventId));
   }
 
@@ -409,10 +434,10 @@ export function ClientDashboardWorkspaceView({
 
   const shellNavItems = CLIENT_SIDEBAR_ITEMS.map((item) => ({
     ...item,
-    disabled: disableEventNav(item.requiresEvent, Boolean(selectedEvent)),
+    disabled: disableEventNav(item.requiresEvent, clientEventWorkspaceAvailable(selectedEvent)),
     subItems: item.subItems?.map((subItem) => ({
       ...subItem,
-      disabled: disableEventNav(subItem.requiresEvent, Boolean(selectedEvent)),
+      disabled: disableEventNav(subItem.requiresEvent, clientEventWorkspaceAvailable(selectedEvent)),
     })),
   }));
   const activeShellItemId = sidebarActiveItemId(route, isEventScopedView, portalView);
@@ -420,7 +445,7 @@ export function ClientDashboardWorkspaceView({
 
   function handleShellNavSelect(id: string) {
     const item = findClientSidebarLink(id);
-    if (!item || disableEventNav(item.requiresEvent, Boolean(selectedEvent))) return;
+    if (!item || disableEventNav(item.requiresEvent, clientEventWorkspaceAvailable(selectedEvent))) return;
     router.push(dashboardHref(item.route, item.eventScoped ? selectedEvent?.id : undefined, portalViewFromLink(item)));
   }
 
@@ -457,6 +482,7 @@ export function ClientDashboardWorkspaceView({
     setSelectedEventId,
     ocularVisit,
     submitOcularVisit,
+    submitBriefing,
     eventDrafts,
     officialDraft,
     preferenceDrafts,

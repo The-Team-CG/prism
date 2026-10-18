@@ -41,6 +41,7 @@ import {
 } from "../../shared/tab-ui";
 import { useClientWorkspace } from "../../workspace/shared";
 import { ClientFileRequirementsMatrix } from "../../files/views/client-file-requirements-matrix";
+import { ClientStoredFilesPanel } from "../../files/views/client-stored-files-panel";
 
 
 const docCategories: Record<string, string[]> = {
@@ -62,11 +63,13 @@ export function ClientDocumentsTab({ documents }: { documents: PrismDocument[] }
   const matrix = selectedEvent ? (
     <ClientFileRequirementsMatrix eventId={selectedEvent.id} session={session} />
   ) : null;
+  const storedFiles = selectedEvent ? <ClientStoredFilesPanel eventId={selectedEvent.id} /> : null;
 
   if (documents.length === 0) {
     return (
       <div className="space-y-5">
         {matrix}
+        {storedFiles}
         <Card>
         <CardBody>
           <EmptyState
@@ -92,6 +95,7 @@ export function ClientDocumentsTab({ documents }: { documents: PrismDocument[] }
   return (
     <div className="space-y-5">
       {matrix}
+      {storedFiles}
       <div className="flex items-center gap-3 rounded-2xl border border-border bg-card px-5 py-4 shadow-sm">
         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-(--prism-signal-soft) text-(--prism-signal)">
           <FileText className="size-5" />
