@@ -7,12 +7,16 @@ import type { GuestReader } from '../../../operations/contracts/guest-reader.por
 import { mapClosureEvent, mapEventInsight, mapEventWrapUp, mapPostEventDocument } from '../../application/closure/closure.mappers';
 import { EventClosureService } from '../../application/closure/event-closure.service';
 import {
+  archiveComparisonQuerySchema,
   archiveSearchFiltersSchema,
   archiveEventSchema,
   recordActualEventEndSchema,
+  recordLogisticsCompletionSchema,
+  type ArchiveComparisonQuery,
   type ArchiveEventInput,
   type ArchiveSearchFilters,
   type RecordActualEventEndInput,
+  type RecordLogisticsCompletionInput,
   type PrismVerifiedEventActor,
   type StartEventWrapUpInput,
   type UpdateEventWrapUpInput,
@@ -39,6 +43,35 @@ export class OpsEventClosureController {
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.eventClosureService.searchArchive(filters, actor);
+  }
+
+  @Get('archive/compare')
+  @UseGuards(EventSessionGuard)
+  compareArchive(
+    @Query(zodQuery(archiveComparisonQuerySchema)) query: ArchiveComparisonQuery,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.eventClosureService.compareArchivedEvents(query, actor);
+  }
+
+  @Get(':eventId/logistics-completion')
+  @UseGuards(EventSessionGuard)
+  async getLogisticsCompletion(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.eventClosureService.getLogisticsCompletion(eventId, actor);
+  }
+
+  @Post(':eventId/logistics-completion')
+  @UseGuards(EventSessionGuard)
+  @HttpCode(HttpStatus.OK)
+  async recordLogisticsCompletion(
+    @Param('eventId') eventId: string,
+    @Body(zodBody(recordLogisticsCompletionSchema)) dto: RecordLogisticsCompletionInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.eventClosureService.recordLogisticsCompletion(eventId, dto, actor);
   }
 
   @Patch(':eventId/post-event-documents/:documentId/complete')

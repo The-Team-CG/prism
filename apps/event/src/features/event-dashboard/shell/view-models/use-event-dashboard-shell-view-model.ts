@@ -227,6 +227,7 @@ export function useEventDashboardShellViewModel({
     const draft = await commands.createFloorPlanDraft(selectedEvent.id, {
       name: `${template.name} PMCM draft`,
       sourceType: "template",
+      venueTemplateId: template.id,
       venue: template.venue || selectedEvent.eventName,
       width: template.widthM,
       height: template.heightM,
@@ -388,6 +389,8 @@ export function useEventDashboardShellViewModel({
     acceptInquiry: (inquiry: PrismInquiry) => run("accept inquiry", () => commands.acceptInquiry(inquiry.id)),
     pendInquiry: (inquiry: PrismInquiry) => run("pend inquiry", () => commands.pendInquiry(inquiry.id)),
     declineInquiry: (inquiry: PrismInquiry, reason: string) => run("decline inquiry", () => commands.declineInquiry(inquiry.id, reason)),
+    mergeInquiry: (primary: PrismInquiry, input: { sourceInquiryId: string; reason: string }) =>
+      run("merge inquiry", () => commands.mergeInquiry(primary.id, input)),
     logInquiryOnBehalf: (input: Parameters<typeof commands.logInquiryOnBehalf>[0]) => session ? run("log inquiry on behalf", () => commands.logInquiryOnBehalf(input, session)) : Promise.resolve(),
     sendConformeReminder: (inquiry: PrismInquiry) => run("conforme reminder", () => commands.sendConformeReminder(inquiry.id)),
     toggleSupplierBni: (supplier: PrismSupplier, nextValue: boolean) => run("supplier BNI flag", () => commands.updateSupplier(supplier.id, { bniMember: nextValue })),

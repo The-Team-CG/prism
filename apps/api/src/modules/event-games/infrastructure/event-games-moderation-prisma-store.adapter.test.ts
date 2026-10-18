@@ -15,14 +15,14 @@ function transactionWithQueryRows(...responses: unknown[][]) {
 
 const request = {
   action: 'hide_submission' as const,
-  idempotencyKey: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5',
-  submissionId: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b6',
+  idempotencyKey: '00000000-0000-4000-8000-000000000101',
+  submissionId: '00000000-0000-4000-8000-000000000102',
   reason: 'Contains personal information',
 };
 const familyFeudRequest = {
   action: 'resolve_family_feud_answer' as const,
-  idempotencyKey: 'b78bde2c-61a4-4e5f-b9ba-dbe21ca203b5',
-  submissionId: 'b78bde2c-61a4-4e5f-b9ba-dbe21ca203b6',
+  idempotencyKey: '00000000-0000-4000-8000-000000000105',
+  submissionId: '00000000-0000-4000-8000-000000000106',
   boardAnswer: 'Mango',
 };
 const familyFeudSession = {
@@ -31,8 +31,8 @@ const familyFeudSession = {
   config_snapshot: { configuration: {
     kind: 'family-feud',
     teams: [
-      { id: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5', label: 'Blue' },
-      { id: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b6', label: 'Gold' },
+      { id: '00000000-0000-4000-8000-000000000101', label: 'Blue' },
+      { id: '00000000-0000-4000-8000-000000000102', label: 'Gold' },
     ],
     rounds: [{ key: 'round-1', prompt: 'Name a popular fruit.', durationSeconds: 30,
       answers: [{ answer: 'Mango', alternatives: ['Mangga'], points: 10 }] }],
