@@ -17,13 +17,13 @@ describe('GameSessionHostController', () => {
     const query: PrismEventGameResponseHistoryQuery = { limit: 10, cursor: undefined };
     const moderation: PrismModerateEventGameInput = {
       action: 'hide_submission',
-      idempotencyKey: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5',
-      submissionId: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b6',
+      idempotencyKey: '00000000-0000-4000-8000-000000000101',
+      submissionId: '00000000-0000-4000-8000-000000000102',
       reason: 'Contains personal information',
     };
     const award: PrismAssignEventGameAwardInput = {
-      idempotencyKey: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5',
-      recipient: { type: 'participant', participationGrantId: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b7' },
+      idempotencyKey: '00000000-0000-4000-8000-000000000101',
+      recipient: { type: 'participant', participationGrantId: '00000000-0000-4000-8000-000000000103' },
       awardKind: 'points',
       label: 'Round winner',
       points: 25,
