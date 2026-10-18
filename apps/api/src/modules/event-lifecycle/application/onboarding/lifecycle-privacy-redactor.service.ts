@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import type { PrismPrivacyExportSection } from '@prism/types';
+import type { PrismPrivacyExportSection, PrivacyCorrectionPatch } from '@prism/types';
 import type { LifecycleClientRedaction, LifecyclePrivacyRedactor } from '../../contracts/privacy-redaction.port';
 
 @Injectable()
@@ -103,6 +103,35 @@ export class LifecyclePrivacyRedactorService implements LifecyclePrivacyRedactor
       },
     ];
     return { eventIds, sections: sections.filter((section) => section.records.length > 0) };
+  }
+
+  /**
+   * Applies a field patch to the subject's inquiries (and linked event client copies) matched by the original email.
+   * Inquiry and event IDs are captured before the email column changes, as in redaction.
+   */
+  async correctClient(
+    input: { email: string; eventId?: string | null; patch: PrivacyCorrectionPatch },
+    transaction: Prisma.TransactionClient,
+  ): Promise<{ eventIds: string[]; surfaces: string[]; touchedRecords: number }> {
+    const inquiryIds = await this.matchingInquiryIds(input.email, input.eventId, transaction);
+    const eventIds = await this.linkedEventIds(inquiryIds, input.eventId, transaction);
+    const inquiryData: Prisma.OpsInquiryUpdateManyMutationInput = {};
+    if (input.patch.name !== undefined) inquiryData.clientName = input.patch.name;
+    if (input.patch.email !== undefined) {
+      inquiryData.email = input.patch.email;
+      inquiryData.normalizedEmail = input.patch.email;
+    }
+    const inquiries = inquiryIds.length
+      ? await transaction.opsInquiry.updateMany({ where: { id: { in: inquiryIds } }, data: inquiryData })
+      : { count: 0 };
+    const events = input.patch.name !== undefined && eventIds.length
+      ? await transaction.opsEvent.updateMany({ where: { id: { in: eventIds } }, data: { clientName: input.patch.name } })
+      : { count: 0 };
+    const surfaces = [
+      ...(inquiries.count ? ['inquiry'] : []),
+      ...(events.count ? ['event_client_copy'] : []),
+    ];
+    return { eventIds, surfaces, touchedRecords: inquiries.count + events.count };
   }
 
   private inquiryMatchWhere(email: string, eventId?: string | null): Prisma.OpsInquiryWhereInput {

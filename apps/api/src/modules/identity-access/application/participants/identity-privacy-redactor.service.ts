@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import type { PrismPrivacyExportSection } from '@prism/types';
+import type { PrismPrivacyExportSection, PrivacyCorrectionPatch } from '@prism/types';
 import { randomUUID } from 'node:crypto';
 import type { IdentityPrivacyRedactor } from '../../contracts/privacy-redaction.port';
 import { canonicalAccountEmail } from '../auth/account-email';
@@ -21,6 +21,39 @@ export class IdentityPrivacyRedactorService implements IdentityPrivacyRedactor {
     return transaction.opsApprovalRequest.updateMany({
       where: { email: { equals: input.email, mode: 'insensitive' }, role: input.role },
       data: { name: 'Redacted data subject', email: canonicalAccountEmail(input.redactedEmail), organization: '' },
+    });
+  }
+
+  async correctApprovalIdentity(
+    input: { email: string; role: string; patch: PrivacyCorrectionPatch },
+    transaction: Prisma.TransactionClient,
+  ) {
+    const data: Prisma.OpsApprovalRequestUpdateManyMutationInput = {};
+    if (input.patch.name !== undefined) data.name = input.patch.name;
+    if (input.patch.email !== undefined) data.email = canonicalAccountEmail(input.patch.email);
+    if (!Object.keys(data).length) return { count: 0 };
+    return transaction.opsApprovalRequest.updateMany({
+      where: { email: { equals: input.email, mode: 'insensitive' }, role: input.role },
+      data,
+    });
+  }
+
+  /** Corrects the native account row itself; the caller has already checked the corrected email is unused. */
+  async correctAccount(
+    input: { accountId: string; email: string; patch: PrivacyCorrectionPatch },
+    transaction: Prisma.TransactionClient,
+  ) {
+    const data: Prisma.OpsUserUpdateManyMutationInput = {};
+    if (input.patch.name !== undefined) data.name = input.patch.name;
+    if (input.patch.email !== undefined) {
+      data.email = canonicalAccountEmail(input.patch.email);
+      // A changed login identity must not keep sessions issued under the previous email.
+      data.sessionVersion = { increment: 1 };
+    }
+    if (!Object.keys(data).length) return { count: 0 };
+    return transaction.opsUser.updateMany({
+      where: { id: input.accountId, email: { equals: input.email, mode: 'insensitive' } },
+      data,
     });
   }
 
