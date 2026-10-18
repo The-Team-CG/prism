@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { PrismSubmitEventGameActionInput } from '@prism/types';
 import { createDefaultGameRuleRegistry } from '../default-game-rules';
 
-const mediaA = 'obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5';
-const mediaB = 'obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b6';
+const mediaA = 'obj_00000000-0000-4000-8000-000000000101';
+const mediaB = 'obj_00000000-0000-4000-8000-000000000102';
 const configuration = {
   mediaObjectIds: [mediaA, mediaB],
   configuration: {

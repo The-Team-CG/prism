@@ -129,7 +129,7 @@ databaseSuite('Event games action and team scoring PostgreSQL invariants', () =>
       VALUES (${randomUUID()}, ${eventId}, ${sessionId}, ${grantIds[1]}, ${`team-base:${randomUUID()}`}, 15, 'fixture', ${now})
     `;
     const awardInput: PrismAssignEventGameAwardInput = {
-      idempotencyKey: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5',
+      idempotencyKey: '00000000-0000-4000-8000-000000000101',
       recipient: { type: 'team', teamId },
       awardKind: 'points',
       label: 'Team round bonus',
