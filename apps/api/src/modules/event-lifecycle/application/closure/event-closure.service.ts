@@ -367,7 +367,7 @@ export class EventClosureService {
         completionSummary: input.completionSummary,
         privateNotes: input.privateNotes,
         correctionReason: input.correctionReason ?? null,
-        recordedBy: actor.id,
+        recordedBy: actor.id ?? actor.name,
         recordedAt: now,
       };
       const record = existing
