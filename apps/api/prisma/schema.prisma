@@ -1199,6 +1199,7 @@ model OpsSupplierReview {
   dimensionRatings OpsSupplierReviewDimensionRating[]
   promotions       OpsSupplierPromotion[]
 
+  @@unique([supplierId, eventId], map: "supplier_reviews_supplier_event_key")
   @@index([supplierId, createdAt], map: "supplier_reviews_supplier_id_created_at_idx")
   @@index([eventId], map: "supplier_reviews_event_id_idx")
   @@map("supplier_reviews")
