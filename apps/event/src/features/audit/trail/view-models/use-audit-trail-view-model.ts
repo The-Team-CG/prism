@@ -29,6 +29,7 @@ import {
 import { createAuditTrailRepository } from "../data/audit-trail-repository";
 import { downloadAuditLog } from "../use-cases/export-audit-log";
 import { summarizeAuditTrail } from "../model/audit-trail-rules";
+import { downloadPrivacyExportBundle } from "../model/privacy-export-download";
 
 type PrivacyForm = Pick<CreatePrivacyRequestInput, "subjectType" | "requestType" | "subjectEmail" | "subjectName" | "requestNotes">;
 
@@ -191,7 +192,8 @@ export function useAuditTrailViewModel() {
     setBusy(true);
     setError(null);
     try {
-      await repository.executePrivacyRequest(requestId, "Executed from PMCM privacy operations panel.");
+      const result = await repository.executePrivacyRequest(requestId, "Executed from PMCM privacy operations panel.");
+      if (result.export) downloadPrivacyExportBundle(result.export);
       await refreshAudit();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to execute privacy request");
