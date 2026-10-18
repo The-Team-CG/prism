@@ -8,6 +8,7 @@ import type {
   PrismAuditLog,
   PrismEvent,
   PrismLoginHistory,
+  PrismPrivacyExecutionResult,
   PrismPrivacyInventory,
   PrismPrivacyLegalHold,
   PrismPrivacyRequest,
@@ -38,7 +39,7 @@ export type AuditTrailCommands = {
   auditLogs(filters: AuditLogFilters): Promise<PrismAuditLog[]>;
   createLegalHold(input: CreatePrivacyLegalHoldInput): Promise<PrismPrivacyLegalHold>;
   createPrivacyRequest(input: CreatePrivacyRequestInput): Promise<PrismPrivacyRequest>;
-  executePrivacyRequest(requestId: string, notes?: string): Promise<PrismPrivacyRequest>;
+  executePrivacyRequest(requestId: string, notes?: string): Promise<PrismPrivacyExecutionResult>;
   exportAuditLogs(filters: AuditLogFilters): Promise<PrismAuditExport>;
   loginHistory(userId: string): Promise<PrismLoginHistory[]>;
   pmcmState(): Promise<PrismPmcmDashboardWorkspace>;
@@ -67,7 +68,7 @@ const auditTrailCommands = {
   createLegalHold: (input: CreatePrivacyLegalHoldInput) =>
     eventApiRequest<PrismPrivacyLegalHold>("/api/privacy/legal-holds", { method: "POST", body: input }),
   executePrivacyRequest: (requestId: string, notes?: string) =>
-    eventApiRequest<PrismPrivacyRequest>(`/api/privacy/requests/${requestId}/execute`, {
+    eventApiRequest<PrismPrivacyExecutionResult>(`/api/privacy/requests/${requestId}/execute`, {
       method: "POST", body: { executionNotes: notes },
     }),
   exportAuditLogs: (filters: AuditLogFilters) =>
@@ -144,7 +145,7 @@ export function createAuditTrailRepository(commands: AuditTrailCommands = auditT
       return commands.reviewPrivacyRequest(requestId, input);
     },
 
-    executePrivacyRequest(requestId: string, notes: string): Promise<PrismPrivacyRequest> {
+    executePrivacyRequest(requestId: string, notes: string): Promise<PrismPrivacyExecutionResult> {
       return commands.executePrivacyRequest(requestId, notes);
     },
 
