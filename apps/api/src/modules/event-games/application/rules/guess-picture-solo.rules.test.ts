@@ -3,7 +3,7 @@ import { eventGameTemplateConfigurationSchema } from '@prism/types';
 import { createDefaultGameRuleRegistry } from '../default-game-rules';
 import { templateConfiguration } from './template-configuration';
 
-const mediaObjectId = 'obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5';
+const mediaObjectId = 'obj_00000000-0000-4000-8000-000000000101';
 const configuration = {
   mediaObjectIds: [mediaObjectId],
   configuration: {

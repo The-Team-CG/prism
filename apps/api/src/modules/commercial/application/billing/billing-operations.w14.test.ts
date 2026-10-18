@@ -15,6 +15,11 @@ function createW14Service(withReceipts = false) {
   const statement = { id: 'stmt_w14', eventId: event.id, number: 'BS-2026-0001', totalAmount: 100000, status: 'issued' };
   const correction = { id: 'corr_w14', eventId: event.id, statementId: statement.id, reason: 'Tax line is incorrect', correctedTotalAmount: 95000, status: 'pending', requestedBy: actor.name, resolvedBy: null, resolutionNotes: null, createdAt: new Date('2026-08-03T00:00:00.000Z'), resolvedAt: null };
   const dispute = { id: 'dispute_w14', eventId: event.id, statementId: statement.id, milestoneId: null, amount: 20000, reason: 'Unapproved charge', status: 'open', raisedBy: actor.name, resolvedBy: null, resolutionNotes: null, createdAt: new Date('2026-08-03T00:00:00.000Z'), resolvedAt: null };
+  const billingSources = new Map([
+    ['bsrc_w14', { id: 'bsrc_w14', eventId: event.id, status: 'approved' }],
+    ['bsrc_pending_w14', { id: 'bsrc_pending_w14', eventId: event.id, status: 'pending' }],
+    ['bsrc_foreign_w14', { id: 'bsrc_foreign_w14', eventId: 'evt_other', status: 'approved' }],
+  ]);
   const additional = { id: 'addbill_w14', eventId: event.id, urgentIssueId: 'issue_w14', description: 'Overtime equipment', amount: 5000, status: 'issued', createdBy: actor.name, waiverReason: null, waivedBy: null, createdAt: new Date('2026-08-03T00:00:00.000Z'), waivedAt: null };
   let correctionCreated = false;
   let disputeCreated = false;
@@ -34,6 +39,9 @@ function createW14Service(withReceipts = false) {
       update: vi.fn(async ({ data }: any) => Object.assign(dispute, data)),
     },
 
+    opsBillingSource: {
+      findUnique: vi.fn(async ({ where }: any) => billingSources.get(where.id) ?? null),
+    },
     opsAdditionalBilling: {
       findUnique: vi.fn(async ({ where }: any) => where.idempotencyKey ? (additionalCreated ? additional : null) : additional),
       create: vi.fn(async ({ data }: any) => { additionalCreated = true; return Object.assign(additional, data); }),
@@ -126,10 +134,28 @@ describe('W14 billing operations', () => {
     await expect(service.resolveBillingDispute('evt_w14', dispute.id, { action: 'reject', resolutionNotes: 'Too late' }, actor)).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('traces additional billing to an approved same-event source and refuses pending or foreign sources', async () => {
+    const { service, prisma } = createW14Service();
+    const base = { urgentIssueId: 'issue_w14', description: 'Approved overtime', amount: 5000 };
+    expect(() => createAdditionalBillingSchema.parse({ ...base, idempotencyKey: 'no-source' })).toThrow();
+
+    for (const billingSourceId of ['bsrc_pending_w14', 'bsrc_foreign_w14', 'bsrc_missing_w14']) {
+      const input = createAdditionalBillingSchema.parse({ ...base, billingSourceId, idempotencyKey: `untraced-${billingSourceId}` });
+      await expect(service.createAdditionalBilling('evt_w14', input, actor)).rejects.toThrow(/[Bb]illing source/);
+    }
+    expect(prisma.opsAdditionalBilling.create).not.toHaveBeenCalled();
+
+    const approved = createAdditionalBillingSchema.parse({ ...base, billingSourceId: 'bsrc_w14', idempotencyKey: 'traced-approved' });
+    const created = await service.createAdditionalBilling('evt_w14', approved, actor);
+    expect(created).toMatchObject({ billingSourceId: 'bsrc_w14', amount: 5000 });
+    expect(prisma.opsAdditionalBilling.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ billingSourceId: 'bsrc_w14' }) }));
+  });
+
   it('rejects additional billing when Lifecycle has no recorded event end', async () => {
     const { service, prisma, postEventStateReader, urgentIssueReferenceReader } = createW14Service();
     postEventStateReader.findPostEventState.mockResolvedValue({ eventId: 'evt_w14', actualEndedAt: null });
     const input = createAdditionalBillingSchema.parse({
+      billingSourceId: 'bsrc_w14',
       urgentIssueId: 'issue_w14',
       description: 'Approved overtime',
       amount: 5000,
@@ -149,6 +175,7 @@ describe('W14 billing operations', () => {
       .mockResolvedValueOnce({ eventId: 'evt_w14', actualEndedAt: new Date('2026-08-02T00:00:00.000Z') })
       .mockResolvedValueOnce(null);
     const input = createAdditionalBillingSchema.parse({
+      billingSourceId: 'bsrc_w14',
       urgentIssueId: 'issue_w14',
       description: 'Approved overtime',
       amount: 5000,
@@ -164,6 +191,7 @@ describe('W14 billing operations', () => {
   it('validates post-event and issue ownership again inside the billing transaction', async () => {
     const { service, prisma, transactionContext, transactionRunner, postEventStateReader, urgentIssueReferenceReader } = createW14Service(true);
     const input = createAdditionalBillingSchema.parse({
+      billingSourceId: 'bsrc_w14',
       urgentIssueId: 'issue_w14',
       description: 'Approved overtime',
       amount: 5000,
@@ -185,6 +213,7 @@ describe('W14 billing operations', () => {
       .mockResolvedValueOnce({ id: 'issue_w14', eventId: 'evt_w14' })
       .mockResolvedValueOnce(null);
     const input = createAdditionalBillingSchema.parse({
+      billingSourceId: 'bsrc_w14',
       urgentIssueId: 'issue_w14',
       description: 'Approved overtime',
       amount: 5000,
@@ -199,6 +228,7 @@ describe('W14 billing operations', () => {
 
   it('requires a reason for waiver and only waives issued additional billing', async () => {
     const { service, additional } = createW14Service();
+    expect(() => waiveAdditionalBillingSchema.parse({ reason: '   ' })).toThrow();
     const input = waiveAdditionalBillingSchema.parse({ reason: 'PMCM goodwill approved by finance owner' });
     await service.waiveAdditionalBilling('evt_w14', additional.id, input, actor);
     expect(additional.status).toBe('waived');

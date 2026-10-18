@@ -4,6 +4,7 @@ import { WorkflowCommandService } from '@prism/kernel/event-core';
 import { approveBillingSourceSchema } from '@prism/types';
 import { BillingOperationsService, renderBillingPdf } from './billing-operations.service';
 import { PaymentOperationsService } from './payment-operations.service';
+import { mapClientBillingDispute } from './billing-operations.mappers';
 import type { BillingActor } from '../../contracts/billing-operations.types';
 import type { StorageObjectService } from '@prism/contexts/platform-ops';
 import type { PrismVerifiedEventActor } from '@prism/types';
@@ -96,7 +97,7 @@ function createPaymentService() {
   };
   const service = new BillingOperationsService(prisma, audit as any, notifications as any, createWorkflowCommandService(prisma), documentVault as any);
   const paymentService = new PaymentOperationsService(prisma, audit as any, notifications as any, new WorkflowCommandService());
-  return { service, paymentService, prisma, audit, history, milestone, documentVault };
+  return { service, paymentService, prisma, audit, notifications, history, milestone, documentVault };
 }
 
 function createBillingStatementService(priorNumbers: string[], conflictingSequenceNumber?: number, storageObjectService?: StorageObjectService) {
@@ -214,7 +215,7 @@ describe('BillingOperationsService', () => {
     expect(prisma.opsPaymentMilestone.update).not.toHaveBeenCalled();
   });
   it('marks upcoming balances at risk and audits only the first successful transition', async () => {
-    const { paymentService, prisma, audit, milestone } = createPaymentService();
+    const { paymentService, prisma, audit, notifications, milestone } = createPaymentService();
     milestone.label = 'Balance';
     prisma.opsPaymentMilestone.findMany.mockImplementation(async () => [{ ...milestone, status: 'partially_paid' }]);
 
@@ -222,6 +223,14 @@ describe('BillingOperationsService', () => {
     await paymentService.runPaymentRiskSweep();
 
     expect(milestone.status).toBe('at_risk');
+    // The reminder is queue-only and enqueued once, with the same transition that makes the audit row.
+    const atRiskReminders = notifications.write.mock.calls.filter((call) =>
+      (call[0] as { idempotencyKey?: string }).idempotencyKey === 'payment-risk-reminder:pay_downpayment');
+    expect(atRiskReminders).toHaveLength(1);
+    expect(atRiskReminders[0]).toEqual([expect.objectContaining({
+      eventId: 'evt_sample',
+      recipient: 'Client',
+    }), undefined]);
     expect(prisma.opsPaymentMilestone.updateMany).toHaveBeenCalledTimes(2);
     expect(prisma.opsPaymentMilestone.updateMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({
@@ -238,6 +247,42 @@ describe('BillingOperationsService', () => {
       affectedId: 'pay_downpayment',
       affectedLabel: 'Balance',
     }), undefined);
+  });
+
+  it('queues one overdue reminder per unpaid milestone with a stable idempotency key', async () => {
+    const { paymentService, prisma, notifications, milestone } = createPaymentService();
+    milestone.label = 'Downpayment';
+    milestone.status = 'partially_paid';
+    milestone.remainingBalance = 75000;
+
+    await paymentService.runPaymentRiskSweep();
+    await paymentService.runPaymentRiskSweep();
+
+    const overdueQuery = prisma.opsPaymentMilestone.findMany.mock.calls
+      .map(([args]: [{ where: Record<string, unknown> }]) => args.where)
+      .find((where: Record<string, unknown>) => 'dueDate' in where);
+    expect(overdueQuery).toEqual(expect.objectContaining({
+      dueDate: { lt: expect.any(Date) },
+      remainingBalance: { gt: 0 },
+      status: { not: 'paid' },
+    }));
+    const overdueWrites = notifications.write.mock.calls.map((call) => call[0] as Record<string, unknown>);
+    expect(overdueWrites).toHaveLength(2);
+    for (const input of overdueWrites) {
+      expect(input).toMatchObject({ eventId: 'evt_sample', recipient: 'Client', idempotencyKey: 'payment-overdue-reminder:pay_downpayment' });
+    }
+  });
+
+  it('projects client billing disputes without PMCM reasons, resolver notes, or actor names', () => {
+    const projected = mapClientBillingDispute({
+      id: 'dispute_1', eventId: 'evt_sample', statementId: 'stmt_1', milestoneId: null, amount: 2000,
+      reason: 'Internal: client was over-billed on venue hire', status: 'open', raisedBy: 'Francis',
+      resolvedBy: null, resolutionNotes: 'Internal note', createdAt: new Date('2026-08-03T00:00:00.000Z'), resolvedAt: null,
+    } as never);
+    expect(projected).toEqual({
+      id: 'dispute_1', eventId: 'evt_sample', statementId: 'stmt_1', milestoneId: null, amount: 2000,
+      status: 'open', createdAt: '2026-08-03T00:00:00.000Z', resolvedAt: null,
+    });
   });
 
   it('renders a structurally parseable PDF with real newline bytes and matching xref offsets', () => {

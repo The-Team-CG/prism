@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
@@ -9,8 +9,10 @@ function inquiry(overrides: Record<string, unknown> = {}) {
     id: 'inq_existing',
     clientName: 'Ana Reyes',
     companyName: 'Ayala Corp',
+    organizationKey: 'ayalacorp',
     email: 'ana@ayala.test',
     normalizedEmail: 'ana@ayala.test',
+    mergedInto: null,
     eventName: 'Ayala Summit',
     eventType: 'Corporate',
     eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -51,8 +53,18 @@ function createService(existing = [inquiry()]) {
   const documents: any[] = [];
   const notifications: any[] = [];
   const audits: any[] = [];
+  const merges: any[] = [];
   const transaction = {
     $queryRaw: vi.fn(async () => []),
+    opsInquiryMerge: {
+      create: vi.fn(async ({ data }) => {
+        const source = records.find((item) => item.id === data.mergedInquiryId);
+        const merge = { ...data, id: data.id, createdAt: new Date('2026-05-03T00:00:00.000Z') };
+        if (source) source.mergedInto = merge;
+        merges.push(merge);
+        return merge;
+      }),
+    },
     opsEvent: {
       findFirst: vi.fn(async () => null),
       create: vi.fn(async ({ data }) => { const row = { ...data }; events.push(row); return row; }),
@@ -117,8 +129,13 @@ function createService(existing = [inquiry()]) {
     notificationOutboxWriter as any,
     new WorkflowCommandService(),
   );
-  return { service, records, notifications, audits, prisma };
+  return { service, records, notifications, audits, prisma, merges };
 }
+
+const pmcmActor = {
+  id: 'pmcm_merge', role: OpsUserRole.PmcmAdmin, name: 'M. Reyes', email: 'm.reyes@pmcm.test',
+  explicit: true, verified: true,
+} satisfies ResolvedEventOpsActor;
 
 describe('InquiriesService', () => {
   it('requires privacy consent for public inquiry creation', async () => {
@@ -326,5 +343,111 @@ describe('InquiriesService', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('derives organization and triage fields server-side so a public payload cannot set them', async () => {
+    const { service, records } = createService([]);
+    const spoofed = {
+      clientName: 'Mia Cruz',
+      companyName: 'Cruz Holdings',
+      email: 'mia@example.test',
+      eventName: 'Spoof Attempt',
+      eventDate: '2026-07-01',
+      clientType: 'Individual',
+      message: 'Planning inquiry',
+      privacyConsentAccepted: true,
+      organizationKey: 'spoofed-org',
+      mergedIntoInquiryId: 'inq_primary',
+      duplicateOfInquiryId: 'inq_primary',
+      highFit: true,
+    };
+
+    // A variable (not a literal) avoids excess-property checks; the service must still ignore the extra keys.
+    const created = await service.createInquiry(spoofed);
+
+    expect((created as any).organizationKey).toBe('cruzholdings');
+    expect((created as any).mergedIntoInquiryId).toBeUndefined();
+    expect(records[records.length - 1]).toMatchObject({ organizationKey: 'cruzholdings', duplicateOfInquiryId: null });
+  });
+
+  it('queues PMCM notifications for duplicate and deterministic high-fit inquiries only', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-01T00:00:00.000Z'));
+    try {
+      const { service, notifications } = createService([inquiry({ eventDate: new Date('2026-06-18T00:00:00.000Z') })]);
+
+      // Same email within the 14-day window, corporate client with a named organization, event still ahead.
+      await service.createInquiry({
+        clientName: 'Ana Reyes', companyName: 'Ayala Corp', email: 'ana@ayala.test',
+        eventName: 'Ayala Summit Follow-up', eventDate: '2026-07-01', clientType: 'Corporate',
+        message: 'Second planning window', privacyConsentAccepted: true,
+      });
+      const pmcmMessages = notifications.filter(([input]) => input.recipient === 'pmcm-inquiry-desk');
+      expect(pmcmMessages.map(([input]) => input.idempotencyKey).sort()).toEqual([
+        expect.stringMatching(/^inquiry-triage:.+:duplicate$/),
+        expect.stringMatching(/^inquiry-triage:.+:high-fit$/),
+      ]);
+
+      notifications.length = 0;
+      await service.createInquiry({
+        clientName: 'Walk Client', email: 'walk@example.test', eventName: 'Quiet Party',
+        eventDate: '2026-07-20', clientType: 'Private', message: 'Small gathering', privacyConsentAccepted: true,
+      });
+      expect(notifications.filter(([input]) => input.recipient === 'pmcm-inquiry-desk')).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('merges a same-organization inquiry into the primary, records history and audit, and blocks a repeat merge', async () => {
+    const { service, records, merges, audits } = createService([
+      inquiry({ id: 'inq_primary' }),
+      inquiry({ id: 'inq_parallel', email: 'ben@ayala.test', normalizedEmail: 'ben@ayala.test', status: 'new' }),
+    ]);
+
+    const merge = await service.mergeInquiry('inq_primary', { sourceInquiryId: 'inq_parallel', reason: 'Same client company, second contact' }, pmcmActor);
+
+    expect(merge).toMatchObject({
+      primaryInquiryId: 'inq_primary',
+      mergedInquiryId: 'inq_parallel',
+      matchBasis: 'organization',
+      actorRole: OpsUserRole.PmcmAdmin,
+      actorName: 'M. Reyes',
+    });
+    expect(records.find((item) => item.id === 'inq_parallel')?.mergedInto).toBeTruthy();
+    expect(audits.find(([input]) => (input as { affectedId?: string }).affectedId === 'inq_parallel')?.[0]).toMatchObject({
+      actionType: 'update',
+      metadata: { primaryInquiryId: 'inq_primary', matchBasis: 'organization' },
+    });
+
+    await expect(service.mergeInquiry('inq_primary', { sourceInquiryId: 'inq_parallel', reason: 'Again' }, pmcmActor))
+      .rejects.toBeInstanceOf(ConflictException);
+    expect(merges).toHaveLength(1);
+
+    await expect(service.updateInquiryStatus('inq_parallel', { status: 'accepted' }, pmcmActor))
+      .rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('refuses to merge inquiries that share neither an organization nor an email', async () => {
+    const { service, merges } = createService([
+      inquiry({ id: 'inq_primary' }),
+      inquiry({ id: 'inq_unrelated', companyName: 'Other Co', organizationKey: 'otherco', email: 'x@other.test', normalizedEmail: 'x@other.test' }),
+    ]);
+
+    await expect(service.mergeInquiry('inq_primary', { sourceInquiryId: 'inq_unrelated', reason: 'Guess' }, pmcmActor))
+      .rejects.toBeInstanceOf(BadRequestException);
+    expect(merges).toHaveLength(0);
+  });
+
+  it('blocks non-PMCM actors from merging inquiries', async () => {
+    const { service, merges } = createService([
+      inquiry({ id: 'inq_primary' }),
+      inquiry({ id: 'inq_parallel', email: 'ben@ayala.test', normalizedEmail: 'ben@ayala.test' }),
+    ]);
+    const clientActor = { id: 'client_1', role: OpsUserRole.Client, name: 'Ana Reyes', explicit: true, verified: true } satisfies ResolvedEventOpsActor;
+
+    await expect(service.mergeInquiry('inq_primary', { sourceInquiryId: 'inq_parallel', reason: 'Client trying' }, clientActor))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(merges).toHaveLength(0);
   });
 });

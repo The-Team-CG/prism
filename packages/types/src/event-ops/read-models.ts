@@ -25,6 +25,7 @@ import type {
   PrismBillingDispute,
   PrismBillingSource,
   PrismBillingStatement,
+  PrismClientBillingDispute,
   PrismComplianceCheck,
   PrismComplianceRisk,
   PrismComplianceRule,
@@ -173,6 +174,8 @@ export type PrismClientWorkspace = Pick<
   pagination: PrismCursorPageInfo;
   clientEventTimelines: PrismClientEventTimeline[];
   ocularVisits?: PrismClientOcularVisit[];
+  /** Client-safe dispute status on the client's own statements; PMCM reasons and resolver notes are never included. */
+  billingDisputes?: PrismClientBillingDispute[];
   /** The client's own archived events for read-only history and closeout; never part of active workspace data. */
   archivedEvents?: PrismEvent[];
 };
