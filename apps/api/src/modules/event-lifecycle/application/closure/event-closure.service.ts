@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { OpsComplianceCheck, OpsEvent, OpsEventInsight, Prisma } from '@prisma/client';
+import type { OpsComplianceCheck, OpsEvent, OpsEventInsight, OpsEventWrapUp, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
@@ -86,7 +86,7 @@ export class EventClosureService {
     const event = await this.requireEvent(eventId);
     if (!event.actualEndedAt) return null;
     const record = await this.prisma.opsEventWrapUp.findUnique({ where: { eventId } });
-    return record;
+    return record ? this.withDerivedLogistics(record, eventId, this.prisma) : null;
   }
 
   async startWrapUp(eventId: string, input: StartEventWrapUpInput = { mode: 'full' }, actor: ResolvedEventOpsActor) {
@@ -96,14 +96,14 @@ export class EventClosureService {
       if (!event.actualEndedAt) throw new BadRequestException('Record the actual event end before starting wrap-up');
       if (event.archived) throw new BadRequestException('Archived event wrap-up is read-only');
       const existing = await tx.opsEventWrapUp.findUnique({ where: { eventId } });
-      if (existing) return existing;
+      if (existing) return this.withDerivedLogistics(existing, eventId, tx);
       const record = await this.createWrapUpRecord(eventId, event.actualEndedAt, input.mode ?? 'full', tx);
       await writeAudit(this.auditWriter, eventId, actor.name, 'Started event wrap-up', {
         actorRole: actor.role, actorEmail: actor.email, actionType: AuditActionType.Update,
         category: AuditCategory.Events, affectedType: 'event_wrap_up', affectedId: record.id,
         metadata: { mode: record.mode, activatedAt: record.activatedAt.toISOString(), deadlineAt: record.deadlineAt.toISOString() },
       }, { prisma: tx, correlationId: `wrap-up-start:${eventId}` });
-      return record;
+      return this.withDerivedLogistics(record, eventId, tx);
     }, { isolationLevel: 'Serializable' });
   }
 
@@ -115,7 +115,8 @@ export class EventClosureService {
       if (!event.actualEndedAt) throw new BadRequestException('Record the actual event end before updating wrap-up');
       const existing = await tx.opsEventWrapUp.findUnique({ where: { eventId } }) ??
         await this.createWrapUpRecord(eventId, event.actualEndedAt, input.mode ?? 'full', tx);
-      const { sections, requiredItems, complete, acknowledged, now } = prepareWrapUpUpdate(existing, input);
+      const logistics = await readLogisticsEvidence(tx, eventId);
+      const { sections, requiredItems, complete, acknowledged, now } = deriveWrapUpState(existing, logistics, input, new Date());
       const updated = await tx.opsEventWrapUp.update({
         where: { eventId },
         data: {
@@ -379,6 +380,20 @@ export class EventClosureService {
         category: AuditCategory.Events, affectedType: 'logistics_completion', affectedId: record.id,
         metadata: { revision: record.revision, correctionReason: input.correctionReason ?? null, assetReturnsVerified: record.assetReturnsVerified },
       }, { prisma: tx, correlationId: `logistics-completion:${record.id}:${record.revision}` });
+      // Keep an existing wrap-up checklist in step with the logistics record it mirrors.
+      const wrapUp = await tx.opsEventWrapUp.findUnique({ where: { eventId } });
+      if (wrapUp) {
+        const derived = deriveWrapUpState(wrapUp, { assetReturnsVerified: record.assetReturnsVerified, recordedAt: record.recordedAt }, {}, now);
+        await tx.opsEventWrapUp.update({
+          where: { eventId },
+          data: {
+            sections: toPrismaJson(derived.sections), requiredItems: toPrismaJson(derived.requiredItems),
+            status: derived.complete ? 'complete' : 'pending',
+            completedAt: derived.complete ? (wrapUp.completedAt ?? now) : null,
+            completedBy: derived.complete ? (wrapUp.completedBy ?? actor.id) : null,
+          },
+        });
+      }
       return mapLogisticsCompletion(record);
     }, { isolationLevel: 'Serializable' });
   }
@@ -400,6 +415,13 @@ export class EventClosureService {
       if (!event) throw new NotFoundException('One or more archived events were not found');
       return mapArchiveComparisonRow(event);
     });
+  }
+
+  /** Read path: the logistics section and status reflect the PMCM record, whatever the stored row says. */
+  private async withDerivedLogistics(record: OpsEventWrapUp, eventId: string, prisma: Prisma.TransactionClient | PrismaService) {
+    const logistics = await readLogisticsEvidence(prisma, eventId);
+    const derived = deriveWrapUpState(record, logistics, {}, new Date());
+    return { ...record, sections: derived.sections, requiredItems: derived.requiredItems, status: derived.complete ? 'complete' : 'pending' };
   }
 
   private async requireEvent(eventId: string, prisma: Prisma.TransactionClient = this.prisma) {
@@ -605,18 +627,39 @@ function dimension(hasEvidence: boolean, summary: string, evidence: string[]): I
   return { status: hasEvidence ? 'evidence' : 'pending', summary, evidence };
 }
 
-function prepareWrapUpUpdate(existing: {
-  sections: unknown;
-  requiredItems: unknown;
-  clientAcknowledgedAt: Date | null;
-}, input: UpdateEventWrapUpInput) {
-  const now = new Date();
-  const sections = normalizeWrapUpSections({ ...defaultWrapUpSections(), ...(existing.sections as object ?? {}), ...(input.sections ?? {}) }, now);
-  const requiredItems = { ...defaultRequiredItems(), ...(existing.requiredItems as object ?? {}), ...(input.requiredItems ?? {}) };
+type LogisticsEvidence = { assetReturnsVerified: boolean; recordedAt: Date } | null;
+
+/**
+ * Logistics completion is owned by the PMCM logistics record. The wrap-up checklist only mirrors it:
+ * the logistics section and required item are derived here and never taken from stored or submitted values.
+ * Rows written before this rule still read correctly because the mirror overrides their stored logistics state.
+ */
+function deriveWrapUpState(
+  stored: { sections: unknown; requiredItems: unknown; clientAcknowledgedAt: Date | null },
+  logistics: LogisticsEvidence,
+  input: { sections?: Record<string, unknown>; requiredItems?: Record<string, boolean>; clientAcknowledged?: boolean },
+  now: Date,
+) {
+  const recorded = logistics?.assetReturnsVerified === true;
+  const sections = normalizeWrapUpSections({
+    ...defaultWrapUpSections(),
+    ...(stored.sections as object ?? {}),
+    ...(input.sections ?? {}),
+    logistics: {
+      status: recorded ? 'complete' : 'pending',
+      evidence: recorded ? 'Recorded in the PMCM logistics completion panel' : '',
+      completedAt: logistics?.recordedAt.toISOString() ?? null,
+    },
+  }, now);
+  const requiredItems = { ...defaultRequiredItems(), ...(stored.requiredItems as object ?? {}), ...(input.requiredItems ?? {}), logistics: recorded };
   const allRequired = Object.values(requiredItems).every(Boolean);
   const allSections = Object.values(sections).every((section) => (section as { status?: string }).status === 'complete');
-  const acknowledged = input.clientAcknowledged === true || Boolean(existing.clientAcknowledgedAt);
+  const acknowledged = input.clientAcknowledged === true || Boolean(stored.clientAcknowledgedAt);
   return { sections, requiredItems, acknowledged, complete: allRequired && allSections && acknowledged, now };
+}
+
+function readLogisticsEvidence(prisma: Prisma.TransactionClient | PrismaService, eventId: string): Promise<LogisticsEvidence> {
+  return prisma.opsLogisticsCompletion.findUnique({ where: { eventId }, select: { assetReturnsVerified: true, recordedAt: true } });
 }
 
 function normalizeWrapUpSections(rawSections: object, now: Date) {
