@@ -244,6 +244,16 @@ export class SuppliersService {
   ) {
     const db = context?.prisma ?? this.prisma;
     const reviewId = `review_${randomUUID()}`;
+    if (input.eventId) {
+      // One PMCM assessment per supplier per event. A retry carrying the same idempotency key falls through to the
+      // unique-key replay path, which also rejects a payload that differs from the original.
+      const existingForEvent = await db.opsSupplierReview.findFirst({
+        where: { supplierId, eventId: input.eventId }, select: { id: true, idempotencyKey: true },
+      });
+      if (existingForEvent && (!input.idempotencyKey || existingForEvent.idempotencyKey !== input.idempotencyKey)) {
+        throw new BadRequestException('A supplier assessment already exists for this event');
+      }
+    }
     try {
       await db.opsSupplierReview.create({
         data: {
