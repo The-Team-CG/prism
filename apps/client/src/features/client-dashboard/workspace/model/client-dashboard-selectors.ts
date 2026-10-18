@@ -59,7 +59,7 @@ export function selectEventDrafts(
 export function selectEventWorkspaceResources(
   state: Pick<
     PrismClientWorkspace,
-    "auditLogs" | "billingStatements" | "briefings" | "documents" | "notificationLogs" | "paymentMilestones"
+    "auditLogs" | "billingDisputes" | "billingStatements" | "briefings" | "documents" | "notificationLogs" | "paymentMilestones"
   > | null | undefined,
   selectedEvent?: Pick<PrismEvent, "id">,
 ) {
@@ -68,6 +68,7 @@ export function selectEventWorkspaceResources(
       audit: [],
       billing: undefined,
       briefing: undefined,
+      disputes: [],
       documents: [],
       notifications: [],
       payments: [],
@@ -78,6 +79,7 @@ export function selectEventWorkspaceResources(
     audit: state.auditLogs.filter((auditLog) => auditLog.eventId === selectedEvent.id).slice(0, 10),
     billing: state.billingStatements.find((statement) => statement.eventId === selectedEvent.id),
     briefing: state.briefings.find((briefing) => briefing.eventId === selectedEvent.id),
+    disputes: (state.billingDisputes ?? []).filter((dispute) => dispute.eventId === selectedEvent.id),
     documents: state.documents.filter((document) => document.eventId === selectedEvent.id),
     notifications: state.notificationLogs.filter((notification) => notification.eventId === selectedEvent.id).slice(0, 4),
     payments: state.paymentMilestones.filter((payment) => payment.eventId === selectedEvent.id),
