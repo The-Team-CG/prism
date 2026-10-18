@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
-import { archiveComparisonQuerySchema, recordLogisticsCompletionSchema } from '@prism/types';
+import { archiveComparisonQuerySchema, recordLogisticsCompletionSchema, updateEventWrapUpSchema } from '@prism/types';
 import { EventClosureService } from './event-closure.service';
 
 const PRIVATE_NOTE = 'PRIVATE: forklift damage deducted from supplier invoice';
@@ -28,6 +28,7 @@ function harness(options: { archived?: boolean; existingRecord?: Record<string, 
   };
   const prisma = {
     opsEvent,
+    opsEventWrapUp: { findUnique: vi.fn(async () => null) },
     opsLogisticsCompletion: logistics,
     $transaction: vi.fn(async <T>(work: (tx: unknown) => Promise<T>) => work(prisma)),
   };
@@ -119,6 +120,96 @@ describe('archive comparison', () => {
   it('fails the whole comparison when a requested event is not an archived event', async () => {
     const { service } = harness({ events: [archivedRow('a')] });
     await expect(service.compareArchivedEvents(archiveComparisonQuerySchema.parse({ eventIds: 'a,missing' }), pmcm)).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+describe('wrap-up logistics mirror', () => {
+  const legacyWrapUpRow = (logisticsSection: Record<string, unknown>, status = 'pending') => ({
+    id: 'wrap_1', eventId: 'event_1', mode: 'full', status,
+    activatedAt: new Date('2026-10-17T18:00:00Z'), deadlineAt: new Date('2026-10-18T18:00:00Z'),
+    requiredItems: { post_event_documents: false, billing: false, logistics: false, issues: false, feedback: false },
+    sections: {
+      logistics: logisticsSection,
+      issues: { status: 'pending', evidence: '', completedAt: null },
+      feedback: { status: 'pending', evidence: '', completedAt: null },
+    },
+    clientAcknowledgedAt: null, acknowledgementRecordedBy: null, acknowledgementSource: 'pmcm_recorded',
+    clientAcknowledgementNote: '', completedAt: null, completedBy: null, updatedAt: new Date('2026-10-17T19:00:00Z'),
+  });
+
+  function wrapUpHarness(seed: { wrapUp: ReturnType<typeof legacyWrapUpRow> | null }) {
+    const wrapUpState = { row: seed.wrapUp as Record<string, unknown> | null };
+    const logisticsState: { row: Record<string, unknown> | null } = { row: null };
+    const event = { id: 'event_1', inquiryId: 'inquiry_1', clientName: 'Client', archived: false, status: 'closure_archive', actualEndedAt: new Date('2026-10-17T18:00:00Z') };
+    const logistics = {
+      findUnique: vi.fn(async () => logisticsState.row),
+      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => { logisticsState.row = { ...data, revision: 1 }; return logisticsState.row; }),
+      update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => { logisticsState.row = { ...logisticsState.row, ...data }; return logisticsState.row; }),
+    };
+    const prisma = {
+      opsEvent: { findUnique: vi.fn(async () => event) },
+      opsEventWrapUp: {
+        findUnique: vi.fn(async () => wrapUpState.row),
+        update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => { wrapUpState.row = { ...wrapUpState.row, ...data }; return wrapUpState.row; }),
+      },
+      opsLogisticsCompletion: logistics,
+      $transaction: vi.fn(async (work: (tx: unknown) => Promise<unknown>) => work(prisma)),
+    };
+    const access = {
+      requireActorRole: vi.fn(async (actor: { role: string }, roles: string[], resource: string) => {
+        if (!roles.includes(actor.role)) throw new ForbiddenException(`${actor.role} cannot access ${resource}`);
+      }),
+    };
+    const service = new EventClosureService(
+      prisma as never, {} as never, {} as never, { write: vi.fn(async () => undefined) } as never, access as never, {} as never, {} as never, {} as never, {} as never,
+    );
+    return { service, wrapUpState, logisticsState, logistics };
+  }
+
+  it('shows the logistics section as pending until the PMCM record exists, then complete', async () => {
+    const { service, wrapUpState } = wrapUpHarness({ wrapUp: legacyWrapUpRow({ status: 'pending', evidence: '', completedAt: null }) });
+
+    const before = await service.getWrapUp('event_1', pmcm);
+    expect(before?.sections.logistics).toMatchObject({ status: 'pending' });
+    expect(before?.requiredItems.logistics).toBe(false);
+
+    await service.recordLogisticsCompletion('event_1', recordLogisticsCompletionSchema.parse(completion), pmcm);
+
+    const after = await service.getWrapUp('event_1', pmcm);
+    expect(after?.sections.logistics).toMatchObject({ status: 'complete', evidence: 'Recorded in the PMCM logistics completion panel' });
+    expect(after?.requiredItems.logistics).toBe(true);
+    // The stored checklist is refreshed too, so the sweep and status reads agree with the record.
+    expect((wrapUpState.row?.sections as Record<string, { status: string }>).logistics.status).toBe('complete');
+  });
+
+  it('no longer lets the wrap-up write path change logistics completion', async () => {
+    expect(updateEventWrapUpSchema.safeParse({ sections: { logistics: { status: 'complete', evidence: 'typed by hand', completedAt: null } } }).success).toBe(false);
+
+    const { service, wrapUpState, logisticsState, logistics } = wrapUpHarness({ wrapUp: legacyWrapUpRow({ status: 'pending', evidence: '', completedAt: null }) });
+    // Bypass the schema to prove the service ignores the value as well.
+    const updated = await service.updateWrapUp('event_1', {
+      requiredItems: { logistics: true },
+      sections: { logistics: { status: 'complete', evidence: 'typed by hand', completedAt: null } },
+    } as never, pmcm);
+
+    expect(updated.status).toBe('pending');
+    expect(logistics.create).not.toHaveBeenCalled();
+    expect(logisticsState.row).toBeNull();
+    const stored = wrapUpState.row as { requiredItems: Record<string, boolean>; sections: Record<string, { status: string; evidence: string }> };
+    expect(stored.requiredItems.logistics).toBe(false);
+    expect(stored.sections.logistics).toMatchObject({ status: 'pending', evidence: '' });
+    const after = await service.getWrapUp('event_1', pmcm);
+    expect(after?.sections.logistics).toMatchObject({ status: 'pending' });
+  });
+
+  it('reads existing rows that stored logistics as complete without a PMCM record as pending', async () => {
+    const legacy = legacyWrapUpRow({ status: 'complete', evidence: 'typed before the rule change', completedAt: '2026-10-17T20:00:00.000Z' }, 'complete');
+    const { service } = wrapUpHarness({ wrapUp: legacy });
+
+    const record = await service.getWrapUp('event_1', pmcm);
+    expect(record?.sections.logistics).toMatchObject({ status: 'pending', evidence: '' });
+    expect(record?.requiredItems.logistics).toBe(false);
+    expect(record?.status).toBe('pending');
   });
 });
 
