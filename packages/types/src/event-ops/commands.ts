@@ -76,6 +76,19 @@ export interface PrismEventFreezeException {
   decisionNote?: string | null;
   requestedAt: string;
   decidedAt?: string | null;
+  // Set once an approved exception has been used by a decision or addendum; approvals are single-use.
+  consumedAt?: string | null;
+}
+
+/**
+ * Client-safe view of a change request. Internal reasons, decision notes, and actor names are
+ * deliberately absent; clients see the requested change and where it stands.
+ */
+export interface PrismClientChangeRequest {
+  id: string;
+  requestedChange: string;
+  status: "under_review" | "approved" | "not_approved";
+  updatedAt: string;
 }
 
 type AddSupplierQuoteInput = {

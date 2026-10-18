@@ -616,6 +616,9 @@ model OpsEventFreezeException {
   decisionNote    String?   @map("decision_note")
   requestedAt     DateTime  @default(now()) @map("requested_at")
   decidedAt       DateTime? @map("decided_at")
+  // Single-use guard: set atomically with the decision or addendum that consumes an approved exception.
+  consumedAt          DateTime? @map("consumed_at")
+  consumedByDecisionId String?  @map("consumed_by_decision_id")
   event           OpsEvent  @relation(fields: [eventId], references: [id], onDelete: Cascade)
   addenda         OpsAddendum[]
 
