@@ -12,6 +12,7 @@ import { PostponementImpactPanel } from "@/features/event-decisions/postponement
 import { EventOverviewPanels } from "@/features/command-inbox/list";
 import { FinancialWorkspace } from "@/features/finance/workspace";
 import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
+import { HandoffBriefPanel } from "@/features/live-ops/handoff-brief";
 import { SupplierQuotePlanner } from "@/features/suppliers/directory";
 import { PmcmSupplierReadinessBoard } from "@/features/suppliers/readiness";
 import { PmcmSupplierWorkflowsPanel } from "@/features/suppliers/workflows/views/pmcm-supplier-workflows-panel";
@@ -282,6 +283,8 @@ export function EventWorkspaceLiveOpsTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   return (
+    <div className="space-y-5">
+    <HandoffBriefPanel eventId={vm.selectedEvent.id} />
     <LiveOperationsWorkspace
       event={vm.selectedEvent}
       liveOps={vm.liveOps}
@@ -301,6 +304,7 @@ export function EventWorkspaceLiveOpsTab() {
       onVerifySupplierStatus={vm.verifySupplierStatus}
       onDecideTaskReassignment={vm.decideEventTaskReassignment}
     />
+    </div>
   );
 }
 
