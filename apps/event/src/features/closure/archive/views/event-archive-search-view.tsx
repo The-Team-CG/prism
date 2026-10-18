@@ -3,7 +3,9 @@
 import { Archive } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { EmptyState } from "@/app/components/ui/empty-state";
+import { archiveComparisonHint } from "../model/archive-comparison-rules";
 import { useEventArchiveSearchViewModel } from "../view-models/use-event-archive-search-view-model";
+import { ArchiveComparisonTable } from "./archive-comparison-table";
 
 export function EventArchiveSearchView() {
   const vm = useEventArchiveSearchViewModel();
@@ -58,18 +60,36 @@ export function EventArchiveSearchView() {
         ) : (
           <div className="divide-y divide-border rounded-xl border border-border">
             {vm.hits.map((hit) => (
-              <div key={hit.id} className="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
-                <div>
-                  <p className="text-sm font-bold text-foreground">{hit.eventName}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {hit.clientName} · {hit.eventType || "Type pending"} · {hit.venue || "Venue pending"}
-                  </p>
-                </div>
-                <p className="text-xs font-semibold text-muted-foreground">{hit.eventDate}</p>
-              </div>
+              <label key={hit.id} className="flex cursor-pointer flex-wrap items-start justify-between gap-3 px-4 py-3">
+                <span className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    aria-label={`Compare ${hit.eventName}`}
+                    checked={vm.selectedIds.includes(hit.id)}
+                    onChange={() => vm.toggleSelection(hit.id)}
+                    className="mt-1"
+                  />
+                  <span>
+                    <span className="block text-sm font-bold text-foreground">{hit.eventName}</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      {hit.clientName} · {hit.eventType || "Type pending"} · {hit.venue || "Venue pending"}
+                    </span>
+                  </span>
+                </span>
+                <span className="text-xs font-semibold text-muted-foreground">{hit.eventDate}</span>
+              </label>
             ))}
           </div>
         )}
+        {vm.hits.length > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">{archiveComparisonHint(vm.selectedIds)}</p>
+            <Button className="h-9 rounded-lg font-bold" disabled={!vm.canCompare || vm.comparing} onClick={() => void vm.compareSelected()}>
+              Compare selected
+            </Button>
+          </div>
+        ) : null}
+        {vm.comparison ? <ArchiveComparisonTable rows={vm.comparison} onClose={vm.closeComparison} /> : null}
       </div>
     </section>
   );

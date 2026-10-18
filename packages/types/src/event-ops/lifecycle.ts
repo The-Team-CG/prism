@@ -1,5 +1,17 @@
 import type { PrismProjectLike, PrismUserRole } from "./core.js";
 
+export interface PrismInquiryMergeRecord {
+  id: string;
+  primaryInquiryId: string;
+  mergedInquiryId: string;
+  mergedInquiryName: string;
+  matchBasis: "organization" | "email";
+  reason: string;
+  actorName: string;
+  actorRole: string;
+  createdAt: string;
+}
+
 export interface PrismInquiry {
   id: string;
   clientName: string;
@@ -20,6 +32,11 @@ export interface PrismInquiry {
   previousDeclineReason?: string | null;
   duplicate?: boolean;
   previouslyDeclined?: boolean;
+  organizationKey?: string | null;
+  mergedIntoInquiryId?: string | null;
+  mergeHistory?: PrismInquiryMergeRecord[];
+  parallelInquiryIds?: string[];
+  highFit?: boolean;
   message: string;
   status: string;
   declineReason?: string | null;
@@ -181,6 +198,30 @@ export interface PrismArchivedEventSearchHit {
   venue: string;
   eventType: string;
   archivedAt: string | null;
+}
+
+/** PMCM-only logistics completion record. `privateNotes` never leaves PMCM surfaces. */
+export interface PrismLogisticsCompletion {
+  id: string;
+  eventId: string;
+  assetReturnsVerified: boolean;
+  completionSummary: string;
+  privateNotes: string;
+  correctionReason: string | null;
+  revision: number;
+  recordedBy: string;
+  recordedAt: string;
+}
+
+/** One column of the PMCM archive comparison. Excludes private notes and logistics notes. */
+export interface PrismArchiveComparisonRow extends PrismArchivedEventSearchHit {
+  actualEndedAt: string | null;
+  archiveOverridden: boolean;
+  archiveOverrideReason: string | null;
+  closeGatesReady: boolean;
+  missingCloseGates: string[];
+  logisticsRecorded: boolean;
+  logisticsRecordedAt: string | null;
 }
 
 export interface PrismDefenseReadinessAction {

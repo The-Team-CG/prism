@@ -729,12 +729,6 @@ export class GuestWorkflowService implements GuestCommands {
     return event;
   }
 
-  private isFeedbackWindowOpen(event: { actualEndedAt?: Date | null; eventDate: Date }): boolean {
-    if (!event.actualEndedAt) return false;
-    const windowEnd = event.actualEndedAt.getTime() + 7 * 24 * 60 * 60 * 1000;
-    return Date.now() <= windowEnd;
-  }
-
   private assertFeedbackWindow(event: { actualEndedAt?: Date | null; eventDate: Date }): void {
     if (!event.actualEndedAt) throw new BadRequestException('Guest feedback is unavailable because the actual event end has not been recorded');
     const now = Date.now();

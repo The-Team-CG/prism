@@ -2,6 +2,7 @@
 
 import type { PrismAuditLog, PrismBillingStatement, PrismBriefing, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone } from "@prism/types";
 import type { DetailTab } from "../../workspace/shared";
+import { ClientChangeRequestsPanel } from "../../change-requests";
 import {
   OverviewEventDetails,
   OverviewFloorPlanCard,
@@ -40,6 +41,7 @@ export function ClientOverviewTab({
   return (
     <div className="space-y-5">
       <OverviewLifecycle selectedEvent={selectedEvent} briefing={briefing} billing={billing} officialDraft={officialDraft} />
+      <ClientChangeRequestsPanel eventId={selectedEvent.id} />
       <OverviewStats selectedEvent={selectedEvent} payments={payments} documents={documents} />
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <OverviewEventDetails selectedEvent={selectedEvent} briefing={briefing} />
