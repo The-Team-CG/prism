@@ -127,6 +127,8 @@ Testimonial publication requires explicit consent, defaulting to false, and
 PMCM moderation. Moderation never automatically publishes a testimonial.
 Clients may withdraw their own testimonial consent after archive. Other
 archived workflow records remain read-only.
+The client workspace lists archived events separately as read-only history;
+active workspace data and the client action center exclude them.
 
 Reopening the PMCM signing dialog loads the persisted execution before offering
 an action. A signed version cannot be replaced. Client event selection follows

@@ -38,6 +38,7 @@ export const MAX_TASK_REASSIGNMENT_REQUESTS = 100;
 export const MAX_READINESS_ROWS = 500;
 export const MAX_BILLING_ROWS = 500;
 export const MAX_CLIENT_WORKSPACE_ROWS = 500;
+export const MAX_CLIENT_ARCHIVED_EVENTS = 100;
 export const MAX_CLIENT_ACTION_CENTER_ROWS = 500;
 export const MAX_SUPPLIER_WORKSPACE_ROWS = 500;
 export const MAX_SUPPLIER_EVENTS = 500;
@@ -74,9 +75,9 @@ function decodeEventCursor(cursor?: string): EventReadCursor | undefined {
   }
 }
 
-function visibleEventsWhere(actor: ResolvedEventOpsActor, assignedEventIds: string[] = [], includeArchived = false): Prisma.OpsEventWhereInput {
+function visibleEventsWhere(actor: ResolvedEventOpsActor, assignedEventIds: string[] = []): Prisma.OpsEventWhereInput {
   if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return { archived: false };
-  if (actor.role === OpsUserRole.Client) return clientVisibleEventsWhere(actor, includeArchived);
+  if (actor.role === OpsUserRole.Client) return clientVisibleEventsWhere(actor);
   if (actor.role === OpsUserRole.Supplier) return assignedEventsWhere(Boolean(actor.supplierId || actor.email?.trim()), assignedEventIds);
   if (actor.role === OpsUserRole.Coordinator) {
     return assignedEventsWhere(Boolean(actor.coordinatorId || actor.id || actor.email?.trim()), assignedEventIds);
@@ -88,12 +89,11 @@ function assignedEventsWhere(hasIdentity: boolean, assignedEventIds: string[]): 
   return hasIdentity ? { archived: false, id: { in: assignedEventIds } } : { id: { in: [] } };
 }
 
-/** Clients see their own unlocked events; the workspace also lists archived events for read-only closeout. */
-function clientVisibleEventsWhere(actor: ResolvedEventOpsActor, includeArchived: boolean): Prisma.OpsEventWhereInput {
-  const archiveFilter: Prisma.OpsEventWhereInput = includeArchived ? {} : { archived: false };
+/** Clients see their own unlocked events; archived history is a separate read-only list. */
+function clientVisibleEventsWhere(actor: ResolvedEventOpsActor, archived = false): Prisma.OpsEventWhereInput {
   if (actor.email?.trim()) {
     return {
-      ...archiveFilter,
+      archived,
       clientPortalStatus: 'unlocked',
       inquiry: {
         is: { email: { equals: actor.email.trim(), mode: 'insensitive' } },
@@ -103,7 +103,7 @@ function clientVisibleEventsWhere(actor: ResolvedEventOpsActor, includeArchived:
   if (actor.verified) return { id: { in: [] } };
   if (actor.clientName?.trim()) {
     return {
-      ...archiveFilter,
+      archived,
       clientPortalStatus: 'unlocked',
       clientName: { equals: actor.clientName.trim(), mode: 'insensitive' },
     };
@@ -160,9 +160,9 @@ export class EventReadModelQueries {
   constructor(private readonly prisma: PrismaService) {}
 
   // Query budget: actor scope and keyset are applied in Postgres before each bounded page.
-  async visibleEvents(actor: ResolvedEventOpsActor, cursor?: string, options: { includeArchived?: boolean } = {}) {
+  async visibleEvents(actor: ResolvedEventOpsActor, cursor?: string) {
     const assignedEventIds = await this.assignedEventIds(actor);
-    const where = visibleEventsWhere(actor, assignedEventIds, options.includeArchived === true);
+    const where = visibleEventsWhere(actor, assignedEventIds);
     const decodedCursor = decodeEventCursor(cursor);
     const pageWhere: Prisma.OpsEventWhereInput = decodedCursor
       ? {
@@ -207,6 +207,18 @@ export class EventReadModelQueries {
         totalCount,
       },
     };
+  }
+
+  /** The client's own archived events, newest first, for read-only history and testimonial consent withdrawal. */
+  async archivedClientEvents(actor: ResolvedEventOpsActor) {
+    if (actor.role !== OpsUserRole.Client) return [];
+    const rows = await this.prisma.opsEvent.findMany({
+      where: clientVisibleEventsWhere(actor, true),
+      include: { inquiry: { select: { email: true } } },
+      orderBy: [{ eventDate: 'desc' }, { id: 'desc' }],
+      take: MAX_CLIENT_ARCHIVED_EVENTS,
+    });
+    return withFloorPlanDrafts(rows, new Map());
   }
 
   private async assignedEventIds(actor: ResolvedEventOpsActor) {
