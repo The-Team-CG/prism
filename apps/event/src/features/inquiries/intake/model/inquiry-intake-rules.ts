@@ -118,6 +118,50 @@ export function inquiryExtraDetailFields(inquiry: PrismInquiry) {
   return fields;
 }
 
+/** An inquiry can be merged as a source unless it is already merged or has been accepted into a conforme path. */
+export function canMergeInquiry(inquiry: Pick<PrismInquiry, "status" | "mergedIntoInquiryId">) {
+  return !inquiry.mergedIntoInquiryId && inquiry.status !== "accepted";
+}
+
+/** Primary candidates: open inquiries sharing the organization key or the contact email. The API enforces the same rule. */
+export function inquiryMergeCandidates(inquiry: PrismInquiry, all: PrismInquiry[]) {
+  if (!canMergeInquiry(inquiry)) return [];
+  const email = inquiry.email.trim().toLowerCase();
+  return all.filter(
+    (other) =>
+      other.id !== inquiry.id &&
+      !other.mergedIntoInquiryId &&
+      ((Boolean(inquiry.organizationKey) && other.organizationKey === inquiry.organizationKey) ||
+        other.email.trim().toLowerCase() === email),
+  );
+}
+
+/** Plain-text history cues for the inquiry drawer. Names come from the loaded inquiry list when available. */
+export function inquiryHistoryCues(inquiry: PrismInquiry, all: PrismInquiry[]) {
+  const byId = new Map(all.map((item) => [item.id, item]));
+  const cues: string[] = [];
+  if (inquiry.mergedIntoInquiryId) {
+    const primary = byId.get(inquiry.mergedIntoInquiryId);
+    cues.push(`Merged into ${primary ? `${primary.clientName} (${primary.eventName})` : inquiry.mergedIntoInquiryId}`);
+  }
+  if (inquiry.duplicateOfInquiryId) {
+    const original = byId.get(inquiry.duplicateOfInquiryId);
+    cues.push(`Possible duplicate of ${original ? `${original.clientName} (${original.eventName})` : inquiry.duplicateOfInquiryId}`);
+  }
+  if (inquiry.previouslyDeclined) {
+    cues.push(inquiry.previousDeclineReason ? `Previously declined: ${inquiry.previousDeclineReason}` : "Previously declined");
+  }
+  const parallel = inquiry.parallelInquiryIds?.length ?? 0;
+  if (parallel > 0) cues.push(`${parallel} other open ${parallel === 1 ? "inquiry" : "inquiries"} for this organization`);
+  if (inquiry.highFit) cues.push("High fit: corporate or government client with a named organization");
+  for (const merge of inquiry.mergeHistory ?? []) {
+    cues.push(
+      `Merged ${merge.mergedInquiryName || "an inquiry"} in by ${merge.actorName} on ${merge.matchBasis} match: ${merge.reason}`,
+    );
+  }
+  return cues;
+}
+
 export function toLogInquiryInput(form: InquiryLogForm): LogInquiryOnBehalfInput {
   return {
     clientName: form.clientName.trim(),
