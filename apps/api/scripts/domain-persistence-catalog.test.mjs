@@ -16,9 +16,12 @@ describe('domain persistence catalog', () => {
 
     assert.equal(current.tables.length, 93);
     assert.equal(current.schemas.length, 10);
-    assert.equal(target.tables.length, 107);
+    assert.equal(target.tables.length, 119);
     assert.equal(current.tables.some(({ table }) => table === 'client_floorplan_access_grants'), false);
     assert.equal(target.tables.find(({ table }) => table === 'client_floorplan_access_grants').schema, 'event_lifecycle');
+    assert.equal(target.tables.find(({ table }) => table === 'supplier_payout_records').schema, 'commercial');
+    assert.equal(target.tables.find(({ table }) => table === 'conforme_executions').schema, 'event_lifecycle');
+    assert.equal(target.tables.find(({ table }) => table === 'client_decisions').schema, 'floorplan');
     assert.equal(current.tables.find(({ table }) => table === 'privacy_legal_holds').schema, 'platform_ops');
     assert.equal(target.tables.find(({ table }) => table === 'privacy_legal_holds').schema, 'platform_ops');
     assert.equal(target.schemas.length, 8);
