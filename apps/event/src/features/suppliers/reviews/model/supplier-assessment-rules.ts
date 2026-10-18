@@ -15,7 +15,7 @@ export function buildSupplierAssessmentInput(args: {
   draft: SupplierAssessmentDraft;
   dimensionRatings: Readonly<Record<string, string>>;
   dimensions: readonly SupplierAssessmentDimension[];
-  idempotencyKey: string;
+  idempotencyKey?: string;
 }): SupplierAssessmentReadiness {
   const missingDimensions = args.dimensions.filter((dimension) => !args.dimensionRatings[dimension.id]);
   if (missingDimensions.length > 0) {
@@ -34,4 +34,13 @@ export function buildSupplierAssessmentInput(args: {
     return { ok: false, missingDimensions: [], message: parsed.error.issues[0]?.message ?? "Review is incomplete" };
   }
   return { ok: true, input: parsed.data };
+}
+
+/** Display state shared by the closure prompt flow and the supplier directory review panel. */
+export function describeSupplierAssessment(readiness: SupplierAssessmentReadiness) {
+  return {
+    canSubmit: readiness.ok,
+    missingDimensionNames: readiness.ok ? [] : readiness.missingDimensions.map((dimension) => dimension.name),
+    validationMessage: readiness.ok ? null : readiness.message,
+  };
 }

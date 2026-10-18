@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { CreateSupplierReviewInput } from "@prism/types";
 import {
   buildSupplierAssessmentInput,
+  describeSupplierAssessment,
   type SupplierAssessmentDimension,
   type SupplierAssessmentDraft,
 } from "../model/supplier-assessment-rules";
@@ -27,6 +28,7 @@ export function useSupplierAssessmentForm({ supplierId, dimensions, initiallyCom
   const [idempotencyKey] = useState(newIdempotencyKey);
 
   const readiness = buildSupplierAssessmentInput({ draft, dimensionRatings, dimensions, idempotencyKey });
+  const display = describeSupplierAssessment(readiness);
 
   async function submit() {
     if (completed || !readiness.ok) return;
@@ -42,9 +44,9 @@ export function useSupplierAssessmentForm({ supplierId, dimensions, initiallyCom
     draft,
     dimensionRatings,
     completed,
-    canSubmit: !completed && readiness.ok,
-    missingDimensionNames: readiness.ok ? [] : readiness.missingDimensions.map((dimension) => dimension.name),
-    validationMessage: readiness.ok ? null : readiness.message,
+    canSubmit: !completed && display.canSubmit,
+    missingDimensionNames: display.missingDimensionNames,
+    validationMessage: display.validationMessage,
     updateDraft: (patch: Partial<SupplierAssessmentDraft>) => setDraft((current) => ({ ...current, ...patch })),
     updateDimension: (dimensionId: string, value: string) => setDimensionRatings((current) => ({ ...current, [dimensionId]: value })),
     submit,

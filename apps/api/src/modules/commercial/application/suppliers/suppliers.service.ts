@@ -320,15 +320,18 @@ export class SuppliersService {
   }
 
   private async validateDimensionRatings(categoryId: string, ratings: NonNullable<CreateSupplierReviewInput['dimensionRatings']>, db: PrismaService | Prisma.TransactionClient) {
-    if (ratings.length === 0) return;
-    const uniqueIds = new Set(ratings.map((rating) => rating.dimensionId));
-    if (uniqueIds.size !== ratings.length) throw new BadRequestException('Duplicate supplier review dimensions are not allowed');
-    const validDimensions = await db.opsSupplierReviewDimension.findMany({
+    // An assessment is complete only when every active dimension of the supplier's category is rated once.
+    const ratedIds = new Set(ratings.map((rating) => rating.dimensionId));
+    if (ratedIds.size !== ratings.length) throw new BadRequestException('Duplicate supplier review dimensions are not allowed');
+    const activeDimensions = await db.opsSupplierReviewDimension.findMany({
       where: { categoryId, active: true }, select: { id: true },
     });
-    const validIds = new Set(validDimensions.map((dimension) => dimension.id));
-    if (ratings.length !== validDimensions.length || ratings.some((rating) => !validIds.has(rating.dimensionId))) {
+    const activeIds = new Set(activeDimensions.map((dimension) => dimension.id));
+    if (ratings.some((rating) => !activeIds.has(rating.dimensionId))) {
       throw new BadRequestException("Dimension rating does not belong to the supplier's category");
+    }
+    if (activeDimensions.some((dimension) => !ratedIds.has(dimension.id))) {
+      throw new BadRequestException('Every active supplier review dimension must be rated');
     }
   }
 
