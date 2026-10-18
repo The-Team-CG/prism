@@ -62,6 +62,10 @@ export interface EventOpsEventsContract {
       eventId: string,
       actor?: EventOpsActorQuery,
     ): Promise<PrismAddendum[]>;
+    freezeExceptions(
+      eventId: string,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismEventFreezeException[]>;
     freeze(
       eventId: string,
       input: import("@prism/types").FreezeEventInput,

@@ -87,6 +87,15 @@ export class ChangeManagementService {
     });
   }
 
+  async listFreezeExceptions(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismEventFreezeException[]> {
+    // Exception reasons and decision notes are PMCM-internal; clients see addenda, not the exception register.
+    await this.requireOperator(actor, eventId, 'freeze exception register');
+    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { id: true } });
+    if (!event) throw new NotFoundException('Event not found');
+    const values = await this.prisma.opsEventFreezeException.findMany({ where: { eventId }, orderBy: { requestedAt: 'desc' } });
+    return values.map(mapException);
+  }
+
   async listAddenda(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismAddendum[]> {
     await this.access.requireCanReadEvent(actor, await this.prisma.opsEvent.findUniqueOrThrow({ where: { id: eventId } }), 'addenda');
     const values = await this.prisma.opsAddendum.findMany({ where: { eventId }, orderBy: { versionNumber: 'desc' } });

@@ -21,6 +21,12 @@ export class ChangeManagementController {
     return this.service.requestException(eventId, input, this.access.resolveActor({}, verified));
   }
 
+  @Get(':eventId/freeze-exceptions')
+  @UseGuards(EventSessionGuard)
+  listExceptions(@Param('eventId') eventId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.listFreezeExceptions(eventId, this.access.resolveActor({}, verified));
+  }
+
   @Patch(':eventId/freeze-exceptions/:exceptionId')
   @UseGuards(EventSessionGuard)
   decideException(@Param('eventId') eventId: string, @Param('exceptionId') exceptionId: string, @Body(zodBody(decideFreezeExceptionSchema)) input: DecideFreezeExceptionInput, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
