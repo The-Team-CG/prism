@@ -1,6 +1,6 @@
 -- prism-owner: event-lifecycle
 -- prism-kind: data
--- prism-risk: low
+-- prism-risk: medium
 
 -- Normalize the legacy inquiry client category "Private" to "Individual" (product
 -- policy 2026-09-08). Only the exact legacy value is rewritten. School and Other
