@@ -263,6 +263,25 @@ describe('SuppliersService', () => {
     expect(create).not.toHaveBeenCalled();
   });
 
+  it('maps a racing second assessment caught by the database unique index to the same 400 conflict', async () => {
+    const prisma = {
+      opsSupplier: { findUnique: async () => baseSupplierRow() },
+      opsEvent: { findUnique: async () => ({ eventDate: new Date('2026-01-01'), status: 'closed' }) },
+      opsSupplierQuoteRequest: { findFirst: async () => ({ id: 'req_1' }) },
+      opsSupplierReview: {
+        findFirst: async () => null,
+        create: async () => {
+          throw makeP2002(['supplierId', 'eventId']);
+        },
+      },
+    };
+
+    const service = new SuppliersService(prisma as any, eventReferences, commercialFacts);
+    await expect(service.addSupplierReview('sup_1', {
+      eventId: 'evt_1', rating: 4, notes: 'Racing write',
+    }, 'Reviewer Four')).rejects.toMatchObject({ status: 400, message: 'A supplier assessment already exists for this event' });
+  });
+
   it('rethrows a P2002 that does not name the idempotency key (e.g. a PK collision)', async () => {
     const error = makeP2002(['id']);
     const prisma = {
