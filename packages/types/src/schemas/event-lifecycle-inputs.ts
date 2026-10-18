@@ -134,15 +134,40 @@ export type StartEventWrapUpInput = z.infer<typeof startEventWrapUpSchema>;
 export const updateEventWrapUpSchema = z.object({
   mode: wrapUpModeSchema.optional(),
   requiredItems: z.record(z.string(), z.boolean()).optional(),
+  // Logistics is not writable here: its checklist state mirrors the PMCM logistics completion record.
   sections: z.object({
-    logistics: wrapUpSectionSchema.optional(),
     issues: wrapUpSectionSchema.optional(),
     feedback: wrapUpSectionSchema.optional(),
-  }).optional(),
+  }).strict().optional(),
   clientAcknowledged: z.boolean().optional(),
   clientAcknowledgementNote: z.string().trim().max(2000).optional(),
 });
 export type UpdateEventWrapUpInput = z.infer<typeof updateEventWrapUpSchema>;
+
+/** PMCM-recorded logistics completion. Notes are PMCM-only and never returned to portals. */
+export const recordLogisticsCompletionSchema = z.object({
+  assetReturnsVerified: z.literal(true),
+  completionSummary: z.string().trim().min(1).max(2000),
+  privateNotes: z.string().trim().max(4000).default(""),
+  correctionReason: z.string().trim().min(1).max(500).optional(),
+});
+export type RecordLogisticsCompletionInput = z.infer<typeof recordLogisticsCompletionSchema>;
+
+/** Side-by-side archive comparison: 2 to 4 distinct archived event ids, comma-separated in the query. */
+export const archiveComparisonQuerySchema = z.object({
+  eventIds: z
+    .string()
+    .trim()
+    .transform((value) => value.split(",").map((id) => id.trim()).filter(Boolean))
+    .pipe(
+      z
+        .array(z.string().min(1))
+        .min(2, "Select at least two archived events to compare")
+        .max(4, "Compare at most four archived events")
+        .refine((ids) => new Set(ids).size === ids.length, "Compared events must be distinct"),
+    ),
+});
+export type ArchiveComparisonQuery = z.infer<typeof archiveComparisonQuerySchema>;
 export const setClientEventDayViewSchema = z.object({
   enabled: z.boolean(),
 });
