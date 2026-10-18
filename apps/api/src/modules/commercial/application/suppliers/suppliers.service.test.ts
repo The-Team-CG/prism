@@ -126,6 +126,7 @@ describe('SuppliersService', () => {
       opsSupplierQuoteRequest: { findFirst: async () => ({ id: 'req_1' }) },
       opsSupplierReviewDimension: { findMany: async () => [{ id: 'dim_quality' }] },
       opsSupplierReview: {
+        findFirst: async () => null,
         create: async () => ({ id: 'review_tx' }),
       },
     };
