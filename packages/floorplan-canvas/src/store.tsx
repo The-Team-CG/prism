@@ -30,6 +30,7 @@ export function initialState(project: Project): EditorState {
     clipboard: null,
     gridSize: 0.5,
     snap: true,
+    assignmentRejection: null,
   };
 }
 

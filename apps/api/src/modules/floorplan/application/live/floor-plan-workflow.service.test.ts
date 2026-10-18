@@ -28,6 +28,7 @@ function createService() {
     floorPlans: [] as any[],
     floorPlanObjects: [] as any[],
     floorPlanDrafts: [] as any[],
+    venueTemplates: [] as any[],
     projectionClock: null as null | { eventId: string; version: number },
   };
   const prisma = {
@@ -56,6 +57,9 @@ function createService() {
         state.floorPlanObjects.push(...data);
         return { count: data.length };
       }),
+    },
+    venueTemplate: {
+      findUnique: vi.fn(async ({ where }) => state.venueTemplates.find((template) => template.id === where.id) ?? null),
     },
     opsFloorPlanDraft: {
       create: vi.fn(async ({ data }) => {
@@ -303,6 +307,53 @@ describe('FloorPlanWorkflowService', () => {
       }),
       undefined,
     );
+  });
+
+  it('copies a venue-library preset into the official draft and ignores client-sent layout objects', async () => {
+    const { service, state } = createService();
+    state.venueTemplates.push({
+      id: 'tpl_gala',
+      pax: 120,
+      includeGuests: false,
+      includeSuppliers: false,
+      guests: [],
+      suppliers: [],
+      floorPlan: {
+        width: 40,
+        height: 25,
+        gridSize: 2,
+        objects: [],
+        objectRows: [{ objectId: 'stage', objectData: { id: 'stage', kind: 'stage' }, zIndex: 0 }],
+      },
+    });
+
+    const draft = await service.createFloorPlanDraft(
+      'evt_sample',
+      {
+        name: 'Gala Layout',
+        sourceType: 'template',
+        venueTemplateId: 'tpl_gala',
+        objects: [{ id: 'client-table', kind: 'table' }],
+        width: 5,
+      },
+      { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' },
+    );
+
+    expect(draft.sourceType).toBe('template');
+    expect(state.floorPlans[0]).toMatchObject({ width: 40, height: 25, gridSize: 2, pax: 120 });
+    expect(state.floorPlanObjects.map((row) => row.objectId)).toEqual(['stage']);
+  });
+
+  it('rejects a venue-library preset that does not exist without creating a draft', async () => {
+    const { service, state } = createService();
+
+    await expect(service.createFloorPlanDraft(
+      'evt_sample',
+      { name: 'Missing Preset', sourceType: 'template', venueTemplateId: 'tpl_missing' },
+      { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' },
+    )).rejects.toMatchObject({ status: 404 });
+    expect(state.floorPlans).toHaveLength(0);
+    expect(state.floorPlanDrafts).toHaveLength(0);
   });
 
   it('retains the verified System role for a system-created official draft', async () => {
