@@ -127,6 +127,8 @@ export type ResolveBillingDisputeInput = z.infer<typeof resolveBillingDisputeSch
 
 export const createAdditionalBillingSchema = z.object({
   urgentIssueId: nonEmptyStringSchema,
+  /** The approved billing source the additional charge is issued against; the API verifies it is approved for this event. */
+  billingSourceId: nonEmptyStringSchema,
   description: nonEmptyStringSchema,
   amount: z.number().int().positive(),
   idempotencyKey: nonEmptyStringSchema,

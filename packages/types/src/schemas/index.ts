@@ -40,6 +40,10 @@ export {
 
 export {
   createPrismInquirySchema,
+  INQUIRY_CLIENT_CATEGORIES,
+  inquiryClientCategorySchema,
+  normalizeInquiryClientType,
+  type InquiryClientCategory,
   updateInquiryStatusSchema,
   uploadConformeSchema,
   submitBriefingSchema,
