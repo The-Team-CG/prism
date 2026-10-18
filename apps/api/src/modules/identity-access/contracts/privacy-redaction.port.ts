@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import type { PrismPrivacyExportSection } from '@prism/types';
+import type { PrismPrivacyExportSection, PrivacyCorrectionPatch } from '@prism/types';
 
 export const IDENTITY_PRIVACY_REDACTOR = Symbol('IDENTITY_PRIVACY_REDACTOR');
 
@@ -14,4 +14,12 @@ export interface IdentityPrivacyRedactor {
     transaction: Prisma.TransactionClient,
   ): Promise<{ count: number }>;
   exportAccount(email: string, transaction: Prisma.TransactionClient): Promise<PrismPrivacyExportSection[]>;
+  correctApprovalIdentity(
+    input: { email: string; role: string; patch: PrivacyCorrectionPatch },
+    transaction: Prisma.TransactionClient,
+  ): Promise<{ count: number }>;
+  correctAccount(
+    input: { accountId: string; email: string; patch: PrivacyCorrectionPatch },
+    transaction: Prisma.TransactionClient,
+  ): Promise<{ count: number }>;
 }
