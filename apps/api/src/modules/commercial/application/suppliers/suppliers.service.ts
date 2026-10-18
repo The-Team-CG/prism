@@ -255,58 +255,76 @@ export class SuppliersService {
   ) {
     const db = context?.prisma ?? this.prisma;
     const reviewId = `review_${randomUUID()}`;
-    if (input.eventId) {
-      // One PMCM assessment per supplier per event. A retry carrying the same idempotency key falls through to the
-      // unique-key replay path, which also rejects a payload that differs from the original.
-      const existingForEvent = await db.opsSupplierReview.findFirst({
-        where: { supplierId, eventId: input.eventId }, select: { id: true, idempotencyKey: true },
-      });
-      if (existingForEvent && (!input.idempotencyKey || existingForEvent.idempotencyKey !== input.idempotencyKey)) {
-        throw new BadRequestException('A supplier assessment already exists for this event');
-      }
-    }
+    await this.assertAssessmentAvailable(supplierId, input, db);
     try {
-      await db.opsSupplierReview.create({
-        data: {
-          id: reviewId,
-          supplierId,
-          eventId: input.eventId ?? null,
-          rating: input.rating,
-          notes: input.notes,
-          reviewedBy,
-          idempotencyKey: input.idempotencyKey ?? null,
-          dimensionRatings: dimensionRatings.length
-            ? {
-                create: dimensionRatings.map((rating) => ({
-                  id: `dimr_${randomUUID()}`,
-                  dimensionId: rating.dimensionId,
-                  rating: rating.rating,
-                })),
-              }
-            : undefined,
-        },
-      });
+      await this.createSupplierReview(reviewId, supplierId, input, reviewedBy, dimensionRatings, db);
     } catch (error) {
-      const keyConflict = isIdempotencyKeyViolation(error);
-      const assessmentConflict = isAssessmentUniqueViolation(error);
-      if (!keyConflict && !assessmentConflict) throw error;
-      // A same-key retry can trip either unique index; the key lookup decides between replay and conflict.
-      const existing = input.idempotencyKey
-        ? await db.opsSupplierReview.findFirst({
-          where: { idempotencyKey: input.idempotencyKey },
-          include: { dimensionRatings: { select: { dimensionId: true, rating: true } } },
-        })
-        : null;
-      if (!existing) {
-        if (assessmentConflict) throw new BadRequestException('A supplier assessment already exists for this event');
-        throw error;
-      }
-      if (this.reviewReplayMismatches(existing, supplierId, input)) {
-        throw new BadRequestException('Idempotency key was already used for a different supplier review');
-      }
-      return { reviewId: existing.id, replayed: true };
+      return this.resolveReviewConflict(error, supplierId, input, db);
     }
     return { reviewId, replayed: false };
+  }
+
+  private async assertAssessmentAvailable(supplierId: string, input: CreateSupplierReviewInput, db: PrismaService | Prisma.TransactionClient) {
+    if (!input.eventId) return;
+    // One PMCM assessment per supplier per event. A retry carrying the same idempotency key falls through to the
+    // unique-key replay path, which also rejects a payload that differs from the original.
+    const existingForEvent = await db.opsSupplierReview.findFirst({
+      where: { supplierId, eventId: input.eventId }, select: { id: true, idempotencyKey: true },
+    });
+    if (existingForEvent && (!input.idempotencyKey || existingForEvent.idempotencyKey !== input.idempotencyKey)) {
+      throw new BadRequestException('A supplier assessment already exists for this event');
+    }
+  }
+
+  private async createSupplierReview(
+    reviewId: string,
+    supplierId: string,
+    input: CreateSupplierReviewInput,
+    reviewedBy: string,
+    dimensionRatings: NonNullable<CreateSupplierReviewInput['dimensionRatings']>,
+    db: PrismaService | Prisma.TransactionClient,
+  ) {
+    await db.opsSupplierReview.create({
+      data: {
+        id: reviewId,
+        supplierId,
+        eventId: input.eventId ?? null,
+        rating: input.rating,
+        notes: input.notes,
+        reviewedBy,
+        idempotencyKey: input.idempotencyKey ?? null,
+        dimensionRatings: dimensionRatings.length
+          ? {
+              create: dimensionRatings.map((rating) => ({
+                id: `dimr_${randomUUID()}`,
+                dimensionId: rating.dimensionId,
+                rating: rating.rating,
+              })),
+            }
+          : undefined,
+      },
+    });
+  }
+
+  private async resolveReviewConflict(error: unknown, supplierId: string, input: CreateSupplierReviewInput, db: PrismaService | Prisma.TransactionClient) {
+    const keyConflict = isIdempotencyKeyViolation(error);
+    const assessmentConflict = isAssessmentUniqueViolation(error);
+    if (!keyConflict && !assessmentConflict) throw error;
+    // A same-key retry can trip either unique index; the key lookup decides between replay and conflict.
+    const existing = input.idempotencyKey
+      ? await db.opsSupplierReview.findFirst({
+        where: { idempotencyKey: input.idempotencyKey },
+        include: { dimensionRatings: { select: { dimensionId: true, rating: true } } },
+      })
+      : null;
+    if (!existing) {
+      if (assessmentConflict) throw new BadRequestException('A supplier assessment already exists for this event');
+      throw error;
+    }
+    if (this.reviewReplayMismatches(existing, supplierId, input)) {
+      throw new BadRequestException('Idempotency key was already used for a different supplier review');
+    }
+    return { reviewId: existing.id, replayed: true };
   }
 
   private reviewReplayMismatches(existing: { supplierId: string; eventId: string | null; rating: number; notes: string; reviewedBy: string }, supplierId: string, input: CreateSupplierReviewInput) {
