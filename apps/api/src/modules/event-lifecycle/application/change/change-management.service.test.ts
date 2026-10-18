@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { ForbiddenException } from '@nestjs/common';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { PrismaService } from '@prism/kernel/database';
@@ -90,5 +91,49 @@ describe('ChangeManagementService Commercial ownership', () => {
         expect.objectContaining({ targetType: 'supplier_quote', targetId: 'quote_1', deltaAmount: 5 }),
       ]),
     });
+  });
+});
+
+describe('ChangeManagementService freeze exception register', () => {
+  const pmcm = { id: 'user_pmcm', role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true } satisfies ResolvedEventOpsActor;
+
+  function registerService(role: 'allowed' | 'denied') {
+    const findMany = vi.fn(async () => [{
+      id: 'freeze_ex_1', eventId: 'evt_1', requestedChange: 'Add stage lighting', reason: 'Client request', status: 'pending',
+      requestedBy: 'PMCM Admin', decidedBy: null, decisionNote: null, requestedAt: new Date('2026-10-10T00:00:00.000Z'), decidedAt: null,
+    }]);
+    const prisma = {
+      opsEvent: { findUnique: async () => ({ id: 'evt_1' }) },
+      opsEventFreezeException: { findMany },
+    };
+    const access = {
+      requireActorRole: vi.fn(async () => {
+        if (role === 'denied') throw new ForbiddenException();
+      }),
+      requireCanReadEvent: async () => undefined,
+    };
+    const service = new ChangeManagementService(
+      prisma as unknown as PrismaService,
+      access as unknown as EventAccessPolicyService,
+      { write: async () => undefined } as unknown as AuditWriter,
+      { apply: vi.fn(async () => []) } as unknown as CommercialAddendumImpactWriter,
+    );
+    return { service, findMany, access };
+  }
+
+  it('returns the exception register to PMCM actors with reasons and decision state', async () => {
+    const { service, access } = registerService('allowed');
+
+    await expect(service.listFreezeExceptions('evt_1', pmcm)).resolves.toEqual([
+      expect.objectContaining({ id: 'freeze_ex_1', status: 'pending', reason: 'Client request', requestedAt: '2026-10-10T00:00:00.000Z' }),
+    ]);
+    expect(access.requireActorRole).toHaveBeenCalledWith(pmcm, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'freeze exception register', 'evt_1');
+  });
+
+  it('keeps the register away from client and coordinator actors without reading exceptions', async () => {
+    const { service, findMany } = registerService('denied');
+
+    await expect(service.listFreezeExceptions('evt_1', { ...pmcm, role: OpsUserRole.Client } as never)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(findMany).not.toHaveBeenCalled();
   });
 });
