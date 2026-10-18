@@ -85,7 +85,7 @@ function createSupplierWorkspaceService() {
     },
     opsEvent: {
       findMany: vi.fn(async () => [
-        { id: 'evt_visible', clientName: 'Ana Reyes', clientPortalStatus: 'unlocked', archived: false },
+        { id: 'evt_visible', eventName: 'Gala', eventDate: new Date('2026-08-01T00:00:00.000Z'), clientName: 'Ana Reyes', clientPortalStatus: 'unlocked', archived: false },
       ]),
     },
   };
@@ -489,6 +489,42 @@ describe('EventReadModelsService', () => {
       orderBy: { id: 'asc' },
       take: 500,
     });
+  });
+
+  it('keeps PMCM-only supplier assessment data out of the supplier workspace response', async () => {
+    const { service, policy, prisma } = createSupplierWorkspaceService();
+    const createdAt = new Date('2026-09-01T00:00:00.000Z');
+    const supplierFixture = (prisma as any).opsSupplier;
+    const supplierRow = await supplierFixture.findFirst();
+    supplierFixture.findFirst.mockResolvedValue({
+      ...supplierRow,
+      performanceNotes: 'PMCM-SENTINEL-performance-note',
+      reviews: [{
+        id: 'review_1', supplierId: 'sup_sonicline', eventId: 'evt_visible', rating: 2,
+        notes: 'PMCM-SENTINEL-review-notes', reviewedBy: 'PMCM-SENTINEL-reviewer', idempotencyKey: null, createdAt,
+        dimensionRatings: [{ dimensionId: 'dim_punctuality', rating: 1, dimension: { id: 'dim_punctuality', name: 'PMCM-SENTINEL-dimension' } }],
+      }],
+      reliabilityNotes: [{ id: 'rel_1', supplierId: 'sup_sonicline', eventId: 'evt_visible', note: 'PMCM-SENTINEL-reliability', createdBy: 'pmcm', createdAt, event: { id: 'evt_visible', eventName: 'Gala' } }],
+    });
+    const actor = policy.resolveActor({
+      actorRole: OpsUserRole.Supplier,
+      supplierId: 'sup_sonicline',
+      actorEmail: 'supplier@example.com',
+    });
+
+    const workspace = await service.supplierWorkspace(actor, {
+      mapSupplierQuoteRequest: (request) => ({ id: request.id, eventId: request.eventId }),
+      mapSupplierQuoteForSupplier: (quote) => ({ id: quote.id, eventId: quote.eventId }),
+    });
+
+    expect((workspace as any).supplier).toMatchObject({ id: 'sup_sonicline', name: 'Sonic Line Events' });
+    const serialized = JSON.stringify(workspace);
+    for (const sentinel of ['PMCM-SENTINEL-performance-note', 'PMCM-SENTINEL-review-notes', 'PMCM-SENTINEL-reviewer', 'PMCM-SENTINEL-dimension', 'PMCM-SENTINEL-reliability']) {
+      expect(serialized).not.toContain(sentinel);
+    }
+    for (const key of ['reviews', 'reliabilityNotes', 'performanceNotes', 'aggregateRating', 'pastEvents']) {
+      expect((workspace as any).supplier).not.toHaveProperty(key);
+    }
   });
 
   it('builds a supplier readiness board from visible supplier assignments', async () => {

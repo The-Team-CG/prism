@@ -173,3 +173,99 @@ describe('SupplierApplicationService inbox', () => {
     expect(notifications[0]?.context).toMatchObject({ correlationId: `supplier-application:${application.id}:submitted:v1` });
   });
 });
+
+describe('SupplierApplicationService approval conversion', () => {
+  const supplierActor = { id: 'sup_user_1', role: OpsUserRole.Supplier, name: 'Supplier', explicit: true };
+
+  function createConversionFake(options: { existingSupplierEmail?: string } = {}) {
+    const applications: Array<Record<string, any>> = [{
+      id: 'sap_1', companyName: 'Northstar', contactName: 'Ava', email: 'Ava@Northstar.test', normalizedEmail: 'ava@northstar.test',
+      phone: '+63 900', categoryId: 'cat_prod', category: { id: 'cat_prod', name: 'Production', active: true },
+      pastEvents: '', serviceInclusions: 'LED walls', certifications: '', priceRange: '', bniMember: true, portfolioUrl: '',
+      additionalNotes: 'Strong references', status: 'pending', declineReason: null, reviewedAt: null, approvedAt: null,
+      convertedSupplierId: null, conversionIdempotencyKey: null, conversionPayloadHash: null, createdAt: new Date('2026-09-01T00:00:00.000Z'),
+    }];
+    const suppliers: Array<Record<string, any>> = options.existingSupplierEmail
+      ? [{ id: 'sup_existing', email: options.existingSupplierEmail }]
+      : [];
+    const audits: Array<Record<string, any>> = [];
+    const findApplication = (id: string) => applications.find((row) => row.id === id) ?? null;
+    const tx = {
+      $queryRaw: async () => [],
+      opsSupplierApplication: {
+        updateMany: async ({ where, data }: { where: { id: string; status: string }; data: Record<string, unknown> }) => {
+          const row = applications.find((item) => item.id === where.id && item.status === where.status);
+          if (!row) return { count: 0 };
+          Object.assign(row, data);
+          return { count: 1 };
+        },
+        findUnique: async ({ where }: { where: { id: string } }) => findApplication(where.id),
+        update: async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => Object.assign(findApplication(where.id)!, data),
+      },
+      opsSupplier: {
+        findFirst: async ({ where }: { where: { email: { equals: string } } }) =>
+          suppliers.find((row) => row.email.toLowerCase() === where.email.equals) ?? null,
+        findUnique: async ({ where }: { where: { id: string } }) => suppliers.find((row) => row.id === where.id) ?? null,
+        create: async ({ data }: { data: Record<string, unknown> }) => {
+          suppliers.push(data);
+          return data;
+        },
+      },
+    };
+    const prisma = {
+      opsSupplierApplication: { findUnique: async ({ where }: { where: { id: string } }) => findApplication(where.id) },
+      $transaction: async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx),
+    };
+    const auditWriter = { write: async (input: Record<string, any>) => { audits.push(input); return {}; } };
+    const service = new SupplierApplicationService(prisma as never, createAccessPolicy() as never, auditWriter as never, { write: async () => ({}) } as never);
+    return { service, applications, suppliers, audits };
+  }
+
+  it('converts an approved application into one pending directory supplier with an audit trail', async () => {
+    const fake = createConversionFake();
+    const approved = await fake.service.reviewApplication('sap_1', { action: 'approve', idempotencyKey: 'approve-1' }, pmcmAdminActor);
+
+    expect(approved.status).toBe('approved');
+    expect(fake.suppliers).toEqual([expect.objectContaining({
+      id: 'sup_application_sap_1', categoryId: 'cat_prod', name: 'Northstar', email: 'ava@northstar.test', tier: 'pending_first_event', bniMember: true,
+    })]);
+    expect(fake.applications[0]).toMatchObject({ convertedSupplierId: 'sup_application_sap_1', conversionIdempotencyKey: 'approve-1' });
+    expect(fake.audits.filter((audit) => audit.affectedType === 'supplier')).toEqual([expect.objectContaining({
+      affectedId: 'sup_application_sap_1', actionType: 'create', category: 'suppliers',
+    })]);
+  });
+
+  it('replays the same approval without a second supplier or conversion audit', async () => {
+    const fake = createConversionFake();
+    await fake.service.reviewApplication('sap_1', { action: 'approve', idempotencyKey: 'approve-1' }, pmcmAdminActor);
+    const replayed = await fake.service.reviewApplication('sap_1', { action: 'approve', idempotencyKey: 'approve-1' }, pmcmAdminActor);
+
+    expect(replayed.status).toBe('approved');
+    expect(fake.suppliers).toHaveLength(1);
+    expect(fake.audits.filter((audit) => audit.affectedType === 'supplier')).toHaveLength(1);
+  });
+
+  it('rejects a replayed approval whose payload differs from the original conversion', async () => {
+    const fake = createConversionFake();
+    await fake.service.reviewApplication('sap_1', { action: 'approve', idempotencyKey: 'approve-1' }, pmcmAdminActor);
+    await expect(fake.service.reviewApplication('sap_1', { action: 'approve', idempotencyKey: 'approve-1', notes: 'changed' }, pmcmAdminActor))
+      .rejects.toBeInstanceOf(BadRequestException);
+    expect(fake.suppliers).toHaveLength(1);
+  });
+
+  it('refuses to convert when a directory supplier already uses the applicant email', async () => {
+    const fake = createConversionFake({ existingSupplierEmail: 'AVA@northstar.test' });
+    await expect(fake.service.reviewApplication('sap_1', { action: 'approve' }, pmcmAdminActor))
+      .rejects.toBeInstanceOf(BadRequestException);
+    expect(fake.suppliers).toHaveLength(1);
+    expect(fake.audits.filter((audit) => audit.affectedType === 'supplier')).toHaveLength(0);
+  });
+
+  it('keeps supplier-role actors from approving or converting applications', async () => {
+    const fake = createConversionFake();
+    await expect(fake.service.reviewApplication('sap_1', { action: 'approve' }, supplierActor))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(fake.suppliers).toHaveLength(0);
+    expect(fake.applications[0]?.status).toBe('pending');
+  });
+});

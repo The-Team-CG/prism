@@ -4,7 +4,12 @@ import type { PrismSupplier, PrismSupplierCategory } from "@prism/types";
 import { Badge } from "@/app/components/ui/badge";
 import { Input } from "@/app/components/ui/input";
 import { cx, RatingStars, SupplierTierBadge } from "@/features/pmcm-kit";
-import { SupplierReviewPanel, type SupplierReviewForm } from "@/features/suppliers/reviews";
+import {
+  SupplierReviewPanel,
+  buildSupplierAssessmentInput,
+  describeSupplierAssessment,
+  type SupplierReviewForm,
+} from "@/features/suppliers/reviews";
 import { supplierContactFallback } from "../model/suppliers-directory-rules";
 
 export type SupplierCreateForm = {
@@ -300,6 +305,11 @@ export function SupplierProfile({
   onOpenEvent: (eventId: string) => void;
 }) {
   const activeReviewDimensions = categories.find((category) => category.id === supplier.categoryId)?.reviewDimensions ?? [];
+  const assessment = describeSupplierAssessment(buildSupplierAssessmentInput({
+    draft: reviewForm,
+    dimensionRatings: reviewDimensionRatings,
+    dimensions: activeReviewDimensions,
+  }));
 
   return (
     <section className="rounded-lg border border-primary/12 bg-card p-5 shadow-none">
@@ -316,6 +326,9 @@ export function SupplierProfile({
           onReviewForm={onReviewForm}
           onReviewDimension={onReviewDimension}
           onSubmitReview={onSubmitReview}
+          canSubmit={assessment.canSubmit}
+          missingDimensionNames={assessment.missingDimensionNames}
+          validationMessage={assessment.validationMessage}
         />
         <SupplierCertificationForm certForm={certForm} busy={busy} onCertForm={onCertForm} onSubmitCertification={onSubmitCertification} />
         <SupplierFacts supplier={supplier} />
