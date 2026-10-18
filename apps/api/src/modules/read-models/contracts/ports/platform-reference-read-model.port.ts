@@ -1,11 +1,16 @@
+import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
+
 export const PLATFORM_REFERENCE_READ_MODEL = Symbol('PLATFORM_REFERENCE_READ_MODEL');
 
 export type PlatformStorageEventScope = {
   id: string;
+  archived: boolean;
   clientName: string;
   clientPortalStatus: string;
   clientEmail: string | null;
   supplierIds: string[];
+  /** Persisted supplier identities booked on the event; storage resolves signed-in suppliers by these emails. */
+  supplierContacts: Array<{ supplierId: string; email: string | null }>;
 };
 
 export type PareEventSource = {
@@ -65,7 +70,7 @@ export type PlatformPrivacyInventory = {
 
 /** Narrow, read-only owner composition used by Platform event, privacy, AI, and identity-evidence flows. */
 export interface PlatformReferenceReadModel {
-  findStorageEventScope(eventId: string): Promise<PlatformStorageEventScope | null>;
+  findStorageEventScope(eventId: string, transaction?: PrismTransactionContext): Promise<PlatformStorageEventScope | null>;
   findEventReference(eventId: string): Promise<{ id: string } | null>;
   findPrivacyInventory(input?: { eventId?: string }): Promise<PlatformPrivacyInventory>;
   findPareEventSource(requestId: string): Promise<PareEventSource | null>;

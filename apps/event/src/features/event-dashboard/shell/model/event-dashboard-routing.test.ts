@@ -137,6 +137,8 @@ describe("event-dashboard-routing", () => {
       [{ section: "team", tab: "coordinators", eventId: "event-42" }, "event-staff"],
       [{ section: "files", tab: "floorplans" }, "dashboard"],
       [{ section: "files", tab: "floorplans", eventId: "event-42" }, "event-files"],
+      [{ section: "events", tab: "files", eventId: "event-42", view: "files" }, "event-files"],
+      [{ section: "events", tab: "floorplans", eventId: "event-42", view: "floorplans" }, "event-floorplans"],
       [{ section: "messages", tab: "activity" }, "dashboard"],
       [{ section: "messages", tab: "activity", eventId: "event-42" }, "event-messages"],
       [{ section: "finance", tab: "billing" }, "dashboard"],
@@ -237,6 +239,8 @@ describe("event-dashboard-routing", () => {
         { section: "events", eventId: "event/42", tab: "briefing", view: "briefing" },
       ],
       ["/dashboard/events/event-42", eventRouteState("event-42")],
+      ["/dashboard/events/event-42/files", { section: "events", eventId: "event-42", tab: "files", view: "files" }],
+      ["/dashboard/events/event-42/floorplans", { section: "events", eventId: "event-42", tab: "floorplans", view: "floorplans" }],
       [
         "/dashboard/events/event-42/not-a-tab",
         { section: "events", eventId: "event-42", tab: "overview", view: "not-a-tab" },

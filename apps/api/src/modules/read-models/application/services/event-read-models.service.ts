@@ -381,12 +381,17 @@ export class EventReadModelsService {
     const eventPage = await this.visibleEventPageForActor(actor, cursor);
     const visibleEvents = eventPage.items;
     const eventIds = visibleEvents.map((event) => event.id);
+    // Archived history is read-only and listed once, on the first page.
+    const archivedEvents = cursor
+      ? []
+      : this.policy.filterEventsForActor(actor, await this.queries.archivedClientEvents(actor)).map((event) => mappers.mapEvent(event));
 
     if (eventIds.length === 0) {
       return {
         users: [],
         inquiries: [],
         events: [],
+        archivedEvents,
         documents: [],
         briefings: [],
         supplierQuotes: [],
@@ -432,6 +437,7 @@ export class EventReadModelsService {
       users: [],
       inquiries: [],
       events: visibleEvents.map((event) => mappers.mapEvent(event)),
+      archivedEvents,
       clientEventTimelines,
       documents: documents.map((document) => mappers.mapDocument(document)),
       briefings: briefings.map((briefing) => mappers.mapBriefing(briefing)),
@@ -567,14 +573,16 @@ export class EventReadModelsService {
       .filter((request) => eventsById.has(request.eventId))
       .map((request) => {
         const event = eventsById.get(request.eventId);
-        const contractStatus = request.contractDocumentId ? 'uploaded' : 'missing';
+        const latestContractStatus = request.contractVersions?.[0]?.reviewStatus;
+        const contractStatus = latestContractStatus === 'submitted' || latestContractStatus === 'accepted' || latestContractStatus === 'changes_requested'
+          ? latestContractStatus : 'missing';
         const assignmentStatus = request.assignmentStatus ?? 'pending';
         const readinessStatus = request.readinessStatus ?? 'not_confirmed';
         const verificationStatus = request.eventDayVerificationStatus ?? 'unverified';
         const overdueUnselected = isPast(request.dueDate) && request.status !== 'selected';
         const priority: PrismCommandInboxSeverity = overdueUnselected
           ? 'critical'
-          : contractStatus === 'missing' || readinessStatus !== 'confirmed'
+          : contractStatus !== 'accepted' || readinessStatus !== 'confirmed'
             ? 'warning'
             : verificationStatus === 'rejected'
               ? 'attention'

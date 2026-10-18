@@ -232,7 +232,6 @@ export class InquiriesService {
     actor: ResolvedEventOpsActor,
   ): Promise<OpsDocument> {
     let inquiry: OpsInquiry | null = null;
-    let existingEvent: OpsEvent | null = null;
     const now = new Date();
 
     return this.workflowCommandService.execute<
@@ -246,16 +245,8 @@ export class InquiriesService {
         }
         inquiry = await this.prisma.opsInquiry.findUnique({ where: { id: inquiryId } });
         if (!inquiry) throw new NotFoundException('Inquiry not found');
-        if (inquiry.status !== 'accepted') {
+        if (inquiry.status !== 'accepted' || inquiry.conformeSignedAt) {
           throw new BadRequestException('Inquiry must be accepted before conforme upload');
-        }
-
-        existingEvent = await this.prisma.opsEvent.findFirst({ where: { inquiryId } });
-        if (input.storageObjectId) {
-          const stored = await this.prisma.opsStoredObject.findUnique({ where: { id: input.storageObjectId } });
-          if (!stored || stored.eventId !== existingEvent?.id || stored.usage !== 'signed_conforme' || stored.lifecycleState !== 'stored') {
-            throw new BadRequestException('Conforme requires a confirmed stored W10 signed-conforme object');
-          }
         }
       },
       write: async () => {
@@ -263,38 +254,19 @@ export class InquiriesService {
 
         return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
           // Transaction scope: DB reads/writes only. No external IO inside this callback.
-          const event =
-            existingEvent ??
-            (await tx.opsEvent.create({
-              data: {
-                id: `evt_${randomUUID()}`,
-                inquiryId: inquiry!.id,
-                clientName: inquiry!.clientName,
-                eventName: inquiry!.eventName,
-                eventDate: inquiry!.eventDate,
-                status: 'briefing',
-                clientPortalStatus: input.storageObjectId ? 'unlocked' : 'locked',
-                readiness: 'Client briefing open',
-              },
-            }));
-
-          if (!existingEvent) {
-            await tx.opsPostEventDocument.createMany({
-              data: [
-                {
-                  id: `ped_${randomUUID()}`,
-                  eventId: event.id,
-                  title: 'Completion report',
-                  status: 'pending',
-                },
-                {
-                  id: `ped_${randomUUID()}`,
-                  eventId: event.id,
-                  title: 'Photo and video turnover',
-                  status: 'pending',
-                },
-              ],
-            });
+          // QUERY_AUDIT_RAW_SQL: serialize legacy scanned-conforme confirmation with digital signatures and template revisions.
+          await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM event_lifecycle.inquiries WHERE id = ${inquiry!.id} FOR UPDATE`;
+          const lockedInquiry = await tx.opsInquiry.findUnique({ where: { id: inquiry!.id } });
+          if (!lockedInquiry || lockedInquiry.status !== 'accepted' || lockedInquiry.conformeSignedAt) {
+            throw new ConflictException('Inquiry state changed; refresh before confirming the conforme');
+          }
+          const event = await this.ensureConformeEvent(tx, lockedInquiry, Boolean(input.storageObjectId));
+          if (input.storageObjectId) {
+            const stored = await tx.opsStoredObject.findUnique({ where: { id: input.storageObjectId } });
+            if (!stored || stored.eventId !== event.id || stored.usage !== 'signed_conforme' || stored.lifecycleState !== 'stored') {
+              throw new BadRequestException('Conforme requires a confirmed stored W10 signed-conforme object');
+            }
+            await this.activateAfterConforme(tx, lockedInquiry.id, now);
           }
 
           const document = await tx.opsDocument.create({
@@ -307,28 +279,6 @@ export class InquiriesService {
               mimeType: input.mimeType ?? null,
               sizeBytes: input.sizeBytes ?? null,
               uploadedByRole: 'client',
-            },
-          });
-
-          await tx.opsEvent.update({
-            where: { id: event.id },
-            data: {
-              clientPortalStatus: input.storageObjectId ? 'unlocked' : 'locked',
-              readiness: input.storageObjectId ? 'Client briefing open' : 'Conforme storage confirmation required',
-              status: input.storageObjectId ? 'briefing' : 'inquiry',
-            },
-          });
-
-          await tx.opsInquiry.update({
-            where: { id: inquiry!.id },
-            data: {
-              ...(input.storageObjectId ? {
-                conformeSignedAt: now,
-                portalActivatedAt: now,
-                portalInvitationStatus: 'sent',
-                portalInvitationSentAt: now,
-                portalInvitationExpiresAt: addDays(now, 7),
-              } : {}),
             },
           });
 
@@ -353,6 +303,49 @@ export class InquiriesService {
       },
       project: ({ document }) => document,
     });
+  }
+
+  /** Shared transaction seam for verified client+PMCM in-app conforme completion. */
+  async activateAfterConforme(tx: Prisma.TransactionClient, inquiryId: string, signedAt: Date) {
+    const inquiry = await tx.opsInquiry.findUnique({ where: { id: inquiryId } });
+    if (!inquiry || inquiry.status !== 'accepted') throw new ConflictException('Only accepted inquiries can activate an event');
+    const event = await this.ensureConformeEvent(tx, inquiry, true);
+    await tx.opsInquiry.update({ where: { id: inquiryId }, data: { conformeSignedAt: signedAt, portalActivatedAt: signedAt } });
+    return { event, inquiry };
+  }
+
+  private async ensureConformeEvent(tx: Prisma.TransactionClient, inquiry: OpsInquiry, unlocked: boolean) {
+    let event = await tx.opsEvent.findFirst({ where: { inquiryId: inquiry.id } });
+    if (event?.archived) throw new ConflictException('Archived event workspaces cannot be activated');
+    if (!event) {
+      event = await tx.opsEvent.create({
+        data: {
+          id: `evt_${randomUUID()}`,
+          inquiryId: inquiry.id,
+          clientName: inquiry.clientName,
+          eventName: inquiry.eventName,
+          eventDate: inquiry.eventDate,
+          status: unlocked ? 'briefing' : 'inquiry',
+          clientPortalStatus: unlocked ? 'unlocked' : 'locked',
+          readiness: unlocked ? 'Client briefing open' : 'Conforme storage confirmation required',
+        },
+      });
+      await tx.opsPostEventDocument.createMany({
+        data: [
+          { id: `ped_${randomUUID()}`, eventId: event.id, title: 'Completion report', status: 'pending' },
+          { id: `ped_${randomUUID()}`, eventId: event.id, title: 'Photo and video turnover', status: 'pending' },
+        ],
+      });
+    } else if (unlocked && event.clientPortalStatus !== 'unlocked') {
+      event = await tx.opsEvent.update({
+        where: { id: event.id },
+        data: {
+          clientPortalStatus: 'unlocked',
+          ...(event.status === 'inquiry' ? { status: 'briefing', readiness: 'Client briefing open' } : {}),
+        },
+      });
+    }
+    return event;
   }
 
   private async createInquiryRecord(input: CreateInquiryInput, actor?: ResolvedEventOpsActor & { id: string; verified: true }) {

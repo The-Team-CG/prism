@@ -3,6 +3,7 @@ import { nonEmptyStringSchema } from "./common.js";
 
 export const storageUsageSchema = z.enum([
   "signed_conforme",
+  "client_document",
   "supplier_document",
   "guest_feedback_media",
   "event_deliverable",

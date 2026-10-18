@@ -1,6 +1,7 @@
 "use client";
 
 import { dashboardHref, formatStatusLabel } from "../../workspace/shared";
+import { CLIENT_CONFORME_REVIEW_HREF } from "../../workspace/model/client-dashboard-navigation";
 import { useClientWorkspace } from "../../workspace/shared";
 import {
   ClientHomeActionCenter,
@@ -45,6 +46,7 @@ export function ClientHomeView() {
         daysToEvent={daysToEvent}
         onRequest={() => router.push("/dashboard/request")}
         onEvents={() => router.push("/dashboard/events")}
+        onReviewConforme={() => router.push(CLIENT_CONFORME_REVIEW_HREF)}
       />
 
       {selectedEvent ? (

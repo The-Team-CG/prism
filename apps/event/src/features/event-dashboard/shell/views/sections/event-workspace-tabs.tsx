@@ -14,6 +14,7 @@ import { FinancialWorkspace } from "@/features/finance/workspace";
 import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
 import { SupplierQuotePlanner } from "@/features/suppliers/directory";
 import { PmcmSupplierReadinessBoard } from "@/features/suppliers/readiness";
+import { PmcmSupplierWorkflowsPanel } from "@/features/suppliers/workflows/views/pmcm-supplier-workflows-panel";
 import { EventRegistrationTab } from "@/app/components/pmcm/event-registration-tab";
 import { EventGamesHostView } from "@/features/event-games/host";
 import { EventMessagesWorkspace } from "@/features/event-dashboard/messages/views/event-messages-workspace";
@@ -24,12 +25,14 @@ import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { Card, CardBody, CardHeader } from "./shell-ui";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
 import type { PrismFloorPlanDraft } from "@prism/types";
+import { PmcmClientReviewPanel } from "@/features/commercial/client-review/views/pmcm-client-review-panel";
 
 export function EventWorkspaceOverviewTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
+      <PmcmClientReviewPanel eventId={vm.selectedEvent.id} />
       <EventOverviewPanels
         event={vm.selectedEvent}
         defenseReadiness={vm.defenseReadiness}
@@ -214,6 +217,7 @@ export function EventWorkspaceSuppliersTab() {
       </Card>
 
       <PmcmSupplierReadinessBoard requests={vm.quoteRequests} quotes={vm.quotes} />
+      <PmcmSupplierWorkflowsPanel eventId={vm.selectedEvent.id} requests={vm.quoteRequests} quotes={vm.quotes} />
 
       <Card>
         <CardHeader>

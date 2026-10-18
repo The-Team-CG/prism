@@ -4,12 +4,12 @@ title: "P.R.I.S.M redesign readiness foundation"
 description: "Durable gates for development fixtures, sessions, app ownership, shared contracts, external dependencies, and safe redesign work."
 tags: [readiness, contracts, roles, compatibility, governance]
 status: canonical
-updated: "2026-09-30"
+updated: "2026-10-16"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, QA, reviewers]
 scope: "contracts, fixture seeding, sessions, database runtime, external dependencies, and readiness gates"
-last_verified: "2026-09-08"
+last_verified: "2026-10-16; selected portal storage and workflow implementation; provider activation remains separate"
 sources:
   - id: constitution
     resource: "docs/constitution.md"
@@ -147,7 +147,7 @@ These contracts should be completed or hardened before heavy redesign branches d
 | Selected Event Workspace read model | B/D | Available through `PrismPmcmEventWorkspace` and `/api/pmcm/events/:eventId/workspace`; selected-event sections now load it through `use-pmcm-selected-event-workspace.ts` and prefer it through `event-dashboard.selectors.ts` with broad-state fallback. Live-ops/readiness refreshes now live in `use-pmcm-event-readiness.ts`, and event messages now render through `EventMessagesWorkspace`. Next work is file matrix enrichment and route decomposition. |
 | Supplier Readiness Board read model | C/D | Available through `PrismSupplierReadinessBoard` and `/api/supplier/readiness-board`; supplier dashboard now displays it. Next work is PMCM-side readiness board parity and application/status depth. |
 | Guest Event Pass read model | C/D | Available through `PrismGuestEventPass`, `/api/guest/events/:accessCode`, and `eventOpsClient.guest.eventPass`; next work is moderation/masterlist enrichment and QR gating only after HTTPS/device/masterlist constraints are solved. |
-| File Requirements Matrix | A/C/D | Role-visible document requirements, missing/received/approved states. File behavior is metadata-first. Role apps may show requirement status, owner role, visibility, due date, generated document reference, uploaded asset metadata, and validation state. Role apps must not claim real upload persistence, signed URL creation, multipart upload progress, or retry semantics until a storage adapter contract is approved and focused API tests cover the behavior. |
+| File Requirements Matrix | A/C/D | Role-visible document requirements, missing/received/approved states. Requirements retain owner, visibility, due date, generated source, and validation state. Configured storage now verifies actual bytes before an attachment satisfies a requirement. See [client and supplier workflows](client-supplier-workflows.md). Production bucket activation, malware scanning, retention, multipart, and bulk uploads require separate evidence. |
 | Notification delivery state | B/C/D | Communication queues, channel status, retry/error visibility. |
 | Privacy Operations state | B/D | Consent, retention, privacy requests, redaction and legal hold. |
 
@@ -158,8 +158,8 @@ These contracts should be completed or hardened before heavy redesign branches d
 | Pagination and list envelopes | Shared envelope types exist; existing endpoints can remain array-returning until a route needs paging. | Known-small queues and bounded lists. | Infinite scroll, saved views, generalized table paging. | `npm --workspace @prism/types run typecheck` |
 | Filtering and sorting | Shared query-shape types exist; endpoint-specific support must be named before use. | Simple local filters for already-loaded bounded data. | Cross-resource filter payloads invented inside role apps. | `npm --workspace @prism/api-client run typecheck` |
 | Normalized errors and empty states | Shared problem, field-error, retryability, and empty-reason types exist. | Route copy maps to known reasons. | App-local error-code strings that cannot be shared across PMCM, client, supplier, and guest surfaces. | API-client unit tests for normalization helper. |
-| File Requirements Matrix | Metadata-first matrix is the current contract. | Requirement status, due date, owner, visibility, and metadata upload cues. | Real uploads, signed URLs, multipart progress, generalized file manager. | Types and focused file matrix tests. |
-| Upload sessions | Gated pending real storage adapter approval. | Metadata-only upload intent copy and disabled real-storage controls. | Claims of real file persistence, retry progress, or signed URL behavior. | Gate documented in readiness foundation. |
+| File Requirements Matrix | Role-filtered requirements with confirmed storage objects. | Requirement status, due date, owner, visibility, and verified attachments. | Generalized file manager, multipart and bulk uploads. | File matrix, storage, and forbidden-role tests. |
+| Upload sessions | Explicitly configured local or private Supabase storage. | Request, transfer, byte/hash/content confirmation, authorized download, and retry of an immutable object. | Production activation without configured credentials and operational checks; multipart or bulk claims. | Storage adapter and authorization tests plus provider activation checks. |
 | Bulk/action responses | Shared action-result type exists. | Single-action success, denied, retryable failure, and audit-reference display. | Bulk action manager or partial-success batch UI. | Types compile and API-client tests cover action-result shape. |
 
 ## Contract And Test Gates
@@ -168,7 +168,7 @@ These contracts should be completed or hardened before heavy redesign branches d
 
 - Shared bounded-list, filter/sort, normalized error, empty-state, and action-result types are present in `@prism/types`; role apps must keep lists bounded unless an endpoint names those query fields explicitly.
 - `packages/api-client` exposes scoped clients for PMCM command inbox, selected-event workspace, client action center, supplier readiness board, guest event pass, and file requirements. Role apps should consume those existing contracts before inventing parallel helpers.
-- FL-024 File Requirements Matrix is metadata-only through `PrismFileRequirementsMatrix` and `/api/events/:eventId/file-requirements`; real storage, signed URLs, upload progress, retry, and bulk upload behavior remain gated.
+- FL-024 exposes role-filtered requirements through `PrismFileRequirementsMatrix` and `/api/events/:eventId/file-requirements`. Real attachments use the storage capability and must be confirmed before they count; provider activation and bulk upload remain separate gates.
 
 ### Required verification evidence
 
@@ -179,7 +179,7 @@ These contracts should be completed or hardened before heavy redesign branches d
 
 | Feature family | Target | Contract or gate | Required test evidence |
 | --- | --- | --- | --- |
-| FL-006 Files and documents | Metadata slice now; storage decision later | `PrismFileRequirementsMatrix`; upload sessions gated until storage adapter approval. | `@prism/types` and `@prism/api-client` checks; focused file matrix or document-vault tests only when API behavior changes. |
+| FL-006 Files and documents | Verified attachment slice; provider activation separate | `PrismFileRequirementsMatrix` plus scoped immutable storage objects; see the portal workflow contract. | `@prism/types` and `@prism/api-client` checks; focused file matrix or document-vault tests only when API behavior changes. |
 | FL-014 Notifications and communications | Visible queue/outbox state later | Queue state can be shown only from existing notification records; production SendGrid/Viber adapters remain gated. | Notification service/controller tests when send/retry behavior changes. |
 | FL-015 Privacy and audit | Minimal privacy/audit visibility | Privacy request, retention, redaction, and audit references stay PMCM-scoped; external auth remains gated. | Privacy/audit service tests and forbidden role access tests when policy changes. |
 | FL-011 Floorplan eligibility | PMCM ownership and client read-only boundary | PMCM official floorplan edits stay in `apps/event`; client inputs remain preferences/comments. | Client official mutation forbidden tests when floorplan API behavior changes. |
@@ -203,7 +203,7 @@ Allowed before a route-specific backend contract is complete:
 - Bounded queues from shared read models.
 - Known-small lists loaded from existing scoped endpoints.
 - Simple local filters over already-loaded bounded data.
-- Metadata-only file requirement actions.
+- Role-filtered file requirements and verified storage attachment actions.
 - Route-level empty states using shared empty reasons.
 
 Blocked until shared contracts and endpoint behavior are complete:
@@ -270,7 +270,7 @@ These gates decide whether a task can start, merge, or move to a later queue.
 | Owner clarity gate | Every task and ledger overlay row | Maxine for UX, Francis for PMCM, Ethan for portals, Anthony for platform/docs | Every executable row has one DRI. Support owners can review or provide dependencies but cannot be listed as co-DRIs for completion. | Task or ledger row names one DRI and one evidence line. |
 | Contract dependency gate | New response fields, filters, pagination, upload states, errors, or action results | Anthony | UI cannot depend on a field or behavior until it exists in `@prism/types`, `@prism/api-client`, and focused tests, or the task is explicitly bounded/local. | Typecheck/API-client tests or a documented gate in this file. |
 | App-boundary gate | PMCM, client, supplier, guest, coordinator surfaces | Anthony | Role apps do not import across app boundaries, do not reintroduce a broad aggregate path, and do not expose forbidden role data. | `npm run check:boundaries`, focused forbidden-role tests, route checks. |
-| Metadata-only file gate | FL-006 and FL-024 file/document UI | Anthony | UI may show requirement metadata but must not claim real storage, signed URLs, upload progress, retry, multipart, or bulk behavior. | File-matrix tests and visible UI copy/gate. |
+| Verified file gate | FL-006 and FL-024 file/document UI | Anthony | An attachment counts only after provider bytes pass size, hash, content, role, and event checks. Production provider activation, scanning, retention, multipart, and bulk behavior require their own evidence. | File-matrix and storage tests, role-path checks, and [storage runbook](../runbooks/portal-storage.md). |
 | External dependency gate | AI, QR/camera, production notifications, external auth, paid direct DB/network behavior, real storage | Anthony | External dependencies remain gated unless credentials, environment, adapter, tests, and fallback behavior are explicitly approved. | Ledger row lists gate/deferred or approved implementation evidence. |
 | Demo evidence gate | Release readiness for demo routes | Anthony | A demo route is not ready unless its owner records command output, route/screenshot evidence, and known gates. | PR or release notes plus screenshot list. |
 

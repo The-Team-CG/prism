@@ -19,7 +19,7 @@ const CHANGE_KINDS = new Set(['schema', 'data', 'mixed']);
 const RISK_LEVELS = new Set(Object.keys(RISK_RANK));
 const ALLOWED_MIGRATION_ROOT_FILES = new Set(['migration_lock.toml']);
 const UNSUPPORTED_SQL_RULES = [
-  { code: 'procedural DO block', pattern: /\bDO\s+/i },
+  { code: 'procedural DO block', pattern: /\bDO\s+(?!NOTHING\b|UPDATE\b)/i },
   { code: 'dynamic EXECUTE', pattern: /\bEXECUTE\s+/i },
   { code: 'stored procedure call', pattern: /\bCALL\s+/i },
   { code: 'MERGE statement', pattern: /\bMERGE\s+INTO\b/i },
@@ -658,7 +658,8 @@ function validateOwnerAwareMigration(migration, parsed, policy, ownershipManifes
     }
   }
 
-  for (const { kind, relation } of relationTargets) {
+  for (const target of relationTargets) {
+    const { kind, relation } = target;
     if (kind === 'index' || relation === null) continue;
     const tableKey = `${relation.schema}.${relation.table}`;
 

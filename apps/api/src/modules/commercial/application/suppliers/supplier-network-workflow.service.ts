@@ -43,9 +43,16 @@ import type {
   UploadMetadataInput,
 } from '@prism/types';
 import { mapSupplierQuoteRequest, mapSupplierSchedule } from '../quotes/supplier-quote.mappers';
+import { OPERATIONS_EVENT_REFERENCE_READER, type OperationsEventReferenceReader } from '@prism/contexts/event-lifecycle/operations-reference';
 
 async function lockSupplierQuoteRequest(prisma: Prisma.TransactionClient, requestId: string) {
   await prisma.$queryRaw`SELECT id FROM "commercial"."quote_requests" WHERE id = ${requestId} FOR UPDATE`; // QUERY_AUDIT_RAW_SQL: parameterized primary-key row lock rechecks assignment state and identity.
+}
+
+async function lockActiveEvent(prisma: Prisma.TransactionClient, eventId: string, actor: ResolvedEventOpsActor, eventReferences: OperationsEventReferenceReader) {
+  if (actor.eventId && actor.eventId !== eventId) throw new ForbiddenException('Actor cannot access this event');
+  const event = await eventReferences.findOperationsEvent(eventId, { prisma, correlationId: `supplier-event:${eventId}` });
+  if (!event || event.archived) throw new NotFoundException('Active event not found');
 }
 
 function requireLockedConfirmationRequest(
@@ -100,6 +107,7 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
     @Inject(PARE_APPROVAL_GOVERNANCE) private readonly pareGovernance: PareApprovalGovernance,
     @Inject(PARE_DISPATCH_WRITER) private readonly pareDispatchWriter: PareDispatchWriter,
     @Inject(DOCUMENT_VAULT) private readonly documentVaultService: DocumentVault,
+    @Inject(OPERATIONS_EVENT_REFERENCE_READER) private readonly eventReferences: OperationsEventReferenceReader,
   ) {}
 
   async createSupplier(input: CreateSupplierInput, actor: ResolvedEventOpsActor) {
@@ -562,14 +570,35 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
     const egressAt = new Date(input.egressAt);
     if (egressAt <= ingressAt) throw new BadRequestException('Egress must be after ingress');
     const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await lockActiveEvent(tx, eventId, actor, this.eventReferences);
+      await lockSupplierQuoteRequest(tx, input.requestId);
       const request = await tx.opsSupplierQuoteRequest.findUnique({ where: { id: input.requestId } });
       if (!request || request.eventId !== eventId || request.status !== 'selected' || request.assignmentStatus !== 'confirmed') {
         throw new BadRequestException('Only a confirmed supplier assignment can receive a schedule');
       }
+      const location = input.location ?? '';
+      const notes = input.notes ?? '';
+      const current = await tx.opsSupplierSchedule.findUnique({ where: { requestId: input.requestId } });
+      if (current && current.ingressAt.getTime() === ingressAt.getTime() && current.egressAt.getTime() === egressAt.getTime() &&
+        current.location === location && current.notes === notes) {
+        return { schedule: current, supplierName: request.supplierName };
+      }
       const schedule = await tx.opsSupplierSchedule.upsert({
         where: { requestId: input.requestId },
-        create: { id: `ss_${randomUUID()}`, eventId, requestId: input.requestId, ingressAt, egressAt, location: input.location ?? '', notes: input.notes ?? '' },
-        update: { ingressAt, egressAt, location: input.location ?? '', notes: input.notes ?? '', status: 'planned' },
+        create: { id: `ss_${randomUUID()}`, eventId, requestId: input.requestId, ingressAt, egressAt, location, notes },
+        update: {
+          ingressAt,
+          egressAt,
+          location,
+          notes,
+          status: 'planned',
+          revision: { increment: 1 },
+          acknowledgedRevision: null,
+          acknowledgedAt: null,
+          acknowledgedBy: null,
+          changeRequestNote: null,
+          changeRequestedAt: null,
+        },
       });
       const lateFlagReset = await tx.opsSupplierQuoteRequest.updateMany({
         where: { id: request.id, eventDayStatus: 'late' },

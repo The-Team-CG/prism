@@ -11,6 +11,7 @@ import type {
 import { PrismaService } from '@prism/kernel/database';
 import { readUnresolvedCloseoutIssues } from '@prism/contexts/read-models/closeout';
 import { readEventAccessScope } from '@prism/contexts/read-models/event-scope';
+import { readStoredConformeEvidence } from '@prism/contexts/read-models/file-evidence';
 
 export type FileRequirementStatus = 'missing' | 'pending' | 'submitted' | 'generated' | 'approved' | 'complete';
 
@@ -50,19 +51,22 @@ export class FileRequirementsMatrixService {
   async buildForEvent(eventId: string, prisma: Prisma.TransactionClient = this.prisma): Promise<FileRequirementsMatrix> {
     const event = await prisma.opsEvent.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
-    const [documents, postEventDocuments, billingStatements, milestones, supplierReviews, issues] = await Promise.all([
+    const [documents, postEventDocuments, billingStatements, milestones, supplierReviews, issues, clientCloseoutResponse, storedConforme, digitalConforme] = await Promise.all([
       prisma.opsDocument.findMany({ where: { eventId } }),
       prisma.opsPostEventDocument.findMany({ where: { eventId } }),
       prisma.opsBillingStatement.findMany({ where: { eventId } }),
       prisma.opsPaymentMilestone.findMany({ where: { eventId } }),
       prisma.opsSupplierReview.findMany({ where: { eventId } }),
       readUnresolvedCloseoutIssues(prisma, eventId),
+      prisma.opsClientCloseoutResponse.findUnique({ where: { eventId }, select: { id: true, rating: true, submittedAt: true } }),
+      readStoredConformeEvidence(prisma, eventId),
+      prisma.opsConformeExecution.findFirst({ where: { eventId, status: 'completed' }, orderBy: { templateVersion: 'desc' }, select: { id: true } }),
     ]);
 
     return {
       eventId,
       items: [
-        ...this.itemsForEvent(event, documents, postEventDocuments, billingStatements, milestones, supplierReviews),
+        ...this.itemsForEvent(event, documents, postEventDocuments, billingStatements, milestones, supplierReviews, clientCloseoutResponse, storedConforme, digitalConforme),
         {
           key: 'logistics', label: 'Logistics', ownerRole: 'pmcm-admin', visibleToRoles: ['pmcm-admin'],
           sourceWorkflow: 'closure', status: 'missing', auditCategory: 'events',
@@ -104,87 +108,78 @@ export class FileRequirementsMatrixService {
     billingStatements: OpsBillingStatement[],
     milestones: OpsPaymentMilestone[],
     supplierReviews: OpsSupplierReview[],
+    clientCloseoutResponse: { id: string; rating: number; submittedAt: Date } | null,
+    storedConforme: { id: string } | null,
+    digitalConforme: { id: string } | null,
   ): FileRequirementMatrixItem[] {
-    const pendingDeliverables = postEventDocuments.filter(document => document.status !== 'submitted');
-    const feedbackDocs = [
-      ...postEventDocuments.filter((document) =>
-        ['client feedback', 'client feedback form'].includes(document.title.trim().toLowerCase()) && document.status === 'submitted',
-      ),
-      ...documents.filter((document) =>
-        document.type === 'client_feedback' && ['submitted', 'approved'].includes(document.status),
-      ),
-    ];
-    const unpaidMilestones = milestones.filter((milestone) => milestone.status !== 'paid' || milestone.remainingBalance > 0);
-
     return [
-      {
-        key: 'signed_conforme',
-        label: 'Signed conforme',
-        ownerRole: 'pmcm-admin',
-        visibleToRoles: ['pmcm-admin', 'client'],
-        sourceWorkflow: 'client_onboarding',
-        status: documents.some((document) => document.type.toLowerCase().includes('conforme')) ? 'submitted' : 'missing',
-        uploadedAssetId: documents.find((document) => document.type.toLowerCase().includes('conforme'))?.id,
-        auditCategory: 'documents',
-        detail: 'Formal authorization file required before portal activation.',
-      },
-      {
-        key: 'post_event_documents',
-        label: 'Post-event documents',
-        ownerRole: 'pmcm-admin',
-        visibleToRoles: ['pmcm-admin', 'client'],
-        sourceWorkflow: 'closure',
-        status: trackedDeliverablesStatus(postEventDocuments),
-        generatedDocumentId: postEventDocuments[0]?.id,
-        auditCategory: 'documents',
-        detail: `${postEventDocuments.length} tracked deliverable(s); ${pendingDeliverables.length} awaiting submission`,
-      },
-      {
-        key: 'billing_statement',
-        label: 'Billing and payment schedule',
-        ownerRole: 'pmcm-admin',
-        visibleToRoles: ['pmcm-admin', 'client'],
-        sourceWorkflow: 'commercial',
-        status: billingStatements.length > 0 && milestones.length > 0 && unpaidMilestones.length === 0 ? 'complete' : 'pending',
-        generatedDocumentId: billingStatements[0]?.id,
-        auditCategory: 'finance',
-        detail:
-          billingStatements.length === 0
-            ? 'No billing statement generated'
-            : `${milestones.length} payment milestone(s); ${unpaidMilestones.length} still unpaid`,
-      },
-      {
-        key: 'official_floorplan',
-        label: 'Official floorplan',
-        ownerRole: 'pmcm-admin',
-        visibleToRoles: ['pmcm-admin', 'client', 'coordinator'],
-        sourceWorkflow: 'floorplans',
-        status: event?.floorPlanStatus === 'approved' ? 'approved' : 'pending',
-        auditCategory: 'events',
-        detail: `Floorplan status is ${event?.floorPlanStatus ?? 'unknown'}`,
-      },
-      {
-        key: 'supplier_reviews',
-        label: 'Supplier review capture',
-        ownerRole: 'pmcm-admin',
-        visibleToRoles: ['pmcm-admin'],
-        sourceWorkflow: 'supplier_network',
-        status: supplierReviews.length > 0 ? 'complete' : 'missing',
-        auditCategory: 'suppliers',
-        detail: `${supplierReviews.length} supplier review(s) recorded`,
-      },
-      {
-        key: 'client_feedback',
-        label: 'Client feedback indicator',
-        ownerRole: 'client',
-        visibleToRoles: ['pmcm-admin', 'client'],
-        sourceWorkflow: 'closure',
-        status: feedbackDocs.length > 0 ? 'submitted' : 'missing',
-        uploadedAssetId: feedbackDocs[0]?.id,
-        auditCategory: 'documents',
-        detail: `${feedbackDocs.length} feedback document(s) recorded`,
-      },
+      this.signedConformeItem(documents, storedConforme, digitalConforme),
+      this.postEventDocumentsItem(postEventDocuments),
+      this.billingItem(billingStatements, milestones),
+      this.floorplanItem(event),
+      this.supplierReviewItem(supplierReviews),
+      this.clientFeedbackItem(documents, postEventDocuments, clientCloseoutResponse),
     ];
+  }
+
+  private signedConformeItem(documents: OpsDocument[], stored: { id: string } | null, digital: { id: string } | null): FileRequirementMatrixItem {
+    const hasApprovedFile = documents.some((document) => document.type === 'signed_conforme' && document.status === 'approved');
+    const hasSignedFile = documents.some((document) => document.type === 'signed_conforme');
+    const status = digital ? 'approved' : stored && hasApprovedFile ? 'submitted' : stored || hasSignedFile ? 'pending' : 'missing';
+    return {
+      key: 'signed_conforme', label: 'Signed conforme', ownerRole: 'pmcm-admin', visibleToRoles: ['pmcm-admin', 'client'],
+      sourceWorkflow: 'client_onboarding', status, uploadedAssetId: stored?.id, generatedDocumentId: digital?.id,
+      auditCategory: 'documents',
+      detail: digital ? 'Completed client and PMCM acknowledgments for an immutable conforme version.' : 'A confirmed signed file and PMCM acceptance are required; metadata alone is pending.',
+    };
+  }
+
+  private postEventDocumentsItem(documents: OpsPostEventDocument[]): FileRequirementMatrixItem {
+    const pendingCount = documents.filter((document) => document.status !== 'submitted').length;
+    return {
+      key: 'post_event_documents', label: 'Post-event documents', ownerRole: 'pmcm-admin', visibleToRoles: ['pmcm-admin', 'client'],
+      sourceWorkflow: 'closure', status: trackedDeliverablesStatus(documents), generatedDocumentId: documents[0]?.id,
+      auditCategory: 'documents', detail: `${documents.length} tracked deliverable(s); ${pendingCount} awaiting submission`,
+    };
+  }
+
+  private billingItem(statements: OpsBillingStatement[], milestones: OpsPaymentMilestone[]): FileRequirementMatrixItem {
+    const unpaid = milestones.filter((milestone) => milestone.status !== 'paid' || milestone.remainingBalance > 0).length;
+    return {
+      key: 'billing_statement', label: 'Billing and payment schedule', ownerRole: 'pmcm-admin', visibleToRoles: ['pmcm-admin', 'client'],
+      sourceWorkflow: 'commercial', status: statements.length > 0 && milestones.length > 0 && unpaid === 0 ? 'complete' : 'pending',
+      generatedDocumentId: statements[0]?.id, auditCategory: 'finance',
+      detail: statements.length === 0 ? 'No billing statement generated' : `${milestones.length} payment milestone(s); ${unpaid} still unpaid`,
+    };
+  }
+
+  private floorplanItem(event: OpsEvent | null): FileRequirementMatrixItem {
+    return {
+      key: 'official_floorplan', label: 'Official floorplan', ownerRole: 'pmcm-admin', visibleToRoles: ['pmcm-admin', 'client', 'coordinator'],
+      sourceWorkflow: 'floorplans', status: event?.floorPlanStatus === 'approved' ? 'approved' : 'pending',
+      auditCategory: 'events', detail: `Floorplan status is ${event?.floorPlanStatus ?? 'unknown'}`,
+    };
+  }
+
+  private supplierReviewItem(reviews: OpsSupplierReview[]): FileRequirementMatrixItem {
+    return {
+      key: 'supplier_reviews', label: 'Supplier review capture', ownerRole: 'pmcm-admin', visibleToRoles: ['pmcm-admin'],
+      sourceWorkflow: 'supplier_network', status: reviews.length > 0 ? 'complete' : 'missing', auditCategory: 'suppliers',
+      detail: `${reviews.length} supplier review(s) recorded`,
+    };
+  }
+
+  private clientFeedbackItem(documents: OpsDocument[], postEventDocuments: OpsPostEventDocument[], response: { id: string; rating: number; submittedAt: Date } | null): FileRequirementMatrixItem {
+    const feedbackDocs = [
+      ...postEventDocuments.filter((document) => ['client feedback', 'client feedback form'].includes(document.title.trim().toLowerCase()) && document.status === 'submitted'),
+      ...documents.filter((document) => document.type === 'client_feedback' && ['submitted', 'approved'].includes(document.status)),
+    ];
+    return {
+      key: 'client_feedback', label: 'Client feedback indicator', ownerRole: 'client', visibleToRoles: ['pmcm-admin', 'client'],
+      sourceWorkflow: 'closure', status: feedbackDocs.length > 0 || response ? 'submitted' : 'missing',
+      uploadedAssetId: feedbackDocs[0]?.id, auditCategory: 'documents',
+      detail: response ? `Client submitted feedback (rating ${response.rating}/5) at ${response.submittedAt.toISOString()}` : `${feedbackDocs.length} feedback document(s) recorded`,
+    };
   }
 
   private gate(key: string, label: string, item: FileRequirementMatrixItem | undefined) {

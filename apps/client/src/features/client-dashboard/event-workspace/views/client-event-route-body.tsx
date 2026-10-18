@@ -18,6 +18,7 @@ import { ClientFloorPlanView } from "./client-floorplan-view";
 import { ClientFinalSummaryView } from "./client-final-summary-view";
 import { ClientMessagesView } from "../../messages";
 import { ClientApprovalsView } from "../../approvals";
+import { ClientCloseoutView } from "../../closeout/views/client-closeout-view";
 import type { ClientDashboardRoute } from "../../workspace/shared";
 
 function renderOverview(ctx: ClientWorkspaceValue) {
@@ -106,7 +107,14 @@ const EVENT_ROUTE_RENDERERS: Partial<Record<ClientDashboardRoute, (ctx: ClientWo
   guests: () => <ClientGuestsView />,
   preferences: () => <ClientPreferencesView />,
   actions: renderActions,
-  briefing: (ctx) => <ClientBriefingTab briefing={ctx.briefing} />,
+  briefing: (ctx) => ctx.selectedEvent ? (
+    <ClientBriefingTab
+      eventId={ctx.selectedEvent.id}
+      briefing={ctx.briefing}
+      busy={ctx.busy === "briefing"}
+      onSubmit={ctx.submitBriefing}
+    />
+  ) : null,
   proposal: renderProposal,
   approvals: () => <ClientApprovalsView />,
   floorplan: () => <ClientFloorPlanView />,
@@ -114,7 +122,7 @@ const EVENT_ROUTE_RENDERERS: Partial<Record<ClientDashboardRoute, (ctx: ClientWo
   billing: (ctx) => <ClientBillingTab payments={ctx.payments} billing={ctx.billing} />,
   messages: () => <ClientMessagesView />,
   changes: renderChanges,
-  summary: () => <ClientFinalSummaryView />,
+  summary: (ctx) => <div className="space-y-4"><ClientFinalSummaryView />{ctx.selectedEvent ? <ClientCloseoutView key={ctx.selectedEvent.id} eventId={ctx.selectedEvent.id} archived={ctx.selectedEvent.archived} /> : null}</div>,
 };
 
 export function ClientEventRouteBody() {

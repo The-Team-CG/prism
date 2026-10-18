@@ -1,4 +1,4 @@
-import type { PrismAuthenticatedSession } from "@prism/types";
+import type { PrismAuthenticatedSession, PrismFileRequirementItem } from "@prism/types";
 import type { BookingStep, CalendarEventItem, QuoteFormState, QuoteSubmitInput, SectionMeta, SupplierDashboardSection, SupplierWorkspace, WorkspaceDerived, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard } from "./supplier-workspace-types";
 
 export const EVENT_STATUS_ACTIONS = [
@@ -114,8 +114,23 @@ export function countHandoffPending(selectedRequests: PrismSupplierQuoteRequest[
     (r) =>
       r.assignmentStatus !== "confirmed" ||
       r.readinessStatus !== "confirmed" ||
-      !r.contractDocumentId,
+      r.contractReviewStatus !== "accepted",
   ).length;
+}
+
+export function buildSupplierContractRequirements(workspace: Pick<SupplierWorkspace, "quoteRequests" | "supplierQuotes">): PrismFileRequirementItem[] {
+  return filterSelectedRequests(workspace.quoteRequests, buildQuoteByRequest(workspace.supplierQuotes)).map((request) => ({
+    key: `supplier-contract:${request.id}`,
+    label: `${request.category} signed contract`,
+    ownerRole: "supplier",
+    visibleToRoles: ["supplier", "pmcm-admin"],
+    sourceWorkflow: "supplier_contract",
+    status: request.contractReviewStatus === "accepted" ? "approved"
+      : request.contractReviewStatus === "submitted" ? "submitted"
+        : request.contractReviewStatus === "changes_requested" ? "pending" : "missing",
+    auditCategory: "documents",
+    detail: buildBookingSteps(request)[2].meta,
+  }));
 }
 
 export function countReadinessNeedsAction(
@@ -259,9 +274,12 @@ export function buildBookingSteps(
         : "Before event day",
     },
     {
-      label: "Contract saved",
-      done: Boolean(req.contractDocumentId),
-      meta: req.contractDocumentId ? "On file" : "Save filename below",
+      label: "Contract accepted",
+      done: req.contractReviewStatus === "accepted",
+      meta: req.contractReviewStatus === "accepted" ? "Accepted by PMCM"
+        : req.contractReviewStatus === "submitted" ? "Awaiting PMCM review"
+          : req.contractReviewStatus === "changes_requested" ? "Upload a corrected version"
+            : "Upload signed contract below",
     },
     {
       label: "Event day status",
@@ -333,7 +351,7 @@ export function sectionMeta(
     files: {
       eyebrow: "Files",
       title: "Files & documents",
-      description: "Contract metadata and certification documents.",
+      description: "Uploaded contract versions, review status, and certification documents.",
     },
     payments: {
       eyebrow: "Payments",

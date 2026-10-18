@@ -38,6 +38,7 @@ function createService(overrides: {
     statusPhotoFileName: null,
     contractDocumentId: null,
   };
+  let schedule: Record<string, unknown> | null = null;
   const audit = vi.fn();
   const suppliers = {
     listSuppliers: vi.fn(async () => [
@@ -47,6 +48,9 @@ function createService(overrides: {
   const eventAccessPolicyService = new EventAccessPolicyService({ write: vi.fn() } as any);
   const prisma = {
     $queryRaw: vi.fn(async () => []),
+    opsEvent: {
+      findUnique: vi.fn(async ({ where }: { where: { id: string } }) => (where.id === 'evt_sample' ? { id: 'evt_sample', archived: false } : null)),
+    },
     opsSupplierQuoteRequest: {
       findUnique: vi.fn(async ({ where }: { where: { id: string } }) => (where.id === request.id ? request : null)),
       update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => Object.assign(request, data)),
@@ -59,12 +63,14 @@ function createService(overrides: {
       }),
     },
     opsSupplierSchedule: {
-      upsert: vi.fn(async ({ create }: { create: Record<string, unknown> }) => ({
-        ...create,
-        status: 'planned',
-        createdAt: new Date('2026-10-02T09:00:00.000Z'),
-        updatedAt: new Date('2026-10-02T09:00:00.000Z'),
-      })),
+      findUnique: vi.fn(async () => schedule),
+      upsert: vi.fn(async ({ create, update }: { create: Record<string, unknown>; update: Record<string, unknown> }) => {
+        if (!schedule) schedule = { ...create, status: 'planned', revision: 1, acknowledgedRevision: null };
+        else schedule = { ...schedule, ...update, revision: Number(schedule.revision) + 1, acknowledgedRevision: null };
+        schedule.createdAt ??= new Date('2026-10-02T09:00:00.000Z');
+        schedule.updatedAt = new Date('2026-10-02T09:00:00.000Z');
+        return schedule;
+      }),
     },
     $transaction: vi.fn(async (callback: (tx: Record<string, unknown>) => Promise<unknown>) => callback(prisma as unknown as Record<string, unknown>)),
   };
@@ -79,8 +85,9 @@ function createService(overrides: {
     {} as any,
     { queue: vi.fn(async () => ({})) } as any,
     documentVault as any,
+    { findOperationsEvent: vi.fn(async (eventId: string) => ({ id: eventId, archived: false })) } as any,
   );
-  return { service, prisma, audit, request, suppliers, documentVault };
+  return { service, prisma, audit, request, suppliers, documentVault, getSchedule: () => schedule };
 }
 
 function createCommandReceiptStore() {
@@ -354,5 +361,31 @@ describe('SupplierNetworkWorkflowService', () => {
       expect.objectContaining({ metadata: expect.objectContaining({ lateFlagReset: true }) }),
       expect.anything(),
     );
+  });
+
+  it('leaves an acknowledged schedule revision unchanged when PMCM republishes identical details', async () => {
+    const { service, request, prisma, audit, getSchedule } = createService();
+    request.status = 'selected';
+    request.assignmentStatus = 'confirmed';
+    const input = {
+      requestId: 'qr_sonic',
+      ingressAt: '2026-10-02T11:00:00.000Z',
+      egressAt: '2026-10-02T14:00:00.000Z',
+      location: 'Loading entrance',
+      notes: 'Use service lift',
+    };
+    const actor = { name: 'PMCM Admin', role: OpsUserRole.PmcmAdmin, explicit: true };
+    await service.createSupplierSchedule('evt_sample', input, actor);
+    const acknowledgedSchedule = getSchedule();
+    expect(acknowledgedSchedule).not.toBeNull();
+    Object.assign(acknowledgedSchedule!, { acknowledgedRevision: 1, acknowledgedAt: new Date('2026-10-02T10:00:00.000Z') });
+
+    const repeat = await service.createSupplierSchedule('evt_sample', input, actor);
+
+    expect(repeat).toMatchObject({ supplierName: request.supplierName, status: 'planned' });
+    expect(getSchedule()).toMatchObject({ revision: 1, acknowledgedRevision: 1 });
+    expect(prisma.opsSupplierSchedule.upsert).toHaveBeenCalledTimes(1);
+    expect(prisma.opsSupplierQuoteRequest.updateMany).toHaveBeenCalledTimes(1);
+    expect(audit).toHaveBeenCalledTimes(1);
   });
 });

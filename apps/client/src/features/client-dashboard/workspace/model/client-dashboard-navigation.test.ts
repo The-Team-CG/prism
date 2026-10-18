@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   activeNavItemId,
+  CLIENT_CONFORME_REVIEW_HREF,
   dashboardHref,
   dashboardLoadingVariant,
   findClientSidebarLink,
+  clientEventWorkspaceAvailable,
   sidebarActiveItemId,
 } from "./client-dashboard-navigation";
 
@@ -12,6 +14,7 @@ describe("client-dashboard navigation", () => {
     expect(dashboardHref("home")).toBe("/dashboard");
     expect(dashboardHref("shared-floorplans")).toBe("/dashboard/shared-floorplans");
     expect(findClientSidebarLink("shared-floorplans")?.label).toBe("Shared floorplans");
+    expect(CLIENT_CONFORME_REVIEW_HREF).toBe("/conforme");
     expect(dashboardHref("request")).toBe("/dashboard/request");
     expect(dashboardHref("events")).toBe("/dashboard/events");
     expect(dashboardHref("billing")).toBe("/dashboard/billing");
@@ -35,5 +38,11 @@ describe("client-dashboard navigation", () => {
     expect(dashboardLoadingVariant("home")).toBe("home");
     expect(dashboardLoadingVariant("floorplan")).toBe("floorplan");
     expect(dashboardLoadingVariant("billing")).toBe("event");
+  });
+
+  it("does not expose event workspace navigation for archived events", () => {
+    expect(clientEventWorkspaceAvailable({ archived: true })).toBe(false);
+    expect(clientEventWorkspaceAvailable({ archived: false })).toBe(true);
+    expect(clientEventWorkspaceAvailable(undefined)).toBe(false);
   });
 });
