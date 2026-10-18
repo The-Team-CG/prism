@@ -367,7 +367,7 @@ describe('InquiriesService', () => {
 
     expect((created as any).organizationKey).toBe('cruzholdings');
     expect((created as any).mergedIntoInquiryId).toBeUndefined();
-    expect(records.at(-1)).toMatchObject({ organizationKey: 'cruzholdings', duplicateOfInquiryId: null });
+    expect(records[records.length - 1]).toMatchObject({ organizationKey: 'cruzholdings', duplicateOfInquiryId: null });
   });
 
   it('queues PMCM notifications for duplicate and deterministic high-fit inquiries only', async () => {

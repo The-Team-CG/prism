@@ -2,7 +2,7 @@ import { Controller, Get, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { ActorContextDto } from './inquiry.dto';
-import { mapDocument, mapInquiry, mapOnboardingEvent } from '../../application/onboarding/inquiry.mappers';
+import { mapDocument, mapInquiry, mapOnboardingEvent, mapPublicInquiryReceipt } from '../../application/onboarding/inquiry.mappers';
 import { InquiriesService } from '../../application/onboarding/inquiries.service';
 import { InquiryWorkflowService } from '../../application/onboarding/inquiry-workflow.service';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
@@ -23,6 +23,7 @@ export class OpsOnboardingController {
       requireActorRole: this.eventAccessPolicyService.requireActorRole.bind(this.eventAccessPolicyService),
       allowedAdminRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.System],
       mapInquiry,
+      mapPublicInquiry: mapPublicInquiryReceipt,
       mapDocument,
       mapEvent: mapOnboardingEvent,
     };
