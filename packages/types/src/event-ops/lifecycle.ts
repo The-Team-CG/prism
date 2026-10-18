@@ -1,5 +1,17 @@
 import type { PrismProjectLike, PrismUserRole } from "./core.js";
 
+export interface PrismInquiryMergeRecord {
+  id: string;
+  primaryInquiryId: string;
+  mergedInquiryId: string;
+  mergedInquiryName: string;
+  matchBasis: "organization" | "email";
+  reason: string;
+  actorName: string;
+  actorRole: string;
+  createdAt: string;
+}
+
 export interface PrismInquiry {
   id: string;
   clientName: string;
@@ -20,6 +32,11 @@ export interface PrismInquiry {
   previousDeclineReason?: string | null;
   duplicate?: boolean;
   previouslyDeclined?: boolean;
+  organizationKey?: string | null;
+  mergedIntoInquiryId?: string | null;
+  mergeHistory?: PrismInquiryMergeRecord[];
+  parallelInquiryIds?: string[];
+  highFit?: boolean;
   message: string;
   status: string;
   declineReason?: string | null;

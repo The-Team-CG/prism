@@ -1,7 +1,13 @@
 import { Inject, Injectable, BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import type { OpsDocument, OpsEvent, OpsInquiry, Prisma } from '@prisma/client';
+import type { OpsDocument, OpsEvent, OpsInquiry, OpsInquiryMerge, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
-import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
+import { PRISM_PRIVACY_NOTICE_VERSION, type MergeInquiryInput } from '@prism/types';
+import {
+  inquiryOrganizationKey,
+  isDeterministicHighFitInquiry,
+  resolveInquiryMergeBasis,
+  type InquiryMatchBasis,
+} from '../../domain/inquiry-triage.policy';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
@@ -30,6 +36,9 @@ export type UpdateInquiryStatusInput = {
   status: string;
   declineReason?: string;
 };
+
+/** Queue recipient for PMCM triage notifications (duplicate and high-fit inquiries). */
+export const PMCM_INQUIRY_NOTIFICATION_RECIPIENT = 'pmcm-inquiry-desk';
 
 type InquiryWithTriage = OpsInquiry & {
   normalizedEmail?: string;
@@ -99,8 +108,11 @@ export class InquiriesService {
     return this.workflowCommandService.execute<OpsInquiry>({
       name: 'update_inquiry_status',
       validateState: async () => {
-        current = await this.prisma.opsInquiry.findUnique({ where: { id: inquiryId } });
+        current = await this.prisma.opsInquiry.findUnique({ where: { id: inquiryId }, include: { mergedInto: true } });
         if (!current) throw new NotFoundException('Inquiry not found');
+        if (current.mergedInto) {
+          throw new ConflictException('Merged inquiries are resolved through their primary inquiry');
+        }
         if (current.status === 'declined' && input.status !== 'declined') {
           throw new BadRequestException('Declined inquiries are permanently flagged and cannot be reopened');
         }
@@ -358,6 +370,12 @@ export class InquiriesService {
       throw new BadRequestException('Public inquiries cannot use Log on Behalf source');
     }
 
+    // Organization and high-fit are derived server-side only; public payloads cannot supply them.
+    const organizationKey = inquiryOrganizationKey(input.companyName);
+    const highFit = isDeterministicHighFitInquiry(
+      { clientType: input.clientType, companyName: input.companyName, eventDate },
+      new Date(),
+    );
     let duplicate: InquiryWithTriage | undefined;
     let previousDeclined: InquiryWithTriage | undefined;
 
@@ -389,6 +407,7 @@ export class InquiriesService {
             companyName: input.companyName ?? '',
             email: input.email.trim(),
             normalizedEmail,
+            organizationKey,
             eventName: input.eventName,
             eventType: input.eventType ?? input.clientType,
             eventDate,
@@ -427,8 +446,102 @@ export class InquiriesService {
             },
           }),
           this.notify(undefined, inquiry.email, 'Inquiry received'),
+          ...(duplicate
+            ? [this.notifyPmcmTriage(inquiry.id, 'duplicate', `Possible duplicate inquiry from ${inquiry.clientName} for ${inquiry.eventName}; matches ${duplicate.id}`)]
+            : []),
+          ...(highFit
+            ? [this.notifyPmcmTriage(inquiry.id, 'high-fit', `High-fit inquiry from ${inquiry.clientName} (${inquiry.companyName}) for ${inquiry.eventName}`)]
+            : []),
         ]);
       },
+    });
+  }
+
+  /** PMCM-only organization merge. The source inquiry is folded into the primary and the merge is recorded with audit. */
+  async mergeInquiry(primaryInquiryId: string, input: MergeInquiryInput, actor: ResolvedEventOpsActor) {
+    const verifiedActor = this.requireVerifiedActor(actor);
+    if (verifiedActor.role !== OpsUserRole.PmcmAdmin && verifiedActor.role !== OpsUserRole.System) {
+      throw new ForbiddenException('Only PMCM can merge inquiries');
+    }
+    if (input.sourceInquiryId === primaryInquiryId) {
+      throw new BadRequestException('An inquiry cannot be merged into itself');
+    }
+
+    let matchBasis: InquiryMatchBasis | null = null;
+    let sourceName = '';
+    return this.workflowCommandService.execute<OpsInquiryMerge>({
+      name: 'merge_inquiry',
+      validateState: async () => {
+        const [source, primary] = await Promise.all([
+          this.prisma.opsInquiry.findUnique({ where: { id: input.sourceInquiryId }, include: { mergedInto: true } }),
+          this.prisma.opsInquiry.findUnique({ where: { id: primaryInquiryId }, include: { mergedInto: true } }),
+        ]);
+        if (!source || !primary) throw new NotFoundException('Inquiry not found');
+        if (source.mergedInto || primary.mergedInto) {
+          throw new ConflictException('Merged inquiries cannot be merged again');
+        }
+        if (source.status === 'accepted') {
+          throw new ConflictException('Accepted inquiries cannot be merged; resolve the conforme on the primary inquiry');
+        }
+        matchBasis = resolveInquiryMergeBasis(
+          { organizationKey: source.organizationKey, normalizedEmail: source.normalizedEmail },
+          { organizationKey: primary.organizationKey, normalizedEmail: primary.normalizedEmail },
+        );
+        if (!matchBasis) {
+          throw new BadRequestException('Inquiries can only be merged when they share an organization or contact email');
+        }
+        sourceName = source.clientName;
+      },
+      write: () => this.prisma.$transaction(async (tx) => {
+        // Lock both rows in id order so concurrent merges serialize; the unique merged_inquiry_id guards double merges.
+        const [lowId, highId] = [input.sourceInquiryId, primaryInquiryId].sort();
+        await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM event_lifecycle.inquiries WHERE id IN (${lowId}, ${highId}) ORDER BY id FOR UPDATE`;
+        const [source, primary] = await Promise.all([
+          tx.opsInquiry.findUnique({ where: { id: input.sourceInquiryId }, include: { mergedInto: true } }),
+          tx.opsInquiry.findUnique({ where: { id: primaryInquiryId }, include: { mergedInto: true } }),
+        ]);
+        if (!source || !primary) throw new NotFoundException('Inquiry not found');
+        if (source.mergedInto || primary.mergedInto || source.status === 'accepted') {
+          throw new ConflictException('Inquiry state changed; refresh before merging');
+        }
+        try {
+          return await tx.opsInquiryMerge.create({
+            data: {
+              id: `inq_merge_${randomUUID()}`,
+              primaryInquiryId,
+              mergedInquiryId: input.sourceInquiryId,
+              organizationKey: primary.organizationKey,
+              matchBasis: matchBasis!,
+              reason: input.reason,
+              actorId: verifiedActor.id,
+              actorRole: verifiedActor.role,
+              actorName: verifiedActor.name,
+            },
+          });
+        } catch (error) {
+          if ((error as { code?: string }).code === 'P2002') {
+            throw new ConflictException('Inquiry state changed; refresh before merging');
+          }
+          throw error;
+        }
+      }),
+      sideEffects: async (merge) => {
+        await this.audit(undefined, verifiedActor.name, `Merged inquiry from ${sourceName} into ${primaryInquiryId} (${merge.matchBasis})`, {
+          actorRole: verifiedActor.role,
+          actorEmail: verifiedActor.email,
+          actionType: AuditActionType.Update,
+          category: AuditCategory.Events,
+          affectedType: 'inquiry',
+          affectedId: input.sourceInquiryId,
+          metadata: {
+            actorId: verifiedActor.id,
+            primaryInquiryId,
+            matchBasis: merge.matchBasis,
+            reason: input.reason,
+          },
+        });
+      },
+      project: (merge) => merge,
     });
   }
 
@@ -530,6 +643,17 @@ export class InquiriesService {
     } = {},
   ) {
     return writeAudit(this.auditWriter, eventId, actor, action, options);
+  }
+
+  private notifyPmcmTriage(inquiryId: string, kind: 'duplicate' | 'high-fit', message: string) {
+    return writeNotification(
+      this.notificationOutboxWriter,
+      undefined,
+      PMCM_INQUIRY_NOTIFICATION_RECIPIENT,
+      message,
+      'email',
+      { idempotencyKey: `inquiry-triage:${inquiryId}:${kind}` },
+    );
   }
 
   private notify(
