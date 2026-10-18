@@ -1,4 +1,4 @@
-import type { OpsEvent, OpsEventInsight, OpsFloorPlanDraft, OpsPostEventDocument, OpsEventWrapUp } from '@prisma/client';
+import type { OpsEvent, OpsEventInsight, OpsFloorPlanDraft, OpsLogisticsCompletion, OpsPostEventDocument, OpsEventWrapUp } from '@prisma/client';
 import type { FloorplanReader } from '@prism/contexts/floorplan';
 import type { GuestReader } from '@prism/contexts/operations';
 
@@ -24,6 +24,39 @@ export function mapArchivedEventSearchHit(event: OpsEvent & {
     venue: event.briefings?.[0]?.venue ?? '',
     eventType: event.inquiry?.eventType ?? '',
     archivedAt: event.archivedAt ? timestamp(event.archivedAt) : null,
+  };
+}
+
+/** PMCM-only: `privateNotes` is returned here and must never reach portal payloads. */
+export function mapLogisticsCompletion(record: OpsLogisticsCompletion) {
+  return {
+    id: record.id,
+    eventId: record.eventId,
+    assetReturnsVerified: record.assetReturnsVerified,
+    completionSummary: record.completionSummary,
+    privateNotes: record.privateNotes,
+    correctionReason: record.correctionReason,
+    revision: record.revision,
+    recordedBy: record.recordedBy,
+    recordedAt: timestamp(record.recordedAt),
+  };
+}
+
+export function mapArchiveComparisonRow(event: OpsEvent & {
+  inquiry?: { eventType?: string } | null;
+  briefings?: Array<{ venue?: string }>;
+  logisticsCompletion?: { assetReturnsVerified: boolean; recordedAt: Date } | null;
+}) {
+  const checklist = (event.archiveChecklist ?? {}) as { ready?: unknown; missingKeys?: unknown };
+  return {
+    ...mapArchivedEventSearchHit(event),
+    actualEndedAt: event.actualEndedAt ? timestamp(event.actualEndedAt) : null,
+    archiveOverridden: Boolean(event.archiveOverrideReason),
+    archiveOverrideReason: event.archiveOverrideReason || null,
+    closeGatesReady: checklist.ready === true,
+    missingCloseGates: Array.isArray(checklist.missingKeys) ? checklist.missingKeys.filter((key): key is string => typeof key === 'string') : [],
+    logisticsRecorded: event.logisticsCompletion?.assetReturnsVerified === true,
+    logisticsRecordedAt: event.logisticsCompletion ? timestamp(event.logisticsCompletion.recordedAt) : null,
   };
 }
 

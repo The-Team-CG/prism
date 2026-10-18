@@ -19,6 +19,7 @@ function harness(actualEndedAt: Date | null = new Date('2026-09-07T00:00:00.000Z
     opsComplianceCheck: { findMany: vi.fn(async () => [{ id: 'check_1', title: 'Open item', status: 'open' }]) },
     opsDocument: { findMany: vi.fn(async () => [{ id: 'doc_1', type: 'closeout', status: 'submitted' }]) },
     opsPostEventDocument: { findMany: vi.fn(async () => []) },
+    opsLogisticsCompletion: { findUnique: vi.fn(async () => null) },
   };
   const prisma: any = { ...tx, opsEvent: tx.opsEvent, opsEventWrapUp: tx.opsEventWrapUp, $transaction: vi.fn(async (fn: any) => fn(tx)) };
   const policy: any = { requireActorRole: vi.fn(async (subject: any, roles: string[]) => { if (!roles.includes(subject.role)) throw new ForbiddenException(); }) };
@@ -80,16 +81,19 @@ describe('EventClosureService wrap-up', () => {
     await expect(service.startWrapUp('evt_1', { mode: 'full' }, { ...actor, role: 'client' })).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('persists section completion evidence and client acknowledgement', async () => {
+  it('persists issue and feedback evidence and client acknowledgement, while logistics stays owned by the logistics record', async () => {
     const { service, records } = harness();
     const completed = { status: 'complete' as const, evidence: 'Verified by PMCM', completedAt: null };
     const updated = await service.updateWrapUp('evt_1', {
       requiredItems: { post_event_documents: true, billing: true, logistics: true, issues: true, feedback: true },
-      sections: { logistics: completed, issues: completed, feedback: completed },
+      sections: { issues: completed, feedback: completed },
       clientAcknowledged: true,
     }, actor);
-    expect(updated.status).toBe('complete');
-    expect(records[0].sections.logistics.completedAt).toEqual(expect.any(String));
+    // No logistics completion record exists in this harness, so the checklist cannot complete.
+    expect(updated.status).toBe('pending');
+    expect(records[0].sections.issues.status).toBe('complete');
+    expect(records[0].sections.logistics).toMatchObject({ status: 'pending' });
+    expect(records[0].requiredItems.logistics).toBe(false);
     expect(records[0].acknowledgementRecordedBy).toBe(actor.id);
     expect(records[0].acknowledgementSource).toBe('pmcm_recorded');
   });
@@ -111,7 +115,7 @@ describe('EventClosureService wrap-up', () => {
       billingStatements: [{ id: 'bill_1' }], outstandingAmount: 100,
       documents: [{ id: 'doc_1' }], postEventDocuments: [], submittedDocuments: [{ id: 'doc_1' }],
       supplierReviews: [], guestFeedback: [{ id: 'feedback_1' }], feedbackDocuments: [], approvedGuestFeedback: [{ id: 'feedback_1' }],
-      complianceChecks: [{ id: 'check_1' }], openChecks: [{}], wrapSections: {},
+      complianceChecks: [{ id: "check_1" }], openChecks: [{}], logisticsCompletion: null,
       issues: [], segments: [{ id: 'segment_1' }], lateSegments: [],
       coordinatorFacts: {
         assignments: 4, awaitingAcknowledgement: 1, lateAttendance: 1, absentAttendance: 0,
