@@ -85,7 +85,7 @@ function createSupplierWorkspaceService() {
     },
     opsEvent: {
       findMany: vi.fn(async () => [
-        { id: 'evt_visible', clientName: 'Ana Reyes', clientPortalStatus: 'unlocked', archived: false },
+        { id: 'evt_visible', eventName: 'Gala', eventDate: new Date('2026-08-01T00:00:00.000Z'), clientName: 'Ana Reyes', clientPortalStatus: 'unlocked', archived: false },
       ]),
     },
   };
@@ -247,6 +247,9 @@ function createPmcmReadModelService() {
     opsComplianceCheck: { findMany: vi.fn(async () => []) },
     opsBillingSource: { findMany: vi.fn(async () => [] as Array<{ id: string; eventId: string }>) },
     opsBillingStatement: { findMany: vi.fn(async () => [] as Array<{ id: string; eventId: string }>) },
+    opsBillingCorrection: { findMany: vi.fn(async () => [] as Array<{ id: string; eventId: string }>) },
+    opsBillingDispute: { findMany: vi.fn(async () => [] as Array<{ id: string; eventId: string }>) },
+    opsAdditionalBilling: { findMany: vi.fn(async () => [] as Array<{ id: string; eventId: string }>) },
     opsPaymentRecord: { findMany: vi.fn(async () => []) },
     opsEventInsight: { findMany: vi.fn(async () => []) },
     opsAuditLog: { findMany: vi.fn(async () => []) },
@@ -389,6 +392,7 @@ describe('EventReadModelsService', () => {
           waivedAt: new Date('2026-10-01T00:00:00.000Z'),
           waivedBy: 'Maxine',
         }],
+        [],
       ]),
       clientEventTimelineForEvents: vi.fn(async () => []),
       archivedClientEvents: vi.fn(async () => [{ ...event, id: 'evt_archived_history', archived: true }]),
@@ -408,6 +412,7 @@ describe('EventReadModelsService', () => {
       mapDocument: (value: unknown) => value,
       mapBriefing: (value: unknown) => value,
       mapBillingStatement: (value: unknown) => value,
+      mapClientBillingDispute: (value: unknown) => value,
       mapPaymentMilestone: (value: unknown) => value,
       mapFloorPlanDraft: (value: unknown) => value,
       mapAuditLog: (value: unknown) => value,
@@ -484,6 +489,42 @@ describe('EventReadModelsService', () => {
       orderBy: { id: 'asc' },
       take: 500,
     });
+  });
+
+  it('keeps PMCM-only supplier assessment data out of the supplier workspace response', async () => {
+    const { service, policy, prisma } = createSupplierWorkspaceService();
+    const createdAt = new Date('2026-09-01T00:00:00.000Z');
+    const supplierFixture = (prisma as any).opsSupplier;
+    const supplierRow = await supplierFixture.findFirst();
+    supplierFixture.findFirst.mockResolvedValue({
+      ...supplierRow,
+      performanceNotes: 'PMCM-SENTINEL-performance-note',
+      reviews: [{
+        id: 'review_1', supplierId: 'sup_sonicline', eventId: 'evt_visible', rating: 2,
+        notes: 'PMCM-SENTINEL-review-notes', reviewedBy: 'PMCM-SENTINEL-reviewer', idempotencyKey: null, createdAt,
+        dimensionRatings: [{ dimensionId: 'dim_punctuality', rating: 1, dimension: { id: 'dim_punctuality', name: 'PMCM-SENTINEL-dimension' } }],
+      }],
+      reliabilityNotes: [{ id: 'rel_1', supplierId: 'sup_sonicline', eventId: 'evt_visible', note: 'PMCM-SENTINEL-reliability', createdBy: 'pmcm', createdAt, event: { id: 'evt_visible', eventName: 'Gala' } }],
+    });
+    const actor = policy.resolveActor({
+      actorRole: OpsUserRole.Supplier,
+      supplierId: 'sup_sonicline',
+      actorEmail: 'supplier@example.com',
+    });
+
+    const workspace = await service.supplierWorkspace(actor, {
+      mapSupplierQuoteRequest: (request) => ({ id: request.id, eventId: request.eventId }),
+      mapSupplierQuoteForSupplier: (quote) => ({ id: quote.id, eventId: quote.eventId }),
+    });
+
+    expect((workspace as any).supplier).toMatchObject({ id: 'sup_sonicline', name: 'Sonic Line Events' });
+    const serialized = JSON.stringify(workspace);
+    for (const sentinel of ['PMCM-SENTINEL-performance-note', 'PMCM-SENTINEL-review-notes', 'PMCM-SENTINEL-reviewer', 'PMCM-SENTINEL-dimension', 'PMCM-SENTINEL-reliability']) {
+      expect(serialized).not.toContain(sentinel);
+    }
+    for (const key of ['reviews', 'reliabilityNotes', 'performanceNotes', 'aggregateRating', 'pastEvents']) {
+      expect((workspace as any).supplier).not.toHaveProperty(key);
+    }
   });
 
   it('builds a supplier readiness board from visible supplier assignments', async () => {
@@ -692,6 +733,9 @@ describe('EventReadModelsService', () => {
       mapEvent: (event) => event,
       mapBillingSource: (source) => source,
       mapBillingStatement: (statement) => statement,
+      mapBillingCorrection: (correction) => correction,
+      mapBillingDispute: (dispute) => dispute,
+      mapAdditionalBilling: (billing) => billing,
       mapPaymentMilestone: (payment) => payment,
       mapPaymentRecord: (record) => record,
     });
@@ -700,6 +744,42 @@ describe('EventReadModelsService', () => {
     expect(billing.billingStatements).toEqual([{ id: 'bill_visible', eventId: 'evt_visible' }]);
     expect(prisma.opsBillingSource.findMany).not.toHaveBeenCalled();
     expect(prisma.opsBillingStatement.findMany).toHaveBeenCalled();
+  });
+
+  it('serves PMCM-only billing adjustments and withholds them from client billing reads', async () => {
+    const { service, policy, prisma } = createPmcmReadModelService();
+    const adjustmentRows = {
+      billingDisputes: [{ id: 'dispute_1', eventId: 'evt_visible', reason: 'Internal reason', resolutionNotes: null }],
+      additionalBillings: [{ id: 'addbill_1', eventId: 'evt_visible', waivedBy: 'Francis' }],
+      billingCorrections: [{ id: 'corr_1', eventId: 'evt_visible', reason: 'Tax line' }],
+    };
+    prisma.opsBillingCorrection.findMany.mockImplementation(async () => adjustmentRows.billingCorrections);
+    prisma.opsBillingDispute.findMany.mockImplementation(async () => adjustmentRows.billingDisputes);
+    prisma.opsAdditionalBilling.findMany.mockImplementation(async () => adjustmentRows.additionalBillings);
+    const mappers = {
+      mapEvent: (event: unknown) => event,
+      mapBillingSource: (source: unknown) => source,
+      mapBillingStatement: (statement: unknown) => statement,
+      mapBillingCorrection: (correction: unknown) => correction,
+      mapBillingDispute: (dispute: unknown) => dispute,
+      mapAdditionalBilling: (billing: unknown) => billing,
+      mapPaymentMilestone: (payment: unknown) => payment,
+      mapPaymentRecord: (record: unknown) => record,
+    };
+
+    const pmcmBilling = await service.billing(policy.resolveActor({ actorRole: OpsUserRole.PmcmAdmin, actorName: 'Francis' }), mappers as never);
+    expect(pmcmBilling.billingDisputes).toEqual(adjustmentRows.billingDisputes);
+    expect(pmcmBilling.additionalBillings).toEqual(adjustmentRows.additionalBillings);
+    expect(pmcmBilling.billingCorrections).toEqual(adjustmentRows.billingCorrections);
+
+    prisma.opsBillingDispute.findMany.mockClear();
+    prisma.opsAdditionalBilling.findMany.mockClear();
+    const clientBilling = await service.billing(policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' }), mappers as never);
+    expect(clientBilling.billingDisputes).toEqual([]);
+    expect(clientBilling.additionalBillings).toEqual([]);
+    expect(clientBilling.billingCorrections).toEqual([]);
+    expect(prisma.opsBillingDispute.findMany).not.toHaveBeenCalled();
+    expect(prisma.opsAdditionalBilling.findMany).not.toHaveBeenCalled();
   });
 
   it('builds a selected PMCM event workspace from event-scoped records', async () => {
@@ -777,6 +857,7 @@ describe('EventReadModelsService', () => {
         mapDocument: (document) => document,
         mapBriefing: (briefing) => briefing,
         mapBillingStatement: (statement) => statement,
+        mapClientBillingDispute: (dispute) => dispute,
         mapPaymentMilestone: (payment) => payment,
         mapFloorPlanDraft: (draft) => draft,
         mapAuditLog: (log) => log,
@@ -1053,6 +1134,7 @@ describe('EventReadModelsService', () => {
         [],
         [],
         [],
+        [],
       ]),
       clientEventTimelineForEvents: vi.fn(async (eventIds: string[]) => {
         expect(eventIds).toEqual(['evt_ready', 'evt_pending', 'evt_completed']);
@@ -1077,6 +1159,7 @@ describe('EventReadModelsService', () => {
       mapDocument: (document: unknown) => document,
       mapBriefing: (briefing: unknown) => briefing,
       mapBillingStatement: (statement: unknown) => statement,
+      mapClientBillingDispute: (dispute: unknown) => dispute,
       mapPaymentMilestone: (payment: unknown) => payment,
       mapFloorPlanDraft: (draft: unknown) => draft,
       mapAuditLog: (log: unknown) => log,

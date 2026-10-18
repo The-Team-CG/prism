@@ -42,7 +42,7 @@ describe('EventGamesActionPrismaStoreAdapter participant state and action persis
   });
 
   it('persists a server-selected Family Feud team assignment in the same transaction as the response', async () => {
-    const teamId = 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5';
+    const teamId = '00000000-0000-4000-8000-000000000101';
     const teamLabel = 'Blue';
     const teamInput = {
       ...input,

@@ -5,6 +5,8 @@ import { nonEmptyStringSchema, optionalTrimmedStringSchema } from "./common.js";
 export const createFloorPlanDraftSchema = z.object({
   name: z.string(),
   sourceType: z.enum(["blank", "template", "client_preference"]),
+  /** PMCM venue library preset to copy server-side; when set, client-sent layout objects are ignored. */
+  venueTemplateId: optionalTrimmedStringSchema,
   venue: optionalTrimmedStringSchema,
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),

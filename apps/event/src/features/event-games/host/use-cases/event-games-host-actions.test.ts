@@ -15,7 +15,7 @@ vi.mock("../data/event-games-host-repository", () => ({
 
 import { eventGamesHostActions } from "./event-games-host-actions";
 
-const idempotencyKey = "3ea50a76-6441-4e57-9b11-2e83817e9012";
+const idempotencyKey = "00000000-0000-4000-8000-000000000110";
 
 describe("eventGamesHostActions", () => {
   beforeEach(() => {
@@ -27,22 +27,22 @@ describe("eventGamesHostActions", () => {
     repository.assignAward.mockResolvedValue({ id: "award-1" });
     repository.updateLobbyBranding.mockResolvedValue({
       theme: "forest", primaryColor: "#14532D", secondaryColor: "#166534", logoUrl: null,
-      logoObjectId: "obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444",
+      logoObjectId: "obj_00000000-0000-4000-8000-000000000107",
     });
     repository.requestLobbyLogoUpload.mockResolvedValue({
-      objectId: "obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444",
+      objectId: "obj_00000000-0000-4000-8000-000000000107",
       uploadUrl: "https://storage.example.test/signed-upload",
       expiresAt: "2026-10-17T00:05:00.000Z",
       alreadyStored: false,
     });
-    repository.confirmLobbyLogoUpload.mockResolvedValue({ objectId: "obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444" });
+    repository.confirmLobbyLogoUpload.mockResolvedValue({ objectId: "obj_00000000-0000-4000-8000-000000000107" });
     repository.requestGameMediaUpload.mockResolvedValue({
-      objectId: "obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444",
+      objectId: "obj_00000000-0000-4000-8000-000000000107",
       uploadUrl: "https://storage.example.test/signed-game-upload",
       expiresAt: "2026-10-17T00:05:00.000Z",
       alreadyStored: false,
     });
-    repository.confirmGameMediaUpload.mockResolvedValue({ objectId: "obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444" });
+    repository.confirmGameMediaUpload.mockResolvedValue({ objectId: "obj_00000000-0000-4000-8000-000000000107" });
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true })));
   });
 
@@ -54,7 +54,7 @@ describe("eventGamesHostActions", () => {
     const input = {
       recipient: {
         type: "participant" as const,
-        participationGrantId: "fdc60d2a-2344-47fc-9ffc-41f267df8c4c",
+        participationGrantId: "00000000-0000-4000-8000-000000000111",
       },
       awardKind: "points" as const,
       label: "Top score",
@@ -91,7 +91,7 @@ describe("eventGamesHostActions", () => {
       logoObjectId: null,
     };
     await expect(eventGamesHostActions.uploadLobbyLogo("event-1", file, current))
-      .resolves.toMatchObject({ logoObjectId: "obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444" });
+      .resolves.toMatchObject({ logoObjectId: "obj_00000000-0000-4000-8000-000000000107" });
 
     expect(repository.requestLobbyLogoUpload).toHaveBeenCalledWith("event-1", {
       fileName: "logo.png",
@@ -106,7 +106,7 @@ describe("eventGamesHostActions", () => {
       referrerPolicy: "no-referrer",
       body: file,
     }));
-    expect(repository.confirmLobbyLogoUpload).toHaveBeenCalledWith("event-1", "obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444", {
+    expect(repository.confirmLobbyLogoUpload).toHaveBeenCalledWith("event-1", "obj_00000000-0000-4000-8000-000000000107", {
       checksumSha256: "0".repeat(64),
       byteSize: 4,
     });
@@ -114,7 +114,7 @@ describe("eventGamesHostActions", () => {
       theme: "forest",
       primaryColor: "#14532D",
       secondaryColor: "#166534",
-      logoObjectId: "obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444",
+      logoObjectId: "obj_00000000-0000-4000-8000-000000000107",
       idempotencyKey,
     });
   });
@@ -123,7 +123,7 @@ describe("eventGamesHostActions", () => {
     const file = new File(["image"], "clue.png", { type: "image/png" });
 
     await expect(eventGamesHostActions.uploadGameMedia("event-1", "game-1", file))
-      .resolves.toEqual({ objectId: "obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444" });
+      .resolves.toEqual({ objectId: "obj_00000000-0000-4000-8000-000000000107" });
 
     expect(repository.requestGameMediaUpload).toHaveBeenCalledWith("event-1", "game-1", {
       fileName: "clue.png", contentType: "image/png", declaredByteSize: 5,
@@ -132,7 +132,7 @@ describe("eventGamesHostActions", () => {
     expect(fetch).toHaveBeenCalledWith("https://storage.example.test/signed-game-upload", expect.objectContaining({
       method: "PUT", credentials: "omit", referrerPolicy: "no-referrer", body: file,
     }));
-    expect(repository.confirmGameMediaUpload).toHaveBeenCalledWith("event-1", "game-1", "obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444", {
+    expect(repository.confirmGameMediaUpload).toHaveBeenCalledWith("event-1", "game-1", "obj_00000000-0000-4000-8000-000000000107", {
       checksumSha256: "0".repeat(64), byteSize: 5,
     });
   });

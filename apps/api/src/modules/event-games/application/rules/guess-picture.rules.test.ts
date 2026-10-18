@@ -3,10 +3,10 @@ import { guessPictureRule } from './guess-picture.rules';
 
 const startedAt = new Date('2026-10-17T10:00:00.000Z');
 const configuration = {
-  mediaObjectIds: ['obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5'],
+  mediaObjectIds: ['obj_00000000-0000-4000-8000-000000000101'],
   configuration: {
     kind: 'guess-picture',
-    mediaObjectId: 'obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5',
+    mediaObjectId: 'obj_00000000-0000-4000-8000-000000000101',
     acceptedAnswers: ['A cat', 'kitty'],
     stages: [
       { afterSeconds: 0, hint: 'First clue', points: 100 },

@@ -650,6 +650,18 @@ describe("createEventOpsClient", () => {
     });
   });
 
+  it("loads the PMCM handoff brief from the event-scoped read route", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ eventId: "evt_1" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.liveOps.handoffBrief("evt_1");
+
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/events/evt_1/handoff-brief", {
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+
   it("loads a redacted public supplier application status without caching", async () => {
     const fetchMock = vi.fn(async () =>
       new Response(
@@ -1017,7 +1029,7 @@ describe("createEventOpsClient", () => {
       email: "client@example.com",
       eventName: "Acme Summit",
       eventDate: "2026-07-01",
-      clientType: "corporate",
+      clientType: "Corporate",
       source: "PMCM Facebook",
       message: "Need planning support.",
       privacyConsentAccepted: true,
@@ -1030,7 +1042,7 @@ describe("createEventOpsClient", () => {
         email: "client@example.com",
         eventName: "Acme Summit",
         eventDate: "2026-07-01",
-        clientType: "corporate",
+        clientType: "Corporate",
         source: "PMCM Facebook",
         message: "Need planning support.",
         privacyConsentAccepted: true,

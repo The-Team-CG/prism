@@ -8,6 +8,7 @@ import type {
   Viewport,
 } from "./types";
 import { uid } from "./assetLibrary";
+import { evaluateTableAssignment } from "./table-assignment";
 
 export type Action =
   | { type: "SET_TOOL"; tool: Tool }
@@ -34,6 +35,7 @@ export type Action =
   | { type: "DELETE_GUEST"; id: string }
   | { type: "ASSIGN_GUEST"; guestId: string; objectId: string }
   | { type: "UNASSIGN_GUEST"; guestId: string }
+  | { type: "DISMISS_ASSIGNMENT_REJECTION" }
   | { type: "ADD_SUPPLIER"; supplier: Supplier }
   | { type: "UPDATE_SUPPLIER"; id: string; patch: Partial<Supplier> }
   | { type: "DELETE_SUPPLIER"; id: string }
@@ -120,8 +122,6 @@ function stripGuestFromObject(o: CanvasObject, guestId: string): CanvasObject {
 function assignGuestOnObject(o: CanvasObject, guestId: string, objectId: string): CanvasObject {
   const without = (o.assignedGuestIds ?? []).filter((gid) => gid !== guestId);
   if (o.id !== objectId) return { ...o, assignedGuestIds: without };
-  const cap = o.seats ?? Infinity;
-  if (without.length >= cap) return { ...o, assignedGuestIds: without };
   return { ...o, assignedGuestIds: [...without, guestId] };
 }
 
@@ -307,11 +307,29 @@ export const handlers: ActionHandlers = {
     });
   },
   ASSIGN_GUEST(state, action) {
-    const s = pushHistory(state);
-    return withTouchedProject(s, {
-      ...s.project,
-      objects: s.project.objects.map((o) => assignGuestOnObject(o, action.guestId, action.objectId)),
+    const eligibility = evaluateTableAssignment({
+      objects: state.project.objects,
+      guests: state.project.guests,
+      guestId: action.guestId,
+      objectId: action.objectId,
     });
+    if (!eligibility.eligible) {
+      return {
+        ...state,
+        assignmentRejection: { guestId: action.guestId, objectId: action.objectId, reason: eligibility.reason },
+      };
+    }
+    const s = pushHistory(state);
+    return {
+      ...withTouchedProject(s, {
+        ...s.project,
+        objects: s.project.objects.map((o) => assignGuestOnObject(o, action.guestId, action.objectId)),
+      }),
+      assignmentRejection: null,
+    };
+  },
+  DISMISS_ASSIGNMENT_REJECTION(state) {
+    return state.assignmentRejection ? { ...state, assignmentRejection: null } : state;
   },
   UNASSIGN_GUEST(state, action) {
     const s = pushHistory(state);

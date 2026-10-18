@@ -172,7 +172,7 @@ export class SupplierApplicationService {
       if (changed.count !== 1) throw new BadRequestException('Supplier application has already been reviewed');
       const updated = await tx.opsSupplierApplication.findUnique({ where: { id: applicationId }, include: { category: true } });
       if (!updated) throw new NotFoundException('Supplier application not found');
-      if (input.action === 'approve' && updated.categoryId) await this.convertApprovedApplication(tx, applicationId, updated, input);
+      if (input.action === 'approve' && updated.categoryId) await this.convertApprovedApplication(tx, applicationId, updated, input, actor);
       await writeAudit(this.auditWriter, undefined, actor.name, `Reviewed supplier application: ${updated.companyName}`, {
         actorRole: actor.role, actorEmail: actor.email, actionType: 'update', category: 'suppliers',
         affectedType: 'supplier_application', affectedId: updated.id, affectedLabel: updated.companyName,
@@ -194,7 +194,7 @@ export class SupplierApplicationService {
     if (status !== 'pending' && action !== 'approve') throw new BadRequestException('Only approval can complete an application already in progress');
   }
 
-  private async convertApprovedApplication(tx: Prisma.TransactionClient, applicationId: string, updated: SupplierApplicationWithCategory, input: ReviewSupplierApplicationInput) {
+  private async convertApprovedApplication(tx: Prisma.TransactionClient, applicationId: string, updated: SupplierApplicationWithCategory, input: ReviewSupplierApplicationInput, actor: ResolvedEventOpsActor) {
     if (!updated.categoryId) throw new BadRequestException('A supplier category is required before conversion');
     const supplierId = `sup_application_${applicationId}`;
     const normalizedEmail = updated.email.trim().toLowerCase();
@@ -203,7 +203,14 @@ export class SupplierApplicationService {
     const conflictingSupplier = await tx.opsSupplier.findFirst({ where: { email: { equals: normalizedEmail, mode: 'insensitive' } } });
     if (conflictingSupplier && conflictingSupplier.id !== supplierId) throw new BadRequestException('A supplier with this email already exists');
     const supplier = await tx.opsSupplier.findUnique({ where: { id: supplierId } });
-    if (!supplier) await tx.opsSupplier.create({ data: { id: supplierId, categoryId: updated.categoryId, name: updated.companyName.trim(), contactName: updated.contactName.trim(), email: normalizedEmail, phone: updated.phone.trim(), tier: 'pending_first_event', bniMember: updated.bniMember, serviceInclusions: updated.serviceInclusions.trim(), performanceNotes: updated.additionalNotes.trim() } });
+    if (!supplier) {
+      await tx.opsSupplier.create({ data: { id: supplierId, categoryId: updated.categoryId, name: updated.companyName.trim(), contactName: updated.contactName.trim(), email: normalizedEmail, phone: updated.phone.trim(), tier: 'pending_first_event', bniMember: updated.bniMember, serviceInclusions: updated.serviceInclusions.trim(), performanceNotes: updated.additionalNotes.trim() } });
+      await writeAudit(this.auditWriter, undefined, actor.name, `Converted supplier application into supplier: ${updated.companyName}`, {
+        actorRole: actor.role, actorEmail: actor.email, actionType: 'create', category: 'suppliers',
+        affectedType: 'supplier', affectedId: supplierId, affectedLabel: updated.companyName,
+        metadata: { applicationId, categoryId: updated.categoryId, tier: 'pending_first_event' },
+      }, { prisma: tx, correlationId: `supplier-application-conversion:${applicationId}`, actorId: actor.id ?? actor.name });
+    }
     await tx.opsSupplierApplication.update({ where: { id: applicationId }, data: { convertedSupplierId: supplierId, conversionIdempotencyKey: input.idempotencyKey ?? `supplier-application:${applicationId}`, conversionPayloadHash: conversionHash(applicationId, input) } });
   }
 
