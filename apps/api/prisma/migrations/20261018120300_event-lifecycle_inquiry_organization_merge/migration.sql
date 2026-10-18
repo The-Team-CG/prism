@@ -1,3 +1,10 @@
+-- prism-owner: event-lifecycle
+-- prism-kind: mixed
+-- prism-risk: medium
+
+-- Adds PMCM-only organization keys and merge history for inquiries. The backfill
+-- derives keys from existing company names; no inquiry rows are merged or deleted.
+
 -- AlterTable
 ALTER TABLE "event_lifecycle"."inquiries" ADD COLUMN "organization_key" TEXT;
 

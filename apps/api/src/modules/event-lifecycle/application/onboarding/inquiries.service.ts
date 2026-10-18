@@ -108,9 +108,10 @@ export class InquiriesService {
     return this.workflowCommandService.execute<OpsInquiry>({
       name: 'update_inquiry_status',
       validateState: async () => {
-        current = await this.prisma.opsInquiry.findUnique({ where: { id: inquiryId }, include: { mergedInto: true } });
-        if (!current) throw new NotFoundException('Inquiry not found');
-        if (current.mergedInto) {
+        const found = await this.prisma.opsInquiry.findUnique({ where: { id: inquiryId }, include: { mergedInto: true } });
+        if (!found) throw new NotFoundException('Inquiry not found');
+        current = found;
+        if (found.mergedInto) {
           throw new ConflictException('Merged inquiries are resolved through their primary inquiry');
         }
         if (current.status === 'declined' && input.status !== 'declined') {
