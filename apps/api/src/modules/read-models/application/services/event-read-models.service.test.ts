@@ -694,6 +694,9 @@ describe('EventReadModelsService', () => {
       mapEvent: (event) => event,
       mapBillingSource: (source) => source,
       mapBillingStatement: (statement) => statement,
+      mapBillingCorrection: (correction) => correction,
+      mapBillingDispute: (dispute) => dispute,
+      mapAdditionalBilling: (billing) => billing,
       mapPaymentMilestone: (payment) => payment,
       mapPaymentRecord: (record) => record,
     });
@@ -702,6 +705,42 @@ describe('EventReadModelsService', () => {
     expect(billing.billingStatements).toEqual([{ id: 'bill_visible', eventId: 'evt_visible' }]);
     expect(prisma.opsBillingSource.findMany).not.toHaveBeenCalled();
     expect(prisma.opsBillingStatement.findMany).toHaveBeenCalled();
+  });
+
+  it('serves PMCM-only billing adjustments and withholds them from client billing reads', async () => {
+    const { service, policy, prisma } = createPmcmReadModelService();
+    const adjustmentRows = {
+      billingDisputes: [{ id: 'dispute_1', eventId: 'evt_visible', reason: 'Internal reason', resolutionNotes: null }],
+      additionalBillings: [{ id: 'addbill_1', eventId: 'evt_visible', waivedBy: 'Francis' }],
+      billingCorrections: [{ id: 'corr_1', eventId: 'evt_visible', reason: 'Tax line' }],
+    };
+    prisma.opsBillingCorrection = { findMany: vi.fn(async () => adjustmentRows.billingCorrections) };
+    prisma.opsBillingDispute = { findMany: vi.fn(async () => adjustmentRows.billingDisputes) };
+    prisma.opsAdditionalBilling = { findMany: vi.fn(async () => adjustmentRows.additionalBillings) };
+    const mappers = {
+      mapEvent: (event: unknown) => event,
+      mapBillingSource: (source: unknown) => source,
+      mapBillingStatement: (statement: unknown) => statement,
+      mapBillingCorrection: (correction: unknown) => correction,
+      mapBillingDispute: (dispute: unknown) => dispute,
+      mapAdditionalBilling: (billing: unknown) => billing,
+      mapPaymentMilestone: (payment: unknown) => payment,
+      mapPaymentRecord: (record: unknown) => record,
+    };
+
+    const pmcmBilling = await service.billing(policy.resolveActor({ actorRole: OpsUserRole.PmcmAdmin, actorName: 'Francis' }), mappers as never);
+    expect(pmcmBilling.billingDisputes).toEqual(adjustmentRows.billingDisputes);
+    expect(pmcmBilling.additionalBillings).toEqual(adjustmentRows.additionalBillings);
+    expect(pmcmBilling.billingCorrections).toEqual(adjustmentRows.billingCorrections);
+
+    prisma.opsBillingDispute.findMany.mockClear();
+    prisma.opsAdditionalBilling.findMany.mockClear();
+    const clientBilling = await service.billing(policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' }), mappers as never);
+    expect(clientBilling.billingDisputes).toEqual([]);
+    expect(clientBilling.additionalBillings).toEqual([]);
+    expect(clientBilling.billingCorrections).toEqual([]);
+    expect(prisma.opsBillingDispute.findMany).not.toHaveBeenCalled();
+    expect(prisma.opsAdditionalBilling.findMany).not.toHaveBeenCalled();
   });
 
   it('builds a selected PMCM event workspace from event-scoped records', async () => {

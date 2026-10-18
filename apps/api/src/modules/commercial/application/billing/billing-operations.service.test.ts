@@ -224,12 +224,13 @@ describe('BillingOperationsService', () => {
 
     expect(milestone.status).toBe('at_risk');
     // The reminder is queue-only and enqueued once, with the same transition that makes the audit row.
-    expect(notifications.write).toHaveBeenCalledTimes(1);
-    expect(notifications.write).toHaveBeenCalledWith(expect.objectContaining({
+    const atRiskReminders = notifications.write.mock.calls.filter((call) =>
+      (call[0] as { idempotencyKey?: string }).idempotencyKey === 'payment-risk-reminder:pay_downpayment');
+    expect(atRiskReminders).toHaveLength(1);
+    expect(atRiskReminders[0]).toEqual([expect.objectContaining({
       eventId: 'evt_sample',
       recipient: 'Client',
-      idempotencyKey: 'payment-risk-reminder:pay_downpayment',
-    }), undefined);
+    }), undefined]);
     expect(prisma.opsPaymentMilestone.updateMany).toHaveBeenCalledTimes(2);
     expect(prisma.opsPaymentMilestone.updateMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({
@@ -246,6 +247,30 @@ describe('BillingOperationsService', () => {
       affectedId: 'pay_downpayment',
       affectedLabel: 'Balance',
     }), undefined);
+  });
+
+  it('queues one overdue reminder per unpaid milestone with a stable idempotency key', async () => {
+    const { paymentService, prisma, notifications, milestone } = createPaymentService();
+    milestone.label = 'Downpayment';
+    milestone.status = 'partially_paid';
+    milestone.remainingBalance = 75000;
+
+    await paymentService.runPaymentRiskSweep();
+    await paymentService.runPaymentRiskSweep();
+
+    const overdueQuery = prisma.opsPaymentMilestone.findMany.mock.calls
+      .map(([args]: [{ where: Record<string, unknown> }]) => args.where)
+      .find((where: Record<string, unknown>) => 'dueDate' in where);
+    expect(overdueQuery).toEqual(expect.objectContaining({
+      dueDate: { lt: expect.any(Date) },
+      remainingBalance: { gt: 0 },
+      status: { not: 'paid' },
+    }));
+    const overdueWrites = notifications.write.mock.calls.map((call) => call[0] as Record<string, unknown>);
+    expect(overdueWrites).toHaveLength(2);
+    for (const input of overdueWrites) {
+      expect(input).toMatchObject({ eventId: 'evt_sample', recipient: 'Client', idempotencyKey: 'payment-overdue-reminder:pay_downpayment' });
+    }
   });
 
   it('projects client billing disputes without PMCM reasons, resolver notes, or actor names', () => {

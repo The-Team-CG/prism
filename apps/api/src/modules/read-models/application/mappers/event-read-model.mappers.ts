@@ -17,6 +17,9 @@ export function createBillingReadModelMappers(
     mapEvent: dependencies.mapEvent,
     mapBillingSource: dependencies.mapBillingSource,
     mapBillingStatement: dependencies.mapBillingStatement,
+    mapBillingCorrection: dependencies.mapBillingCorrection,
+    mapBillingDispute: dependencies.mapBillingDispute,
+    mapAdditionalBilling: dependencies.mapAdditionalBilling,
     mapPaymentMilestone: dependencies.mapPaymentMilestone,
     mapPaymentRecord: dependencies.mapPaymentRecord,
   };
