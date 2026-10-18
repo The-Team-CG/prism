@@ -1,6 +1,6 @@
 -- prism-owner: event-lifecycle
 -- prism-kind: schema
--- prism-risk: low
+-- prism-risk: medium
 -- Authoritative PMCM-recorded logistics completion (one record per event). Additive table only.
 BEGIN;
 SET LOCAL lock_timeout = '5s';
