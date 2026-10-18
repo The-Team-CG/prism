@@ -4,6 +4,7 @@ import {
   submitAdditionalBillingWaiver,
   submitBillingCorrection,
   submitBillingDispute,
+  submitCorrectionResolution,
   submitDisputeResolution,
 } from "./submit-billing-adjustment";
 
@@ -15,6 +16,7 @@ function createWriter() {
     resolveDispute: vi.fn(async (_eventId: string, _disputeId: string, _body: Body) => ({ id: "dispute_1", status: "resolved" })),
     createCorrection: vi.fn(async (_eventId: string, _body: Body) => ({ id: "corr_1" })),
     createAdditionalBilling: vi.fn(async (_eventId: string, _body: Body) => ({ id: "addbill_1" })),
+    resolveCorrection: vi.fn(async (_eventId: string, _correctionId: string, _body: Body) => ({ id: "corr_1", status: "approved" })),
     waiveAdditionalBilling: vi.fn(async (_eventId: string, _additionalBillingId: string, _body: Body) => ({ id: "addbill_1", status: "waived" })),
   };
 }
@@ -79,6 +81,31 @@ describe("billing adjustment use cases", () => {
 
     await expect(submitBillingCorrection(writer, "evt_1", { statementId: "stmt_1", reason: " " })).rejects.toThrow("Correction reason is required.");
     expect(writer.createCorrection).not.toHaveBeenCalled();
+  });
+
+  it("approves a pending correction without requiring notes", async () => {
+    const writer = createWriter();
+
+    await submitCorrectionResolution(writer, "evt_1", "corr_1", { action: "approve" });
+
+    expect(writer.resolveCorrection).toHaveBeenCalledWith("evt_1", "corr_1", { action: "approve" });
+  });
+
+  it("blocks rejecting a correction without a reason before any request is sent", async () => {
+    const writer = createWriter();
+
+    await expect(submitCorrectionResolution(writer, "evt_1", "corr_1", { action: "reject", resolutionNotes: "   " })).rejects.toThrow("Rejection reason is required.");
+    await expect(submitCorrectionResolution(writer, "evt_1", "corr_1", { action: "reject" })).rejects.toThrow("Rejection reason is required.");
+
+    expect(writer.resolveCorrection).not.toHaveBeenCalled();
+  });
+
+  it("sends a rejection that carries a reason", async () => {
+    const writer = createWriter();
+
+    await submitCorrectionResolution(writer, "evt_1", "corr_1", { action: "reject", resolutionNotes: "Tax line is correct as issued" });
+
+    expect(writer.resolveCorrection).toHaveBeenCalledWith("evt_1", "corr_1", { action: "reject", resolutionNotes: "Tax line is correct as issued" });
   });
 
   it("requires additional billing to name an approved source and an urgent issue", async () => {

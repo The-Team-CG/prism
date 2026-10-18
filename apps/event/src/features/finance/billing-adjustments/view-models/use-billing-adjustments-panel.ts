@@ -16,6 +16,7 @@ import {
   submitAdditionalBillingWaiver,
   submitBillingCorrection,
   submitBillingDispute,
+  submitCorrectionResolution,
   submitDisputeResolution,
 } from "../use-cases/submit-billing-adjustment";
 
@@ -47,6 +48,7 @@ export function useBillingAdjustmentsPanel({
   const [correctionDraft, setCorrectionDraft] = useState({ reason: "", correctedTotalAmount: "" });
   const [additionalDraft, setAdditionalDraft] = useState({ urgentIssueId: "", billingSourceId: "", description: "", amount: "" });
   const [waiverReasons, setWaiverReasons] = useState<Record<string, string>>({});
+  const [correctionNotes, setCorrectionNotes] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     const requestedEventId = eventId;
@@ -103,6 +105,13 @@ export function useBillingAdjustmentsPanel({
     setResolutionNotes,
     waiverReasons,
     setWaiverReasons,
+    correctionNotes,
+    setCorrectionNotes,
+    resolveCorrection: (correctionId: string, action: "approve" | "reject") =>
+      act(action === "approve" ? "Correction approval" : "Correction rejection", () => submitCorrectionResolution(billingAdjustmentRepository, eventId, correctionId, {
+        action,
+        resolutionNotes: correctionNotes[correctionId] ?? "",
+      }), () => setCorrectionNotes((current) => ({ ...current, [correctionId]: "" }))),
     submitDispute: () => {
       if (!statement) { setError("Billing statement is required before recording a dispute."); return Promise.resolve(); }
       return act("Dispute", () => submitBillingDispute(billingAdjustmentRepository, eventId, {
