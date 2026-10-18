@@ -11,7 +11,7 @@ import {
 } from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
-import { defaultSeatCategories } from '@prism/kernel/shared';
+import { asArray, defaultSeatCategories, type CanvasObject } from '@prism/kernel/shared';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, WorkflowCommandService } from '@prism/kernel/event-core';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
@@ -40,10 +40,37 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
     @Inject(FLOORPLAN_EVENT_REFERENCE_READER) private readonly lifecycleEventReferences: FloorplanEventReferenceReader,
   ) {}
 
+  /**
+   * Loads a PMCM venue-library preset inside the write transaction. The preset is authoritative:
+   * layout geometry and objects come from the stored template, not from the request body.
+   */
+  private async loadVenuePreset(tx: Prisma.TransactionClient, venueTemplateId: string) {
+    const template = await tx.venueTemplate.findUnique({
+      where: { id: venueTemplateId },
+      include: {
+        floorPlan: {
+          include: { objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] } },
+        },
+      },
+    });
+    if (!template?.floorPlan) throw new NotFoundException('Venue preset not found');
+    const plan = template.floorPlan;
+    return {
+      objects: plan.objectRows.length
+        ? plan.objectRows.map((row) => row.objectData as unknown as CanvasObject)
+        : asArray<CanvasObject>(plan.objects),
+      width: plan.width,
+      height: plan.height,
+      gridSize: plan.gridSize,
+      pax: template.pax,
+      guests: template.includeGuests ? asArray<unknown>(template.guests) : [],
+      suppliers: template.includeSuppliers ? asArray<unknown>(template.suppliers) : [],
+    };
+  }
+
   async createFloorPlanDraft(eventId: string, input: CreateFloorPlanDraftInput, actor: FloorPlanCreator) {
     const now = new Date();
     const floorPlanId = `plan_${randomUUID()}`;
-    const objects = input.objects ?? [];
 
     return this.workflowCommandService.execute<OpsFloorPlanDraft, ReturnType<FloorPlanWorkflowService['mapFloorPlanDraft']>>({
       name: 'create_floorplan_draft',
@@ -56,6 +83,8 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
           if (event.ocularVisitStatus !== 'completed' && event.ocularVisitStatus !== 'waived') {
             throw new BadRequestException('Official floor plan requires a completed or waived ocular visit');
           }
+          const preset = input.venueTemplateId ? await this.loadVenuePreset(tx, input.venueTemplateId) : null;
+          const objects = preset?.objects ?? input.objects ?? [];
           await tx.floorPlan.create({
             data: {
               id: floorPlanId,
@@ -63,13 +92,13 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
               venue: input.venue ?? event.eventName,
               ownerId: actor.actorId,
               eventId,
-              width: input.width ?? 1200,
-              height: input.height ?? 800,
-              gridSize: input.gridSize ?? 20,
-              pax: input.pax ?? 0,
+              width: preset?.width ?? input.width ?? 1200,
+              height: preset?.height ?? input.height ?? 800,
+              gridSize: preset?.gridSize ?? input.gridSize ?? 20,
+              pax: preset?.pax ?? input.pax ?? 0,
               objects: toPrismaJson(objects),
-              guests: toPrismaJson(input.guests ?? []),
-              suppliers: toPrismaJson(input.suppliers ?? []),
+              guests: toPrismaJson(preset?.guests ?? input.guests ?? []),
+              suppliers: toPrismaJson(preset?.suppliers ?? input.suppliers ?? []),
               seats: toPrismaJson([]),
               seatCategories: toPrismaJson(defaultSeatCategories()),
               updatedAt: now,
