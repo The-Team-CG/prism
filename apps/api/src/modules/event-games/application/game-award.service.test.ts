@@ -8,8 +8,8 @@ const actor: PrismVerifiedEventActor = {
   actorId: 'admin-1', actorRole: 'pmcm_admin', email: 'admin@example.test',
 } as unknown as PrismVerifiedEventActor;
 const input = {
-  idempotencyKey: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5',
-  recipient: { type: 'participant', participationGrantId: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b6' },
+  idempotencyKey: '00000000-0000-4000-8000-000000000101',
+  recipient: { type: 'participant', participationGrantId: '00000000-0000-4000-8000-000000000102' },
   awardKind: 'points', label: 'Round winner', points: 25,
 } as const;
 

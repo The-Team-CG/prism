@@ -20,13 +20,13 @@ describe('GameSessionController', () => {
     };
 
     await expect(controller.getParticipantState('session-1', 'credential-token')).resolves.toEqual({ status: 'live' });
-    await expect(controller.getParticipantMediaAuthorization('session-1', 'obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5', 'credential-token'))
+    await expect(controller.getParticipantMediaAuthorization('session-1', 'obj_00000000-0000-4000-8000-000000000101', 'credential-token'))
       .resolves.toMatchObject({ expiresAt: '2026-10-16T12:05:00.000Z' });
     await expect(controller.submitAction('session-1', 'credential-token', action)).resolves.toEqual({ status: 'live' });
 
     expect(getParticipantState).toHaveBeenCalledWith('session-1', 'credential-token');
     expect(getParticipantMediaAuthorization).toHaveBeenCalledWith(
-      'session-1', 'obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5', 'credential-token',
+      'session-1', 'obj_00000000-0000-4000-8000-000000000101', 'credential-token',
     );
     expect(submitAction).toHaveBeenCalledWith('session-1', 'credential-token', action);
   });
