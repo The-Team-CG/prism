@@ -5,15 +5,17 @@ import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-sessi
 import { zodBody } from '@prism/kernel/shared';
 import {
   createPrismInquirySchema,
+  mergeInquirySchema,
   updateInquiryStatusSchema,
   uploadConformeSchema,
   type CreatePrismInquiryInput,
+  type MergeInquiryInput,
   type PrismVerifiedEventActor,
   type UpdateInquiryStatusInput,
   type UploadConformeInput,
 } from '@prism/types';
 import { ActorContextDto } from './inquiry.dto';
-import { mapDocument, mapInquiry, mapOnboardingEvent } from '../../application/onboarding/inquiry.mappers';
+import { mapDocument, mapInquiry, mapOnboardingEvent, mapPublicInquiryReceipt } from '../../application/onboarding/inquiry.mappers';
 import { InquiriesService } from '../../application/onboarding/inquiries.service';
 import { InquiryWorkflowService } from '../../application/onboarding/inquiry-workflow.service';
 
@@ -32,6 +34,7 @@ export class OpsInquiriesController {
       requireActorRole: this.eventAccessPolicyService.requireActorRole.bind(this.eventAccessPolicyService),
       allowedAdminRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.System],
       mapInquiry,
+      mapPublicInquiry: mapPublicInquiryReceipt,
       mapDocument,
       mapEvent: mapOnboardingEvent,
     };
@@ -67,6 +70,17 @@ export class OpsInquiriesController {
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     return this.inquiryWorkflowService.updateInquiryStatus(inquiryId, dto, this.inquiryWorkflowContext(), verifiedActor);
+  }
+
+  @Post(':inquiryId/merge')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(EventSessionGuard)
+  mergeInquiry(
+    @Param('inquiryId') inquiryId: string,
+    @Body(zodBody(mergeInquirySchema)) dto: MergeInquiryInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    return this.inquiryWorkflowService.mergeInquiry(inquiryId, dto, this.inquiryWorkflowContext(), verifiedActor);
   }
 
   @Post(':inquiryId/conforme-reminders')

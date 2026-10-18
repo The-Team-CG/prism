@@ -1,10 +1,10 @@
 {
   "summary": {
-    "totalTables": 120,
+    "totalTables": 121,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
-    "targetSameDomainFks": 110,
+    "targetSameDomainFks": 112,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -20,8 +20,8 @@
       {
         "domain": "event-lifecycle",
         "schema": "event_lifecycle",
-        "tables": 23,
-        "columns": 335
+        "tables": 24,
+        "columns": 345
       },
       {
         "domain": "commercial",
@@ -1008,6 +1008,15 @@
       "domain": "commercial",
       "targetSchema": "commercial",
       "columnCount": 12,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsInquiryMerge",
+      "currentSchema": "event_lifecycle",
+      "table": "inquiry_merges",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 10,
       "introducedAfterCutover": true
     },
     {
@@ -3319,6 +3328,36 @@
       "targetDomain": "commercial",
       "targetCurrentSchema": "commercial",
       "targetTable": "client_review_items",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "inquiry_merges",
+      "name": "inquiry_merges_primary_inquiry_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (primary_inquiry_id) REFERENCES event_lifecycle.inquiries(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "primary_inquiry_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "inquiries",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "inquiry_merges",
+      "name": "inquiry_merges_merged_inquiry_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (merged_inquiry_id) REFERENCES event_lifecycle.inquiries(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "merged_inquiry_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "inquiries",
       "sameDomain": true
     },
     {
