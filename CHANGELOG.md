@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Added a PMCM-recorded logistics completion record (asset returns verified, audited, correction reason required on replacement). The archive close gate now reads this record instead of always reporting logistics missing, and PMCM can compare 2 to 4 archived events side by side. Private notes and logistics notes stay out of client, supplier, and comparison payloads. Owner B (Francis), support C and D.
 - Added client and supplier file upload/download with verified content, scoped visibility, immutable object identity, and local/private Supabase adapters. Fixed the API response interceptor to preserve binary file streams. Owners C (Ethan) and D (Anthony).
 - Added supplier contract versions and correction reviews, ingress/egress revision acknowledgments and change requests, creative task submissions and reviews, and payable milestones with actual releases and reasoned reversals. Payment status comes from recorded releases; quote locking does not mark a payment paid. Owners B (Francis), C (Ethan), and D (Anthony).
 - Added client briefing submission, official-floorplan snapshot decisions and annotations, versioned venue/styling reviews, deliverable and closeout acknowledgments, client feedback, and consent-based testimonial moderation. PMCM retains official-layout ownership. Owners A (Maxine), B, C, and D.
