@@ -17,6 +17,9 @@ export function createBillingReadModelMappers(
     mapEvent: dependencies.mapEvent,
     mapBillingSource: dependencies.mapBillingSource,
     mapBillingStatement: dependencies.mapBillingStatement,
+    mapBillingCorrection: dependencies.mapBillingCorrection,
+    mapBillingDispute: dependencies.mapBillingDispute,
+    mapAdditionalBilling: dependencies.mapAdditionalBilling,
     mapPaymentMilestone: dependencies.mapPaymentMilestone,
     mapPaymentRecord: dependencies.mapPaymentRecord,
   };
@@ -30,6 +33,7 @@ export function createClientWorkspaceMappers(
     mapDocument: dependencies.mapDocument,
     mapBriefing: dependencies.mapBriefing,
     mapBillingStatement: dependencies.mapBillingStatement,
+    mapClientBillingDispute: dependencies.mapClientBillingDispute,
     mapPaymentMilestone: dependencies.mapPaymentMilestone,
     mapFloorPlanDraft: dependencies.mapFloorPlanDraft,
     mapAuditLog: dependencies.mapAuditLog,

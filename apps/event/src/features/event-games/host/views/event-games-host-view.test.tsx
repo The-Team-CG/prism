@@ -157,7 +157,7 @@ describe("EventGamesHostView", () => {
           score: 40,
           awardRecipient: {
             type: "participant",
-            participationGrantId: "3ea50a76-6441-4e57-9b11-2e83817e9012",
+            participationGrantId: "00000000-0000-4000-8000-000000000110",
           },
         }],
       },
@@ -165,9 +165,9 @@ describe("EventGamesHostView", () => {
     render(<EventGamesHostView eventId="event-1" role="pmcm-admin" eventStatus="confirmed" archived={false} />);
 
     fireEvent.change(screen.getByLabelText("Award recipient"), {
-      target: { value: "participant:3ea50a76-6441-4e57-9b11-2e83817e9012" },
+      target: { value: "participant:00000000-0000-4000-8000-000000000110" },
     });
-    expect(screen.queryByText("3ea50a76-6441-4e57-9b11-2e83817e9012")).toBeNull();
+    expect(screen.queryByText("00000000-0000-4000-8000-000000000110")).toBeNull();
     fireEvent.change(screen.getByLabelText("Award label"), { target: { value: "Top score" } });
     fireEvent.change(screen.getByLabelText("Points"), { target: { value: "25" } });
     fireEvent.click(screen.getByRole("button", { name: /assign award/i }));
@@ -175,7 +175,7 @@ describe("EventGamesHostView", () => {
     await waitFor(() => expect(state.assignAward).toHaveBeenCalledWith("session-1", {
       recipient: {
         type: "participant",
-        participationGrantId: "3ea50a76-6441-4e57-9b11-2e83817e9012",
+        participationGrantId: "00000000-0000-4000-8000-000000000110",
       },
       awardKind: "points",
       label: "Top score",
@@ -203,7 +203,7 @@ describe("EventGamesHostView", () => {
             score: 0,
             awardRecipient: {
               type: "participant",
-              participationGrantId: "3ea50a76-6441-4e57-9b11-2e83817e9012",
+              participationGrantId: "00000000-0000-4000-8000-000000000110",
             },
           }],
         },

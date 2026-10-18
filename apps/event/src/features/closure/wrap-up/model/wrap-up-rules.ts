@@ -9,6 +9,24 @@ export function wrapUpProgress(record: PrismEventWrapUp | null) {
   return { completed: completed + (record.clientAcknowledgedAt ? 1 : 0), total, status: record.status };
 }
 
+/** Logistics is owned by the PMCM logistics completion record; the checklist only mirrors it. */
+export const WRAP_UP_LOGISTICS_KEY = "logistics";
+
+export function wrapUpLogisticsMirror(record: PrismEventWrapUp) {
+  const complete = record.requiredItems[WRAP_UP_LOGISTICS_KEY] === true && record.sections.logistics?.status === "complete";
+  return {
+    complete,
+    label: complete
+      ? "Recorded in the logistics completion panel above."
+      : "Not recorded. Record logistics completion in the panel above; it cannot be marked from this checklist.",
+  };
+}
+
+/** Required items the PMCM checklist may write; logistics is excluded because it is derived. */
+export function wrapUpWritableRequiredItems(items: Record<string, boolean>) {
+  return Object.fromEntries(Object.entries(items).filter(([key]) => key !== WRAP_UP_LOGISTICS_KEY));
+}
+
 export function wrapUpReminderState(record: PrismEventWrapUp | null, now = new Date()) {
   if (!record || record.status === "complete") return "complete" as const;
   if (now.getTime() >= new Date(record.deadlineAt).getTime()) return "due" as const;

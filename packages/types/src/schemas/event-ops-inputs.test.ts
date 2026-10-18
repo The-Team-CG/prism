@@ -23,6 +23,7 @@ import {
   updateSupplierEventStatusSchema,
   submitSupplierQuoteSchema,
   updateInquiryStatusSchema,
+  mergeInquirySchema,
   createUrgentIssueSchema,
   updateUrgentIssueSchema,
   escalateLiveOpsRecordSchema,
@@ -189,6 +190,23 @@ describe("event-ops write schemas", () => {
     });
     expect(parsed.email).toBe("maria@samplecorp.test");
     expect(parsed.eventDate).toBe("2026-06-18");
+  });
+
+  it("maps legacy Private to Individual and offers only the catalog client categories", () => {
+    const base = {
+      clientName: "Maria Santos",
+      email: "maria@samplecorp.test",
+      eventName: "Leadership Forum",
+      eventDate: "2026-06-18",
+      source: "P.R.I.S.M Website",
+      message: "Need full planning support.",
+      privacyConsentAccepted: true,
+    } as const;
+    expect(createPrismInquirySchema.parse({ ...base, clientType: " Private " }).clientType).toBe("Individual");
+    expect(createPrismInquirySchema.parse({ ...base, clientType: "Non-profit" }).clientType).toBe("Non-profit");
+    for (const retired of ["School", "Other", "Private celebration", ""]) {
+      expect(createPrismInquirySchema.safeParse({ ...base, clientType: retired }).success).toBe(false);
+    }
   });
 
   it("rejects invalid inquiry email and date", () => {
@@ -440,6 +458,37 @@ describe("event-ops write schemas", () => {
   it("validates inquiry status transitions", () => {
     expect(updateInquiryStatusSchema.safeParse({ status: "accepted" }).success).toBe(true);
     expect(updateInquiryStatusSchema.safeParse({ status: "nope" }).success).toBe(false);
+  });
+
+  it("keeps PMCM triage and organization fields out of the public inquiry contract", () => {
+    const parsed = createPrismInquirySchema.parse({
+      clientName: "Maria Santos",
+      email: "maria@samplecorp.test",
+      eventName: "Leadership Forum",
+      eventDate: "2026-06-18",
+      clientType: "Corporate",
+      source: "P.R.I.S.M Website",
+      message: "Need full planning support.",
+      privacyConsentAccepted: true,
+      organizationKey: "spoofed",
+      mergedIntoInquiryId: "inq_primary",
+      duplicateOfInquiryId: "inq_other",
+      loggedByRole: "pmcm-admin",
+      loggedByName: "Spoofed Admin",
+      highFit: true,
+    });
+    expect(parsed).not.toHaveProperty("organizationKey");
+    expect(parsed).not.toHaveProperty("mergedIntoInquiryId");
+    expect(parsed).not.toHaveProperty("duplicateOfInquiryId");
+    expect(parsed).not.toHaveProperty("loggedByRole");
+    expect(parsed).not.toHaveProperty("highFit");
+  });
+
+  it("requires a source inquiry and a reason for PMCM organization merges", () => {
+    expect(mergeInquirySchema.safeParse({ sourceInquiryId: "inq_dup", reason: "Same company" }).success).toBe(true);
+    expect(mergeInquirySchema.safeParse({ sourceInquiryId: "", reason: "Same company" }).success).toBe(false);
+    expect(mergeInquirySchema.safeParse({ sourceInquiryId: "inq_dup", reason: "   " }).success).toBe(false);
+    expect(mergeInquirySchema.safeParse({ reason: "Same company" }).success).toBe(false);
   });
 
   it("requires a revision note only when the client requests a proposal change", () => {

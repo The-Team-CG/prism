@@ -34,6 +34,32 @@ function createService() {
 }
 
 describe('InquiryWorkflowService', () => {
+  it('denies non-PMCM actors before merging inquiries', async () => {
+    const { service, context } = createService();
+    const mergeInquiry = vi.fn(async () => ({ id: 'merge_1' }));
+    (context.inquiriesService as any).mergeInquiry = mergeInquiry;
+
+    await expect(service.mergeInquiry(
+      'inq_primary',
+      { sourceInquiryId: 'inq_dup', reason: 'Client trying to merge' },
+      context as any,
+      { actorId: 'client_1', actorRole: OpsUserRole.Client, actorName: 'Ana', verified: true } as any,
+    )).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(mergeInquiry).not.toHaveBeenCalled();
+  });
+
+  it('returns the public inquiry receipt through the public mapper only', async () => {
+    const { service, context } = createService();
+    const publicReceipt = vi.fn(() => ({ id: 'inq_new', status: 'new' }));
+    (context as any).mapPublicInquiry = publicReceipt;
+    (context.inquiriesService as any).createInquiry = vi.fn(async () => ({ id: 'inq_new', duplicateOfInquiryId: 'inq_x' }));
+
+    await expect(service.createInquiry({} as any, context as any)).resolves.toEqual({ id: 'inq_new', status: 'new' });
+    expect(publicReceipt).toHaveBeenCalledWith({ id: 'inq_new', duplicateOfInquiryId: 'inq_x' });
+    expect(context.mapInquiry).not.toHaveBeenCalled();
+  });
+
   it('denies anonymous actors from non-public onboarding reads', async () => {
     const { service, prisma, context } = createService();
 
