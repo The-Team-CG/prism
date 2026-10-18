@@ -1,8 +1,10 @@
 import {
   decideFreezeExceptionSchema,
+  recordEventDecisionSchema,
   freezeEventSchema,
   requestFreezeExceptionSchema,
   type DecideFreezeExceptionInput,
+  type RecordEventDecisionInput,
   type FreezeEventInput,
   type RequestFreezeExceptionInput,
 } from "@prism/types";
@@ -23,4 +25,15 @@ export function requestFreezeExceptionUseCase(eventId: string, draft: RequestFre
 
 export function decideFreezeExceptionUseCase(eventId: string, exceptionId: string, draft: DecideFreezeExceptionInput) {
   return changeRegisterRepository.decideException(eventId, exceptionId, parseOrThrow(decideFreezeExceptionSchema.safeParse(draft)));
+}
+
+/**
+ * Records a cancellation or postponement. On a frozen event the decision must name an unused approval; the
+ * server enforces the same rule, so this check only avoids a round trip with a clear message.
+ */
+export function recordEventDecisionUseCase(eventId: string, draft: RecordEventDecisionInput, options: { frozen: boolean }) {
+  if (options.frozen && !draft.freezeExceptionId) {
+    throw new Error("Choose an approved freeze exception before recording this decision on a frozen event.");
+  }
+  return changeRegisterRepository.recordDecision(eventId, parseOrThrow(recordEventDecisionSchema.safeParse(draft)));
 }

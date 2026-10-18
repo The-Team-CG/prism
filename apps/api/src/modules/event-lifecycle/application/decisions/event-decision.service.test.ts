@@ -21,6 +21,7 @@ const cancel = {
   cancellationFeeAmount: 0,
   depositTreatment: 'pending_review',
   supplierImpact: 'pending_review',
+  impactReviewAcknowledged: true,
 } as const;
 const postpone = (supplierImpact: 'release_obligations' | 'preserve_obligations' | 'pending_review') => ({
   decision: 'postponed',
@@ -29,20 +30,28 @@ const postpone = (supplierImpact: 'release_obligations' | 'preserve_obligations'
   cancellationFeeAmount: 0,
   depositTreatment: 'credit',
   supplierImpact,
+  impactReviewAcknowledged: true,
 }) as const;
 
 function setup(options: { eventOverrides?: Partial<typeof event>; staffingImpact?: unknown; approvedExceptionIds?: string[] } = {}) {
+  // Freeze exception store. Approvals are single-use: the conditional update matches only while the row is unconsumed.
+  const exceptions = new Map((options.approvedExceptionIds ?? []).map((id) => [id, {
+    id, eventId: 'evt-1', status: 'approved', consumedAt: null as Date | null, consumedByDecisionId: null as string | null,
+  }]));
+  const exceptionStore = {
+    updateMany: vi.fn(async ({ where, data }: { where: { id: string; eventId: string; status: string; consumedAt: null }; data: { consumedAt: Date; consumedByDecisionId?: string } }) => {
+      const row = exceptions.get(where.id);
+      if (!row || row.eventId !== where.eventId || row.status !== where.status || row.consumedAt !== null) return { count: 0 };
+      Object.assign(row, data);
+      return { count: 1 };
+    }),
+  };
   const tx = {
     opsEvent: {
       findUnique: vi.fn().mockResolvedValue({ ...event, ...options.eventOverrides }),
       update: vi.fn().mockResolvedValue({ ...event, status: 'postponed' }),
     },
-    opsEventFreezeException: {
-      // Only exceptions approved for this event resolve; anything else is treated as missing or unapproved.
-      findFirst: vi.fn(async ({ where }: { where: { id: string; eventId: string } }) => (
-        where.eventId === 'evt-1' && (options.approvedExceptionIds ?? []).includes(where.id) ? { id: where.id } : null
-      )),
-    },
+    opsEventFreezeException: exceptionStore,
     opsEventDecision: {
       create: vi.fn().mockResolvedValue({ id: 'decision-1', eventId: 'evt-1' }),
       update: vi.fn().mockResolvedValue({}),
@@ -54,8 +63,25 @@ function setup(options: { eventOverrides?: Partial<typeof event>; staffingImpact
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
   };
+  // Transactions run one at a time, like the event row lock Serializable takes in Postgres: a second decision
+  // starts only after the first commits or rolls back. A failed transaction restores the exception store.
+  let lock: Promise<unknown> = Promise.resolve();
+  const transaction = vi.fn((callback: (value: typeof tx) => Promise<unknown>) => {
+    const run = lock.then(async () => {
+      const snapshot = new Map([...exceptions].map(([id, row]) => [id, { ...row }]));
+      try {
+        return await callback(tx);
+      } catch (error) {
+        exceptions.clear();
+        snapshot.forEach((row, id) => exceptions.set(id, row));
+        throw error;
+      }
+    });
+    lock = run.catch(() => undefined);
+    return run;
+  });
   const prisma = {
-    $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)),
+    $transaction: transaction,
     opsEvent: tx.opsEvent,
     opsEventDecision: tx.opsEventDecision,
   };
@@ -301,7 +327,7 @@ describe('EventDecisionService change-freeze enforcement', () => {
   it('rejects an exception that is pending, rejected, or approved for a different event', async () => {
     const { service, tx, staffingCommands } = setup({ eventOverrides: frozen, approvedExceptionIds: ['exception-approved'] });
 
-    await expect(service.decide('evt-1', { ...cancel, freezeExceptionId: 'exception-pending' }, actor)).rejects.toThrow('Freeze exception is not approved for this event');
+    await expect(service.decide('evt-1', { ...cancel, freezeExceptionId: 'exception-pending' }, actor)).rejects.toThrow('Freeze exception is not an unused approval for this event');
     expect(staffingCommands.applyEventDecisionAssignments).not.toHaveBeenCalled();
     expect(tx.opsEventDecision.create).not.toHaveBeenCalled();
   });
@@ -323,7 +349,7 @@ describe('EventDecisionService change-freeze enforcement', () => {
 
     await service.decide('evt-1', cancel, actor);
 
-    expect(tx.opsEventFreezeException.findFirst).not.toHaveBeenCalled();
+    expect(tx.opsEventFreezeException.updateMany).not.toHaveBeenCalled();
     expect(tx.opsEventDecision.create).toHaveBeenCalled();
   });
 
@@ -342,5 +368,40 @@ describe('EventDecisionService change-freeze enforcement', () => {
 
     await expect(service.decide('evt-1', { ...cancel, freezeExceptionId: 'exception-other', idempotencyKey: 'frozen-key' }, actor))
       .rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects reuse of an approved exception by a later decision on the same frozen event', async () => {
+    const { service, tx, staffingCommands } = setup({ eventOverrides: frozen, approvedExceptionIds: ['exception-approved'] });
+    await service.decide('evt-1', { ...cancel, freezeExceptionId: 'exception-approved' }, actor);
+
+    await expect(service.decide('evt-1', { ...postpone('preserve_obligations'), freezeExceptionId: 'exception-approved' }, actor))
+      .rejects.toThrow('Freeze exception is not an unused approval for this event');
+
+    expect(tx.opsEventDecision.create).toHaveBeenCalledTimes(1);
+    expect(staffingCommands.applyEventDecisionAssignments).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets exactly one of two concurrent decisions consume the same approval', async () => {
+    const { service, tx } = setup({ eventOverrides: frozen, approvedExceptionIds: ['exception-approved'] });
+
+    const outcomes = await Promise.allSettled([
+      service.decide('evt-1', { ...cancel, freezeExceptionId: 'exception-approved' }, actor),
+      service.decide('evt-1', { ...postpone('preserve_obligations'), freezeExceptionId: 'exception-approved' }, actor),
+    ]);
+
+    expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(1);
+    const [rejected] = outcomes.filter((outcome): outcome is PromiseRejectedResult => outcome.status === 'rejected');
+    expect(rejected.reason).toBeInstanceOf(BadRequestException);
+    expect(tx.opsEventDecision.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the approval unused when the decision fails after consuming it', async () => {
+    const { service, tx, staffingCommands } = setup({ eventOverrides: frozen, approvedExceptionIds: ['exception-approved'] });
+    staffingCommands.applyEventDecisionAssignments.mockRejectedValueOnce(new Error('Operations unavailable'));
+
+    await expect(service.decide('evt-1', { ...cancel, freezeExceptionId: 'exception-approved' }, actor)).rejects.toThrow('Operations unavailable');
+    await expect(service.decide('evt-1', { ...cancel, freezeExceptionId: 'exception-approved' }, actor)).resolves.toMatchObject({ id: 'decision-1' });
+
+    expect(tx.opsEventDecision.create).toHaveBeenCalledTimes(1);
   });
 });
