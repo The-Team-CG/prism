@@ -1,6 +1,9 @@
 import { ForbiddenException, Inject, Injectable, InternalServerErrorException, NotFoundException, Optional } from '@nestjs/common';
 import type {
   OpsAuditLog,
+  OpsBillingDispute,
+  OpsAdditionalBilling,
+  OpsBillingCorrection,
   OpsBillingSource,
   OpsBillingStatement,
   OpsBriefing,
@@ -173,6 +176,9 @@ export type BillingReadModelMappers = {
   mapEvent: (event: EventWithDrafts) => unknown;
   mapBillingSource: (source: OpsBillingSource) => unknown;
   mapBillingStatement: (statement: OpsBillingStatement) => unknown;
+  mapBillingCorrection: (correction: OpsBillingCorrection) => unknown;
+  mapBillingDispute: (dispute: OpsBillingDispute) => unknown;
+  mapAdditionalBilling: (billing: OpsAdditionalBilling) => unknown;
   mapPaymentMilestone: (payment: OpsPaymentMilestone, history: OpsPaymentRecord[]) => unknown;
   mapPaymentRecord: (record: OpsPaymentRecord) => unknown;
 };
@@ -182,6 +188,7 @@ export type ClientWorkspaceMappers = {
   mapDocument: (document: OpsDocument) => unknown;
   mapBriefing: (briefing: OpsBriefing) => unknown;
   mapBillingStatement: (statement: OpsBillingStatement) => unknown;
+  mapClientBillingDispute: (dispute: OpsBillingDispute) => unknown;
   mapPaymentMilestone: (payment: OpsPaymentMilestone, history: OpsPaymentRecord[]) => unknown;
   mapFloorPlanDraft: (draft: OpsFloorPlanDraft) => unknown;
   mapAuditLog: (log: OpsAuditLog) => unknown;
@@ -353,16 +360,25 @@ export class EventReadModelsService {
         billingStatements: [],
         paymentMilestones: [],
         paymentRecords: [],
+        billingCorrections: [],
+        billingDisputes: [],
+        additionalBillings: [],
       };
     }
 
-    const [billingSources, billingStatements, paymentMilestones, paymentRecords] = await this.queries.billingForEvents(
-      eventIds,
-      this.policy.canViewInternalCosts(actor),
-    );
+    const includeInternalCosts = this.policy.canViewInternalCosts(actor);
+    const [[billingSources, billingStatements, paymentMilestones, paymentRecords], adjustments] = await Promise.all([
+      this.queries.billingForEvents(eventIds, includeInternalCosts),
+      includeInternalCosts ? this.queries.billingAdjustmentsForEvents(eventIds) : Promise.resolve([[], [], []] as const),
+    ]);
+    const [billingCorrections, billingDisputes, additionalBillings] = adjustments;
 
     return {
       events: visibleEvents.map((event) => mappers.mapEvent(event)),
+      // PMCM-only: corrections, disputes (with reasons and resolver notes), and additional billing stay internal.
+      billingCorrections: billingCorrections.map((row) => mappers.mapBillingCorrection(row)),
+      billingDisputes: billingDisputes.map((row) => mappers.mapBillingDispute(row)),
+      additionalBillings: additionalBillings.map((row) => mappers.mapAdditionalBilling(row)),
       billingSources: billingSources.map((source) => mappers.mapBillingSource(source)),
       billingStatements: billingStatements.map((statement) => mappers.mapBillingStatement(statement)),
       paymentMilestones: paymentMilestones.map((payment) =>
@@ -398,6 +414,7 @@ export class EventReadModelsService {
         coordinatorAssignments: [],
         complianceChecks: [],
         billingStatements: [],
+        billingDisputes: [],
         paymentMilestones: [],
         postEventDocuments: [],
         floorPlanDrafts: [],
@@ -410,7 +427,7 @@ export class EventReadModelsService {
     }
 
     const [
-      [documents, briefings, floorPlanDrafts, billingStatements, paymentMilestones, paymentRecords, auditLogs, ocularVisits],
+      [documents, briefings, floorPlanDrafts, billingStatements, paymentMilestones, paymentRecords, auditLogs, ocularVisits, billingDisputes],
       timelineSources,
     ] = await Promise.all([
       this.queries.clientWorkspaceForEvents(eventIds),
@@ -445,6 +462,7 @@ export class EventReadModelsService {
       coordinatorAssignments: [],
       complianceChecks: [],
       billingStatements: billingStatements.map((statement) => mappers.mapBillingStatement(statement)),
+      billingDisputes: billingDisputes.map((dispute) => mappers.mapClientBillingDispute(dispute)),
       paymentMilestones: paymentMilestones.map((payment) =>
         mappers.mapPaymentMilestone(
           payment,

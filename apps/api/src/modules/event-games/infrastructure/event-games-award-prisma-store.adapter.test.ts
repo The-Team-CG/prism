@@ -14,8 +14,8 @@ function transactionWithQueryRows(...responses: unknown[][]) {
 }
 
 const request = {
-  idempotencyKey: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5',
-  recipient: { type: 'participant' as const, participationGrantId: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b6' },
+  idempotencyKey: '00000000-0000-4000-8000-000000000101',
+  recipient: { type: 'participant' as const, participationGrantId: '00000000-0000-4000-8000-000000000102' },
   awardKind: 'points' as const,
   label: 'Round winner',
   points: 25,
@@ -48,7 +48,7 @@ describe('EventGamesAwardPrismaStoreAdapter', () => {
   it('requires a server-assigned team and replays an exact duplicate award', async () => {
     const teamRequest = {
       ...request,
-      recipient: { type: 'team' as const, teamId: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b7' },
+      recipient: { type: 'team' as const, teamId: '00000000-0000-4000-8000-000000000103' },
       awardKind: 'badge' as const,
       points: undefined,
     };

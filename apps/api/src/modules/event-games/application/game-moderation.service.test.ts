@@ -8,8 +8,8 @@ const actor: PrismVerifiedEventActor = {
   actorId: 'coordinator-1', actorRole: 'coordinator', email: 'c@example.test',
 } as PrismVerifiedEventActor;
 const input = {
-  action: 'hide_submission', idempotencyKey: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5',
-  submissionId: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b6', reason: 'Contains personal information',
+  action: 'hide_submission', idempotencyKey: '00000000-0000-4000-8000-000000000101',
+  submissionId: '00000000-0000-4000-8000-000000000102', reason: 'Contains personal information',
 } as const;
 
 function setup(result: unknown = { id: 'moderation-1', targetId: input.submissionId, beforeStatus: 'pending', afterStatus: 'hidden' }) {
