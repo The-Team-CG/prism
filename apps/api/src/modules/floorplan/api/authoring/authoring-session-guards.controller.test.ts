@@ -69,4 +69,30 @@ describe('floorplan authoring session boundaries', () => {
     await expect(controller.create(input, actor)).resolves.toEqual({ id: 'tpl_new' });
     expect(service.createTemplate).toHaveBeenCalledWith(input, actor.actorId);
   });
+
+  it('keeps the venue library PMCM-only: clients cannot list, create, or edit presets', async () => {
+    const service = {
+      listTemplates: vi.fn().mockResolvedValue([]),
+      createTemplate: vi.fn().mockResolvedValue({ id: 'tpl_new' }),
+      updateTemplate: vi.fn().mockResolvedValue({ id: 'tpl_new' }),
+    };
+    const audit: AuditWriter = { write: vi.fn().mockResolvedValue(undefined) };
+    const controller = new TemplatesController(
+      service as unknown as TemplatesService,
+      new EventAccessPolicyService(audit),
+    );
+    const client: PrismVerifiedEventActor = {
+      id: 'client_ana', actorId: 'client_ana', role: 'client', actorRole: 'client',
+      name: 'Ana', actorName: 'Ana', email: 'ana@example.test', actorEmail: 'ana@example.test',
+      expiresAt: '2099-01-01T00:00:00Z',
+    };
+    const input = createTemplateSchema.parse({ name: 'Corporate Gala' });
+
+    await expect(controller.list(client)).rejects.toMatchObject({ status: 403 });
+    await expect(controller.create(input, client)).rejects.toMatchObject({ status: 403 });
+    await expect(controller.update('tpl_1', { name: 'Renamed Gala' }, client)).rejects.toMatchObject({ status: 403 });
+    expect(service.listTemplates).not.toHaveBeenCalled();
+    expect(service.createTemplate).not.toHaveBeenCalled();
+    expect(service.updateTemplate).not.toHaveBeenCalled();
+  });
 });
