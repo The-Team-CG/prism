@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client';
+import type { PrismPrivacyExportSection } from '@prism/types';
 
 export const LIFECYCLE_PRIVACY_REDACTOR = Symbol('LIFECYCLE_PRIVACY_REDACTOR');
 
@@ -14,4 +15,8 @@ export interface LifecyclePrivacyRedactor {
     input: { email: string; redactedEmail: string; eventId?: string | null },
     transaction: Prisma.TransactionClient,
   ): Promise<LifecycleClientRedaction>;
+  exportClient(
+    input: { email: string; eventId?: string | null },
+    transaction: Prisma.TransactionClient,
+  ): Promise<{ eventIds: string[]; sections: PrismPrivacyExportSection[] }>;
 }
