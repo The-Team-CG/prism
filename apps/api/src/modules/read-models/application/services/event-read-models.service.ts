@@ -1,6 +1,7 @@
 import { ForbiddenException, Inject, Injectable, InternalServerErrorException, NotFoundException, Optional } from '@nestjs/common';
 import type {
   OpsAuditLog,
+  OpsBillingDispute,
   OpsBillingSource,
   OpsBillingStatement,
   OpsBriefing,
@@ -182,6 +183,7 @@ export type ClientWorkspaceMappers = {
   mapDocument: (document: OpsDocument) => unknown;
   mapBriefing: (briefing: OpsBriefing) => unknown;
   mapBillingStatement: (statement: OpsBillingStatement) => unknown;
+  mapClientBillingDispute: (dispute: OpsBillingDispute) => unknown;
   mapPaymentMilestone: (payment: OpsPaymentMilestone, history: OpsPaymentRecord[]) => unknown;
   mapFloorPlanDraft: (draft: OpsFloorPlanDraft) => unknown;
   mapAuditLog: (log: OpsAuditLog) => unknown;
@@ -398,6 +400,7 @@ export class EventReadModelsService {
         coordinatorAssignments: [],
         complianceChecks: [],
         billingStatements: [],
+        billingDisputes: [],
         paymentMilestones: [],
         postEventDocuments: [],
         floorPlanDrafts: [],
@@ -410,7 +413,7 @@ export class EventReadModelsService {
     }
 
     const [
-      [documents, briefings, floorPlanDrafts, billingStatements, paymentMilestones, paymentRecords, auditLogs, ocularVisits],
+      [documents, briefings, floorPlanDrafts, billingStatements, paymentMilestones, paymentRecords, auditLogs, ocularVisits, billingDisputes],
       timelineSources,
     ] = await Promise.all([
       this.queries.clientWorkspaceForEvents(eventIds),
@@ -445,6 +448,7 @@ export class EventReadModelsService {
       coordinatorAssignments: [],
       complianceChecks: [],
       billingStatements: billingStatements.map((statement) => mappers.mapBillingStatement(statement)),
+      billingDisputes: billingDisputes.map((dispute) => mappers.mapClientBillingDispute(dispute)),
       paymentMilestones: paymentMilestones.map((payment) =>
         mappers.mapPaymentMilestone(
           payment,

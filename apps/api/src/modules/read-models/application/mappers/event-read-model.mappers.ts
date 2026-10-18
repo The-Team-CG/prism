@@ -30,6 +30,7 @@ export function createClientWorkspaceMappers(
     mapDocument: dependencies.mapDocument,
     mapBriefing: dependencies.mapBriefing,
     mapBillingStatement: dependencies.mapBillingStatement,
+    mapClientBillingDispute: dependencies.mapClientBillingDispute,
     mapPaymentMilestone: dependencies.mapPaymentMilestone,
     mapFloorPlanDraft: dependencies.mapFloorPlanDraft,
     mapAuditLog: dependencies.mapAuditLog,

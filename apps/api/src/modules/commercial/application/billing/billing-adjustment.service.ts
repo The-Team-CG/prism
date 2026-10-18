@@ -138,11 +138,13 @@ export class BillingAdjustmentService {
         await this.requirePostEventState(eventId);
         issue = await this.urgentIssueReferenceReader.findUrgentIssueForEvent(eventId, input.urgentIssueId);
         if (!issue) throw new NotFoundException('Urgent issue not found');
+        await this.requireApprovedBillingSource(eventId, input.billingSourceId);
       },
       validateStateInTransaction: async (context) => {
         await this.requirePostEventState(eventId, context);
         issue = await this.urgentIssueReferenceReader.findUrgentIssueForEvent(eventId, input.urgentIssueId, context);
         if (!issue) throw new NotFoundException('Urgent issue not found');
+        await this.requireApprovedBillingSource(eventId, input.billingSourceId, context?.prisma ?? this.prisma);
       },
       write: async (context) => {
         const db = context?.prisma ?? this.prisma;
@@ -152,7 +154,7 @@ export class BillingAdjustmentService {
           replayed = true;
           return replay;
         }
-        return db.opsAdditionalBilling.create({ data: { id: `addbill_${randomUUID()}`, eventId, urgentIssueId: issue!.id, description: input.description.trim(), amount: input.amount, status: 'issued', createdBy: actor.name, idempotencyKey: input.idempotencyKey, payloadHash } });
+        return db.opsAdditionalBilling.create({ data: { id: `addbill_${randomUUID()}`, eventId, urgentIssueId: issue!.id, billingSourceId: input.billingSourceId, description: input.description.trim(), amount: input.amount, status: 'issued', createdBy: actor.name, idempotencyKey: input.idempotencyKey, payloadHash } });
       },
       sideEffects: async (billing, context) => { if (replayed) return; await writeAudit(this.auditWriter, eventId, actor.name, `Issued post-event additional billing`, { actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance, actionType: AuditActionType.Create, affectedType: 'additional_billing', affectedId: billing.id, affectedLabel: input.description, metadata: auditMetadata(actor, { urgentIssueId: issue!.id, amount: input.amount }) }, context); },
       project: (billing) => mapAdditionalBilling(billing),
@@ -173,6 +175,13 @@ export class BillingAdjustmentService {
       sideEffects: async (billing, context) => { await writeAudit(this.auditWriter, eventId, actor.name, `Waived post-event additional billing`, { actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance, actionType: AuditActionType.Update, affectedType: 'additional_billing', affectedId: billing.id, affectedLabel: billing.description, metadata: auditMetadata(actor, { waiverReason: input.reason }) }, context); },
       project: (billing) => mapAdditionalBilling(billing),
     });
+  }
+
+  /** Additional billing must trace to an approved source of the same event; unapproved or foreign sources are refused. */
+  private async requireApprovedBillingSource(eventId: string, billingSourceId: string, db: PrismTransactionContext['prisma'] | PrismService = this.prisma) {
+    const source = await db.opsBillingSource.findUnique({ where: { id: billingSourceId } });
+    if (!source || source.eventId !== eventId) throw new NotFoundException('Billing source not found');
+    if (source.status !== 'approved') throw new BadRequestException('Additional billing must trace to an approved billing source');
   }
 
   private async requireEvent(eventId: string) {

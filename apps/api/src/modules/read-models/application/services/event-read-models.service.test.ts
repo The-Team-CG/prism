@@ -389,6 +389,7 @@ describe('EventReadModelsService', () => {
           waivedAt: new Date('2026-10-01T00:00:00.000Z'),
           waivedBy: 'Maxine',
         }],
+        [],
       ]),
       clientEventTimelineForEvents: vi.fn(async () => []),
       archivedClientEvents: vi.fn(async () => [{ ...event, id: 'evt_archived_history', archived: true }]),
@@ -408,6 +409,7 @@ describe('EventReadModelsService', () => {
       mapDocument: (value: unknown) => value,
       mapBriefing: (value: unknown) => value,
       mapBillingStatement: (value: unknown) => value,
+      mapClientBillingDispute: (value: unknown) => value,
       mapPaymentMilestone: (value: unknown) => value,
       mapFloorPlanDraft: (value: unknown) => value,
       mapAuditLog: (value: unknown) => value,
@@ -1053,6 +1055,7 @@ describe('EventReadModelsService', () => {
         [],
         [],
         [],
+        [],
       ]),
       clientEventTimelineForEvents: vi.fn(async (eventIds: string[]) => {
         expect(eventIds).toEqual(['evt_ready', 'evt_pending', 'evt_completed']);
@@ -1077,6 +1080,7 @@ describe('EventReadModelsService', () => {
       mapDocument: (document: unknown) => document,
       mapBriefing: (briefing: unknown) => briefing,
       mapBillingStatement: (statement: unknown) => statement,
+      mapClientBillingDispute: (dispute: unknown) => dispute,
       mapPaymentMilestone: (payment: unknown) => payment,
       mapFloorPlanDraft: (draft: unknown) => draft,
       mapAuditLog: (log: unknown) => log,
