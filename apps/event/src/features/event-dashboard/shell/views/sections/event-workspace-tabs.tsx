@@ -9,6 +9,8 @@ import { PAREPanel } from "@/features/pare/panel";
 import { Phase4Workspace } from "@/features/closure/phase4";
 import { CoordinatorAssignmentDesk } from "@/features/coordinators/desk";
 import { PostponementImpactPanel } from "@/features/event-decisions/postponement-impact";
+import { ChangeRegisterPanel } from "@/features/change-management/register";
+import { isScopeFrozen } from "@/features/change-management/register/model/change-register-rules";
 import { EventOverviewPanels } from "@/features/command-inbox/list";
 import { FinancialWorkspace } from "@/features/finance/workspace";
 import { BillingAdjustmentsPanel } from "@/features/finance/billing-adjustments/views/billing-adjustments-panel";
@@ -34,6 +36,7 @@ export function EventWorkspaceOverviewTab() {
   return (
     <div className="space-y-4">
       <PmcmClientReviewPanel eventId={vm.selectedEvent.id} />
+      <ChangeRegisterPanel eventId={vm.selectedEvent.id} frozen={isScopeFrozen(vm.selectedEvent.freezeStatus)} />
       <EventOverviewPanels
         event={vm.selectedEvent}
         defenseReadiness={vm.defenseReadiness}
