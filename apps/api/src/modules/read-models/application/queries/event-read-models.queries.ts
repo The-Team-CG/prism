@@ -372,6 +372,16 @@ export class EventReadModelQueries {
     ]);
   }
 
+  // Query budget: three PMCM-only adjustment queries (corrections, disputes, additional billing) for visible event ids.
+  // Callers must gate on the internal-cost policy; clients never receive these rows.
+  billingAdjustmentsForEvents(eventIds: string[]) {
+    return Promise.all([
+      this.prisma.opsBillingCorrection.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_BILLING_ROWS }),
+      this.prisma.opsBillingDispute.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_BILLING_ROWS }),
+      this.prisma.opsAdditionalBilling.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_BILLING_ROWS }),
+    ]);
+  }
+
   // Query budget: one bounded client milestone projection for visible event ids.
   // Floorplan drafts and payment milestones hold only the event id, so each is read from its owner table
   // (one row per event) and composed here instead of through a cross-domain Prisma relation.
@@ -433,6 +443,7 @@ export class EventReadModelQueries {
       paymentRecords,
       auditLogs,
       ocularVisits,
+      billingDisputes,
     ] = await Promise.all([
       readAllRowsById(MAX_CLIENT_WORKSPACE_ROWS, (afterId) =>
         this.prisma.opsDocument.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
@@ -473,6 +484,10 @@ export class EventReadModelQueries {
         orderBy: [{ eventId: 'asc' }],
         take: MAX_CLIENT_WORKSPACE_ROWS,
       }),
+      readAllRowsById(MAX_CLIENT_WORKSPACE_ROWS, (afterId) =>
+        this.prisma.opsBillingDispute.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+          orderBy: { id: 'asc' }, take: MAX_CLIENT_WORKSPACE_ROWS }),
+      ),
     ]);
     return [
       sortByDate(documents, (row) => row.uploadedAt, 'desc'),
@@ -483,6 +498,7 @@ export class EventReadModelQueries {
       sortByDate(paymentRecords, (row) => row.recordedAt, 'desc'),
       sortByDate(auditLogs, (row) => row.createdAt, 'desc'),
       ocularVisits,
+      sortByDate(billingDisputes, (row) => row.createdAt, 'desc'),
     ] as const;
   }
   // Every action source is fetched in bounded keyset pages for the visible event set.

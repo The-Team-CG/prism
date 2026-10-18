@@ -141,7 +141,7 @@ Active Ledger decisions are unchanged. Additional thin-slice evidence:
 - **FL-005:** A client primary-contact approve/request-revision surface exists with a revision cap of 3. The current version/issuer gate above supersedes the earlier assumption that the production review journey was ready. CE builder depth, Canva/Zoom, and AI drafts stay gated.
 - **FL-007:** PMCM supplier-applications inbox can request proposal, schedule, or decline; readiness board shows a category gap hard-block when no quote is selected. Storage, production notify, and confidential-bid depth remain gated.
 - **FL-008:** Same-date coordinator assignment is blocked with same-role suggestions; override stays secondary. Heatmap, phone/Mys notify, and live AI copilot stay gated.
-- **FL-010:** Client billing shows remaining balance and follow-up copy per milestone. Client still cannot edit payments; production reminders stay gated.
+- **FL-010:** Client billing shows remaining balance and follow-up copy per milestone. Client still cannot edit payments; production reminders stay gated. Additional billing requires an approved same-event billing source (migration `20261018120100_commercial_additional_billing_source_trace`); client workspace exposes status-only billing dispute projections; payment-risk reminders enqueue in the notification outbox only.
 
 ## New Candidate Features Added To Scope
 
