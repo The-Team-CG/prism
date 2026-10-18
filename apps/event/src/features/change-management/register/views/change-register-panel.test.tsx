@@ -43,7 +43,7 @@ describe("ChangeRegisterPanel", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Reject" }));
     const confirm = screen.getByRole("button", { name: "Confirm rejection" });
-    expect(confirm).toBeDisabled();
+    expect(confirm.hasAttribute("disabled")).toBe(true);
 
     fireEvent.change(screen.getByLabelText("Reason for rejecting"), { target: { value: "Venue cannot take the rig" } });
     fireEvent.click(confirm);
@@ -70,7 +70,7 @@ describe("ChangeRegisterPanel", () => {
     expect(screen.queryByRole("form", { name: "Request freeze exception" })).toBeNull();
     const form = await screen.findByRole("form", { name: "Freeze scope" });
     const button = screen.getByRole("button", { name: "Freeze scope" });
-    expect(button).toBeDisabled();
+    expect(button.hasAttribute("disabled")).toBe(true);
 
     fireEvent.change(screen.getByLabelText("Reason for freezing"), { target: { value: "Brief signed off" } });
     fireEvent.submit(form);

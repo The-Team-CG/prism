@@ -7,6 +7,7 @@ const actor = { id: 'pmcm-1', role: 'pmcm-admin', name: 'PMCM Admin', email: 'pm
 const event = {
   id: 'evt-1',
   status: 'planning',
+  freezeStatus: 'open',
   eventDate: new Date('2026-11-10T00:00:00.000Z'),
   eventName: 'Launch',
   inquiry: { email: 'client@example.test' },

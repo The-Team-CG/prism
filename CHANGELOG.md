@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Added PMCM risk and change register controls: frozen events require an approved, event-scoped freeze exception before a cancellation or postponement is recorded; supplier impact must be resolved and billing treatment must be explicit for cancellations and cancellation fees; PMCM can review the freeze exception register and approve or reject requests (rejections require a reason). Clients still see only issued addenda. Owners B (Francis) and D (Anthony).
 - Added client and supplier file upload/download with verified content, scoped visibility, immutable object identity, and local/private Supabase adapters. Fixed the API response interceptor to preserve binary file streams. Owners C (Ethan) and D (Anthony).
 - Added supplier contract versions and correction reviews, ingress/egress revision acknowledgments and change requests, creative task submissions and reviews, and payable milestones with actual releases and reasoned reversals. Payment status comes from recorded releases; quote locking does not mark a payment paid. Owners B (Francis), C (Ethan), and D (Anthony).
 - Added client briefing submission, official-floorplan snapshot decisions and annotations, versioned venue/styling reviews, deliverable and closeout acknowledgments, client feedback, and consent-based testimonial moderation. PMCM retains official-layout ownership. Owners A (Maxine), B, C, and D.
