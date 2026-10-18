@@ -13,6 +13,8 @@ import type { PaymentStatusReader } from '../../contracts/payment-status-reader.
 import { addDays, auditMetadata, isoDate, parseDate, requireBillingActor } from './billing-operations.utils';
 import { mapPaymentMilestone, mapPaymentRecord } from './billing-operations.mappers';
 
+const MAX_OVERDUE_REMINDERS_PER_SWEEP = 200;
+
 function paymentReplay(milestone: OpsPaymentMilestone, history: OpsPaymentRecord[]) {
   const amountPaid = history.reduce((sum, record) => sum + record.amountReceived, 0);
   const remainingBalance = Math.max(0, milestone.amount - amountPaid);
@@ -129,7 +131,42 @@ export class PaymentOperationsService implements PaymentStatusReader {
             affectedLabel: balance.label,
             severity: 'warning',
           }, transactionContext);
+          // Reminders are queue-only: enqueue in the notification outbox; no external provider is called here.
+          await writeNotification(this.notificationOutboxWriter, event.id, 'Client', `Balance payment due soon for ${event.eventName}`, undefined, {
+            idempotencyKey: `payment-risk-reminder:${balance.id}`,
+          }, transactionContext);
         },
+      });
+    }
+
+    await this.enqueueOverdueReminders(now);
+  }
+
+  /**
+   * Overdue milestones (due date passed, balance still owed) get one queue-only client reminder per milestone.
+   * The outbox upserts on the idempotency key, so repeated sweeps never duplicate a reminder row.
+   */
+  private async enqueueOverdueReminders(now: Date) {
+    const overdue = await this.prisma.opsPaymentMilestone.findMany({
+      where: { dueDate: { lt: now }, remainingBalance: { gt: 0 }, status: { not: 'paid' } },
+      select: { id: true, eventId: true, label: true },
+      orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
+      take: MAX_OVERDUE_REMINDERS_PER_SWEEP,
+    });
+    if (overdue.length === 0) return;
+
+    const eventIds = [...new Set(overdue.map((milestone) => milestone.eventId))];
+    const activeEvents = await this.prisma.opsEvent.findMany({
+      where: { id: { in: eventIds }, archived: false },
+      select: { id: true, eventName: true },
+    });
+    const eventById = new Map(activeEvents.map((event) => [event.id, event]));
+
+    for (const milestone of overdue) { // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: capped by MAX_OVERDUE_REMINDERS_PER_SWEEP.
+      const event = eventById.get(milestone.eventId);
+      if (!event) continue;
+      await writeNotification(this.notificationOutboxWriter, event.id, 'Client', `Payment overdue: ${milestone.label} for ${event.eventName}`, undefined, {
+        idempotencyKey: `payment-overdue-reminder:${milestone.id}`,
       });
     }
   }

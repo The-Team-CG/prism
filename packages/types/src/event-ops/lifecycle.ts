@@ -200,6 +200,30 @@ export interface PrismArchivedEventSearchHit {
   archivedAt: string | null;
 }
 
+/** PMCM-only logistics completion record. `privateNotes` never leaves PMCM surfaces. */
+export interface PrismLogisticsCompletion {
+  id: string;
+  eventId: string;
+  assetReturnsVerified: boolean;
+  completionSummary: string;
+  privateNotes: string;
+  correctionReason: string | null;
+  revision: number;
+  recordedBy: string;
+  recordedAt: string;
+}
+
+/** One column of the PMCM archive comparison. Excludes private notes and logistics notes. */
+export interface PrismArchiveComparisonRow extends PrismArchivedEventSearchHit {
+  actualEndedAt: string | null;
+  archiveOverridden: boolean;
+  archiveOverrideReason: string | null;
+  closeGatesReady: boolean;
+  missingCloseGates: string[];
+  logisticsRecorded: boolean;
+  logisticsRecordedAt: string | null;
+}
+
 export interface PrismDefenseReadinessAction {
   key: string;
   label: string;
