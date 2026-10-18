@@ -59,7 +59,7 @@ export interface OperationsEventReferenceReader {
   findGuestCheckInEventReference(eventId: string, transaction?: PrismTransactionContext): Promise<GuestCheckInEventReference | null>;
   findOperationsEvents(eventIds: readonly string[]): Promise<OperationsEventReference[]>;
   findEventIdsByDateRange(startsAt: Date, endsBefore: Date): Promise<string[]>;
-  findEventReadAccess(eventId: string): Promise<EventReadAccessReference | null>;
+  findEventReadAccess(eventId: string, transaction?: PrismTransactionContext): Promise<EventReadAccessReference | null>;
 }
 
 /** Lifecycle-owned mutation for guest policy stored on the event record. */

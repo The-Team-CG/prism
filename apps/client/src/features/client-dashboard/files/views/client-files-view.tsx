@@ -8,6 +8,7 @@ import { cn } from "@/app/components/ui/utils";
 import { formatStatusLabel } from "../../workspace/shared";
 import { useClientWorkspace } from "../../workspace/shared";
 import { ClientFileRequirementsMatrix } from "./client-file-requirements-matrix";
+import { ClientStoredFilesPanel } from "./client-stored-files-panel";
 
 export function ClientFilesView() {
   const {
@@ -91,6 +92,7 @@ export function ClientFilesView() {
   
     return (
       <div className="space-y-5">
+        <ClientStoredFilesPanel eventId={selectedEvent?.id ?? events[0]?.id} />
         <ClientFileRequirementsMatrix eventId={selectedEvent?.id ?? events[0]?.id} session={session} />
         <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-card px-6 py-5 shadow-sm">
           <div>

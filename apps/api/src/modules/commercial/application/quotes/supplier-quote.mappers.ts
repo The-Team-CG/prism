@@ -1,6 +1,6 @@
 import type { OpsSupplierQuote, OpsSupplierQuoteRequest, OpsSupplierSchedule } from '@prisma/client';
 import { SupplierVerificationStatus } from '@prism/kernel/event-core';
-import type { PrismSupplierSchedule } from '@prism/types';
+import type { PrismSupplierQuoteRequest, PrismSupplierSchedule } from '@prism/types';
 import type { QuoteRequestTokenDetail } from './commercial-workflow.service';
 
 function isoDate(value: Date) {
@@ -11,7 +11,10 @@ function timestamp(value: Date) {
   return value.toISOString();
 }
 
-export function mapSupplierQuoteRequest(request: OpsSupplierQuoteRequest) {
+export function mapSupplierQuoteRequest(request: OpsSupplierQuoteRequest & { contractVersions?: Array<{ reviewStatus: string }> }) {
+  const reviewStatus = request.contractVersions?.[0]?.reviewStatus;
+  const contractReviewStatus: NonNullable<PrismSupplierQuoteRequest['contractReviewStatus']> = reviewStatus === 'submitted' || reviewStatus === 'accepted' || reviewStatus === 'changes_requested'
+    ? reviewStatus : 'missing';
   return {
     id: request.id,
     eventId: request.eventId,
@@ -38,6 +41,7 @@ export function mapSupplierQuoteRequest(request: OpsSupplierQuoteRequest) {
     eventDayVerificationNotes: request.eventDayVerificationNotes ?? '',
     statusPhotoFileName: request.statusPhotoFileName ?? null,
     contractDocumentId: request.contractDocumentId ?? null,
+    contractReviewStatus: request.contractVersions ? contractReviewStatus : undefined,
     createdAt: timestamp(request.createdAt),
   };
 }

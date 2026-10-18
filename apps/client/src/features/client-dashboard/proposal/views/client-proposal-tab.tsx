@@ -19,6 +19,7 @@ import {
 import type { DetailTab } from "../../workspace/shared";
 import { proposalClientStatus } from "../model/proposal-review-rules";
 import { useClientProposalTabViewModel } from "../view-models/use-client-proposal-tab-view-model";
+import { ClientVenueStylingReview } from "./client-venue-styling-review";
 
 function proposalBadge(status: string, packageReady: boolean) {
   if (!packageReady) return { status: "pending", label: "In preparation" };
@@ -271,6 +272,7 @@ export function ClientProposalTab({ setTab }: { setTab: (tab: DetailTab) => void
           setTab={setTab}
         />
       </div>
+      <ClientVenueStylingReview eventId={vm.selectedEvent.id} />
     </div>
   );
 }

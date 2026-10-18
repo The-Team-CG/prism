@@ -4,6 +4,7 @@ import type { FormEvent } from "react";
 import { ShieldCheck } from "lucide-react";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import type { PrismAuthenticatedSession } from "@prism/types";
+import type { PrismSupplierWorkflowWorkspace } from "@prism/types";
 import type {
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
@@ -28,6 +29,7 @@ export type SupplierWorkspaceSectionProps = {
   section: SupplierDashboardSection;
   session: PrismAuthenticatedSession;
   workspace: SupplierWorkspace | null;
+  workflowWorkspace: PrismSupplierWorkflowWorkspace | null;
   error: string | null;
   quoteByRequest: Map<string, PrismSupplierQuote>;
   openRequests: PrismSupplierQuoteRequest[];
@@ -41,18 +43,21 @@ export type SupplierWorkspaceSectionProps = {
   forms: Record<string, QuoteFormState>;
   busy: string | null;
   readinessNotes: Record<string, string>;
-  contractFiles: Record<string, string>;
   statusNotes: Record<string, string>;
   onNavigate: (section: SupplierDashboardSection) => void;
   onUpdateForm: (id: string, patch: Partial<QuoteFormState>) => void;
   onSubmitQuote: (ev: FormEvent<HTMLFormElement>, req: PrismSupplierQuoteRequest) => void;
   onReadinessNoteChange: (id: string, v: string) => void;
-  onContractFileChange: (id: string, v: string) => void;
   onStatusNoteChange: (id: string, v: string) => void;
   onConfirmAssignment: (req: PrismSupplierQuoteRequest) => void;
   onConfirmReadiness: (req: PrismSupplierQuoteRequest) => void;
-  onSaveContract: (req: PrismSupplierQuoteRequest) => void;
+  onSaveContract: (req: PrismSupplierQuoteRequest, file: File) => void;
   onUpdateStatus: (req: PrismSupplierQuoteRequest, status: string) => void;
+  onAcknowledgeSchedule: (requestId: string, revision: number) => void;
+  onRequestScheduleChange: (requestId: string, revision: number, reason: string) => void;
+  onUpdateProgress: (taskId: string, note: string) => void;
+  onSubmitCreativeTask: (requestId: string, taskId: string, note: string, file?: File) => void;
+  onDownloadObject: (objectId: string) => void;
 };
 
 type SectionRenderer = (props: SupplierWorkspaceSectionProps & { workspace: SupplierWorkspace }) => React.ReactNode;
@@ -89,23 +94,27 @@ const SECTION_RENDERERS: Record<SupplierDashboardSection, SectionRenderer> = {
       selectedRequests={p.selectedRequests}
       session={p.session}
       readinessNotes={p.readinessNotes}
-      contractFiles={p.contractFiles}
+      workflowWorkspace={p.workflowWorkspace}
       statusNotes={p.statusNotes}
       busy={p.busy}
       onReadinessNoteChange={p.onReadinessNoteChange}
-      onContractFileChange={p.onContractFileChange}
       onStatusNoteChange={p.onStatusNoteChange}
       onConfirmAssignment={p.onConfirmAssignment}
       onConfirmReadiness={p.onConfirmReadiness}
       onSaveContract={p.onSaveContract}
       onUpdateStatus={p.onUpdateStatus}
+      onAcknowledgeSchedule={p.onAcknowledgeSchedule}
+      onRequestScheduleChange={p.onRequestScheduleChange}
+      onUpdateProgress={p.onUpdateProgress}
+      onSubmitCreativeTask={p.onSubmitCreativeTask}
+      onDownloadObject={p.onDownloadObject}
     />
   ),
   calendar: (p) => <CalendarPage workspace={p.workspace} quoteByRequest={p.quoteByRequest} />,
   quotations: (p) => <QuotationsPage workspace={p.workspace} quoteByRequest={p.quoteByRequest} />,
   messages: (p) => <MessagesPage session={p.session} selectedRequests={p.selectedRequests} />,
-  files: (p) => <FilesPage workspace={p.workspace} session={p.session} />,
-  payments: (p) => <PaymentsPage workspace={p.workspace} />,
+  files: (p) => <FilesPage workspace={p.workspace} session={p.session} workflowWorkspace={p.workflowWorkspace} onDownloadObject={p.onDownloadObject} />,
+  payments: (p) => <PaymentsPage workspace={p.workspace} workflowWorkspace={p.workflowWorkspace} />,
   profile: (p) => <ProfilePage supplier={p.workspace.supplier} session={p.session} />,
   support: () => <SupportPage />,
 };

@@ -25,3 +25,25 @@ export interface PrismStoredObject {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface PrismStorageUploadLocation {
+  providerName: string;
+  providerObjectKey: string;
+  uploadUrl: string;
+  expiresAt: string;
+}
+
+export type PrismStorageUploadRequestResult =
+  | { status: "ready"; object: PrismStoredObject; location: PrismStorageUploadLocation }
+  | { status: "stored"; object: PrismStoredObject }
+  | { status: "failed"; object: PrismStoredObject; reason: string };
+
+export interface PrismStorageDownloadAuthorization {
+  providerName: string;
+  providerObjectKey: string;
+  downloadUrl: string;
+  expiresAt: string;
+  fileName: string;
+  contentType: string;
+  byteSize: number;
+}

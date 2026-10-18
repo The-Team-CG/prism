@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { CoordinatorRole, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismSupplier } from "@prism/types";
+import type { CoordinatorRole, PrismConformeExecution, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismSupplier } from "@prism/types";
 import { type FloorPlanTemplate, type Project, cloneTemplateObjects } from "@/features/floorplan/editor";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { eventPortalNavItems, loadingShellNavItems } from "./use-event-dashboard-nav";
@@ -30,6 +30,7 @@ import {
 import { useEventDashboardWorkspaceViewModel } from "./use-event-dashboard-workspace-view-model";
 import { eventDashboardCommands } from "../data/event-dashboard-commands";
 import { runDashboardActionWithSuccess } from "./dashboard-action-runner";
+import { countersignConformeExecution, prepareConformeExecution, refreshConformeExecution } from "@/features/conforme/signing/use-cases/conforme-signing";
 
 export type { EventDashboardClientProps };
 
@@ -456,6 +457,22 @@ export function useEventDashboardShellViewModel({
         sizeBytes: file.size,
       });
       await refresh();
+    },
+    prepareConformeSigning: async () => {
+      if (!conformeUploadTarget) throw new Error("Select an accepted inquiry first.");
+      const execution = await prepareConformeExecution(conformeUploadTarget.id);
+      await refresh();
+      return execution;
+    },
+    refreshConformeSigning: async () => {
+      if (!conformeUploadTarget) throw new Error("Select an accepted inquiry first.");
+      return refreshConformeExecution(conformeUploadTarget.id);
+    },
+    countersignConforme: async (execution: PrismConformeExecution) => {
+      if (!conformeUploadTarget) throw new Error("Select an accepted inquiry first.");
+      const updated = await countersignConformeExecution(conformeUploadTarget.id, execution);
+      await refresh();
+      return updated;
     },
     saveEditorPlan: (project: Project) => commands.savePlan(project),
     submitEditorPlan: async (project: Project) => {

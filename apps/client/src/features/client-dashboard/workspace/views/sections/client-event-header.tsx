@@ -4,7 +4,7 @@ import { Home, MapPinned, WalletCards } from "lucide-react";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { Button } from "@/app/components/ui/button";
 import { EventWorkspaceNav, NoticeBanner } from "./shell-presentational";
-import { EVENT_WORKSPACE_NAV_ITEMS } from "../../model/client-dashboard-navigation";
+import { clientEventWorkspaceAvailable, EVENT_WORKSPACE_NAV_ITEMS } from "../../model/client-dashboard-navigation";
 import { formatStatusLabel } from "../../model/client-dashboard-view-rules";
 import type { ClientDashboardRoute, DetailTab } from "../../model/client-dashboard-types";
 import type { PrismEvent } from "@prism/types";
@@ -48,14 +48,16 @@ export function ClientEventHeader({
           </div>
         </div>
         <Button size="sm" variant="ghost" className="rounded-lg text-xs font-semibold text-muted-foreground shrink-0" onClick={onSwitchEvent}>
-          Switch event
+          {event.archived ? "Back to event history" : "Switch event"}
         </Button>
       </div>
-      <EventWorkspaceNav
-        items={EVENT_WORKSPACE_NAV_ITEMS}
-        activeItemId={activeEventNavItemId}
-        onSelect={(item) => onNavigate(item.route)}
-      />
+      {clientEventWorkspaceAvailable(event) && (
+        <EventWorkspaceNav
+          items={EVENT_WORKSPACE_NAV_ITEMS}
+          activeItemId={activeEventNavItemId}
+          onSelect={(item) => onNavigate(item.route)}
+        />
+      )}
     </section>
   );
 }
@@ -66,10 +68,11 @@ export function clientShellMobileActions(
   onHome: () => void,
   onNavigate: (next: ClientDashboardRoute) => void,
 ) {
+  const hasActiveEvent = clientEventWorkspaceAvailable(selectedEvent);
   return [
     { id: "home", label: "Home", icon: Home, active: route === "home", onSelect: onHome },
-    { id: "overview", label: "Overview", icon: Home, active: route === "overview", disabled: !selectedEvent, onSelect: () => onNavigate("overview") },
-    { id: "floorplan", label: "Plan", icon: MapPinned, active: route === "floorplan", disabled: !selectedEvent, onSelect: () => onNavigate("floorplan") },
-    { id: "billing", label: "Pay", icon: WalletCards, active: route === "billing", disabled: !selectedEvent, onSelect: () => onNavigate("billing") },
+    { id: "overview", label: "Overview", icon: Home, active: route === "overview", disabled: !hasActiveEvent, onSelect: () => onNavigate("overview") },
+    { id: "floorplan", label: "Plan", icon: MapPinned, active: route === "floorplan", disabled: !hasActiveEvent, onSelect: () => onNavigate("floorplan") },
+    { id: "billing", label: "Pay", icon: WalletCards, active: route === "billing", disabled: !hasActiveEvent, onSelect: () => onNavigate("billing") },
   ];
 }

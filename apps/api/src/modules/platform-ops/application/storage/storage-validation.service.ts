@@ -21,6 +21,16 @@ export const STORAGE_USAGE_RULES: Record<StorageUsage, StorageUsageRule> = {
     maxBytes: 25 * 1024 * 1024,
     contentTypes: ['application/pdf'],
   },
+  client_document: {
+    maxBytes: 25 * 1024 * 1024,
+    contentTypes: [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'image/jpeg',
+      'image/png',
+    ],
+  },
   supplier_document: {
     maxBytes: 25 * 1024 * 1024,
     contentTypes: [
@@ -78,6 +88,54 @@ function normalizedChecksum(checksum: string) {
   return value;
 }
 
+function startsWithAscii(bytes: Uint8Array, value: string, offset = 0) {
+  if (bytes.byteLength < offset + value.length) return false;
+  for (let index = 0; index < value.length; index += 1) {
+    if (bytes[offset + index] !== value.charCodeAt(index)) return false;
+  }
+  return true;
+}
+
+function containsAscii(bytes: Uint8Array, value: string) {
+  const first = value.charCodeAt(0);
+  for (let offset = 0; offset <= bytes.byteLength - value.length; offset += 1) {
+    if (bytes[offset] !== first) continue;
+    if (startsWithAscii(bytes, value, offset)) return true;
+  }
+  return false;
+}
+
+function hasPdfSignature(bytes: Uint8Array) { return startsWithAscii(bytes, '%PDF-'); }
+function hasPngSignature(bytes: Uint8Array) { return [137, 80, 78, 71, 13, 10, 26, 10].every((byte, index) => bytes[index] === byte); }
+function hasJpegSignature(bytes: Uint8Array) { return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff; }
+function hasWebpSignature(bytes: Uint8Array) { return startsWithAscii(bytes, 'RIFF') && startsWithAscii(bytes, 'WEBP', 8); }
+function hasVideoSignature(bytes: Uint8Array, quicktime: boolean) {
+  if (!startsWithAscii(bytes, 'ftyp', 4)) return false;
+  const brand = String.fromCharCode(...bytes.subarray(8, 12));
+  return quicktime ? brand === 'qt  ' : brand !== 'qt  ';
+}
+function hasDocxSignature(bytes: Uint8Array) {
+  return startsWithAscii(bytes, 'PK\u0003\u0004') && containsAscii(bytes, 'word/document.xml') && containsAscii(bytes, '[Content_Types].xml');
+}
+function hasXlsxSignature(bytes: Uint8Array) {
+  return startsWithAscii(bytes, 'PK\u0003\u0004') && containsAscii(bytes, 'xl/workbook.xml') && containsAscii(bytes, '[Content_Types].xml');
+}
+
+const FILE_SIGNATURES: Record<string, (bytes: Uint8Array) => boolean> = {
+  'application/pdf': hasPdfSignature,
+  'image/png': hasPngSignature,
+  'image/jpeg': hasJpegSignature,
+  'image/webp': hasWebpSignature,
+  'video/mp4': (bytes) => hasVideoSignature(bytes, false),
+  'video/quicktime': (bytes) => hasVideoSignature(bytes, true),
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': hasDocxSignature,
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': hasXlsxSignature,
+};
+
+function hasValidFileSignature(contentType: string, bytes: Uint8Array) {
+  return FILE_SIGNATURES[contentType]?.(bytes) ?? false;
+}
+
 @Injectable()
 export class StorageValidationService {
   validateDeclaration(input: StorageValidationInput) {
@@ -97,6 +155,7 @@ export class StorageValidationService {
     if (bytes.byteLength !== declaration.byteSize) throw new BadRequestException('Uploaded bytes do not match the declared size');
     const checksumSha256 = createHash('sha256').update(bytes).digest('hex');
     if (checksumSha256 !== declaration.checksumSha256) throw new BadRequestException('Uploaded bytes do not match the declared checksum');
+    if (!hasValidFileSignature(declaration.contentType, bytes)) throw new BadRequestException('Uploaded bytes do not match the declared file type');
     return { ...declaration, checksumSha256 };
   }
 }

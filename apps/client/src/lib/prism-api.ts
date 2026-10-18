@@ -9,7 +9,7 @@ import {
   isPrismAuthenticatedSession,
 } from "@prism/types";
 
-function storedClientAccessToken() {
+export function storedClientAccessToken() {
   if (typeof window === "undefined") return null;
   const raw = window.localStorage.getItem(PRISM_SESSION_STORAGE_KEYS.client);
   if (!raw) return null;

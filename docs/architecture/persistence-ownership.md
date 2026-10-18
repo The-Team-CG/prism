@@ -4,12 +4,12 @@ title: "P.R.I.S.M persistence ownership and intentional joins"
 description: "At-a-glance ownership of Prisma models, physical database schemas, allowed cross-context reads, and documented transitional writes."
 tags: [architecture, persistence, prisma, ddd, modular-monolith, data-ownership]
 status: canonical
-updated: "2026-10-06"
+updated: "2026-10-18"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, reviewers]
 scope: "apps/api/prisma/schema.prisma and apps/api/src/modules"
-last_verified: "2026-10-06; 94-table manifest, seven owner baselines, and local replay counts reconciled"
+last_verified: "2026-10-18; portal integration with current owner schemas"
 sources:
   - id: prisma-schema
     resource: "apps/api/prisma/schema.prisma"
@@ -66,21 +66,23 @@ policy does not create microservices or a database authorization boundary.
 
 | Write domain | Target schema | Tables | Columns | Owns |
 | --- | --- | ---: | ---: | --- |
-| event-lifecycle | event_lifecycle | 19 | 290 | Inquiry, events, lifecycle documents, briefing, compliance, decisions, freeze/addenda, closure, client floorplan grants |
-| commercial | commercial | 28 | 319 | Suppliers, quotes, communications, estimates, proposals, billing, receipts |
-| operations | operations | 12 | 142 | Coordinator pool, availability, coverage, assignments, acknowledgment/reliability, guest operations |
+| event-lifecycle | event_lifecycle | 22 | 324 | Inquiry, events, lifecycle documents, briefing, compliance, decisions, freeze/addenda, closure, client floorplan grants, conforme signing, client closeout |
+| commercial | commercial | 35 | 428 | Suppliers, quotes, communications, estimates, proposals, billing, receipts, supplier evidence and payables, client option reviews |
+| operations | operations | 12 | 148 | Coordinator pool, availability, coverage, assignments, acknowledgment/reliability, guest operations |
 | live-ops | live_ops | 10 | 122 | Event-day tasks, schedule, operators, handoffs, end-of-day, urgent issues/logs |
-| floorplan | floorplan | 7 | 75 | Plans, objects, templates, layout instances, published copies, official drafts, projection clock |
-| identity-access | identity_access | 4 | 42 | Accounts, approvals, password reset and authentication state |
+| floorplan | floorplan | 9 | 97 | Plans, objects, templates, layout instances, published copies, official drafts, projection clock, versioned client reviews |
+| identity-access | identity_access | 4 | 43 | Accounts, approvals, password reset and authentication state |
 | platform-ops | platform_ops | 14 | 201 | Privacy requests and legal holds, security, login history, audit, notifications, AI, storage, command receipts |
-| **Total** | **7 schemas** | **94** | **1,191** | Every business table has one owner |
+| event-games | event_games | 13 | 128 | Game catalog, event sessions, participant credentials, teams, moderated responses and results |
+| **Total** | **8 schemas** | **119** | **1,491** | Every business table has one owner |
 
 The machine-readable domain ownership manifest linked above is the current
 target inventory. It records each owner schema, domain owner, table name, and
 scalar column count. The legacy physical snapshot had 93 tables; 83 were
 assigned to a different target schema, and the client floorplan-grant table
-was added later. The seven baselines create all 94 current tables on an empty
-database; they do not move rows in an existing database.
+was added later. The seven frozen baselines create the original 94 tables on an
+empty database; later owner migrations add games and portal workflow records.
+The baselines do not move rows in an existing database.
 
 The migration-history replacement removes no table or column from the current
 Prisma model. The separate [column authority register](column-authority-register.md)
@@ -175,6 +177,7 @@ not authorize database repair or deployment.
 | Models | Physical schema | Write owner and boundary |
 | --- | --- | --- |
 | `FloorPlan`, `FloorPlanObject`, `VenueTemplate`, `PublishedSnapshot`, `OpsFloorPlanDraft` | `floorplan` | `floorplan`; official layout authoring, draft, publish, and snapshot workflows. |
+| `OpsFloorPlanClientDecision`, `OpsFloorPlanClientAnnotation` | `floorplan` | `floorplan`; primary-client decisions and annotations bound to an official snapshot hash, separate from PMCM authoring/approval. |
 
 Floorplan owns authoritative official-plan and review state. Event-scoped
 mutations ask Lifecycle's `FLOORPLAN_EVENT_REFERENCE_READER` to lock and return
@@ -222,6 +225,7 @@ migration for an explicit owner decision.
 | `OpsEventClientFloorplanAccessGrant` | `event_lifecycle` | `event-lifecycle`; audited event-scoped grants for approved secondary Client floorplan access. |
 | OpsDocument (all kinds) | event_lifecycle | event-lifecycle; document metadata, registration, eligibility and retention. |
 | `OpsComplianceRule`, `OpsComplianceCheck`, `OpsPostEventDocument`, `OpsEventInsight` | `event_lifecycle` | `event-lifecycle`; compliance, closure gates, post-event records, and lifecycle insights. |
+| `OpsConformeExecution`, `OpsConformeSignature`, `OpsClientCloseoutResponse` | `event_lifecycle` | `event-lifecycle`; immutable signing evidence, activation, client feedback and testimonial consent. |
 
 Lifecycle rows carry stable row-local CHECK constraints: non-negative event
 counters (walk-in threshold, proposal revisions, projection version), follow-up
@@ -244,6 +248,8 @@ business owner and lifecycle metadata contract.
 | `OpsSupplierQuoteRequest`, `OpsSupplierQuote` | `commercial` | `commercial`; request, submission, revision, selection, and withdrawal lifecycle. Deleting a request referenced by submitted quote evidence is restricted; requestId remains nullable for manually entered quotes. |
 | `OpsBillingSource`, `OpsBillingStatement`, `OpsPaymentMilestone`, `OpsPaymentRecord` | `commercial` | `commercial`; proposal-to-billing conversion, statements, milestones, and payment history. |
 | Commercial contract and billing models | commercial | commercial; retains business decisions and scalar document IDs. Lifecycle alone owns document metadata and validates references through its public capability. |
+
+| `OpsSupplierContractVersion`, `OpsSupplierCreativeTask`, `OpsSupplierCreativeSubmission`, `OpsSupplierPayableMilestone`, `OpsSupplierPayoutRecord`, `OpsClientReviewItem`, `OpsClientReviewDecision` | `commercial` | `commercial`; versioned supplier handoff, payable releases/reversals and client venue/styling decisions. |
 
 Commercial child rows agree with their parent's event through composite
 same-schema foreign keys on `(parent id, event_id)`: payment records to payment
@@ -324,6 +330,8 @@ requested.
 | OpsCommandReceipt | platform_ops | platform-ops owns technical receipt persistence behind the kernel `CommandReceiptStore` port. Business authorization and replay remain in the caller transaction; reservation, command writes, and completion are atomic. |
 | `OpsPrivacyLegalHold` | `platform_ops` | `platform-ops`; PMCM-admin placement/release, subject and optional event scope, with release provenance. `event_id` is a scalar reference and has no cross-domain FK. |
 | `OpsAiAuditLog`, `OpsAiApprovalRecord` | `platform_ops` | `platform-ops`; AI sanitisation, human approval, and governance records. |
+
+| `OpsStoredObject` | `platform_ops` | `platform-ops`; verified object bytes, provider identity and lifecycle. Domain owners bind authorized object references. |
 
 AI governance records keep their provenance through same-schema foreign keys
 with `RESTRICT`: an approval record names its AI audit log, and a PARE dispatch

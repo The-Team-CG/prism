@@ -108,7 +108,7 @@ export function RequestQuoteCard({
             </label>
             <label className="grid gap-1.5 text-sm font-bold text-foreground">
               Payment terms
-              <Input disabled={closed} value={form.paymentTerms} onChange={(e) => onUpdateForm(req.id, { paymentTerms: e.target.value })} className="h-10 rounded-xl" placeholder="50% down, balance after event" />
+              <Input disabled={closed} value={form.paymentTerms} onChange={(e) => onUpdateForm(req.id, { paymentTerms: e.target.value })} className="h-10 rounded-xl" placeholder="Describe your proposed payment schedule" />
             </label>
           </div>
           <label className="grid gap-1.5 text-sm font-bold text-foreground">

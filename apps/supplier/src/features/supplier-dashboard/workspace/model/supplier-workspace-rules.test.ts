@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildBookingSteps,
+  buildSupplierContractRequirements,
   buildCalendarEvents,
   canReportSupplierEventDayStatus,
   buildQuoteByRequest,
@@ -155,10 +156,25 @@ describe("supplier-workspace-rules", () => {
           assignmentStatus: "confirmed",
           readinessStatus: "confirmed",
           contractDocumentId: "c.pdf",
+          contractReviewStatus: "accepted",
         }),
         makeRequest({ id: "b", assignmentStatus: "pending" }),
       ]),
     ).toBe(1);
+  });
+
+  it.each([
+    ["missing", false, "Upload signed contract below", "missing"],
+    ["submitted", false, "Awaiting PMCM review", "submitted"],
+    ["changes_requested", false, "Upload a corrected version", "pending"],
+    ["accepted", true, "Accepted by PMCM", "approved"],
+  ] as const)("keeps contract handoff aligned with %s review evidence", (contractReviewStatus, done, meta, status) => {
+    const request = makeRequest({ id: "contract", status: "selected", assignmentStatus: "confirmed", readinessStatus: "confirmed", contractDocumentId: "legacy-metadata", contractReviewStatus });
+    expect(buildBookingSteps(request)[2]).toMatchObject({ done, meta });
+    expect(countHandoffPending([request])).toBe(done ? 0 : 1);
+    expect(buildSupplierContractRequirements({ quoteRequests: [request, makeRequest({ id: "unselected" })], supplierQuotes: [] })).toEqual([
+      expect.objectContaining({ key: "supplier-contract:contract", status, detail: meta }),
+    ]);
   });
 
   it("counts readiness needs and events this month", () => {

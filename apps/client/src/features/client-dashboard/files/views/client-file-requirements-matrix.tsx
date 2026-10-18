@@ -7,8 +7,8 @@ import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { clientFileRequirementsRepository } from "../data/client-file-requirements-repository";
 
-const STORAGE_GATE_COPY =
-  "Required files are shown as metadata. Uploads, share, and download stay gated until object storage is approved.";
+const STORAGE_HELP_COPY =
+  "Track required documents here. Uploads and PMCM-shared files are available in the event files panel.";
 
 export function ClientFileRequirementsMatrix({
   eventId,
@@ -48,7 +48,7 @@ export function ClientFileRequirementsMatrix({
   return (
     <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
       <h2 className="text-base font-black text-foreground">File requirements</h2>
-      <p className="mt-1 text-xs text-muted-foreground">{STORAGE_GATE_COPY}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{STORAGE_HELP_COPY}</p>
       {error ? (
         <p className="mt-4 text-sm text-muted-foreground">{error}</p>
       ) : items.length === 0 ? (

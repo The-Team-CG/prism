@@ -62,6 +62,9 @@ export function EventPmcmReadyShell({ viewModel, children }: { viewModel: Loaded
         <ConformeUploadModal
           inquiry={viewModel.conformeUploadTarget}
           onUpload={viewModel.uploadConforme}
+          onPrepareDigital={viewModel.prepareConformeSigning}
+          onRefreshDigital={viewModel.refreshConformeSigning}
+          onSignDigital={viewModel.countersignConforme}
           onClose={viewModel.closeConformeUpload}
         />
       ) : null}

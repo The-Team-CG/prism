@@ -173,6 +173,8 @@ export type PrismClientWorkspace = Pick<
   pagination: PrismCursorPageInfo;
   clientEventTimelines: PrismClientEventTimeline[];
   ocularVisits?: PrismClientOcularVisit[];
+  /** The client's own archived events for read-only history and closeout; never part of active workspace data. */
+  archivedEvents?: PrismEvent[];
 };
 
 export interface PrismBillingWorkspace {
@@ -202,7 +204,7 @@ export interface PrismSupplierReadinessItem {
   quoteStatus: string;
   assignmentStatus?: string;
   readinessStatus?: string;
-  contractStatus: "missing" | "uploaded";
+  contractStatus: "missing" | "submitted" | "accepted" | "changes_requested";
   eventDayStatus?: string;
   verificationStatus?: string;
   priority: PrismCommandInboxSeverity;

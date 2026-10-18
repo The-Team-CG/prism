@@ -99,8 +99,8 @@ export class OperationsEventReferenceService implements OperationsEventReference
     return events.map((event) => event.id);
   }
 
-  async findEventReadAccess(eventId: string) {
-    return this.prisma.opsEvent.findUnique({
+  async findEventReadAccess(eventId: string, transaction?: PrismTransactionContext) {
+    return (transaction?.prisma ?? this.prisma).opsEvent.findUnique({
       where: { id: eventId },
       select: {
         id: true,

@@ -183,6 +183,9 @@ export class EventClosureService {
 
     return this.prisma.$transaction(async (tx) => {
       const context = { prisma: tx, correlationId: `archive_${randomUUID()}` };
+      // QUERY_AUDIT_RAW_SQL: File confirmation also locks the event before binding provider bytes. This
+      // makes archive and a final storage confirmation serialize on the same row.
+      await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM event_lifecycle.events WHERE id = ${eventId} FOR UPDATE`;
       const current = await this.requireEvent(eventId, tx);
       const closeGates = await this.fileRequirementsMatrixService.closeGates(eventId, tx);
       this.eventLifecycleService.assertCanArchive(current, closeGates, overrideReason);

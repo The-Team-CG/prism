@@ -17,9 +17,11 @@ import {
   EventWorkspaceRegistrationTab,
   EventWorkspaceSuppliersTab,
 } from "./event-workspace-tabs";
+import { EventDashboardFilesSectionView } from "./event-dashboard-section-views";
 
 const EVENT_TAB_VIEWS: Record<DetailTab, () => ReactElement> = {
   overview: () => <EventWorkspaceOverviewTab />,
+  files: () => <EventDashboardFilesSectionView />,
   floorplans: () => <EventWorkspaceFloorplansTab />,
   games: () => <EventWorkspaceGamesTab />,
   briefing: () => <EventWorkspaceBriefingTab />,

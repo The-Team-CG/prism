@@ -8,6 +8,8 @@ import {
   type CreateFloorPlanRevisionCommentInput,
   type CreatePrismInquiryInput,
   type SubmitClientOcularVisitInput,
+  submitBriefingSchema,
+  type SubmitBriefingInput,
 } from "@prism/types";
 import type { Project } from "@/features/floorplan/editor";
 
@@ -30,6 +32,11 @@ export function loadClientActionCenter() {
 export function submitClientOcularVisit(eventId: string, input: SubmitClientOcularVisitInput) {
   const payload = parseContract(submitClientOcularVisitSchema, input, "Ocular visit request");
   return clientDashboardRepository.submitOcularVisit(eventId, payload);
+}
+
+export function submitClientBriefing(eventId: string, input: SubmitBriefingInput) {
+  const payload = parseContract(submitBriefingSchema, input, "Event briefing");
+  return clientDashboardRepository.submitBriefing(eventId, payload);
 }
 
 export function submitClientInquiry(input: CreatePrismInquiryInput) {

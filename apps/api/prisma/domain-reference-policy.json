@@ -436,6 +436,132 @@
       "status": "implemented",
       "sourceOwner": "operations",
       "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsSupplierContractVersion.eventId",
+      "target": "OpsEvent.id",
+      "profile": "event-current",
+      "meaning": "Event eligibility is validated by Lifecycle before the Commercial command commits.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsSupplierCreativeTask.eventId",
+      "target": "OpsEvent.id",
+      "profile": "event-current",
+      "meaning": "Event eligibility is validated by Lifecycle before the Commercial command commits.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsSupplierPayableMilestone.eventId",
+      "target": "OpsEvent.id",
+      "profile": "event-current",
+      "meaning": "Event eligibility is validated by Lifecycle before the Commercial command commits.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsSupplierPayoutRecord.eventId",
+      "target": "OpsEvent.id",
+      "profile": "event-current",
+      "meaning": "Event eligibility is validated by Lifecycle before the Commercial command commits.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsClientReviewItem.eventId",
+      "target": "OpsEvent.id",
+      "profile": "event-current",
+      "meaning": "Event eligibility is validated by Lifecycle before the Commercial command commits.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsClientReviewDecision.eventId",
+      "target": "OpsEvent.id",
+      "profile": "event-current",
+      "meaning": "The decision is scoped to a verified event; authorization is checked by Commercial.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsClientReviewItem.documentId",
+      "target": "OpsDocument.id",
+      "profile": "document-current-optional",
+      "meaning": "Document evidence is validated through Lifecycle document capability before association.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsSupplierContractVersion.documentId",
+      "target": "OpsDocument.id",
+      "profile": "document-current-optional",
+      "meaning": "Contract evidence is validated through Lifecycle document capability before association.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsSupplierContractVersion.storedObjectId",
+      "target": "OpsStoredObject.id",
+      "profile": "polymorphic-owner-current",
+      "meaning": "Platform confirms event, usage, owner type, and record ID for stored contract evidence.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "platform-ops"
+    },
+    {
+      "source": "OpsSupplierCreativeSubmission.storedObjectId",
+      "target": "OpsStoredObject.id",
+      "profile": "polymorphic-owner-current",
+      "meaning": "Platform confirms event, usage, owner type, and record ID for creative evidence.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "platform-ops"
+    },
+    {
+      "source": "OpsFloorPlanClientDecision.eventId",
+      "target": "OpsEvent.id",
+      "profile": "event-current",
+      "meaning": "The event is verified through Lifecycle before the Floorplan decision is accepted.",
+      "status": "implemented",
+      "sourceOwner": "floorplan",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsFloorPlanClientAnnotation.eventId",
+      "target": "OpsEvent.id",
+      "profile": "event-current",
+      "meaning": "The event is verified through Lifecycle before the Floorplan annotation is accepted.",
+      "status": "implemented",
+      "sourceOwner": "floorplan",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsSupplierCreativeTask.submissionObjectId",
+      "target": "OpsStoredObject.id",
+      "profile": "polymorphic-owner-current",
+      "meaning": "Platform confirms event, usage, owner type, and task record ID for the submitted creative object.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "platform-ops"
+    },
+    {
+      "source": "OpsStoredObject.eventId",
+      "target": "OpsEvent.id",
+      "profile": "event-current",
+      "meaning": "Platform storage commands confirm event scope through Lifecycle; this scalar does not provide authorization or cascade deletion.",
+      "status": "implemented",
+      "sourceOwner": "platform-ops",
+      "targetOwner": "event-lifecycle"
     }
   ]
 }

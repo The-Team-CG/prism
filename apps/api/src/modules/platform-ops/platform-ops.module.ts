@@ -39,8 +39,9 @@ import { PareDispatchOutboxService } from './application/ai-governance/pare/pare
 import { PARE_APPROVAL_GOVERNANCE, PARE_DISPATCH_WRITER } from './contracts/ai-governance/pare-ops.tokens';
 import { StorageObjectService } from './application/storage/storage-object.service';
 import { StorageValidationService } from './application/storage/storage-validation.service';
-import { STORAGE_ADAPTER } from './contracts/storage/storage.port';
+import { STORAGE_ADAPTER, STORED_SUPPLIER_UPLOAD_READER } from './contracts/storage/storage.port';
 import { LocalFileSystemStorageAdapter } from './infrastructure/storage/local-filesystem-storage.adapter';
+import { SupabaseStorageAdapter } from './infrastructure/storage/supabase-storage.adapter';
 import { StorageController } from './api/storage/storage.controller';
 import { ConformeCommsDraftsController } from './api/ai-governance/conforme-comms-drafts.controller';
 import { ConformeCommsDraftService } from './application/ai-governance/conforme-comms-draft.service';
@@ -61,10 +62,19 @@ const storageAdapterProvider = {
   useFactory: (config: ConfigService) => {
     const provider = config.get<string>('PRISM_STORAGE_PROVIDER')?.trim().toLowerCase();
     if (!provider) return undefined;
-    if (provider !== 'local') throw new Error(`Unsupported storage provider: ${provider}`);
-    const directory = config.get<string>('PRISM_STORAGE_LOCAL_DIRECTORY')?.trim();
-    if (!directory) throw new Error('PRISM_STORAGE_LOCAL_DIRECTORY is required when PRISM_STORAGE_PROVIDER=local');
-    return new LocalFileSystemStorageAdapter(directory);
+    if (provider === 'local') {
+      const directory = config.get<string>('PRISM_STORAGE_LOCAL_DIRECTORY')?.trim();
+      if (!directory) throw new Error('PRISM_STORAGE_LOCAL_DIRECTORY is required when PRISM_STORAGE_PROVIDER=local');
+      return new LocalFileSystemStorageAdapter(directory);
+    }
+    if (provider === 'supabase') {
+      const url = config.get<string>('PRISM_STORAGE_SUPABASE_URL')?.trim();
+      const key = config.get<string>('PRISM_STORAGE_SUPABASE_SERVICE_ROLE_KEY')?.trim();
+      const bucket = config.get<string>('PRISM_STORAGE_SUPABASE_BUCKET')?.trim();
+      if (!url || !key || !bucket) throw new Error('PRISM_STORAGE_SUPABASE_URL, PRISM_STORAGE_SUPABASE_SERVICE_ROLE_KEY, and PRISM_STORAGE_SUPABASE_BUCKET are required when PRISM_STORAGE_PROVIDER=supabase');
+      return new SupabaseStorageAdapter(url, key, bucket);
+    }
+    throw new Error(`Unsupported storage provider: ${provider}`);
   },
 };
 
@@ -158,6 +168,7 @@ export function createAiProviderAdapters(
     { provide: PARE_DISPATCH_WRITER, useExisting: PareDispatchOutboxService },
     StorageValidationService,
     StorageObjectService,
+    { provide: STORED_SUPPLIER_UPLOAD_READER, useExisting: StorageObjectService },
     storageAdapterProvider,
   ],
   exports: [
@@ -179,6 +190,7 @@ export function createAiProviderAdapters(
     PARE_DISPATCH_WRITER,
     StorageValidationService,
     StorageObjectService,
+    STORED_SUPPLIER_UPLOAD_READER,
     STORAGE_ADAPTER,
   ],
 })

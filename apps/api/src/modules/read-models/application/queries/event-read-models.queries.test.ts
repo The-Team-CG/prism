@@ -7,6 +7,7 @@ import {
   MAX_PMCM_DASHBOARD_ROWS,
   MAX_COORDINATOR_RELIABILITY_HISTORY_ROWS,
   MAX_CLIENT_WORKSPACE_ROWS,
+  MAX_CLIENT_ARCHIVED_EVENTS,
   MAX_VISIBLE_EVENTS,
 } from './event-read-models.queries';
 
@@ -157,6 +158,12 @@ describe('EventReadModelQueries collection limits', () => {
       expect.objectContaining({ where: scope, take: EVENT_READ_PAGE_SIZE + 1 }),
     );
     expect(opsEvent.count).toHaveBeenCalledWith({ where: scope });
+
+    // Archived history uses the same ownership scope, restricted to archived events.
+    await queries.archivedClientEvents(actor);
+    expect(opsEvent.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ where: { ...scope, archived: true }, take: MAX_CLIENT_ARCHIVED_EVENTS }),
+    );
   });
 
   it('uses a stable eventDate and ID keyset for subsequent event pages', async () => {

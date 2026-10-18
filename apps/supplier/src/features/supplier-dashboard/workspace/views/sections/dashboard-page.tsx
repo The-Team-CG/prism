@@ -169,7 +169,7 @@ function dashboardQuickNavItems(input: {
     { id: "quotations", icon: FileText, title: "Quotations", desc: `${input.quoteCount} quote record(s) on file` },
     { id: "calendar", icon: CalendarDays, title: "Calendar", desc: "Deadlines, event dates, and milestones" },
     { id: "payments", icon: Wallet, title: "Payments", desc: "Payment milestones and billing status" },
-    { id: "files", icon: FileCheck2, title: "Files", desc: "Contract metadata and uploaded documents" },
+    { id: "files", icon: FileCheck2, title: "Files", desc: "Uploaded contracts, review status, and certifications" },
   ];
 }
 

@@ -15,6 +15,9 @@ function createPrisma() {
   const billingStatements = [{ id: 'bill_1', eventId: 'evt_file' }];
   const milestones = [{ id: 'pay_1', eventId: 'evt_file', status: 'paid', remainingBalance: 0 }];
   const supplierReviews = [{ id: 'rev_1', eventId: 'evt_file' }];
+  const storedConforme: { id: string } | null = { id: 'obj_conforme' };
+  const digitalConforme: { id: string } | null = null;
+  const closeoutResponse: { id: string; rating: number; submittedAt: Date } | null = null;
   return {
     opsUrgentIssue: { findMany: vi.fn(async () => [] as Array<{ id: string; status: string; severity: string }>) },
     opsEvent: { findUnique: vi.fn(async () => event) },
@@ -23,13 +26,16 @@ function createPrisma() {
     opsBillingStatement: { findMany: vi.fn(async () => billingStatements) },
     opsPaymentMilestone: { findMany: vi.fn(async () => milestones) },
     opsSupplierReview: { findMany: vi.fn(async () => supplierReviews) },
+    opsStoredObject: { findFirst: vi.fn(async (): Promise<{ id: string } | null> => storedConforme) },
+    opsConformeExecution: { findFirst: vi.fn(async (): Promise<{ id: string } | null> => digitalConforme) },
+    opsClientCloseoutResponse: { findUnique: vi.fn(async (): Promise<{ id: string; rating: number; submittedAt: Date } | null> => closeoutResponse) },
   };
 }
 
 describe('FileRequirementsMatrixService', () => {
   it('builds matrix items and close gates from event-scoped records', async () => {
     const prisma = createPrisma();
-    const service = new FileRequirementsMatrixService(prisma as any);
+    const service = new FileRequirementsMatrixService(prisma as never);
 
     const matrix = await service.buildForEvent('evt_file');
     const closeGates = await service.closeGates('evt_file');
@@ -59,6 +65,28 @@ describe('FileRequirementsMatrixService', () => {
       { id: 'post_feedback', eventId: 'evt_file', title: 'Client feedback', status: 'submitted' },
     ]);
     const result = await new FileRequirementsMatrixService(prisma as never).closeGates('evt_file');
+    expect(result.missingKeys).toContain('documents');
+  });
+
+  it('requires confirmed bytes for scanned conformes and accepts a completed digital execution without a file', async () => {
+    const prisma = createPrisma();
+    const service = new FileRequirementsMatrixService(prisma as never);
+    prisma.opsStoredObject.findFirst.mockResolvedValue(null);
+    const pending = (await service.buildForEvent('evt_file')).items.find(item => item.key === 'signed_conforme');
+    expect(pending).toMatchObject({ status: 'pending', uploadedAssetId: undefined });
+
+    prisma.opsConformeExecution.findFirst.mockResolvedValue({ id: 'cfx_completed' });
+    const completed = (await service.buildForEvent('evt_file')).items.find(item => item.key === 'signed_conforme');
+    expect(completed).toMatchObject({ status: 'approved', generatedDocumentId: 'cfx_completed' });
+  });
+
+  it('counts submitted client closeout feedback without substituting guest or supplier feedback', async () => {
+    const prisma = createPrisma();
+    prisma.opsDocument.findMany.mockResolvedValue([]);
+    prisma.opsPostEventDocument.findMany.mockResolvedValue([]);
+    prisma.opsClientCloseoutResponse.findUnique.mockResolvedValue({ id: 'response_client', rating: 5, submittedAt: new Date() });
+    const result = await new FileRequirementsMatrixService(prisma as never).closeGates('evt_file');
+    expect(result.missingKeys).not.toContain('feedback');
     expect(result.missingKeys).toContain('documents');
   });
 

@@ -1,7 +1,7 @@
 import type { PrismFileRequirementItem, PrismFileRequirementsMatrix } from "@prism/types";
 
-export const STORAGE_GATE_COPY =
-  "File requirements are metadata-only. Binary object storage, signed uploads, Share, and Download stay gated until a storage adapter is approved.";
+export const FILE_HUB_HELP_COPY =
+  "Upload deliverables in Stored event files. Confirmed files are shared with the client and available to download from the event file hub.";
 
 export function sortFileRequirementItems(items: PrismFileRequirementItem[]) {
   const order: Record<string, number> = {

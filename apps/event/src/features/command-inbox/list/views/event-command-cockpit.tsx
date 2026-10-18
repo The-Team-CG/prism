@@ -187,6 +187,7 @@ function PageHeader({ eyebrow, title, description, meta, action }: {
 
 export type PmcmDetailTab =
   | "overview"
+  | "files"
   | "floorplans"
   | "briefing"
   | "suppliers"

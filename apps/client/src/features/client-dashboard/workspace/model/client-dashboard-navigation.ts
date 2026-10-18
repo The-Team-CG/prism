@@ -10,6 +10,8 @@ import {
 
 import type { ClientDashboardRoute, ClientPortalView, ClientSidebarLink, ClientSidebarNavItem, ClientSidebarSubItem, DetailTab } from "./client-dashboard-types";
 
+export const CLIENT_CONFORME_REVIEW_HREF = "/conforme";
+
 export const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
   {
     id: "client-dashboard",
@@ -282,6 +284,14 @@ export function dashboardHref(route: ClientDashboardRoute, eventId?: string, por
   if (!eventId && portalView) return CLIENT_PORTAL_VIEW_HREFS[portalView];
   if (!eventId) return PORTAL_HREFS[route] ?? "/dashboard/events";
   return `/dashboard/events/${eventId}/${EVENT_PATH_SEGMENT[route] ?? route}`;
+}
+
+export function clientEventCardOpenRoute(event: { archived: boolean }): ClientDashboardRoute {
+  return event.archived ? "summary" : "overview";
+}
+
+export function clientEventWorkspaceAvailable(event: { archived: boolean } | undefined): boolean {
+  return Boolean(event && !event.archived);
 }
 
 const LOADING_ROUTE_VARIANTS = {
