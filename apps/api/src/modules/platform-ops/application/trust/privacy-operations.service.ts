@@ -429,64 +429,82 @@ export class PrivacyOperationsService {
       if (request.status !== PrivacyRequestStatus.Approved) {
         throw new BadRequestException('Privacy request must be approved before execution');
       }
-      if (request.requestType === PrivacyRequestType.Access || request.requestType === PrivacyRequestType.Export) {
-        return this.executeExport(request, input, verifiedActor, tx);
-      }
-      if (input.correction !== undefined && request.requestType !== PrivacyRequestType.Correction) {
-        throw new BadRequestException('A correction patch is only accepted for correction requests');
-      }
-      if (request.requestType === PrivacyRequestType.Correction) {
-        return this.executeCorrection(request, input, verifiedActor, tx);
-      }
-      if (request.requestType !== PrivacyRequestType.Deletion) {
-        throw new BadRequestException('Unsupported privacy request type for execution');
-      }
-      this.assertDeletionIdentity(request);
-      const account = await this.subjectAccountFor(request, tx);
-      await this.lockAndAssertNoLegalHold(request, account, tx);
-
-      const redaction = await this.softRedactSubject(request, account, tx);
-      if (!redaction.touchedRecords) {
-        throw new BadRequestException('No supported records matched this privacy request; execution remains pending');
-      }
-      for (const receipt of redaction.ownerReceipts) {
-        await this.auditService.audit(
-          request.eventId ?? undefined,
-          verifiedActor.name,
-          `Privacy redaction receipt: ${receipt.owner}`,
-          {
-            actorRole: verifiedActor.role,
-            actorEmail: verifiedActor.email,
-            actionType: AuditActionType.Update,
-            category: AuditCategory.Access,
-            affectedType: 'privacy_owner_redaction_receipt',
-            affectedId: `${request.id}:${receipt.owner}`,
-            affectedLabel: receipt.owner,
-            metadata: { actorId: verifiedActor.id, requestId: request.id, ...receipt },
-          },
-          {
-            prisma: tx,
-            correlationId: `privacy:${request.id}:owner:${receipt.owner}`,
-            actorId: verifiedActor.id,
-          },
-        );
-      }
-      await this.auditService.audit(request.eventId ?? undefined, verifiedActor.name, 'Soft redaction summary for privacy request', {
-        actorRole: verifiedActor.role,
-        actorEmail: verifiedActor.email,
-        actionType: AuditActionType.Update,
-        category: AuditCategory.Access,
-        affectedType: 'privacy_request',
-        affectedId: request.id,
-        affectedLabel: request.subjectEmail || request.subjectName,
-        metadata: { actorId: verifiedActor.id, ...redaction },
-      }, { prisma: tx, correlationId: `privacy:${request.id}`, actorId: verifiedActor.id });
-      const saved = await tx.opsPrivacyRequest.update({
-        where: { id: requestId },
-        data: { status: PrivacyRequestStatus.Executed, executionNotes: input.executionNotes ?? '', executedBy: verifiedActor.name, executedAt: new Date() },
-      });
-      return { ...this.mapRequest(saved), export: null };
+      return this.executeApprovedRequest(request, input, verifiedActor, tx);
     });
+  }
+
+  private async executeApprovedRequest(
+    request: OpsPrivacyRequestRecord,
+    input: ExecutePrivacyRequestInput,
+    verifiedActor: ReturnType<typeof requireVerifiedTrustActor>,
+    prisma: Prisma.TransactionClient,
+  ): Promise<PrismPrivacyExecutionResult> {
+    if (request.requestType === PrivacyRequestType.Access || request.requestType === PrivacyRequestType.Export) {
+      return this.executeExport(request, input, verifiedActor, prisma);
+    }
+    if (input.correction !== undefined && request.requestType !== PrivacyRequestType.Correction) {
+      throw new BadRequestException('A correction patch is only accepted for correction requests');
+    }
+    if (request.requestType === PrivacyRequestType.Correction) {
+      return this.executeCorrection(request, input, verifiedActor, prisma);
+    }
+    if (request.requestType !== PrivacyRequestType.Deletion) {
+      throw new BadRequestException('Unsupported privacy request type for execution');
+    }
+    return this.executeDeletion(request, input, verifiedActor, prisma);
+  }
+
+  private async executeDeletion(
+    request: OpsPrivacyRequestRecord,
+    input: ExecutePrivacyRequestInput,
+    verifiedActor: ReturnType<typeof requireVerifiedTrustActor>,
+    prisma: Prisma.TransactionClient,
+  ): Promise<PrismPrivacyExecutionResult> {
+    this.assertDeletionIdentity(request);
+    const account = await this.subjectAccountFor(request, prisma);
+    await this.lockAndAssertNoLegalHold(request, account, prisma);
+
+    const redaction = await this.softRedactSubject(request, account, prisma);
+    if (!redaction.touchedRecords) {
+      throw new BadRequestException('No supported records matched this privacy request; execution remains pending');
+    }
+    for (const receipt of redaction.ownerReceipts) {
+      await this.auditService.audit(
+        request.eventId ?? undefined,
+        verifiedActor.name,
+        `Privacy redaction receipt: ${receipt.owner}`,
+        {
+          actorRole: verifiedActor.role,
+          actorEmail: verifiedActor.email,
+          actionType: AuditActionType.Update,
+          category: AuditCategory.Access,
+          affectedType: 'privacy_owner_redaction_receipt',
+          affectedId: `${request.id}:${receipt.owner}`,
+          affectedLabel: receipt.owner,
+          metadata: { actorId: verifiedActor.id, requestId: request.id, ...receipt },
+        },
+        {
+          prisma,
+          correlationId: `privacy:${request.id}:owner:${receipt.owner}`,
+          actorId: verifiedActor.id,
+        },
+      );
+    }
+    await this.auditService.audit(request.eventId ?? undefined, verifiedActor.name, 'Soft redaction summary for privacy request', {
+      actorRole: verifiedActor.role,
+      actorEmail: verifiedActor.email,
+      actionType: AuditActionType.Update,
+      category: AuditCategory.Access,
+      affectedType: 'privacy_request',
+      affectedId: request.id,
+      affectedLabel: request.subjectEmail || request.subjectName,
+      metadata: { actorId: verifiedActor.id, ...redaction },
+    }, { prisma, correlationId: `privacy:${request.id}`, actorId: verifiedActor.id });
+    const saved = await prisma.opsPrivacyRequest.update({
+      where: { id: request.id },
+      data: { status: PrivacyRequestStatus.Executed, executionNotes: input.executionNotes ?? '', executedBy: verifiedActor.name, executedAt: new Date() },
+    });
+    return { ...this.mapRequest(saved), export: null };
   }
 
   /**
@@ -591,53 +609,12 @@ export class PrivacyOperationsService {
     prisma: Prisma.TransactionClient,
   ): Promise<PrismPrivacyExecutionResult> {
     const patch = this.requireCorrectionPatch(input.correction);
-    if (!['client', 'supplier', 'account'].includes(request.subjectType)) {
-      throw new BadRequestException('Correction for this subject type is not supported');
-    }
-    const email = request.subjectEmail.trim().toLowerCase();
-    if (!email) throw new BadRequestException('Client, supplier, and account correction require an email identity');
-    const account = await this.subjectAccountFor(request, prisma);
-    if (request.subjectType === 'account' && !account) {
-      throw new BadRequestException('No native account matches this privacy request; execution remains pending');
-    }
-    if (request.subjectType !== 'account' && account) {
-      throw new BadRequestException('This identity has a native account; submit the correction against the account subject');
-    }
-    const role = request.subjectType === 'account' ? account?.role : request.subjectType;
-    if (role !== OpsUserRole.Client && role !== OpsUserRole.Supplier) {
-      throw new ForbiddenException('Staff and non-subject accounts cannot be corrected through a privacy request');
-    }
+    const { account, role } = await this.resolveCorrectionSubject(request, prisma);
     await this.lockAndAssertNoLegalHold(request, account, prisma);
-    if (patch.email !== undefined) {
-      const holder = await this.identityPrivacy.findNativeAccount(patch.email, prisma);
-      if (holder && holder.id !== account?.id) {
-        throw new ConflictException('A native account already uses the corrected email');
-      }
-    }
+    await this.assertCorrectedEmailAvailable(patch, account, prisma);
 
-    const owners: Array<{ owner: PrivacyOwnerReceipt['owner']; result: { surfaces: string[]; touchedRecords: number } }> = [];
-    if (role === OpsUserRole.Client) {
-      const lifecycle = await this.lifecyclePrivacy.correctClient({ email, eventId: request.eventId, patch }, prisma);
-      const billing = await this.commercialPrivacy.correctClientBilling({ eventIds: lifecycle.eventIds, patch }, prisma);
-      owners.push({ owner: 'event-lifecycle', result: lifecycle }, { owner: 'commercial', result: billing });
-    } else {
-      owners.push({ owner: 'commercial', result: await this.commercialPrivacy.correctSupplier({ email, patch }, prisma) });
-    }
-    const approvals = await this.identityPrivacy.correctApprovalIdentity({ email, role, patch }, prisma);
-    const accountChange = account
-      ? await this.identityPrivacy.correctAccount({ accountId: account.id, email, patch }, prisma)
-      : { count: 0 };
-    owners.push({
-      owner: 'identity-access',
-      result: {
-        surfaces: [
-          ...(approvals.count ? ['approval_request'] : []),
-          ...(accountChange.count ? ['account'] : []),
-        ],
-        touchedRecords: approvals.count + accountChange.count,
-      },
-    });
-
+    const email = request.subjectEmail.trim().toLowerCase();
+    const owners = await this.applyCorrection({ email, eventId: request.eventId, patch, role, account }, prisma);
     const changedFields = (['name', 'email'] as const).filter((field) => patch[field] !== undefined);
     const touchedRecords = owners.reduce((total, { result }) => total + result.touchedRecords, 0);
     if (!touchedRecords) {
@@ -670,6 +647,76 @@ export class PrivacyOperationsService {
       data: { status: PrivacyRequestStatus.Executed, executionNotes: input.executionNotes ?? '', executedBy: verifiedActor.name, executedAt: new Date() },
     });
     return { ...this.mapRequest(saved), export: null };
+  }
+
+  /** Resolves who is being corrected and refuses subject types, identities, or roles a correction may not touch. */
+  private async resolveCorrectionSubject(request: OpsPrivacyRequestRecord, prisma: Prisma.TransactionClient) {
+    if (!['client', 'supplier', 'account'].includes(request.subjectType)) {
+      throw new BadRequestException('Correction for this subject type is not supported');
+    }
+    if (!request.subjectEmail.trim()) {
+      throw new BadRequestException('Client, supplier, and account correction require an email identity');
+    }
+    const account = await this.subjectAccountFor(request, prisma);
+    if (request.subjectType === 'account' && !account) {
+      throw new BadRequestException('No native account matches this privacy request; execution remains pending');
+    }
+    if (request.subjectType !== 'account' && account) {
+      throw new BadRequestException('This identity has a native account; submit the correction against the account subject');
+    }
+    const role = request.subjectType === 'account' ? account?.role : request.subjectType;
+    if (role !== OpsUserRole.Client && role !== OpsUserRole.Supplier) {
+      throw new ForbiddenException('Staff and non-subject accounts cannot be corrected through a privacy request');
+    }
+    return { account, role };
+  }
+
+  private async assertCorrectedEmailAvailable(
+    patch: PrivacyCorrectionPatch,
+    account: { id: string } | null,
+    prisma: Prisma.TransactionClient,
+  ) {
+    if (patch.email === undefined) return;
+    const holder = await this.identityPrivacy.findNativeAccount(patch.email, prisma);
+    if (holder && holder.id !== account?.id) {
+      throw new ConflictException('A native account already uses the corrected email');
+    }
+  }
+
+  private async applyCorrection(
+    subject: {
+      email: string;
+      eventId?: string | null;
+      patch: PrivacyCorrectionPatch;
+      role: string;
+      account: { id: string } | null;
+    },
+    prisma: Prisma.TransactionClient,
+  ) {
+    const { email, eventId, patch, role, account } = subject;
+    const owners: Array<{ owner: PrivacyOwnerReceipt['owner']; result: { surfaces: string[]; touchedRecords: number } }> = [];
+    if (role === OpsUserRole.Client) {
+      const lifecycle = await this.lifecyclePrivacy.correctClient({ email, eventId, patch }, prisma);
+      const billing = await this.commercialPrivacy.correctClientBilling({ eventIds: lifecycle.eventIds, patch }, prisma);
+      owners.push({ owner: 'event-lifecycle', result: lifecycle }, { owner: 'commercial', result: billing });
+    } else {
+      owners.push({ owner: 'commercial', result: await this.commercialPrivacy.correctSupplier({ email, patch }, prisma) });
+    }
+    const approvals = await this.identityPrivacy.correctApprovalIdentity({ email, role, patch }, prisma);
+    const accountChange = account
+      ? await this.identityPrivacy.correctAccount({ accountId: account.id, email, patch }, prisma)
+      : { count: 0 };
+    owners.push({
+      owner: 'identity-access',
+      result: {
+        surfaces: [
+          ...(approvals.count ? ['approval_request'] : []),
+          ...(accountChange.count ? ['account'] : []),
+        ],
+        touchedRecords: approvals.count + accountChange.count,
+      },
+    });
+    return owners;
   }
 
   private requireCorrectionPatch(candidate: unknown): PrivacyCorrectionPatch {
