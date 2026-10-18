@@ -129,7 +129,7 @@ completion. They do not promote a whole feature family from partial to complete.
 - **FL-005:** Proposal decisions require the primary client's verified identity and an issued proposal version. Reasons, actor/version identity and retries are durable. The production issuer is missing (W12), so the complete review journey remains gated.
 - **FL-007:** Supplier terminal transitions, selected-assignment confirmation, cancellation and event-review retries now enforce state, identity and transactional audit rules. Application conversion and complete assessment remain later work.
 - **FL-008:** Active assignment identity controls coordinator scope and availability. Same-date booking and replacement share a database lock. Namesakes do not grant authority.
-- **FL-013:** Closeout uses explicit deliverables, billing, logistics, unresolved issues and client feedback. Logistics remains missing until an authoritative completion source exists; an archive override needs a durable PMCM reason.
+- **FL-013:** Closeout uses explicit deliverables, billing, logistics, unresolved issues and client feedback. Logistics passes only with a PMCM-recorded, audited logistics completion record (replacement requires a correction reason; notes stay PMCM-only); an archive override needs a durable PMCM reason.
 - **FL-015:** Sensitive routes require verified sessions and role/event ownership. Supported operational deletion redacts identity copies atomically; unsupported access, correction and native-account erasure remain unexecuted. Live AI remains disabled before any provider call.
 - **W08:** The [accepted authority/lifecycle policy](event-authority-and-lifecycle-policy.md) permits a designated event attendance operator, a seven-day guest-feedback window from recorded event end including archive, and catalog client categories with Private mapped to Individual. Implemented in code: PMCM-designated Event Day System Operator authority for other coordinators' attendance (revocable designation, audited); the seven-day guest-feedback window anchored to the recorded actual event end, open after archive, with check-in still closed for archived events; and the four catalog client categories with legacy Private written as Individual by a data migration. School and Other remain historical values.
 
@@ -137,7 +137,7 @@ completion. They do not promote a whole feature family from partial to complete.
 
 Active Ledger decisions are unchanged. Additional thin-slice evidence:
 
-- **FL-013:** PMCM can search archived events by venue, event type, and month. Side-by-side compare stays deferred.
+- **FL-013:** PMCM can search archived events by venue, event type, and month, and compare 2 to 4 archived events side by side (close gates, override, logistics status; private notes excluded). Client and supplier actors cannot record logistics or read comparisons.
 - **FL-005:** A client primary-contact approve/request-revision surface exists with a revision cap of 3. The current version/issuer gate above supersedes the earlier assumption that the production review journey was ready. CE builder depth, Canva/Zoom, and AI drafts stay gated.
 - **FL-007:** PMCM supplier-applications inbox can request proposal, schedule, or decline; readiness board shows a category gap hard-block when no quote is selected. Storage, production notify, and confidential-bid depth remain gated.
 - **FL-008:** Same-date coordinator assignment is blocked with same-role suggestions; override stays secondary. Heatmap, phone/Mys notify, and live AI copilot stay gated.

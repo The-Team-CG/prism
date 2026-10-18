@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { ArchiveSearchFilters, PrismArchivedEventSearchHit } from "@prism/types";
+import type { ArchiveSearchFilters, PrismArchiveComparisonRow, PrismArchivedEventSearchHit } from "@prism/types";
 import { archiveSearchRepository } from "../data/archive-search-repository";
 import { archiveSearchEmptyCopy } from "../model/archive-search-rules";
+import { canCompareArchivedEvents, toggleArchiveComparisonSelection } from "../model/archive-comparison-rules";
 
 export function useEventArchiveSearchViewModel() {
   const [venue, setVenue] = useState("");
@@ -14,6 +15,9 @@ export function useEventArchiveSearchViewModel() {
   const [hits, setHits] = useState<PrismArchivedEventSearchHit[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [comparison, setComparison] = useState<PrismArchiveComparisonRow[] | null>(null);
+  const [comparing, setComparing] = useState(false);
 
   const load = useCallback(async (filters: ArchiveSearchFilters) => {
     setBusy(true);
@@ -35,6 +39,24 @@ export function useEventArchiveSearchViewModel() {
     void load({ venue, eventType, eventName, clientName, month });
   }
 
+  function toggleSelection(id: string) {
+    setSelectedIds((current) => toggleArchiveComparisonSelection(current, id));
+    setComparison(null);
+  }
+
+  async function compareSelected() {
+    if (!canCompareArchivedEvents(selectedIds)) return;
+    setComparing(true);
+    setError(null);
+    try {
+      setComparison(await archiveSearchRepository.compare(selectedIds));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not compare the selected events.");
+    } finally {
+      setComparing(false);
+    }
+  }
+
   return {
     venue,
     setVenue,
@@ -51,5 +73,12 @@ export function useEventArchiveSearchViewModel() {
     error,
     emptyCopy: archiveSearchEmptyCopy({ venue, eventType, eventName, clientName, month }, hits),
     search,
+    selectedIds,
+    toggleSelection,
+    canCompare: canCompareArchivedEvents(selectedIds),
+    comparison,
+    comparing,
+    compareSelected,
+    closeComparison: () => setComparison(null),
   };
 }

@@ -305,6 +305,7 @@ model OpsEvent {
   complianceRisks             OpsComplianceRisk[]
   postEventDocuments          OpsPostEventDocument[]
   wrapUpRecords               OpsEventWrapUp[]
+  logisticsCompletion         OpsLogisticsCompletion?
   eventInsights               OpsEventInsight[]
   decisionRecords             OpsEventDecision[]
   freezeExceptions            OpsEventFreezeException[]
@@ -2013,6 +2014,25 @@ model OpsEventWrapUp {
 
   @@index([deadlineAt, status], map: "event_wrap_ups_deadline_status_idx")
   @@map("event_wrap_ups")
+  @@schema("event_lifecycle")
+}
+
+model OpsLogisticsCompletion {
+  id                    String   @id
+  eventId               String   @unique(map: "logistics_completions_event_id_key") @map("event_id")
+  assetReturnsVerified  Boolean  @map("asset_returns_verified")
+  completionSummary     String   @map("completion_summary")
+  privateNotes          String   @default("") @map("private_notes")
+  correctionReason      String?  @map("correction_reason")
+  revision              Int      @default(1)
+  recordedBy            String   @map("recorded_by")
+  recordedAt            DateTime @map("recorded_at")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at")
+
+  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("logistics_completions")
   @@schema("event_lifecycle")
 }
 
