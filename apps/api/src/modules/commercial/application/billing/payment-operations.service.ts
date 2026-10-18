@@ -129,6 +129,10 @@ export class PaymentOperationsService implements PaymentStatusReader {
             affectedLabel: balance.label,
             severity: 'warning',
           }, transactionContext);
+          // Reminders are queue-only: enqueue in the notification outbox; no external provider is called here.
+          await writeNotification(this.notificationOutboxWriter, event.id, 'Client', `Balance payment due soon for ${event.eventName}`, undefined, {
+            idempotencyKey: `payment-risk-reminder:${balance.id}`,
+          }, transactionContext);
         },
       });
     }

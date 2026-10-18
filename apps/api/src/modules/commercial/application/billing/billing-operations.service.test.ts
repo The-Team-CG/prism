@@ -4,6 +4,7 @@ import { WorkflowCommandService } from '@prism/kernel/event-core';
 import { approveBillingSourceSchema } from '@prism/types';
 import { BillingOperationsService, renderBillingPdf } from './billing-operations.service';
 import { PaymentOperationsService } from './payment-operations.service';
+import { mapClientBillingDispute } from './billing-operations.mappers';
 import type { BillingActor } from '../../contracts/billing-operations.types';
 import type { StorageObjectService } from '@prism/contexts/platform-ops';
 import type { PrismVerifiedEventActor } from '@prism/types';
@@ -96,7 +97,7 @@ function createPaymentService() {
   };
   const service = new BillingOperationsService(prisma, audit as any, notifications as any, createWorkflowCommandService(prisma), documentVault as any);
   const paymentService = new PaymentOperationsService(prisma, audit as any, notifications as any, new WorkflowCommandService());
-  return { service, paymentService, prisma, audit, history, milestone, documentVault };
+  return { service, paymentService, prisma, audit, notifications, history, milestone, documentVault };
 }
 
 function createBillingStatementService(priorNumbers: string[], conflictingSequenceNumber?: number, storageObjectService?: StorageObjectService) {
@@ -214,7 +215,7 @@ describe('BillingOperationsService', () => {
     expect(prisma.opsPaymentMilestone.update).not.toHaveBeenCalled();
   });
   it('marks upcoming balances at risk and audits only the first successful transition', async () => {
-    const { paymentService, prisma, audit, milestone } = createPaymentService();
+    const { paymentService, prisma, audit, notifications, milestone } = createPaymentService();
     milestone.label = 'Balance';
     prisma.opsPaymentMilestone.findMany.mockImplementation(async () => [{ ...milestone, status: 'partially_paid' }]);
 
@@ -222,6 +223,13 @@ describe('BillingOperationsService', () => {
     await paymentService.runPaymentRiskSweep();
 
     expect(milestone.status).toBe('at_risk');
+    // The reminder is queue-only and enqueued once, with the same transition that makes the audit row.
+    expect(notifications.write).toHaveBeenCalledTimes(1);
+    expect(notifications.write).toHaveBeenCalledWith(expect.objectContaining({
+      eventId: 'evt_sample',
+      recipient: 'Client',
+      idempotencyKey: 'payment-risk-reminder:pay_downpayment',
+    }), undefined);
     expect(prisma.opsPaymentMilestone.updateMany).toHaveBeenCalledTimes(2);
     expect(prisma.opsPaymentMilestone.updateMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({
@@ -238,6 +246,18 @@ describe('BillingOperationsService', () => {
       affectedId: 'pay_downpayment',
       affectedLabel: 'Balance',
     }), undefined);
+  });
+
+  it('projects client billing disputes without PMCM reasons, resolver notes, or actor names', () => {
+    const projected = mapClientBillingDispute({
+      id: 'dispute_1', eventId: 'evt_sample', statementId: 'stmt_1', milestoneId: null, amount: 2000,
+      reason: 'Internal: client was over-billed on venue hire', status: 'open', raisedBy: 'Francis',
+      resolvedBy: null, resolutionNotes: 'Internal note', createdAt: new Date('2026-08-03T00:00:00.000Z'), resolvedAt: null,
+    } as never);
+    expect(projected).toEqual({
+      id: 'dispute_1', eventId: 'evt_sample', statementId: 'stmt_1', milestoneId: null, amount: 2000,
+      status: 'open', createdAt: '2026-08-03T00:00:00.000Z', resolvedAt: null,
+    });
   });
 
   it('renders a structurally parseable PDF with real newline bytes and matching xref offsets', () => {
