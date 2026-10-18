@@ -42,9 +42,10 @@ export class EventDecisionService {
           if (replay) return this.requireMatchingReplay(replay, eventId, input, tx);
         }
         const event = await this.requireEvent(eventId, tx);
+        const freezeExceptionId = await this.requireFreezeExceptionForDecision(tx, eventId, event.freezeStatus, input);
         const priorState = this.validateEventState(event.status, event.eventDate, input);
         const impacts = await this.loadImpacts(tx, eventId, input, event.eventDate, priorState.nextDate, actor);
-        const decision = await this.createDecision(tx, eventId, input, actor, priorState, impacts.assignmentImpact);
+        const decision = await this.createDecision(tx, eventId, input, actor, priorState, impacts.assignmentImpact, freezeExceptionId);
         await this.applyTransition(tx, eventId, input, impacts, priorState.nextDate);
         await this.queueNotification(tx, event, eventId, input, decision.id);
         await this.recordAudit(tx, eventId, input, actor, decision.id, priorState, impacts);
@@ -75,6 +76,7 @@ export class EventDecisionService {
       && replay.supplierImpact === input.supplierImpact
       && storedImpact.cancellationFeeAmount === input.cancellationFeeAmount
       && storedImpact.depositTreatment === input.depositTreatment
+      && (storedImpact.freezeExceptionId ?? null) === (input.freezeExceptionId ?? null)
       && targetDateMatches;
     if (!samePayload) throw new BadRequestException('Decision idempotency key was reused for different content');
     return replay;
@@ -156,11 +158,28 @@ export class EventDecisionService {
     };
   }
 
-  private createDecision(tx: Prisma.TransactionClient, eventId: string, input: EventDecisionInput, actor: ResolvedEventOpsActor, priorState: { status: string; eventDate: string }, assignmentImpact: unknown) {
+  /**
+   * Scope-changing decisions on a frozen event need an approved freeze exception for this event.
+   * The exception is referenced from the decision's financial impact record so the approval trail stays linked.
+   */
+  private async requireFreezeExceptionForDecision(
+    tx: Prisma.TransactionClient,
+    eventId: string,
+    freezeStatus: string,
+    input: EventDecisionInput,
+  ): Promise<string | null> {
+    if (freezeStatus !== 'frozen') return null;
+    if (!input.freezeExceptionId) throw new BadRequestException('Frozen events require an approved freeze exception before a cancellation or postponement is recorded');
+    const exception = await tx.opsEventFreezeException.findFirst({ where: { id: input.freezeExceptionId, eventId, status: 'approved' }, select: { id: true } });
+    if (!exception) throw new BadRequestException('Freeze exception is not approved for this event');
+    return exception.id;
+  }
+
+  private createDecision(tx: Prisma.TransactionClient, eventId: string, input: EventDecisionInput, actor: ResolvedEventOpsActor, priorState: { status: string; eventDate: string }, assignmentImpact: unknown, freezeExceptionId: string | null) {
     return tx.opsEventDecision.create({ data: {
       id: `decision_${randomUUID()}`, eventId, decision: input.decision, reason: input.reason,
       actorId: actor.id ?? actor.name, actorRole: actor.role, actorName: actor.name, actorEmail: actor.email ?? null,
-      priorState: toPrismaJson(priorState), financialImpact: toPrismaJson({ cancellationFeeAmount: input.cancellationFeeAmount, depositTreatment: input.depositTreatment, newEventDate: input.newEventDate ?? null, status: 'recorded_for_review' }),
+      priorState: toPrismaJson(priorState), financialImpact: toPrismaJson({ cancellationFeeAmount: input.cancellationFeeAmount, depositTreatment: input.depositTreatment, newEventDate: input.newEventDate ?? null, freezeExceptionId, status: 'recorded_for_review' }),
       assignmentImpact: toPrismaJson(assignmentImpact), supplierImpact: input.supplierImpact, idempotencyKey: input.idempotencyKey ?? null,
     } });
   }

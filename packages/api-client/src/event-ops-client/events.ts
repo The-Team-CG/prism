@@ -83,6 +83,11 @@ export function createEventsClient(
           actorPath(`/events/${eventId}/addenda`, actor),
           withBase(options),
         ),
+      freezeExceptions: (eventId, actor = {}) =>
+        prismRequest<PrismEventFreezeException[]>(
+          actorPath(`/events/${eventId}/freeze-exceptions`, actor),
+          withBase(options),
+        ),
       freeze: (eventId, input, actor = {}) =>
         prismRequest(
           actorPath(`/events/${eventId}/freeze`, actor),

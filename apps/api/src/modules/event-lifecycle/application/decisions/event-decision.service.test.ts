@@ -30,11 +30,17 @@ const postpone = (supplierImpact: 'release_obligations' | 'preserve_obligations'
   supplierImpact,
 }) as const;
 
-function setup(options: { eventOverrides?: Partial<typeof event>; staffingImpact?: unknown } = {}) {
+function setup(options: { eventOverrides?: Partial<typeof event>; staffingImpact?: unknown; approvedExceptionIds?: string[] } = {}) {
   const tx = {
     opsEvent: {
       findUnique: vi.fn().mockResolvedValue({ ...event, ...options.eventOverrides }),
       update: vi.fn().mockResolvedValue({ ...event, status: 'postponed' }),
+    },
+    opsEventFreezeException: {
+      // Only exceptions approved for this event resolve; anything else is treated as missing or unapproved.
+      findFirst: vi.fn(async ({ where }: { where: { id: string; eventId: string } }) => (
+        where.eventId === 'evt-1' && (options.approvedExceptionIds ?? []).includes(where.id) ? { id: where.id } : null
+      )),
     },
     opsEventDecision: {
       create: vi.fn().mockResolvedValue({ id: 'decision-1', eventId: 'evt-1' }),
@@ -273,5 +279,67 @@ describe('EventDecisionService', () => {
     await expect(service.decide('evt-1', { ...input, idempotencyKey: 'legacy-key-no-assignments' }, actor))
       .resolves.toMatchObject({ id: 'legacy-postponement-no-assignments' });
     expect(staffingCommands.applyEventDecisionAssignments).not.toHaveBeenCalled();
+  });
+});
+
+describe('EventDecisionService change-freeze enforcement', () => {
+  const frozen = { freezeStatus: 'frozen' } as const;
+
+  it('rejects a cancellation or postponement on a frozen event without a freeze exception, before any side effect', async () => {
+    const { service, tx, staffingCommands, notification } = setup({ eventOverrides: frozen });
+
+    await expect(service.decide('evt-1', cancel, actor)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.decide('evt-1', postpone('preserve_obligations'), actor)).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(staffingCommands.applyEventDecisionAssignments).not.toHaveBeenCalled();
+    expect(tx.opsEventDecision.create).not.toHaveBeenCalled();
+    expect(tx.opsEvent.update).not.toHaveBeenCalled();
+    expect(notification).not.toHaveBeenCalled();
+  });
+
+  it('rejects an exception that is pending, rejected, or approved for a different event', async () => {
+    const { service, tx, staffingCommands } = setup({ eventOverrides: frozen, approvedExceptionIds: ['exception-approved'] });
+
+    await expect(service.decide('evt-1', { ...cancel, freezeExceptionId: 'exception-pending' }, actor)).rejects.toThrow('Freeze exception is not approved for this event');
+    expect(staffingCommands.applyEventDecisionAssignments).not.toHaveBeenCalled();
+    expect(tx.opsEventDecision.create).not.toHaveBeenCalled();
+  });
+
+  it('records a frozen-event decision with the approved exception linked in its financial impact', async () => {
+    const { service, tx } = setup({ eventOverrides: frozen, approvedExceptionIds: ['exception-approved'] });
+
+    await service.decide('evt-1', { ...cancel, freezeExceptionId: 'exception-approved' }, actor);
+
+    expect(tx.opsEventDecision.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        financialImpact: expect.objectContaining({ freezeExceptionId: 'exception-approved' }),
+      }),
+    }));
+  });
+
+  it('does not require an exception on an open event', async () => {
+    const { service, tx } = setup();
+
+    await service.decide('evt-1', cancel, actor);
+
+    expect(tx.opsEventFreezeException.findFirst).not.toHaveBeenCalled();
+    expect(tx.opsEventDecision.create).toHaveBeenCalled();
+  });
+
+  it('does not replay an idempotent decision under a different freeze exception', async () => {
+    const storedDecision = {
+      id: 'decision-frozen',
+      eventId: 'evt-1',
+      decision: 'cancelled',
+      reason: cancel.reason,
+      supplierImpact: cancel.supplierImpact,
+      financialImpact: { cancellationFeeAmount: 0, depositTreatment: 'pending_review', newEventDate: null, freezeExceptionId: 'exception-approved' },
+      assignmentImpact: {},
+    };
+    const { service, prisma } = setup({ approvedExceptionIds: ['exception-approved', 'exception-other'] });
+    prisma.opsEventDecision.findUnique.mockResolvedValue(storedDecision);
+
+    await expect(service.decide('evt-1', { ...cancel, freezeExceptionId: 'exception-other', idempotencyKey: 'frozen-key' }, actor))
+      .rejects.toBeInstanceOf(BadRequestException);
   });
 });
