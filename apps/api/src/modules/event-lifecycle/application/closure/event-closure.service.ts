@@ -5,12 +5,12 @@ import { toPrismaJson } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, EventLifecycleService, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
-import type { ArchiveSearchFilters, PrismCoordinatorInsightFacts, RecordActualEventEndInput, StartEventWrapUpInput, UpdateEventWrapUpInput } from '@prism/types';
+import type { ArchiveComparisonQuery, ArchiveSearchFilters, PrismCoordinatorInsightFacts, RecordActualEventEndInput, RecordLogisticsCompletionInput, StartEventWrapUpInput, UpdateEventWrapUpInput } from '@prism/types';
 import { EventAccessPolicyService, type EventOpsActorInput, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { FileRequirementsMatrixService } from '../files/file-requirements-matrix.service';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { archivedEventMatchesSearch } from '../../domain/archive-search.policy';
-import { mapArchivedEventSearchHit } from './closure.mappers';
+import { mapArchiveComparisonRow, mapArchivedEventSearchHit, mapLogisticsCompletion } from './closure.mappers';
 import { COMMERCIAL_FACTS_READER, type CommercialFactsReader } from '@prism/contexts/read-models/commercial-facts-reader';
 import { LIFECYCLE_FACTS_READER, type LifecycleFactsReader } from '@prism/contexts/read-models/lifecycle-facts';
 
@@ -345,6 +345,63 @@ export class EventClosureService {
       .filter((hit) => archivedEventMatchesSearch(hit, filters));
   }
 
+  async getLogisticsCompletion(eventId: string, actor: ResolvedEventOpsActor) {
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'logistics completion', eventId);
+    await this.requireEvent(eventId);
+    const record = await this.prisma.opsLogisticsCompletion.findUnique({ where: { eventId } });
+    return record ? mapLogisticsCompletion(record) : null;
+  }
+
+  async recordLogisticsCompletion(eventId: string, input: RecordLogisticsCompletionInput, actor: ResolvedEventOpsActor) {
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'logistics completion', eventId);
+    return this.prisma.$transaction(async (tx) => {
+      const event = await this.requireEvent(eventId, tx);
+      if (event.archived) throw new BadRequestException('Archived event logistics are read-only');
+      const existing = await tx.opsLogisticsCompletion.findUnique({ where: { eventId } });
+      if (existing && !input.correctionReason) {
+        throw new BadRequestException('A correction reason is required to replace the recorded logistics completion');
+      }
+      const now = new Date();
+      const data = {
+        assetReturnsVerified: input.assetReturnsVerified,
+        completionSummary: input.completionSummary,
+        privateNotes: input.privateNotes,
+        correctionReason: input.correctionReason ?? null,
+        recordedBy: actor.id,
+        recordedAt: now,
+      };
+      const record = existing
+        ? await tx.opsLogisticsCompletion.update({ where: { eventId }, data: { ...data, revision: { increment: 1 } } })
+        : await tx.opsLogisticsCompletion.create({ data: { id: `logi_${randomUUID()}`, eventId, ...data } });
+      // Audit metadata deliberately omits completionSummary and privateNotes.
+      await writeAudit(this.auditWriter, eventId, actor.name, existing ? 'Corrected logistics completion' : 'Recorded logistics completion', {
+        actorRole: actor.role, actorEmail: actor.email, actionType: AuditActionType.Update,
+        category: AuditCategory.Events, affectedType: 'logistics_completion', affectedId: record.id,
+        metadata: { revision: record.revision, correctionReason: input.correctionReason ?? null, assetReturnsVerified: record.assetReturnsVerified },
+      }, { prisma: tx, correlationId: `logistics-completion:${record.id}:${record.revision}` });
+      return mapLogisticsCompletion(record);
+    }, { isolationLevel: 'Serializable' });
+  }
+
+  async compareArchivedEvents(query: ArchiveComparisonQuery, actor: ResolvedEventOpsActor) {
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'event archive comparison');
+    const events = await this.prisma.opsEvent.findMany({
+      where: { id: { in: query.eventIds }, archived: true },
+      include: {
+        inquiry: true,
+        briefings: { orderBy: { submittedAt: 'desc' }, take: 1 },
+        logisticsCompletion: true,
+      },
+    });
+    const byId = new Map(events.map((event) => [event.id, event]));
+    // Columns keep the requested order; any id that is not an archived event fails the whole comparison.
+    return query.eventIds.map((id) => {
+      const event = byId.get(id);
+      if (!event) throw new NotFoundException('One or more archived events were not found');
+      return mapArchiveComparisonRow(event);
+    });
+  }
+
   private async requireEvent(eventId: string, prisma: Prisma.TransactionClient = this.prisma) {
     const event = await prisma.opsEvent.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
@@ -394,13 +451,13 @@ export class EventClosureService {
     event: OpsEvent,
     coordinatorFacts: PrismCoordinatorInsightFacts,
   ): Promise<EventInsightContext> {
-    const [commercialFacts, lifecycleFacts, complianceChecks, documents, postEventDocuments, wrapUp] = await Promise.all([
+    const [commercialFacts, lifecycleFacts, complianceChecks, documents, postEventDocuments, logisticsCompletion] = await Promise.all([
       this.commercialFactsReader.getLifecycleFacts(eventId),
       this.lifecycleFactsReader.getClosureFacts(eventId),
       this.prisma.opsComplianceCheck.findMany({ where: { eventId } }),
       this.prisma.opsDocument.findMany({ where: { eventId } }),
       this.prisma.opsPostEventDocument.findMany({ where: { eventId } }),
-      this.prisma.opsEventWrapUp.findUnique({ where: { eventId } }),
+      this.prisma.opsLogisticsCompletion.findUnique({ where: { eventId }, select: { id: true, assetReturnsVerified: true } }),
     ]);
     const { supplierReviews, billingStatements, paymentMilestones } = commercialFacts;
     const { guestFeedback, issues, scheduleDays } = lifecycleFacts;
@@ -423,8 +480,7 @@ export class EventClosureService {
       : null;
     const segments = scheduleDays.flatMap((day) => day.segments);
     const lateSegments = segments.filter((segment) => segment.actualEndedAt && segment.actualEndedAt.getTime() > segment.plannedEndAt.getTime());
-    const wrapSections = (wrapUp?.sections ?? {}) as Record<string, { status?: string; evidence?: string }>;
-    const dimensions = buildInsightDimensions({ billingStatements, outstandingAmount, documents, postEventDocuments, submittedDocuments, supplierReviews, guestFeedback, feedbackDocuments, approvedGuestFeedback, complianceChecks, openChecks, wrapSections, issues, segments, lateSegments, coordinatorFacts });
+    const dimensions = buildInsightDimensions({ billingStatements, outstandingAmount, documents, postEventDocuments, submittedDocuments, supplierReviews, guestFeedback, feedbackDocuments, approvedGuestFeedback, complianceChecks, openChecks, logisticsCompletion, issues, segments, lateSegments, coordinatorFacts });
 
     return {
       summary: `Event Insights for ${event.eventName}: ${supplierReviews.length} supplier review(s), ${openChecks.length} open compliance issue(s), ${totalBilled} total billed.`,
@@ -509,13 +565,13 @@ export function buildInsightDimensions(input: {
   approvedGuestFeedback: Array<{ id: string }>;
   complianceChecks: Array<{ id: string }>;
   openChecks: Array<unknown>;
-  wrapSections: Record<string, { status?: string; evidence?: string }>;
+  logisticsCompletion: { id: string; assetReturnsVerified: boolean } | null;
   issues: Array<{ id: string }>;
   segments: Array<{ id: string }>;
   lateSegments: Array<{ id: string }>;
   coordinatorFacts: PrismCoordinatorInsightFacts;
 }): Record<string, InsightDimension> {
-  const section = input.wrapSections.logistics;
+  const logisticsRecorded = input.logisticsCompletion?.assetReturnsVerified === true;
   const coordinatorFacts = input.coordinatorFacts;
   const coordinatorEvidence = [
     `assignments:${coordinatorFacts.assignments}`,
@@ -532,7 +588,9 @@ export function buildInsightDimensions(input: {
     suppliers: dimension(input.supplierReviews.length > 0, `${input.supplierReviews.length} supplier review(s) captured`, input.supplierReviews.map(item => item.id)),
     feedback: dimension(input.guestFeedback.length > 0 || input.feedbackDocuments.length > 0, `${input.approvedGuestFeedback.length} approved guest feedback item(s); ${input.feedbackDocuments.length} client feedback document(s)`, input.guestFeedback.map(item => item.id)),
     compliance: dimension(input.complianceChecks.length > 0, `${input.openChecks.length} open compliance check(s)`, input.complianceChecks.map(item => item.id)),
-    logistics: { status: section?.status === 'complete' ? 'evidence' : 'blocked', summary: section?.evidence || 'No authoritative logistics completion record', evidence: section?.evidence ? [section.evidence] : [] },
+    logistics: logisticsRecorded
+      ? { status: 'evidence', summary: 'Logistics completion recorded by PMCM; asset returns verified', evidence: input.logisticsCompletion ? [input.logisticsCompletion.id] : [] }
+      : { status: 'blocked', summary: 'No authoritative logistics completion record', evidence: [] },
     issues: dimension(input.issues.length > 0, `${input.issues.length} unresolved urgent issue(s)`, input.issues.map(item => item.id)),
     schedule: dimension(input.segments.length > 0, `${input.lateSegments.length} schedule segment(s) ended late`, input.lateSegments.map(item => item.id)),
     coordinators: dimension(
