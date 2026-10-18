@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { PrismAddendum, PrismEventFreezeException, RequestFreezeExceptionInput } from "@prism/types";
+import type { RecordEventDecisionInput, PrismAddendum, PrismEventFreezeException, RequestFreezeExceptionInput } from "@prism/types";
 import { changeRegisterRepository } from "../data/change-register-repository";
-import { decideFreezeExceptionUseCase, freezeScopeUseCase, requestFreezeExceptionUseCase } from "../use-cases/change-register-use-cases";
+import { unusedApprovedExceptions } from "../model/change-register-rules";
+import { decideFreezeExceptionUseCase, freezeScopeUseCase, recordEventDecisionUseCase, requestFreezeExceptionUseCase } from "../use-cases/change-register-use-cases";
 
-export function useChangeRegisterViewModel(eventId: string) {
+export function useChangeRegisterViewModel(eventId: string, options: { frozen: boolean }) {
   const [addenda, setAddenda] = useState<PrismAddendum[]>([]);
   const [exceptions, setExceptions] = useState<PrismEventFreezeException[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
@@ -62,5 +63,7 @@ export function useChangeRegisterViewModel(eventId: string) {
     requestException: (draft: RequestFreezeExceptionInput) => run(() => requestFreezeExceptionUseCase(eventId, draft)),
     approveException: (exceptionId: string) => run(() => decideFreezeExceptionUseCase(eventId, exceptionId, { decision: "approve" })),
     rejectException: (exceptionId: string, decisionNote: string) => run(() => decideFreezeExceptionUseCase(eventId, exceptionId, { decision: "reject", decisionNote })),
+    approvedExceptions: unusedApprovedExceptions(exceptions),
+    recordDecision: (draft: RecordEventDecisionInput) => run(() => recordEventDecisionUseCase(eventId, draft, { frozen: options.frozen })),
   };
 }

@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrismEventFreezeException } from "@prism/types";
 import { ChangeRegisterPanel } from "./change-register-panel";
@@ -84,8 +84,8 @@ describe("ChangeRegisterPanel", () => {
     render(<ChangeRegisterPanel eventId="evt_1" frozen />);
 
     const form = await screen.findByRole("form", { name: "Request freeze exception" });
-    fireEvent.change(screen.getByLabelText("Requested change"), { target: { value: "Add stage lighting" } });
-    fireEvent.change(screen.getByLabelText("Reason"), { target: { value: "Client asked after freeze" } });
+    fireEvent.change(within(form).getByLabelText("Requested change"), { target: { value: "Add stage lighting" } });
+    fireEvent.change(within(form).getByLabelText("Reason"), { target: { value: "Client asked after freeze" } });
     fireEvent.submit(form);
 
     await waitFor(() => expect(requestException).toHaveBeenCalledWith("evt_1", { requestedChange: "Add stage lighting", reason: "Client asked after freeze" }));

@@ -1,6 +1,7 @@
 import { eventApi } from "@/lib/prism-api";
 import type {
   DecideFreezeExceptionInput,
+  RecordEventDecisionInput,
   FreezeEventInput,
   PrismAddendum,
   PrismEventFreezeException,
@@ -23,5 +24,8 @@ export const changeRegisterRepository = {
   },
   decideException(eventId: string, exceptionId: string, input: DecideFreezeExceptionInput) {
     return eventApi.events.decideFreezeException(eventId, exceptionId, input);
+  },
+  recordDecision(eventId: string, input: RecordEventDecisionInput) {
+    return eventApi.events.recordDecision(eventId, input);
   },
 };
