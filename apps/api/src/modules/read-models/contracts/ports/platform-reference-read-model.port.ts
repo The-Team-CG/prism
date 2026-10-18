@@ -9,6 +9,8 @@ export type PlatformStorageEventScope = {
   clientPortalStatus: string;
   clientEmail: string | null;
   supplierIds: string[];
+  /** Persisted supplier identities booked on the event; storage resolves signed-in suppliers by these emails. */
+  supplierContacts: Array<{ supplierId: string; email: string | null }>;
 };
 
 export type PareEventSource = {

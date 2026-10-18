@@ -147,13 +147,24 @@ export function ConformeUploadModal({ inquiry, onUpload, onPrepareDigital, onRef
 
 function DigitalExecutionPanel({ execution, busy, consent, onConsent, onRefresh, onPrepare, onSign }: { execution: PrismConformeExecution | null; busy: boolean; consent: boolean; onConsent: (value: boolean) => void; onRefresh: () => Promise<void>; onPrepare: () => Promise<void>; onSign: () => Promise<void> }) {
   if (!execution) return null;
-  const canRefresh = execution.status === "awaiting_client" || execution.status === "awaiting_pmcm";
   return <section className="mb-5 space-y-3 border-b border-border pb-5"><h3 className="text-base font-bold text-foreground">In-app conforme · version {execution.templateVersion}</h3><p className="text-sm text-muted-foreground">The client reviews this immutable document at <span className="font-semibold">/conforme</span>. A version with a recorded signature cannot be replaced.</p><pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-background p-3 font-sans text-xs leading-5 text-foreground">{execution.documentContent}</pre><p className="text-xs text-muted-foreground">Status: {execution.status.replaceAll("_", " ")}</p>
-    {canRefresh ? <button type="button" disabled={busy} onClick={() => void onRefresh()} className="text-sm font-semibold text-primary hover:underline">{busy ? "Refreshing…" : "Refresh signing status"}</button> : null}
-    {execution.status === "awaiting_client" && execution.signatures.length === 0 ? <button type="button" disabled={busy} onClick={() => void onPrepare()} className="block text-sm font-semibold text-primary hover:underline">{busy ? "Preparing…" : "Prepare replacement version"}</button> : null}
-    {execution.status === "awaiting_pmcm" ? <div className="space-y-3 rounded-lg bg-muted/50 p-3"><p className="text-sm leading-5 text-foreground">The client has acknowledged this version. Review the document and countersign to activate the client workspace.</p><label className="flex items-start gap-2 text-xs leading-5 text-foreground"><input type="checkbox" checked={consent} onChange={(event) => onConsent(event.target.checked)} className="mt-1 size-4 accent-primary" />I reviewed this exact version and approve the in-app record.</label><Button type="button" disabled={busy || !consent} onClick={() => void onSign()} className="rounded-lg font-bold">{busy ? "Recording…" : "Countersign and activate"}</Button></div> : null}
+    <DigitalExecutionActions execution={execution} busy={busy} onRefresh={onRefresh} onPrepare={onPrepare} />
+    <DigitalExecutionSignoff execution={execution} busy={busy} consent={consent} onConsent={onConsent} onSign={onSign} />
     {execution.status === "completed" ? <p className="text-sm text-muted-foreground">Both acknowledgments are recorded; the client workspace is active.</p> : null}
   </section>;
+}
+
+function DigitalExecutionActions({ execution, busy, onRefresh, onPrepare }: { execution: PrismConformeExecution; busy: boolean; onRefresh: () => Promise<void>; onPrepare: () => Promise<void> }) {
+  const canRefresh = execution.status === "awaiting_client" || execution.status === "awaiting_pmcm";
+  return <>
+    {canRefresh ? <button type="button" disabled={busy} onClick={() => void onRefresh()} className="text-sm font-semibold text-primary hover:underline">{busy ? "Refreshing…" : "Refresh signing status"}</button> : null}
+    {execution.status === "awaiting_client" && execution.signatures.length === 0 ? <button type="button" disabled={busy} onClick={() => void onPrepare()} className="block text-sm font-semibold text-primary hover:underline">{busy ? "Preparing…" : "Prepare replacement version"}</button> : null}
+  </>;
+}
+
+function DigitalExecutionSignoff({ execution, busy, consent, onConsent, onSign }: { execution: PrismConformeExecution; busy: boolean; consent: boolean; onConsent: (value: boolean) => void; onSign: () => Promise<void> }) {
+  if (execution.status !== "awaiting_pmcm") return null;
+  return <div className="space-y-3 rounded-lg bg-muted/50 p-3"><p className="text-sm leading-5 text-foreground">The client has acknowledged this version. Review the document and countersign to activate the client workspace.</p><label className="flex items-start gap-2 text-xs leading-5 text-foreground"><input type="checkbox" checked={consent} onChange={(event) => onConsent(event.target.checked)} className="mt-1 size-4 accent-primary" />I reviewed this exact version and approve the in-app record.</label><Button type="button" disabled={busy || !consent} onClick={() => void onSign()} className="rounded-lg font-bold">{busy ? "Recording…" : "Countersign and activate"}</Button></div>;
 }
 
 function UploadSuccess({ inquiry }: { inquiry: PrismInquiry }) {

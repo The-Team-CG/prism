@@ -199,11 +199,10 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
         this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
           // Transaction scope: DB reads/writes only. No external IO inside this callback.
           await this.requireWritableEvent(eventId, { prisma: tx, correlationId: `floorplan-submit:${draftId}` });
-          await this.lockActiveEventForFloorplan(tx, eventId);
           const currentDraft = await tx.opsFloorPlanDraft.findFirst({ where: { id: draftId, eventId } });
           if (!currentDraft) throw new NotFoundException('Floorplan draft not found');
           if (!['pmcm_draft', 'revision_requested'].includes(currentDraft.status)) {
-            throw new BadRequestException('Only a draft or revision-requested floorplan can be submitted');
+            throw new BadRequestException('Floorplan draft changed before submission');
           }
           submittedName = currentDraft.name;
           const snapshot = await this.floorPlanSnapshot(currentDraft.floorPlanId, tx);
@@ -252,10 +251,9 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
         this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
           // Transaction scope: DB reads/writes only. No external IO inside this callback.
           await this.requireWritableEvent(eventId, { prisma: tx, correlationId: `floorplan-approve:${draftId}` });
-          await this.lockActiveEventForFloorplan(tx, eventId);
           const currentDraft = await tx.opsFloorPlanDraft.findFirst({ where: { id: draftId, eventId } });
           if (!currentDraft) throw new NotFoundException('Floorplan draft not found');
-          if (currentDraft.status !== 'in_review') throw new BadRequestException('Only a floorplan in review can be approved');
+          if (currentDraft.status !== 'in_review') throw new BadRequestException('Floorplan draft changed before approval');
           approvedName = currentDraft.name;
           const snapshot = await this.floorPlanSnapshot(currentDraft.floorPlanId, tx);
           await tx.opsFloorPlanDraft.updateMany({
@@ -411,12 +409,6 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
     });
     if (!draft) throw new NotFoundException('Floorplan draft not found');
     return draft;
-  }
-
-  private async lockActiveEventForFloorplan(tx: Prisma.TransactionClient, eventId: string) {
-    const event = await this.lifecycleEventReferences.findFloorplanEvent(eventId, { prisma: tx, correlationId: `floorplan-event:${eventId}` });
-    if (!event) throw new NotFoundException('Event not found');
-    if (event.archived) throw new BadRequestException('Archived events cannot change the official floorplan');
   }
 
   private async floorPlanSnapshot(planId: string, client: Prisma.TransactionClient | PrismaService = this.prisma) {
