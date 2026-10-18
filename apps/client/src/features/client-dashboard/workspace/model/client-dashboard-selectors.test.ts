@@ -81,7 +81,9 @@ const events: PrismEvent[] = [
 ];
 
 const workspace = {
-  events,
+  // The API lists archived events separately from active workspace events.
+  events: events.filter((event) => !event.archived),
+  archivedEvents: events.filter((event) => event.archived),
   floorPlanDrafts: [
     {
       id: "fpd_1",
@@ -124,7 +126,7 @@ describe("client-dashboard selectors", () => {
   });
 
   it("includes only the route's archived event for final-summary closeout access", () => {
-    expect(selectClientEvents(workspace, session, "evt_3").map((event) => event.id)).toEqual(["evt_1", "evt_2", "evt_3", "evt_5"]);
+    expect(selectClientEvents(workspace, session, "evt_3").map((event) => event.id)).toEqual(["evt_1", "evt_2", "evt_5", "evt_3"]);
   });
 
   it("lists unlocked archived events in history and opens them on summary while active events keep overview", () => {

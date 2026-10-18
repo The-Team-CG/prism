@@ -391,6 +391,7 @@ describe('EventReadModelsService', () => {
         }],
       ]),
       clientEventTimelineForEvents: vi.fn(async () => []),
+      archivedClientEvents: vi.fn(async () => [{ ...event, id: 'evt_archived_history', archived: true }]),
     };
     const policy = new EventAccessPolicyService({ write: vi.fn() } as never);
     const service = new EventReadModelsService(
@@ -418,8 +419,8 @@ describe('EventReadModelsService', () => {
     expect(queries.visibleEvents).toHaveBeenCalledWith(
       expect.objectContaining({ role: OpsUserRole.Client, email: 'ana@example.test' }),
       undefined,
-      { includeArchived: true },
     );
+    expect(workspace.archivedEvents).toEqual([expect.objectContaining({ id: 'evt_archived_history', archived: true })]);
     expect(queries.clientWorkspaceForEvents).toHaveBeenCalledWith([event.id]);
 
     expect(workspace.ocularVisits).toEqual([{
@@ -1057,6 +1058,7 @@ describe('EventReadModelsService', () => {
         expect(eventIds).toEqual(['evt_ready', 'evt_pending', 'evt_completed']);
         return milestoneRows;
       }),
+      archivedClientEvents: vi.fn(async () => []),
     };
     const policy = new EventAccessPolicyService(
       { write: vi.fn() } as unknown as ConstructorParameters<typeof EventAccessPolicyService>[0],
@@ -1132,6 +1134,7 @@ describe('EventReadModelsService', () => {
         items: [],
         pagination: { nextCursor: null, hasMore: false, totalCount: 0 },
       })),
+      archivedClientEvents: vi.fn(async () => []),
     };
     const policy = new EventAccessPolicyService(
       { write: vi.fn() } as unknown as ConstructorParameters<typeof EventAccessPolicyService>[0],

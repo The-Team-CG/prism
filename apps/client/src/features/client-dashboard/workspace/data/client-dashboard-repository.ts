@@ -75,6 +75,7 @@ export const clientDashboardRepository = {
       users: pages.flatMap((page) => page.users),
       inquiries: pages.flatMap((page) => page.inquiries),
       events: pages.flatMap((page) => page.events),
+      archivedEvents: first.archivedEvents ?? [],
       documents: pages.flatMap((page) => page.documents),
       briefings: pages.flatMap((page) => page.briefings),
       supplierQuotes: pages.flatMap((page) => page.supplierQuotes),

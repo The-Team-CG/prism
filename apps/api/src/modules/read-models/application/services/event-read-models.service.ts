@@ -378,15 +378,20 @@ export class EventReadModelsService {
   async clientWorkspace(actor: ResolvedEventOpsActor, mappers: ClientWorkspaceMappers, cursor?: string) {
     await this.policy.requireActorRole(actor, [OpsUserRole.Client], 'client workspace');
 
-    const eventPage = await this.visibleEventPageForActor(actor, cursor, { includeArchived: true });
+    const eventPage = await this.visibleEventPageForActor(actor, cursor);
     const visibleEvents = eventPage.items;
     const eventIds = visibleEvents.map((event) => event.id);
+    // Archived history is read-only and listed once, on the first page.
+    const archivedEvents = cursor
+      ? []
+      : this.policy.filterEventsForActor(actor, await this.queries.archivedClientEvents(actor)).map((event) => mappers.mapEvent(event));
 
     if (eventIds.length === 0) {
       return {
         users: [],
         inquiries: [],
         events: [],
+        archivedEvents,
         documents: [],
         briefings: [],
         supplierQuotes: [],
@@ -432,6 +437,7 @@ export class EventReadModelsService {
       users: [],
       inquiries: [],
       events: visibleEvents.map((event) => mappers.mapEvent(event)),
+      archivedEvents,
       clientEventTimelines,
       documents: documents.map((document) => mappers.mapDocument(document)),
       briefings: briefings.map((briefing) => mappers.mapBriefing(briefing)),
@@ -795,8 +801,8 @@ export class EventReadModelsService {
     };
   }
 
-  private async visibleEventPageForActor(actor: ResolvedEventOpsActor, cursor?: string, options: { includeArchived?: boolean } = {}) {
-    const page = await this.queries.visibleEvents(actor, cursor, options);
+  private async visibleEventPageForActor(actor: ResolvedEventOpsActor, cursor?: string) {
+    const page = await this.queries.visibleEvents(actor, cursor);
     const eventIds = page.items.map((event) => event.id);
     return {
       ...page,
