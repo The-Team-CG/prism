@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client';
+import type { PrismPrivacyExportSection } from '@prism/types';
 
 export const COMMERCIAL_PRIVACY_REDACTOR = Symbol('COMMERCIAL_PRIVACY_REDACTOR');
 
@@ -13,4 +14,9 @@ export interface CommercialPrivacyRedactor {
     input: { email: string; redactedEmail: string },
     transaction: Prisma.TransactionClient,
   ): Promise<CommercialRedactionResult>;
+  exportClientBilling(
+    input: { eventIds: string[] },
+    transaction: Prisma.TransactionClient,
+  ): Promise<PrismPrivacyExportSection[]>;
+  exportSupplier(input: { email: string }, transaction: Prisma.TransactionClient): Promise<PrismPrivacyExportSection[]>;
 }

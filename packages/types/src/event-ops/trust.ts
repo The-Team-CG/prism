@@ -106,6 +106,25 @@ export interface PrismPrivacyRequest {
   updatedAt: string;
 }
 
+/** One owner's subject-scoped records in an access/export bundle. Records never include credentials or PMCM-internal notes. */
+export interface PrismPrivacyExportSection {
+  owner: "event-lifecycle" | "commercial" | "operations" | "identity-access";
+  surface: string;
+  records: Array<Record<string, string | number | boolean | null>>;
+}
+
+export interface PrismPrivacyExportBundle {
+  requestId: string;
+  subjectType: string;
+  generatedAt: string;
+  sections: PrismPrivacyExportSection[];
+}
+
+/** Result of executing a privacy request; `export` is present only for access and export requests. */
+export interface PrismPrivacyExecutionResult extends PrismPrivacyRequest {
+  export: PrismPrivacyExportBundle | null;
+}
+
 export interface PrismPrivacyLegalHold {
   id: string;
   subjectType: "client" | "supplier" | "guest";

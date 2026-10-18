@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
+import type { PrismPrivacyExportSection } from '@prism/types';
 import type { OperationsPrivacyRedactor, OperationsRedactionResult } from '../../contracts/privacy-redaction.port';
 
 @Injectable()
@@ -66,6 +67,88 @@ export class OperationsPrivacyRedactorService implements OperationsPrivacyRedact
       ],
       touchedRecords: rosterEntries.length + checkIns.count + feedback.count + media.count,
     };
+  }
+
+  /** Roster, check-in, and feedback rows for one guest name inside one event. Moderation notes stay internal. */
+  async exportGuest(
+    input: { eventId: string; name: string },
+    transaction: Prisma.TransactionClient,
+  ): Promise<PrismPrivacyExportSection[]> {
+    const guestName = { equals: input.name.trim(), mode: 'insensitive' as const };
+    const rosterEntries = await transaction.opsGuestRosterEntry.findMany({
+        where: { eventId: input.eventId, guestName },
+        select: {
+          id: true, guestName: true, email: true, phone: true, category: true, table: true, eligibility: true,
+          verificationStatus: true, privacyConsentAccepted: true, privacyNoticeVersion: true, checkedInAt: true, withdrawnAt: true,
+        },
+    });
+    const checkIns = await transaction.opsGuestCheckIn.findMany({
+        where: { eventId: input.eventId, guestName },
+        select: {
+          id: true, guestName: true, checkInMode: true, status: true, walkIn: true, verificationStatus: true,
+          privacyConsentAccepted: true, privacyNoticeVersion: true, marketingConsentAccepted: true, checkedInAt: true,
+        },
+    });
+    const feedback = await transaction.opsGuestFeedback.findMany({
+        where: { eventId: input.eventId, guestName },
+        select: {
+          id: true, guestName: true, rating: true, comment: true, moderationStatus: true, submittedAt: true,
+          privacyNoticeVersion: true, marketingConsentAccepted: true,
+          mediaAttachments: { select: { id: true } },
+        },
+    });
+    const sections: PrismPrivacyExportSection[] = [
+      {
+        owner: 'operations',
+        surface: 'guest_roster_entry',
+        records: rosterEntries.map((entry) => ({
+          id: entry.id,
+          guestName: entry.guestName,
+          email: entry.email,
+          phone: entry.phone,
+          category: entry.category,
+          table: entry.table,
+          eligibility: entry.eligibility,
+          verificationStatus: entry.verificationStatus,
+          privacyConsentAccepted: entry.privacyConsentAccepted,
+          privacyNoticeVersion: entry.privacyNoticeVersion,
+          checkedInAt: entry.checkedInAt?.toISOString() ?? null,
+          withdrawnAt: entry.withdrawnAt?.toISOString() ?? null,
+        })),
+      },
+      {
+        owner: 'operations',
+        surface: 'guest_check_in',
+        records: checkIns.map((checkIn) => ({
+          id: checkIn.id,
+          guestName: checkIn.guestName,
+          checkInMode: checkIn.checkInMode,
+          status: checkIn.status,
+          walkIn: checkIn.walkIn,
+          verificationStatus: checkIn.verificationStatus,
+          privacyConsentAccepted: checkIn.privacyConsentAccepted,
+          privacyNoticeVersion: checkIn.privacyNoticeVersion,
+          marketingConsentAccepted: checkIn.marketingConsentAccepted,
+          checkedInAt: checkIn.checkedInAt.toISOString(),
+        })),
+      },
+      {
+        owner: 'operations',
+        surface: 'guest_feedback',
+        records: feedback.map((item) => ({
+          id: item.id,
+          guestName: item.guestName,
+          rating: item.rating,
+          comment: item.comment,
+          moderationStatus: item.moderationStatus,
+          submittedAt: item.submittedAt.toISOString(),
+          privacyNoticeVersion: item.privacyNoticeVersion,
+          marketingConsentAccepted: item.marketingConsentAccepted,
+          mediaCount: item.mediaAttachments.length,
+        })),
+      },
+    ];
+    return sections.filter((section) => section.records.length > 0);
   }
 
   private async availableRedactedSourceKey(
