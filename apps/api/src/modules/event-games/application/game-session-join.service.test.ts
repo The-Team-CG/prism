@@ -9,7 +9,7 @@ import { EventGamesSessionJoinService } from './game-session-join.service';
 const eventId = 'event-1';
 const sessionId = 'session-1';
 const pin = '042681';
-const idempotencyKey = 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5';
+const idempotencyKey = '00000000-0000-4000-8000-000000000101';
 const now = new Date('2026-10-16T12:00:00.000Z');
 
 function setup(overrides: {
