@@ -24,11 +24,22 @@ import {
 } from '@prism/contexts/event-lifecycle/operations-reference';
 
 function isIdempotencyKeyViolation(error: unknown): boolean {
+  return isUniqueViolationOn(error, ['idempotencyKey', 'idempotency_key']);
+}
+
+function isAssessmentUniqueViolation(error: unknown): boolean {
   if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') return false;
   const target = error.meta?.target;
-  if (Array.isArray(target)) return target.includes('idempotencyKey') || target.includes('idempotency_key');
-  if (typeof target === 'string') return target.includes('idempotency_key');
-  return false;
+  const names = Array.isArray(target) ? target.map(String) : typeof target === 'string' ? [target] : [];
+  if (names.some((name) => name.includes('supplier_reviews_supplier_event_key'))) return true;
+  return names.some((name) => /^supplier_?id$/i.test(name)) && names.some((name) => /^event_?id$/i.test(name));
+}
+
+function isUniqueViolationOn(error: unknown, fragments: string[]): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') return false;
+  const target = error.meta?.target;
+  const names = Array.isArray(target) ? target.map(String) : typeof target === 'string' ? [target] : [];
+  return names.some((name) => fragments.some((fragment) => name.includes(fragment)));
 }
 
 export type CreateSupplierInput = {
@@ -276,12 +287,20 @@ export class SuppliersService {
         },
       });
     } catch (error) {
-      if (!input.idempotencyKey || !isIdempotencyKeyViolation(error)) throw error;
-      const existing = await db.opsSupplierReview.findFirst({
-        where: { idempotencyKey: input.idempotencyKey },
-        include: { dimensionRatings: { select: { dimensionId: true, rating: true } } },
-      });
-      if (!existing) throw error;
+      const keyConflict = isIdempotencyKeyViolation(error);
+      const assessmentConflict = isAssessmentUniqueViolation(error);
+      if (!keyConflict && !assessmentConflict) throw error;
+      // A same-key retry can trip either unique index; the key lookup decides between replay and conflict.
+      const existing = input.idempotencyKey
+        ? await db.opsSupplierReview.findFirst({
+          where: { idempotencyKey: input.idempotencyKey },
+          include: { dimensionRatings: { select: { dimensionId: true, rating: true } } },
+        })
+        : null;
+      if (!existing) {
+        if (assessmentConflict) throw new BadRequestException('A supplier assessment already exists for this event');
+        throw error;
+      }
       if (this.reviewReplayMismatches(existing, supplierId, input)) {
         throw new BadRequestException('Idempotency key was already used for a different supplier review');
       }
