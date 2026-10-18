@@ -50,11 +50,16 @@ describe("SupplierReviewPromptList", () => {
     fireEvent.change(screen.getByPlaceholderText("Private review notes"), {
       target: { value: "Strong event-day recovery." },
     });
+    fireEvent.change(screen.getByLabelText("Reliability"), { target: { value: "5" } });
     fireEvent.click(screen.getByRole("button", { name: "Add review" }));
 
     await waitFor(() => expect(onAddReview).toHaveBeenCalledWith(
       "sup_1",
-      expect.objectContaining({ rating: 4, notes: "Strong event-day recovery." }),
+      expect.objectContaining({
+        rating: 4,
+        notes: "Strong event-day recovery.",
+        dimensionRatings: [{ dimensionId: "dim_reliability", rating: 5 }],
+      }),
     ));
     expect(onAddReview.mock.calls[0]?.[1]).not.toHaveProperty("reviewedBy");
     expect(await screen.findByText("Review saved")).toBeTruthy();
@@ -65,10 +70,25 @@ describe("SupplierReviewPromptList", () => {
     render(<SupplierReviewPromptList {...promptProps} onAddReview={onAddReview} />);
 
     fireEvent.change(screen.getByPlaceholderText("Private review notes"), { target: { value: "Retry this note." } });
+    fireEvent.change(screen.getByLabelText("Reliability"), { target: { value: "3" } });
     fireEvent.click(screen.getByRole("button", { name: "Add review" }));
     await waitFor(() => expect(onAddReview).toHaveBeenCalledTimes(1));
     expect(screen.getByPlaceholderText("Private review notes")).toBeTruthy();
     expect(screen.queryByText("Review saved")).toBeNull();
+  });
+
+  it("blocks submission until every category dimension is rated", () => {
+    const onAddReview = vi.fn(async () => true);
+    render(<SupplierReviewPromptList {...promptProps} onAddReview={onAddReview} />);
+
+    fireEvent.change(screen.getByPlaceholderText("Private review notes"), { target: { value: "Notes without a dimension." } });
+    const submit = screen.getByRole("button", { name: "Add review" }) as HTMLButtonElement;
+    expect(submit.disabled).toBe(true);
+    expect(screen.getByText(/Rate every dimension to submit: Reliability/)).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Reliability"), { target: { value: "4" } });
+    expect((screen.getByRole("button", { name: "Add review" }) as HTMLButtonElement).disabled).toBe(false);
+    expect(onAddReview).not.toHaveBeenCalled();
   });
 
   it("shows a closure empty state when no confirmed supplier is available", () => {

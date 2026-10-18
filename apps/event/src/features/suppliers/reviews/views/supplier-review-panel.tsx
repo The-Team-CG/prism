@@ -10,6 +10,10 @@ export type SupplierReviewPanelProps = {
   onReviewForm: (patch: Partial<SupplierReviewForm>) => void;
   onReviewDimension: (dimensionId: string, value: string) => void;
   onSubmitReview: () => void;
+  /** Defaults to "notes present"; the closure prompt flow passes the full dimension-complete gate. */
+  canSubmit?: boolean;
+  missingDimensionNames?: string[];
+  validationMessage?: string | null;
 };
 
 export function SupplierReviewPanel({
@@ -20,6 +24,9 @@ export function SupplierReviewPanel({
   onReviewForm,
   onReviewDimension,
   onSubmitReview,
+  canSubmit = Boolean(reviewForm.notes.trim()),
+  missingDimensionNames = [],
+  validationMessage = null,
 }: SupplierReviewPanelProps) {
   return (
     <div className="rounded-lg border border-border bg-muted p-4">
@@ -60,9 +67,13 @@ export function SupplierReviewPanel({
           ))}
         </div>
       )}
+      {missingDimensionNames.length > 0 && (
+        <p className="mt-3 text-xs text-muted-foreground">Rate every dimension to submit: {missingDimensionNames.join(", ")}.</p>
+      )}
+      {validationMessage && <p className="mt-3 text-xs text-muted-foreground">{validationMessage}</p>}
       <button
         type="button"
-        disabled={busy || !reviewForm.notes.trim()}
+        disabled={busy || !canSubmit}
         onClick={onSubmitReview}
         className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-(--prism-ink) px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60"
       >

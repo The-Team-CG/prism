@@ -27,6 +27,7 @@ import {
 } from "../../model/coordinator-view-copy";
 import type { PrismCoordinatorRoleView } from "@prism/types";
 import { LiveOpsControlSurface, LiveOpsScheduleDesk } from "@/features/live-ops/schedule";
+import { HandoffBriefPanel } from "@/features/live-ops/handoff-brief";
 import { CCard, CCardBody, CCardHeader } from "./coordinator-view-primitives";
 import type {
   CoordinatorAttendanceFormModel,
@@ -402,6 +403,7 @@ export function CoordinatorTimelineCard({ roleView }: { roleView: PrismCoordinat
         {roleView?.schedule ? <LiveOpsControlSurface schedule={roleView.schedule} timer={roleView.timer} /> : (
           <p className="rounded-xl bg-muted/40 p-4 text-sm text-muted-foreground">No event schedule has been published yet. Check with PMCM for the latest timing.</p>
         )}
+        {roleView ? <HandoffBriefPanel eventId={roleView.event.id} /> : null}
         {roleView ? (
           <LiveOpsScheduleDesk
             eventId={roleView.event.id}

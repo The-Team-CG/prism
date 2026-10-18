@@ -412,8 +412,8 @@ describe('GameReadModelService', () => {
       kind: 'family-feud', status: 'paused', configSnapshot: { configuration: {
         kind: 'family-feud',
         teams: [
-          { id: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5', label: 'Blue' },
-          { id: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b6', label: 'Gold' },
+          { id: '00000000-0000-4000-8000-000000000101', label: 'Blue' },
+          { id: '00000000-0000-4000-8000-000000000102', label: 'Gold' },
         ],
         rounds: [{ key: 'round-1', prompt: 'Name a popular fruit.', durationSeconds: 30,
           answers: [{ answer: 'Mango', alternatives: ['Mangga'], points: 10 }] }],
@@ -439,8 +439,8 @@ describe('GameReadModelService', () => {
       kind: 'family-feud', status: 'live', configSnapshot: { configuration: {
         kind: 'family-feud',
         teams: [
-          { id: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5', label: 'Blue' },
-          { id: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b6', label: 'Gold' },
+          { id: '00000000-0000-4000-8000-000000000101', label: 'Blue' },
+          { id: '00000000-0000-4000-8000-000000000102', label: 'Gold' },
         ],
         rounds: [{ key: 'round-1', prompt: 'Name a popular fruit.', durationSeconds: 30,
           answers: [{ answer: 'Mango', alternatives: ['Mangga'], points: 10 }] }],
@@ -468,8 +468,8 @@ describe('GameReadModelService', () => {
       kind: 'family-feud', status: 'live', configSnapshot: { configuration: {
         kind: 'family-feud',
         teams: [
-          { id: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5', label: 'Blue' },
-          { id: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b6', label: 'Gold' },
+          { id: '00000000-0000-4000-8000-000000000101', label: 'Blue' },
+          { id: '00000000-0000-4000-8000-000000000102', label: 'Gold' },
         ],
         rounds: [{ key: 'round-1', prompt: 'Name a popular fruit.', durationSeconds: 30,
           answers: [{ answer: 'Mango', alternatives: ['Mangga'], points: 10 }] }],
@@ -576,7 +576,7 @@ describe('GameReadModelService', () => {
     expect(sessions.getEventAnalytics).toHaveBeenCalledWith('event-1', tx);
   });
   it('authorizes only the current published game image for a verified active participant', async () => {
-    const mediaObjectId = 'obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5';
+    const mediaObjectId = 'obj_00000000-0000-4000-8000-000000000101';
     const mediaStorage = {
       issueParticipantDownloadAuthorization: vi.fn().mockResolvedValue({
         downloadUrl: 'https://storage.example.test/signed-media',
@@ -616,10 +616,10 @@ describe('GameReadModelService', () => {
   });
 
   it('denies configured assets from other rounds and media before a game reaches live state', async () => {
-    const currentOriginal = 'obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5';
-    const currentComparison = 'obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b6';
-    const futureOriginal = 'obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b7';
-    const futureComparison = 'obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b8';
+    const currentOriginal = 'obj_00000000-0000-4000-8000-000000000101';
+    const currentComparison = 'obj_00000000-0000-4000-8000-000000000102';
+    const futureOriginal = 'obj_00000000-0000-4000-8000-000000000103';
+    const futureComparison = 'obj_00000000-0000-4000-8000-000000000104';
     const configuredIds = [currentOriginal, currentComparison, futureOriginal, futureComparison];
     const context = {
       eventId: 'event-1', sessionId: 'session-1', gameId: 'game-1', title: 'Spot the Difference',
@@ -654,7 +654,7 @@ describe('GameReadModelService', () => {
   });
 
   it('denies guessed and ended-session media before requesting storage authorization', async () => {
-    const mediaObjectId = 'obj_a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5';
+    const mediaObjectId = 'obj_00000000-0000-4000-8000-000000000101';
     const guessed = setup();
     await expect(guessed.service.getParticipantMediaAuthorization('session-1', mediaObjectId, credential))
       .rejects.toBeInstanceOf(NotFoundException);

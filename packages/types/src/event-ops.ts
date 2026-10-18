@@ -8,3 +8,4 @@ export * from "./event-ops/trust.js";
 export * from "./event-ops/read-models.js";
 export * from "./event-ops/commands.js";
 export * from "./event-ops/pare.js";
+export * from "./event-ops/handoff-brief.js";

@@ -126,9 +126,9 @@ describe("useEventGamesHostViewModel", () => {
     });
     actions.uploadLobbyLogo.mockResolvedValue({
       theme: "forest", primaryColor: "#14532D", secondaryColor: "#166534",
-      logoUrl: "https://storage.example.test/logo", logoObjectId: "obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444",
+      logoUrl: "https://storage.example.test/logo", logoObjectId: "obj_00000000-0000-4000-8000-000000000107",
     });
-    actions.uploadGameMedia.mockResolvedValue({ objectId: "obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444" });
+    actions.uploadGameMedia.mockResolvedValue({ objectId: "obj_00000000-0000-4000-8000-000000000107" });
     actions.getResponseHistory.mockResolvedValue({
       sessionId: "session-1",
       items: [],
@@ -206,7 +206,7 @@ describe("useEventGamesHostViewModel", () => {
     expect(actions.uploadLobbyLogo).toHaveBeenCalledWith("event-1", file, {
       theme: "prism", primaryColor: "#312E81", secondaryColor: "#0F766E", logoUrl: null, logoObjectId: null,
     });
-    expect(result.current.lobbyBranding?.logoObjectId).toBe("obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444");
+    expect(result.current.lobbyBranding?.logoObjectId).toBe("obj_00000000-0000-4000-8000-000000000107");
   });
 
   it("uploads a game image for the selected event and game", async () => {
@@ -290,7 +290,7 @@ describe("useEventGamesHostViewModel", () => {
     const { result } = renderHook(() => useEventGamesHostViewModel(ADMIN));
     await waitFor(() => expect(result.current.games).toHaveLength(1));
     const award = {
-      recipient: { type: "participant" as const, participationGrantId: "3ea50a76-6441-4e57-9b11-2e83817e9012" },
+      recipient: { type: "participant" as const, participationGrantId: "00000000-0000-4000-8000-000000000110" },
       awardKind: "badge" as const,
       label: "Best answer",
     };

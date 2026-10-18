@@ -51,8 +51,8 @@ function setup(overrides: { event?: Record<string, unknown> | null; games?: Arra
   const mediaStorage = {
     validateLobbyLogoReference: vi.fn().mockResolvedValue(undefined),
     issueLobbyLogoDownloadAuthorization: vi.fn().mockResolvedValue({ downloadUrl: 'https://storage.example.test/lobby-logo', expiresAt: '2026-10-16T00:05:00.000Z' }),
-    requestLobbyLogoUpload: vi.fn().mockResolvedValue({ objectId: 'obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444', uploadUrl: 'https://storage.example.test/upload', expiresAt: '2026-10-16T00:05:00.000Z', alreadyStored: false }),
-    confirmLobbyLogoUpload: vi.fn().mockResolvedValue({ objectId: 'obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444' }),
+    requestLobbyLogoUpload: vi.fn().mockResolvedValue({ objectId: 'obj_00000000-0000-4000-8000-000000000107', uploadUrl: 'https://storage.example.test/upload', expiresAt: '2026-10-16T00:05:00.000Z', alreadyStored: false }),
+    confirmLobbyLogoUpload: vi.fn().mockResolvedValue({ objectId: 'obj_00000000-0000-4000-8000-000000000107' }),
   };
   const service = new EventGamesLobbyService(access as never, store as never, rules as never, transactions as never, () => new Date('2026-10-16T00:00:00.000Z'), rateLimiter as never, config as never, hostCommands as never, mediaStorage as never);
   return { service, access, store, rule, rateLimiter, config, hostCommands, mediaStorage, transaction, transactions };
@@ -174,8 +174,8 @@ describe('EventGamesLobbyService', () => {
   it('updates accessible colors and a validated logo reference through the audited host command', async () => {
     const { service, access, hostCommands, mediaStorage, store } = setup();
     const host = { actorId: 'host-1', actorRole: 'pmcm-admin' } as never;
-    const idempotencyKey = 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5';
-    const logoObjectId = 'obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444';
+    const idempotencyKey = '00000000-0000-4000-8000-000000000101';
+    const logoObjectId = 'obj_00000000-0000-4000-8000-000000000107';
     store.findLobbyBranding
       .mockResolvedValueOnce({ theme: 'prism', primaryColor: null, secondaryColor: null, logoObjectId: null })
       .mockResolvedValueOnce({ theme: 'forest', primaryColor: '#14532D', secondaryColor: '#166534', logoObjectId });
@@ -206,7 +206,7 @@ describe('EventGamesLobbyService', () => {
       contentType: 'image/png' as const,
       declaredByteSize: 3,
       checksumSha256: createHash('sha256').update('png').digest('hex'),
-      idempotencyKey: 'a78bde2c-61a4-4e5f-b9ba-dbe21ca203b5',
+      idempotencyKey: '00000000-0000-4000-8000-000000000101',
     };
 
     const ticket = await service.requestLobbyLogoUpload(eventId, host, request);
@@ -243,7 +243,7 @@ describe('EventGamesLobbyService', () => {
   });
 
   it('returns an event-signed logo to public lobby clients without the stored object ID', async () => {
-    const logoObjectId = 'obj_1f0c48e6-2d74-43ec-b5dd-e3a62b8ec444';
+    const logoObjectId = 'obj_00000000-0000-4000-8000-000000000107';
     const { service, mediaStorage } = setup({ branding: {
       theme: 'forest', primaryColor: '#14532D', secondaryColor: '#166534', logoObjectId,
     } });
