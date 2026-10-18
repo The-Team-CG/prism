@@ -8,6 +8,7 @@ import type {
   PrismAddendum,
   PrismEventFreezeException,
   PrismEventDecision,
+  PrismClientChangeRequest,
 } from "@prism/types";
 import { prismRequest, toQueryString } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
@@ -31,6 +32,16 @@ export function createEventsClient(
       decisionHistory: (eventId, actor = {}) =>
         prismRequest<PrismEventDecision[]>(
           actorPath(`/events/${eventId}/decisions`, actor),
+          withBase(options),
+        ),
+      recordDecision: (eventId, input, actor = {}) =>
+        prismRequest<PrismEventDecision>(
+          actorPath(`/events/${eventId}/decisions`, actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
+      changeRequests: (eventId, actor = {}) =>
+        prismRequest<PrismClientChangeRequest[]>(
+          actorPath(`/events/${eventId}/change-requests`, actor),
           withBase(options),
         ),
       fileRequirements: (eventId, actor = {}) =>
@@ -81,6 +92,11 @@ export function createEventsClient(
       addenda: (eventId, actor = {}) =>
         prismRequest<PrismAddendum[]>(
           actorPath(`/events/${eventId}/addenda`, actor),
+          withBase(options),
+        ),
+      freezeExceptions: (eventId, actor = {}) =>
+        prismRequest<PrismEventFreezeException[]>(
+          actorPath(`/events/${eventId}/freeze-exceptions`, actor),
           withBase(options),
         ),
       freeze: (eventId, input, actor = {}) =>

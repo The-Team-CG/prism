@@ -5,20 +5,48 @@ import {
   optionalTrimmedStringSchema,
   privacyConsentSchema,
 } from "./common.js";
-export const eventDecisionSchema = z.object({
+const eventDecisionFields = z.object({
   decision: z.enum(["cancelled", "postponed", "date_to_be_confirmed"]),
   reason: nonEmptyStringSchema,
   newEventDate: isoDateStringSchema.optional(),
   cancellationFeeAmount: z.number().int().nonnegative().default(0),
   depositTreatment: z.enum(["retain", "credit", "waive", "pending_review"]).default("pending_review"),
   supplierImpact: z.enum(["release_obligations", "preserve_obligations", "pending_review"]).default("pending_review"),
+  // Required on frozen events; the service verifies it is an approved, unused exception for this event.
+  freezeExceptionId: optionalTrimmedStringSchema,
   idempotencyKey: nonEmptyStringSchema.optional(),
-}).superRefine((value, ctx) => {
+});
+
+type EventDecisionFields = z.infer<typeof eventDecisionFields>;
+
+function refineEventDecision(value: EventDecisionFields, ctx: z.RefinementCtx) {
   if (value.decision === "postponed" && !value.newEventDate) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["newEventDate"], message: "A new date is required for postponement" });
   }
-});
+  // Impact review cannot be silently skipped: unresolved supplier impact is rejected outright.
+  if (value.supplierImpact === "pending_review") {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["supplierImpact"], message: "Supplier impact must be resolved before recording this decision" });
+  }
+  const billingRequiresTreatment = value.decision === "cancelled" || value.cancellationFeeAmount > 0;
+  if (billingRequiresTreatment && value.depositTreatment === "pending_review") {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["depositTreatment"], message: "Deposit treatment must be resolved when cancelling or charging a cancellation fee" });
+  }
+}
+
+/** Decision treatment rules shared by the service-facing input and the PMCM write boundary. */
+export const eventDecisionSchema = eventDecisionFields.superRefine(refineEventDecision);
 export type EventDecisionInput = z.infer<typeof eventDecisionSchema>;
+
+/**
+ * PMCM write boundary: a decision is recorded only after the coordinator, supplier, and billing impact review
+ * has been confirmed, so the flag is required here rather than defaulted.
+ */
+export const recordEventDecisionSchema = eventDecisionFields
+  .extend({
+    impactReviewAcknowledged: z.literal(true, { message: "Confirm the coordinator, supplier, and billing impact review before recording this decision" }),
+  })
+  .superRefine(refineEventDecision);
+export type RecordEventDecisionInput = z.infer<typeof recordEventDecisionSchema>;
 
 /**
  * Write DTOs for portal ↔ API mutations.
