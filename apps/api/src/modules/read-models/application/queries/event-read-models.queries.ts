@@ -74,9 +74,9 @@ function decodeEventCursor(cursor?: string): EventReadCursor | undefined {
   }
 }
 
-function visibleEventsWhere(actor: ResolvedEventOpsActor, assignedEventIds: string[] = []): Prisma.OpsEventWhereInput {
+function visibleEventsWhere(actor: ResolvedEventOpsActor, assignedEventIds: string[] = [], includeArchived = false): Prisma.OpsEventWhereInput {
   if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return { archived: false };
-  if (actor.role === OpsUserRole.Client) return clientVisibleEventsWhere(actor);
+  if (actor.role === OpsUserRole.Client) return clientVisibleEventsWhere(actor, includeArchived);
   if (actor.role === OpsUserRole.Supplier) return assignedEventsWhere(Boolean(actor.supplierId || actor.email?.trim()), assignedEventIds);
   if (actor.role === OpsUserRole.Coordinator) {
     return assignedEventsWhere(Boolean(actor.coordinatorId || actor.id || actor.email?.trim()), assignedEventIds);
@@ -88,10 +88,12 @@ function assignedEventsWhere(hasIdentity: boolean, assignedEventIds: string[]): 
   return hasIdentity ? { archived: false, id: { in: assignedEventIds } } : { id: { in: [] } };
 }
 
-function clientVisibleEventsWhere(actor: ResolvedEventOpsActor): Prisma.OpsEventWhereInput {
+/** Clients see their own unlocked events; the workspace also lists archived events for read-only closeout. */
+function clientVisibleEventsWhere(actor: ResolvedEventOpsActor, includeArchived: boolean): Prisma.OpsEventWhereInput {
+  const archiveFilter: Prisma.OpsEventWhereInput = includeArchived ? {} : { archived: false };
   if (actor.email?.trim()) {
     return {
-      archived: false,
+      ...archiveFilter,
       clientPortalStatus: 'unlocked',
       inquiry: {
         is: { email: { equals: actor.email.trim(), mode: 'insensitive' } },
@@ -101,7 +103,7 @@ function clientVisibleEventsWhere(actor: ResolvedEventOpsActor): Prisma.OpsEvent
   if (actor.verified) return { id: { in: [] } };
   if (actor.clientName?.trim()) {
     return {
-      archived: false,
+      ...archiveFilter,
       clientPortalStatus: 'unlocked',
       clientName: { equals: actor.clientName.trim(), mode: 'insensitive' },
     };
@@ -158,9 +160,9 @@ export class EventReadModelQueries {
   constructor(private readonly prisma: PrismaService) {}
 
   // Query budget: actor scope and keyset are applied in Postgres before each bounded page.
-  async visibleEvents(actor: ResolvedEventOpsActor, cursor?: string) {
+  async visibleEvents(actor: ResolvedEventOpsActor, cursor?: string, options: { includeArchived?: boolean } = {}) {
     const assignedEventIds = await this.assignedEventIds(actor);
-    const where = visibleEventsWhere(actor, assignedEventIds);
+    const where = visibleEventsWhere(actor, assignedEventIds, options.includeArchived === true);
     const decodedCursor = decodeEventCursor(cursor);
     const pageWhere: Prisma.OpsEventWhereInput = decodedCursor
       ? {
@@ -597,13 +599,6 @@ export class EventReadModelQueries {
   async supplierReadinessRequests(supplierId: string) {
     const activeEventIds = await this.activeEventIdsForSupplier(supplierId);
     const requests = await readAllRowsById(MAX_SUPPLIER_WORKSPACE_ROWS, (afterId) =>
-      this.prisma.opsSupplierQuoteRequest.findMany({ where: { supplierId, eventId: { in: activeEventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
-        orderBy: { id: 'asc' }, take: MAX_SUPPLIER_WORKSPACE_ROWS }),
-    );
-    return sortByDate(requests, (row) => row.createdAt, 'desc');
-  async supplierReadinessRequests(supplierId: string) {
-    const activeEventIds = await this.activeEventIdsForSupplier(supplierId);
-    const requests = await readAllRowsById(MAX_SUPPLIER_WORKSPACE_ROWS, (afterId) =>
       this.prisma.opsSupplierQuoteRequest.findMany({
         where: { supplierId, eventId: { in: activeEventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
         include: { contractVersions: { select: { reviewStatus: true }, orderBy: { version: 'desc' }, take: 1 } },
@@ -611,7 +606,6 @@ export class EventReadModelQueries {
       }),
     );
     return sortByDate(requests, (row) => row.createdAt, 'desc');
-  }
   }
 
   // Each actionable source has its own deterministic page so combined queue rows are never silently dropped.

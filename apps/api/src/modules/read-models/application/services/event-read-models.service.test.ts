@@ -415,7 +415,11 @@ describe('EventReadModelsService', () => {
     const workspace = await service.clientWorkspace(actor, mappers as never);
 
     expect(workspace.events).toEqual([event]);
-    expect(queries.visibleEvents).toHaveBeenCalledWith(true);
+    expect(queries.visibleEvents).toHaveBeenCalledWith(
+      expect.objectContaining({ role: OpsUserRole.Client, email: 'ana@example.test' }),
+      undefined,
+      { includeArchived: true },
+    );
     expect(queries.clientWorkspaceForEvents).toHaveBeenCalledWith([event.id]);
 
     expect(workspace.ocularVisits).toEqual([{
