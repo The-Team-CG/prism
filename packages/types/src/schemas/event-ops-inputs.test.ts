@@ -192,6 +192,23 @@ describe("event-ops write schemas", () => {
     expect(parsed.eventDate).toBe("2026-06-18");
   });
 
+  it("maps legacy Private to Individual and offers only the catalog client categories", () => {
+    const base = {
+      clientName: "Maria Santos",
+      email: "maria@samplecorp.test",
+      eventName: "Leadership Forum",
+      eventDate: "2026-06-18",
+      source: "P.R.I.S.M Website",
+      message: "Need full planning support.",
+      privacyConsentAccepted: true,
+    } as const;
+    expect(createPrismInquirySchema.parse({ ...base, clientType: " Private " }).clientType).toBe("Individual");
+    expect(createPrismInquirySchema.parse({ ...base, clientType: "Non-profit" }).clientType).toBe("Non-profit");
+    for (const retired of ["School", "Other", "Private celebration", ""]) {
+      expect(createPrismInquirySchema.safeParse({ ...base, clientType: retired }).success).toBe(false);
+    }
+  });
+
   it("rejects invalid inquiry email and date", () => {
     const result = createPrismInquirySchema.safeParse({
       clientName: "Maria",
