@@ -786,8 +786,8 @@ export class PrivacyOperationsService {
       reviewedAt: timestamp(request.reviewedAt),
       executedBy: request.executedBy ?? null,
       executedAt: timestamp(request.executedAt),
-      createdAt: timestamp(request.createdAt),
-      updatedAt: timestamp(request.updatedAt),
+      createdAt: timestamp(request.createdAt) ?? '',
+      updatedAt: timestamp(request.updatedAt) ?? '',
     };
   }
 

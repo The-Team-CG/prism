@@ -15,4 +15,3 @@ export interface IdentityPrivacyRedactor {
   ): Promise<{ count: number }>;
   exportAccount(email: string, transaction: Prisma.TransactionClient): Promise<PrismPrivacyExportSection[]>;
 }
-</content>
