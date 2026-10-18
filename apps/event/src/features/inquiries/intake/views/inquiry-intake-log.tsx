@@ -26,6 +26,7 @@ export function InquiryIntakeLog({
   onAccept,
   onPend,
   onDecline,
+  onMerge,
   onLogOnBehalf,
   busy,
 }: {
@@ -33,6 +34,7 @@ export function InquiryIntakeLog({
   onAccept: (inquiry: PrismInquiry) => Promise<void>;
   onPend: (inquiry: PrismInquiry) => Promise<void>;
   onDecline: (inquiry: PrismInquiry, reason: string) => Promise<void>;
+  onMerge: (primary: PrismInquiry, input: { sourceInquiryId: string; reason: string }) => Promise<void>;
   onLogOnBehalf: (input: LogInquiryOnBehalfInput) => Promise<void>;
   busy: boolean;
 }) {
@@ -125,6 +127,11 @@ export function InquiryIntakeLog({
           onAccept={() => onAccept(opened)}
           onPend={() => onPend(opened)}
           onDecline={() => setDeclining(opened)}
+          allInquiries={inquiries}
+          onMerge={async (primary, reason) => {
+            await onMerge(primary, { sourceInquiryId: opened.id, reason });
+            setOpened(null);
+          }}
         />
       )}
       {declining && (
