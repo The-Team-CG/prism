@@ -156,7 +156,6 @@ describe('W14 billing operations', () => {
     postEventStateReader.findPostEventState.mockResolvedValue({ eventId: 'evt_w14', actualEndedAt: null });
     const input = createAdditionalBillingSchema.parse({
       billingSourceId: 'bsrc_w14',
-      billingSourceId: 'bsrc_w14',
       urgentIssueId: 'issue_w14',
       description: 'Approved overtime',
       amount: 5000,

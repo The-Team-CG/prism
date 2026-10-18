@@ -178,7 +178,7 @@ export class BillingAdjustmentService {
   }
 
   /** Additional billing must trace to an approved source of the same event; unapproved or foreign sources are refused. */
-  private async requireApprovedBillingSource(eventId: string, billingSourceId: string, db: PrismTransactionContext['prisma'] | PrismService = this.prisma) {
+  private async requireApprovedBillingSource(eventId: string, billingSourceId: string, db: PrismTransactionContext['prisma'] | PrismaService = this.prisma) {
     const source = await db.opsBillingSource.findUnique({ where: { id: billingSourceId } });
     if (!source || source.eventId !== eventId) throw new NotFoundException('Billing source not found');
     if (source.status !== 'approved') throw new BadRequestException('Additional billing must trace to an approved billing source');
