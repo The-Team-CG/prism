@@ -200,6 +200,7 @@ model OpsInquiry {
   source                    String    @default("Website")
   channel                   String?
   normalizedEmail           String    @default("") @map("normalized_email")
+  organizationKey           String?   @map("organization_key")
   referralDetails           String    @default("") @map("referral_details")
   loggedByRole              String?   @map("logged_by_role")
   loggedByName              String?   @map("logged_by_name")
@@ -229,6 +230,8 @@ model OpsInquiry {
   events OpsEvent[]
   statusHistory OpsInquiryStatusHistory[]
   conformeExecutions OpsConformeExecution[]
+  mergesAsPrimary OpsInquiryMerge[] @relation("InquiryMergePrimary")
+  mergedInto      OpsInquiryMerge? @relation("InquiryMergeSource")
 
   @@index([status, createdAt], map: "inquiries_status_created_at_idx")
   @@index([source, createdAt], map: "inquiries_source_created_at_idx")
@@ -236,7 +239,28 @@ model OpsInquiry {
   @@index([normalizedEmail, eventDate], map: "inquiries_normalized_email_event_date_idx")
   @@index([duplicateOfInquiryId], map: "inquiries_duplicate_of_inquiry_id_idx")
   @@index([previousDeclinedInquiryId], map: "inquiries_previous_declined_inquiry_id_idx")
+  @@index([organizationKey, createdAt], map: "inquiries_organization_key_created_at_idx")
   @@map("inquiries")
+  @@schema("event_lifecycle")
+}
+
+model OpsInquiryMerge {
+  id               String   @id
+  primaryInquiryId String   @map("primary_inquiry_id")
+  mergedInquiryId  String   @unique @map("merged_inquiry_id")
+  organizationKey  String?  @map("organization_key")
+  matchBasis       String   @map("match_basis")
+  reason           String
+  actorId          String   @map("actor_id")
+  actorRole        String   @map("actor_role")
+  actorName        String   @map("actor_name")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  primaryInquiry OpsInquiry @relation("InquiryMergePrimary", fields: [primaryInquiryId], references: [id], onDelete: Cascade)
+  mergedInquiry  OpsInquiry @relation("InquiryMergeSource", fields: [mergedInquiryId], references: [id], onDelete: Cascade)
+
+  @@index([primaryInquiryId, createdAt], map: "inquiry_merges_primary_inquiry_id_created_at_idx")
+  @@map("inquiry_merges")
   @@schema("event_lifecycle")
 }
 

@@ -41,6 +41,7 @@ export {
 export {
   createPrismInquirySchema,
   updateInquiryStatusSchema,
+  mergeInquirySchema,
   uploadConformeSchema,
   submitBriefingSchema,
   reviewEventProposalSchema,
@@ -127,6 +128,7 @@ export {
   pmcmCommandInboxQuerySchema,
   type CreatePrismInquiryInput,
   type UpdateInquiryStatusInput,
+  type MergeInquiryInput,
   type UploadConformeInput,
   type SubmitBriefingInput,
   type ReviewEventProposalInput,
