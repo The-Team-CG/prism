@@ -27,6 +27,24 @@ export type EventDecisionInput = z.infer<typeof eventDecisionSchema>;
  */
 
 /* ── Inquiry / onboarding ─────────────────────────────────────── */
+
+/** Client categories offered for new inquiries (product policy, 2026-09-08). */
+export const INQUIRY_CLIENT_CATEGORIES = ["Corporate", "Government", "Individual", "Non-profit"] as const;
+export type InquiryClientCategory = (typeof INQUIRY_CLIENT_CATEGORIES)[number];
+
+/** Legacy values rewritten to a current category on write. School/Other have no mapping and remain historical values. */
+const LEGACY_INQUIRY_CLIENT_TYPE_MAPPINGS: ReadonlyMap<string, InquiryClientCategory> = new Map([["Private", "Individual"]]);
+
+export function normalizeInquiryClientType(value: string): string {
+  const trimmed = value.trim();
+  return LEGACY_INQUIRY_CLIENT_TYPE_MAPPINGS.get(trimmed) ?? trimmed;
+}
+
+export const inquiryClientCategorySchema = z
+  .string()
+  .transform(normalizeInquiryClientType)
+  .pipe(z.enum(INQUIRY_CLIENT_CATEGORIES));
+
 export const createPrismInquirySchema = privacyConsentSchema.extend({
   clientName: nonEmptyStringSchema,
   companyName: optionalTrimmedStringSchema,
@@ -34,7 +52,7 @@ export const createPrismInquirySchema = privacyConsentSchema.extend({
   eventName: nonEmptyStringSchema,
   eventType: optionalTrimmedStringSchema,
   eventDate: isoDateStringSchema,
-  clientType: nonEmptyStringSchema,
+  clientType: inquiryClientCategorySchema,
   source: z.enum([
     "P.R.I.S.M Website",
     "PMCM Facebook",

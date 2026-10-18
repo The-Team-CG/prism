@@ -522,6 +522,20 @@ describe('EventLiveOpsCommandService coordinator attendance self-scope', () => {
     );
   });
 
+  it('ends delegated attendance authority once the designation is revoked', async () => {
+    const { service, coordinatorCommandService, prisma } = createService(coordinatorAssignmentRow());
+    prisma.opsEventOperatorDesignation.findFirst.mockResolvedValue(null as never);
+
+    await expect(
+      service.updateCoordinatorAttendance('evt_sample_ayala', 'coord_asg_ayala_rhea', { status: 'present' }, coordinatorActor()),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(prisma.opsEventOperatorDesignation.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ eventId: 'evt_sample_ayala', revokedAt: null }) }),
+    );
+    expect(coordinatorCommandService.updateCoordinatorAttendance).not.toHaveBeenCalled();
+  });
+
   it('rejects supplier verification from a non-ingress coordinator', async () => {
     const { service, eventAccessPolicyService, staffingReader, prisma } = createService(
       coordinatorAssignmentRow({ role: 'Floor Director' }),
