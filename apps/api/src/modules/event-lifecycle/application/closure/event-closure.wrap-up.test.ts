@@ -19,6 +19,7 @@ function harness(actualEndedAt: Date | null = new Date('2026-09-07T00:00:00.000Z
     opsComplianceCheck: { findMany: vi.fn(async () => [{ id: 'check_1', title: 'Open item', status: 'open' }]) },
     opsDocument: { findMany: vi.fn(async () => [{ id: 'doc_1', type: 'closeout', status: 'submitted' }]) },
     opsPostEventDocument: { findMany: vi.fn(async () => []) },
+    opsLogisticsCompletion: { findUnique: vi.fn(async () => null) },
   };
   const prisma: any = { ...tx, opsEvent: tx.opsEvent, opsEventWrapUp: tx.opsEventWrapUp, $transaction: vi.fn(async (fn: any) => fn(tx)) };
   const policy: any = { requireActorRole: vi.fn(async (subject: any, roles: string[]) => { if (!roles.includes(subject.role)) throw new ForbiddenException(); }) };
@@ -111,7 +112,7 @@ describe('EventClosureService wrap-up', () => {
       billingStatements: [{ id: 'bill_1' }], outstandingAmount: 100,
       documents: [{ id: 'doc_1' }], postEventDocuments: [], submittedDocuments: [{ id: 'doc_1' }],
       supplierReviews: [], guestFeedback: [{ id: 'feedback_1' }], feedbackDocuments: [], approvedGuestFeedback: [{ id: 'feedback_1' }],
-      complianceChecks: [{ id: 'check_1' }], openChecks: [{}], wrapSections: {},
+      complianceChecks: [{ id: "check_1" }], openChecks: [{}], logisticsCompletion: null,
       issues: [], segments: [{ id: 'segment_1' }], lateSegments: [],
       coordinatorFacts: {
         assignments: 4, awaitingAcknowledgement: 1, lateAttendance: 1, absentAttendance: 0,
