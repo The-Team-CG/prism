@@ -433,6 +433,7 @@ export class EventReadModelQueries {
       paymentRecords,
       auditLogs,
       ocularVisits,
+      billingDisputes,
     ] = await Promise.all([
       readAllRowsById(MAX_CLIENT_WORKSPACE_ROWS, (afterId) =>
         this.prisma.opsDocument.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
@@ -473,6 +474,10 @@ export class EventReadModelQueries {
         orderBy: [{ eventId: 'asc' }],
         take: MAX_CLIENT_WORKSPACE_ROWS,
       }),
+      readAllRowsById(MAX_CLIENT_WORKSPACE_ROWS, (afterId) =>
+        this.prisma.opsBillingDispute.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+          orderBy: { id: 'asc' }, take: MAX_CLIENT_WORKSPACE_ROWS }),
+      ),
     ]);
     return [
       sortByDate(documents, (row) => row.uploadedAt, 'desc'),
@@ -483,6 +488,7 @@ export class EventReadModelQueries {
       sortByDate(paymentRecords, (row) => row.recordedAt, 'desc'),
       sortByDate(auditLogs, (row) => row.createdAt, 'desc'),
       ocularVisits,
+      sortByDate(billingDisputes, (row) => row.createdAt, 'desc'),
     ] as const;
   }
   // Every action source is fetched in bounded keyset pages for the visible event set.
