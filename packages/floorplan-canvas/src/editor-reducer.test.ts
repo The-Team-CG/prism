@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { initialState } from "./store";
 import { reducer } from "./editor-reducer";
-import type { Project } from "./types";
+import type { CanvasObject, Guest, Project } from "./types";
 
 const project: Project = {
   id: "event-1",
@@ -25,5 +25,99 @@ describe("floorplan editor project history", () => {
     expect(changed.project.widthM).toBe(24);
     expect(reducer(changed, { type: "UNDO" }).project.widthM).toBe(20);
     expect(reducer(reducer(changed, { type: "UNDO" }), { type: "REDO" }).project.widthM).toBe(24);
+  });
+});
+
+function tableObject(overrides: Partial<CanvasObject> & { id: string }): CanvasObject {
+  return {
+    name: "Round Table",
+    kind: "ellipse",
+    category: "furniture",
+    x: 0,
+    y: 0,
+    w: 1.4,
+    h: 1.4,
+    rotation: 0,
+    fill: "#fff",
+    stroke: "#000",
+    strokeWidth: 1,
+    seats: 2,
+    assignedGuestIds: [],
+    locked: false,
+    hidden: false,
+    ...overrides,
+  };
+}
+
+describe("table assignment eligibility in the floorplan editor", () => {
+  const guests: Guest[] = [
+    { id: "g-ana", name: "Ana", rsvp: "confirmed" },
+    { id: "g-ben", name: "Ben", rsvp: "pending" },
+    { id: "g-cy", name: "Cy", rsvp: "confirmed" },
+    { id: "g-dee", name: "Dee", rsvp: "declined" },
+  ];
+  const withLayout = (objects: CanvasObject[]) =>
+    initialState({ ...project, objects, guests });
+
+  it("seats eligible guests and moves a guest between tables without duplicating seats", () => {
+    const start = withLayout([
+      tableObject({ id: "t1" }),
+      tableObject({ id: "t2" }),
+    ]);
+    const seated = reducer(start, { type: "ASSIGN_GUEST", guestId: "g-ana", objectId: "t1" });
+    expect(seated.project.objects.find((o) => o.id === "t1")?.assignedGuestIds).toEqual(["g-ana"]);
+
+    const moved = reducer(seated, { type: "ASSIGN_GUEST", guestId: "g-ana", objectId: "t2" });
+    expect(moved.project.objects.map((o) => o.assignedGuestIds)).toEqual([[], ["g-ana"]]);
+    expect(reducer(moved, { type: "UNDO" }).project.objects.find((o) => o.id === "t1")?.assignedGuestIds).toEqual(["g-ana"]);
+  });
+
+  it.each([
+    {
+      case: "declined guest",
+      objects: [tableObject({ id: "t1" })],
+      guestId: "g-dee",
+      objectId: "t1",
+    },
+    {
+      case: "unknown guest",
+      objects: [tableObject({ id: "t1" })],
+      guestId: "g-nobody",
+      objectId: "t1",
+    },
+    {
+      case: "non-furniture object such as a stage",
+      objects: [tableObject({ id: "stage", category: "stage", kind: "rect", seats: 4 })],
+      guestId: "g-ana",
+      objectId: "stage",
+    },
+    {
+      case: "table without a seat count",
+      objects: [tableObject({ id: "t1", seats: undefined })],
+      guestId: "g-ana",
+      objectId: "t1",
+    },
+    {
+      case: "hidden table",
+      objects: [tableObject({ id: "t1", hidden: true })],
+      guestId: "g-ana",
+      objectId: "t1",
+    },
+    {
+      case: "table already at capacity",
+      objects: [tableObject({ id: "t1", seats: 1, assignedGuestIds: ["g-ben"] })],
+      guestId: "g-ana",
+      objectId: "t1",
+    },
+  ])("rejects an ineligible assignment for a $case without changing the layout", ({ objects, guestId, objectId }) => {
+    const start = withLayout(objects);
+    const result = reducer(start, { type: "ASSIGN_GUEST", guestId, objectId });
+    expect(result).toBe(start);
+  });
+
+  it("keeps a guest's seat at a full table when reassigning them to that same table", () => {
+    const start = withLayout([tableObject({ id: "t1", seats: 1, assignedGuestIds: ["g-ana"] })]);
+    const result = reducer(start, { type: "ASSIGN_GUEST", guestId: "g-ana", objectId: "t1" });
+    expect(result.project.objects[0].assignedGuestIds).toEqual(["g-ana"]);
   });
 });

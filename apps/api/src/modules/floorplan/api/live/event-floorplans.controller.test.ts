@@ -80,6 +80,25 @@ describe('OpsEventFloorplansController', () => {
     expect(floorPlanWorkflowService.approveFloorPlanDraft).toHaveBeenCalledWith('evt_sample', 'fpd_new', { name: 'Maxine', role: OpsUserRole.PmcmAdmin });
   });
 
+  it('denies clients from applying a venue-library preset to an official floorplan', async () => {
+    const { controller, floorPlanWorkflowService } = createController();
+    const client = {
+      id: 'client_ana',
+      actorId: 'client_ana',
+      role: OpsUserRole.Client,
+      actorRole: OpsUserRole.Client,
+      email: 'ana@example.test',
+      actorEmail: 'ana@example.test',
+      name: 'Ana Reyes',
+      actorName: 'Ana Reyes',
+      expiresAt: '2026-07-03T12:00:00.000Z',
+    };
+    const input = createFloorPlanDraftSchema.parse({ name: 'Official', sourceType: 'template', venueTemplateId: 'tpl_gala' });
+
+    await expect(controller.createFloorPlanDraft('evt_sample', input, client as any)).rejects.toMatchObject({ status: 403 });
+    expect(floorPlanWorkflowService.createFloorPlanDraft).not.toHaveBeenCalled();
+  });
+
   it('serves client preferences and snapshots through floorplan ownership', async () => {
     const { controller, floorPlanWorkflowService, eventAccessPolicyService } = createController();
     const actor = {
