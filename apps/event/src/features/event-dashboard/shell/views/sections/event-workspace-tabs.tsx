@@ -285,25 +285,25 @@ export function EventWorkspaceLiveOpsTab() {
   return (
     <div className="space-y-5">
     <HandoffBriefPanel eventId={vm.selectedEvent.id} />
-    <LiveOperationsWorkspace
-      event={vm.selectedEvent}
-      liveOps={vm.liveOps}
-      statusFeed={vm.statusFeed}
-      coordinators={vm.coordinators}
-      busy={Boolean(vm.busy)}
-      onReload={vm.loadLiveOps}
-      onCreateTask={vm.createEventDayTask}
-      onUpdateTask={vm.updateEventDayTask}
-      onEscalateTask={vm.escalateEventDayTask}
-      onCreateIssue={vm.createUrgentIssue}
-      onUpdateIssue={vm.updateUrgentIssue}
-      onEscalateIssue={vm.escalateUrgentIssue}
-      onUpdateCoordinatorAttendance={vm.updateCoordinatorAttendance}
-      onReplaceCoordinator={vm.replaceCoordinator}
-      onLoadCoordinatorSuggestions={vm.loadCoordinatorSuggestions}
-      onVerifySupplierStatus={vm.verifySupplierStatus}
-      onDecideTaskReassignment={vm.decideEventTaskReassignment}
-    />
+      <LiveOperationsWorkspace
+        event={vm.selectedEvent}
+        liveOps={vm.liveOps}
+        statusFeed={vm.statusFeed}
+        coordinators={vm.coordinators}
+        busy={Boolean(vm.busy)}
+        onReload={vm.loadLiveOps}
+        onCreateTask={vm.createEventDayTask}
+        onUpdateTask={vm.updateEventDayTask}
+        onEscalateTask={vm.escalateEventDayTask}
+        onCreateIssue={vm.createUrgentIssue}
+        onUpdateIssue={vm.updateUrgentIssue}
+        onEscalateIssue={vm.escalateUrgentIssue}
+        onUpdateCoordinatorAttendance={vm.updateCoordinatorAttendance}
+        onReplaceCoordinator={vm.replaceCoordinator}
+        onLoadCoordinatorSuggestions={vm.loadCoordinatorSuggestions}
+        onVerifySupplierStatus={vm.verifySupplierStatus}
+        onDecideTaskReassignment={vm.decideEventTaskReassignment}
+      />
     </div>
   );
 }
