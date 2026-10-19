@@ -4,6 +4,8 @@ import type { PrismFileRequirementsMatrix } from "./lifecycle.js";
 export interface PrismBillingLineItem {
   label: string;
   amount: number;
+  /** Set on addendum scope-change lines; the conforme trace is matched by this id. */
+  addendumId?: string;
   /** Set on addendum scope-change lines once the addendum conforme is executed. */
   addendumConforme?: PrismAddendumConformeTraceReference;
 }
