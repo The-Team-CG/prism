@@ -5,4 +5,5 @@ export interface PmcmEventReadModel {
   pmcmCommandInbox(actor: ResolvedEventOpsActor): Promise<unknown>;
   pmcmEventWorkspace(actor: ResolvedEventOpsActor, eventId: string, mappers: PmcmDashboardMappers): Promise<unknown>;
   pmcmDashboard(actor: ResolvedEventOpsActor, mappers: PmcmDashboardMappers): Promise<unknown>;
+  pmcmSupplierReadinessBoard(actor: ResolvedEventOpsActor, eventId: string): Promise<unknown>;
 }
