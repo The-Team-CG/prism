@@ -2,7 +2,7 @@ import path from "node:path";
 import type { NextConfig } from "next";
 
 const serviceMode = process.env.PRISM_VERCEL_SERVICES === "1";
-const basePath = serviceMode ? "" : "";
+const basePath = "";
 
 const nextConfig: NextConfig = {
   basePath,
