@@ -4,6 +4,10 @@ This log tracks changes to documentation structure and durable contracts. Releas
 notes are in [`../CHANGELOG.md`](../CHANGELOG.md); Git history retains detailed
 implementation and verification history.
 
+## 2026-10-19
+
+- Updated the Lifecycle/Commercial addendum-impact contract: Commercial applies billing and selected-quote changes only with an executed addendum conforme reference and exposes a read-only issue-time preflight.
+
 ## 2026-10-18
 
 - Prepared client and supplier workflow publication against current staging, preserving owner-schema baselines, guest games, registration, and context reader boundaries. The delivery combines shared storage, supplier workflows, client reviews/closeout, and conforme signing. Original local acceptance is retained as historical evidence; integrated-head verification is a separate merge gate.
