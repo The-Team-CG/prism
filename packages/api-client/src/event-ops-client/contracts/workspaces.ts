@@ -4,6 +4,8 @@ import type {
   PrismBillingWorkspace,
   PrismClientActionCenter,
   PrismClientWorkspace,
+  PrismDecisionLog,
+  PrismDecisionLogQueryInput,
   PrismPmcmCommandInbox,
   PrismPmcmCommandInboxQueryInput,
   PrismPmcmDashboardWorkspace,
@@ -35,6 +37,8 @@ export interface EventOpsWorkspacesContract {
 
   pmcm: {
     commandInbox(query?: PrismPmcmCommandInboxQueryInput): Promise<PrismPmcmCommandInbox>;
+    /** PMCM-only decision log for one event (FL-019); identity comes from the session token. */
+    decisionLog(eventId: string, query?: PrismDecisionLogQueryInput): Promise<PrismDecisionLog>;
     eventWorkspace(
       eventId: string,
       actor?: EventOpsActorQuery,
