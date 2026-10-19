@@ -149,6 +149,7 @@ describe("event-dashboard-routing", () => {
       [{ section: "events", tab: "overview" }, "dashboard"],
       [{ section: "events", tab: "briefing", eventId: "event-42", view: "planning-checklist" }, "event-planning"],
       [{ section: "events", tab: "live-ops", eventId: "event-42", view: "not-a-route" }, "event-timeline"],
+      [{ section: "events", tab: "live-ops", eventId: "event-42", view: "run-sheet" }, "event-timeline"],
     ];
 
     for (const [routeState, expected] of cases) {
@@ -241,6 +242,7 @@ describe("event-dashboard-routing", () => {
       ["/dashboard/events/event-42", eventRouteState("event-42")],
       ["/dashboard/events/event-42/files", { section: "events", eventId: "event-42", tab: "files", view: "files" }],
       ["/dashboard/events/event-42/floorplans", { section: "events", eventId: "event-42", tab: "floorplans", view: "floorplans" }],
+      ["/dashboard/events/event-42/run-sheet", { section: "events", eventId: "event-42", tab: "live-ops", view: "run-sheet" }],
       [
         "/dashboard/events/event-42/not-a-tab",
         { section: "events", eventId: "event-42", tab: "overview", view: "not-a-tab" },

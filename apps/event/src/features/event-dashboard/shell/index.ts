@@ -17,7 +17,7 @@ export {
   EventDashboardTasksSectionView,
   EventDashboardTeamSectionView,
 } from "./views/sections/event-dashboard-section-views";
-export { EventDashboardEventWorkspaceView } from "./views/sections/event-dashboard-event-workspace-view";
+export { EventDashboardEventWorkspaceView, EventDashboardRunSheetView } from "./views/sections/event-dashboard-event-workspace-view";
 export {
   eventDashboardCommands,
   type EventDashboardCommands,
