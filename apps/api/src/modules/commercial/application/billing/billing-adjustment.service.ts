@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsAdditionalBilling, OpsBillingCorrection, OpsBillingDispute, OpsBillingStatement } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { createHash, randomUUID } from 'node:crypto';
@@ -7,7 +7,7 @@ import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access
 import { POST_EVENT_LIFECYCLE_STATE_READER, type PostEventLifecycleStateReader } from '@prism/contexts/event-lifecycle/post-event-reference';
 import { URGENT_ISSUE_REFERENCE_READER, type UrgentIssueReferenceReader } from '@prism/contexts/live-ops/urgent-issue-reference';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
-import { auditMetadata, billingCommandContext, requireBillingActor } from './billing-operations.utils';
+import { auditMetadata, billingCommandContext, isBillingCorrectionRequester, requireBillingActor } from './billing-operations.utils';
 import { mapAdditionalBilling, mapBillingCorrection, mapBillingDispute } from './billing-operations.mappers';
 import type {
   BillingActor,
@@ -51,7 +51,7 @@ export class BillingAdjustmentService {
           replayed = true;
           return replay;
         }
-        return db.opsBillingCorrection.create({ data: { id: `corr_${randomUUID()}`, eventId, statementId: statement!.id, reason: input.reason.trim(), correctedTotalAmount: input.correctedTotalAmount ?? null, status: 'pending', requestedBy: actor.name, idempotencyKey: input.idempotencyKey, payloadHash } });
+        return db.opsBillingCorrection.create({ data: { id: `corr_${randomUUID()}`, eventId, statementId: statement!.id, reason: input.reason.trim(), correctedTotalAmount: input.correctedTotalAmount ?? null, status: 'pending', requestedBy: actor.name, requestedById: actor.id, idempotencyKey: input.idempotencyKey, payloadHash } });
       },
       sideEffects: async (correction, context) => { if (replayed) return; await writeAudit(this.auditWriter, eventId, actor.name, `Requested billing correction for ${statement!.number}`, { actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance, actionType: AuditActionType.Create, affectedType: 'billing_correction', affectedId: correction.id, affectedLabel: statement!.number, metadata: auditMetadata(actor, { statementId: statement!.id, reason: input.reason, correctedTotalAmount: input.correctedTotalAmount ?? null }) }, context); },
       project: (correction) => mapBillingCorrection(correction),
@@ -68,6 +68,9 @@ export class BillingAdjustmentService {
         correction = await this.prisma.opsBillingCorrection.findUnique({ where: { id: correctionId } });
         if (!correction || correction.eventId !== eventId) throw new NotFoundException('Billing correction not found');
         if (correction.status !== 'pending') throw new BadRequestException('Billing correction has already been resolved');
+        if (input.action === 'approve' && isBillingCorrectionRequester(correction, actor)) {
+          throw new ForbiddenException('A billing correction must be approved by a different PMCM user than the one who requested it');
+        }
       },
       write: (context) => (context?.prisma ?? this.prisma).opsBillingCorrection.update({ where: { id: correctionId }, data: { status: input.action === 'approve' ? 'approved' : 'rejected', resolvedBy: actor.name, resolutionNotes: input.resolutionNotes?.trim() ?? null, resolvedAt: new Date() } }),
       sideEffects: async (resolved, context) => { await writeAudit(this.auditWriter, eventId, actor.name, `${input.action === 'approve' ? 'Approved' : 'Rejected'} billing correction`, { actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance, actionType: input.action === 'approve' ? AuditActionType.Approve : AuditActionType.Update, affectedType: 'billing_correction', affectedId: resolved.id, affectedLabel: resolved.statementId, metadata: auditMetadata(actor, { resolutionNotes: input.resolutionNotes ?? '' }) }, context); },

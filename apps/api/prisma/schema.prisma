@@ -1935,6 +1935,7 @@ model OpsBillingCorrection {
   correctedTotalAmount Int?  @map("corrected_total_amount")
   status           String    @default("pending")
   requestedBy      String    @map("requested_by")
+  requestedById    String?   @map("requested_by_id")
   resolvedBy       String?   @map("resolved_by")
   resolutionNotes  String?   @map("resolution_notes")
   idempotencyKey   String    @unique(map: "billing_corrections_idempotency_key_key") @map("idempotency_key")

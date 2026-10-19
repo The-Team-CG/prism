@@ -3,6 +3,7 @@ import {
   approvedBillingSources,
   blankReasonError,
   disputeAmountError,
+  isOwnBillingCorrectionRequest,
   paymentWithinBalanceError,
 } from "./billing-adjustment-rules";
 
@@ -23,6 +24,14 @@ describe("billing adjustment rules", () => {
   it("keeps partial payments within the remaining milestone balance", () => {
     expect(paymentWithinBalanceError(30000, 75000)).toBeNull();
     expect(paymentWithinBalanceError(75001, 75000)).toBe("Payment amount cannot exceed the remaining milestone balance.");
+  });
+
+  it("recognises the viewer's own correction by id, and by name only for legacy rows without an id", () => {
+    const viewer = { id: "usr_pmcm", name: "Ms. Mys" };
+    expect(isOwnBillingCorrectionRequest({ requestedBy: "Ms. Mys", requestedById: "usr_pmcm" }, viewer)).toBe(true);
+    expect(isOwnBillingCorrectionRequest({ requestedBy: "Ms. Mys", requestedById: "usr_approver" }, viewer)).toBe(false);
+    expect(isOwnBillingCorrectionRequest({ requestedBy: "Ms. Mys", requestedById: null }, viewer)).toBe(true);
+    expect(isOwnBillingCorrectionRequest({ requestedBy: "PMCM Approver", requestedById: null }, viewer)).toBe(false);
   });
 
   it("offers only approved billing sources for additional billing", () => {

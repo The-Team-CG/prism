@@ -144,6 +144,8 @@ export interface PrismBillingCorrection {
   correctedTotalAmount?: number | null;
   status: string;
   requestedBy: string;
+  /** Verified actor id of the requester; null for corrections requested before the id was recorded. */
+  requestedById?: string | null;
   resolvedBy?: string | null;
   resolutionNotes?: string | null;
   createdAt: string;
