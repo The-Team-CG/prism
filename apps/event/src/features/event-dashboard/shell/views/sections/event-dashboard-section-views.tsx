@@ -8,7 +8,7 @@ import { EventCalendarWorkspace } from "./event-calendar-workspace";
 import { EventTasksWorkspace } from "./event-tasks-workspace";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { EventSettingsWorkspace } from "./event-settings-workspace";
-import { CommandHomePage } from "./command-home-page";
+import { CommandHomeSelectedEvent } from "./command-home-selected-event";
 import { EventQueueCard } from "./event-queue-card";
 import { humanizeToken } from "@/features/pmcm-kit/model/formatters";
 import {
@@ -559,9 +559,14 @@ export function EventDashboardEventsListSectionView() {
 
 export function EventDashboardHomeSectionView() {
   const {
-    session,
-    commandInbox,
+    selectedEvent,
+    drafts,
+    activeDraft,
+    quoteRequests,
+    quotes,
+    openCheckCount,
     pendingApprovals,
+    navigateEvent,
     navigateSection,
     busy,
     approveApprovalRequest,
@@ -571,10 +576,15 @@ export function EventDashboardHomeSectionView() {
 
           <>
             <EventDashboardCommandInboxSectionView />
-            <CommandHomePage
-              session={session}
-              summary={commandInbox?.summary ?? { activeEvents: 0, pendingInquiries: 0, pendingApprovals: 0 }}
-              onNavigateSection={navigateSection}
+            <CommandHomeSelectedEvent
+              event={selectedEvent}
+              drafts={drafts}
+              activeDraft={activeDraft}
+              quoteRequestCount={quoteRequests.length}
+              quoteCount={quotes.length}
+              openCheckCount={openCheckCount}
+              onOpenEvent={(eventId) => navigateEvent(eventId, "overview")}
+              onBrowseEvents={() => navigateSection("events-list")}
             />
 
             {/* Pending account approvals */}
