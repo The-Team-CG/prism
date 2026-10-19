@@ -1,4 +1,12 @@
+import type { PrismAddendumConformeTraceReference } from "../conforme-signing.js";
 import type { PrismFileRequirementsMatrix } from "./lifecycle.js";
+
+export interface PrismBillingLineItem {
+  label: string;
+  amount: number;
+  /** Set on addendum scope-change lines once the addendum conforme is executed. */
+  addendumConforme?: PrismAddendumConformeTraceReference;
+}
 
 export interface PrismComplianceCheck {
   id: string;
@@ -84,7 +92,7 @@ export interface PrismBillingSource {
   sourceType: string;
   sourceLabel: string;
   sourceDocumentId?: string | null;
-  lineItems: Array<{ label: string; amount: number }>;
+  lineItems: PrismBillingLineItem[];
   paymentSchedule: Array<{
     label: string;
     percentage: number;
@@ -117,7 +125,7 @@ export interface PrismBillingStatement {
   clientContact: string;
   eventName: string;
   eventDate?: string | null;
-  lineItems: Array<{ label: string; amount: number }>;
+  lineItems: PrismBillingLineItem[];
   paymentSchedule: Array<{
     label: string;
     percentage: number;

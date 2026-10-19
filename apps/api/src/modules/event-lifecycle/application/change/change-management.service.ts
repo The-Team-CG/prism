@@ -5,6 +5,7 @@ import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type Resolved
 import { OpsUserRole } from '@prism/kernel/event-core';
 import type { DecideFreezeExceptionInput, FreezeEventInput, IssueAddendumInput, RequestFreezeExceptionInput, PrismAddendum, PrismClientChangeRequest, PrismEventFreezeException } from '@prism/types';
 import { randomUUID } from 'node:crypto';
+import { mapAddendumConformeExecution } from './addendum-conforme.mappers';
 import { COMMERCIAL_ADDENDUM_IMPACT_WRITER, type CommercialAddendumImpactWriter } from '@prism/contexts/commercial';
 
 type SnapshotEntry = Record<string, unknown>;
@@ -53,8 +54,8 @@ function mapException(value: { id: string; eventId: string; requestedChange: str
   };
 }
 
-function mapAddendum(value: { id: string; eventId: string; versionNumber: number; title: string; summary: string; status: string; documentId: string | null; documentState: string; signatureMethod: string; comparison: unknown; financialDelta: number; issuedAt: Date }): PrismAddendum {
-  return { id: value.id, eventId: value.eventId, versionNumber: value.versionNumber, title: value.title, summary: value.summary, status: 'issued', documentId: value.documentId ?? '', documentState: value.documentState as 'pending' | 'available', signatureMethod: 'scanned_document', comparison: value.comparison as PrismAddendum['comparison'], financialDelta: value.financialDelta, issuedAt: value.issuedAt.toISOString() };
+function mapAddendum(value: { id: string; eventId: string; versionNumber: number; title: string; summary: string; status: string; documentId: string | null; documentState: string; signatureMethod: string; comparison: unknown; financialDelta: number; issuedAt: Date; conformeExecution?: Parameters<typeof mapAddendumConformeExecution>[0] | null }): PrismAddendum {
+  return { id: value.id, eventId: value.eventId, versionNumber: value.versionNumber, title: value.title, summary: value.summary, status: 'issued', documentId: value.documentId ?? '', documentState: value.documentState as 'pending' | 'available', signatureMethod: 'scanned_document', comparison: value.comparison as PrismAddendum['comparison'], financialDelta: value.financialDelta, issuedAt: value.issuedAt.toISOString(), conforme: value.conformeExecution ? mapAddendumConformeExecution(value.conformeExecution) : null };
 }
 
 @Injectable()
@@ -137,7 +138,7 @@ export class ChangeManagementService {
 
   async listAddenda(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismAddendum[]> {
     await this.access.requireCanReadEvent(actor, await this.prisma.opsEvent.findUniqueOrThrow({ where: { id: eventId } }), 'addenda');
-    const values = await this.prisma.opsAddendum.findMany({ where: { eventId }, orderBy: { versionNumber: 'desc' } });
+    const values = await this.prisma.opsAddendum.findMany({ where: { eventId }, orderBy: { versionNumber: 'desc' }, include: { conformeExecution: { include: { signatures: true } } } });
     return values.map(mapAddendum);
   }
 
