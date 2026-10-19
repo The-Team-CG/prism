@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { requestApprovalSchema } from "./auth-inputs.js";
-import { pmcmCommandInboxQuerySchema } from "./event-ops-inputs.js";
+import { decisionLogQuerySchema, pmcmCommandInboxQuerySchema } from "./event-ops-inputs.js";
 import {
   createPrismInquirySchema,
   createGuestFeedbackSchema,
@@ -363,6 +363,14 @@ describe("event-ops write schemas", () => {
     expect(pmcmCommandInboxQuerySchema.safeParse({ page: "-1" }).success).toBe(false);
     expect(pmcmCommandInboxQuerySchema.safeParse({ page: "100" }).success).toBe(true);
     expect(pmcmCommandInboxQuerySchema.safeParse({ page: "101" }).success).toBe(false);
+  });
+
+  it("defaults decision log paging, accepts only known kinds, and bounds page size", () => {
+    expect(decisionLogQuerySchema.parse({})).toEqual({ page: 0, pageSize: 25 });
+    expect(decisionLogQuerySchema.parse({ kind: "archive_override", page: "1", pageSize: "10" })).toEqual({ kind: "archive_override", page: 1, pageSize: 10 });
+    for (const invalid of [{ kind: "audit" }, { page: "-1" }, { page: "101" }, { pageSize: "0" }, { pageSize: "101" }]) {
+      expect(decisionLogQuerySchema.safeParse(invalid).success).toBe(false);
+    }
   });
 
   it("requires reasons for negative moderation and at least one consent withdrawal", () => {
