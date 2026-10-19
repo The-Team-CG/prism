@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { OpsUserRole, PrivacyRequestType } from '@prism/kernel/event-core';
 import type { PlatformPrivacyInventory } from '@prism/contexts/read-models';
 import { LifecyclePrivacyRedactorService } from '@prism/contexts/event-lifecycle';
@@ -24,6 +24,10 @@ const verifiedActor = {
 };
 
 describe('PrivacyOperationsService', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('uses normalized identity lock keys for placement, execution, and release across event scopes', () => {
     const placed = normalizePrivacyLegalHoldScope({
       subjectType: 'guest', subjectEmail: 'ignored@example.test', subjectName: '  Ana Reyes  ', eventId: ' evt_a ', reason: 'records hold',
@@ -73,6 +77,8 @@ describe('PrivacyOperationsService', () => {
       reviewedAt: null,
       executedBy: null,
       executedAt: null,
+      dueAt: new Date('2026-10-03T00:00:00.000Z'),
+      assignedTo: null as string | null,
       createdAt: new Date('2026-09-03T00:00:00.000Z'),
       updatedAt: new Date('2026-09-03T00:00:00.000Z'),
     };
@@ -107,7 +113,9 @@ describe('PrivacyOperationsService', () => {
     return { service, prisma, rootPrisma, auditService, platformReferences, created, legalHold };
   }
 
-  it('creates a submitted privacy request and writes an audit trail', async () => {
+  it('creates a submitted privacy request due 30 days after submission and writes an audit trail', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-19T08:00:00.000Z'));
     const { service, prisma, auditService, platformReferences } = createService();
 
     const result = await service.createRequest(
@@ -125,6 +133,10 @@ describe('PrivacyOperationsService', () => {
       status: 'submitted',
       subjectEmail: 'ana@ayala.test',
       requestType: PrivacyRequestType.Access,
+      createdAt: '2026-10-19T08:00:00.000Z',
+      dueAt: '2026-11-18T08:00:00.000Z',
+      overdue: false,
+      assignedTo: null,
     });
     expect(prisma.opsPrivacyRequest.create).toHaveBeenCalledTimes(1);
     expect(platformReferences.findEventReference).toHaveBeenCalledWith('evt_sample');
@@ -253,15 +265,24 @@ describe('PrivacyOperationsService', () => {
       opsSupplier: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []), updateMany: updateMany() },
       opsSupplierApplication: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []), updateMany: updateMany() },
       opsApprovalRequest: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []), updateMany: updateMany() },
-      opsGuestCheckIn: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []), updateMany: updateMany() },
+      opsGuestCheckIn: {
+        findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []),
+        findFirst: vi.fn(async (): Promise<{ id: string } | null> => null),
+        updateMany: updateMany(),
+      },
       opsInquiry: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => [{ id: 'inq_legacy' }]), updateMany: updateMany() },
       opsEvent: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => [{ id: 'evt_linked' }]), updateMany: updateMany() },
-      opsGuestFeedback: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => [{ id: 'feedback_1' }]), updateMany: updateMany() },
+      opsGuestFeedback: {
+        findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => [{ id: 'feedback_1' }]),
+        findFirst: vi.fn(async (): Promise<{ id: string } | null> => null),
+        updateMany: updateMany(),
+      },
       opsGuestFeedbackMedia: { updateMany: updateMany() },
       opsGuestRosterEntry: {
         findMany: vi.fn(async () => [] as Array<{ id: string }>),
-        findFirst: vi.fn(async () => null),
+        findFirst: vi.fn(async (): Promise<{ id: string } | null> => null),
         update: vi.fn(async () => ({})),
+        updateMany: updateMany(),
       },
       opsPrivacyLegalHold: {
         findFirst: vi.fn(async () => null as { id: string } | null),
@@ -680,11 +701,61 @@ describe('PrivacyOperationsService', () => {
     expect(tx.opsInquiry.updateMany).not.toHaveBeenCalled();
   });
 
-  it('rejects guest correction, unknown or empty patches, and patches on non-correction requests before any write', async () => {
-    const guest = executionFixture({ requestType: 'correction', subjectType: 'guest' });
-    await expect(guest.service.executeRequest(guest.request.id, { correction: { name: 'Ana' } }, verifiedActor))
-      .rejects.toThrow('not supported');
+  it('corrects a guest only inside the request event, atomically, and audits field names without values', async () => {
+    const { service, request, tx, auditService, advisoryLockKeys } = executionFixture({ requestType: 'correction', subjectType: 'guest' });
+    const result = await service.executeRequest(
+      request.id, { correction: { name: 'Ana R. Reyes', email: 'Ana.Guest@Example.test' } }, verifiedActor,
+    );
 
+    const subject = { eventId: 'evt_sample', guestName: { equals: 'Ana Reyes', mode: 'insensitive' } };
+    expect(result).toMatchObject({ status: 'executed', export: null });
+    expect(tx.opsGuestRosterEntry.updateMany).toHaveBeenCalledWith({
+      where: subject,
+      data: { guestName: 'Ana R. Reyes', normalizedName: 'ana r. reyes', email: 'ana.guest@example.test' },
+    });
+    expect(tx.opsGuestCheckIn.updateMany).toHaveBeenCalledWith({ where: subject, data: { guestName: 'Ana R. Reyes' } });
+    expect(tx.opsGuestFeedback.updateMany).toHaveBeenCalledWith({ where: subject, data: { guestName: 'Ana R. Reyes' } });
+    // Guest identity never reaches client, supplier, or account owners.
+    expect(tx.opsInquiry.updateMany).not.toHaveBeenCalled();
+    expect(tx.opsApprovalRequest.updateMany).not.toHaveBeenCalled();
+    expect(tx.opsUser.findFirst).not.toHaveBeenCalled();
+    expect(advisoryLockKeys.length).toBeGreaterThan(1);
+    expect(auditService.audit).toHaveBeenCalledWith(
+      'evt_sample', 'Mys', 'Privacy correction receipt: operations',
+      expect.objectContaining({
+        affectedType: 'privacy_owner_correction_receipt',
+        metadata: expect.objectContaining({ owner: 'operations', changedFields: ['name', 'email'], touchedRecords: 3 }),
+      }),
+      expect.objectContaining({ prisma: tx, correlationId: 'privacy:priv_1:correction:operations' }),
+    );
+    const audited = JSON.stringify(auditService.audit.mock.calls);
+    expect(audited).not.toContain('Ana R. Reyes');
+    expect(audited).not.toContain('ana.guest@example.test');
+
+    await expect(service.executeRequest(request.id, { correction: { name: 'Ana R. Reyes' } }, verifiedActor))
+      .rejects.toThrow('must be approved before execution');
+    expect(tx.opsGuestRosterEntry.updateMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a guest correction approved without writes while a legal hold covers the guest or the event scope is missing', async () => {
+    const held = executionFixture({ requestType: 'correction', subjectType: 'guest' });
+    held.tx.opsPrivacyLegalHold.findFirst.mockResolvedValueOnce({ id: 'hold_guest' });
+    await expect(held.service.executeRequest(held.request.id, { correction: { name: 'Ana R. Reyes' } }, verifiedActor))
+      .rejects.toThrow('active legal hold');
+    expect(held.tx.opsPrivacyLegalHold.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ subjectType: 'guest', subjectName: 'ana reyes' }),
+    }));
+    expect(held.request.status).toBe('approved');
+    expect(held.tx.opsGuestRosterEntry.updateMany).not.toHaveBeenCalled();
+    expect(held.tx.opsGuestCheckIn.updateMany).not.toHaveBeenCalled();
+
+    const unscoped = executionFixture({ requestType: 'correction', subjectType: 'guest', eventId: null });
+    await expect(unscoped.service.executeRequest(unscoped.request.id, { correction: { name: 'Ana R. Reyes' } }, verifiedActor))
+      .rejects.toThrow('name and event scope');
+    expect(unscoped.tx.opsGuestRosterEntry.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects unknown or empty patches and patches on non-correction requests before any write', async () => {
     const unknownField = executionFixture({ requestType: 'correction' });
     await expect(unknownField.service.executeRequest(
       unknownField.request.id,
@@ -699,7 +770,6 @@ describe('PrivacyOperationsService', () => {
     await expect(deletionWithPatch.service.executeRequest(deletionWithPatch.request.id, { correction: { name: 'Ana' } }, verifiedActor))
       .rejects.toThrow('only accepted for correction requests');
     expect(deletionWithPatch.tx.opsInquiry.updateMany).not.toHaveBeenCalled();
-    expect(guest.tx.opsInquiry.updateMany).not.toHaveBeenCalled();
     expect(unknownField.tx.opsInquiry.updateMany).not.toHaveBeenCalled();
     expect(empty.tx.opsInquiry.updateMany).not.toHaveBeenCalled();
   });

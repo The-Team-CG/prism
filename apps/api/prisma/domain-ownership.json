@@ -57,7 +57,7 @@
         "domain": "platform-ops",
         "schema": "platform_ops",
         "tables": 14,
-        "columns": 201
+        "columns": 203
       },
       {
         "domain": "event-games",
@@ -204,7 +204,7 @@
       "table": "privacy_requests",
       "domain": "platform-ops",
       "targetSchema": "platform_ops",
-      "columnCount": 17
+      "columnCount": 19
     },
     {
       "model": "OpsPrivacyLegalHold",

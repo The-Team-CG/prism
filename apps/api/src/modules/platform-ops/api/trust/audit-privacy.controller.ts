@@ -4,6 +4,7 @@ import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { zodBody, zodQuery } from '@prism/kernel/shared';
+import { assignPrivacyRequestSchema, listPrivacyRequestsQuerySchema, type AssignPrivacyRequestInput, type ListPrivacyRequestsQuery } from '@prism/types';
 import { auditLogFiltersSchema, createPrivacyRequestSchema, reviewPrivacyRequestSchema, executePrivacyRequestSchema, createPrivacyLegalHoldSchema, releasePrivacyLegalHoldSchema, listPrivacyLegalHoldsQuerySchema, type AuditLogFilters, type CreatePrivacyRequestInput, type ReviewPrivacyRequestInput, type ExecutePrivacyRequestInput, type CreatePrivacyLegalHoldInput, type ReleasePrivacyLegalHoldInput, type ListPrivacyLegalHoldsQuery } from '@prism/types';
 import {
   CreatePrivacyRequestDto,
@@ -17,6 +18,7 @@ import { AuditService } from '../../application/trust/audit.service';
 import { AuditExportService } from '../../application/trust/audit-export.service';
 import { AuditReadService } from '../../application/trust/audit-read.service';
 import { PrivacyOperationsService } from '../../application/trust/privacy-operations.service';
+import { PrivacyRequestQueueService } from '../../application/trust/privacy-request-queue.service';
 import { SecurityOperationsService } from '../../application/trust/security-operations.service';
 
 type TrustActor = ResolvedEventOpsActor;
@@ -82,7 +84,7 @@ class TrustRoutePolicy {
     throw new ForbiddenException(`${actor.role} cannot access ${resource}`);
   }
 
-  async requirePmcmAdmin(actor: TrustActor, resource: string) {
+  async requirePmcmAdmin(actor: TrustActor, resource: string, deniedMessage = 'Only a PMCM administrator may manage legal holds') {
     if (actor.role === OpsUserRole.PmcmAdmin) return;
     if (actor.role !== OpsUserRole.System) return this.requireTrustOperator(actor, resource);
     await this.auditService.audit(undefined, actor.name, `403 forbidden access: ${resource}`, {
@@ -95,7 +97,7 @@ class TrustRoutePolicy {
       severity: 'warning',
       metadata: { actorId: actor.id, role: actor.role },
     });
-    throw new ForbiddenException('Only a PMCM administrator may manage legal holds');
+    throw new ForbiddenException(deniedMessage);
   }
 }
 
@@ -152,6 +154,7 @@ export class OpsPrivacyController {
 
   constructor(
     private readonly privacyOperationsService: PrivacyOperationsService,
+    private readonly privacyRequestQueueService: PrivacyRequestQueueService,
     auditService: AuditService,
     securityOperationsService: SecurityOperationsService,
   ) {
@@ -176,10 +179,18 @@ export class OpsPrivacyController {
 
   @Get('requests')
   @UseGuards(EventSessionGuard)
-  async requests(@Query() query: { eventId?: string; status?: string }, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+  async requests(@Query(zodQuery(listPrivacyRequestsQuerySchema)) query: ListPrivacyRequestsQuery, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = resolveActor(verifiedActor);
     await this.policy.requireTrustOperator(actor, 'privacy requests', query.eventId);
-    return this.privacyOperationsService.listRequests(query);
+    return this.privacyRequestQueueService.listRequests(query);
+  }
+
+  @Patch('requests/:requestId/assignment')
+  @UseGuards(EventSessionGuard)
+  async assignRequest(@Param('requestId') requestId: string, @Body(zodBody(assignPrivacyRequestSchema)) dto: AssignPrivacyRequestInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = resolveActor(verifiedActor);
+    await this.policy.requirePmcmAdmin(actor, 'privacy request assignment', 'Only a PMCM operator may assign privacy requests');
+    return this.privacyRequestQueueService.assignRequest(requestId, dto, actor);
   }
 
   @Post('requests')

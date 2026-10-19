@@ -36,6 +36,7 @@ import {
   type PrivacyLegalHoldScope,
 } from './privacy-legal-hold.policy';
 import { requireVerifiedTrustActor } from './verified-trust-actor';
+import { mapPrivacyRequest, privacyRequestDueAt, type OpsPrivacyRequestRecord } from './privacy-request.mapper';
 
 type CreatePrivacyRequestInput = {
   subjectType: string;
@@ -57,33 +58,8 @@ type ExecutePrivacyRequestInput = {
   correction?: unknown;
 };
 
-type ListPrivacyRequestsInput = {
-  eventId?: string;
-  status?: string;
-};
-
 type PrivacyInventoryInput = {
   eventId?: string;
-};
-
-type OpsPrivacyRequestRecord = {
-  id: string;
-  eventId?: string | null;
-  subjectType: string;
-  subjectEmail: string;
-  subjectName: string;
-  requestType: string;
-  status: string;
-  requestNotes: string;
-  reviewReason: string;
-  executionNotes?: string;
-  createdBy: string;
-  reviewedBy?: string | null;
-  reviewedAt?: Date | null;
-  executedBy?: string | null;
-  executedAt?: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
 };
 
 type OpsPrivacyLegalHoldRecord = {
@@ -221,19 +197,6 @@ export class PrivacyOperationsService {
     ];
   }
 
-  async listRequests(input: ListPrivacyRequestsInput = {}) {
-    // QUERY_AUDIT_ALLOW_UNBOUNDED: PMCM currently needs the complete request queue; pagination requires an API and UI contract change.
-    const requests = await this.prisma.opsPrivacyRequest.findMany({
-      where: {
-        ...(input.eventId ? { eventId: input.eventId } : {}),
-        ...(input.status && input.status !== 'all' ? { status: input.status } : {}),
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    return requests.map((request: OpsPrivacyRequestRecord) => this.mapRequest(request));
-  }
-
   async listLegalHolds(input: ListPrivacyLegalHoldsQuery = {}) {
     const holds = await this.prisma.opsPrivacyLegalHold.findMany({
       where: {
@@ -349,9 +312,12 @@ export class PrivacyOperationsService {
     }
 
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const submittedAt = new Date();
       const request = await tx.opsPrivacyRequest.create({
         data: {
           id: `priv_${randomUUID()}`,
+          createdAt: submittedAt,
+          dueAt: privacyRequestDueAt(submittedAt),
           eventId: input.eventId ?? null,
           subjectType,
           subjectEmail: input.subjectEmail?.trim().toLowerCase() ?? '',
@@ -599,7 +565,7 @@ export class PrivacyOperationsService {
 
   /**
    * Applies an explicit, validated name/email patch to the subject's own identity and contact records in one
-   * transaction. Only client, supplier, and non-staff account subjects are corrected; the audit records changed
+   * transaction. Only client, supplier, non-staff account, and event-scoped guest subjects are corrected; the audit records changed
    * field names and per-owner counts, never the values.
    */
   private async executeCorrection(
@@ -609,12 +575,9 @@ export class PrivacyOperationsService {
     prisma: Prisma.TransactionClient,
   ): Promise<PrismPrivacyExecutionResult> {
     const patch = this.requireCorrectionPatch(input.correction);
-    const { account, role } = await this.resolveCorrectionSubject(request, prisma);
-    await this.lockAndAssertNoLegalHold(request, account, prisma);
-    await this.assertCorrectedEmailAvailable(patch, account, prisma);
-
-    const email = request.subjectEmail.trim().toLowerCase();
-    const owners = await this.applyCorrection({ email, eventId: request.eventId, patch, role, account }, prisma);
+    const owners = request.subjectType === 'guest'
+      ? await this.applyGuestCorrection(request, patch, prisma)
+      : await this.applySubjectCorrection(request, patch, prisma);
     const changedFields = (['name', 'email'] as const).filter((field) => patch[field] !== undefined);
     const touchedRecords = owners.reduce((total, { result }) => total + result.touchedRecords, 0);
     if (!touchedRecords) {
@@ -647,6 +610,27 @@ export class PrivacyOperationsService {
       data: { status: PrivacyRequestStatus.Executed, executionNotes: input.executionNotes ?? '', executedBy: verifiedActor.name, executedAt: new Date() },
     });
     return { ...this.mapRequest(saved), export: null };
+  }
+
+  private async applySubjectCorrection(request: OpsPrivacyRequestRecord, patch: PrivacyCorrectionPatch, prisma: Prisma.TransactionClient) {
+    const { account, role } = await this.resolveCorrectionSubject(request, prisma);
+    await this.lockAndAssertNoLegalHold(request, account, prisma);
+    await this.assertCorrectedEmailAvailable(patch, account, prisma);
+    const email = request.subjectEmail.trim().toLowerCase();
+    return this.applyCorrection({ email, eventId: request.eventId, patch, role, account }, prisma);
+  }
+
+  /**
+   * A guest is identified by name inside one event, so the correction only touches that event's roster, check-in,
+   * and feedback rows for the subject name. Email exists only on roster rows. Matching legal holds block the write.
+   */
+  private async applyGuestCorrection(request: OpsPrivacyRequestRecord, patch: PrivacyCorrectionPatch, prisma: Prisma.TransactionClient) {
+    if (!request.eventId || !request.subjectName.trim()) {
+      throw new BadRequestException('Guest correction requires a name and event scope');
+    }
+    await this.lockAndAssertNoLegalHold(request, null, prisma);
+    const result = await this.operationsPrivacy.correctGuest({ eventId: request.eventId, name: request.subjectName, patch }, prisma);
+    return [{ owner: 'operations' as const, result }];
   }
 
   /** Resolves who is being corrected and refuses subject types, identities, or roles a correction may not touch. */
@@ -943,25 +927,7 @@ export class PrivacyOperationsService {
   }
 
   private mapRequest(request: OpsPrivacyRequestRecord) {
-    return {
-      id: request.id,
-      eventId: request.eventId ?? null,
-      subjectType: request.subjectType,
-      subjectEmail: request.subjectEmail,
-      subjectName: request.subjectName,
-      requestType: request.requestType,
-      status: request.status,
-      requestNotes: request.requestNotes,
-      reviewReason: request.reviewReason,
-      executionNotes: request.executionNotes ?? '',
-      createdBy: request.createdBy,
-      reviewedBy: request.reviewedBy ?? null,
-      reviewedAt: timestamp(request.reviewedAt),
-      executedBy: request.executedBy ?? null,
-      executedAt: timestamp(request.executedAt),
-      createdAt: timestamp(request.createdAt) ?? '',
-      updatedAt: timestamp(request.updatedAt) ?? '',
-    };
+    return mapPrivacyRequest(request);
   }
 
   private mapLegalHold(hold: OpsPrivacyLegalHoldRecord): PrismPrivacyLegalHold {
