@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { PrismFileRequirementsMatrix } from "@prism/types";
 import { loadFileRequirementsMatrix } from "../use-cases/load-file-requirements-matrix";
 
@@ -11,6 +11,23 @@ export function useFileRequirementsMatrixViewModel(eventId?: string) {
   const [status, setStatus] = useState<FileRequirementsMatrixStatus>("idle");
   const [error, setError] = useState<string | null>(null);
 
+  const load = useCallback(async (isCurrent: () => boolean) => {
+    if (!eventId) return;
+    setStatus("loading");
+    setError(null);
+    try {
+      const next = await loadFileRequirementsMatrix(eventId);
+      if (!isCurrent()) return;
+      setMatrix(next);
+      setStatus("success");
+    } catch (err) {
+      if (!isCurrent()) return;
+      setMatrix(null);
+      setStatus("error");
+      setError(err instanceof Error ? err.message : "Unable to load file requirements.");
+    }
+  }, [eventId]);
+
   useEffect(() => {
     if (!eventId) {
       setMatrix(null);
@@ -20,25 +37,13 @@ export function useFileRequirementsMatrixViewModel(eventId?: string) {
     }
 
     let alive = true;
-    setStatus("loading");
-    setError(null);
-    loadFileRequirementsMatrix(eventId)
-      .then((next) => {
-        if (!alive) return;
-        setMatrix(next);
-        setStatus("success");
-      })
-      .catch((err) => {
-        if (!alive) return;
-        setMatrix(null);
-        setStatus("error");
-        setError(err instanceof Error ? err.message : "Unable to load file requirements.");
-      });
-
+    void load(() => alive);
     return () => {
       alive = false;
     };
-  }, [eventId]);
+  }, [eventId, load]);
 
-  return { matrix, status, error };
+  const reload = useCallback(() => load(() => true), [load]);
+
+  return { matrix, status, error, reload };
 }
