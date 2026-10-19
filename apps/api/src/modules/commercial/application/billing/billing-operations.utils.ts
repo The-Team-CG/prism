@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import type { PrismCommandContext } from '@prism/kernel/shared-kernel';
+import type { OpsBillingCorrection } from '@prisma/client';
 import type { BillingActor } from '../../contracts/billing-operations.types';
 
 export function requireBillingActor(actor: BillingActor | undefined): BillingActor {
@@ -7,6 +8,18 @@ export function requireBillingActor(actor: BillingActor | undefined): BillingAct
     throw new ForbiddenException('Verified billing actor is required');
   }
   return actor;
+}
+
+/**
+ * Whether the acting user requested this billing correction. Identity is the verified actor id; rows requested
+ * before requested_by_id existed fall back to the stored requester display name.
+ */
+export function isBillingCorrectionRequester(
+  correction: Pick<OpsBillingCorrection, 'requestedBy' | 'requestedById'>,
+  actor: BillingActor,
+): boolean {
+  if (correction.requestedById) return correction.requestedById === actor.id;
+  return correction.requestedBy.trim() === actor.name.trim();
 }
 
 export function isoDate(value: Date) {
