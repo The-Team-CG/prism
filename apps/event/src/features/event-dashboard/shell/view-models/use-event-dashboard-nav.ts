@@ -1,5 +1,6 @@
 import {
   Archive,
+  Database,
   CalendarClock,
   CalendarDays,
   ClipboardCheck,
@@ -98,6 +99,7 @@ export function eventPortalNavItems({
     ...eventItems,
     { id: "suppliers", icon: Tags, label: "Supplier Directory", section: "Management" },
     { id: "audit", icon: ShieldCheck, label: "Audit Trail", section: "System" },
+    { id: "privacy", icon: Database, label: "Privacy Console", section: "System" },
     { id: "settings", icon: Settings, label: "Settings", section: "System" },
   ];
 }
