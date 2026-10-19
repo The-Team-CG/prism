@@ -1,6 +1,8 @@
 import { eventApi } from "@/lib/prism-api";
 import type {
   DecideFreezeExceptionInput,
+  PrismAddendumConformeExecution,
+  SignAddendumConformeExecutionInput,
   RecordEventDecisionInput,
   FreezeEventInput,
   PrismAddendum,
@@ -27,5 +29,11 @@ export const changeRegisterRepository = {
   },
   recordDecision(eventId: string, input: RecordEventDecisionInput) {
     return eventApi.events.recordDecision(eventId, input);
+  },
+  requestAddendumConforme(eventId: string, addendumId: string): Promise<PrismAddendumConformeExecution> {
+    return eventApi.events.requestAddendumConforme(eventId, addendumId);
+  },
+  countersignAddendumConforme(eventId: string, addendumId: string, input: SignAddendumConformeExecutionInput): Promise<PrismAddendumConformeExecution> {
+    return eventApi.events.countersignAddendumConforme(eventId, addendumId, input);
   },
 };
