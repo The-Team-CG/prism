@@ -3,6 +3,7 @@
 import { dashboardHref, formatStatusLabel } from "../../workspace/shared";
 import { CLIENT_CONFORME_REVIEW_HREF } from "../../workspace/model/client-dashboard-navigation";
 import { useClientWorkspace } from "../../workspace/shared";
+import { ClientAddendumConformePanel } from "../../addenda";
 import {
   ClientHomeActionCenter,
   ClientHomeEvents,
@@ -59,6 +60,8 @@ export function ClientHomeView() {
           navigateToEventRoute={navigateToEventRoute}
         />
       ) : null}
+
+      {selectedEvent ? <ClientAddendumConformePanel eventId={selectedEvent.id} onlyWhenPending /> : null}
 
       {actionCenter || actionCenterLoadFailed ? (
         <ClientHomeActionCenter
