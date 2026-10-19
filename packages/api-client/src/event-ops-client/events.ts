@@ -9,6 +9,8 @@ import type {
   PrismEventFreezeException,
   PrismEventDecision,
   PrismClientChangeRequest,
+  PrismAddendumConformeExecution,
+  PrismClientAddendumConforme,
 } from "@prism/types";
 import { prismRequest, toQueryString } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
@@ -120,6 +122,31 @@ export function createEventsClient(
       issueAddendum: (eventId, input, actor = {}) =>
         prismRequest<PrismAddendum>(
           actorPath(`/events/${eventId}/addenda`, actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
+      addendumConformes: (eventId, actor = {}) =>
+        prismRequest<PrismAddendumConformeExecution[]>(
+          actorPath(`/events/${eventId}/addenda/conformes`, actor),
+          withBase(options),
+        ),
+      clientAddendumConformes: (eventId, actor = {}) =>
+        prismRequest<PrismClientAddendumConforme[]>(
+          actorPath(`/events/${eventId}/addenda/client-conformes`, actor),
+          withBase(options),
+        ),
+      issueAddendumConforme: (eventId, addendumId, input, actor = {}) =>
+        prismRequest<PrismAddendumConformeExecution>(
+          actorPath(`/events/${eventId}/addenda/${addendumId}/conforme`, actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
+      acknowledgeAddendumConforme: (eventId, addendumId, input, actor = {}) =>
+        prismRequest<PrismClientAddendumConforme>(
+          actorPath(`/events/${eventId}/addenda/${addendumId}/conforme/${input.executionId}/acknowledge`, actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
+      countersignAddendumConforme: (eventId, addendumId, input, actor = {}) =>
+        prismRequest<PrismAddendumConformeExecution>(
+          actorPath(`/events/${eventId}/addenda/${addendumId}/conforme/${input.executionId}/countersign`, actor),
           withBase(options, { method: "POST", body: input }),
         ),
     },

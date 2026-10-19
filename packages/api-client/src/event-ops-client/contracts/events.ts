@@ -14,6 +14,10 @@ import type {
   ConfirmStorageUploadInput,
   PrismEventDecision,
   PrismClientChangeRequest,
+  PrismAddendumConformeExecution,
+  PrismClientAddendumConforme,
+  IssueAddendumConformeInput,
+  SignAddendumConformeInput,
 } from "@prism/types";
 import type { EventOpsActorQuery } from "./primitives";
 
@@ -94,5 +98,33 @@ export interface EventOpsEventsContract {
       input: import("@prism/types").IssueAddendumInput,
       actor?: EventOpsActorQuery,
     ): Promise<PrismAddendum>;
+    /** PMCM register: every addendum conforme version for the event, newest version first per addendum. */
+    addendumConformes(
+      eventId: string,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismAddendumConformeExecution[]>;
+    /** Primary client projection of addendum conformes awaiting or carrying their acknowledgement. */
+    clientAddendumConformes(
+      eventId: string,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismClientAddendumConforme[]>;
+    issueAddendumConforme(
+      eventId: string,
+      addendumId: string,
+      input: IssueAddendumConformeInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismAddendumConformeExecution>;
+    acknowledgeAddendumConforme(
+      eventId: string,
+      addendumId: string,
+      input: SignAddendumConformeInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismClientAddendumConforme>;
+    countersignAddendumConforme(
+      eventId: string,
+      addendumId: string,
+      input: SignAddendumConformeInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismAddendumConformeExecution>;
   };
 }

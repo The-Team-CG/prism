@@ -48,7 +48,8 @@ export interface PrismProposalVersion {
   issuedAt?: string | null;
 }
 
-export type PrismAddendumStatus = "issued";
+/** An addendum is `executed` only after the client acknowledged and PMCM countersigned its conforme. */
+export type PrismAddendumStatus = "issued" | "executed";
 
 export interface PrismAddendum {
   id: string;
@@ -59,10 +60,13 @@ export interface PrismAddendum {
   status: PrismAddendumStatus;
   documentId: string;
   documentState: "pending" | "available";
-  signatureMethod: "scanned_document";
+  signatureMethod: "scanned_document" | "in_app_conforme";
   comparison: { contract: unknown[]; quotes: unknown[] };
   financialDelta: number;
   issuedAt: string;
+  /** The fully signed addendum conforme version that billing impacts reference. */
+  executedConformeExecutionId: string | null;
+  executedAt: string | null;
 }
 
 export interface PrismEventFreezeException {
