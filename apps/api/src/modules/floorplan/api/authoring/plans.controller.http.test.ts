@@ -199,4 +199,37 @@ describe('PlansController authenticated HTTP authorization', () => {
     });
     expect(pmcmEdit.status).toBe(200);
   });
+
+  it('rejects a PMCM official save that seats a declined guest with user-safe copy', async () => {
+    const declinedSeat = await fetch(`${baseUrl}/plans/${officialDraft.id}`, {
+      method: 'PUT',
+      headers: { authorization: `Bearer ${pmcmToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        expectedUpdatedAt: updatedAt.toISOString(),
+        objects: [
+          {
+            id: 't1',
+            name: 'Table 1',
+            kind: 'ellipse',
+            category: 'furniture',
+            x: 1,
+            y: 1,
+            w: 2,
+            h: 2,
+            rotation: 0,
+            fill: '#ffffff',
+            stroke: '#000000',
+            strokeWidth: 1,
+            seats: 2,
+            assignedGuestIds: ['g-dee'],
+            locked: false,
+            hidden: false,
+          },
+        ],
+        guests: [{ id: 'g-dee', name: 'Dee Lim', rsvp: 'declined' }],
+      }),
+    });
+    expect(declinedSeat.status).toBe(400);
+    await expect(declinedSeat.json()).resolves.toMatchObject({ message: 'Guests who declined cannot be seated.' });
+  });
 });
