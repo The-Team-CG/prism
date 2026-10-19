@@ -12,6 +12,7 @@ export const tableAssignmentIneligibleReasonSchema = z.enum([
   "not-a-table",
   "table-hidden",
   "table-full",
+  "guest-already-seated",
 ]);
 export type TableAssignmentIneligibleReason = z.infer<typeof tableAssignmentIneligibleReasonSchema>;
 
@@ -75,7 +76,11 @@ function seatedElsewhereCount(target: TableEligibilityObject, guestId: string): 
   return (target.assignedGuestIds ?? []).filter((gid) => gid !== guestId).length;
 }
 
-/** Returns the first seat assignment in a plan that breaks eligibility, or null when every assignment is valid. */
+/**
+ * Returns the first seat assignment in a plan that breaks eligibility, or null when every assignment is
+ * valid. A guest may appear at one table only: `evaluateTableAssignment` treats a move as eligible (the
+ * editor strips the old seat), so the whole-plan check is where a guest listed at two tables is caught.
+ */
 export function findTableAssignmentRejection(
   objects: readonly TableEligibilityObject[],
   guests: readonly TableEligibilityGuest[],
@@ -84,7 +89,14 @@ export function findTableAssignmentRejection(
     for (const guestId of object.assignedGuestIds ?? []) {
       const eligibility = evaluateTableAssignment({ objects, guests, guestId, objectId: object.id });
       if (!eligibility.eligible) return { guestId, objectId: object.id, reason: eligibility.reason };
+      if (isSeatedAtAnotherTable(objects, object.id, guestId)) {
+        return { guestId, objectId: object.id, reason: "guest-already-seated" };
+      }
     }
   }
   return null;
+}
+
+function isSeatedAtAnotherTable(objects: readonly TableEligibilityObject[], objectId: string, guestId: string): boolean {
+  return objects.some((other) => other.id !== objectId && (other.assignedGuestIds ?? []).includes(guestId));
 }
