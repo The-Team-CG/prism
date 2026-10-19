@@ -18,10 +18,14 @@ import {
   firstNameFrom,
   fmt,
   greetingForHour,
+  groupReadinessItemsByEvent,
   quoteRequestsNavDesc,
+  readinessConcernLabel,
+  readinessSetupLabel,
   readinessTone,
+  supplierReadinessSection,
 } from "../../model/supplier-workspace-rules";
-import type { PrismAuthenticatedSession } from "@prism/types";
+import type { PrismAuthenticatedSession, PrismSupplierReadinessItem } from "@prism/types";
 import type {
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
@@ -116,31 +120,63 @@ function DashboardReadinessBoard({
           ))}
         </div>
       </CardHeader>
-      <CardBody className="grid gap-3">
+      <CardBody className="grid gap-4">
         {readinessBoard.items.length ? (
-          readinessBoard.items.slice(0, 4).map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => onNavigate(item.quoteStatus === "selected" ? "bookings" : "requests")}
-              className="flex items-start justify-between gap-4 rounded-xl border border-border bg-background px-4 py-3 text-left transition hover:border-(--prism-signal)/30 hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--prism-signal) focus-visible:ring-inset"
-            >
-              <span className="min-w-0">
-                <span className="block text-sm font-black text-foreground">{item.eventName ?? "Assigned event"}</span>
-                <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                  {item.category} · quote {fmt(item.quoteStatus)} · assignment {fmt(item.assignmentStatus ?? "pending")} · readiness {fmt(item.readinessStatus ?? "not confirmed")}
-                </span>
-              </span>
-              <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase ${readinessTone(item.priority)}`}>
-                {fmt(item.priority)}
-              </span>
-            </button>
+          groupReadinessItemsByEvent(readinessBoard.items).map((group) => (
+            <section key={group.eventId} aria-label={`${group.eventName} readiness`} className="grid gap-2">
+              <h3 className="text-sm font-black text-foreground">{group.eventName}</h3>
+              {group.items.map((item) => (
+                <ReadinessItemButton key={item.id} item={item} onNavigate={onNavigate} />
+              ))}
+            </section>
           ))
         ) : (
           <p className="text-sm text-muted-foreground">No supplier readiness items are open.</p>
         )}
       </CardBody>
     </Card>
+  );
+}
+
+function ReadinessItemButton({
+  item,
+  onNavigate,
+}: {
+  item: PrismSupplierReadinessItem;
+  onNavigate: (s: SupplierDashboardSection) => void;
+}) {
+  const section = supplierReadinessSection(item);
+  return (
+    <button
+      type="button"
+      onClick={() => onNavigate(section)}
+      aria-label={`${item.category}: open ${section === "bookings" ? "bookings" : "quote requests"}`}
+      className="flex items-start justify-between gap-4 rounded-xl border border-border bg-background px-4 py-3 text-left transition hover:border-(--prism-signal)/30 hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--prism-signal) focus-visible:ring-inset"
+    >
+      <span className="min-w-0">
+        <span className="block text-sm font-bold text-foreground">{item.category}</span>
+        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+          Quote {fmt(item.quoteStatus)} · assignment {fmt(item.assignmentStatus ?? "pending")} · readiness {fmt(item.readinessStatus ?? "not confirmed")} · contract {fmt(item.contractStatus)} · {readinessSetupLabel(item.setupStatus)}
+        </span>
+        {item.schedule ? (
+          <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+            Ingress {new Date(item.schedule.ingressAt).toLocaleString()} · Egress {new Date(item.schedule.egressAt).toLocaleString()} ·{" "}
+            {item.schedule.acknowledged ? "schedule acknowledged" : "schedule needs your acknowledgment"}
+          </span>
+        ) : null}
+        {item.ingressLate ? (
+          <span className="mt-1 block text-xs font-semibold text-(--prism-danger)">Ingress time has passed without an arrival report.</span>
+        ) : null}
+        {item.concerns.map((concern) => (
+          <span key={`${concern.kind}:${concern.at ?? ""}`} className="mt-1 block text-xs text-(--prism-amber)">
+            {readinessConcernLabel(concern.kind)}: {concern.message}
+          </span>
+        ))}
+      </span>
+      <span className={`shrink-0 rounded-md border px-2 py-0.5 text-xs font-semibold capitalize ${readinessTone(item.priority)}`}>
+        {fmt(item.priority)}
+      </span>
+    </button>
   );
 }
 
