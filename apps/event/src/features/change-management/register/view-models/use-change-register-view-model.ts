@@ -1,14 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { RecordEventDecisionInput, PrismAddendum, PrismEventFreezeException, RequestFreezeExceptionInput } from "@prism/types";
+import type { RecordEventDecisionInput, PrismAddendum, PrismAddendumConformeExecution, PrismEventFreezeException, RequestFreezeExceptionInput } from "@prism/types";
 import { changeRegisterRepository } from "../data/change-register-repository";
 import { unusedApprovedExceptions } from "../model/change-register-rules";
-import { decideFreezeExceptionUseCase, freezeScopeUseCase, recordEventDecisionUseCase, requestFreezeExceptionUseCase } from "../use-cases/change-register-use-cases";
+import { countersignAddendumConformeUseCase, decideFreezeExceptionUseCase, freezeScopeUseCase, issueAddendumConformeUseCase, recordEventDecisionUseCase, requestFreezeExceptionUseCase } from "../use-cases/change-register-use-cases";
 
 export function useChangeRegisterViewModel(eventId: string, options: { frozen: boolean }) {
   const [addenda, setAddenda] = useState<PrismAddendum[]>([]);
   const [exceptions, setExceptions] = useState<PrismEventFreezeException[]>([]);
+  const [conformes, setConformes] = useState<PrismAddendumConformeExecution[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -23,6 +24,7 @@ export function useChangeRegisterViewModel(eventId: string, options: { frozen: b
       if (requestVersion.current !== version) return;
       setAddenda(next.addenda);
       setExceptions(next.exceptions);
+      setConformes(next.conformes ?? []);
       setStatus("ready");
     } catch (cause) {
       if (requestVersion.current !== version) return;
@@ -65,5 +67,8 @@ export function useChangeRegisterViewModel(eventId: string, options: { frozen: b
     rejectException: (exceptionId: string, decisionNote: string) => run(() => decideFreezeExceptionUseCase(eventId, exceptionId, { decision: "reject", decisionNote })),
     approvedExceptions: unusedApprovedExceptions(exceptions),
     recordDecision: (draft: RecordEventDecisionInput) => run(() => recordEventDecisionUseCase(eventId, draft, { frozen: options.frozen })),
+    conformes,
+    issueAddendumConforme: (addendumId: string, draft: { documentVersion: number; documentContent: string }) => run(() => issueAddendumConformeUseCase(eventId, addendumId, draft)),
+    countersignAddendumConforme: (conforme: PrismAddendumConformeExecution) => run(() => countersignAddendumConformeUseCase(eventId, conforme)),
   };
 }

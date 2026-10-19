@@ -41,7 +41,11 @@ export function ChangeRegisterPanel({ eventId, frozen }: { eventId: string; froz
             onReject={(id, note) => vm.rejectException(id, note)}
           />
           <RecordDecisionForm frozen={frozen} approvedExceptions={vm.approvedExceptions} busy={vm.busy} onSubmit={(draft) => vm.recordDecision(draft)} />
-          <PmcmAddendaStatus addenda={vm.addenda} />
+          <PmcmAddendaStatus
+            addenda={vm.addenda}
+            conformes={vm.conformes}
+            actions={{ busy: vm.busy, onIssueConforme: (addendumId, draft) => vm.issueAddendumConforme(addendumId, draft), onCountersign: (conforme) => vm.countersignAddendumConforme(conforme) }}
+          />
         </>
       ) : null}
     </section>

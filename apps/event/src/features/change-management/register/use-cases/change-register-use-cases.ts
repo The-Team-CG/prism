@@ -2,7 +2,10 @@ import {
   decideFreezeExceptionSchema,
   recordEventDecisionSchema,
   freezeEventSchema,
+  issueAddendumConformeSchema,
   requestFreezeExceptionSchema,
+  signAddendumConformeSchema,
+  type PrismAddendumConformeExecution,
   type DecideFreezeExceptionInput,
   type RecordEventDecisionInput,
   type FreezeEventInput,
@@ -25,6 +28,21 @@ export function requestFreezeExceptionUseCase(eventId: string, draft: RequestFre
 
 export function decideFreezeExceptionUseCase(eventId: string, exceptionId: string, draft: DecideFreezeExceptionInput) {
   return changeRegisterRepository.decideException(eventId, exceptionId, parseOrThrow(decideFreezeExceptionSchema.safeParse(draft)));
+}
+
+export function issueAddendumConformeUseCase(eventId: string, addendumId: string, draft: { documentVersion: number; documentContent: string }) {
+  return changeRegisterRepository.issueAddendumConforme(eventId, addendumId, parseOrThrow(issueAddendumConformeSchema.safeParse(draft)));
+}
+
+/** PMCM countersigns exactly the version and hash on screen; the server rejects a stale or tampered version. */
+export function countersignAddendumConformeUseCase(eventId: string, conforme: Pick<PrismAddendumConformeExecution, "id" | "addendumId" | "documentVersion" | "documentSha256">) {
+  const input = parseOrThrow(signAddendumConformeSchema.safeParse({
+    executionId: conforme.id,
+    documentVersion: conforme.documentVersion,
+    documentSha256: conforme.documentSha256,
+    consentAccepted: true,
+  }));
+  return changeRegisterRepository.countersignAddendumConforme(eventId, conforme.addendumId, input);
 }
 
 /**
