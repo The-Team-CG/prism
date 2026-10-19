@@ -33,10 +33,6 @@ export function daysUntilEvent(eventDate?: string | null, now = Date.now()): num
   }
 }
 
-function actionCenterIsClear(counts: PrismClientActionCenter["counts"]) {
-  return counts.critical === 0 && counts.warning === 0 && counts.attention === 0 && counts.info === 0;
-}
-
 export function ClientHomeGreeting({
   sessionName,
   eventCount,
@@ -199,22 +195,28 @@ export function ClientHomeActionCenter({
     );
   }
   if (!actionCenter) return null;
-  if (clientActions.length === 0) return null;
-  return (
-    <div className="space-y-4">
-      <h2 className="text-base font-black text-foreground">Action center</h2>
-      <ClientActionGroup title="Needs your action" description="Client decisions that can move planning forward." actions={clientActions.filter((a) => a.tone === "primary" || a.tone === "warning")} onAction={runClientAction} showDetailsAndCta />
-      <ClientActionGroup title="Waiting on PMCM" description="Being prepared or reviewed by the event team." actions={clientActions.filter((a) => a.tone === "neutral")} onAction={runClientAction} showDetailsAndCta />
-      {actionCenterIsClear(actionCenter.counts) ? (
-        <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-8 py-10 text-center">
+  if (clientActions.length === 0) {
+    return (
+      <section aria-labelledby="client-action-center-heading" className="space-y-4">
+        <h2 id="client-action-center-heading" className="text-base font-black text-foreground">Action center</h2>
+        <div role="status" className="rounded-2xl border border-dashed border-border bg-muted/20 px-8 py-10 text-center">
           <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-(--prism-success)/10">
             <CheckCircle2 className="size-5 text-(--prism-success)" />
           </span>
-          <h3 className="mt-4 text-sm font-bold text-foreground">No pending actions yet.</h3>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">All event items are up to date. PMCM will notify you when something needs your attention.</p>
+          <h3 className="mt-4 text-sm font-bold text-foreground">No pending actions</h3>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">Everything here is up to date. PMCM will notify you when something needs your attention.</p>
         </div>
-      ) : null}
-    </div>
+      </section>
+    );
+  }
+  const needsAction = clientActions.filter((a) => a.tone === "primary" || a.tone === "warning");
+  const waiting = clientActions.filter((a) => a.tone === "neutral");
+  return (
+    <section aria-labelledby="client-action-center-heading" className="space-y-4">
+      <h2 id="client-action-center-heading" className="text-base font-black text-foreground">Action center</h2>
+      {needsAction.length > 0 ? <ClientActionGroup title="Needs your action" description="Client decisions that can move planning forward." actions={needsAction} onAction={runClientAction} showDetailsAndCta /> : null}
+      {waiting.length > 0 ? <ClientActionGroup title="Waiting on PMCM" description="Being prepared or reviewed by the event team." actions={waiting} onAction={runClientAction} showDetailsAndCta /> : null}
+    </section>
   );
 }
 
