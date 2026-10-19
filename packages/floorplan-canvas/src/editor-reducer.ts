@@ -1,3 +1,4 @@
+import { evaluateTableAssignment } from "@prism/types";
 import type {
   CanvasObject,
   EditorState,
@@ -8,7 +9,6 @@ import type {
   Viewport,
 } from "./types";
 import { uid } from "./assetLibrary";
-import { evaluateTableAssignment } from "./table-assignment";
 
 export type Action =
   | { type: "SET_TOOL"; tool: Tool }
