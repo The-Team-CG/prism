@@ -11,6 +11,7 @@ function createExecutor() {
   };
   const operations = {
     redactGuest: vi.fn(async () => ({ surfaces: ['guest_check_in'], touchedRecords: 3 })),
+    redactGuestRecord: vi.fn(async () => ({ surfaces: ['guest_feedback'], touchedRecords: 2 })),
   };
   const executor = new PrivacyRetentionExecutorService(lifecycle as never, commercial as never, operations as never);
   return { executor, lifecycle, commercial, operations };
@@ -42,8 +43,10 @@ describe('PrivacyRetentionExecutorService', () => {
 
     const result = await executor.redactCandidate(candidate, 'retention_2', {} as never);
 
-    expect(operations.redactGuest).toHaveBeenCalledWith({ eventId: 'evt_gala', name: 'Ana Reyes' }, expect.anything());
+    // Targets only the referenced record by id; a name-based call would also redact a different guest with the same name.
+    expect(operations.redactGuestRecord).toHaveBeenCalledWith({ eventId: 'evt_gala', recordType: 'guest_feedback', recordId: 'fb_1' }, expect.anything());
+    expect(operations.redactGuest).not.toHaveBeenCalled();
     expect(lifecycle.redactClient).not.toHaveBeenCalled();
-    expect(result).toEqual({ surfaces: ['guest_check_in'], touchedRecords: 3 });
+    expect(result).toEqual({ surfaces: ['guest_feedback'], touchedRecords: 2 });
   });
 });
