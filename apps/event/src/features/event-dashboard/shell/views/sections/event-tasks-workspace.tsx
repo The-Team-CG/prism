@@ -1,42 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import type { LucideIcon } from "lucide-react";
 import {
-  CalendarDays,
   CheckCircle2,
   ClipboardCheck,
-  Download,
-  Eye,
-  FileCheck2,
-  FileSignature,
-  FileText,
-  Grid2X2,
-  LayoutGrid,
-  List,
-  MapPinned,
-  MessageSquareText,
-  MoreHorizontal,
-  Pencil,
-  ReceiptText,
-  RotateCcw,
-  Search,
-  Settings,
-  Share2,
-  ShieldCheck,
-  Upload,
 } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
-import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
-import { Badge } from "@/app/components/ui/badge";
-import { formatShortDate, humanizeToken } from "@/features/pmcm-kit/model/formatters";
-import type { EventSession } from "@/app/lib/session";
-import type { PrismApprovalRequest, PrismBillingStatement, PrismBriefing, PrismComplianceCheck, PrismDefenseReadiness, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismPmcmCommandInbox, PrismPmcmDashboardWorkspace, PrismPmcmOcularVisit, PrismPostEventDocument, PrismSupplierQuoteRequest, ScheduleOcularVisitInput, WaiveOcularVisitInput } from "@prism/types";
+import type { PrismApprovalRequest, PrismDefenseReadiness, PrismEvent, PrismPmcmCommandInbox, PrismPmcmOcularVisit, ScheduleOcularVisitInput, WaiveOcularVisitInput } from "@prism/types";
 import { selectEventActionCenter } from "@/features/command-inbox/list/model/event-action-center";
 import type { DashboardSection, DetailTab } from "../../model/event-dashboard-routing";
-import { Card, CardBody, CardHeader, SectionAccent } from "./shell-ui";
-import type { EventFileHubItem } from "./event-file-types";
+import { Card, CardBody, CardHeader } from "./shell-ui";
 import { EventOcularVisitTask } from "./event-ocular-visit-task";
 
 
