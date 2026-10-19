@@ -8,6 +8,7 @@ import type {
   PrismPmcmCommandInboxQueryInput,
   PrismPmcmDashboardWorkspace,
   PrismPmcmEventWorkspace,
+  PrismPmcmSupplierReadinessBoard,
   PrismRegistrationPlatform,
   PrismSupplierQuoteRequest,
   PrismSupplierReadinessBoard,
@@ -39,6 +40,8 @@ export interface EventOpsWorkspacesContract {
       eventId: string,
       actor?: EventOpsActorQuery,
     ): Promise<PrismPmcmEventWorkspace>;
+    /** PMCM-only; identity comes from the session bearer token. */
+    supplierReadiness(eventId: string): Promise<PrismPmcmSupplierReadinessBoard>;
     registrationPlatform(
       eventId: string,
       actor?: EventOpsActorQuery,
