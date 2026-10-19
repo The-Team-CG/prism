@@ -19,6 +19,7 @@ const assignmentRejectionMessages: AssignmentRejectionMessages = {
   "not-a-table": "Choose a round or rectangular table with seats to seat a guest.",
   "table-hidden": "Hidden tables cannot take guests. Unhide the table first.",
   "table-full": "This table has no free seats.",
+  "guest-already-seated": "A guest can only be seated at one table.",
 };
 
 type EventEditorShellProps = Omit<
