@@ -20,7 +20,7 @@ import type {
   CreateEventEodReplyInput,
   PrismEventSchedule,
   PrismEventScheduleSegment,
-  PrismEventRunSheet,
+  PrismEventRunSheetResult,
   PrismEventHandoff,
   PrismEventEodReport,
   PrismHandoffBrief,
@@ -62,10 +62,7 @@ export interface EventOpsLiveOpsContract {
       eventId: string,
       dayId?: string,
       actor?: EventOpsActorQuery,
-    ): Promise<
-      | PrismEventRunSheet
-      | { eventId: string; authored: false; reason: "no_schedule" }
-    >;
+    ): Promise<PrismEventRunSheetResult>;
     designateOperator(
       eventId: string,
       input: CreateEventOperatorDesignationInput,

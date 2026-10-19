@@ -7,7 +7,7 @@ import type {
   PrismCoordinatorAssignment,
   PrismEventSchedule,
   PrismEventScheduleSegment,
-  PrismEventRunSheet,
+  PrismEventRunSheetResult,
   PrismEventHandoff,
   PrismEventEodReport,
   PrismHandoffBrief,
@@ -60,12 +60,12 @@ export function createLiveOpsClient(
           withBase(options, { method: "PATCH", body: input }),
         ),
       runSheet: (eventId, dayId, actor = {}) => {
-        const query = dayId ? `?dayId=${encodeURIComponent(dayId)}` : "";
-        return prismRequest<
-          | PrismEventRunSheet
-          | { eventId: string; authored: false; reason: "no_schedule" }
-        >(
-          actorPath(`/events/${eventId}/run-sheet${query}`, actor),
+        const path = actorPath(`/events/${eventId}/run-sheet`, actor);
+        const day = dayId
+          ? `${path.includes("?") ? "&" : "?"}dayId=${encodeURIComponent(dayId)}`
+          : "";
+        return prismRequest<PrismEventRunSheetResult>(
+          `${path}${day}`,
           withBase(options),
         );
       },

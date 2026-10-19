@@ -662,6 +662,20 @@ describe("createEventOpsClient", () => {
     });
   });
 
+  it("loads the run sheet for the event and an optional encoded schedule day", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ eventId: "evt_1" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.liveOps.runSheet("evt_1");
+    await client.liveOps.runSheet("evt_1", "day 2", { role: "coordinator" });
+
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "http://localhost:4000/api/events/evt_1/run-sheet",
+      "http://localhost:4000/api/events/evt_1/run-sheet?role=coordinator&dayId=day%202",
+    ]);
+  });
+
   it("loads a redacted public supplier application status without caching", async () => {
     const fetchMock = vi.fn(async () =>
       new Response(
