@@ -52,6 +52,15 @@ export class PlatformReferenceReadModelsService implements PlatformReferenceRead
     };
   }
 
+  async findFileRequirementVisibility(eventId: string): Promise<Record<string, string[]>> {
+    const rows = await this.prisma.opsFileRequirement.findMany({
+      where: { eventId },
+      select: { key: true, visibleToRoles: true },
+      take: 200,
+    });
+    return Object.fromEntries(rows.map((row) => [row.key, row.visibleToRoles]));
+  }
+
   findEventReference(eventId: string): Promise<{ id: string } | null> {
     return this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { id: true } });
   }

@@ -161,6 +161,7 @@ function setup(provider: Provider) {
     findStorageEventScope: async () => null,
     findEventReference: async () => null,
     findPrivacyInventory: async () => ({ events: [], approvalRequests: [] }),
+    findFileRequirementVisibility: async () => ({}),
     findPareEventSource: async (requestId) => ({
       request: {
         id: requestId,
