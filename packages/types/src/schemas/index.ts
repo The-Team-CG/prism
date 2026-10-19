@@ -379,3 +379,4 @@ export {
 export * from "./supplier-workflow-inputs.js";
 export * from "./client-review-inputs.js";
 export * from "./conforme-signing.js";
+export * from "./floorplan-canvas-inputs.js";

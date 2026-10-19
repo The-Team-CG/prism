@@ -1,64 +1,35 @@
-export type ShapeKind = "rect" | "ellipse" | "line";
+import type {
+  FloorPlanCanvasObject,
+  FloorPlanElementCategory,
+  FloorPlanGuest,
+  FloorPlanRsvp,
+  FloorPlanShapeKind,
+  FloorPlanSupplier,
+  FloorPlanSupplierKind,
+  FloorPlanSupplierStatus,
+  TableAssignmentIneligibleReason,
+  TableAssignmentRejection,
+} from "@prism/types";
 
-export type ElementCategory =
-  | "furniture"
-  | "stage"
-  | "registration"
-  | "safety"
-  | "architecture";
+// The editor's object and guest shapes are the saved contract in @prism/types; these aliases keep editor imports stable.
+export type ShapeKind = FloorPlanShapeKind;
 
-export interface CanvasObject {
-  id: string;
-  name: string;
-  kind: ShapeKind;
-  category: ElementCategory;
-  x: number; // meters (top-left for rect/ellipse, start for line)
-  y: number;
-  w: number; // meters
-  h: number; // meters
-  rotation: number; // radians
-  fill: string;
-  stroke: string;
-  strokeWidth: number;
-  label?: string;
-  seats?: number;
-  assignedGuestIds?: string[];
-  assignedSupplierIds?: string[];
-  locked: boolean;
-  hidden: boolean;
-}
+export type ElementCategory = FloorPlanElementCategory;
 
-export type SupplierKind =
-  | "catering"
-  | "av"
-  | "floral"
-  | "staging"
-  | "security"
-  | "rental"
-  | "photography"
-  | "other";
+/** Editor object. x/y/w/h are meters (top-left for rect/ellipse, start for line); rotation is radians. */
+export type CanvasObject = FloorPlanCanvasObject;
 
-export type SupplierStatus = "booked" | "proposed" | "confirmed" | "cancelled";
+export type SupplierKind = FloorPlanSupplierKind;
 
-export interface Supplier {
-  id: string;
-  name: string;
-  kind: SupplierKind;
-  contact?: string; // phone or email
-  status: SupplierStatus;
-  notes?: string;
-}
+export type SupplierStatus = FloorPlanSupplierStatus;
 
-export type RSVP = "confirmed" | "pending" | "declined";
+/** Supplier on the editor roster; `contact` is a phone or email. */
+export type Supplier = FloorPlanSupplier;
 
-export interface Guest {
-  id: string;
-  name: string;
-  rsvp: RSVP;
-  group?: string; // table group / party, e.g. "Bride's family"
-  dietary?: string; // e.g. "Vegan", "Gluten-free"
-  notes?: string;
-}
+export type RSVP = FloorPlanRsvp;
+
+/** Guest on the editor roster. `group` is the table group / party, e.g. "Bride's family". */
+export type Guest = FloorPlanGuest;
 
 export interface Viewport {
   tx: number; // screen translate x (px)
@@ -88,19 +59,8 @@ export type Tool =
   | "line"
   | "text";
 
-/** Why a guest cannot be seated at a table. Stable codes; copy is supplied by the role app. */
-export type TableAssignmentIneligibleReason =
-  | "unknown-guest"
-  | "guest-declined"
-  | "not-a-table"
-  | "table-hidden"
-  | "table-full";
-
-export interface TableAssignmentRejection {
-  guestId: string;
-  objectId: string;
-  reason: TableAssignmentIneligibleReason;
-}
+/** Why a guest cannot be seated at a table. Stable codes from @prism/types; copy is supplied by the role app. */
+export type { TableAssignmentIneligibleReason, TableAssignmentRejection };
 
 export interface EditorState {
   project: Project;
