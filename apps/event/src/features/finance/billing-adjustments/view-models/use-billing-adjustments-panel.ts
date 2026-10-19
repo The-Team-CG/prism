@@ -9,8 +9,9 @@ import type {
   PrismBillingStatement,
   PrismPaymentMilestone,
 } from "@prism/types";
+import { readStoredEventSession, type EventSession } from "@/app/lib/session";
 import { billingAdjustmentRepository } from "../data/billing-adjustment-repository";
-import { approvedBillingSources } from "../model/billing-adjustment-rules";
+import { approvedBillingSources, isOwnBillingCorrectionRequest } from "../model/billing-adjustment-rules";
 import {
   submitAdditionalBilling,
   submitAdditionalBillingWaiver,
@@ -37,8 +38,13 @@ export function useBillingAdjustmentsPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [viewer, setViewer] = useState<EventSession | null>(null);
   const currentEventId = useRef(eventId);
   currentEventId.current = eventId;
+
+  useEffect(() => {
+    setViewer(readStoredEventSession());
+  }, []);
 
   const statement = statements.find((item) => item.eventId === eventId);
   const approvedSources = approvedBillingSources(billingSources.filter((source) => source.eventId === eventId));
@@ -107,7 +113,12 @@ export function useBillingAdjustmentsPanel({
     setWaiverReasons,
     correctionNotes,
     setCorrectionNotes,
-    resolveCorrection: (correctionId: string, action: "approve" | "reject") =>
+    /** Approval is blocked for the requester (separation of duties); rejection stays available to everyone. */
+    canApproveCorrection: (correction: PrismBillingCorrection) =>
+      viewer !== null && !isOwnBillingCorrectionRequest(correction, viewer),
+    isOwnCorrectionRequest: (correction: PrismBillingCorrection) =>
+      viewer !== null && isOwnBillingCorrectionRequest(correction, viewer),
+    resolveCorrection:(correctionId: string, action: "approve" | "reject") =>
       act(action === "approve" ? "Correction approval" : "Correction rejection", () => submitCorrectionResolution(billingAdjustmentRepository, eventId, correctionId, {
         action,
         resolutionNotes: correctionNotes[correctionId] ?? "",
