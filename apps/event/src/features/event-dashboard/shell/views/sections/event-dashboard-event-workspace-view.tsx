@@ -10,6 +10,7 @@ import {
   EventWorkspaceBriefingTab,
   EventWorkspaceClosureTab,
   EventWorkspaceCoordinatorsTab,
+  EventWorkspaceDecisionsTab,
   EventWorkspaceFloorplansTab,
   EventWorkspaceGamesTab,
   EventWorkspaceLiveOpsTab,
@@ -31,6 +32,7 @@ const EVENT_TAB_VIEWS: Record<DetailTab, () => ReactElement> = {
   "live-ops": () => <EventWorkspaceLiveOpsTab />,
   billing: () => <EventWorkspaceBillingTab />,
   closure: () => <EventWorkspaceClosureTab />,
+  decisions: () => <EventWorkspaceDecisionsTab />,
   activity: () => <EventWorkspaceActivityTab />,
 };
 
