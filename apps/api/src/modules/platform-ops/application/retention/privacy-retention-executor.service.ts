@@ -40,9 +40,9 @@ export class PrivacyRetentionExecutorService {
         touchedRecords: lifecycle.touchedRecords + commercial.touchedRecords,
       };
     }
-    // Guest redaction is keyed by name within the event, matching the existing guest privacy workflow.
-    const result = await this.operationsPrivacy.redactGuest(
-      { eventId: candidate.eventId, name: candidate.subjectName },
+    // Guest redaction targets only the referenced record by id, never by name, so a different guest who shares the name is untouched.
+    const result = await this.operationsPrivacy.redactGuestRecord(
+      { eventId: candidate.eventId, recordType: candidate.category, recordId: candidate.subjectId },
       transaction,
     );
     return { surfaces: result.surfaces, touchedRecords: result.touchedRecords };
