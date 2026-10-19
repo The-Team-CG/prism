@@ -125,6 +125,8 @@ describe("P.R.I.S.M lifecycle contract", () => {
           visibleToRoles: ["pmcm-admin", "client"],
           sourceWorkflow: "client_onboarding",
           status: "submitted",
+          required: true,
+          overdue: false,
           uploadedAssetId: "doc_conforme",
           auditCategory: "documents",
           detail: "Formal authorization file required before portal activation.",
