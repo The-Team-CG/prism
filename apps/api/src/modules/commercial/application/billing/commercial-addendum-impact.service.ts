@@ -3,9 +3,17 @@ import { toPrismaJson } from '@prism/kernel/database';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type {
   ApplyCommercialAddendumInput,
+  CommercialAddendumConformeTrace,
   CommercialAddendumImpact,
   CommercialAddendumImpactWriter,
+  RecordAddendumConformeInput,
 } from '../../contracts/addendum-impact-writer.port';
+
+function addendumLineLabel(versionNumber: number) {
+  return `Addendum v${versionNumber} scope change`;
+}
+
+type StoredLineItem = { label?: unknown } & Record<string, unknown>;
 
 @Injectable()
 export class CommercialAddendumImpactService implements CommercialAddendumImpactWriter {
@@ -20,7 +28,7 @@ export class CommercialAddendumImpactService implements CommercialAddendumImpact
       });
       if (!source) throw new BadRequestException('An approved billing source is required before applying a financial addendum');
       const items = Array.isArray(source.lineItems) ? [...source.lineItems as unknown[]] : [];
-      items.push({ label: `Addendum v${input.versionNumber} scope change`, amount: input.financialDelta });
+      items.push({ label: addendumLineLabel(input.versionNumber), amount: input.financialDelta });
       const updated = await prisma.opsBillingSource.update({
         where: { id: source.id },
         data: { totalAmount: source.totalAmount + input.financialDelta, lineItems: toPrismaJson(items) },
@@ -51,5 +59,24 @@ export class CommercialAddendumImpactService implements CommercialAddendumImpact
     }
 
     return impacts;
+  }
+
+  async recordConformeExecution(input: RecordAddendumConformeInput, transaction: PrismTransactionContext): Promise<CommercialAddendumConformeTrace | null> {
+    const prisma = transaction.prisma;
+    const label = addendumLineLabel(input.versionNumber);
+    const sources = await prisma.opsBillingSource.findMany({ where: { eventId: input.eventId }, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], take: 50 });
+    const source = sources.find((candidate) => Array.isArray(candidate.lineItems) && (candidate.lineItems as StoredLineItem[]).some((item) => item?.label === label));
+    if (!source) return null;
+    const reference = {
+      executionId: input.executionId,
+      addendumId: input.addendumId,
+      versionNumber: input.versionNumber,
+      documentSha256: input.documentSha256,
+      executedAt: input.executedAt,
+    };
+    const items = (source.lineItems as StoredLineItem[]).map((item) => (item?.label === label ? { ...item, addendumConforme: reference } : item));
+    const alreadyTraced = (source.lineItems as StoredLineItem[]).some((item) => item?.label === label && JSON.stringify(item.addendumConforme) === JSON.stringify(reference));
+    if (!alreadyTraced) await prisma.opsBillingSource.update({ where: { id: source.id }, data: { lineItems: toPrismaJson(items) } });
+    return { billingSourceId: source.id };
   }
 }
