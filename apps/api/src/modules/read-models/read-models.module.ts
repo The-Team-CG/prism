@@ -13,6 +13,8 @@ import { OpsBillingController } from './api/billing.controller';
 import { OpsClientController } from './api/client-workspace.controller';
 import { OpsDefenseReadinessController } from './api/defense-readiness.controller';
 import { OpsEventReadsController } from './api/events.controller';
+import { OpsDecisionLogController } from './api/decision-log.controller';
+import { DecisionLogReadModelsService } from './application/services/decision-log-read-models.service';
 import { OpsHandoffBriefController } from './api/handoff-brief.controller';
 import { HandoffBriefReadModelsService } from './application/services/handoff-brief-read-models.service';
 import { OpsPmcmCommandInboxController } from './api/pmcm-command-inbox.controller';
@@ -56,6 +58,7 @@ import { CommercialFactsReaderModule } from './commercial-facts-reader.module';
     OpsClientController,
     OpsDefenseReadinessController,
     OpsEventReadsController,
+    OpsDecisionLogController,
     OpsHandoffBriefController,
     OpsPmcmCommandInboxController,
     OpsPmcmDashboardController,
@@ -66,6 +69,7 @@ import { CommercialFactsReaderModule } from './commercial-facts-reader.module';
     EventReadModelsService,
     LiveOpsReadModelsService,
     HandoffBriefReadModelsService,
+    DecisionLogReadModelsService,
     PlatformReferenceReadModelsService,
     { provide: LIVE_OPS_READ_MODEL, useExisting: LiveOpsReadModelsService },
     { provide: PMCM_EVENT_READ_MODEL, useExisting: EventReadModelsService },

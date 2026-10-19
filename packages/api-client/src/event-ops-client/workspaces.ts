@@ -2,6 +2,7 @@ import type {
   PrismBillingWorkspace,
   PrismClientActionCenter,
   PrismClientWorkspace,
+  PrismDecisionLog,
   PrismPmcmCommandInbox,
   PrismPmcmCommandInboxQueryInput,
   PrismPmcmDashboardWorkspace,
@@ -96,6 +97,14 @@ export function createWorkspacesClient(
         const params = toQueryString(query);
         return prismRequest<PrismPmcmCommandInbox>(
           params ? `/pmcm/command-inbox?${params}` : "/pmcm/command-inbox",
+          withBase(options),
+        );
+      },
+      decisionLog: (eventId, query = {}) => {
+        const params = toQueryString(query);
+        const path = `/events/${encodeURIComponent(eventId)}/decision-log`;
+        return prismRequest<PrismDecisionLog>(
+          params ? `${path}?${params}` : path,
           withBase(options),
         );
       },
