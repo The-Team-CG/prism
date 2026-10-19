@@ -17,6 +17,7 @@ export * from './contracts/closure-readiness-reader.port';
 export * from './contracts/file-ops.tokens';
 export * from './contracts/file-requirement-commands.port';
 export * from './contracts/file-requirement-reader.port';
+export * from './domain/client-change-request.projection';
 
 export * from './api/onboarding/event-briefing.controller';
 export * from './api/onboarding/inquiries.controller';
