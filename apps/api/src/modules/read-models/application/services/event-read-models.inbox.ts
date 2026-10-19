@@ -6,25 +6,34 @@ import type {
   OpsPaymentRecord,
   OpsPostEventDocument,
 } from '@prisma/client';
-import type { PrismClientActionItem, PrismCommandInboxItem, PrismCommandInboxSeverity } from '@prism/types';
+import type { PrismClientActionItem, PrismClientChangeRequest, PrismCommandInboxItem, PrismCommandInboxSeverity } from '@prism/types';
+import { toClientChangeRequest, type ClientChangeRequestSource } from '@prism/contexts/event-lifecycle';
 import type {
   PmcmInboxCoordinatorAssignment,
   PmcmInboxEvent,
+  PmcmInboxEventDayTask,
   PmcmInboxFloorPlanDraft,
   PmcmInboxInquiry,
   PmcmInboxPaymentMilestone,
   PmcmInboxPostEventDocument,
   PmcmInboxQuoteRequest,
+  PmcmInboxUrgentIssue,
 } from '../queries/pmcm-command-inbox.types';
 
 type EventRef = PmcmInboxEvent;
+type ClientEventRef = EventRef & Partial<Pick<OpsEvent, 'actualEndedAt' | 'archived'>>;
 type BriefingRef = { eventId: string };
 type BillingStatementRef = { id: string; eventId: string; status: string; number: string };
+type CloseoutResponseRef = { eventId: string };
+export type ClientChangeRequestRef = ClientChangeRequestSource & { eventId: string };
 
 const DOCUMENT_ACTION_STATUSES = ['needs_update', 'pending', 'rejected'];
 const FLOORPLAN_DRAFT_ACTION_STATUSES = ['submitted', 'in_review'];
 const CLOSED_QUOTE_REQUEST_STATUSES = ['selected', 'closed', 'cancelled'];
 const SETTLED_COORDINATOR_STATUSES = ['confirmed', 'checked_in', 'completed'];
+const CLOSED_LIVE_OPS_STATUSES = ['done', 'resolved', 'cancelled', 'closed'];
+/** A decided change request stays in the client action center long enough for the client to review the outcome. */
+export const CLIENT_CHANGE_DECISION_REVIEW_DAYS = 14;
 
 export function toIso(value?: Date | string | null) {
   if (!value) return null;
@@ -85,7 +94,7 @@ function eventById<T extends { id: string }>(events: T[], eventId: string) {
 }
 
 export function collectClientActionItems(input: {
-  visibleEvents: EventRef[];
+  visibleEvents: ClientEventRef[];
   briefings: BriefingRef[];
   documents: OpsDocument[];
   floorPlanDrafts: OpsFloorPlanDraft[];
@@ -93,7 +102,11 @@ export function collectClientActionItems(input: {
   paymentMilestones: OpsPaymentMilestone[];
   paymentRecords: OpsPaymentRecord[];
   postEventDocuments: OpsPostEventDocument[];
+  closeoutResponses?: CloseoutResponseRef[];
+  changeRequests?: ClientChangeRequestRef[];
+  now?: Date;
 }): PrismClientActionItem[] {
+  const now = input.now ?? new Date();
   const items = [
     ...collectClientEventActionItems(input.visibleEvents, new Set(input.briefings.map((briefing) => briefing.eventId))),
     ...collectClientBillingActionItems(input.paymentMilestones, input.visibleEvents, input.paymentRecords),
@@ -101,6 +114,8 @@ export function collectClientActionItems(input: {
     ...collectClientFloorplanDraftActionItems(input.floorPlanDrafts, input.visibleEvents),
     ...collectClientBillingStatementActionItems(input.billingStatements, input.visibleEvents),
     ...collectClientClosureActionItems(input.postEventDocuments, input.visibleEvents),
+    ...collectClientFeedbackActionItems(input.visibleEvents, new Set((input.closeoutResponses ?? []).map((row) => row.eventId))),
+    ...collectClientChangeRequestItems(input.changeRequests ?? [], input.visibleEvents, now),
   ];
   items.sort((left, right) => {
     const priority = priorityRank(left.priority) - priorityRank(right.priority);
@@ -312,6 +327,53 @@ function clientClosureActionItem(document: OpsPostEventDocument, events: EventRe
   };
 }
 
+// The feedback window matches the closeout command: open once the event has ended, closed when it is archived.
+function collectClientFeedbackActionItems(events: ClientEventRef[], respondedEventIds: Set<string>) {
+  const items: PrismClientActionItem[] = [];
+  for (const event of events) {
+    if (!event.actualEndedAt || event.archived || respondedEventIds.has(event.id)) continue;
+    items.push({
+      id: `feedback:${event.id}`,
+      kind: 'feedback',
+      priority: 'attention',
+      label: 'Share event feedback',
+      description: `Tell PMCM how ${event.eventName} went.`,
+      status: 'awaiting_feedback',
+      eventId: event.id,
+      eventName: event.eventName,
+      href: `/dashboard/events/${event.id}/summary`,
+    });
+  }
+  return items;
+}
+
+function collectClientChangeRequestItems(requests: ClientChangeRequestRef[], events: ClientEventRef[], now: Date) {
+  const items: PrismClientActionItem[] = [];
+  const reviewSince = now.getTime() - CLIENT_CHANGE_DECISION_REVIEW_DAYS * 24 * 60 * 60 * 1000;
+  for (const request of requests) {
+    const event = eventById(events, request.eventId);
+    if (!event) continue;
+    if (request.decidedAt && request.decidedAt.getTime() < reviewSince) continue;
+    // Only the client-safe projection is read so internal reasons and decision notes can never reach the item.
+    const projection: PrismClientChangeRequest = toClientChangeRequest(request);
+    const copy: Record<PrismClientChangeRequest['status'], Pick<PrismClientActionItem, 'priority' | 'label' | 'description'>> = {
+      under_review: { priority: 'info', label: 'Change request under review', description: `PMCM is reviewing: ${projection.requestedChange}` },
+      approved: { priority: 'info', label: 'Change request approved', description: `PMCM approved: ${projection.requestedChange}` },
+      not_approved: { priority: 'attention', label: 'Change request not approved', description: `Review PMCM's decision on: ${projection.requestedChange}` },
+    };
+    items.push({
+      id: `change-request:${projection.id}`,
+      kind: 'change_request',
+      ...copy[projection.status],
+      status: projection.status,
+      eventId: event.id,
+      eventName: event.eventName,
+      href: `/dashboard/events/${event.id}/changes`,
+    });
+  }
+  return items;
+}
+
 export function collectPmcmCommandInboxItems(input: {
   inquiries: PmcmInboxInquiry[];
   events: EventRef[];
@@ -320,9 +382,13 @@ export function collectPmcmCommandInboxItems(input: {
   coordinatorAssignments: PmcmInboxCoordinatorAssignment[];
   floorPlanDrafts: PmcmInboxFloorPlanDraft[];
   postEventDocuments: PmcmInboxPostEventDocument[];
+  eventDayTasks?: PmcmInboxEventDayTask[];
+  urgentIssues?: PmcmInboxUrgentIssue[];
 }): PrismCommandInboxItem[] {
   const eventsById = new Map(input.events.map((event) => [event.id, event]));
   const items = [
+    ...collectLiveOpsTaskInboxItems(input.eventDayTasks ?? [], eventsById),
+    ...collectLiveOpsIssueInboxItems(input.urgentIssues ?? [], eventsById),
     ...collectInquiryInboxItems(input.inquiries),
     ...collectEventFloorplanInboxItems(input.events),
     ...collectBillingInboxItems(input.paymentMilestones, eventsById),
@@ -555,5 +621,75 @@ function closureInboxItem(
     eventName: event.eventName,
     clientName: event.clientName,
     href: `/dashboard/events/${event.id}/closure`,
+  };
+}
+
+function collectLiveOpsTaskInboxItems(tasks: PmcmInboxEventDayTask[], eventsById: Map<string, EventRef>) {
+  const items: PrismCommandInboxItem[] = [];
+  for (const task of tasks) {
+    const item = liveOpsTaskInboxItem(task, eventsById);
+    if (item) items.push(item);
+  }
+  return items;
+}
+
+function liveOpsTaskInboxItem(
+  task: PmcmInboxEventDayTask,
+  eventsById: Map<string, EventRef>,
+): PrismCommandInboxItem | null {
+  const event = eventsById.get(task.eventId);
+  if (!event || CLOSED_LIVE_OPS_STATUSES.includes(task.status)) return null;
+  const dueAt = task.slaDueAt ?? task.dueAt;
+  const overdue = task.slaStatus === 'overdue' || isPast(dueAt);
+  const blocked = task.status === 'blocked';
+  if (!overdue && !blocked) return null;
+  const owner = task.ownerName ? `${task.assignedRole} (${task.ownerName})` : task.assignedRole;
+  return {
+    id: `live-ops:task:${task.id}`,
+    kind: 'live_ops',
+    severity: overdue ? 'critical' : 'warning',
+    label: overdue ? 'Event-day task overdue' : 'Event-day task blocked',
+    description: `${task.title} for ${event.eventName} is ${overdue ? 'overdue' : 'blocked'}. Owner: ${owner}.`,
+    status: overdue ? 'overdue' : 'blocked',
+    eventId: event.id,
+    eventName: event.eventName,
+    clientName: event.clientName,
+    dueAt: toIso(dueAt),
+    href: `/dashboard/events/${event.id}/live-ops`,
+  };
+}
+
+function collectLiveOpsIssueInboxItems(issues: PmcmInboxUrgentIssue[], eventsById: Map<string, EventRef>) {
+  const items: PrismCommandInboxItem[] = [];
+  for (const issue of issues) {
+    const item = liveOpsIssueInboxItem(issue, eventsById);
+    if (item) items.push(item);
+  }
+  return items;
+}
+
+function liveOpsIssueInboxItem(
+  issue: PmcmInboxUrgentIssue,
+  eventsById: Map<string, EventRef>,
+): PrismCommandInboxItem | null {
+  const event = eventsById.get(issue.eventId);
+  if (!event || CLOSED_LIVE_OPS_STATUSES.includes(issue.status)) return null;
+  const overdue = issue.slaStatus === 'overdue' || isPast(issue.slaDueAt);
+  let severity: PrismCommandInboxSeverity = 'attention';
+  if (issue.severity === 'critical' || overdue) severity = 'critical';
+  else if (issue.severity === 'high') severity = 'warning';
+  return {
+    id: `live-ops:issue:${issue.id}`,
+    kind: 'live_ops',
+    severity,
+    label: overdue ? 'Urgent issue past SLA' : 'Urgent issue open',
+    description: `${issue.title} (${issue.severity}) for ${event.eventName} is ${issue.status.replaceAll('_', ' ')}.`,
+    status: issue.status,
+    eventId: event.id,
+    eventName: event.eventName,
+    clientName: event.clientName,
+    dueAt: toIso(issue.slaDueAt),
+    createdAt: toIso(issue.createdAt),
+    href: `/dashboard/events/${event.id}/live-ops`,
   };
 }
