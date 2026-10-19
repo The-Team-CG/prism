@@ -13,6 +13,13 @@ const { load, freeze, requestException, decideException } = vi.hoisted(() => ({
 vi.mock("../data/change-register-repository", () => ({
   changeRegisterRepository: { load, freeze, requestException, decideException },
 }));
+// The risk and scope review panels are mounted inside the register; keep their data out of these register tests.
+vi.mock("../../risk-assessment/data/risk-assessment-repository", () => ({
+  riskAssessmentRepository: { load: vi.fn(async () => ({ eventId: "evt_1", suggestedLevel: "low", openRiskCounts: { low: 0, medium: 0, high: 0, critical: 0 }, assessment: null, history: [] })), record: vi.fn() },
+}));
+vi.mock("../../scope-review/data/scope-review-repository", () => ({
+  scopeReviewRepository: { load: vi.fn(async () => ({ requests: [], exceptions: [], addenda: [] })), review: vi.fn() },
+}));
 
 afterEach(() => {
   cleanup();
