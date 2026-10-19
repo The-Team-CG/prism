@@ -715,6 +715,31 @@ describe("createEventOpsClient", () => {
     );
   });
 
+  it("writes PMCM file requirement overrides as bearer-authenticated JSON with an encoded key", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ key: "venue permit" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({
+      baseUrl: "http://localhost:4000/api",
+      getAuthToken: () => "pmcm-session-token",
+    });
+    await client.events.createFileRequirement("evt_1", { key: "venue_permit", label: "Venue permit", ownerRole: "client", visibleToRoles: ["pmcm-admin", "client"], required: true, sourceWorkflow: "custom" });
+    await client.events.updateFileRequirement("evt_1", "venue permit", { required: false, expectedRevision: 2 });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "http://localhost:4000/api/events/evt_1/file-requirements",
+      expect.objectContaining({ method: "POST", headers: expect.objectContaining({ Authorization: "Bearer pmcm-session-token" }) }),
+    );
+    expect(JSON.parse(String((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body))).toMatchObject({ key: "venue_permit", sourceWorkflow: "custom" });
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "http://localhost:4000/api/events/evt_1/file-requirements/venue%20permit",
+      expect.objectContaining({ method: "PATCH" }),
+    );
+    expect(JSON.parse(String((fetchMock.mock.calls[1] as unknown as [string, RequestInit])[1].body))).toEqual({ required: false, expectedRevision: 2 });
+  });
+
   it("loads the client workspace with bearer auth and no actor query", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ events: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
