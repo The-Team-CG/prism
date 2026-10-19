@@ -57,7 +57,7 @@ describe('ChangeManagementService Commercial ownership', () => {
       opsAddendumImpact: { createMany: vi.fn(async ({ data }: { data: Record<string, unknown>[] }) => ({ count: data.length })) },
       $transaction: async (callback: (transaction: unknown) => Promise<unknown>) => callback(prisma),
     };
-    const commercialWriter: CommercialAddendumImpactWriter = { apply: vi.fn(async () => impacts) };
+    const commercialWriter: CommercialAddendumImpactWriter = { apply: vi.fn(async () => impacts), recordConformeExecution: vi.fn(async () => null) };
     const access = { requireActorRole: async () => undefined, requireCanReadEvent: async () => undefined };
     const audit = { write: async () => undefined };
     const service = new ChangeManagementService(

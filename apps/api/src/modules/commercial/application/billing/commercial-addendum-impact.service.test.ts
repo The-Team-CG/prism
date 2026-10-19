@@ -125,3 +125,53 @@ describe('CommercialAddendumImpactService', () => {
     expect(impacts).toEqual([]);
   });
 });
+
+describe('CommercialAddendumImpactService conforme trace', () => {
+  const executed = {
+    eventId: 'evt_addendum',
+    addendumId: 'addendum_1',
+    versionNumber: 2,
+    executionId: 'acx_1',
+    documentSha256: 'a'.repeat(64),
+    executedAt: '2026-10-19T09:00:00.000Z',
+  };
+
+  function tracedService(lineItems: unknown[]) {
+    const source = { id: 'billing_source_1', eventId: 'evt_addendum', totalAmount: 105_000, lineItems, updatedAt: new Date() };
+    const prisma = {
+      opsBillingSource: {
+        findMany: vi.fn(async () => [{ ...source }]),
+        update: vi.fn(async ({ data }) => Object.assign(source, data)),
+      },
+    };
+    return { service: new CommercialAddendumImpactService(), source, prisma, transaction: { prisma, correlationId: 'addendum_1' } as unknown as PrismTransactionContext };
+  }
+
+  it('stamps the addendum billing line with the executed conforme version without changing amounts', async () => {
+    const { service, source, prisma, transaction } = tracedService([
+      { label: 'Package', amount: 100_000 },
+      { label: 'Addendum v2 scope change', amount: 5_000 },
+    ]);
+
+    await expect(service.recordConformeExecution(executed, transaction)).resolves.toEqual({ billingSourceId: 'billing_source_1' });
+    await service.recordConformeExecution(executed, transaction);
+
+    expect(source.totalAmount).toBe(105_000);
+    expect(source.lineItems).toEqual([
+      { label: 'Package', amount: 100_000 },
+      {
+        label: 'Addendum v2 scope change',
+        amount: 5_000,
+        addendumConforme: { executionId: 'acx_1', addendumId: 'addendum_1', versionNumber: 2, documentSha256: 'a'.repeat(64), executedAt: '2026-10-19T09:00:00.000Z' },
+      },
+    ]);
+    expect(prisma.opsBillingSource.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('has nothing to trace when the addendum produced no billing line', async () => {
+    const { service, prisma, transaction } = tracedService([{ label: 'Package', amount: 100_000 }]);
+
+    await expect(service.recordConformeExecution(executed, transaction)).resolves.toBeNull();
+    expect(prisma.opsBillingSource.update).not.toHaveBeenCalled();
+  });
+});
