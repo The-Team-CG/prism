@@ -1,6 +1,6 @@
 {
   "summary": {
-    "totalTables": 121,
+    "totalTables": 123,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
@@ -56,8 +56,8 @@
       {
         "domain": "platform-ops",
         "schema": "platform_ops",
-        "tables": 14,
-        "columns": 201
+        "tables": 16,
+        "columns": 227
       },
       {
         "domain": "event-games",
@@ -210,6 +210,22 @@
       "model": "OpsPrivacyLegalHold",
       "currentSchema": "platform_ops",
       "table": "privacy_legal_holds",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 14
+    },
+    {
+      "model": "OpsRetentionPolicy",
+      "currentSchema": "platform_ops",
+      "table": "retention_policies",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 12
+    },
+    {
+      "model": "OpsRetentionReviewItem",
+      "currentSchema": "platform_ops",
+      "table": "retention_review_items",
       "domain": "platform-ops",
       "targetSchema": "platform_ops",
       "columnCount": 14

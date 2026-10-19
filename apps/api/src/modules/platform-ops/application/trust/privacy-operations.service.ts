@@ -168,59 +168,6 @@ export class PrivacyOperationsService {
     };
   }
 
-  listRetentionPolicies() {
-    return [
-      {
-        surface: 'inquiry',
-        dataCategories: ['client_contact', 'event_details', 'consent'],
-        retentionPeriod: '3 years after event archive',
-        deletionBehavior: 'Soft redact personal contact and free-text fields; keep event linkage.',
-      },
-      {
-        surface: 'approval_request',
-        dataCategories: ['email', 'role', 'organization', 'consent'],
-        retentionPeriod: '1 year after approval decision',
-        deletionBehavior: 'Soft redact requester identity; keep approval decision history.',
-      },
-      {
-        surface: 'supplier',
-        dataCategories: ['supplier_contact', 'certification_metadata', 'performance_notes'],
-        retentionPeriod: 'Active supplier lifetime plus 5 years',
-        deletionBehavior: 'Soft redact supplier contact details when legally required; keep operational history.',
-      },
-      {
-        surface: 'guest_check_in',
-        dataCategories: ['guest_name', 'attendance', 'consent'],
-        retentionPeriod: '1 year after event archive',
-        deletionBehavior: 'Soft redact guest name; keep attendance count and event-day aggregate.',
-      },
-      {
-        surface: 'guest_feedback',
-        dataCategories: ['guest_name', 'rating', 'comment', 'media_metadata', 'consent'],
-        retentionPeriod: '1 year after moderation or event archive',
-        deletionBehavior: 'Soft redact guest name, comments, and media metadata; keep moderation status.',
-      },
-      {
-        surface: 'documents',
-        dataCategories: ['file_metadata', 'uploader_role', 'validation_result'],
-        retentionPeriod: 'Event archive lifetime until PMCM document retention is finalized',
-        deletionBehavior: 'Keep metadata unless PMCM executes a document-specific redaction workflow.',
-      },
-      {
-        surface: 'audit',
-        dataCategories: ['actor', 'action', 'affected_record', 'hash_chain'],
-        retentionPeriod: 'Pending PMCM policy decision',
-        deletionBehavior: 'Never hard delete or mutate in normal workflows; append redaction events instead.',
-      },
-      {
-        surface: 'legal_hold',
-        dataCategories: ['subject_identity', 'hold_reason', 'placement_and_release_actor'],
-        retentionPeriod: 'No automatic expiry; retain while active and until PMCM defines post-release retention.',
-        deletionBehavior: 'Only a verified PMCM administrator can release a hold; active holds block matching deletion execution.',
-      },
-    ];
-  }
-
   async listRequests(input: ListPrivacyRequestsInput = {}) {
     // QUERY_AUDIT_ALLOW_UNBOUNDED: PMCM currently needs the complete request queue; pagination requires an API and UI contract change.
     const requests = await this.prisma.opsPrivacyRequest.findMany({
