@@ -13,14 +13,30 @@ export type CommercialAddendumImpact = {
   deltaAmount: number;
 };
 
+/** The fully signed addendum conforme version that authorizes a billing change. */
+export type ExecutedAddendumConformeReference = {
+  executionId: string;
+  documentVersion: number;
+  documentSha256: string;
+};
+
 export type ApplyCommercialAddendumInput = {
   eventId: string;
   versionNumber: number;
   financialDelta: number;
   quotePriceChanges: AddendumQuotePriceChange[];
+  /** Required: billing never records an addendum impact before the client and PMCM have both signed. */
+  executedConforme: ExecutedAddendumConformeReference;
+};
+
+export type CommercialAddendumPreflightInput = {
+  eventId: string;
+  financialDelta: number;
 };
 
 export interface CommercialAddendumImpactWriter {
+  /** Read-only check at issue time so an addendum that billing could never apply is rejected early. */
+  assertApplicable(input: CommercialAddendumPreflightInput, transaction: PrismTransactionContext): Promise<void>;
   apply(input: ApplyCommercialAddendumInput, transaction: PrismTransactionContext): Promise<CommercialAddendumImpact[]>;
 }
 

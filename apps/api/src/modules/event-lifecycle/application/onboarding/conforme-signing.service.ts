@@ -1,5 +1,5 @@
 import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { PrismaService } from '@prism/kernel/database';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
@@ -7,6 +7,7 @@ import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotific
 import type { PrismVerifiedEventActor } from '@prism/types';
 import type { CreateConformeExecutionInput, SignConformeExecutionInput } from '@prism/types';
 import { InquiriesService } from './inquiries.service';
+import { hashSigningMetadata, isIntactContent, matchesDisplayedVersion, sha256Hex } from '../../domain/conforme-integrity';
 import type { OpsConformeExecution, Prisma } from '@prisma/client';
 
 type SigningExecution = Prisma.OpsConformeExecutionGetPayload<{ include: { inquiry: true; signatures: true } }>;
@@ -30,7 +31,7 @@ export class ConformeSigningService {
       await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM event_lifecycle.inquiries WHERE id = ${inquiryId} FOR UPDATE`;
       const inquiry = await tx.opsInquiry.findUnique({ where: { id: inquiryId } });
       if (!inquiry) throw new NotFoundException('Inquiry not found');
-      const requestedTemplateHash = this.sha256(input.templateContent);
+      const requestedTemplateHash = sha256Hex(input.templateContent);
       const sameVersion = await tx.opsConformeExecution.findUnique({
         where: { inquiryId_templateVersion: { inquiryId, templateVersion: input.templateVersion } }, include: { signatures: true },
       });
@@ -56,8 +57,8 @@ export class ConformeSigningService {
       const execution = await tx.opsConformeExecution.create({
         data: {
           id: `cfx_${randomUUID()}`, inquiryId, templateVersion: input.templateVersion,
-          templateContent, templateSha256: this.sha256(templateContent), documentContent,
-          documentSha256: this.sha256(documentContent), status: 'awaiting_client',
+          templateContent, templateSha256: sha256Hex(templateContent), documentContent,
+          documentSha256: sha256Hex(documentContent), status: 'awaiting_client',
         },
         include: { signatures: true },
       });
@@ -137,8 +138,7 @@ export class ConformeSigningService {
           actorEmail: actor.actorEmail ?? null,
           consentTextVersion: CONSENT_VERSION,
           consentText: CONSENT_TEXT,
-          ipHash: metadata.ip ? this.sha256(metadata.ip) : null,
-          userAgentHash: metadata.userAgent ? this.sha256(metadata.userAgent) : null,
+          ...hashSigningMetadata(metadata),
         },
       });
 
@@ -191,10 +191,11 @@ export class ConformeSigningService {
   }
 
   private async assertCurrentExecution(tx: Prisma.TransactionClient, execution: SigningExecution, inquiryId: string, input: SignConformeExecutionInput) {
-    if (execution.inquiryId !== inquiryId || execution.templateVersion !== input.templateVersion || execution.documentSha256 !== input.documentSha256.toLowerCase()) {
+    const displayed = { version: input.templateVersion, documentSha256: input.documentSha256 };
+    if (execution.inquiryId !== inquiryId || !matchesDisplayedVersion({ version: execution.templateVersion, documentSha256: execution.documentSha256 }, displayed)) {
       throw new ConflictException('The displayed conforme version has changed; refresh before signing');
     }
-    if (execution.documentSha256 !== this.sha256(execution.documentContent) || execution.templateSha256 !== this.sha256(execution.templateContent)) {
+    if (!isIntactContent(execution.documentContent, execution.documentSha256) || !isIntactContent(execution.templateContent, execution.templateSha256)) {
       throw new ConflictException('Conforme content integrity check failed');
     }
     const latest = await tx.opsConformeExecution.findFirst({ where: { inquiryId: execution.inquiryId }, orderBy: { templateVersion: 'desc' } });
@@ -246,8 +247,6 @@ export class ConformeSigningService {
       })),
     };
   }
-
-  private sha256(value: string) { return createHash('sha256').update(value).digest('hex'); }
 
   private requirePmcm(actor: PrismVerifiedEventActor) {
     if (actor.actorRole !== OpsUserRole.PmcmAdmin && actor.actorRole !== OpsUserRole.System) throw new ForbiddenException('PMCM access is required');

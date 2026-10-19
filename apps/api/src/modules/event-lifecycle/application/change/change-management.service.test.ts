@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { PrismaService } from '@prism/kernel/database';
@@ -24,73 +24,52 @@ describe('W26 deterministic snapshot comparison', () => {
 });
 
 describe('ChangeManagementService Commercial ownership', () => {
-  it('delegates billing and selected-quote writes while Lifecycle records returned impact history', async () => {
-    const impacts = [
-      {
-        targetType: 'billing_source' as const,
-        targetId: 'billing_source_1',
-        beforeValue: { totalAmount: 100, lineItems: [] },
-        afterValue: { totalAmount: 110, lineItems: [{ label: 'Addendum v1 scope change', amount: 10 }] },
-        deltaAmount: 10,
-      },
-      {
-        targetType: 'supplier_quote' as const,
-        targetId: 'quote_1',
-        beforeValue: { amount: 20, status: 'selected' },
-        afterValue: { amount: 25, status: 'selected' },
-        deltaAmount: 5,
-      },
-    ];
+  function issueFixture(preflight: () => Promise<void>) {
     const prisma = {
       opsEvent: { findUnique: async () => ({ id: 'evt_addendum', archived: false, freezeStatus: 'open' }) },
       opsDocument: { findFirst: async () => ({ id: 'doc_addendum', eventId: 'evt_addendum' }) },
       opsEventFreezeException: { findFirst: async () => null },
       opsAddendum: {
         findFirst: async () => null,
-        create: async ({ data }: { data: Record<string, unknown> }) => ({
+        create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+          status: 'issued',
           ...data,
           documentState: 'pending',
           signatureMethod: 'scanned_document',
           issuedAt: new Date('2026-10-04T00:00:00.000Z'),
-        }),
+        })),
       },
       opsAddendumImpact: { createMany: vi.fn(async ({ data }: { data: Record<string, unknown>[] }) => ({ count: data.length })) },
       $transaction: async (callback: (transaction: unknown) => Promise<unknown>) => callback(prisma),
     };
-    const commercialWriter: CommercialAddendumImpactWriter = { apply: vi.fn(async () => impacts) };
-    const access = { requireActorRole: async () => undefined, requireCanReadEvent: async () => undefined };
-    const audit = { write: async () => undefined };
+    const commercialWriter = { apply: vi.fn(async () => []), assertApplicable: vi.fn(preflight) } satisfies CommercialAddendumImpactWriter;
     const service = new ChangeManagementService(
       prisma as unknown as PrismaService,
-      access as unknown as EventAccessPolicyService,
-      audit as unknown as AuditWriter,
+      { requireActorRole: async () => undefined, requireCanReadEvent: async () => undefined } as unknown as EventAccessPolicyService,
+      { write: async () => undefined } as unknown as AuditWriter,
       commercialWriter,
     );
-    const input = issueAddendumSchema.parse({
-      title: 'Revised scope',
-      documentId: 'doc_addendum',
-      contractSnapshot: [],
-      quoteSnapshot: [{ id: 'quote_1', amount: 25 }],
-      financialDelta: 10,
-    });
+    const input = issueAddendumSchema.parse({ title: 'Revised scope', documentId: 'doc_addendum', contractSnapshot: [], quoteSnapshot: [{ id: 'quote_1', amount: 25 }], financialDelta: 10 });
     const actor = { id: 'user_pmcm', role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true } satisfies ResolvedEventOpsActor;
+    return { service, prisma, commercialWriter, input, actor };
+  }
+
+  it('issues an addendum without touching billing or quotes until its conforme is executed', async () => {
+    const { service, prisma, commercialWriter, input, actor } = issueFixture(async () => undefined);
 
     const result = await service.issueAddendum('evt_addendum', input, actor);
 
-    expect(result).toMatchObject({ eventId: 'evt_addendum', versionNumber: 1, financialDelta: 10 });
-    expect(commercialWriter.apply).toHaveBeenCalledWith({
-      eventId: 'evt_addendum',
-      versionNumber: 1,
-      financialDelta: 10,
-      quotePriceChanges: [{ quoteId: 'quote_1', amount: 25 }],
-    }, expect.objectContaining({ correlationId: result.id, prisma: expect.anything() }));
-    expect(prisma.opsAddendumImpact.createMany).toHaveBeenCalledTimes(1);
-    expect(prisma.opsAddendumImpact.createMany).toHaveBeenCalledWith({
-      data: expect.arrayContaining([
-        expect.objectContaining({ targetType: 'billing_source', targetId: 'billing_source_1', deltaAmount: 10 }),
-        expect.objectContaining({ targetType: 'supplier_quote', targetId: 'quote_1', deltaAmount: 5 }),
-      ]),
-    });
+    expect(result).toMatchObject({ eventId: 'evt_addendum', versionNumber: 1, financialDelta: 10, status: 'issued', executedConformeExecutionId: null });
+    expect(commercialWriter.assertApplicable).toHaveBeenCalledWith({ eventId: 'evt_addendum', financialDelta: 10 }, expect.objectContaining({ correlationId: result.id }));
+    expect(commercialWriter.apply).not.toHaveBeenCalled();
+    expect(prisma.opsAddendumImpact.createMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects a financial addendum that billing could never apply', async () => {
+    const { service, commercialWriter, input, actor } = issueFixture(async () => { throw new BadRequestException('An approved billing source is required before applying a financial addendum'); });
+
+    await expect(service.issueAddendum('evt_addendum', input, actor)).rejects.toBeInstanceOf(BadRequestException);
+    expect(commercialWriter.apply).not.toHaveBeenCalled();
   });
 });
 
@@ -116,7 +95,7 @@ describe('ChangeManagementService freeze exception register', () => {
       prisma as unknown as PrismaService,
       access as unknown as EventAccessPolicyService,
       { write: async () => undefined } as unknown as AuditWriter,
-      { apply: vi.fn(async () => []) } as unknown as CommercialAddendumImpactWriter,
+      { apply: vi.fn(async () => []), assertApplicable: vi.fn(async () => undefined) } as unknown as CommercialAddendumImpactWriter,
     );
     return { service, findMany, access };
   }
@@ -165,7 +144,7 @@ describe('ChangeManagementService approval single-use', () => {
       prisma as unknown as PrismaService,
       { requireActorRole: async () => undefined, requireCanReadEvent: async () => undefined } as unknown as EventAccessPolicyService,
       { write: async () => undefined } as unknown as AuditWriter,
-      { apply: vi.fn(async () => []) } as unknown as CommercialAddendumImpactWriter,
+      { apply: vi.fn(async () => []), assertApplicable: vi.fn(async () => undefined) } as unknown as CommercialAddendumImpactWriter,
     );
     const input = issueAddendumSchema.parse({ title: 'Scope change', documentId: 'doc_addendum', contractSnapshot: [], quoteSnapshot: [], freezeExceptionId: 'freeze_ex_1' });
 
@@ -187,7 +166,7 @@ describe('ChangeManagementService client change requests', () => {
       { opsEvent: { findUniqueOrThrow: async () => ({ id: 'evt_1' }) }, opsEventFreezeException: { findMany: async () => [row] } } as unknown as PrismaService,
       { requireCanReadEvent: async () => undefined } as unknown as EventAccessPolicyService,
       { write: async () => undefined } as unknown as AuditWriter,
-      { apply: vi.fn(async () => []) } as unknown as CommercialAddendumImpactWriter,
+      { apply: vi.fn(async () => []), assertApplicable: vi.fn(async () => undefined) } as unknown as CommercialAddendumImpactWriter,
     );
 
     const requests = await service.listClientChangeRequests('evt_1', client);
@@ -206,7 +185,7 @@ describe('ChangeManagementService client change requests', () => {
       { opsEvent: { findUniqueOrThrow: async () => ({ id: 'evt_other' }) }, opsEventFreezeException: { findMany } } as unknown as PrismaService,
       { requireCanReadEvent: async () => { throw new ForbiddenException(); } } as unknown as EventAccessPolicyService,
       { write: async () => undefined } as unknown as AuditWriter,
-      { apply: vi.fn(async () => []) } as unknown as CommercialAddendumImpactWriter,
+      { apply: vi.fn(async () => []), assertApplicable: vi.fn(async () => undefined) } as unknown as CommercialAddendumImpactWriter,
     );
 
     await expect(service.listClientChangeRequests('evt_1', { ...client, id: 'other_client' })).rejects.toBeInstanceOf(ForbiddenException);

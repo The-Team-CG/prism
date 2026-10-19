@@ -644,9 +644,14 @@ model OpsAddendum {
   issuedAt          DateTime @default(now()) @map("issued_at")
   createdAt         DateTime @default(now()) @map("created_at")
   freezeExceptionId String?  @map("freeze_exception_id")
+  // Set once, when the client acknowledged and PMCM countersigned this conforme version.
+  executedConformeExecutionId String?   @unique @map("executed_conforme_execution_id")
+  executedAt                  DateTime? @map("executed_at")
   event             OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   freezeException   OpsEventFreezeException? @relation(fields: [freezeExceptionId], references: [id], onDelete: SetNull)
   impacts           OpsAddendumImpact[]
+  conformeExecutions OpsAddendumConformeExecution[] @relation("AddendumConformeVersions")
+  executedConforme   OpsAddendumConformeExecution?  @relation("AddendumExecutedConforme", fields: [executedConformeExecutionId], references: [id], onDelete: NoAction)
 
   @@unique([eventId, versionNumber], map: "addenda_event_version_key")
   @@index([eventId, issuedAt], map: "addenda_event_issued_at_idx")
@@ -664,11 +669,60 @@ model OpsAddendumImpact {
   afterValue  Json     @map("after_value")
   deltaAmount Int      @default(0) @map("delta_amount")
   appliedAt   DateTime @default(now()) @map("applied_at")
+  // Billing trace: the executed addendum conforme version and the document hash both parties signed.
+  conformeExecutionId    String? @map("conforme_execution_id")
+  conformeDocumentSha256 String? @map("conforme_document_sha256")
   event       OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   addendum    OpsAddendum @relation(fields: [addendumId], references: [id], onDelete: Cascade)
+  conformeExecution OpsAddendumConformeExecution? @relation(fields: [conformeExecutionId], references: [id], onDelete: NoAction)
 
   @@index([eventId, targetType, targetId], map: "addendum_impacts_event_target_idx")
+  @@index([conformeExecutionId], map: "addendum_impacts_conforme_execution_id_idx")
   @@map("addendum_impacts")
+  @@schema("event_lifecycle")
+}
+
+// Immutable addendum conforme document versions. A version with any signature can never be replaced.
+model OpsAddendumConformeExecution {
+  id              String    @id
+  addendumId      String    @map("addendum_id")
+  documentVersion Int       @map("document_version")
+  documentContent String    @map("document_content")
+  documentSha256  String    @map("document_sha256")
+  status          String    @default("awaiting_client")
+  issuedBy        String    @map("issued_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  completedAt     DateTime? @map("completed_at")
+
+  addendum         OpsAddendum                    @relation("AddendumConformeVersions", fields: [addendumId], references: [id], onDelete: Cascade)
+  executedAddendum OpsAddendum?                   @relation("AddendumExecutedConforme")
+  signatures       OpsAddendumConformeSignature[]
+  impacts          OpsAddendumImpact[]
+
+  @@unique([addendumId, documentVersion], map: "addendum_conforme_executions_addendum_version_key")
+  @@index([status], map: "addendum_conforme_executions_status_idx")
+  @@map("addendum_conforme_executions")
+  @@schema("event_lifecycle")
+}
+
+model OpsAddendumConformeSignature {
+  id                 String   @id
+  executionId        String   @map("execution_id")
+  actorId            String   @map("actor_id")
+  actorRole          String   @map("actor_role")
+  actorName          String   @map("actor_name")
+  actorEmail         String?  @map("actor_email")
+  consentTextVersion String   @map("consent_text_version")
+  consentText        String   @map("consent_text")
+  signedAt           DateTime @default(now()) @map("signed_at")
+  ipHash             String?  @map("ip_hash")
+  userAgentHash      String?  @map("user_agent_hash")
+
+  execution OpsAddendumConformeExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@unique([executionId, actorRole], map: "addendum_conforme_signatures_execution_role_key")
+  @@index([actorId], map: "addendum_conforme_signatures_actor_id_idx")
+  @@map("addendum_conforme_signatures")
   @@schema("event_lifecycle")
 }
 

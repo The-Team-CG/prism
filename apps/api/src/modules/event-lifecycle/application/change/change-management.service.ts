@@ -53,8 +53,28 @@ function mapException(value: { id: string; eventId: string; requestedChange: str
   };
 }
 
-function mapAddendum(value: { id: string; eventId: string; versionNumber: number; title: string; summary: string; status: string; documentId: string | null; documentState: string; signatureMethod: string; comparison: unknown; financialDelta: number; issuedAt: Date }): PrismAddendum {
-  return { id: value.id, eventId: value.eventId, versionNumber: value.versionNumber, title: value.title, summary: value.summary, status: 'issued', documentId: value.documentId ?? '', documentState: value.documentState as 'pending' | 'available', signatureMethod: 'scanned_document', comparison: value.comparison as PrismAddendum['comparison'], financialDelta: value.financialDelta, issuedAt: value.issuedAt.toISOString() };
+/** Selected-quote price changes recorded in an addendum comparison; billing applies them only once executed. */
+export function addendumQuotePriceChanges(changes: ReturnType<typeof compareSnapshots>) {
+  return changes.flatMap((change) => {
+    const before = change.before as SnapshotEntry | null;
+    const after = change.after as SnapshotEntry | null;
+    const quoteId = String(after?.id ?? before?.id ?? '');
+    const amount = typeof after?.amount === 'number' ? after.amount : null;
+    return quoteId && amount !== null ? [{ quoteId, amount }] : [];
+  });
+}
+
+type AddendumRow = { id: string; eventId: string; versionNumber: number; title: string; summary: string; status: string; documentId: string | null; documentState: string; signatureMethod: string; comparison: unknown; financialDelta: number; issuedAt: Date; executedConformeExecutionId?: string | null; executedAt?: Date | null };
+
+export function mapAddendum(value: AddendumRow): PrismAddendum {
+  return {
+    id: value.id, eventId: value.eventId, versionNumber: value.versionNumber, title: value.title, summary: value.summary,
+    status: value.status === 'executed' ? 'executed' : 'issued',
+    documentId: value.documentId ?? '', documentState: value.documentState as 'pending' | 'available',
+    signatureMethod: value.signatureMethod === 'in_app_conforme' ? 'in_app_conforme' : 'scanned_document',
+    comparison: value.comparison as PrismAddendum['comparison'], financialDelta: value.financialDelta, issuedAt: value.issuedAt.toISOString(),
+    executedConformeExecutionId: value.executedConformeExecutionId ?? null, executedAt: value.executedAt?.toISOString() ?? null,
+  };
 }
 
 @Injectable()
@@ -162,44 +182,6 @@ export class ChangeManagementService {
     return { id: exceptionId };
   }
 
-  private async applyCommercialImpacts(
-    tx: Prisma.TransactionClient,
-    eventId: string,
-    addendumId: string,
-    versionNumber: number,
-    financialDelta: number,
-    changes: ReturnType<typeof compareSnapshots>,
-  ) {
-    const quotePriceChanges = changes.flatMap((change) => {
-      const before = change.before as SnapshotEntry | null;
-      const after = change.after as SnapshotEntry | null;
-      const quoteId = String(after?.id ?? before?.id ?? '');
-      const amount = typeof after?.amount === 'number' ? after.amount : null;
-      return quoteId && amount !== null ? [{ quoteId, amount }] : [];
-    });
-    const impacts = await this.commercialAddendumImpactWriter.apply({
-      eventId,
-      versionNumber,
-      financialDelta,
-      quotePriceChanges,
-    }, { prisma: tx, correlationId: addendumId });
-
-    if (impacts.length > 0) {
-      await tx.opsAddendumImpact.createMany({
-        data: impacts.map((impact) => ({
-          id: `impact_${randomUUID()}`,
-          eventId,
-          addendumId,
-          targetType: impact.targetType,
-          targetId: impact.targetId,
-          beforeValue: toPrismaJson(impact.beforeValue),
-          afterValue: toPrismaJson(impact.afterValue),
-          deltaAmount: impact.deltaAmount,
-        })),
-      });
-    }
-  }
-
   async issueAddendum(eventId: string, input: IssueAddendumInput, actor: ResolvedEventOpsActor): Promise<PrismAddendum> {
     await this.requireOperator(actor, eventId, 'issue addendum');
     return this.prisma.$transaction(async (tx) => {
@@ -208,8 +190,9 @@ export class ChangeManagementService {
       const comparison = { contract: compareSnapshots((previous?.contractSnapshot ?? []) as SnapshotEntry[], input.contractSnapshot), quotes: compareSnapshots((previous?.quoteSnapshot ?? []) as SnapshotEntry[], input.quoteSnapshot) };
       const versionNumber = (previous?.versionNumber ?? 0) + 1;
       const addendum = await tx.opsAddendum.create({ data: { id: `addendum_${randomUUID()}`, eventId, versionNumber, title: input.title.trim(), summary: input.summary?.trim() ?? '', documentId: document.id, contractSnapshot: toPrismaJson(input.contractSnapshot), quoteSnapshot: toPrismaJson(input.quoteSnapshot), comparison: toPrismaJson(comparison), financialDelta: input.financialDelta, freezeExceptionId: exception?.id ?? null } });
-      await this.applyCommercialImpacts(tx, eventId, addendum.id, versionNumber, input.financialDelta, comparison.quotes);
-      await writeAudit(this.audit, eventId, actor.name, 'Issued immutable addendum', { actorRole: actor.role, actionType: 'create', category: 'events', affectedType: 'addendum', affectedId: addendum.id, metadata: { versionNumber, documentId: document.id, documentState: 'pending', signatureMethod: 'scanned_document', comparison, financialDelta: input.financialDelta, freezeExceptionId: exception?.id ?? null } }, { prisma: tx, correlationId: addendum.id, actorId: actor.id });
+      // Billing and selected quotes change only when the addendum conforme is fully signed; issue only preflights.
+      await this.commercialAddendumImpactWriter.assertApplicable({ eventId, financialDelta: input.financialDelta }, { prisma: tx, correlationId: addendum.id });
+      await writeAudit(this.audit, eventId, actor.name, 'Issued immutable addendum', { actorRole: actor.role, actionType: 'create', category: 'events', affectedType: 'addendum', affectedId: addendum.id, metadata: { versionNumber, documentId: document.id, documentState: 'pending', signatureMethod: 'scanned_document', comparison, financialDelta: input.financialDelta, freezeExceptionId: exception?.id ?? null, billingImpact: 'pending_conforme_execution' } }, { prisma: tx, correlationId: addendum.id, actorId: actor.id });
       return mapAddendum(addendum);
     }, { isolationLevel: 'Serializable' });
   }

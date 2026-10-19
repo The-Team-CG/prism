@@ -3,6 +3,8 @@ import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { describe, expect, it, vi } from 'vitest';
 import { CommercialAddendumImpactService } from './commercial-addendum-impact.service';
 
+const executedConforme = { executionId: 'acx_1', documentVersion: 1, documentSha256: 'a'.repeat(64) };
+
 function createService() {
   const source = {
     id: 'billing_source_1',
@@ -44,12 +46,14 @@ describe('CommercialAddendumImpactService', () => {
       versionNumber: 2,
       financialDelta: 5_000,
       quotePriceChanges: [{ quoteId: 'quote_1', amount: 30_000 }],
+      executedConforme,
     }, transaction);
 
     expect(source).toMatchObject({ totalAmount: 105_000 });
+    // Billing trace: the addendum line names the executed conforme version and the hash both parties signed.
     expect(source.lineItems).toEqual([
       { label: 'Package', amount: 100_000 },
-      { label: 'Addendum v2 scope change', amount: 5_000 },
+      { label: 'Addendum v2 scope change', amount: 5_000, addendumConformeExecutionId: 'acx_1', addendumDocumentSha256: executedConforme.documentSha256 },
     ]);
     expect(quote.amount).toBe(30_000);
     expect(prisma.opsBillingSource.findFirst).toHaveBeenCalledWith({
@@ -74,6 +78,33 @@ describe('CommercialAddendumImpactService', () => {
     ]);
   });
 
+  it('refuses to record any billing or quote impact without an executed addendum conforme', async () => {
+    const { service, prisma, transaction } = createService();
+
+    for (const reference of [undefined, { ...executedConforme, executionId: '' }, { ...executedConforme, documentSha256: 'not-a-hash' }]) {
+      await expect(service.apply({
+        eventId: 'evt_addendum',
+        versionNumber: 1,
+        financialDelta: 1,
+        quotePriceChanges: [{ quoteId: 'quote_1', amount: 30_000 }],
+        executedConforme: reference as never,
+      }, transaction)).rejects.toThrow('fully executed addendum conforme');
+    }
+    expect(prisma.opsBillingSource.findFirst).not.toHaveBeenCalled();
+    expect(prisma.opsBillingSource.update).not.toHaveBeenCalled();
+    expect(prisma.opsSupplierQuote.update).not.toHaveBeenCalled();
+  });
+
+  it('preflights a financial addendum at issue time without writing billing', async () => {
+    const { service, prisma, transaction } = createService();
+
+    await expect(service.assertApplicable({ eventId: 'evt_addendum', financialDelta: 5_000 }, transaction)).resolves.toBeUndefined();
+    prisma.opsBillingSource.findFirst.mockResolvedValue(null as never);
+    await expect(service.assertApplicable({ eventId: 'evt_addendum', financialDelta: 5_000 }, transaction)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.assertApplicable({ eventId: 'evt_addendum', financialDelta: 0 }, transaction)).resolves.toBeUndefined();
+    expect(prisma.opsBillingSource.update).not.toHaveBeenCalled();
+  });
+
   it('rejects a financial addendum when no approved source exists', async () => {
     const { service, prisma, transaction } = createService();
     prisma.opsBillingSource.findFirst.mockResolvedValue(null as never);
@@ -83,6 +114,7 @@ describe('CommercialAddendumImpactService', () => {
       versionNumber: 1,
       financialDelta: 1,
       quotePriceChanges: [],
+      executedConforme,
     }, transaction)).rejects.toBeInstanceOf(BadRequestException);
     expect(prisma.opsBillingSource.update).not.toHaveBeenCalled();
   });
@@ -98,6 +130,7 @@ describe('CommercialAddendumImpactService', () => {
         { quoteId: 'quote_missing', amount: 40_000 },
         { quoteId: 'quote_1', amount: 25_000 },
       ],
+      executedConforme,
     }, transaction);
 
     expect(impacts).toEqual([]);
@@ -115,6 +148,7 @@ describe('CommercialAddendumImpactService', () => {
       versionNumber: 1,
       financialDelta: 0,
       quotePriceChanges: [{ quoteId: 'quote_1', amount: 30_000 }],
+      executedConforme,
     }, transaction);
 
     expect(prisma.opsSupplierQuote.findFirst).toHaveBeenCalledWith({

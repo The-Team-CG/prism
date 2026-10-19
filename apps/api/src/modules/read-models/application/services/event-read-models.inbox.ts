@@ -20,6 +20,7 @@ import type {
 type EventRef = PmcmInboxEvent;
 type BriefingRef = { eventId: string };
 type BillingStatementRef = { id: string; eventId: string; status: string; number: string };
+type AddendumConformeAwaitingClientRef = { id: string; eventId: string; addendumVersionNumber: number; addendumTitle: string };
 
 const DOCUMENT_ACTION_STATUSES = ['needs_update', 'pending', 'rejected'];
 const FLOORPLAN_DRAFT_ACTION_STATUSES = ['submitted', 'in_review'];
@@ -93,8 +94,10 @@ export function collectClientActionItems(input: {
   paymentMilestones: OpsPaymentMilestone[];
   paymentRecords: OpsPaymentRecord[];
   postEventDocuments: OpsPostEventDocument[];
+  addendumConformes?: AddendumConformeAwaitingClientRef[];
 }): PrismClientActionItem[] {
   const items = [
+    ...collectClientAddendumConformeActionItems(input.addendumConformes ?? [], input.visibleEvents),
     ...collectClientEventActionItems(input.visibleEvents, new Set(input.briefings.map((briefing) => briefing.eventId))),
     ...collectClientBillingActionItems(input.paymentMilestones, input.visibleEvents, input.paymentRecords),
     ...collectClientDocumentActionItems(input.documents, input.visibleEvents),
@@ -110,6 +113,25 @@ export function collectClientActionItems(input: {
     return left.id.localeCompare(right.id);
   });
   return items;
+}
+
+// An issued addendum conforme waits on the primary client; only visible (client-owned) events produce items.
+function collectClientAddendumConformeActionItems(conformes: AddendumConformeAwaitingClientRef[], events: EventRef[]): PrismClientActionItem[] {
+  return conformes.flatMap((conforme) => {
+    const event = eventById(events, conforme.eventId);
+    if (!event) return [];
+    return [{
+      id: `addendum-conforme:${conforme.id}`,
+      kind: 'approval' as const,
+      priority: 'warning' as const,
+      label: 'Acknowledge addendum',
+      description: `Review and acknowledge addendum v${conforme.addendumVersionNumber} (${conforme.addendumTitle}) for ${event.eventName}.`,
+      status: 'awaiting_client',
+      eventId: event.id,
+      eventName: event.eventName,
+      href: `/dashboard/events/${event.id}/overview#addendum-conformes`,
+    }];
+  });
 }
 
 function collectClientEventActionItems(events: EventRef[], briefingEventIds: Set<string>) {

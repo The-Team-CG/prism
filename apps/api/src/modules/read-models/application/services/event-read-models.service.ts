@@ -517,6 +517,7 @@ export class EventReadModelsService {
     const paymentMilestones: ClientActionSources[4] = [];
     const paymentRecords: ClientActionSources[5] = [];
     const postEventDocuments: ClientActionSources[6] = [];
+    const addendumConformes: Awaited<ReturnType<EventReadModelQueries['clientAddendumConformesAwaitingAcknowledgement']>> = [];
     for (let offset = 0; offset < visibleEvents.length; offset += 100) {
       const eventBatch = visibleEvents.slice(offset, offset + 100);
       const [
@@ -536,8 +537,10 @@ export class EventReadModelsService {
       paymentMilestones.push(...batchPaymentMilestones);
       paymentRecords.push(...batchPaymentRecords);
       postEventDocuments.push(...batchPostEventDocuments);
+      addendumConformes.push(...await this.queries.clientAddendumConformesAwaitingAcknowledgement(eventBatch.map((event) => event.id)));
     }
     const items = collectClientActionItems({
+      addendumConformes,
       visibleEvents,
       briefings,
       documents,

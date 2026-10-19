@@ -225,6 +225,7 @@ function createPmcmReadModelService() {
     opsCoordinatorAssignment: { findMany: vi.fn(async () => []) },
     opsFloorPlanDraft: { findMany: vi.fn(async () => []) },
     opsPostEventDocument: { findMany: vi.fn(async () => []) },
+    opsAddendumConformeExecution: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
     opsApprovalRequest: { count: vi.fn(async () => 2) },
     opsDocument: { findMany: vi.fn(async () => [{ id: 'doc_1', eventId: 'evt_visible' }]) },
     opsBriefing: { findMany: vi.fn(async () => []) },
@@ -723,6 +724,30 @@ describe('EventReadModelsService', () => {
     expect(floorplanItems.every((item) => item.href?.includes('/floor-plan'))).toBe(true);
   });
 
+  it('asks the client to acknowledge only addendum conformes awaiting them on their own events', async () => {
+    const { service, policy, prisma } = createPmcmReadModelService();
+    prisma.opsAddendumConformeExecution.findMany.mockImplementation(async () => [
+      { id: 'acx_visible', documentVersion: 2, addendum: { id: 'addendum_1', eventId: 'evt_visible', versionNumber: 1, title: 'Added stage lighting' } },
+      { id: 'acx_foreign', documentVersion: 1, addendum: { id: 'addendum_2', eventId: 'evt_other_client', versionNumber: 1, title: 'Other client change' } },
+    ]);
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });
+
+    const actionCenter = await service.clientActionCenter(actor);
+
+    const addendumItems = actionCenter.items.filter((item) => item.id.startsWith('addendum-conforme:'));
+    expect(addendumItems).toEqual([expect.objectContaining({
+      id: 'addendum-conforme:acx_visible',
+      kind: 'approval',
+      priority: 'warning',
+      eventId: 'evt_visible',
+      href: '/dashboard/events/evt_visible/overview#addendum-conformes',
+    })]);
+    // Only versions still waiting on the client are actions; PMCM countersignature is not a client task.
+    expect(prisma.opsAddendumConformeExecution.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { status: 'awaiting_client', addendum: { eventId: { in: ['evt_visible'] } } },
+    }));
+  });
+
   it('omits internal billing sources for client actors while still serving statements and milestones', async () => {
     const { service, policy, prisma } = createPmcmReadModelService();
     prisma.opsBillingSource.findMany.mockImplementation(async () => [{ id: 'ce_hidden', eventId: 'evt_visible' }]);
@@ -990,6 +1015,7 @@ describe('EventReadModelsService', () => {
       },
       opsPaymentRecord: { findMany: vi.fn(async () => []) },
       opsPostEventDocument: { findMany: vi.fn(async () => []) },
+      opsAddendumConformeExecution: { findMany: vi.fn(async () => []) },
     };
     const policy = new EventAccessPolicyService({ write: vi.fn() } as any);
     const guestReader = createGuestReader();

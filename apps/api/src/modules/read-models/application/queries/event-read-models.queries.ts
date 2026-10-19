@@ -562,6 +562,25 @@ export class EventReadModelQueries {
       ),
     ] as const;
   }
+
+  /** Addendum conforme versions awaiting client acknowledgement on events already scoped to the client actor. */
+  async clientAddendumConformesAwaitingAcknowledgement(eventIds: string[]) {
+    if (eventIds.length === 0) return [];
+    const rows = await this.prisma.opsAddendumConformeExecution.findMany({
+      where: { status: 'awaiting_client', addendum: { eventId: { in: eventIds } } },
+      orderBy: { id: 'asc' },
+      take: MAX_CLIENT_ACTION_CENTER_ROWS,
+      select: { id: true, documentVersion: true, addendum: { select: { id: true, eventId: true, versionNumber: true, title: true } } },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      documentVersion: row.documentVersion,
+      addendumId: row.addendum.id,
+      eventId: row.addendum.eventId,
+      addendumVersionNumber: row.addendum.versionNumber,
+      addendumTitle: row.addendum.title,
+    }));
+  }
   // Supplier and event eligibility is applied before each bounded keyset page.
   // Quote requests and quotes carry only the event id, so archived events are excluded by resolving the
   // supplier's active event ids from the owner tables instead of filtering through a cross-domain relation.
