@@ -18,6 +18,7 @@ import {
   EventWorkspaceSuppliersTab,
 } from "./event-workspace-tabs";
 import { EventDashboardFilesSectionView } from "./event-dashboard-section-views";
+import { LiveOpsRunSheet } from "@/features/live-ops/schedule";
 
 const EVENT_TAB_VIEWS: Record<DetailTab, () => ReactElement> = {
   overview: () => <EventWorkspaceOverviewTab />,
@@ -33,6 +34,20 @@ const EVENT_TAB_VIEWS: Record<DetailTab, () => ReactElement> = {
   closure: () => <EventWorkspaceClosureTab />,
   activity: () => <EventWorkspaceActivityTab />,
 };
+
+/** PMCM print-friendly run sheet for the selected event (FL-026). */
+export function EventDashboardRunSheetView() {
+  const { selectedEvent } = useEventDashboardLoadedRouteViewModel();
+  if (!selectedEvent) return <EmptyEventWorkspace />;
+  return (
+    <div className="space-y-5">
+      <div className="print:hidden">
+        <EventWorkspaceHeader />
+      </div>
+      <LiveOpsRunSheet eventId={selectedEvent.id} printable />
+    </div>
+  );
+}
 
 export function EventDashboardEventWorkspaceView() {
   const { selectedEvent, tab } = useEventDashboardLoadedRouteViewModel();
