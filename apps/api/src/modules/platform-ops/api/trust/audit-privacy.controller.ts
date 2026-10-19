@@ -21,7 +21,7 @@ import { SecurityOperationsService } from '../../application/trust/security-oper
 
 type TrustActor = ResolvedEventOpsActor;
 
-function resolveActor(input: PrismVerifiedEventActor): TrustActor {
+export function resolveActor(input: PrismVerifiedEventActor): TrustActor {
   const role = input.actorRole;
   const name = input.actorName;
   return {
@@ -34,7 +34,7 @@ function resolveActor(input: PrismVerifiedEventActor): TrustActor {
   };
 }
 
-class TrustRoutePolicy {
+export class TrustRoutePolicy {
   private readonly logger = new Logger(TrustRoutePolicy.name);
 
   constructor(
@@ -164,14 +164,6 @@ export class OpsPrivacyController {
     const actor = resolveActor(verifiedActor);
     await this.policy.requireTrustOperator(actor, 'privacy inventory', query.eventId);
     return this.privacyOperationsService.getInventory(query);
-  }
-
-  @Get('retention-policies')
-  @UseGuards(EventSessionGuard)
-  async retentionPolicies(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
-    const actor = resolveActor(verifiedActor);
-    await this.policy.requireTrustOperator(actor, 'privacy retention policies');
-    return this.privacyOperationsService.listRetentionPolicies();
   }
 
   @Get('requests')

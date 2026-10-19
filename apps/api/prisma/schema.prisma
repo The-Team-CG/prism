@@ -464,6 +464,48 @@ model OpsPrivacyLegalHold {
   @@schema("platform_ops")
 }
 
+
+model OpsRetentionPolicy {
+  category   String   @id
+  label      String
+  description String  @default("")
+  periodDays Int      @map("period_days")
+  anchor     String
+  action     String   @default("review_anonymize")
+  enabled    Boolean  @default(false)
+  revision   Int      @default(1)
+  updatedBy  String   @default("") @map("updated_by")
+  history    Json     @default("[]")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("retention_policies")
+  @@schema("platform_ops")
+}
+
+model OpsRetentionReviewItem {
+  id             String    @id
+  policyCategory String    @map("policy_category")
+  subjectType    String    @map("subject_type")
+  subjectId      String    @map("subject_id")
+  eventId        String?   @map("event_id")
+  subjectEmail   String    @default("") @map("subject_email")
+  subjectName    String    @default("") @map("subject_name")
+  anchorAt       DateTime  @map("anchor_at")
+  dueSince       DateTime  @map("due_since")
+  status         String    @default("pending")
+  decisionReason String    @default("") @map("decision_reason")
+  decidedBy      String?   @map("decided_by")
+  decidedAt      DateTime? @map("decided_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@unique([policyCategory, subjectType, subjectId], map: "retention_review_items_subject_key")
+  @@index([status, dueSince], map: "retention_review_items_status_due_since_idx")
+  @@index([eventId], map: "retention_review_items_event_id_idx")
+  @@map("retention_review_items")
+  @@schema("platform_ops")
+}
+
 model OpsFloorPlanDraft {
   id                  String    @id
   eventId             String    @map("event_id")

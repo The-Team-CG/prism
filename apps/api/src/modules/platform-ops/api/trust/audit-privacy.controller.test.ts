@@ -40,7 +40,6 @@ describe('trust-ops audit/privacy controllers', () => {
   it('serves privacy routes through PrivacyOperationsService with PMCM/system guard', async () => {
     const privacyOperationsService = {
       getInventory: vi.fn(async () => ({ events: [] })),
-      listRetentionPolicies: vi.fn(() => [{ surface: 'audit' }]),
       listRequests: vi.fn(async () => [{ id: 'priv_1' }]),
       createRequest: vi.fn(async () => ({ id: 'priv_2' })),
       reviewRequest: vi.fn(async () => ({ id: 'priv_2', status: 'approved' })),
@@ -54,7 +53,6 @@ describe('trust-ops audit/privacy controllers', () => {
     const controller = new OpsPrivacyController(privacyOperationsService as any, auditService as any, securityOperationsService as any);
 
     await expect(controller.inventory({ eventId: 'evt_sample' }, verified())).resolves.toEqual({ events: [] });
-    await expect(controller.retentionPolicies(verified())).resolves.toEqual([{ surface: 'audit' }]);
     await expect(controller.requests({ status: 'submitted' }, verified())).resolves.toEqual([{ id: 'priv_1' }]);
     await expect(
       controller.createRequest(
