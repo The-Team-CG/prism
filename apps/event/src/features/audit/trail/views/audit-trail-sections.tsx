@@ -26,6 +26,7 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { auditTone, compactTimestamp, cx, label, severityTone } from "@/features/pmcm-kit";
 import { Metric, Panel } from "@/features/pmcm-kit";
+import { PrivacyRetentionPanel } from "@/features/privacy/retention/views/privacy-retention-panel";
 import { auditIconKind, auditIntegrityCopy } from "../model/audit-trail-rules";
 import type { PrivacyCorrectionDraft } from "../model/privacy-correction";
 import type { useAuditTrailViewModel } from "../view-models/use-audit-trail-view-model";
@@ -329,6 +330,7 @@ export function PrivacyOperationsPanel({ vm }: { vm: AuditVm }) {
             <PrivacyRequestCard key={request.id} request={request} busy={vm.busy} onReview={vm.reviewPrivacyRequest} onExecute={vm.executePrivacyRequest} />
           ))}
           {vm.isPmcmAdmin ? <PrivacyLegalHoldControls vm={vm} /> : null}
+          {vm.isPmcmAdmin ? <PrivacyRetentionPanel /> : null}
         </div>
         <div className="space-y-2">
           {vm.privacyPolicies.slice(0, 7).map((policy) => (
