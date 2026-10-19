@@ -94,6 +94,7 @@ describe.skipIf(!databaseUrl)('privacy execution against PostgreSQL', () => {
       id: requestId, subjectEmail, subjectName: options.subjectName ?? '',
       subjectType: options.subjectType ?? 'client', requestType: options.requestType ?? 'deletion',
       status: options.status ?? 'approved', eventId: options.eventId, createdBy: operator.name,
+      dueAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     } });
   }
 
@@ -271,13 +272,29 @@ describe.skipIf(!databaseUrl)('privacy execution against PostgreSQL', () => {
     expect(await auditRows(pending.id)).toHaveLength(0);
   });
 
-  it('keeps a guest correction unsupported and approved without a completion audit', async () => {
-    const fixture = await createClient();
-    const pending = await request('', { requestType: 'correction', subjectType: 'guest', subjectName: 'Some Guest', eventId: fixture.event.id });
-    await expect(service.executeRequest(pending.id, { correction: { name: 'Corrected Guest' } }, operator))
-      .rejects.toThrow('Correction for this subject type is not supported');
-    expect((await prisma.opsPrivacyRequest.findUniqueOrThrow({ where: { id: pending.id } })).status).toBe('approved');
-    expect(await auditRows(pending.id)).toHaveLength(0);
+  it('corrects a guest only in the request event, keeps a namesake elsewhere, and refuses re-execution', async () => {
+    const first = await createClient();
+    const second = await createClient();
+    const guestName = `Guest ${id()}`;
+    for (const event of [first.event, second.event]) {
+      await prisma.opsGuestCheckIn.create({ data: { id: id(), eventId: event.id, guestName } });
+      await prisma.opsGuestFeedback.create({ data: { id: id(), eventId: event.id, guestName, rating: 4, comment: 'kept' } });
+    }
+    const pending = await request('', { requestType: 'correction', subjectType: 'guest', subjectName: guestName, eventId: first.event.id });
+    const correctedName = `Corrected ${id()}`;
+    await expect(service.executeRequest(pending.id, { correction: { name: correctedName } }, operator))
+      .resolves.toMatchObject({ status: 'executed' });
+
+    expect((await prisma.opsGuestCheckIn.findFirstOrThrow({ where: { eventId: first.event.id } })).guestName).toBe(correctedName);
+    expect(await prisma.opsGuestFeedback.findFirstOrThrow({ where: { eventId: first.event.id } })).toMatchObject({
+      guestName: correctedName, comment: 'kept',
+    });
+    expect((await prisma.opsGuestCheckIn.findFirstOrThrow({ where: { eventId: second.event.id } })).guestName).toBe(guestName);
+    const audited = JSON.stringify((await auditRows(pending.id)).map((row) => row.metadata));
+    expect(audited).toContain('"changedFields":["name"]');
+    expect(audited).not.toContain(correctedName);
+    await expect(service.executeRequest(pending.id, { correction: { name: correctedName } }, operator))
+      .rejects.toThrow('must be approved before execution');
   });
 
   it('applies a validated correction to the subject identity copies only and audits field names without values', async () => {

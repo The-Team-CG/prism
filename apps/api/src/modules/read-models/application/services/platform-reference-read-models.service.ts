@@ -223,4 +223,11 @@ export class PlatformReferenceReadModelsService implements PlatformReferenceRead
     const email = recipient?.email?.trim().toLowerCase();
     return email && email.includes('@') ? email : null;
   }
+
+  findApprovedPmcmOperator(userId: string): Promise<{ id: string; name: string } | null> {
+    return this.prisma.opsUser.findFirst({
+      where: { id: userId, role: 'pmcm-admin', approvalStatus: 'approved', permanentLockout: false },
+      select: { id: true, name: true },
+    });
+  }
 }

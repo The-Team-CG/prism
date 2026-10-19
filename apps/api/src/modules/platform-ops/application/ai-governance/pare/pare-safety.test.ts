@@ -229,6 +229,7 @@ function harness(gateway?: AiGateway) {
     }),
     findPareSupplierCandidates: async () => [],
     findApprovedTrustRecipientEmail: async () => null,
+    findApprovedPmcmOperator: async () => null,
   };
   return {
     service: new PAREService(prisma as unknown as PrismaService, undefined, gateway, undefined, undefined, platformReferences),
