@@ -76,4 +76,6 @@ export interface PlatformReferenceReadModel {
   findPareEventSource(requestId: string): Promise<PareEventSource | null>;
   findPareSupplierCandidates(input: { category: string; withdrawnSupplierId: string; withdrawnSupplierName: string; eventId: string }): Promise<PareSupplierCandidateSource[]>;
   findApprovedTrustRecipientEmail(): Promise<string | null>;
+  /** Approved, non-locked PMCM administrator by user id; used to validate privacy request assignees. */
+  findApprovedPmcmOperator(userId: string): Promise<{ id: string; name: string } | null>;
 }

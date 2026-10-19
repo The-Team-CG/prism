@@ -8,6 +8,7 @@ import { OperationsModule } from '../operations/operations.module';
 import { PlatformReferenceReadersModule } from '../../composition/platform-reference-readers.module';
 import { OpsPrivacyController } from './api/trust/audit-privacy.controller';
 import { PrivacyOperationsService } from './application/trust/privacy-operations.service';
+import { PrivacyRequestQueueService } from './application/trust/privacy-request-queue.service';
 import { PlatformOpsModule } from './platform-ops.module';
 
 /**
@@ -26,7 +27,7 @@ import { PlatformOpsModule } from './platform-ops.module';
     PlatformReferenceReadersModule,
   ],
   controllers: [OpsPrivacyController],
-  providers: [PrivacyOperationsService],
+  providers: [PrivacyOperationsService, PrivacyRequestQueueService],
   exports: [PrivacyOperationsService],
 })
 export class PlatformPrivacyModule {}
