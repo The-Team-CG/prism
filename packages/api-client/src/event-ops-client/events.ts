@@ -6,9 +6,11 @@ import type {
   PrismFileRequirementsMatrix,
   PrismStoredObject,
   PrismAddendum,
+  PrismAddendumConformeExecution,
   PrismEventFreezeException,
   PrismEventDecision,
   PrismClientChangeRequest,
+  SignAddendumConformeExecutionInput,
 } from "@prism/types";
 import { prismRequest, toQueryString } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
@@ -120,6 +122,22 @@ export function createEventsClient(
       issueAddendum: (eventId, input, actor = {}) =>
         prismRequest<PrismAddendum>(
           actorPath(`/events/${eventId}/addenda`, actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
+      // Identity comes from the verified bearer token; these routes take no actor query.
+      requestAddendumConforme: (eventId, addendumId) =>
+        prismRequest<PrismAddendumConformeExecution>(
+          `/events/${eventId}/addenda/${addendumId}/conforme-execution`,
+          withBase(options, { method: "POST" }),
+        ),
+      acknowledgeAddendumConforme: (eventId, addendumId, input) =>
+        prismRequest<PrismAddendumConformeExecution>(
+          `/events/${eventId}/addenda/${addendumId}/conforme-execution/acknowledge`,
+          withBase(options, { method: "POST", body: input }),
+        ),
+      countersignAddendumConforme: (eventId, addendumId, input) =>
+        prismRequest<PrismAddendumConformeExecution>(
+          `/events/${eventId}/addenda/${addendumId}/conforme-execution/countersign`,
           withBase(options, { method: "POST", body: input }),
         ),
     },
