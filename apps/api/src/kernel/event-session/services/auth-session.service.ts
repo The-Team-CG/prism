@@ -210,13 +210,10 @@ export class AuthSessionService {
     const configured = this.configService.get<string>('PRISM_SESSION_SECRET') ?? this.configService.get<string>('JWT_SECRET');
     if (configured && configured.length >= 32) return configured;
 
+    // Only unit tests may sign with the built-in secret; local development gets a
+    // generated secret from start-prism (.local-dev/api.env).
     const nodeEnv = this.configService.get<string>('NODE_ENV') ?? process.env.NODE_ENV;
-    const allowLocalSecret =
-      nodeEnv !== 'production' &&
-      (nodeEnv === 'test' ||
-        nodeEnv === 'development' ||
-        this.configService.get<string>('PRISM_ALLOW_LOCAL_SESSION_SECRET') === '1');
-    if (allowLocalSecret) return 'prism-local-sample-auth-session-secret';
+    if (nodeEnv === 'test') return 'prism-local-sample-auth-session-secret';
 
     throw new Error('PRISM_SESSION_SECRET or JWT_SECRET must be configured with at least 32 characters');
   }

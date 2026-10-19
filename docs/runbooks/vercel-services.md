@@ -91,8 +91,8 @@ Configure real deployment inputs through Vercel environment settings:
 - `DATABASE_URL`: the target PostgreSQL runtime connection. `DIRECT_URL` is an
   optional migration-only override. Run migrations as a separate, controlled
   database operation, never as a portal build side effect.
-- `PRISM_SESSION_SECRET`: a strong deployment signing secret. Use
-  `NODE_ENV=production`; do not enable the local session-secret fallback.
+- `PRISM_SESSION_SECRET`: a strong deployment signing secret of at least 32
+  characters. Use `NODE_ENV=production`; the API refuses to start without it.
 - `CORS_ORIGIN`: comma-separated public origins, including preview and custom
   domains that will call the API. Use exact origins without portal path suffixes.
 - Configure AI and external delivery providers only for intended capabilities.
