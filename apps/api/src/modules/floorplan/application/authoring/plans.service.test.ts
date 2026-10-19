@@ -1,9 +1,9 @@
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { EventAccessPolicyService, type AuditWriter } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import type { PrismaService } from '@prism/kernel/database';
-import type { PrismVerifiedEventActor, UpdatePlanInput } from '@prism/types';
+import type { FloorPlanCanvasObject, FloorPlanGuest, PrismVerifiedEventActor, UpdatePlanInput } from '@prism/types';
 import { PlansService } from './plans.service';
 
 const planUpdatedAt = '2026-05-05T00:00:00.000Z';
@@ -413,5 +413,117 @@ describe('PlansService floorplan permissions and versioning', () => {
       id: 'plan_event_1',
     });
     expect(prisma.floorPlan.update).toHaveBeenCalled();
+  });
+});
+
+const eventGuestRoster: FloorPlanGuest[] = [
+  { id: 'g-ana', name: 'Ana Reyes', rsvp: 'confirmed' },
+  { id: 'g-ben', name: 'Ben Cruz', rsvp: 'pending' },
+  { id: 'g-dee', name: 'Dee Lim', rsvp: 'declined' },
+];
+
+function editorTable(overrides: Partial<FloorPlanCanvasObject> = {}): FloorPlanCanvasObject {
+  return {
+    id: 't1',
+    name: 'Table 1',
+    kind: 'ellipse',
+    category: 'furniture',
+    x: 1,
+    y: 1,
+    w: 2,
+    h: 2,
+    rotation: 0,
+    fill: '#ffffff',
+    stroke: '#000000',
+    strokeWidth: 1,
+    seats: 2,
+    locked: false,
+    hidden: false,
+    ...overrides,
+  };
+}
+
+describe('PlansService table assignment eligibility on official saves', () => {
+  it.each([
+    {
+      case: 'unknown guest',
+      objects: [editorTable({ assignedGuestIds: ['g-nobody'] })],
+      message: 'Only guests on this event guest list can be seated.',
+    },
+    {
+      case: 'declined guest',
+      objects: [editorTable({ assignedGuestIds: ['g-dee'] })],
+      message: 'Guests who declined cannot be seated.',
+    },
+    {
+      case: 'non-table object',
+      objects: [editorTable({ category: 'stage', assignedGuestIds: ['g-ana'] })],
+      message: 'Guests can only be seated at visible seating tables.',
+    },
+    {
+      case: 'hidden table',
+      objects: [editorTable({ hidden: true, assignedGuestIds: ['g-ana'] })],
+      message: 'Hidden tables cannot take guests.',
+    },
+    {
+      case: 'table over capacity',
+      objects: [editorTable({ seats: 1, assignedGuestIds: ['g-ana', 'g-ben'] })],
+      message: 'This table has no free seats.',
+    },
+  ])('rejects a PMCM save with a $case and writes nothing', async ({ objects, message }) => {
+    const { service, prisma, audit } = createService(draft('pmcm_draft'));
+
+    const attempt = service.updatePlan('plan_event_1', changes({ objects, guests: eventGuestRoster }), pmcmActor());
+
+    await expect(attempt).rejects.toBeInstanceOf(BadRequestException);
+    await expect(attempt).rejects.toThrow(message);
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+    expect(audit.write).not.toHaveBeenCalled();
+  });
+
+  it('accepts a save whose seated guests are known, not declined, and within table capacity', async () => {
+    const { service, prisma } = createService(draft('pmcm_draft'));
+    const objects = [
+      editorTable({ assignedGuestIds: ['g-ana', 'g-ben'] }),
+      editorTable({ id: 't2', assignedGuestIds: [] }),
+    ];
+
+    await expect(
+      service.updatePlan('plan_event_1', changes({ objects, guests: eventGuestRoster }), pmcmActor()),
+    ).resolves.toMatchObject({ id: 'plan_event_1' });
+    expect(prisma.floorPlan.update).toHaveBeenCalled();
+  });
+
+  it('keeps saving plans that carry no seat assignment fields, including legacy kernel-shaped objects', async () => {
+    const { service, prisma } = createService(draft('pmcm_draft'));
+    const legacyObject = {
+      id: 'legacy-stage',
+      kind: 'stage' as const,
+      position: { x: 0, y: 0 },
+      size: { width: 4, height: 2 },
+      rotation: 0,
+      zIndex: 0,
+    };
+
+    await expect(
+      service.updatePlan(
+        'plan_event_1',
+        changes({ objects: [editorTable(), legacyObject], guests: eventGuestRoster }),
+        pmcmActor(),
+      ),
+    ).resolves.toMatchObject({ id: 'plan_event_1' });
+    expect(prisma.floorPlan.update).toHaveBeenCalled();
+  });
+
+  it('checks stored seat assignments when a guest roster save would strand a seated guest', async () => {
+    const seated = editorTable({ assignedGuestIds: ['g-ana'] });
+    const { service, prisma } = createService(draft('pmcm_draft'), {
+      objectRows: [{ objectId: 't1', objectData: seated, zIndex: 0 }],
+    });
+
+    await expect(
+      service.updatePlan('plan_event_1', { expectedUpdatedAt: planUpdatedAt, guests: [] }, pmcmActor()),
+    ).rejects.toThrow('Only guests on this event guest list can be seated.');
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
   });
 });
