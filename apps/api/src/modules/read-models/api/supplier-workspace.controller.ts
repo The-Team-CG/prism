@@ -8,6 +8,12 @@ import type { PrismVerifiedEventActor } from '@prism/types';
 import { createSupplierWorkspaceMappers } from '../application/mappers/event-read-model.mappers';
 import { EventReadModelsService } from '../application/services/event-read-models.service';
 
+/** FL-022: PMCM verification notes and verifier identity are private review data, never supplier-visible. */
+function mapSupplierQuoteRequestForSupplier(request: Parameters<typeof mapSupplierQuoteRequest>[0]) {
+  const { eventDayVerificationNotes: _notes, eventDayVerifiedBy: _verifiedBy, ...safeRequest } = mapSupplierQuoteRequest(request);
+  return safeRequest;
+}
+
 @Controller('supplier')
 export class OpsSupplierWorkspaceReadsController {
   constructor(
@@ -38,7 +44,7 @@ export class OpsSupplierWorkspaceReadsController {
     return this.eventReadModelsService.supplierWorkspace(
       actor,
       createSupplierWorkspaceMappers({
-        mapSupplierQuoteRequest,
+        mapSupplierQuoteRequest: mapSupplierQuoteRequestForSupplier,
         mapSupplierQuoteForSupplier,
       }),
     );
