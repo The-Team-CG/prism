@@ -14,6 +14,8 @@ import type {
   ConfirmStorageUploadInput,
   PrismEventDecision,
   PrismClientChangeRequest,
+  PrismScopeChangeRequest,
+  PrismEventRiskView,
 } from "@prism/types";
 import type { EventOpsActorQuery } from "./primitives";
 
@@ -28,6 +30,25 @@ export interface EventOpsEventsContract {
       actor?: EventOpsActorQuery,
     ): Promise<PrismEventDecision>;
     changeRequests(eventId: string, actor?: EventOpsActorQuery): Promise<PrismClientChangeRequest[]>;
+    scopeChangeRequests(eventId: string, actor?: EventOpsActorQuery): Promise<PrismScopeChangeRequest[]>;
+    submitScopeChangeRequest(
+      eventId: string,
+      input: import("@prism/types").SubmitScopeChangeRequestInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismScopeChangeRequest>;
+    withdrawScopeChangeRequest(eventId: string, requestId: string, actor?: EventOpsActorQuery): Promise<PrismScopeChangeRequest>;
+    reviewScopeChangeRequest(
+      eventId: string,
+      requestId: string,
+      input: import("@prism/types").ReviewScopeChangeRequestInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismScopeChangeRequest>;
+    riskAssessment(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventRiskView>;
+    recordRiskAssessment(
+      eventId: string,
+      input: import("@prism/types").RecordEventRiskAssessmentInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismEventRiskView>;
     fileRequirements(
       eventId: string,
       actor?: EventOpsActorQuery,

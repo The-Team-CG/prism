@@ -359,6 +359,20 @@ export {
   type DecideFreezeExceptionInput,
   type IssueAddendumInput,
 } from "./session-w26-inputs.js";
+export {
+  scopeChangeCategorySchema,
+  submitScopeChangeRequestSchema,
+  scopeChangeImpactSchema,
+  reviewScopeChangeRequestSchema,
+  riskLevelSchema,
+  recordEventRiskAssessmentSchema,
+  type ScopeChangeCategory,
+  type SubmitScopeChangeRequestInput,
+  type ScopeChangeImpactInput,
+  type ReviewScopeChangeRequestInput,
+  type RiskLevel,
+  type RecordEventRiskAssessmentInput,
+} from "./scope-change-risk-inputs.js";
 export * from "./ai-governance.js";
 export {
   PrismContractError,
