@@ -2,6 +2,8 @@ export * from './api/billing.controller';
 export * from './api/client-workspace.controller';
 export * from './api/defense-readiness.controller';
 export * from './api/events.controller';
+export * from './api/decision-log.controller';
+export * from './application/services/decision-log-read-models.service';
 export * from './api/handoff-brief.controller';
 export * from './application/mappers/handoff-brief.mappers';
 export * from './application/services/handoff-brief-read-models.service';
