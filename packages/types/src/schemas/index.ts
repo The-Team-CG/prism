@@ -222,6 +222,15 @@ export {
   type WaiveOcularVisitInput,
   type GrantSecondaryClientAccessInput,
   type PrismPmcmCommandInboxQueryInput,
+  PRISM_DECISION_LOG_KINDS,
+  PRISM_DECISION_LOG_MAX_PAGE,
+  PRISM_DECISION_LOG_MAX_PAGE_SIZE,
+  PRISM_DECISION_LOG_DEFAULT_PAGE_SIZE,
+  decisionLogKindSchema,
+  decisionLogQuerySchema,
+  type PrismDecisionLogKind,
+  type PrismDecisionLogQuery,
+  type PrismDecisionLogQueryInput,
 } from "./event-ops-inputs.js";
 
 export {
