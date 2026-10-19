@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   BadgeCheck,
+  ClipboardList,
   FileText,
   MapPinned,
   MessageSquareText,
@@ -107,6 +108,7 @@ export function clientActionIcon(kind: PrismClientActionItem["kind"]): LucideIco
   if (kind === "floorplan") return MapPinned;
   if (kind === "approval") return BadgeCheck;
   if (kind === "feedback") return MessageSquareText;
+  if (kind === "change_request") return ClipboardList;
   return Presentation;
 }
 
@@ -115,7 +117,7 @@ export function clientActionTarget(kind: PrismClientActionItem["kind"]): DetailT
   if (kind === "document" || kind === "closure") return "documents";
   if (kind === "floorplan") return "floorplan";
   if (kind === "approval") return "proposal";
-  if (kind === "feedback") return "activity";
+  if (kind === "feedback" || kind === "change_request") return "activity";
   return "briefing";
 }
 
