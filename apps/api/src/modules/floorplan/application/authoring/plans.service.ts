@@ -16,9 +16,14 @@ import {
   type FloorplanEventReferenceReader,
 } from '@prism/contexts/event-lifecycle/floorplan-reference';
 import { asArray } from '@prism/kernel/shared';
-import type { CanvasObject, FloorPlan, JsonValue, Seat, SeatCategory } from '@prism/kernel/shared';
+import type { CanvasObject, FloorPlan, FloorPlanObject, JsonValue, SavedPlanObject, Seat, SeatCategory } from '@prism/kernel/shared';
 import type { UpdatePlanInput } from '@prism/types';
 import { floorPlanScalarPatch, replaceFloorPlanObjects } from './plan-patch';
+import {
+  assertTableAssignmentsEligible,
+  storedTableEligibilityGuests,
+  storedTableEligibilityObjects,
+} from './table-assignment-guard';
 
 type UpdatePlanChanges = Omit<UpdatePlanInput, 'expectedUpdatedAt'>;
 
@@ -39,7 +44,7 @@ async function updatePlanWithObjects(
   tx: Prisma.TransactionClient,
   planId: string,
   scalarChanges: Omit<UpdatePlanChanges, 'objects'>,
-  objects: CanvasObject[],
+  objects: SavedPlanObject[],
   expectedUpdatedAt: Date,
 ) {
   const updated = await tx.floorPlan
@@ -78,7 +83,7 @@ export class PlansService {
     @Inject(FLOORPLAN_EVENT_REFERENCE_READER) private readonly lifecycleEventReferences: FloorplanEventReferenceReader,
   ) {}
 
-  private mapPlan(row: PlanWithObjects, resolvedObjects?: CanvasObject[]): FloorPlan {
+  private mapPlan(row: PlanWithObjects, resolvedObjects?: FloorPlanObject[]): FloorPlan {
     const objects =
       resolvedObjects ??
       (row.objectRows.length
@@ -162,6 +167,7 @@ export class PlansService {
       }
 
       if (Object.keys(requestedChanges).length === 0) return latestPlan;
+      this.assertTableAssignmentsEligible(latestPlan, requestedChanges, actor);
 
       const saved = await this.savePlanChanges(tx, planId, scalarChanges, objects, expectedUpdatedAt);
 
@@ -191,6 +197,22 @@ export class PlansService {
     });
 
     return this.mapPlan(updated, objects);
+  }
+
+  /**
+   * Official PMCM saves must keep every seat assignment eligible. Client preference saves are not
+   * checked here because they carry no authoritative guest roster. A save that omits objects or guests
+   * is checked against the stored values it leaves in place.
+   */
+  private assertTableAssignmentsEligible(plan: PlanWithObjects, changes: UpdatePlanChanges, actor: ResolvedEventOpsActor) {
+    if (actor.role === OpsUserRole.Client) return;
+    if (changes.objects === undefined && changes.guests === undefined) return;
+    const storedObjects = plan.objectRows.length
+      ? plan.objectRows.map((row) => row.objectData)
+      : asArray<unknown>(plan.objects);
+    const objects = changes.objects ?? storedTableEligibilityObjects(storedObjects);
+    const guests = changes.guests ?? storedTableEligibilityGuests(asArray<unknown>(plan.guests));
+    assertTableAssignmentsEligible(objects, guests);
   }
 
   private async savePlanChanges(
