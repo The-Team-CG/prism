@@ -51,6 +51,14 @@ describe("table assignment eligibility on saved plans", () => {
       objects: [seatingTable({ seats: 1, assignedGuestIds: ["g-ana", "g-ben"] })],
       reason: "table-full",
     },
+    {
+      case: "guest listed at two tables",
+      objects: [
+        seatingTable({ id: "t1", assignedGuestIds: ["g-ana"] }),
+        seatingTable({ id: "t2", assignedGuestIds: ["g-ana"] }),
+      ],
+      reason: "guest-already-seated",
+    },
   ])("rejects a $case with the $reason reason", ({ objects, reason }) => {
     const rejection = findTableAssignmentRejection(objects, guests);
     expect(rejection).toEqual({ guestId: expect.any(String), objectId: "t1", reason });

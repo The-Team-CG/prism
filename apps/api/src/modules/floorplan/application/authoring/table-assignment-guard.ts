@@ -13,6 +13,7 @@ const REJECTION_MESSAGES: Record<TableAssignmentIneligibleReason, string> = {
   'not-a-table': 'Guests can only be seated at visible seating tables.',
   'table-hidden': 'Hidden tables cannot take guests.',
   'table-full': 'This table has no free seats.',
+  'guest-already-seated': 'A guest can only be seated at one table.',
 };
 
 /** Rejects a plan save whose seat assignments break the shared table eligibility rule. */

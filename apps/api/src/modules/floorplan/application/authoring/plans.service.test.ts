@@ -470,6 +470,14 @@ describe('PlansService table assignment eligibility on official saves', () => {
       objects: [editorTable({ seats: 1, assignedGuestIds: ['g-ana', 'g-ben'] })],
       message: 'This table has no free seats.',
     },
+    {
+      case: 'guest listed at two tables',
+      objects: [
+        editorTable({ assignedGuestIds: ['g-ana'] }),
+        editorTable({ id: 't2', assignedGuestIds: ['g-ana'] }),
+      ],
+      message: 'A guest can only be seated at one table.',
+    },
   ])('rejects a PMCM save with a $case and writes nothing', async ({ objects, message }) => {
     const { service, prisma, audit } = createService(draft('pmcm_draft'));
 
