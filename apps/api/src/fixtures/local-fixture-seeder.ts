@@ -1026,6 +1026,16 @@ export class LocalFixtureSeeder {
             createdAt,
           },
           {
+            id: 'usr_pmcm_approver',
+            name: 'PMCM Approver',
+            email: 'approver@pmcm.test',
+            password: AuthSecurityService.hashPassword('prism-admin'),
+            role: 'pmcm-admin',
+            organization: 'PMCM Events',
+            approvalStatus: 'approved',
+            createdAt,
+          },
+          {
             id: 'usr_client',
             name: 'Ana Reyes',
             email: 'ana@ayala.test',
