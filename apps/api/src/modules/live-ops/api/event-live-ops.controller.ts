@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards, Optional } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards, Optional } from '@nestjs/common';
 import { zodBody } from '@prism/kernel/shared';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
@@ -78,12 +78,6 @@ export class EventLiveOpsController {
   @UseGuards(EventSessionGuard)
   updateScheduleSegmentStatus(@Param('eventId') eventId: string, @Param('segmentId') segmentId: string, @Body(zodBody(updateEventScheduleSegmentStatusSchema)) dto: UpdateEventScheduleSegmentStatusInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     return this.scheduleService!.updateSegmentStatus(eventId, segmentId, dto, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
-  }
-
-  @Get(':eventId/run-sheet')
-  @UseGuards(EventSessionGuard)
-  runSheet(@Param('eventId') eventId: string, @Query('dayId') dayId: string | undefined, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
-    return this.scheduleService!.getRunSheet(eventId, dayId, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
   }
 
   @Get(':eventId/operator-designation')
