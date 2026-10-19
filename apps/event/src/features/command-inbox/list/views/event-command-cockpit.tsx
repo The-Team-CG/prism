@@ -10,6 +10,7 @@ import {
   ClipboardList,
   FileCheck2,
   Gamepad2,
+  Gavel,
   LayoutGrid,
   ListChecks,
   MapPinned,
@@ -197,6 +198,7 @@ export type PmcmDetailTab =
   | "live-ops"
   | "billing"
   | "closure"
+  | "decisions"
   | "activity";
 
 export interface PmcmWorkflowTabItem {
@@ -232,11 +234,13 @@ export function buildEventWorkflowTabs({
     { id: "games", label: "Games", icon: Gamepad2 },
     { id: "billing", label: "Finance", icon: ReceiptText, badge: paymentsCount || undefined },
     { id: "closure", label: "Closure", icon: Archive, badge: openChecksCount || undefined },
+    { id: "decisions", label: "Decision log", icon: Gavel },
     { id: "activity", label: "Messages", icon: MessageSquareText },
   ];
+  // The decision log is PMCM-only (FL-019); the API refuses every other role as well.
   return isPmcmAdmin(role)
     ? tabs
-    : tabs.filter((tab) => tab.id !== "floorplans" && (role === "coordinator" || tab.id !== "games"));
+    : tabs.filter((tab) => tab.id !== "floorplans" && tab.id !== "decisions" && (role === "coordinator" || tab.id !== "games"));
 }
 
 export function EventQueuePanel({
