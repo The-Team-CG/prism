@@ -239,6 +239,7 @@ export type PrismCommandInboxKind =
   | "coordinator"
   | "closure"
   | "live_ops"
+  | "change_request"
   | "feedback";
 
 export interface PrismCommandInboxItem {
@@ -310,6 +311,7 @@ export interface PrismClientActionItem {
     | "approval"
     | "closure"
     | "feedback"
+    | "change_request"
   >;
   priority: PrismCommandInboxSeverity;
   label: string;
