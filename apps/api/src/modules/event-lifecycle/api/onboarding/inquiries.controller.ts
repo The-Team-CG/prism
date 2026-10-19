@@ -14,7 +14,6 @@ import {
   type UpdateInquiryStatusInput,
   type UploadConformeInput,
 } from '@prism/types';
-import { ActorContextDto } from './inquiry.dto';
 import { mapDocument, mapInquiry, mapOnboardingEvent, mapPublicInquiryReceipt } from '../../application/onboarding/inquiry.mappers';
 import { InquiriesService } from '../../application/onboarding/inquiries.service';
 import { InquiryWorkflowService } from '../../application/onboarding/inquiry-workflow.service';

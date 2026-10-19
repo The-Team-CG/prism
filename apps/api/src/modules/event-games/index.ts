@@ -22,4 +22,3 @@ export * from './contracts/game-persistence.port';
 export * from './contracts/game-scheduler.port';
 export * from './contracts/game-rate-limiter.port';
 export * from './contracts/game-rule.port';
-export * from './contracts/game-storage.port';
