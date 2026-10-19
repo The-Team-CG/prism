@@ -5,13 +5,14 @@ export const ADDENDUM_CONSENT_TEXT = 'I have reviewed this addendum conforme and
 
 type ComparisonChange = { key: string; before: unknown; after: unknown };
 
+/** Client-safe snapshot: contract-level changes only. Supplier quote lines are PMCM cost data and never enter the signed text. */
 export type AddendumConformeSnapshot = {
   eventName: string;
   versionNumber: number;
   title: string;
   summary: string;
   financialDelta: number;
-  comparison: { contract: ComparisonChange[]; quotes: ComparisonChange[] };
+  comparison: { contract: ComparisonChange[] };
 };
 
 export function sha256(value: string) {
@@ -43,7 +44,7 @@ function renderDelta(delta: number) {
   return `PHP ${sign}${Math.abs(delta).toLocaleString('en-US')}`;
 }
 
-/** Deterministic text of the addendum as issued; the SHA-256 of this text is what both parties sign. */
+/** Deterministic client-safe text of the addendum version; the SHA-256 of this text is what both parties sign. */
 export function buildAddendumConformeDocument(snapshot: AddendumConformeSnapshot) {
   const content = [
     `ADDENDUM CONFORME - Version ${snapshot.versionNumber}`,
@@ -54,8 +55,6 @@ export function buildAddendumConformeDocument(snapshot: AddendumConformeSnapshot
     `Financial change: ${renderDelta(snapshot.financialDelta)}`,
     '',
     renderChanges('Contract changes', snapshot.comparison.contract),
-    '',
-    renderChanges('Supplier quote changes', snapshot.comparison.quotes),
     '',
     'By acknowledging this addendum conforme you confirm that you reviewed this version and agree to the changes above. The acknowledgment is recorded against this document version; PMCM countersigns after the client.',
   ].join('\n');

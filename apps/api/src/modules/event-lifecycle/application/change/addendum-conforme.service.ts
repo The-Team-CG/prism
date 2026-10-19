@@ -109,16 +109,24 @@ export class AddendumConformeService {
 
   private async completeWithCountersignature(tx: Prisma.TransactionClient, execution: ExecutionWithContext, actor: ResolvedEventOpsActor) {
     const completedAt = new Date();
-    // The billing record that carries the addendum delta must reference the exact version that was executed.
-    const trace = await this.commercial.recordConformeExecution({
-      eventId: execution.eventId, addendumId: execution.addendumId, versionNumber: execution.versionNumber,
-      executionId: execution.id, documentSha256: execution.documentSha256, executedAt: completedAt.toISOString(),
-    }, { prisma: tx, correlationId: execution.addendumId });
+    // The billing line carrying this addendum's delta is found through the addendum's own impact record, then matched by addendum id.
+    const billingSourceId = await this.addendumBillingSourceId(tx, execution.addendumId);
+    const trace = billingSourceId
+      ? await this.commercial.recordConformeExecution({
+        eventId: execution.eventId, addendumId: execution.addendumId, billingSourceId, versionNumber: execution.versionNumber,
+        executionId: execution.id, documentSha256: execution.documentSha256, executedAt: completedAt.toISOString(),
+      }, { prisma: tx, correlationId: execution.addendumId })
+      : null;
     const completed = await tx.opsAddendumConformeExecution.update({
       where: { id: execution.id }, data: { status: 'completed', completedAt, billingSourceId: trace?.billingSourceId ?? null }, include: { signatures: true },
     });
     await this.auditSignature(tx, execution, actor, 'Completed addendum conforme with PMCM countersignature', 'pmcm', { billingSourceId: trace?.billingSourceId ?? null });
     return mapAddendumConformeExecution(completed);
+  }
+
+  private async addendumBillingSourceId(tx: Prisma.TransactionClient, addendumId: string): Promise<string | null> {
+    const impact = await tx.opsAddendumImpact.findFirst({ where: { addendumId, targetType: 'billing_source' }, select: { targetId: true } });
+    return impact?.targetId ?? null;
   }
 
   private async auditSignature(tx: Prisma.TransactionClient, execution: ExecutionWithContext, actor: ResolvedEventOpsActor, action: string, role: SignerRole, extra: Record<string, unknown> = {}) {
@@ -159,11 +167,12 @@ export class AddendumConformeService {
     if (execution.status === 'completed') throw new ConflictException('This addendum conforme has already been completed');
   }
 
+  /** Client-safe snapshot: only the contract-level comparison is signed; supplier quote lines stay PMCM-only. */
   private snapshotOf(addendum: { versionNumber: number; title: string; summary: string; financialDelta: number; comparison: unknown }, eventName: string): AddendumConformeSnapshot {
-    const comparison = (addendum.comparison ?? {}) as { contract?: ComparisonChanges; quotes?: ComparisonChanges };
+    const comparison = (addendum.comparison ?? {}) as { contract?: ComparisonChanges };
     return {
       eventName, versionNumber: addendum.versionNumber, title: addendum.title, summary: addendum.summary,
-      financialDelta: addendum.financialDelta, comparison: { contract: comparison.contract ?? [], quotes: comparison.quotes ?? [] },
+      financialDelta: addendum.financialDelta, comparison: { contract: comparison.contract ?? [] },
     };
   }
 }

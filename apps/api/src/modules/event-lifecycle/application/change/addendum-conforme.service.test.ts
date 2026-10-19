@@ -6,6 +6,7 @@ import type { PrismaService } from '@prism/kernel/database';
 import type { CommercialAddendumImpactWriter } from '@prism/contexts/commercial';
 import type { NotificationOutboxWriter } from '@prism/contexts/platform-ops';
 import { AddendumConformeService } from './addendum-conforme.service';
+import { sha256 } from './addendum-conforme-document';
 
 // Fixtures are dated 2026-10-19 (the addendum is issued the day before).
 beforeEach(() => {
@@ -24,7 +25,7 @@ const pmcm = actor(OpsUserRole.PmcmAdmin, 'pmcm-1', 'pmcm@example.test');
 const otherPmcm = actor(OpsUserRole.PmcmAdmin, 'pmcm-2', 'pmcm2@example.test');
 const metadata = { ip: '203.0.113.7', userAgent: 'vitest' };
 
-function harness() {
+function harness({ billingSourceId = 'billing_source_1' }: { billingSourceId?: string | null } = {}) {
   const event = { id: 'evt_1', clientName: 'Client Person', eventName: 'Launch', archived: false, clientPortalStatus: 'unlocked', inquiry: { email: 'client@example.test' } };
   const addendum = {
     id: 'addendum_1', eventId: 'evt_1', versionNumber: 2, title: 'Add stage lighting', summary: 'Extra rig', financialDelta: 15000,
@@ -58,6 +59,10 @@ function harness() {
         return view(found);
       }),
     },
+    opsAddendumImpact: {
+      findFirst: vi.fn(async ({ where }: { where: { addendumId: string; targetType: string } }) =>
+        billingSourceId && where.addendumId === addendum.id && where.targetType === 'billing_source' ? { targetId: billingSourceId } : null),
+    },
     opsAddendumConformeSignature: {
       create: vi.fn(async ({ data }: { data: Record<string, any> }) => {
         signatures.push({ ...data, signedAt: new Date() });
@@ -90,7 +95,12 @@ describe('AddendumConformeService request', () => {
     expect(first.documentSha256).toMatch(/^[a-f0-9]{64}$/);
     expect(first.documentContent).toContain('Version 2');
     expect(first.documentContent).toContain('PHP +15,000');
-    expect(first.documentContent).toContain('quote_1');
+    // The client-facing text carries contract-level changes only; supplier quote lines never reach the signed document or snapshot.
+    expect(first.documentContent).toContain('Contract changes');
+    expect(first.documentContent).not.toMatch(/quote|supplier|"amount"/i);
+    expect(first.documentSha256).toBe(sha256(first.documentContent));
+    expect(executions[0]!.snapshot).toMatchObject({ comparison: { contract: [] } });
+    expect(executions[0]!.snapshot).not.toHaveProperty('comparison.quotes');
     expect(replay).toEqual(first);
     expect(tx.opsAddendumConformeExecution.create).toHaveBeenCalledTimes(1);
     expect(executions).toHaveLength(1);
@@ -118,7 +128,7 @@ describe('AddendumConformeService signing', () => {
     expect(completed).toMatchObject({ status: 'completed', completedAt: '2026-10-19T09:00:00.000Z' });
     expect(completed.signatures.map((signature) => signature.actorRole)).toEqual(['client', 'pmcm']);
     expect(commercial.recordConformeExecution).toHaveBeenCalledWith({
-      eventId: 'evt_1', addendumId: 'addendum_1', versionNumber: 2, executionId: executions[0]!.id,
+      eventId: 'evt_1', addendumId: 'addendum_1', billingSourceId: 'billing_source_1', versionNumber: 2, executionId: executions[0]!.id,
       documentSha256: executions[0]!.documentSha256, executedAt: '2026-10-19T09:00:00.000Z',
     }, expect.objectContaining({ correlationId: 'addendum_1' }));
     expect(executions[0]!.billingSourceId).toBe('billing_source_1');
@@ -126,6 +136,18 @@ describe('AddendumConformeService signing', () => {
     expect(signatures[0]).toMatchObject({ actorId: 'client-primary', actorRole: 'client', actorEmail: 'client@example.test' });
     expect(signatures[0]!.ipHash).toMatch(/^[a-f0-9]{64}$/);
     expect(signatures[0]!.ipHash).not.toContain('203.0.113.7');
+  });
+
+  it('leaves the billing trace empty when the addendum has no billing line to point at', async () => {
+    const { service, commercial, signInput, executions } = harness({ billingSourceId: null });
+    await service.requestExecution('evt_1', 'addendum_1', pmcm);
+    await service.acknowledgeAsClient('evt_1', 'addendum_1', signInput(), primaryClient, metadata);
+
+    const completed = await service.countersignAsPmcm('evt_1', 'addendum_1', signInput(), pmcm, metadata);
+
+    expect(completed.status).toBe('completed');
+    expect(commercial.recordConformeExecution).not.toHaveBeenCalled();
+    expect(executions[0]!.billingSourceId).toBeNull();
   });
 
   it('keeps PMCM from countersigning before the client has acknowledged', async () => {

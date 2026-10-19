@@ -58,6 +58,12 @@ function mapAddendum(value: { id: string; eventId: string; versionNumber: number
   return { id: value.id, eventId: value.eventId, versionNumber: value.versionNumber, title: value.title, summary: value.summary, status: 'issued', documentId: value.documentId ?? '', documentState: value.documentState as 'pending' | 'available', signatureMethod: 'scanned_document', comparison: value.comparison as PrismAddendum['comparison'], financialDelta: value.financialDelta, issuedAt: value.issuedAt.toISOString(), conforme: value.conformeExecution ? mapAddendumConformeExecution(value.conformeExecution) : null };
 }
 
+/** Supplier quote lines are PMCM cost data; every other reader gets the contract-level comparison only. */
+function presentAddendumFor(addendum: PrismAddendum, includeSupplierQuotes: boolean): PrismAddendum {
+  if (includeSupplierQuotes) return addendum;
+  return { ...addendum, comparison: { contract: addendum.comparison.contract, quotes: [] } };
+}
+
 @Injectable()
 export class ChangeManagementService {
   constructor(
@@ -139,7 +145,8 @@ export class ChangeManagementService {
   async listAddenda(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismAddendum[]> {
     await this.access.requireCanReadEvent(actor, await this.prisma.opsEvent.findUniqueOrThrow({ where: { id: eventId } }), 'addenda');
     const values = await this.prisma.opsAddendum.findMany({ where: { eventId }, orderBy: { versionNumber: 'desc' }, include: { conformeExecution: { include: { signatures: true } } } });
-    return values.map(mapAddendum);
+    const includeSupplierQuotes = this.access.canViewInternalCosts(actor);
+    return values.map((value) => presentAddendumFor(mapAddendum(value), includeSupplierQuotes));
   }
 
   private async resolveAddendumContext(tx: Prisma.TransactionClient, eventId: string, input: IssueAddendumInput) {
@@ -180,6 +187,7 @@ export class ChangeManagementService {
     });
     const impacts = await this.commercialAddendumImpactWriter.apply({
       eventId,
+      addendumId,
       versionNumber,
       financialDelta,
       quotePriceChanges,
@@ -210,7 +218,7 @@ export class ChangeManagementService {
       const versionNumber = (previous?.versionNumber ?? 0) + 1;
       const addendum = await tx.opsAddendum.create({ data: { id: `addendum_${randomUUID()}`, eventId, versionNumber, title: input.title.trim(), summary: input.summary?.trim() ?? '', documentId: document.id, contractSnapshot: toPrismaJson(input.contractSnapshot), quoteSnapshot: toPrismaJson(input.quoteSnapshot), comparison: toPrismaJson(comparison), financialDelta: input.financialDelta, freezeExceptionId: exception?.id ?? null } });
       await this.applyCommercialImpacts(tx, eventId, addendum.id, versionNumber, input.financialDelta, comparison.quotes);
-      await writeAudit(this.audit, eventId, actor.name, 'Issued immutable addendum', { actorRole: actor.role, actionType: 'create', category: 'events', affectedType: 'addendum', affectedId: addendum.id, metadata: { versionNumber, documentId: document.id, documentState: 'pending', signatureMethod: 'scanned_document', comparison, financialDelta: input.financialDelta, freezeExceptionId: exception?.id ?? null } }, { prisma: tx, correlationId: addendum.id, actorId: actor.id });
+      await writeAudit(this.audit, eventId, actor.name, 'Issued immutable addendum', { actorRole: actor.role, actionType: 'create', category: 'events', affectedType: 'addendum', affectedId: addendum.id, metadata: { versionNumber, documentId: document.id, documentState: 'pending', signatureMethod: 'scanned_document', comparison: { contract: comparison.contract, quoteChangeCount: comparison.quotes.length }, financialDelta: input.financialDelta, freezeExceptionId: exception?.id ?? null } }, { prisma: tx, correlationId: addendum.id, actorId: actor.id });
       return mapAddendum(addendum);
     }, { isolationLevel: 'Serializable' });
   }
