@@ -97,4 +97,32 @@ describe("table assignment eligibility on saved plans", () => {
 
     expect(parsed.success).toBe(false);
   });
+
+  it("parses an editor-shaped supplier roster and still accepts legacy supplier objects", () => {
+    const editorSupplier = { id: "s-cater", name: "Mesa Catering", kind: "catering", status: "confirmed", contact: "mesa@example.test" };
+    const legacySupplier = {
+      id: "legacy-supplier",
+      kind: "decor",
+      position: { x: 0, y: 0 },
+      size: { width: 1, height: 1 },
+      rotation: 0,
+      zIndex: 0,
+    };
+    const parsed = updatePlanSchema.safeParse({
+      expectedUpdatedAt: "2026-05-05T00:00:00.000Z",
+      suppliers: [editorSupplier, legacySupplier],
+    });
+
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && parsed.data.suppliers?.[0]).toMatchObject({ id: "s-cater", contact: "mesa@example.test" });
+  });
+
+  it("refuses an editor supplier with a kind outside the supplier list", () => {
+    const parsed = updatePlanSchema.safeParse({
+      expectedUpdatedAt: "2026-05-05T00:00:00.000Z",
+      suppliers: [{ id: "s-x", name: "Unknown", kind: "fireworks", status: "booked" }],
+    });
+
+    expect(parsed.success).toBe(false);
+  });
 });

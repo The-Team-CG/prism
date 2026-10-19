@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { floorPlanCanvasObjectSchema, floorPlanGuestSchema } from "./floorplan-canvas-inputs.js";
+import { floorPlanCanvasObjectSchema, floorPlanGuestSchema, floorPlanSupplierSchema } from "./floorplan-canvas-inputs.js";
 
 export const supplierWithdrawalSchema = z.object({
   reason: z.string().trim().min(1).max(500).optional(),
@@ -19,5 +19,6 @@ const seatCategory = z.object({ id: z.string(), name: z.string(), colorHex: z.st
 // Plan saves accept the floorplan editor shape; the legacy kernel shape stays accepted so plans saved before that alignment still save.
 const planObjects = z.array(z.union([floorPlanCanvasObjectSchema, canvasObject])).optional();
 const planGuests = z.array(z.union([floorPlanGuestSchema, canvasObject])).optional();
-export const updatePlanSchema = z.object({ expectedUpdatedAt: z.string().datetime(), venue: z.string().optional(), width: z.number().positive().optional(), height: z.number().positive().optional(), gridSize: z.number().positive().optional(), pax: z.number().int().nonnegative().optional(), objects: planObjects, guests: planGuests, suppliers: canvasObjects, seats: z.array(seat).optional(), seatCategories: z.array(seatCategory).optional() });
+const planSuppliers = z.array(z.union([floorPlanSupplierSchema, canvasObject])).optional();
+export const updatePlanSchema = z.object({ expectedUpdatedAt: z.string().datetime(), venue: z.string().optional(), width: z.number().positive().optional(), height: z.number().positive().optional(), gridSize: z.number().positive().optional(), pax: z.number().int().nonnegative().optional(), objects: planObjects, guests: planGuests, suppliers: planSuppliers, seats: z.array(seat).optional(), seatCategories: z.array(seatCategory).optional() });
 export type UpdatePlanInput = z.infer<typeof updatePlanSchema>;

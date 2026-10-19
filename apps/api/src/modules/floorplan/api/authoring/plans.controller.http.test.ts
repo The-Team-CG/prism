@@ -232,4 +232,16 @@ describe('PlansController authenticated HTTP authorization', () => {
     expect(declinedSeat.status).toBe(400);
     await expect(declinedSeat.json()).resolves.toMatchObject({ message: 'Guests who declined cannot be seated.' });
   });
+
+  it('accepts a PMCM official save carrying the editor supplier roster', async () => {
+    const withSuppliers = await fetch(`${baseUrl}/plans/${officialDraft.id}`, {
+      method: 'PUT',
+      headers: { authorization: `Bearer ${pmcmToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        expectedUpdatedAt: updatedAt.toISOString(),
+        suppliers: [{ id: 's-cater', name: 'Mesa Catering', kind: 'catering', status: 'confirmed', contact: 'mesa@example.test' }],
+      }),
+    });
+    expect(withSuppliers.status).toBe(200);
+  });
 });

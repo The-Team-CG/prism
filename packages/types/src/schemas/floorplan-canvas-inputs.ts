@@ -49,8 +49,34 @@ export const floorPlanGuestSchema = z
   })
   .passthrough();
 
+export const floorPlanSupplierKindSchema = z.enum([
+  "catering",
+  "av",
+  "floral",
+  "staging",
+  "security",
+  "rental",
+  "photography",
+  "other",
+]);
+export const floorPlanSupplierStatusSchema = z.enum(["booked", "proposed", "confirmed", "cancelled"]);
+
+export const floorPlanSupplierSchema = z
+  .object({
+    id: z.string().min(1),
+    name: z.string(),
+    kind: floorPlanSupplierKindSchema,
+    contact: z.string().optional(),
+    status: floorPlanSupplierStatusSchema,
+    notes: z.string().optional(),
+  })
+  .passthrough();
+
 export type FloorPlanShapeKind = z.infer<typeof floorPlanShapeKindSchema>;
 export type FloorPlanElementCategory = z.infer<typeof floorPlanElementCategorySchema>;
 export type FloorPlanRsvp = z.infer<typeof floorPlanRsvpSchema>;
 export type FloorPlanCanvasObject = z.infer<typeof floorPlanCanvasObjectSchema>;
 export type FloorPlanGuest = z.infer<typeof floorPlanGuestSchema>;
+export type FloorPlanSupplierKind = z.infer<typeof floorPlanSupplierKindSchema>;
+export type FloorPlanSupplierStatus = z.infer<typeof floorPlanSupplierStatusSchema>;
+export type FloorPlanSupplier = z.infer<typeof floorPlanSupplierSchema>;

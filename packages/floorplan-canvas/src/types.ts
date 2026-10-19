@@ -4,6 +4,9 @@ import type {
   FloorPlanGuest,
   FloorPlanRsvp,
   FloorPlanShapeKind,
+  FloorPlanSupplier,
+  FloorPlanSupplierKind,
+  FloorPlanSupplierStatus,
   TableAssignmentIneligibleReason,
   TableAssignmentRejection,
 } from "@prism/types";
@@ -16,26 +19,12 @@ export type ElementCategory = FloorPlanElementCategory;
 /** Editor object. x/y/w/h are meters (top-left for rect/ellipse, start for line); rotation is radians. */
 export type CanvasObject = FloorPlanCanvasObject;
 
-export type SupplierKind =
-  | "catering"
-  | "av"
-  | "floral"
-  | "staging"
-  | "security"
-  | "rental"
-  | "photography"
-  | "other";
+export type SupplierKind = FloorPlanSupplierKind;
 
-export type SupplierStatus = "booked" | "proposed" | "confirmed" | "cancelled";
+export type SupplierStatus = FloorPlanSupplierStatus;
 
-export interface Supplier {
-  id: string;
-  name: string;
-  kind: SupplierKind;
-  contact?: string; // phone or email
-  status: SupplierStatus;
-  notes?: string;
-}
+/** Supplier on the editor roster; `contact` is a phone or email. */
+export type Supplier = FloorPlanSupplier;
 
 export type RSVP = FloorPlanRsvp;
 
