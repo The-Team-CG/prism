@@ -81,13 +81,17 @@ export interface PrismEventFreezeException {
 }
 
 /**
- * Client-safe view of a change request. Internal reasons, decision notes, and actor names are
- * deliberately absent; clients see the requested change and where it stands.
+ * Client-safe view of a change request. Internal reasons, decision notes, impact flags, freeze exception ids,
+ * and actor names are deliberately absent; clients see the requested change, where it stands, and the
+ * client-visible response PMCM wrote for it.
  */
 export interface PrismClientChangeRequest {
   id: string;
+  source: "freeze_exception" | "scope_change";
   requestedChange: string;
-  status: "under_review" | "approved" | "not_approved";
+  category: "program" | "venue" | "guest_count" | "styling" | "supplier" | "schedule" | "other" | null;
+  status: "under_review" | "approved" | "not_approved" | "withdrawn";
+  clientResponse: string | null;
   updatedAt: string;
 }
 
