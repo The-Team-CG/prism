@@ -38,11 +38,16 @@ function createController() {
     })),
     requireCanReadEvent: vi.fn(async () => undefined),
   };
+  const fileRequirementCommands = {
+    createRequirement: vi.fn(async (_eventId: string, input: { key: string }) => ({ key: input.key, origin: 'custom' })),
+    updateRequirement: vi.fn(async (_eventId: string, key: string) => ({ key, origin: 'derived' })),
+  };
   const controller = new OpsEventFileRequirementsController(
     fileRequirementsMatrixService as any,
     eventAccessPolicyService as any,
+    fileRequirementCommands as any,
   );
-  return { controller, fileRequirementsMatrixService, eventAccessPolicyService };
+  return { controller, fileRequirementsMatrixService, eventAccessPolicyService, fileRequirementCommands };
 }
 
 const verified = (role: OpsUserRole, name: string, email = `${name.toLowerCase().replaceAll(' ', '.')}@pmcm.test`) => ({
@@ -103,6 +108,40 @@ describe('OpsEventFileRequirementsController', () => {
         { key: 'official_floorplan', visibleToRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.Client, OpsUserRole.Coordinator] },
       ],
     });
+  });
+
+  it('strips PMCM-only notes from client reads while PMCM keeps them', async () => {
+    const { controller, fileRequirementsMatrixService } = createController();
+    const noted = { key: 'signed_conforme', visibleToRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.Client], notes: 'Internal chase note' };
+    fileRequirementsMatrixService.buildForEvent.mockResolvedValue({ eventId: 'evt_file', items: [noted] } as never);
+
+    const clientView = await controller.fileRequirements('evt_file', verified(OpsUserRole.Client, 'Ana Reyes', 'ana@pmcm.test'));
+    expect(clientView.items[0]).not.toHaveProperty('notes');
+
+    const pmcmView = await controller.fileRequirements('evt_file', verified(OpsUserRole.PmcmAdmin, 'Maxine'));
+    expect(pmcmView.items[0]).toMatchObject({ notes: 'Internal chase note' });
+  });
+
+  it('forwards requirement writes with the verified actor and rejects malformed keys before the command runs', async () => {
+    const { controller, fileRequirementCommands } = createController();
+    const actor = verified(OpsUserRole.PmcmAdmin, 'Maxine');
+
+    await controller.createFileRequirement(
+      'evt_file',
+      { key: 'venue_permit', label: 'Venue permit', ownerRole: 'client', visibleToRoles: ['pmcm-admin', 'client'], required: true, sourceWorkflow: 'custom' },
+      actor,
+    );
+    expect(fileRequirementCommands.createRequirement).toHaveBeenCalledWith(
+      'evt_file',
+      expect.objectContaining({ key: 'venue_permit' }),
+      expect.objectContaining({ role: OpsUserRole.PmcmAdmin, name: 'Maxine' }),
+    );
+
+    await controller.updateFileRequirement('evt_file', 'signed_conforme', { required: false }, actor);
+    expect(fileRequirementCommands.updateRequirement).toHaveBeenCalledWith('evt_file', 'signed_conforme', { required: false }, expect.anything());
+
+    expect(() => controller.updateFileRequirement('evt_file', 'Bad Key!', { required: false }, actor)).toThrow(NotFoundException);
+    expect(fileRequirementCommands.updateRequirement).toHaveBeenCalledTimes(1);
   });
 
   it('binds coordinator reads to an active event assignment', async () => {
