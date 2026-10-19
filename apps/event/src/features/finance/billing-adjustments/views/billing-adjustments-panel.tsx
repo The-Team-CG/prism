@@ -116,8 +116,11 @@ function CorrectionSection({ vm }: { vm: BillingAdjustmentsVm }) {
                   value={vm.correctionNotes[correction.id] ?? ""}
                   onChange={(e) => vm.setCorrectionNotes({ ...vm.correctionNotes, [correction.id]: e.target.value })}
                 />
+                {vm.isOwnCorrectionRequest(correction) ? (
+                  <p className="text-xs text-muted-foreground">You requested this correction. Another PMCM user must approve it; you can still reject it.</p>
+                ) : null}
                 <div className="flex gap-2">
-                  <button type="button" className={buttonClass} disabled={vm.busy} onClick={() => void vm.resolveCorrection(correction.id, "approve")}>Approve</button>
+                  <button type="button" className={buttonClass} disabled={vm.busy || !vm.canApproveCorrection(correction)} onClick={() => void vm.resolveCorrection(correction.id, "approve")}>Approve</button>
                   <button type="button" className={buttonClass} disabled={vm.busy || !(vm.correctionNotes[correction.id] ?? "").trim()} onClick={() => void vm.resolveCorrection(correction.id, "reject")}>Reject</button>
                 </div>
               </>
