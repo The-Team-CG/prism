@@ -5,6 +5,8 @@ export * from './api/events.controller';
 export * from './api/handoff-brief.controller';
 export * from './application/mappers/handoff-brief.mappers';
 export * from './application/services/handoff-brief-read-models.service';
+export * from './api/run-sheet.controller';
+export * from './application/services/run-sheet-read-models.service';
 export * from './api/pmcm-command-inbox.controller';
 export * from './api/pmcm-dashboard.controller';
 export * from './api/supplier-workspace.controller';

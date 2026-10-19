@@ -36,6 +36,7 @@ export const MAX_EVENT_SCHEDULE_DAYS = 100;
 export const MAX_EVENT_SCHEDULE_SEGMENTS = 200;
 export const MAX_TASK_REASSIGNMENT_REQUESTS = 100;
 export const MAX_EVENT_HANDOFFS = 200;
+export const MAX_RUN_SHEET_SUPPLIER_SCHEDULES = 500;
 export const MAX_READINESS_ROWS = 500;
 export const MAX_BILLING_ROWS = 500;
 export const MAX_CLIENT_WORKSPACE_ROWS = 500;
@@ -310,6 +311,16 @@ export class EventReadModelQueries {
       where: { eventId },
       orderBy: [{ handedOffAt: 'desc' }, { id: 'desc' }],
       take: MAX_EVENT_HANDOFFS,
+    });
+  }
+
+  // Run sheet supplier windows (FL-026). Selects timing fields only; supplier schedule notes stay private.
+  supplierSchedulesForEvent(eventId: string) {
+    return this.prisma.opsSupplierSchedule.findMany({
+      where: { eventId },
+      select: { id: true, requestId: true, ingressAt: true, egressAt: true, location: true, status: true },
+      orderBy: [{ ingressAt: 'asc' }, { id: 'asc' }],
+      take: MAX_RUN_SHEET_SUPPLIER_SCHEDULES,
     });
   }
 
