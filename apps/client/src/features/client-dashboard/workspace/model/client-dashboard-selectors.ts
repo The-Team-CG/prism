@@ -104,6 +104,7 @@ export function selectClientFloorPlanDraft(
   officialDraft: PrismFloorPlanDraft | undefined,
   preferenceDrafts: PrismFloorPlanDraft[],
 ) {
+  if (officialDraft?.status === "approved" && draftIsOfficial(officialDraft)) return officialDraft;
   const latestPreference = preferenceDrafts[0];
   return latestPreference?.status === "revision_requested" ? latestPreference : officialDraft ?? latestPreference;
 }

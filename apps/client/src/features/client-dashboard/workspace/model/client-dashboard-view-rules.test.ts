@@ -28,6 +28,25 @@ describe("client dashboard action rules", () => {
     expect(draftIsOfficial({ ...preference, sourceType: "blank" })).toBe(true);
   });
 
+  it("recognizes older PMCM-approved preference-source layouts as official snapshots", () => {
+    const legacyPmcmLayout: PrismFloorPlanDraft = {
+      id: "fpd_legacy_pmcm",
+      eventId: "evt_1",
+      floorPlanId: "plan_legacy_pmcm",
+      name: "Older approved PMCM layout",
+      status: "approved",
+      isActive: true,
+      sourceType: "client_preference",
+      createdByRole: "pmcm-admin",
+      createdAt: "2026-10-01T00:00:00.000Z",
+      updatedAt: "2026-10-02T00:00:00.000Z",
+    };
+    const clientPreference = { ...legacyPmcmLayout, id: "fpd_client", createdByRole: "client" };
+
+    expect(draftIsOfficial(legacyPmcmLayout)).toBe(true);
+    expect(draftIsOfficial(clientPreference)).toBe(false);
+  });
+
   it("labels direct event-card floorplan actions by state", () => {
     expect(clientFloorplanDashboardActionLabel("not_started")).toBe("Set layout preferences");
     expect(clientFloorplanDashboardActionLabel("in_review")).toBe("View official floorplan");

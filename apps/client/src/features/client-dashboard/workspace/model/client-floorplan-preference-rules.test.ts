@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { PrismFloorPlanDraft } from "@prism/types";
+import type { Project } from "@/features/floorplan/editor";
 import {
+  buildReopenedFloorPlanPreferencePayload,
   buildFloorPlanPreferencePayload,
   canEditClientFloorPlanPreference,
   preferenceFormFromDraft,
@@ -89,6 +91,40 @@ describe("client floorplan preference lifecycle", () => {
       guestCount: 180,
       constraints: "Keep exits clear\nReserve sponsor space",
       notes: "Keep a clear photo wall access.",
+    });
+  });
+
+  it("builds a resubmission from the reopened preference and edited canvas", () => {
+    const project: Project = {
+      id: "plan_preference",
+      name: "Revised Summit layout",
+      venue: "Grand Hall",
+      widthM: 35.4,
+      heightM: 22.4,
+      pax: 200,
+      objects: [{
+        id: "stage", name: "Main stage", kind: "rect", category: "stage", x: 4, y: 5, w: 6, h: 2,
+        rotation: 0, fill: "#fff", stroke: "#000", strokeWidth: 1, locked: false, hidden: false,
+      }],
+      guests: [],
+      suppliers: [],
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    expect(buildReopenedFloorPlanPreferencePayload(preferenceDraft, project)).toEqual({
+      name: "Revised Summit layout",
+      seatingStyle: "Banquet",
+      stagePreference: "North wall",
+      flowNotes: "Keep registration near the entrance",
+      guestCount: 200,
+      constraints: ["Keep exits clear", "Reserve sponsor space"],
+      notes: "Keep a clear photo wall access.",
+      venue: "Grand Hall",
+      width: 35,
+      height: 22,
+      gridSize: 1,
+      objects: project.objects,
     });
   });
 });

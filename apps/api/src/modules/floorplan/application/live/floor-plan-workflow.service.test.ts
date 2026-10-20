@@ -83,6 +83,15 @@ function createService() {
         state.floorPlanDrafts.filter((draft) =>
           where.eventId.in.includes(draft.eventId) &&
           where.status.in.includes(draft.status) &&
+          (!where.OR || where.OR.some((condition: Record<string, unknown>) => Object.entries(condition).every(([key, value]) => {
+            if (key === 'sourceType' && typeof value === 'object' && value !== null && 'not' in value) {
+              return draft.sourceType !== value.not;
+            }
+            if (key === 'createdByRole' && typeof value === 'object' && value !== null && 'in' in value && Array.isArray(value.in)) {
+              return value.in.includes(draft.createdByRole);
+            }
+            return draft[key] === value;
+          }))) &&
           (!where.sourceType || draft.sourceType !== where.sourceType.not),
         ),
       ),
@@ -127,6 +136,7 @@ function createService() {
           if (where?.status && draft.status !== where.status) continue;
           if (typeof where?.sourceType === 'string' && draft.sourceType !== where.sourceType) continue;
           if (where?.sourceType?.not && draft.sourceType === where.sourceType.not) continue;
+          if (where?.createdByRole && draft.createdByRole !== where.createdByRole) continue;
           Object.assign(draft, data);
           count += 1;
         }
@@ -761,6 +771,95 @@ describe('FloorPlanWorkflowService', () => {
     );
   });
 
+  it('keeps an official floorplan in review when a reopened client preference is resubmitted', async () => {
+    const { service, state } = createService();
+    state.events[0].clientPortalStatus = 'unlocked';
+    state.events[0].floorPlanStatus = 'client_submitted';
+    state.events[0].readiness = 'Client layout preference received';
+    state.floorPlans.push({
+      id: 'plan_preference', eventId: 'evt_sample', ownerId: 'user_client_1', name: 'Old preference',
+      venue: 'Ayala Summit', width: 30, height: 20, gridSize: 1, pax: 120, objects: [], guests: [], suppliers: [],
+      seats: [], seatCategories: [], updatedAt: new Date(),
+    });
+    state.floorPlanDrafts.push(
+      {
+        id: 'fpd_official', eventId: 'evt_sample', floorPlanId: 'plan_official', name: 'Official layout',
+        status: 'in_review', isActive: false, sourceType: 'blank', createdByRole: 'pmcm-admin',
+        submittedAt: new Date(), createdAt: new Date(), updatedAt: new Date(),
+      },
+      {
+        id: 'fpd_preference', eventId: 'evt_sample', floorPlanId: 'plan_preference', name: 'Old preference',
+        status: 'revision_requested', isActive: false, sourceType: 'client_preference', createdByRole: 'client',
+        clientPreference: { seatingStyle: 'old', stagePreference: 'old', flowNotes: '', guestCount: 120, constraints: [], notes: '' },
+        createdAt: new Date(), updatedAt: new Date(),
+      },
+    );
+
+    await service.createFloorPlanPreference('evt_sample', {
+      name: 'Updated preference', seatingStyle: 'banquet', stagePreference: 'center', flowNotes: '', guestCount: 180, constraints: [],
+    }, { actorId: 'user_client_1', name: 'Ana Reyes', role: 'client' });
+
+    expect(state.events[0]).toMatchObject({
+      floorPlanStatus: 'in_review',
+      floorPlanId: 'plan_official',
+      readiness: 'Floorplan awaiting review',
+    });
+  });
+
+  it('rejects a reopened preference resubmission after an official plan has been approved', async () => {
+    const { service, state } = createService();
+    state.events[0].clientPortalStatus = 'unlocked';
+    state.events[0].floorPlanStatus = 'approved';
+    state.floorPlans.push({
+      id: 'plan_preference', eventId: 'evt_sample', ownerId: 'user_client_1', name: 'Old preference',
+      venue: 'Ayala Summit', width: 30, height: 20, gridSize: 1, pax: 120, objects: [], guests: [], suppliers: [],
+      seats: [], seatCategories: [], updatedAt: new Date(),
+    });
+    state.floorPlanDrafts.push(
+      {
+        id: 'fpd_official', eventId: 'evt_sample', floorPlanId: 'plan_official', name: 'Official layout',
+        status: 'approved', isActive: true, sourceType: 'blank', createdByRole: 'pmcm-admin',
+        createdAt: new Date(), updatedAt: new Date(),
+      },
+      {
+        id: 'fpd_preference', eventId: 'evt_sample', floorPlanId: 'plan_preference', name: 'Old preference',
+        status: 'revision_requested', isActive: false, sourceType: 'client_preference', createdByRole: 'client',
+        createdAt: new Date(), updatedAt: new Date(),
+      },
+    );
+
+    await expect(service.createFloorPlanPreference('evt_sample', {
+      name: 'Updated preference', seatingStyle: 'banquet', stagePreference: 'center', flowNotes: '', guestCount: 180, constraints: [],
+    }, { actorId: 'user_client_1', name: 'Ana Reyes', role: 'client' })).rejects.toThrow(
+      'A client preference cannot be resubmitted after official floorplan approval',
+    );
+    expect(state.floorPlanDrafts[1]?.status).toBe('revision_requested');
+  });
+
+  it('closes a reopened preference when PMCM approves the official floorplan', async () => {
+    const { service, state } = createService();
+    const actor = { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' } as const;
+    const official = await service.createFloorPlanDraft('evt_sample', { name: 'Official layout', sourceType: 'blank' }, actor);
+    await service.submitFloorPlanDraft('evt_sample', official.id, actor);
+    state.floorPlans.push({
+      id: 'plan_preference', eventId: 'evt_sample', ownerId: 'user_client_1', name: 'Client preference',
+      venue: 'Ayala Summit', width: 30, height: 20, gridSize: 1, pax: 120, objects: [], guests: [], suppliers: [],
+      seats: [], seatCategories: [], updatedAt: new Date(),
+    });
+    state.floorPlanDrafts.push({
+      id: 'fpd_preference', eventId: 'evt_sample', floorPlanId: 'plan_preference', name: 'Client preference',
+      status: 'revision_requested', isActive: false, sourceType: 'client_preference', createdByRole: 'client',
+      revisionComment: 'Please widen the aisle.', createdAt: new Date(), updatedAt: new Date(),
+    });
+
+    await service.approveFloorPlanDraft('evt_sample', official.id, actor);
+
+    expect(state.floorPlanDrafts.find((draft) => draft.id === 'fpd_preference')).toMatchObject({
+      status: 'client_submitted',
+      revisionComment: 'Superseded by the approved official floorplan.',
+    });
+  });
+
   it('reopens the same submitted client preference for PMCM review and notifies the client', async () => {
     const { service, state, auditWriter, notificationOutboxWriter, prisma } = createService();
     state.events[0].floorPlanStatus = 'client_submitted';
@@ -1146,6 +1245,15 @@ describe('FloorPlanWorkflowService', () => {
         updatedAt: new Date(),
       },
       {
+        id: 'fpd_legacy_pmcm_approved_preference',
+        eventId: 'evt_shared',
+        name: 'Legacy approved layout',
+        status: 'approved',
+        sourceType: 'client_preference',
+        createdByRole: 'pmcm-admin',
+        updatedAt: new Date(),
+      },
+      {
         id: 'fpd_approved',
         eventId: 'evt_other',
         name: 'Approved Layout',
@@ -1167,6 +1275,15 @@ describe('FloorPlanWorkflowService', () => {
         name: 'Reopened Preference',
         status: 'revision_requested',
         sourceType: 'client_preference',
+        updatedAt: new Date(),
+      },
+      {
+        id: 'fpd_client_approved_preference',
+        eventId: 'evt_shared',
+        name: 'Client preference with stale approval status',
+        status: 'approved',
+        sourceType: 'client_preference',
+        createdByRole: 'client',
         updatedAt: new Date(),
       },
       {
@@ -1195,6 +1312,13 @@ describe('FloorPlanWorkflowService', () => {
         availableSnapshots: ['submitted'],
       },
       {
+        eventId: 'evt_shared',
+        draftId: 'fpd_legacy_pmcm_approved_preference',
+        draftName: 'Legacy approved layout',
+        draftStatus: 'approved',
+        availableSnapshots: ['submitted', 'approved'],
+      },
+      {
         eventId: 'evt_other',
         draftId: 'fpd_approved',
         draftName: 'Approved Layout',
@@ -1206,7 +1330,10 @@ describe('FloorPlanWorkflowService', () => {
       where: {
         eventId: { in: ['evt_shared', 'evt_other'] },
         status: { in: ['in_review', 'revision_requested', 'approved'] },
-        sourceType: { not: 'client_preference' },
+        OR: [
+          { sourceType: { not: 'client_preference' } },
+          { sourceType: 'client_preference', status: 'approved', createdByRole: { in: ['pmcm-admin', 'coordinator'] } },
+        ],
       },
       select: { eventId: true, id: true, name: true, status: true, updatedAt: true },
       orderBy: [{ eventId: 'asc' }, { updatedAt: 'desc' }, { id: 'asc' }],

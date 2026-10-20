@@ -160,6 +160,7 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
             tx,
             eventId,
             eventName: event.eventName,
+            lifecycleFloorPlanStatus: event.floorPlanStatus,
             input,
             actor,
             now,
@@ -167,11 +168,24 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
             objects,
             preference,
           });
+          const inReviewOfficialDraft = await tx.opsFloorPlanDraft.findFirst({
+            where: { eventId, status: 'in_review', sourceType: { not: 'client_preference' } },
+            select: { floorPlanId: true, submittedAt: true },
+          });
 
-          // A client preference is a request for changes, not a demotion of an approved plan.
-          await this.projectLifecycleState(tx, eventId, (lifecycleEvent) => lifecycleEvent.floorPlanStatus === 'approved'
-            ? null
-            : { floorPlanStatus: 'client_submitted', readiness: 'Client layout preference received' });
+          // A client preference cannot hide an official plan already awaiting review or approved.
+          await this.projectLifecycleState(tx, eventId, (lifecycleEvent) => {
+            if (lifecycleEvent.floorPlanStatus === 'approved' || lifecycleEvent.floorPlanStatus === 'in_review') return null;
+            if (inReviewOfficialDraft) {
+              return {
+                floorPlanStatus: 'in_review',
+                floorPlanId: inReviewOfficialDraft.floorPlanId,
+                floorPlanSubmittedAt: inReviewOfficialDraft.submittedAt ?? now,
+                readiness: 'Floorplan awaiting review',
+              };
+            }
+            return { floorPlanStatus: 'client_submitted', readiness: 'Client layout preference received' };
+          });
 
           return saved;
         });
@@ -190,6 +204,7 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
     tx,
     eventId,
     eventName,
+    lifecycleFloorPlanStatus,
     input,
     actor,
     now,
@@ -200,6 +215,7 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
     tx: Prisma.TransactionClient;
     eventId: string;
     eventName: string;
+    lifecycleFloorPlanStatus: string;
     input: CreateFloorPlanPreferenceInput;
     actor: FloorPlanCreator;
     now: Date;
@@ -212,7 +228,17 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
       orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
     });
     if (existing) {
-      return this.resubmitClientPreference({ tx, eventId, existing, input, actor, now, objects, preference });
+      return this.resubmitClientPreference({
+        tx,
+        eventId,
+        existing,
+        input,
+        actor,
+        now,
+        objects,
+        preference,
+        lifecycleFloorPlanStatus,
+      });
     }
     return this.createInitialClientPreference({ tx, eventId, eventName, floorPlanId, input, actor, now, objects, preference });
   }
@@ -285,6 +311,7 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
     now,
     objects,
     preference,
+    lifecycleFloorPlanStatus,
   }: {
     tx: Prisma.TransactionClient;
     eventId: string;
@@ -294,8 +321,15 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
     now: Date;
     objects: unknown[];
     preference: unknown;
+    lifecycleFloorPlanStatus: string;
   }) {
-    const { draft, plan } = await this.requireOwnedReopenablePreference(tx, eventId, existing, actor);
+    const { draft, plan } = await this.requireOwnedReopenablePreference(
+      tx,
+      eventId,
+      existing,
+      actor,
+      lifecycleFloorPlanStatus,
+    );
     await this.updateReopenedPreferencePlan(tx, plan, input, now, objects);
     return tx.opsFloorPlanDraft.update({
       where: { id: draft.id },
@@ -316,6 +350,7 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
     eventId: string,
     existing: OpsFloorPlanDraft,
     actor: FloorPlanCreator,
+    lifecycleFloorPlanStatus: string,
   ) {
     // The Lifecycle event is already locked above; lock this Floorplan draft second.
     // QUERY_AUDIT_RAW_SQL: serialize preference resubmission with PMCM reopen and draft updates.
@@ -333,6 +368,13 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
     }
     if (draft.status !== 'revision_requested') {
       throw new ConflictException('Ask PMCM to reopen the existing layout preference before submitting it again');
+    }
+    const activeApprovedOfficialDraft = await tx.opsFloorPlanDraft.findFirst({
+      where: { eventId, isActive: true, status: 'approved', sourceType: { not: 'client_preference' } },
+      select: { id: true },
+    });
+    if (lifecycleFloorPlanStatus === 'approved' || activeApprovedOfficialDraft) {
+      throw new ConflictException('A client preference cannot be resubmitted after official floorplan approval');
     }
     const plan = await tx.floorPlan.findUnique({ where: { id: draft.floorPlanId } });
     if (!plan || plan.eventId !== eventId) throw new NotFoundException('Client preference plan not found');
@@ -583,6 +625,20 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
             },
           });
           if (updated.count !== 1) throw new BadRequestException('Floorplan draft changed before approval');
+          await tx.opsFloorPlanDraft.updateMany({
+            where: {
+              eventId,
+              sourceType: 'client_preference',
+              createdByRole: 'client',
+              status: 'revision_requested',
+            },
+            data: {
+              status: 'client_submitted',
+              reviewedAt: now,
+              revisionComment: 'Superseded by the approved official floorplan.',
+              updatedAt: now,
+            },
+          });
           const saved = await tx.opsFloorPlanDraft.findUnique({ where: { id: currentDraft.id } });
           if (!saved) throw new NotFoundException('Floorplan draft not found');
 
@@ -610,7 +666,14 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
       where: {
         eventId: { in: eventIds },
         status: { in: ['in_review', 'revision_requested', 'approved'] },
-        sourceType: { not: 'client_preference' },
+        OR: [
+          { sourceType: { not: 'client_preference' } },
+          {
+            sourceType: 'client_preference',
+            status: 'approved',
+            createdByRole: { in: ['pmcm-admin', 'coordinator'] },
+          },
+        ],
       },
       select: { eventId: true, id: true, name: true, status: true, updatedAt: true },
       orderBy: [{ eventId: 'asc' }, { updatedAt: 'desc' }, { id: 'asc' }],

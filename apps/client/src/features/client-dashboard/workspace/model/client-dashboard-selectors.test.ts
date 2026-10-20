@@ -224,6 +224,35 @@ describe("client-dashboard selectors", () => {
     expect(selectClientFloorPlanDraft(officialDraft, [reopenedPreference])?.id).toBe("fpd_reopened");
   });
 
+  it("keeps the approved official floorplan selected over a still-reopened preference", () => {
+    const approvedOfficial = {
+      id: "fpd_official",
+      eventId: "evt_1",
+      floorPlanId: "plan_official",
+      name: "Approved official layout",
+      status: "approved",
+      isActive: true,
+      sourceType: "blank",
+      createdByRole: "pmcm-admin",
+      createdAt: "2026-10-01T00:00:00.000Z",
+      updatedAt: "2026-10-04T00:00:00.000Z",
+    } as PrismFloorPlanDraft;
+    const reopenedPreference = {
+      id: "fpd_reopened",
+      eventId: "evt_1",
+      floorPlanId: "plan_preference",
+      name: "Reopened preference",
+      status: "revision_requested",
+      isActive: false,
+      sourceType: "client_preference",
+      createdByRole: "client",
+      createdAt: "2026-10-02T00:00:00.000Z",
+      updatedAt: "2026-10-05T00:00:00.000Z",
+    } as PrismFloorPlanDraft;
+
+    expect(selectClientFloorPlanDraft(approvedOfficial, [reopenedPreference])?.id).toBe("fpd_official");
+  });
+
   it("does not select an older reopened preference over a newer client submission", () => {
     const newerSubmission = {
       id: "fpd_newer_submitted",
