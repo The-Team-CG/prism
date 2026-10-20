@@ -56,23 +56,9 @@ function ReadinessRow({ item }: { item: PrismPmcmSupplierReadinessItem }) {
           <p className="text-sm font-bold text-foreground">{item.supplierName}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">{item.category}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <StatusBadge status={item.quoteStatus} label={item.quoteLocked ? "Quote locked" : humanizeToken(item.quoteStatus)} />
-          <StatusBadge status={item.assignmentStatus ?? "pending"} label={humanizeToken(item.assignmentStatus ?? "pending")} />
-          <StatusBadge status={item.readinessStatus ?? "pending"} label={humanizeToken(item.readinessStatus ?? "not confirmed")} />
-          <StatusBadge status={item.contractStatus === "accepted" ? "approved" : item.contractStatus} label={`Contract ${humanizeToken(item.contractStatus)}`} />
-          <StatusBadge status={item.ingressLate ? "overdue" : item.setupStatus === "ready" || item.setupStatus === "complete" ? "completed" : "pending"} label={setupStatusLabel(item.setupStatus)} />
-        </div>
+        <ReadinessBadges item={item} />
       </div>
-      {item.schedule ? (
-        <p className="text-xs text-muted-foreground">
-          Ingress {formatDateTime(item.schedule.ingressAt)} · Egress {formatDateTime(item.schedule.egressAt)}
-          {item.schedule.location ? ` · ${item.schedule.location}` : ""} · revision {item.schedule.revision}{" "}
-          {item.schedule.acknowledged ? "acknowledged" : "not acknowledged"}
-        </p>
-      ) : (
-        <p className="text-xs text-muted-foreground">No ingress schedule set.</p>
-      )}
+      <ReadinessSchedule item={item} />
       {item.concerns.length > 0 ? (
         <ul aria-label={`${item.supplierName} concerns`} className="space-y-1">
           {item.concerns.map((concern) => (
@@ -82,13 +68,42 @@ function ReadinessRow({ item }: { item: PrismPmcmSupplierReadinessItem }) {
           ))}
         </ul>
       ) : null}
-      {item.pmcmReview.verificationNotes || item.pmcmReview.verifiedBy ? (
-        <p className="rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-          <span className="font-semibold text-foreground">PMCM review</span>
-          {item.pmcmReview.verifiedBy ? ` by ${item.pmcmReview.verifiedBy}` : ""}
-          {item.pmcmReview.verificationNotes ? `: ${item.pmcmReview.verificationNotes}` : ""}
-        </p>
-      ) : null}
+      <ReadinessPmcmReview item={item} />
     </li>
+  );
+}
+
+function ReadinessBadges({ item }: { item: PrismPmcmSupplierReadinessItem }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      <StatusBadge status={item.quoteStatus} label={item.quoteLocked ? "Quote locked" : humanizeToken(item.quoteStatus)} />
+      <StatusBadge status={item.assignmentStatus ?? "pending"} label={humanizeToken(item.assignmentStatus ?? "pending")} />
+      <StatusBadge status={item.readinessStatus ?? "pending"} label={humanizeToken(item.readinessStatus ?? "not confirmed")} />
+      <StatusBadge status={item.contractStatus === "accepted" ? "approved" : item.contractStatus} label={`Contract ${humanizeToken(item.contractStatus)}`} />
+      <StatusBadge status={item.ingressLate ? "overdue" : item.setupStatus === "ready" || item.setupStatus === "complete" ? "completed" : "pending"} label={setupStatusLabel(item.setupStatus)} />
+    </div>
+  );
+}
+
+function ReadinessSchedule({ item }: { item: PrismPmcmSupplierReadinessItem }) {
+  if (!item.schedule) return <p className="text-xs text-muted-foreground">No ingress schedule set.</p>;
+  return (
+    <p className="text-xs text-muted-foreground">
+      Ingress {formatDateTime(item.schedule.ingressAt)} · Egress {formatDateTime(item.schedule.egressAt)}
+      {item.schedule.location ? ` · ${item.schedule.location}` : ""} · revision {item.schedule.revision}{" "}
+      {item.schedule.acknowledged ? "acknowledged" : "not acknowledged"}
+    </p>
+  );
+}
+
+function ReadinessPmcmReview({ item }: { item: PrismPmcmSupplierReadinessItem }) {
+  const { verifiedBy, verificationNotes } = item.pmcmReview;
+  if (!verificationNotes && !verifiedBy) return null;
+  return (
+    <p className="rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+      <span className="font-semibold text-foreground">PMCM review</span>
+      {verifiedBy ? ` by ${verifiedBy}` : ""}
+      {verificationNotes ? `: ${verificationNotes}` : ""}
+    </p>
   );
 }

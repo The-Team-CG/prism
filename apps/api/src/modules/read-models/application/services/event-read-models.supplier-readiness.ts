@@ -116,6 +116,26 @@ function collectConcerns(request: SupplierReadinessRequestSource): PrismSupplier
   return concerns;
 }
 
+function isOverdueUnselected(request: SupplierReadinessRequestSource, clock: SupplierReadinessClock) {
+  return request.dueDate != null
+    && request.dueDate.getTime() < clock.now.getTime()
+    && request.status !== 'selected';
+}
+
+function supplierReadinessPriority(input: {
+  overdueOrLate: boolean;
+  contractStatus: string;
+  readinessStatus: string;
+  verificationStatus: string;
+  concernCount: number;
+  scheduleNeedsResponse: boolean;
+}): PrismCommandInboxSeverity {
+  if (input.overdueOrLate) return 'critical';
+  if (input.contractStatus !== 'accepted' || input.readinessStatus !== 'confirmed') return 'warning';
+  if (input.verificationStatus === 'rejected' || input.concernCount > 0 || input.scheduleNeedsResponse) return 'attention';
+  return 'info';
+}
+
 /** Supplier-safe readiness item. Never includes PMCM verification notes or reviewer identity. */
 export function buildSupplierReadinessItem(
   request: SupplierReadinessRequestSource,
@@ -130,18 +150,15 @@ export function buildSupplierReadinessItem(
   const schedule = request.schedule ? mapSchedule(request.schedule) : null;
   const ingressLate = isSupplierIngressLate(request, clock);
   const concerns = collectConcerns(request);
-  const overdueUnselected = request.dueDate != null
-    && request.dueDate.getTime() < clock.now.getTime()
-    && request.status !== 'selected';
   const scheduleNeedsResponse = request.status === 'selected' && schedule != null && !schedule.acknowledged;
-
-  const priority: PrismCommandInboxSeverity = overdueUnselected || ingressLate
-    ? 'critical'
-    : contractStatus !== 'accepted' || readinessStatus !== 'confirmed'
-      ? 'warning'
-      : verificationStatus === 'rejected' || concerns.length > 0 || scheduleNeedsResponse
-        ? 'attention'
-        : 'info';
+  const priority = supplierReadinessPriority({
+    overdueOrLate: isOverdueUnselected(request, clock) || ingressLate,
+    contractStatus,
+    readinessStatus,
+    verificationStatus,
+    concernCount: concerns.length,
+    scheduleNeedsResponse,
+  });
 
   return {
     id: `supplier-readiness:${request.id}`,
