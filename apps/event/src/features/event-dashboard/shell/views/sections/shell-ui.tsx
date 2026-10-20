@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 
 export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
