@@ -46,6 +46,15 @@ export function mapSupplierQuoteRequest(request: OpsSupplierQuoteRequest & { con
   };
 }
 
+/**
+ * Supplier-visible request projection. PMCM verification notes and verifier identity are private
+ * review data (FL-022): every supplier-reachable response uses this instead of mapSupplierQuoteRequest.
+ */
+export function mapSupplierQuoteRequestForSupplier(request: Parameters<typeof mapSupplierQuoteRequest>[0]) {
+  const { eventDayVerificationNotes: _notes, eventDayVerifiedBy: _verifiedBy, ...safeRequest } = mapSupplierQuoteRequest(request);
+  return safeRequest;
+}
+
 export function mapSupplierQuote(quote: OpsSupplierQuote) {
   const inclusions = Array.isArray(quote.inclusions)
     ? quote.inclusions.filter((value): value is string => typeof value === 'string')
@@ -98,7 +107,7 @@ export function mapSupplierQuoteForSupplier(quote: OpsSupplierQuote) {
 
 export function mapQuoteRequestTokenDetail({ request, event, quote }: QuoteRequestTokenDetail) {
   return {
-    request: mapSupplierQuoteRequest(request),
+    request: mapSupplierQuoteRequestForSupplier(request),
     quote: quote ? mapSupplierQuoteForSupplier(quote) : null,
     eventId: event.id,
     eventName: request.confidentialBid ? 'Confidential event' : event.eventName,
