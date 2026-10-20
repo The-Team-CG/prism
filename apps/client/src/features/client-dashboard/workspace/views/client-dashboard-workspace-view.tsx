@@ -27,7 +27,11 @@ import {
   selectNextAction,
   type ClientDashboardAction,
 } from "../model/client-dashboard-view-rules";
-import { buildFloorPlanPreferencePayload } from "../model/client-floorplan-preference-rules";
+import {
+  buildFloorPlanPreferencePayload,
+  canEditClientFloorPlanPreference,
+  preferenceFormFromDraft,
+} from "../model/client-floorplan-preference-rules";
 import {
   CLIENT_SIDEBAR_ITEMS,
   DETAIL_TAB_TO_ROUTE,
@@ -143,9 +147,10 @@ export function ClientDashboardWorkspaceView({
   const ocularVisit = selectedEvent
     ? state?.ocularVisits?.find((visit) => visit.eventId === selectedEvent.id) ?? null
     : null;
-  const eventDrafts = selectEventDrafts(state, selectedEvent);
-  const officialDraft = selectOfficialDraft(eventDrafts);
-  const preferenceDrafts = selectPreferenceDrafts(eventDrafts);
+  const eventDrafts = useMemo(() => selectEventDrafts(state, selectedEvent), [selectedEvent, state]);
+  const officialDraft = useMemo(() => selectOfficialDraft(eventDrafts), [eventDrafts]);
+  const preferenceDrafts = useMemo(() => selectPreferenceDrafts(eventDrafts), [eventDrafts]);
+  const preferenceDraft = preferenceDrafts.find((draft) => draft.sourceType === "client_preference");
   const { audit, billing, briefing, disputes, documents, notifications, payments } = selectEventWorkspaceResources(state, selectedEvent);
   // This is a persisted read model. A failed load must not fall back to
   // browser-clock-derived urgency from workspace data.
@@ -153,6 +158,16 @@ export function ClientDashboardWorkspaceView({
   const clientActions = selectClientDashboardActions(resolvedActionCenter, selectedEvent?.id);
   const nextAction = selectNextAction(clientActions);
   const isEventScopedView = isEventScopedClientRoute(route, eventId);
+
+  useEffect(() => {
+    if (!selectedEvent) return;
+    if (preferenceDraft?.status === "revision_requested") {
+      const savedPreference = preferenceFormFromDraft(preferenceDraft);
+      if (savedPreference) setForm(savedPreference);
+      return;
+    }
+    if (!preferenceDraft) setForm(initialPreference);
+  }, [preferenceDraft, selectedEvent]);
 
   useEffect(() => {
     if (route !== "floorplan" || !officialDraft || !selectedEvent) {
@@ -252,6 +267,11 @@ export function ClientDashboardWorkspaceView({
   async function submitPreference(ev: FormEvent<HTMLFormElement>) {
     ev.preventDefault();
     if (!selectedEvent) return;
+    if (!canEditClientFloorPlanPreference(preferenceDraft)) {
+      setError("PMCM must reopen your layout preference before you can revise it.");
+      return;
+    }
+    const isResubmission = Boolean(preferenceDraft);
     setBusy("layout-preference");
     setError(null);
     setNotice(null);
@@ -261,7 +281,11 @@ export function ClientDashboardWorkspaceView({
         buildFloorPlanPreferencePayload(form, { venue: selectedEvent.eventName }),
       );
       await refresh();
-      setNotice("Floor plan draft saved. PMCM can review it, and approval will lock the plan.");
+      setNotice(
+        isResubmission
+          ? "Your revised layout preference was returned to PMCM."
+          : "Your layout preference was submitted to PMCM. You can revise it after PMCM reopens the request.",
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit layout preference");
     } finally {
