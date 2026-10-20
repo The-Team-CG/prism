@@ -70,33 +70,7 @@ export class OperationsPrivacyRedactorService implements OperationsPrivacyRedact
   ): Promise<OperationsRedactionResult> {
     if (!input.eventId || !input.recordId) throw new BadRequestException('Guest record redaction requires an event and record id');
     if (input.recordType === 'guest_check_in') {
-      const checkIn = await transaction.opsGuestCheckIn.findFirst({
-        where: { id: input.recordId, eventId: input.eventId },
-        select: { id: true, rosterEntryId: true },
-      });
-      if (!checkIn) return { surfaces: [], touchedRecords: 0 };
-      const checkInUpdate = await transaction.opsGuestCheckIn.updateMany({
-        where: { id: checkIn.id, eventId: input.eventId },
-        data: { guestName: 'Redacted guest' },
-      });
-      let rosterTouched = 0;
-      if (checkIn.rosterEntryId) {
-        const entry = await transaction.opsGuestRosterEntry.findFirst({
-          where: { id: checkIn.rosterEntryId, eventId: input.eventId },
-          select: { id: true },
-        });
-        if (entry) {
-          await this.redactRosterEntry(transaction, input.eventId, entry.id);
-          rosterTouched = 1;
-        }
-      }
-      return {
-        surfaces: [
-          ...(rosterTouched ? ['guest_roster_entry'] : []),
-          ...(checkInUpdate.count ? ['guest_check_in'] : []),
-        ],
-        touchedRecords: rosterTouched + checkInUpdate.count,
-      };
+      return this.redactCheckInRecord(transaction, input.eventId, input.recordId);
     }
 
     const feedback = await transaction.opsGuestFeedback.findFirst({
@@ -123,6 +97,40 @@ export class OperationsPrivacyRedactorService implements OperationsPrivacyRedact
         ...(feedbackUpdate.count ? ['guest_feedback'] : []),
       ],
       touchedRecords: media.count + feedbackUpdate.count,
+    };
+  }
+
+  private async redactCheckInRecord(
+    transaction: Prisma.TransactionClient,
+    eventId: string,
+    recordId: string,
+  ): Promise<OperationsRedactionResult> {
+    const checkIn = await transaction.opsGuestCheckIn.findFirst({
+      where: { id: recordId, eventId },
+      select: { id: true, rosterEntryId: true },
+    });
+    if (!checkIn) return { surfaces: [], touchedRecords: 0 };
+    const checkInUpdate = await transaction.opsGuestCheckIn.updateMany({
+      where: { id: checkIn.id, eventId },
+      data: { guestName: 'Redacted guest' },
+    });
+    let rosterTouched = 0;
+    if (checkIn.rosterEntryId) {
+      const entry = await transaction.opsGuestRosterEntry.findFirst({
+        where: { id: checkIn.rosterEntryId, eventId },
+        select: { id: true },
+      });
+      if (entry) {
+        await this.redactRosterEntry(transaction, eventId, entry.id);
+        rosterTouched = 1;
+      }
+    }
+    return {
+      surfaces: [
+        ...(rosterTouched ? ['guest_roster_entry'] : []),
+        ...(checkInUpdate.count ? ['guest_check_in'] : []),
+      ],
+      touchedRecords: rosterTouched + checkInUpdate.count,
     };
   }
 
