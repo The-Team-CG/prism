@@ -145,6 +145,3 @@ export type JsonObject = { [key: string]: JsonValue };
 export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
 
 export const asArray = <T>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
-
-export const asObject = <T extends object>(value: unknown): T | null =>
-  value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as T) : null;
