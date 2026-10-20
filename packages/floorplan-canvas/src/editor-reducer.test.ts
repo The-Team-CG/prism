@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { findTableAssignmentRejection } from "@prism/types";
 import { initialState } from "./store";
 import { reducer } from "./editor-reducer";
 import type { CanvasObject, Guest, Project } from "./types";
@@ -70,6 +71,8 @@ describe("table assignment eligibility in the floorplan editor", () => {
     const moved = reducer(seated, { type: "ASSIGN_GUEST", guestId: "g-ana", objectId: "t2" });
     expect(moved.project.objects.map((o) => o.assignedGuestIds)).toEqual([[], ["g-ana"]]);
     expect(reducer(moved, { type: "UNDO" }).project.objects.find((o) => o.id === "t1")?.assignedGuestIds).toEqual(["g-ana"]);
+    // The editor never leaves a guest listed at two tables, so the shared whole-plan check passes after a move.
+    expect(findTableAssignmentRejection(moved.project.objects, moved.project.guests)).toBeNull();
   });
 
   it.each([

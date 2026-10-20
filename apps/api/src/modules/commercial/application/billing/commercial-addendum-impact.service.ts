@@ -1,11 +1,19 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { toPrismaJson } from '@prism/kernel/database';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type {
   ApplyCommercialAddendumInput,
+  CommercialAddendumConformeTrace,
   CommercialAddendumImpact,
   CommercialAddendumImpactWriter,
+  RecordAddendumConformeInput,
 } from '../../contracts/addendum-impact-writer.port';
+
+function addendumLineLabel(versionNumber: number) {
+  return `Addendum v${versionNumber} scope change`;
+}
+
+type StoredLineItem = { label?: unknown; addendumId?: unknown; addendumConforme?: unknown } & Record<string, unknown>;
 
 @Injectable()
 export class CommercialAddendumImpactService implements CommercialAddendumImpactWriter {
@@ -20,7 +28,7 @@ export class CommercialAddendumImpactService implements CommercialAddendumImpact
       });
       if (!source) throw new BadRequestException('An approved billing source is required before applying a financial addendum');
       const items = Array.isArray(source.lineItems) ? [...source.lineItems as unknown[]] : [];
-      items.push({ label: `Addendum v${input.versionNumber} scope change`, amount: input.financialDelta });
+      items.push({ label: addendumLineLabel(input.versionNumber), amount: input.financialDelta, addendumId: input.addendumId });
       const updated = await prisma.opsBillingSource.update({
         where: { id: source.id },
         data: { totalAmount: source.totalAmount + input.financialDelta, lineItems: toPrismaJson(items) },
@@ -51,5 +59,29 @@ export class CommercialAddendumImpactService implements CommercialAddendumImpact
     }
 
     return impacts;
+  }
+
+  async recordConformeExecution(input: RecordAddendumConformeInput, transaction: PrismTransactionContext): Promise<CommercialAddendumConformeTrace | null> {
+    const prisma = transaction.prisma;
+    const source = await prisma.opsBillingSource.findFirst({ where: { id: input.billingSourceId, eventId: input.eventId } });
+    if (!source) return null;
+    const items = Array.isArray(source.lineItems) ? (source.lineItems as StoredLineItem[]) : [];
+    const index = items.findIndex((item) => item?.addendumId === input.addendumId);
+    if (index === -1) return null;
+
+    const reference = {
+      executionId: input.executionId,
+      addendumId: input.addendumId,
+      versionNumber: input.versionNumber,
+      documentSha256: input.documentSha256,
+      executedAt: input.executedAt,
+    };
+    const bound = items[index]?.addendumConforme as { executionId?: unknown } | undefined;
+    if (bound?.executionId === input.executionId) return { billingSourceId: source.id };
+    if (bound) throw new ConflictException('This addendum billing line is already bound to a different conforme execution');
+
+    const updated = items.map((item, position) => (position === index ? { ...item, addendumConforme: reference } : item));
+    await prisma.opsBillingSource.update({ where: { id: source.id }, data: { lineItems: toPrismaJson(updated) } });
+    return { billingSourceId: source.id };
   }
 }
