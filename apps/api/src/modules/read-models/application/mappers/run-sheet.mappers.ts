@@ -97,38 +97,55 @@ export function isOpenRunSheetIssue(issue: PrismUrgentIssue) {
  *   before the window start are still open and are marked `carriedOver`.
  */
 export function buildRunSheetEntries(sources: RunSheetEntrySources): PrismRunSheetEntry[] {
-  const { start, end } = runSheetWindow(sources.day);
-  const inWindow = (ms: number) => ms >= start && ms < end;
-  const entries: PrismRunSheetEntry[] = [];
+  const window = runSheetWindow(sources.day);
+  return [
+    ...segmentEntries(sources.day),
+    ...supplierWindowEntries(sources, window),
+    ...taskEntries(sources.tasks, window),
+    ...issueEntries(sources.issues, window),
+  ].sort(compareRunSheetEntries);
+}
 
-  for (const segment of sources.day.segments) {
-    entries.push(entry('segment', segment.id, {
-      at: segment.plannedStartAt,
-      endAt: segment.plannedEndAt,
-      title: segment.title,
-      status: segment.status,
-      ownerLabel: segment.ownerRole,
-      location: segment.location,
-    }));
-  }
+type RunSheetWindow = ReturnType<typeof runSheetWindow>;
 
+function isInWindow(ms: number, window: RunSheetWindow) {
+  return ms >= window.start && ms < window.end;
+}
+
+function segmentEntries(day: PrismEventScheduleDay): PrismRunSheetEntry[] {
+  return day.segments.map((segment) => entry('segment', segment.id, {
+    at: segment.plannedStartAt,
+    endAt: segment.plannedEndAt,
+    title: segment.title,
+    status: segment.status,
+    ownerLabel: segment.ownerRole,
+    location: segment.location,
+  }));
+}
+
+function supplierWindowEntries(sources: RunSheetEntrySources, window: RunSheetWindow): PrismRunSheetEntry[] {
   const suppliers = new Map(sources.visibleSuppliers.map((supplier) => [supplier.id, supplier]));
-  for (const window of sources.supplierWindows) {
-    const supplier = suppliers.get(window.requestId);
+  const entries: PrismRunSheetEntry[] = [];
+  for (const supplierWindow of sources.supplierWindows) {
+    const supplier = suppliers.get(supplierWindow.requestId);
     if (!supplier) continue;
-    const shared = { status: window.status, ownerLabel: supplier.category, location: window.location };
-    if (inWindow(window.ingressAt.getTime())) {
-      entries.push(entry('ingress', window.id, { ...shared, at: window.ingressAt.toISOString(), endAt: null, title: `${supplier.supplierName} ingress` }));
+    const shared = { status: supplierWindow.status, ownerLabel: supplier.category, location: supplierWindow.location };
+    if (isInWindow(supplierWindow.ingressAt.getTime(), window)) {
+      entries.push(entry('ingress', supplierWindow.id, { ...shared, at: supplierWindow.ingressAt.toISOString(), endAt: null, title: `${supplier.supplierName} ingress` }));
     }
-    if (inWindow(window.egressAt.getTime())) {
-      entries.push(entry('egress', window.id, { ...shared, at: window.egressAt.toISOString(), endAt: null, title: `${supplier.supplierName} egress` }));
+    if (isInWindow(supplierWindow.egressAt.getTime(), window)) {
+      entries.push(entry('egress', supplierWindow.id, { ...shared, at: supplierWindow.egressAt.toISOString(), endAt: null, title: `${supplier.supplierName} egress` }));
     }
   }
+  return entries;
+}
 
-  for (const task of sources.tasks) {
+function taskEntries(tasks: PrismEventDayTask[], window: RunSheetWindow): PrismRunSheetEntry[] {
+  const entries: PrismRunSheetEntry[] = [];
+  for (const task of tasks) {
     if (!task.dueAt || !isOpenRunSheetTask(task)) continue;
     const at = Date.parse(task.dueAt);
-    if (Number.isNaN(at) || at >= end) continue;
+    if (Number.isNaN(at) || at >= window.end) continue;
     entries.push(entry('task_due', task.id, {
       at: new Date(at).toISOString(),
       endAt: null,
@@ -137,14 +154,18 @@ export function buildRunSheetEntries(sources: RunSheetEntrySources): PrismRunShe
       ownerLabel: ownerLabel(task.assignedRole, task.ownerName),
       location: '',
       severity: task.priority || null,
-      carriedOver: at < start,
+      carriedOver: at < window.start,
     }));
   }
+  return entries;
+}
 
-  for (const issue of sources.issues) {
+function issueEntries(issues: PrismUrgentIssue[], window: RunSheetWindow): PrismRunSheetEntry[] {
+  const entries: PrismRunSheetEntry[] = [];
+  for (const issue of issues) {
     if (!isOpenRunSheetIssue(issue)) continue;
     const at = Date.parse(issue.createdAt);
-    if (Number.isNaN(at) || at >= end) continue;
+    if (Number.isNaN(at) || at >= window.end) continue;
     entries.push(entry('issue', issue.id, {
       at: new Date(at).toISOString(),
       endAt: null,
@@ -153,11 +174,10 @@ export function buildRunSheetEntries(sources: RunSheetEntrySources): PrismRunShe
       ownerLabel: ownerLabel(issue.ownerRole, issue.ownerName),
       location: issue.affectedArea,
       severity: issue.severity || null,
-      carriedOver: at < start,
+      carriedOver: at < window.start,
     }));
   }
-
-  return entries.sort(compareRunSheetEntries);
+  return entries;
 }
 
 export function compareRunSheetEntries(left: PrismRunSheetEntry, right: PrismRunSheetEntry) {
