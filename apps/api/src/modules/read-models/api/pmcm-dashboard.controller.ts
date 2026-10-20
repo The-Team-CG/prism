@@ -39,6 +39,14 @@ export class OpsPmcmDashboardController {
     return this.eventReadModelsService.pmcmEventWorkspace(actor, eventId, this.mappers());
   }
 
+  /** FL-022: PMCM-only supplier readiness for one event; suppliers, clients, and coordinators are forbidden. */
+  @Get('events/:eventId/supplier-readiness')
+  @UseGuards(EventSessionGuard)
+  supplierReadiness(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.eventReadModelsService.pmcmSupplierReadinessBoard(actor, eventId);
+  }
+
   @Get('coordinators/:coordinatorId/reliability-history')
   @UseGuards(EventSessionGuard)
   coordinatorReliabilityHistory(

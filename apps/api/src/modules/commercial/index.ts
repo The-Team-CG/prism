@@ -18,6 +18,7 @@ export { ProposalLifecycleService, PROPOSAL_LIFECYCLE_POLICY } from './applicati
 export * from './api/quotes/proposal-lifecycle.controller';
 export * from './api/quotes/quote-requests.controller';
 export * from './domain/supplier-quote-request.policy';
+export { supplierIngressLateGraceMinutes } from './application/suppliers/supplier-ingress-late-policy';
 export { isPrimaryClientContact, nextProposalClientReview, MAX_PROPOSAL_REVISIONS } from './domain/proposal-client-review.policy';
 export * from './application/quotes/supplier-quote.mappers';
 export * from './commercial-addendum-impact.module';

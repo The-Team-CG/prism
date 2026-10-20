@@ -67,6 +67,9 @@ describe('OpsQuoteRequestsController', () => {
           accessToken: 'token-sample',
           confidentialBid: false,
           status: 'open',
+          eventDayVerificationStatus: 'verified',
+          eventDayVerifiedBy: 'PMCM-SENTINEL-verifier',
+          eventDayVerificationNotes: 'PMCM-SENTINEL-note',
           createdAt: now,
         },
         event: {
@@ -82,7 +85,8 @@ describe('OpsQuoteRequestsController', () => {
     };
     const controller = new OpsQuoteRequestsController(commercialWorkflowService as any);
 
-    await expect(controller.getRequest('token-sample')).resolves.toMatchObject({
+    const tokenDetail = await controller.getRequest('token-sample');
+    expect(tokenDetail).toMatchObject({
       eventId: 'evt_sample',
       eventName: 'Ayala Tech Summit',
       clientName: 'Ana Reyes',
@@ -93,6 +97,10 @@ describe('OpsQuoteRequestsController', () => {
         inclusions: ['Audio', 'Lights'],
       },
     });
+    // The supplier token page is supplier-reachable: PMCM review data must not appear in it.
+    expect(JSON.stringify(tokenDetail)).not.toContain('PMCM-SENTINEL');
+    expect(tokenDetail.request).not.toHaveProperty('eventDayVerifiedBy');
+    expect(tokenDetail.request).not.toHaveProperty('eventDayVerificationNotes');
     const submitted = await controller.submitQuote('token-sample', { amount: 180000, inclusions: ['Audio'] });
     const revised = await controller.reviseQuote('token-sample', { amount: 175000 });
 
