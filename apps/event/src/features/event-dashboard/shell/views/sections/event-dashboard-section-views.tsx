@@ -12,17 +12,12 @@ import { CommandHomePage } from "./command-home-page";
 import { EventQueueCard } from "./event-queue-card";
 import { humanizeToken } from "@/features/pmcm-kit/model/formatters";
 import {
-  AlertTriangle,
   CalendarDays,
   CircleUserRound,
-  FileCheck2,
   FileText,
-  LayoutGrid,
-  MapPinned,
   MessageSquareText,
   ReceiptText,
   ShieldCheck,
-  Truck,
   UsersRound,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -31,14 +26,11 @@ import { EmptyState } from "@/app/components/ui/empty-state";
 import { ClientOnboardingTracker } from "@/features/clients/onboarding";
 import { InquiryIntakeLog } from "@/features/inquiries/intake";
 import { ConformeDraftReviewView } from "@/features/inquiries/conforme-drafts";
-import { PAREPanel } from "@/features/pare/panel";
-import { Phase4Workspace } from "@/features/closure/phase4";
 import { EventArchiveSearchView } from "@/features/closure/archive";
 import { CoordinatorAssignmentDesk } from "@/features/coordinators/desk";
-import { EventCommandInbox, EventOverviewPanels } from "@/features/command-inbox/list";
+import { EventCommandInbox } from "@/features/command-inbox/list";
 import { FinancialWorkspace } from "@/features/finance/workspace";
-import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
-import { SupplierDirectory, SupplierQuotePlanner } from "@/features/suppliers/directory";
+import { SupplierDirectory } from "@/features/suppliers/directory";
 import { SupplierApplicationsInboxView } from "@/features/suppliers/applications";
 import { AuditTrailPanel } from "@/features/audit/trail";
 import { EventMessagesWorkspace } from "@/features/event-dashboard/messages/views/event-messages-workspace";
