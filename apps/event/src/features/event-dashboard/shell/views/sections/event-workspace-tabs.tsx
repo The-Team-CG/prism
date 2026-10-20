@@ -1,6 +1,6 @@
 "use client";
 
-import { FileCheck2, LayoutGrid, MapPinned, Truck } from "lucide-react";
+import { FileCheck2, Gavel, LayoutGrid, MapPinned, Truck } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -16,6 +16,7 @@ import { FinancialWorkspace } from "@/features/finance/workspace";
 import { BillingAdjustmentsPanel } from "@/features/finance/billing-adjustments/views/billing-adjustments-panel";
 import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
 import { HandoffBriefPanel } from "@/features/live-ops/handoff-brief";
+import { DecisionLogPanel } from "@/features/decision-log";
 import { SupplierQuotePlanner } from "@/features/suppliers/directory";
 import { PmcmSupplierReadinessBoard } from "@/features/suppliers/readiness";
 import { PmcmSupplierWorkflowsPanel } from "@/features/suppliers/workflows/views/pmcm-supplier-workflows-panel";
@@ -371,6 +372,16 @@ export function EventWorkspaceClosureTab() {
       <FeedbackModerationPanel eventId={vm.selectedEvent.id} />
     </>
   );
+}
+
+/** PMCM-only (FL-019). Other roles get no panel here, and the API refuses them independently. */
+export function EventWorkspaceDecisionsTab() {
+  const vm = useEventDashboardLoadedRouteViewModel();
+  if (!vm.selectedEvent) return null;
+  if (!isPmcmAdmin(vm.session.role)) {
+    return <EmptyState icon={Gavel} title="Decision log is PMCM-only" description="Overrides, approvals, and scope decisions are visible to PMCM administrators." />;
+  }
+  return <DecisionLogPanel eventId={vm.selectedEvent.id} />;
 }
 
 export function EventWorkspaceActivityTab() {
