@@ -55,6 +55,17 @@ export interface EventOpsEventsContract {
       eventId: string,
       actor?: EventOpsActorQuery,
     ): Promise<PrismFileRequirementsMatrix>;
+    createFileRequirement(
+      eventId: string,
+      input: import("@prism/types").CreateFileRequirementInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<import("@prism/types").PrismFileRequirementItem>;
+    updateFileRequirement(
+      eventId: string,
+      key: string,
+      input: import("@prism/types").UpdateFileRequirementInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<import("@prism/types").PrismFileRequirementItem>;
     reviewProposal(
       eventId: string,
       input: ReviewEventProposalInput,

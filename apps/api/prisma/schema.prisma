@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   previewFeatures = ["partialIndexes"]
 }
 
@@ -110,25 +110,25 @@ model PublishedSnapshot {
 }
 
 model OpsUser {
-  id               String    @id
-  name             String
-  email            String    @unique(map: "users_email_key")
-  password         String
-  role             String
-  organization     String
-  approvalStatus   String    @default("pending") @map("approval_status")
-  failedLoginCount Int       @default(0) @map("failed_login_count")
-  lockoutCount     Int       @default(0) @map("lockout_count")
-  lockedUntil      DateTime? @map("locked_until")
-  permanentLockout Boolean   @default(false) @map("permanent_lockout")
-  lastLoginAt      DateTime? @map("last_login_at")
-  twoFactorSecret  String?   @map("two_factor_secret")
-  sessionVersion   Int       @default(0) @map("session_version")
+  id                           String    @id
+  name                         String
+  email                        String    @unique(map: "users_email_key")
+  password                     String
+  role                         String
+  organization                 String
+  approvalStatus               String    @default("pending") @map("approval_status")
+  failedLoginCount             Int       @default(0) @map("failed_login_count")
+  lockoutCount                 Int       @default(0) @map("lockout_count")
+  lockedUntil                  DateTime? @map("locked_until")
+  permanentLockout             Boolean   @default(false) @map("permanent_lockout")
+  lastLoginAt                  DateTime? @map("last_login_at")
+  twoFactorSecret              String?   @map("two_factor_secret")
+  sessionVersion               Int       @default(0) @map("session_version")
   twoFactorChallengeHash       String?   @unique(map: "users_two_factor_challenge_hash_key") @map("two_factor_challenge_hash")
   twoFactorChallengeExpiresAt  DateTime? @map("two_factor_challenge_expires_at")
   twoFactorChallengeAttempts   Int       @default(0) @map("two_factor_challenge_attempts")
   twoFactorChallengeConsumedAt DateTime? @map("two_factor_challenge_consumed_at")
-  createdAt        DateTime  @default(now()) @map("created_at")
+  createdAt                    DateTime  @default(now()) @map("created_at")
 
   passwordResetTokens OpsPasswordResetToken[]
   approvalRequests    OpsApprovalRequest[]
@@ -227,11 +227,11 @@ model OpsInquiry {
   marketingConsentAccepted  Boolean   @default(false) @map("marketing_consent_accepted")
   createdAt                 DateTime  @default(now()) @map("created_at")
 
-  events OpsEvent[]
-  statusHistory OpsInquiryStatusHistory[]
+  events             OpsEvent[]
+  statusHistory      OpsInquiryStatusHistory[]
   conformeExecutions OpsConformeExecution[]
-  mergesAsPrimary OpsInquiryMerge[] @relation("InquiryMergePrimary")
-  mergedInto      OpsInquiryMerge? @relation("InquiryMergeSource")
+  mergesAsPrimary    OpsInquiryMerge[]         @relation("InquiryMergePrimary")
+  mergedInto         OpsInquiryMerge?          @relation("InquiryMergeSource")
 
   @@index([status, createdAt], map: "inquiries_status_created_at_idx")
   @@index([source, createdAt], map: "inquiries_source_created_at_idx")
@@ -265,16 +265,16 @@ model OpsInquiryMerge {
 }
 
 model OpsInquiryStatusHistory {
-  id            String   @id
-  inquiryId     String   @map("inquiry_id")
-  eventId       String?  @map("event_id")
-  fromStatus    String?  @map("from_status")
-  toStatus      String   @map("to_status")
-  transition    String
-  actorId       String?  @map("actor_id")
-  actorRole     String?  @map("actor_role")
-  actorName     String?  @map("actor_name")
-  createdAt     DateTime @default(now()) @map("created_at")
+  id         String   @id
+  inquiryId  String   @map("inquiry_id")
+  eventId    String?  @map("event_id")
+  fromStatus String?  @map("from_status")
+  toStatus   String   @map("to_status")
+  transition String
+  actorId    String?  @map("actor_id")
+  actorRole  String?  @map("actor_role")
+  actorName  String?  @map("actor_name")
+  createdAt  DateTime @default(now()) @map("created_at")
 
   inquiry OpsInquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
 
@@ -285,42 +285,42 @@ model OpsInquiryStatusHistory {
 }
 
 model OpsEvent {
-  id                    String    @id
-  inquiryId             String    @map("inquiry_id")
-  clientName            String    @map("client_name")
-  eventName             String    @map("event_name")
-  eventDate             DateTime  @map("event_date")
-  walkInPolicy          String    @default("closed") @map("walk_in_policy")
-  walkInThreshold       Int       @default(200) @map("walk_in_threshold")
-  guestPrivacyClassification String @default("unclassified") @map("guest_privacy_classification")
-  actualEndedAt         DateTime? @map("actual_ended_at")
-  actualEndedBy         String?   @map("actual_ended_by")
-  status                String    @default("planning")
-  clientPortalStatus    String    @default("locked") @map("client_portal_status")
-  clientEventDayViewEnabled Boolean @default(false) @map("client_event_day_view_enabled")
-  readiness             String    @default("Conforme pending")
-  archived              Boolean   @default(false)
-  archivedAt            DateTime? @map("archived_at")
-  archiveOverrideReason String?   @map("archive_override_reason")
-  archiveOverrideBy     String?   @map("archive_override_by")
-  archiveChecklist      Json      @default("{}") @map("archive_checklist")
-  proposalClientStatus  String    @default("pending") @map("proposal_client_status")
-  proposalRevisionCount Int       @default(0) @map("proposal_revision_count")
-  proposalReviewedAt    DateTime? @map("proposal_reviewed_at")
-  proposalReviewedBy    String?   @map("proposal_reviewed_by")
-  freezeStatus          String    @default("open") @map("freeze_status")
-  freezeAt              DateTime? @map("freeze_at")
-  freezeDeadlineAt      DateTime? @map("freeze_deadline_at")
-  freezeReason          String    @default("") @map("freeze_reason")
-  floorPlanStatus       String    @default("not_started") @map("floor_plan_status")
-  floorPlanId           String?   @map("floor_plan_id")
-  floorPlanSubmittedAt  DateTime? @map("floor_plan_submitted_at")
-  floorPlanReviewedAt   DateTime? @map("floor_plan_reviewed_at")
-  floorPlanProjectionVersion Int @default(0) @map("floor_plan_projection_version")
-  createdAt             DateTime  @default(now()) @map("created_at")
-  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at")
+  id                         String    @id
+  inquiryId                  String    @map("inquiry_id")
+  clientName                 String    @map("client_name")
+  eventName                  String    @map("event_name")
+  eventDate                  DateTime  @map("event_date")
+  walkInPolicy               String    @default("closed") @map("walk_in_policy")
+  walkInThreshold            Int       @default(200) @map("walk_in_threshold")
+  guestPrivacyClassification String    @default("unclassified") @map("guest_privacy_classification")
+  actualEndedAt              DateTime? @map("actual_ended_at")
+  actualEndedBy              String?   @map("actual_ended_by")
+  status                     String    @default("planning")
+  clientPortalStatus         String    @default("locked") @map("client_portal_status")
+  clientEventDayViewEnabled  Boolean   @default(false) @map("client_event_day_view_enabled")
+  readiness                  String    @default("Conforme pending")
+  archived                   Boolean   @default(false)
+  archivedAt                 DateTime? @map("archived_at")
+  archiveOverrideReason      String?   @map("archive_override_reason")
+  archiveOverrideBy          String?   @map("archive_override_by")
+  archiveChecklist           Json      @default("{}") @map("archive_checklist")
+  proposalClientStatus       String    @default("pending") @map("proposal_client_status")
+  proposalRevisionCount      Int       @default(0) @map("proposal_revision_count")
+  proposalReviewedAt         DateTime? @map("proposal_reviewed_at")
+  proposalReviewedBy         String?   @map("proposal_reviewed_by")
+  freezeStatus               String    @default("open") @map("freeze_status")
+  freezeAt                   DateTime? @map("freeze_at")
+  freezeDeadlineAt           DateTime? @map("freeze_deadline_at")
+  freezeReason               String    @default("") @map("freeze_reason")
+  floorPlanStatus            String    @default("not_started") @map("floor_plan_status")
+  floorPlanId                String?   @map("floor_plan_id")
+  floorPlanSubmittedAt       DateTime? @map("floor_plan_submitted_at")
+  floorPlanReviewedAt        DateTime? @map("floor_plan_reviewed_at")
+  floorPlanProjectionVersion Int       @default(0) @map("floor_plan_projection_version")
+  createdAt                  DateTime  @default(now()) @map("created_at")
+  updatedAt                  DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  inquiry                     OpsInquiry                      @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  inquiry                     OpsInquiry                           @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
   documents                   OpsDocument[]
   briefings                   OpsBriefing[]
   complianceRules             OpsComplianceRule[]
@@ -330,6 +330,7 @@ model OpsEvent {
   postEventDocuments          OpsPostEventDocument[]
   wrapUpRecords               OpsEventWrapUp[]
   logisticsCompletion         OpsLogisticsCompletion?
+  fileRequirements            OpsFileRequirement[]
   eventInsights               OpsEventInsight[]
   decisionRecords             OpsEventDecision[]
   freezeExceptions            OpsEventFreezeException[]
@@ -441,7 +442,6 @@ model OpsPrivacyRequest {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
 
-
   @@index([status, createdAt], map: "privacy_requests_status_created_at_idx")
   @@index([status, dueAt], map: "privacy_requests_status_due_at_idx")
   @@index([assignedTo], map: "privacy_requests_assigned_to_idx")
@@ -536,13 +536,13 @@ model OpsFloorPlanDraft {
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  floorPlan FloorPlan @relation("OpsDraftLayout", fields: [floorPlanId], references: [id], onDelete: Cascade)
+  floorPlan         FloorPlan                      @relation("OpsDraftLayout", fields: [floorPlanId], references: [id], onDelete: Cascade)
   clientDecisions   OpsFloorPlanClientDecision[]
   clientAnnotations OpsFloorPlanClientAnnotation[]
 
+  @@unique([eventId], where: { isActive: true }, map: "floor_plan_drafts_one_active_per_event_key")
   @@index([eventId, status], map: "floor_plan_drafts_event_id_status_idx")
   @@index([eventId, isActive], map: "floor_plan_drafts_event_id_is_active_idx")
-  @@unique([eventId], where: { isActive: true }, map: "floor_plan_drafts_one_active_per_event_key")
   @@map("floor_plan_drafts")
   @@schema("floorplan")
 }
@@ -574,7 +574,7 @@ model OpsDocument {
   uploadedByRole    String?  @map("uploaded_by_role")
   uploadedAt        DateTime @default(now()) @map("uploaded_at")
 
-  event                 OpsEvent                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId, type], map: "documents_event_id_type_idx")
   @@map("documents")
@@ -582,20 +582,20 @@ model OpsDocument {
 }
 
 model OpsBriefing {
-  id                  String   @id
-  eventId             String   @map("event_id")
+  id                  String    @id
+  eventId             String    @map("event_id")
   venue               String
-  guestCount          Int      @map("guest_count")
-  budgetRange         String   @map("budget_range")
-  serviceRequirements Json     @default("[]") @map("service_requirements")
-  notes               String   @default("")
+  guestCount          Int       @map("guest_count")
+  budgetRange         String    @map("budget_range")
+  serviceRequirements Json      @default("[]") @map("service_requirements")
+  notes               String    @default("")
   confirmedDate       DateTime? @map("confirmed_date")
   confirmedStartTime  String?   @map("confirmed_start_time")
   confirmedEndTime    String?   @map("confirmed_end_time")
   program             Json      @default("[]")
   moodAndStyling      String    @default("") @map("mood_and_styling")
   stylingBudget       Int?      @map("styling_budget")
-  submittedAt         DateTime @default(now()) @map("submitted_at")
+  submittedAt         DateTime  @default(now()) @map("submitted_at")
 
   event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
@@ -605,16 +605,17 @@ model OpsBriefing {
 }
 
 model OpsCostEstimate {
-  id           String   @id
-  eventId      String   @map("event_id")
-  budgetAmount Int      @map("budget_amount")
-  totalAmount  Int      @map("total_amount")
-  status       String   @default("draft")
-  notes        String   @default("")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+  id           String                @id
+  eventId      String                @map("event_id")
+  budgetAmount Int                   @map("budget_amount")
+  totalAmount  Int                   @map("total_amount")
+  status       String                @default("draft")
+  notes        String                @default("")
+  createdAt    DateTime              @default(now()) @map("created_at")
+  updatedAt    DateTime              @default(now()) @updatedAt @map("updated_at")
   lines        OpsCostEstimateLine[]
   proposals    OpsProposalVersion[]
+
   @@unique([id, eventId], map: "cost_estimates_id_event_id_key")
   @@index([eventId, createdAt], map: "cost_estimates_event_id_created_at_idx")
   @@map("cost_estimates")
@@ -622,15 +623,15 @@ model OpsCostEstimate {
 }
 
 model OpsCostEstimateLine {
-  id             String @id
-  estimateId     String @map("estimate_id")
-  category       String
-  description    String
-  quantity       Decimal @db.Decimal(12, 3)
-  unitAmount     Int @map("unit_amount")
-  totalAmount    Int @map("total_amount")
-  sourceLineId   String? @map("source_line_id")
-  estimate       OpsCostEstimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  id           String          @id
+  estimateId   String          @map("estimate_id")
+  category     String
+  description  String
+  quantity     Decimal         @db.Decimal(12, 3)
+  unitAmount   Int             @map("unit_amount")
+  totalAmount  Int             @map("total_amount")
+  sourceLineId String?         @map("source_line_id")
+  estimate     OpsCostEstimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
 
   @@index([estimateId, category], map: "cost_estimate_lines_estimate_id_category_idx")
   @@map("cost_estimate_lines")
@@ -638,18 +639,19 @@ model OpsCostEstimateLine {
 }
 
 model OpsProposalVersion {
-  id             String   @id
-  eventId        String   @map("event_id")
-  costEstimateId String   @map("cost_estimate_id")
-  versionNumber  Int      @map("version_number")
+  id             String          @id
+  eventId        String          @map("event_id")
+  costEstimateId String          @map("cost_estimate_id")
+  versionNumber  Int             @map("version_number")
   title          String
-  summary        String   @default("")
-  totalAmount    Int      @map("total_amount")
-  status         String   @default("draft")
-  revisionNote   String   @default("") @map("revision_note")
-  issuedAt       DateTime? @map("issued_at")
-  createdAt      DateTime @default(now()) @map("created_at")
+  summary        String          @default("")
+  totalAmount    Int             @map("total_amount")
+  status         String          @default("draft")
+  revisionNote   String          @default("") @map("revision_note")
+  issuedAt       DateTime?       @map("issued_at")
+  createdAt      DateTime        @default(now()) @map("created_at")
   costEstimate   OpsCostEstimate @relation(fields: [costEstimateId, eventId], references: [id, eventId], onDelete: Restrict, map: "proposal_versions_cost_estimate_event_fkey")
+
   @@unique([eventId, versionNumber], map: "proposal_versions_event_version_key")
   @@index([eventId, status], map: "proposal_versions_event_id_status_idx")
   @@map("proposal_versions")
@@ -657,21 +659,21 @@ model OpsProposalVersion {
 }
 
 model OpsEventFreezeException {
-  id              String    @id
-  eventId         String    @map("event_id")
-  requestedChange String    @map("requested_change")
-  reason          String
-  status          String    @default("pending")
-  requestedBy     String    @map("requested_by")
-  decidedBy       String?   @map("decided_by")
-  decisionNote    String?   @map("decision_note")
-  requestedAt     DateTime  @default(now()) @map("requested_at")
-  decidedAt       DateTime? @map("decided_at")
+  id                   String        @id
+  eventId              String        @map("event_id")
+  requestedChange      String        @map("requested_change")
+  reason               String
+  status               String        @default("pending")
+  requestedBy          String        @map("requested_by")
+  decidedBy            String?       @map("decided_by")
+  decisionNote         String?       @map("decision_note")
+  requestedAt          DateTime      @default(now()) @map("requested_at")
+  decidedAt            DateTime?     @map("decided_at")
   // Single-use guard: set atomically with the decision or addendum that consumes an approved exception.
-  consumedAt          DateTime? @map("consumed_at")
-  consumedByDecisionId String?  @map("consumed_by_decision_id")
-  event           OpsEvent  @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  addenda         OpsAddendum[]
+  consumedAt           DateTime?     @map("consumed_at")
+  consumedByDecisionId String?       @map("consumed_by_decision_id")
+  event                OpsEvent      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  addenda              OpsAddendum[]
 
   @@index([eventId, status, requestedAt], map: "event_freeze_exceptions_event_status_requested_idx")
   @@map("event_freeze_exceptions")
@@ -679,24 +681,24 @@ model OpsEventFreezeException {
 }
 
 model OpsAddendum {
-  id                String   @id
-  eventId           String   @map("event_id")
-  versionNumber     Int      @map("version_number")
+  id                String                        @id
+  eventId           String                        @map("event_id")
+  versionNumber     Int                           @map("version_number")
   title             String
-  summary           String   @default("")
-  status            String   @default("issued")
-  documentId        String?  @map("document_id")
-  documentState     String   @default("pending") @map("document_state")
-  signatureMethod   String   @default("scanned_document") @map("signature_method")
-  contractSnapshot  Json     @map("contract_snapshot")
-  quoteSnapshot     Json     @map("quote_snapshot")
-  comparison        Json     @default("{}")
-  financialDelta    Int      @default(0) @map("financial_delta")
-  issuedAt          DateTime @default(now()) @map("issued_at")
-  createdAt         DateTime @default(now()) @map("created_at")
-  freezeExceptionId String?  @map("freeze_exception_id")
-  event             OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  freezeException   OpsEventFreezeException? @relation(fields: [freezeExceptionId], references: [id], onDelete: SetNull)
+  summary           String                        @default("")
+  status            String                        @default("issued")
+  documentId        String?                       @map("document_id")
+  documentState     String                        @default("pending") @map("document_state")
+  signatureMethod   String                        @default("scanned_document") @map("signature_method")
+  contractSnapshot  Json                          @map("contract_snapshot")
+  quoteSnapshot     Json                          @map("quote_snapshot")
+  comparison        Json                          @default("{}")
+  financialDelta    Int                           @default(0) @map("financial_delta")
+  issuedAt          DateTime                      @default(now()) @map("issued_at")
+  createdAt         DateTime                      @default(now()) @map("created_at")
+  freezeExceptionId String?                       @map("freeze_exception_id")
+  event             OpsEvent                      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  freezeException   OpsEventFreezeException?      @relation(fields: [freezeExceptionId], references: [id], onDelete: SetNull)
   impacts           OpsAddendumImpact[]
   scopeChangeRequests OpsScopeChangeRequest[]
   conformeExecution OpsAddendumConformeExecution?
@@ -708,16 +710,16 @@ model OpsAddendum {
 }
 
 model OpsAddendumImpact {
-  id          String   @id
-  eventId     String   @map("event_id")
-  addendumId  String   @map("addendum_id")
-  targetType  String   @map("target_type")
-  targetId    String   @map("target_id")
-  beforeValue Json     @map("before_value")
-  afterValue  Json     @map("after_value")
-  deltaAmount Int      @default(0) @map("delta_amount")
-  appliedAt   DateTime @default(now()) @map("applied_at")
-  event       OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  id          String      @id
+  eventId     String      @map("event_id")
+  addendumId  String      @map("addendum_id")
+  targetType  String      @map("target_type")
+  targetId    String      @map("target_id")
+  beforeValue Json        @map("before_value")
+  afterValue  Json        @map("after_value")
+  deltaAmount Int         @default(0) @map("delta_amount")
+  appliedAt   DateTime    @default(now()) @map("applied_at")
+  event       OpsEvent    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   addendum    OpsAddendum @relation(fields: [addendumId], references: [id], onDelete: Cascade)
 
   @@index([eventId, targetType, targetId], map: "addendum_impacts_event_target_idx")
@@ -755,19 +757,18 @@ model OpsSupplierQuoteRequest {
   contractDocumentId         String?   @map("contract_document_id")
   createdAt                  DateTime  @default(now()) @map("created_at")
 
-  supplier         OpsSupplier?         @relation(fields: [supplierId], references: [id], onDelete: SetNull)
-  categoryRef      OpsSupplierCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  schedule         OpsSupplierSchedule?
-  round            OpsSupplierQuoteRound? @relation(fields: [roundId], references: [id], onDelete: SetNull)
-  roundId          String? @map("round_id")
-  quotes           OpsSupplierQuote[]
-
-  @@unique([id, eventId], map: "quote_requests_id_event_id_key")
+  supplier          OpsSupplier?                  @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  categoryRef       OpsSupplierCategory?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  schedule          OpsSupplierSchedule?
+  round             OpsSupplierQuoteRound?        @relation(fields: [roundId], references: [id], onDelete: SetNull)
+  roundId           String?                       @map("round_id")
+  quotes            OpsSupplierQuote[]
   contractVersions  OpsSupplierContractVersion[]
   creativeTasks     OpsSupplierCreativeTask[]
   payableMilestones OpsSupplierPayableMilestone[]
   payoutRecords     OpsSupplierPayoutRecord[]
 
+  @@unique([id, eventId], map: "quote_requests_id_event_id_key")
   @@index([eventId, status], map: "quote_requests_event_id_status_idx")
   @@index([eventId, supplierId, status], map: "quote_requests_event_supplier_status_idx")
   @@index([supplierId], map: "quote_requests_supplier_id_idx")
@@ -779,41 +780,41 @@ model OpsSupplierQuoteRequest {
 }
 
 model OpsSupplierSchedule {
-  id         String   @id
-  eventId    String   @map("event_id")
-  requestId  String   @unique(map: "supplier_schedules_request_id_key") @map("request_id")
-  ingressAt  DateTime @map("ingress_at")
-  egressAt   DateTime @map("egress_at")
-  location   String   @default("")
-  notes      String   @default("")
-  status     String   @default("planned")
+  id                   String    @id
+  eventId              String    @map("event_id")
+  requestId            String    @unique(map: "supplier_schedules_request_id_key") @map("request_id")
+  ingressAt            DateTime  @map("ingress_at")
+  egressAt             DateTime  @map("egress_at")
+  location             String    @default("")
+  notes                String    @default("")
+  status               String    @default("planned")
   revision             Int       @default(1)
   acknowledgedRevision Int?      @map("acknowledged_revision")
   acknowledgedAt       DateTime? @map("acknowledged_at")
   acknowledgedBy       String?   @map("acknowledged_by")
   changeRequestNote    String?   @map("change_request_note")
   changeRequestedAt    DateTime? @map("change_requested_at")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at")
 
   request OpsSupplierQuoteRequest @relation(fields: [requestId, eventId], references: [id, eventId], onDelete: Cascade, map: "supplier_schedules_request_event_fkey")
 
-  @@index([eventId, ingressAt], map: "supplier_schedules_event_id_ingress_at_idx")
   @@unique([requestId, eventId], map: "supplier_schedules_request_id_event_id_key")
+  @@index([eventId, ingressAt], map: "supplier_schedules_event_id_ingress_at_idx")
   @@map("supplier_schedules")
   @@schema("commercial")
 }
 
 model OpsSupplierQuoteRound {
-  id         String   @id
-  eventId    String   @map("event_id")
-  categoryId String   @map("category_id")
-  roundNumber Int     @map("round_number")
-  status     String   @default("open")
-  createdAt  DateTime @default(now()) @map("created_at")
-  closedAt   DateTime? @map("closed_at")
+  id          String    @id
+  eventId     String    @map("event_id")
+  categoryId  String    @map("category_id")
+  roundNumber Int       @map("round_number")
+  status      String    @default("open")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  closedAt    DateTime? @map("closed_at")
 
-  category OpsSupplierCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  category OpsSupplierCategory       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   requests OpsSupplierQuoteRequest[]
 
   @@unique([eventId, categoryId, roundNumber], map: "supplier_quote_rounds_event_category_number_key")
@@ -846,8 +847,8 @@ model OpsSupplierQuote {
   updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at")
 
   request     OpsSupplierQuoteRequest? @relation(fields: [requestId], references: [id], onDelete: Restrict, map: "quotes_request_id_fkey")
-  supplier    OpsSupplier?         @relation(fields: [supplierId], references: [id], onDelete: SetNull)
-  categoryRef OpsSupplierCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  supplier    OpsSupplier?             @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  categoryRef OpsSupplierCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   payableMilestones OpsSupplierPayableMilestone[]
   payoutRecords     OpsSupplierPayoutRecord[]
@@ -898,15 +899,15 @@ model OpsSupplier {
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
 
-  category         OpsSupplierCategory          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  quoteRequests    OpsSupplierQuoteRequest[]
-  quotes           OpsSupplierQuote[]
-  reviews          OpsSupplierReview[]
-  reliabilityNotes OpsSupplierReliabilityNote[]
-  certifications   OpsSupplierCertification[]
-  application      OpsSupplierApplication?
-  promotions       OpsSupplierPromotion[]
-  availability     OpsSupplierAvailability[]
+  category          OpsSupplierCategory           @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  quoteRequests     OpsSupplierQuoteRequest[]
+  quotes            OpsSupplierQuote[]
+  reviews           OpsSupplierReview[]
+  reliabilityNotes  OpsSupplierReliabilityNote[]
+  certifications    OpsSupplierCertification[]
+  application       OpsSupplierApplication?
+  promotions        OpsSupplierPromotion[]
+  availability      OpsSupplierAvailability[]
   contractVersions  OpsSupplierContractVersion[]
   creativeTasks     OpsSupplierCreativeTask[]
   payableMilestones OpsSupplierPayableMilestone[]
@@ -937,8 +938,8 @@ model OpsSupplierContractVersion {
   reviewedBy     String?   @map("reviewed_by")
   createdAt      DateTime  @default(now()) @map("created_at")
 
-  request      OpsSupplierQuoteRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  supplier     OpsSupplier             @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  request  OpsSupplierQuoteRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  supplier OpsSupplier             @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
   @@unique([requestId, version], map: "supplier_contract_versions_request_version_key")
   @@index([eventId], map: "supplier_contract_versions_event_id_idx")
@@ -990,7 +991,7 @@ model OpsSupplierCreativeSubmission {
   submittedBy    String   @map("submitted_by")
   submittedAt    DateTime @default(now()) @map("submitted_at")
 
-  task         OpsSupplierCreativeTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task OpsSupplierCreativeTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, version], map: "supplier_creative_submissions_task_version_key")
   @@index([storedObjectId], map: "supplier_creative_submissions_object_id_idx")
@@ -1190,7 +1191,7 @@ model OpsClientReviewDecision {
   payloadHash    String   @map("payload_hash")
   createdAt      DateTime @default(now()) @map("created_at")
 
-  item  OpsClientReviewItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  item OpsClientReviewItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@unique([itemId, itemVersion, actorId], map: "client_review_decisions_item_version_actor_key")
   @@index([eventId], map: "client_review_decisions_event_id_idx")
@@ -1311,7 +1312,7 @@ model OpsSupplierReviewDimension {
   active     Boolean  @default(true)
   createdAt  DateTime @default(now()) @map("created_at")
 
-  category OpsSupplierCategory               @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  category OpsSupplierCategory                @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   ratings  OpsSupplierReviewDimensionRating[]
 
   @@unique([categoryId, slug], map: "supplier_review_dimensions_category_id_slug_key")
@@ -1335,13 +1336,13 @@ model OpsSupplierReviewDimensionRating {
 }
 
 model OpsSupplierReliabilityNote {
-  id         String   @id
-  supplierId String   @map("supplier_id")
-  eventId    String?  @map("event_id")
-  note       String
-  createdBy  String?  @map("created_by")
-  idempotencyKey String? @unique(map: "supplier_reliability_notes_idempotency_key_key") @map("idempotency_key")
-  createdAt  DateTime @default(now()) @map("created_at")
+  id             String   @id
+  supplierId     String   @map("supplier_id")
+  eventId        String?  @map("event_id")
+  note           String
+  createdBy      String?  @map("created_by")
+  idempotencyKey String?  @unique(map: "supplier_reliability_notes_idempotency_key_key") @map("idempotency_key")
+  createdAt      DateTime @default(now()) @map("created_at")
 
   supplier OpsSupplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
@@ -1370,34 +1371,34 @@ model OpsSupplierCertification {
 }
 
 model OpsSupplierApplication {
-  id                      String    @id
-  companyName             String    @map("company_name")
-  contactName             String    @map("contact_name")
-  email                   String
-  normalizedEmail         String    @default("") @map("normalized_email")
-  phone                   String    @default("")
-  categoryId              String?   @map("category_id")
-  pastEvents              String    @default("") @map("past_events")
-  serviceInclusions       String    @default("") @map("service_inclusions")
-  certifications          String    @default("")
-  priceRange              String    @default("") @map("price_range")
-  bniMember               Boolean   @default(false) @map("bni_member")
-  portfolioUrl            String    @default("") @map("portfolio_url")
-  additionalNotes         String    @default("") @map("additional_notes")
-  status                  String    @default("pending")
-  declineReason           String?   @map("decline_reason")
-  reviewedAt              DateTime? @map("reviewed_at") @db.Timestamptz(6)
-  approvedAt              DateTime? @map("approved_at") @db.Timestamptz(6)
-  convertedSupplierId     String?   @unique(map: "supplier_applications_converted_supplier_id_key") @map("converted_supplier_id")
+  id                       String    @id
+  companyName              String    @map("company_name")
+  contactName              String    @map("contact_name")
+  email                    String
+  normalizedEmail          String    @default("") @map("normalized_email")
+  phone                    String    @default("")
+  categoryId               String?   @map("category_id")
+  pastEvents               String    @default("") @map("past_events")
+  serviceInclusions        String    @default("") @map("service_inclusions")
+  certifications           String    @default("")
+  priceRange               String    @default("") @map("price_range")
+  bniMember                Boolean   @default(false) @map("bni_member")
+  portfolioUrl             String    @default("") @map("portfolio_url")
+  additionalNotes          String    @default("") @map("additional_notes")
+  status                   String    @default("pending")
+  declineReason            String?   @map("decline_reason")
+  reviewedAt               DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  approvedAt               DateTime? @map("approved_at") @db.Timestamptz(6)
+  convertedSupplierId      String?   @unique(map: "supplier_applications_converted_supplier_id_key") @map("converted_supplier_id")
   conversionIdempotencyKey String?   @unique(map: "supplier_applications_conversion_idempotency_key_key") @map("conversion_idempotency_key")
   conversionPayloadHash    String?   @map("conversion_payload_hash")
-  privacyConsentAccepted  Boolean   @default(false) @map("privacy_consent_accepted")
-  privacyNoticeVersion    String    @default("") @map("privacy_notice_version")
-  createdAt               DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt               DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  privacyConsentAccepted   Boolean   @default(false) @map("privacy_consent_accepted")
+  privacyNoticeVersion     String    @default("") @map("privacy_notice_version")
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  category OpsSupplierCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  convertedSupplier OpsSupplier? @relation(fields: [convertedSupplierId], references: [id], onDelete: Restrict)
+  category          OpsSupplierCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  convertedSupplier OpsSupplier?         @relation(fields: [convertedSupplierId], references: [id], onDelete: Restrict)
 
   @@index([normalizedEmail, createdAt], map: "supplier_applications_normalized_email_created_at_idx")
   @@index([status], map: "supplier_applications_status_idx")
@@ -1476,7 +1477,6 @@ model OpsEventCoverageRequirement {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-
   @@unique([eventId, role], map: "event_coverage_requirements_event_id_role_key")
   @@index([eventId], map: "event_coverage_requirements_event_id_idx")
   @@map("event_coverage_requirements")
@@ -1505,12 +1505,12 @@ model OpsCoordinatorAssignment {
   acknowledgedBy         String?   @map("acknowledged_by")
   acknowledgementReason  String?   @map("acknowledgement_reason")
   withdrawalReason       String?   @map("withdrawal_reason")
-  withdrawnAt             DateTime? @map("withdrawn_at")
-  withdrawnBy             String?   @map("withdrawn_by")
+  withdrawnAt            DateTime? @map("withdrawn_at")
+  withdrawnBy            String?   @map("withdrawn_by")
   createdAt              DateTime  @default(now()) @map("created_at")
 
-  coordinator      OpsCoordinator?                 @relation(fields: [coordinatorId], references: [id], onDelete: SetNull)
-  reliabilityNotes OpsCoordinatorReliabilityNote[]
+  coordinator           OpsCoordinator?                          @relation(fields: [coordinatorId], references: [id], onDelete: SetNull)
+  reliabilityNotes      OpsCoordinatorReliabilityNote[]
   acknowledgmentHistory OpsCoordinatorAssignmentAcknowledgment[]
 
   @@index([eventId, status], map: "coordinator_assignments_event_id_status_idx")
@@ -1557,8 +1557,8 @@ model OpsEventDayTask {
 
   reassignmentRequests OpsEventTaskReassignmentRequest[]
 
-  @@index([eventId, status], map: "event_day_tasks_event_id_status_idx")
   @@unique([id, eventId], map: "event_day_tasks_id_event_id_key")
+  @@index([eventId, status], map: "event_day_tasks_event_id_status_idx")
   @@index([eventId, assignedRole], map: "event_day_tasks_event_id_assigned_role_idx")
   @@index([eventId, slaStatus], map: "event_day_tasks_event_id_sla_status_idx")
   @@map("event_day_tasks")
@@ -1566,26 +1566,26 @@ model OpsEventDayTask {
 }
 
 model OpsEventTaskReassignmentRequest {
-  id             String   @id
-  eventId        String   @map("event_id")
-  taskId         String   @map("task_id")
-  requestedBy    String   @map("requested_by")
-  requestedByRole String  @map("requested_by_role")
-  fromOwnerRole  String   @map("from_owner_role")
-  fromOwnerName  String   @map("from_owner_name")
-  toOwnerRole    String   @map("to_owner_role")
-  toOwnerName    String   @default("") @map("to_owner_name")
-  reason         String
-  status         String   @default("pending")
-  requestedAt   DateTime  @default(now()) @map("requested_at")
-  autoApproveAt DateTime  @map("auto_approve_at")
-  decidedAt     DateTime? @map("decided_at")
-  decidedBy     String?   @map("decided_by")
-  decisionReason String?  @map("decision_reason")
-  createdAt     DateTime   @default(now()) @map("created_at")
-  updatedAt     DateTime   @default(now()) @updatedAt @map("updated_at")
+  id              String    @id
+  eventId         String    @map("event_id")
+  taskId          String    @map("task_id")
+  requestedBy     String    @map("requested_by")
+  requestedByRole String    @map("requested_by_role")
+  fromOwnerRole   String    @map("from_owner_role")
+  fromOwnerName   String    @map("from_owner_name")
+  toOwnerRole     String    @map("to_owner_role")
+  toOwnerName     String    @default("") @map("to_owner_name")
+  reason          String
+  status          String    @default("pending")
+  requestedAt     DateTime  @default(now()) @map("requested_at")
+  autoApproveAt   DateTime  @map("auto_approve_at")
+  decidedAt       DateTime? @map("decided_at")
+  decidedBy       String?   @map("decided_by")
+  decisionReason  String?   @map("decision_reason")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  task  OpsEventDayTask @relation(fields: [taskId, eventId], references: [id, eventId], onDelete: Restrict, map: "task_reassignment_requests_task_event_fkey")
+  task OpsEventDayTask @relation(fields: [taskId, eventId], references: [id, eventId], onDelete: Restrict, map: "task_reassignment_requests_task_event_fkey")
 
   @@index([eventId, status, requestedAt], map: "task_reassignment_requests_event_status_requested_idx")
   @@index([taskId, createdAt], map: "task_reassignment_requests_task_created_idx")
@@ -1602,8 +1602,8 @@ model OpsEventScheduleDay {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
-  segments OpsEventScheduleSegment[]
-  handoffs OpsEventHandoff[]
+  segments   OpsEventScheduleSegment[]
+  handoffs   OpsEventHandoff[]
   eodReports OpsEventEodReport[]
 
   @@unique([eventId, dayDate], map: "event_schedule_days_event_id_day_date_key")
@@ -1645,7 +1645,6 @@ model OpsEventOperatorDesignation {
   revokedBy     String?   @map("revoked_by")
   createdAt     DateTime  @default(now()) @map("created_at")
 
-
   @@index([eventId, revokedAt], map: "event_operator_designations_event_id_revoked_at_idx")
   @@index([coordinatorId, revokedAt], map: "event_operator_designations_coordinator_id_revoked_at_idx")
   @@map("event_operator_designations")
@@ -1653,19 +1652,19 @@ model OpsEventOperatorDesignation {
 }
 
 model OpsEventHandoff {
-  id                 String   @id
-  eventId            String   @map("event_id")
-  dayId              String   @map("day_id")
-  role               String
-  fromAssignmentId   String   @map("from_assignment_id")
-  toAssignmentId     String   @map("to_assignment_id")
-  handedOffBy        String   @map("handed_off_by")
-  receivedBy         String   @map("received_by")
-  handedOffAt        DateTime @map("handed_off_at")
-  outstandingItems   Json     @default("[]") @map("outstanding_items")
-  createdAt          DateTime @default(now()) @map("created_at")
+  id               String   @id
+  eventId          String   @map("event_id")
+  dayId            String   @map("day_id")
+  role             String
+  fromAssignmentId String   @map("from_assignment_id")
+  toAssignmentId   String   @map("to_assignment_id")
+  handedOffBy      String   @map("handed_off_by")
+  receivedBy       String   @map("received_by")
+  handedOffAt      DateTime @map("handed_off_at")
+  outstandingItems Json     @default("[]") @map("outstanding_items")
+  createdAt        DateTime @default(now()) @map("created_at")
 
-  day   OpsEventScheduleDay  @relation(fields: [dayId, eventId], references: [id, eventId], onDelete: Restrict, map: "event_handoffs_day_event_fkey")
+  day OpsEventScheduleDay @relation(fields: [dayId, eventId], references: [id, eventId], onDelete: Restrict, map: "event_handoffs_day_event_fkey")
 
   @@index([eventId, dayId, handedOffAt], map: "event_handoffs_event_day_time_idx")
   @@index([fromAssignmentId], map: "event_handoffs_from_assignment_idx")
@@ -1675,19 +1674,19 @@ model OpsEventHandoff {
 }
 
 model OpsEventEodReport {
-  id                 String    @id
-  eventId            String    @map("event_id")
-  dayId              String    @map("day_id")
-  authoredBy         String    @map("authored_by")
-  authoredByRole     String    @map("authored_by_role")
-  progress           Json      @default("[]")
-  issues             Json      @default("[]")
-  risksForTomorrow   Json      @default("[]") @map("risks_for_tomorrow")
-  submittedAt        DateTime  @map("submitted_at")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
+  id               String   @id
+  eventId          String   @map("event_id")
+  dayId            String   @map("day_id")
+  authoredBy       String   @map("authored_by")
+  authoredByRole   String   @map("authored_by_role")
+  progress         Json     @default("[]")
+  issues           Json     @default("[]")
+  risksForTomorrow Json     @default("[]") @map("risks_for_tomorrow")
+  submittedAt      DateTime @map("submitted_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
 
-  day     OpsEventScheduleDay  @relation(fields: [dayId, eventId], references: [id, eventId], onDelete: Restrict, map: "event_eod_reports_day_event_fkey")
+  day     OpsEventScheduleDay @relation(fields: [dayId, eventId], references: [id, eventId], onDelete: Restrict, map: "event_eod_reports_day_event_fkey")
   replies OpsEventEodReply[]
 
   @@unique([eventId, dayId], map: "event_eod_reports_event_id_day_id_key")
@@ -1733,7 +1732,6 @@ model OpsUrgentIssue {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
-
   @@index([eventId, status], map: "urgent_issues_event_id_status_idx")
   @@index([eventId, severity], map: "urgent_issues_event_id_severity_idx")
   @@index([eventId, slaStatus], map: "urgent_issues_event_id_sla_status_idx")
@@ -1752,7 +1750,6 @@ model OpsEventDayLog {
   relatedId   String?  @map("related_id")
   metadata    Json     @default("{}")
   createdAt   DateTime @default(now()) @map("created_at")
-
 
   @@index([eventId, createdAt], map: "event_day_logs_event_id_created_at_idx")
   @@index([eventId, actionType], map: "event_day_logs_event_id_action_type_idx")
@@ -1780,20 +1777,20 @@ model OpsCoordinatorReliabilityNote {
 }
 
 model OpsComplianceRule {
-  id           String   @id
-  eventId      String?  @map("event_id")
-  eventType    String   @default("") @map("event_type")
-  phase        String   @default("planning")
-  severity     String   @default("must_fix")
-  layer        String   @default("Must-Fix")
-  conditionKey String   @map("condition_key")
-  title        String
-  note         String   @default("")
-  active       Boolean  @default(true)
-  definitionStatus String  @default("PROVISIONAL") @map("definition_status")
-  remediation  String   @default("")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+  id               String   @id
+  eventId          String?  @map("event_id")
+  eventType        String   @default("") @map("event_type")
+  phase            String   @default("planning")
+  severity         String   @default("must_fix")
+  layer            String   @default("Must-Fix")
+  conditionKey     String   @map("condition_key")
+  title            String
+  note             String   @default("")
+  active           Boolean  @default(true)
+  definitionStatus String   @default("PROVISIONAL") @map("definition_status")
+  remediation      String   @default("")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
 
   event  OpsEvent?            @relation(fields: [eventId], references: [id], onDelete: Cascade)
   checks OpsComplianceCheck[]
@@ -1807,27 +1804,27 @@ model OpsComplianceRule {
 }
 
 model OpsComplianceCheck {
-  id             String    @id
-  eventId        String    @map("event_id")
-  ruleId         String?   @map("rule_id")
-  layer          String
-  severity       String    @default("must_fix")
-  phase          String    @default("planning")
-  conditionKey   String    @default("") @map("condition_key")
-  title          String
-  status         String    @default("open")
-  note           String    @default("")
-  resolvedAt     DateTime? @map("resolved_at")
-  resolvedBy     String?   @map("resolved_by")
-  overrideReason String?   @map("override_reason")
-  overrideAt     DateTime? @map("override_at")
-  overrideBy     String?   @map("override_by")
-  runId          String?   @map("run_id")
-  evaluationStatus String  @default("not_satisfied") @map("evaluation_status")
-  evidence       Json      @default("[]")
-  definitionStatus String  @default("PROVISIONAL") @map("definition_status")
-  remediation    String    @default("")
-  createdAt      DateTime  @default(now()) @map("created_at")
+  id               String    @id
+  eventId          String    @map("event_id")
+  ruleId           String?   @map("rule_id")
+  layer            String
+  severity         String    @default("must_fix")
+  phase            String    @default("planning")
+  conditionKey     String    @default("") @map("condition_key")
+  title            String
+  status           String    @default("open")
+  note             String    @default("")
+  resolvedAt       DateTime? @map("resolved_at")
+  resolvedBy       String?   @map("resolved_by")
+  overrideReason   String?   @map("override_reason")
+  overrideAt       DateTime? @map("override_at")
+  overrideBy       String?   @map("override_by")
+  runId            String?   @map("run_id")
+  evaluationStatus String    @default("not_satisfied") @map("evaluation_status")
+  evidence         Json      @default("[]")
+  definitionStatus String    @default("PROVISIONAL") @map("definition_status")
+  remediation      String    @default("")
+  createdAt        DateTime  @default(now()) @map("created_at")
 
   event OpsEvent           @relation(fields: [eventId], references: [id], onDelete: Cascade)
   rule  OpsComplianceRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
@@ -1852,7 +1849,7 @@ model OpsComplianceRun {
   ruleCount   Int       @default(0) @map("rule_count")
   createdAt   DateTime  @default(now()) @map("created_at")
 
-  event  OpsEvent            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event  OpsEvent             @relation(fields: [eventId], references: [id], onDelete: Cascade)
   checks OpsComplianceCheck[]
 
   @@index([eventId, createdAt], map: "compliance_runs_event_id_created_at_idx")
@@ -1862,23 +1859,23 @@ model OpsComplianceRun {
 }
 
 model OpsComplianceRisk {
-  id          String    @id
-  eventId     String    @map("event_id")
-  phase       String
-  ruleId      String?   @map("rule_id")
-  title       String
-  severity    String    @default("medium")
-  owner       String    @default("")
-  mitigation  String    @default("")
-  status      String    @default("open")
-  source      String    @default("rule")
-  closedAt    DateTime? @map("closed_at")
-  closedBy    String?   @map("closed_by")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+  id         String    @id
+  eventId    String    @map("event_id")
+  phase      String
+  ruleId     String?   @map("rule_id")
+  title      String
+  severity   String    @default("medium")
+  owner      String    @default("")
+  mitigation String    @default("")
+  status     String    @default("open")
+  source     String    @default("rule")
+  closedAt   DateTime? @map("closed_at")
+  closedBy   String?   @map("closed_by")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  event  OpsEvent                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  rule   OpsComplianceRule?        @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  event   OpsEvent                   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  rule    OpsComplianceRule?         @relation(fields: [ruleId], references: [id], onDelete: SetNull)
   history OpsComplianceRiskHistory[]
 
   @@index([eventId, phase, status], map: "compliance_risks_event_id_phase_status_idx")
@@ -1989,28 +1986,28 @@ model OpsEventRiskAssessmentHistory {
 }
 
 model OpsBillingSource {
-  id               String    @id
-  eventId          String    @map("event_id")
-  sourceType       String    @default("ce_proposal") @map("source_type")
-  sourceLabel      String    @map("source_label")
-  sourceDocumentId String?   @map("source_document_id")
-  lineItems        Json      @default("[]") @map("line_items")
-  paymentSchedule  Json      @default("[]") @map("payment_schedule")
-  paymentMethods   Json      @default("[]") @map("payment_methods")
-  totalAmount      Int       @map("total_amount")
-  status           String    @default("draft")
-  approvedAt       DateTime? @map("approved_at")
-  approvedBy       String?   @map("approved_by")
-  approvalNotes    String    @default("") @map("approval_notes")
-  paymentTermsPolicyState String @default("standard") @map("payment_terms_policy_state")
-  paymentTermsOverrideReason String? @map("payment_terms_override_reason")
-  paymentTermsApprovedBy String? @map("payment_terms_approved_by")
-  idempotencyKey    String?   @unique(map: "billing_sources_idempotency_key_key") @map("idempotency_key")
-  payloadHash       String?   @map("payload_hash")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
+  id                         String    @id
+  eventId                    String    @map("event_id")
+  sourceType                 String    @default("ce_proposal") @map("source_type")
+  sourceLabel                String    @map("source_label")
+  sourceDocumentId           String?   @map("source_document_id")
+  lineItems                  Json      @default("[]") @map("line_items")
+  paymentSchedule            Json      @default("[]") @map("payment_schedule")
+  paymentMethods             Json      @default("[]") @map("payment_methods")
+  totalAmount                Int       @map("total_amount")
+  status                     String    @default("draft")
+  approvedAt                 DateTime? @map("approved_at")
+  approvedBy                 String?   @map("approved_by")
+  approvalNotes              String    @default("") @map("approval_notes")
+  paymentTermsPolicyState    String    @default("standard") @map("payment_terms_policy_state")
+  paymentTermsOverrideReason String?   @map("payment_terms_override_reason")
+  paymentTermsApprovedBy     String?   @map("payment_terms_approved_by")
+  idempotencyKey             String?   @unique(map: "billing_sources_idempotency_key_key") @map("idempotency_key")
+  payloadHash                String?   @map("payload_hash")
+  createdAt                  DateTime  @default(now()) @map("created_at")
+  updatedAt                  DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  billingStatements OpsBillingStatement[]
+  billingStatements  OpsBillingStatement[]
   additionalBillings OpsAdditionalBilling[]
 
   @@index([eventId, status], map: "billing_sources_event_id_status_idx")
@@ -2034,10 +2031,10 @@ model OpsBillingStatement {
   documentId      String?   @map("document_id")
   pdfUrl          String    @default("") @map("pdf_url")
   storageKey      String    @default("") @map("storage_key")
-  storageObjectId  String?   @map("storage_object_id")
-  storageState     String    @default("pending") @map("storage_state")
-  idempotencyKey   String?   @unique(map: "billing_statements_idempotency_key_key") @map("idempotency_key")
-  payloadHash      String?   @map("payload_hash")
+  storageObjectId String?   @map("storage_object_id")
+  storageState    String    @default("pending") @map("storage_state")
+  idempotencyKey  String?   @unique(map: "billing_statements_idempotency_key_key") @map("idempotency_key")
+  payloadHash     String?   @map("payload_hash")
   status          String    @default("issued")
   sentAt          DateTime? @map("sent_at")
   generatedAt     DateTime  @default(now()) @map("generated_at")
@@ -2074,7 +2071,7 @@ model OpsPaymentMilestone {
   status           String   @default("pending")
   createdAt        DateTime @default(now()) @map("created_at")
 
-  records OpsPaymentRecord[]
+  records  OpsPaymentRecord[]
   disputes OpsBillingDispute[]
 
   @@unique([id, eventId], map: "payment_milestones_id_event_id_key")
@@ -2105,20 +2102,20 @@ model OpsPaymentRecord {
 }
 
 model OpsBillingCorrection {
-  id               String    @id
-  eventId          String    @map("event_id")
-  statementId      String    @map("statement_id")
-  reason           String
-  correctedTotalAmount Int?  @map("corrected_total_amount")
-  status           String    @default("pending")
-  requestedBy      String    @map("requested_by")
-  requestedById    String?   @map("requested_by_id")
-  resolvedBy       String?   @map("resolved_by")
-  resolutionNotes  String?   @map("resolution_notes")
-  idempotencyKey   String    @unique(map: "billing_corrections_idempotency_key_key") @map("idempotency_key")
-  payloadHash      String    @map("payload_hash")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  resolvedAt       DateTime? @map("resolved_at")
+  id                   String    @id
+  eventId              String    @map("event_id")
+  statementId          String    @map("statement_id")
+  reason               String
+  correctedTotalAmount Int?      @map("corrected_total_amount")
+  status               String    @default("pending")
+  requestedBy          String    @map("requested_by")
+  requestedById        String?   @map("requested_by_id")
+  resolvedBy           String?   @map("resolved_by")
+  resolutionNotes      String?   @map("resolution_notes")
+  idempotencyKey       String    @unique(map: "billing_corrections_idempotency_key_key") @map("idempotency_key")
+  payloadHash          String    @map("payload_hash")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  resolvedAt           DateTime? @map("resolved_at")
 
   statement OpsBillingStatement @relation(fields: [statementId, eventId], references: [id, eventId], onDelete: Restrict, map: "billing_corrections_statement_event_fkey")
 
@@ -2129,22 +2126,22 @@ model OpsBillingCorrection {
 }
 
 model OpsBillingDispute {
-  id               String    @id
-  eventId          String    @map("event_id")
-  statementId      String    @map("statement_id")
-  milestoneId      String?   @map("milestone_id")
-  amount           Int
-  reason           String
-  status           String    @default("open")
-  raisedBy         String    @map("raised_by")
-  resolvedBy       String?   @map("resolved_by")
-  resolutionNotes  String?   @map("resolution_notes")
-  idempotencyKey   String    @unique(map: "billing_disputes_idempotency_key_key") @map("idempotency_key")
-  payloadHash      String    @map("payload_hash")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  resolvedAt       DateTime? @map("resolved_at")
+  id              String    @id
+  eventId         String    @map("event_id")
+  statementId     String    @map("statement_id")
+  milestoneId     String?   @map("milestone_id")
+  amount          Int
+  reason          String
+  status          String    @default("open")
+  raisedBy        String    @map("raised_by")
+  resolvedBy      String?   @map("resolved_by")
+  resolutionNotes String?   @map("resolution_notes")
+  idempotencyKey  String    @unique(map: "billing_disputes_idempotency_key_key") @map("idempotency_key")
+  payloadHash     String    @map("payload_hash")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  resolvedAt      DateTime? @map("resolved_at")
 
-  statement OpsBillingStatement @relation(fields: [statementId, eventId], references: [id, eventId], onDelete: Restrict, map: "billing_disputes_statement_event_fkey")
+  statement OpsBillingStatement  @relation(fields: [statementId, eventId], references: [id, eventId], onDelete: Restrict, map: "billing_disputes_statement_event_fkey")
   milestone OpsPaymentMilestone? @relation(fields: [milestoneId, eventId], references: [id, eventId], onDelete: Restrict, map: "billing_disputes_milestone_event_fkey")
 
   @@index([eventId, status], map: "billing_disputes_event_id_status_idx")
@@ -2154,20 +2151,20 @@ model OpsBillingDispute {
 }
 
 model OpsAdditionalBilling {
-  id               String    @id
-  eventId          String    @map("event_id")
-  urgentIssueId    String    @map("urgent_issue_id")
-  billingSourceId  String?   @map("billing_source_id")
-  description      String
-  amount           Int
-  status           String
-  createdBy        String    @map("created_by")
-  waiverReason     String?   @map("waiver_reason")
-  waivedBy         String?   @map("waived_by")
-  idempotencyKey   String    @unique(map: "additional_billings_idempotency_key_key") @map("idempotency_key")
-  payloadHash      String    @map("payload_hash")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  waivedAt         DateTime? @map("waived_at")
+  id              String    @id
+  eventId         String    @map("event_id")
+  urgentIssueId   String    @map("urgent_issue_id")
+  billingSourceId String?   @map("billing_source_id")
+  description     String
+  amount          Int
+  status          String
+  createdBy       String    @map("created_by")
+  waiverReason    String?   @map("waiver_reason")
+  waivedBy        String?   @map("waived_by")
+  idempotencyKey  String    @unique(map: "additional_billings_idempotency_key_key") @map("idempotency_key")
+  payloadHash     String    @map("payload_hash")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  waivedAt        DateTime? @map("waived_at")
 
   billingSource OpsBillingSource? @relation(fields: [billingSourceId], references: [id], onDelete: Restrict, map: "additional_billings_billing_source_fkey")
 
@@ -2179,15 +2176,15 @@ model OpsAdditionalBilling {
 }
 
 model OpsPostEventDocument {
-  id                    String    @id
-  eventId               String    @map("event_id")
-  title                 String
-  status                String    @default("pending")
-  required              Boolean   @default(true)
-  clientAcknowledgedAt  DateTime? @map("client_acknowledged_at")
-  acknowledgementRecordedBy String? @map("acknowledgement_recorded_by")
-  acknowledgementSource String @default("pmcm_recorded") @map("acknowledgement_source")
-  clientAcknowledgementNote String @default("") @map("client_acknowledgement_note")
+  id                        String    @id
+  eventId                   String    @map("event_id")
+  title                     String
+  status                    String    @default("pending")
+  required                  Boolean   @default(true)
+  clientAcknowledgedAt      DateTime? @map("client_acknowledged_at")
+  acknowledgementRecordedBy String?   @map("acknowledgement_recorded_by")
+  acknowledgementSource     String    @default("pmcm_recorded") @map("acknowledgement_source")
+  clientAcknowledgementNote String    @default("") @map("client_acknowledgement_note")
 
   event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
@@ -2197,24 +2194,24 @@ model OpsPostEventDocument {
 }
 
 model OpsEventWrapUp {
-  id                           String    @id
-  eventId                      String    @unique(map: "event_wrap_ups_event_id_key") @map("event_id")
-  mode                         String    @default("full")
-  status                       String    @default("pending")
-  activatedAt                  DateTime  @map("activated_at")
-  deadlineAt                   DateTime  @map("deadline_at")
-  twelveHourReminderAt         DateTime? @map("twelve_hour_reminder_at")
-  twentyFourHourReminderAt     DateTime? @map("twenty_four_hour_reminder_at")
-  requiredItems                Json      @default("{}") @map("required_items")
-  sections                     Json      @default("{}")
-  clientAcknowledgedAt         DateTime? @map("client_acknowledged_at")
-  acknowledgementRecordedBy    String?   @map("acknowledgement_recorded_by")
-  acknowledgementSource        String    @default("pmcm_recorded") @map("acknowledgement_source")
-  clientAcknowledgementNote    String    @default("") @map("client_acknowledgement_note")
-  completedAt                  DateTime? @map("completed_at")
-  completedBy                  String?   @map("completed_by")
-  createdAt                    DateTime  @default(now()) @map("created_at")
-  updatedAt                    DateTime  @default(now()) @updatedAt @map("updated_at")
+  id                        String    @id
+  eventId                   String    @unique(map: "event_wrap_ups_event_id_key") @map("event_id")
+  mode                      String    @default("full")
+  status                    String    @default("pending")
+  activatedAt               DateTime  @map("activated_at")
+  deadlineAt                DateTime  @map("deadline_at")
+  twelveHourReminderAt      DateTime? @map("twelve_hour_reminder_at")
+  twentyFourHourReminderAt  DateTime? @map("twenty_four_hour_reminder_at")
+  requiredItems             Json      @default("{}") @map("required_items")
+  sections                  Json      @default("{}")
+  clientAcknowledgedAt      DateTime? @map("client_acknowledged_at")
+  acknowledgementRecordedBy String?   @map("acknowledgement_recorded_by")
+  acknowledgementSource     String    @default("pmcm_recorded") @map("acknowledgement_source")
+  clientAcknowledgementNote String    @default("") @map("client_acknowledgement_note")
+  completedAt               DateTime? @map("completed_at")
+  completedBy               String?   @map("completed_by")
+  createdAt                 DateTime  @default(now()) @map("created_at")
+  updatedAt                 DateTime  @default(now()) @updatedAt @map("updated_at")
 
   event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
@@ -2224,21 +2221,48 @@ model OpsEventWrapUp {
 }
 
 model OpsLogisticsCompletion {
-  id                    String   @id
-  eventId               String   @unique(map: "logistics_completions_event_id_key") @map("event_id")
-  assetReturnsVerified  Boolean  @map("asset_returns_verified")
-  completionSummary     String   @map("completion_summary")
-  privateNotes          String   @default("") @map("private_notes")
-  correctionReason      String?  @map("correction_reason")
-  revision              Int      @default(1)
-  recordedBy            String   @map("recorded_by")
-  recordedAt            DateTime @map("recorded_at")
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at")
+  id                   String   @id
+  eventId              String   @unique(map: "logistics_completions_event_id_key") @map("event_id")
+  assetReturnsVerified Boolean  @map("asset_returns_verified")
+  completionSummary    String   @map("completion_summary")
+  privateNotes         String   @default("") @map("private_notes")
+  correctionReason     String?  @map("correction_reason")
+  revision             Int      @default(1)
+  recordedBy           String   @map("recorded_by")
+  recordedAt           DateTime @map("recorded_at")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at")
 
   event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@map("logistics_completions")
+  @@schema("event_lifecycle")
+}
+
+/// PMCM-managed file requirement: a custom requirement, or an override of a
+/// derived matrix item (owner, visibility, required state, due date).
+model OpsFileRequirement {
+  id             String    @id
+  eventId        String    @map("event_id")
+  key            String
+  label          String
+  ownerRole      String    @map("owner_role")
+  visibleToRoles String[]  @default([]) @map("visible_to_roles")
+  required       Boolean   @default(true)
+  dueAt          DateTime? @map("due_at")
+  sourceWorkflow String    @map("source_workflow")
+  isCustom       Boolean   @default(false) @map("is_custom")
+  notes          String?
+  revision       Int       @default(1)
+  updatedBy      String    @map("updated_by")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, key], map: "file_requirements_event_id_key_key")
+  @@index([required, dueAt], map: "file_requirements_required_due_at_idx")
+  @@map("file_requirements")
   @@schema("event_lifecycle")
 }
 
@@ -2265,10 +2289,10 @@ model OpsEventInsight {
 }
 
 model OpsAuditChainLock {
-  id       String    @id
-  revision Int       @default(0)
-  headId   String?   @map("head_id")
-  headHash String?   @map("head_hash")
+  id       String  @id
+  revision Int     @default(0)
+  headId   String? @map("head_id")
+  headHash String? @map("head_hash")
 
   @@map("audit_chain_locks")
   @@schema("platform_ops")
@@ -2294,7 +2318,6 @@ model OpsAuditLog {
   previousHash  String?  @map("previous_hash")
   createdAt     DateTime @default(now()) @map("created_at")
 
-
   @@index([eventId, createdAt], map: "audit_logs_event_id_created_at_idx")
   @@index([eventId, createdAt(sort: Desc), id], map: "audit_logs_event_created_at_id_idx")
   @@index([actor, createdAt], map: "audit_logs_actor_created_at_idx")
@@ -2307,26 +2330,25 @@ model OpsAuditLog {
 }
 
 model OpsNotificationLog {
-  id             String    @id
-  eventId        String?   @map("event_id")
-  channel        String
-  recipient      String
-  message        String
-  status         String    @default("queued")
-  attempts       Int       @default(0)
-  correlationId  String?   @map("correlation_id")
-  idempotencyKey String?   @unique(map: "notification_logs_idempotency_key_key") @map("idempotency_key")
-  payloadHash    String?   @map("payload_hash")
-  providerReceipt String?  @map("provider_receipt")
-  leaseToken     String?   @map("lease_token")
-  leaseExpiresAt DateTime? @map("lease_expires_at")
-  nextAttemptAt  DateTime  @default(now()) @map("next_attempt_at")
-  failureReason  String?   @map("failure_reason")
-  sentAt         DateTime? @map("sent_at")
-  failedAt       DateTime? @map("failed_at")
-  acknowledgedAt DateTime? @map("acknowledged_at")
-  createdAt      DateTime  @default(now()) @map("created_at")
-
+  id              String    @id
+  eventId         String?   @map("event_id")
+  channel         String
+  recipient       String
+  message         String
+  status          String    @default("queued")
+  attempts        Int       @default(0)
+  correlationId   String?   @map("correlation_id")
+  idempotencyKey  String?   @unique(map: "notification_logs_idempotency_key_key") @map("idempotency_key")
+  payloadHash     String?   @map("payload_hash")
+  providerReceipt String?   @map("provider_receipt")
+  leaseToken      String?   @map("lease_token")
+  leaseExpiresAt  DateTime? @map("lease_expires_at")
+  nextAttemptAt   DateTime  @default(now()) @map("next_attempt_at")
+  failureReason   String?   @map("failure_reason")
+  sentAt          DateTime? @map("sent_at")
+  failedAt        DateTime? @map("failed_at")
+  acknowledgedAt  DateTime? @map("acknowledged_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
 
   @@index([eventId, createdAt], map: "notification_logs_event_id_created_at_idx")
   @@index([status, createdAt], map: "notification_logs_status_created_at_idx")
@@ -2355,7 +2377,7 @@ model OpsPareDispatch {
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  approvalRecord   OpsAiApprovalRecord? @relation(fields: [approvalRecordId], references: [id], onDelete: Restrict, map: "pare_dispatches_approval_record_id_fkey")
+  approvalRecord OpsAiApprovalRecord? @relation(fields: [approvalRecordId], references: [id], onDelete: Restrict, map: "pare_dispatches_approval_record_id_fkey")
 
   @@unique([requestId, sourceUpdatedAt], map: "pare_dispatches_request_source_updated_key")
   @@index([eventId, status], map: "pare_dispatches_event_status_idx")
@@ -2389,29 +2411,29 @@ model OpsCommandReceipt {
 }
 
 model OpsStoredObject {
-  id                 String    @id
-  eventId            String    @map("event_id")
-  ownerRecordType    String    @map("owner_record_type")
-  ownerRecordId      String    @map("owner_record_id")
-  usage              String
-  logicalTarget      String    @map("logical_target")
-  originalFileName   String    @map("original_file_name")
-  contentType        String    @map("content_type")
-  declaredByteSize   Int       @map("declared_byte_size")
-  checksumSha256     String    @map("checksum_sha256")
-  uploaderActorId    String    @map("uploader_actor_id")
-  uploaderActorRole  String    @map("uploader_actor_role")
-  lifecycleState     String    @default("requested") @map("lifecycle_state")
-  providerName       String?   @map("provider_name")
-  providerObjectKey  String?   @map("provider_object_key")
-  failureReason      String?   @map("failure_reason")
-  idempotencyKey     String?   @unique(map: "stored_objects_idempotency_key_key") @map("idempotency_key")
-  requestedAt        DateTime  @default(now()) @map("requested_at")
-  storedAt           DateTime? @map("stored_at")
-  failedAt           DateTime? @map("failed_at")
-  deletedAt          DateTime? @map("deleted_at")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
+  id                String    @id
+  eventId           String    @map("event_id")
+  ownerRecordType   String    @map("owner_record_type")
+  ownerRecordId     String    @map("owner_record_id")
+  usage             String
+  logicalTarget     String    @map("logical_target")
+  originalFileName  String    @map("original_file_name")
+  contentType       String    @map("content_type")
+  declaredByteSize  Int       @map("declared_byte_size")
+  checksumSha256    String    @map("checksum_sha256")
+  uploaderActorId   String    @map("uploader_actor_id")
+  uploaderActorRole String    @map("uploader_actor_role")
+  lifecycleState    String    @default("requested") @map("lifecycle_state")
+  providerName      String?   @map("provider_name")
+  providerObjectKey String?   @map("provider_object_key")
+  failureReason     String?   @map("failure_reason")
+  idempotencyKey    String?   @unique(map: "stored_objects_idempotency_key_key") @map("idempotency_key")
+  requestedAt       DateTime  @default(now()) @map("requested_at")
+  storedAt          DateTime? @map("stored_at")
+  failedAt          DateTime? @map("failed_at")
+  deletedAt         DateTime? @map("deleted_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
 
   @@unique([eventId, usage, logicalTarget], map: "stored_objects_event_usage_logical_target_key")
   @@index([eventId, lifecycleState], map: "stored_objects_event_id_lifecycle_state_idx")
@@ -2421,19 +2443,19 @@ model OpsStoredObject {
 }
 
 model OpsGuestCheckIn {
-  id                       String   @id
-  eventId                  String   @map("event_id")
-  rosterEntryId            String?  @map("roster_entry_id")
-  guestName                String?  @map("guest_name")
-  checkInMode              String   @default("name_search") @map("check_in_mode")
-  status                   String   @default("checked_in")
-  walkIn                   Boolean  @default(false) @map("walk_in")
-  verificationStatus       String   @default("verified") @map("verification_status")
-  privacyConsentAccepted   Boolean  @default(false) @map("privacy_consent_accepted")
-  privacyNoticeVersion     String   @default("") @map("privacy_notice_version")
+  id                       String    @id
+  eventId                  String    @map("event_id")
+  rosterEntryId            String?   @map("roster_entry_id")
+  guestName                String?   @map("guest_name")
+  checkInMode              String    @default("name_search") @map("check_in_mode")
+  status                   String    @default("checked_in")
+  walkIn                   Boolean   @default(false) @map("walk_in")
+  verificationStatus       String    @default("verified") @map("verification_status")
+  privacyConsentAccepted   Boolean   @default(false) @map("privacy_consent_accepted")
+  privacyNoticeVersion     String    @default("") @map("privacy_notice_version")
   privacyConsentCapturedAt DateTime? @map("privacy_consent_captured_at") @db.Timestamptz(6)
-  marketingConsentAccepted Boolean  @default(false) @map("marketing_consent_accepted")
-  checkedInAt              DateTime @default(now()) @map("checked_in_at")
+  marketingConsentAccepted Boolean   @default(false) @map("marketing_consent_accepted")
+  checkedInAt              DateTime  @default(now()) @map("checked_in_at")
 
   rosterEntry OpsGuestRosterEntry? @relation(fields: [rosterEntryId, eventId], references: [id, eventId], onDelete: Restrict, map: "check_ins_roster_entry_event_fkey")
 
@@ -2445,26 +2467,26 @@ model OpsGuestCheckIn {
 }
 
 model OpsGuestRosterEntry {
-  id              String    @id
-  eventId         String    @map("event_id")
-  sourceKey       String    @map("source_key")
-  guestName       String    @map("guest_name")
-  normalizedName  String    @map("normalized_name")
-  email           String    @default("")
-  phone           String    @default("")
-  category        String    @default("")
-  table           String    @default("")
-  eligibility     String    @default("eligible")
-  verificationStatus String  @default("pending") @map("verification_status")
-  source          String    @default("manual")
-  privacyConsentAccepted Boolean @default(false) @map("privacy_consent_accepted")
-  privacyNoticeVersion String @default("") @map("privacy_notice_version")
+  id                       String    @id
+  eventId                  String    @map("event_id")
+  sourceKey                String    @map("source_key")
+  guestName                String    @map("guest_name")
+  normalizedName           String    @map("normalized_name")
+  email                    String    @default("")
+  phone                    String    @default("")
+  category                 String    @default("")
+  table                    String    @default("")
+  eligibility              String    @default("eligible")
+  verificationStatus       String    @default("pending") @map("verification_status")
+  source                   String    @default("manual")
+  privacyConsentAccepted   Boolean   @default(false) @map("privacy_consent_accepted")
+  privacyNoticeVersion     String    @default("") @map("privacy_notice_version")
   privacyConsentCapturedAt DateTime? @map("privacy_consent_captured_at") @db.Timestamptz(6)
-  importBatchId   String?   @map("import_batch_id")
-  checkedInAt     DateTime? @map("checked_in_at")
-  withdrawnAt     DateTime? @map("withdrawn_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+  importBatchId            String?   @map("import_batch_id")
+  checkedInAt              DateTime? @map("checked_in_at")
+  withdrawnAt              DateTime? @map("withdrawn_at")
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at")
 
   checkIns OpsGuestCheckIn[]
 
@@ -2479,46 +2501,46 @@ model OpsGuestRosterEntry {
 }
 
 model OpsGuestRosterImport {
-  id           String   @id
-  eventId      String   @map("event_id")
-  source       String
+  id                       String    @id
+  eventId                  String    @map("event_id")
+  source                   String
   // Legacy batch metadata retained for deployed rows; never treat as per-guest consent.
-  privacyConsentAccepted Boolean @default(false) @map("privacy_consent_accepted")
-  privacyNoticeVersion String @default("") @map("privacy_notice_version")
+  privacyConsentAccepted   Boolean   @default(false) @map("privacy_consent_accepted")
+  privacyNoticeVersion     String    @default("") @map("privacy_notice_version")
   privacyConsentCapturedAt DateTime? @map("privacy_consent_captured_at") @db.Timestamptz(6)
-  importedById String?  @map("imported_by_id")
-  importedBy   String   @map("imported_by")
-  importedAt   DateTime @default(now()) @map("imported_at")
-  rowCount     Int      @map("row_count")
-  rawFileUploadBlocked Boolean @default(true) @map("raw_file_upload_blocked")
+  importedById             String?   @map("imported_by_id")
+  importedBy               String    @map("imported_by")
+  importedAt               DateTime  @default(now()) @map("imported_at")
+  rowCount                 Int       @map("row_count")
+  rawFileUploadBlocked     Boolean   @default(true) @map("raw_file_upload_blocked")
 
   entries OpsGuestRosterEntry[]
 
-  @@index([eventId, importedAt], map: "guest_roster_imports_event_imported_at_idx")
   @@unique([id, eventId], map: "guest_roster_imports_id_event_id_key")
+  @@index([eventId, importedAt], map: "guest_roster_imports_event_imported_at_idx")
   @@map("guest_roster_imports")
   @@schema("operations")
 }
 
 model OpsGuestFeedback {
-  id                       String   @id
-  eventId                  String   @map("event_id")
-  guestName                String   @map("guest_name")
-  rating                   Int
-  comment                  String   @default("")
-  photoFileName            String?  @map("photo_file_name")
-  videoFileName            String?  @map("video_file_name")
-  privacyConsentAccepted   Boolean  @default(false) @map("privacy_consent_accepted")
-  privacyNoticeVersion     String   @default("") @map("privacy_notice_version")
-  marketingConsentAccepted Boolean  @default(false) @map("marketing_consent_accepted")
-  moderationStatus         String   @default("pending_review") @map("moderation_status")
-  moderationReason         String?  @map("moderation_reason")
-  moderatedById            String?  @map("moderated_by_id")
-  moderatedBy              String?  @map("moderated_by")
-  moderatedAt              DateTime? @map("moderated_at")
-  privacyConsentWithdrawnAt DateTime? @map("privacy_consent_withdrawn_at")
+  id                          String    @id
+  eventId                     String    @map("event_id")
+  guestName                   String    @map("guest_name")
+  rating                      Int
+  comment                     String    @default("")
+  photoFileName               String?   @map("photo_file_name")
+  videoFileName               String?   @map("video_file_name")
+  privacyConsentAccepted      Boolean   @default(false) @map("privacy_consent_accepted")
+  privacyNoticeVersion        String    @default("") @map("privacy_notice_version")
+  marketingConsentAccepted    Boolean   @default(false) @map("marketing_consent_accepted")
+  moderationStatus            String    @default("pending_review") @map("moderation_status")
+  moderationReason            String?   @map("moderation_reason")
+  moderatedById               String?   @map("moderated_by_id")
+  moderatedBy                 String?   @map("moderated_by")
+  moderatedAt                 DateTime? @map("moderated_at")
+  privacyConsentWithdrawnAt   DateTime? @map("privacy_consent_withdrawn_at")
   marketingConsentWithdrawnAt DateTime? @map("marketing_consent_withdrawn_at")
-  submittedAt              DateTime @default(now()) @map("submitted_at")
+  submittedAt                 DateTime  @default(now()) @map("submitted_at")
 
   mediaAttachments OpsGuestFeedbackMedia[]
 
@@ -2528,15 +2550,15 @@ model OpsGuestFeedback {
 }
 
 model OpsGuestFeedbackMedia {
-  id             String   @id
-  feedbackId     String   @map("feedback_id")
-  kind           String
-  originalFileName String @map("original_file_name")
-  mimeType       String   @map("mime_type")
-  sizeBytes      Int      @map("size_bytes")
-  status         String   @default("pending_storage")
-  blocker        String
-  createdAt      DateTime @default(now()) @map("created_at")
+  id               String   @id
+  feedbackId       String   @map("feedback_id")
+  kind             String
+  originalFileName String   @map("original_file_name")
+  mimeType         String   @map("mime_type")
+  sizeBytes        Int      @map("size_bytes")
+  status           String   @default("pending_storage")
+  blocker          String
+  createdAt        DateTime @default(now()) @map("created_at")
 
   feedback OpsGuestFeedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
 
@@ -2546,21 +2568,21 @@ model OpsGuestFeedbackMedia {
 }
 
 model OpsRegistrationPlatform {
-  id                String   @id
-  eventId           String   @unique @map("event_id")
-  platformType      String   @default("none") @map("platform_type")
-  supplierId        String?  @map("supplier_id")
-  expectedPaxMin    Int      @default(0) @map("expected_pax_min")
-  expectedPaxMax    Int      @default(0) @map("expected_pax_max")
-  status            String   @default("not_started") @map("status")
+  id                String    @id
+  eventId           String    @unique @map("event_id")
+  platformType      String    @default("none") @map("platform_type")
+  supplierId        String?   @map("supplier_id")
+  expectedPaxMin    Int       @default(0) @map("expected_pax_min")
+  expectedPaxMax    Int       @default(0) @map("expected_pax_max")
+  status            String    @default("not_started") @map("status")
   setupConfirmedAt  DateTime? @map("setup_confirmed_at") @db.Timestamptz(6)
-  setupNotes        String   @default("") @map("setup_notes")
-  headcountSource   String   @default("") @map("headcount_source")
-  importedHeadcount Int      @default(0) @map("imported_headcount")
+  setupNotes        String    @default("") @map("setup_notes")
+  headcountSource   String    @default("") @map("headcount_source")
+  importedHeadcount Int       @default(0) @map("imported_headcount")
   importedAt        DateTime? @map("imported_at") @db.Timestamptz(6)
-  importedFileName  String?  @map("imported_file_name")
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  importedFileName  String?   @map("imported_file_name")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("registration_platforms")
   @@schema("operations")
@@ -2580,27 +2602,27 @@ model OpsAiAuditLog {
   createdAt             DateTime @default(now()) @map("created_at")
 
   // Gateway evidence is nullable to preserve pre-gateway audit history.
-  requestId             String?  @unique(map: "ai_audit_logs_request_id_key") @map("request_id")
-  correlationId         String?  @map("correlation_id")
-  useCaseId             String?  @map("use_case_id")
-  promptVersion         String?  @map("prompt_version")
-  profileId             String?  @map("profile_id")
-  provider              String?
-  requestedModel        String?  @map("requested_model")
-  responseModel         String?  @map("response_model")
-  endpointTag           String?  @map("endpoint_tag")
-  zdrBasis              String?  @map("zdr_basis")
-  inputTokens           Int?     @map("input_tokens")
-  outputTokens          Int?     @map("output_tokens")
-  latencyMs             Int?     @map("latency_ms")
-  outcome               String?
-  approvalState         String?  @map("approval_state")
-  syntheticProvenance   Json?    @map("synthetic_provenance")
-  failureCode           String?  @map("failure_code")
+  requestId           String?   @unique(map: "ai_audit_logs_request_id_key") @map("request_id")
+  correlationId       String?   @map("correlation_id")
+  useCaseId           String?   @map("use_case_id")
+  promptVersion       String?   @map("prompt_version")
+  profileId           String?   @map("profile_id")
+  provider            String?
+  requestedModel      String?   @map("requested_model")
+  responseModel       String?   @map("response_model")
+  endpointTag         String?   @map("endpoint_tag")
+  zdrBasis            String?   @map("zdr_basis")
+  inputTokens         Int?      @map("input_tokens")
+  outputTokens        Int?      @map("output_tokens")
+  latencyMs           Int?      @map("latency_ms")
+  outcome             String?
+  approvalState       String?   @map("approval_state")
+  syntheticProvenance Json?     @map("synthetic_provenance")
+  failureCode         String?   @map("failure_code")
   budgetDate          DateTime? @map("budget_date") @db.Date
-  reservedTokens        Int      @default(0) @map("reserved_tokens")
+  reservedTokens      Int       @default(0) @map("reserved_tokens")
 
-  approvals             OpsAiApprovalRecord[]
+  approvals OpsAiApprovalRecord[]
 
   @@index([eventId], map: "ai_audit_logs_event_id_idx")
   @@index([featureName, createdAt], map: "ai_audit_logs_feature_name_created_at_idx")
@@ -2623,21 +2645,21 @@ model OpsAiDailyTokenUsage {
 }
 
 model OpsAiApprovalRecord {
-  id            String    @id
-  aiAuditLogId  String    @map("ai_audit_log_id")
-  eventId       String?   @map("event_id")
-  featureName   String    @map("feature_name")
-  requestedBy   String    @map("requested_by")
-  humanApproved Boolean   @default(false) @map("human_approved")
-  approvedBy    String?   @map("approved_by")
-  approvedAt    DateTime? @map("approved_at")
-  status        String    @default("pending_human_approval")
-  requestedAt   DateTime  @default(now()) @map("requested_at")
-  sourceDispatchId String? @unique(map: "ai_approval_records_source_dispatch_id_key") @map("source_dispatch_id")
-  reviewPayload Json      @default("{}") @map("review_payload")
+  id               String    @id
+  aiAuditLogId     String    @map("ai_audit_log_id")
+  eventId          String?   @map("event_id")
+  featureName      String    @map("feature_name")
+  requestedBy      String    @map("requested_by")
+  humanApproved    Boolean   @default(false) @map("human_approved")
+  approvedBy       String?   @map("approved_by")
+  approvedAt       DateTime? @map("approved_at")
+  status           String    @default("pending_human_approval")
+  requestedAt      DateTime  @default(now()) @map("requested_at")
+  sourceDispatchId String?   @unique(map: "ai_approval_records_source_dispatch_id_key") @map("source_dispatch_id")
+  reviewPayload    Json      @default("{}") @map("review_payload")
 
   conformeCommsDraft OpsConformeCommsDraft?
-  auditLog           OpsAiAuditLog @relation(fields: [aiAuditLogId], references: [id], onDelete: Restrict, map: "ai_approval_records_ai_audit_log_id_fkey")
+  auditLog           OpsAiAuditLog          @relation(fields: [aiAuditLogId], references: [id], onDelete: Restrict, map: "ai_approval_records_ai_audit_log_id_fkey")
   dispatches         OpsPareDispatch[]
 
   @@index([aiAuditLogId], map: "ai_approval_records_ai_audit_log_id_idx")
@@ -2678,7 +2700,6 @@ model OpsLoginHistory {
   failureReason String?  @map("failure_reason")
   createdAt     DateTime @default(now()) @map("created_at")
 
-
   @@index([userId, createdAt], map: "login_history_user_id_created_at_idx")
   @@index([email, createdAt], map: "login_history_email_created_at_idx")
   @@index([status, createdAt], map: "login_history_status_created_at_idx")
@@ -2698,7 +2719,6 @@ model OpsSecurityAlert {
   metadata    Json      @default("{}")
   createdAt   DateTime  @default(now()) @map("created_at")
   resolvedAt  DateTime? @map("resolved_at")
-
 
   @@index([eventId], map: "security_alerts_event_id_idx")
   @@index([status, createdAt], map: "security_alerts_status_created_at_idx")
@@ -2726,14 +2746,14 @@ model OpsCommunicationThread {
 }
 
 model OpsCommunicationParticipant {
-  id        String   @id
-  threadId  String   @map("thread_id")
-  actorId   String   @map("actor_id")
-  actorRole String   @map("actor_role")
-  actorEmail String? @map("actor_email")
-  active    Boolean  @default(true)
+  id         String    @id
+  threadId   String    @map("thread_id")
+  actorId    String    @map("actor_id")
+  actorRole  String    @map("actor_role")
+  actorEmail String?   @map("actor_email")
+  active     Boolean   @default(true)
   lastReadAt DateTime? @map("last_read_at")
-  addedAt   DateTime @default(now()) @map("added_at")
+  addedAt    DateTime  @default(now()) @map("added_at")
 
   thread OpsCommunicationThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
 
@@ -2763,53 +2783,54 @@ model OpsCommunicationMessage {
 }
 
 model EventGameDefinition {
-  id          String    @id
-  eventId     String    @map("event_id")
-  slug        String
-  title       String
-  gameKind    String    @map("game_kind")
-  entryMode   String    @map("entry_mode")
-  status      String    @default("draft")
-  createdBy   String    @map("created_by")
-  updatedBy   String?   @map("updated_by")
-  publishedAt DateTime? @map("published_at") @db.Timestamptz(6)
-  archivedAt  DateTime? @map("archived_at") @db.Timestamptz(6)
-  availableFrom DateTime? @map("available_from") @db.Timestamptz(6)
+  id             String    @id
+  eventId        String    @map("event_id")
+  slug           String
+  title          String
+  gameKind       String    @map("game_kind")
+  entryMode      String    @map("entry_mode")
+  status         String    @default("draft")
+  createdBy      String    @map("created_by")
+  updatedBy      String?   @map("updated_by")
+  publishedAt    DateTime? @map("published_at") @db.Timestamptz(6)
+  archivedAt     DateTime? @map("archived_at") @db.Timestamptz(6)
+  availableFrom  DateTime? @map("available_from") @db.Timestamptz(6)
   availableUntil DateTime? @map("available_until") @db.Timestamptz(6)
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   configVersions EventGameConfigVersion[]
+
   @@unique([eventId, slug], map: "game_definitions_event_slug_key")
   @@unique([eventId, id], map: "game_definitions_event_id_id_key")
   @@index([eventId, status], map: "game_definitions_event_status_idx")
-  @@schema("event_games")
   @@map("game_definitions")
+  @@schema("event_games")
 }
 
 model EventGameLobbySlug {
-  eventId        String   @id @map("event_id")
-  lobbySlug      String   @unique(map: "lobby_slugs_slug_key") @map("lobby_slug")
-  brandTheme     String   @default("prism") @map("brand_theme")
+  eventId             String   @id @map("event_id")
+  lobbySlug           String   @unique(map: "lobby_slugs_slug_key") @map("lobby_slug")
+  brandTheme          String   @default("prism") @map("brand_theme")
   brandPrimaryColor   String?  @map("brand_primary_color")
   brandSecondaryColor String?  @map("brand_secondary_color")
   brandLogoObjectId   String?  @map("brand_logo_object_id")
-  brandUpdatedAt DateTime @default(now()) @map("brand_updated_at") @db.Timestamptz(6)
-  brandUpdatedBy String?  @map("brand_updated_by")
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  brandUpdatedAt      DateTime @default(now()) @map("brand_updated_at") @db.Timestamptz(6)
+  brandUpdatedBy      String?  @map("brand_updated_by")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  @@schema("event_games")
   @@map("lobby_slugs")
+  @@schema("event_games")
 }
 
 model EventGameConfigVersion {
-  id              String   @id
+  id               String   @id
   gameDefinitionId String   @map("game_definition_id")
-  eventId         String   @map("event_id")
-  version         Int
-  config          Json     @db.JsonB
-  createdBy       String   @map("created_by")
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  eventId          String   @map("event_id")
+  version          Int
+  config           Json     @db.JsonB
+  createdBy        String   @map("created_by")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   definition EventGameDefinition @relation(fields: [eventId, gameDefinitionId], references: [eventId, id], onDelete: Restrict, map: "game_config_versions_event_definition_fkey")
   sessions   EventGameSession[]
@@ -2817,61 +2838,61 @@ model EventGameConfigVersion {
   @@unique([eventId, gameDefinitionId, version], map: "game_config_versions_event_definition_version_key")
   @@unique([eventId, gameDefinitionId, id], map: "game_config_versions_event_definition_id_key")
   @@index([eventId, gameDefinitionId], map: "game_config_versions_event_definition_idx")
-  @@schema("event_games")
   @@map("game_config_versions")
+  @@schema("event_games")
 }
 
 model EventGameSession {
-  id                 String    @id
-  eventId            String    @map("event_id")
-  gameDefinitionId   String    @map("game_definition_id")
-  configVersionId    String    @map("config_version_id")
-  configSnapshot     Json      @map("config_snapshot") @db.JsonB
-  entryMode          String    @map("entry_mode")
-  status             String    @default("scheduled")
-  scheduledStartAt   DateTime? @map("scheduled_start_at") @db.Timestamptz(6)
-  startedAt          DateTime? @map("started_at") @db.Timestamptz(6)
-  pausedAt           DateTime? @map("paused_at") @db.Timestamptz(6)
-  totalPausedMs      BigInt    @default(0) @map("total_paused_ms")
-  roundOffsetMs      Int       @default(0) @map("round_offset_ms")
-  wheelResult        Json?     @map("wheel_result") @db.JsonB
-  endedAt            DateTime? @map("ended_at") @db.Timestamptz(6)
-  archivedAt         DateTime? @map("archived_at") @db.Timestamptz(6)
-  createdBy          String    @map("created_by")
-  startIdempotencyKey String?  @map("start_idempotency_key")
-  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                  String    @id
+  eventId             String    @map("event_id")
+  gameDefinitionId    String    @map("game_definition_id")
+  configVersionId     String    @map("config_version_id")
+  configSnapshot      Json      @map("config_snapshot") @db.JsonB
+  entryMode           String    @map("entry_mode")
+  status              String    @default("scheduled")
+  scheduledStartAt    DateTime? @map("scheduled_start_at") @db.Timestamptz(6)
+  startedAt           DateTime? @map("started_at") @db.Timestamptz(6)
+  pausedAt            DateTime? @map("paused_at") @db.Timestamptz(6)
+  totalPausedMs       BigInt    @default(0) @map("total_paused_ms")
+  roundOffsetMs       Int       @default(0) @map("round_offset_ms")
+  wheelResult         Json?     @map("wheel_result") @db.JsonB
+  endedAt             DateTime? @map("ended_at") @db.Timestamptz(6)
+  archivedAt          DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdBy           String    @map("created_by")
+  startIdempotencyKey String?   @map("start_idempotency_key")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  configVersion EventGameConfigVersion @relation(fields: [eventId, gameDefinitionId, configVersionId], references: [eventId, gameDefinitionId, id], onDelete: Restrict, map: "game_sessions_event_definition_config_fkey")
-  activePin    EventGameActivePinReservation?
-  pinHistory   EventGamePinHistory[]
-  grants       EventGameSessionParticipationGrant[]
-  awards       EventGameAward[]
+  configVersion EventGameConfigVersion               @relation(fields: [eventId, gameDefinitionId, configVersionId], references: [eventId, gameDefinitionId, id], onDelete: Restrict, map: "game_sessions_event_definition_config_fkey")
+  activePin     EventGameActivePinReservation?
+  pinHistory    EventGamePinHistory[]
+  grants        EventGameSessionParticipationGrant[]
+  awards        EventGameAward[]
 
   @@unique([eventId, startIdempotencyKey], map: "game_sessions_event_start_idempotency_key")
   @@unique([eventId, id], map: "game_sessions_event_id_id_key")
   @@index([eventId, status, scheduledStartAt], map: "game_sessions_event_status_schedule_idx")
-  @@schema("event_games")
   @@map("game_sessions")
+  @@schema("event_games")
 }
 
 model EventGameActivePinReservation {
-  id                       String   @id
-  eventId                  String   @map("event_id")
-  sessionId                String   @unique(map: "active_pin_reservations_session_key") @map("session_id")
-  pinDigest                String   @unique(map: "active_pin_reservations_digest_key") @map("pin_digest")
+  id                        String   @id
+  eventId                   String   @map("event_id")
+  sessionId                 String   @unique(map: "active_pin_reservations_session_key") @map("session_id")
+  pinDigest                 String   @unique(map: "active_pin_reservations_digest_key") @map("pin_digest")
   issueIdempotencyKeyDigest String?  @map("issue_idempotency_key_digest")
-  generationAttempt        Int?     @map("generation_attempt")
-  expiresAt                DateTime @map("expires_at") @db.Timestamptz(6)
-  reservedAt               DateTime @default(now()) @map("reserved_at") @db.Timestamptz(6)
+  generationAttempt         Int?     @map("generation_attempt")
+  expiresAt                 DateTime @map("expires_at") @db.Timestamptz(6)
+  reservedAt                DateTime @default(now()) @map("reserved_at") @db.Timestamptz(6)
 
   session EventGameSession @relation(fields: [eventId, sessionId], references: [eventId, id], onDelete: Restrict, map: "active_pin_reservations_event_session_fkey")
 
-  @@index([expiresAt], map: "active_pin_reservations_expires_at_idx")
   @@unique([eventId, sessionId], map: "active_pin_reservations_event_session_key")
   @@unique([eventId, issueIdempotencyKeyDigest], map: "active_pin_reservations_event_issue_key_key")
-  @@schema("event_games")
+  @@index([expiresAt], map: "active_pin_reservations_expires_at_idx")
   @@map("active_pin_reservations")
+  @@schema("event_games")
 }
 
 model EventGamePinHistory {
@@ -2887,8 +2908,8 @@ model EventGamePinHistory {
 
   @@index([sessionId, createdAt], map: "pin_history_session_created_idx")
   @@index([eventId, createdAt], map: "pin_history_event_created_idx")
-  @@schema("event_games")
   @@map("pin_history")
+  @@schema("event_games")
 }
 
 model EventGameParticipantCredential {
@@ -2903,22 +2924,22 @@ model EventGameParticipantCredential {
 
   @@unique([eventId, id], map: "participant_credentials_event_id_id_key")
   @@index([eventId, revokedAt], map: "participant_credentials_event_revoked_idx")
-  @@schema("event_games")
   @@map("participant_credentials")
+  @@schema("event_games")
 }
 
 model EventGameSessionParticipationGrant {
-  id                     String    @id
-  eventId                String    @map("event_id")
-  sessionId              String    @map("session_id")
-  participantCredentialId String   @map("participant_credential_id")
-  joinIdempotencyKeyDigest String? @map("join_idempotency_key_digest")
-  entryMode              String    @map("entry_mode")
-  grantedAt              DateTime  @default(now()) @map("granted_at") @db.Timestamptz(6)
-  revokedAt              DateTime? @map("revoked_at") @db.Timestamptz(6)
-  revokedBy              String?   @map("revoked_by")
-  teamId                 String?   @map("team_id")
-  teamLabel              String?   @map("team_label")
+  id                       String    @id
+  eventId                  String    @map("event_id")
+  sessionId                String    @map("session_id")
+  participantCredentialId  String    @map("participant_credential_id")
+  joinIdempotencyKeyDigest String?   @map("join_idempotency_key_digest")
+  entryMode                String    @map("entry_mode")
+  grantedAt                DateTime  @default(now()) @map("granted_at") @db.Timestamptz(6)
+  revokedAt                DateTime? @map("revoked_at") @db.Timestamptz(6)
+  revokedBy                String?   @map("revoked_by")
+  teamId                   String?   @map("team_id")
+  teamLabel                String?   @map("team_label")
 
   session               EventGameSession               @relation(fields: [eventId, sessionId], references: [eventId, id], onDelete: Restrict, map: "session_participation_grants_event_session_fkey")
   participantCredential EventGameParticipantCredential @relation(fields: [eventId, participantCredentialId], references: [eventId, id], onDelete: Restrict, map: "session_participation_grants_event_credential_fkey")
@@ -2932,30 +2953,30 @@ model EventGameSessionParticipationGrant {
   @@unique([eventId, joinIdempotencyKeyDigest], map: "session_participation_grants_event_id_idempotency_key")
   @@index([eventId, sessionId, teamId], where: { teamId: { not: null } }, map: "session_participation_grants_event_session_team_idx")
   @@index([eventId, sessionId, revokedAt], map: "session_participation_grants_event_session_revoked_idx")
-  @@schema("event_games")
   @@map("session_participation_grants")
+  @@schema("event_games")
 }
 
 model EventGameSubmission {
-  id                     String   @id
-  eventId                String   @map("event_id")
-  sessionId              String   @map("session_id")
-  participationGrantId   String   @map("participation_grant_id")
-  roundKey               String   @map("round_key")
-  roundNumber            Int      @default(1) @map("round_number")
-  actionKind             String   @map("action_kind")
-  payload                Json     @db.JsonB
-  scoreResult            Json?    @map("score_result") @db.JsonB
-  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                   String   @id
+  eventId              String   @map("event_id")
+  sessionId            String   @map("session_id")
+  participationGrantId String   @map("participation_grant_id")
+  roundKey             String   @map("round_key")
+  roundNumber          Int      @default(1) @map("round_number")
+  actionKind           String   @map("action_kind")
+  payload              Json     @db.JsonB
+  scoreResult          Json?    @map("score_result") @db.JsonB
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  grant EventGameSessionParticipationGrant @relation(fields: [eventId, sessionId, participationGrantId], references: [eventId, sessionId, id], onDelete: Restrict, map: "submissions_event_session_grant_fkey")
+  grant             EventGameSessionParticipationGrant @relation(fields: [eventId, sessionId, participationGrantId], references: [eventId, sessionId, id], onDelete: Restrict, map: "submissions_event_session_grant_fkey")
   moderationActions EventGameModerationAction[]
 
   @@unique([sessionId, participationGrantId, roundKey, actionKind], map: "submissions_session_grant_round_action_key")
   @@unique([eventId, sessionId, id], map: "submissions_event_session_id_key")
   @@index([eventId, sessionId, createdAt], map: "submissions_event_session_created_idx")
-  @@schema("event_games")
   @@map("submissions")
+  @@schema("event_games")
 }
 
 model EventGameScoreLedger {
@@ -2972,8 +2993,8 @@ model EventGameScoreLedger {
 
   @@unique([eventId, sessionId, sourceEventId], map: "score_ledger_event_session_source_key")
   @@index([eventId, sessionId, participationGrantId, createdAt], map: "score_ledger_event_session_grant_created_idx")
-  @@schema("event_games")
   @@map("score_ledger")
+  @@schema("event_games")
 }
 
 model EventGameAward {
@@ -2992,13 +3013,13 @@ model EventGameAward {
   sourceEventId        String   @map("source_event_id")
   createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  grant EventGameSessionParticipationGrant? @relation(fields: [eventId, sessionId, participationGrantId], references: [eventId, sessionId, id], onDelete: Restrict, map: "awards_event_session_grant_fkey")
-  session EventGameSession @relation(fields: [eventId, sessionId], references: [eventId, id], onDelete: Restrict, map: "awards_event_session_fkey")
+  grant   EventGameSessionParticipationGrant? @relation(fields: [eventId, sessionId, participationGrantId], references: [eventId, sessionId, id], onDelete: Restrict, map: "awards_event_session_grant_fkey")
+  session EventGameSession                    @relation(fields: [eventId, sessionId], references: [eventId, id], onDelete: Restrict, map: "awards_event_session_fkey")
 
   @@unique([eventId, sessionId, sourceEventId, recipientKey], map: "awards_event_source_recipient_key")
   @@index([eventId, sessionId, createdAt], map: "awards_event_session_created_idx")
-  @@schema("event_games")
   @@map("awards")
+  @@schema("event_games")
 }
 
 model EventGameModerationAction {
@@ -3013,13 +3034,13 @@ model EventGameModerationAction {
   actorId              String   @map("actor_id")
   createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  submission EventGameSubmission? @relation(fields: [eventId, sessionId, submissionId], references: [eventId, sessionId, id], onDelete: Restrict, map: "moderation_actions_event_submission_fkey")
+  submission EventGameSubmission?                @relation(fields: [eventId, sessionId, submissionId], references: [eventId, sessionId, id], onDelete: Restrict, map: "moderation_actions_event_submission_fkey")
   grant      EventGameSessionParticipationGrant? @relation(fields: [eventId, sessionId, participationGrantId], references: [eventId, sessionId, id], onDelete: Restrict, map: "moderation_actions_event_participation_grant_fkey")
 
-  @@index([eventId, sessionId, createdAt], map: "moderation_actions_event_session_created_idx")
   @@unique([eventId, sessionId, submissionId], where: { action: "resolve_family_feud_answer" }, map: "moderation_actions_family_feud_resolution_once")
-  @@schema("event_games")
+  @@index([eventId, sessionId, createdAt], map: "moderation_actions_event_session_created_idx")
   @@map("moderation_actions")
+  @@schema("event_games")
 }
 
 model EventGameRateLimitBucket {
@@ -3030,6 +3051,6 @@ model EventGameRateLimitBucket {
 
   @@id([bucketKey, bucketStartedAt], map: "rate_limit_buckets_pkey")
   @@index([expiresAt], map: "rate_limit_buckets_expires_at_idx")
-  @@schema("event_games")
   @@map("rate_limit_buckets")
+  @@schema("event_games")
 }

@@ -6,6 +6,7 @@ import { FileCheck2 } from "lucide-react";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { clientFileRequirementsRepository } from "../data/client-file-requirements-repository";
+import { fileRequirementDueSummary } from "../model/file-requirement-due-summary";
 
 const STORAGE_HELP_COPY =
   "Track required documents here. Uploads and PMCM-shared files are available in the event files panel.";
@@ -62,6 +63,9 @@ export function ClientFileRequirementsMatrix({
               <div className="min-w-0">
                 <p className="text-sm font-bold text-foreground">{item.label}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">{item.detail}</p>
+                <p className={`mt-1 text-[11px] font-semibold ${item.overdue ? "text-destructive" : "text-muted-foreground"}`}>
+                  {fileRequirementDueSummary(item)}
+                </p>
               </div>
               <StatusBadge status={item.status} />
             </div>

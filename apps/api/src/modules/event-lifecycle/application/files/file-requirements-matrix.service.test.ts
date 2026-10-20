@@ -29,6 +29,7 @@ function createPrisma() {
     opsStoredObject: { findFirst: vi.fn(async (): Promise<{ id: string } | null> => storedConforme) },
     opsConformeExecution: { findFirst: vi.fn(async (): Promise<{ id: string } | null> => digitalConforme) },
     opsClientCloseoutResponse: { findUnique: vi.fn(async (): Promise<{ id: string; rating: number; submittedAt: Date } | null> => closeoutResponse) },
+    opsFileRequirement: { findMany: vi.fn(async () => [] as unknown[]) },
     opsLogisticsCompletion: { findUnique: vi.fn(async (): Promise<{ assetReturnsVerified: boolean; recordedAt: Date } | null> => logisticsRecord) },
   };
 }

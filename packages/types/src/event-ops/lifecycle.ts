@@ -282,7 +282,20 @@ export interface PrismFileRequirementItem {
   visibleToRoles: string[];
   sourceWorkflow: string;
   status: PrismFileRequirementStatus;
+  /** Whether PMCM treats this file as required; derived items default to required. */
+  required: boolean;
+  /** ISO timestamp of the PMCM due date, when one is set. */
   dueDate?: string;
+  /** True when a required item is still unsatisfied after its due date. */
+  overdue: boolean;
+  /** `derived` rows come from workflow records; `custom` rows are PMCM-added. */
+  origin?: "derived" | "custom";
+  /** Persisted PMCM override revision; 0 when PMCM has never edited the item. */
+  revision?: number;
+  /** Latest linked document validation result, when a document exists. */
+  validationStatus?: "accepted" | "rejected";
+  /** PMCM-only notes; stripped for every other role. */
+  notes?: string;
   uploadedAssetId?: string;
   generatedDocumentId?: string;
   auditCategory: string;

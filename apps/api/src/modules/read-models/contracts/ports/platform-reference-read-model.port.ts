@@ -71,6 +71,8 @@ export type PlatformPrivacyInventory = {
 /** Narrow, read-only owner composition used by Platform event, privacy, AI, and identity-evidence flows. */
 export interface PlatformReferenceReadModel {
   findStorageEventScope(eventId: string, transaction?: PrismTransactionContext): Promise<PlatformStorageEventScope | null>;
+  /** PMCM visibility overrides keyed by file requirement key; keys without an override are absent. */
+  findFileRequirementVisibility(eventId: string): Promise<Record<string, string[]>>;
   findEventReference(eventId: string): Promise<{ id: string } | null>;
   findPrivacyInventory(input?: { eventId?: string }): Promise<PlatformPrivacyInventory>;
   findPareEventSource(requestId: string): Promise<PareEventSource | null>;
