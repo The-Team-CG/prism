@@ -335,6 +335,7 @@ model OpsEvent {
   freezeExceptions            OpsEventFreezeException[]
   addenda                     OpsAddendum[]
   addendumImpacts             OpsAddendumImpact[]
+  addendumConformeExecutions  OpsAddendumConformeExecution[]
   ocularVisitRequest          OpsOcularVisitRequest?
   clientFloorplanAccessGrants OpsEventClientFloorplanAccessGrant[]
   conformeExecutions          OpsConformeExecution[]
@@ -689,6 +690,7 @@ model OpsAddendum {
   event             OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   freezeException   OpsEventFreezeException? @relation(fields: [freezeExceptionId], references: [id], onDelete: SetNull)
   impacts           OpsAddendumImpact[]
+  conformeExecution OpsAddendumConformeExecution?
 
   @@unique([eventId, versionNumber], map: "addenda_event_version_key")
   @@index([eventId, issuedAt], map: "addenda_event_issued_at_idx")
@@ -1093,6 +1095,49 @@ model OpsConformeSignature {
   @@unique([executionId, actorRole], map: "conforme_signatures_execution_role_key")
   @@index([actorId], map: "conforme_signatures_actor_id_idx")
   @@map("conforme_signatures")
+  @@schema("event_lifecycle")
+}
+
+model OpsAddendumConformeExecution {
+  id              String    @id
+  addendumId      String    @unique(map: "addendum_conforme_executions_addendum_key") @map("addendum_id")
+  eventId         String    @map("event_id")
+  versionNumber   Int       @map("version_number")
+  snapshot        Json
+  documentContent String    @map("document_content")
+  documentSha256  String    @map("document_sha256")
+  status          String    @default("awaiting_client")
+  billingSourceId String?   @map("billing_source_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  completedAt     DateTime? @map("completed_at")
+
+  addendum   OpsAddendum                    @relation(fields: [addendumId], references: [id], onDelete: Cascade)
+  event      OpsEvent                       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  signatures OpsAddendumConformeSignature[]
+
+  @@index([eventId], map: "addendum_conforme_executions_event_id_idx")
+  @@map("addendum_conforme_executions")
+  @@schema("event_lifecycle")
+}
+
+model OpsAddendumConformeSignature {
+  id                 String   @id
+  executionId        String   @map("execution_id")
+  actorId            String   @map("actor_id")
+  actorRole          String   @map("actor_role")
+  actorName          String   @map("actor_name")
+  actorEmail         String?  @map("actor_email")
+  consentTextVersion String   @map("consent_text_version")
+  consentText        String   @map("consent_text")
+  signedAt           DateTime @default(now()) @map("signed_at")
+  ipHash             String?  @map("ip_hash")
+  userAgentHash      String?  @map("user_agent_hash")
+
+  execution OpsAddendumConformeExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@unique([executionId, actorRole], map: "addendum_conforme_signatures_execution_role_key")
+  @@index([actorId], map: "addendum_conforme_signatures_actor_id_idx")
+  @@map("addendum_conforme_signatures")
   @@schema("event_lifecycle")
 }
 
@@ -1977,6 +2022,7 @@ model OpsBillingCorrection {
   correctedTotalAmount Int?  @map("corrected_total_amount")
   status           String    @default("pending")
   requestedBy      String    @map("requested_by")
+  requestedById    String?   @map("requested_by_id")
   resolvedBy       String?   @map("resolved_by")
   resolutionNotes  String?   @map("resolution_notes")
   idempotencyKey   String    @unique(map: "billing_corrections_idempotency_key_key") @map("idempotency_key")

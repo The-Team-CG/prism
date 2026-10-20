@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { describe, expect, it, vi } from 'vitest';
 import { CommercialAddendumImpactService } from './commercial-addendum-impact.service';
@@ -41,6 +41,7 @@ describe('CommercialAddendumImpactService', () => {
 
     const impacts = await service.apply({
       eventId: 'evt_addendum',
+      addendumId: 'addendum_1',
       versionNumber: 2,
       financialDelta: 5_000,
       quotePriceChanges: [{ quoteId: 'quote_1', amount: 30_000 }],
@@ -49,7 +50,7 @@ describe('CommercialAddendumImpactService', () => {
     expect(source).toMatchObject({ totalAmount: 105_000 });
     expect(source.lineItems).toEqual([
       { label: 'Package', amount: 100_000 },
-      { label: 'Addendum v2 scope change', amount: 5_000 },
+      { label: 'Addendum v2 scope change', amount: 5_000, addendumId: 'addendum_1' },
     ]);
     expect(quote.amount).toBe(30_000);
     expect(prisma.opsBillingSource.findFirst).toHaveBeenCalledWith({
@@ -80,6 +81,7 @@ describe('CommercialAddendumImpactService', () => {
 
     await expect(service.apply({
       eventId: 'evt_addendum',
+      addendumId: 'addendum_1',
       versionNumber: 1,
       financialDelta: 1,
       quotePriceChanges: [],
@@ -92,6 +94,7 @@ describe('CommercialAddendumImpactService', () => {
 
     const impacts = await service.apply({
       eventId: 'evt_addendum',
+      addendumId: 'addendum_1',
       versionNumber: 1,
       financialDelta: 0,
       quotePriceChanges: [
@@ -112,6 +115,7 @@ describe('CommercialAddendumImpactService', () => {
 
     const impacts = await service.apply({
       eventId: 'evt_addendum',
+      addendumId: 'addendum_1',
       versionNumber: 1,
       financialDelta: 0,
       quotePriceChanges: [{ quoteId: 'quote_1', amount: 30_000 }],
@@ -123,5 +127,81 @@ describe('CommercialAddendumImpactService', () => {
     expect(quote.amount).toBe(25_000);
     expect(prisma.opsSupplierQuote.update).not.toHaveBeenCalled();
     expect(impacts).toEqual([]);
+  });
+});
+
+describe('CommercialAddendumImpactService conforme trace', () => {
+  const digest = 'a'.repeat(64);
+  const executed = {
+    eventId: 'evt_addendum',
+    addendumId: 'addendum_1',
+    billingSourceId: 'billing_source_1',
+    versionNumber: 2,
+    executionId: 'acx_1',
+    documentSha256: digest,
+    executedAt: '2026-10-19T09:00:00.000Z',
+  };
+
+  function tracedService(lineItems: unknown[]) {
+    const source = { id: 'billing_source_1', eventId: 'evt_addendum', totalAmount: 105_000, lineItems, updatedAt: new Date() };
+    const prisma = {
+      opsBillingSource: {
+        findFirst: vi.fn(async ({ where }: { where: { id: string; eventId: string } }) =>
+          where.id === source.id && where.eventId === source.eventId ? { ...source } : null),
+        update: vi.fn(async ({ data }) => Object.assign(source, data)),
+      },
+    };
+    const transaction = { prisma, correlationId: 'addendum_1' } as unknown as PrismTransactionContext;
+    return { service: new CommercialAddendumImpactService(), source, prisma, transaction };
+  }
+
+  it('stamps only the line carrying this addendum id, leaves amounts alone, and treats a replay as a no-op', async () => {
+    const { service, source, prisma, transaction } = tracedService([
+      { label: 'Package', amount: 100_000 },
+      { label: 'Addendum v2 scope change', amount: 5_000, addendumId: 'addendum_1' },
+      // Same label, different addendum: a label match would wrongly stamp this line too.
+      { label: 'Addendum v2 scope change', amount: 1_000, addendumId: 'addendum_2' },
+    ]);
+
+    await expect(service.recordConformeExecution(executed, transaction)).resolves.toEqual({ billingSourceId: 'billing_source_1' });
+    await service.recordConformeExecution(executed, transaction);
+
+    expect(source.totalAmount).toBe(105_000);
+    expect(source.lineItems).toEqual([
+      { label: 'Package', amount: 100_000 },
+      {
+        label: 'Addendum v2 scope change',
+        amount: 5_000,
+        addendumId: 'addendum_1',
+        addendumConforme: { executionId: 'acx_1', addendumId: 'addendum_1', versionNumber: 2, documentSha256: digest, executedAt: '2026-10-19T09:00:00.000Z' },
+      },
+      { label: 'Addendum v2 scope change', amount: 1_000, addendumId: 'addendum_2' },
+    ]);
+    expect(prisma.opsBillingSource.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses to rebind a line already traced to a different execution', async () => {
+    const { service, prisma, transaction } = tracedService([
+      {
+        label: 'Addendum v2 scope change',
+        amount: 5_000,
+        addendumId: 'addendum_1',
+        addendumConforme: { executionId: 'acx_old', addendumId: 'addendum_1', versionNumber: 2, documentSha256: digest, executedAt: '2026-10-18T09:00:00.000Z' },
+      },
+    ]);
+
+    await expect(service.recordConformeExecution(executed, transaction)).rejects.toBeInstanceOf(ConflictException);
+    expect(prisma.opsBillingSource.update).not.toHaveBeenCalled();
+  });
+
+  it('does not trace label-only lines or a billing source that belongs to another event', async () => {
+    const legacy = tracedService([{ label: 'Addendum v2 scope change', amount: 5_000 }]);
+    await expect(legacy.service.recordConformeExecution(executed, legacy.transaction)).resolves.toBeNull();
+
+    const traced = tracedService([{ label: 'Addendum v2 scope change', amount: 5_000, addendumId: 'addendum_1' }]);
+    await expect(traced.service.recordConformeExecution({ ...executed, eventId: 'evt_other' }, traced.transaction)).resolves.toBeNull();
+
+    expect(legacy.prisma.opsBillingSource.update).not.toHaveBeenCalled();
+    expect(traced.prisma.opsBillingSource.update).not.toHaveBeenCalled();
   });
 });
