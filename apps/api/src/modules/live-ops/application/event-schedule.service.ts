@@ -19,7 +19,6 @@ import type {
   PrismEventEodReport,
   PrismEventHandoff,
   PrismEventOperatorDesignation,
-  PrismEventRunSheet,
   PrismEventSchedule,
   PrismEventScheduleDay,
   PrismEventScheduleSegment,
@@ -329,27 +328,6 @@ export class EventScheduleService {
       await writeAudit(this.auditWriter, eventId, actor.name, 'Replied to EOD report', { actorRole: actor.role, actorEmail: actor.email, actionType: 'create', category: 'live_ops', affectedType: 'event_eod_reply', affectedId: reply.id, metadata: { reportId } }, { prisma: tx, actorId: actor.id, correlationId: `eod-reply:${reply.id}` });
       return { id: reply.id, reportId, authorId: reply.authorId, authorRole: reply.authorRole, body: reply.body, createdAt: reply.createdAt.toISOString() };
     });
-  }
-
-  async getRunSheet(eventId: string, dayId: string | undefined, actor: ResolvedEventOpsActor): Promise<PrismEventRunSheet | { eventId: string; authored: false; reason: 'no_schedule' }> {
-    const liveOps = await this.liveOpsReadModel.getEventLiveOps(eventId, actor);
-    const days = liveOps.schedule?.days ?? [];
-    const day = days.find((candidate) => candidate.id === dayId) ?? days[0];
-    if (!day) return { eventId, authored: false, reason: 'no_schedule' };
-    return {
-      eventId,
-      day,
-      coordinators: liveOps.coordinatorAssignments,
-      supplierCommitments: liveOps.supplierStatuses.map((request) => ({
-        id: request.id,
-        supplierName: request.supplierName,
-        category: request.category,
-        status: request.eventDayStatus ?? request.readinessStatus ?? 'unknown',
-        notes: request.eventDayNotes ?? '',
-      })),
-      openTasks: liveOps.tasks.filter((task) => !['done', 'cancelled'].includes(task.status)),
-      openIssues: liveOps.urgentIssues.filter((issue) => !['resolved', 'cancelled'].includes(issue.status)),
-    };
   }
 
   async listEodReports(eventId: string, actor: ResolvedEventOpsActor) {

@@ -14,6 +14,7 @@ import {
   projectHandoffKeyDetails,
   projectHandoffSupplier,
 } from '../mappers/handoff-brief.mappers';
+import { canSeeSupplierReadiness } from '../mappers/run-sheet.mappers';
 import { LiveOpsReadModelsService } from './live-ops-read-models.service';
 
 /**
@@ -54,17 +55,11 @@ export class HandoffBriefReadModelsService {
 
   /** Mirrors the live-ops rule: PMCM, designated operators, and ingress/egress roles see supplier readiness. */
   private supplierReadiness(liveOps: PrismLiveOps | PrismCoordinatorLiveOps, scope: PrismHandoffBriefScope): PrismHandoffBrief['supplierReadiness'] {
-    const role = 'role' in liveOps ? liveOps.role : undefined;
-    const visible = scope === 'pmcm' || Boolean(liveOps.isDesignatedOperator) || isIngressRole(role);
+    const visible = canSeeSupplierReadiness(liveOps, scope);
     const statuses: HandoffSupplierInput[] = liveOps.supplierStatuses;
     return {
       visible,
       items: visible ? statuses.map(projectHandoffSupplier) : [],
     };
   }
-}
-
-function isIngressRole(role?: string | null) {
-  const value = role?.toLowerCase() ?? '';
-  return value.includes('ingress') || value.includes('egress');
 }
