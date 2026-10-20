@@ -184,40 +184,52 @@ export class ScopeChangeRequestService {
       if (!existing) throw new NotFoundException('Scope change request not found');
       if (!OPEN_STATUSES.includes(existing.status as PrismScopeChangeStatus)) throw new BadRequestException(`Scope change request is already ${existing.status}`);
       const now = new Date();
-      const reviewer = { reviewedBy: actor.name };
-      const from = { id: requestId, eventId, status: { in: OPEN_STATUSES } };
-
       if (input.decision === 'start_review') {
-        if (existing.status !== 'submitted') throw new BadRequestException('Scope change request is already under review');
-        await this.requireTransition(tx, { id: requestId, eventId, status: 'submitted' }, { status: 'under_review', reviewStartedAt: now, ...reviewer });
-        await this.recordReviewAudit(tx, eventId, actor, requestId, 'Started scope change review', 'update', { previousStatus: existing.status });
+        await this.startReview(tx, eventId, actor, requestId, existing, now);
       } else if (input.decision === 'reject') {
-        await this.requireTransition(tx, from, { status: 'rejected', decisionReason: input.decisionReason.trim(), clientResponse: input.clientResponse?.trim() || null, decidedBy: actor.name, decidedAt: now, ...reviewer });
-        await this.recordReviewAudit(tx, eventId, actor, requestId, 'Rejected scope change request', 'reject', { previousStatus: existing.status, decisionReason: input.decisionReason.trim() });
+        await this.reject(tx, eventId, actor, requestId, existing, input, now);
       } else {
-        // Read-only checks run before the single-use consumption so a refused approval leaves the exception unused.
-        const addendumId = input.addendumId ? await this.requireEventAddendum(tx, eventId, input.addendumId) : null;
-        const freezeExceptionId = event.freezeStatus === 'frozen'
-          ? await this.consumeFreezeExceptionForApproval(tx, eventId, input.freezeExceptionId)
-          : null;
-        await this.requireTransition(tx, from, {
-          status: 'approved',
-          billingImpact: input.impacts.billing,
-          supplierImpact: input.impacts.supplier,
-          coordinatorImpact: input.impacts.coordinator,
-          floorplanImpact: input.impacts.floorplan,
-          impactReviewedAt: now,
-          freezeExceptionId,
-          addendumId,
-          clientResponse: input.clientResponse?.trim() || null,
-          decidedBy: actor.name,
-          decidedAt: now,
-          ...reviewer,
-        });
-        await this.recordReviewAudit(tx, eventId, actor, requestId, 'Approved scope change request', 'approve', { previousStatus: existing.status, impacts: input.impacts, freezeExceptionId, addendumId });
+        await this.approve(tx, event, actor, requestId, existing, input, now);
       }
       return mapScopeChangeRequest(await tx.opsScopeChangeRequest.findUniqueOrThrow({ where: { id: requestId } }));
     }, { isolationLevel: 'Serializable' });
+  }
+
+  private async startReview(tx: Prisma.TransactionClient, eventId: string, actor: ResolvedEventOpsActor, requestId: string, existing: OpsScopeChangeRequest, now: Date) {
+    if (existing.status !== 'submitted') throw new BadRequestException('Scope change request is already under review');
+    await this.requireTransition(tx, { id: requestId, eventId, status: 'submitted' }, { status: 'under_review', reviewStartedAt: now, reviewedBy: actor.name });
+    await this.recordReviewAudit(tx, eventId, actor, requestId, 'Started scope change review', 'update', { previousStatus: existing.status });
+  }
+
+  private async reject(tx: Prisma.TransactionClient, eventId: string, actor: ResolvedEventOpsActor, requestId: string, existing: OpsScopeChangeRequest, input: Extract<ReviewScopeChangeRequestInput, { decision: 'reject' }>, now: Date) {
+    await this.requireTransition(tx, { id: requestId, eventId, status: { in: OPEN_STATUSES } }, {
+      status: 'rejected', decisionReason: input.decisionReason.trim(), clientResponse: input.clientResponse?.trim() || null, decidedBy: actor.name, decidedAt: now, reviewedBy: actor.name,
+    });
+    await this.recordReviewAudit(tx, eventId, actor, requestId, 'Rejected scope change request', 'reject', { previousStatus: existing.status, decisionReason: input.decisionReason.trim() });
+  }
+
+  /** Read-only checks run before the single-use consumption so a refused approval leaves the exception unused. */
+  private async approve(tx: Prisma.TransactionClient, event: ScopeEvent, actor: ResolvedEventOpsActor, requestId: string, existing: OpsScopeChangeRequest, input: Extract<ReviewScopeChangeRequestInput, { decision: 'approve' }>, now: Date) {
+    const eventId = event.id;
+    const addendumId = input.addendumId ? await this.requireEventAddendum(tx, eventId, input.addendumId) : null;
+    const freezeExceptionId = event.freezeStatus === 'frozen'
+      ? await this.consumeFreezeExceptionForApproval(tx, eventId, input.freezeExceptionId)
+      : null;
+    await this.requireTransition(tx, { id: requestId, eventId, status: { in: OPEN_STATUSES } }, {
+      status: 'approved',
+      billingImpact: input.impacts.billing,
+      supplierImpact: input.impacts.supplier,
+      coordinatorImpact: input.impacts.coordinator,
+      floorplanImpact: input.impacts.floorplan,
+      impactReviewedAt: now,
+      freezeExceptionId,
+      addendumId,
+      clientResponse: input.clientResponse?.trim() || null,
+      decidedBy: actor.name,
+      decidedAt: now,
+      reviewedBy: actor.name,
+    });
+    await this.recordReviewAudit(tx, eventId, actor, requestId, 'Approved scope change request', 'approve', { previousStatus: existing.status, impacts: input.impacts, freezeExceptionId, addendumId });
   }
 
   private async requireTransition(tx: Prisma.TransactionClient, where: Prisma.OpsScopeChangeRequestWhereInput & { id: string; eventId: string }, data: Prisma.OpsScopeChangeRequestUncheckedUpdateManyInput) {
