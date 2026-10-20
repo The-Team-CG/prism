@@ -220,20 +220,22 @@ These PRs are merged into `staging`. Active Ledger decisions and family states a
 | PR | Ledger scope | Delivered slice and remaining limits |
 | --- | --- | --- |
 | [#233](https://github.com/The-Team-CG/prism/pull/233) | FL-011, B/C/D | Official plan saves enforce the shared table-eligibility rule against saved canvas objects and guests. Unknown or declined guests, invalid or hidden tables, and over-capacity assignments are refused. Plans without assignments remain valid; client preference saves are outside this rule. Closes [#221](https://github.com/The-Team-CG/prism/issues/221). |
-| [#238](https://github.com/The-Team-CG/prism/pull/238) | FL-009/FL-025, B/D | The primary client acknowledges an immutable, hashed addendum version before PMCM countersigns. Replays preserve the execution; supplier quote detail stays PMCM-only. Billing trace uses the addendum id, not the label. Older billing lines without an addendum id are not traced automatically. This does not defer billing or quote effects until countersignature. Closes [#226](https://github.com/The-Team-CG/prism/issues/226). |
+| [#238](https://github.com/The-Team-CG/prism/pull/238) | FL-009/FL-025, B/D | The primary client acknowledges an immutable, hashed addendum version before PMCM countersigns. Replays preserve the execution; supplier quote detail stays PMCM-only. Billing trace uses the addendum id, not the label. Older billing lines without an addendum id are not traced automatically. Issuing an addendum applies billing and quote changes immediately, before acknowledgment or countersignature; signing later records the execution trace. Closes [#226](https://github.com/The-Team-CG/prism/issues/226). |
 | [#239](https://github.com/The-Team-CG/prism/pull/239) | FL-010, B/D | The API refuses a correction requester's own approval, and the PMCM panel disables it. The requester can still reject their request. Verified requester id controls new rows, with name fallback for legacy rows. Waivers and additional billing remain single-step. Closes [#228](https://github.com/The-Team-CG/prism/issues/228). |
 
 ## Candidate implementation awaiting merge and acceptance
 
 These PRs contain bounded implementations under review. They are not delivered
-on `staging` and do not close a feature family. Focused checks recorded on each
-PR do not establish integrated database or browser acceptance.
+on `staging` and do not close a feature family. Historical focused-check reports
+do not establish current-head CI, mergeability, or integrated database and browser
+acceptance. Current merge conflicts and failing checks remain release blockers;
+the linked PR checks carry the current state.
 
 | PR | Ledger scope and owner | Implemented scope in review | Remaining limits or acceptance |
 | --- | --- | --- | --- |
 | [#231](https://github.com/The-Team-CG/prism/pull/231) | FL-019, B/D | PMCM-only, read-only decision log with source-record reasons, kind filters, counts, and paging. | Reads cap at 200 rows per source and 500 audit rows, so older decisions can be under-reported. Pending requests are excluded; actor role can be null. Browser acceptance remains. |
 | [#234](https://github.com/The-Team-CG/prism/pull/234) | FL-026, B/D with A | Time-ordered, role-projected run sheet combining schedule, supplier windows, task deadlines, and open issues, with a printable PMCM route. | Day windows use UTC because events have no timezone field. Guest-flow entries and an HTTP test for the moved route remain absent. Browser print acceptance remains. |
-| [#235](https://github.com/The-Team-CG/prism/pull/235) | FL-022, C/B/D | Shared server readiness calculation for supplier and PMCM views, PMCM-only read endpoint, complete supplier action lists, and removal of private verification notes from supplier payloads. | Actions open sections rather than individual items. PMCM reads cap at 500 requests per event; the handoff brief still calculates readiness separately. |
+| [#235](https://github.com/The-Team-CG/prism/pull/235) | FL-022, C/B/D | Shared server readiness calculation for supplier and PMCM views, PMCM-only read endpoint, complete supplier action lists, and private verification-note removal from the supplier workspace GET and readiness board. | Staging exposes PMCM verification notes and verifier identity to suppliers. The initial patch leaves four command responses exposed; all supplier response paths must be covered before acceptance. Actions open sections rather than individual items. PMCM reads cap at 500 requests per event; the handoff brief still calculates readiness separately. |
 | [#236](https://github.com/The-Team-CG/prism/pull/236) | FL-017/FL-020, B/C with A/D | PMCM inbox live-ops items, overdue-task notices, selected-event summary, and client action-center entry with feedback and change-request status. | Blocked tasks have no notice. Feedback prompt runs from event end until archive. Addenda awaiting acknowledgment have no action-center item. |
 | [#240](https://github.com/The-Team-CG/prism/pull/240) | FL-015/FL-027, D with A | Privacy queue with filters, paging, due dates, self-assignment, and guest correction execution. | The 30-day due-date default needs owner D confirmation. Assignment cannot select another operator; overdue notices and live database acceptance remain absent. |
 | [#241](https://github.com/The-Team-CG/prism/pull/241) | FL-006/FL-024, D with A/B/C | PMCM custom requirements and overrides, role-filtered visibility, file audit events, reminder sweep, and client due status. | Visibility enforcement covers signed conformes and billing statements. Supplier due status, broader file-type enforcement, and database acceptance remain. |
@@ -242,7 +244,7 @@ PR do not establish integrated database or browser acceptance.
 
 ### Remaining work outside these candidate slices
 
-- Addendum billing and quote effects are not deferred until countersignature; the client action center lacks an addendum acknowledgment item. These were present only in superseded [#237](https://github.com/The-Team-CG/prism/pull/237), which closed without merging.
+- Issuing an addendum changes billing lines and quote amounts before the client acknowledges or PMCM countersigns. Owners B and D retain the decision on changing that timing. A signature gate for those effects and a client action-center acknowledgment item were present only in superseded [#237](https://github.com/The-Team-CG/prism/pull/237), which closed without merging.
 - Existing guest privacy deletion still matches by name, so same-name guests need a separate identity-safe deletion fix. The exact-record retention fix in #243 does not repair that path.
 - FL-018 Event Health Score, FL-023 Staffing Heatmap, and FL-028 Workflow Template Builder remain deferred or gated; the existing staffing suggestions do not constitute a heatmap.
 - Production notification adapters, external auth, camera QR, live AI, storage-provider activation, and malware scanning retain their existing readiness gates.
