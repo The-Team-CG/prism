@@ -81,7 +81,9 @@ function createService() {
       }),
       findMany: vi.fn(async ({ where }) =>
         state.floorPlanDrafts.filter((draft) =>
-          where.eventId.in.includes(draft.eventId) && where.status.in.includes(draft.status),
+          where.eventId.in.includes(draft.eventId) &&
+          where.status.in.includes(draft.status) &&
+          (!where.sourceType || draft.sourceType !== where.sourceType.not),
         ),
       ),
       findFirst: vi.fn(async ({ where }) =>
@@ -904,11 +906,54 @@ describe('FloorPlanWorkflowService', () => {
   it('lists only official snapshot entries for the supplied shared events', async () => {
     const { service, state, prisma } = createService();
     state.floorPlanDrafts.push(
-      { id: 'fpd_review', eventId: 'evt_shared', name: 'Review Layout', status: 'in_review', updatedAt: new Date() },
-      { id: 'fpd_revision', eventId: 'evt_shared', name: 'Revision Layout', status: 'revision_requested', updatedAt: new Date() },
-      { id: 'fpd_approved', eventId: 'evt_other', name: 'Approved Layout', status: 'approved', updatedAt: new Date() },
-      { id: 'fpd_preference', eventId: 'evt_shared', name: 'Client Preference', status: 'client_submitted', updatedAt: new Date() },
-      { id: 'fpd_unshared', eventId: 'evt_unshared', name: 'Unshared Layout', status: 'approved', updatedAt: new Date() },
+      {
+        id: 'fpd_review',
+        eventId: 'evt_shared',
+        name: 'Review Layout',
+        status: 'in_review',
+        sourceType: 'blank',
+        updatedAt: new Date(),
+      },
+      {
+        id: 'fpd_revision',
+        eventId: 'evt_shared',
+        name: 'Revision Layout',
+        status: 'revision_requested',
+        sourceType: 'blank',
+        updatedAt: new Date(),
+      },
+      {
+        id: 'fpd_approved',
+        eventId: 'evt_other',
+        name: 'Approved Layout',
+        status: 'approved',
+        sourceType: 'template',
+        updatedAt: new Date(),
+      },
+      {
+        id: 'fpd_preference',
+        eventId: 'evt_shared',
+        name: 'Client Preference',
+        status: 'client_submitted',
+        sourceType: 'client_preference',
+        updatedAt: new Date(),
+      },
+      {
+        id: 'fpd_reopened_preference',
+        eventId: 'evt_shared',
+        name: 'Reopened Preference',
+        status: 'revision_requested',
+        sourceType: 'client_preference',
+        updatedAt: new Date(),
+      },
+      {
+        id: 'fpd_unshared',
+        eventId: 'evt_unshared',
+        name: 'Unshared Layout',
+        status: 'approved',
+        sourceType: 'blank',
+        updatedAt: new Date(),
+      },
     );
 
     await expect(service.listClientSnapshotEntries(['evt_shared', 'evt_other'])).resolves.toEqual([
@@ -938,6 +983,7 @@ describe('FloorPlanWorkflowService', () => {
       where: {
         eventId: { in: ['evt_shared', 'evt_other'] },
         status: { in: ['in_review', 'revision_requested', 'approved'] },
+        sourceType: { not: 'client_preference' },
       },
       select: { eventId: true, id: true, name: true, status: true, updatedAt: true },
       orderBy: [{ eventId: 'asc' }, { updatedAt: 'desc' }, { id: 'asc' }],
