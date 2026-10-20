@@ -7,6 +7,7 @@ import type { DecideFreezeExceptionInput, FreezeEventInput, IssueAddendumInput, 
 import { randomUUID } from 'node:crypto';
 import { mapAddendumConformeExecution } from './addendum-conforme.mappers';
 import { COMMERCIAL_ADDENDUM_IMPACT_WRITER, type CommercialAddendumImpactWriter } from '@prism/contexts/commercial';
+import { consumeApprovedFreezeException } from './freeze-exception-consumption';
 
 type SnapshotEntry = Record<string, unknown>;
 
@@ -136,8 +137,11 @@ export class ChangeManagementService {
     });
     return values.map((value) => ({
       id: value.id,
+      source: 'freeze_exception' as const,
       requestedChange: value.requestedChange,
+      category: null,
       status: CLIENT_CHANGE_REQUEST_STATUS[value.status as keyof typeof CLIENT_CHANGE_REQUEST_STATUS] ?? 'under_review',
+      clientResponse: null,
       updatedAt: (value.decidedAt ?? value.requestedAt).toISOString(),
     }));
   }
@@ -162,12 +166,7 @@ export class ChangeManagementService {
   // Addenda consume the approval the same way decisions do: one conditional write, rejected if already used.
   private async consumeApprovedException(tx: Prisma.TransactionClient, eventId: string, exceptionId?: string) {
     if (!exceptionId) throw new BadRequestException('Frozen events reject scope changes without an approved exception');
-    const consumed = await tx.opsEventFreezeException.updateMany({
-      where: { id: exceptionId, eventId, status: 'approved', consumedAt: null },
-      data: { consumedAt: new Date() },
-    });
-    if (consumed.count !== 1) throw new BadRequestException('Freeze exception is not an unused approval for this event');
-    return { id: exceptionId };
+    return consumeApprovedFreezeException(tx, eventId, exceptionId);
   }
 
   private async applyCommercialImpacts(

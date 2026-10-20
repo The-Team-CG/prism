@@ -1,10 +1,10 @@
 {
   "summary": {
-    "totalTables": 123,
+    "totalTables": 126,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
-    "targetSameDomainFks": 115,
+    "targetSameDomainFks": 119,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -181,6 +181,33 @@
       "targetSchema": "event_lifecycle",
       "introducedAfterCutover": true,
       "columnCount": 11
+    },
+    {
+      "model": "OpsScopeChangeRequest",
+      "currentSchema": "event_lifecycle",
+      "table": "scope_change_requests",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "introducedAfterCutover": true,
+      "columnCount": 26
+    },
+    {
+      "model": "OpsEventRiskAssessment",
+      "currentSchema": "event_lifecycle",
+      "table": "event_risk_assessments",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "introducedAfterCutover": true,
+      "columnCount": 11
+    },
+    {
+      "model": "OpsEventRiskAssessmentHistory",
+      "currentSchema": "event_lifecycle",
+      "table": "event_risk_assessment_history",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "introducedAfterCutover": true,
+      "columnCount": 12
     },
     {
       "model": "OpsOcularVisitRequest",
@@ -2938,6 +2965,66 @@
       "targetDomain": "event-lifecycle",
       "targetCurrentSchema": "event_lifecycle",
       "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "scope_change_requests",
+      "name": "scope_change_requests_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_lifecycle.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "scope_change_requests",
+      "name": "scope_change_requests_addendum_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (addendum_id) REFERENCES event_lifecycle.addenda(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "columns": [
+        "addendum_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "addenda",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "event_risk_assessments",
+      "name": "event_risk_assessments_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_lifecycle.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "event_risk_assessment_history",
+      "name": "event_risk_assessment_history_assessment_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (assessment_id) REFERENCES event_lifecycle.event_risk_assessments(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "assessment_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "event_risk_assessments",
       "sameDomain": true
     },
     {

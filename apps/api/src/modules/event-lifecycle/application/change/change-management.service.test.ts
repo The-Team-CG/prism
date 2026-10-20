@@ -200,7 +200,7 @@ describe('ChangeManagementService client change requests', () => {
 
     const requests = await service.listClientChangeRequests('evt_1', client);
 
-    expect(requests).toEqual([{ id: 'freeze_ex_1', requestedChange: 'Add stage lighting', status: 'not_approved', updatedAt: '2026-10-12T00:00:00.000Z' }]);
+    expect(requests).toEqual([{ id: 'freeze_ex_1', source: 'freeze_exception', requestedChange: 'Add stage lighting', category: null, status: 'not_approved', clientResponse: null, updatedAt: '2026-10-12T00:00:00.000Z' }]);
     // Redaction: no internal reason, decision note, or PMCM actor identity may appear anywhere in the client payload.
     const serialized = JSON.stringify(requests);
     expect(serialized).not.toContain('venue cost overrun');
