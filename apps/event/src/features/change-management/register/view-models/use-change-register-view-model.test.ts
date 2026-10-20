@@ -1,12 +1,14 @@
 /** @vitest-environment jsdom */
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { RecordEventDecisionInput, PrismEventFreezeException } from "@prism/types";
+import type { PrismAddendum, RecordEventDecisionInput, PrismEventFreezeException } from "@prism/types";
 import { useChangeRegisterViewModel } from "./use-change-register-view-model";
 
-const { load, recordDecision } = vi.hoisted(() => ({ load: vi.fn(), recordDecision: vi.fn() }));
+const { load, recordDecision, requestAddendumConforme, countersignAddendumConforme } = vi.hoisted(() => ({
+  load: vi.fn(), recordDecision: vi.fn(), requestAddendumConforme: vi.fn(), countersignAddendumConforme: vi.fn(),
+}));
 vi.mock("../data/change-register-repository", () => ({
-  changeRegisterRepository: { load, recordDecision, freeze: vi.fn(), requestException: vi.fn(), decideException: vi.fn() },
+  changeRegisterRepository: { load, recordDecision, requestAddendumConforme, countersignAddendumConforme, freeze: vi.fn(), requestException: vi.fn(), decideException: vi.fn() },
 }));
 
 afterEach(() => {
@@ -41,10 +43,20 @@ const cancellation: RecordEventDecisionInput = {
   idempotencyKey: "draft-1",
 };
 
-function renderRegister(frozen: boolean, exceptions: PrismEventFreezeException[]) {
-  load.mockResolvedValue({ addenda: [], exceptions });
+function renderRegister(frozen: boolean, exceptions: PrismEventFreezeException[], addenda: PrismAddendum[] = []) {
+  load.mockResolvedValue({ addenda, exceptions });
   return renderHook(() => useChangeRegisterViewModel("evt_1", { frozen }));
 }
+
+const addendumVersion2 = {
+  id: "addendum_1", eventId: "evt_1", versionNumber: 2, title: "Lighting", summary: "", status: "issued", documentId: "", documentState: "pending",
+  signatureMethod: "scanned_document", comparison: { contract: [], quotes: [] }, financialDelta: 15000, issuedAt: "2026-10-19T09:00:00.000Z",
+  conforme: null,
+} as PrismAddendum;
+const conformeAwaitingPmcm = {
+  id: "acx_1", addendumId: "addendum_1", eventId: "evt_1", versionNumber: 2, documentContent: "ADDENDUM CONFORME", documentSha256: "a".repeat(64),
+  status: "awaiting_pmcm", createdAt: "2026-10-19T09:00:00.000Z", completedAt: null, signatures: [],
+} as NonNullable<PrismAddendum["conforme"]>;
 
 describe("useChangeRegisterViewModel recordDecision", () => {
   it("refuses a cancellation on a frozen event without an approved exception and sends nothing", async () => {
@@ -97,5 +109,38 @@ describe("useChangeRegisterViewModel recordDecision", () => {
     await waitFor(() => expect(result.current.status).toBe("ready"));
 
     expect(result.current.approvedExceptions.map((item) => item.id)).toEqual(["fresh"]);
+  });
+});
+
+describe("useChangeRegisterViewModel addendum conforme", () => {
+  it("requests the conforme for an addendum and refreshes the register", async () => {
+    requestAddendumConforme.mockResolvedValue(conformeAwaitingPmcm);
+    const { result } = renderRegister(true, [], [addendumVersion2]);
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    const loadsBefore = load.mock.calls.length;
+
+    let saved = false;
+    await act(async () => { saved = await result.current.requestAddendumConforme("addendum_1"); });
+
+    expect(saved).toBe(true);
+    expect(requestAddendumConforme).toHaveBeenCalledWith("evt_1", "addendum_1");
+    expect(load.mock.calls.length).toBeGreaterThan(loadsBefore);
+  });
+
+  it("countersigns the exact version that was requested and never sends a countersignature without one", async () => {
+    countersignAddendumConforme.mockResolvedValue({ ...conformeAwaitingPmcm, status: "completed" });
+    const { result } = renderRegister(true, [], [{ ...addendumVersion2, conforme: conformeAwaitingPmcm }]);
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+
+    await act(async () => { await result.current.countersignAddendumConforme({ ...addendumVersion2, conforme: conformeAwaitingPmcm }); });
+    expect(countersignAddendumConforme).toHaveBeenCalledWith("evt_1", "addendum_1", {
+      executionId: "acx_1", versionNumber: 2, documentSha256: "a".repeat(64), consentAccepted: true,
+    });
+
+    let saved = true;
+    await act(async () => { saved = await result.current.countersignAddendumConforme(addendumVersion2); });
+    expect(saved).toBe(false);
+    expect(result.current.error).toBe("Request the addendum conforme before countersigning it.");
+    expect(countersignAddendumConforme).toHaveBeenCalledTimes(1);
   });
 });

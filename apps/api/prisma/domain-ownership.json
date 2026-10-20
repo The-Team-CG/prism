@@ -1,10 +1,10 @@
 {
   "summary": {
-    "totalTables": 124,
+    "totalTables": 126,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
-    "targetSameDomainFks": 116,
+    "targetSameDomainFks": 119,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -20,8 +20,8 @@
       {
         "domain": "event-lifecycle",
         "schema": "event_lifecycle",
-        "tables": 24,
-        "columns": 345
+        "tables": 26,
+        "columns": 367
       },
       {
         "domain": "commercial",
@@ -1059,6 +1059,24 @@
       "model": "OpsConformeSignature",
       "currentSchema": "event_lifecycle",
       "table": "conforme_signatures",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 11,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsAddendumConformeExecution",
+      "currentSchema": "event_lifecycle",
+      "table": "addendum_conforme_executions",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 11,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsAddendumConformeSignature",
+      "currentSchema": "event_lifecycle",
+      "table": "addendum_conforme_signatures",
       "domain": "event-lifecycle",
       "targetSchema": "event_lifecycle",
       "columnCount": 11,
@@ -3490,6 +3508,51 @@
       "targetDomain": "event-lifecycle",
       "targetCurrentSchema": "event_lifecycle",
       "targetTable": "conforme_executions",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "addendum_conforme_executions",
+      "name": "addendum_conforme_executions_addendum_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (addendum_id) REFERENCES event_lifecycle.addenda(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "addendum_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "addenda",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "addendum_conforme_executions",
+      "name": "addendum_conforme_executions_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_lifecycle.events(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "addendum_conforme_signatures",
+      "name": "addendum_conforme_signatures_execution_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (execution_id) REFERENCES event_lifecycle.addendum_conforme_executions(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "execution_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "addendum_conforme_executions",
       "sameDomain": true
     },
     {
