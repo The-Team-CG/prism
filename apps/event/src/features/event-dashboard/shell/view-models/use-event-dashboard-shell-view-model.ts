@@ -36,7 +36,7 @@ export type { EventDashboardClientProps };
 
 type Screen =
   | { name: "portal" }
-  | { name: "editor"; event: PrismEvent; draft: PrismFloorPlanDraft; project: Project };
+  | { name: "editor"; event: PrismEvent; draft: PrismFloorPlanDraft; project: Project; readOnly: boolean };
 
 export function useEventDashboardShellViewModel({
   section: initialSection,
@@ -240,10 +240,10 @@ export function useEventDashboardShellViewModel({
     await openEditor(selectedEvent, draft);
   }
 
-  async function openEditor(event: PrismEvent, draft: PrismFloorPlanDraft) {
+  async function openEditor(event: PrismEvent, draft: PrismFloorPlanDraft, readOnly = false) {
     if (!session || !isPmcmAdmin(session.role)) return;
     const project = await commands.loadPlan(draft.floorPlanId);
-    setScreen({ name: "editor", event, draft, project });
+    setScreen({ name: "editor", event, draft, project, readOnly });
   }
 
   const navigation = useEventDashboardNavigationViewModel({

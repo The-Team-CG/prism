@@ -132,6 +132,7 @@ function EventFloorplanDraftCard({ draft }: { draft: PrismFloorPlanDraft }) {
   const canSubmit = !isClientPreference && ["pmcm_draft", "revision_requested"].includes(draft.status);
   const canApprove = !isClientPreference && draft.status === "in_review";
   const canReopenPreference = isClientPreference && draft.status === "client_submitted";
+  const canViewPreferenceLayout = isClientPreference && draft.status === "client_submitted";
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-4">
       <div className="flex items-start justify-between gap-3">
@@ -151,6 +152,11 @@ function EventFloorplanDraftCard({ draft }: { draft: PrismFloorPlanDraft }) {
         {!isClientPreference ? (
           <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => run("open draft", () => openEditor(selectedEvent, draft))}>
             Open / Edit
+          </Button>
+        ) : null}
+        {canViewPreferenceLayout ? (
+          <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => run("view preference layout", () => openEditor(selectedEvent, draft, true))}>
+            View preference layout
           </Button>
         ) : null}
         {canReopenPreference ? (

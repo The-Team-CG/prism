@@ -165,6 +165,14 @@ describe('PlansService floorplan permissions and versioning', () => {
     });
   });
 
+  it('allows the verified owner to read their own reopened preference for editing', async () => {
+    const { service } = createService(draft('revision_requested', 'Ana Reyes', 'owner@example.test', 'client_preference'));
+
+    await expect(service.getPlan('plan_event_1', clientActor('owner@example.test'))).resolves.toMatchObject({
+      id: 'plan_event_1',
+    });
+  });
+
   it('blocks a linked secondary client from reading the raw preference plan', async () => {
     const { service } = createService(draft('client_submitted'));
 
