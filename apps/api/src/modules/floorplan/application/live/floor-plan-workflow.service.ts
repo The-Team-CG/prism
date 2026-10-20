@@ -374,11 +374,26 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
       eventId,
       write: () =>
         this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-          await this.requireWritableEvent(eventId, {
+          const event = await this.requireWritableEvent(eventId, {
             prisma: tx,
             correlationId: `floorplan-preference-reopen:${eventId}:${draftId}`,
             actorId: actor.actorId,
           });
+          if (event.floorPlanStatus === 'approved') {
+            throw new ConflictException('A client preference cannot be reopened after official floorplan approval');
+          }
+          const activeApprovedOfficialDraft = await tx.opsFloorPlanDraft.findFirst({
+            where: {
+              eventId,
+              isActive: true,
+              status: 'approved',
+              sourceType: { not: 'client_preference' },
+            },
+            select: { id: true },
+          });
+          if (activeApprovedOfficialDraft) {
+            throw new ConflictException('A client preference cannot be reopened after official floorplan approval');
+          }
           // Lifecycle event is locked by requireWritableEvent; lock the draft second so reopen
           // and client resubmission follow the same event-then-draft lock order.
           // QUERY_AUDIT_RAW_SQL: serialize the PMCM reopen transition with client resubmission.

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canApproveFloorPlanDraft,
+  canReopenClientPreference,
   canSubmitFloorPlanDraft,
   selectActiveDraft,
 } from "./floorplan-workspace-rules";
@@ -22,5 +23,18 @@ describe("floorplan-workspace-rules", () => {
     expect(canApproveFloorPlanDraft("submitted")).toBe(true);
     expect(canApproveFloorPlanDraft("draft")).toBe(true);
     expect(canApproveFloorPlanDraft("approved")).toBe(false);
+  });
+
+  it("allows reopening only before an official plan is approved", () => {
+    const preference = { sourceType: "client_preference", status: "client_submitted" };
+
+    expect(canReopenClientPreference(preference, "client_submitted", [])).toBe(true);
+    expect(canReopenClientPreference(preference, "approved", [])).toBe(false);
+    expect(
+      canReopenClientPreference(preference, "in_review", [
+        { isActive: true, status: "approved", sourceType: "blank" },
+      ]),
+    ).toBe(false);
+    expect(canReopenClientPreference({ ...preference, status: "revision_requested" }, "revision_requested", [])).toBe(false);
   });
 });

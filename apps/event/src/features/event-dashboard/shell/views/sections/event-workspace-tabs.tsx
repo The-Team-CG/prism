@@ -30,6 +30,7 @@ import { Card, CardBody, CardHeader } from "./shell-ui";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
 import type { PrismFloorPlanDraft } from "@prism/types";
 import { PmcmClientReviewPanel } from "@/features/commercial/client-review/views/pmcm-client-review-panel";
+import { canReopenClientPreference } from "@/features/floorplan/workspace/model/floorplan-workspace-rules";
 
 export function EventWorkspaceOverviewTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
@@ -126,12 +127,12 @@ function EventFloorplanTemplatePicker() {
 }
 
 function EventFloorplanDraftCard({ draft }: { draft: PrismFloorPlanDraft }) {
-  const { selectedEvent, run, openEditor, submitFloorPlanDraft, approveFloorPlanDraft, reopenClientPreference } = useEventDashboardLoadedRouteViewModel();
+  const { selectedEvent, drafts, run, openEditor, submitFloorPlanDraft, approveFloorPlanDraft, reopenClientPreference } = useEventDashboardLoadedRouteViewModel();
   if (!selectedEvent) return null;
   const isClientPreference = draft.sourceType === "client_preference";
   const canSubmit = !isClientPreference && ["pmcm_draft", "revision_requested"].includes(draft.status);
   const canApprove = !isClientPreference && draft.status === "in_review";
-  const canReopenPreference = isClientPreference && draft.status === "client_submitted";
+  const canReopenPreference = canReopenClientPreference(draft, selectedEvent.floorPlanStatus, drafts);
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-4">
       <div className="flex items-start justify-between gap-3">
