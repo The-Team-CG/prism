@@ -9,7 +9,7 @@ authority: normative
 owner: "B (Francis)"
 audience: [product, engineering, design, agents]
 scope: "Prism feature-family decisions, ownership, sequencing, and closure evidence"
-last_verified: "2026-10-20; staging through #244, merged follow-ups #233/#238/#239, and candidate PR scope #231/#234-#236/#240-#243"
+last_verified: "2026-10-20; staging through #232/#244, merged follow-ups #233/#238/#239, and candidate PR scope #231/#234-#236/#240-#243"
 sources:
   - id: v4-reference
     resource: "docs/reference/prism-v4/complete-feature-catalog.md"

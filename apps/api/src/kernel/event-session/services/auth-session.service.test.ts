@@ -65,4 +65,27 @@ describe('AuthSessionService', () => {
       sessionVersion: 7,
     });
   });
+
+  it.each(['development', 'staging', 'production', undefined])(
+    'refuses to sign sessions without a configured secret outside unit tests (NODE_ENV=%s)',
+    (nodeEnv) => {
+      const previousNodeEnv = process.env.NODE_ENV;
+      delete process.env.NODE_ENV;
+      try {
+        const service = createService({ NODE_ENV: nodeEnv, PRISM_SESSION_SECRET: 'too-short' });
+        expect(() =>
+          service.issueSession({
+            id: 'user_pmcm',
+            name: 'Ms. Mys',
+            email: 'mys@pmcm.test',
+            role: 'pmcm-admin',
+            organization: 'PMCM',
+            approvalStatus: 'approved',
+          }),
+        ).toThrow('PRISM_SESSION_SECRET or JWT_SECRET must be configured with at least 32 characters');
+      } finally {
+        process.env.NODE_ENV = previousNodeEnv;
+      }
+    },
+  );
 });
