@@ -25,7 +25,7 @@ import {
 } from '../../contracts/storage/storage.port';
 import { StorageValidationService } from './storage-validation.service';
 
-export const STORAGE_RETENTION_POLICY_SEAM = 'Retention and legal-hold policy is owned by W29 and is not implemented here';
+// Retention and legal-hold policy is owned by W29 and is not implemented here.
 
 // Keep the generic storage API closed to owner pairs without production callers.
 // This allowlist does not validate target-row existence; each owner capability must do that.
