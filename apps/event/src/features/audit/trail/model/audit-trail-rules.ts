@@ -3,7 +3,6 @@ import type {
   PrismAuditLog,
   PrismLoginHistory,
   PrismPrivacyInventorySurface,
-  PrismPrivacyRequest,
   PrismSecurityAlert,
 } from "@prism/types";
 
@@ -31,14 +30,14 @@ export function summarizeAuditTrail({
   alerts,
   loginHistory,
   approvalRequests,
-  privacyRequests,
+  privacySubmittedCount,
   privacyInventory,
 }: {
   logs: Array<Pick<PrismAuditLog, "actorRole">>;
   alerts: Array<Pick<PrismSecurityAlert, "status">>;
   loginHistory: Array<Pick<PrismLoginHistory, "status">>;
   approvalRequests: Array<Pick<PrismApprovalRequest, "status">>;
-  privacyRequests: Array<Pick<PrismPrivacyRequest, "status">>;
+  privacySubmittedCount: number;
   privacyInventory: PrivacyInventorySummaryInput | null;
 }): AuditTrailSummary {
   const privacySurfaces = [
@@ -52,7 +51,7 @@ export function summarizeAuditTrail({
     openAlertCount: alerts.filter((alert) => alert.status === "open").length,
     failedLoginCount: loginHistory.filter((entry) => entry.status !== "success").length,
     approvalBacklog: approvalRequests.filter((request) => request.status === "pending").length,
-    privacyBacklog: privacyRequests.filter((request) => request.status === "submitted").length,
+    privacyBacklog: privacySubmittedCount,
     privacyRecordCount: privacySurfaces.reduce((total, surface) => total + surface.recordCount, 0),
     missingConsentCount: privacySurfaces.reduce((total, surface) => total + surface.missingConsentCount, 0),
     privacySurfaceCount: privacySurfaces.length,

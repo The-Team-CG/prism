@@ -5,7 +5,7 @@ import { useAuditTrailViewModel } from "../view-models/use-audit-trail-view-mode
 import {
   AuditTrailOverview,
   LoginHistoryPanel,
-  PrivacyOperationsPanel,
+  PrivacyConsoleLinkPanel,
   SecurityAlertsPanel,
 } from "./audit-trail-sections";
 
@@ -31,7 +31,7 @@ export function AuditTrailPanel({
     <div className="space-y-5">
       <AuditTrailOverview vm={vm} events={events} users={users} />
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <PrivacyOperationsPanel vm={vm} />
+        <PrivacyConsoleLinkPanel />
         <SecurityAlertsPanel alerts={vm.alerts} />
         <LoginHistoryPanel loginHistory={vm.loginHistory} />
       </div>
