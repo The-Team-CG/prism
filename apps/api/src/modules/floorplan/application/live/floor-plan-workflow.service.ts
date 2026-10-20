@@ -207,7 +207,9 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
     objects: unknown[];
     preference: unknown;
   }) {
-    const existing = await tx.opsFloorPlanDraft.findFirst({ where: { eventId, sourceType: 'client_preference' } });
+    const existing = await tx.opsFloorPlanDraft.findFirst({
+      where: { eventId, sourceType: 'client_preference', createdByRole: 'client' },
+    });
     if (existing) {
       return this.resubmitClientPreference({ tx, eventId, existing, input, actor, now, objects, preference });
     }
@@ -455,6 +457,9 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
 
   async submitFloorPlanDraft(eventId: string, draftId: string, actor: FloorPlanActor) {
     const draft = await this.requireFloorPlanDraft(eventId, draftId);
+    if (draft.sourceType === 'client_preference') {
+      throw new BadRequestException('Client preferences cannot be submitted as official floorplans');
+    }
     if (!['pmcm_draft', 'revision_requested'].includes(draft.status)) {
       throw new BadRequestException('Only a draft or revision-requested floorplan can be submitted');
     }
@@ -470,13 +475,21 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
           await this.requireWritableEvent(eventId, { prisma: tx, correlationId: `floorplan-submit:${draftId}` });
           const currentDraft = await tx.opsFloorPlanDraft.findFirst({ where: { id: draftId, eventId } });
           if (!currentDraft) throw new NotFoundException('Floorplan draft not found');
+          if (currentDraft.sourceType === 'client_preference') {
+            throw new BadRequestException('Client preferences cannot be submitted as official floorplans');
+          }
           if (!['pmcm_draft', 'revision_requested'].includes(currentDraft.status)) {
             throw new BadRequestException('Floorplan draft changed before submission');
           }
           submittedName = currentDraft.name;
           const snapshot = await this.floorPlanSnapshot(currentDraft.floorPlanId, tx);
           const updated = await tx.opsFloorPlanDraft.updateMany({
-            where: { id: currentDraft.id, eventId, status: currentDraft.status },
+            where: {
+              id: currentDraft.id,
+              eventId,
+              status: currentDraft.status,
+              sourceType: { not: 'client_preference' },
+            },
             data: {
               status: 'in_review',
               submittedSnapshot: toPrismaJson(snapshot),
@@ -509,6 +522,9 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
 
   async approveFloorPlanDraft(eventId: string, draftId: string, actor: FloorPlanActor) {
     const draft = await this.requireFloorPlanDraft(eventId, draftId);
+    if (draft.sourceType === 'client_preference') {
+      throw new BadRequestException('Client preferences cannot be approved as official floorplans');
+    }
     if (draft.status !== 'in_review') throw new BadRequestException('Only a floorplan in review can be approved');
     const now = new Date();
     let approvedName = draft.name;
@@ -522,6 +538,9 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
           await this.requireWritableEvent(eventId, { prisma: tx, correlationId: `floorplan-approve:${draftId}` });
           const currentDraft = await tx.opsFloorPlanDraft.findFirst({ where: { id: draftId, eventId } });
           if (!currentDraft) throw new NotFoundException('Floorplan draft not found');
+          if (currentDraft.sourceType === 'client_preference') {
+            throw new BadRequestException('Client preferences cannot be approved as official floorplans');
+          }
           if (currentDraft.status !== 'in_review') throw new BadRequestException('Floorplan draft changed before approval');
           approvedName = currentDraft.name;
           const snapshot = await this.floorPlanSnapshot(currentDraft.floorPlanId, tx);
@@ -531,7 +550,12 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
           });
 
           const updated = await tx.opsFloorPlanDraft.updateMany({
-            where: { id: currentDraft.id, eventId, status: 'in_review' },
+            where: {
+              id: currentDraft.id,
+              eventId,
+              status: 'in_review',
+              sourceType: { not: 'client_preference' },
+            },
             data: {
               status: 'approved',
               isActive: true,
