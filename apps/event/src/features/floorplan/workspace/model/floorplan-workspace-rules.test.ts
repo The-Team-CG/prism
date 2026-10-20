@@ -46,6 +46,21 @@ describe("floorplan-workspace-rules", () => {
     expect(canReopenClientPreference(preference, "approved", [])).toBe(false);
   });
 
+  it("allows read-only viewing of legacy PMCM-approved preference layouts", () => {
+    for (const createdByRole of ["pmcm-admin", "coordinator"]) {
+      const legacyOfficial = { sourceType: "client_preference", status: "approved", createdByRole };
+
+      expect(canViewClientPreference(legacyOfficial)).toBe(true);
+      expect(canReopenClientPreference(legacyOfficial, "approved", [])).toBe(false);
+    }
+
+    expect(canViewClientPreference({
+      sourceType: "client_preference",
+      status: "approved",
+      createdByRole: "client",
+    })).toBe(false);
+  });
+
   it("does not offer reopening for a PMCM-created preference row", () => {
     expect(
       canReopenClientPreference(
