@@ -30,7 +30,7 @@ import { Card, CardBody, CardHeader } from "./shell-ui";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
 import type { PrismFloorPlanDraft } from "@prism/types";
 import { PmcmClientReviewPanel } from "@/features/commercial/client-review/views/pmcm-client-review-panel";
-import { canReopenClientPreference } from "@/features/floorplan/workspace/model/floorplan-workspace-rules";
+import { canReopenClientPreference, canViewClientPreference } from "@/features/floorplan/workspace/model/floorplan-workspace-rules";
 
 export function EventWorkspaceOverviewTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
@@ -132,6 +132,7 @@ function EventFloorplanDraftCard({ draft }: { draft: PrismFloorPlanDraft }) {
   const isClientPreference = draft.sourceType === "client_preference";
   const canSubmit = !isClientPreference && ["pmcm_draft", "revision_requested"].includes(draft.status);
   const canApprove = !isClientPreference && draft.status === "in_review";
+  const canViewPreference = canViewClientPreference(draft);
   const canReopenPreference = canReopenClientPreference(draft, selectedEvent.floorPlanStatus, drafts);
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-4">
@@ -154,15 +155,15 @@ function EventFloorplanDraftCard({ draft }: { draft: PrismFloorPlanDraft }) {
             Open / Edit
           </Button>
         ) : null}
+        {canViewPreference ? (
+          <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => run("view preference layout", () => openEditor(selectedEvent, draft, true))}>
+            View preference layout
+          </Button>
+        ) : null}
         {canReopenPreference ? (
-          <>
-            <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => run("view preference layout", () => openEditor(selectedEvent, draft, true))}>
-              View preference layout
-            </Button>
-            <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => reopenClientPreference(draft)}>
-              Reopen preference
-            </Button>
-          </>
+          <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => reopenClientPreference(draft)}>
+            Reopen preference
+          </Button>
         ) : null}
         {canSubmit ? (
           <Button size="sm" className="rounded-lg font-bold" onClick={() => submitFloorPlanDraft(draft)}>

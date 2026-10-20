@@ -34,6 +34,7 @@ describe("client floorplan preference editor action", () => {
     const markup = renderPanel("client_submitted");
 
     expect(markup).toContain("View submitted preference");
+    expect(markup).toContain("Submitted preference is read-only until PMCM reopens it.");
     expect(markup).not.toContain("Edit preference");
   });
 

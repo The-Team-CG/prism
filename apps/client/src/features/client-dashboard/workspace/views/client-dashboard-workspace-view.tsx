@@ -150,7 +150,7 @@ export function ClientDashboardWorkspaceView({
   const eventDrafts = useMemo(() => selectEventDrafts(state, selectedEvent), [selectedEvent, state]);
   const officialDraft = useMemo(() => selectOfficialDraft(eventDrafts), [eventDrafts]);
   const preferenceDrafts = useMemo(() => selectPreferenceDrafts(eventDrafts), [eventDrafts]);
-  const preferenceDraft = preferenceDrafts.find((draft) => draft.sourceType === "client_preference");
+  const preferenceDraft = preferenceDrafts[0];
   const { audit, billing, briefing, disputes, documents, notifications, payments } = selectEventWorkspaceResources(state, selectedEvent);
   // This is a persisted read model. A failed load must not fall back to
   // browser-clock-derived urgency from workspace data.

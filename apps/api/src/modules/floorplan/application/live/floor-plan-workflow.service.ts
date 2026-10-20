@@ -209,6 +209,7 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
   }) {
     const existing = await tx.opsFloorPlanDraft.findFirst({
       where: { eventId, sourceType: 'client_preference', createdByRole: 'client' },
+      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
     });
     if (existing) {
       return this.resubmitClientPreference({ tx, eventId, existing, input, actor, now, objects, preference });
