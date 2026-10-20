@@ -1,10 +1,11 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
-import { zodBody } from '@prism/kernel/shared';
+import { PublicRateLimit, zodBody } from '@prism/kernel/shared';
 import { submitSupplierQuoteSchema, type SubmitSupplierQuoteInput } from '@prism/types';
 import { mapQuoteRequestTokenDetail } from '../../application/quotes/supplier-quote.mappers';
 import { CommercialWorkflowService } from '../../application/quotes/commercial-workflow.service';
 
 @Controller('quote-requests')
+@PublicRateLimit('quoteRequestToken')
 export class OpsQuoteRequestsController {
   constructor(private readonly commercialWorkflowService: CommercialWorkflowService) {}
 
