@@ -1,18 +1,11 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
-import { mapSupplierQuoteForSupplier } from '@prism/contexts/commercial';
+import { mapSupplierQuoteForSupplier, mapSupplierQuoteRequestForSupplier } from '@prism/contexts/commercial';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
-import { mapSupplierQuoteRequest } from '@prism/contexts/commercial';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { createSupplierWorkspaceMappers } from '../application/mappers/event-read-model.mappers';
 import { EventReadModelsService } from '../application/services/event-read-models.service';
-
-/** FL-022: PMCM verification notes and verifier identity are private review data, never supplier-visible. */
-function mapSupplierQuoteRequestForSupplier(request: Parameters<typeof mapSupplierQuoteRequest>[0]) {
-  const { eventDayVerificationNotes: _notes, eventDayVerifiedBy: _verifiedBy, ...safeRequest } = mapSupplierQuoteRequest(request);
-  return safeRequest;
-}
 
 @Controller('supplier')
 export class OpsSupplierWorkspaceReadsController {
