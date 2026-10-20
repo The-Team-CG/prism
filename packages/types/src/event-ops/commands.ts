@@ -1,3 +1,4 @@
+import type { PrismAddendumConformeExecution } from "../conforme-signing.js";
 import type { PrismProjectLike } from "./core.js";
 
 type CreateFloorPlanDraftInput = {
@@ -63,6 +64,8 @@ export interface PrismAddendum {
   comparison: { contract: unknown[]; quotes: unknown[] };
   financialDelta: number;
   issuedAt: string;
+  /** In-app conforme for this addendum version; null until PMCM requests signing. */
+  conforme: PrismAddendumConformeExecution | null;
 }
 
 export interface PrismEventFreezeException {
