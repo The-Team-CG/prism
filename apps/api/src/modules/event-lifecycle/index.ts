@@ -12,6 +12,7 @@ export * from './contracts/document-vault.port';
 export * from './contracts/closure-commands.port';
 export * from './contracts/closure-readiness-reader.port';
 export * from './contracts/file-ops.tokens';
+export * from './contracts/file-requirement-commands.port';
 export * from './contracts/file-requirement-reader.port';
 
 export * from './api/onboarding/event-briefing.controller';

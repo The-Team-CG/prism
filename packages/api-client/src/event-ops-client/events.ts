@@ -3,6 +3,7 @@ import type {
   PrismFloorPlanDraft,
   PrismEvent,
   PrismEventPage,
+  PrismFileRequirementItem,
   PrismFileRequirementsMatrix,
   PrismStoredObject,
   PrismAddendum,
@@ -82,6 +83,16 @@ export function createEventsClient(
         prismRequest<PrismFileRequirementsMatrix>(
           actorPath(`/events/${eventId}/file-requirements`, actor),
           withBase(options),
+        ),
+      createFileRequirement: (eventId, input, actor = {}) =>
+        prismRequest<PrismFileRequirementItem>(
+          actorPath(`/events/${eventId}/file-requirements`, actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
+      updateFileRequirement: (eventId, key, input, actor = {}) =>
+        prismRequest<PrismFileRequirementItem>(
+          actorPath(`/events/${eventId}/file-requirements/${encodeURIComponent(key)}`, actor),
+          withBase(options, { method: "PATCH", body: input }),
         ),
       reviewProposal: (eventId, input, actor = {}) =>
         prismRequest<PrismEvent>(

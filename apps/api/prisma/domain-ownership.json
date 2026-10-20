@@ -1,10 +1,10 @@
 {
   "summary": {
-    "totalTables": 128,
+    "totalTables": 129,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
-    "targetSameDomainFks": 119,
+    "targetSameDomainFks": 120,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -20,8 +20,8 @@
       {
         "domain": "event-lifecycle",
         "schema": "event_lifecycle",
-        "tables": 26,
-        "columns": 367
+        "tables": 27,
+        "columns": 382
       },
       {
         "domain": "commercial",
@@ -172,6 +172,15 @@
       "targetSchema": "event_lifecycle",
       "introducedAfterCutover": true,
       "columnCount": 10
+    },
+    {
+      "model": "OpsFileRequirement",
+      "currentSchema": "event_lifecycle",
+      "table": "file_requirements",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "introducedAfterCutover": true,
+      "columnCount": 15
     },
     {
       "model": "OpsLogisticsCompletion",
@@ -2957,6 +2966,21 @@
       "schema": "event_lifecycle",
       "table": "client_floorplan_access_grants",
       "name": "client_floorplan_access_grants_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_lifecycle.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "file_requirements",
+      "name": "file_requirements_event_id_fkey",
       "kind": "f",
       "definition": "FOREIGN KEY (event_id) REFERENCES event_lifecycle.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
       "columns": [
