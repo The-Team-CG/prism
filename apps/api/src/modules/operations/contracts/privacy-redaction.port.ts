@@ -10,6 +10,10 @@ export interface OperationsPrivacyRedactor {
     input: { eventId: string; name: string },
     transaction: Prisma.TransactionClient,
   ): Promise<OperationsRedactionResult>;
+  redactGuestRecord(
+    input: { eventId: string; recordType: 'guest_check_in' | 'guest_feedback'; recordId: string },
+    transaction: Prisma.TransactionClient,
+  ): Promise<OperationsRedactionResult>;
   exportGuest(
     input: { eventId: string; name: string },
     transaction: Prisma.TransactionClient,
