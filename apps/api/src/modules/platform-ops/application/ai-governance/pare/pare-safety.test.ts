@@ -208,6 +208,7 @@ function harness(gateway?: AiGateway) {
     findStorageEventScope: async () => null,
     findEventReference: async () => null,
     findPrivacyInventory: async () => ({ events: [], approvalRequests: [] }),
+    findFileRequirementVisibility: async () => ({}),
     findPareEventSource: async () => ({
       request: {
         id: context.triggerId,

@@ -65,18 +65,23 @@ function createStore() {
     requireCanReadEvent: vi.fn(async () => undefined),
     recordForbiddenAccess: vi.fn(async () => undefined),
   };
+  const requirementVisibility: Record<string, string[]> = {};
   const platformReferences = {
     findStorageEventScope: vi.fn(async (eventId: string) => eventId === 'evt_1' ? ({
       id: 'evt_1', archived: false, clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test', supplierIds: [] as string[], supplierContacts: [] as Array<{ supplierId: string; email: string | null }>,
     }) : null),
+    findFileRequirementVisibility: vi.fn(async () => requirementVisibility),
   };
+  const auditWriter = { write: vi.fn(async (_input: Record<string, any>) => undefined) };
   return {
     objects,
     bookings,
     prisma,
     accessPolicy,
     platformReferences,
-    service: new StorageObjectService(prisma as never, accessPolicy as never, new StorageValidationService(), undefined, platformReferences as never),
+    auditWriter,
+    requirementVisibility,
+    service: new StorageObjectService(prisma as never, accessPolicy as never, new StorageValidationService(), undefined, platformReferences as never, auditWriter as never),
   };
 }
 
@@ -390,6 +395,40 @@ describe('StorageObjectService', () => {
     store.objects.push({ id: 'obj_other', eventId: 'evt_other', ownerRecordType: 'billing_statement', ownerRecordId: 'bill_other', usage: 'event_deliverable', lifecycleState: 'stored', providerObjectKey: 'events/evt_other/obj.pdf', contentType: 'application/pdf', declaredByteSize: 1, checksumSha256: 'a'.repeat(64), originalFileName: 'obj.pdf' });
     const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), {} as never, store.platformReferences as never);
     await expect(service.issueDownloadAuthorization({ objectId: 'obj_other', actor: client })).rejects.toThrow(/outside|forbidden|scope/);
+  });
+
+  it('refuses a client download of a billing statement PMCM hid from clients, and still allows PMCM', async () => {
+    const store = createStore();
+    store.requirementVisibility.billing_statement = ['pmcm-admin', 'coordinator'];
+    store.objects.push({ id: 'obj_billing', eventId: 'evt_1', ownerRecordType: 'billing_statement', ownerRecordId: 'bill_1', usage: 'event_deliverable', lifecycleState: 'stored', providerName: 'test', providerObjectKey: 'events/evt_1/billing.pdf', contentType: 'application/pdf', declaredByteSize: 1, checksumSha256: 'a'.repeat(64), originalFileName: 'billing.pdf' });
+    const adapter = { issueDownloadAuthorization: vi.fn(async () => ({ downloadUrl: 'https://storage.example.test/signed-billing', expiresAt: new Date('2026-10-20T00:00:00.000Z') })) };
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter as never, store.platformReferences as never, store.auditWriter as never);
+
+    await expect(service.issueDownloadAuthorization({ objectId: 'obj_billing', actor: client })).rejects.toBeInstanceOf(ForbiddenException);
+    expect(adapter.issueDownloadAuthorization).not.toHaveBeenCalled();
+
+    await expect(service.issueDownloadAuthorization({ objectId: 'obj_billing', actor })).resolves.toMatchObject({ downloadUrl: 'https://storage.example.test/signed-billing' });
+  });
+
+  it('writes metadata-only audit rows for confirmed uploads, download authorizations and deletes', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'prism-storage-audit-'));
+    roots.push(root);
+    const store = createStore();
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), new LocalFileSystemStorageAdapter(root), store.platformReferences as never, store.auditWriter as never);
+    const requested = await service.requestUpload({ ...request, actor });
+    if (requested.status !== 'ready') throw new Error('expected upload location');
+    await service.writeAuthorizedUpload({ objectId: requested.object.id, uploadUrl: requested.location.uploadUrl, bytes, actor });
+    const stored = await service.confirmUpload({ objectId: requested.object.id, byteSize: bytes.byteLength, checksumSha256, actor });
+    const authorization = await service.issueDownloadAuthorization({ objectId: stored.id, actor });
+    await service.deleteObject({ objectId: stored.id, actor });
+
+    const audits = store.auditWriter.write.mock.calls.map(([input]) => input as Record<string, any>);
+    expect(audits.map((audit) => audit.metadata?.storageAction)).toEqual(['upload_confirmed', 'download_authorized', 'deleted']);
+    expect(audits.every((audit) => audit.eventId === 'evt_1' && audit.actor === actorSnapshot.name)).toBe(true);
+    const serialized = JSON.stringify(audits);
+    expect(serialized).not.toContain(authorization.downloadUrl);
+    expect(serialized).not.toContain(requested.location.uploadUrl);
+    expect(serialized).not.toContain('events/evt_1/');
   });
 
   it('derives supplier event access from the read-model supplier scope', async () => {
