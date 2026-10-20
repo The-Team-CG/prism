@@ -394,9 +394,7 @@ export class EventGamesLobbyService {
     if (configured && configured.length >= 32) return configured;
 
     const nodeEnv = this.configService.get<string>('NODE_ENV') ?? process.env.NODE_ENV;
-    const allowLocalSecret = nodeEnv !== 'production'
-      && (nodeEnv === 'test' || nodeEnv === 'development' || this.configService.get<string>('PRISM_ALLOW_LOCAL_SESSION_SECRET') === '1');
-    if (allowLocalSecret) return 'prism-local-event-game-credential-secret';
+    if (nodeEnv === 'test') return 'prism-local-event-game-credential-secret';
 
     throw new ServiceUnavailableException('Event game credentials are not configured');
   }
