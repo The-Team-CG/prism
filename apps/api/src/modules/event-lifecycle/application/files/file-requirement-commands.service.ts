@@ -33,6 +33,31 @@ function isUniqueViolation(error: unknown) {
   return typeof error === 'object' && error !== null && (error as { code?: string }).code === 'P2002';
 }
 
+/** Omitted keeps the current due date, null clears it, and a string sets it. */
+function nextDueAt(dueAt: string | null | undefined, currentDueDate: PrismFileRequirementItem['dueDate']): Date | null {
+  if (dueAt === undefined) return currentDueDate ? new Date(currentDueDate) : null;
+  return dueAt === null ? null : new Date(dueAt);
+}
+
+/** Merges the PMCM edit onto the current item. Derived labels are fixed, and PMCM plus the owner must stay visible. */
+function overridePatch(input: UpdateFileRequirementInput, current: PrismFileRequirementItem, existing: OpsFileRequirement | null) {
+  if (input.label !== undefined && current.origin !== 'custom') {
+    throw new BadRequestException('Workflow-derived requirement labels follow their source workflow');
+  }
+  const next = {
+    label: input.label ?? current.label,
+    ownerRole: input.ownerRole ?? current.ownerRole,
+    visibleToRoles: input.visibleToRoles ?? current.visibleToRoles,
+    required: input.required ?? current.required,
+    dueAt: nextDueAt(input.dueAt, current.dueDate),
+    notes: input.notes === undefined ? (existing?.notes ?? null) : (input.notes || null),
+  };
+  if (!next.visibleToRoles.includes(OpsUserRole.PmcmAdmin) || !next.visibleToRoles.includes(next.ownerRole)) {
+    throw new BadRequestException('PMCM and the owner role must both be able to see the requirement');
+  }
+  return next;
+}
+
 @Injectable()
 export class FileRequirementCommandsService implements FileRequirementCommands {
   private readonly logger = new Logger(FileRequirementCommandsService.name);
@@ -78,44 +103,48 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
   async updateRequirement(eventId: string, key: string, input: UpdateFileRequirementInput, actor: ResolvedEventOpsActor): Promise<PrismFileRequirementItem> {
     await this.accessPolicy.requireActorRole(actor, [OpsUserRole.PmcmAdmin], MANAGEMENT_RESOURCE, eventId);
     try {
-      return await this.prisma.$transaction(async (tx) => {
-        await this.requireWritableEvent(eventId, tx);
-        const current = (await this.matrix.buildForEvent(eventId, tx)).items.find((item) => item.key === key);
-        if (!current) throw new NotFoundException('File requirement not found');
-        const existing = await tx.opsFileRequirement.findUnique({ where: { eventId_key: { eventId, key } } });
-        const currentRevision = existing?.revision ?? 0;
-        if (input.expectedRevision !== undefined && input.expectedRevision !== currentRevision) {
-          throw new ConflictException('File requirement changed; refresh before saving');
-        }
-        if (input.label !== undefined && current.origin !== 'custom') {
-          throw new BadRequestException('Workflow-derived requirement labels follow their source workflow');
-        }
-        const next = {
-          label: input.label ?? current.label,
-          ownerRole: input.ownerRole ?? current.ownerRole,
-          visibleToRoles: input.visibleToRoles ?? current.visibleToRoles,
-          required: input.required ?? current.required,
-          dueAt: input.dueAt === undefined ? (current.dueDate ? new Date(current.dueDate) : null) : input.dueAt === null ? null : new Date(input.dueAt),
-          notes: input.notes === undefined ? (existing?.notes ?? null) : (input.notes || null),
-        };
-        if (!next.visibleToRoles.includes(OpsUserRole.PmcmAdmin) || !next.visibleToRoles.includes(next.ownerRole)) {
-          throw new BadRequestException('PMCM and the owner role must both be able to see the requirement');
-        }
-        const row = await this.saveOverride(tx, eventId, key, current, existing, next, actor);
-        const changed = (['label', 'ownerRole', 'required', 'dueAt', 'notes'] as const).filter((field) => input[field] !== undefined);
-        await this.audit(tx, actor, row, 'Updated file requirement', AuditActionType.Update, {
-          changedFields: changed, ownerRole: row.ownerRole, required: row.required, dueAt: row.dueAt?.toISOString() ?? null,
-        });
-        if (input.visibleToRoles && !sameRoles(input.visibleToRoles, current.visibleToRoles)) {
-          await this.audit(tx, actor, row, 'Changed file requirement visibility', AuditActionType.Update, {
-            previousVisibleToRoles: current.visibleToRoles, visibleToRoles: row.visibleToRoles,
-          }, 'visibility');
-        }
-        return this.itemFor(eventId, key, tx);
-      }, { isolationLevel: 'Serializable' });
+      return await this.prisma.$transaction((tx) => this.applyUpdate(tx, eventId, key, input, actor), { isolationLevel: 'Serializable' });
     } catch (error) {
       if (isUniqueViolation(error)) throw new ConflictException('File requirement changed; refresh before saving');
       throw error;
+    }
+  }
+
+  private async applyUpdate(
+    tx: Prisma.TransactionClient,
+    eventId: string,
+    key: string,
+    input: UpdateFileRequirementInput,
+    actor: ResolvedEventOpsActor,
+  ): Promise<PrismFileRequirementItem> {
+    await this.requireWritableEvent(eventId, tx);
+    const current = (await this.matrix.buildForEvent(eventId, tx)).items.find((item) => item.key === key);
+    if (!current) throw new NotFoundException('File requirement not found');
+    const existing = await tx.opsFileRequirement.findUnique({ where: { eventId_key: { eventId, key } } });
+    if (input.expectedRevision !== undefined && input.expectedRevision !== (existing?.revision ?? 0)) {
+      throw new ConflictException('File requirement changed; refresh before saving');
+    }
+    const next = overridePatch(input, current, existing);
+    const row = await this.saveOverride(tx, eventId, key, current, existing, next, actor);
+    await this.auditUpdate(tx, actor, row, input, current);
+    return this.itemFor(eventId, key, tx);
+  }
+
+  private async auditUpdate(
+    tx: Prisma.TransactionClient,
+    actor: ResolvedEventOpsActor,
+    row: OpsFileRequirement,
+    input: UpdateFileRequirementInput,
+    current: PrismFileRequirementItem,
+  ) {
+    const changed = (['label', 'ownerRole', 'required', 'dueAt', 'notes'] as const).filter((field) => input[field] !== undefined);
+    await this.audit(tx, actor, row, 'Updated file requirement', AuditActionType.Update, {
+      changedFields: changed, ownerRole: row.ownerRole, required: row.required, dueAt: row.dueAt?.toISOString() ?? null,
+    });
+    if (input.visibleToRoles && !sameRoles(input.visibleToRoles, current.visibleToRoles)) {
+      await this.audit(tx, actor, row, 'Changed file requirement visibility', AuditActionType.Update, {
+        previousVisibleToRoles: current.visibleToRoles, visibleToRoles: row.visibleToRoles,
+      }, 'visibility');
     }
   }
 
