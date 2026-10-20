@@ -15,6 +15,7 @@ import {
   floorPlanReviewHeadline,
   floorPlanRevisionComment,
 } from "../../../workspace/model/client-floorplan-review-rules";
+import { canEditClientFloorPlanPreference } from "../../../workspace/model/client-floorplan-preference-rules";
 
 function templateSubtitle(template: FloorPlanTemplate) {
   return template.description || template.venue || "Saved PMCM floor plan template";
@@ -64,7 +65,8 @@ export function FloorPlanDraftPanel({
     return <EmptyState icon={MapPinned} title="No floor plan draft yet" description="Start from a saved layout template or send guided notes below." />;
   }
 
-  const readOnly = approved || isOfficial;
+  const readOnly = approved || isOfficial || !canEditClientFloorPlanPreference(activeDraft);
+  const actionLabel = isOfficial ? "View official floorplan" : readOnly ? "View submitted preference" : "Edit preference";
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-4 rounded-xl bg-muted/40 p-4">
@@ -72,12 +74,14 @@ export function FloorPlanDraftPanel({
           <p className="text-sm font-bold text-foreground">{activeDraft.name}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {readOnly
-              ? "Read-only official layout. Preference notes below do not mutate this plan."
+              ? isOfficial
+                ? "Read-only official layout. Preference notes below do not mutate this plan."
+                : "Submitted preference is read-only until PMCM reopens it."
               : "Open the preference editor to share seating, flow, and stage notes with PMCM."}
           </p>
         </div>
         <Button className="shrink-0 rounded-lg font-bold" onClick={() => onOpenEditor(activeDraft, readOnly)}>
-          {readOnly ? "View official floorplan" : "Edit preference"} <ArrowRight className="size-4" />
+          {actionLabel} <ArrowRight className="size-4" />
         </Button>
       </div>
       <LayoutPreview project={approved || isOfficial ? officialProject : null} />
@@ -194,26 +198,53 @@ export function FloorPlanTemplates({
 
 export function GuidedLayoutNotes({
   approved,
+  preferenceDraft,
   form,
   setForm,
   busy,
   onSubmit,
 }: {
   approved: boolean;
+  preferenceDraft?: PrismFloorPlanDraft;
   form: PreferenceForm;
   setForm: Dispatch<SetStateAction<PreferenceForm>>;
   busy: string | null;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   if (approved) return null;
+  if (!canEditClientFloorPlanPreference(preferenceDraft)) {
+    return (
+      <div className="rounded-2xl border border-border bg-card shadow-sm">
+        <header className="border-b border-border px-6 py-4">
+          <p className="text-sm font-bold text-foreground">Layout preference submitted</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            PMCM has your preference. You can revise it after PMCM reopens this request.
+          </p>
+        </header>
+        <div className="p-6 text-sm text-muted-foreground">
+          <p className="font-semibold text-foreground">{preferenceDraft?.name}</p>
+          {preferenceDraft?.revisionComment ? <p className="mt-2">PMCM note: {preferenceDraft.revisionComment}</p> : null}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm">
       <header className="border-b border-border px-6 py-4">
-        <p className="text-sm font-bold text-foreground">Guided layout notes</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">Send PMCM structured layout context for the official plan.</p>
+        <p className="text-sm font-bold text-foreground">
+          {preferenceDraft ? "Revise layout notes" : "Guided layout notes"}
+        </p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {preferenceDraft ? "Update your preference and send it back to PMCM." : "Send PMCM structured layout context for the official plan."}
+        </p>
       </header>
       <form onSubmit={onSubmit} className="space-y-4 p-6">
+        {preferenceDraft?.revisionComment ? (
+          <p className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+            PMCM note: {preferenceDraft.revisionComment}
+          </p>
+        ) : null}
         <div className="grid gap-4 sm:grid-cols-2">
           <FieldGroup label="Preference title">
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="rounded-lg" />
@@ -247,7 +278,7 @@ export function GuidedLayoutNotes({
           />
         </FieldGroup>
         <Button disabled={busy === "layout-preference"} className="w-full rounded-lg font-bold" type="submit">
-          <Send className="size-4" /> Save layout notes
+          <Send className="size-4" /> {preferenceDraft ? "Resubmit layout notes" : "Save layout notes"}
         </Button>
       </form>
     </div>

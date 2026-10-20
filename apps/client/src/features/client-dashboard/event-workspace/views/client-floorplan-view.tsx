@@ -9,6 +9,8 @@ import {
   GuidedLayoutNotes,
 } from "./sections/client-floorplan-sections";
 import { ClientFloorplanReviewPanel } from "../../floorplan-review/views/client-floorplan-review-panel";
+import { selectClientFloorPlanDraft } from "../../workspace/model/client-dashboard-selectors";
+import { draftIsOfficial } from "../../workspace/model/client-dashboard-view-rules";
 
 export function ClientFloorPlanView() {
   const {
@@ -28,9 +30,9 @@ export function ClientFloorPlanView() {
     busy,
   } = useClientWorkspace();
 
-  const activeDraft = officialDraft ?? preferenceDrafts[0];
-  const approved = officialDraft?.status === "approved";
-  const isOfficial = Boolean(officialDraft);
+  const activeDraft = selectClientFloorPlanDraft(officialDraft, preferenceDrafts);
+  const isOfficial = activeDraft !== undefined && draftIsOfficial(activeDraft);
+  const approved = isOfficial && activeDraft?.status === "approved";
 
   return (
     <div className="space-y-5">
@@ -45,7 +47,7 @@ export function ClientFloorPlanView() {
             onOpenEditor={openFloorplanEditor}
           />
           <FloorPlanTemplates
-            approved={approved || isOfficial}
+            approved={approved || Boolean(officialDraft)}
             templates={floorPlanTemplates}
             busy={busy}
             onCreate={createEditorDraft}
@@ -65,6 +67,7 @@ export function ClientFloorPlanView() {
       ) : null}
       <GuidedLayoutNotes
         approved={approved}
+        preferenceDraft={preferenceDrafts.find((draft) => draft.sourceType === "client_preference")}
         form={form}
         setForm={setForm}
         busy={busy}
