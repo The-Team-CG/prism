@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { EventSessionGuard } from '@prism/kernel/event-session';
 import { OpsInquiriesController } from './inquiries.controller';
 
@@ -22,6 +23,10 @@ const verifiedPmcmActor: Parameters<OpsInquiriesController['list']>[0] = {
 describe('OpsInquiriesController', () => {
   it('keeps the public inquiries route base stable under inquiry-onboarding ownership', () => {
     expect(controllerPath(OpsInquiriesController)).toBe('inquiries');
+  });
+
+  it('rate-limits the public inquiry form submission', () => {
+    expect(Reflect.getMetadata('__guards__', OpsInquiriesController.prototype.create)).toContain(ThrottlerGuard);
   });
 
   it('guards uploadConforme with EventSessionGuard (PA-138)', () => {
