@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { toPrismaJson } from '@prism/kernel/database';
-import type { CanvasObject } from '@prism/kernel/shared';
+import type { SavedPlanObject } from '@prism/kernel/shared';
 import type { CreateFloorPlanDraftInput, UpdatePlanInput } from '@prism/types';
 
 export function setIfDefined(
@@ -38,7 +38,7 @@ export function floorPlanScalarPatch(changes: FloorPlanPatchInput): Prisma.Floor
 export async function replaceFloorPlanObjects(
   tx: Pick<Prisma.TransactionClient, 'floorPlanObject'>,
   floorPlanId: string,
-  objects: CanvasObject[],
+  objects: readonly SavedPlanObject[],
 ) {
   await tx.floorPlanObject.deleteMany({ where: { floorPlanId } });
   if (objects.length === 0) return;
