@@ -567,7 +567,11 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
   ): Promise<Array<Omit<PrismClientSharedFloorplanEntry, 'eventName' | 'eventDate'>>> {
     if (eventIds.length === 0) return [];
     const drafts = await this.prisma.opsFloorPlanDraft.findMany({
-      where: { eventId: { in: eventIds }, status: { in: ['in_review', 'revision_requested', 'approved'] } },
+      where: {
+        eventId: { in: eventIds },
+        status: { in: ['in_review', 'revision_requested', 'approved'] },
+        sourceType: { not: 'client_preference' },
+      },
       select: { eventId: true, id: true, name: true, status: true, updatedAt: true },
       orderBy: [{ eventId: 'asc' }, { updatedAt: 'desc' }, { id: 'asc' }],
     });
