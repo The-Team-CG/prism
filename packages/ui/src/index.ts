@@ -1,7 +1,6 @@
 export * from "./app-shell";
 export * from "./blocks";
 export * from "./brand";
-export * from "./client-blocks";
 export * from "./dashboard-shell";
 export * from "./empty-state";
 export * from "./primitives";
