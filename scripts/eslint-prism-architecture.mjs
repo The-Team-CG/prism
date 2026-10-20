@@ -187,7 +187,9 @@ const noInlineZod = {
     const normalized = normalizedRelative(context.getFilename());
     const canonical = normalized.startsWith("packages/types/src/schemas/");
     const zodValidationPipe = normalized === "apps/api/src/kernel/shared/zod-validation.pipe.ts";
-    if (canonical || zodValidationPipe) return {};
+    // The API process env schema is app-internal runtime config, not a shared contract.
+    const apiRuntimeEnv = normalized === "apps/api/src/kernel/shared/runtime-env.ts";
+    if (canonical || zodValidationPipe || apiRuntimeEnv) return {};
 
     return importRuleVisitors(context, (node, currentContext) => {
       if (sourceValue(node) === "zod") {
