@@ -42,7 +42,7 @@ import type {
   UploadContractInput,
   UploadMetadataInput,
 } from '@prism/types';
-import { mapSupplierQuoteRequest, mapSupplierQuoteRequestForSupplier, mapSupplierSchedule } from '../quotes/supplier-quote.mappers';
+import { mapSupplierQuoteRequest, mapSupplierQuoteRequestForSupplier, mapSupplierSchedule, omitPmcmReviewFields } from '../quotes/supplier-quote.mappers';
 import { OPERATIONS_EVENT_REFERENCE_READER, type OperationsEventReferenceReader } from '@prism/contexts/event-lifecycle/operations-reference';
 
 async function lockSupplierQuoteRequest(prisma: Prisma.TransactionClient, requestId: string) {
@@ -546,7 +546,9 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
       },
       project: mapSupplierQuoteRequestForSupplier,
     });
-    return updated;
+    // Replays return the stored receipt result verbatim, so receipts written before the projection fix
+    // may still carry PMCM review fields. Sanitize at the response boundary for fresh and replayed results.
+    return omitPmcmReviewFields(updated);
   }
 
   private assertVerifiedSupplierActor(
