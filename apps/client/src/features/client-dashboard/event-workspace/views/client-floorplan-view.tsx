@@ -10,6 +10,7 @@ import {
 } from "./sections/client-floorplan-sections";
 import { ClientFloorplanReviewPanel } from "../../floorplan-review/views/client-floorplan-review-panel";
 import { selectClientFloorPlanDraft } from "../../workspace/model/client-dashboard-selectors";
+import { draftIsOfficial } from "../../workspace/model/client-dashboard-view-rules";
 
 export function ClientFloorPlanView() {
   const {
@@ -30,7 +31,7 @@ export function ClientFloorPlanView() {
   } = useClientWorkspace();
 
   const activeDraft = selectClientFloorPlanDraft(officialDraft, preferenceDrafts);
-  const isOfficial = activeDraft !== undefined && activeDraft.sourceType !== "client_preference";
+  const isOfficial = activeDraft !== undefined && draftIsOfficial(activeDraft);
   const approved = isOfficial && activeDraft?.status === "approved";
 
   return (

@@ -12,7 +12,10 @@ import type { CanvasObject as VenueObject, Project } from "@/features/floorplan/
 import type { DetailTab } from "./client-dashboard-types";
 
 export function draftIsOfficial(draft: PrismFloorPlanDraft) {
-  return draft.sourceType !== "client_preference" &&
+  const approvedLegacyPmcmPreference = draft.sourceType === "client_preference" &&
+    draft.status === "approved" &&
+    (draft.createdByRole === "pmcm-admin" || draft.createdByRole === "coordinator");
+  return (draft.sourceType !== "client_preference" || approvedLegacyPmcmPreference) &&
     (draft.status === "in_review" || draft.status === "approved" || draft.status === "revision_requested");
 }
 
