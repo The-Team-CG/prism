@@ -19,6 +19,7 @@ function createController(options: { clientPortalStatus?: string } = {}) {
   const floorPlanWorkflowService = {
     createFloorPlanDraft: vi.fn(async () => ({ id: 'fpd_new' })),
     createFloorPlanPreference: vi.fn(async () => ({ id: 'fpd_pref' })),
+    reopenClientPreference: vi.fn(async () => ({ id: 'fpd_pref', status: 'revision_requested' })),
     submitFloorPlanDraft: vi.fn(async () => ({ id: 'fpd_new', status: 'submitted' })),
     approveFloorPlanDraft: vi.fn(async () => ({ id: 'fpd_new', status: 'approved' })),
     getFloorPlanSnapshot: vi.fn(async () => ({ objects: [] })),
@@ -62,6 +63,11 @@ describe('OpsEventFloorplansController', () => {
     expect(guards).toContain(EventSessionGuard);
   });
 
+  it('keeps preference reopen behind the verified event-session guard', () => {
+    const guards = Reflect.getMetadata('__guards__', OpsEventFloorplansController.prototype.reopenClientPreference) as Function[];
+    expect(guards).toContain(EventSessionGuard);
+  });
+
   it('does not inject PrismaService into the controller', () => {
     const { controller } = createController();
     expect((controller as unknown as Record<string, unknown>).prisma).toBeUndefined();
@@ -78,6 +84,45 @@ describe('OpsEventFloorplansController', () => {
     expect(floorPlanWorkflowService.createFloorPlanDraft).toHaveBeenCalledWith('evt_sample', { name: 'Official', sourceType: 'blank' }, { actorId: 'user_pmcm', name: 'Maxine', role: OpsUserRole.PmcmAdmin });
     expect(floorPlanWorkflowService.submitFloorPlanDraft).toHaveBeenCalledWith('evt_sample', 'fpd_new', { name: 'Maxine', role: OpsUserRole.PmcmAdmin });
     expect(floorPlanWorkflowService.approveFloorPlanDraft).toHaveBeenCalledWith('evt_sample', 'fpd_new', { name: 'Maxine', role: OpsUserRole.PmcmAdmin });
+  });
+
+  it('allows PMCM to reopen a client preference through the event-scoped workflow command', async () => {
+    const { controller, floorPlanWorkflowService, eventAccessPolicyService } = createController();
+
+    await expect(
+      controller.reopenClientPreference('evt_sample', 'fpd_pref', verifiedPmcmActor as any),
+    ).resolves.toEqual({ id: 'fpd_pref', status: 'revision_requested' });
+
+    expect(eventAccessPolicyService.requireCanMutateOfficialFloorplan).toHaveBeenCalledWith(
+      expect.objectContaining({ role: OpsUserRole.PmcmAdmin, verified: true }),
+      'evt_sample',
+      'client floorplan preference reopen',
+    );
+    expect(floorPlanWorkflowService.reopenClientPreference).toHaveBeenCalledWith(
+      'evt_sample',
+      'fpd_pref',
+      { actorId: 'user_pmcm', name: 'Maxine', role: OpsUserRole.PmcmAdmin },
+    );
+  });
+
+  it('denies a client from reopening a preference', async () => {
+    const { controller, floorPlanWorkflowService } = createController();
+    const client = {
+      ...verifiedPmcmActor,
+      id: 'client_ana',
+      actorId: 'client_ana',
+      role: OpsUserRole.Client,
+      actorRole: OpsUserRole.Client,
+      email: 'ana@example.test',
+      actorEmail: 'ana@example.test',
+      name: 'Ana Reyes',
+      actorName: 'Ana Reyes',
+    };
+
+    await expect(
+      controller.reopenClientPreference('evt_sample', 'fpd_pref', client as any),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(floorPlanWorkflowService.reopenClientPreference).not.toHaveBeenCalled();
   });
 
   it('denies clients from applying a venue-library preset to an official floorplan', async () => {

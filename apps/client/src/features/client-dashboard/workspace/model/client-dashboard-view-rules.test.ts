@@ -1,13 +1,51 @@
 import { describe, expect, it } from "vitest";
 import {
   clientFloorplanDashboardActionLabel,
+  draftIsOfficial,
   selectNextAction,
 } from "./client-dashboard-view-rules";
 import { selectClientDashboardActions } from "./client-dashboard-selectors";
-import type { PrismClientActionItem } from "@prism/types";
+import type { PrismClientActionItem, PrismFloorPlanDraft } from "@prism/types";
 
 
 describe("client dashboard action rules", () => {
+
+  it("does not classify a reopened client preference as an official floorplan", () => {
+    const preference: PrismFloorPlanDraft = {
+      id: "fpd_preference",
+      eventId: "evt_1",
+      floorPlanId: "plan_preference",
+      name: "Client Preference",
+      status: "revision_requested",
+      isActive: false,
+      sourceType: "client_preference",
+      createdByRole: "client",
+      createdAt: "2026-10-01T00:00:00.000Z",
+      updatedAt: "2026-10-02T00:00:00.000Z",
+    };
+
+    expect(draftIsOfficial(preference)).toBe(false);
+    expect(draftIsOfficial({ ...preference, sourceType: "blank" })).toBe(true);
+  });
+
+  it("recognizes older PMCM-approved preference-source layouts as official snapshots", () => {
+    const legacyPmcmLayout: PrismFloorPlanDraft = {
+      id: "fpd_legacy_pmcm",
+      eventId: "evt_1",
+      floorPlanId: "plan_legacy_pmcm",
+      name: "Older approved PMCM layout",
+      status: "approved",
+      isActive: true,
+      sourceType: "client_preference",
+      createdByRole: "pmcm-admin",
+      createdAt: "2026-10-01T00:00:00.000Z",
+      updatedAt: "2026-10-02T00:00:00.000Z",
+    };
+    const clientPreference = { ...legacyPmcmLayout, id: "fpd_client", createdByRole: "client" };
+
+    expect(draftIsOfficial(legacyPmcmLayout)).toBe(true);
+    expect(draftIsOfficial(clientPreference)).toBe(false);
+  });
 
   it("labels direct event-card floorplan actions by state", () => {
     expect(clientFloorplanDashboardActionLabel("not_started")).toBe("Set layout preferences");

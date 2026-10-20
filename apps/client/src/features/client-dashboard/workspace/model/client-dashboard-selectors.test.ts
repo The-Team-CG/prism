@@ -3,12 +3,14 @@ import {
   clientEventMatchesFilter,
   selectClientEventHistoryEvents,
   selectClientEvents,
+  selectClientFloorPlanDraft,
   selectEventDrafts,
   selectEventWorkspaceResources,
+  selectPreferenceDrafts,
   selectSelectedClientEvent,
 } from "./client-dashboard-selectors";
 import { clientEventCardOpenRoute, dashboardHref } from "./client-dashboard-navigation";
-import type { PrismClientWorkspace, PrismEvent, PrismUser } from "@prism/types";
+import type { PrismClientWorkspace, PrismEvent, PrismFloorPlanDraft, PrismUser } from "@prism/types";
 
 const session = { name: "Ana Reyes" } as Pick<PrismUser, "name">;
 
@@ -127,6 +129,154 @@ describe("client-dashboard selectors", () => {
 
   it("includes only the route's archived event for final-summary closeout access", () => {
     expect(selectClientEvents(workspace, session, "evt_3").map((event) => event.id)).toEqual(["evt_1", "evt_2", "evt_5", "evt_3"]);
+  });
+
+  it("treats only a client-created preference as the client's existing preference", () => {
+    const drafts: PrismFloorPlanDraft[] = [
+      {
+        id: "fpd_pmcm_preference",
+        eventId: "evt_1",
+        floorPlanId: "plan_pmcm",
+        name: "PMCM preference placeholder",
+        status: "pmcm_draft",
+        isActive: false,
+        sourceType: "client_preference",
+        createdByRole: "pmcm-admin",
+        createdAt: "2026-10-01T00:00:00.000Z",
+        updatedAt: "2026-10-01T00:00:00.000Z",
+      },
+      {
+        id: "fpd_client_preference",
+        eventId: "evt_1",
+        floorPlanId: "plan_client",
+        name: "Client preference",
+        status: "client_submitted",
+        isActive: false,
+        sourceType: "client_preference",
+        createdByRole: "client",
+        createdAt: "2026-10-02T00:00:00.000Z",
+        updatedAt: "2026-10-02T00:00:00.000Z",
+      },
+    ];
+
+    expect(selectPreferenceDrafts(drafts).map((draft) => draft.id)).toEqual(["fpd_client_preference"]);
+  });
+
+  it("selects the most recently updated client preference before older history", () => {
+    const drafts: PrismFloorPlanDraft[] = [
+      {
+        id: "fpd_older",
+        eventId: "evt_1",
+        floorPlanId: "plan_old",
+        name: "Older preference",
+        status: "client_submitted",
+        isActive: false,
+        sourceType: "client_preference",
+        createdByRole: "client",
+        createdAt: "2026-10-01T00:00:00.000Z",
+        updatedAt: "2026-10-01T00:00:00.000Z",
+      },
+      {
+        id: "fpd_reopened",
+        eventId: "evt_1",
+        floorPlanId: "plan_reopened",
+        name: "Reopened preference",
+        status: "revision_requested",
+        isActive: false,
+        sourceType: "client_preference",
+        createdByRole: "client",
+        createdAt: "2026-10-02T00:00:00.000Z",
+        updatedAt: "2026-10-03T00:00:00.000Z",
+      },
+    ];
+
+    const preferences = selectPreferenceDrafts(drafts);
+    expect(preferences.map((draft) => draft.id)).toEqual(["fpd_reopened", "fpd_older"]);
+    expect(selectClientFloorPlanDraft(undefined, preferences)?.id).toBe("fpd_reopened");
+  });
+
+  it("keeps a reopened preference as the editor target while an official draft is in review", () => {
+    const officialDraft = {
+      id: "fpd_official",
+      eventId: "evt_1",
+      floorPlanId: "plan_official",
+      name: "Official draft",
+      status: "in_review",
+      isActive: true,
+      sourceType: "blank",
+      createdByRole: "pmcm-admin",
+      createdAt: "2026-10-01T00:00:00.000Z",
+      updatedAt: "2026-10-01T00:00:00.000Z",
+    } as PrismFloorPlanDraft;
+    const reopenedPreference = {
+      id: "fpd_reopened",
+      eventId: "evt_1",
+      floorPlanId: "plan_preference",
+      name: "Reopened preference",
+      status: "revision_requested",
+      isActive: false,
+      sourceType: "client_preference",
+      createdByRole: "client",
+      createdAt: "2026-10-02T00:00:00.000Z",
+      updatedAt: "2026-10-03T00:00:00.000Z",
+    } as PrismFloorPlanDraft;
+
+    expect(selectClientFloorPlanDraft(officialDraft, [reopenedPreference])?.id).toBe("fpd_reopened");
+  });
+
+  it("keeps the approved official floorplan selected over a still-reopened preference", () => {
+    const approvedOfficial = {
+      id: "fpd_official",
+      eventId: "evt_1",
+      floorPlanId: "plan_official",
+      name: "Approved official layout",
+      status: "approved",
+      isActive: true,
+      sourceType: "blank",
+      createdByRole: "pmcm-admin",
+      createdAt: "2026-10-01T00:00:00.000Z",
+      updatedAt: "2026-10-04T00:00:00.000Z",
+    } as PrismFloorPlanDraft;
+    const reopenedPreference = {
+      id: "fpd_reopened",
+      eventId: "evt_1",
+      floorPlanId: "plan_preference",
+      name: "Reopened preference",
+      status: "revision_requested",
+      isActive: false,
+      sourceType: "client_preference",
+      createdByRole: "client",
+      createdAt: "2026-10-02T00:00:00.000Z",
+      updatedAt: "2026-10-05T00:00:00.000Z",
+    } as PrismFloorPlanDraft;
+
+    expect(selectClientFloorPlanDraft(approvedOfficial, [reopenedPreference])?.id).toBe("fpd_official");
+  });
+
+  it("does not select an older reopened preference over a newer client submission", () => {
+    const newerSubmission = {
+      id: "fpd_newer_submitted",
+      eventId: "evt_1",
+      floorPlanId: "plan_newer",
+      name: "Newer submission",
+      status: "client_submitted",
+      isActive: false,
+      sourceType: "client_preference",
+      createdByRole: "client",
+      createdAt: "2026-10-03T00:00:00.000Z",
+      updatedAt: "2026-10-04T00:00:00.000Z",
+    } as PrismFloorPlanDraft;
+    const olderReopened = {
+      ...newerSubmission,
+      id: "fpd_older_reopened",
+      floorPlanId: "plan_old",
+      name: "Older reopened preference",
+      status: "revision_requested",
+      createdAt: "2026-10-01T00:00:00.000Z",
+      updatedAt: "2026-10-02T00:00:00.000Z",
+    } as PrismFloorPlanDraft;
+
+    expect(selectClientFloorPlanDraft(undefined, [newerSubmission, olderReopened])?.id).toBe("fpd_newer_submitted");
   });
 
   it("lists unlocked archived events in history and opens them on summary while active events keep overview", () => {

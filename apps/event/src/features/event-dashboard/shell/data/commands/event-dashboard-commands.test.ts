@@ -50,6 +50,18 @@ describe("PMCM dashboard command transport", () => {
     }
   });
 
+  it("reopens a client floorplan preference through the event-scoped PMCM endpoint", async () => {
+    await eventDashboardCommands.reopenClientPreference("evt_1", "fpd_1");
+
+    const fetchMock = vi.mocked(fetch);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toBe(
+      "http://localhost:4000/api/events/evt_1/floorplans/fpd_1/reopen-preference",
+    );
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: "POST" });
+    expect(new Headers(fetchMock.mock.calls[0][1]?.headers).get("authorization")).toBe("Bearer session-token");
+  });
+
   it("uses the verified session token without sending a caller supplied actor name", async () => {
     await eventDashboardCommands.archiveEvent("evt_1", "archive approved by PMCM");
 

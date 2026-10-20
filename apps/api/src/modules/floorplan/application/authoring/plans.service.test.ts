@@ -165,6 +165,14 @@ describe('PlansService floorplan permissions and versioning', () => {
     });
   });
 
+  it('allows the verified owner to read their own reopened preference for editing', async () => {
+    const { service } = createService(draft('revision_requested', 'Ana Reyes', 'owner@example.test', 'client_preference'));
+
+    await expect(service.getPlan('plan_event_1', clientActor('owner@example.test'))).resolves.toMatchObject({
+      id: 'plan_event_1',
+    });
+  });
+
   it('blocks a linked secondary client from reading the raw preference plan', async () => {
     const { service } = createService(draft('client_submitted'));
 
@@ -275,8 +283,20 @@ describe('PlansService floorplan permissions and versioning', () => {
     }));
   });
 
-  it('allows a verified client to update only their own submitted preference', async () => {
-    const { service, prisma, audit, lifecycleEventReferences } = createService(draft('client_submitted'));
+  it('blocks a verified client from editing a submitted preference until PMCM reopens it', async () => {
+    const { service, prisma } = createService(draft('client_submitted'));
+
+    await expect(
+      service.updatePlan('plan_event_1', changes({ width: 45 }), clientActor('owner@example.test')),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+  });
+
+  it('allows a verified client to update only their own reopened preference', async () => {
+    const { service, prisma, audit, lifecycleEventReferences } = createService(
+      draft('revision_requested', 'Ana Reyes', 'owner@example.test', 'client_preference'),
+      { ownerId: 'user_owner@example.test' },
+    );
 
     await expect(
       service.updatePlan('plan_event_1', changes({ width: 45 }), clientActor('owner@example.test')),
@@ -294,6 +314,18 @@ describe('PlansService floorplan permissions and versioning', () => {
       actorRole: 'client',
       actorEmail: 'owner@example.test',
     }), expect.objectContaining({ actorId: 'user_owner@example.test' }));
+  });
+
+  it('blocks another verified client from editing a reopened preference they do not own', async () => {
+    const { service, prisma } = createService(
+      draft('revision_requested', 'Ana Reyes', 'owner@example.test', 'client_preference'),
+      { ownerId: 'user_different@example.test' },
+    );
+
+    await expect(
+      service.updatePlan('plan_event_1', changes({ width: 45 }), clientActor('owner@example.test')),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
   });
 
   it('does not let a client add guest, supplier, or seating data to a preference', async () => {
