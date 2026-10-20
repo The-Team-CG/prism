@@ -28,9 +28,12 @@ export function canApproveFloorPlanDraft(status?: string): boolean {
 export function canViewClientPreference(
   draft: Pick<FloorPlanDraftLike, "status" | "sourceType" | "createdByRole">,
 ): boolean {
-  return draft.sourceType === "client_preference" &&
-    draft.createdByRole === "client" &&
-    (draft.status === "client_submitted" || draft.status === "revision_requested");
+  if (draft.sourceType !== "client_preference") return false;
+  if (draft.createdByRole === "client") {
+    return draft.status === "client_submitted" || draft.status === "revision_requested";
+  }
+  return (draft.createdByRole === "pmcm-admin" || draft.createdByRole === "coordinator") &&
+    draft.status === "approved";
 }
 
 export function canReopenClientPreference(
