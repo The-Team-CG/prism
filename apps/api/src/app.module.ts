@@ -15,6 +15,7 @@ import { HealthModule } from '@prism/kernel/health';
 import { IdentityAccessModule } from './modules/identity-access/identity-access.module';
 import { LiveOpsModule } from './modules/live-ops/live-ops.module';
 import { EventSessionModule } from '@prism/kernel/event-session';
+import { PublicRateLimitModule, validateRuntimeEnv } from '@prism/kernel/shared';
 import { OpsEventClosureController } from './modules/event-lifecycle/api/closure/event-closure.controller';
 import { EventInsightGenerationController } from './composition/event-insight-generation.controller';
 import { EventInsightGenerationService } from './composition/event-insight-generation.service';
@@ -25,7 +26,8 @@ import { EventGamesModule } from './modules/event-games/event-games.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, envFilePath: process.env.PRISM_ENV_FILE || '.env' }),
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: process.env.PRISM_ENV_FILE || '.env', validate: validateRuntimeEnv }),
+    PublicRateLimitModule,
     HealthModule,
     PlatformOpsCommandReceiptModule,
     EventCoreModule,

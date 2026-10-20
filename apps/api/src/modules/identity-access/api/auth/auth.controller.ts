@@ -4,7 +4,7 @@ import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/ker
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { OpsUserRole } from '@prism/kernel/event-core';
-import { zodBody } from '@prism/kernel/shared';
+import { PublicRateLimit, zodBody } from '@prism/kernel/shared';
 import { consumePasswordResetSchema, loginSchema, requestApprovalSchema, requestPasswordResetSchema, twoFactorTokenSchema, verifyTwoFactorSchema, type ConsumePasswordResetInput, type LoginInput, type RequestApprovalInput, type RequestPasswordResetInput, type TwoFactorTokenInput, type VerifyTwoFactorInput } from '@prism/types';
 import { AuthOperationsService } from '../../application/auth/auth-operations.service';
 import { PasswordResetService } from '../../application/auth/password-reset.service';
@@ -20,36 +20,42 @@ export class OpsAuthController {
   }
 
   @Post('login')
+  @PublicRateLimit('authentication')
   @HttpCode(HttpStatus.OK)
   login(@Body(zodBody(loginSchema)) dto: LoginInput) {
     return this.authOperationsService.login(dto.email, dto.password);
   }
 
   @Post('password-reset/request')
+  @PublicRateLimit('accountRequest')
   @HttpCode(HttpStatus.ACCEPTED)
   requestPasswordReset(@Req() request: Request, @Body(zodBody(requestPasswordResetSchema)) dto: RequestPasswordResetInput) {
     return this.passwordResetService!.request(dto.email, request.ip || 'unknown');
   }
 
   @Post('password-reset/consume')
+  @PublicRateLimit('authentication')
   @HttpCode(HttpStatus.OK)
   consumePasswordReset(@Body(zodBody(consumePasswordResetSchema)) dto: ConsumePasswordResetInput) {
     return this.passwordResetService!.consume(dto.token, dto.password);
   }
 
   @Post('2fa/setup')
+  @PublicRateLimit('authentication')
   @HttpCode(HttpStatus.OK)
   setupTwoFactor(@Body(zodBody(twoFactorTokenSchema)) dto: TwoFactorTokenInput) {
     return this.authOperationsService.setupTwoFactor(dto.token);
   }
 
   @Post('2fa/verify')
+  @PublicRateLimit('authentication')
   @HttpCode(HttpStatus.OK)
   verifyTwoFactor(@Body(zodBody(verifyTwoFactorSchema)) dto: VerifyTwoFactorInput) {
     return this.authOperationsService.verifyTwoFactor(dto.token, dto.code);
   }
 
   @Post('approval-requests')
+  @PublicRateLimit('accountRequest')
   @HttpCode(HttpStatus.CREATED)
   requestApproval(@Body(zodBody(requestApprovalSchema)) dto: RequestApprovalInput) {
     return this.authOperationsService.requestApproval(dto);
