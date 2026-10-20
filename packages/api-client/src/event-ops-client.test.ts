@@ -956,6 +956,22 @@ describe("createEventOpsClient", () => {
     );
   });
 
+  it("loads the PMCM decision log from the event-scoped route with kind and paging filters", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ eventId: "evt_1", entries: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.pmcm.decisionLog("evt_1");
+    await client.pmcm.decisionLog("evt_1", { kind: "archive_override", page: 1 });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "http://localhost:4000/api/events/evt_1/decision-log", {
+      headers: { "Content-Type": "application/json" },
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "http://localhost:4000/api/events/evt_1/decision-log?kind=archive_override&page=1", {
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+
   it("loads the PMCM selected event workspace as a scoped read model", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ event: { id: "evt_1" } }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
