@@ -63,50 +63,69 @@ export function LiveOpsRunSheetView(props: LiveOpsRunSheetViewProps) {
             <p className="mt-1 text-xs text-muted-foreground">Showing what your assignment allows. Finance, private supplier notes and audit records are not included.</p>
           ) : null}
         </div>
-        <div className="flex flex-wrap items-center gap-2 print:hidden">
-          {runSheet && runSheet.days.length > 1 ? (
-            <label className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Day</span>
-              <select
-                className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-                value={props.selectedDayId ?? runSheet.day.id}
-                onChange={(event) => props.onSelectDay(event.target.value)}
-              >
-                {runSheet.days.map((day) => (
-                  <option key={day.id} value={day.id}>{day.label ? `${day.label} (${day.dayDate})` : day.dayDate}</option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-          <button type="button" onClick={props.onReload} disabled={props.loading} className="rounded-md border border-border px-3 py-1.5 text-sm font-semibold">
-            Refresh
-          </button>
-          {props.onPrint ? (
-            <button type="button" onClick={props.onPrint} disabled={!runSheet} className="rounded-md bg-foreground px-3 py-1.5 text-sm font-semibold text-background">
-              Print run sheet
-            </button>
-          ) : null}
-        </div>
+        <RunSheetControls props={props} />
       </header>
 
-      {props.loading && !runSheet && !props.unavailable ? <p role="status" className="text-sm text-muted-foreground">Loading run sheet…</p> : null}
+      <RunSheetMessages props={props} />
+
+      {runSheet && timeline ? <RunSheetBody runSheet={runSheet} timeline={timeline} now={props.now} /> : null}
+    </section>
+  );
+}
+
+function RunSheetControls({ props }: { props: LiveOpsRunSheetViewProps }) {
+  const { runSheet } = props;
+  return (
+    <div className="flex flex-wrap items-center gap-2 print:hidden">
+      {runSheet && runSheet.days.length > 1 ? (
+        <label className="flex items-center gap-2 text-sm">
+          <span className="text-muted-foreground">Day</span>
+          <select
+            className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+            value={props.selectedDayId ?? runSheet.day.id}
+            onChange={(event) => props.onSelectDay(event.target.value)}
+          >
+            {runSheet.days.map((day) => (
+              <option key={day.id} value={day.id}>{day.label ? `${day.label} (${day.dayDate})` : day.dayDate}</option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      <button type="button" onClick={props.onReload} disabled={props.loading} className="rounded-md border border-border px-3 py-1.5 text-sm font-semibold">
+        Refresh
+      </button>
+      {props.onPrint ? (
+        <button type="button" onClick={props.onPrint} disabled={!runSheet} className="rounded-md bg-foreground px-3 py-1.5 text-sm font-semibold text-background">
+          Print run sheet
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function RunSheetMessages({ props }: { props: LiveOpsRunSheetViewProps }) {
+  return (
+    <>
+      {props.loading && !props.runSheet && !props.unavailable ? <p role="status" className="text-sm text-muted-foreground">Loading run sheet…</p> : null}
       {props.error ? <p role="alert" className="text-sm text-destructive">{props.error}</p> : null}
       {props.unavailable ? <p className="text-sm text-muted-foreground">No run sheet is available until the event schedule is authored.</p> : null}
+    </>
+  );
+}
 
-      {runSheet && timeline ? (
-        <>
-          {!runSheet.supplierWindowsVisible ? (
-            <p className="text-xs text-muted-foreground">Supplier ingress and egress windows are not shared with this role.</p>
-          ) : null}
-          {timeline.rows.length ? (
-            <RunSheetRows timeline={timeline} now={props.now} />
-          ) : (
-            <p className="text-sm text-muted-foreground">Nothing is scheduled for this day yet.</p>
-          )}
-          <p className="text-xs text-muted-foreground">Generated {formatRunSheetDate(runSheet.generatedAt)} {formatRunSheetTime(runSheet.generatedAt)}</p>
-        </>
+function RunSheetBody({ runSheet, timeline, now }: { runSheet: PrismEventRunSheet; timeline: RunSheetTimeline; now: Date }) {
+  return (
+    <>
+      {!runSheet.supplierWindowsVisible ? (
+        <p className="text-xs text-muted-foreground">Supplier ingress and egress windows are not shared with this role.</p>
       ) : null}
-    </section>
+      {timeline.rows.length ? (
+        <RunSheetRows timeline={timeline} now={now} />
+      ) : (
+        <p className="text-sm text-muted-foreground">Nothing is scheduled for this day yet.</p>
+      )}
+      <p className="text-xs text-muted-foreground">Generated {formatRunSheetDate(runSheet.generatedAt)} {formatRunSheetTime(runSheet.generatedAt)}</p>
+    </>
   );
 }
 
@@ -126,16 +145,24 @@ function RunSheetRows({ timeline, now }: { timeline: RunSheetTimeline; now: Date
   return <ol aria-label="Run sheet entries" className="divide-y divide-border">{items}</ol>;
 }
 
-function RunSheetRow({ row }: { row: RunSheetTimelineRow }) {
-  const flags = [
+function runSheetRowFlags(row: RunSheetTimelineRow) {
+  return [
     row.overdue ? "Overdue" : null,
     row.carriedOver ? `Carried over from ${formatRunSheetDate(row.at)}` : null,
   ].filter(Boolean);
+}
+
+function runSheetRowClassName(row: RunSheetTimelineRow) {
+  return `grid grid-cols-[5.5rem_1fr_auto] gap-3 py-2 text-sm break-inside-avoid ${row.overdue ? "border-l-2 border-destructive pl-2" : ""} ${row.past && !row.overdue ? "text-muted-foreground" : ""}`;
+}
+
+function RunSheetRow({ row }: { row: RunSheetTimelineRow }) {
+  const flags = runSheetRowFlags(row);
   return (
     <li
       data-kind={row.kind}
       data-overdue={row.overdue ? "true" : undefined}
-      className={`grid grid-cols-[5.5rem_1fr_auto] gap-3 py-2 text-sm break-inside-avoid ${row.overdue ? "border-l-2 border-destructive pl-2" : ""} ${row.past && !row.overdue ? "text-muted-foreground" : ""}`}
+      className={runSheetRowClassName(row)}
     >
       <time dateTime={row.at} className="font-semibold tabular-nums">
         {formatRunSheetTime(row.at)}
