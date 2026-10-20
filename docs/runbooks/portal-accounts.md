@@ -49,6 +49,7 @@ Accounts exist after the explicit fixture seed runs against an empty local dispo
 | Portal | Role | Name | Email | Password / code | Notes |
 | --- | --- | --- | --- | --- | --- |
 | Event command | `pmcm-admin` | Ms. Mys | `mys@pmcm.test` | `prism-admin` | Full PMCM command access |
+| Event command | `pmcm-admin` | PMCM Approver | `approver@pmcm.test` | `prism-admin` | Second PMCM admin; approves billing corrections requested by Ms. Mys (separation of duties) |
 | Event command | `coordinator` | Marco Santos | `marco@pmcm.test` | `prism-coordinator` | Role-safe coordinator workspace |
 | Client | `client` | Ana Reyes | `ana@ayala.test` | `prism-client` | Ayala Tech Summit local fixture client |
 | Supplier | `supplier` | XPERTO Registration | `ops@xperto.test` | `prism-supplier` | Tier 1 digital registration (primary) |
@@ -60,6 +61,9 @@ Accounts exist after the explicit fixture seed runs against an empty local dispo
 ```text
 # Event command (PMCM)
 mys@pmcm.test / prism-admin
+
+# Event command (second PMCM admin, approves billing corrections requested by the first)
+approver@pmcm.test / prism-admin
 
 # Event command (coordinator)
 marco@pmcm.test / prism-coordinator
@@ -99,7 +103,7 @@ API startup does **not** seed data. The application has no sample state or reset
 
    The command refuses production, remote URLs, a different database name, and populated fixture tables across all Prisma models. It writes directly through Prisma, does not start the API server, and never deletes existing rows. Stop the API and other database writers, and run only one seed command at a time: the empty-database check completes before fixture writes begin. Use a newly created disposable database.
 
-After the command completes, you should be able to sign in with every account above. Running the API alone does not create these accounts.
+After the command completes, you should be able to sign in with every account above. Running the API alone does not create these accounts. The seed only runs on an empty database, so `approver@pmcm.test` is absent from databases seeded before it was added; create a new disposable database to get it.
 
 ## Portal boundaries
 

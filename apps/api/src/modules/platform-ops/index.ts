@@ -2,7 +2,6 @@ export * from './platform-ops-audit-writer.module';
 export * from './platform-ops-command-receipt.module';
 
 export * from './api/trust/audit-privacy.controller';
-export * from './api/trust/audit-privacy.dto';
 export * from './contracts/trust/audit-writer.port';
 export * from './contracts/trust/trust-ops.tokens';
 export * from './infrastructure/trust/audit-writer.adapter';

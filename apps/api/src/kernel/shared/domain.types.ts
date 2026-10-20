@@ -52,6 +52,20 @@ export interface CanvasObject {
   metadata?: Record<string, string | number | boolean>;
 }
 
+/**
+ * Object row as persisted for a plan or template. Floorplan editor objects carry no zIndex or
+ * svgMarkup, so only identity and kind are required; zIndex falls back to array position on write.
+ */
+export interface SavedPlanObject {
+  id: ID;
+  kind: string;
+  zIndex?: number;
+  svgMarkup?: string;
+}
+
+/** A plan object in either the legacy kernel shape or the floorplan editor shape. */
+export type FloorPlanObject = CanvasObject | SavedPlanObject;
+
 export interface SeatCategory {
   id: ID;
   name: string;
@@ -76,7 +90,7 @@ export interface FloorPlan {
   ownerId: ID;
   templateId: ID | null;
   eventId: ID | null;
-  objects: CanvasObject[];
+  objects: FloorPlanObject[];
   guests: JsonValue[];
   suppliers: JsonValue[];
   seats: Seat[];
@@ -131,6 +145,3 @@ export type JsonObject = { [key: string]: JsonValue };
 export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
 
 export const asArray = <T>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
-
-export const asObject = <T extends object>(value: unknown): T | null =>
-  value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as T) : null;

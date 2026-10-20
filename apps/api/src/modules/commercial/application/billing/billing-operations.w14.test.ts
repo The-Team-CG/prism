@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import type { CommandReceiptRecord, CommandReceiptStore } from '@prism/kernel/event-core';
@@ -9,6 +9,7 @@ import { BillingAdjustmentService } from './billing-adjustment.service';
 import { nextPaymentMilestoneStatus, validatePaymentTerms } from '../../domain/payment-terms.policy';
 
 const actor = { id: 'actor_francis', name: 'Francis', role: OpsUserRole.PmcmAdmin, email: 'francis@pmcm.test' };
+const approver = { id: 'actor_mys', name: 'Ms. Mys', role: OpsUserRole.PmcmAdmin, email: 'mys@pmcm.test' };
 
 function createW14Service(withReceipts = false) {
   const event = { id: 'evt_w14', inquiryId: 'inq_w14', eventName: 'W14 Event', clientName: 'Client', eventDate: new Date('2026-08-01T00:00:00.000Z'), actualEndedAt: new Date('2026-08-02T00:00:00.000Z') };
@@ -103,8 +104,41 @@ describe('W14 billing operations', () => {
     const replay = await service.requestBillingCorrection('evt_w14', input, actor);
     expect(first.id).toBe(replay.id);
     expect(prisma.opsBillingCorrection.create).toHaveBeenCalledTimes(1);
-    await service.resolveBillingCorrection('evt_w14', correction.id, { action: 'approve' }, actor);
-    await expect(service.resolveBillingCorrection('evt_w14', correction.id, { action: 'reject', resolutionNotes: 'Already approved' }, actor)).rejects.toBeInstanceOf(BadRequestException);
+    await service.resolveBillingCorrection('evt_w14', correction.id, { action: 'approve' }, approver);
+    await expect(service.resolveBillingCorrection('evt_w14', correction.id, { action: 'reject', resolutionNotes: 'Already approved' }, approver)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('refuses self-approval with nothing written, then lets a different PMCM user approve', async () => {
+    const { service, prisma, audit, correction } = createW14Service();
+    const input = requestBillingCorrectionSchema.parse({ statementId: 'stmt_w14', reason: 'Tax line is incorrect', idempotencyKey: 'corr-self-approve-key' });
+    const requested = await service.requestBillingCorrection('evt_w14', input, actor);
+    expect(requested.requestedById).toBe(actor.id);
+    const auditWritesBefore = audit.write.mock.calls.length;
+
+    await expect(service.resolveBillingCorrection('evt_w14', correction.id, { action: 'approve' }, actor)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.opsBillingCorrection.update).not.toHaveBeenCalled();
+    expect(audit.write).toHaveBeenCalledTimes(auditWritesBefore);
+    expect(correction.status).toBe('pending');
+
+    await expect(service.resolveBillingCorrection('evt_w14', correction.id, { action: 'approve' }, approver))
+      .resolves.toMatchObject({ status: 'approved', resolvedBy: approver.name });
+  });
+
+  it('lets the requester withdraw their own pending correction by rejecting it', async () => {
+    const { service, correction } = createW14Service();
+    const input = requestBillingCorrectionSchema.parse({ statementId: 'stmt_w14', reason: 'Tax line is incorrect', idempotencyKey: 'corr-withdraw-key' });
+    await service.requestBillingCorrection('evt_w14', input, actor);
+
+    await expect(service.resolveBillingCorrection('evt_w14', correction.id, { action: 'reject', resolutionNotes: 'Withdrawn by requester' }, actor))
+      .resolves.toMatchObject({ status: 'rejected', resolvedBy: actor.name });
+  });
+
+  it('falls back to the requester name for legacy corrections without a requester id', async () => {
+    const { service, correction } = createW14Service();
+    Object.assign(correction, { requestedBy: actor.name, requestedById: null });
+
+    await expect(service.resolveBillingCorrection('evt_w14', correction.id, { action: 'approve' }, actor)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.resolveBillingCorrection('evt_w14', correction.id, { action: 'approve' }, approver)).resolves.toMatchObject({ status: 'approved' });
   });
 
   it('replays a billing command from the central receipt before its table lookup', async () => {

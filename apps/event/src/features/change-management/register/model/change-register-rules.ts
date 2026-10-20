@@ -1,4 +1,14 @@
-import type { PrismEventFreezeException } from "@prism/types";
+import type { PrismAddendum, PrismEventFreezeException } from "@prism/types";
+
+export type AddendumConformeAction = "request" | "countersign" | "awaiting_client" | "none";
+
+/** The one step PMCM can take next on an addendum conforme; the server enforces the same order. */
+export function addendumConformeAction(addendum: Pick<PrismAddendum, "conforme">): AddendumConformeAction {
+  if (!addendum.conforme) return "request";
+  if (addendum.conforme.status === "awaiting_pmcm") return "countersign";
+  if (addendum.conforme.status === "awaiting_client") return "awaiting_client";
+  return "none";
+}
 
 export function isScopeFrozen(freezeStatus: string | null | undefined): boolean {
   return freezeStatus === "frozen";
