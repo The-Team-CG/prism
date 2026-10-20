@@ -157,7 +157,7 @@ function EventFloorplanDraftCard({ draft }: { draft: PrismFloorPlanDraft }) {
         ) : null}
         {canViewPreference ? (
           <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => run("view preference layout", () => openEditor(selectedEvent, draft, true))}>
-            View preference layout
+            {draft.status === "approved" ? "View approved layout" : "View preference layout"}
           </Button>
         ) : null}
         {canReopenPreference ? (
