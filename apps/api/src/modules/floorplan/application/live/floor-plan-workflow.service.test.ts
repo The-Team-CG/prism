@@ -89,7 +89,12 @@ function createService() {
       findFirst: vi.fn(async ({ where }) =>
         (() => {
           const draft = state.floorPlanDrafts.find((item) =>
-            Object.entries(where).every(([key, value]) => item[key] === value),
+            Object.entries(where).every(([key, value]) => {
+              if (key === 'sourceType' && typeof value === 'object' && value !== null && 'not' in value) {
+                return item.sourceType !== value.not;
+              }
+              return item[key] === value;
+            }),
           );
           return draft ? { ...draft } : null;
         })(),
@@ -736,6 +741,78 @@ describe('FloorPlanWorkflowService', () => {
       expect.objectContaining({ eventId: 'evt_sample', recipient: 'Client' }),
       expect.objectContaining({ actorId: 'user_pmcm_1', prisma }),
     );
+  });
+
+  it('does not reopen a client preference after the official floorplan is approved', async () => {
+    const { service, state, auditWriter, notificationOutboxWriter } = createService();
+    state.events[0].floorPlanStatus = 'approved';
+    state.floorPlanDrafts.push({
+      id: 'fpd_preference',
+      eventId: 'evt_sample',
+      floorPlanId: 'plan_preference',
+      name: 'Client preference',
+      status: 'client_submitted',
+      isActive: false,
+      sourceType: 'client_preference',
+      createdByRole: 'client',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await expect(
+      service.reopenClientPreference('evt_sample', 'fpd_preference', {
+        actorId: 'user_pmcm_1',
+        name: 'Maxine',
+        role: 'pmcm-admin',
+      }),
+    ).rejects.toThrow('A client preference cannot be reopened after official floorplan approval');
+
+    expect(state.floorPlanDrafts[0]?.status).toBe('client_submitted');
+    expect(auditWriter.write).not.toHaveBeenCalled();
+    expect(notificationOutboxWriter.write).not.toHaveBeenCalled();
+  });
+
+  it('does not reopen a preference while an approved official plan remains active', async () => {
+    const { service, state, auditWriter, notificationOutboxWriter } = createService();
+    state.events[0].floorPlanStatus = 'in_review';
+    state.floorPlanDrafts.push(
+      {
+        id: 'fpd_official',
+        eventId: 'evt_sample',
+        floorPlanId: 'plan_official',
+        name: 'Official layout',
+        status: 'approved',
+        isActive: true,
+        sourceType: 'blank',
+        createdByRole: 'pmcm-admin',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: 'fpd_preference',
+        eventId: 'evt_sample',
+        floorPlanId: 'plan_preference',
+        name: 'Client preference',
+        status: 'client_submitted',
+        isActive: false,
+        sourceType: 'client_preference',
+        createdByRole: 'client',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    );
+
+    await expect(
+      service.reopenClientPreference('evt_sample', 'fpd_preference', {
+        actorId: 'user_pmcm_1',
+        name: 'Maxine',
+        role: 'pmcm-admin',
+      }),
+    ).rejects.toThrow('A client preference cannot be reopened after official floorplan approval');
+
+    expect(state.floorPlanDrafts[1]?.status).toBe('client_submitted');
+    expect(auditWriter.write).not.toHaveBeenCalled();
+    expect(notificationOutboxWriter.write).not.toHaveBeenCalled();
   });
 
   it('does not reopen an official floorplan as a client preference', async () => {

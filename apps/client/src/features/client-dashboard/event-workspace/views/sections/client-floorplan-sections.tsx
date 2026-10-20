@@ -65,7 +65,8 @@ export function FloorPlanDraftPanel({
     return <EmptyState icon={MapPinned} title="No floor plan draft yet" description="Start from a saved layout template or send guided notes below." />;
   }
 
-  const readOnly = approved || isOfficial;
+  const readOnly = approved || isOfficial || !canEditClientFloorPlanPreference(activeDraft);
+  const actionLabel = isOfficial ? "View official floorplan" : readOnly ? "View submitted preference" : "Edit preference";
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-4 rounded-xl bg-muted/40 p-4">
@@ -78,7 +79,7 @@ export function FloorPlanDraftPanel({
           </p>
         </div>
         <Button className="shrink-0 rounded-lg font-bold" onClick={() => onOpenEditor(activeDraft, readOnly)}>
-          {readOnly ? "View official floorplan" : "Edit preference"} <ArrowRight className="size-4" />
+          {actionLabel} <ArrowRight className="size-4" />
         </Button>
       </div>
       <LayoutPreview project={approved || isOfficial ? officialProject : null} />

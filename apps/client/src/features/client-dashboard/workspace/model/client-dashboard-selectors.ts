@@ -91,7 +91,9 @@ export function selectOfficialDraft(eventDrafts: PrismFloorPlanDraft[]) {
 }
 
 export function selectPreferenceDrafts(eventDrafts: PrismFloorPlanDraft[]) {
-  return eventDrafts.filter((draft) => draft.createdByRole === "client" || draft.sourceType === "client_preference");
+  return eventDrafts.filter(
+    (draft) => draft.sourceType === "client_preference" && draft.createdByRole === "client",
+  );
 }
 
 export function selectClientDashboardActions(

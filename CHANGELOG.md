@@ -6,7 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-- Client layout preferences now follow one event-scoped cycle: only the submitting client can revise a PMCM-reopened preference; PMCM can inspect submitted geometry read-only; and client preferences cannot enter official approval or the shared-floorplan snapshot list. Owner C (Ethan).
+- Client layout preferences now stay client-owned through submission and revision: PMCM placeholders do not block first submission, submitted plans stay read-only until reopened, and PMCM can inspect submitted geometry. PMCM cannot reopen a preference after official approval, and preferences cannot enter official approval or shared snapshots. Owner C (Ethan).
 - Removed unused API ports and DTOs, unused portal UI primitives, and unused packages (MUI/emotion, motion, recharts, date-fns, react-hook-form, and related UI libraries, plus the `@prism/ui` client-blocks module and seven unused subpath exports). Smaller dependency tree and bundle surface; no behavior change for users or developers.
 - PMCM official floorplan saves now reject seat assignments that break table eligibility (unknown or declined guests, non-table or hidden objects, and tables over capacity) with a user-safe 400, and the saved plan contract carries the editor's object and guest shape. Plans saved without seat assignments still save. Owner B (Francis).
 - PMCM can request an addendum conforme for an issued addendum. The client acknowledges that version's immutable, hashed document first, PMCM then countersigns, and the addendum's billing line records the executed version. A signed version is never replaced; a new addendum version gets its own conforme. Owner B (Francis), support D (Anthony).

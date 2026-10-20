@@ -5,10 +5,11 @@ import {
   selectClientEvents,
   selectEventDrafts,
   selectEventWorkspaceResources,
+  selectPreferenceDrafts,
   selectSelectedClientEvent,
 } from "./client-dashboard-selectors";
 import { clientEventCardOpenRoute, dashboardHref } from "./client-dashboard-navigation";
-import type { PrismClientWorkspace, PrismEvent, PrismUser } from "@prism/types";
+import type { PrismClientWorkspace, PrismEvent, PrismFloorPlanDraft, PrismUser } from "@prism/types";
 
 const session = { name: "Ana Reyes" } as Pick<PrismUser, "name">;
 
@@ -127,6 +128,37 @@ describe("client-dashboard selectors", () => {
 
   it("includes only the route's archived event for final-summary closeout access", () => {
     expect(selectClientEvents(workspace, session, "evt_3").map((event) => event.id)).toEqual(["evt_1", "evt_2", "evt_5", "evt_3"]);
+  });
+
+  it("treats only a client-created preference as the client's existing preference", () => {
+    const drafts: PrismFloorPlanDraft[] = [
+      {
+        id: "fpd_pmcm_preference",
+        eventId: "evt_1",
+        floorPlanId: "plan_pmcm",
+        name: "PMCM preference placeholder",
+        status: "pmcm_draft",
+        isActive: false,
+        sourceType: "client_preference",
+        createdByRole: "pmcm-admin",
+        createdAt: "2026-10-01T00:00:00.000Z",
+        updatedAt: "2026-10-01T00:00:00.000Z",
+      },
+      {
+        id: "fpd_client_preference",
+        eventId: "evt_1",
+        floorPlanId: "plan_client",
+        name: "Client preference",
+        status: "client_submitted",
+        isActive: false,
+        sourceType: "client_preference",
+        createdByRole: "client",
+        createdAt: "2026-10-02T00:00:00.000Z",
+        updatedAt: "2026-10-02T00:00:00.000Z",
+      },
+    ];
+
+    expect(selectPreferenceDrafts(drafts).map((draft) => draft.id)).toEqual(["fpd_client_preference"]);
   });
 
   it("lists unlocked archived events in history and opens them on summary while active events keep overview", () => {
