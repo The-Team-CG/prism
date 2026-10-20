@@ -7,6 +7,7 @@ import type {
   PrismPmcmCommandInboxQueryInput,
   PrismPmcmDashboardWorkspace,
   PrismPmcmEventWorkspace,
+  PrismPmcmSupplierReadinessBoard,
   PrismRegistrationPlatform,
   PrismSupplierQuoteRequest,
   PrismSupplierReadinessBoard,
@@ -111,6 +112,11 @@ export function createWorkspacesClient(
       eventWorkspace: (eventId, actor = {}) =>
         prismRequest<PrismPmcmEventWorkspace>(
           actorPath(`/pmcm/events/${eventId}/workspace`, actor),
+          withBase(options),
+        ),
+      supplierReadiness: (eventId) =>
+        prismRequest<PrismPmcmSupplierReadinessBoard>(
+          `/pmcm/events/${encodeURIComponent(eventId)}/supplier-readiness`,
           withBase(options),
         ),
       registrationPlatform: (eventId, actor = {}) =>

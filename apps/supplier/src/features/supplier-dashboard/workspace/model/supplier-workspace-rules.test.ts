@@ -26,8 +26,11 @@ import {
   parseQuoteForm,
   quoteRequestsNavDesc,
   bookingsNavDesc,
+  groupReadinessItemsByEvent,
   quoteSubmitSuccessNotice,
+  supplierReadinessSection,
 } from "./supplier-workspace-rules";
+import type { PrismSupplierReadinessItem } from "@prism/types";
 import type { PrismSupplierQuote, PrismSupplierQuoteRequest, SupplierWorkspace } from "./supplier-workspace-types";
 
 function makeRequest(
@@ -174,6 +177,25 @@ describe("supplier-workspace-rules", () => {
     expect(countHandoffPending([request])).toBe(done ? 0 : 1);
     expect(buildSupplierContractRequirements({ quoteRequests: [request, makeRequest({ id: "unselected" })], supplierQuotes: [] })).toEqual([
       expect.objectContaining({ key: "supplier-contract:contract", status, detail: meta }),
+    ]);
+  });
+
+  it("routes every readiness item to the section where it is actioned and groups all items by event", () => {
+    const item = (id: string, eventId: string, quoteStatus: string, eventName: string | null = null) =>
+      ({ id, eventId, eventName, quoteStatus }) as PrismSupplierReadinessItem;
+    const items = [
+      item("a", "e1", "selected", "Gala"),
+      item("b", "e2", "open", "Summit"),
+      item("c", "e1", "submitted", "Gala"),
+      item("d", "e3", "selected"),
+      item("e", "e2", "selected", "Summit"),
+    ];
+
+    expect(items.map(supplierReadinessSection)).toEqual(["bookings", "requests", "requests", "bookings", "bookings"]);
+    expect(groupReadinessItemsByEvent(items).map((group) => [group.eventName, group.items.map((entry) => entry.id)])).toEqual([
+      ["Gala", ["a", "c"]],
+      ["Summit", ["b", "e"]],
+      ["Assigned event", ["d"]],
     ]);
   });
 

@@ -848,6 +848,24 @@ describe("createEventOpsClient", () => {
     });
   });
 
+  it("loads PMCM event supplier readiness with the session bearer token and an encoded event id", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ eventId: "evt 1", items: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({
+      baseUrl: "http://localhost:4000/api",
+      getAuthToken: () => "pmcm-session-token",
+    });
+    await client.pmcm.supplierReadiness("evt 1");
+
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/pmcm/events/evt%201/supplier-readiness", {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer pmcm-session-token",
+      },
+    });
+  });
+
   it("sends the supplier session bearer token on scoped supplier reads", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ quoteRequests: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);

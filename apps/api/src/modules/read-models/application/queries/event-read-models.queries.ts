@@ -15,6 +15,20 @@ import { PRISM_PMCM_COMMAND_INBOX_MAX_PAGE } from '@prism/types';
 import { findFloorPlanDraftsByEvent, withFloorPlanDrafts } from '@prism/contexts/floorplan/event-drafts';
 
 type SupplierEventReference = Pick<OpsEvent, 'id' | 'eventName' | 'eventDate' | 'clientName'>;
+
+const SUPPLIER_READINESS_INCLUDE = {
+  contractVersions: {
+    select: { reviewStatus: true, reviewReason: true, reviewedAt: true },
+    orderBy: { version: 'desc' },
+    take: 1,
+  },
+  schedule: {
+    select: {
+      ingressAt: true, egressAt: true, location: true, status: true, revision: true,
+      acknowledgedRevision: true, acknowledgedAt: true, changeRequestNote: true, changeRequestedAt: true,
+    },
+  },
+} satisfies Prisma.OpsSupplierQuoteRequestInclude;
 type SupplierProfileBase = OpsSupplier & {
   category: OpsSupplierCategory;
   reviews: OpsSupplierReview[];
@@ -792,11 +806,21 @@ export class EventReadModelQueries {
     const requests = await readAllRowsById(MAX_SUPPLIER_WORKSPACE_ROWS, (afterId) =>
       this.prisma.opsSupplierQuoteRequest.findMany({
         where: { supplierId, eventId: { in: activeEventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
-        include: { contractVersions: { select: { reviewStatus: true }, orderBy: { version: 'desc' }, take: 1 } },
+        include: SUPPLIER_READINESS_INCLUDE,
         orderBy: { id: 'asc' }, take: MAX_SUPPLIER_WORKSPACE_ROWS,
       }),
     );
     return sortByDate(requests, (row) => row.createdAt, 'desc');
+  }
+
+  /** PMCM event-scoped readiness rows; callers must already hold PMCM access to the event. */
+  pmcmSupplierReadinessRequests(eventId: string) {
+    return this.prisma.opsSupplierQuoteRequest.findMany({
+      where: { eventId },
+      include: SUPPLIER_READINESS_INCLUDE,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: MAX_PMCM_EVENT_WORKSPACE_ROWS,
+    });
   }
 
   // Each actionable source has its own deterministic page so combined queue rows are never silently dropped.

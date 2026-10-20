@@ -18,7 +18,7 @@ import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
 import { HandoffBriefPanel } from "@/features/live-ops/handoff-brief";
 import { DecisionLogPanel } from "@/features/decision-log";
 import { SupplierQuotePlanner } from "@/features/suppliers/directory";
-import { PmcmSupplierReadinessBoard } from "@/features/suppliers/readiness";
+import { PmcmSupplierReadinessBoard, supplierReadinessRefreshKey } from "@/features/suppliers/readiness";
 import { PmcmSupplierWorkflowsPanel } from "@/features/suppliers/workflows/views/pmcm-supplier-workflows-panel";
 import { EventRegistrationTab } from "@/app/components/pmcm/event-registration-tab";
 import { EventGamesHostView } from "@/features/event-games/host";
@@ -222,7 +222,7 @@ export function EventWorkspaceSuppliersTab() {
         </CardBody>
       </Card>
 
-      <PmcmSupplierReadinessBoard requests={vm.quoteRequests} quotes={vm.quotes} />
+      <PmcmSupplierReadinessBoard eventId={vm.selectedEvent.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} />
       <PmcmSupplierWorkflowsPanel eventId={vm.selectedEvent.id} requests={vm.quoteRequests} quotes={vm.quotes} />
 
       <Card>
