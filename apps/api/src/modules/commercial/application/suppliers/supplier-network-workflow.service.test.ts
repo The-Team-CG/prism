@@ -139,7 +139,7 @@ describe('SupplierNetworkWorkflowService', () => {
       assignmentConfirmedAt: null,
       readinessStatus: 'not_requested',
       readinessConfirmedAt: null,
-      readinessNotes: '',
+      readinessNotes: 'Supplier-authored readiness note.',
       statusPhotoFileName: null,
       contractDocumentId: null,
     };
@@ -187,6 +187,23 @@ describe('SupplierNetworkWorkflowService', () => {
     expect(first.contractDocumentId).toBe('doc_contract');
     expect(replay.contractDocumentId).toBe('doc_contract');
     expect(JSON.stringify(first)).not.toContain('PMCM-SENTINEL');
+    expect(documentVault.registerDocument).toHaveBeenCalledTimes(1);
+    expect(prisma.opsSupplierQuoteRequest.update).toHaveBeenCalledTimes(1);
+    expect(audit).toHaveBeenCalledTimes(1);
+
+    // A receipt written before the projection fix stores PMCM review fields; a same-key retry must not return them.
+    const receiptId = (await receiptStore.create.mock.results[0]!.value as { id: string }).id;
+    await receiptStore.complete(receiptId, {
+      ...first,
+      eventDayVerifiedBy: 'PMCM-SENTINEL-verifier',
+      eventDayVerificationNotes: 'PMCM-SENTINEL-note',
+    });
+    const legacyReplay = await service.uploadSupplierContract('qr_sonic', input, actor, verifiedActor);
+    expect(JSON.stringify(legacyReplay)).not.toContain('PMCM-SENTINEL');
+    expect(legacyReplay).not.toHaveProperty('eventDayVerifiedBy');
+    expect(legacyReplay).not.toHaveProperty('eventDayVerificationNotes');
+    expect(legacyReplay.contractDocumentId).toBe('doc_contract');
+    expect(legacyReplay.readinessNotes).toBe('Supplier-authored readiness note.');
     expect(documentVault.registerDocument).toHaveBeenCalledTimes(1);
     expect(prisma.opsSupplierQuoteRequest.update).toHaveBeenCalledTimes(1);
     expect(audit).toHaveBeenCalledTimes(1);
