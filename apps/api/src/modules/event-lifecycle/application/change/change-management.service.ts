@@ -8,15 +8,9 @@ import { randomUUID } from 'node:crypto';
 import { mapAddendumConformeExecution } from './addendum-conforme.mappers';
 import { COMMERCIAL_ADDENDUM_IMPACT_WRITER, type CommercialAddendumImpactWriter } from '@prism/contexts/commercial';
 import { consumeApprovedFreezeException } from './freeze-exception-consumption';
+import { CLIENT_CHANGE_REQUEST_SELECT, toClientChangeRequest } from '../../domain/client-change-request.projection';
 
 type SnapshotEntry = Record<string, unknown>;
-
-// Internal exception states map to neutral client wording; a pending request is still under review.
-const CLIENT_CHANGE_REQUEST_STATUS = {
-  pending: 'under_review',
-  approved: 'approved',
-  rejected: 'not_approved',
-} as const;
 
 function stable(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stable).sort().join(',')}]`;
@@ -133,17 +127,9 @@ export class ChangeManagementService {
     const values = await this.prisma.opsEventFreezeException.findMany({
       where: { eventId },
       orderBy: { requestedAt: 'desc' },
-      select: { id: true, requestedChange: true, status: true, requestedAt: true, decidedAt: true },
+      select: CLIENT_CHANGE_REQUEST_SELECT,
     });
-    return values.map((value) => ({
-      id: value.id,
-      source: 'freeze_exception' as const,
-      requestedChange: value.requestedChange,
-      category: null,
-      status: CLIENT_CHANGE_REQUEST_STATUS[value.status as keyof typeof CLIENT_CHANGE_REQUEST_STATUS] ?? 'under_review',
-      clientResponse: null,
-      updatedAt: (value.decidedAt ?? value.requestedAt).toISOString(),
-    }));
+    return values.map(toClientChangeRequest);
   }
 
   async listAddenda(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismAddendum[]> {

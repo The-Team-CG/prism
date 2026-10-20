@@ -40,6 +40,16 @@ export function ClientHomeView() {
 
   return (
     <div className="space-y-6">
+      {/* The action center is the dashboard entry point: next required actions come before everything else. */}
+      {actionCenter || actionCenterLoadFailed ? (
+        <ClientHomeActionCenter
+          actionCenter={actionCenter}
+          clientActions={clientActions}
+          runClientAction={runClientAction}
+          loadFailed={actionCenterLoadFailed}
+        />
+      ) : null}
+
       <ClientHomeGreeting
         sessionName={session.name}
         eventCount={events.length}
@@ -57,15 +67,6 @@ export function ClientHomeView() {
           documentsNeedingReview={documentsNeedingReview}
           runClientAction={runClientAction}
           navigateToEventRoute={navigateToEventRoute}
-        />
-      ) : null}
-
-      {actionCenter || actionCenterLoadFailed ? (
-        <ClientHomeActionCenter
-          actionCenter={actionCenter}
-          clientActions={clientActions}
-          runClientAction={runClientAction}
-          loadFailed={actionCenterLoadFailed}
         />
       ) : null}
 

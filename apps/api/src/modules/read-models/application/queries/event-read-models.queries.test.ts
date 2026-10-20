@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PrismaService } from '@prism/kernel/database';
 import {
   EventReadModelQueries,
@@ -21,6 +21,15 @@ function model<T = never>() {
 }
 
 describe('EventReadModelQueries collection limits', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-19T10:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('loads recent coordinator reliability history by coordinator with event and role context', async () => {
     const note = { id: 'note_1', eventId: 'evt_1', assignment: { role: 'lead' } };
     const reliabilityNotes = model<typeof note>();
@@ -348,6 +357,8 @@ describe('EventReadModelQueries collection limits', () => {
     const opsCoordinatorAssignment = model();
     const opsFloorPlanDraft = model();
     const opsPostEventDocument = model();
+    const opsEventDayTask = model();
+    const opsUrgentIssue = model();
     const prisma = {
       opsInquiry,
       opsEvent,
@@ -356,13 +367,30 @@ describe('EventReadModelQueries collection limits', () => {
       opsCoordinatorAssignment,
       opsFloorPlanDraft,
       opsPostEventDocument,
+      opsEventDayTask,
+      opsUrgentIssue,
     };
     const queries = new EventReadModelQueries(prisma as unknown as PrismaService);
+    const now = new Date('2026-10-19T10:00:00.000Z');
 
-    const result = await queries.pmcmCommandInbox(2);
+    const result = await queries.pmcmCommandInbox(2, MAX_PMCM_COMMAND_INBOX_PAGE_SIZE, now);
 
-    expect(opsInquiry.findMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 2 * MAX_PMCM_COMMAND_INBOX_PAGE_SIZE, take: MAX_PMCM_COMMAND_INBOX_PAGE_SIZE + 1, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }));
-    expect(opsPaymentMilestone.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { status: { not: 'paid' } }, skip: 2 * MAX_PMCM_COMMAND_INBOX_PAGE_SIZE, take: MAX_PMCM_COMMAND_INBOX_PAGE_SIZE + 1 }));
+    const page = { skip: 2 * MAX_PMCM_COMMAND_INBOX_PAGE_SIZE, take: MAX_PMCM_COMMAND_INBOX_PAGE_SIZE + 1 };
+    expect(opsInquiry.findMany).toHaveBeenCalledWith(expect.objectContaining({ ...page, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }));
+    expect(opsPaymentMilestone.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { status: { not: 'paid' } }, ...page }));
+    expect(opsEventDayTask.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      ...page,
+      where: expect.objectContaining({
+        status: { notIn: ['done', 'cancelled'] },
+        OR: expect.arrayContaining([{ status: 'blocked' }, { slaDueAt: { lt: now } }, { slaDueAt: null, dueAt: { lt: now } }]),
+      }),
+      orderBy: [{ slaDueAt: 'asc' }, { id: 'asc' }],
+    }));
+    expect(opsUrgentIssue.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      ...page,
+      where: { status: { in: ['open', 'assigned'] }, resolvedAt: null },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    }));
     expect(result.hasMore).toBe(false);
     expect(result.inquiries).toEqual([]);
   });
