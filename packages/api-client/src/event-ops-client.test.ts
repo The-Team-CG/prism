@@ -663,7 +663,7 @@ describe("createEventOpsClient", () => {
   });
 
   it("loads the run sheet for the event and an optional encoded schedule day", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ eventId: "evt_1" }), { status: 200 }));
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ eventId: "evt_1" }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
     const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
