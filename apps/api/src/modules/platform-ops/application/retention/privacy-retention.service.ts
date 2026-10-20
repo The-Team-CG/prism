@@ -86,6 +86,12 @@ function historyToJson(entries: PrismRetentionPolicyHistoryEntry[]): Prisma.Inpu
  * Policy configuration and the PMCM review queue. Nothing here deletes or anonymizes on its own:
  * only an explicit operator execution, re-checked against the legal hold and retention period, changes data.
  */
+function assertPendingReviewItem(status: string) {
+  if (status !== 'pending') {
+    throw new BadRequestException('Only pending review items can be executed; a held item waits until its legal hold is released');
+  }
+}
+
 @Injectable()
 export class PrivacyRetentionService {
   constructor(
@@ -163,6 +169,26 @@ export class PrivacyRetentionService {
     return rows.map(mapRetentionReviewItem);
   }
 
+  /** Dismisses a review item whose candidate no longer exists; nothing in the subject's data is changed. */
+  private async dismissStaleReviewItem(tx: Prisma.TransactionClient, itemId: string, decidedBy: string, now: Date) {
+    const closed = await tx.opsRetentionReviewItem.updateMany({
+      where: { id: itemId, status: 'pending' },
+      data: {
+        status: 'dismissed',
+        decidedBy,
+        decidedAt: now,
+        decisionReason: 'No longer matches its retention candidate; nothing was changed',
+      },
+    });
+    if (closed.count !== 1) throw new ConflictException('Retention review item changed; reload and try again');
+    return {
+      held: false as const,
+      item: await tx.opsRetentionReviewItem.findUniqueOrThrow({ where: { id: itemId } }),
+      touchedRecords: 0,
+      surfaces: [] as string[],
+    };
+  }
+
   async executeReviewItem(
     itemId: string,
     input: ExecutePrivacyRetentionReviewItemInput,
@@ -174,9 +200,7 @@ export class PrivacyRetentionService {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`privacy-retention-item:${itemId}`}, 0))`; // QUERY_AUDIT_RAW_SQL: serializes operator decisions on one review item.
       const item = await tx.opsRetentionReviewItem.findUnique({ where: { id: itemId } });
       if (!item) throw new NotFoundException('Retention review item not found');
-      if (item.status !== 'pending') {
-        throw new BadRequestException('Only pending review items can be executed; a held item waits until its legal hold is released');
-      }
+      assertPendingReviewItem(item.status);
       if (!item.eventId || !isSourceCategory(item.policyCategory as PrivacyRetentionCategory)) {
         throw new BadRequestException('This review item has no supported retention source');
       }
@@ -189,24 +213,7 @@ export class PrivacyRetentionService {
         { category, subjectId: item.subjectId, eventId: item.eventId },
         { prisma: tx, correlationId: `privacy-retention-item:${item.id}`, actorId: verifiedActor.id },
       );
-      if (!candidate) {
-        const closed = await tx.opsRetentionReviewItem.updateMany({
-          where: { id: itemId, status: 'pending' },
-          data: {
-            status: 'dismissed',
-            decidedBy: verifiedActor.name,
-            decidedAt: now,
-            decisionReason: 'No longer matches its retention candidate; nothing was changed',
-          },
-        });
-        if (closed.count !== 1) throw new ConflictException('Retention review item changed; reload and try again');
-        return {
-          held: false as const,
-          item: await tx.opsRetentionReviewItem.findUniqueOrThrow({ where: { id: itemId } }),
-          touchedRecords: 0,
-          surfaces: [] as string[],
-        };
-      }
+      if (!candidate) return this.dismissStaleReviewItem(tx, itemId, verifiedActor.name, now);
       if (candidate.anchorAt > retentionCutoff(now, policy.periodDays)) {
         throw new BadRequestException('This record is no longer past its retention period');
       }
