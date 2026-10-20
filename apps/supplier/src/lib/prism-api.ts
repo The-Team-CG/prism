@@ -17,7 +17,6 @@ import type {
   PrismSupplierApplication,
   PrismSupplierApplicationStatusResult,
   PrismSupplierQuote,
-  PrismSupplierQuoteRequest,
   PrismSupplierReadinessBoard,
   PrismSupplierWorkspace,
   CreateSupplierApplicationInput,
@@ -28,15 +27,6 @@ import type {
 export type { CreateSupplierApplicationInput, SupplierApplicationStatusQuery } from "@prism/types";
 
 export type SupplierWorkspace = PrismSupplierWorkspace;
-
-export type QuoteRequestDetail = {
-  request: PrismSupplierQuoteRequest;
-  quote: PrismSupplierQuote | null;
-  eventId: string;
-  eventName: string;
-  clientName: string | null;
-  eventDate: string | null;
-};
 
 const API_OFFLINE_MESSAGE = "P.R.I.S.M API is offline. Start `prism-api` on port 4000, then try again.";
 
@@ -96,7 +86,6 @@ export const prismApi = {
   supplierWorkspace: (_session: PrismAuthenticatedSession) => eventOpsClient.supplierWorkspace.detail(),
   supplierReadinessBoard: (_session: PrismAuthenticatedSession): Promise<PrismSupplierReadinessBoard> =>
     eventOpsClient.supplierWorkspace.readinessBoard(),
-  quoteRequest: (token: string) => request<QuoteRequestDetail>(`/api/quote-requests/${token}`),
   submitQuote: (token: string, input: SubmitSupplierQuoteInput) =>
     request<PrismSupplierQuote>(`/api/quote-requests/${token}/quote`, {
       method: "POST",
@@ -111,12 +100,6 @@ export const prismApi = {
     eventOpsClient.supplierWorkspace.confirmAssignment(requestId, actorFromSession(session)),
   confirmReadiness: (session: PrismAuthenticatedSession, requestId: string, notes: string) =>
     eventOpsClient.supplierWorkspace.confirmReadiness(requestId, { notes }, actorFromSession(session)),
-  uploadContract: (session: PrismAuthenticatedSession, requestId: string, fileName: string, idempotencyKey: string) =>
-    eventOpsClient.supplierWorkspace.uploadContract(
-      requestId,
-      { fileName, mimeType: "application/pdf", sizeBytes: 2048, idempotencyKey },
-      actorFromSession(session),
-    ),
   updateEventStatus: (session: PrismAuthenticatedSession, requestId: string, status: string, notes: string) =>
     eventOpsClient.supplierWorkspace.updateEventStatus(
       requestId,
