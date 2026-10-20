@@ -10,3 +10,4 @@ export * from "./event-ops/commands.js";
 export * from "./event-ops/pare.js";
 export * from "./event-ops/handoff-brief.js";
 export * from "./event-ops/scope-change-risk.js";
+export * from "./event-ops/privacy-retention.js";
