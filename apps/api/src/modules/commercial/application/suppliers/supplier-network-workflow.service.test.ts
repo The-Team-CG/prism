@@ -129,8 +129,8 @@ describe('SupplierNetworkWorkflowService', () => {
       createdAt: new Date('2026-10-02T09:00:00.000Z'),
       eventDayVerificationStatus: SupplierVerificationStatus.SelfReported,
       eventDayVerifiedAt: null,
-      eventDayVerifiedBy: null,
-      eventDayVerificationNotes: '',
+      eventDayVerifiedBy: 'PMCM-SENTINEL-verifier',
+      eventDayVerificationNotes: 'PMCM-SENTINEL-note',
       eventDayStatus: 'not_started',
       eventDayStatusAt: null,
       eventDayNotes: '',
@@ -186,6 +186,7 @@ describe('SupplierNetworkWorkflowService', () => {
     const replay = await service.uploadSupplierContract('qr_sonic', input, actor, verifiedActor);
     expect(first.contractDocumentId).toBe('doc_contract');
     expect(replay.contractDocumentId).toBe('doc_contract');
+    expect(JSON.stringify(first)).not.toContain('PMCM-SENTINEL');
     expect(documentVault.registerDocument).toHaveBeenCalledTimes(1);
     expect(prisma.opsSupplierQuoteRequest.update).toHaveBeenCalledTimes(1);
     expect(audit).toHaveBeenCalledTimes(1);
@@ -194,6 +195,34 @@ describe('SupplierNetworkWorkflowService', () => {
       'qr_sonic', { ...input, fileName: 'changed-contract.pdf' }, actor, verifiedActor,
     )).rejects.toThrow(/reused for different content/i);
     expect(documentVault.registerDocument).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps PMCM verification notes and verifier identity out of supplier command responses', async () => {
+    const { service, request } = createService();
+    Object.assign(request, {
+      status: 'selected',
+      eventDayVerificationStatus: SupplierVerificationStatus.Verified,
+      eventDayVerifiedAt: new Date('2026-10-02T10:00:00.000Z'),
+      eventDayVerifiedBy: 'PMCM-SENTINEL-verifier',
+      eventDayVerificationNotes: 'PMCM-SENTINEL-note',
+    });
+    const supplier = {
+      name: 'Sonic Line Events', role: OpsUserRole.Supplier, supplierId: 'sup_sonicline',
+      email: 'supplier@example.com', explicit: true, verified: true,
+    };
+
+    const assigned = await service.confirmSupplierAssignment('qr_sonic', supplier);
+    const ready = await service.confirmSupplierReadiness('qr_sonic', { notes: 'Supplier-authored readiness note.' }, supplier);
+    const eventStatus = await service.updateSupplierEventStatus('qr_sonic', { status: 'arrived', notes: 'At dock.' }, supplier);
+
+    for (const response of [assigned, ready, eventStatus]) {
+      expect(JSON.stringify(response)).not.toContain('PMCM-SENTINEL');
+      expect(response).not.toHaveProperty('eventDayVerifiedBy');
+      expect(response).not.toHaveProperty('eventDayVerificationNotes');
+    }
+    // Supplier-authored readiness notes and the supplier's own status stay visible to the supplier.
+    expect(ready.readinessNotes).toBe('Supplier-authored readiness note.');
+    expect(eventStatus.eventDayStatus).toBe('arrived');
   });
 
   it('uses the same command transaction for document registration and commercial linking', async () => {
