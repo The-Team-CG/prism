@@ -1,41 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import type { LucideIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 import {
-  CalendarDays,
-  CheckCircle2,
-  ClipboardCheck,
-  Download,
-  Eye,
-  FileCheck2,
-  FileSignature,
-  FileText,
-  Grid2X2,
-  LayoutGrid,
-  List,
-  MapPinned,
-  MessageSquareText,
-  MoreHorizontal,
-  Pencil,
-  ReceiptText,
-  RotateCcw,
-  Search,
   Settings,
-  Share2,
-  ShieldCheck,
-  Upload,
 } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
-import { StatusBadge } from "@/app/components/ui/status-badge";
-import { EmptyState } from "@/app/components/ui/empty-state";
-import { Badge } from "@/app/components/ui/badge";
-import { formatShortDate, humanizeToken } from "@/features/pmcm-kit/model/formatters";
+import { humanizeToken } from "@/features/pmcm-kit/model/formatters";
 import type { EventSession } from "@/app/lib/session";
-import type { PrismApprovalRequest, PrismBillingStatement, PrismBriefing, PrismComplianceCheck, PrismDefenseReadiness, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismPmcmDashboardWorkspace, PrismPostEventDocument, PrismSupplierQuoteRequest } from "@prism/types";
-import type { DashboardSection, DetailTab } from "../../model/event-dashboard-routing";
-import { Card, CardBody, CardHeader, SectionAccent } from "./shell-ui";
-import type { EventFileHubItem } from "./event-file-types";
+import type { PrismEvent } from "@prism/types";
+import { Card, CardBody, CardHeader } from "./shell-ui";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 
 

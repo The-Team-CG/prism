@@ -2,7 +2,7 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query,
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
-import { zodBody } from '@prism/kernel/shared';
+import { PublicRateLimit, zodBody } from '@prism/kernel/shared';
 import {
   createPrismInquirySchema,
   mergeInquirySchema,
@@ -14,7 +14,6 @@ import {
   type UpdateInquiryStatusInput,
   type UploadConformeInput,
 } from '@prism/types';
-import { ActorContextDto } from './inquiry.dto';
 import { mapDocument, mapInquiry, mapOnboardingEvent, mapPublicInquiryReceipt } from '../../application/onboarding/inquiry.mappers';
 import { InquiriesService } from '../../application/onboarding/inquiries.service';
 import { InquiryWorkflowService } from '../../application/onboarding/inquiry-workflow.service';
@@ -58,6 +57,7 @@ export class OpsInquiriesController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @PublicRateLimit('publicSubmission')
   create(@Body(zodBody(createPrismInquirySchema)) dto: CreatePrismInquiryInput) {
     return this.inquiryWorkflowService.createInquiry(dto, this.inquiryWorkflowContext());
   }
