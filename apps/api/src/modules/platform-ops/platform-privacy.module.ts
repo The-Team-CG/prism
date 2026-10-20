@@ -7,7 +7,12 @@ import { IdentityAccessModule } from '../identity-access/identity-access.module'
 import { OperationsModule } from '../operations/operations.module';
 import { PlatformReferenceReadersModule } from '../../composition/platform-reference-readers.module';
 import { OpsPrivacyController } from './api/trust/audit-privacy.controller';
+import { OpsPrivacyRetentionController } from './api/trust/privacy-retention.controller';
 import { PrivacyOperationsService } from './application/trust/privacy-operations.service';
+import { PrivacyRetentionExecutorService } from './application/retention/privacy-retention-executor.service';
+import { PrivacyRetentionSweepScheduler } from './application/retention/privacy-retention-sweep.scheduler';
+import { PrivacyRetentionSweepService } from './application/retention/privacy-retention-sweep.service';
+import { PrivacyRetentionService } from './application/retention/privacy-retention.service';
 import { PlatformOpsModule } from './platform-ops.module';
 
 /**
@@ -25,8 +30,14 @@ import { PlatformOpsModule } from './platform-ops.module';
     IdentityAccessModule,
     PlatformReferenceReadersModule,
   ],
-  controllers: [OpsPrivacyController],
-  providers: [PrivacyOperationsService],
+  controllers: [OpsPrivacyController, OpsPrivacyRetentionController],
+  providers: [
+    PrivacyOperationsService,
+    PrivacyRetentionService,
+    PrivacyRetentionExecutorService,
+    PrivacyRetentionSweepService,
+    PrivacyRetentionSweepScheduler,
+  ],
   exports: [PrivacyOperationsService],
 })
 export class PlatformPrivacyModule {}

@@ -22,17 +22,7 @@ export class OperationsPrivacyRedactorService implements OperationsPrivacyRedact
       select: { id: true },
     });
     for (const entry of rosterEntries) {
-      const sourceKey = await this.availableRedactedSourceKey(transaction, input.eventId, entry.id);
-      await transaction.opsGuestRosterEntry.update({
-        where: { id: entry.id },
-        data: {
-          sourceKey,
-          guestName: 'Redacted guest',
-          normalizedName: 'redacted guest',
-          email: '',
-          phone: '',
-        },
-      });
+      await this.redactRosterEntry(transaction, input.eventId, entry.id);
     }
     const checkIns = await transaction.opsGuestCheckIn.updateMany({
       where: guestWhere,
@@ -67,6 +57,95 @@ export class OperationsPrivacyRedactorService implements OperationsPrivacyRedact
       ],
       touchedRecords: rosterEntries.length + checkIns.count + feedback.count + media.count,
     };
+  }
+
+  /**
+   * Redacts exactly one guest check-in or feedback record by id, plus rows linked to it by foreign key: the
+   * check-in's roster entry and a feedback item's media metadata. Never matches by name, so another guest who
+   * shares the name in the same event is untouched.
+   */
+  async redactGuestRecord(
+    input: { eventId: string; recordType: 'guest_check_in' | 'guest_feedback'; recordId: string },
+    transaction: Prisma.TransactionClient,
+  ): Promise<OperationsRedactionResult> {
+    if (!input.eventId || !input.recordId) throw new BadRequestException('Guest record redaction requires an event and record id');
+    if (input.recordType === 'guest_check_in') {
+      return this.redactCheckInRecord(transaction, input.eventId, input.recordId);
+    }
+
+    const feedback = await transaction.opsGuestFeedback.findFirst({
+      where: { id: input.recordId, eventId: input.eventId },
+      select: { id: true },
+    });
+    if (!feedback) return { surfaces: [], touchedRecords: 0 };
+    const media = await transaction.opsGuestFeedbackMedia.updateMany({
+      where: { feedbackId: feedback.id },
+      data: { originalFileName: '[redacted by privacy request]' },
+    });
+    const feedbackUpdate = await transaction.opsGuestFeedback.updateMany({
+      where: { id: feedback.id, eventId: input.eventId },
+      data: {
+        guestName: 'Redacted guest',
+        comment: '[redacted by privacy request]',
+        photoFileName: null,
+        videoFileName: null,
+      },
+    });
+    return {
+      surfaces: [
+        ...(media.count ? ['guest_feedback_media_metadata'] : []),
+        ...(feedbackUpdate.count ? ['guest_feedback'] : []),
+      ],
+      touchedRecords: media.count + feedbackUpdate.count,
+    };
+  }
+
+  private async redactCheckInRecord(
+    transaction: Prisma.TransactionClient,
+    eventId: string,
+    recordId: string,
+  ): Promise<OperationsRedactionResult> {
+    const checkIn = await transaction.opsGuestCheckIn.findFirst({
+      where: { id: recordId, eventId },
+      select: { id: true, rosterEntryId: true },
+    });
+    if (!checkIn) return { surfaces: [], touchedRecords: 0 };
+    const checkInUpdate = await transaction.opsGuestCheckIn.updateMany({
+      where: { id: checkIn.id, eventId },
+      data: { guestName: 'Redacted guest' },
+    });
+    let rosterTouched = 0;
+    if (checkIn.rosterEntryId) {
+      const entry = await transaction.opsGuestRosterEntry.findFirst({
+        where: { id: checkIn.rosterEntryId, eventId },
+        select: { id: true },
+      });
+      if (entry) {
+        await this.redactRosterEntry(transaction, eventId, entry.id);
+        rosterTouched = 1;
+      }
+    }
+    return {
+      surfaces: [
+        ...(rosterTouched ? ['guest_roster_entry'] : []),
+        ...(checkInUpdate.count ? ['guest_check_in'] : []),
+      ],
+      touchedRecords: rosterTouched + checkInUpdate.count,
+    };
+  }
+
+  private async redactRosterEntry(transaction: Prisma.TransactionClient, eventId: string, entryId: string) {
+    const sourceKey = await this.availableRedactedSourceKey(transaction, eventId, entryId);
+    await transaction.opsGuestRosterEntry.update({
+      where: { id: entryId },
+      data: {
+        sourceKey,
+        guestName: 'Redacted guest',
+        normalizedName: 'redacted guest',
+        email: '',
+        phone: '',
+      },
+    });
   }
 
   /** Roster, check-in, and feedback rows for one guest name inside one event. Moderation notes stay internal. */
