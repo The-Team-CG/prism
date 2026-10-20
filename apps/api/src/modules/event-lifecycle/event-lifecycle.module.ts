@@ -33,6 +33,8 @@ import { EventDecisionController } from './api/decisions/event-decision.controll
 import { EventDecisionService } from './application/decisions/event-decision.service';
 import { ChangeManagementController } from './api/change/change-management.controller';
 import { ChangeManagementService } from './application/change/change-management.service';
+import { AddendumConformeController } from './api/change/addendum-conforme.controller';
+import { AddendumConformeService } from './application/change/addendum-conforme.service';
 import { ClientEventDayViewController } from './api/client-visibility/client-event-day-view.controller';
 import { ClientEventDayViewService } from './application/client-visibility/client-event-day-view.service';
 import { OcularVisitController } from './api/ocular-visit/ocular-visit.controller';
@@ -107,6 +109,7 @@ import { ConformeSigningService } from './application/onboarding/conforme-signin
     EventDocumentJourneyController,
     EventDecisionController,
     ChangeManagementController,
+    AddendumConformeController,
     ClientEventDayViewController,
     OcularVisitController,
     EventClientFloorplanAccessController,
@@ -137,6 +140,7 @@ import { ConformeSigningService } from './application/onboarding/conforme-signin
     { provide: FILE_REQUIREMENT_COMMANDS, useExisting: FileRequirementCommandsService },
     EventDecisionService,
     ChangeManagementService,
+    AddendumConformeService,
     ClientEventDayViewService,
     OcularVisitService,
     ProposalReviewOwnerService,
