@@ -74,7 +74,9 @@ export function FloorPlanDraftPanel({
           <p className="text-sm font-bold text-foreground">{activeDraft.name}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {readOnly
-              ? "Read-only official layout. Preference notes below do not mutate this plan."
+              ? isOfficial
+                ? "Read-only official layout. Preference notes below do not mutate this plan."
+                : "Submitted preference is read-only until PMCM reopens it."
               : "Open the preference editor to share seating, flow, and stage notes with PMCM."}
           </p>
         </div>
