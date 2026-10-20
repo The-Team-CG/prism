@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { OpsQuoteRequestsController } from './quote-requests.controller';
 
 function controllerPath(controller: Function): string {
@@ -9,6 +10,10 @@ function controllerPath(controller: Function): string {
 describe('OpsQuoteRequestsController', () => {
   it('keeps the public quote request route base stable under commercial-ops ownership', () => {
     expect(controllerPath(OpsQuoteRequestsController)).toBe('quote-requests');
+  });
+
+  it('rate-limits every unauthenticated quote-request token route', () => {
+    expect(Reflect.getMetadata('__guards__', OpsQuoteRequestsController)).toContain(ThrottlerGuard);
   });
 
   it('serves supplier quote token routes through CommercialWorkflowService with supplier-safe payloads', async () => {
