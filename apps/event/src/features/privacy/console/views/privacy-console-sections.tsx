@@ -74,10 +74,13 @@ export function PrivacyQueuePager({ vm }: { vm: PrivacyConsoleViewModel }) {
   );
 }
 
+function requestOwnerLabel(request: PrismPrivacyRequest, vm: PrivacyConsoleViewModel) {
+  if (!request.assignedTo) return "Unassigned";
+  return vm.users.find((user: PrismUser) => user.id === request.assignedTo)?.name ?? request.assignedTo;
+}
+
 export function PrivacyRequestCard({ request, vm }: { request: PrismPrivacyRequest; vm: PrivacyConsoleViewModel }) {
-  const owner = request.assignedTo
-    ? vm.users.find((user: PrismUser) => user.id === request.assignedTo)?.name ?? request.assignedTo
-    : "Unassigned";
+  const owner = requestOwnerLabel(request, vm);
   const closed = request.status === "executed" || request.status === "rejected";
   const mine = Boolean(vm.operatorId) && request.assignedTo === vm.operatorId;
   return (
@@ -95,11 +98,13 @@ export function PrivacyRequestCard({ request, vm }: { request: PrismPrivacyReque
       <p className="mt-1 text-xs text-muted-foreground">Owner: {owner} · Logged {compactTimestamp(request.createdAt)}</p>
       {request.requestNotes ? <p className="mt-2 text-xs text-muted-foreground">{request.requestNotes}</p> : null}
       {closed ? null : (
-        <div className="mt-3 flex flex-wrap gap-2">
-          <AssignmentActions request={request} vm={vm} mine={mine} />
-        </div>
+        <>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <AssignmentActions request={request} vm={vm} mine={mine} />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2"><PrivacyRequestActions request={request} vm={vm} /></div>
+        </>
       )}
-      {closed ? null : <div className="mt-3 flex flex-wrap gap-2"><PrivacyRequestActions request={request} vm={vm} /></div>}
     </article>
   );
 }
