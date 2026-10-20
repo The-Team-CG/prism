@@ -1,6 +1,16 @@
 import 'reflect-metadata';
-import { describe, expect, it, vi } from 'vitest';
-import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
+import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { NestFactory } from '@nestjs/core';
+import { ThrottlerGuard } from '@nestjs/throttler';
+import type { AddressInfo } from 'node:net';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
+import { PrismaService } from '@prism/kernel/database';
+import { AuthSessionService } from '@prism/kernel/event-session';
+import { PUBLIC_RATE_LIMITS, PublicRateLimitModule } from '@prism/kernel/shared';
+import { AuthOperationsService } from '../../application/auth/auth-operations.service';
+import { PasswordResetService } from '../../application/auth/password-reset.service';
 import { OpsAuthController } from './auth.controller';
 const actor: Parameters<OpsAuthController['listApprovalRequests']>[0] = { id: 'u1', actorId: 'u1', role: 'pmcm-admin', actorRole: 'pmcm-admin', email: 'pmcm@test', actorEmail: 'pmcm@test', name: 'PMCM', actorName: 'PMCM', expiresAt: '2099-01-01' };
 
@@ -12,6 +22,13 @@ describe('OpsAuthController', () => {
   it('keeps the public auth route base stable under identity-ops ownership', () => {
     expect(controllerPath(OpsAuthController)).toBe('auth');
   });
+
+  it.each(['login', 'requestPasswordReset', 'consumePasswordReset', 'setupTwoFactor', 'verifyTwoFactor', 'requestApproval'] as const)(
+    'rate-limits the unauthenticated %s route',
+    (handler) => {
+      expect(Reflect.getMetadata('__guards__', OpsAuthController.prototype[handler])).toContain(ThrottlerGuard);
+    },
+  );
 
   it('serves auth operations through AuthOperationsService', async () => {
     const resolvedAdmin = {
@@ -51,4 +68,55 @@ describe('OpsAuthController', () => {
     expect(authOperationsService.approveApprovalRequest).toHaveBeenCalledWith('approval_user', resolvedAdmin);
     expect(authOperationsService.declineApprovalRequest).toHaveBeenCalledWith('approval_user', resolvedAdmin);
   });
+});
+
+const login = vi.fn(async () => ({ id: 'user_pmcm' }));
+
+@Module({
+  imports: [PublicRateLimitModule],
+  controllers: [OpsAuthController],
+  providers: [
+    { provide: AuthOperationsService, useValue: { login } },
+    { provide: PasswordResetService, useValue: {} },
+    { provide: EventAccessPolicyService, useValue: {} },
+    { provide: AuthSessionService, useValue: {} },
+    { provide: ConfigService, useValue: { get: () => undefined } },
+    { provide: PrismaService, useValue: {} },
+  ],
+})
+class AuthRateLimitHttpTestModule {}
+
+describe('OpsAuthController public rate limits over HTTP', () => {
+  let app: Awaited<ReturnType<typeof NestFactory.create>>;
+  let baseUrl: string;
+
+  beforeAll(async () => {
+    app = await NestFactory.create(AuthRateLimitHttpTestModule, { logger: false });
+    app.setGlobalPrefix('api');
+    await app.listen(0, '127.0.0.1');
+    baseUrl = `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}/api`;
+  }, 30_000);
+
+  afterAll(async () => {
+    await app?.close();
+  });
+
+  it('answers 429 with Retry-After once a client exceeds the login limit, without reaching the auth service', async () => {
+    const attempt = () =>
+      fetch(`${baseUrl}/auth/login`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: 'maxine@pmcm.test', password: 'guess' }),
+      });
+
+    const { limit } = PUBLIC_RATE_LIMITS.authentication;
+    for (let index = 0; index < limit; index += 1) {
+      expect((await attempt()).status).toBe(200);
+    }
+
+    const throttled = await attempt();
+    expect(throttled.status).toBe(429);
+    expect(Number(throttled.headers.get('retry-after'))).toBeGreaterThan(0);
+    expect(login).toHaveBeenCalledTimes(limit);
+  }, 30_000);
 });
