@@ -1,12 +1,12 @@
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { PrismaExceptionFilter } from './common/prisma-exception.filter';
 
 type CorsCallback = (err: Error | null, allow?: boolean) => void;
 
 const frontendOrigins = [
-  'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:3002',
   'http://localhost:3003',
@@ -25,6 +25,13 @@ function getAllowedOrigins() {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Worker `onApplicationShutdown` hooks and Prisma disconnect run on SIGTERM/SIGINT.
+  app.enableShutdownHooks();
+
+  // Portals on other localhost ports are same-site, so they can still load API
+  // responses; cross-site embedding stays blocked.
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'same-site' } }));
 
   app.setGlobalPrefix('api', {
     exclude: ['health'],
@@ -58,4 +65,7 @@ async function bootstrap() {
   console.log(`p.r.i.s.m api listening on port ${port}`);
 }
 
-void bootstrap();
+bootstrap().catch((error: unknown) => {
+  new Logger('Bootstrap').error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+});

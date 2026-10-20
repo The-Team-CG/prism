@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { EventSessionGuard } from '@prism/kernel/event-session';
 import { OpsSupplierApplicationsController } from './supplier-applications.controller';
 
@@ -10,6 +11,10 @@ function controllerPath(controller: Function): string {
 describe('OpsSupplierApplicationsController', () => {
   it('keeps the public supplier-applications route base', () => {
     expect(controllerPath(OpsSupplierApplicationsController)).toBe('supplier-applications');
+  });
+
+  it('rate-limits the public application submission', () => {
+    expect(Reflect.getMetadata('__guards__', OpsSupplierApplicationsController.prototype.create)).toContain(ThrottlerGuard);
   });
 
   it('marks public status responses as private and non-cacheable', () => {
