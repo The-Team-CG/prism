@@ -126,9 +126,12 @@ function EventFloorplanTemplatePicker() {
 }
 
 function EventFloorplanDraftCard({ draft }: { draft: PrismFloorPlanDraft }) {
-  const { selectedEvent, run, openEditor, submitFloorPlanDraft, approveFloorPlanDraft } = useEventDashboardLoadedRouteViewModel();
+  const { selectedEvent, run, openEditor, submitFloorPlanDraft, approveFloorPlanDraft, reopenClientPreference } = useEventDashboardLoadedRouteViewModel();
   if (!selectedEvent) return null;
-  const canSubmit = draft.status !== "in_review" && draft.status !== "approved";
+  const isClientPreference = draft.sourceType === "client_preference";
+  const canSubmit = !isClientPreference && ["pmcm_draft", "revision_requested"].includes(draft.status);
+  const canApprove = !isClientPreference && draft.status === "in_review";
+  const canReopenPreference = isClientPreference && draft.status === "client_submitted";
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-4">
       <div className="flex items-start justify-between gap-3">
@@ -145,15 +148,22 @@ function EventFloorplanDraftCard({ draft }: { draft: PrismFloorPlanDraft }) {
         </div>
       ) : null}
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => run("open draft", () => openEditor(selectedEvent, draft))}>
-          Open / Edit
-        </Button>
+        {!isClientPreference ? (
+          <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => run("open draft", () => openEditor(selectedEvent, draft))}>
+            Open / Edit
+          </Button>
+        ) : null}
+        {canReopenPreference ? (
+          <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => reopenClientPreference(draft)}>
+            Reopen preference
+          </Button>
+        ) : null}
         {canSubmit ? (
           <Button size="sm" className="rounded-lg font-bold" onClick={() => submitFloorPlanDraft(draft)}>
             Submit
           </Button>
         ) : null}
-        {draft.status !== "approved" ? (
+        {canApprove ? (
           <Button size="sm" variant="outline" className="rounded-lg border-(--prism-success)/25 bg-(--prism-success)/8 font-bold text-(--prism-success) hover:bg-(--prism-success)/15" onClick={() => approveFloorPlanDraft(draft)}>
             Approve
           </Button>

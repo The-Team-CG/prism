@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { FloorPlanWorkflowService } from './floor-plan-workflow.service';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
-import { ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type { FloorplanProjectionInput, FloorplanProjectionWriter } from '@prism/contexts/event-lifecycle';
 
@@ -51,11 +51,23 @@ function createService() {
         return row;
       }),
       findUnique: vi.fn(async ({ where }) => state.floorPlans.find((plan) => plan.id === where.id) ?? null),
+      update: vi.fn(async ({ where, data }) => {
+        const plan = state.floorPlans.find((item) => item.id === where.id);
+        if (!plan) throw new Error('plan not found');
+        Object.assign(plan, data);
+        return plan;
+      }),
     },
     floorPlanObject: {
       createMany: vi.fn(async ({ data }) => {
         state.floorPlanObjects.push(...data);
         return { count: data.length };
+      }),
+      deleteMany: vi.fn(async ({ where }) => {
+        const remaining = state.floorPlanObjects.filter((object) => object.floorPlanId !== where.floorPlanId);
+        const count = state.floorPlanObjects.length - remaining.length;
+        state.floorPlanObjects.splice(0, state.floorPlanObjects.length, ...remaining);
+        return { count };
       }),
     },
     venueTemplate: {
@@ -74,7 +86,9 @@ function createService() {
       ),
       findFirst: vi.fn(async ({ where }) =>
         (() => {
-          const draft = state.floorPlanDrafts.find((item) => item.id === where.id && item.eventId === where.eventId);
+          const draft = state.floorPlanDrafts.find((item) =>
+            Object.entries(where).every(([key, value]) => item[key] === value),
+          );
           return draft ? { ...draft } : null;
         })(),
       ),
@@ -109,6 +123,7 @@ function createService() {
         return created;
       }),
     },
+    $queryRawUnsafe: vi.fn(async () => []),
     $transaction: vi.fn(async (callback) => callback(prisma)),
   };
   const lifecycleEventReferences = {
@@ -509,6 +524,211 @@ describe('FloorPlanWorkflowService', () => {
       }),
       undefined,
     );
+  });
+
+  it('rejects a second client preference for the same event without creating another draft', async () => {
+    const { service, state } = createService();
+    state.events[0].clientPortalStatus = 'unlocked';
+    const input = {
+      name: 'Client Preference',
+      seatingStyle: 'banquet',
+      stagePreference: 'center',
+      flowNotes: 'Keep registration near entrance.',
+      guestCount: 180,
+      constraints: ['VIP tables near stage'],
+    };
+    const actor = { actorId: 'user_client_1', name: 'Ana Reyes', role: 'client' as const };
+
+    await service.createFloorPlanPreference('evt_sample', input, actor);
+    await expect(service.createFloorPlanPreference('evt_sample', input, actor)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+
+    expect(state.floorPlans).toHaveLength(1);
+    expect(state.floorPlanDrafts).toHaveLength(1);
+  });
+
+  it('resubmits an explicitly reopened preference by updating the same draft and plan', async () => {
+    const { service, state, prisma, notificationOutboxWriter } = createService();
+    state.events[0].clientPortalStatus = 'unlocked';
+    state.floorPlans.push({
+      id: 'plan_preference',
+      eventId: 'evt_sample',
+      ownerId: 'user_client_1',
+      name: 'Old preference',
+      venue: 'Ayala Summit',
+      width: 30,
+      height: 20,
+      gridSize: 1,
+      pax: 120,
+      objects: [],
+      guests: [],
+      suppliers: [],
+      seats: [],
+      seatCategories: [],
+      updatedAt: new Date(),
+    });
+    state.floorPlanDrafts.push({
+      id: 'fpd_preference',
+      eventId: 'evt_sample',
+      floorPlanId: 'plan_preference',
+      name: 'Old preference',
+      status: 'revision_requested',
+      isActive: false,
+      sourceType: 'client_preference',
+      createdByRole: 'client',
+      clientPreference: { seatingStyle: 'old', stagePreference: 'old', flowNotes: '', guestCount: 120, constraints: [], notes: '' },
+      revisionComment: 'Please widen the aisle.',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const result = await service.createFloorPlanPreference(
+      'evt_sample',
+      {
+        name: 'Updated preference',
+        seatingStyle: 'banquet',
+        stagePreference: 'center',
+        flowNotes: 'Keep registration near entrance.',
+        guestCount: 180,
+        constraints: ['VIP tables near stage'],
+      },
+      { actorId: 'user_client_1', name: 'Ana Reyes', role: 'client' },
+    );
+
+    expect(result).toMatchObject({ id: 'fpd_preference', status: 'client_submitted', name: 'Updated preference' });
+    expect(state.floorPlanDrafts).toHaveLength(1);
+    expect(state.floorPlans).toHaveLength(1);
+    expect(state.floorPlanDrafts[0].clientPreference).toMatchObject({ seatingStyle: 'banquet', guestCount: 180 });
+    expect(state.floorPlanDrafts[0].revisionComment).toBe('');
+    expect(prisma.floorPlan.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'plan_preference' } }));
+    expect(notificationOutboxWriter.write).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: 'evt_sample', recipient: 'PMCM Admin' }),
+      undefined,
+    );
+  });
+
+  it('reopens the same submitted client preference for PMCM review and notifies the client', async () => {
+    const { service, state, auditWriter, notificationOutboxWriter, prisma } = createService();
+    state.events[0].floorPlanStatus = 'client_submitted';
+    state.floorPlanDrafts.push({
+      id: 'fpd_preference',
+      eventId: 'evt_sample',
+      floorPlanId: 'plan_preference',
+      name: 'Client preference',
+      status: 'client_submitted',
+      isActive: false,
+      sourceType: 'client_preference',
+      createdByRole: 'client',
+      clientPreference: { seatingStyle: 'banquet', stagePreference: 'center', flowNotes: '', guestCount: 120, constraints: [] },
+      revisionComment: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const reopened = await service.reopenClientPreference('evt_sample', 'fpd_preference', {
+      actorId: 'user_pmcm_1',
+      name: 'Maxine',
+      role: 'pmcm-admin',
+    });
+
+    expect(reopened).toMatchObject({ id: 'fpd_preference', status: 'revision_requested' });
+    expect(state.floorPlanDrafts).toHaveLength(1);
+    expect(state.events[0].floorPlanStatus).toBe('revision_requested');
+    expect(state.floorPlanDrafts[0].reviewedAt).toBeInstanceOf(Date);
+    expect(auditWriter.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: 'evt_sample',
+        actor: 'Maxine',
+        actorRole: 'pmcm-admin',
+        affectedType: 'floor_plan_draft',
+        affectedId: 'fpd_preference',
+      }),
+      expect.objectContaining({ actorId: 'user_pmcm_1', prisma }),
+    );
+    expect(notificationOutboxWriter.write).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: 'evt_sample', recipient: 'Client' }),
+      expect.objectContaining({ actorId: 'user_pmcm_1', prisma }),
+    );
+  });
+
+  it('does not reopen an official floorplan as a client preference', async () => {
+    const { service, state, auditWriter, notificationOutboxWriter } = createService();
+    state.floorPlanDrafts.push({
+      id: 'fpd_official',
+      eventId: 'evt_sample',
+      floorPlanId: 'plan_official',
+      name: 'Official',
+      status: 'client_submitted',
+      isActive: false,
+      sourceType: 'blank',
+      createdByRole: 'pmcm-admin',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await expect(
+      service.reopenClientPreference('evt_sample', 'fpd_official', {
+        actorId: 'user_pmcm_1',
+        name: 'Maxine',
+        role: 'pmcm-admin',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(state.floorPlanDrafts[0].status).toBe('client_submitted');
+    expect(auditWriter.write).not.toHaveBeenCalled();
+    expect(notificationOutboxWriter.write).not.toHaveBeenCalled();
+  });
+
+  it('rejects a preference ID outside the requested event scope', async () => {
+    const { service, state } = createService();
+    state.floorPlanDrafts.push({
+      id: 'fpd_other_event',
+      eventId: 'evt_other',
+      floorPlanId: 'plan_other_event',
+      name: 'Other event preference',
+      status: 'client_submitted',
+      isActive: false,
+      sourceType: 'client_preference',
+      createdByRole: 'client',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await expect(
+      service.reopenClientPreference('evt_sample', 'fpd_other_event', {
+        actorId: 'user_pmcm_1',
+        name: 'Maxine',
+        role: 'pmcm-admin',
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(state.floorPlanDrafts[0].status).toBe('client_submitted');
+  });
+
+  it('rejects reopening a preference that is already waiting for client revision', async () => {
+    const { service, state, notificationOutboxWriter } = createService();
+    state.floorPlanDrafts.push({
+      id: 'fpd_preference',
+      eventId: 'evt_sample',
+      floorPlanId: 'plan_preference',
+      name: 'Client preference',
+      status: 'revision_requested',
+      isActive: false,
+      sourceType: 'client_preference',
+      createdByRole: 'client',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await expect(
+      service.reopenClientPreference('evt_sample', 'fpd_preference', {
+        actorId: 'user_pmcm_1',
+        name: 'Maxine',
+        role: 'pmcm-admin',
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(state.floorPlanDrafts[0].status).toBe('revision_requested');
+    expect(notificationOutboxWriter.write).not.toHaveBeenCalled();
   });
 
   it('does not let a client layout preference downgrade an already-approved floorplan', async () => {

@@ -494,6 +494,7 @@ export function useEventDashboardShellViewModel({
     runPlanningCompliance: () => selectedEvent ? run("compliance", () => commands.runCompliance(selectedEvent.id, "planning")) : Promise.resolve(),
     submitFloorPlanDraft: (draft: PrismFloorPlanDraft) => selectedEvent ? run("submit draft", () => commands.submitFloorPlanDraft(selectedEvent.id, draft.id)) : Promise.resolve(),
     approveFloorPlanDraft: (draft: PrismFloorPlanDraft) => selectedEvent ? run("approve draft", () => commands.approveFloorPlanDraft(selectedEvent.id, draft.id)) : Promise.resolve(),
+    reopenClientPreference: (draft: PrismFloorPlanDraft) => selectedEvent ? run("reopen preference", () => commands.reopenClientPreference(selectedEvent.id, draft.id)) : Promise.resolve(),
     withdrawSupplier: (requestId: string) => selectedEvent ? run("withdraw supplier", () => commands.withdrawSupplier(selectedEvent.id, requestId)) : Promise.resolve(),
     upsertRegistrationPlatform: (input: Parameters<typeof commands.upsertRegistrationPlatform>[1]) => selectedEvent ? run("registration platform", () => commands.upsertRegistrationPlatform(selectedEvent.id, input)) : Promise.resolve(),
     updateRegistrationPlatform: (input: Parameters<typeof commands.updateRegistrationPlatform>[1]) => selectedEvent ? run("registration platform", () => commands.updateRegistrationPlatform(selectedEvent.id, input)) : Promise.resolve(),

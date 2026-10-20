@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsFloorPlanDraft, Prisma } from '@prisma/client';
 import {
   prismFloorPlanPreferenceSchema,
@@ -156,43 +156,16 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
         return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
           // Transaction scope: DB reads/writes only. No external IO inside this callback.
           const event = await this.requireWritableEvent(eventId, { prisma: tx, correlationId: `floorplan-preference:${eventId}` });
-          await tx.floorPlan.create({
-            data: {
-              id: floorPlanId,
-              name: input.name,
-              venue: input.venue ?? event.eventName,
-              ownerId: actor.actorId,
-              eventId,
-              width: input.width ?? 30,
-              height: input.height ?? 20,
-              gridSize: input.gridSize ?? 1,
-              pax: input.guestCount,
-              objects: toPrismaJson(objects),
-              guests: toPrismaJson([]),
-              suppliers: toPrismaJson([]),
-              seats: toPrismaJson([]),
-              seatCategories: toPrismaJson(defaultSeatCategories()),
-              updatedAt: now,
-            },
-          });
-
-          await this.createFloorPlanObjects(tx, floorPlanId, objects);
-
-          const saved = await tx.opsFloorPlanDraft.create({
-            data: {
-              id: `fpd_${randomUUID()}`,
-              eventId,
-              floorPlanId,
-              name: input.name,
-              status: 'client_submitted',
-              isActive: false,
-              sourceType: 'client_preference',
-              createdByRole: actor.role,
-              clientPreference: toPrismaJson(preference),
-              submittedAt: now,
-              createdAt: now,
-              updatedAt: now,
-            },
+          const saved = await this.persistClientPreference({
+            tx,
+            eventId,
+            eventName: event.eventName,
+            input,
+            actor,
+            now,
+            floorPlanId,
+            objects,
+            preference,
           });
 
           // A client preference is a request for changes, not a demotion of an approved plan.
@@ -209,6 +182,273 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
           writeNotification(this.notificationOutboxWriter, eventId, 'PMCM Admin', `Client submitted a layout preference: ${input.name}`),
         ]);
       },
+      project: (draft) => this.mapFloorPlanDraft(draft),
+    });
+  }
+
+  private async persistClientPreference({
+    tx,
+    eventId,
+    eventName,
+    input,
+    actor,
+    now,
+    floorPlanId,
+    objects,
+    preference,
+  }: {
+    tx: Prisma.TransactionClient;
+    eventId: string;
+    eventName: string;
+    input: CreateFloorPlanPreferenceInput;
+    actor: FloorPlanCreator;
+    now: Date;
+    floorPlanId: string;
+    objects: unknown[];
+    preference: unknown;
+  }) {
+    const existing = await tx.opsFloorPlanDraft.findFirst({ where: { eventId, sourceType: 'client_preference' } });
+    if (existing) {
+      return this.resubmitClientPreference({ tx, eventId, existing, input, actor, now, objects, preference });
+    }
+    return this.createInitialClientPreference({ tx, eventId, eventName, floorPlanId, input, actor, now, objects, preference });
+  }
+
+  private async createInitialClientPreference({
+    tx,
+    eventId,
+    eventName,
+    floorPlanId,
+    input,
+    actor,
+    now,
+    objects,
+    preference,
+  }: {
+    tx: Prisma.TransactionClient;
+    eventId: string;
+    eventName: string;
+    floorPlanId: string;
+    input: CreateFloorPlanPreferenceInput;
+    actor: FloorPlanCreator;
+    now: Date;
+    objects: unknown[];
+    preference: unknown;
+  }) {
+    await tx.floorPlan.create({
+      data: {
+        id: floorPlanId,
+        name: input.name,
+        venue: input.venue ?? eventName,
+        ownerId: actor.actorId,
+        eventId,
+        width: input.width ?? 30,
+        height: input.height ?? 20,
+        gridSize: input.gridSize ?? 1,
+        pax: input.guestCount,
+        objects: toPrismaJson(objects),
+        guests: toPrismaJson([]),
+        suppliers: toPrismaJson([]),
+        seats: toPrismaJson([]),
+        seatCategories: toPrismaJson(defaultSeatCategories()),
+        updatedAt: now,
+      },
+    });
+    await this.createFloorPlanObjects(tx, floorPlanId, objects);
+    return tx.opsFloorPlanDraft.create({
+      data: {
+        id: `fpd_${randomUUID()}`,
+        eventId,
+        floorPlanId,
+        name: input.name,
+        status: 'client_submitted',
+        isActive: false,
+        sourceType: 'client_preference',
+        createdByRole: actor.role,
+        clientPreference: toPrismaJson(preference),
+        submittedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+  }
+
+  private async resubmitClientPreference({
+    tx,
+    eventId,
+    existing,
+    input,
+    actor,
+    now,
+    objects,
+    preference,
+  }: {
+    tx: Prisma.TransactionClient;
+    eventId: string;
+    existing: OpsFloorPlanDraft;
+    input: CreateFloorPlanPreferenceInput;
+    actor: FloorPlanCreator;
+    now: Date;
+    objects: unknown[];
+    preference: unknown;
+  }) {
+    const { draft, plan } = await this.requireOwnedReopenablePreference(tx, eventId, existing, actor);
+    await this.updateReopenedPreferencePlan(tx, plan, input, now, objects);
+    return tx.opsFloorPlanDraft.update({
+      where: { id: draft.id },
+      data: {
+        name: input.name,
+        status: 'client_submitted',
+        clientPreference: toPrismaJson(preference),
+        submittedAt: now,
+        reviewedAt: null,
+        revisionComment: '',
+        updatedAt: now,
+      },
+    });
+  }
+
+  private async requireOwnedReopenablePreference(
+    tx: Prisma.TransactionClient,
+    eventId: string,
+    existing: OpsFloorPlanDraft,
+    actor: FloorPlanCreator,
+  ) {
+    // The Lifecycle event is already locked above; lock this Floorplan draft second.
+    // QUERY_AUDIT_RAW_SQL: serialize preference resubmission with PMCM reopen and draft updates.
+    await tx.$queryRawUnsafe(
+      'SELECT "id" FROM "floorplan"."floor_plan_drafts" WHERE "id" = $1 AND "event_id" = $2 FOR UPDATE',
+      existing.id,
+      eventId,
+    );
+    const draft = await tx.opsFloorPlanDraft.findFirst({
+      where: { id: existing.id, eventId, sourceType: 'client_preference' },
+    });
+    if (!draft) throw new NotFoundException('Client layout preference not found');
+    if (actor.role !== 'client' || draft.createdByRole !== 'client') {
+      throw new ForbiddenException('Only the submitting client can resubmit this preference');
+    }
+    if (draft.status !== 'revision_requested') {
+      throw new ConflictException('Ask PMCM to reopen the existing layout preference before submitting it again');
+    }
+    const plan = await tx.floorPlan.findUnique({ where: { id: draft.floorPlanId } });
+    if (!plan || plan.eventId !== eventId) throw new NotFoundException('Client preference plan not found');
+    if (plan.ownerId !== actor.actorId) {
+      throw new ForbiddenException('Only the client who submitted this preference can revise it');
+    }
+    return { draft, plan };
+  }
+
+  private async updateReopenedPreferencePlan(
+    tx: Prisma.TransactionClient,
+    plan: NonNullable<Awaited<ReturnType<Prisma.TransactionClient['floorPlan']['findUnique']>>>,
+    input: CreateFloorPlanPreferenceInput,
+    now: Date,
+    objects: unknown[],
+  ) {
+    const data: Prisma.FloorPlanUpdateInput = { name: input.name, pax: input.guestCount, updatedAt: now };
+    if (input.venue !== undefined) data.venue = input.venue;
+    if (input.width !== undefined) data.width = input.width;
+    if (input.height !== undefined) data.height = input.height;
+    if (input.gridSize !== undefined) data.gridSize = input.gridSize;
+    if (input.objects !== undefined) data.objects = toPrismaJson(objects);
+    await tx.floorPlan.update({ where: { id: plan.id }, data });
+    if (input.objects === undefined) return;
+    await tx.floorPlanObject.deleteMany({ where: { floorPlanId: plan.id } });
+    await this.createFloorPlanObjects(tx, plan.id, objects);
+  }
+
+  async reopenClientPreference(eventId: string, draftId: string, actor: FloorPlanCreator) {
+    const now = new Date();
+    const correlationId = `floorplan-preference-reopen:${eventId}:${draftId}:${randomUUID()}`;
+    const transactionContext = (prisma: Prisma.TransactionClient) => ({
+      prisma,
+      correlationId,
+      actorId: actor.actorId,
+    });
+
+    return this.workflowCommandService.execute<OpsFloorPlanDraft, ReturnType<FloorPlanWorkflowService['mapFloorPlanDraft']>>({
+      name: 'reopen_client_floorplan_preference',
+      eventId,
+      write: () =>
+        this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          await this.requireWritableEvent(eventId, {
+            prisma: tx,
+            correlationId: `floorplan-preference-reopen:${eventId}:${draftId}`,
+            actorId: actor.actorId,
+          });
+          // Lifecycle event is locked by requireWritableEvent; lock the draft second so reopen
+          // and client resubmission follow the same event-then-draft lock order.
+          // QUERY_AUDIT_RAW_SQL: serialize the PMCM reopen transition with client resubmission.
+          await tx.$queryRawUnsafe(
+            'SELECT "id" FROM "floorplan"."floor_plan_drafts" WHERE "id" = $1 AND "event_id" = $2 FOR UPDATE',
+            draftId,
+            eventId,
+          );
+          const current = await tx.opsFloorPlanDraft.findFirst({
+            where: { id: draftId, eventId },
+          });
+          if (!current) throw new NotFoundException('Floorplan draft not found');
+          if (current.sourceType !== 'client_preference' || current.createdByRole !== 'client') {
+            throw new BadRequestException('Only a client preference can be reopened through this command');
+          }
+          if (current.status !== 'client_submitted') {
+            throw new ConflictException('Only a submitted client preference can be reopened');
+          }
+
+          const updated = await tx.opsFloorPlanDraft.updateMany({
+            where: {
+              id: draftId,
+              eventId,
+              sourceType: 'client_preference',
+              createdByRole: 'client',
+              status: 'client_submitted',
+            },
+            data: {
+              status: 'revision_requested',
+              reviewedAt: now,
+              revisionComment: 'PMCM reopened this preference for revision.',
+              updatedAt: now,
+            },
+          });
+          if (updated.count !== 1) throw new ConflictException('Client preference changed before it could be reopened');
+
+          const reopened = await tx.opsFloorPlanDraft.findUnique({ where: { id: draftId } });
+          if (!reopened) throw new NotFoundException('Floorplan draft not found');
+
+          await this.projectLifecycleState(tx, eventId, (event) =>
+            event.floorPlanStatus === 'client_submitted'
+              ? { floorPlanStatus: 'revision_requested', readiness: 'Client layout preference revision requested' }
+              : null,
+          );
+          await writeAudit(
+            this.auditWriter,
+            eventId,
+            actor.name,
+            `Reopened client layout preference: ${reopened.name}`,
+            {
+              actorRole: actor.role,
+              actionType: AuditActionType.Update,
+              category: AuditCategory.Events,
+              affectedType: 'floor_plan_draft',
+              affectedId: reopened.id,
+              affectedLabel: reopened.name,
+              metadata: { action: 'reopen_client_preference', actorId: actor.actorId },
+            },
+            transactionContext(tx),
+          );
+          await writeNotification(
+            this.notificationOutboxWriter,
+            eventId,
+            'Client',
+            `PMCM reopened your layout preference for revision: ${reopened.name}`,
+            undefined,
+            { correlationId, idempotencyKey: correlationId },
+            transactionContext(tx),
+          );
+
+          return reopened;
+        }),
       project: (draft) => this.mapFloorPlanDraft(draft),
     });
   }

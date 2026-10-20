@@ -65,6 +65,7 @@ export function ClientFloorPlanView() {
       ) : null}
       <GuidedLayoutNotes
         approved={approved}
+        preferenceDraft={preferenceDrafts.find((draft) => draft.sourceType === "client_preference")}
         form={form}
         setForm={setForm}
         busy={busy}
