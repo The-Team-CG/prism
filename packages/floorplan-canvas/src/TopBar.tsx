@@ -31,6 +31,7 @@ interface TopBarProps {
   eventName?: string;
   draftName?: string;
   draftStatus?: string;
+  submitLabel?: string;
   readOnly?: boolean;
   readOnlyLabel: string;
   onSave?: (project: Project) => Promise<unknown>;
@@ -177,6 +178,7 @@ function EditActions({
   saveDisabled,
   saving,
   canSubmit,
+  submitLabel,
 }: {
   rightOpen: boolean;
   toggleRight: () => void;
@@ -185,6 +187,7 @@ function EditActions({
   saveDisabled: boolean;
   saving: boolean;
   canSubmit: boolean;
+  submitLabel?: string;
 }) {
   return (
     <>
@@ -204,7 +207,7 @@ function EditActions({
       >
         <Save size={13} /> Save
       </button>
-      <SubmitReviewButton canSubmit={canSubmit} saving={saving} onSubmit={onSubmit} />
+      <SubmitReviewButton canSubmit={canSubmit} saving={saving} onSubmit={onSubmit} label={submitLabel} />
     </>
   );
 }
@@ -213,10 +216,12 @@ function SubmitReviewButton({
   canSubmit,
   saving,
   onSubmit,
+  label,
 }: {
   canSubmit: boolean;
   saving: boolean;
   onSubmit: () => void;
+  label?: string;
 }) {
   if (!canSubmit) return null;
   return (
@@ -225,7 +230,7 @@ function SubmitReviewButton({
       disabled={saving}
       className="flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-[var(--prism-ink)] px-3 text-xs font-medium text-white shadow-sm hover:bg-[#C01867] disabled:opacity-50"
     >
-      <Send size={13} /> Submit review
+      <Send size={13} /> {label ?? "Submit review"}
     </button>
   );
 }
@@ -240,6 +245,7 @@ function TrailingActions({
   saving,
   canSubmit,
   readOnlyLabel,
+  submitLabel,
 }: {
   readOnly: boolean;
   readOnlyLabel: string;
@@ -250,6 +256,7 @@ function TrailingActions({
   saveDisabled: boolean;
   saving: boolean;
   canSubmit: boolean;
+  submitLabel?: string;
 }) {
   if (readOnly) return <ReadOnlyBadge label={readOnlyLabel} />;
   return (
@@ -261,6 +268,7 @@ function TrailingActions({
       saveDisabled={saveDisabled}
       saving={saving}
       canSubmit={canSubmit}
+      submitLabel={submitLabel}
     />
   );
 }
@@ -270,6 +278,7 @@ export function TopBar({
   eventName,
   draftName,
   draftStatus,
+  submitLabel,
   readOnly = false,
   readOnlyLabel,
   onSave,
@@ -356,6 +365,7 @@ export function TopBar({
           saveDisabled={saveActionDisabled(Boolean(onSave), saveState)}
           saving={saveState === "saving"}
           canSubmit={canSubmit}
+          submitLabel={submitLabel}
         />
       </div>
     </div>

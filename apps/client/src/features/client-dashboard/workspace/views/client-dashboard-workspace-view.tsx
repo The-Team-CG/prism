@@ -449,7 +449,9 @@ export function ClientDashboardWorkspaceView({
         onBack={() => setScreen({ name: "dashboard" })}
         onSubmitted={async () => {
           await refresh();
-          setNotice("Floor plan saved. PMCM approval will lock this plan for review.");
+          setNotice(screen.draft.sourceType === "client_preference" && screen.draft.status === "revision_requested"
+            ? "Your revised layout preference was returned to PMCM."
+            : "Floor plan saved. PMCM approval will lock this plan for review.");
           setScreen({ name: "dashboard" });
         }}
       />
