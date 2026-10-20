@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import type { PrismPrivacyExportSection } from '@prism/types';
+import type { PrismPrivacyExportSection, PrivacyCorrectionPatch } from '@prism/types';
 import type { OperationsPrivacyRedactor, OperationsRedactionResult } from '../../contracts/privacy-redaction.port';
 
 @Injectable()
@@ -146,6 +146,61 @@ export class OperationsPrivacyRedactorService implements OperationsPrivacyRedact
         phone: '',
       },
     });
+  }
+
+  async correctGuest(
+    input: { eventId: string; name: string; patch: PrivacyCorrectionPatch },
+    transaction: Prisma.TransactionClient,
+  ): Promise<OperationsRedactionResult> {
+    const currentName = input.name.trim();
+    if (!input.eventId || !currentName) throw new BadRequestException('Guest correction requires a name and event scope');
+    const correctedName = input.patch.name?.trim();
+    const guestWhere = { eventId: input.eventId, guestName: { equals: currentName, mode: 'insensitive' as const } };
+    await this.assertCorrectedNameFree(transaction, input.eventId, currentName, correctedName);
+
+    const roster = await transaction.opsGuestRosterEntry.updateMany({
+      where: guestWhere,
+      data: {
+        ...(correctedName ? { guestName: correctedName, normalizedName: correctedName.toLowerCase() } : {}),
+        ...(input.patch.email !== undefined ? { email: input.patch.email.trim().toLowerCase() } : {}),
+      },
+    });
+    const checkIns = correctedName
+      ? await transaction.opsGuestCheckIn.updateMany({ where: guestWhere, data: { guestName: correctedName } })
+      : { count: 0 };
+    const feedback = correctedName
+      ? await transaction.opsGuestFeedback.updateMany({ where: guestWhere, data: { guestName: correctedName } })
+      : { count: 0 };
+    return {
+      surfaces: [
+        ...(roster.count ? ['guest_roster_entry'] : []),
+        ...(checkIns.count ? ['guest_check_in'] : []),
+        ...(feedback.count ? ['guest_feedback'] : []),
+      ],
+      touchedRecords: roster.count + checkIns.count + feedback.count,
+    };
+  }
+
+  /** Only a genuinely different corrected name needs to be free of another guest's identity in the event. */
+  private async assertCorrectedNameFree(
+    transaction: Prisma.TransactionClient,
+    eventId: string,
+    currentName: string,
+    correctedName: string | undefined,
+  ) {
+    if (!correctedName || correctedName.toLowerCase() === currentName.toLowerCase()) return;
+    await this.assertGuestNameFree(transaction, eventId, correctedName);
+  }
+
+  /** A corrected name must not merge the subject into another guest's identity in the same event. */
+  private async assertGuestNameFree(transaction: Prisma.TransactionClient, eventId: string, name: string) {
+    const where = { eventId, guestName: { equals: name, mode: 'insensitive' as const } };
+    const taken = await transaction.opsGuestRosterEntry.findFirst({ where, select: { id: true } })
+      ?? await transaction.opsGuestCheckIn.findFirst({ where, select: { id: true } })
+      ?? await transaction.opsGuestFeedback.findFirst({ where, select: { id: true } });
+    if (taken) {
+      throw new ConflictException('Another guest in this event already uses the corrected name');
+    }
   }
 
   /** Roster, check-in, and feedback rows for one guest name inside one event. Moderation notes stay internal. */

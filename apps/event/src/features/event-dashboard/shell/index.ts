@@ -12,6 +12,7 @@ export {
   EventDashboardHomeSectionView,
   EventDashboardInquiriesSectionView,
   EventDashboardMessagesSectionView,
+  EventDashboardPrivacySectionView,
   EventDashboardSettingsSectionView,
   EventDashboardSuppliersSectionView,
   EventDashboardTasksSectionView,

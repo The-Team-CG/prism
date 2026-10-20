@@ -434,11 +434,17 @@ model OpsPrivacyRequest {
   reviewedAt     DateTime? @map("reviewed_at")
   executedBy     String?   @map("executed_by")
   executedAt     DateTime? @map("executed_at")
+  /// SLA deadline set when the request is logged (30 days from submission).
+  dueAt          DateTime  @map("due_at")
+  /// PMCM operator user id that owns the request; null while unassigned.
+  assignedTo     String?   @map("assigned_to")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
 
 
   @@index([status, createdAt], map: "privacy_requests_status_created_at_idx")
+  @@index([status, dueAt], map: "privacy_requests_status_due_at_idx")
+  @@index([assignedTo], map: "privacy_requests_assigned_to_idx")
   @@index([subjectEmail], map: "privacy_requests_subject_email_idx")
   @@index([eventId], map: "privacy_requests_event_id_idx")
   @@map("privacy_requests")

@@ -13,6 +13,7 @@ import { PrivacyRetentionExecutorService } from './application/retention/privacy
 import { PrivacyRetentionSweepScheduler } from './application/retention/privacy-retention-sweep.scheduler';
 import { PrivacyRetentionSweepService } from './application/retention/privacy-retention-sweep.service';
 import { PrivacyRetentionService } from './application/retention/privacy-retention.service';
+import { PrivacyRequestQueueService } from './application/trust/privacy-request-queue.service';
 import { PlatformOpsModule } from './platform-ops.module';
 
 /**
@@ -33,6 +34,7 @@ import { PlatformOpsModule } from './platform-ops.module';
   controllers: [OpsPrivacyController, OpsPrivacyRetentionController],
   providers: [
     PrivacyOperationsService,
+    PrivacyRequestQueueService,
     PrivacyRetentionService,
     PrivacyRetentionExecutorService,
     PrivacyRetentionSweepService,
