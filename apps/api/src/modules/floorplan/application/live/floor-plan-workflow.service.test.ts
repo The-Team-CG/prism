@@ -86,19 +86,31 @@ function createService() {
           (!where.sourceType || draft.sourceType !== where.sourceType.not),
         ),
       ),
-      findFirst: vi.fn(async ({ where }) =>
-        (() => {
-          const draft = state.floorPlanDrafts.find((item) =>
-            Object.entries(where).every(([key, value]) => {
-              if (key === 'sourceType' && typeof value === 'object' && value !== null && 'not' in value) {
-                return item.sourceType !== value.not;
-              }
-              return item[key] === value;
-            }),
-          );
-          return draft ? { ...draft } : null;
-        })(),
-      ),
+      findFirst: vi.fn(async ({ where, orderBy }) => {
+        const matching = state.floorPlanDrafts.filter((item) =>
+          Object.entries(where).every(([key, value]) => {
+            if (key === 'sourceType' && typeof value === 'object' && value !== null && 'not' in value) {
+              return item.sourceType !== value.not;
+            }
+            return item[key] === value;
+          }),
+        );
+        const ordering = Array.isArray(orderBy) ? orderBy : orderBy ? [orderBy] : [];
+        matching.sort((left, right) => {
+          for (const order of ordering) {
+            const [field, direction] = Object.entries(order)[0] ?? [];
+            if (!field) continue;
+            const leftValue = left[field];
+            const rightValue = right[field];
+            const comparison = leftValue instanceof Date && rightValue instanceof Date
+              ? leftValue.getTime() - rightValue.getTime()
+              : String(leftValue ?? '').localeCompare(String(rightValue ?? ''));
+            if (comparison !== 0) return direction === 'desc' ? -comparison : comparison;
+          }
+          return 0;
+        });
+        return matching[0] ? { ...matching[0] } : null;
+      }),
       findUnique: vi.fn(async ({ where }) => state.floorPlanDrafts.find((draft) => draft.id === where.id) ?? null),
       update: vi.fn(async ({ where, data }) => {
         const draft = state.floorPlanDrafts.find((item) => item.id === where.id);
@@ -605,6 +617,56 @@ describe('FloorPlanWorkflowService', () => {
 
     expect(state.floorPlans).toHaveLength(1);
     expect(state.floorPlanDrafts).toHaveLength(1);
+  });
+
+  it('resubmits the newest reopened client preference when older submitted history exists', async () => {
+    const { service, state } = createService();
+    state.floorPlans.push(
+      { id: 'plan_old_preference', eventId: 'evt_sample', ownerId: 'user_client_1', name: 'Old preference' },
+      { id: 'plan_reopened_preference', eventId: 'evt_sample', ownerId: 'user_client_1', name: 'Reopened preference' },
+    );
+    state.floorPlanDrafts.push(
+      {
+        id: 'fpd_old_preference',
+        eventId: 'evt_sample',
+        floorPlanId: 'plan_old_preference',
+        name: 'Old preference',
+        status: 'client_submitted',
+        isActive: false,
+        sourceType: 'client_preference',
+        createdByRole: 'client',
+        createdAt: new Date('2026-10-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-10-01T00:00:00.000Z'),
+      },
+      {
+        id: 'fpd_reopened_preference',
+        eventId: 'evt_sample',
+        floorPlanId: 'plan_reopened_preference',
+        name: 'Reopened preference',
+        status: 'revision_requested',
+        isActive: false,
+        sourceType: 'client_preference',
+        createdByRole: 'client',
+        createdAt: new Date('2026-10-02T00:00:00.000Z'),
+        updatedAt: new Date('2026-10-03T00:00:00.000Z'),
+      },
+    );
+
+    const result = await service.createFloorPlanPreference(
+      'evt_sample',
+      {
+        name: 'Updated preference',
+        seatingStyle: 'banquet',
+        stagePreference: 'center',
+        flowNotes: 'Keep registration near entrance.',
+        guestCount: 180,
+        constraints: [],
+      },
+      { actorId: 'user_client_1', name: 'Ana Reyes', role: 'client' },
+    );
+
+    expect(result).toMatchObject({ id: 'fpd_reopened_preference', status: 'client_submitted' });
+    expect(state.floorPlanDrafts.find((draft) => draft.id === 'fpd_old_preference')?.status).toBe('client_submitted');
   });
 
   it('lets the client create a preference when a PMCM-created preference row exists', async () => {

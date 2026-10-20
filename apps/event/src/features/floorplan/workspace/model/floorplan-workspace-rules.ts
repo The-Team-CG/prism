@@ -5,6 +5,7 @@ export type FloorPlanDraftLike = {
   isActive?: boolean;
   status?: string;
   sourceType?: string;
+  createdByRole?: string;
 };
 
 export function selectActiveDraft<T extends FloorPlanDraftLike>(
@@ -24,12 +25,20 @@ export function canApproveFloorPlanDraft(status?: string): boolean {
   return status !== "approved";
 }
 
+export function canViewClientPreference(
+  draft: Pick<FloorPlanDraftLike, "status" | "sourceType" | "createdByRole">,
+): boolean {
+  return draft.sourceType === "client_preference" &&
+    draft.createdByRole === "client" &&
+    (draft.status === "client_submitted" || draft.status === "revision_requested");
+}
+
 export function canReopenClientPreference(
-  draft: Pick<FloorPlanDraftLike, "status" | "sourceType">,
+  draft: Pick<FloorPlanDraftLike, "status" | "sourceType" | "createdByRole">,
   eventFloorPlanStatus: string | null | undefined,
   drafts: Array<Pick<FloorPlanDraftLike, "isActive" | "status" | "sourceType">>,
 ): boolean {
-  if (draft.sourceType !== "client_preference" || draft.status !== "client_submitted") return false;
+  if (draft.sourceType !== "client_preference" || draft.createdByRole !== "client" || draft.status !== "client_submitted") return false;
   if (eventFloorPlanStatus === "approved") return false;
   return !drafts.some(
     (candidate) =>
