@@ -10,6 +10,8 @@ import type {
   PrismEventFreezeException,
   PrismEventDecision,
   PrismClientChangeRequest,
+  PrismScopeChangeRequest,
+  PrismEventRiskView,
   SignAddendumConformeExecutionInput,
 } from "@prism/types";
 import { prismRequest, toQueryString } from "../http";
@@ -45,6 +47,36 @@ export function createEventsClient(
         prismRequest<PrismClientChangeRequest[]>(
           actorPath(`/events/${eventId}/change-requests`, actor),
           withBase(options),
+        ),
+      scopeChangeRequests: (eventId, actor = {}) =>
+        prismRequest<PrismScopeChangeRequest[]>(
+          actorPath(`/events/${eventId}/scope-changes`, actor),
+          withBase(options),
+        ),
+      submitScopeChangeRequest: (eventId, input, actor = {}) =>
+        prismRequest<PrismScopeChangeRequest>(
+          actorPath(`/events/${eventId}/scope-changes`, actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
+      withdrawScopeChangeRequest: (eventId, requestId, actor = {}) =>
+        prismRequest<PrismScopeChangeRequest>(
+          actorPath(`/events/${eventId}/scope-changes/${requestId}/withdraw`, actor),
+          withBase(options, { method: "POST" }),
+        ),
+      reviewScopeChangeRequest: (eventId, requestId, input, actor = {}) =>
+        prismRequest<PrismScopeChangeRequest>(
+          actorPath(`/events/${eventId}/scope-changes/${requestId}`, actor),
+          withBase(options, { method: "PATCH", body: input }),
+        ),
+      riskAssessment: (eventId, actor = {}) =>
+        prismRequest<PrismEventRiskView>(
+          actorPath(`/events/${eventId}/risk-assessment`, actor),
+          withBase(options),
+        ),
+      recordRiskAssessment: (eventId, input, actor = {}) =>
+        prismRequest<PrismEventRiskView>(
+          actorPath(`/events/${eventId}/risk-assessment`, actor),
+          withBase(options, { method: "POST", body: input }),
         ),
       fileRequirements: (eventId, actor = {}) =>
         prismRequest<PrismFileRequirementsMatrix>(
