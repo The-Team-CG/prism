@@ -13,6 +13,7 @@ import { AuditCategory, CoordinatorAssignmentStatus, OpsUserRole } from '@prism/
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { PRISM_PMCM_COMMAND_INBOX_MAX_PAGE } from '@prism/types';
 import { findFloorPlanDraftsByEvent, withFloorPlanDrafts } from '@prism/contexts/floorplan/event-drafts';
+import { CLIENT_CHANGE_REQUEST_SELECT } from '@prism/contexts/event-lifecycle';
 
 type SupplierEventReference = Pick<OpsEvent, 'id' | 'eventName' | 'eventDate' | 'clientName'>;
 
@@ -679,7 +680,7 @@ export class EventReadModelQueries {
     ] as const;
   }
   // Every action source is fetched in bounded keyset pages for the visible event set.
-  async clientActionCenterForEvents(eventIds: string[]) {
+  async clientActionCenterForEvents(eventIds: string[], changeDecisionsSince = new Date(0)) {
     const [
       briefings,
       documents,
@@ -688,6 +689,8 @@ export class EventReadModelQueries {
       paymentMilestones,
       paymentRecords,
       postEventDocuments,
+      closeoutResponses,
+      changeRequests,
     ] = await Promise.all([
       readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>
         this.prisma.opsBriefing.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
@@ -717,6 +720,22 @@ export class EventReadModelQueries {
         this.prisma.opsPostEventDocument.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
           orderBy: { id: 'asc' }, take: MAX_CLIENT_ACTION_CENTER_ROWS }),
       ),
+      // Feedback presence only: the response content is not part of the action center.
+      readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>
+        this.prisma.opsClientCloseoutResponse.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+          select: { id: true, eventId: true }, orderBy: { id: 'asc' }, take: MAX_CLIENT_ACTION_CENTER_ROWS }),
+      ),
+      // Client-safe change request columns only; PMCM reasons and decision notes are never selected.
+      readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>
+        this.prisma.opsEventFreezeException.findMany({
+          where: {
+            eventId: { in: eventIds },
+            OR: [{ status: 'pending' }, { decidedAt: { gte: changeDecisionsSince } }],
+            ...(afterId ? { id: { gt: afterId } } : {}),
+          },
+          select: { ...CLIENT_CHANGE_REQUEST_SELECT, eventId: true },
+          orderBy: { id: 'asc' }, take: MAX_CLIENT_ACTION_CENTER_ROWS }),
+      ),
     ]);
     return [
       sortByDate(briefings, (row) => row.submittedAt, 'desc'),
@@ -728,6 +747,8 @@ export class EventReadModelQueries {
       postEventDocuments.sort(
         (left, right) => left.title.localeCompare(right.title) || left.id.localeCompare(right.id),
       ),
+      closeoutResponses,
+      sortByDate(changeRequests, (row) => row.requestedAt, 'desc'),
     ] as const;
   }
   // Supplier and event eligibility is applied before each bounded keyset page.
@@ -824,10 +845,20 @@ export class EventReadModelQueries {
   }
 
   // Each actionable source has its own deterministic page so combined queue rows are never silently dropped.
-  async pmcmCommandInbox(page: number, pageSize = MAX_PMCM_COMMAND_INBOX_PAGE_SIZE) {
+  async pmcmCommandInbox(page: number, pageSize = MAX_PMCM_COMMAND_INBOX_PAGE_SIZE, now = new Date()) {
     const skip = page * pageSize;
     const take = pageSize + 1;
-    const [inquiries, events, paymentMilestones, quoteRequests, coordinatorAssignments, floorPlanDrafts, postEventDocuments] = await Promise.all([
+    const [
+      inquiries,
+      events,
+      paymentMilestones,
+      quoteRequests,
+      coordinatorAssignments,
+      floorPlanDrafts,
+      postEventDocuments,
+      eventDayTasks,
+      urgentIssues,
+    ] = await Promise.all([
       this.prisma.opsInquiry.findMany({
         where: { OR: [{ status: 'new' }, { status: 'accepted', conformeSignedAt: null }] },
         select: { id: true, status: true, clientName: true, eventName: true, createdAt: true, acceptedAt: true, conformeSignedAt: true, portalInvitationExpiresAt: true },
@@ -877,8 +908,33 @@ export class EventReadModelQueries {
         // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
         skip, take,
       }),
+      // Event-day work is actionable when it is blocked or past its SLA (falling back to the due time).
+      this.prisma.opsEventDayTask.findMany({
+        where: {
+          status: { notIn: ['done', 'cancelled'] },
+          completedAt: null,
+          OR: [
+            { status: 'blocked' },
+            { slaStatus: 'overdue' },
+            { slaDueAt: { lt: now } },
+            { slaDueAt: null, dueAt: { lt: now } },
+          ],
+        },
+        select: { id: true, eventId: true, title: true, status: true, assignedRole: true, ownerName: true, dueAt: true, slaDueAt: true, slaStatus: true },
+        orderBy: [{ slaDueAt: 'asc' }, { id: 'asc' }],
+        // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
+        skip, take,
+      }),
+      this.prisma.opsUrgentIssue.findMany({
+        where: { status: { in: ['open', 'assigned'] }, resolvedAt: null },
+        select: { id: true, eventId: true, title: true, severity: true, status: true, slaDueAt: true, slaStatus: true, createdAt: true },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
+        skip, take,
+      }),
     ]);
     const items = <T>(rows: T[]) => rows.slice(0, pageSize);
+    const sources = [inquiries, events, paymentMilestones, quoteRequests, coordinatorAssignments, floorPlanDrafts, postEventDocuments, eventDayTasks, urgentIssues];
 
     return {
       inquiries: items(inquiries),
@@ -888,8 +944,9 @@ export class EventReadModelQueries {
       coordinatorAssignments: items(coordinatorAssignments),
       floorPlanDrafts: items(floorPlanDrafts),
       postEventDocuments: items(postEventDocuments),
-      hasMore: page < PRISM_PMCM_COMMAND_INBOX_MAX_PAGE && [inquiries, events, paymentMilestones, quoteRequests, coordinatorAssignments, floorPlanDrafts, postEventDocuments]
-        .some((rows) => rows.length > pageSize),
+      eventDayTasks: items(eventDayTasks),
+      urgentIssues: items(urgentIssues),
+      hasMore: page < PRISM_PMCM_COMMAND_INBOX_MAX_PAGE && sources.some((rows) => rows.length > pageSize),
     };
   }
 
