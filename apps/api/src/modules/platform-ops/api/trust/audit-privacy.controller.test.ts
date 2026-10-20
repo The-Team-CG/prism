@@ -1,6 +1,8 @@
 import 'reflect-metadata';
 import { ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
+import { EventSessionGuard } from '@prism/kernel/event-session';
+import { listPrivacyRequestsQuerySchema } from '@prism/types';
 import { OpsAuditController, OpsPrivacyController } from './audit-privacy.controller';
 
 function controllerPath(controller: Function): string {
@@ -8,7 +10,8 @@ function controllerPath(controller: Function): string {
 }
 
 describe('trust-ops audit/privacy controllers', () => {
-  const verified = (role: 'pmcm-admin' | 'system' | 'client' = 'pmcm-admin', name = 'PMCM Admin') => ({ id: 'u1', actorId: 'u1', role, actorRole: role, email: 'user@example.test', actorEmail: 'user@example.test', name, actorName: name, expiresAt: '2099-01-01T00:00:00.000Z' });
+  const queue = (input: Record<string, string> = {}) => listPrivacyRequestsQuerySchema.parse(input);
+  const verified = (role: 'pmcm-admin' | 'system' | 'client' | 'coordinator' | 'supplier' | 'guest' = 'pmcm-admin', name = 'PMCM Admin') => ({ id: 'u1', actorId: 'u1', role, actorRole: role, email: 'user@example.test', actorEmail: 'user@example.test', name, actorName: name, expiresAt: '2099-01-01T00:00:00.000Z' });
   it('keeps public audit and privacy route bases stable under trust ownership', () => {
     expect(controllerPath(OpsAuditController)).toBe('audit');
     expect(controllerPath(OpsPrivacyController)).toBe('privacy');
@@ -40,7 +43,7 @@ describe('trust-ops audit/privacy controllers', () => {
   it('serves privacy routes through PrivacyOperationsService with PMCM/system guard', async () => {
     const privacyOperationsService = {
       getInventory: vi.fn(async () => ({ events: [] })),
-      listRequests: vi.fn(async () => [{ id: 'priv_1' }]),
+      listRetentionPolicies: vi.fn(() => [{ surface: 'audit' }]),
       createRequest: vi.fn(async () => ({ id: 'priv_2' })),
       reviewRequest: vi.fn(async () => ({ id: 'priv_2', status: 'approved' })),
       executeRequest: vi.fn(async () => ({ id: 'priv_2', status: 'executed' })),
@@ -48,12 +51,24 @@ describe('trust-ops audit/privacy controllers', () => {
       createLegalHold: vi.fn(async () => ({ id: 'hold_1', subjectType: 'client' })),
       releaseLegalHold: vi.fn(async () => ({ id: 'hold_1', releasedAt: '2026-10-05T00:00:00.000Z' })),
     };
+    const privacyRequestQueueService = {
+      listRequests: vi.fn(async () => ({ items: [{ id: 'priv_1' }], page: 0, limit: 25, total: 1, hasMore: false })),
+      assignRequest: vi.fn(async () => ({ id: 'priv_1', assignedTo: 'u1' })),
+    };
     const auditService = { audit: vi.fn(async () => ({ id: 'aud_forbidden' })) };
     const securityOperationsService = { recordIntegrityIncident: vi.fn(async () => undefined) };
-    const controller = new OpsPrivacyController(privacyOperationsService as any, auditService as any, securityOperationsService as any);
+    const controller = new OpsPrivacyController(privacyOperationsService as any, privacyRequestQueueService as any, auditService as any, securityOperationsService as any);
 
     await expect(controller.inventory({ eventId: 'evt_sample' }, verified())).resolves.toEqual({ events: [] });
-    await expect(controller.requests({ status: 'submitted' }, verified())).resolves.toEqual([{ id: 'priv_1' }]);
+    await expect(controller.retentionPolicies(verified())).resolves.toEqual([{ surface: 'audit' }]);
+    const queueQuery = queue({ status: 'open', overdue: 'true' });
+    await expect(controller.requests(queueQuery, verified())).resolves.toMatchObject({ items: [{ id: 'priv_1' }], total: 1 });
+    expect(privacyRequestQueueService.listRequests).toHaveBeenCalledWith(queueQuery);
+    await expect(controller.assignRequest('priv_1', { assignedTo: 'u1' }, verified())).resolves.toEqual({ id: 'priv_1', assignedTo: 'u1' });
+    expect(privacyRequestQueueService.assignRequest).toHaveBeenCalledWith(
+      'priv_1', { assignedTo: 'u1' }, expect.objectContaining({ id: 'u1', role: 'pmcm-admin', verified: true }),
+    );
+    await expect(controller.assignRequest('priv_1', { assignedTo: null }, verified('system'))).rejects.toBeInstanceOf(ForbiddenException);
     await expect(
       controller.createRequest(
         { subjectType: 'guest', subjectName: 'Ana', requestType: 'access', eventId: 'evt_sample' },
@@ -136,4 +151,45 @@ describe('trust-ops audit/privacy controllers', () => {
     );
     expect(auditReadService.listAuditLogs).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['requests', OpsPrivacyController.prototype.requests],
+    ['assignRequest', OpsPrivacyController.prototype.assignRequest],
+    ['reviewRequest', OpsPrivacyController.prototype.reviewRequest],
+    ['executeRequest', OpsPrivacyController.prototype.executeRequest],
+  ])('refuses an unverified session before the privacy console handler %s runs', (_name, handler) => {
+    expect(Reflect.getMetadata('__guards__', handler)).toContain(EventSessionGuard);
+  });
+
+  it.each(['coordinator', 'client', 'supplier', 'guest'] as const)(
+    'returns 403 and records forbidden access when a %s reaches the privacy console queue, assignment, review, or execution',
+    async (role) => {
+      const privacyOperationsService = { reviewRequest: vi.fn(), executeRequest: vi.fn() };
+      const privacyRequestQueueService = { listRequests: vi.fn(), assignRequest: vi.fn() };
+      const auditService = { audit: vi.fn(async () => ({ id: 'aud_forbidden' })) };
+      const controller = new OpsPrivacyController(
+        privacyOperationsService as any, privacyRequestQueueService as any, auditService as any, { recordIntegrityIncident: vi.fn() } as any,
+      );
+      const actor = verified(role, 'Outsider');
+
+      await expect(controller.requests(queue({ eventId: 'evt_sample' }), actor)).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(controller.assignRequest('priv_1', { assignedTo: 'u1' }, actor)).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(controller.reviewRequest('priv_1', { status: 'approved' }, actor)).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(controller.executeRequest('priv_1', { correction: { name: 'Ana' } }, actor)).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(privacyRequestQueueService.listRequests).not.toHaveBeenCalled();
+      expect(privacyRequestQueueService.assignRequest).not.toHaveBeenCalled();
+      expect(privacyOperationsService.reviewRequest).not.toHaveBeenCalled();
+      expect(privacyOperationsService.executeRequest).not.toHaveBeenCalled();
+      expect(auditService.audit).toHaveBeenCalledTimes(4);
+      expect(auditService.audit).toHaveBeenCalledWith(
+        'evt_sample', 'Outsider', '403 forbidden access: privacy requests',
+        expect.objectContaining({ actorRole: role, actionType: 'forbidden_access' }),
+      );
+      expect(auditService.audit).toHaveBeenCalledWith(
+        undefined, 'Outsider', '403 forbidden access: privacy request assignment',
+        expect.objectContaining({ actorRole: role, actionType: 'forbidden_access' }),
+      );
+    },
+  );
 });

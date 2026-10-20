@@ -102,8 +102,23 @@ export interface PrismPrivacyRequest {
   reviewedAt?: string | null;
   executedBy?: string | null;
   executedAt?: string | null;
+  /** SLA deadline, set when the request is logged. */
+  dueAt: string;
+  /** True only while the request is still open (submitted or approved) and past `dueAt`. */
+  overdue: boolean;
+  /** PMCM operator user id that owns the request, or null when unassigned. */
+  assignedTo: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** One page of the PMCM privacy request queue. */
+export interface PrismPrivacyRequestPage {
+  items: PrismPrivacyRequest[];
+  page: number;
+  limit: number;
+  total: number;
+  hasMore: boolean;
 }
 
 /** One owner's subject-scoped records in an access/export bundle. Records never include credentials or PMCM-internal notes. */

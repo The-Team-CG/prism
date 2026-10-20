@@ -33,6 +33,7 @@ import { FinancialWorkspace } from "@/features/finance/workspace";
 import { SupplierDirectory } from "@/features/suppliers/directory";
 import { SupplierApplicationsInboxView } from "@/features/suppliers/applications";
 import { AuditTrailPanel } from "@/features/audit/trail";
+import { PrivacyConsoleView } from "@/features/privacy/console";
 import { EventMessagesWorkspace } from "@/features/event-dashboard/messages/views/event-messages-workspace";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
 
@@ -495,6 +496,10 @@ export function EventDashboardAuditSectionView() {
 
           <AuditTrailPanel />
   );
+}
+
+export function EventDashboardPrivacySectionView() {
+  return <PrivacyConsoleView />;
 }
 
 export function EventDashboardInquiriesSectionView() {
