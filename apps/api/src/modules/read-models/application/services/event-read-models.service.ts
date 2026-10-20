@@ -63,6 +63,7 @@ import {
   overallDefenseStatus,
 } from './event-read-models.defense';
 import {
+  CLIENT_CHANGE_DECISION_REVIEW_DAYS,
   collectClientActionItems,
   collectPmcmCommandInboxItems,
   countByPriority,
@@ -521,6 +522,10 @@ export class EventReadModelsService {
     const paymentMilestones: ClientActionSources[4] = [];
     const paymentRecords: ClientActionSources[5] = [];
     const postEventDocuments: ClientActionSources[6] = [];
+    const closeoutResponses: ClientActionSources[7] = [];
+    const changeRequests: ClientActionSources[8] = [];
+    const now = new Date();
+    const changeDecisionsSince = new Date(now.getTime() - CLIENT_CHANGE_DECISION_REVIEW_DAYS * 24 * 60 * 60 * 1000);
     for (let offset = 0; offset < visibleEvents.length; offset += 100) {
       const eventBatch = visibleEvents.slice(offset, offset + 100);
       const [
@@ -531,8 +536,10 @@ export class EventReadModelsService {
         batchPaymentMilestones,
         batchPaymentRecords,
         batchPostEventDocuments,
+        batchCloseoutResponses,
+        batchChangeRequests,
       ] =
-      await this.queries.clientActionCenterForEvents(eventBatch.map((event) => event.id));
+      await this.queries.clientActionCenterForEvents(eventBatch.map((event) => event.id), changeDecisionsSince);
       briefings.push(...batchBriefings);
       documents.push(...batchDocuments);
       floorPlanDrafts.push(...batchFloorPlanDrafts);
@@ -540,6 +547,8 @@ export class EventReadModelsService {
       paymentMilestones.push(...batchPaymentMilestones);
       paymentRecords.push(...batchPaymentRecords);
       postEventDocuments.push(...batchPostEventDocuments);
+      closeoutResponses.push(...batchCloseoutResponses);
+      changeRequests.push(...batchChangeRequests);
     }
     const items = collectClientActionItems({
       visibleEvents,
@@ -550,6 +559,9 @@ export class EventReadModelsService {
       paymentMilestones,
       paymentRecords,
       postEventDocuments,
+      closeoutResponses,
+      changeRequests,
+      now,
     });
 
     return {
@@ -641,6 +653,8 @@ export class EventReadModelsService {
       ...pageData.coordinatorAssignments.map((row) => row.eventId),
       ...pageData.floorPlanDrafts.map((row) => row.eventId),
       ...pageData.postEventDocuments.map((row) => row.eventId),
+      ...pageData.eventDayTasks.map((row) => row.eventId),
+      ...pageData.urgentIssues.map((row) => row.eventId),
     ])];
     const [events, summary] = await Promise.all([
       this.queries.pmcmCommandInboxEventRefs(eventIds),
@@ -654,6 +668,8 @@ export class EventReadModelsService {
       coordinatorAssignments: pageData.coordinatorAssignments,
       floorPlanDrafts: pageData.floorPlanDrafts,
       postEventDocuments: pageData.postEventDocuments,
+      eventDayTasks: pageData.eventDayTasks,
+      urgentIssues: pageData.urgentIssues,
     });
 
     return {

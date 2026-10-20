@@ -33,4 +33,19 @@ describe("client dashboard action rules", () => {
     expect(toIds(items)).toEqual(toIds([...items].reverse()));
     expect(toIds(items)).toEqual(["a", "z"]);
   });
+
+  it("routes feedback and change request items to their server-provided pages and groups them by who must act", () => {
+    const items: PrismClientActionItem[] = [
+      { id: "change-request:fx_1", eventId: "evt_1", eventName: "Summit", kind: "change_request", priority: "info", label: "Change request under review", description: "", status: "under_review", href: "/dashboard/events/evt_1/changes" },
+      { id: "feedback:evt_1", eventId: "evt_1", eventName: "Summit", kind: "feedback", priority: "attention", label: "Share event feedback", description: "", status: "awaiting_feedback", href: "/dashboard/events/evt_1/summary" },
+    ];
+
+    const actions = selectClientDashboardActions({ items }, "evt_1");
+
+    expect(actions.map((action) => [action.id, action.href, action.tone])).toEqual([
+      ["feedback:evt_1", "/dashboard/events/evt_1/summary", "primary"],
+      ["change-request:fx_1", "/dashboard/events/evt_1/changes", "neutral"],
+    ]);
+    expect(selectClientDashboardActions({ items }, "evt_2")).toEqual([]);
+  });
 });
