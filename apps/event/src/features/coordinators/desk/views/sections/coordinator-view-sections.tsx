@@ -400,7 +400,7 @@ export function CoordinatorTimelineCard({ roleView }: { roleView: PrismCoordinat
         </div>
       </CCardHeader>
       <CCardBody id="coordinator-timeline" className="scroll-mt-24 space-y-3">
-        {roleView?.schedule ? <LiveOpsControlSurface schedule={roleView.schedule} timer={roleView.timer} /> : (
+        {roleView?.schedule ? <LiveOpsControlSurface eventId={roleView.event.id} schedule={roleView.schedule} timer={roleView.timer} /> : (
           <p className="rounded-xl bg-muted/40 p-4 text-sm text-muted-foreground">No event schedule has been published yet. Check with PMCM for the latest timing.</p>
         )}
         {roleView ? <HandoffBriefPanel eventId={roleView.event.id} /> : null}

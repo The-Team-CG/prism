@@ -472,20 +472,79 @@ export interface PrismEventSchedule {
   serverTime: string;
 }
 
+/** Kinds of time-ordered run sheet entries (FL-026). */
+export type PrismRunSheetEntryKind =
+  | "segment"
+  | "ingress"
+  | "egress"
+  | "task_due"
+  | "issue";
+
+/** Run sheet audience: PMCM/system see the full event; coordinators see their projected subset. */
+export type PrismRunSheetScope = "pmcm" | "coordinator";
+
+/**
+ * One time-ordered run sheet line, built server-side from schedule segments,
+ * supplier ingress/egress windows, open task due times and open issue creation
+ * times. Entries never carry private supplier, finance or audit notes.
+ */
+export interface PrismRunSheetEntry {
+  /** Stable key: `${kind}:${referenceId}`. */
+  id: string;
+  kind: PrismRunSheetEntryKind;
+  at: string;
+  endAt: string | null;
+  title: string;
+  status: string;
+  /** Responsible role, person, or supplier label shown on the sheet. */
+  ownerLabel: string;
+  location: string;
+  /** Id of the underlying segment, supplier schedule, task, or issue. */
+  referenceId: string;
+  /** Issue severity or task priority when relevant. */
+  severity: string | null;
+  /** True for still-open tasks/issues whose time is before the selected day. */
+  carriedOver: boolean;
+}
+
+export interface PrismRunSheetDayOption {
+  id: string;
+  dayDate: string;
+  label: string;
+}
+
 export interface PrismEventRunSheet {
   eventId: string;
+  scope: PrismRunSheetScope;
+  generatedAt: string;
   day: PrismEventScheduleDay;
+  days: PrismRunSheetDayOption[];
+  /** False when the actor's role does not receive supplier readiness or ingress/egress windows. */
+  supplierWindowsVisible: boolean;
+  /** Sorted by `at`, then kind (segment, ingress, egress, task_due, issue), then reference id. */
+  entries: PrismRunSheetEntry[];
   coordinators: PrismCoordinatorAssignment[];
   supplierCommitments: Array<{
     id: string;
     supplierName: string;
     category: string;
     status: string;
+    /** Empty outside PMCM scope; supplier event-day notes stay PMCM-only on the run sheet. */
     notes: string;
   }>;
   openTasks: PrismEventDayTask[];
   openIssues: PrismUrgentIssue[];
 }
+
+export interface PrismEventRunSheetUnavailable {
+  eventId: string;
+  authored: false;
+  reason: "no_schedule";
+}
+
+export type PrismEventRunSheetResult =
+  | PrismEventRunSheet
+  | PrismEventRunSheetUnavailable;
 
 export interface PrismEventHandoff {
   id: string;
