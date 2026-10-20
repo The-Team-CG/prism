@@ -15,13 +15,20 @@ import { AuditService } from './audit.service';
 import { mapPrivacyRequest, OPEN_PRIVACY_REQUEST_STATUSES, type OpsPrivacyRequestRecord } from './privacy-request.mapper';
 import { requireVerifiedTrustActor } from './verified-trust-actor';
 
+/** `open` means any non-terminal status; `all` applies no status filter. */
+function statusFilter(status: ListPrivacyRequestsQuery['status']): Prisma.OpsPrivacyRequestWhereInput | null {
+  if (status === 'all') return null;
+  if (status === 'open') return { status: { in: [...OPEN_PRIVACY_REQUEST_STATUSES] } };
+  return { status };
+}
+
 /** Builds the Prisma filter for the queue; `overdue` and `open` are evaluated against one `now`. */
 export function privacyRequestQueueWhere(query: ListPrivacyRequestsQuery, now: Date): Prisma.OpsPrivacyRequestWhereInput {
   const open = { in: [...OPEN_PRIVACY_REQUEST_STATUSES] };
   const and: Prisma.OpsPrivacyRequestWhereInput[] = [];
   if (query.eventId) and.push({ eventId: query.eventId });
-  if (query.status === 'open') and.push({ status: open });
-  else if (query.status !== 'all') and.push({ status: query.status });
+  const status = statusFilter(query.status);
+  if (status) and.push(status);
   if (query.requestType !== 'all') and.push({ requestType: query.requestType });
   if (query.subjectType !== 'all') and.push({ subjectType: query.subjectType });
   if (query.assignedTo) {

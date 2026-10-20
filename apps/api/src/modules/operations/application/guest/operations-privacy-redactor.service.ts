@@ -77,9 +77,7 @@ export class OperationsPrivacyRedactorService implements OperationsPrivacyRedact
     if (!input.eventId || !currentName) throw new BadRequestException('Guest correction requires a name and event scope');
     const correctedName = input.patch.name?.trim();
     const guestWhere = { eventId: input.eventId, guestName: { equals: currentName, mode: 'insensitive' as const } };
-    if (correctedName && correctedName.toLowerCase() !== currentName.toLowerCase()) {
-      await this.assertGuestNameFree(transaction, input.eventId, correctedName);
-    }
+    await this.assertCorrectedNameFree(transaction, input.eventId, currentName, correctedName);
 
     const roster = await transaction.opsGuestRosterEntry.updateMany({
       where: guestWhere,
@@ -102,6 +100,17 @@ export class OperationsPrivacyRedactorService implements OperationsPrivacyRedact
       ],
       touchedRecords: roster.count + checkIns.count + feedback.count,
     };
+  }
+
+  /** Only a genuinely different corrected name needs to be free of another guest's identity in the event. */
+  private async assertCorrectedNameFree(
+    transaction: Prisma.TransactionClient,
+    eventId: string,
+    currentName: string,
+    correctedName: string | undefined,
+  ) {
+    if (!correctedName || correctedName.toLowerCase() === currentName.toLowerCase()) return;
+    await this.assertGuestNameFree(transaction, eventId, correctedName);
   }
 
   /** A corrected name must not merge the subject into another guest's identity in the same event. */
