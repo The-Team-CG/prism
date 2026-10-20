@@ -67,15 +67,7 @@ function ScopeChangeItem({
   return (
     <li className="space-y-2 p-3 text-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="font-semibold text-foreground">{request.title}</p>
-          <p className="text-muted-foreground">{scopeChangeCategoryLabels[request.category]} · {request.requestedByRole === "client" ? "Raised by client" : "Logged by PMCM"} · {new Date(request.submittedAt).toLocaleDateString()}</p>
-          <p className="mt-1 text-foreground">{request.description}</p>
-          {request.decisionReason ? <p className="text-muted-foreground">Internal reason: {request.decisionReason}</p> : null}
-          {request.clientResponse ? <p className="text-muted-foreground">Client response: {request.clientResponse}</p> : null}
-          {impacts.length > 0 ? <p className="text-muted-foreground">Impact: {impacts.join(", ")}</p> : null}
-          {request.freezeExceptionId ? <p className="text-muted-foreground">Freeze exception used for this approval</p> : null}
-        </div>
+        <ScopeChangeDetails request={request} impacts={impacts} />
         <span className="text-xs font-semibold text-muted-foreground">{scopeChangeStatusLabel(request.status)}</span>
       </div>
       {open && mode === "idle" ? (
@@ -105,6 +97,20 @@ function ScopeChangeItem({
         />
       ) : null}
     </li>
+  );
+}
+
+function ScopeChangeDetails({ request, impacts }: { request: PrismScopeChangeRequest; impacts: ReturnType<typeof impactLabels> }) {
+  return (
+    <div>
+      <p className="font-semibold text-foreground">{request.title}</p>
+      <p className="text-muted-foreground">{scopeChangeCategoryLabels[request.category]} · {request.requestedByRole === "client" ? "Raised by client" : "Logged by PMCM"} · {new Date(request.submittedAt).toLocaleDateString()}</p>
+      <p className="mt-1 text-foreground">{request.description}</p>
+      {request.decisionReason ? <p className="text-muted-foreground">Internal reason: {request.decisionReason}</p> : null}
+      {request.clientResponse ? <p className="text-muted-foreground">Client response: {request.clientResponse}</p> : null}
+      {impacts.length > 0 ? <p className="text-muted-foreground">Impact: {impacts.join(", ")}</p> : null}
+      {request.freezeExceptionId ? <p className="text-muted-foreground">Freeze exception used for this approval</p> : null}
+    </div>
   );
 }
 
