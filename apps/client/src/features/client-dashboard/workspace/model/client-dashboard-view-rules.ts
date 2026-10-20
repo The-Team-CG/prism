@@ -12,7 +12,8 @@ import type { CanvasObject as VenueObject, Project } from "@/features/floorplan/
 import type { DetailTab } from "./client-dashboard-types";
 
 export function draftIsOfficial(draft: PrismFloorPlanDraft) {
-  return draft.status === "in_review" || draft.status === "approved" || draft.status === "revision_requested";
+  return draft.sourceType !== "client_preference" &&
+    (draft.status === "in_review" || draft.status === "approved" || draft.status === "revision_requested");
 }
 
 export function objectBox(object: VenueObject, project: Project) {

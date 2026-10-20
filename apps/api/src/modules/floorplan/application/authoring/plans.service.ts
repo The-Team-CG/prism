@@ -263,7 +263,12 @@ export class PlansService {
   ) {
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Client], 'floorplan', eventId);
     const draft = plan.opsDraft;
-    if (!draft || !eventId || draft.sourceType !== 'client_preference' || draft.status !== 'client_submitted') {
+    if (
+      !draft ||
+      !eventId ||
+      draft.sourceType !== 'client_preference' ||
+      !['client_submitted', 'revision_requested'].includes(draft.status)
+    ) {
       await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'official floorplan', eventId);
       throw new ForbiddenException('Official floorplans are available through the event-scoped snapshot');
     }

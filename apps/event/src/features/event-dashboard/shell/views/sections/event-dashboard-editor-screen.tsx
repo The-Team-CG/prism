@@ -37,7 +37,7 @@ export function EventDashboardEditorScreen({
         eventName={screen.event.eventName}
         draftName={screen.draft.name}
         draftStatus={screen.draft.status}
-        readOnly={!isPmcmAdmin(session.role)}
+        readOnly={screen.readOnly || !isPmcmAdmin(session.role)}
         onSave={saveEditorPlan}
         onSubmit={submitEditorPlan}
         onBack={closeEditor}
