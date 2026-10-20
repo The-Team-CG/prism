@@ -641,16 +641,16 @@ function liveOpsTaskInboxItem(
   if (!event || CLOSED_LIVE_OPS_STATUSES.includes(task.status)) return null;
   const dueAt = task.slaDueAt ?? task.dueAt;
   const overdue = task.slaStatus === 'overdue' || isPast(dueAt);
-  const blocked = task.status === 'blocked';
-  if (!overdue && !blocked) return null;
+  if (!overdue && task.status !== 'blocked') return null;
+  const state = overdue ? OVERDUE_LIVE_OPS_TASK_STATE : BLOCKED_LIVE_OPS_TASK_STATE;
   const owner = task.ownerName ? `${task.assignedRole} (${task.ownerName})` : task.assignedRole;
   return {
     id: `live-ops:task:${task.id}`,
     kind: 'live_ops',
-    severity: overdue ? 'critical' : 'warning',
-    label: overdue ? 'Event-day task overdue' : 'Event-day task blocked',
-    description: `${task.title} for ${event.eventName} is ${overdue ? 'overdue' : 'blocked'}. Owner: ${owner}.`,
-    status: overdue ? 'overdue' : 'blocked',
+    severity: state.severity,
+    label: state.label,
+    description: `${task.title} for ${event.eventName} is ${state.status}. Owner: ${owner}.`,
+    status: state.status,
     eventId: event.id,
     eventName: event.eventName,
     clientName: event.clientName,
@@ -658,6 +658,9 @@ function liveOpsTaskInboxItem(
     href: `/dashboard/events/${event.id}/live-ops`,
   };
 }
+
+const OVERDUE_LIVE_OPS_TASK_STATE = { severity: 'critical', label: 'Event-day task overdue', status: 'overdue' } as const;
+const BLOCKED_LIVE_OPS_TASK_STATE = { severity: 'warning', label: 'Event-day task blocked', status: 'blocked' } as const;
 
 function collectLiveOpsIssueInboxItems(issues: PmcmInboxUrgentIssue[], eventsById: Map<string, EventRef>) {
   const items: PrismCommandInboxItem[] = [];
