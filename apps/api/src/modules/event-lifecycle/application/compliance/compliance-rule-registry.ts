@@ -42,8 +42,6 @@ export type ComplianceRuleDefinition = {
   evaluate: (context: ComplianceEvaluationContext, now: Date) => ComplianceEvaluation;
 };
 
-const applicable = (phases: string[], phase: string) => phases.includes(phase);
-
 function satisfied(evidence: string[]): ComplianceEvaluation { return { status: 'satisfied', evidence }; }
 function failed(evidence: string[]): ComplianceEvaluation { return { status: 'not_satisfied', evidence }; }
 function notApplicable(evidence: string[]): ComplianceEvaluation { return { status: 'not_applicable', evidence }; }
@@ -161,14 +159,6 @@ export const COMPLIANCE_RULE_REGISTRY: readonly ComplianceRuleDefinition[] = [
       : failed([`Persisted event date ${context.event.eventDate.toISOString()} is before evaluation time ${now.toISOString()}.`]),
   },
 ];
-
-export function rulesForPhase(phase: string) {
-  return COMPLIANCE_RULE_REGISTRY.filter((rule) => applicable(rule.phases, phase));
-}
-
-export function evaluateComplianceRule(rule: ComplianceRuleDefinition, context: ComplianceEvaluationContext, now: Date) {
-  return rule.evaluate(context, now);
-}
 
 export function evaluateComplianceRuleForPhase(rule: ComplianceRuleDefinition, phase: string, context: ComplianceEvaluationContext, now: Date) {
   return rule.phases.includes(phase) ? rule.evaluate({ ...context, phase }, now) : notApplicable([`Rule is not applicable to lifecycle phase ${phase}.`]);
