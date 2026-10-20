@@ -57,9 +57,10 @@ describe('ChangeManagementService Commercial ownership', () => {
       opsAddendumImpact: { createMany: vi.fn(async ({ data }: { data: Record<string, unknown>[] }) => ({ count: data.length })) },
       $transaction: async (callback: (transaction: unknown) => Promise<unknown>) => callback(prisma),
     };
-    const commercialWriter: CommercialAddendumImpactWriter = { apply: vi.fn(async () => impacts) };
+    const commercialWriter: CommercialAddendumImpactWriter = { apply: vi.fn(async () => impacts), recordConformeExecution: vi.fn(async () => null) };
     const access = { requireActorRole: async () => undefined, requireCanReadEvent: async () => undefined };
-    const audit = { write: async () => undefined };
+    const auditWrite = vi.fn(async () => undefined);
+    const audit = { write: auditWrite };
     const service = new ChangeManagementService(
       prisma as unknown as PrismaService,
       access as unknown as EventAccessPolicyService,
@@ -80,6 +81,7 @@ describe('ChangeManagementService Commercial ownership', () => {
     expect(result).toMatchObject({ eventId: 'evt_addendum', versionNumber: 1, financialDelta: 10 });
     expect(commercialWriter.apply).toHaveBeenCalledWith({
       eventId: 'evt_addendum',
+      addendumId: result.id,
       versionNumber: 1,
       financialDelta: 10,
       quotePriceChanges: [{ quoteId: 'quote_1', amount: 25 }],
@@ -91,6 +93,12 @@ describe('ChangeManagementService Commercial ownership', () => {
         expect.objectContaining({ targetType: 'supplier_quote', targetId: 'quote_1', deltaAmount: 5 }),
       ]),
     });
+    // The issuance audit entry is readable through client workspaces, so it records supplier quote counts, never quote lines or amounts.
+    expect(auditWrite).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'Issued immutable addendum', metadata: expect.objectContaining({ comparison: { contract: [], quoteChangeCount: 1 } }) }),
+      expect.anything(),
+    );
+    expect(JSON.stringify(auditWrite.mock.calls)).not.toContain('quote_1');
   });
 });
 
@@ -211,5 +219,44 @@ describe('ChangeManagementService client change requests', () => {
 
     await expect(service.listClientChangeRequests('evt_1', { ...client, id: 'other_client' })).rejects.toBeInstanceOf(ForbiddenException);
     expect(findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('ChangeManagementService addendum comparison visibility', () => {
+  const comparison = {
+    contract: [{ key: 'stage', before: null, after: { id: 'stage', label: 'Stage rig' } }],
+    quotes: [{ key: 'quote_1', before: { id: 'quote_1', amount: 20_000 }, after: { id: 'quote_1', amount: 25_000 } }],
+  };
+  const addendumRow = {
+    id: 'addendum_1', eventId: 'evt_1', versionNumber: 2, title: 'Add stage lighting', summary: 'Extra rig', status: 'issued',
+    documentId: 'doc_1', documentState: 'pending', signatureMethod: 'scanned_document', comparison, financialDelta: 15_000,
+    issuedAt: new Date('2026-10-19T09:00:00.000Z'), conformeExecution: null,
+  };
+  const clientActor = { id: 'client_primary', role: OpsUserRole.Client, email: 'client@example.test', name: 'Client', explicit: true, verified: true } satisfies ResolvedEventOpsActor;
+  const pmcmActor = { id: 'user_pmcm', role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true } satisfies ResolvedEventOpsActor;
+
+  function listingService() {
+    const prisma = {
+      opsEvent: { findUniqueOrThrow: async () => ({ id: 'evt_1', clientPortalStatus: 'unlocked', archived: false, inquiry: { email: 'client@example.test' } }) },
+      opsAddendum: { findMany: vi.fn(async () => [addendumRow]) },
+    };
+    const audit = { write: async () => undefined } as unknown as AuditWriter;
+    return new ChangeManagementService(
+      prisma as unknown as PrismaService,
+      new EventAccessPolicyService(audit),
+      audit,
+      { apply: vi.fn(async () => []) } as unknown as CommercialAddendumImpactWriter,
+    );
+  }
+
+  it('shows contract-level changes to the client and keeps supplier quote lines for PMCM only', async () => {
+    const service = listingService();
+
+    const forClient = await service.listAddenda('evt_1', clientActor);
+    const forPmcm = await service.listAddenda('evt_1', pmcmActor);
+
+    expect(forClient[0]).toMatchObject({ versionNumber: 2, financialDelta: 15_000, comparison: { contract: comparison.contract, quotes: [] } });
+    expect(JSON.stringify(forClient)).not.toContain('quote_1');
+    expect(forPmcm[0]!.comparison).toEqual(comparison);
   });
 });

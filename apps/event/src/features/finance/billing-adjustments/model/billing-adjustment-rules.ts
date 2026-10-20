@@ -1,4 +1,4 @@
-import type { PrismBillingSource, PrismBillingStatement } from "@prism/types";
+import type { PrismBillingCorrection, PrismBillingSource, PrismBillingStatement } from "@prism/types";
 
 /** Client-side guard shown before submit. The shared Zod schemas remain the authority on the request body. */
 export function blankReasonError(reason: string, fieldLabel: string): string | null {
@@ -15,6 +15,18 @@ export function paymentWithinBalanceError(amount: number, remainingBalance: numb
   if (!Number.isInteger(amount) || amount <= 0) return "Payment amount must be a whole number greater than zero.";
   if (amount > remainingBalance) return "Payment amount cannot exceed the remaining milestone balance.";
   return null;
+}
+
+/**
+ * Whether the signed-in PMCM user requested this correction. Matches the verified actor id; legacy corrections
+ * without a requester id match on the stored requester name. The API enforces the same rule on approval.
+ */
+export function isOwnBillingCorrectionRequest(
+  correction: Pick<PrismBillingCorrection, "requestedBy" | "requestedById">,
+  viewer: { id: string; name: string },
+): boolean {
+  if (correction.requestedById) return correction.requestedById === viewer.id;
+  return correction.requestedBy.trim() === viewer.name.trim();
 }
 
 /** Additional billing may only be issued against a source PMCM has approved. */

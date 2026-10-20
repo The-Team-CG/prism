@@ -9,6 +9,8 @@ import type {
   PrismFileRequirementsMatrix,
   PrismStoredObject,
   PrismAddendum,
+  PrismAddendumConformeExecution,
+  SignAddendumConformeExecutionInput,
   PrismEventFreezeException,
   RequestStorageUploadInput,
   ConfirmStorageUploadInput,
@@ -115,5 +117,19 @@ export interface EventOpsEventsContract {
       input: import("@prism/types").IssueAddendumInput,
       actor?: EventOpsActorQuery,
     ): Promise<PrismAddendum>;
+    requestAddendumConforme(
+      eventId: string,
+      addendumId: string,
+    ): Promise<PrismAddendumConformeExecution>;
+    acknowledgeAddendumConforme(
+      eventId: string,
+      addendumId: string,
+      input: SignAddendumConformeExecutionInput,
+    ): Promise<PrismAddendumConformeExecution>;
+    countersignAddendumConforme(
+      eventId: string,
+      addendumId: string,
+      input: SignAddendumConformeExecutionInput,
+    ): Promise<PrismAddendumConformeExecution>;
   };
 }

@@ -45,7 +45,12 @@ export function ChangeRegisterPanel({ eventId, frozen }: { eventId: string; froz
           <RiskAssessmentPanel eventId={eventId} />
           <ScopeChangeReviewPanel eventId={eventId} frozen={frozen} />
           <RecordDecisionForm frozen={frozen} approvedExceptions={vm.approvedExceptions} busy={vm.busy} onSubmit={(draft) => vm.recordDecision(draft)} />
-          <PmcmAddendaStatus addenda={vm.addenda} />
+          <PmcmAddendaStatus
+            addenda={vm.addenda}
+            busy={vm.busy}
+            onRequestConforme={(addendumId) => vm.requestAddendumConforme(addendumId)}
+            onCountersign={(addendum) => vm.countersignAddendumConforme(addendum)}
+          />
         </>
       ) : null}
     </section>
