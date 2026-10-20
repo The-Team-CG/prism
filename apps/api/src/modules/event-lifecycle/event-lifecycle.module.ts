@@ -31,6 +31,10 @@ import { EventDecisionController } from './api/decisions/event-decision.controll
 import { EventDecisionService } from './application/decisions/event-decision.service';
 import { ChangeManagementController } from './api/change/change-management.controller';
 import { ChangeManagementService } from './application/change/change-management.service';
+import { ScopeChangeRequestController } from './api/change/scope-change-request.controller';
+import { ScopeChangeRequestService } from './application/change/scope-change-request.service';
+import { EventRiskAssessmentController } from './api/change/event-risk-assessment.controller';
+import { EventRiskAssessmentService } from './application/change/event-risk-assessment.service';
 import { AddendumConformeController } from './api/change/addendum-conforme.controller';
 import { AddendumConformeService } from './application/change/addendum-conforme.service';
 import { ClientEventDayViewController } from './api/client-visibility/client-event-day-view.controller';
@@ -108,6 +112,8 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     EventDocumentJourneyController,
     EventDecisionController,
     ChangeManagementController,
+    ScopeChangeRequestController,
+    EventRiskAssessmentController,
     AddendumConformeController,
     ClientEventDayViewController,
     OcularVisitController,
@@ -137,6 +143,8 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     { provide: FILE_REQUIREMENT_COMMANDS, useValue: metadataOnlyFileCommands },
     EventDecisionService,
     ChangeManagementService,
+    ScopeChangeRequestService,
+    EventRiskAssessmentService,
     AddendumConformeService,
     ClientEventDayViewService,
     OcularVisitService,
