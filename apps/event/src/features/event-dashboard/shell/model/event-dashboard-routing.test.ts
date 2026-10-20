@@ -50,6 +50,16 @@ describe("event-dashboard-routing", () => {
     );
   });
 
+  it("routes the decision-log URL to the decisions tab", () => {
+    expect(eventRouteState("event-42", "decision-log")).toEqual({
+      section: "events",
+      eventId: "event-42",
+      tab: "decisions",
+      view: "decision-log",
+    });
+    expect(routeStateFromPath("/dashboard/events/event-42/decision-log")).toEqual(eventRouteState("event-42", "decision-log"));
+  });
+
   it("centralizes event-list view recognition without requiring literal route folders", () => {
     expect(isEventListView("upcoming")).toBe(true);
     expect(isEventListView("unknown")).toBe(false);

@@ -34,6 +34,7 @@ export const EVENT_TAB_ROUTES: Record<DetailTab, string> = {
   "live-ops": "live-ops",
   billing: "billing",
   closure: "closure",
+  decisions: "decision-log",
   activity: "activity",
 };
 
@@ -108,6 +109,7 @@ export const EVENT_WORKSPACE_ROUTE_TABS: Record<string, DetailTab> = {
   "live-ops": "live-ops",
   billing: "billing",
   closure: "closure",
+  "decision-log": "decisions",
   activity: "activity",
 };
 
