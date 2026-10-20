@@ -61,13 +61,19 @@ function sameMembers(left: readonly string[], right: readonly string[]) {
  * Returns null when nothing changed so the form can skip the request.
  * Derived items keep their label because the API rejects relabelling them.
  */
+function labelChange(item: PrismFileRequirementItem, draft: FileRequirementDraft): Partial<UpdateFileRequirementInput> {
+  return item.origin === "custom" && draft.label.trim() !== item.label ? { label: draft.label.trim() } : {};
+}
+
+function dueAtChange(item: PrismFileRequirementItem, draft: FileRequirementDraft): Partial<UpdateFileRequirementInput> {
+  return draft.dueDate !== (item.dueDate ? item.dueDate.slice(0, 10) : "") ? { dueAt: dueDateToIso(draft.dueDate) } : {};
+}
+
 export function buildFileRequirementUpdate(item: PrismFileRequirementItem, draft: FileRequirementDraft): UpdateFileRequirementInput | null {
-  const changes: Partial<UpdateFileRequirementInput> = {};
-  if (item.origin === "custom" && draft.label.trim() !== item.label) changes.label = draft.label.trim();
+  const changes: Partial<UpdateFileRequirementInput> = { ...labelChange(item, draft), ...dueAtChange(item, draft) };
   if (draft.ownerRole !== item.ownerRole) changes.ownerRole = draft.ownerRole as UpdateFileRequirementInput["ownerRole"];
   if (!sameMembers(draft.visibleToRoles, item.visibleToRoles)) changes.visibleToRoles = draft.visibleToRoles as UpdateFileRequirementInput["visibleToRoles"];
   if (draft.required !== item.required) changes.required = draft.required;
-  if (draft.dueDate !== (item.dueDate ? item.dueDate.slice(0, 10) : "")) changes.dueAt = dueDateToIso(draft.dueDate);
   if (draft.notes.trim() !== (item.notes ?? "")) changes.notes = draft.notes.trim() || null;
   if (Object.keys(changes).length === 0) return null;
   return { ...changes, expectedRevision: item.revision ?? 0 };
