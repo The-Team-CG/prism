@@ -5,14 +5,6 @@ import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-sessi
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { zodBody, zodQuery } from '@prism/kernel/shared';
 import { auditLogFiltersSchema, createPrivacyRequestSchema, reviewPrivacyRequestSchema, executePrivacyRequestSchema, createPrivacyLegalHoldSchema, releasePrivacyLegalHoldSchema, listPrivacyLegalHoldsQuerySchema, type AuditLogFilters, type CreatePrivacyRequestInput, type ReviewPrivacyRequestInput, type ExecutePrivacyRequestInput, type CreatePrivacyLegalHoldInput, type ReleasePrivacyLegalHoldInput, type ListPrivacyLegalHoldsQuery } from '@prism/types';
-import {
-  CreatePrivacyRequestDto,
-  ExecutePrivacyRequestDto,
-  ExportAuditLogsDto,
-  ListAuditLogsDto,
-  ReviewPrivacyRequestDto,
-  ActorContextDto,
-} from './audit-privacy.dto';
 import { AuditService } from '../../application/trust/audit.service';
 import { AuditExportService } from '../../application/trust/audit-export.service';
 import { AuditReadService } from '../../application/trust/audit-read.service';
