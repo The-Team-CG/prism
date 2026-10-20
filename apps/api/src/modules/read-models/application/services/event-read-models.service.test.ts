@@ -562,6 +562,80 @@ describe('EventReadModelsService', () => {
     },
   );
 
+  it('redacts PMCM verification notes from the supplier readiness board while keeping schedule and concerns', async () => {
+    const { service, policy, prisma } = createSupplierWorkspaceService();
+    const request = (await prisma.opsSupplierQuoteRequest.findMany())[0] as any;
+    Object.assign(request, {
+      status: 'selected',
+      eventDayVerificationStatus: 'rejected',
+      eventDayVerificationNotes: 'PMCM-SENTINEL-verification',
+      eventDayVerifiedBy: 'PMCM-SENTINEL-verifier',
+      eventDayNotes: 'Truck delayed at gate',
+      schedule: {
+        ingressAt: new Date('2099-01-01T08:00:00.000Z'), egressAt: new Date('2099-01-01T20:00:00.000Z'),
+        location: 'Bay 2', status: 'planned', revision: 1, acknowledgedRevision: 1,
+        acknowledgedAt: null, changeRequestNote: null, changeRequestedAt: null,
+      },
+    });
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.Supplier, supplierId: 'sup_sonicline', actorEmail: 'supplier@example.com' });
+
+    const board = await service.supplierReadinessBoard(actor);
+
+    expect(board.items[0]).toMatchObject({
+      verificationStatus: 'rejected',
+      schedule: { location: 'Bay 2', acknowledged: true },
+      concerns: [expect.objectContaining({ kind: 'event_day_note', message: 'Truck delayed at gate' })],
+    });
+    expect(JSON.stringify(board)).not.toContain('PMCM-SENTINEL');
+    expect(board.items[0]).not.toHaveProperty('pmcmReview');
+  });
+
+  it('serves PMCM the same per-request readiness item for one event plus private review notes', async () => {
+    const { service, policy, prisma } = createPmcmReadModelService();
+    prisma.opsSupplierQuoteRequest.findMany.mockResolvedValue([
+      {
+        id: 'qr_open', eventId: 'evt_visible', supplierId: 'sup_open', supplierName: 'Open Bid Catering', category: 'Catering',
+        status: 'open', dueDate: null, assignmentStatus: 'pending_confirmation', readinessStatus: 'not_requested',
+        readinessNotes: '', eventDayStatus: 'not_started', eventDayNotes: '', eventDayVerificationStatus: 'self_reported',
+        eventDayVerificationNotes: '', eventDayVerifiedBy: null, eventDayVerifiedAt: null, contractVersions: [], schedule: null,
+      },
+      {
+        id: 'qr_sonic', eventId: 'evt_visible', supplierId: 'sup_sonic', supplierName: 'Sonic Line', category: 'Technicals',
+        status: 'selected', dueDate: null, assignmentStatus: 'confirmed', readinessStatus: 'confirmed',
+        readinessNotes: 'Crew of six', eventDayStatus: 'set_up_ready', eventDayNotes: '', eventDayVerificationStatus: 'verified',
+        eventDayVerificationNotes: 'Rigging checked by PMCM', eventDayVerifiedBy: 'Francis', eventDayVerifiedAt: new Date('2026-06-18T06:00:00.000Z'),
+        contractVersions: [{ reviewStatus: 'accepted', reviewReason: null, reviewedAt: null }], schedule: null,
+      },
+    ] as never);
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
+
+    const board = await service.pmcmSupplierReadinessBoard(actor, 'evt_visible');
+
+    expect(prisma.opsSupplierQuoteRequest.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { eventId: 'evt_visible' } }));
+    expect(board.eventId).toBe('evt_visible');
+    expect(board.counts).toEqual({ critical: 0, warning: 1, attention: 0, info: 1 });
+    expect(board.items.map((item) => [item.requestId, item.quoteLocked])).toEqual([['qr_open', false], ['qr_sonic', true]]);
+    expect(board.items[1]).toMatchObject({
+      eventName: 'Ayala Summit',
+      supplierName: 'Sonic Line',
+      setupStatus: 'ready',
+      pmcmReview: { verificationNotes: 'Rigging checked by PMCM', verifiedBy: 'Francis', readinessNotes: 'Crew of six' },
+    });
+  });
+
+  it.each([
+    [{ actorRole: OpsUserRole.Supplier, supplierId: 'sup_sonicline', actorEmail: 'supplier@example.com' }, 'supplier'],
+    [{ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' }, 'client'],
+    [{ actorRole: OpsUserRole.Coordinator, actorName: 'Rhea Santos' }, 'coordinator'],
+  ])('denies %o from the PMCM supplier readiness board before reading requests', async (input, role) => {
+    const { service, policy, prisma } = createPmcmReadModelService();
+
+    await expect(service.pmcmSupplierReadinessBoard(policy.resolveActor(input as never), 'evt_visible')).rejects.toThrow(
+      `${role} cannot access PMCM supplier readiness board`,
+    );
+    expect(prisma.opsSupplierQuoteRequest.findMany).not.toHaveBeenCalled();
+  });
+
   it('builds a PMCM-only defense readiness checklist through reader ports', async () => {
     const policy = new EventAccessPolicyService({ write: vi.fn() } as any);
     const event = {
