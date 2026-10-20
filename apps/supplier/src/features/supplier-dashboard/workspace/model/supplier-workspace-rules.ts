@@ -130,6 +130,8 @@ export function buildSupplierContractRequirements(workspace: Pick<SupplierWorksp
         : request.contractReviewStatus === "changes_requested" ? "pending" : "missing",
     auditCategory: "documents",
     detail: buildBookingSteps(request)[2].meta,
+    required: true,
+    overdue: false,
   }));
 }
 
