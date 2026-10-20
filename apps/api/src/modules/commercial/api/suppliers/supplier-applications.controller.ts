@@ -8,7 +8,7 @@ import {
   type ReviewSupplierApplicationInput,
   type SupplierApplicationStatusQuery,
 } from '@prism/types';
-import { zodBody, zodQuery } from '@prism/kernel/shared';
+import { PublicRateLimit, zodBody, zodQuery } from '@prism/kernel/shared';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { SupplierApplicationService } from '../../application/suppliers/supplier-application.service';
@@ -22,6 +22,7 @@ export class OpsSupplierApplicationsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @PublicRateLimit('publicSubmission')
   create(@Body(zodBody(createSupplierApplicationSchema)) input: CreateSupplierApplicationInput) {
     return this.supplierApplicationService.createSupplierApplication(input);
   }

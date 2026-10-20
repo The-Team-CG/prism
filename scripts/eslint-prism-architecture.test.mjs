@@ -62,7 +62,7 @@ describe("editor-time architecture lint", () => {
     );
   });
 
-  it("allows canonical schemas and the API Zod validation adapter", async () => {
+  it("allows canonical schemas, the API Zod validation adapter, and the API runtime env schema", async () => {
     assert.deepEqual(
       await messages(
         "packages/types/src/schemas/example.ts",
@@ -74,6 +74,13 @@ describe("editor-time architecture lint", () => {
       await messages(
         "apps/api/src/kernel/shared/zod-validation.pipe.ts",
         'import type { ZodTypeAny } from "zod";',
+      ),
+      [],
+    );
+    assert.deepEqual(
+      await messages(
+        "apps/api/src/kernel/shared/runtime-env.ts",
+        'import { z } from "zod";\nconst runtimeEnvSchema = z.looseObject({ NODE_ENV: z.string().optional() });',
       ),
       [],
     );
