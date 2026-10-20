@@ -1,5 +1,5 @@
 import { ConflictException } from '@nestjs/common';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import type { NotificationOutboxWriteInput, NotificationOutboxWriter } from '@prism/contexts/platform-ops';
@@ -7,6 +7,15 @@ import { LiveOpsOverdueTaskNotificationService } from './overdue-task-notificati
 import { LiveOpsOverdueTaskNotificationScheduler } from './overdue-task-notification.scheduler';
 
 const NOW = new Date('2026-10-19T10:00:00.000Z');
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 type TaskRow = {
   id: string;
