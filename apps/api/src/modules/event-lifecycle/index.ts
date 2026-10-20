@@ -1,27 +1,22 @@
 // Initialize public contract tokens before implementation exports can load other contexts.
 export * from './contracts/closure-ops.tokens';
 export * from './contracts/client-floorplan-access.port';
-export * from './contracts/client-onboarding-commands.port';
 export * from './contracts/inquiry-commands.port';
 export * from './contracts/inquiry-onboarding.tokens';
 export * from './contracts/floorplan-projection.port';
 export * from './contracts/conforme-reminder-window-claim.port';
 export * from './contracts/privacy-redaction.port';
 export * from './contracts/proposal-review-owner.port';
-export * from './contracts/compliance-commands.port';
-export * from './contracts/compliance-reader.port';
 export * from './contracts/compliance-ops.tokens';
 export * from './contracts/document-vault.port';
 export * from './contracts/closure-commands.port';
 export * from './contracts/closure-readiness-reader.port';
 export * from './contracts/file-ops.tokens';
-export * from './contracts/file-requirement-commands.port';
 export * from './contracts/file-requirement-reader.port';
 export * from './domain/client-change-request.projection';
 
 export * from './api/onboarding/event-briefing.controller';
 export * from './api/onboarding/inquiries.controller';
-export * from './api/onboarding/inquiry.dto';
 export * from './application/onboarding/inquiry.mappers';
 export * from './event-lifecycle-projection.module';
 export { ConformeReminderWindowModule } from './conforme-reminder-window.module';
