@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PrismaService } from '@prism/kernel/database';
 import {
   EventReadModelQueries,
@@ -21,6 +21,15 @@ function model<T = never>() {
 }
 
 describe('EventReadModelQueries collection limits', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-19T10:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('loads recent coordinator reliability history by coordinator with event and role context', async () => {
     const note = { id: 'note_1', eventId: 'evt_1', assignment: { role: 'lead' } };
     const reliabilityNotes = model<typeof note>();
