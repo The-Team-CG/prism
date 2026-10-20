@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mergeFileRequirementOverrides, type DerivedFileRequirementItem } from '../../domain/file-requirement-matrix.policy';
 import { FileRequirementCommandsService } from './file-requirement-commands.service';
 
@@ -64,6 +64,14 @@ function createHarness(options: { rows?: Row[]; derived?: DerivedFileRequirement
 }
 
 describe('FileRequirementCommandsService', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-20T00:00:00.000Z'));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it.each([
     ['client', { id: 'user_client', role: 'client', name: 'Client', explicit: true }],
     ['supplier', { id: 'user_supplier', role: 'supplier', name: 'Supplier', explicit: true }],
