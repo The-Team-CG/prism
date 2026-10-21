@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Updated Vite test tooling to resolve the Windows editor-command security advisory and restore the dependency audit gate.
+
 - Main-branch promotions now run the same build, security, migration, and behavior checks as staging and prod.
 - PMCM retention policies and record review now sit alongside the paged privacy request console and legal holds.
 - The feature ledger records integrated controls and remaining acceptance and policy gaps, including floorplan eligibility, addendum signing, and billing correction approval.
