@@ -127,6 +127,26 @@ a,
   letter-spacing: 0;
 }
 
+/* Print only the marked region (e.g. the event day run sheet) without the dashboard chrome. */
+@media print {
+  body:has(.prism-print-region) * {
+    visibility: hidden;
+  }
+
+  body:has(.prism-print-region) .prism-print-region,
+  body:has(.prism-print-region) .prism-print-region * {
+    visibility: visible;
+  }
+
+  body:has(.prism-print-region) .prism-print-region {
+    position: absolute;
+    inset: 0 0 auto 0;
+    width: 100%;
+    background: #fff;
+    color: #000;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -39,11 +39,12 @@ import type {
   PrismClientSharedFloorplanEntry,
   PrismClientTimelineMilestoneKey,
   PrismClientTimelineMilestoneStatus,
-  PrismCommandInboxSeverity,
   PrismClientOcularVisit,
   PrismOcularVisitStatus,
   PrismPmcmOcularVisit,
+  PrismPmcmSupplierReadinessBoard,
 } from '@prism/types';
+import { supplierIngressLateGraceMinutes } from '@prism/contexts/commercial';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import {
   GUEST_READER,
@@ -62,15 +63,19 @@ import {
   overallDefenseStatus,
 } from './event-read-models.defense';
 import {
+  CLIENT_CHANGE_DECISION_REVIEW_DAYS,
   collectClientActionItems,
   collectPmcmCommandInboxItems,
   countByPriority,
   countBySeverity,
   emptyInboxPayload,
-  isPast,
-  priorityRank,
-  toIso,
 } from './event-read-models.inbox';
+import {
+  buildPmcmSupplierReadinessItem,
+  buildSupplierReadinessItem,
+  sortSupplierReadinessItems,
+  type SupplierReadinessClock,
+} from './event-read-models.supplier-readiness';
 
 type EventWithDrafts = OpsEvent & { floorPlanDrafts?: OpsFloorPlanDraft[] };
 
@@ -517,6 +522,10 @@ export class EventReadModelsService {
     const paymentMilestones: ClientActionSources[4] = [];
     const paymentRecords: ClientActionSources[5] = [];
     const postEventDocuments: ClientActionSources[6] = [];
+    const closeoutResponses: ClientActionSources[7] = [];
+    const changeRequests: ClientActionSources[8] = [];
+    const now = new Date();
+    const changeDecisionsSince = new Date(now.getTime() - CLIENT_CHANGE_DECISION_REVIEW_DAYS * 24 * 60 * 60 * 1000);
     for (let offset = 0; offset < visibleEvents.length; offset += 100) {
       const eventBatch = visibleEvents.slice(offset, offset + 100);
       const [
@@ -527,8 +536,10 @@ export class EventReadModelsService {
         batchPaymentMilestones,
         batchPaymentRecords,
         batchPostEventDocuments,
+        batchCloseoutResponses,
+        batchChangeRequests,
       ] =
-      await this.queries.clientActionCenterForEvents(eventBatch.map((event) => event.id));
+      await this.queries.clientActionCenterForEvents(eventBatch.map((event) => event.id), changeDecisionsSince);
       briefings.push(...batchBriefings);
       documents.push(...batchDocuments);
       floorPlanDrafts.push(...batchFloorPlanDrafts);
@@ -536,6 +547,8 @@ export class EventReadModelsService {
       paymentMilestones.push(...batchPaymentMilestones);
       paymentRecords.push(...batchPaymentRecords);
       postEventDocuments.push(...batchPostEventDocuments);
+      closeoutResponses.push(...batchCloseoutResponses);
+      changeRequests.push(...batchChangeRequests);
     }
     const items = collectClientActionItems({
       visibleEvents,
@@ -546,6 +559,9 @@ export class EventReadModelsService {
       paymentMilestones,
       paymentRecords,
       postEventDocuments,
+      closeoutResponses,
+      changeRequests,
+      now,
     });
 
     return {
@@ -586,59 +602,44 @@ export class EventReadModelsService {
     const events = await this.queries.supplierEvents(eventIds);
     const visibleEvents = this.policy.filterEventsForActor(actor, events, { supplierEventIds: eventIds });
     const eventsById = new Map(visibleEvents.map((event) => [event.id, event]));
+    const clock = this.readinessClock();
 
-    const items = requests
-      .filter((request) => eventsById.has(request.eventId))
-      .map((request) => {
-        const event = eventsById.get(request.eventId);
-        const latestContractStatus = request.contractVersions?.[0]?.reviewStatus;
-        const contractStatus = latestContractStatus === 'submitted' || latestContractStatus === 'accepted' || latestContractStatus === 'changes_requested'
-          ? latestContractStatus : 'missing';
-        const assignmentStatus = request.assignmentStatus ?? 'pending';
-        const readinessStatus = request.readinessStatus ?? 'not_confirmed';
-        const verificationStatus = request.eventDayVerificationStatus ?? 'unverified';
-        const overdueUnselected = isPast(request.dueDate) && request.status !== 'selected';
-        const priority: PrismCommandInboxSeverity = overdueUnselected
-          ? 'critical'
-          : contractStatus !== 'accepted' || readinessStatus !== 'confirmed'
-            ? 'warning'
-            : verificationStatus === 'rejected'
-              ? 'attention'
-              : 'info';
-
-        return {
-          id: `supplier-readiness:${request.id}`,
-          requestId: request.id,
-          eventId: request.eventId,
-          eventName: event?.eventName ?? null,
-          clientName: event?.clientName ?? null,
-          category: request.category,
-          quoteStatus: request.status,
-          assignmentStatus,
-          readinessStatus,
-          contractStatus,
-          eventDayStatus: request.eventDayStatus ?? 'not_started',
-          verificationStatus,
-          priority,
-          dueAt: toIso(request.dueDate),
-          href: '/dashboard',
-        };
-      });
-
-    items.sort((left, right) => {
-      const priority = priorityRank(left.priority) - priorityRank(right.priority);
-      if (priority !== 0) return priority;
-      const due = (left.dueAt ?? '').localeCompare(right.dueAt ?? '');
-      if (due !== 0) return due;
-      return left.id.localeCompare(right.id);
-    });
+    const items = sortSupplierReadinessItems(
+      requests
+        .filter((request) => eventsById.has(request.eventId))
+        .map((request) => buildSupplierReadinessItem(request, eventsById.get(request.eventId), clock)),
+    );
 
     return {
-      generatedAt: new Date().toISOString(),
+      generatedAt: clock.now.toISOString(),
       supplier: this.sanitizeSupplierForSupplier(supplier),
       counts: countByPriority(items),
       items,
     };
+  }
+
+  /** FL-022: PMCM sees the supplier-identical readiness item per request plus private review notes. */
+  async pmcmSupplierReadinessBoard(actor: ResolvedEventOpsActor, eventId: string): Promise<PrismPmcmSupplierReadinessBoard> {
+    await this.policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'PMCM supplier readiness board', eventId);
+    const event = await this.queries.eventWithDrafts(eventId);
+    if (!event) throw new NotFoundException('Event not found');
+    await this.policy.requireCanReadEvent(actor, event, 'PMCM supplier readiness board');
+
+    const clock = this.readinessClock();
+    const requests = await this.queries.pmcmSupplierReadinessRequests(eventId);
+    const items = sortSupplierReadinessItems(
+      requests.map((request) => buildPmcmSupplierReadinessItem(request, event, clock)),
+    );
+    return {
+      generatedAt: clock.now.toISOString(),
+      eventId,
+      counts: countByPriority(items),
+      items,
+    };
+  }
+
+  private readinessClock(): SupplierReadinessClock {
+    return { now: new Date(), ingressLateGraceMinutes: supplierIngressLateGraceMinutes() };
   }
 
   async pmcmCommandInbox(actor: ResolvedEventOpsActor, page = 0) {
@@ -652,6 +653,8 @@ export class EventReadModelsService {
       ...pageData.coordinatorAssignments.map((row) => row.eventId),
       ...pageData.floorPlanDrafts.map((row) => row.eventId),
       ...pageData.postEventDocuments.map((row) => row.eventId),
+      ...pageData.eventDayTasks.map((row) => row.eventId),
+      ...pageData.urgentIssues.map((row) => row.eventId),
     ])];
     const [events, summary] = await Promise.all([
       this.queries.pmcmCommandInboxEventRefs(eventIds),
@@ -665,6 +668,8 @@ export class EventReadModelsService {
       coordinatorAssignments: pageData.coordinatorAssignments,
       floorPlanDrafts: pageData.floorPlanDrafts,
       postEventDocuments: pageData.postEventDocuments,
+      eventDayTasks: pageData.eventDayTasks,
+      urgentIssues: pageData.urgentIssues,
     });
 
     return {

@@ -4,10 +4,13 @@ import type {
   PrismBillingWorkspace,
   PrismClientActionCenter,
   PrismClientWorkspace,
+  PrismDecisionLog,
+  PrismDecisionLogQueryInput,
   PrismPmcmCommandInbox,
   PrismPmcmCommandInboxQueryInput,
   PrismPmcmDashboardWorkspace,
   PrismPmcmEventWorkspace,
+  PrismPmcmSupplierReadinessBoard,
   PrismRegistrationPlatform,
   PrismSupplierQuoteRequest,
   PrismSupplierReadinessBoard,
@@ -35,10 +38,14 @@ export interface EventOpsWorkspacesContract {
 
   pmcm: {
     commandInbox(query?: PrismPmcmCommandInboxQueryInput): Promise<PrismPmcmCommandInbox>;
+    /** PMCM-only decision log for one event (FL-019); identity comes from the session token. */
+    decisionLog(eventId: string, query?: PrismDecisionLogQueryInput): Promise<PrismDecisionLog>;
     eventWorkspace(
       eventId: string,
       actor?: EventOpsActorQuery,
     ): Promise<PrismPmcmEventWorkspace>;
+    /** PMCM-only; identity comes from the session bearer token. */
+    supplierReadiness(eventId: string): Promise<PrismPmcmSupplierReadinessBoard>;
     registrationPlatform(
       eventId: string,
       actor?: EventOpsActorQuery,

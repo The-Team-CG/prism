@@ -36,7 +36,7 @@ export type { EventDashboardClientProps };
 
 type Screen =
   | { name: "portal" }
-  | { name: "editor"; event: PrismEvent; draft: PrismFloorPlanDraft; project: Project };
+  | { name: "editor"; event: PrismEvent; draft: PrismFloorPlanDraft; project: Project; readOnly: boolean };
 
 export function useEventDashboardShellViewModel({
   section: initialSection,
@@ -240,10 +240,10 @@ export function useEventDashboardShellViewModel({
     await openEditor(selectedEvent, draft);
   }
 
-  async function openEditor(event: PrismEvent, draft: PrismFloorPlanDraft) {
+  async function openEditor(event: PrismEvent, draft: PrismFloorPlanDraft, readOnly = false) {
     if (!session || !isPmcmAdmin(session.role)) return;
     const project = await commands.loadPlan(draft.floorPlanId);
-    setScreen({ name: "editor", event, draft, project });
+    setScreen({ name: "editor", event, draft, project, readOnly });
   }
 
   const navigation = useEventDashboardNavigationViewModel({
@@ -494,6 +494,7 @@ export function useEventDashboardShellViewModel({
     runPlanningCompliance: () => selectedEvent ? run("compliance", () => commands.runCompliance(selectedEvent.id, "planning")) : Promise.resolve(),
     submitFloorPlanDraft: (draft: PrismFloorPlanDraft) => selectedEvent ? run("submit draft", () => commands.submitFloorPlanDraft(selectedEvent.id, draft.id)) : Promise.resolve(),
     approveFloorPlanDraft: (draft: PrismFloorPlanDraft) => selectedEvent ? run("approve draft", () => commands.approveFloorPlanDraft(selectedEvent.id, draft.id)) : Promise.resolve(),
+    reopenClientPreference: (draft: PrismFloorPlanDraft) => selectedEvent ? run("reopen preference", () => commands.reopenClientPreference(selectedEvent.id, draft.id)) : Promise.resolve(),
     withdrawSupplier: (requestId: string) => selectedEvent ? run("withdraw supplier", () => commands.withdrawSupplier(selectedEvent.id, requestId)) : Promise.resolve(),
     upsertRegistrationPlatform: (input: Parameters<typeof commands.upsertRegistrationPlatform>[1]) => selectedEvent ? run("registration platform", () => commands.upsertRegistrationPlatform(selectedEvent.id, input)) : Promise.resolve(),
     updateRegistrationPlatform: (input: Parameters<typeof commands.updateRegistrationPlatform>[1]) => selectedEvent ? run("registration platform", () => commands.updateRegistrationPlatform(selectedEvent.id, input)) : Promise.resolve(),

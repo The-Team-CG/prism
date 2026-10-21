@@ -662,6 +662,20 @@ describe("createEventOpsClient", () => {
     });
   });
 
+  it("loads the run sheet for the event and an optional encoded schedule day", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ eventId: "evt_1" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.liveOps.runSheet("evt_1");
+    await client.liveOps.runSheet("evt_1", "day 2", { role: "coordinator" });
+
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "http://localhost:4000/api/events/evt_1/run-sheet",
+      "http://localhost:4000/api/events/evt_1/run-sheet?role=coordinator&dayId=day%202",
+    ]);
+  });
+
   it("loads a redacted public supplier application status without caching", async () => {
     const fetchMock = vi.fn(async () =>
       new Response(
@@ -713,6 +727,31 @@ describe("createEventOpsClient", () => {
         },
       },
     );
+  });
+
+  it("writes PMCM file requirement overrides as bearer-authenticated JSON with an encoded key", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ key: "venue permit" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({
+      baseUrl: "http://localhost:4000/api",
+      getAuthToken: () => "pmcm-session-token",
+    });
+    await client.events.createFileRequirement("evt_1", { key: "venue_permit", label: "Venue permit", ownerRole: "client", visibleToRoles: ["pmcm-admin", "client"], required: true, sourceWorkflow: "custom" });
+    await client.events.updateFileRequirement("evt_1", "venue permit", { required: false, expectedRevision: 2 });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "http://localhost:4000/api/events/evt_1/file-requirements",
+      expect.objectContaining({ method: "POST", headers: expect.objectContaining({ Authorization: "Bearer pmcm-session-token" }) }),
+    );
+    expect(JSON.parse(String((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body))).toMatchObject({ key: "venue_permit", sourceWorkflow: "custom" });
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "http://localhost:4000/api/events/evt_1/file-requirements/venue%20permit",
+      expect.objectContaining({ method: "PATCH" }),
+    );
+    expect(JSON.parse(String((fetchMock.mock.calls[1] as unknown as [string, RequestInit])[1].body))).toEqual({ required: false, expectedRevision: 2 });
   });
 
   it("loads the client workspace with bearer auth and no actor query", async () => {
@@ -806,6 +845,24 @@ describe("createEventOpsClient", () => {
 
     expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/supplier/readiness-board", {
       headers: { "Content-Type": "application/json" },
+    });
+  });
+
+  it("loads PMCM event supplier readiness with the session bearer token and an encoded event id", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ eventId: "evt 1", items: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({
+      baseUrl: "http://localhost:4000/api",
+      getAuthToken: () => "pmcm-session-token",
+    });
+    await client.pmcm.supplierReadiness("evt 1");
+
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/pmcm/events/evt%201/supplier-readiness", {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer pmcm-session-token",
+      },
     });
   });
 
@@ -929,6 +986,22 @@ describe("createEventOpsClient", () => {
         headers: { "Content-Type": "application/json" },
       },
     );
+  });
+
+  it("loads the PMCM decision log from the event-scoped route with kind and paging filters", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ eventId: "evt_1", entries: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.pmcm.decisionLog("evt_1");
+    await client.pmcm.decisionLog("evt_1", { kind: "archive_override", page: 1 });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "http://localhost:4000/api/events/evt_1/decision-log", {
+      headers: { "Content-Type": "application/json" },
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "http://localhost:4000/api/events/evt_1/decision-log?kind=archive_override&page=1", {
+      headers: { "Content-Type": "application/json" },
+    });
   });
 
   it("loads the PMCM selected event workspace as a scoped read model", async () => {

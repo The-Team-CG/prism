@@ -197,12 +197,47 @@ export interface PrismSupplierWorkspace {
   supplierQuotes: PrismSupplierQuote[];
 }
 
+/** Setup progress derived from the supplier's event-day status and the late-ingress threshold. */
+export type PrismSupplierReadinessSetupStatus =
+  | "not_started"
+  | "late"
+  | "arrived"
+  | "ready"
+  | "complete";
+
+export type PrismSupplierReadinessConcernKind =
+  | "schedule_change_request"
+  | "event_day_note"
+  | "contract_correction";
+
+/** Open, supplier-visible concern on one assignment. PMCM-only review notes are never concerns. */
+export interface PrismSupplierReadinessConcern {
+  kind: PrismSupplierReadinessConcernKind;
+  message: string;
+  at: string | null;
+}
+
+/** Ingress/egress window and the supplier's acknowledgment of the current schedule revision. */
+export interface PrismSupplierReadinessSchedule {
+  ingressAt: string;
+  egressAt: string;
+  location: string;
+  status: string;
+  revision: number;
+  acknowledged: boolean;
+  acknowledgedAt: string | null;
+  changeRequestNote: string | null;
+  changeRequestedAt: string | null;
+}
+
 export interface PrismSupplierReadinessItem {
   id: string;
   requestId: string;
   eventId: string;
   eventName?: string | null;
   clientName?: string | null;
+  supplierId?: string | null;
+  supplierName: string;
   category: string;
   quoteStatus: string;
   assignmentStatus?: string;
@@ -210,9 +245,13 @@ export interface PrismSupplierReadinessItem {
   contractStatus: "missing" | "submitted" | "accepted" | "changes_requested";
   eventDayStatus?: string;
   verificationStatus?: string;
+  schedule: PrismSupplierReadinessSchedule | null;
+  /** True once ingress passed the late-ingress grace window without an arrival report (same rule as the late sweep). */
+  ingressLate: boolean;
+  setupStatus: PrismSupplierReadinessSetupStatus;
+  concerns: PrismSupplierReadinessConcern[];
   priority: PrismCommandInboxSeverity;
   dueAt?: string | null;
-  href?: string;
 }
 
 export interface PrismSupplierReadinessBoard {
@@ -220,6 +259,27 @@ export interface PrismSupplierReadinessBoard {
   supplier: PrismSupplier;
   counts: Record<PrismCommandInboxSeverity, number>;
   items: PrismSupplierReadinessItem[];
+}
+
+/** PMCM-only review detail; never part of the supplier projection. */
+export interface PrismPmcmSupplierReadinessReview {
+  verificationNotes: string;
+  verifiedBy: string | null;
+  verifiedAt: string | null;
+  readinessNotes: string;
+}
+
+export interface PrismPmcmSupplierReadinessItem extends PrismSupplierReadinessItem {
+  /** A quote is selected (locked) for this request. Drives the category-gap hard block. */
+  quoteLocked: boolean;
+  pmcmReview: PrismPmcmSupplierReadinessReview;
+}
+
+export interface PrismPmcmSupplierReadinessBoard {
+  generatedAt: string;
+  eventId: string;
+  counts: Record<PrismCommandInboxSeverity, number>;
+  items: PrismPmcmSupplierReadinessItem[];
 }
 
 export type PrismCommandInboxSeverity = "critical"
@@ -239,6 +299,7 @@ export type PrismCommandInboxKind =
   | "coordinator"
   | "closure"
   | "live_ops"
+  | "change_request"
   | "feedback";
 
 export interface PrismCommandInboxItem {
@@ -310,6 +371,7 @@ export interface PrismClientActionItem {
     | "approval"
     | "closure"
     | "feedback"
+    | "change_request"
   >;
   priority: PrismCommandInboxSeverity;
   label: string;

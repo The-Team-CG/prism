@@ -4,10 +4,15 @@ import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-sessi
 import { zodBody } from '@prism/kernel/shared';
 import { decideFreezeExceptionSchema, freezeEventSchema, issueAddendumSchema, requestFreezeExceptionSchema, type DecideFreezeExceptionInput, type FreezeEventInput, type IssueAddendumInput, type PrismVerifiedEventActor, type RequestFreezeExceptionInput } from '@prism/types';
 import { ChangeManagementService } from '../../application/change/change-management.service';
+import { ScopeChangeRequestService } from '../../application/change/scope-change-request.service';
 
 @Controller('events')
 export class ChangeManagementController {
-  constructor(private readonly service: ChangeManagementService, private readonly access: EventAccessPolicyService) {}
+  constructor(
+    private readonly service: ChangeManagementService,
+    private readonly scopeChanges: ScopeChangeRequestService,
+    private readonly access: EventAccessPolicyService,
+  ) {}
 
   @Post(':eventId/freeze')
   @UseGuards(EventSessionGuard)
@@ -21,11 +26,17 @@ export class ChangeManagementController {
     return this.service.requestException(eventId, input, this.access.resolveActor({}, verified));
   }
 
-  // Client-safe projection of the same change requests; event readers see status, never internal reasons.
+  // Client-safe projection of freeze-exception rows and scope change requests. Event readers see status and the
+  // client response, never internal reasons, impact flags, or PMCM identities.
   @Get(':eventId/change-requests')
   @UseGuards(EventSessionGuard)
-  listClientChangeRequests(@Param('eventId') eventId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
-    return this.service.listClientChangeRequests(eventId, this.access.resolveActor({}, verified));
+  async listClientChangeRequests(@Param('eventId') eventId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    const actor = this.access.resolveActor({}, verified);
+    const [exceptions, scopeChanges] = await Promise.all([
+      this.service.listClientChangeRequests(eventId, actor),
+      this.scopeChanges.listClientRequests(eventId, actor),
+    ]);
+    return [...scopeChanges, ...exceptions].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
   }
 
   @Get(':eventId/freeze-exceptions')

@@ -40,7 +40,8 @@ import { cx, label } from "@/features/pmcm-kit";
 import { liveOpsPillClass } from "../model/live-ops-workspace-rules";
 import { useCoordinatorRowViewModel } from "../view-models/use-coordinator-row-view-model";
 import type { useLiveOperationsWorkspaceViewModel } from "../view-models/use-live-operations-workspace-view-model";
-import { LiveOpsControlSurface, LiveOpsScheduleDesk } from "@/features/live-ops/schedule";
+import Link from "next/link";
+import { LiveOpsControlSurface, LiveOpsScheduleDesk, eventRunSheetHref } from "@/features/live-ops/schedule";
 
 type LiveOpsVm = ReturnType<typeof useLiveOperationsWorkspaceViewModel>;
 
@@ -195,7 +196,14 @@ export function LiveOpsDesk({
 }) {
   return (
     <>
-      {liveOps.schedule ? <div className="rounded-lg border border-border bg-card p-5"><LiveOpsControlSurface schedule={liveOps.schedule} timer={liveOps.timer} /></div> : null}
+      {liveOps.schedule ? (
+        <div className="space-y-3 rounded-lg border border-border bg-card p-5">
+          <LiveOpsControlSurface eventId={eventId} schedule={liveOps.schedule} timer={liveOps.timer} />
+          <Link href={eventRunSheetHref(eventId)} className="inline-flex rounded-md border border-border px-3 py-1.5 text-sm font-semibold no-underline">
+            Open printable run sheet
+          </Link>
+        </div>
+      ) : null}
       <LiveOpsScheduleDesk eventId={eventId} assignments={liveOps.coordinatorAssignments} canManageSchedule canReplyToReports canSubmitReports={false} />
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="rounded-lg border border-border bg-card p-5">

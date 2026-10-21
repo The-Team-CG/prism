@@ -11,6 +11,7 @@ function createController() {
     pmcmDashboard: vi.fn(async () => ({ events: [] })),
     pmcmEventWorkspace: vi.fn(async () => ({ event: { id: 'evt_sample' } })),
     coordinatorReliabilityHistory: vi.fn(async () => [{ id: 'note_1' }]),
+    pmcmSupplierReadinessBoard: vi.fn(async () => ({ eventId: 'evt_sample', items: [] })),
   };
   const eventAccessPolicyService = {
     resolveActor: vi.fn((_input: any, verified: any) => ({ role: verified.actorRole, name: verified.actorName })),
@@ -67,6 +68,18 @@ describe('OpsPmcmDashboardController', () => {
       'evt_sample',
       expect.objectContaining({ mapEvent: expect.any(Function) }),
     );
+  });
+
+  it('serves event supplier readiness through the PMCM read model with the verified session actor only', async () => {
+    const { controller, eventReadModelsService, eventAccessPolicyService } = createController();
+    const verifiedActor = { id: 'user_pmcm', actorId: 'user_pmcm', role: 'pmcm-admin', actorRole: 'pmcm-admin', email: 'pmcm@example.test', actorEmail: 'pmcm@example.test', name: 'Maxine', actorName: 'Maxine' } as any;
+
+    await expect(controller.supplierReadiness('evt_sample', verifiedActor)).resolves.toEqual({ eventId: 'evt_sample', items: [] });
+
+    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, verifiedActor);
+    expect(eventReadModelsService.pmcmSupplierReadinessBoard).toHaveBeenCalledWith({ role: 'pmcm-admin', name: 'Maxine' }, 'evt_sample');
+    expect(Reflect.getMetadata('path', OpsPmcmDashboardController.prototype.supplierReadiness)).toBe('events/:eventId/supplier-readiness');
+    expect(Reflect.getMetadata('__guards__', OpsPmcmDashboardController.prototype.supplierReadiness)).toHaveLength(1);
   });
 
   it('serves coordinator reliability history through the PMCM reader with the verified actor', async () => {

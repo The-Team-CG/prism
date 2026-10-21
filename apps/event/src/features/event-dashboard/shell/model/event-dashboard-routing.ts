@@ -16,6 +16,7 @@ export type DashboardSection =
   | "messages"
   | "finance"
   | "audit"
+  | "privacy"
   | "settings";
 export type RouteState = { section: DashboardSection; tab: DetailTab; eventId?: string; clientId?: string; view?: string };
 
@@ -33,6 +34,7 @@ export const EVENT_TAB_ROUTES: Record<DetailTab, string> = {
   "live-ops": "live-ops",
   billing: "billing",
   closure: "closure",
+  decisions: "decision-log",
   activity: "activity",
 };
 
@@ -100,6 +102,7 @@ export const EVENT_WORKSPACE_ROUTE_TABS: Record<string, DetailTab> = {
   files: "files",
   messages: "activity",
   timeline: "live-ops",
+  "run-sheet": "live-ops",
   "post-event-report": "closure",
   floorplans: "floorplans",
   briefing: "briefing",
@@ -107,6 +110,7 @@ export const EVENT_WORKSPACE_ROUTE_TABS: Record<string, DetailTab> = {
   "live-ops": "live-ops",
   billing: "billing",
   closure: "closure",
+  "decision-log": "decisions",
   activity: "activity",
 };
 
@@ -127,6 +131,7 @@ export const EVENT_WORKSPACE_ROUTE_ITEMS: Record<string, string> = {
   messages: "event-messages",
   activity: "event-messages",
   timeline: "event-timeline",
+  "run-sheet": "event-timeline",
   "live-ops": "event-timeline",
   "post-event-report": "event-report",
   closure: "event-report",
@@ -380,6 +385,7 @@ const SIDEBAR_ITEM_TO_STATE: Record<string, RouteState> = {
   messages: { section: "messages", tab: "activity", view: "inbox" },
   finance: { section: "finance", tab: "billing", view: "overview" },
   audit: { section: "audit", tab: "overview", view: "system-logs" },
+  privacy: { section: "privacy", tab: "overview", view: "console" },
   settings: { section: "settings", tab: "overview", view: "organization-profile" },
 };
 
@@ -405,6 +411,7 @@ const SECTION_SIDEBAR_ITEM: Partial<Record<DashboardSection, string>> = {
   dashboard: "dashboard",
   suppliers: "suppliers",
   audit: "audit",
+  privacy: "privacy",
   clients: "clients",
   calendar: "calendar",
   tasks: "tasks",
@@ -424,6 +431,7 @@ const EVENT_SCOPED_SIDEBAR_ITEM: Partial<Record<DashboardSection, string>> = {
 const ROUTE_LOADING_COPY: Partial<Record<DashboardSection, { eyebrow: string; title: string }>> = {
   suppliers: { eyebrow: "Supplier directory", title: "Supplier Directory" },
   audit: { eyebrow: "Audit log", title: "Audit Trail" },
+  privacy: { eyebrow: "Privacy operations", title: "Privacy Console" },
   clients: { eyebrow: "Clients", title: "Client Desk" },
   calendar: { eyebrow: "Calendar", title: "Calendar" },
   tasks: { eyebrow: "Tasks", title: "Tasks" },
@@ -468,6 +476,7 @@ export type EventDashboardShellCopy = {
 const ROUTE_DESCRIPTIONS: Partial<Record<DashboardSection, string>> = {
   suppliers: "Master supplier directory with category tagging, tiering, and performance reviews.",
   audit: "Complete audit trail of all actions, approvals, and system events.",
+  privacy: "Privacy requests with 30-day deadlines, owners, execution, legal holds, and retention policies.",
   clients: "Client intake, conforme status, approval requests, and portal readiness.",
   calendar: "Event dates, planning windows, supplier deadlines, and onsite schedule checkpoints.",
   tasks: "PMCM actions across inquiries, approvals, planning, finance, live operations, and closure.",
@@ -485,6 +494,7 @@ const ROUTE_DESCRIPTIONS: Partial<Record<DashboardSection, string>> = {
 const ROUTE_TITLES: Partial<Record<DashboardSection, string>> = {
   suppliers: "Supplier Directory",
   audit: "Audit Trail",
+  privacy: "Privacy Console",
   "command-inbox": "Command Inbox",
   team: "Team & Coordinators",
   inquiries: "Inquiry Intake",
@@ -558,6 +568,7 @@ const PATH_SECTION_PARSERS: Record<string, (parts: string[]) => RouteState> = {
   messages: (parts) => ({ section: "messages", tab: "activity", view: parts[2] ?? "inbox" }),
   finance: (parts) => ({ section: "finance", tab: "billing", view: parts[2] ?? "overview" }),
   audit: () => ({ section: "audit", tab: "overview", view: "system-logs" }),
+  privacy: () => ({ section: "privacy", tab: "overview", view: "console" }),
   settings: parseSettingsPath,
 };
 
