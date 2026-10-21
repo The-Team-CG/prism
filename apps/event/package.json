@@ -10,7 +10,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "node ../../scripts/clean-next-dev.cjs && tsc --noEmit",
-    "lint": "next lint"
+    "lint": "cd ../.. && eslint --config eslint.config.mjs \"apps/event/src/**/*.{ts,tsx}\""
   },
   "dependencies": {
     "@prism/api-client": "*",
@@ -34,10 +34,9 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "^16.2.4",
     "jsdom": "^30.0.1",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }
