@@ -4,10 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrismPrivacyRequest } from "@prism/types";
 import { PrivacyConsoleView } from "./privacy-console-view";
 
-const { repository, storedSession } = vi.hoisted(() => ({
+const { repository, storedSession, retentionLoad } = vi.hoisted(() => ({
   repository: {
     loadContext: vi.fn(),
-    loadRetentionPolicies: vi.fn(),
     queue: vi.fn(),
     loadLegalHolds: vi.fn(),
     createRequest: vi.fn(),
@@ -18,8 +17,10 @@ const { repository, storedSession } = vi.hoisted(() => ({
     releaseLegalHold: vi.fn(),
   },
   storedSession: { current: null as unknown },
+  retentionLoad: vi.fn(),
 }));
 
+vi.mock("@/features/privacy/retention/use-cases/retention-use-cases", () => ({ retentionUseCases: { load: retentionLoad } }));
 vi.mock("../data/privacy-console-repository", () => ({ privacyConsoleRepository: repository }));
 vi.mock("@/app/lib/session", () => ({ readStoredEventSession: () => storedSession.current }));
 
@@ -57,8 +58,8 @@ const operator = { id: "usr_maxine", role: "pmcm-admin", name: "Maxine" };
 
 beforeEach(() => {
   storedSession.current = operator;
+  retentionLoad.mockResolvedValue({ policies: [], items: [] });
   repository.loadContext.mockResolvedValue({ events: [], users: [{ id: "usr_maxine", name: "Maxine" }] });
-  repository.loadRetentionPolicies.mockResolvedValue([]);
   repository.loadLegalHolds.mockResolvedValue([]);
   repository.queue.mockResolvedValue(page([]));
 });
@@ -77,6 +78,7 @@ describe("PrivacyConsoleView", () => {
     render(<PrivacyConsoleView />);
 
     expect(await screen.findByText(/^Overdue by \d+ days? \(due 2026-10-01\)$/)).toBeTruthy();
+    expect(await screen.findByText("Retention policies and review queue")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Assign to me" }));
 
     await waitFor(() => expect(repository.assignRequest).toHaveBeenCalledWith("priv_overdue", { assignedTo: "usr_maxine" }));
@@ -106,7 +108,7 @@ describe("PrivacyConsoleView", () => {
     ));
   });
 
-  it("hides ownership, legal hold, and execution controls from a non-operator session", async () => {
+  it("hides assignment, legal hold, and retention controls from a non-operator session", async () => {
     storedSession.current = { id: "usr_coord", role: "coordinator", name: "Coordinator" };
     repository.queue.mockResolvedValue(page([privacyRequest({ id: "priv_visible", status: "approved", requestType: "deletion" })]));
 
@@ -116,5 +118,6 @@ describe("PrivacyConsoleView", () => {
     expect(screen.queryByRole("button", { name: "Assign to me" })).toBeNull();
     expect(screen.queryByText("Legal holds")).toBeNull();
     expect(repository.loadLegalHolds).not.toHaveBeenCalled();
+    expect(retentionLoad).not.toHaveBeenCalled();
   });
 });
