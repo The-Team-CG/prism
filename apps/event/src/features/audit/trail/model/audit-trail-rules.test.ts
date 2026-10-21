@@ -11,7 +11,7 @@ describe("audit-trail-rules", () => {
       alerts: [{ status: "open" }, { status: "resolved" }],
       loginHistory: [{ status: "failed" }, { status: "success" }],
       approvalRequests: [{ status: "pending" }, { status: "approved" }],
-      privacyRequests: [{ status: "submitted" }, { status: "executed" }],
+      privacySubmittedCount: 1,
       privacyInventory: {
         retentionNotes: ["Keep only what is needed"],
         globalSurfaces: [{ recordCount: 3, missingConsentCount: 1 }],

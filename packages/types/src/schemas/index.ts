@@ -222,6 +222,15 @@ export {
   type WaiveOcularVisitInput,
   type GrantSecondaryClientAccessInput,
   type PrismPmcmCommandInboxQueryInput,
+  PRISM_DECISION_LOG_KINDS,
+  PRISM_DECISION_LOG_MAX_PAGE,
+  PRISM_DECISION_LOG_MAX_PAGE_SIZE,
+  PRISM_DECISION_LOG_DEFAULT_PAGE_SIZE,
+  decisionLogKindSchema,
+  decisionLogQuerySchema,
+  type PrismDecisionLogKind,
+  type PrismDecisionLogQuery,
+  type PrismDecisionLogQueryInput,
 } from "./event-ops-inputs.js";
 
 export {
@@ -245,6 +254,16 @@ export {
   type ExecutePrivacyRequestInput,
   privacyCorrectionPatchSchema,
   type PrivacyCorrectionPatch,
+  PRISM_PRIVACY_REQUEST_SLA_DAYS,
+  PRISM_PRIVACY_REQUEST_MAX_PAGE_LIMIT,
+  PRISM_PRIVACY_REQUEST_UNASSIGNED,
+  privacyRequestStatusFilterSchema,
+  type PrivacyRequestStatusFilter,
+  listPrivacyRequestsQuerySchema,
+  type ListPrivacyRequestsQuery,
+  type ListPrivacyRequestsQueryInput,
+  assignPrivacyRequestSchema,
+  type AssignPrivacyRequestInput,
   aiGovernanceDryRunSchema,
   type AiGovernanceDryRunInput,
 } from "./session-trust-inputs.js";
@@ -359,6 +378,20 @@ export {
   type DecideFreezeExceptionInput,
   type IssueAddendumInput,
 } from "./session-w26-inputs.js";
+export {
+  scopeChangeCategorySchema,
+  submitScopeChangeRequestSchema,
+  scopeChangeImpactSchema,
+  reviewScopeChangeRequestSchema,
+  riskLevelSchema,
+  recordEventRiskAssessmentSchema,
+  type ScopeChangeCategory,
+  type SubmitScopeChangeRequestInput,
+  type ScopeChangeImpactInput,
+  type ReviewScopeChangeRequestInput,
+  type RiskLevel,
+  type RecordEventRiskAssessmentInput,
+} from "./scope-change-risk-inputs.js";
 export * from "./ai-governance.js";
 export {
   PrismContractError,
@@ -369,4 +402,6 @@ export {
 export * from "./supplier-workflow-inputs.js";
 export * from "./client-review-inputs.js";
 export * from "./conforme-signing.js";
+export * from "./privacy-retention-inputs.js";
+export * from "./file-requirement-inputs.js";
 export * from "./floorplan-canvas-inputs.js";

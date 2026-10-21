@@ -161,6 +161,7 @@ function setup(provider: Provider) {
     findStorageEventScope: async () => null,
     findEventReference: async () => null,
     findPrivacyInventory: async () => ({ events: [], approvalRequests: [] }),
+    findFileRequirementVisibility: async () => ({}),
     findPareEventSource: async (requestId) => ({
       request: {
         id: requestId,
@@ -182,6 +183,7 @@ function setup(provider: Provider) {
     }),
     findPareSupplierCandidates: async () => [],
     findApprovedTrustRecipientEmail: async () => null,
+    findApprovedPmcmOperator: async () => null,
   };
   const service = new PAREService(prisma, undefined, gateway, undefined, registry, platformReferences);
   return { root, prisma, state, adapter, registry, gateway, service };

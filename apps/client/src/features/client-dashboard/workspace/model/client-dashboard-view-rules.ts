@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   BadgeCheck,
+  ClipboardList,
   FileText,
   MapPinned,
   MessageSquareText,
@@ -12,7 +13,11 @@ import type { CanvasObject as VenueObject, Project } from "@/features/floorplan/
 import type { DetailTab } from "./client-dashboard-types";
 
 export function draftIsOfficial(draft: PrismFloorPlanDraft) {
-  return draft.status === "in_review" || draft.status === "approved" || draft.status === "revision_requested";
+  const approvedLegacyPmcmPreference = draft.sourceType === "client_preference" &&
+    draft.status === "approved" &&
+    (draft.createdByRole === "pmcm-admin" || draft.createdByRole === "coordinator");
+  return (draft.sourceType !== "client_preference" || approvedLegacyPmcmPreference) &&
+    (draft.status === "in_review" || draft.status === "approved" || draft.status === "revision_requested");
 }
 
 export function objectBox(object: VenueObject, project: Project) {
@@ -107,6 +112,7 @@ export function clientActionIcon(kind: PrismClientActionItem["kind"]): LucideIco
   if (kind === "floorplan") return MapPinned;
   if (kind === "approval") return BadgeCheck;
   if (kind === "feedback") return MessageSquareText;
+  if (kind === "change_request") return ClipboardList;
   return Presentation;
 }
 
@@ -115,7 +121,7 @@ export function clientActionTarget(kind: PrismClientActionItem["kind"]): DetailT
   if (kind === "document" || kind === "closure") return "documents";
   if (kind === "floorplan") return "floorplan";
   if (kind === "approval") return "proposal";
-  if (kind === "feedback") return "activity";
+  if (kind === "feedback" || kind === "change_request") return "activity";
   return "briefing";
 }
 

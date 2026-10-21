@@ -208,6 +208,7 @@ function harness(gateway?: AiGateway) {
     findStorageEventScope: async () => null,
     findEventReference: async () => null,
     findPrivacyInventory: async () => ({ events: [], approvalRequests: [] }),
+    findFileRequirementVisibility: async () => ({}),
     findPareEventSource: async () => ({
       request: {
         id: context.triggerId,
@@ -229,6 +230,7 @@ function harness(gateway?: AiGateway) {
     }),
     findPareSupplierCandidates: async () => [],
     findApprovedTrustRecipientEmail: async () => null,
+    findApprovedPmcmOperator: async () => null,
   };
   return {
     service: new PAREService(prisma as unknown as PrismaService, undefined, gateway, undefined, undefined, platformReferences),

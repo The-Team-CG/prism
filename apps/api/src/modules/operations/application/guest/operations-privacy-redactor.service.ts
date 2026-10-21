@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import type { PrismPrivacyExportSection } from '@prism/types';
+import type { PrismPrivacyExportSection, PrivacyCorrectionPatch } from '@prism/types';
 import type { OperationsPrivacyRedactor, OperationsRedactionResult } from '../../contracts/privacy-redaction.port';
 
 @Injectable()
@@ -22,17 +22,7 @@ export class OperationsPrivacyRedactorService implements OperationsPrivacyRedact
       select: { id: true },
     });
     for (const entry of rosterEntries) {
-      const sourceKey = await this.availableRedactedSourceKey(transaction, input.eventId, entry.id);
-      await transaction.opsGuestRosterEntry.update({
-        where: { id: entry.id },
-        data: {
-          sourceKey,
-          guestName: 'Redacted guest',
-          normalizedName: 'redacted guest',
-          email: '',
-          phone: '',
-        },
-      });
+      await this.redactRosterEntry(transaction, input.eventId, entry.id);
     }
     const checkIns = await transaction.opsGuestCheckIn.updateMany({
       where: guestWhere,
@@ -67,6 +57,150 @@ export class OperationsPrivacyRedactorService implements OperationsPrivacyRedact
       ],
       touchedRecords: rosterEntries.length + checkIns.count + feedback.count + media.count,
     };
+  }
+
+  /**
+   * Redacts exactly one guest check-in or feedback record by id, plus rows linked to it by foreign key: the
+   * check-in's roster entry and a feedback item's media metadata. Never matches by name, so another guest who
+   * shares the name in the same event is untouched.
+   */
+  async redactGuestRecord(
+    input: { eventId: string; recordType: 'guest_check_in' | 'guest_feedback'; recordId: string },
+    transaction: Prisma.TransactionClient,
+  ): Promise<OperationsRedactionResult> {
+    if (!input.eventId || !input.recordId) throw new BadRequestException('Guest record redaction requires an event and record id');
+    if (input.recordType === 'guest_check_in') {
+      return this.redactCheckInRecord(transaction, input.eventId, input.recordId);
+    }
+
+    const feedback = await transaction.opsGuestFeedback.findFirst({
+      where: { id: input.recordId, eventId: input.eventId },
+      select: { id: true },
+    });
+    if (!feedback) return { surfaces: [], touchedRecords: 0 };
+    const media = await transaction.opsGuestFeedbackMedia.updateMany({
+      where: { feedbackId: feedback.id },
+      data: { originalFileName: '[redacted by privacy request]' },
+    });
+    const feedbackUpdate = await transaction.opsGuestFeedback.updateMany({
+      where: { id: feedback.id, eventId: input.eventId },
+      data: {
+        guestName: 'Redacted guest',
+        comment: '[redacted by privacy request]',
+        photoFileName: null,
+        videoFileName: null,
+      },
+    });
+    return {
+      surfaces: [
+        ...(media.count ? ['guest_feedback_media_metadata'] : []),
+        ...(feedbackUpdate.count ? ['guest_feedback'] : []),
+      ],
+      touchedRecords: media.count + feedbackUpdate.count,
+    };
+  }
+
+  private async redactCheckInRecord(
+    transaction: Prisma.TransactionClient,
+    eventId: string,
+    recordId: string,
+  ): Promise<OperationsRedactionResult> {
+    const checkIn = await transaction.opsGuestCheckIn.findFirst({
+      where: { id: recordId, eventId },
+      select: { id: true, rosterEntryId: true },
+    });
+    if (!checkIn) return { surfaces: [], touchedRecords: 0 };
+    const checkInUpdate = await transaction.opsGuestCheckIn.updateMany({
+      where: { id: checkIn.id, eventId },
+      data: { guestName: 'Redacted guest' },
+    });
+    let rosterTouched = 0;
+    if (checkIn.rosterEntryId) {
+      const entry = await transaction.opsGuestRosterEntry.findFirst({
+        where: { id: checkIn.rosterEntryId, eventId },
+        select: { id: true },
+      });
+      if (entry) {
+        await this.redactRosterEntry(transaction, eventId, entry.id);
+        rosterTouched = 1;
+      }
+    }
+    return {
+      surfaces: [
+        ...(rosterTouched ? ['guest_roster_entry'] : []),
+        ...(checkInUpdate.count ? ['guest_check_in'] : []),
+      ],
+      touchedRecords: rosterTouched + checkInUpdate.count,
+    };
+  }
+
+  private async redactRosterEntry(transaction: Prisma.TransactionClient, eventId: string, entryId: string) {
+    const sourceKey = await this.availableRedactedSourceKey(transaction, eventId, entryId);
+    await transaction.opsGuestRosterEntry.update({
+      where: { id: entryId },
+      data: {
+        sourceKey,
+        guestName: 'Redacted guest',
+        normalizedName: 'redacted guest',
+        email: '',
+        phone: '',
+      },
+    });
+  }
+
+  async correctGuest(
+    input: { eventId: string; name: string; patch: PrivacyCorrectionPatch },
+    transaction: Prisma.TransactionClient,
+  ): Promise<OperationsRedactionResult> {
+    const currentName = input.name.trim();
+    if (!input.eventId || !currentName) throw new BadRequestException('Guest correction requires a name and event scope');
+    const correctedName = input.patch.name?.trim();
+    const guestWhere = { eventId: input.eventId, guestName: { equals: currentName, mode: 'insensitive' as const } };
+    await this.assertCorrectedNameFree(transaction, input.eventId, currentName, correctedName);
+
+    const roster = await transaction.opsGuestRosterEntry.updateMany({
+      where: guestWhere,
+      data: {
+        ...(correctedName ? { guestName: correctedName, normalizedName: correctedName.toLowerCase() } : {}),
+        ...(input.patch.email !== undefined ? { email: input.patch.email.trim().toLowerCase() } : {}),
+      },
+    });
+    const checkIns = correctedName
+      ? await transaction.opsGuestCheckIn.updateMany({ where: guestWhere, data: { guestName: correctedName } })
+      : { count: 0 };
+    const feedback = correctedName
+      ? await transaction.opsGuestFeedback.updateMany({ where: guestWhere, data: { guestName: correctedName } })
+      : { count: 0 };
+    return {
+      surfaces: [
+        ...(roster.count ? ['guest_roster_entry'] : []),
+        ...(checkIns.count ? ['guest_check_in'] : []),
+        ...(feedback.count ? ['guest_feedback'] : []),
+      ],
+      touchedRecords: roster.count + checkIns.count + feedback.count,
+    };
+  }
+
+  /** Only a genuinely different corrected name needs to be free of another guest's identity in the event. */
+  private async assertCorrectedNameFree(
+    transaction: Prisma.TransactionClient,
+    eventId: string,
+    currentName: string,
+    correctedName: string | undefined,
+  ) {
+    if (!correctedName || correctedName.toLowerCase() === currentName.toLowerCase()) return;
+    await this.assertGuestNameFree(transaction, eventId, correctedName);
+  }
+
+  /** A corrected name must not merge the subject into another guest's identity in the same event. */
+  private async assertGuestNameFree(transaction: Prisma.TransactionClient, eventId: string, name: string) {
+    const where = { eventId, guestName: { equals: name, mode: 'insensitive' as const } };
+    const taken = await transaction.opsGuestRosterEntry.findFirst({ where, select: { id: true } })
+      ?? await transaction.opsGuestCheckIn.findFirst({ where, select: { id: true } })
+      ?? await transaction.opsGuestFeedback.findFirst({ where, select: { id: true } });
+    if (taken) {
+      throw new ConflictException('Another guest in this event already uses the corrected name');
+    }
   }
 
   /** Roster, check-in, and feedback rows for one guest name inside one event. Moderation notes stay internal. */

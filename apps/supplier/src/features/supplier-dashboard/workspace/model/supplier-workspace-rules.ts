@@ -1,4 +1,10 @@
-import type { PrismAuthenticatedSession, PrismFileRequirementItem } from "@prism/types";
+import type {
+  PrismAuthenticatedSession,
+  PrismFileRequirementItem,
+  PrismSupplierReadinessConcernKind,
+  PrismSupplierReadinessItem,
+  PrismSupplierReadinessSetupStatus,
+} from "@prism/types";
 import type { BookingStep, CalendarEventItem, QuoteFormState, QuoteSubmitInput, SectionMeta, SupplierDashboardSection, SupplierWorkspace, WorkspaceDerived, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard } from "./supplier-workspace-types";
 
 export const EVENT_STATUS_ACTIONS = [
@@ -130,6 +136,8 @@ export function buildSupplierContractRequirements(workspace: Pick<SupplierWorksp
         : request.contractReviewStatus === "changes_requested" ? "pending" : "missing",
     auditCategory: "documents",
     detail: buildBookingSteps(request)[2].meta,
+    required: true,
+    overdue: false,
   }));
 }
 
@@ -419,4 +427,51 @@ export function bookingsNavDesc(handoffPending: number, selectedRequestCount: nu
   if (handoffPending) return `${handoffPending} handoff item(s) pending`;
   if (selectedRequestCount) return "All steps complete";
   return "No active bookings";
+}
+
+/**
+ * Where a readiness item is actioned: unselected quotes live in Quote requests; selected work
+ * (assignment, contract upload, schedule acknowledgment, event-day status) lives in Bookings.
+ */
+export function supplierReadinessSection(item: Pick<PrismSupplierReadinessItem, "quoteStatus">): SupplierDashboardSection {
+  return item.quoteStatus === "selected" ? "bookings" : "requests";
+}
+
+export type SupplierReadinessEventGroup = {
+  eventId: string;
+  eventName: string;
+  items: PrismSupplierReadinessItem[];
+};
+
+/** Groups every readiness item by event, keeping the server's priority order inside and across groups. */
+export function groupReadinessItemsByEvent(items: PrismSupplierReadinessItem[]): SupplierReadinessEventGroup[] {
+  const groups = new Map<string, SupplierReadinessEventGroup>();
+  for (const item of items) {
+    const group = groups.get(item.eventId) ?? { eventId: item.eventId, eventName: item.eventName ?? "Assigned event", items: [] };
+    group.items.push(item);
+    groups.set(item.eventId, group);
+  }
+  return [...groups.values()];
+}
+
+const READINESS_SETUP_LABELS: Record<PrismSupplierReadinessSetupStatus, string> = {
+  not_started: "Setup not started",
+  late: "Ingress late",
+  arrived: "Arrived",
+  ready: "Set up ready",
+  complete: "Done and leaving",
+};
+
+export function readinessSetupLabel(status: PrismSupplierReadinessSetupStatus): string {
+  return READINESS_SETUP_LABELS[status];
+}
+
+const READINESS_CONCERN_LABELS: Record<PrismSupplierReadinessConcernKind, string> = {
+  schedule_change_request: "Your schedule change request",
+  contract_correction: "Contract correction requested",
+  event_day_note: "Your event-day note",
+};
+
+export function readinessConcernLabel(kind: PrismSupplierReadinessConcernKind): string {
+  return READINESS_CONCERN_LABELS[kind];
 }

@@ -2,10 +2,12 @@ import type {
   PrismBillingWorkspace,
   PrismClientActionCenter,
   PrismClientWorkspace,
+  PrismDecisionLog,
   PrismPmcmCommandInbox,
   PrismPmcmCommandInboxQueryInput,
   PrismPmcmDashboardWorkspace,
   PrismPmcmEventWorkspace,
+  PrismPmcmSupplierReadinessBoard,
   PrismRegistrationPlatform,
   PrismSupplierQuoteRequest,
   PrismSupplierReadinessBoard,
@@ -99,9 +101,22 @@ export function createWorkspacesClient(
           withBase(options),
         );
       },
+      decisionLog: (eventId, query = {}) => {
+        const params = toQueryString(query);
+        const path = `/events/${encodeURIComponent(eventId)}/decision-log`;
+        return prismRequest<PrismDecisionLog>(
+          params ? `${path}?${params}` : path,
+          withBase(options),
+        );
+      },
       eventWorkspace: (eventId, actor = {}) =>
         prismRequest<PrismPmcmEventWorkspace>(
           actorPath(`/pmcm/events/${eventId}/workspace`, actor),
+          withBase(options),
+        ),
+      supplierReadiness: (eventId) =>
+        prismRequest<PrismPmcmSupplierReadinessBoard>(
+          `/pmcm/events/${encodeURIComponent(eventId)}/supplier-readiness`,
           withBase(options),
         ),
       registrationPlatform: (eventId, actor = {}) =>

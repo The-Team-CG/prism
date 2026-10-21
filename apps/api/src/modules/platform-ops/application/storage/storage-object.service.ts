@@ -2,8 +2,8 @@ import { BadRequestException, ConflictException, ForbiddenException, Inject, Inj
 import type { OpsStoredObject, Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '@prism/kernel/database';
-import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
-import { OpsUserRole, type OpsUserRole as OpsUserRoleValue } from '@prism/kernel/event-core';
+import { AUDIT_WRITER, EventAccessPolicyService, writeAudit, type AuditWriter, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
+import { AuditActionType, AuditCategory, OpsUserRole, type OpsUserRole as OpsUserRoleValue } from '@prism/kernel/event-core';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type { PrismEventGameLobbyLogoUploadTicket, PrismEventGameMediaAuthorization, PrismEventGameMediaUploadTicket, PrismStorageDownloadAuthorization, PrismStoredObject, StorageUsage } from '@prism/types';
 import { PLATFORM_REFERENCE_READ_MODEL, type PlatformReferenceReadModel, type PlatformStorageEventScope } from '@prism/contexts/read-models';
@@ -48,6 +48,23 @@ function isConfirmedSupplierUpload(object: OpsStoredObject | null, input: Stored
     object.lifecycleState === 'stored' && validTarget && validChecksum;
 }
 
+/**
+ * Storage owner pairs governed by an event file requirement. A PMCM visibility
+ * override on that requirement can only narrow the usage rules below.
+ */
+const STORAGE_REQUIREMENT_KEYS: Readonly<Record<string, string>> = {
+  'event:signed_conforme': 'signed_conforme',
+  'billing_statement:event_deliverable': 'billing_statement',
+};
+
+type RequirementVisibility = Readonly<Record<string, readonly string[]>>;
+
+function requirementVisibilityAllows(actor: ResolvedEventOpsActor, object: OpsStoredObject, visibility: RequirementVisibility) {
+  const key = STORAGE_REQUIREMENT_KEYS[`${object.ownerRecordType}:${object.usage}`];
+  const roles = key ? visibility[key] : undefined;
+  return !roles || roles.includes(actor.role);
+}
+
 function isSupportedStorageOwner(ownerRecordType: string, usage: string) {
   return STORAGE_OWNER_USAGE_REGISTRY[ownerRecordType]?.includes(usage as StorageUsage) ?? false;
 }
@@ -87,6 +104,7 @@ export class StorageObjectService implements StoredSupplierUploadReader {
     private readonly validation: StorageValidationService,
     @Optional() @Inject(STORAGE_ADAPTER) private readonly adapter?: StorageAdapter,
     @Optional() @Inject(PLATFORM_REFERENCE_READ_MODEL) private readonly platformReferences?: PlatformReferenceReadModel,
+    @Optional() @Inject(AUDIT_WRITER) private readonly auditWriter?: AuditWriter,
   ) {}
 
   async findConfirmedSupplierUpload(input: StoredSupplierUploadLookup): Promise<StoredSupplierUploadReference | null> {
@@ -220,7 +238,7 @@ export class StorageObjectService implements StoredSupplierUploadReader {
     if (current.lifecycleState !== 'requested') throw new ConflictException('Only a requested upload can be confirmed');
     this.assertConfirmationDeclaration(current, input);
     const confirmation = await this.confirmWithAdapter(current, input);
-    return this.persistStored(current, confirmation, input.context);
+    return this.persistStored(current, confirmation, input.actor, input.context);
   }
 
   async confirmEventGameLobbyLogoUpload(
@@ -329,11 +347,14 @@ export class StorageObjectService implements StoredSupplierUploadReader {
     }
     this.assertSupportedOwner(object.ownerRecordType, object.usage);
     input = { ...input, actor: await this.authorizeEvent(object.eventId, input.actor, object.usage as StorageServiceRequest['usage'], 'download storage object') };
-    await this.assertCanAccessObject(input.actor, object, 'download storage object');
+    await this.assertCanAccessObject(input.actor, object, 'download storage object', await this.requirementVisibility(input.actor, object.eventId));
     if (object.lifecycleState !== 'stored' || !object.providerObjectKey || !this.adapter) {
       throw new ServiceUnavailableException(object.lifecycleState === 'stored' ? 'Storage provider is not configured' : 'Stored object is not available');
     }
     const authorization = await this.adapter.issueDownloadAuthorization(this.adapterRequest(object));
+    await this.auditStorageAction(input.actor, object, 'Issued file download authorization', AuditActionType.General, 'download_authorized', {
+      expiresAt: authorization.expiresAt.toISOString(),
+    });
     return {
       ...authorization,
       expiresAt: authorization.expiresAt.toISOString(),
@@ -369,7 +390,7 @@ export class StorageObjectService implements StoredSupplierUploadReader {
     const object = await this.prisma.opsStoredObject.findUnique({ where: { id: input.objectId } });
     if (!object) throw new NotFoundException('Stored object not found');
     input = { ...input, actor: await this.authorizeEvent(object.eventId, input.actor, object.usage as StorageServiceRequest['usage'], 'download storage object') };
-    await this.assertCanAccessObject(input.actor, object, 'download storage object');
+    await this.assertCanAccessObject(input.actor, object, 'download storage object', await this.requirementVisibility(input.actor, object.eventId));
     if (object.lifecycleState !== 'stored' || !this.adapter?.readAuthorizedDownload) {
       throw new ServiceUnavailableException(object.lifecycleState === 'stored' ? 'This storage provider requires a direct HTTP download' : 'Stored object is not available');
     }
@@ -537,16 +558,17 @@ export class StorageObjectService implements StoredSupplierUploadReader {
       orderBy: { createdAt: 'desc' },
       take: 500,
     });
+    const visibility = await this.requirementVisibility(actor, eventId);
     return objects
-      .filter((object) => this.canSeeObject(actor, object))
+      .filter((object) => this.canSeeObject(actor, object, visibility))
       .map((object) => this.mapObject(object));
   }
 
-  private canSeeObject(actor: ResolvedEventOpsActor, object: OpsStoredObject) {
+  private canSeeObject(actor: ResolvedEventOpsActor, object: OpsStoredObject, visibility: RequirementVisibility = {}) {
     if (object.usage === 'event_game_media' || object.usage === 'event_game_branding') return false;
     if (!isSupportedStorageOwner(object.ownerRecordType, object.usage)) return false;
     if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return true;
-    return this.canSeeObjectByUsage(actor, object);
+    return this.canSeeObjectByUsage(actor, object) && requirementVisibilityAllows(actor, object, visibility);
   }
 
   private canSeeObjectByUsage(actor: ResolvedEventOpsActor, object: OpsStoredObject) {
@@ -563,8 +585,8 @@ export class StorageObjectService implements StoredSupplierUploadReader {
     }
   }
 
-  private async assertCanAccessObject(actor: ResolvedEventOpsActor, object: OpsStoredObject, resource: string) {
-    if (!this.canSeeObject(actor, object)) {
+  private async assertCanAccessObject(actor: ResolvedEventOpsActor, object: OpsStoredObject, resource: string, visibility: RequirementVisibility = {}) {
+    if (!this.canSeeObject(actor, object, visibility)) {
       await this.accessPolicy.recordForbiddenAccess(actor, resource, object.eventId);
       throw new ForbiddenException('Stored object is outside the actor role scope');
     }
@@ -625,6 +647,9 @@ export class StorageObjectService implements StoredSupplierUploadReader {
     });
     const saved = await prisma.opsStoredObject.findUniqueOrThrow({ where: { id: object.id } });
     if (updated.count !== 1 && saved.lifecycleState !== 'deleted') throw new ConflictException('Storage object state changed; refresh before deleting');
+    if (updated.count === 1) {
+      await this.auditStorageAction(input.actor, saved, 'Deleted stored file', AuditActionType.General, 'deleted', {}, input.context);
+    }
     return this.mapObject(saved);
   }
 
@@ -754,13 +779,45 @@ export class StorageObjectService implements StoredSupplierUploadReader {
     return confirmation;
   }
 
-  private async persistStored(object: OpsStoredObject, confirmation: { providerName: string; providerObjectKey: string }, context?: PrismTransactionContext) {
+  private async persistStored(object: OpsStoredObject, confirmation: { providerName: string; providerObjectKey: string }, actor: ResolvedEventOpsActor, context?: PrismTransactionContext) {
     return this.withWritableEventLock(object.eventId, async (prisma) => {
       const updated = await prisma.opsStoredObject.updateMany({ where: { id: object.id, lifecycleState: 'requested', providerObjectKey: object.providerObjectKey }, data: { lifecycleState: 'stored', providerName: confirmation.providerName, providerObjectKey: confirmation.providerObjectKey, storedAt: new Date(), failureReason: null } });
       const saved = await prisma.opsStoredObject.findUniqueOrThrow({ where: { id: object.id } });
       if (updated.count !== 1 && saved.lifecycleState !== 'stored') throw new ConflictException('Storage object state changed; refresh before confirming');
+      if (updated.count === 1) {
+        await this.auditStorageAction(actor, saved, 'Confirmed file upload', AuditActionType.Upload, 'upload_confirmed', {}, { prisma, correlationId: `storage-upload:${saved.id}` });
+      }
       return this.mapObject(saved);
     }, context);
+  }
+
+  /**
+   * Storage audit rows carry object metadata only: never file bytes, provider
+   * object keys, or signed upload/download URLs.
+   */
+  private async auditStorageAction(
+    actor: ResolvedEventOpsActor,
+    object: OpsStoredObject,
+    action: string,
+    actionType: string,
+    storageAction: string,
+    metadata: Record<string, unknown>,
+    context?: PrismTransactionContext,
+  ) {
+    if (!this.auditWriter) return;
+    await writeAudit(this.auditWriter, object.eventId, actor.name, action, {
+      actorRole: actor.role, actorEmail: actor.email, actionType, category: AuditCategory.Documents,
+      affectedType: 'stored_object', affectedId: object.id, affectedLabel: object.originalFileName,
+      metadata: {
+        storageAction, usage: object.usage, ownerRecordType: object.ownerRecordType, ownerRecordId: object.ownerRecordId,
+        contentType: object.contentType, byteSize: object.declaredByteSize, ...metadata,
+      },
+    }, context);
+  }
+
+  private async requirementVisibility(actor: ResolvedEventOpsActor, eventId: string): Promise<RequirementVisibility> {
+    if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return {};
+    return (await this.platformReferences?.findFileRequirementVisibility(eventId)) ?? {};
   }
 
   private async withWritableEventLock<T>(eventId: string, operation: (prisma: Prisma.TransactionClient) => Promise<T>, context?: PrismTransactionContext): Promise<T> {

@@ -19,6 +19,8 @@ import { EventLiveOpsReadService } from './application/event-live-ops-read.servi
 import { CoordinatorLiveOpsCommandService } from './application/coordinator-live-ops-command.service';
 import { LiveOpsTaskIssueCommandService } from './application/live-ops-task-issue-command.service';
 import { EventScheduleService } from './application/event-schedule.service';
+import { LiveOpsOverdueTaskNotificationService } from './application/overdue-task-notification.service';
+import { LiveOpsOverdueTaskNotificationScheduler } from './application/overdue-task-notification.scheduler';
 
 /**
  * Owned tables: OpsEventDayLog, OpsEventDayTask, OpsUrgentIssue. Assignment and coordinator reliability changes use the Operations staffing port.
@@ -46,6 +48,8 @@ import { EventScheduleService } from './application/event-schedule.service';
     EventLiveOpsReadService,
     EventLiveOpsCommandService,
     EventScheduleService,
+    LiveOpsOverdueTaskNotificationService,
+    LiveOpsOverdueTaskNotificationScheduler,
   ],
   exports: [EventLiveOpsReadService, EventLiveOpsCommandService, EventScheduleService],
 })

@@ -12,6 +12,8 @@ import {
   type SubmitBriefingInput,
 } from "@prism/types";
 import type { Project } from "@/features/floorplan/editor";
+import type { PrismFloorPlanDraft } from "@prism/types";
+import { buildReopenedFloorPlanPreferencePayload } from "../model/client-floorplan-preference-rules";
 
 export function readClientSession() {
   return clientDashboardRepository.readSession();
@@ -71,5 +73,13 @@ export function submitFloorPlanRevisionComment(
 }
 
 export function saveFloorPlanProject(project: Project) {
+  return clientDashboardRepository.savePlan(project);
+}
+
+export function submitFloorPlanEditorProject(eventId: string, draft: PrismFloorPlanDraft, project: Project) {
+  if (draft.sourceType === "client_preference" && draft.status === "revision_requested") {
+    const input = buildReopenedFloorPlanPreferencePayload(draft, project);
+    return clientDashboardRepository.createFloorPlanPreference(eventId, input);
+  }
   return clientDashboardRepository.savePlan(project);
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { FileCheck2, LayoutGrid, MapPinned, Truck } from "lucide-react";
+import { FileCheck2, Gavel, LayoutGrid, MapPinned, Truck } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -16,8 +16,9 @@ import { FinancialWorkspace } from "@/features/finance/workspace";
 import { BillingAdjustmentsPanel } from "@/features/finance/billing-adjustments/views/billing-adjustments-panel";
 import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
 import { HandoffBriefPanel } from "@/features/live-ops/handoff-brief";
+import { DecisionLogPanel } from "@/features/decision-log";
 import { SupplierQuotePlanner } from "@/features/suppliers/directory";
-import { PmcmSupplierReadinessBoard } from "@/features/suppliers/readiness";
+import { PmcmSupplierReadinessBoard, supplierReadinessRefreshKey } from "@/features/suppliers/readiness";
 import { PmcmSupplierWorkflowsPanel } from "@/features/suppliers/workflows/views/pmcm-supplier-workflows-panel";
 import { EventRegistrationTab } from "@/app/components/pmcm/event-registration-tab";
 import { EventGamesHostView } from "@/features/event-games/host";
@@ -30,6 +31,7 @@ import { Card, CardBody, CardHeader } from "./shell-ui";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
 import type { PrismFloorPlanDraft } from "@prism/types";
 import { PmcmClientReviewPanel } from "@/features/commercial/client-review/views/pmcm-client-review-panel";
+import { canReopenClientPreference, canViewClientPreference } from "@/features/floorplan/workspace/model/floorplan-workspace-rules";
 
 export function EventWorkspaceOverviewTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
@@ -126,9 +128,13 @@ function EventFloorplanTemplatePicker() {
 }
 
 function EventFloorplanDraftCard({ draft }: { draft: PrismFloorPlanDraft }) {
-  const { selectedEvent, run, openEditor, submitFloorPlanDraft, approveFloorPlanDraft } = useEventDashboardLoadedRouteViewModel();
+  const { selectedEvent, drafts, run, openEditor, submitFloorPlanDraft, approveFloorPlanDraft, reopenClientPreference } = useEventDashboardLoadedRouteViewModel();
   if (!selectedEvent) return null;
-  const canSubmit = draft.status !== "in_review" && draft.status !== "approved";
+  const isClientPreference = draft.sourceType === "client_preference";
+  const canSubmit = !isClientPreference && ["pmcm_draft", "revision_requested"].includes(draft.status);
+  const canApprove = !isClientPreference && draft.status === "in_review";
+  const canViewPreference = canViewClientPreference(draft);
+  const canReopenPreference = canReopenClientPreference(draft, selectedEvent.floorPlanStatus, drafts);
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-4">
       <div className="flex items-start justify-between gap-3">
@@ -138,27 +144,44 @@ function EventFloorplanDraftCard({ draft }: { draft: PrismFloorPlanDraft }) {
         </div>
         <StatusBadge status={draft.status} />
       </div>
-      {draft.clientPreference ? (
-        <div className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-xs leading-5 text-muted-foreground">
-          <p><span className="font-bold text-foreground">Seating:</span> {draft.clientPreference.seatingStyle}</p>
-          <p><span className="font-bold text-foreground">Stage:</span> {draft.clientPreference.stagePreference}</p>
-        </div>
-      ) : null}
+      <ClientFloorplanPreferenceSummary preference={draft.clientPreference} />
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => run("open draft", () => openEditor(selectedEvent, draft))}>
-          Open / Edit
-        </Button>
+        {!isClientPreference ? (
+          <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => run("open draft", () => openEditor(selectedEvent, draft))}>
+            Open / Edit
+          </Button>
+        ) : null}
+        {canViewPreference ? (
+          <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => run("view preference layout", () => openEditor(selectedEvent, draft, true))}>
+            {draft.status === "approved" ? "View approved layout" : "View preference layout"}
+          </Button>
+        ) : null}
+        {canReopenPreference ? (
+          <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => reopenClientPreference(draft)}>
+            Reopen preference
+          </Button>
+        ) : null}
         {canSubmit ? (
           <Button size="sm" className="rounded-lg font-bold" onClick={() => submitFloorPlanDraft(draft)}>
             Submit
           </Button>
         ) : null}
-        {draft.status !== "approved" ? (
+        {canApprove ? (
           <Button size="sm" variant="outline" className="rounded-lg border-(--prism-success)/25 bg-(--prism-success)/8 font-bold text-(--prism-success) hover:bg-(--prism-success)/15" onClick={() => approveFloorPlanDraft(draft)}>
             Approve
           </Button>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+function ClientFloorplanPreferenceSummary({ preference }: { preference: PrismFloorPlanDraft["clientPreference"] }) {
+  if (!preference) return null;
+  return (
+    <div className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-xs leading-5 text-muted-foreground">
+      <p><span className="font-bold text-foreground">Seating:</span> {preference.seatingStyle}</p>
+      <p><span className="font-bold text-foreground">Stage:</span> {preference.stagePreference}</p>
     </div>
   );
 }
@@ -221,7 +244,7 @@ export function EventWorkspaceSuppliersTab() {
         </CardBody>
       </Card>
 
-      <PmcmSupplierReadinessBoard requests={vm.quoteRequests} quotes={vm.quotes} />
+      <PmcmSupplierReadinessBoard eventId={vm.selectedEvent.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} />
       <PmcmSupplierWorkflowsPanel eventId={vm.selectedEvent.id} requests={vm.quoteRequests} quotes={vm.quotes} />
 
       <Card>
@@ -371,6 +394,16 @@ export function EventWorkspaceClosureTab() {
       <FeedbackModerationPanel eventId={vm.selectedEvent.id} />
     </>
   );
+}
+
+/** PMCM-only (FL-019). Other roles get no panel here, and the API refuses them independently. */
+export function EventWorkspaceDecisionsTab() {
+  const vm = useEventDashboardLoadedRouteViewModel();
+  if (!vm.selectedEvent) return null;
+  if (!isPmcmAdmin(vm.session.role)) {
+    return <EmptyState icon={Gavel} title="Decision log is PMCM-only" description="Overrides, approvals, and scope decisions are visible to PMCM administrators." />;
+  }
+  return <DecisionLogPanel eventId={vm.selectedEvent.id} />;
 }
 
 export function EventWorkspaceActivityTab() {

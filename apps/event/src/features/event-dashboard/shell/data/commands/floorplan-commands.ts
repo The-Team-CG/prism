@@ -36,6 +36,8 @@ function apiPlanToProject(plan: ApiFloorPlan): Project {
 export const floorplanCommands = {
 approveFloorPlanDraft: (eventId: string, draftId: string) =>
     request<PrismFloorPlanDraft>(`/api/events/${eventId}/floorplans/${draftId}/approve`, { method: "POST" }),
+reopenClientPreference: (eventId: string, draftId: string) =>
+    request<PrismFloorPlanDraft>(`/api/events/${eventId}/floorplans/${draftId}/reopen-preference`, { method: "POST" }),
 createFloorPlanDraft: (eventId: string, input: CreateFloorPlanDraftInput) =>
     request<PrismFloorPlanDraft>(`/api/events/${eventId}/floorplans`, {
       method: "POST",

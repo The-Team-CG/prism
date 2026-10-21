@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
 
 import {
   AlertTriangle,
@@ -20,14 +20,13 @@ import {
   UserRound,
 } from "lucide-react";
 
-import type { PrismAuditLog, PrismEvent, PrismPrivacyLegalHold, PrismPrivacyRequest, PrismUser, PrismLoginHistory, PrismSecurityAlert } from "@prism/types";
+import type { PrismAuditLog, PrismEvent, PrismUser, PrismLoginHistory, PrismSecurityAlert } from "@prism/types";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { auditTone, compactTimestamp, cx, label, severityTone } from "@/features/pmcm-kit";
 import { Metric, Panel } from "@/features/pmcm-kit";
 import { auditIconKind, auditIntegrityCopy } from "../model/audit-trail-rules";
-import type { PrivacyCorrectionDraft } from "../model/privacy-correction";
 import type { useAuditTrailViewModel } from "../view-models/use-audit-trail-view-model";
 
 type AuditVm = ReturnType<typeof useAuditTrailViewModel>;
@@ -287,253 +286,18 @@ function AuditLogRow({ log }: { log: PrismAuditLog }) {
   );
 }
 
-export function PrivacyOperationsPanel({ vm }: { vm: AuditVm }) {
+export function PrivacyConsoleLinkPanel() {
   return (
     <Panel title="Privacy operations" icon={Database}>
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="space-y-3">
-          <div className="grid gap-2 rounded-md border border-border bg-background p-3 sm:grid-cols-2">
-            <select
-              value={vm.privacyForm.subjectType}
-              onChange={(event) => vm.setPrivacyForm((current) => ({ ...current, subjectType: event.target.value }))}
-              className="h-10 rounded-md border border-border bg-white px-3 text-sm"
-            >
-              <option value="client">Client</option>
-              <option value="supplier">Supplier</option>
-              <option value="guest">Guest</option>
-            </select>
-            <select
-              value={vm.privacyForm.requestType}
-              onChange={(event) => vm.setPrivacyForm((current) => ({ ...current, requestType: event.target.value as typeof vm.privacyForm.requestType }))}
-              className="h-10 rounded-md border border-border bg-white px-3 text-sm"
-            >
-              <option value="access">Access</option>
-              <option value="correction">Correction</option>
-              <option value="deletion">Deletion</option>
-              <option value="export">Export</option>
-            </select>
-            <Input value={vm.privacyForm.subjectEmail} onChange={(event) => vm.setPrivacyForm((current) => ({ ...current, subjectEmail: event.target.value }))} className="h-10 bg-white" placeholder="Subject email" />
-            <Input value={vm.privacyForm.subjectName} onChange={(event) => vm.setPrivacyForm((current) => ({ ...current, subjectName: event.target.value }))} className="h-10 bg-white" placeholder="Subject name" />
-            <textarea
-              value={vm.privacyForm.requestNotes}
-              onChange={(event) => vm.setPrivacyForm((current) => ({ ...current, requestNotes: event.target.value }))}
-              className="min-h-20 rounded-md border border-border bg-white px-3 py-2 text-sm sm:col-span-2"
-              placeholder="Request notes"
-            />
-            <Button type="button" disabled={vm.busy || (!vm.privacyForm.subjectEmail && !vm.privacyForm.subjectName)} onClick={vm.logPrivacyRequest} className="h-10 rounded-md font-black sm:col-span-2">
-              Log privacy request
-            </Button>
-          </div>
-          {vm.privacyRequests.length === 0 ? <p className="text-sm text-muted-foreground">No privacy requests are queued.</p> : null}
-          {vm.privacyRequests.slice(0, 5).map((request) => (
-            <PrivacyRequestCard key={request.id} request={request} busy={vm.busy} onReview={vm.reviewPrivacyRequest} onExecute={vm.executePrivacyRequest} />
-          ))}
-          {vm.isPmcmAdmin ? <PrivacyLegalHoldControls vm={vm} /> : null}
-        </div>
-        <div className="space-y-2">
-          {vm.privacyPolicies.slice(0, 7).map((policy) => (
-            <div key={policy.surface} className="rounded-md bg-background p-3 text-xs">
-              <p className="font-black capitalize text-foreground">{label(policy.surface)}</p>
-              <p className="mt-1 text-muted-foreground">{policy.retentionPeriod}</p>
-            </div>
-          ))}
-        </div>
+      <div className="space-y-3 text-sm">
+        <p className="text-muted-foreground">
+          Privacy requests, deadlines, owners, legal holds, and retention policies are managed in the privacy console.
+        </p>
+        <Link href="/dashboard/privacy" className="inline-flex h-10 items-center rounded-md border border-border bg-white px-4 font-black text-foreground hover:bg-background">
+          Open privacy console
+        </Link>
       </div>
     </Panel>
-  );
-}
-
-function PrivacyLegalHoldControls({ vm }: { vm: AuditVm }) {
-  const form = vm.legalHoldForm;
-  const eventScope = form.eventScope === "event";
-  const identity = form.subjectType === "guest" ? form.subjectName : form.subjectEmail;
-  return (
-    <section className="space-y-3 rounded-md border border-border bg-background p-3" aria-labelledby="privacy-legal-holds-title">
-      <div>
-        <h3 id="privacy-legal-holds-title" className="font-black text-foreground">Legal holds</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Active holds stop matching deletion requests. Guest identity uses the full name; an all-events hold applies to matching names across events.
-        </p>
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2">
-        <select
-          aria-label="Legal hold subject type"
-          value={form.subjectType}
-          onChange={(event) => vm.setLegalHoldForm((current) => ({ ...current, subjectType: event.target.value as typeof current.subjectType }))}
-          className="h-10 rounded-md border border-border bg-white px-3 text-sm"
-        >
-          <option value="client">Client</option>
-          <option value="supplier">Supplier</option>
-          <option value="guest">Guest</option>
-        </select>
-        <select
-          aria-label="Legal hold event scope"
-          value={form.eventScope}
-          onChange={(event) => vm.setLegalHoldForm((current) => ({ ...current, eventScope: event.target.value as typeof current.eventScope }))}
-          className="h-10 rounded-md border border-border bg-white px-3 text-sm"
-        >
-          <option value="subject">All events for this subject</option>
-          <option value="event" disabled={vm.eventId === "all"}>Selected event only</option>
-        </select>
-        {form.subjectType === "guest" ? (
-          <Input
-            aria-label="Guest name for legal hold"
-            value={form.subjectName ?? ""}
-            onChange={(event) => vm.setLegalHoldForm((current) => ({ ...current, subjectName: event.target.value }))}
-            className="h-10 bg-white sm:col-span-2"
-            placeholder="Full guest name"
-          />
-        ) : (
-          <Input
-            aria-label="Email identity for legal hold"
-            value={form.subjectEmail ?? ""}
-            onChange={(event) => vm.setLegalHoldForm((current) => ({ ...current, subjectEmail: event.target.value }))}
-            className="h-10 bg-white sm:col-span-2"
-            placeholder="Subject email"
-          />
-        )}
-        <Input
-          aria-label="Legal hold reason"
-          value={form.reason}
-          onChange={(event) => vm.setLegalHoldForm((current) => ({ ...current, reason: event.target.value }))}
-          className="h-10 bg-white sm:col-span-2"
-          placeholder="Reason for placing the hold"
-        />
-        <Button
-          type="button"
-          disabled={vm.busy || !(identity ?? "").trim() || !form.reason.trim() || (eventScope && vm.eventId === "all")}
-          onClick={vm.placePrivacyLegalHold}
-          className="h-10 rounded-md font-black sm:col-span-2"
-        >
-          Place legal hold
-        </Button>
-      </div>
-      {vm.privacyLegalHolds.length === 0 ? <p className="text-sm text-muted-foreground">No active legal holds.</p> : null}
-      <div className="space-y-2">
-        {vm.privacyLegalHolds.map((hold) => (
-          <PrivacyLegalHoldCard key={hold.id} hold={hold} vm={vm} />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function PrivacyLegalHoldCard({ hold, vm }: { hold: PrismPrivacyLegalHold; vm: AuditVm }) {
-  const eventName = hold.eventId
-    ? vm.events.find((event) => event.id === hold.eventId)?.eventName ?? hold.eventId
-    : "All events";
-  const releaseReason = vm.legalHoldReleaseReasons[hold.id] ?? "";
-  return (
-    <div className="rounded-md border border-border bg-white p-3 text-sm">
-      <div>
-        <p className="font-black capitalize">{hold.subjectType} · {hold.subjectEmail || hold.subjectName}</p>
-        <p className="mt-1 text-xs text-muted-foreground">{eventName} · Placed by {hold.placedByName} · {compactTimestamp(hold.placedAt)}</p>
-        <p className="mt-2 text-xs text-muted-foreground">{hold.reason}</p>
-      </div>
-      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-        <Input
-          aria-label={`Release reason for ${hold.subjectEmail || hold.subjectName}`}
-          value={releaseReason}
-          onChange={(event) => vm.setLegalHoldReleaseReason(hold.id, event.target.value)}
-          className="h-9 bg-white"
-          placeholder="Reason for release"
-        />
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={vm.busy || !releaseReason.trim()}
-          onClick={() => vm.releasePrivacyLegalHold(hold.id)}
-        >
-          Release hold
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function privacyRequestStatusTone(status: string) {
-  return severityTone(status === "rejected" ? "warning" : "info");
-}
-
-function PrivacyRequestCard({
-  request,
-  busy,
-  onReview,
-  onExecute,
-}: {
-  request: PrismPrivacyRequest;
-  busy: boolean;
-  onReview: (id: string, status: "approved" | "rejected") => void;
-  onExecute: (id: string, draft?: PrivacyCorrectionDraft) => void;
-}) {
-  return (
-    <div className="rounded-md border border-border bg-background p-3 text-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="font-black capitalize">{label(request.requestType)} request</p>
-          <p className="mt-1 text-muted-foreground">{request.subjectEmail || request.subjectName || "Unnamed subject"}</p>
-        </div>
-        <span className={cx("rounded-full px-2 py-1 text-[11px] font-black capitalize ring-1", privacyRequestStatusTone(request.status))}>
-          {label(request.status)}
-        </span>
-      </div>
-      {request.requestNotes ? <p className="mt-2 text-xs text-muted-foreground">{request.requestNotes}</p> : null}
-      <div className="mt-3 flex flex-wrap gap-2">
-        <PrivacyRequestActions request={request} busy={busy} onReview={onReview} onExecute={onExecute} />
-      </div>
-    </div>
-  );
-}
-
-function PrivacyRequestActions({
-  request,
-  busy,
-  onReview,
-  onExecute,
-}: {
-  request: PrismPrivacyRequest;
-  busy: boolean;
-  onReview: (id: string, status: "approved" | "rejected") => void;
-  onExecute: (id: string, draft?: PrivacyCorrectionDraft) => void;
-}) {
-  if (request.status === "submitted") {
-    return (
-      <>
-        <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => onReview(request.id, "approved")}>Approve</Button>
-        <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => onReview(request.id, "rejected")}>Reject</Button>
-      </>
-    );
-  }
-  if (request.status !== "approved") return null;
-  if (request.requestType === "correction") {
-    return <PrivacyCorrectionForm busy={busy} onApply={(draft) => onExecute(request.id, draft)} />;
-  }
-  return <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => onExecute(request.id)}>Execute</Button>;
-}
-
-function PrivacyCorrectionForm({ busy, onApply }: { busy: boolean; onApply: (draft: PrivacyCorrectionDraft) => void }) {
-  const [correctionDraft, setCorrectionDraft] = useState<PrivacyCorrectionDraft>({ name: "", email: "" });
-  return (
-    <div className="grid w-full gap-2 sm:grid-cols-2">
-      <Input
-        aria-label="Corrected name"
-        placeholder="Corrected name (optional)"
-        value={correctionDraft.name}
-        disabled={busy}
-        onChange={(event) => setCorrectionDraft((draft) => ({ ...draft, name: event.target.value }))}
-      />
-      <Input
-        aria-label="Corrected email"
-        placeholder="Corrected email (optional)"
-        value={correctionDraft.email}
-        disabled={busy}
-        onChange={(event) => setCorrectionDraft((draft) => ({ ...draft, email: event.target.value }))}
-      />
-      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => onApply(correctionDraft)}>
-        Apply correction
-      </Button>
-    </div>
   );
 }
 

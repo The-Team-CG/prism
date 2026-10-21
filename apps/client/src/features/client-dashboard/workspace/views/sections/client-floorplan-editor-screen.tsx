@@ -3,7 +3,10 @@
 import dynamic from "next/dynamic";
 import type { PrismEvent, PrismFloorPlanDraft } from "@prism/types";
 import type { Project } from "@/features/floorplan/editor";
-import { saveFloorPlanProject } from "../../use-cases/client-dashboard-actions";
+import {
+  saveFloorPlanProject,
+  submitFloorPlanEditorProject,
+} from "../../use-cases/client-dashboard-actions";
 
 const EditorShell = dynamic(
   () => import("@/features/floorplan/editor").then((mod) => mod.EditorShell),
@@ -39,7 +42,7 @@ export function ClientFloorplanEditorScreen({
   }
 
   async function handleSubmit(next: Project) {
-    await saveFloorPlanProject(next);
+    await submitFloorPlanEditorProject(event.id, draft, next);
     await onSubmitted();
   }
 
@@ -50,6 +53,9 @@ export function ClientFloorplanEditorScreen({
         eventName={event.eventName}
         draftName={draft.name}
         draftStatus={draft.status}
+        submitLabel={draft.sourceType === "client_preference" && draft.status === "revision_requested"
+          ? "Return preference to PMCM"
+          : undefined}
         readOnly={readOnly}
         onBack={onBack}
         onSave={editable ? handleSave : undefined}

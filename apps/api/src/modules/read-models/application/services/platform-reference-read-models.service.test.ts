@@ -143,4 +143,15 @@ describe('PlatformReferenceReadModelsService', () => {
       select: { email: true },
     }));
   });
+
+  it('only resolves a privacy assignee that is an approved, unlocked PMCM administrator', async () => {
+    const findFirst = vi.fn(async () => null);
+    const service = new PlatformReferenceReadModelsService({ opsUser: { findFirst } } as unknown as PrismaService);
+
+    await expect(service.findApprovedPmcmOperator('usr_coordinator')).resolves.toBeNull();
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { id: 'usr_coordinator', role: 'pmcm-admin', approvalStatus: 'approved', permanentLockout: false },
+      select: { id: true, name: true },
+    });
+  });
 });

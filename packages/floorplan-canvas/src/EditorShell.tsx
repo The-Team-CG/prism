@@ -30,6 +30,7 @@ export interface EditorShellProps {
   eventName?: string;
   draftName?: string;
   draftStatus?: string;
+  submitLabel?: string;
   readOnly?: boolean;
   readOnlyLabel: string;
   templateStore: TemplateStore;
@@ -198,6 +199,7 @@ function Inner({
   eventName,
   draftName,
   draftStatus,
+  submitLabel,
   readOnly = false,
   onSave,
   onSubmit,
@@ -214,6 +216,7 @@ function Inner({
           eventName={eventName}
           draftName={draftName}
           draftStatus={draftStatus}
+          submitLabel={submitLabel}
           readOnly={readOnly}
           readOnlyLabel={readOnlyLabel}
           onSave={onSave}

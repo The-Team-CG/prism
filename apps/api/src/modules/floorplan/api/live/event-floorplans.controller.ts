@@ -73,6 +73,27 @@ export class OpsEventFloorplansController {
     });
   }
 
+  @Post(':eventId/floorplans/:draftId/reopen-preference')
+  @UseGuards(EventSessionGuard)
+  @HttpCode(HttpStatus.OK)
+  async reopenClientPreference(
+    @Param('eventId') eventId: string,
+    @Param('draftId') draftId: string,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    await this.eventAccessPolicyService.requireCanMutateOfficialFloorplan(
+      actor,
+      eventId,
+      'client floorplan preference reopen',
+    );
+    return this.floorPlanWorkflowService.reopenClientPreference(eventId, draftId, {
+      actorId: verifiedActor.actorId,
+      name: actor.name,
+      role: actor.role,
+    });
+  }
+
   @Post(':eventId/floorplans/:draftId/submit')
   @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.OK)

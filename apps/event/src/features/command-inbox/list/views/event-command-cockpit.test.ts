@@ -30,6 +30,13 @@ describe('buildEventWorkflowTabs — floorplans tab visibility', () => {
     expect(tabs.map((tab) => String(tab.id))).toContain('games')
   })
 
+  it('shows the decision log only to pmcm-admin', () => {
+    expect(buildEventWorkflowTabs({ ...BASE_PARAMS, role: 'pmcm-admin' }).map((tab) => String(tab.id))).toContain('decisions')
+    for (const role of ['coordinator', 'client', 'supplier'] as const) {
+      expect(buildEventWorkflowTabs({ ...BASE_PARAMS, role }).map((tab) => String(tab.id))).not.toContain('decisions')
+    }
+  })
+
   it('shows the games workspace to coordinators and hides it from client and supplier shells', () => {
     const coordinatorTabs = buildEventWorkflowTabs({ ...BASE_PARAMS, role: 'coordinator' })
     expect(coordinatorTabs.map((tab) => String(tab.id))).toContain('games')

@@ -12,27 +12,12 @@ import { PrismaService } from '@prism/kernel/database';
 import { readUnresolvedCloseoutIssues } from '@prism/contexts/read-models/closeout';
 import { readEventAccessScope } from '@prism/contexts/read-models/event-scope';
 import { readStoredConformeEvidence } from '@prism/contexts/read-models/file-evidence';
+import type { PrismFileRequirementItem, PrismFileRequirementStatus, PrismFileRequirementsMatrix } from '@prism/types';
+import { mergeFileRequirementOverrides, type DerivedFileRequirementItem } from '../../domain/file-requirement-matrix.policy';
 
-export type FileRequirementStatus = 'missing' | 'pending' | 'submitted' | 'generated' | 'approved' | 'complete';
-
-export type FileRequirementMatrixItem = {
-  key: string;
-  label: string;
-  ownerRole: string;
-  visibleToRoles: string[];
-  sourceWorkflow: string;
-  status: FileRequirementStatus;
-  dueDate?: string;
-  uploadedAssetId?: string;
-  generatedDocumentId?: string;
-  auditCategory: string;
-  detail: string;
-};
-
-export type FileRequirementsMatrix = {
-  eventId: string;
-  items: FileRequirementMatrixItem[];
-};
+export type FileRequirementStatus = PrismFileRequirementStatus;
+export type FileRequirementMatrixItem = PrismFileRequirementItem;
+export type FileRequirementsMatrix = PrismFileRequirementsMatrix;
 
 function trackedDeliverablesStatus(documents: OpsPostEventDocument[]): FileRequirementStatus {
   return documents.length > 0 && documents.every(document => document.status === 'submitted') ? 'complete' : 'missing';
@@ -48,10 +33,10 @@ export class FileRequirementsMatrixService {
     return event;
   }
 
-  async buildForEvent(eventId: string, prisma: Prisma.TransactionClient = this.prisma): Promise<FileRequirementsMatrix> {
+  async buildForEvent(eventId: string, prisma: Prisma.TransactionClient = this.prisma, now: Date = new Date()): Promise<FileRequirementsMatrix> {
     const event = await prisma.opsEvent.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
-    const [documents, postEventDocuments, billingStatements, milestones, supplierReviews, issues, clientCloseoutResponse, storedConforme, digitalConforme, logisticsCompletion] = await Promise.all([
+    const [documents, postEventDocuments, billingStatements, milestones, supplierReviews, issues, clientCloseoutResponse, storedConforme, digitalConforme, logisticsCompletion, persistedRequirements] = await Promise.all([
       prisma.opsDocument.findMany({ where: { eventId } }),
       prisma.opsPostEventDocument.findMany({ where: { eventId } }),
       prisma.opsBillingStatement.findMany({ where: { eventId } }),
@@ -62,20 +47,20 @@ export class FileRequirementsMatrixService {
       readStoredConformeEvidence(prisma, eventId),
       prisma.opsConformeExecution.findFirst({ where: { eventId, status: 'completed' }, orderBy: { templateVersion: 'desc' }, select: { id: true } }),
       prisma.opsLogisticsCompletion.findUnique({ where: { eventId }, select: { assetReturnsVerified: true, recordedAt: true } }),
+      prisma.opsFileRequirement.findMany({ where: { eventId }, orderBy: { key: 'asc' }, take: 200 }),
     ]);
 
-    return {
-      eventId,
-      items: [
-        ...this.itemsForEvent(event, documents, postEventDocuments, billingStatements, milestones, supplierReviews, clientCloseoutResponse, storedConforme, digitalConforme),
-        this.logisticsItem(logisticsCompletion),
-        {
-          key: 'issues', label: 'Issues', ownerRole: 'pmcm-admin', visibleToRoles: ['pmcm-admin'],
-          sourceWorkflow: 'live_ops', status: issues.length === 0 ? 'complete' : 'pending', auditCategory: 'events',
-          detail: `${issues.length} unresolved urgent issue(s)`,
-        },
-      ],
-    };
+    const derived: DerivedFileRequirementItem[] = [
+      ...this.itemsForEvent(event, documents, postEventDocuments, billingStatements, milestones, supplierReviews, clientCloseoutResponse, storedConforme, digitalConforme),
+      this.logisticsItem(logisticsCompletion),
+      {
+        key: 'issues', label: 'Issues', ownerRole: 'pmcm-admin', visibleToRoles: ['pmcm-admin'],
+        sourceWorkflow: 'live_ops', status: issues.length === 0 ? 'complete' : 'pending', auditCategory: 'events',
+        detail: `${issues.length} unresolved urgent issue(s)`,
+      },
+    ];
+    // Overrides change ownership, visibility, required state, and due dates only; close gates read derived status.
+    return { eventId, items: mergeFileRequirementOverrides(derived, persistedRequirements, documents, now) };
   }
 
   async closeGates(eventId: string, prisma: Prisma.TransactionClient = this.prisma) {
@@ -108,7 +93,7 @@ export class FileRequirementsMatrixService {
     clientCloseoutResponse: { id: string; rating: number; submittedAt: Date } | null,
     storedConforme: { id: string } | null,
     digitalConforme: { id: string } | null,
-  ): FileRequirementMatrixItem[] {
+  ): DerivedFileRequirementItem[] {
     return [
       this.signedConformeItem(documents, storedConforme, digitalConforme),
       this.postEventDocumentsItem(postEventDocuments),
@@ -120,7 +105,7 @@ export class FileRequirementsMatrixService {
   }
 
   /** Detail text is deliberately generic: the completion summary and private notes never enter the matrix. */
-  private logisticsItem(record: { assetReturnsVerified: boolean; recordedAt: Date } | null): FileRequirementMatrixItem {
+  private logisticsItem(record: { assetReturnsVerified: boolean; recordedAt: Date } | null): DerivedFileRequirementItem {
     const recorded = record?.assetReturnsVerified === true;
     return {
       key: 'logistics', label: 'Logistics', ownerRole: 'pmcm-admin', visibleToRoles: ['pmcm-admin'],
@@ -131,7 +116,7 @@ export class FileRequirementsMatrixService {
     };
   }
 
-  private signedConformeItem(documents: OpsDocument[], stored: { id: string } | null, digital: { id: string } | null): FileRequirementMatrixItem {
+  private signedConformeItem(documents: OpsDocument[], stored: { id: string } | null, digital: { id: string } | null): DerivedFileRequirementItem {
     const hasApprovedFile = documents.some((document) => document.type === 'signed_conforme' && document.status === 'approved');
     const hasSignedFile = documents.some((document) => document.type === 'signed_conforme');
     const status = digital ? 'approved' : stored && hasApprovedFile ? 'submitted' : stored || hasSignedFile ? 'pending' : 'missing';
@@ -143,7 +128,7 @@ export class FileRequirementsMatrixService {
     };
   }
 
-  private postEventDocumentsItem(documents: OpsPostEventDocument[]): FileRequirementMatrixItem {
+  private postEventDocumentsItem(documents: OpsPostEventDocument[]): DerivedFileRequirementItem {
     const pendingCount = documents.filter((document) => document.status !== 'submitted').length;
     return {
       key: 'post_event_documents', label: 'Post-event documents', ownerRole: 'pmcm-admin', visibleToRoles: ['pmcm-admin', 'client'],
@@ -152,7 +137,7 @@ export class FileRequirementsMatrixService {
     };
   }
 
-  private billingItem(statements: OpsBillingStatement[], milestones: OpsPaymentMilestone[]): FileRequirementMatrixItem {
+  private billingItem(statements: OpsBillingStatement[], milestones: OpsPaymentMilestone[]): DerivedFileRequirementItem {
     const unpaid = milestones.filter((milestone) => milestone.status !== 'paid' || milestone.remainingBalance > 0).length;
     return {
       key: 'billing_statement', label: 'Billing and payment schedule', ownerRole: 'pmcm-admin', visibleToRoles: ['pmcm-admin', 'client'],
@@ -162,7 +147,7 @@ export class FileRequirementsMatrixService {
     };
   }
 
-  private floorplanItem(event: OpsEvent | null): FileRequirementMatrixItem {
+  private floorplanItem(event: OpsEvent | null): DerivedFileRequirementItem {
     return {
       key: 'official_floorplan', label: 'Official floorplan', ownerRole: 'pmcm-admin', visibleToRoles: ['pmcm-admin', 'client', 'coordinator'],
       sourceWorkflow: 'floorplans', status: event?.floorPlanStatus === 'approved' ? 'approved' : 'pending',
@@ -170,7 +155,7 @@ export class FileRequirementsMatrixService {
     };
   }
 
-  private supplierReviewItem(reviews: OpsSupplierReview[]): FileRequirementMatrixItem {
+  private supplierReviewItem(reviews: OpsSupplierReview[]): DerivedFileRequirementItem {
     return {
       key: 'supplier_reviews', label: 'Supplier review capture', ownerRole: 'pmcm-admin', visibleToRoles: ['pmcm-admin'],
       sourceWorkflow: 'supplier_network', status: reviews.length > 0 ? 'complete' : 'missing', auditCategory: 'suppliers',
@@ -178,7 +163,7 @@ export class FileRequirementsMatrixService {
     };
   }
 
-  private clientFeedbackItem(documents: OpsDocument[], postEventDocuments: OpsPostEventDocument[], response: { id: string; rating: number; submittedAt: Date } | null): FileRequirementMatrixItem {
+  private clientFeedbackItem(documents: OpsDocument[], postEventDocuments: OpsPostEventDocument[], response: { id: string; rating: number; submittedAt: Date } | null): DerivedFileRequirementItem {
     const feedbackDocs = [
       ...postEventDocuments.filter((document) => ['client feedback', 'client feedback form'].includes(document.title.trim().toLowerCase()) && document.status === 'submitted'),
       ...documents.filter((document) => document.type === 'client_feedback' && ['submitted', 'approved'].includes(document.status)),
