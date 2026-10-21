@@ -9,54 +9,56 @@ export class OperationsPrivacyRedactorService implements OperationsPrivacyRedact
     input: { eventId: string; name: string },
     transaction: Prisma.TransactionClient,
   ): Promise<OperationsRedactionResult> {
-    if (!input.eventId) throw new BadRequestException('Guest deletion requires an event scope');
+    if (!input.eventId || !input.name.trim()) throw new BadRequestException('Guest deletion requires a name and event scope');
     const guestWhere = {
       eventId: input.eventId,
       guestName: { equals: input.name.trim(), mode: 'insensitive' as const },
     };
     const rosterEntries = await transaction.opsGuestRosterEntry.findMany({
-      where: {
-        eventId: input.eventId,
-        guestName: { equals: input.name.trim(), mode: 'insensitive' },
-      },
+      where: guestWhere,
       select: { id: true },
+      take: 2,
     });
-    for (const entry of rosterEntries) {
-      await this.redactRosterEntry(transaction, input.eventId, entry.id);
+    if (!rosterEntries.length) return { surfaces: [], touchedRecords: 0 };
+    if (rosterEntries.length !== 1) {
+      throw new ConflictException('Guest deletion requires a unique roster identity; resolve missing or same-named guests before execution');
     }
+    const entry = rosterEntries[0];
+    await this.assertGuestDeletionLinks(transaction, guestWhere, entry.id);
+    await this.redactRosterEntry(transaction, input.eventId, entry.id);
     const checkIns = await transaction.opsGuestCheckIn.updateMany({
-      where: guestWhere,
+      where: { eventId: input.eventId, rosterEntryId: entry.id },
       data: { guestName: 'Redacted guest' },
-    });
-    const feedbackRows = await transaction.opsGuestFeedback.findMany({
-      where: guestWhere,
-      select: { id: true },
-    });
-    const feedbackIds = feedbackRows.map(({ id }) => id);
-    const media = feedbackIds.length
-      ? await transaction.opsGuestFeedbackMedia.updateMany({
-          where: { feedbackId: { in: feedbackIds } },
-          data: { originalFileName: '[redacted by privacy request]' },
-        })
-      : { count: 0 };
-    const feedback = await transaction.opsGuestFeedback.updateMany({
-      where: guestWhere,
-      data: {
-        guestName: 'Redacted guest',
-        comment: '[redacted by privacy request]',
-        photoFileName: null,
-        videoFileName: null,
-      },
     });
     return {
       surfaces: [
-        ...(rosterEntries.length ? ['guest_roster_entry'] : []),
+        'guest_roster_entry',
         ...(checkIns.count ? ['guest_check_in'] : []),
-        ...(feedback.count ? ['guest_feedback'] : []),
-        ...(media.count ? ['guest_feedback_media_metadata'] : []),
       ],
-      touchedRecords: rosterEntries.length + checkIns.count + feedback.count + media.count,
+      touchedRecords: 1 + checkIns.count,
     };
+  }
+
+  /** A name locates a candidate, never authorizes a bulk write. Feedback has no stable guest link. */
+  private async assertGuestDeletionLinks(
+    transaction: Prisma.TransactionClient,
+    guestWhere: { eventId: string; guestName: { equals: string; mode: 'insensitive' } },
+    rosterEntryId: string,
+  ) {
+    const feedback = await transaction.opsGuestFeedback.findFirst({ where: guestWhere, select: { id: true } });
+    if (feedback) {
+      throw new ConflictException('Guest feedback has no verified roster link; individual record review is required before deletion');
+    }
+    const unlinked = await transaction.opsGuestCheckIn.findFirst({
+      where: {
+        ...guestWhere,
+        OR: [{ rosterEntryId: null }, { rosterEntryId: { not: rosterEntryId } }],
+      },
+      select: { id: true },
+    });
+    if (unlinked) {
+      throw new ConflictException('Guest check-ins do not resolve to one roster identity; individual record review is required before deletion');
+    }
   }
 
   /**

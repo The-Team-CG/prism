@@ -6,6 +6,9 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Guest deletion now resolves one roster identity and redacts only its linked records; ambiguous or unlinked records require individual review and leave the request approved. The ledger now reflects implemented guest correction. Owner D (Anthony).
+- Updated vulnerable dependencies, removed unused Next.js lint presets, and made the dependency gate reject moderate or higher alerts without advisory exceptions. Portal lint commands use the active repository ESLint configuration. Owner D (Anthony).
+
 - Database tooling recognizes Supabase poolers by complete hostname labels, and public inquiry links handle long trailing-slash inputs without regex backtracking. Owner D (Anthony).
 
 - Updated Vite test tooling to resolve the Windows editor-command security advisory and restore the dependency audit gate.

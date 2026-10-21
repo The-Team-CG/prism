@@ -8,11 +8,10 @@
     "build": "next build",
     "start": "node ../../scripts/dev-portal.mjs --app guest --mode start",
     "typecheck": "node ../../scripts/clean-next-dev.cjs && tsc --noEmit",
-    "lint": "next lint",
+    "lint": "cd ../.. && eslint --config eslint.config.mjs \"apps/guest/src/**/*.{ts,tsx}\"",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
   },
-
   "dependencies": {
     "@prism/api-client": "*",
     "@prism/tokens": "*",
@@ -32,10 +31,8 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "^16.2.4",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }
-
