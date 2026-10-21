@@ -342,22 +342,74 @@ describe.skipIf(!databaseUrl)('privacy execution against PostgreSQL', () => {
     expect(await auditRows(pending.id)).toHaveLength(0);
   });
 
-  it('redacts only the selected event guest and keeps a namesake in another event', async () => {
+  it('redacts one roster identity and its linked historical check-in, preserving another event', async () => {
     const first = await createClient();
     const second = await createClient();
     const guestName = `Guest ${id()}`;
     for (const event of [first.event, second.event]) {
-      await prisma.opsGuestCheckIn.create({ data: { id: id(), eventId: event.id, guestName } });
-      await prisma.opsGuestFeedback.create({ data: { id: id(), eventId: event.id, guestName, rating: 4, comment: 'personal', photoFileName: 'photo.jpg' } });
+      const roster = await prisma.opsGuestRosterEntry.create({ data: {
+        id: id(), eventId: event.id, sourceKey: id(), guestName, normalizedName: guestName.toLowerCase(), email: 'guest@privacy.test',
+      } });
+      await prisma.opsGuestCheckIn.create({ data: { id: id(), eventId: event.id, rosterEntryId: roster.id, guestName: 'Historical spelling' } });
     }
+    const feedback = await prisma.opsGuestFeedback.create({ data: {
+      id: id(), eventId: second.event.id, guestName, rating: 4, comment: 'personal', photoFileName: 'photo.jpg',
+    } });
     const pending = await request('', { subjectType: 'guest', subjectName: ` ${guestName.toLowerCase()} `, eventId: first.event.id });
     await service.executeRequest(pending.id, {}, operator);
-    expect(await prisma.opsGuestFeedback.findFirstOrThrow({ where: { eventId: first.event.id } })).toMatchObject({
-      guestName: 'Redacted guest', comment: '[redacted by privacy request]', photoFileName: null,
+    expect(await prisma.opsGuestRosterEntry.findFirstOrThrow({ where: { eventId: first.event.id } })).toMatchObject({
+      guestName: 'Redacted guest', email: '',
     });
-    expect((await prisma.opsGuestFeedback.findFirstOrThrow({ where: { eventId: second.event.id } })).guestName).toBe(guestName);
-    expect((await prisma.opsGuestCheckIn.findFirstOrThrow({ where: { eventId: second.event.id } })).guestName).toBe(guestName);
+    expect((await prisma.opsGuestCheckIn.findFirstOrThrow({ where: { eventId: first.event.id } })).guestName).toBe('Redacted guest');
+    expect((await prisma.opsGuestRosterEntry.findFirstOrThrow({ where: { eventId: second.event.id } })).guestName).toBe(guestName);
+    expect((await prisma.opsGuestCheckIn.findFirstOrThrow({ where: { eventId: second.event.id } })).guestName).toBe('Historical spelling');
+    expect(await prisma.opsGuestFeedback.findUniqueOrThrow({ where: { id: feedback.id } })).toMatchObject({ guestName, comment: 'personal', photoFileName: 'photo.jpg' });
+    expect((await prisma.opsPrivacyRequest.findUniqueOrThrow({ where: { id: pending.id } })).status).toBe('executed');
+    expect(await auditRows(pending.id)).not.toHaveLength(0);
   });
+
+  it.each(['namesakes', 'feedback', 'unlinked check-in', 'differently linked check-in'])(
+    'preserves guest records and approved request when deletion identity is unsafe: %s', async (reason) => {
+      const { event } = await createClient();
+      const guestName = `Guest ${id()}`;
+      const roster = await prisma.opsGuestRosterEntry.create({ data: {
+        id: id(), eventId: event.id, sourceKey: id(), guestName, normalizedName: guestName.toLowerCase(), email: 'guest@privacy.test',
+      } });
+      const checkIn = await prisma.opsGuestCheckIn.create({ data: {
+        id: id(), eventId: event.id, rosterEntryId: roster.id, guestName,
+      } });
+      if (reason === 'namesakes' || reason === 'differently linked check-in') {
+        const otherName = reason === 'namesakes' ? guestName.toUpperCase() : 'Another guest';
+        const other = await prisma.opsGuestRosterEntry.create({ data: {
+          id: id(), eventId: event.id, sourceKey: id(), guestName: otherName, normalizedName: otherName.toLowerCase(),
+        } });
+        await prisma.opsGuestCheckIn.create({ data: { id: id(), eventId: event.id, rosterEntryId: other.id, guestName } });
+      }
+      if (reason === 'feedback') {
+        await prisma.opsGuestFeedback.create({ data: {
+          id: id(), eventId: event.id, guestName, rating: 4, comment: 'personal', photoFileName: 'personal.jpg',
+          mediaAttachments: { create: { id: id(), kind: 'photo', originalFileName: 'personal.jpg', mimeType: 'image/jpeg', sizeBytes: 10, blocker: 'pending' } },
+        } });
+      }
+      if (reason === 'unlinked check-in') {
+        await prisma.opsGuestCheckIn.create({ data: { id: id(), eventId: event.id, guestName } });
+      }
+      const records = () => Promise.all([
+        prisma.opsGuestRosterEntry.findMany({ where: { eventId: event.id }, orderBy: { id: 'asc' } }),
+        prisma.opsGuestCheckIn.findMany({ where: { eventId: event.id }, orderBy: { id: 'asc' } }),
+        prisma.opsGuestFeedback.findMany({ where: { eventId: event.id }, include: { mediaAttachments: true } }),
+      ]);
+      const before = await records();
+      const pending = await request('', { subjectType: 'guest', subjectName: guestName, eventId: event.id });
+
+      await expect(service.executeRequest(pending.id, {}, operator)).rejects.toThrow(/unique roster identity|individual record review/i);
+
+      expect(await records()).toEqual(before);
+      expect((await prisma.opsGuestCheckIn.findUniqueOrThrow({ where: { id: checkIn.id } })).guestName).toBe(guestName);
+      expect((await prisma.opsPrivacyRequest.findUniqueOrThrow({ where: { id: pending.id } })).status).toBe('approved');
+      expect(await auditRows(pending.id)).toHaveLength(0);
+    },
+  );
 
   it('rejects a competing approval decision instead of overwriting a terminal review', async () => {
     const pending = await request(`${id()}@privacy.test`, { status: 'submitted' });
