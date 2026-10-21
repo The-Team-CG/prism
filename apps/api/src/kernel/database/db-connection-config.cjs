@@ -204,7 +204,7 @@ function makeConnection(rawUrl, { source, purpose, env, cwd }) {
   if (caFile) prismaUrl.searchParams.set('sslrootcert', caFile);
 
   const target = `${hostname}:${port}`;
-  const isPooler = hostname.includes('pooler.supabase.com') || port === '6543';
+  const isPooler = hostname === 'pooler.supabase.com' || hostname.endsWith('.pooler.supabase.com') || port === '6543';
 
   return {
     source,

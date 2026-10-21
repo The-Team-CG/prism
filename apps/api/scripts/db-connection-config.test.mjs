@@ -149,6 +149,17 @@ test('hosted connections verify TLS and never expose credentials in diagnostics'
   assert.doesNotMatch(connection.target, /secret|prism/);
 });
 
+test('pooler classification matches complete DNS labels and the effective connection target', () => {
+  for (const hostname of ['pooler.supabase.com', 'aws-0.pooler.supabase.com', 'AWS-0.POOLER.SUPABASE.COM']) {
+    assert.equal(selected(`postgresql://user:pass@${hostname}:5432/prism`).isPooler, true);
+  }
+  for (const hostname of ['notpooler.supabase.com', 'pooler.supabase.com.example.test', 'pooler.supabase.comevil.test']) {
+    assert.equal(selected(`postgresql://user:pass@${hostname}:5432/prism`).isPooler, false);
+  }
+  assert.equal(selected('postgresql://user:pass@db.example.test:6543/prism').isPooler, true);
+  assert.equal(selected('postgresql://user:pass@db.example.test/prism?host=aws-0.pooler.supabase.com').isPooler, true);
+});
+
 test('a configured CA is loaded for pg and represented in the Prisma CLI URL', () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), 'prism-db-ca-'));
   const caPath = path.join(directory, 'ca.pem');

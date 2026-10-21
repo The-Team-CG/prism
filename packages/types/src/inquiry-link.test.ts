@@ -23,4 +23,13 @@ describe("public inquiry link", () => {
     });
     expect(inquiryPrefillFromSearchParams(new URLSearchParams())).toEqual({});
   });
+
+  it("handles blank origins and long trailing slash sequences", () => {
+    const expectedPath = "/inquiry?source=Colleague+or+Friend&channel=pmcm-inquiry-link";
+    expect(buildPublicInquiryLink("  ")).toBe(`http://localhost:3001${expectedPath}`);
+    expect(buildPublicInquiryLink(" /// ")).toBe(`http://localhost:3001${expectedPath}`);
+    expect(buildPublicInquiryLink(`  https://client.example.test${"/".repeat(100_000)}  `)).toBe(
+      `https://client.example.test${expectedPath}`,
+    );
+  });
 });
