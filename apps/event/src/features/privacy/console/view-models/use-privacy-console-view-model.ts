@@ -9,7 +9,6 @@ import {
   type PrismEvent,
   type PrismPrivacyLegalHold,
   type PrismPrivacyRequest,
-  type PrismPrivacyRetentionPolicy,
   type PrismUser,
   type ReviewPrivacyRequestInput,
 } from "@prism/types";
@@ -60,7 +59,6 @@ export function usePrivacyConsoleViewModel(repository: PrivacyConsoleRepository 
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [legalHolds, setLegalHolds] = useState<PrismPrivacyLegalHold[]>([]);
-  const [retentionPolicies, setRetentionPolicies] = useState<PrismPrivacyRetentionPolicy[]>([]);
   const [privacyForm, setPrivacyForm] = useState<PrivacyForm>(initialPrivacyForm);
   const [legalHoldForm, setLegalHoldForm] = useState<PrivacyLegalHoldForm>(initialLegalHoldForm);
   const [legalHoldReleaseReasons, setLegalHoldReleaseReasons] = useState<Record<string, string>>({});
@@ -80,11 +78,6 @@ export function usePrivacyConsoleViewModel(repository: PrivacyConsoleRepository 
         if (cancelled) return;
         setEvents(context.events);
         setUsers(context.users);
-      })
-      .catch(() => undefined);
-    repository.loadRetentionPolicies()
-      .then((policies) => {
-        if (!cancelled) setRetentionPolicies(policies);
       })
       .catch(() => undefined);
     return () => {
@@ -238,7 +231,6 @@ export function usePrivacyConsoleViewModel(repository: PrivacyConsoleRepository 
     pageCount: Math.max(1, Math.ceil(total / PRIVACY_CONSOLE_PAGE_SIZE)),
     requests,
     legalHolds,
-    retentionPolicies,
     privacyForm,
     setPrivacyForm,
     legalHoldForm,

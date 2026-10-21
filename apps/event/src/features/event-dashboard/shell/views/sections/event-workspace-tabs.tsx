@@ -144,12 +144,7 @@ function EventFloorplanDraftCard({ draft }: { draft: PrismFloorPlanDraft }) {
         </div>
         <StatusBadge status={draft.status} />
       </div>
-      {draft.clientPreference ? (
-        <div className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-xs leading-5 text-muted-foreground">
-          <p><span className="font-bold text-foreground">Seating:</span> {draft.clientPreference.seatingStyle}</p>
-          <p><span className="font-bold text-foreground">Stage:</span> {draft.clientPreference.stagePreference}</p>
-        </div>
-      ) : null}
+      <ClientFloorplanPreferenceSummary preference={draft.clientPreference} />
       <div className="mt-3 flex flex-wrap gap-2">
         {!isClientPreference ? (
           <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => run("open draft", () => openEditor(selectedEvent, draft))}>
@@ -177,6 +172,16 @@ function EventFloorplanDraftCard({ draft }: { draft: PrismFloorPlanDraft }) {
           </Button>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+function ClientFloorplanPreferenceSummary({ preference }: { preference: PrismFloorPlanDraft["clientPreference"] }) {
+  if (!preference) return null;
+  return (
+    <div className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-xs leading-5 text-muted-foreground">
+      <p><span className="font-bold text-foreground">Seating:</span> {preference.seatingStyle}</p>
+      <p><span className="font-bold text-foreground">Stage:</span> {preference.stagePreference}</p>
     </div>
   );
 }

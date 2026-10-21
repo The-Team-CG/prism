@@ -4,12 +4,12 @@ title: "P.R.I.S.M feature ledger"
 description: "Active product-family decisions, ownership, sequencing, and evidence for Prism feature work."
 tags: [product, features, decisions, ownership]
 status: canonical
-updated: "2026-10-20"
+updated: "2026-10-21"
 authority: normative
 owner: "B (Francis)"
 audience: [product, engineering, design, agents]
 scope: "Prism feature-family decisions, ownership, sequencing, and closure evidence"
-last_verified: "2026-10-20; staging through #232/#244, merged follow-ups #233/#238/#239, and candidate PR scope #231/#234-#236/#240-#243"
+last_verified: "2026-10-21; integrated scope #230/#231/#234-#236/#240-#243/#245; family states and policy gates retained"
 sources:
   - id: v4-reference
     resource: "docs/reference/prism-v4/complete-feature-catalog.md"
@@ -111,7 +111,7 @@ The Active Ledger above remains the product decision record. This table assigns 
 | FL-021 | Thin slice or defer | Francis | Anthony | PMCM Handoff Brief ships as evidence panel only if selected-event data supports it. | Selected-event evidence or deferred row. |
 | FL-022 | Thin slice | Ethan | Francis, Anthony | Supplier Readiness Board is clear in supplier portal and reviewable by PMCM. | Supplier route/typecheck; PMCM review path evidence if touched. |
 | FL-023 | Gate or thin slice | Francis | Anthony | Staffing heatmap waits for availability/role contract unless chosen as a bounded staffing slice. | Contract/test evidence or explicit gate. |
-| FL-024 | Thin slice | Anthony | Ethan, Francis, Maxine | File Requirements Matrix supports role-filtered metadata and verified uploads; custom requirements, overrides, and reminders are candidate scope in #241. | Type/API-client/API service and storage tests; broader visibility and provider activation evidence remain separate. |
+| FL-024 | Thin slice | Anthony | Ethan, Francis, Maxine | File Requirements Matrix supports role-filtered metadata and verified uploads; custom requirements, overrides, and reminders are included in the #241 integration. | Type/API-client/API service and storage tests; broader visibility and provider activation evidence remain separate. |
 | FL-025 | Gate or thin slice | Francis | Anthony | Risk/change register waits for scoped mutation contract unless chosen as a bounded control slice. | Contract/test evidence or explicit gate. |
 | FL-026 | Thin slice or defer | Francis | Maxine, Anthony | Event Day Run Sheet remains time-ordered evidence if current data supports it. | PMCM route evidence or deferred row. |
 | FL-027 | Gate | Anthony | Maxine | Privacy Operations Console remains PMCM-scoped; full console can defer if not demo-critical. | Scope decision, privacy tests if touched, docs gate. |
@@ -223,26 +223,27 @@ These PRs are merged into `staging`. Active Ledger decisions and family states a
 | [#238](https://github.com/The-Team-CG/prism/pull/238) | FL-009/FL-025, B/D | The primary client acknowledges an immutable, hashed addendum version before PMCM countersigns. Replays preserve the execution; supplier quote detail stays PMCM-only. Billing trace uses the addendum id, not the label. Older billing lines without an addendum id are not traced automatically. Issuing an addendum applies billing and quote changes immediately, before acknowledgment or countersignature; signing later records the execution trace. Closes [#226](https://github.com/The-Team-CG/prism/issues/226). |
 | [#239](https://github.com/The-Team-CG/prism/pull/239) | FL-010, B/D | The API refuses a correction requester's own approval, and the PMCM panel disables it. The requester can still reject their request. Verified requester id controls new rows, with name fallback for legacy rows. Waivers and additional billing remain single-step. Closes [#228](https://github.com/The-Team-CG/prism/issues/228). |
 
-## Candidate implementation awaiting merge and acceptance
+## Integrated implementation and remaining acceptance
 
-These PRs contain bounded implementations under review. They are not delivered
-on `staging` and do not close a feature family. Historical focused-check reports
-do not establish current-head CI, mergeability, or integrated database and browser
-acceptance. Current merge conflicts and failing checks remain release blockers;
-the linked PR checks carry the current state.
+These bounded implementations are combined in one integration, preserving each
+source PR head. They do not close a feature family. Integrated automated checks
+provide code and disposable-database evidence; browser acceptance, production
+activation, and owner policy decisions remain separate. The integration PR
+checks and merge state establish delivery to the target branch.
 
-| PR | Ledger scope and owner | Implemented scope in review | Remaining limits or acceptance |
+| PR | Ledger scope and owner | Integrated scope | Remaining limits or acceptance |
 | --- | --- | --- | --- |
 | [#231](https://github.com/The-Team-CG/prism/pull/231) | FL-019, B/D | PMCM-only, read-only decision log with source-record reasons, kind filters, counts, and paging. | Reads cap at 200 rows per source and 500 audit rows, so older decisions can be under-reported. Pending requests are excluded; actor role can be null. Browser acceptance remains. |
 | [#234](https://github.com/The-Team-CG/prism/pull/234) | FL-026, B/D with A | Time-ordered, role-projected run sheet combining schedule, supplier windows, task deadlines, and open issues, with a printable PMCM route. | Day windows use UTC because events have no timezone field. An unknown `dayId` returns 404 instead of falling back to the first day. Guest-flow entries and an HTTP test for the moved route remain absent. Browser print acceptance remains. |
-| [#235](https://github.com/The-Team-CG/prism/pull/235) | FL-022, C/B/D | Shared server readiness calculation for supplier and PMCM views, PMCM-only read endpoint, and complete supplier action lists. Commits `5d012083` and `df461571` remove private verification notes and verifier identity from supplier reads, four command responses, quote-token detail, and historical contract-upload receipt replays. | Staging remains exposed until the fix merges. Historical receipts are filtered on response; their internal stored payloads are not rewritten. Actions open sections rather than individual items. PMCM reads cap at 500 requests per event; the handoff brief still calculates readiness separately. |
+| [#235](https://github.com/The-Team-CG/prism/pull/235) | FL-022, C/B/D | Shared server readiness calculation for supplier and PMCM views, PMCM-only read endpoint, and complete supplier action lists. Commits `5d012083` and `df461571` remove private verification notes and verifier identity from supplier reads, four command responses, quote-token detail, and historical contract-upload receipt replays. | Historical receipts are filtered on response; their internal stored payloads are not rewritten. Actions open sections rather than individual items. PMCM reads cap at 500 requests per event; the handoff brief still calculates readiness separately. |
 | [#236](https://github.com/The-Team-CG/prism/pull/236) | FL-017/FL-020, B/C with A/D | PMCM inbox live-ops items, overdue-task notices, selected-event summary, and client action-center entry with feedback and change-request status. | Blocked tasks have no notice. Feedback prompt runs from event end until archive. Addenda awaiting acknowledgment have no action-center item. |
 | [#240](https://github.com/The-Team-CG/prism/pull/240) | FL-015/FL-027, D with A | Privacy queue with filters, paging, due dates, self-assignment, and guest correction execution. | The 30-day due-date default needs owner D confirmation. Assignment cannot select another operator; overdue notices and live database acceptance remain absent. |
 | [#241](https://github.com/The-Team-CG/prism/pull/241) | FL-006/FL-024, D with A/B/C | PMCM custom requirements and overrides, role-filtered visibility, file audit events, reminder sweep, and client due status. | Visibility enforcement covers signed conformes and billing statements. The reminder sweep reads the first 100 matching events without rotating the window. Supplier due status, broader file-type enforcement, and database acceptance remain. |
 | [#242](https://github.com/The-Team-CG/prism/pull/242) | FL-009/FL-025, B/D | Primary-client scope requests, PMCM review decisions, impact checks, frozen-event exceptions, and recorded event risk level with history. HTTP tests cover wrong-role denials on the new routes. | Owner B policy defaults remain unconfirmed. Approval consumes the exception, so a later addendum needs another. Client decision notices and clearer withdrawal state remain absent. |
 | [#243](https://github.com/The-Team-CG/prism/pull/243) | FL-015/FL-027, D with A | Disabled-by-default retention policies, hourly review queue, legal-hold checks, and PMCM-approved record-specific redaction. Same-name guest regression coverage preserves unrelated records. | Owner D must confirm retention periods. Sweep supports inquiry and guest check-in/feedback only; other categories are informational and finance is absent. Queue caps at 200 without paging. API-client alignment and live database acceptance remain. |
+| [#245](https://github.com/The-Team-CG/prism/pull/245) | FL-011, C/B/D | PMCM reopens a submitted client preference; only its original client may revise and resubmit the same draft. Official layouts remain read-only to clients, and approval closes the preference revision path. Event-then-draft locking, transactional audit/outbox, lifecycle projections, and legacy official-layout viewing are retained. | Browser acceptance remains; this does not complete venue libraries, presets, or spatial workflow depth. |
 
-### Remaining work outside these candidate slices
+### Remaining work outside these slices
 
 - Issuing an addendum changes billing lines and quote amounts before the client acknowledges or PMCM countersigns. Owners B and D retain the decision on changing that timing. A signature gate for those effects and a client action-center acknowledgment item were present only in superseded [#237](https://github.com/The-Team-CG/prism/pull/237), which closed without merging.
 - Existing guest privacy deletion still matches by name, so same-name guests need a separate identity-safe deletion fix. The exact-record retention fix in #243 does not repair that path.

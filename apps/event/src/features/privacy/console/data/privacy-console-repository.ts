@@ -8,7 +8,6 @@ import type {
   PrismPrivacyLegalHold,
   PrismPrivacyRequest,
   PrismPrivacyRequestPage,
-  PrismPrivacyRetentionPolicy,
   PrismUser,
   PrivacyCorrectionPatch,
   ReleasePrivacyLegalHoldInput,
@@ -27,7 +26,6 @@ export type PrivacyConsoleCommands = {
   legalHolds(eventId?: string): Promise<PrismPrivacyLegalHold[]>;
   createLegalHold(input: CreatePrivacyLegalHoldInput): Promise<PrismPrivacyLegalHold>;
   releaseLegalHold(holdId: string, input: ReleasePrivacyLegalHoldInput): Promise<PrismPrivacyLegalHold>;
-  retentionPolicies(): Promise<PrismPrivacyRetentionPolicy[]>;
 };
 
 function eventQuery(eventId?: string) {
@@ -53,7 +51,6 @@ const privacyConsoleCommands = {
     eventApiRequest<PrismPrivacyLegalHold>("/api/privacy/legal-holds", { method: "POST", body: input }),
   releaseLegalHold: (holdId: string, input: ReleasePrivacyLegalHoldInput) =>
     eventApiRequest<PrismPrivacyLegalHold>(`/api/privacy/legal-holds/${holdId}/release`, { method: "POST", body: input }),
-  retentionPolicies: () => eventApiRequest<PrismPrivacyRetentionPolicy[]>("/api/privacy/retention-policies"),
 } satisfies PrivacyConsoleCommands;
 
 export function createPrivacyConsoleRepository(commands: PrivacyConsoleCommands = privacyConsoleCommands) {
@@ -61,7 +58,6 @@ export function createPrivacyConsoleRepository(commands: PrivacyConsoleCommands 
     loadContext: () => commands.pmcmState(),
     queue: (query: ListPrivacyRequestsQueryInput) => commands.requestQueue(query),
     loadLegalHolds: (eventId?: string) => commands.legalHolds(eventId),
-    loadRetentionPolicies: () => commands.retentionPolicies(),
     createRequest: (input: CreatePrivacyRequestInput) => commands.createRequest(input),
     assignRequest: (requestId: string, input: AssignPrivacyRequestInput) => commands.assignRequest(requestId, input),
     reviewRequest: (requestId: string, input: ReviewPrivacyRequestInput) => commands.reviewRequest(requestId, input),

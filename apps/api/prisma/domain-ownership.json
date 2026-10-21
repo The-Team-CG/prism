@@ -20,8 +20,8 @@
       {
         "domain": "event-lifecycle",
         "schema": "event_lifecycle",
-        "tables": 27,
-        "columns": 382
+        "tables": 30,
+        "columns": 431
       },
       {
         "domain": "commercial",
@@ -33,7 +33,7 @@
         "domain": "operations",
         "schema": "operations",
         "tables": 12,
-        "columns": 148
+        "columns": 149
       },
       {
         "domain": "floorplan",
@@ -51,7 +51,7 @@
         "domain": "identity-access",
         "schema": "identity_access",
         "tables": 4,
-        "columns": 43
+        "columns": 42
       },
       {
         "domain": "platform-ops",
