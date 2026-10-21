@@ -457,14 +457,12 @@ describe('PrivacyOperationsService', () => {
 
   it('redacts a guest only inside the selected event even if an email was also supplied', async () => {
     const { execute, tx, auditService } = executionFixture({ subjectType: 'guest' });
+    tx.opsGuestRosterEntry.findMany.mockResolvedValue([{ id: 'roster_subject' }]);
     await execute();
     expect(tx.opsGuestCheckIn.updateMany).toHaveBeenCalledWith({
-      where: { eventId: 'evt_sample', guestName: { equals: 'Ana Reyes', mode: 'insensitive' } }, data: { guestName: 'Redacted guest' },
+      where: { eventId: 'evt_sample', rosterEntryId: 'roster_subject' }, data: { guestName: 'Redacted guest' },
     });
-    expect(tx.opsGuestFeedback.updateMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { eventId: 'evt_sample', guestName: { equals: 'Ana Reyes', mode: 'insensitive' } },
-      data: expect.objectContaining({ comment: '[redacted by privacy request]', photoFileName: null, videoFileName: null }),
-    }));
+    expect(tx.opsGuestFeedback.updateMany).not.toHaveBeenCalled();
     expect(tx.opsInquiry.findMany).not.toHaveBeenCalled();
     expect(tx.opsSupplier.updateMany).not.toHaveBeenCalled();
     expect(auditService.audit).toHaveBeenCalledWith(
@@ -507,6 +505,25 @@ describe('PrivacyOperationsService', () => {
     expect(tx.opsInquiry.updateMany).not.toHaveBeenCalled();
     expect(auditService.audit).not.toHaveBeenCalled();
   });
+
+  it.each(['namesakes', 'feedback', 'unlinked check-in'])(
+    'keeps guest deletion approved without writes or audit when identity is unsafe: %s', async (reason) => {
+      const { execute, request, tx, auditService } = executionFixture({ subjectType: 'guest' });
+      tx.opsGuestRosterEntry.findMany.mockResolvedValue(reason === 'namesakes'
+        ? [{ id: 'roster_subject' }, { id: 'roster_namesake' }] : [{ id: 'roster_subject' }]);
+      if (reason === 'feedback') tx.opsGuestFeedback.findFirst.mockResolvedValue({ id: 'feedback_unlinked' });
+      if (reason === 'unlinked check-in') tx.opsGuestCheckIn.findFirst.mockResolvedValue({ id: 'check_in_unlinked' });
+
+      await expect(execute()).rejects.toThrow(/unique roster identity|individual record review/i);
+
+      expect(request.status).toBe('approved');
+      expect(tx.opsGuestRosterEntry.update).not.toHaveBeenCalled();
+      expect(tx.opsGuestCheckIn.updateMany).not.toHaveBeenCalled();
+      expect(tx.opsGuestFeedback.updateMany).not.toHaveBeenCalled();
+      expect(tx.opsGuestFeedbackMedia.updateMany).not.toHaveBeenCalled();
+      expect(auditService.audit).not.toHaveBeenCalled();
+    },
+  );
 
   it('does not mark an unmatched guest request executed', async () => {
     const { execute, request, tx } = executionFixture({ subjectType: 'guest' });

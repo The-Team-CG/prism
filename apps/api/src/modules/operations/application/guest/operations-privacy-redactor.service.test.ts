@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { OperationsPrivacyRedactorService } from './operations-privacy-redactor.service';
 
 describe('OperationsPrivacyRedactorService', () => {
-  it('redacts guest roster identity and feedback filename metadata without touching file bytes', async () => {
+  it('redacts one roster identity and only its linked check-ins without touching feedback or media', async () => {
     const rosterUpdate = vi.fn(async () => undefined);
     const mediaUpdate = vi.fn(async () => ({ count: 2 }));
     const transaction = {
@@ -11,9 +11,9 @@ describe('OperationsPrivacyRedactorService', () => {
         findFirst: vi.fn(async () => null),
         update: rosterUpdate,
       },
-      opsGuestCheckIn: { updateMany: vi.fn(async () => ({ count: 1 })) },
+      opsGuestCheckIn: { findFirst: vi.fn(async () => null), updateMany: vi.fn(async () => ({ count: 1 })) },
       opsGuestFeedback: {
-        findMany: vi.fn(async () => [{ id: 'feedback_1' }]),
+        findFirst: vi.fn(async () => null),
         updateMany: vi.fn(async () => ({ count: 1 })),
       },
       opsGuestFeedbackMedia: { updateMany: mediaUpdate },
@@ -29,13 +29,15 @@ describe('OperationsPrivacyRedactorService', () => {
         sourceKey: 'privacy-redacted:roster_1', guestName: 'Redacted guest', normalizedName: 'redacted guest', email: '', phone: '',
       },
     });
-    expect(mediaUpdate).toHaveBeenCalledWith({
-      where: { feedbackId: { in: ['feedback_1'] } },
-      data: { originalFileName: '[redacted by privacy request]' },
+    expect(transaction.opsGuestCheckIn.updateMany).toHaveBeenCalledWith({
+      where: { eventId: 'event_1', rosterEntryId: 'roster_1' },
+      data: { guestName: 'Redacted guest' },
     });
+    expect(transaction.opsGuestFeedback.updateMany).not.toHaveBeenCalled();
+    expect(mediaUpdate).not.toHaveBeenCalled();
     expect(result).toEqual({
-      surfaces: ['guest_roster_entry', 'guest_check_in', 'guest_feedback', 'guest_feedback_media_metadata'],
-      touchedRecords: 5,
+      surfaces: ['guest_roster_entry', 'guest_check_in'],
+      touchedRecords: 2,
     });
   });
 
@@ -49,8 +51,8 @@ describe('OperationsPrivacyRedactorService', () => {
         findFirst,
         update: rosterUpdate,
       },
-      opsGuestCheckIn: { updateMany: vi.fn(async () => ({ count: 0 })) },
-      opsGuestFeedback: { findMany: vi.fn(async () => []), updateMany: vi.fn(async () => ({ count: 0 })) },
+      opsGuestCheckIn: { findFirst: vi.fn(async () => null), updateMany: vi.fn(async () => ({ count: 0 })) },
+      opsGuestFeedback: { findFirst: vi.fn(async () => null), updateMany: vi.fn(async () => ({ count: 0 })) },
       opsGuestFeedbackMedia: { updateMany: vi.fn() },
     };
 
@@ -66,7 +68,7 @@ describe('OperationsPrivacyRedactorService', () => {
     }));
   });
 
-  it('does not query or mutate media metadata when no matching feedback exists', async () => {
+  it('returns no matches without changing guest records when no roster identity exists', async () => {
     const mediaUpdate = vi.fn();
     const transaction = {
       opsGuestRosterEntry: { findMany: vi.fn(async () => []), findFirst: vi.fn(), update: vi.fn() },
@@ -80,6 +82,8 @@ describe('OperationsPrivacyRedactorService', () => {
     );
 
     expect(mediaUpdate).not.toHaveBeenCalled();
+    expect(transaction.opsGuestCheckIn.updateMany).not.toHaveBeenCalled();
+    expect(transaction.opsGuestFeedback.updateMany).not.toHaveBeenCalled();
     expect(result).toEqual({ surfaces: [], touchedRecords: 0 });
   });
 
@@ -88,6 +92,9 @@ describe('OperationsPrivacyRedactorService', () => {
     const matches = (row: Row, where: Record<string, unknown>) =>
       Object.entries(where).every(([key, expected]) => {
         if (expected && typeof expected === 'object' && 'in' in expected) return (expected as { in: unknown[] }).in.includes(row[key]);
+        if (expected && typeof expected === 'object' && 'equals' in expected) {
+          return String(row[key]).toLowerCase() === String(expected.equals).toLowerCase();
+        }
         return row[key] === expected;
       });
 
@@ -130,6 +137,17 @@ describe('OperationsPrivacyRedactorService', () => {
       };
       return { transaction, checkIns, roster, feedback, media };
     }
+
+    it('refuses ambiguous guest deletion without changing either namesake or their media', async () => {
+      const store = createGuestStore();
+      const before = structuredClone([store.roster, store.checkIns, store.feedback, store.media]);
+
+      await expect(new OperationsPrivacyRedactorService().redactGuest(
+        { eventId: 'event_1', name: '  ANA REYES  ' }, store.transaction as never,
+      )).rejects.toThrow(/unique roster identity/i);
+
+      expect([store.roster, store.checkIns, store.feedback, store.media]).toEqual(before);
+    });
 
     it('redacts only the referenced check-in and its roster entry, leaving a same-named guest in the event untouched', async () => {
       const store = createGuestStore();
