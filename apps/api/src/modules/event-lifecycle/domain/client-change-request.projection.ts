@@ -24,9 +24,12 @@ export type ClientChangeRequestSource = {
   decidedAt: Date | null;
 };
 
-export function toClientChangeRequest(value: ClientChangeRequestSource): PrismClientChangeRequest {
+export function toClientChangeRequest(value: ClientChangeRequestSource): PrismClientChangeRequest & { status: Exclude<PrismClientChangeRequest['status'], 'withdrawn'> } {
   return {
     id: value.id,
+    source: 'freeze_exception',
+    category: null,
+    clientResponse: null,
     requestedChange: value.requestedChange,
     status: CLIENT_CHANGE_REQUEST_STATUS[value.status as keyof typeof CLIENT_CHANGE_REQUEST_STATUS] ?? 'under_review',
     updatedAt: (value.decidedAt ?? value.requestedAt).toISOString(),

@@ -11,7 +11,6 @@ import {
   PrivacyLogRequestForm,
   PrivacyQueuePager,
   PrivacyRequestCard,
-  PrivacyRetentionPanel,
 } from "./privacy-console-sections";
 
 /** PMCM privacy operations console: filtered, paged request queue with deadlines, ownership, and execution. */
@@ -54,7 +53,6 @@ export function PrivacyConsoleView() {
         </div>
         <div className="space-y-5">
           {vm.isPmcmAdmin ? <PrivacyLegalHoldControls vm={vm} /> : null}
-          <PrivacyRetentionPanel vm={vm} />
           {vm.isPmcmAdmin ? <RetentionReviewPanel /> : null}
         </div>
       </div>

@@ -6,7 +6,7 @@ import type {
   OpsPaymentRecord,
   OpsPostEventDocument,
 } from '@prisma/client';
-import type { PrismClientActionItem, PrismClientChangeRequest, PrismCommandInboxItem, PrismCommandInboxSeverity } from '@prism/types';
+import type { PrismClientActionItem, PrismCommandInboxItem, PrismCommandInboxSeverity } from '@prism/types';
 import { toClientChangeRequest, type ClientChangeRequestSource } from '@prism/contexts/event-lifecycle';
 import type {
   PmcmInboxCoordinatorAssignment,
@@ -355,8 +355,8 @@ function collectClientChangeRequestItems(requests: ClientChangeRequestRef[], eve
     if (!event) continue;
     if (request.decidedAt && request.decidedAt.getTime() < reviewSince) continue;
     // Only the client-safe projection is read so internal reasons and decision notes can never reach the item.
-    const projection: PrismClientChangeRequest = toClientChangeRequest(request);
-    const copy: Record<PrismClientChangeRequest['status'], Pick<PrismClientActionItem, 'priority' | 'label' | 'description'>> = {
+    const projection = toClientChangeRequest(request);
+    const copy: Record<typeof projection.status, Pick<PrismClientActionItem, 'priority' | 'label' | 'description'>> = {
       under_review: { priority: 'info', label: 'Change request under review', description: `PMCM is reviewing: ${projection.requestedChange}` },
       approved: { priority: 'info', label: 'Change request approved', description: `PMCM approved: ${projection.requestedChange}` },
       not_approved: { priority: 'attention', label: 'Change request not approved', description: `Review PMCM's decision on: ${projection.requestedChange}` },

@@ -13,7 +13,7 @@ import type { ReviewStatusFilter } from "../use-cases/retention-use-cases";
 
 const STATUS_OPTIONS: ReviewStatusFilter[] = ["pending", "held", "executed", "dismissed", "all"];
 
-/** Entry point mounted in the audit privacy area; owns its own data so the audit trail view-model stays unchanged. */
+/** Retention controls mounted in the privacy console; owns its policy and review data. */
 export function PrivacyRetentionPanel() {
   const vm = usePrivacyRetentionViewModel();
   return <PrivacyRetentionView vm={vm} />;

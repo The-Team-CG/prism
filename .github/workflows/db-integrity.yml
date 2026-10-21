@@ -1,9 +1,9 @@
 name: Database integrity
 on:
   pull_request:
-    branches: [staging, prod]
+    branches: [staging, prod, main]
   push:
-    branches: [staging, prod]
+    branches: [staging, prod, main]
 permissions:
   contents: read
 jobs:

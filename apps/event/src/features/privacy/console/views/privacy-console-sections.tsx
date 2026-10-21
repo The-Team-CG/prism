@@ -316,19 +316,3 @@ function PrivacyLegalHoldCard({ hold, vm }: { hold: PrismPrivacyLegalHold; vm: P
     </div>
   );
 }
-
-export function PrivacyRetentionPanel({ vm }: { vm: PrivacyConsoleViewModel }) {
-  return (
-    <Panel title="Retention policies" icon={Database}>
-      <div className="space-y-2">
-        {vm.retentionPolicies.map((policy) => (
-          <div key={policy.surface} className="rounded-md bg-background p-3 text-xs">
-            <p className="font-black capitalize text-foreground">{label(policy.surface)}</p>
-            <p className="mt-1 text-muted-foreground">{policy.retentionPeriod}</p>
-          </div>
-        ))}
-        {vm.retentionPolicies.length === 0 ? <p className="text-sm text-muted-foreground">No retention policies are loaded.</p> : null}
-      </div>
-    </Panel>
-  );
-}
