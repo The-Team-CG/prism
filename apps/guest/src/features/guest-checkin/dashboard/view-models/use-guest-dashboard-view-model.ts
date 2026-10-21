@@ -15,7 +15,7 @@ import type { CheckInMode, GuestBusyAction, GuestDashboardStatus, GuestSession }
 import {
   leaveGuestEvent,
   loadGuestDashboardSession,
-  refreshGuestEvent,
+  refreshGuestEventIfChanged,
   submitGuestCheckIn,
   submitGuestFeedback,
 } from "../use-cases/guest-dashboard-actions";
@@ -38,9 +38,10 @@ export function useGuestDashboardViewModel() {
   const [session, setSession] = useState<GuestSession | null>(null);
   const [status, setStatus] = useState<GuestDashboardStatus>("loading");
   const [checkedIn, setCheckedIn] = useState(false);
-  const [walkIn, setWalkIn] = useState(false);
+  const [checkInGuestName, setCheckInGuestName] = useState("");
   const [checkInConsentAccepted, setCheckInConsentAccepted] = useState(false);
   const [checkInMode, setCheckInMode] = useState<CheckInMode>("name_search");
+  const [feedbackGuestName, setFeedbackGuestName] = useState("");
   const [feedbackRating, setFeedbackRating] = useState("5");
   const [feedbackComment, setFeedbackComment] = useState("");
   const [feedbackConsentAccepted, setFeedbackConsentAccepted] = useState(false);
@@ -67,7 +68,7 @@ export function useGuestDashboardViewModel() {
   const refreshEvent = useCallback(async (current = session) => {
     if (!current) return;
     try {
-      const next = await refreshGuestEvent(current);
+      const next = await refreshGuestEventIfChanged(current);
       setSession(next);
     } catch {
       // Silently ignore poll errors — stale data is acceptable
@@ -91,11 +92,12 @@ export function useGuestDashboardViewModel() {
       const result = await submitGuestCheckIn({
         session,
         checkInMode,
-        walkIn,
+        guestName: checkInMode === "name_search" ? checkInGuestName : undefined,
         consentAccepted: checkInConsentAccepted,
       });
       setSession(result.session);
       setCheckedIn(true);
+      setCheckInGuestName("");
       setNotice(result.notice);
       setStatus("ready");
     } catch (err) {
@@ -131,6 +133,7 @@ export function useGuestDashboardViewModel() {
     try {
       await submitGuestFeedback({
         session,
+        guestName: feedbackGuestName,
         rating: feedbackRating,
         comment: feedbackComment,
         consentAccepted: feedbackConsentAccepted,
@@ -139,6 +142,7 @@ export function useGuestDashboardViewModel() {
       });
       setFeedbackSubmitted(true);
       setNotice("Feedback submitted for moderation.");
+      setFeedbackGuestName("");
       setFeedbackComment("");
       setPhotoFile(null);
       setVideoFile(null);
@@ -186,14 +190,19 @@ export function useGuestDashboardViewModel() {
     session,
     status,
     checkedIn,
-    walkIn,
-    setWalkIn,
+    checkInGuestName,
+    setCheckInGuestName,
     checkInConsentAccepted,
     setCheckInConsentAccepted,
     checkInMode,
     setCheckInMode: (mode: CheckInMode) => {
       setCheckInMode(mode);
-      setWalkIn(false);
+      setCheckInGuestName("");
+    },
+    feedbackGuestName,
+    setFeedbackGuestName: (guestName: string) => {
+      setFeedbackGuestName(guestName);
+      setFeedbackSubmitted(false);
     },
     feedbackRating,
     setFeedbackRating: (rating: string) => {
@@ -216,7 +225,14 @@ export function useGuestDashboardViewModel() {
     videoDurationError,
     photoInputRef,
     videoInputRef,
-    checkInButtonLabel: checkInButtonLabel({ checkedIn, checkInMode, walkIn }),
+    canCheckIn: !checkedIn
+      && !busy
+      && checkInConsentAccepted
+      && (checkInMode === "headcount" || checkInGuestName.trim().length > 0),
+    canSubmitFeedback: !busy
+      && feedbackConsentAccepted
+      && feedbackGuestName.trim().length > 0,
+    checkInButtonLabel: checkInButtonLabel(checkedIn),
     formatFileSize,
     checkIn,
     submitFeedback,

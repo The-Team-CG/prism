@@ -13,8 +13,15 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     clearMocks: true,
     restoreMocks: true,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      reportsDirectory: './coverage',
+      exclude: ['**/components/ui/**', '**/features/pmcm-kit/**', '**/views/**', '**/*cockpit*'],
+      thresholds: { lines: 50, statements: 50, functions: 50, branches: 40 },
+    },
   },
 })

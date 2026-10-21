@@ -104,6 +104,8 @@ export function EventSummaryCard({
   briefing,
   documentCount,
   onOpen,
+  onOpenFloorplan,
+  floorplanActionLabel,
   className,
 }: {
   event: PrismEvent;
@@ -112,6 +114,8 @@ export function EventSummaryCard({
   briefing?: PrismBriefing;
   documentCount: number;
   onOpen: () => void;
+  onOpenFloorplan?: () => void;
+  floorplanActionLabel: string;
   className?: string;
 }) {
   const dateParts = eventDateParts(event.eventDate);
@@ -166,9 +170,16 @@ export function EventSummaryCard({
             </span>
           ))}
         </div>
-        <Button className="w-full rounded-lg font-bold" onClick={onOpen}>
-          Open workspace <ArrowRight className="size-3.5" />
-        </Button>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Button className="w-full rounded-lg font-bold" onClick={onOpen}>
+            Open workspace <ArrowRight className="size-3.5" />
+          </Button>
+          {onOpenFloorplan && (
+            <Button variant="outline" className="w-full rounded-lg font-bold" onClick={onOpenFloorplan}>
+              {floorplanActionLabel} <MapPinned className="size-3.5" />
+            </Button>
+          )}
+        </div>
       </div>
     </article>
   );

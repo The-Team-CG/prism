@@ -4,13 +4,22 @@
   "private": true,
   "description": "P.R.I.S.M local-only event operations monorepo.",
   "packageManager": "npm@11.6.2",
+  "engines": {
+    "node": ">=24"
+  },
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
+    "db:local:start": "node scripts/local-supabase.mjs start",
+    "db:local:stop": "node scripts/local-supabase.mjs stop",
+    "db:local:status": "node scripts/local-supabase.mjs status",
+    "test:local-dev": "node --test scripts/local-supabase.test.mjs",
     "build": "turbo run build",
+    "prebuild": "npm run check:types-dist",
     "typecheck": "turbo run typecheck",
+    "pretypecheck": "npm run check:types-dist",
     "dev:api": "npm --workspace prism-api run dev",
     "dev:api:watch": "concurrently -n types,api -c blue,green \"npm --workspace @prism/types run dev\" \"npm run dev:api\"",
     "dev:client": "npm --workspace @prism/client run dev",
@@ -22,16 +31,48 @@
     "start:event": "npm --workspace @prism/event run start",
     "start:supplier": "npm --workspace @prism/supplier run start",
     "start:guest": "npm --workspace @prism/guest run start",
+    "check:migrations": "npm --workspace prism-api run db:check:migrations",
+    "test:migrations": "node --test apps/api/scripts/check-prisma-migrations.test.mjs",
+    "check:domain-persistence": "npm --workspace prism-api run db:check:domain-persistence",
+    "check:domain-persistence:final": "npm --workspace prism-api run db:check:domain-persistence:final",
+    "test:domain-persistence": "npm --workspace prism-api run test:db:domain-persistence",
+    "check:invariants": "npm --workspace prism-api run db:check:invariants:dry-run",
+    "test:invariants": "node --test apps/api/scripts/check-data-invariants.test.mjs",
     "test:api": "npm --workspace prism-api run test",
+    "check:test-clocks": "npm --workspace prism-api run check:test-clocks",
+    "test:test-clocks": "node --test apps/api/scripts/check-test-clock-pinning.test.mjs",
     "test:api:coverage": "npm --workspace prism-api run test:coverage",
+    "lint:architecture": "eslint --config eslint.config.mjs \"apps/**/*.{ts,tsx}\" \"packages/**/*.{ts,tsx}\"",
     "db:generate": "npm --workspace prism-api run db:generate",
     "smoke:ui": "node scripts/smoke-prism-ui.mjs",
-    "test:boundaries": "node --test scripts/check-prism-boundaries.test.mjs",
-    "check:boundaries": "node scripts/check-prism-boundaries.mjs"
+    "test:boundaries": "node --test scripts/check-prism-boundaries.test.mjs scripts/check-cyclomatic-complexity.test.mjs scripts/prism-ports.test.mjs scripts/prism-worktree.test.mjs scripts/port-ownership.test.mjs scripts/eslint-prism-architecture.test.mjs",
+    "ports": "node scripts/prism-ports.mjs",
+    "worktree:setup": "node scripts/prism-worktree.mjs setup",
+    "worktree:setup:copy-local-env": "node scripts/prism-worktree.mjs setup --copy-local-env",
+    "worktree:create": "node scripts/prism-worktree.mjs create",
+    "worktree:remove": "node scripts/prism-worktree.mjs remove",
+    "check:types-dist": "node scripts/check-types-dist.mjs",
+    "check:boundaries": "node scripts/check-prism-boundaries.mjs",
+    "check:complexity": "node scripts/check-cyclomatic-complexity.mjs",
+    "postinstall": "npm --workspace @prism/types run build"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "supabase": "2.115.0",
     "turbo": "^2.6.1",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.65.0"
+  },
+  "overrides": {
+    "deepmerge-ts": "^8.0.2",
+    "fast-uri": "3.1.7",
+    "js-yaml": "^4.3.2",
+    "multer@2.2.0": "2.3.0",
+    "nanoid": "^3.3.17",
+    "postcss": "^8.5.25",
+    "sharp": "^0.35.5",
+    "shell-quote": "^1.11.0"
   }
 }

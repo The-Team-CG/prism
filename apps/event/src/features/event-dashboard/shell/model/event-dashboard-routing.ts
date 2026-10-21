@@ -1,4 +1,5 @@
 import type { PmcmDetailTab } from "@/features/command-inbox/list";
+import type { PrismEvent } from "@prism/types";
 export type DetailTab = PmcmDetailTab;
 export type DashboardSection =
   | "dashboard"
@@ -15,6 +16,7 @@ export type DashboardSection =
   | "messages"
   | "finance"
   | "audit"
+  | "privacy"
   | "settings";
 export type RouteState = { section: DashboardSection; tab: DetailTab; eventId?: string; clientId?: string; view?: string };
 
@@ -22,13 +24,17 @@ export type EventDashboardClientProps = Partial<RouteState>;
 
 export const EVENT_TAB_ROUTES: Record<DetailTab, string> = {
   overview: "overview",
+  games: "games",
+  files: "files",
   floorplans: "floorplans",
   briefing: "briefing",
   suppliers: "suppliers",
+  registration: "registration",
   coordinators: "coordinators",
   "live-ops": "live-ops",
   billing: "billing",
   closure: "closure",
+  decisions: "decision-log",
   activity: "activity",
 };
 
@@ -75,17 +81,28 @@ export const EVENT_LIST_ROUTE_ITEMS: Record<string, string> = {
   "by-event-type": "events-by-type",
 };
 
+export function isEventListView(value: string): boolean {
+  return Object.prototype.hasOwnProperty.call(EVENT_LIST_ROUTE_ITEMS, value);
+}
+
+export function eventListRouteState(view = "all"): RouteState {
+  return { section: "events-list", tab: "overview", view: isEventListView(view) ? view : "all" };
+}
+
 export const EVENT_WORKSPACE_ROUTE_TABS: Record<string, DetailTab> = {
   overview: "overview",
+  games: "games",
   "planning-checklist": "briefing",
   schedule: "live-ops",
   attendees: "live-ops",
   staff: "coordinators",
   suppliers: "suppliers",
+  registration: "registration",
   budget: "billing",
-  files: "floorplans",
+  files: "files",
   messages: "activity",
   timeline: "live-ops",
+  "run-sheet": "live-ops",
   "post-event-report": "closure",
   floorplans: "floorplans",
   briefing: "briefing",
@@ -93,11 +110,13 @@ export const EVENT_WORKSPACE_ROUTE_TABS: Record<string, DetailTab> = {
   "live-ops": "live-ops",
   billing: "billing",
   closure: "closure",
+  "decision-log": "decisions",
   activity: "activity",
 };
 
 export const EVENT_WORKSPACE_ROUTE_ITEMS: Record<string, string> = {
   overview: "event-overview",
+  games: "event-games",
   "planning-checklist": "event-planning",
   briefing: "event-planning",
   schedule: "event-timeline",
@@ -108,10 +127,11 @@ export const EVENT_WORKSPACE_ROUTE_ITEMS: Record<string, string> = {
   budget: "event-budget",
   billing: "event-budget",
   files: "event-files",
-  floorplans: "event-files",
+  floorplans: "event-floorplans",
   messages: "event-messages",
   activity: "event-messages",
   timeline: "event-timeline",
+  "run-sheet": "event-timeline",
   "live-ops": "event-timeline",
   "post-event-report": "event-report",
   closure: "event-report",
@@ -325,92 +345,244 @@ export const EVENT_DETAIL_ROUTES: Record<string, string> = {
   "event-staff": "coordinators",
   "event-suppliers": "suppliers",
   "event-budget": "billing",
-  "event-files": "floorplans",
+  "event-files": "files",
+  "event-floorplans": "floorplans",
   "event-messages": "activity",
   "event-timeline": "live-ops",
   "event-report": "closure",
+  "event-games": "games",
 };
 
-export function activeSidebarItemFromRoute(routeState: RouteState) {
-  if (routeState.section === "dashboard") return "dashboard";
-  if (routeState.section === "suppliers") return "suppliers";
-  if (routeState.section === "audit") return "audit";
-  if (routeState.section === "clients") return "clients";
-  if (routeState.section === "calendar") return "calendar";
-  if (routeState.section === "tasks") return "tasks";
-  if (routeState.section === "command-inbox") return "command-inbox";
-  if (routeState.section === "team") return routeState.eventId ? "event-staff" : "dashboard";
-  if (routeState.section === "files") return routeState.eventId ? "event-files" : "dashboard";
-  if (routeState.section === "messages") return routeState.eventId ? "event-messages" : "dashboard";
-  if (routeState.section === "finance") return routeState.eventId ? "event-budget" : "dashboard";
-  if (routeState.section === "settings") return "settings";
-  if (routeState.section === "inquiries") return "inquiries";
-  if (routeState.section === "events-list") return "events-list";
-  if (!routeState.eventId) return "dashboard";
+export function dashboardRouteState(view = "overview"): RouteState {
+  return { section: "dashboard", tab: "overview", view };
+}
 
+export function eventRouteState(eventId: string, view = "overview"): RouteState {
+  return {
+    section: "events",
+    eventId,
+    tab: EVENT_WORKSPACE_ROUTE_TABS[view] ?? EVENT_TAB_BY_ROUTE[view] ?? "overview",
+    view,
+  };
+}
+
+const SECTION_VIEW_TAB: Partial<Record<DashboardSection, DetailTab>> = {
+  messages: "activity",
+  finance: "billing",
+};
+
+const SIDEBAR_ITEM_TO_STATE: Record<string, RouteState> = {
+  dashboard: dashboardRouteState(),
+  inquiries: { section: "inquiries", tab: "overview", view: "prospects" },
+  clients: { section: "clients", tab: "overview", view: "all" },
+  "events-list": { section: "events-list", tab: "overview", view: "all" },
+  calendar: { section: "calendar", tab: "overview", view: "all" },
+  tasks: { section: "tasks", tab: "overview", view: "mine" },
+  "command-inbox": { section: "command-inbox", tab: "overview", view: "all" },
+  team: { section: "team", tab: "coordinators", view: "all" },
+  suppliers: { section: "suppliers", tab: "overview", view: "all" },
+  files: { section: "files", tab: "floorplans", view: "all" },
+  messages: { section: "messages", tab: "activity", view: "inbox" },
+  finance: { section: "finance", tab: "billing", view: "overview" },
+  audit: { section: "audit", tab: "overview", view: "system-logs" },
+  privacy: { section: "privacy", tab: "overview", view: "console" },
+  settings: { section: "settings", tab: "overview", view: "organization-profile" },
+};
+
+for (const [view, itemId] of Object.entries(DASHBOARD_ROUTE_ITEMS)) {
+  SIDEBAR_ITEM_TO_STATE[itemId] = dashboardRouteState(view);
+}
+for (const [view, itemId] of Object.entries(CLIENT_LIST_ROUTE_ITEMS)) {
+  SIDEBAR_ITEM_TO_STATE[itemId] = { section: "clients", tab: "overview", view };
+}
+for (const [view, itemId] of Object.entries(EVENT_LIST_ROUTE_ITEMS)) {
+  SIDEBAR_ITEM_TO_STATE[itemId] = eventListRouteState(view);
+}
+for (const [section, items] of Object.entries(SECTION_ROUTE_ITEMS)) {
+  const tab = SECTION_VIEW_TAB[section as DashboardSection] ?? "overview";
+  for (const [view, itemId] of Object.entries(items)) {
+    SIDEBAR_ITEM_TO_STATE[itemId] = { section: section as DashboardSection, tab, view };
+  }
+}
+
+SIDEBAR_ITEM_TO_STATE["settings-system-logs"] = { section: "audit", tab: "overview", view: "system-logs" };
+
+const SECTION_SIDEBAR_ITEM: Partial<Record<DashboardSection, string>> = {
+  dashboard: "dashboard",
+  suppliers: "suppliers",
+  audit: "audit",
+  privacy: "privacy",
+  clients: "clients",
+  calendar: "calendar",
+  tasks: "tasks",
+  "command-inbox": "command-inbox",
+  settings: "settings",
+  inquiries: "inquiries",
+  "events-list": "events-list",
+};
+
+const EVENT_SCOPED_SIDEBAR_ITEM: Partial<Record<DashboardSection, string>> = {
+  team: "event-staff",
+  files: "event-files",
+  messages: "event-messages",
+  finance: "event-budget",
+};
+
+const ROUTE_LOADING_COPY: Partial<Record<DashboardSection, { eyebrow: string; title: string }>> = {
+  suppliers: { eyebrow: "Supplier directory", title: "Supplier Directory" },
+  audit: { eyebrow: "Audit log", title: "Audit Trail" },
+  privacy: { eyebrow: "Privacy operations", title: "Privacy Console" },
+  clients: { eyebrow: "Clients", title: "Client Desk" },
+  calendar: { eyebrow: "Calendar", title: "Calendar" },
+  tasks: { eyebrow: "Tasks", title: "Tasks" },
+  "command-inbox": { eyebrow: "Command inbox", title: "Command Inbox" },
+  team: { eyebrow: "Team", title: "Team & Coordinators" },
+  files: { eyebrow: "Files", title: "Event File Hub" },
+  messages: { eyebrow: "Messages", title: "Event Messages" },
+  finance: { eyebrow: "Finance", title: "Finance Desk" },
+  inquiries: { eyebrow: "Inquiries", title: "Inquiry Intake" },
+  "events-list": { eyebrow: "Events", title: "All Events" },
+  settings: { eyebrow: "Settings", title: "Settings" },
+};
+
+export function routeStateForSidebarItem(id: string): RouteState | undefined {
+  return SIDEBAR_ITEM_TO_STATE[id];
+}
+
+export function activeSidebarItemFromRoute(routeState: RouteState) {
+  const scopedItem = EVENT_SCOPED_SIDEBAR_ITEM[routeState.section];
+  if (scopedItem) return routeState.eventId ? scopedItem : "dashboard";
+  const sectionItem = SECTION_SIDEBAR_ITEM[routeState.section];
+  if (sectionItem) return sectionItem;
+  if (!routeState.eventId) return "dashboard";
   return EVENT_WORKSPACE_ROUTE_ITEMS[routeState.view ?? "overview"]
     ?? EVENT_WORKSPACE_ROUTE_ITEMS[EVENT_TAB_ROUTES[routeState.tab]]
     ?? "event-overview";
 }
 
 export function routeLoadingShellCopy(routeState: RouteState) {
-  if (routeState.section === "suppliers") return { eyebrow: "Supplier directory", title: "Supplier Directory" };
-  if (routeState.section === "audit") return { eyebrow: "Audit log", title: "Audit Trail" };
-  if (routeState.section === "clients") return { eyebrow: "Clients", title: "Client Desk" };
-  if (routeState.section === "calendar") return { eyebrow: "Calendar", title: "Calendar" };
-  if (routeState.section === "tasks") return { eyebrow: "Tasks", title: "Tasks" };
-  if (routeState.section === "command-inbox") return { eyebrow: "Command inbox", title: "Command Inbox" };
-  if (routeState.section === "team") return { eyebrow: "Team", title: "Team & Coordinators" };
-  if (routeState.section === "files") return { eyebrow: "Files", title: "Event File Hub" };
-  if (routeState.section === "messages") return { eyebrow: "Messages", title: "Event Messages" };
-  if (routeState.section === "finance") return { eyebrow: "Finance", title: "Finance Desk" };
-  if (routeState.section === "inquiries") return { eyebrow: "Inquiries", title: "Inquiry Intake" };
-  if (routeState.section === "events-list") return { eyebrow: "Events", title: "All Events" };
-  if (routeState.section === "settings") return { eyebrow: "Settings", title: "Settings" };
+  const copy = ROUTE_LOADING_COPY[routeState.section];
+  if (copy) return copy;
   if (routeState.eventId) return { eyebrow: "Event workspace", title: "Event workspace" };
   return { eyebrow: "Command home", title: "Event Manager" };
 }
 
+export type EventDashboardShellCopy = {
+  eyebrow: string;
+  title: string;
+  description: string;
+};
+
+const ROUTE_DESCRIPTIONS: Partial<Record<DashboardSection, string>> = {
+  suppliers: "Master supplier directory with category tagging, tiering, and performance reviews.",
+  audit: "Complete audit trail of all actions, approvals, and system events.",
+  privacy: "Privacy requests with 30-day deadlines, owners, execution, legal holds, and retention policies.",
+  clients: "Client intake, conforme status, approval requests, and portal readiness.",
+  calendar: "Event dates, planning windows, supplier deadlines, and onsite schedule checkpoints.",
+  tasks: "PMCM actions across inquiries, approvals, planning, finance, live operations, and closure.",
+  "command-inbox": "Prioritized action queue across inquiries, suppliers, billing, coordinators, and closure.",
+  team: "Coordinator roster, assignment coverage, availability, and event-day staffing.",
+  files: "Operational documents, official floorplans, billing statements, contracts, and closeout records.",
+  messages: "Client, supplier, coordinator, and internal PMCM communication threads.",
+  finance: "Billing statements, payment milestones, balances, and statement delivery.",
+  settings: "Workspace preferences, account context, notification defaults, and role-safe system controls.",
+  inquiries: "Review, accept, pend, or decline incoming event inquiries.",
+  "events-list": "Confirmed event workspaces ready for planning and operations.",
+  dashboard: "Active event workspaces, inquiry intake, and client onboarding.",
+};
+
+const ROUTE_TITLES: Partial<Record<DashboardSection, string>> = {
+  suppliers: "Supplier Directory",
+  audit: "Audit Trail",
+  privacy: "Privacy Console",
+  "command-inbox": "Command Inbox",
+  team: "Team & Coordinators",
+  inquiries: "Inquiry Intake",
+};
+
+export function routeShellCopy(
+  routeState: RouteState,
+  options: {
+    activeNavLabel?: string;
+    selectedEvent?: Pick<PrismEvent, "eventName" | "clientName" | "eventDate">;
+  } = {},
+): EventDashboardShellCopy {
+  const loadingCopy = routeLoadingShellCopy(routeState);
+  if (routeState.eventId) {
+    return {
+      eyebrow: loadingCopy.eyebrow,
+      title: options.selectedEvent?.eventName ?? "Event Manager",
+      description: options.selectedEvent
+        ? `${options.selectedEvent.clientName} — ${options.selectedEvent.eventDate}`
+        : "Select an event or accept an inquiry to begin.",
+    };
+  }
+
+  return {
+    eyebrow: loadingCopy.eyebrow,
+    title: ROUTE_TITLES[routeState.section] ?? options.activeNavLabel ?? loadingCopy.title,
+    description: ROUTE_DESCRIPTIONS[routeState.section] ?? "Select an event or accept an inquiry to begin.",
+  };
+}
+
+const DEFAULT_DASHBOARD_ROUTE: RouteState = { section: "dashboard", tab: "overview", view: "overview" };
+
+function parseClientsPath(parts: string[]): RouteState {
+  if (!parts[2]) return { section: "clients", tab: "overview", view: "all" };
+  if (CLIENT_LIST_ROUTE_ITEMS[parts[2]]) return { section: "clients", tab: "overview", view: parts[2] };
+  return {
+    section: "clients",
+    tab: "overview",
+    clientId: decodeURIComponent(parts[2]),
+    view: parts[3] ?? "overview",
+  };
+}
+
+function parseEventsPath(parts: string[]): RouteState {
+  if (!parts[2]) return { section: "events-list", tab: "overview", view: "all" };
+  if (isEventListView(parts[2])) return eventListRouteState(parts[2]);
+  const eventRoute = parts[3] ?? "overview";
+  return {
+    section: "events",
+    eventId: decodeURIComponent(parts[2]),
+    tab: EVENT_WORKSPACE_ROUTE_TABS[eventRoute] ?? EVENT_TAB_BY_ROUTE[eventRoute] ?? "overview",
+    view: eventRoute,
+  };
+}
+
+function parseSettingsPath(parts: string[]): RouteState {
+  if (parts[2] === "system-logs") return { section: "audit", tab: "overview", view: "system-logs" };
+  return { section: "settings", tab: "overview", view: parts[2] ?? "organization-profile" };
+}
+
+const PATH_SECTION_PARSERS: Record<string, (parts: string[]) => RouteState> = {
+  inquiries: () => ({ section: "inquiries", tab: "overview", view: "prospects" }),
+  clients: parseClientsPath,
+  events: parseEventsPath,
+  calendar: (parts) => ({ section: "calendar", tab: "overview", view: parts[2] ?? "all" }),
+  tasks: (parts) => ({ section: "tasks", tab: "overview", view: parts[2] ?? "mine" }),
+  "command-inbox": () => ({ section: "command-inbox", tab: "overview", view: "all" }),
+  team: (parts) => ({ section: "team", tab: "coordinators", view: parts[2] ?? "all" }),
+  suppliers: (parts) => ({ section: "suppliers", tab: "overview", view: parts[2] ?? "all" }),
+  files: (parts) => ({ section: "files", tab: "floorplans", view: parts[2] ?? "all" }),
+  messages: (parts) => ({ section: "messages", tab: "activity", view: parts[2] ?? "inbox" }),
+  finance: (parts) => ({ section: "finance", tab: "billing", view: parts[2] ?? "overview" }),
+  audit: () => ({ section: "audit", tab: "overview", view: "system-logs" }),
+  privacy: () => ({ section: "privacy", tab: "overview", view: "console" }),
+  settings: parseSettingsPath,
+};
+
+/**
+ * Compatibility parser for legacy deep links. New App Router pages pass
+ * explicit route state and do not parse pathname strings in a ViewModel.
+ */
 export function routeStateFromPath(pathname: string): RouteState {
   const parts = pathname.split("/").filter(Boolean);
-  if (parts[0] !== "dashboard") return { section: "dashboard", tab: "overview", view: "overview" };
-  if (parts.length === 1) return { section: "dashboard", tab: "overview", view: "overview" };
+  if (parts[0] !== "dashboard" || parts.length === 1) return DEFAULT_DASHBOARD_ROUTE;
   if (DASHBOARD_ROUTE_ITEMS[parts[1]]) {
     return { section: "dashboard", tab: "overview", view: parts[1] };
   }
-  if (parts[1] === "inquiries") return { section: "inquiries", tab: "overview", view: "prospects" };
-  if (parts[1] === "clients") {
-    if (!parts[2]) return { section: "clients", tab: "overview", view: "all" };
-    if (CLIENT_LIST_ROUTE_ITEMS[parts[2]]) return { section: "clients", tab: "overview", view: parts[2] };
-    return {
-      section: "clients",
-      tab: "overview",
-      clientId: decodeURIComponent(parts[2]),
-      view: parts[3] ?? "overview",
-    };
-  }
-  if (parts[1] === "events" && parts[2]) {
-    if (EVENT_LIST_ROUTE_ITEMS[parts[2]]) return { section: "events-list", tab: "overview", view: parts[2] };
-    const eventRoute = parts[3] ?? "overview";
-    return {
-      section: "events",
-      eventId: decodeURIComponent(parts[2]),
-      tab: EVENT_WORKSPACE_ROUTE_TABS[eventRoute] ?? EVENT_TAB_BY_ROUTE[eventRoute] ?? "overview",
-      view: eventRoute,
-    };
-  }
-  if (parts[1] === "events") return { section: "events-list", tab: "overview", view: "all" };
-  if (parts[1] === "calendar") return { section: "calendar", tab: "overview", view: parts[2] ?? "all" };
-  if (parts[1] === "tasks") return { section: "tasks", tab: "overview", view: parts[2] ?? "mine" };
-  if (parts[1] === "command-inbox") return { section: "command-inbox", tab: "overview", view: "all" };
-  if (parts[1] === "team") return { section: "team", tab: "coordinators", view: parts[2] ?? "all" };
-  if (parts[1] === "suppliers") return { section: "suppliers", tab: "overview", view: parts[2] ?? "all" };
-  if (parts[1] === "files") return { section: "files", tab: "floorplans", view: parts[2] ?? "all" };
-  if (parts[1] === "messages") return { section: "messages", tab: "activity", view: parts[2] ?? "inbox" };
-  if (parts[1] === "finance") return { section: "finance", tab: "billing", view: parts[2] ?? "overview" };
-  if (parts[1] === "audit") return { section: "audit", tab: "overview", view: "system-logs" };
-  if (parts[1] === "settings" && parts[2] === "system-logs") return { section: "audit", tab: "overview", view: "system-logs" };
-  if (parts[1] === "settings") return { section: "settings", tab: "overview", view: parts[2] ?? "organization-profile" };
-  return { section: "dashboard", tab: "overview", view: "overview" };
+  const parse = PATH_SECTION_PARSERS[parts[1]];
+  return parse ? parse(parts) : DEFAULT_DASHBOARD_ROUTE;
 }
 

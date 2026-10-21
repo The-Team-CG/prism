@@ -2,8 +2,18 @@ import {
   clientDashboardRepository,
   type FloorPlanPreferenceInput,
 } from "../data/client-dashboard-repository";
-import type { CreatePrismInquiryInput, PrismUser } from "@prism/types";
-import type { Project } from "@/features/floorplan/editor/types";
+import {
+  parseContract,
+  submitClientOcularVisitSchema,
+  type CreateFloorPlanRevisionCommentInput,
+  type CreatePrismInquiryInput,
+  type SubmitClientOcularVisitInput,
+  submitBriefingSchema,
+  type SubmitBriefingInput,
+} from "@prism/types";
+import type { Project } from "@/features/floorplan/editor";
+import type { PrismFloorPlanDraft } from "@prism/types";
+import { buildReopenedFloorPlanPreferencePayload } from "../model/client-floorplan-preference-rules";
 
 export function readClientSession() {
   return clientDashboardRepository.readSession();
@@ -13,12 +23,22 @@ export function signOutClientSession() {
   clientDashboardRepository.clearSession();
 }
 
-export function loadClientWorkspace(session: Pick<PrismUser, "name" | "email">) {
-  return clientDashboardRepository.loadWorkspace(session);
+export function loadClientWorkspace() {
+  return clientDashboardRepository.loadWorkspace();
 }
 
-export function loadClientActionCenter(session: Pick<PrismUser, "name" | "email">) {
-  return clientDashboardRepository.loadActionCenter(session);
+export function loadClientActionCenter() {
+  return clientDashboardRepository.loadActionCenter();
+}
+
+export function submitClientOcularVisit(eventId: string, input: SubmitClientOcularVisitInput) {
+  const payload = parseContract(submitClientOcularVisitSchema, input, "Ocular visit request");
+  return clientDashboardRepository.submitOcularVisit(eventId, payload);
+}
+
+export function submitClientBriefing(eventId: string, input: SubmitBriefingInput) {
+  const payload = parseContract(submitBriefingSchema, input, "Event briefing");
+  return clientDashboardRepository.submitBriefing(eventId, payload);
 }
 
 export function submitClientInquiry(input: CreatePrismInquiryInput) {
@@ -28,24 +48,38 @@ export function submitClientInquiry(input: CreatePrismInquiryInput) {
 export function submitFloorPlanPreference(
   eventId: string,
   input: FloorPlanPreferenceInput,
-  session?: Pick<PrismUser, "name" | "email">,
 ) {
-  return clientDashboardRepository.createFloorPlanPreference(eventId, input, session);
+  return clientDashboardRepository.createFloorPlanPreference(eventId, input);
 }
 
 export function loadOfficialFloorPlan(
   eventId: string,
   draftId: string,
   type: "submitted" | "approved",
-  session?: Pick<PrismUser, "name" | "email">,
 ) {
-  return clientDashboardRepository.loadFloorPlanSnapshot(eventId, draftId, type, session);
+  return clientDashboardRepository.loadFloorPlanSnapshot(eventId, draftId, type);
 }
 
-export function loadFloorPlanProject(planId: string, session?: Pick<PrismUser, "name" | "email">) {
-  return clientDashboardRepository.loadPlan(planId, session);
+export function loadFloorPlanProject(planId: string) {
+  return clientDashboardRepository.loadPlan(planId);
 }
 
-export function saveFloorPlanProject(project: Project, session?: Pick<PrismUser, "name" | "email">) {
-  return clientDashboardRepository.savePlan(project, session);
+export function submitFloorPlanRevisionComment(
+  eventId: string,
+  draftId: string,
+  input: CreateFloorPlanRevisionCommentInput,
+) {
+  return clientDashboardRepository.submitFloorPlanRevisionComment(eventId, draftId, input);
+}
+
+export function saveFloorPlanProject(project: Project) {
+  return clientDashboardRepository.savePlan(project);
+}
+
+export function submitFloorPlanEditorProject(eventId: string, draft: PrismFloorPlanDraft, project: Project) {
+  if (draft.sourceType === "client_preference" && draft.status === "revision_requested") {
+    const input = buildReopenedFloorPlanPreferencePayload(draft, project);
+    return clientDashboardRepository.createFloorPlanPreference(eventId, input);
+  }
+  return clientDashboardRepository.savePlan(project);
 }

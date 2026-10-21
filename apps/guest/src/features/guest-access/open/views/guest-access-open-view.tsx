@@ -1,5 +1,7 @@
 "use client";
 
+import { portalHref } from "@prism/ui/portal-path";
+
 import { FormEvent } from "react";
 import { ArrowRight, KeyRound, QrCode, ShieldCheck, TicketCheck } from "lucide-react";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
@@ -54,23 +56,10 @@ export function GuestAccessOpenView() {
                 </p>
                 <h1 className="mt-1 text-3xl font-black leading-tight">Open your event pass</h1>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Preview the event first, then continue into the code-gated dashboard.
+                  Preview the event, then choose whether to check in by name or anonymous headcount.
                 </p>
               </div>
             </div>
-
-            <label className="grid gap-1.5">
-              <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
-                Guest name
-              </span>
-              <Input
-                value={vm.draft.guestName}
-                onChange={(event) => vm.updateGuestName(event.target.value)}
-                autoComplete="name"
-                className="h-12 bg-white"
-                placeholder="Name at registration"
-              />
-            </label>
 
             <label className="grid gap-1.5">
               <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
@@ -118,7 +107,7 @@ export function GuestAccessOpenView() {
 
             {vm.existing && (
               <a
-                href="/dashboard"
+                href={portalHref("/dashboard")}
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-secondary text-sm font-black text-foreground"
               >
                 <TicketCheck className="size-4" /> Continue to {vm.existing.eventName}
@@ -143,7 +132,7 @@ export function GuestAccessOpenView() {
               id="privacy-notice"
               className="flex items-center gap-2 text-xs leading-5 text-muted-foreground"
             >
-              <QrCode className="size-4 text-(--prism-amber)" /> Sample event code: AYALA-TECH-YALA
+              Your event team uses check-in and feedback details to support event access and review.
             </p>
           </form>
         </section>

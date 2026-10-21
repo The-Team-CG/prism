@@ -1,9 +1,115 @@
 "use client";
 
+import { portalHref } from "@prism/ui/portal-path";
+
 import { ArrowRight, Eye, EyeOff, PackageCheck, Shield, ShieldCheck } from "lucide-react";
 import { PrismBrandLogo } from "@prism/ui";
 import { Input } from "@/app/components/ui/input";
 import { useSupplierSignInViewModel } from "../view-models/use-supplier-sign-in-view-model";
+
+function ExistingSessionBanner({ name, organization }: { name: string; organization: string }) {
+  return (
+    <a
+      href={portalHref("/dashboard")}
+      className="mt-6 flex items-center justify-between rounded-xl border border-[#d9d9d9] bg-white px-5 py-4 shadow-sm transition hover:border-[#c01867]/40 sm:mt-8"
+    >
+      <div>
+        <p className="text-sm font-semibold text-[#171216]">Continue as {name}</p>
+        <p className="text-xs text-[#888888]">{organization}</p>
+      </div>
+      <ArrowRight className="size-4 text-[#a7a7a7]" />
+    </a>
+  );
+}
+
+function PasswordField({
+  showPassword,
+  password,
+  onChange,
+  onToggle,
+}: {
+  showPassword: boolean;
+  password: string;
+  onChange: (value: string) => void;
+  onToggle: () => void;
+}) {
+  return (
+    <div>
+      <label htmlFor="password" className="mb-2 block text-base font-medium text-[#171216] sm:text-sm">
+        Password
+      </label>
+      <div className="relative">
+        <Input
+          id="password"
+          type={showPassword ? "text" : "password"}
+          value={password}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Enter your password"
+          required
+          className="h-13 rounded-lg border-[#d9d9d9] bg-white pr-11 text-base text-[#444] placeholder:text-[#a7a7a7] focus-visible:ring-1 focus-visible:ring-[#c01867] sm:h-12 sm:text-sm"
+        />
+        <button
+          type="button"
+          onClick={onToggle}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a7a7a7] transition hover:text-[#171216]"
+          aria-label={showPassword ? "Hide password" : "Show password"}
+        >
+          {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ApprovalRequestPanel({
+  showApproval,
+  busy,
+  consentAccepted,
+  onToggle,
+  onConsentChange,
+  onRequest,
+}: {
+  showApproval: boolean;
+  busy: boolean;
+  consentAccepted: boolean;
+  onToggle: () => void;
+  onConsentChange: (accepted: boolean) => void;
+  onRequest: () => void;
+}) {
+  return (
+    <div className="mt-5 border-t border-[#d9d9d9] pt-5">
+      <button type="button" onClick={onToggle} className="flex w-full items-center justify-between text-left">
+        <p className="text-sm font-medium text-[#171216]">Need supplier access?</p>
+        <span className="text-xs text-[#888888]">{showApproval ? "Close ↑" : "Request ↓"}</span>
+      </button>
+      {showApproval ? (
+        <div className="mt-3 flex flex-col gap-3">
+          <p className="text-sm leading-5 text-[#888888]">
+            Request PMCM approval for a new supplier account. A coordinator will review and activate your access.
+          </p>
+          <label className="flex items-start gap-2.5 text-sm leading-5 text-[#888888]">
+            <input
+              type="checkbox"
+              checked={consentAccepted}
+              onChange={(e) => onConsentChange(e.target.checked)}
+              className="mt-0.5 size-4 accent-[#c01867]"
+            />
+            <span>I consent to PMCM processing this request for supplier portal access review.</span>
+          </label>
+          <button
+            type="button"
+            disabled={busy || !consentAccepted}
+            onClick={onRequest}
+            className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-[#d9d9d9] bg-white text-sm font-medium text-[#171216] transition hover:border-[#c01867]/40 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <ShieldCheck className="size-4" /> Request PMCM approval
+          </button>
+          <a href={portalHref("/password-reset")} className="block text-center text-sm text-[#c01867] transition hover:text-[#a81459]">Forgot password?</a>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function SupplierSignInView() {
   const vm = useSupplierSignInViewModel();
@@ -20,18 +126,9 @@ export function SupplierSignInView() {
             />
           </div>
 
-          {vm.existing && (
-            <a
-              href="/dashboard"
-              className="mt-6 flex items-center justify-between rounded-xl border border-[#d9d9d9] bg-white px-5 py-4 shadow-sm transition hover:border-[#c01867]/40 sm:mt-8"
-            >
-              <div>
-                <p className="text-sm font-semibold text-[#171216]">Continue as {vm.existing.name}</p>
-                <p className="text-xs text-[#888888]">{vm.existing.organization}</p>
-              </div>
-              <ArrowRight className="size-4 text-[#a7a7a7]" />
-            </a>
-          )}
+          {vm.existing ? (
+            <ExistingSessionBanner name={vm.existing.name} organization={vm.existing.organization} />
+          ) : null}
 
           <div className="mt-6 overflow-hidden rounded-xl border border-[#d9d9d9] shadow-[0_8px_22px_rgba(17,24,39,0.12)] sm:mt-8">
             <div className="flex items-center gap-3 bg-[#c01867] px-5 py-5 sm:px-6 sm:py-6">
@@ -61,33 +158,15 @@ export function SupplierSignInView() {
                   />
                 </div>
 
-                <div>
-                  <label htmlFor="password" className="mb-2 block text-base font-medium text-[#171216] sm:text-sm">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={vm.showPassword ? "text" : "password"}
-                      value={vm.draft.password}
-                      onChange={(e) => vm.updatePassword(e.target.value)}
-                      placeholder="Enter your password"
-                      required
-                      className="h-13 rounded-lg border-[#d9d9d9] bg-white pr-11 text-base text-[#444] placeholder:text-[#a7a7a7] focus-visible:ring-1 focus-visible:ring-[#c01867] sm:h-12 sm:text-sm"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => vm.setShowPassword((v) => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a7a7a7] transition hover:text-[#171216]"
-                      aria-label={vm.showPassword ? "Hide password" : "Show password"}
-                    >
-                      {vm.showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
-                    </button>
-                  </div>
-                </div>
+                <PasswordField
+                  showPassword={vm.showPassword}
+                  password={vm.draft.password}
+                  onChange={vm.updatePassword}
+                  onToggle={() => vm.setShowPassword((v) => !v)}
+                />
 
-                {vm.error && <p className="text-sm text-[#b4233a]" role="alert">{vm.error}</p>}
-                {vm.notice && <p className="text-sm text-[#1f7a4b]" role="status">{vm.notice}</p>}
+                {vm.error ? <p className="text-sm text-[#b4233a]" role="alert">{vm.error}</p> : null}
+                {vm.notice ? <p className="text-sm text-[#1f7a4b]" role="status">{vm.notice}</p> : null}
 
                 <button
                   type="submit"
@@ -98,60 +177,14 @@ export function SupplierSignInView() {
                 </button>
               </form>
 
-              <div className="mt-6 border-t border-[#d9d9d9] pt-5">
-                <p className="mb-3 text-sm font-medium text-[#888888]">Sample accounts</p>
-                <div className="flex flex-col gap-2">
-                  {vm.sampleAccounts.map((sample) => (
-                    <button
-                      key={sample.email}
-                      type="button"
-                      onClick={() => vm.applySampleAccount(sample.email, sample.password)}
-                      className="flex items-center justify-between rounded-lg border border-[#d9d9d9] bg-white px-4 py-3 text-left transition hover:border-[#c01867]/40 hover:bg-white/80"
-                    >
-                      <div>
-                        <p className="text-sm font-semibold text-[#171216]">{sample.label}</p>
-                        <p className="text-xs text-[#888888]">{sample.tier}</p>
-                      </div>
-                      <ArrowRight className="size-4 text-[#a7a7a7]" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-5 border-t border-[#d9d9d9] pt-5">
-                <button
-                  type="button"
-                  onClick={() => vm.setShowApproval((v) => !v)}
-                  className="flex w-full items-center justify-between text-left"
-                >
-                  <p className="text-sm font-medium text-[#171216]">Need supplier access?</p>
-                  <span className="text-xs text-[#888888]">{vm.showApproval ? "Close ↑" : "Request ↓"}</span>
-                </button>
-                {vm.showApproval && (
-                  <div className="mt-3 flex flex-col gap-3">
-                    <p className="text-sm leading-5 text-[#888888]">
-                      Request PMCM approval for a new supplier account. A coordinator will review and activate your access.
-                    </p>
-                    <label className="flex items-start gap-2.5 text-sm leading-5 text-[#888888]">
-                      <input
-                        type="checkbox"
-                        checked={vm.approvalConsentAccepted}
-                        onChange={(e) => vm.setApprovalConsentAccepted(e.target.checked)}
-                        className="mt-0.5 size-4 accent-[#c01867]"
-                      />
-                      <span>I consent to PMCM processing this request for supplier portal access review.</span>
-                    </label>
-                    <button
-                      type="button"
-                      disabled={vm.busy || !vm.approvalConsentAccepted}
-                      onClick={() => void vm.requestApproval()}
-                      className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-[#d9d9d9] bg-white text-sm font-medium text-[#171216] transition hover:border-[#c01867]/40 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <ShieldCheck className="size-4" /> Request PMCM approval
-                    </button>
-                  </div>
-                )}
-              </div>
+              <ApprovalRequestPanel
+                showApproval={vm.showApproval}
+                busy={vm.busy}
+                consentAccepted={vm.approvalConsentAccepted}
+                onToggle={() => vm.setShowApproval((v) => !v)}
+                onConsentChange={vm.setApprovalConsentAccepted}
+                onRequest={() => void vm.requestApproval()}
+              />
             </div>
           </div>
 

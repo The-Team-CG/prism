@@ -1,54 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import type { LucideIcon } from "lucide-react";
 import {
   CalendarDays,
-  CheckCircle2,
-  ClipboardCheck,
-  Download,
-  Eye,
-  FileCheck2,
-  FileSignature,
-  FileText,
-  Grid2X2,
-  LayoutGrid,
-  List,
-  MapPinned,
-  MessageSquareText,
-  MoreHorizontal,
-  Pencil,
-  ReceiptText,
-  RotateCcw,
-  Search,
-  Settings,
-  Share2,
-  ShieldCheck,
-  Upload,
 } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
-import { Badge } from "@/app/components/ui/badge";
-import { formatShortDate, humanizeToken } from "@/features/event-ops";
-import type { EventSession } from "@/app/lib/session";
-import type { PrismApprovalRequest, PrismBillingStatement, PrismBriefing, PrismComplianceCheck, PrismDefenseReadiness, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismPmcmDashboardWorkspace, PrismPostEventDocument, PrismSupplierQuoteRequest } from "@prism/types";
-import type { DashboardSection, DetailTab } from "../../model/event-dashboard-routing";
+import type { PrismEvent } from "@prism/types";
 import { Card, CardBody, CardHeader, SectionAccent } from "./shell-ui";
-import type { EventFileHubItem } from "./event-file-types";
 
 
 export function EventQueueCard({
   events,
   selectedEventId,
   onSelectEvent,
-  onReset,
   onNavigateEvent,
 }: {
   events: PrismEvent[];
   selectedEventId?: string;
   onSelectEvent: (id: string) => void;
-  onReset: () => void;
   onNavigateEvent: (id: string) => void;
 }) {
   function statusAccent(status: string) {
@@ -68,14 +37,6 @@ export function EventQueueCard({
               {events.length} confirmed workspace{events.length === 1 ? "" : "s"}
             </h2>
           </div>
-          <button
-            type="button"
-            onClick={onReset}
-            title="Reset sample data"
-            className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:border-(--prism-signal)/30 hover:text-foreground"
-          >
-            <RotateCcw className="size-3" /> Reset sample
-          </button>
         </div>
       </CardHeader>
       {events.length === 0 ? (

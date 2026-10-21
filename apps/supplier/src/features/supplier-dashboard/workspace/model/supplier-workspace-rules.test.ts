@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildBookingSteps,
+  buildSupplierContractRequirements,
   buildCalendarEvents,
+  canReportSupplierEventDayStatus,
   buildQuoteByRequest,
   closedRequestReason,
   countEventsThisMonth,
   countHandoffPending,
   countQuotesNeedingSubmission,
   countReadinessNeedsAction,
+  dashboardGreetingCopy,
   deriveWorkspace,
   filterOpenRequests,
   filterSelectedQuotes,
@@ -20,8 +24,13 @@ import {
   isPastDate,
   isRequestClosed,
   parseQuoteForm,
+  quoteRequestsNavDesc,
+  bookingsNavDesc,
+  groupReadinessItemsByEvent,
   quoteSubmitSuccessNotice,
+  supplierReadinessSection,
 } from "./supplier-workspace-rules";
+import type { PrismSupplierReadinessItem } from "@prism/types";
 import type { PrismSupplierQuote, PrismSupplierQuoteRequest, SupplierWorkspace } from "./supplier-workspace-types";
 
 function makeRequest(
@@ -68,6 +77,30 @@ function makeQuote(
 }
 
 describe("supplier-workspace-rules", () => {
+  it("keeps an automatic late flag open until the supplier reports an event-day status", () => {
+    const late = buildBookingSteps(makeRequest({ id: "late", eventDayStatus: "late" })).at(-1);
+    const arrived = buildBookingSteps(makeRequest({ id: "arrived", eventDayStatus: "arrived" })).at(-1);
+
+    expect(late).toMatchObject({ done: false, meta: "Late — arrival not reported" });
+    expect(arrived?.done).toBe(true);
+  });
+
+  it("requires assignment and readiness confirmation before reporting event-day status", () => {
+    expect(canReportSupplierEventDayStatus(makeRequest({ id: "pending" }))).toBe(false);
+    expect(canReportSupplierEventDayStatus(makeRequest({
+      id: "ready",
+      status: "selected",
+      assignmentStatus: "confirmed",
+      readinessStatus: "confirmed",
+    }))).toBe(true);
+    expect(canReportSupplierEventDayStatus(makeRequest({
+      id: "stale-selection",
+      status: "open",
+      assignmentStatus: "confirmed",
+      readinessStatus: "confirmed",
+    }))).toBe(false);
+  });
+
   it("formats tokens, money, and dates", () => {
     expect(fmt("set_up_ready")).toBe("set up ready");
     expect(formatMoney(75000)).toContain("75");
@@ -126,10 +159,44 @@ describe("supplier-workspace-rules", () => {
           assignmentStatus: "confirmed",
           readinessStatus: "confirmed",
           contractDocumentId: "c.pdf",
+          contractReviewStatus: "accepted",
         }),
         makeRequest({ id: "b", assignmentStatus: "pending" }),
       ]),
     ).toBe(1);
+  });
+
+  it.each([
+    ["missing", false, "Upload signed contract below", "missing"],
+    ["submitted", false, "Awaiting PMCM review", "submitted"],
+    ["changes_requested", false, "Upload a corrected version", "pending"],
+    ["accepted", true, "Accepted by PMCM", "approved"],
+  ] as const)("keeps contract handoff aligned with %s review evidence", (contractReviewStatus, done, meta, status) => {
+    const request = makeRequest({ id: "contract", status: "selected", assignmentStatus: "confirmed", readinessStatus: "confirmed", contractDocumentId: "legacy-metadata", contractReviewStatus });
+    expect(buildBookingSteps(request)[2]).toMatchObject({ done, meta });
+    expect(countHandoffPending([request])).toBe(done ? 0 : 1);
+    expect(buildSupplierContractRequirements({ quoteRequests: [request, makeRequest({ id: "unselected" })], supplierQuotes: [] })).toEqual([
+      expect.objectContaining({ key: "supplier-contract:contract", status, detail: meta }),
+    ]);
+  });
+
+  it("routes every readiness item to the section where it is actioned and groups all items by event", () => {
+    const item = (id: string, eventId: string, quoteStatus: string, eventName: string | null = null) =>
+      ({ id, eventId, eventName, quoteStatus }) as PrismSupplierReadinessItem;
+    const items = [
+      item("a", "e1", "selected", "Gala"),
+      item("b", "e2", "open", "Summit"),
+      item("c", "e1", "submitted", "Gala"),
+      item("d", "e3", "selected"),
+      item("e", "e2", "selected", "Summit"),
+    ];
+
+    expect(items.map(supplierReadinessSection)).toEqual(["bookings", "requests", "requests", "bookings", "bookings"]);
+    expect(groupReadinessItemsByEvent(items).map((group) => [group.eventName, group.items.map((entry) => entry.id)])).toEqual([
+      ["Gala", ["a", "c"]],
+      ["Summit", ["b", "e"]],
+      ["Assigned event", ["d"]],
+    ]);
   });
 
   it("counts readiness needs and events this month", () => {
@@ -214,5 +281,24 @@ describe("supplier-workspace-rules", () => {
     expect(firstNameFrom("Ops Lead")).toBe("Ops");
     expect(quoteSubmitSuccessNotice(true)).toBe("Quote revision submitted.");
     expect(quoteSubmitSuccessNotice(false)).toBe("Quote submitted.");
+  });
+
+  it("builds dashboard greeting and quick-nav copy", () => {
+    expect(
+      dashboardGreetingCopy({ needsActionCount: 2, quoteNeedingSubmission: 1, openRequestCount: 3 }),
+    ).toBe("2 actions need your attention — 1 quote to submit.");
+    expect(
+      dashboardGreetingCopy({ needsActionCount: 1, quoteNeedingSubmission: 0, openRequestCount: 1 }),
+    ).toBe("1 action need your attention — handoff items pending.");
+    expect(
+      dashboardGreetingCopy({ needsActionCount: 0, quoteNeedingSubmission: 0, openRequestCount: 2 }),
+    ).toBe("2 open requests — all quotes submitted and up to date.");
+    expect(
+      dashboardGreetingCopy({ needsActionCount: 0, quoteNeedingSubmission: 0, openRequestCount: 0 }),
+    ).toBe("No open requests right now. PMCM will notify you when a new quote request arrives.");
+    expect(quoteRequestsNavDesc(2, 4)).toBe("2 quote(s) need submission");
+    expect(quoteRequestsNavDesc(0, 3)).toBe("3 open request(s)");
+    expect(bookingsNavDesc(1, 2)).toBe("1 handoff item(s) pending");
+    expect(bookingsNavDesc(0, 1)).toBe("All steps complete");
   });
 });

@@ -1,0 +1,426 @@
+---
+type: "Persistence Ownership Register"
+title: "P.R.I.S.M persistence ownership and intentional joins"
+description: "At-a-glance ownership of Prisma models, physical database schemas, allowed cross-context reads, and documented transitional writes."
+tags: [architecture, persistence, prisma, ddd, modular-monolith, data-ownership]
+status: canonical
+updated: "2026-10-18"
+authority: normative
+owner: "D (Anthony)"
+audience: [agents, engineers, reviewers]
+scope: "apps/api/prisma/schema.prisma and apps/api/src/modules"
+last_verified: "2026-10-18; portal integration with current owner schemas"
+sources:
+  - id: prisma-schema
+    resource: "apps/api/prisma/schema.prisma"
+    title: "Prism Prisma schema"
+  - id: context-modules
+    resource: "apps/api/src/modules"
+    title: "Bounded-context modules and services"
+  - id: read-models
+    resource: "apps/api/src/modules/read-models/application/queries"
+    title: "Role-scoped read-model queries"
+  - id: approved-domain-ownership
+    resource: "apps/api/prisma/domain-ownership.json"
+    title: "Approved table owners and target schema map"
+  - id: migration-policy
+    resource: "apps/api/prisma/migration-policy.json"
+    title: "Prisma migration ownership policy"
+  - id: migration-guard
+    resource: "apps/api/scripts/check-prisma-migrations.mjs"
+    title: "Prisma migration guard"
+---
+# P.R.I.S.M persistence ownership and intentional joins
+
+## At a glance
+
+- **Purpose:** Make database ownership and cross-context joins visible without
+  pretending that one Prisma client is already several services.
+- **Authority:** Normative for new writes and new cross-context queries.
+- **Owner:** D (Anthony).
+- **Use when:** Adding a Prisma read/write, changing a model, or designing a
+  context extraction seam.
+- **Rule:** The owning context controls invariants and writes. Other contexts
+  use an owning public capability, focused port, or the read-model composition
+  boundary. A physical PostgreSQL schema is useful evidence, not permission to
+  write.
+- **Verify with:** Context tests, query audit, Prisma validation, and the
+  repository/backend boundary checks.
+
+## Ownership vocabulary
+
+| Term | Meaning |
+| --- | --- |
+| **Owner** | Context responsible for the model's invariants, write policy, and public mapping. |
+| **Current physical schema** | PostgreSQL namespace currently declared by Prisma; the staging namespace is transitional until the approved move is rehearsed and integrated. |
+| **Target schema** | The single PostgreSQL schema assigned to a write domain in ADR-0008 and the approved model manifest. |
+| **Read** | A scoped projection or lookup explicitly allowed by the join register. |
+| **Transitional write** | A known cross-context update retained for a workflow; it must be named, tested, and replaced by a command/event seam before service extraction. |
+| **Read-model join** | Composition of owner-provided records for a role-safe response; it is never a business write authority. |
+
+## Approved target schema map and owner
+
+ADR-0008 establishes one PostgreSQL schema per owning write domain. The
+current database stays one PostgreSQL database with one Prisma client; this
+policy does not create microservices or a database authorization boundary.
+
+| Write domain | Target schema | Tables | Columns | Owns |
+| --- | --- | ---: | ---: | --- |
+| event-lifecycle | event_lifecycle | 22 | 324 | Inquiry, events, lifecycle documents, briefing, compliance, decisions, freeze/addenda, closure, client floorplan grants, conforme signing, client closeout |
+| commercial | commercial | 35 | 428 | Suppliers, quotes, communications, estimates, proposals, billing, receipts, supplier evidence and payables, client option reviews |
+| operations | operations | 12 | 148 | Coordinator pool, availability, coverage, assignments, acknowledgment/reliability, guest operations |
+| live-ops | live_ops | 10 | 122 | Event-day tasks, schedule, operators, handoffs, end-of-day, urgent issues/logs |
+| floorplan | floorplan | 9 | 97 | Plans, objects, templates, layout instances, published copies, official drafts, projection clock, versioned client reviews |
+| identity-access | identity_access | 4 | 43 | Accounts, approvals, password reset and authentication state |
+| platform-ops | platform_ops | 14 | 201 | Privacy requests and legal holds, security, login history, audit, notifications, AI, storage, command receipts |
+| event-games | event_games | 13 | 128 | Game catalog, event sessions, participant credentials, teams, moderated responses and results |
+| **Total** | **8 schemas** | **119** | **1,491** | Every business table has one owner |
+
+The machine-readable domain ownership manifest linked above is the current
+target inventory. It records each owner schema, domain owner, table name, and
+scalar column count. The legacy physical snapshot had 93 tables; 83 were
+assigned to a different target schema, and the client floorplan-grant table
+was added later. The seven frozen baselines create the original 94 tables on an
+empty database; later owner migrations add games and portal workflow records.
+The baselines do not move rows in an existing database.
+
+The migration-history replacement removes no table or column from the current
+Prisma model. The separate [column authority register](column-authority-register.md)
+preserves a legacy per-column snapshot and records the reviewed trim candidate
+(`OpsEventDecision.storage_intent`). Response compatibility, historical values,
+and owner approval still need resolution before a separate retirement
+migration. Other columns remain pending owner or usage evidence; lexical
+search alone does not justify removal.
+
+The [domain schema map](domain-schema-map.md) shows the legacy physical
+snapshot and the clean-database owner-schema baseline. The CSV column
+inventory describes the older database; use the current Prisma schema and
+ownership manifest for the target model.
+
+The column register does not approve unresolved business units, timezones or
+retention periods.
+
+The reviewed pre-rebaseline staging snapshot had ten populated application
+schemas and 45 cross-domain foreign keys. The replacement baseline defines
+seven owner schemas, 94 tables, 1,191 columns, and 76 same-domain foreign keys,
+with no cross-domain foreign keys. The quote-to-request relation remains a
+same-Commercial constraint. Replacing migration source history does not alter
+an existing database; adoption requires the backed-up pre-production rebuild
+described in the [cutover runbook](../runbooks/domain-schema-cutover.md).
+
+The rule is based on owning domain, not current namespace: a key between two
+Commercial tables is permitted even if their tables currently live in
+supplier_ops and finance_ops; a key from Commercial to Lifecycle is prohibited
+even if a legacy table placement would make it look local. Cross-domain IDs
+remain scalar values, with writes validated through the referenced owner's
+public capability. Read-only composition remains scoped in read-models.
+
+Approved domain ownership decisions:
+
+- Lifecycle owns document metadata for every document kind; Commercial owns
+  contract and billing decisions and references document IDs through the
+  lifecycle capability.
+- Commercial owns billing rows. Current Lifecycle briefing/conforme workflows
+  do not initialize billing because they provide no priced-source input; a
+  future initializer requires an approved product contract, owner-validated
+  eligibility, and replay safety. Lifecycle-issued addenda request
+  transaction-aware Commercial billing-source and selected-quote changes,
+  while Lifecycle owns addendum impact history.
+- Operations owns coordinator reliability notes and every assignment,
+  attendance, replacement, cancellation, and acknowledgment mutation.
+- Floorplan owns official plan and review state; lifecycle-facing status fields
+  are temporary versioned projections during migration.
+- Platform-ops owns command-receipt persistence behind the kernel technical
+  port, and coordinates privacy work through domain-owned retention/redaction
+  capabilities.
+- The read-models context composes authorized reads and never becomes a write
+  owner.
+
+## Current migration placement and historical ownership
+
+Prism keeps one Prisma migration history under
+`apps/api/prisma/migrations`. It remains a flat, append-only runtime tree because
+Prisma's migration engine owns discovery, checksums, and the `_prisma_migrations`
+ledger. New migration directory names carry the owning context:
+`YYYYMMDDHHmmss_<owner>_<change_slug>`. Existing applied directories are
+immutable and remain grandfathered in the policy.
+
+The migration policy maps each owner to exactly one physical schema, matching ADR-0008. Migrations before the cutover keep their original schema names through the frozen historical policy:
+
+| Migration owner | Physical schema | Boundary note |
+| --- | --- | --- |
+| `event-lifecycle` | `event_lifecycle` | Inquiry, event, briefing, compliance, closure, and lifecycle records. |
+| `commercial` | `commercial` | Supplier network, communications, estimates, proposals, and billing. |
+| `operations` | `operations` | Coordinator pool, assignments, reliability, and guest operations. |
+| `live-ops` | `live_ops` | Event-day tasks, schedule, handoffs, issues, and logs. |
+| `floorplan` | `floorplan` | Official plans, drafts, templates, and snapshots. |
+| `identity-access` | `identity_access` | Authentication, approval, and password-recovery records. |
+| `platform-ops` | `platform_ops` | Privacy, audit, notification, security, storage, receipts, and AI governance. |
+
+A migration that touches another owner's schema fails the guard, so a physical
+schema is never permission to write another context's records. `read-models`,
+the kernel, and local fixture seed tooling do not own business migrations.
+
+`apps/api/scripts/check-prisma-migrations.mjs` enforces the policy for future
+migrations: direct Prisma directory structure, immutable legacy names, unique
+future versions and calendar timestamps, owner-aware names and headers,
+normalized legacy SQL checksums, schema-qualified SQL and relation references,
+allowed physical schemas, documented table-owner exceptions, inferred change
+kind, and a risk declaration that cannot understate static risk. Unsupported
+procedural/dynamic migration SQL fails closed. It is a static guard and does
+not authorize database repair or deployment.
+
+## Model ownership
+
+### Floorplan
+
+| Models | Physical schema | Write owner and boundary |
+| --- | --- | --- |
+| `FloorPlan`, `FloorPlanObject`, `VenueTemplate`, `PublishedSnapshot`, `OpsFloorPlanDraft` | `floorplan` | `floorplan`; official layout authoring, draft, publish, and snapshot workflows. |
+| `OpsFloorPlanClientDecision`, `OpsFloorPlanClientAnnotation` | `floorplan` | `floorplan`; primary-client decisions and annotations bound to an official snapshot hash, separate from PMCM authoring/approval. |
+
+Floorplan owns authoritative official-plan and review state. Event-scoped
+mutations ask Lifecycle's `FLOORPLAN_EVENT_REFERENCE_READER` to lock and return
+current conforme, ocular, archive, freeze, portal, and projection facts in the
+same transaction. Official-draft eligibility is checked from those owner
+facts; archived or frozen events reject writes, while authorized historical
+reads remain available. Floorplan sends lifecycle-facing status through the
+versioned projection writer; direct writes do not transfer event ownership.
+Drafts reference the event by scalar ID only; the cutover removed the
+draft-to-event foreign key.
+
+An event has at most one active draft. Approval deactivates the previous active
+draft inside the event-locked transaction, and a partial unique index on
+`floorplan.floor_plan_drafts(event_id) WHERE is_active` enforces it for every
+writer. Inactive drafts stay as history; the migration deactivates older
+duplicate actives deterministically and deletes nothing.
+
+### Identity and access
+
+| Models | Physical schema | Write owner and boundary |
+| --- | --- | --- |
+| OpsUser, OpsApprovalRequest, OpsPasswordResetToken, OpsPasswordResetRateLimit | identity_access | identity-access; authentication, approval, lockout, password recovery and account-authentication state. |
+
+OpsLoginHistory and OpsSecurityAlert are platform-ops-owned and live in
+platform_ops. Identity reaches platform audit behavior through AUTH_AUDIT.
+
+Account emails are canonical: trimmed and lower-cased on every write and
+lookup through `canonicalAccountEmail`, and enforced by CHECK constraints on
+`identity_access.users.email` and `identity_access.approval_requests.email`
+beside the existing unique key. The migration rewrites existing rows and aborts
+on a case-only collision; accounts are never merged automatically.
+
+An approval request belongs to its account through a same-schema foreign key
+(`approval_requests.user_id`, `RESTRICT`). The request is the retained history of
+the account's approval decisions and keeps its own snapshot of name, email, role
+and organization, so an account is retired by disabling it (approval status or
+lockout), not by deleting it. A request whose account is missing aborts the
+migration for an explicit owner decision.
+
+### Event lifecycle and compliance
+
+| Models | Physical schema | Write owner and boundary |
+| --- | --- | --- |
+| `OpsInquiry`, `OpsEvent`, `OpsBriefing` | `event_lifecycle` | `event-lifecycle`; inquiry intake, event creation, onboarding, and briefing state. |
+| `OpsEventClientFloorplanAccessGrant` | `event_lifecycle` | `event-lifecycle`; audited event-scoped grants for approved secondary Client floorplan access. |
+| OpsDocument (all kinds) | event_lifecycle | event-lifecycle; document metadata, registration, eligibility and retention. |
+| `OpsComplianceRule`, `OpsComplianceCheck`, `OpsPostEventDocument`, `OpsEventInsight` | `event_lifecycle` | `event-lifecycle`; compliance, closure gates, post-event records, and lifecycle insights. |
+| `OpsConformeExecution`, `OpsConformeSignature`, `OpsClientCloseoutResponse` | `event_lifecycle` | `event-lifecycle`; immutable signing evidence, activation, client feedback and testimonial consent. |
+
+Lifecycle rows carry stable row-local CHECK constraints: non-negative event
+counters (walk-in threshold, proposal revisions, projection version), follow-up
+intervals, briefing guest counts and budgets, document sizes and compliance rule
+counts; compliance runs complete no earlier than they start, wrap-up deadlines
+are not before activation, freeze exception decisions are not before the
+request, and addendum versions start at 1. Financial deltas stay signed.
+
+OpsDocument metadata has one owner: event-lifecycle. Commercial retains
+business decisions and statuses, but validates and registers document IDs
+through the document-vault capability. New kinds require an explicit
+business owner and lifecycle metadata contract.
+
+### Commercial
+
+| Models | Physical schema | Write owner and boundary |
+| --- | --- | --- |
+| `OpsSupplier`, `OpsSupplierApplication`, `OpsSupplierCertification`, `OpsSupplierReview`, `OpsSupplierReliabilityNote` | `commercial` | `commercial`; supplier directory, onboarding, certification, review, and reliability policy. |
+| `OpsSupplierCategory`, `OpsSupplierReviewDimension`, `OpsSupplierReviewDimensionRating` | `commercial` | `commercial`; reference and review-dimension configuration. Some rows are currently fixture-seeded and have no separate administration workflow. |
+| `OpsSupplierQuoteRequest`, `OpsSupplierQuote` | `commercial` | `commercial`; request, submission, revision, selection, and withdrawal lifecycle. Deleting a request referenced by submitted quote evidence is restricted; requestId remains nullable for manually entered quotes. |
+| `OpsBillingSource`, `OpsBillingStatement`, `OpsPaymentMilestone`, `OpsPaymentRecord` | `commercial` | `commercial`; proposal-to-billing conversion, statements, milestones, and payment history. |
+| Commercial contract and billing models | commercial | commercial; retains business decisions and scalar document IDs. Lifecycle alone owns document metadata and validates references through its public capability. |
+
+| `OpsSupplierContractVersion`, `OpsSupplierCreativeTask`, `OpsSupplierCreativeSubmission`, `OpsSupplierPayableMilestone`, `OpsSupplierPayoutRecord`, `OpsClientReviewItem`, `OpsClientReviewDecision` | `commercial` | `commercial`; versioned supplier handoff, payable releases/reversals and client venue/styling decisions. |
+
+Commercial child rows agree with their parent's event through composite
+same-schema foreign keys on `(parent id, event_id)`: payment records to payment
+milestones, proposal versions to cost estimates, supplier schedules to quote
+requests, and billing corrections and disputes to statements (disputes also to
+milestones). Payment history, proposal versions, corrections and disputes use
+`RESTRICT`, so deleting a parent cannot remove evidence; a supplier schedule is
+derived data and still goes with its request. The manifest records 75
+same-domain foreign keys across the current target model.
+
+Commercial rows also carry stable row-local CHECK constraints that match the
+shared contracts: review ratings 1 to 5, positive payment receipts, milestone
+percentage 0 to 100, non-negative milestone, quote, estimate, proposal, billing
+source and additional billing amounts, supplier schedule end not before start,
+quote acceptable minimum not above maximum, and non-negative supplier capacity.
+Milestone balances and adjustments are deliberately unconstrained so signed
+refunds and adjustments stay legal.
+Quote-request links carry a bearer token with an expiry and a revocation time
+(`quote_requests.access_token_expires_at`, `access_token_revoked_at`). New
+tokens are 256-bit random values that expire after 90 days; links that existed
+before the migration keep working for 90 days from the migration and then
+expire; withdrawing a supplier assignment revokes its link immediately. The
+plaintext `access_token` column remains for the PMCM link display and is the
+next retirement step.
+
+### Operations and live operations
+
+| Models | Physical schema | Write owner and boundary |
+| --- | --- | --- |
+| `OpsCoordinatorAssignment` | `operations` | `operations`; owns assignment, attendance, replacement, cancellation, acknowledgment, and reliability mutations. LiveOps and Lifecycle callers use the Operations capability; event decisions pass the initiating transaction context. |
+| `OpsGuestCheckIn`, `OpsGuestRosterEntry`, `OpsGuestFeedback`, `OpsGuestFeedbackMedia` | `operations` | `operations`; guest roster identity/contact data, check-in, consent, feedback, moderation, and feedback filename metadata. Stored media bytes remain in the storage provider and are outside database redaction. |
+| `OpsGuestCheckIn`, `OpsGuestFeedback`, guest roster and registration records | `operations` | `operations`; guest check-in, consent, feedback, moderation, roster and registration workflows. Event command checks use Lifecycle’s scoped reference capability; Commercial owns supplier/category/selection checks for registration links. |
+| `OpsCoordinator` | `operations` | Reference data is currently fixture-seeded and read through operations; add a real directory owner before introducing administration writes. |
+
+Guest provenance stays inside Operations and agrees on the event: a roster entry
+references its import batch, and a check-in references its roster entry, through
+composite same-schema foreign keys on `(id, event_id)` with `RESTRICT`.
+Roster entries and imports are only withdrawn or retained, never deleted, so the
+links protect check-in evidence. Walk-in check-ins keep a null roster link. The
+migration clears an untrusted link (missing parent or a parent in another event)
+to NULL and keeps the row. The import batch row is now written before the entries
+that reference it.
+
+The unauthenticated guest endpoints (access-code lookup, check-in, feedback and
+consent withdrawal) are bounded by an in-process fixed-window limiter in the
+Operations API layer: lookups per client address and writes per client address and
+access code, refused with 429 and a Retry-After header, with denials logged using
+a hashed address. The limits are deliberately generous so a venue entrance sharing
+one address can still check guests in. The counters are per API instance, so a
+multi-instance deployment multiplies the effective ceiling; a shared store is the
+next step if abuse is observed.
+Operations rows also carry stable row-local CHECK constraints that match the
+shared contracts: coordinator availability ends after it starts, coverage
+requirements and feedback media sizes and import row counts are non-negative,
+feedback ratings are 1 to 5, and registration platform headcounts are
+non-negative with the maximum not below the minimum.
+| OpsEventDayTask, OpsUrgentIssue, OpsEventDayLog | live_ops | live-ops; event-day task, issue, log, and escalation workflows. |
+| OpsCoordinatorReliabilityNote | operations | operations; coordinator reliability history, matching its focused writer. |
+
+LiveOps event-day records agree with their parent on the event through
+composite same-schema foreign keys on `(id, event_id)`: a task reassignment
+request to its task, and a handoff or end-of-day report to its schedule day. They
+use `RESTRICT` because they are event-day evidence and nothing in the application
+deletes them. Assignment IDs on handoffs stay external references with no foreign
+key; Operations validates them through its capability.
+
+LiveOps rows also carry stable row-local CHECK constraints: a schedule segment
+ends no earlier than it starts (planned and, when recorded, actual) and has a
+non-negative sequence, an operator revocation is not before its designation, and
+a task reassignment request is auto-approved and decided no earlier than it was
+requested.
+
+### Platform trust, notifications, and AI governance
+
+| Models | Physical schema | Write owner and boundary |
+| --- | --- | --- |
+| OpsAuditLog, OpsNotificationLog, OpsSecurityAlert, OpsPrivacyRequest, OpsLoginHistory | platform_ops | platform-ops; audit, outbox, security, privacy governance, and login history. Each data owner executes redaction through a focused capability. |
+| OpsCommandReceipt | platform_ops | platform-ops owns technical receipt persistence behind the kernel `CommandReceiptStore` port. Business authorization and replay remain in the caller transaction; reservation, command writes, and completion are atomic. |
+| `OpsPrivacyLegalHold` | `platform_ops` | `platform-ops`; PMCM-admin placement/release, subject and optional event scope, with release provenance. `event_id` is a scalar reference and has no cross-domain FK. |
+| `OpsAiAuditLog`, `OpsAiApprovalRecord` | `platform_ops` | `platform-ops`; AI sanitisation, human approval, and governance records. |
+
+| `OpsStoredObject` | `platform_ops` | `platform-ops`; verified object bytes, provider identity and lifecycle. Domain owners bind authorized object references. |
+
+AI governance records keep their provenance through same-schema foreign keys
+with `RESTRICT`: an approval record names its AI audit log, and a PARE dispatch
+may name the approval record it produced. An approval whose audit log is missing
+aborts the migration for an owner decision; a legacy dispatch that points at a
+missing approval record has the link cleared and keeps running. Event IDs on
+these tables remain nullable external references, so the governance service, not
+a composite key, checks that linked records belong to the same event.
+## Structured JSON columns
+
+Forty-one NOT NULL JSON columns that default to an empty array or object (in
+Lifecycle, Commercial, LiveOps, Floorplan and Platform) reject any other
+top-level shape through `NOT VALID` CHECK constraints, one migration per owner.
+They apply to every new or updated row; historical rows, unparseable legacy
+payloads and issued, sanitized or review snapshots are left untouched for
+explicit compatibility handling. Payload versions and field-level shapes stay
+with the shared Zod contracts. For floorplans, normalized `floor_plan_objects`
+rows are the authority for live authoring; the aggregate `objects` column is
+kept until publisher, template and live readers reach parity, and the latest
+`PublishedSnapshot` is a current copy, not revision history.
+
+## External-reference lifecycle
+
+The historical foreign-key actions and additional scalar references are in the
+[external-reference lifecycle register](external-reference-lifecycle.md) and
+linked machine policy. The replaced staging history recorded 45 cross-domain
+foreign keys (38 CASCADE, 6 SET NULL, 1 RESTRICT) and 28 additional scalar
+references. Those delete actions describe legacy database behavior, not
+retention policy. The new clean-database baselines create only same-domain
+foreign keys; existing databases are unchanged until separately rebuilt.
+
+## Intentional cross-context joins and writes
+
+Read-model collection queries use named per-collection `take` limits and a
+deterministic timestamp or business-key order with an ID tie-breaker. Nested
+history (floorplan drafts, supplier history, acknowledgements, and event-day
+logs) is bounded independently. Where a response derives readiness or
+attendance counts from a collection, the query runs an exact count alongside
+the bounded rows so a high-volume result cannot silently change the aggregate.
+Consumers should treat these arrays as bounded windows until an explicit paged
+contract is introduced.
+
+| Caller | Owner/resource | Allowed operation | Reason and guardrail |
+| --- | --- | --- | --- |
+| `read-models` | `event-lifecycle`, `commercial`, `operations`, `live-ops`, `floorplan`, `platform-ops` | Read scoped rows and map to role contracts | Build PMCM/client/supplier/coordinator projections. Queries stay bounded and read-only; authorization remains in the owning context/controller. |
+| `identity-access` | event, inquiry, supplier, and coordinator participant facts | `@prism/contexts/read-models/participant-facts`; caller transaction is forwarded when supplied | Identity keeps approved-account and role policy, email matching, verified actor stamping, and EventAccessPolicy checks. The read module returns only scoped event identity, supplier assignment/contact, and coordinator assignment/user-link facts; no cross-domain FK or write is introduced. |
+| event-lifecycle | Commercial billing capability | Initialize billing and request owner-approved billing changes | Commercial owns these records; direct lifecycle writes remain transitional until routed through the capability. Preserve eligibility, replay, and outbox atomicity. |
+| commercial | event-lifecycle document-vault capability | Register and validate contract/billing document references | Commercial retains business state; lifecycle owns metadata and validates event, kind, and eligibility. |
+
+| floorplan | event-lifecycle reference and projection capabilities | Validate event/conforme/ocular/freeze/archive state and publish a versioned floorplan-state projection | Implemented through `FLOORPLAN_EVENT_REFERENCE_READER` and Lifecycle's compare-and-set writer. Floorplan locks Lifecycle state before local draft changes and projection-clock reservation; the fresh baseline contains same-domain FKs only; existing databases remain unchanged until separately rebuilt. |
+| live-ops | Operations staffing capability | Request owner-validated assignment, replacement, and attendance transitions | LiveOps currently writes assignment rows directly; Operations owns the mutation and applies it under event scope. |
+| event-lifecycle | Operations staffing capability | Request owner-validated cancellation and postponement transitions | Event-decision workflows currently write assignments directly; Operations applies the transition within the caller transaction. |
+| `platform-ops` privacy workflow | identity, event, commercial, guest records | Locate and anonymise/delete subject data when an approved privacy request executes | Governance requires a coordinated erasure transaction. Each affected model is named in the workflow; this is not general write permission. |
+| `commercial` | `OpsEvent`, `OpsInquiry` | Read event scope/client source; invoke lifecycle/public capabilities where needed | Additional billing uses Lifecycle's locked post-event reader; other direct event and inquiry reads remain transitional. Commercial does not mutate Lifecycle status. |
+| `operations` | `OpsEvent` | Validate event state in guest and staffing commands; use narrowly scoped client-access facts | The Lifecycle reference capability locks event rows in command transactions. Guest access-code and coordinator workspace projections use the public read-model capability; its Prisma composition selects only required fields and bounds related floorplan drafts. |
+| `operations` | `OpsSupplier`, `OpsSupplierCategory`, selected quote requests | Validate registration supplier eligibility through Commercial | Commercial owns supplier/category/selection reads and row locks. Existing links remain editable when a category becomes inactive; active category is required for a new or changed supplier link. |
+| floorplan | event-lifecycle event capability | Publish a versioned floorplan-state projection | Implemented through the Lifecycle compare-and-set capability. Floorplan persists its draft and projection clock in its own transaction; Lifecycle rejects stale versions. |
+| live-ops | Operations staffing and LiveOps-reference capabilities; Lifecycle event-reference capability | Request owner-validated assignment transitions; validate current operator and handoff references and event state | Operations locks and rechecks coordinator profile and event-assignment eligibility in the caller transaction. Lifecycle supplies event state. LiveOps owns designation/handoff history and action authorization; the external FKs remain until the coordinated schema cutover. |
+| event-lifecycle | Operations staffing capability | Request owner-validated cancellation and postponement transitions | Implemented: Lifecycle passes its transaction to Operations, which validates and applies assignment transitions atomically. |
+| platform-ops privacy workflow | identity, event, commercial, guest records | Coordinate approved owner-specific retention or redaction actions | No generic cascade orchestrator exists. Owner-scoped receipts, legal-hold checks, partial retry, and audit/evidence preservation are required before destructive execution. Physical event deletion is unsupported. |
+| `identity-access` | platform trust records | Login-history and lockout telemetry via `AUTH_AUDIT` | Keeps platform implementation out of identity application code while the physical table ownership is clarified. |
+| `kernel/access-control` | platform audit | Emit forbidden-access evidence via kernel `AUDIT_WRITER` | Kernel stays business-context-free; the composition root binds the platform adapter. |
+| Local fixture seed tooling | selected development-reference models | Direct inserts only through the guarded CLI into an empty disposable local database; the API has no fixture routes or reset workflow. | Fixture setup is not a product write path and does not own ongoing business writes. |
+
+## Join rules for new work
+
+Before adding a cross-context query or write, record:
+
+1. the owner and physical model/schema;
+2. the exact fields and row scope needed;
+3. whether the operation is a read, owner command, focused port, or named
+   transitional write;
+4. the actor/authorization boundary and audit requirement;
+5. the replacement contract and data-isolation implication if extraction is a
+   real future goal.
+
+Do not add a general-purpose Prisma repository, context-wide workflow facade,
+or read-model write. A model move without a change to this register is
+incomplete.
+
+## Verification
+
+```powershell
+npm run check:boundaries
+npm run test:boundaries
+npm --workspace prism-api run db:audit:queries
+npm --workspace prism-api run prisma:validate
+npm --workspace prism-api run typecheck
+```
+
+Live schema/index audits require database credentials; offline query and Prisma
+checks remain required for a source-only change.

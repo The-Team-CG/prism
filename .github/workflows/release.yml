@@ -18,9 +18,9 @@ permissions:
 
 jobs:
   tag:
-    uses: The-Team-CG/.github/.github/workflows/release-tag.yml@main
+    uses: The-Team-CG/.github/.github/workflows/release-tag.yml@v2
     with:
       version: ${{ inputs.version }}
-      target_ref: main
+      target_ref: prod
       changelog_entry: ${{ inputs.changelog_entry }}
     secrets: inherit

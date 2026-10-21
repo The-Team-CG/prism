@@ -1,0 +1,317 @@
+import { describe, expect, it } from 'vitest';
+import { PlatformReferenceReadModelsService } from '@prism/contexts/read-models';
+import { PAREService } from './pare.service';
+
+function createParePrisma() {
+  const event = {
+    id: 'evt_sample',
+    clientName: 'Ana Reyes',
+    eventName: 'Ayala Summit',
+    eventDate: new Date('2026-06-18T00:00:00.000Z'),
+  };
+  const category = {
+    id: 'supcat_technicals',
+    name: 'Technicals',
+  };
+  const withdrawnSupplier = {
+    id: 'sup_sonicline',
+    categoryId: category.id,
+    name: 'SonicLine Technicals',
+    tier: 'tier_1',
+    serviceInclusions: 'Audio, lights, LED wall',
+    performanceNotes: 'Strong for keynote programs.',
+  };
+  const replacementSupplier = {
+    id: 'sup_avbackup',
+    categoryId: category.id,
+    name: 'AV Backup Crew',
+    tier: 'tier_1',
+    serviceInclusions: 'Backup lights and sound',
+    performanceNotes: 'Available for overflow work.',
+  };
+  const quoteRequest = {
+    id: 'qr_selected',
+    eventId: event.id,
+    supplierId: withdrawnSupplier.id,
+    supplierName: withdrawnSupplier.name,
+    categoryId: category.id,
+    category: category.name,
+    accessToken: 'token-selected',
+    status: 'selected',
+    assignmentStatus: 'withdrawn',
+    confidentialBid: true,
+    message: 'Selected technicals supplier.',
+    createdAt: new Date('2026-05-01T00:00:00.000Z'),
+  };
+  const state = {
+    auditLogs: [] as any[],
+    approvalRecords: [] as any[],
+    queryCalls: { auditFindMany: 0, auditFindUnique: 0, dispatchFindMany: 0, dispatchFindUnique: 0 },
+  };
+
+  const prisma = {
+    $queryRaw: async (query: TemplateStringsArray, ...values: unknown[]) => {
+      const sql = query.join(' ');
+      if (sql.includes('::jsonb::text')) {
+        return [{ canonicalPayload: JSON.stringify(JSON.parse(String(values[0]))) }];
+      }
+      if (sql.includes('review_payload')) {
+        const approval = state.approvalRecords.find((row) => row.id === values[0]);
+        return approval ? [{ canonicalPayload: JSON.stringify(approval.reviewPayload) }] : [];
+      }
+      return [];
+    },
+    opsEvent: {
+      findUnique: async ({ where }: { where: { id?: string } }) => where.id === event.id ? event : null,
+    },
+    opsSupplierQuoteRequest: {
+      findUnique: async ({ where }: { where: { id?: string } }) =>
+        where.id === quoteRequest.id
+          ? {
+              ...quoteRequest,
+              event,
+              supplier: withdrawnSupplier,
+              categoryRef: category,
+            }
+          : null,
+    },
+    opsSupplierQuote: {
+      findMany: async () => [],
+    },
+    opsBriefing: {
+      findMany: async () => [],
+    },
+    opsSupplierCategory: {
+      findFirst: async ({ where }: { where: { name?: string } }) =>
+        where.name === category.name ? category : null,
+    },
+    opsSupplier: {
+      findMany: async () => [
+        {
+          ...replacementSupplier,
+          reviews: [],
+          reliabilityNotes: [],
+          certifications: [],
+          quoteRequests: [],
+          quotes: [],
+        },
+      ],
+    },
+    opsAiAuditLog: {
+      updateMany: async ({ where, data }: { where: { id: string; status: string }; data: Record<string, unknown> }) => {
+        const rows = state.auditLogs.filter(row => row.id === where.id && row.status === where.status);
+        rows.forEach(row => Object.assign(row, data));
+        return { count: rows.length };
+      },
+      create: async ({ data }: { data: any }) => {
+        const row = { ...data, createdAt: data.createdAt ?? new Date('2026-05-07T00:00:00.000Z') };
+        state.auditLogs.push(row);
+        return row;
+      },
+      findMany: async ({ where }: { where: { id: { in: string[] } } }) => {
+        state.queryCalls.auditFindMany += 1;
+        return state.auditLogs.filter((record) => where.id.in.includes(record.id));
+      },
+      findUnique: async ({ where }: { where: { id: string } }) => {
+        state.queryCalls.auditFindUnique += 1;
+        return state.auditLogs.find((record) => record.id === where.id) ?? null;
+      },
+      update: async ({ where, data }: { where: { id: string }; data: any }) => {
+        const index = state.auditLogs.findIndex((record) => record.id === where.id);
+        if (index === -1) throw new Error('audit not found');
+        state.auditLogs[index] = { ...state.auditLogs[index], ...data };
+        return state.auditLogs[index];
+      },
+    },
+    opsAiApprovalRecord: {
+      updateMany: async ({ where, data }: { where: { id: string; status: string }; data: Record<string, unknown> }) => {
+        const rows = state.approvalRecords.filter(row => row.id === where.id && row.status === where.status);
+        rows.forEach(row => Object.assign(row, data));
+        return { count: rows.length };
+      },
+      create: async ({ data }: { data: any }) => {
+        const row = { ...data, requestedAt: data.requestedAt ?? new Date('2026-05-07T00:00:00.000Z') };
+        state.approvalRecords.push(row);
+        return row;
+      },
+      findMany: async ({ where }: { where?: { featureName?: string; status?: string; eventId?: string } } = {}) =>
+        state.approvalRecords.filter((record) => {
+          if (where?.featureName && record.featureName !== where.featureName) return false;
+          if (where?.status && record.status !== where.status) return false;
+          if (where?.eventId && record.eventId !== where.eventId) return false;
+          return true;
+        }),
+      findUnique: async ({ where }: { where: { id?: string; sourceDispatchId?: string } }) =>
+        state.approvalRecords.find((record) => (where.id ? record.id === where.id : record.sourceDispatchId === where.sourceDispatchId)) ?? null,
+      update: async ({ where, data }: { where: { id: string }; data: any }) => {
+        const index = state.approvalRecords.findIndex((record) => record.id === where.id);
+        if (index === -1) throw new Error('approval not found');
+        state.approvalRecords[index] = { ...state.approvalRecords[index], ...data };
+        return state.approvalRecords[index];
+      },
+    },
+    opsPareDispatch: {
+      findMany: async ({ where }: { where: { id: { in: string[] } } }) => {
+        state.queryCalls.dispatchFindMany += 1;
+        return where.id.in
+          .filter((id) => id !== 'different_dispatch')
+          .map((id) => ({ id, requestId: quoteRequest.id, eventId: event.id }));
+      },
+      findUnique: async ({ where }: { where: { id: string } }) => {
+        state.queryCalls.dispatchFindUnique += 1;
+        return where.id === 'different_dispatch' ? null : ({
+          id: where.id,
+          requestId: quoteRequest.id,
+          eventId: where.id === 'dispatch_wrong_event' ? 'evt_other' : event.id,
+        });
+      },
+    },
+  };
+
+  const transactionalPrisma = Object.assign(prisma, {
+    $transaction: <T>(work: (tx: typeof prisma) => Promise<T>) => work(prisma),
+  });
+  return { prisma: transactionalPrisma, state, quoteRequest };
+}
+
+function pareService(prisma: unknown) {
+  return new PAREService(
+    prisma as any,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    new PlatformReferenceReadModelsService(prisma as never),
+  );
+}
+
+describe('PAREService', () => {
+  it('returns a hydrated pending approval response even when replacement candidates have no quotes yet', async () => {
+    const { prisma, quoteRequest } = createParePrisma();
+    const service = pareService(prisma);
+
+    await service.handleEmergencyTrigger(quoteRequest.id);
+    const pending = await service.getPendingApprovals('evt_sample');
+
+    expect(pending).toHaveLength(1);
+    expect(pending[0]).toMatchObject({
+      eventId: 'evt_sample',
+      requestId: quoteRequest.id,
+      status: 'pending',
+      pareResult: {
+        eventId: 'evt_sample',
+        withdrawnSupplier: {
+          id: 'sup_sonicline',
+          name: 'S. [SURNAME]',
+          category: 'Technicals',
+          quotedAmount: 0,
+        },
+        budgetAnalysis: {
+          feasible: true,
+          selectedCandidate: {
+            supplierId: 'sup_avbackup',
+            supplierName: 'A. [SURNAME]',
+            quotedAmount: 0,
+          },
+        },
+        mode: 'mock',
+      },
+    });
+    expect(
+      pending[0].pareResult.riskAssessment.factors.some((factor) => factor.includes('No quote on file')),
+    ).toBe(true);
+    expect(pending[0].pareResult.budgetAnalysis.summary).toContain('has no quote on file');
+  });
+
+  it('hydrates multiple pending approvals with one audit and dispatch batch read', async () => {
+    const { prisma, quoteRequest, state } = createParePrisma();
+    const service = pareService(prisma);
+    const first = await service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_batch_1');
+    const second = await service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_batch_2');
+    Object.assign(state.queryCalls, { auditFindMany: 0, auditFindUnique: 0, dispatchFindMany: 0, dispatchFindUnique: 0 });
+
+    const pending = await service.getPendingApprovals('evt_sample');
+
+    expect(pending.map(({ id }) => id).sort()).toEqual([first.id, second.id].sort());
+    expect(pending.map(({ requestId }) => requestId)).toEqual([quoteRequest.id, quoteRequest.id]);
+    expect(state.queryCalls).toEqual({ auditFindMany: 1, auditFindUnique: 0, dispatchFindMany: 1, dispatchFindUnique: 0 });
+  });
+
+  it('returns the same approval and audit when a dispatch is delivered twice', async () => {
+    const { prisma, quoteRequest, state } = createParePrisma();
+    const service = pareService(prisma);
+    const first = await service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_1');
+    const second = await service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_1');
+    expect(second.id).toBe(first.id);
+    expect(state.approvalRecords).toHaveLength(1);
+    expect(state.auditLogs).toHaveLength(1);
+  });
+
+  it('rejects idempotent redelivery when its durable audit is missing', async () => {
+    const { prisma, quoteRequest, state } = createParePrisma();
+    const service = pareService(prisma);
+    await service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_missing_audit');
+    state.auditLogs.length = 0;
+    await expect(service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_missing_audit'))
+      .rejects.toThrow('matching durable PARE audit');
+  });
+
+  it('rejects a durable audit whose payload belongs to another request', async () => {
+    const { prisma, quoteRequest, state } = createParePrisma();
+    const service = pareService(prisma);
+    await service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_mismatched_request');
+    state.auditLogs[0].sanitizedPayload = {
+      ...state.auditLogs[0].sanitizedPayload,
+      requestId: 'another_quote_request',
+    };
+    await expect(service.getPendingApprovals('evt_sample'))
+      .rejects.toThrow('matching durable PARE audit');
+  });
+
+  it('rejects idempotent redelivery when the approval source link is corrupted', async () => {
+    const { prisma, quoteRequest, state } = createParePrisma();
+    const service = pareService(prisma);
+    await service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_source_link');
+    state.approvalRecords[0].sourceDispatchId = 'different_dispatch';
+    await expect(service.getPendingApprovals('evt_sample'))
+      .rejects.toThrow('matching durable PARE audit');
+  });
+
+  it('does not execute a new dispatch after the source is no longer withdrawn', async () => {
+    const { prisma, quoteRequest } = createParePrisma();
+    quoteRequest.assignmentStatus = 'confirmed';
+    const service = pareService(prisma);
+    await expect(service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_not_withdrawn'))
+      .rejects.toThrow('no longer withdrawn');
+  });
+
+  it('rejects a new dispatch linked to a different event than its quote request', async () => {
+    const { prisma, quoteRequest, state } = createParePrisma();
+    const service = pareService(prisma);
+
+    await expect(service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_wrong_event'))
+      .rejects.toThrow('does not match quote request');
+    expect(state.approvalRecords).toHaveLength(0);
+  });
+
+  it('returns the same hydrated PARE response after approval', async () => {
+    const { prisma, quoteRequest } = createParePrisma();
+    const service = pareService(prisma);
+
+    const pending = await service.handleEmergencyTrigger(quoteRequest.id);
+    const approved = await service.approveRecommendation(pending.id, 'Ms. Mys');
+
+    expect(approved).toMatchObject({
+      id: pending.id,
+      status: 'approved',
+      reviewedBy: 'Ms. Mys',
+      pareResult: {
+        budgetAnalysis: {
+          selectedCandidate: {
+            supplierName: 'A. [SURNAME]',
+          },
+        },
+      },
+    });
+  });
+});

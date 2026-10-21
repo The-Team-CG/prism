@@ -1,9 +1,8 @@
 "use client";
 
 import { createContext, useContext, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
-import type { PrismBillingStatement, PrismBriefing, PrismClientActionCenter, PrismClientWorkspace, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone, PrismAuditLog, PrismNotificationLog } from "@prism/types";
-import type { FloorPlanTemplate } from "@/features/floorplan/editor/templates";
-import type { Project } from "@/features/floorplan/editor/types";
+import type { PrismBillingStatement, PrismBriefing, PrismClientActionCenter, PrismClientBillingDispute, PrismClientOcularVisit, PrismClientWorkspace, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone, PrismAuditLog, PrismNotificationLog, SubmitBriefingInput, InquiryClientCategory } from "@prism/types";
+import type { FloorPlanTemplate, Project } from "@/features/floorplan/editor";
 import type { ClientDashboardRoute, ClientPortalView, ClientSession, DetailTab } from "./model/client-dashboard-types";
 import type { ClientDashboardAction } from "./model/client-dashboard-view-rules";
 
@@ -21,10 +20,11 @@ export type ClientRequestForm = {
   eventName: string;
   eventDate: string;
   eventType: string;
-  clientType: string;
+  clientType: InquiryClientCategory;
   venueCity: string;
   budgetRange: string;
   message: string;
+  privacyConsentAccepted: boolean;
 };
 
 /** Minimal router surface used by client dashboard pages */
@@ -41,6 +41,7 @@ export type ClientWorkspaceValue = {
   session: ClientSession;
   state: PrismClientWorkspace | null;
   actionCenter: PrismClientActionCenter | null;
+  actionCenterLoadFailed: boolean;
   error: string | null;
   notice: string | null;
   busy: string | null;
@@ -52,6 +53,9 @@ export type ClientWorkspaceValue = {
   selectedEvent: PrismEvent | undefined;
   selectedEventId: string | null;
   setSelectedEventId: (id: string | null) => void;
+  ocularVisit: PrismClientOcularVisit | null;
+  submitOcularVisit: (clientNote: string) => Promise<void>;
+  submitBriefing: (eventId: string, input: SubmitBriefingInput) => Promise<void>;
   eventDrafts: PrismFloorPlanDraft[];
   officialDraft: PrismFloorPlanDraft | undefined;
   preferenceDrafts: PrismFloorPlanDraft[];
@@ -60,10 +64,13 @@ export type ClientWorkspaceValue = {
   briefing: PrismBriefing | undefined;
   documents: PrismDocument[];
   payments: PrismPaymentMilestone[];
+  disputes: PrismClientBillingDispute[];
   clientActions: ClientDashboardAction[];
   nextAction: ClientDashboardAction | undefined;
   form: PreferenceForm;
   setForm: Dispatch<SetStateAction<PreferenceForm>>;
+  revisionComment: string;
+  setRevisionComment: (v: string) => void;
   requestForm: ClientRequestForm;
   setRequestForm: Dispatch<SetStateAction<ClientRequestForm>>;
   eventSearch: string;
@@ -76,6 +83,7 @@ export type ClientWorkspaceValue = {
   openFloorplanEditor: (draft: PrismFloorPlanDraft, readOnly?: boolean) => Promise<void>;
   createEditorDraft: (template: FloorPlanTemplate) => Promise<void>;
   submitPreference: (ev: FormEvent<HTMLFormElement>) => Promise<void>;
+  submitRevisionComment: (ev: FormEvent<HTMLFormElement>) => Promise<void>;
   submitNewEventRequest: (ev: FormEvent<HTMLFormElement>) => Promise<void>;
   signOut: () => void;
   /** Event-scoped chrome (header + subnav) when an event is selected */

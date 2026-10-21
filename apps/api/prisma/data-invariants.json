@@ -1,0 +1,51 @@
+[
+  {
+    "id": "audit_chain_single_root",
+    "description": "The audit hash chain has at most one root row with no previous hash.",
+    "context": "platform-ops",
+    "severity": "critical",
+    "query": "WITH roots AS (\n  SELECT id, created_at, row_number() OVER (ORDER BY created_at, id) AS root_position\n  FROM {{platform-ops.audit_logs}}\n  WHERE previous_hash IS NULL\n)\nSELECT id, created_at, root_position\nFROM roots\nWHERE root_position > 1\nORDER BY root_position;"
+  },
+  {
+    "id": "audit_chain_no_unhashed_rows",
+    "description": "Every audit log row has a non-empty SHA-256 immutable hash.",
+    "context": "platform-ops",
+    "severity": "critical",
+    "query": "SELECT id, immutable_hash, previous_hash\nFROM {{platform-ops.audit_logs}}\nWHERE immutable_hash = '' OR length(immutable_hash) <> 64\nORDER BY created_at, id;"
+  },
+  {
+    "id": "audit_chain_no_orphans",
+    "description": "Every non-root audit row points to an existing immutable hash.",
+    "context": "platform-ops",
+    "severity": "critical",
+    "query": "SELECT child.id, child.previous_hash\nFROM {{platform-ops.audit_logs}} AS child\nWHERE child.previous_hash IS NOT NULL\n  AND NOT EXISTS (\n    SELECT 1\n    FROM {{platform-ops.audit_logs}} AS parent\n    WHERE parent.immutable_hash = child.previous_hash\n  )\nORDER BY child.id;"
+  },
+  {
+    "id": "audit_chain_no_forks",
+    "description": "No immutable hash is referenced as the previous hash by multiple audit rows.",
+    "context": "platform-ops",
+    "severity": "critical",
+    "query": "SELECT previous_hash, count(*)::int AS referencing_rows, array_agg(id ORDER BY id) AS row_ids\nFROM {{platform-ops.audit_logs}}\nWHERE previous_hash IS NOT NULL\nGROUP BY previous_hash\nHAVING count(*) > 1\nORDER BY previous_hash;"
+  },
+  {
+    "id": "billing_sequence_covers_existing_statements",
+    "description": "Every existing billing statement number has a sequence row whose next number is above the highest issued number for that year.",
+    "context": "commercial",
+    "severity": "high",
+    "query": "WITH parsed AS (\n  SELECT id, number,\n    CASE WHEN number ~ '^BS-[0-9]{4}-[0-9]+$' THEN split_part(number, '-', 2)::int END AS year,\n    CASE WHEN number ~ '^BS-[0-9]{4}-[0-9]+$' THEN split_part(number, '-', 3)::int END AS sequence_number\n  FROM {{commercial.billing_statements}}\n), invalid_numbers AS (\n  SELECT id, number, NULL::int AS year, NULL::int AS highest_sequence, NULL::int AS next_number,\n    'billing statement number does not match BS-YYYY-NNNN' AS violation\n  FROM parsed\n  WHERE year IS NULL OR sequence_number IS NULL\n), highest AS (\n  SELECT year, max(sequence_number) AS highest_sequence\n  FROM parsed\n  WHERE year IS NOT NULL AND sequence_number IS NOT NULL\n  GROUP BY year\n)\nSELECT id, number, year, highest_sequence, next_number, violation\nFROM invalid_numbers\nUNION ALL\nSELECT NULL::text AS id, NULL::text AS number, highest.year, highest.highest_sequence, sequences.next_number,\n  'sequence row is missing or does not exceed the highest existing statement number' AS violation\nFROM highest\nLEFT JOIN {{commercial.billing_statement_sequences}} AS sequences ON sequences.year = highest.year\nWHERE sequences.year IS NULL OR sequences.next_number <= highest.highest_sequence\nORDER BY year NULLS LAST, id NULLS LAST;"
+  },
+  {
+    "id": "migration_ledger_no_unfinished",
+    "description": "The Prisma migration ledger contains no unresolved migration rows.",
+    "context": "platform-ops",
+    "severity": "critical",
+    "query": "SELECT migration_name, started_at, finished_at, rolled_back_at\nFROM public._prisma_migrations\nWHERE finished_at IS NULL AND rolled_back_at IS NULL\nORDER BY started_at, migration_name;"
+  },
+  {
+    "id": "pare_review_payload_has_audit_digest",
+    "description": "Every PARE review payload with a digest reference is an object and its SHA-256 matches the stored JSONB payload.",
+    "context": "platform-ops",
+    "severity": "high",
+    "query": "SELECT approval.id AS approval_id, audit.id AS audit_id, audit.sanitized_payload->>'reviewPayloadDigest' AS review_payload_digest\nFROM {{platform-ops.ai_approval_records}} AS approval\nJOIN {{platform-ops.ai_audit_logs}} AS audit ON audit.id = approval.ai_audit_log_id\nWHERE approval.feature_name = 'PARE'\n  AND audit.feature_name = 'PARE'\n  AND (audit.sanitized_payload->>'pareProvenanceVersion' = '1' OR audit.sanitized_payload ? 'reviewPayloadDigest')\n  AND (jsonb_typeof(approval.review_payload) IS DISTINCT FROM 'object'\n    OR COALESCE(audit.sanitized_payload->>'reviewPayloadDigest', '') !~ '^[0-9a-f]{64}$'\n    OR encode(sha256(convert_to(approval.review_payload::text, 'UTF8')), 'hex') <> audit.sanitized_payload->>'reviewPayloadDigest')\nORDER BY approval.id;"
+  }
+]

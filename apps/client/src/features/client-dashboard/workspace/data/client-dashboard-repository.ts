@@ -7,21 +7,39 @@ import {
   type PrismClientWorkspace,
   type PrismFloorPlanDraft,
   type CreatePrismInquiryInput,
-  type PrismFloorPlanPreference,
-  type PrismUser,
+  type CreateFloorPlanPreferenceInput,
+  type CreateFloorPlanRevisionCommentInput,
+  type PrismFloorPlanSnapshot,
+  type PrismClientOcularVisit,
+  type SubmitClientOcularVisitInput,
+  type SubmitBriefingInput,
+  type PrismBriefing,
 } from "@prism/types";
-import { prismApi } from "@/lib/prism-api";
-import type { Project } from "@/features/floorplan/editor/types";
+import { clientApi, clientApiRequest } from "@/lib/prism-api";
+import type { Project } from "@/features/floorplan/editor";
 import type { ClientSession } from "../model/client-dashboard-types";
 
-export type FloorPlanPreferenceInput = {
-  name: string;
-  venue?: string;
-  width?: number;
-  height?: number;
-  gridSize?: number;
-  objects?: Project["objects"];
-} & PrismFloorPlanPreference;
+export type FloorPlanPreferenceInput = CreateFloorPlanPreferenceInput;
+
+type ApiFloorPlanSnapshot = Omit<PrismFloorPlanSnapshot, "objects" | "guests" | "suppliers"> &
+  Pick<Project, "objects" | "guests" | "suppliers">;
+
+function toProject(plan: ApiFloorPlanSnapshot): Project {
+  const timestamp = plan.updatedAt ? new Date(plan.updatedAt).getTime() : Date.now();
+  return {
+    id: plan.id,
+    name: plan.name,
+    venue: plan.venue,
+    widthM: plan.width,
+    heightM: plan.height,
+    pax: plan.pax,
+    objects: plan.objects ?? [],
+    guests: plan.guests ?? [],
+    suppliers: plan.suppliers ?? [],
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
 
 export const clientDashboardRepository = {
   readSession(): ClientSession | null {
@@ -36,40 +54,125 @@ export const clientDashboardRepository = {
     });
   },
 
-  loadWorkspace(session: Pick<PrismUser, "name" | "email">): Promise<PrismClientWorkspace> {
-    return prismApi.clientState(session);
+  async loadWorkspace(): Promise<PrismClientWorkspace> {
+    const pages: PrismClientWorkspace[] = [];
+    const seenCursors = new Set<string>();
+    let cursor: string | undefined;
+    do {
+      const page = await clientApi.clientWorkspace.detail({}, cursor);
+      pages.push(page);
+      if (!page.pagination.hasMore) break;
+      const nextCursor = page.pagination.nextCursor;
+      if (!nextCursor || seenCursors.has(nextCursor)) throw new Error('Client workspace pagination did not advance');
+      seenCursors.add(nextCursor);
+      cursor = nextCursor;
+    } while (cursor);
+
+    const first = pages[0];
+    if (!first) throw new Error('Client workspace returned no page');
+    return {
+      ...first,
+      users: pages.flatMap((page) => page.users),
+      inquiries: pages.flatMap((page) => page.inquiries),
+      events: pages.flatMap((page) => page.events),
+      archivedEvents: first.archivedEvents ?? [],
+      documents: pages.flatMap((page) => page.documents),
+      briefings: pages.flatMap((page) => page.briefings),
+      supplierQuotes: pages.flatMap((page) => page.supplierQuotes),
+      coordinatorAssignments: pages.flatMap((page) => page.coordinatorAssignments),
+      complianceChecks: pages.flatMap((page) => page.complianceChecks),
+      billingStatements: pages.flatMap((page) => page.billingStatements),
+      billingDisputes: pages.flatMap((page) => page.billingDisputes ?? []),
+      paymentMilestones: pages.flatMap((page) => page.paymentMilestones),
+      postEventDocuments: pages.flatMap((page) => page.postEventDocuments),
+      floorPlanDrafts: pages.flatMap((page) => page.floorPlanDrafts),
+      auditLogs: pages.flatMap((page) => page.auditLogs),
+      notificationLogs: pages.flatMap((page) => page.notificationLogs),
+      clientEventTimelines: pages.flatMap((page) => page.clientEventTimelines),
+      ocularVisits: pages.flatMap((page) => page.ocularVisits ?? []),
+      pagination: {
+        nextCursor: null,
+        hasMore: false,
+        totalCount: first.pagination.totalCount,
+      },
+    };
   },
 
-  loadActionCenter(session: Pick<PrismUser, "name" | "email">): Promise<PrismClientActionCenter> {
-    return prismApi.clientActionCenter(session);
+  loadActionCenter(): Promise<PrismClientActionCenter> {
+    return clientApi.clientWorkspace.actionCenter();
+  },
+
+  submitOcularVisit(
+    eventId: string,
+    input: SubmitClientOcularVisitInput,
+  ): Promise<PrismClientOcularVisit> {
+    return clientApiRequest<PrismClientOcularVisit>(
+      `/events/${eventId}/ocular-visit`,
+      { method: "POST", body: input },
+    );
+  },
+
+  submitBriefing(eventId: string, input: SubmitBriefingInput): Promise<PrismBriefing> {
+    return clientApiRequest<PrismBriefing>(`/events/${eventId}/briefing`, {
+      method: "POST",
+      body: input,
+    });
   },
 
   createInquiry(input: CreatePrismInquiryInput) {
-    return prismApi.createInquiry(input);
+    return clientApi.inquiries.create(input);
   },
 
   createFloorPlanPreference(
     eventId: string,
     input: FloorPlanPreferenceInput,
-    session?: Pick<PrismUser, "name" | "email">,
   ): Promise<PrismFloorPlanDraft> {
-    return prismApi.createFloorPlanPreference(eventId, input, session);
+    return clientApiRequest<PrismFloorPlanDraft>(
+      `/events/${eventId}/floorplan-preferences`,
+      { method: "POST", body: input },
+    );
   },
 
-  loadFloorPlanSnapshot(
+  async loadFloorPlanSnapshot(
     eventId: string,
     draftId: string,
     type: "submitted" | "approved" = "approved",
-    session?: Pick<PrismUser, "name" | "email">,
   ): Promise<Project> {
-    return prismApi.loadFloorPlanSnapshot(eventId, draftId, type, session);
+    const plan = await clientApiRequest<ApiFloorPlanSnapshot>(
+      `/events/${eventId}/floorplans/${draftId}/snapshot?type=${type}`,
+    );
+    return toProject(plan);
   },
 
-  loadPlan(planId: string, session?: Pick<PrismUser, "name" | "email">): Promise<Project> {
-    return prismApi.loadPlan(planId, session);
+  submitFloorPlanRevisionComment(
+    eventId: string,
+    draftId: string,
+    input: CreateFloorPlanRevisionCommentInput,
+  ): Promise<PrismFloorPlanDraft> {
+    return clientApi.events.reviewFloorPlanDraft(eventId, draftId, input);
   },
 
-  savePlan(project: Project, session?: Pick<PrismUser, "name" | "email">): Promise<Project> {
-    return prismApi.savePlan(project, session);
+  async loadPlan(planId: string): Promise<Project> {
+    const plan = await clientApiRequest<ApiFloorPlanSnapshot>(`/plans/${planId}`);
+    return toProject(plan);
+  },
+
+  async savePlan(project: Project): Promise<Project> {
+    const plan = await clientApiRequest<ApiFloorPlanSnapshot>(
+      `/plans/${project.id}`,
+      {
+        method: "PUT",
+        body: {
+          expectedUpdatedAt: new Date(project.updatedAt).toISOString(),
+          venue: project.venue,
+          width: Math.max(1, Math.round(project.widthM)),
+          height: Math.max(1, Math.round(project.heightM)),
+          gridSize: 1,
+          pax: Math.max(0, Math.round(project.pax)),
+          objects: project.objects,
+        },
+      },
+    );
+    return toProject(plan);
   },
 };

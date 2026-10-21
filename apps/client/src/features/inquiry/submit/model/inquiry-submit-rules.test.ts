@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyInquiryPrefill,
   buildInquiryPayload,
   buildInquiryReference,
   canAdvanceInquiryStep,
@@ -25,6 +26,7 @@ describe("inquiry-submit-rules", () => {
           email: "ana@test.com",
           phoneNumber: "0917",
           clientType: "Corporate",
+          source: "PMCM Facebook",
         }),
         0,
       ),
@@ -48,7 +50,7 @@ describe("inquiry-submit-rules", () => {
   });
 
   it("advances and retreats wizard steps within bounds", () => {
-    expect(canAdvanceInquiryStep(form({ clientName: "A", email: "a@b.c", phoneNumber: "1", clientType: "Corporate" }), 0)).toBe(true);
+    expect(canAdvanceInquiryStep(form({ clientName: "A", email: "a@b.c", phoneNumber: "1", clientType: "Corporate", source: "PMCM Facebook" }), 0)).toBe(true);
     expect(canAdvanceInquiryStep(form({ privacyConsentAccepted: true }), 3)).toBe(false);
     expect(nextInquiryStep(0)).toBe(1);
     expect(nextInquiryStep(3)).toBe(3);
@@ -67,6 +69,7 @@ describe("inquiry-submit-rules", () => {
         eventType: "Conference",
         eventDate: "2026-08-01",
         expectedGuests: "200",
+        source: "PMCM Facebook",
         message: "Need staging",
         privacyConsentAccepted: true,
       }),
@@ -84,5 +87,11 @@ describe("inquiry-submit-rules", () => {
     expect(mapInquirySubmitError({})).toBe("Unable to submit inquiry");
     expect(inquiryMinDate(new Date("2026-05-10T12:00:00.000Z"))).toBe("2026-05-10");
     expect(buildInquiryReference(new Date("2026-01-01T00:00:00.000Z"), 0.5)).toBe("INQ-2026-5500");
+  });
+
+  it("prefills source and channel from a public inquiry link", () => {
+    const next = applyInquiryPrefill(form(), new URLSearchParams("source=Colleague+or+Friend&channel=pmcm-inquiry-link"));
+    expect(next.source).toBe("Colleague or Friend");
+    expect(next.channel).toBe("pmcm-inquiry-link");
   });
 });

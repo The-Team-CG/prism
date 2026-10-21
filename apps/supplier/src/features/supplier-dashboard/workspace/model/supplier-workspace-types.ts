@@ -1,15 +1,15 @@
 import type { PrismSupplier, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, PrismSupplierWorkspace } from "@prism/types";
-import type { SupplierSession } from "@/lib/prism-api";
 
 export type {
   PrismSupplier,
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
   PrismSupplierReadinessBoard,
-  SupplierSession,
 };
 
 export type SupplierWorkspace = PrismSupplierWorkspace;
+
+export type SupplierWorkspaceStatus = "idle" | "loading" | "success" | "error";
 
 export type SupplierDashboardSection =
   | "dashboard"

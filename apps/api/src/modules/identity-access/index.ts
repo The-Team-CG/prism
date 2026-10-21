@@ -1,0 +1,13 @@
+export * from './api/auth/auth.controller';
+export * from './application/auth/auth-operations.service';
+export * from './application/auth/auth-security.service';
+export * from './application/auth/totp.service';
+export * from './contracts/password-reset-delivery.port';
+export * from './contracts/auth-audit.port';
+export * from './infrastructure/auth/auth-audit.adapter';
+export * from './contracts/participant-reader.port';
+export * from './contracts/privacy-redaction.port';
+export * from './application/participants/identity-privacy-redactor.service';
+export * from './application/participants/participant-reader.service';
+export * from './contracts/coordinator-account-reference.port';
+export { CoordinatorAccountReferenceModule } from './coordinator-account-reference.module';

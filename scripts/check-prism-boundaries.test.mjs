@@ -3,20 +3,39 @@ import assert from "node:assert/strict";
 import { findBoundaryViolations } from "./check-prism-boundaries.mjs";
 
 describe("findBoundaryViolations", () => {
-  const removedModule = "event" + "-ops";
-  const removedImport = `@prism/modules/${removedModule}`;
-  const removedSourceRoot = `apps/api/libs/modules/${removedModule}/src`;
+  const removedSourceRoot = "apps/api/libs/modules/event-ops/src";
 
   it("allows role apps to import shared packages", () => {
     const violations = findBoundaryViolations({
       "apps/client/src/app/page.tsx": 'import { Button } from "@prism/ui";',
       "apps/event/src/app/page.tsx": 'import type { PrismEvent } from "@prism/types";',
-      "packages/api-client/src/index.ts": 'import type { PrismSampleState } from "@prism/types";',
+      "packages/api-client/src/index.ts": 'import type { PrismClientWorkspace } from "@prism/types";',
     });
 
     assert.deepEqual(violations, []);
   });
 
+
+  it("allows the shared floorplan canvas to import only neutral shared packages", () => {
+    assert.deepEqual(findBoundaryViolations({
+      "packages/floorplan-canvas/src/index.ts": 'import type { CreatePrismInquiryInput } from "@prism/types";',
+      "packages/floorplan-canvas/src/Canvas.tsx": 'import { useState } from "react";',
+    }), []);
+
+    for (const imported of [
+      "@/lib/prism-api",
+      "apps/client/src/lib/prism-api",
+      "@prism/api-client",
+      "@prism/event",
+      "@prism/ui",
+    ]) {
+      assert.deepEqual(findBoundaryViolations({
+        "packages/floorplan-canvas/src/Canvas.tsx": `import { value } from "${imported}";`,
+      }), [
+        "packages/floorplan-canvas/src/Canvas.tsx: shared floorplan canvas must not import apps, portals, UI or API clients",
+      ]);
+    }
+  });
   it("blocks role app imports across app boundaries", () => {
     const violations = findBoundaryViolations({
       "apps/client/src/app/page.tsx": 'import { EventShell } from "@prism/event";',
@@ -43,63 +62,200 @@ describe("findBoundaryViolations", () => {
     ]);
   });
 
-  it("blocks redesign work from adding new sample-state or storage-key coupling", () => {
+  it("blocks browser-local fixture fallbacks, whole-system state, and app-local session keys", () => {
     const violations = findBoundaryViolations({
       "apps/client/src/app/page.tsx": 'import { createInitialPrismSampleState } from "@/mock/prism-sample-state";',
-      "apps/client/src/lib/prism-api.ts": 'import { createInitialPrismSampleState } from "@/mock/prism-sample-state";',
+      "apps/client/src/features/client-dashboard/data/local-fixture-fallback.ts": 'import { createInitialPrismSampleState } from "@/mock/prism-sample-state";',
       "apps/guest/src/app/dashboard/page.tsx": 'const key = "prism:guest-session";',
-      "apps/event/src/app/dashboard/page.tsx": 'eventOpsClient.sample.state();',
+      "apps/event/src/app/dashboard/page.tsx": "eventOpsClient.sample.state();",
     });
 
     assert.deepEqual(violations, [
-      "apps/client/src/app/page.tsx: role apps must not import the client mock sample dataset",
-      "apps/guest/src/app/dashboard/page.tsx: role apps must use shared Prism session and sample storage keys",
-      "apps/event/src/app/dashboard/page.tsx: role apps must not read the broad sample state aggregate",
+      "apps/client/src/app/page.tsx: role apps must not retain browser-local fixture fallbacks",
+      "apps/client/src/features/client-dashboard/data/local-fixture-fallback.ts: role apps must not retain browser-local fixture fallbacks",
+      "apps/guest/src/app/dashboard/page.tsx: role apps must use shared Prism session keys",
+      "apps/event/src/app/dashboard/page.tsx: role apps must not read a whole-system state aggregate",
     ]);
   });
 
   it("blocks backend modular-monolith boundary violations", () => {
     const violations = findBoundaryViolations({
-      "apps/api/libs/modules/supplier-ops/src/services/supplier.service.ts":
-        'import { BillingOperationsService } from "@prism/modules/finance-ops/src/services/billing-operations.service";',
-      "apps/api/libs/modules/finance-ops/src/services/payment.service.ts":
-        `import { RemovedService } from "${removedImport}";`,
-      "apps/api/libs/modules/closure-ops/src/services/archive.service.ts":
-        `import { LocalClosureService } from "@prism/modules/closure-ops/src/services/local-closure.service";\nimport { BillingOperationsService } from "../../finance-ops/src/services/billing-operations.service";\nimport { RemovedClosureService } from "${removedImport}/src/services/event-closure.service";`,
-      "apps/api/libs/modules/event-read-models/src/services/pmcm-read-model.service.ts":
+      "apps/api/src/modules/commercial/application/suppliers/supplier.service.ts":
+        'import { AuditService } from "@prism/contexts/platform-ops/application/trust/audit.service";',
+      "apps/api/src/modules/event-lifecycle/application/archive.service.ts":
+        'import { BillingOperationsService } from "apps/api/src/modules/commercial/application/billing/billing-operations.service";',
+      "apps/api/src/modules/read-models/application/services/pmcm-read-model.service.ts":
         "await this.prisma.opsEvent.update({ where: { id }, data: input });",
-      "apps/api/libs/modules/event-read-models/src/services/raw-dashboard.service.ts":
-        "await this.prisma.$queryRaw`select * from ops_event`;",
-      [`${removedSourceRoot}/services/new-risk-workflow.service.ts`]: "export class NewRiskWorkflowService {}",
-      [`${removedSourceRoot}/controllers/new-risk.controller.ts`]: "export class NewRiskController {}",
-      "packages/ui/src/backend-button.tsx": `import { RemovedService } from "${removedImport}";`,
+      "apps/api/src/modules/read-models/application/queries/raw-dashboard.service.ts":
+        "await this.prisma.$queryRaw('select * from ops_event');",
+      "apps/api/src/modules/commercial/application/suppliers/fixture-import.service.ts":
+        'import { LocalFixtureSeeder } from "../../../../fixtures/local-fixture-seeder";',
+      "apps/api/src/kernel/access-control/fixture-import.ts":
+        'import { LocalFixtureSeeder } from "../../fixtures/local-fixture-seeder";',
+      [removedSourceRoot + "/services/new-risk-workflow.service.ts"]: "export class NewRiskWorkflowService {}",
+      [removedSourceRoot + "/controllers/new-risk.controller.ts"]: "export class NewRiskController {}",
+      "packages/ui/src/backend-button.tsx": 'import { RemovedService } from "@prism/kernel/event-core";',
     });
 
     assert.deepEqual(violations, [
-      "apps/api/libs/modules/supplier-ops/src/services/supplier.service.ts: backend capability modules must not import private services from other capability modules",
-      "apps/api/libs/modules/finance-ops/src/services/payment.service.ts: backend capability modules must not import event-ops compatibility internals",
-      "apps/api/libs/modules/closure-ops/src/services/archive.service.ts: backend capability modules must not import private services from other capability modules",
-      "apps/api/libs/modules/closure-ops/src/services/archive.service.ts: backend capability modules must not import event-ops compatibility internals",
-      "apps/api/libs/modules/event-read-models/src/services/pmcm-read-model.service.ts: event-read-models must not mutate Prisma state",
-      "apps/api/libs/modules/event-read-models/src/services/raw-dashboard.service.ts: event-read-models raw queries require an approved query builder with a query budget",
-      `${removedSourceRoot}/services/new-risk-workflow.service.ts: event-ops module must not contain tracked files after sample compatibility migration`,
-      `${removedSourceRoot}/controllers/new-risk.controller.ts: event-ops module must not contain tracked files after sample compatibility migration`,
+      "apps/api/src/modules/commercial/application/suppliers/supplier.service.ts: backend code must use public context and kernel entrypoints",
+      "apps/api/src/modules/event-lifecycle/application/archive.service.ts: backend contexts must not import another context's private implementation",
+      "apps/api/src/modules/read-models/application/services/pmcm-read-model.service.ts: read models must not mutate Prisma state",
+      "apps/api/src/modules/read-models/application/queries/raw-dashboard.service.ts: read models raw queries require an approved query builder with a query budget",
+      "apps/api/src/modules/commercial/application/suppliers/fixture-import.service.ts: backend contexts must not import local fixture seed code",
+      "apps/api/src/kernel/access-control/fixture-import.ts: kernel must not import local fixture seed code",
+      removedSourceRoot + "/services/new-risk-workflow.service.ts: legacy backend source roots must remain empty after DDD consolidation",
+      removedSourceRoot + "/controllers/new-risk.controller.ts: legacy backend source roots must remain empty after DDD consolidation",
       "packages/ui/src/backend-button.tsx: shared ui must not import backend modules",
     ]);
   });
 
   it("allows approved backend modular-monolith patterns", () => {
     const violations = findBoundaryViolations({
-      "apps/api/libs/modules/supplier-ops/src/services/supplier.service.ts":
-        'import { FINANCE_COMMANDS } from "@prism/modules/finance-ops";',
-      "apps/api/libs/modules/event-read-models/src/queries/pmcm-event-dashboard.query.ts":
-        "// Query budget: one event summary query plus one scoped relation query.\nawait this.prisma.$queryRaw`select id from ops_event`;",
-      "apps/api/libs/modules/event-read-models/src/services/pmcm-read-model.service.ts":
+      "apps/api/src/modules/commercial/application/suppliers/supplier.service.ts":
+        'import { PLATFORM_AUDIT } from "@prism/contexts/platform-ops";',
+      "apps/api/src/modules/read-models/application/queries/pmcm-event-dashboard.query.ts":
+        "// Query budget: one event summary query plus one scoped relation query.\nawait this.prisma.$queryRaw('select id from ops_event');",
+      "apps/api/src/modules/read-models/application/services/pmcm-read-model.service.ts":
         "await this.prisma.opsEvent.findMany({ where: { id } });",
-      "apps/api/libs/modules/sample-compatibility/src/services/sample-compatibility.service.ts":
-        'import { EventCoreModule } from "@prism/modules/event-core";',
+      "apps/api/src/fixtures/local-fixture-seeder.ts":
+        'import { EventCoreModule } from "@prism/kernel/event-core";',
     });
 
     assert.deepEqual(violations, []);
+  });
+
+  it("allows only the focused read entrypoints, not their private implementations", () => {
+    const path = 'apps/api/src/modules/event-lifecycle/application/files/matrix.service.ts';
+    assert.deepEqual(findBoundaryViolations({ [path]:
+      'import { readUnresolvedCloseoutIssues } from "@prism/contexts/read-models/closeout";',
+    }), []);
+    assert.deepEqual(findBoundaryViolations({ [path]:
+      'import { readEventAccessScope } from "@prism/contexts/read-models/event-scope";',
+    }), []);
+    assert.deepEqual(findBoundaryViolations({ [path]:
+      'import { readStoredConformeEvidence } from "@prism/contexts/read-models/file-evidence";',
+    }), []);
+    for (const imported of ['@prism/contexts/read-models/application/queries/closeout-issue-reader', '@prism/contexts/read-models/closeout/private', '@prism/contexts/read-models/event-scope/private', '@prism/contexts/read-models/file-evidence/private']) {
+      assert.deepEqual(findBoundaryViolations({ [path]: `import { reader } from "${imported}";` }), [
+        `${path}: backend code must use public context and kernel entrypoints`,
+      ]);
+    }
+  });
+
+  it("allows the focused conforme reminder claim seam only", () => {
+    const path = "apps/api/src/modules/platform-ops/application/ai-governance/conforme-comms-draft.service.ts";
+    assert.deepEqual(findBoundaryViolations({ [path]:
+      'import { CONFORME_REMINDER_WINDOW_CLAIMER } from "@prism/contexts/event-lifecycle/conforme-reminder-window";',
+    }), []);
+    for (const imported of ["@prism/contexts/event-lifecycle/application/onboarding/inquiries.service", "@prism/contexts/event-lifecycle/conforme-reminder-window/private"]) {
+      assert.deepEqual(findBoundaryViolations({ [path]: `import { InquiryService } from "${imported}";` }), [
+        `${path}: backend code must use public context and kernel entrypoints`,
+      ]);
+    }
+  });
+
+  it("allows focused owner reference capability seams only", () => {
+    const path = "apps/api/src/modules/commercial/application/billing/billing-adjustment.service.ts";
+    assert.deepEqual(findBoundaryViolations({ [path]:
+      'import { POST_EVENT_LIFECYCLE_STATE_READER } from "@prism/contexts/event-lifecycle/post-event-reference"; import { URGENT_ISSUE_REFERENCE_READER } from "@prism/contexts/live-ops/urgent-issue-reference";',
+    }), []);
+    for (const imported of [
+      "@prism/contexts/event-lifecycle/application/onboarding/post-event-lifecycle-state-reader.service",
+      "@prism/contexts/event-lifecycle/post-event-reference/private",
+      "@prism/contexts/live-ops/application/urgent-issue-reference-reader.service",
+      "@prism/contexts/live-ops/urgent-issue-reference/private",
+    ]) {
+      assert.deepEqual(findBoundaryViolations({ [path]: 'import { reader } from "' + imported + '";' }), [
+        path + ": backend code must use public context and kernel entrypoints",
+      ]);
+    }
+  });
+
+  it("allows Operations read projections only through the public guest event reader", () => {
+    const path = "apps/api/src/modules/operations/application/guest/guest-workflow.service.ts";
+    assert.deepEqual(findBoundaryViolations({ [path]:
+      'import { GUEST_EVENT_PROJECTION_READER } from "@prism/contexts/read-models/guest-events";',
+    }), []);
+    for (const imported of [
+      "@prism/contexts/read-models/application/services/guest-event-projection.service",
+      "@prism/contexts/read-models/guest-events/private",
+    ]) {
+      assert.deepEqual(findBoundaryViolations({ [path]: 'import { reader } from "' + imported + '";' }), [
+        path + ": backend code must use public context and kernel entrypoints",
+      ]);
+    }
+  });
+
+  it("allows focused account, commercial, and lifecycle read-model entrypoints only", () => {
+    const path = "apps/api/src/modules/event-lifecycle/application/compliance/compliance-workflow.service.ts";
+    for (const imported of [
+      "@prism/contexts/read-models/account-contacts",
+      "@prism/contexts/read-models/commercial-facts-reader",
+      "@prism/contexts/read-models/lifecycle-facts",
+    ]) {
+      assert.deepEqual(findBoundaryViolations({ [path]: `import { reader } from \"${imported}\";` }), []);
+      assert.deepEqual(findBoundaryViolations({ [path]: `import { reader } from \"${imported}/private\";` }), [
+        `${path}: backend code must use public context and kernel entrypoints`,
+      ]);
+    }
+  });
+
+  it("allows Operations to check linked coordinator identity through the public Identity seam", () => {
+    const path = "apps/api/src/modules/operations/application/staffing/coordinator-assignment-command.service.ts";
+    assert.deepEqual(findBoundaryViolations({ [path]:
+      'import { COORDINATOR_ACCOUNT_ELIGIBILITY_READER } from "@prism/contexts/identity-access/coordinator-reference";',
+    }), []);
+    for (const imported of [
+      "@prism/contexts/identity-access/application/coordinator-account-reference.service",
+      "@prism/contexts/identity-access/coordinator-reference/private",
+    ]) {
+      assert.deepEqual(findBoundaryViolations({ [path]: 'import { reader } from "' + imported + '";' }), [
+        path + ": backend code must use public context and kernel entrypoints",
+      ]);
+    }
+  });
+
+  it("allows the Operations owner reference capabilities only through their public seams", () => {
+    const path = "apps/api/src/modules/operations/application/guest/registration-platform.service.ts";
+    assert.deepEqual(findBoundaryViolations({ [path]:
+      'import { OPERATIONS_EVENT_REFERENCE_READER } from "@prism/contexts/event-lifecycle/operations-reference"; import { REGISTRATION_SUPPLIER_REFERENCE_READER } from "@prism/contexts/commercial/registration-supplier-reference";',
+    }), []);
+    for (const imported of [
+      "@prism/contexts/event-lifecycle/application/onboarding/operations-event-reference.service",
+      "@prism/contexts/event-lifecycle/operations-reference/private",
+      "@prism/contexts/commercial/application/suppliers/registration-supplier-reference.service",
+      "@prism/contexts/commercial/registration-supplier-reference/private",
+    ]) {
+      assert.deepEqual(findBoundaryViolations({ [path]: 'import { reader } from "' + imported + '";' }), [
+        path + ": backend code must use public context and kernel entrypoints",
+      ]);
+    }
+  });
+
+  it("confines provider SDK imports to gateway infrastructure after the PARE migration", () => {
+    const allowedAdapter = "apps/api/src/modules/platform-ops/infrastructure/ai-governance/anthropic.adapter.ts";
+    const migratedAgent = "apps/api/src/modules/platform-ops/application/ai-governance/pare/agents/budget.agent.ts";
+    const blockedPortal = "apps/event/src/features/pare/data/provider.ts";
+    const blockedBackend = "apps/api/src/modules/commercial/application/provider.ts";
+    const blockedSharedTypes = "packages/types/src/provider.ts";
+    const mockOnlyTest = "apps/api/src/modules/platform-ops/application/ai-governance/pare/pare-safety.test.ts";
+
+    assert.deepEqual(
+      findBoundaryViolations({
+        [allowedAdapter]: 'import Anthropic from "@anthropic-ai/sdk";',
+        [migratedAgent]: 'const sdk = await import("@anthropic-ai/sdk");',
+        [mockOnlyTest]: 'vi.mock("@anthropic-ai/sdk");',
+        [blockedPortal]: 'const sdk = await import("openai");',
+        [blockedBackend]: 'const sdk = require("@openrouter/sdk");',
+        [blockedSharedTypes]: 'import type { Anthropic } from "@anthropic-ai/sdk";',
+      }),
+      [
+        `${migratedAgent}: provider SDK imports must stay in AI gateway infrastructure`,
+        `${blockedPortal}: provider SDK imports must stay in AI gateway infrastructure`,
+        `${blockedBackend}: provider SDK imports must stay in AI gateway infrastructure`,
+        `${blockedSharedTypes}: provider SDK imports must stay in AI gateway infrastructure`,
+      ],
+    );
   });
 });

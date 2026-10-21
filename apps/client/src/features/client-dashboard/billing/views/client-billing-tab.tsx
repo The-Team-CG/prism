@@ -18,7 +18,7 @@ import {
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
-import type { PrismAuditLog, PrismBillingStatement, PrismBriefing, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone } from "@prism/types";
+import type { PrismAuditLog, PrismBillingStatement, PrismBriefing, PrismClientBillingDispute, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -40,18 +40,19 @@ import {
   portalStatusLabel,
 } from "../../shared/tab-ui";
 import type { DetailTab } from "../../workspace/shared";
+import { clientBillingSummary, clientMilestoneFollowUpCopy, clientMilestoneRemaining } from "../model/client-billing-rules";
 
 
 export function ClientBillingTab({
   payments,
   billing,
+  disputes = [],
 }: {
   payments: PrismPaymentMilestone[];
   billing?: PrismBillingStatement;
+  disputes?: PrismClientBillingDispute[];
 }) {
-  const totalPaid = payments.filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0);
-  const totalAmount = billing?.totalAmount ?? payments.reduce((s, p) => s + p.amount, 0);
-  const balance = totalAmount - totalPaid;
+  const { totalAmount, totalPaid, balance } = clientBillingSummary(payments, billing);
 
   return (
     <div className="space-y-5">
@@ -82,6 +83,29 @@ export function ClientBillingTab({
         </div>
       )}
 
+      {/* Dispute status: read-only; PMCM reasons and resolution notes are not shown to the client. */}
+      {disputes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <h2 className="text-sm font-bold text-foreground">Billing disputes</h2>
+            <p className="mt-1 text-xs text-muted-foreground">Status of disputes raised on your statement. PMCM will follow up on open items.</p>
+          </CardHeader>
+          <CardBody>
+            <div className="space-y-2">
+              {disputes.map((dispute) => (
+                <div key={dispute.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
+                  <div>
+                    <p className="text-sm font-bold text-foreground">{money.format(dispute.amount)} disputed</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Opened {formatDayLabel(dispute.createdAt)}{dispute.resolvedAt ? `, closed ${formatDayLabel(dispute.resolvedAt)}` : ""}</p>
+                  </div>
+                  <StatusBadge status={dispute.status} label={formatLabel(dispute.status)} />
+                </div>
+              ))}
+            </div>
+          </CardBody>
+        </Card>
+      )}
+
       {/* Milestones */}
       <Card>
         <CardHeader>
@@ -89,6 +113,9 @@ export function ClientBillingTab({
             <WalletCards className="size-4 text-(--prism-signal)" />
             <h2 className="text-sm font-bold text-foreground">Payment milestones</h2>
           </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Statements and payment milestones for your event. Internal cost estimates stay with PMCM.
+          </p>
         </CardHeader>
         <CardBody>
           {payments.length === 0 ? (
@@ -100,7 +127,8 @@ export function ClientBillingTab({
           ) : (
             <div className="space-y-3">
               {payments.map((payment, index) => {
-                const done = payment.status === "paid";
+                const remaining = clientMilestoneRemaining(payment);
+                const done = remaining <= 0 || payment.status === "paid";
                 return (
                   <div key={payment.id} className="relative grid grid-cols-[2rem_minmax(0,1fr)] gap-3">
                     {index < payments.length - 1 && (
@@ -121,9 +149,15 @@ export function ClientBillingTab({
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-base font-black text-foreground">{money.format(payment.amount)}</p>
+                          {remaining > 0 ? (
+                            <p className="mt-1 text-xs font-semibold text-(--prism-amber)">
+                              Remaining {money.format(remaining)}
+                            </p>
+                          ) : null}
                           <StatusBadge status={payment.status} label={formatLabel(payment.status)} className="mt-1" />
                         </div>
                       </div>
+                      <p className="mt-2 text-xs text-muted-foreground">{clientMilestoneFollowUpCopy(remaining)}</p>
                     </div>
                   </div>
                 );

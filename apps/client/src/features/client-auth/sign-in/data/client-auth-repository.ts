@@ -1,12 +1,22 @@
-import { PRISM_SESSION_STORAGE_KEYS, savePrismSession } from "@prism/types";
-import { prismApi, type PrivacyConsentInput } from "@/lib/prism-api";
-import type { PrismUser } from "@prism/types";
+import {
+  PRISM_SESSION_STORAGE_KEYS,
+  savePrismSession,
+  isPrismAuthenticatedSession,
+  type PrismAuthenticatedSession,
+  type PrivacyConsentInput,
+} from "@prism/types";
+import { clientApi } from "@/lib/prism-api";
 
-export type ClientAuthSession = Awaited<ReturnType<typeof prismApi.login>>;
+export type ClientAuthSession = PrismAuthenticatedSession;
 
 export const clientAuthRepository = {
   login(input: { email: string; password: string }): Promise<ClientAuthSession> {
-    return prismApi.login(input);
+    return clientApi.auth.login(input).then((response) => {
+      if (!isPrismAuthenticatedSession(response)) {
+        throw new Error("Client sign-in requires an authenticated session.");
+      }
+      return response;
+    });
   },
 
   saveClientSession(session: ClientAuthSession): void {
@@ -14,8 +24,14 @@ export const clientAuthRepository = {
   },
 
   requestApproval(email: string, consent: PrivacyConsentInput) {
-    return prismApi.requestApproval(email, consent);
+    return clientApi.auth.requestApproval({ email, ...consent });
+  },
+
+  requestPasswordReset(email: string) {
+    return clientApi.auth.requestPasswordReset(email);
+  },
+
+  consumePasswordReset(input: { token: string; password: string }) {
+    return clientApi.auth.consumePasswordReset(input.token, input.password);
   },
 };
-
-export type { PrismUser, PrivacyConsentInput };

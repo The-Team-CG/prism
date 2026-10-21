@@ -3,11 +3,14 @@ import {
   CalendarDays,
   FileText,
   Home,
+  MapPinned,
   MessageSquareText,
   WalletCards,
 } from "lucide-react";
 
 import type { ClientDashboardRoute, ClientPortalView, ClientSidebarLink, ClientSidebarNavItem, ClientSidebarSubItem, DetailTab } from "./client-dashboard-types";
+
+export const CLIENT_CONFORME_REVIEW_HREF = "/conforme";
 
 export const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
   {
@@ -16,6 +19,13 @@ export const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
     icon: Home,
     section: "Client Portal",
     route: "home",
+  },
+  {
+    id: "shared-floorplans",
+    label: "Shared floorplans",
+    icon: MapPinned,
+    section: "Client Portal",
+    route: "shared-floorplans",
   },
   {
     id: "my-events",
@@ -83,6 +93,7 @@ export const EVENT_WORKSPACE_NAV_ITEMS: ClientSidebarSubItem[] = [
 
 export const PORTAL_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, string>> = {
   home: "client-dashboard",
+  "shared-floorplans": "shared-floorplans",
   request: "client-dashboard",
   events: "my-events",
   calendar: "calendar",
@@ -232,45 +243,73 @@ export const CLIENT_PORTAL_VIEW_META: Record<ClientPortalView, { title: string; 
   "billing-balance": { title: "Balance", description: "Remaining balance and current payment status." },
 };
 
+function isPortalChromeView(portalView: ClientPortalView) {
+  return (
+    !portalView.startsWith("events-") &&
+    !portalView.startsWith("dashboard-") &&
+    !portalView.startsWith("files-") &&
+    !portalView.startsWith("calendar-")
+  );
+}
+
 export function sidebarActiveItemId(
   route: ClientDashboardRoute,
   eventScoped: boolean,
   portalView?: ClientPortalView,
 ) {
   if (eventScoped) return "my-events";
-  if (
-    portalView &&
-    !portalView.startsWith("events-") &&
-    !portalView.startsWith("dashboard-") &&
-    !portalView.startsWith("files-") &&
-    !portalView.startsWith("calendar-")
-  ) {
-    return portalView;
-  }
+  if (portalView && isPortalChromeView(portalView)) return portalView;
   return activeNavItemId(route, false);
 }
 
+const PORTAL_HREFS: Partial<Record<ClientDashboardRoute, string>> = {
+  home: "/dashboard",
+  "shared-floorplans": "/dashboard/shared-floorplans",
+  request: "/dashboard/request",
+  events: "/dashboard/events",
+  calendar: "/dashboard/calendar",
+  approvals: "/dashboard/approvals",
+  messages: "/dashboard/messages",
+  files: "/dashboard/files",
+  billing: "/dashboard/billing",
+};
+
+const EVENT_PATH_SEGMENT: Partial<Record<ClientDashboardRoute, string>> = {
+  floorplan: "floor-plan",
+  payments: "billing",
+  files: "documents",
+};
+
 export function dashboardHref(route: ClientDashboardRoute, eventId?: string, portalView?: ClientPortalView) {
   if (!eventId && portalView) return CLIENT_PORTAL_VIEW_HREFS[portalView];
-  if (route === "home") return "/dashboard";
-  if (route === "request") return "/dashboard/request";
-  if (route === "events") return "/dashboard/events";
-  if (!eventId && ["calendar", "approvals", "messages", "files", "billing"].includes(route)) {
-    return `/dashboard/${route}`;
-  }
-  if (!eventId) return "/dashboard/events";
-  const section =
-    route === "floorplan" ? "floor-plan"
-    : route === "payments" ? "billing"
-    : route === "files" ? "documents"
-    : route;
-  return `/dashboard/events/${eventId}/${section}`;
+  if (!eventId) return PORTAL_HREFS[route] ?? "/dashboard/events";
+  return `/dashboard/events/${eventId}/${EVENT_PATH_SEGMENT[route] ?? route}`;
+}
+
+export function clientEventCardOpenRoute(event: { archived: boolean }): ClientDashboardRoute {
+  return event.archived ? "summary" : "overview";
+}
+
+export function clientEventWorkspaceAvailable(event: { archived: boolean } | undefined): boolean {
+  return Boolean(event && !event.archived);
+}
+
+const LOADING_ROUTE_VARIANTS = {
+  request: "request",
+  events: "events",
+  floorplan: "floorplan",
+  messages: "messages",
+  home: "home",
+} as const;
+
+type LoadingRouteVariant = keyof typeof LOADING_ROUTE_VARIANTS;
+
+function isLoadingRouteVariant(route: ClientDashboardRoute): route is LoadingRouteVariant {
+  return route in LOADING_ROUTE_VARIANTS;
 }
 
 export function dashboardLoadingVariant(route: ClientDashboardRoute) {
-  if (route === "request" || route === "events" || route === "floorplan" || route === "messages" || route === "home") {
-    return route;
-  }
+  if (isLoadingRouteVariant(route)) return LOADING_ROUTE_VARIANTS[route];
   return "event";
 }
 

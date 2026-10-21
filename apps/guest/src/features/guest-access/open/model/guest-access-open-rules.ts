@@ -1,14 +1,14 @@
 import type { PrismGuestEventPass } from "@prism/types";
 import type { GuestAccessOpenDraft, GuestSession } from "./guest-access-open-types";
 
-export { GUEST_API_OFFLINE_MESSAGE as GUEST_ACCESS_API_OFFLINE_MESSAGE } from "@/features/guest-shared/guest-http";
+export { GUEST_API_OFFLINE_MESSAGE as GUEST_ACCESS_API_OFFLINE_MESSAGE } from "@/features/guest-shared/guest-messages";
 
 export function normalizeAccessCode(raw: string): string {
   return raw.trim().toUpperCase();
 }
 
 export function isOpenDraftValid(draft: GuestAccessOpenDraft): boolean {
-  return draft.guestName.trim().length > 0 && draft.accessCode.trim().length > 0;
+  return draft.accessCode.trim().length > 0;
 }
 
 export function encodeAccessCodePath(accessCode: string): string {
@@ -17,12 +17,18 @@ export function encodeAccessCodePath(accessCode: string): string {
 
 export function buildGuestSession(
   event: PrismGuestEventPass,
-  guestName: string,
   openedAt: string = new Date().toISOString(),
 ): GuestSession {
   return {
-    ...event,
-    guestName: guestName.trim(),
+    id: event.id,
+    eventName: event.eventName,
+    eventDate: event.eventDate,
+    clientName: event.clientName,
+    readiness: event.readiness,
+    floorPlanStatus: event.floorPlanStatus,
+    ...(event.activeFloorPlanDraftId ? { activeFloorPlanDraftId: event.activeFloorPlanDraftId } : {}),
+    guestAccessCode: event.guestAccessCode,
+    watermark: event.watermark,
     openedAt,
   };
 }

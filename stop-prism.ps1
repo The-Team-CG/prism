@@ -1,37 +1,20 @@
 [CmdletBinding()]
 param(
-  # Prefer stop-prism-docker.cmd. Stops compose stacks only (not local Node).
+  # Prefer stop-prism-docker.cmd. Stops Compose apps and local Supabase.
   [switch]$Docker,
   # When used with -Docker, also remove named volumes.
   [switch]$Volumes,
   # Stop both Docker stacks and local Node processes.
-  [switch]$All,
-  [int[]]$Ports = @(3000, 3001, 3002, 3003, 3004, 4000)
+  [switch]$All
 )
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $root
 
-$logRoot = Join-Path $root ".local-dev\logs"
-$pidFile = Join-Path $logRoot "pids.csv"
-
-function Stop-PidTree {
-  param([int]$ProcessId)
-  if ($ProcessId -le 0) { return }
-  try { & taskkill.exe /PID $ProcessId /F /T 2>$null | Out-Null } catch {}
-  try { Stop-Process -Id $ProcessId -Force -ErrorAction SilentlyContinue } catch {}
-}
-
-function Get-ListeningPortPids {
-  param([int]$Port)
-  $pattern = "^\s*TCP\s+\S+:$Port\s+\S+\s+LISTENING\s+(\d+)"
-  netstat -ano | Select-String -Pattern $pattern | ForEach-Object {
-    if ($_.Line -match $pattern) { [int]$Matches[1] }
-  }
-}
-
 function Stop-DockerStacks {
+  & node.exe (Join-Path $root "scripts\compose-watch.mjs") stop
+  if ($LASTEXITCODE -ne 0) { throw "Could not stop Compose Watch." }
   if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Write-Host "Docker not on PATH; skipping compose down."
     return
@@ -56,49 +39,41 @@ function Stop-DockerStacks {
   }
 }
 
+function Stop-LocalDatabase {
+  & node.exe (Join-Path $root "scripts\local-supabase.mjs") stop
+  if ($LASTEXITCODE -ne 0) { throw "Could not stop local Supabase. Check Docker and service logs." }
+}
+
 function Stop-LocalProcesses {
-  $targetPids = @()
+  $portsScript = Join-Path $root "scripts\prism-ports.mjs"
+  $json = & node.exe $portsScript --json
+  if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($json -join ""))) {
+    throw "Unable to resolve current-checkout P.R.I.S.M ports."
+  }
+  try {
+    $portInfo = ($json -join "`n") | ConvertFrom-Json
+  } catch {
+    throw "The P.R.I.S.M port resolver returned invalid JSON: $($_.Exception.Message)"
+  }
 
-  if (Test-Path -LiteralPath $pidFile) {
-    Import-Csv -LiteralPath $pidFile | ForEach-Object {
-      $recordedPid = 0
-      if ([int]::TryParse($_.pid, [ref]$recordedPid)) {
-        $targetPids += $recordedPid
-      }
+  foreach ($app in @("api", "client", "supplier", "guest", "event")) {
+    $port = $portInfo.ports.$app
+    Write-Host "Asking the lease-aware guard to stop $app on port $port"
+    & node.exe (Join-Path $root "scripts\kill-prism-port.cjs") --app $app --port $port --root $root
+    if ($LASTEXITCODE -eq 0) {
+      Write-Host "Stopped owned $app processes."
+    } elseif ($LASTEXITCODE -eq 1) {
+      Write-Warning "The $app port was not cleared because ownership could not be proven; foreign and unleased processes were preserved."
+    } else {
+      throw "The lease-aware $app port guard failed with exit code $LASTEXITCODE."
     }
-  }
-
-  foreach ($port in $Ports) {
-    $targetPids += Get-ListeningPortPids -Port $port
-  }
-
-  $targetPids = $targetPids | Sort-Object -Unique
-  if ($targetPids.Count -eq 0) {
-    Write-Host "No local P.R.I.S.M Node processes were found."
-    return
-  }
-
-  foreach ($targetPid in $targetPids) {
-    Write-Host "Stopping local PID $targetPid"
-    Stop-PidTree -ProcessId $targetPid
-  }
-
-  Start-Sleep -Seconds 1
-
-  $remaining = foreach ($port in $Ports) {
-    Get-ListeningPortPids -Port $port
-  }
-  if ($remaining) {
-    $remaining = $remaining | Sort-Object -Unique
-    Write-Warning "Some localhost listeners are still running: $($remaining -join ', ')"
-  } else {
-    Write-Host "Stopped local P.R.I.S.M Node apps."
   }
 }
 
 if ($Docker -and -not $All) {
-  Write-Host "Stopping Docker stacks only."
+  Write-Host "Stopping Docker apps and local Supabase."
   Stop-DockerStacks
+  Stop-LocalDatabase
   Write-Host "P.R.I.S.M Docker stop complete."
   exit 0
 }
@@ -107,11 +82,13 @@ if ($All) {
   Write-Host "Stopping Docker stacks and local Node processes."
   Stop-DockerStacks
   Stop-LocalProcesses
+  Stop-LocalDatabase
   Write-Host "P.R.I.S.M stop complete (all)."
   exit 0
 }
 
-Write-Host "Stopping local Node processes only (not Docker)."
+Write-Host "Stopping local Node apps and local Supabase."
 Stop-LocalProcesses
+Stop-LocalDatabase
 Write-Host "P.R.I.S.M local stop complete."
 Write-Host "Docker: .\stop-prism-docker.cmd"

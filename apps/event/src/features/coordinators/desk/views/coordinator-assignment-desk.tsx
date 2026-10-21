@@ -1,26 +1,35 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, UserCheck, UsersRound } from "lucide-react";
+import { UserCheck } from "lucide-react";
 
-import type { PrismCoordinator, PrismCoordinatorRoleRequirement } from "@/lib/prism-api";
-import type { PrismCoordinatorAssignment, PrismEvent } from "@prism/types";
+import type {
+  CoordinatorRole,
+  CreateCoordinatorAvailabilityInput,
+  CreateCoordinatorCoverageRequirementInput,
+  PrismAcknowledgementReminderResult,
+  PrismCoordinator,
+  PrismCoordinatorAssignment,
+  PrismCoordinatorAvailability,
+  PrismCoordinatorReliabilityHistoryEntry,
+  PrismCoordinatorSuggestion,
+  PrismEvent,
+  PrismEventOperatorDesignation,
+} from "@prism/types";
+import { COORDINATOR_ROLES, canonicalCoordinatorRole } from "@prism/types";
 import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { dateKey } from "@/features/pmcm-kit";
+import { coordinatorSkillFilterOptions, isCoordinatorAssignmentActive, isOperatorEligibleAssignment } from "../model/coordinators-desk-rules";
+import { PendingAcknowledgmentsPanel } from "./coordinator-acknowledgment-panel";
+import { CoordinatorAvailabilityCard } from "./coordinator-availability-card";
+import { CoordinatorReliabilityHistory } from "./coordinator-reliability-history";
+import { CoverageTargetCard, StaffingSummary, type CoverageRequirement } from "./coordinator-coverage-cards";
+import { Card, CardBody, CardHeader } from "./coordinator-desk-primitives";
+import { OperatorDesignationCard } from "./coordinator-operator-card";
 
-function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-border bg-card shadow-sm ${className}`}>{children}</div>;
-}
-function CardHeader({ children }: { children: React.ReactNode }) {
-  return <div className="border-b border-border px-6 py-4">{children}</div>;
-}
-function CardBody({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`px-6 py-5 ${className}`}>{children}</div>;
-}
-function SectionAccent({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">{children}</p>;
-}
+type SuggestionLoadStatus = "idle" | "loading" | "loaded" | "empty" | "error";
+type CoordinatorIdentity = Pick<PrismCoordinator, "id" | "name">;
 
 function coordinatorRoleTags(coordinator: PrismCoordinator) {
   const legacy = coordinator as PrismCoordinator & { roles?: string[] };
@@ -36,144 +45,163 @@ export function CoordinatorAssignmentDesk({
   roleRequirements,
   busy,
   onAssign,
+  onLoadSuggestions,
+  onSaveCoverage,
+  onSendReminders,
+  onDesignateOperator,
+  onLoadOperator,
+  onLoadAvailability,
+  onLoadReliabilityHistory,
+  onCreateAvailability,
+  onDeleteAvailability,
 }: {
   event: PrismEvent;
   coordinators: PrismCoordinator[];
   assignments: PrismCoordinatorAssignment[];
-  roleRequirements: PrismCoordinatorRoleRequirement[];
+  roleRequirements: CoverageRequirement[];
   busy: boolean;
-  onAssign: (coordinator: PrismCoordinator, role: string, overrideConflict?: boolean) => Promise<void>;
+  onAssign: (coordinator: CoordinatorIdentity, role: CoordinatorRole, overrideConflict?: boolean) => Promise<void>;
+  onLoadSuggestions: (role: CoordinatorRole, skills: string[]) => Promise<PrismCoordinatorSuggestion[]>;
+  onSaveCoverage: (input: CreateCoordinatorCoverageRequirementInput) => Promise<boolean>;
+  onSendReminders: () => Promise<PrismAcknowledgementReminderResult | null>;
+  onDesignateOperator: (coordinatorId: string) => Promise<boolean>;
+  onLoadOperator: () => Promise<PrismEventOperatorDesignation["operator"]>;
+  onLoadAvailability: (coordinatorId: string) => Promise<PrismCoordinatorAvailability[]>;
+  onLoadReliabilityHistory: (coordinatorId: string) => Promise<PrismCoordinatorReliabilityHistoryEntry[]>;
+  onCreateAvailability: (coordinatorId: string, input: CreateCoordinatorAvailabilityInput) => Promise<boolean>;
+  onDeleteAvailability: (coordinatorId: string, availabilityId: string) => Promise<boolean>;
 }) {
-  const [roleFilter, setRoleFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState<CoordinatorRole | "all">("all");
   const [onlyAvailable, setOnlyAvailable] = useState(true);
   const [pendingConflict, setPendingConflict] = useState<{
-    coordinator: PrismCoordinator;
-    role: string;
+    coordinator: CoordinatorIdentity;
+    role: CoordinatorRole;
     conflict: PrismCoordinatorAssignment;
   } | null>(null);
-  const [ackPanelOpen, setAckPanelOpen] = useState(true);
-
-  const pendingAcknowledgments = assignments.filter((a) => a.status === "pending_acknowledgement");
+  const [editingTarget, setEditingTarget] = useState<CoverageRequirement | null>(null);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [skillSuggestions, setSkillSuggestions] = useState<PrismCoordinatorSuggestion[]>([]);
+  const [skillSuggestionStatus, setSkillSuggestionStatus] = useState<SuggestionLoadStatus>("idle");
+  const [conflictSuggestions, setConflictSuggestions] = useState<PrismCoordinatorSuggestion[]>([]);
+  const [conflictSuggestionStatus, setConflictSuggestionStatus] = useState<SuggestionLoadStatus>("idle");
 
   const eventDate = dateKey(event.eventDate);
+  // assignments spans every event so double-booking can be spotted; everything else here is about this event only.
   const eventAssignments = assignments.filter((a) => a.eventId === event.id);
+  const pendingAcknowledgments = eventAssignments.filter((a) => a.status === "pending_acknowledgement");
+  const operatorCandidates = eventAssignments.filter(isOperatorEligibleAssignment);
 
-  const roleOptions = useMemo(
-    () =>
-      Array.from(
-        new Set([
-          ...roleRequirements.map((r) => r.role),
-          ...coordinators.flatMap(coordinatorRoleTags),
-        ]),
-      ).sort((a, b) => a.localeCompare(b)),
-    [coordinators, roleRequirements],
+  const roleOptions = COORDINATOR_ROLES;
+  const skillOptions = useMemo(
+    () => coordinatorSkillFilterOptions(coordinators, roleFilter),
+    [coordinators, roleFilter],
   );
 
   const assignmentCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    eventAssignments.forEach((a) => {
+    eventAssignments.filter(isCoordinatorAssignmentActive).forEach((a) => {
       counts.set(a.role, (counts.get(a.role) ?? 0) + 1);
     });
     return counts;
   }, [eventAssignments]);
 
-  function conflictFor(coordinator: PrismCoordinator) {
+  function conflictFor(coordinatorId: string) {
     return assignments.find(
       (a) =>
-        a.coordinatorId === coordinator.id &&
+        a.coordinatorId === coordinatorId &&
         a.eventId !== event.id &&
+        isCoordinatorAssignmentActive(a) &&
         dateKey(a.eventDate) === eventDate,
     );
   }
 
   const filteredCoordinators = coordinators.filter((c) => {
     if (!c.active) return false;
-    if (roleFilter !== "all" && !coordinatorRoleTags(c).includes(roleFilter)) return false;
-    if (onlyAvailable && conflictFor(c)) return false;
+    if (roleFilter !== "all" && !coordinatorRoleTags(c).some((tag) => canonicalCoordinatorRole(tag) === roleFilter)) return false;
+    if (onlyAvailable && conflictFor(c.id)) return false;
     return true;
   });
 
   const groupedRoles = roleFilter === "all" ? roleOptions : [roleFilter];
 
-  async function assign(coordinator: PrismCoordinator, role: string) {
-    const conflict = conflictFor(coordinator);
+  async function assign(coordinator: CoordinatorIdentity, role: CoordinatorRole) {
+    const conflict = conflictFor(coordinator.id);
     if (conflict) {
       setPendingConflict({ coordinator, role, conflict });
+      setConflictSuggestions([]);
+      setConflictSuggestionStatus("loading");
+      try {
+        const suggestions = await onLoadSuggestions(role, []);
+        setConflictSuggestions(suggestions);
+        setConflictSuggestionStatus(suggestions.length > 0 ? "loaded" : "empty");
+      } catch {
+        setConflictSuggestionStatus("error");
+      }
       return;
     }
     await onAssign(coordinator, role);
   }
 
+  async function findSkillSuggestions() {
+    if (roleFilter === "all") return;
+    setSkillSuggestionStatus("loading");
+    setSkillSuggestions([]);
+    try {
+      const suggestions = await onLoadSuggestions(roleFilter, selectedSkills);
+      setSkillSuggestions(suggestions);
+      setSkillSuggestionStatus(suggestions.length > 0 ? "loaded" : "empty");
+    } catch {
+      setSkillSuggestionStatus("error");
+    }
+  }
+
+  function updateSelectedSkill(skill: string, checked: boolean) {
+    setSelectedSkills((current) => checked
+      ? [...current, skill]
+      : current.filter((item) => item !== skill));
+    setSkillSuggestions([]);
+    setSkillSuggestionStatus("idle");
+  }
+
   return (
     <div className="space-y-5">
-      {/* Pending acknowledgments */}
-      {pendingAcknowledgments.length > 0 && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <UserCheck className="size-4 text-(--prism-amber)" />
-                <h2 className="text-sm font-bold text-foreground">Pending Acknowledgments</h2>
-                <span className="rounded-full bg-(--prism-amber)/10 px-2 py-0.5 text-[10px] font-bold text-(--prism-amber)">
-                  {pendingAcknowledgments.length}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setAckPanelOpen((prev) => !prev)}
-                className="grid size-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted"
-              >
-                <ChevronDown className={`size-4 transition-transform ${ackPanelOpen ? "rotate-180" : ""}`} />
-              </button>
-            </div>
-          </CardHeader>
-          {ackPanelOpen && (
-            <CardBody className="space-y-1">
-              {pendingAcknowledgments.map((asg) => (
-                <div key={asg.id} className="flex items-center justify-between gap-4 rounded-xl bg-muted/30 px-4 py-2.5">
-                  <p className="text-sm font-bold text-foreground">{asg.coordinatorName}</p>
-                  <span className="rounded-full border border-(--prism-amber)/25 bg-(--prism-amber)/8 px-2 py-0.5 text-[10px] font-bold text-(--prism-amber)">{asg.role}</span>
-                </div>
-              ))}
-            </CardBody>
-          )}
-        </Card>
-      )}
+      <PendingAcknowledgmentsPanel assignments={pendingAcknowledgments} busy={busy} onSendReminders={onSendReminders} />
 
-      {/* Staffing summary */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <UsersRound className="size-4 text-(--prism-signal)" />
-            <h2 className="text-sm font-bold text-foreground">Staffing summary</h2>
-          </div>
-        </CardHeader>
-        <CardBody>
-          {roleRequirements.length === 0 ? (
-            <EmptyState icon={UsersRound} title="No role requirements" description="Add role requirements to start tracking staffing coverage." />
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {roleRequirements.map((req) => {
-                const assigned = assignmentCounts.get(req.role) ?? 0;
-                const complete = assigned >= req.required;
-                return (
-                  <div key={req.role} className="rounded-xl border border-border bg-muted/30 p-3.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-bold text-foreground">{req.role}</p>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${complete ? "bg-(--prism-success)/10 text-(--prism-success)" : "bg-(--prism-amber)/10 text-(--prism-amber)"}`}>
-                        {assigned}/{req.required}
-                      </span>
-                    </div>
-                    <p className="mt-1.5 text-xs text-muted-foreground">
-                      {complete ? "Covered for this event." : "Still needs staffing."}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardBody>
-      </Card>
+      <StaffingSummary roleRequirements={roleRequirements} assignmentCounts={assignmentCounts} onEdit={setEditingTarget} />
+
+      <CoordinatorReliabilityHistory
+        coordinators={coordinators}
+        assignments={assignments}
+        onLoad={onLoadReliabilityHistory}
+      />
+
+      <div className="grid gap-5 xl:grid-cols-3">
+        <CoverageTargetCard
+          key={editingTarget?.role ?? "new-target"}
+          busy={busy}
+          roleOptions={roleOptions}
+          editing={editingTarget}
+          onSave={onSaveCoverage}
+          onClearEdit={() => setEditingTarget(null)}
+        />
+        <OperatorDesignationCard
+          eventId={event.id}
+          candidates={operatorCandidates}
+          busy={busy}
+          onLoadOperator={onLoadOperator}
+          onDesignate={onDesignateOperator}
+        />
+        <CoordinatorAvailabilityCard
+          eventId={event.id}
+          eventDate={eventDate}
+          coordinators={coordinators}
+          assignments={eventAssignments}
+          busy={busy}
+          onLoad={onLoadAvailability}
+          onCreate={onCreateAvailability}
+          onDelete={onDeleteAvailability}
+        />
+      </div>
 
       {/* Coordinator assignment */}
       <Card>
@@ -190,8 +218,16 @@ export function CoordinatorAssignmentDesk({
               <div>
                 <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">Role</p>
                 <select
+                  aria-label="Coordinator role filter"
                   value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
+                  disabled={skillSuggestionStatus === "loading"}
+                  onChange={(e) => {
+                    const nextRole = e.target.value === "all" ? "all" : canonicalCoordinatorRole(e.target.value) ?? "all";
+                    setRoleFilter(nextRole);
+                    setSelectedSkills([]);
+                    setSkillSuggestions([]);
+                    setSkillSuggestionStatus("idle");
+                  }}
                   className="mt-2 h-9 w-full rounded-xl border border-border bg-background px-3 text-sm"
                 >
                   <option value="all">All roles</option>
@@ -207,15 +243,26 @@ export function CoordinatorAssignmentDesk({
                 />
                 Available only
               </label>
+              <CoordinatorSkillFilters roleFilter={roleFilter} status={skillSuggestionStatus} options={skillOptions} selected={selectedSkills} onChange={updateSelectedSkill} />
+              <Button
+                type="button"
+                size="sm"
+                disabled={roleFilter === "all" || skillSuggestionStatus === "loading"}
+                onClick={() => void findSkillSuggestions()}
+                className="w-full"
+              >
+                Find skill matches
+              </Button>
             </div>
 
             {/* Coordinator list */}
             <div className="space-y-5">
+              <CoordinatorSkillResults status={skillSuggestionStatus} suggestions={skillSuggestions} busy={busy} onAssign={assign} />
               {filteredCoordinators.length === 0 ? (
                 <EmptyState icon={UserCheck} title="No coordinators match" description="Adjust role or availability filters to see more coordinators." />
               ) : (
                 groupedRoles.map((role) => {
-                  const roleCoords = filteredCoordinators.filter((c) => coordinatorRoleTags(c).includes(role));
+                  const roleCoords = filteredCoordinators.filter((c) => coordinatorRoleTags(c).some((tag) => canonicalCoordinatorRole(tag) === role));
                   if (roleCoords.length === 0) return null;
                   return (
                     <div key={role}>
@@ -225,9 +272,9 @@ export function CoordinatorAssignmentDesk({
                       </div>
                       <div className="grid gap-3 lg:grid-cols-2">
                         {roleCoords.map((coord) => {
-                          const conflict = conflictFor(coord);
+                          const conflict = conflictFor(coord.id);
                           const assignedHere = eventAssignments.some(
-                            (a) => a.coordinatorId === coord.id && a.role === role,
+                            (a) => a.coordinatorId === coord.id && canonicalCoordinatorRole(a.role) === role,
                           );
                           return (
                             <div key={`${role}-${coord.id}`} className="rounded-2xl border border-border bg-muted/30 p-4">
@@ -308,18 +355,51 @@ export function CoordinatorAssignmentDesk({
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4">
           <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
             <Badge variant="outline" className="rounded-full border-(--prism-amber)/25 bg-(--prism-amber)/8 text-(--prism-amber)">
-              Double-booking warning
+              Double-booking blocked
             </Badge>
-            <h3 className="mt-4 text-base font-bold text-foreground">Confirm coordinator assignment</h3>
+            <h3 className="mt-4 text-base font-bold text-foreground">Choose another coordinator</h3>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
               {pendingConflict.coordinator.name} is already assigned to{" "}
-              {pendingConflict.conflict.conflictEventName ?? "another event"} on this date. Are you sure you want to assign them?
+              {pendingConflict.conflict.conflictEventName ?? "another event"} on this date. Assign a free
+              same-role coordinator instead.
             </p>
+            <div className="mt-4 space-y-2">
+              {conflictSuggestionStatus === "loading" && <p role="status" className="text-sm text-muted-foreground">Finding available {pendingConflict.role.toLowerCase()} coordinators…</p>}
+              {conflictSuggestionStatus === "error" && <p role="status" className="text-sm text-destructive">Could not load coordinator suggestions. You can cancel or keep the explicit override.</p>}
+              {conflictSuggestionStatus === "empty" && <p role="status" className="text-sm text-muted-foreground">No available same-role coordinators were found.</p>}
+              {conflictSuggestions.map((suggestion) => {
+                const suggestionRole = canonicalCoordinatorRole(suggestion.role);
+                if (!suggestionRole) return null;
+                return (
+                  <div key={suggestion.id} className="rounded-xl border border-border bg-muted/30 p-3">
+                    <p className="text-sm font-semibold text-foreground">{suggestion.name}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {suggestion.matchedSkillCount} of {suggestion.requiredSkillCount} required skills matched
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">Matched: {suggestion.matchedSkills.join(", ") || "None"}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Missing: {suggestion.missingSkills.join(", ") || "None"}</p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={busy}
+                      className="mt-2 w-full justify-start rounded-xl font-bold"
+                      onClick={async () => {
+                        setPendingConflict(null);
+                        await onAssign({ id: suggestion.id, name: suggestion.name }, suggestionRole);
+                      }}
+                    >
+                      Assign {suggestion.name}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
             <div className="mt-5 flex justify-end gap-2">
               <Button variant="outline" className="rounded-xl font-bold" onClick={() => setPendingConflict(null)}>
                 Cancel
               </Button>
               <Button
+                variant="outline"
                 disabled={busy}
                 className="rounded-xl font-bold"
                 onClick={async () => {
@@ -328,7 +408,7 @@ export function CoordinatorAssignmentDesk({
                   await onAssign(next.coordinator, next.role, true);
                 }}
               >
-                Yes, assign anyway
+                Override and assign anyway
               </Button>
             </div>
           </div>
@@ -336,4 +416,79 @@ export function CoordinatorAssignmentDesk({
       )}
     </div>
   );
+}
+
+function CoordinatorSkillFilters({ roleFilter, status, options, selected, onChange }: {
+  roleFilter: CoordinatorRole | "all";
+  status: SuggestionLoadStatus;
+  options: string[];
+  selected: string[];
+  onChange: (skill: string, checked: boolean) => void;
+}) {
+  return (
+              <fieldset disabled={roleFilter === "all" || status === "loading"} className="space-y-2">
+                <legend className="text-sm font-semibold text-foreground">Required skill tags</legend>
+                {roleFilter === "all" ? (
+                  <p className="text-xs leading-5 text-muted-foreground">Choose a role to filter by skill.</p>
+                ) : options.length === 0 ? (
+                  <p className="text-xs leading-5 text-muted-foreground">No skill tags are recorded for this role.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {options.map((skill) => (
+                      <label key={skill} className="flex items-center gap-2 rounded-lg px-1 py-1 text-sm text-foreground">
+                        <input
+                          type="checkbox"
+                          checked={selected.includes(skill)}
+                          onChange={(e) => onChange(skill, e.target.checked)}
+                          className="size-4 rounded"
+                        />
+                        {skill}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </fieldset>
+  );
+}
+
+function CoordinatorSkillResults({ status, suggestions, busy, onAssign }: {
+  status: SuggestionLoadStatus;
+  suggestions: PrismCoordinatorSuggestion[];
+  busy: boolean;
+  onAssign: (coordinator: CoordinatorIdentity, role: CoordinatorRole) => Promise<void>;
+}) {
+  return <>
+              {status === "loading" && <p role="status" className="text-sm text-muted-foreground">Loading skill matches…</p>}
+              {status === "error" && <p role="status" className="text-sm text-destructive">Could not load skill matches. Try again.</p>}
+              {status === "empty" && <p role="status" className="text-sm text-muted-foreground">No coordinators match this role and skill selection.</p>}
+              {status === "loaded" && (
+                <section aria-labelledby="coordinator-skill-suggestions-title" className="space-y-3 rounded-2xl border border-border bg-card p-4">
+                  <h3 id="coordinator-skill-suggestions-title" className="text-sm font-bold text-foreground">Skill match suggestions</h3>
+                  {suggestions.map((suggestion) => {
+                    const suggestionRole = canonicalCoordinatorRole(suggestion.role);
+                    if (!suggestionRole) return null;
+                    return (
+                      <div key={suggestion.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 p-3">
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold text-foreground">{suggestion.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {suggestion.matchedSkillCount} of {suggestion.requiredSkillCount} required skills matched
+                          </p>
+                          <p className="text-xs text-muted-foreground">Matched: {suggestion.matchedSkills.join(", ") || "None"}</p>
+                          <p className="text-xs text-muted-foreground">Missing: {suggestion.missingSkills.join(", ") || "None"}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => void onAssign({ id: suggestion.id, name: suggestion.name }, suggestionRole)}
+                        >
+                          Assign {suggestion.name}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </section>
+              )}
+  </>;
 }

@@ -1,12 +1,14 @@
 import { supplierWorkspaceRepository } from "../data/supplier-workspace-repository";
+import { supplierWorkflowRepository } from "../data/supplier-workflow-repository";
 import {
   eventStatusSuccessNotice,
   parseQuoteForm,
   quoteSubmitSuccessNotice,
 } from "../model/supplier-workspace-rules";
-import type { PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierSession, SupplierWorkspace } from "../model/supplier-workspace-types";
+import type { PrismAuthenticatedSession, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, PrismSupplierWorkflowWorkspace } from "@prism/types";
+import type { PrismSupplier, QuoteFormState, SupplierWorkspace } from "../model/supplier-workspace-types";
 
-export function loadSupplierDashboardSession(): SupplierSession | null {
+export function loadSupplierDashboardSession(): PrismAuthenticatedSession | null {
   return supplierWorkspaceRepository.readSession();
 }
 
@@ -14,15 +16,17 @@ export function signOutSupplier(): void {
   supplierWorkspaceRepository.clearSession();
 }
 
-export async function loadSupplierWorkspace(session: SupplierSession): Promise<{
+export async function loadSupplierWorkspace(session: PrismAuthenticatedSession): Promise<{
   workspace: SupplierWorkspace;
   readinessBoard: PrismSupplierReadinessBoard | null;
+  workflows: PrismSupplierWorkflowWorkspace;
 }> {
-  const [workspace, readinessBoard] = await Promise.all([
+  const [workspace, readinessBoard, workflows] = await Promise.all([
     supplierWorkspaceRepository.fetchWorkspace(session),
     supplierWorkspaceRepository.fetchReadinessBoard(session).catch(() => null),
+    supplierWorkflowRepository.fetch(session),
   ]);
-  return { workspace, readinessBoard };
+  return { workspace, readinessBoard, workflows };
 }
 
 export async function submitOrReviseQuote(input: {
@@ -43,7 +47,7 @@ export async function submitOrReviseQuote(input: {
 }
 
 export async function confirmSupplierAssignment(
-  session: SupplierSession,
+  session: PrismAuthenticatedSession,
   request: PrismSupplierQuoteRequest,
 ): Promise<{ notice: string }> {
   await supplierWorkspaceRepository.confirmAssignment(session, request.id);
@@ -51,7 +55,7 @@ export async function confirmSupplierAssignment(
 }
 
 export async function confirmSupplierReadiness(
-  session: SupplierSession,
+  session: PrismAuthenticatedSession,
   request: PrismSupplierQuoteRequest,
   notes: string,
 ): Promise<{ notice: string }> {
@@ -60,16 +64,44 @@ export async function confirmSupplierReadiness(
 }
 
 export async function saveSupplierContract(
-  session: SupplierSession,
+  session: PrismAuthenticatedSession,
+  supplier: PrismSupplier,
   request: PrismSupplierQuoteRequest,
-  fileName: string,
+  file: File,
 ): Promise<{ notice: string }> {
-  await supplierWorkspaceRepository.uploadContract(session, request.id, fileName);
-  return { notice: "Contract metadata saved." };
+  await supplierWorkflowRepository.uploadContract(session, supplier, request, file);
+  return { notice: "Contract uploaded for PMCM review." };
+}
+
+export async function acknowledgeSupplierSchedule(session: PrismAuthenticatedSession, requestId: string, expectedRevision: number) {
+  await supplierWorkflowRepository.acknowledgeSchedule(session, requestId, expectedRevision);
+  return { notice: "Schedule acknowledged." };
+}
+
+export async function requestSupplierScheduleChange(session: PrismAuthenticatedSession, requestId: string, expectedRevision: number, reason: string) {
+  await supplierWorkflowRepository.requestScheduleChange(session, requestId, expectedRevision, reason);
+  return { notice: "Schedule change request sent to PMCM." };
+}
+
+export async function updateSupplierCreativeProgress(session: PrismAuthenticatedSession, taskId: string, note: string) {
+  await supplierWorkflowRepository.updateCreativeProgress(session, taskId, note);
+  return { notice: "Progress saved." };
+}
+
+export async function submitSupplierCreativeTask(
+  session: PrismAuthenticatedSession,
+  supplier: PrismSupplier,
+  request: PrismSupplierQuoteRequest,
+  taskId: string,
+  note: string,
+  file?: File,
+) {
+  await supplierWorkflowRepository.submitCreativeTask(session, supplier, request, taskId, { note, storedObjectId: null }, file);
+  return { notice: "Deliverable submitted to PMCM." };
 }
 
 export async function updateSupplierEventStatus(
-  session: SupplierSession,
+  session: PrismAuthenticatedSession,
   request: PrismSupplierQuoteRequest,
   status: string,
   notes: string,

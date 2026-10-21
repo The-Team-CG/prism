@@ -8,11 +8,13 @@ export function ClientActionGroup({
   description,
   actions,
   onAction,
+  showDetailsAndCta = false,
 }: {
   title: string;
   description: string;
   actions: ClientDashboardAction[];
   onAction: (action: ClientDashboardAction) => void;
+  showDetailsAndCta?: boolean;
 }) {
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm">
@@ -37,7 +39,7 @@ export function ClientActionGroup({
                 key={action.id}
                 type="button"
                 onClick={() => onAction(action)}
-                className="flex w-full items-start gap-4 px-5 py-4 text-left transition hover:bg-muted/40"
+                className="flex w-full items-start gap-4 px-5 py-4 text-left transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--prism-signal) focus-visible:ring-inset"
               >
                 <span className={`grid size-9 shrink-0 place-items-center rounded-xl ${toneStyle}`}>
                   <Icon className="size-4" />
@@ -50,6 +52,12 @@ export function ClientActionGroup({
                   <span className="mt-0.5 block text-xs leading-5 text-muted-foreground line-clamp-2">
                     {action.description}
                   </span>
+                  {showDetailsAndCta ? (
+                    <span className="mt-2 flex items-center justify-between gap-3 text-xs">
+                      <span className="text-muted-foreground">{action.detail}</span>
+                      <span className="shrink-0 font-semibold text-(--prism-signal)">{action.ctaLabel}</span>
+                    </span>
+                  ) : null}
                 </span>
               </button>
             );

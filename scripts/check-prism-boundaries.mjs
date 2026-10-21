@@ -1,40 +1,85 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const backendCapabilityModules = [
-  "access-control",
-  "identity-ops",
-  "trust-ops",
-  "notification-ops",
-  "event-core",
-  "inquiry-onboarding",
-  "commercial-ops",
-  "supplier-ops",
-  "staffing-ops",
-  "finance-ops",
-  "compliance-ops",
+const backendContexts = [
+  "commercial",
+  "event-lifecycle",
   "floorplan",
-  "file-ops",
-  "guest-ops",
-  "closure-ops",
-  "ai-governance",
-  "event-read-models",
-  "sample-compatibility",
+  "identity-access",
+  "live-ops",
+  "operations",
+  "platform-ops",
+  "read-models",
 ];
 
-const backendCapabilityPattern = new RegExp(
-  `^apps/api/libs/modules/(?:${backendCapabilityModules.join("|")})/src/`,
+const backendContextPattern = new RegExp(
+  "^apps/api/src/modules/(?:" + backendContexts.join("|") + ")/",
 );
-
-const eventReadModelsPattern = /^apps\/api\/libs\/modules\/event-read-models\/src\//;
-const eventReadModelsQueriesPattern = /^apps\/api\/libs\/modules\/event-read-models\/src\/queries\/.*\.ts$/;
+const backendKernelPattern = /^apps\/api\/src\/kernel\//;
+const backendSourcePattern = /^apps\/api\/src\/(?:modules|kernel)\//;
+const readModelsPattern = /^apps\/api\/src\/modules\/read-models\//;
+const legacyBackendPattern = /^apps\/api\/libs\/(?:contexts|modules|core)\//;
 const prismaMutationPattern =
   /(?:\b(?:this\.)?prisma(?:\.[A-Za-z_$][\w$]*)*|\btx(?:\.[A-Za-z_$][\w$]*)*)\.(?:createMany|create|updateMany|update|upsert|deleteMany|delete|\$executeRawUnsafe|\$executeRaw)\s*\(/;
 const rawQueryPattern = /\.\$queryRaw(?:Unsafe)?\b/;
+const aiProviderSdkImportPattern =
+  /\b(?:from\s*|import\s*(?:\(\s*)?|require\s*\(\s*)["'](?:@anthropic-ai\/sdk(?:\/[^"']*)?|@openrouter\/[^"']+|openai(?:\/[^"']*)?|@google\/generative-ai(?:\/[^"']*)?|@google-cloud\/vertexai(?:\/[^"']*)?|@aws-sdk\/client-bedrock-runtime(?:\/[^"']*)?|@ai-sdk\/[^"']+|ai(?:\/[^"']*)?)["']/;
+const aiProviderImportExceptionPattern =
+  /^apps\/api\/src\/modules\/platform-ops\/infrastructure\/ai-governance\//;
+
+function contextOf(normalized) {
+  return normalized.match(/^apps\/api\/src\/modules\/([^/]+)\//)?.[1] ?? null;
+}
+
+function hasPrivateModuleImport(source) {
+  const nestedImports = source.matchAll(/from\s+["'](@prism\/(?:contexts|kernel)\/[^/"']+\/[^"']+)["']/g);
+  const publicSubpathSeams = new Set([
+    '@prism/contexts/read-models/closeout',
+    '@prism/contexts/read-models/event-scope',
+    '@prism/contexts/read-models/participant-facts',
+    '@prism/contexts/read-models/guest-events',
+    '@prism/contexts/read-models/account-contacts',
+    '@prism/contexts/read-models/commercial-facts-reader',
+    '@prism/contexts/read-models/lifecycle-facts',
+    '@prism/contexts/read-models/file-evidence',
+    '@prism/contexts/event-lifecycle/conforme-reminder-window',
+    '@prism/contexts/event-lifecycle/post-event-reference',
+    '@prism/contexts/event-lifecycle/operations-reference',
+    '@prism/contexts/identity-access/coordinator-reference',
+    '@prism/contexts/operations/live-ops-reference',
+    '@prism/contexts/commercial/registration-supplier-reference',
+    '@prism/contexts/live-ops/urgent-issue-reference',
+    '@prism/contexts/event-lifecycle/floorplan-reference',
+    '@prism/contexts/floorplan/event-drafts',
+  ]);
+  return [...nestedImports].some((match) => !publicSubpathSeams.has(match[1]));
+}
+
+function hasPrivateCrossContextImport(normalized, source) {
+  const owner = contextOf(normalized);
+  if (!owner) return false;
+
+  const directContextImport = /from\s+["']apps\/api\/src\/modules\/([^/"']+)\/[^"']+["']/g;
+  for (const match of source.matchAll(directContextImport)) {
+    if (match[1] !== owner) return true;
+  }
+
+  return false;
+}
 
 export const boundaryRules = [
+  {
+    name: "shared floorplan canvas must not import apps, portals, UI or API clients",
+    filePattern: /^packages\/floorplan-canvas\//,
+    importPattern: /\b(?:from\s*|import\s*\(\s*|require\s*\(\s*)["'](?:@\/|apps\/|@prism\/(?:api-client|client|event|guest|supplier|ui|compatibility)(?:\/|["']))/,
+  },  {
+    name: "provider SDK imports must stay in AI gateway infrastructure",
+    filePattern: /^(?:apps|packages)\//,
+    allowedFilePattern: aiProviderImportExceptionPattern,
+    importPattern: aiProviderSdkImportPattern,
+  },
   {
     name: "client app must not import event app internals",
     filePattern: /^apps\/client\//,
@@ -53,7 +98,7 @@ export const boundaryRules = [
   {
     name: "shared ui must not import backend modules",
     filePattern: /^packages\/ui\//,
-    importPattern: /from\s+["'](?:@prism\/modules|apps\/api\/libs\/modules)/,
+    importPattern: /from\s+["'](?:@prism\/(?:modules|kernel|contexts)|apps\/api\/)/,
   },
   {
     name: "shared types must not import React or app modules",
@@ -66,68 +111,71 @@ export const boundaryRules = [
     importPattern: /from\s+["'](?:@\/|apps\/)/,
   },
   {
-    name: "role apps must not read the broad sample state aggregate",
+    name: "role apps must not read a whole-system state aggregate",
     filePattern: /^apps\/(?:client|event|supplier|guest)\//,
     importPattern: /(?:eventOpsClient\.sample\.state\(|prismApi\.state\(|["']\/api\/sample\/state["']|["']\/sample\/state["'])/,
   },
   {
-    name: "role apps must not import the client mock sample dataset",
+    name: "role apps must not retain browser-local fixture fallbacks",
     filePattern: /^apps\/(?:client|event|supplier|guest)\//,
-    allowedFilePattern: /^apps\/client\/src\/lib\/prism-api\.ts$/,
-    importPattern: /from\s+["']@\/mock\/prism-sample-state["']/,
+
+    importPattern: /from\s+["'](?:@\/mock\/prism-sample-state|@\/compatibility\/sample\/prism-api)["']/,
   },
   {
-    name: "role apps must use shared Prism session and sample storage keys",
+    name: "role apps must use shared Prism session keys",
     filePattern: /^apps\/(?:client|event|supplier|guest)\//,
     importPattern:
-      /["']prism:(?:client-session|mock-auth-session|supplier-session|guest-session|event-command-session|prism-sample-state)["']/,
+      /["']prism:(?:client-session|mock-auth-session|supplier-session|guest-session|event-command-session)["']/,
   },
   {
     name: "backend services must not inject Prisma as any",
-    filePattern: /^apps\/api\/libs\/modules\/.*\/src\/.*service\.ts$/,
+    filePattern: /^apps\/api\/src\/(?:modules|kernel)\/.*\/.*service\.ts$/,
     importPattern: /(?:private\s+readonly\s+)?prisma\s*:\s*any\b/,
   },
   {
-    name: "backend capability modules must not import private services from other capability modules",
-    filePattern: backendCapabilityPattern,
-    check(normalized, source) {
-      const moduleName = normalized.match(/^apps\/api\/libs\/modules\/([^/]+)\//)?.[1];
-      if (!moduleName) return false;
-
-      const privateServiceImports = source.matchAll(
-        /from\s+["'](?:@prism\/modules\/|apps\/api\/libs\/modules\/|(?:\.\.\/)+)([^/"'.]+)\/src\/services\//g,
-      );
-
-      for (const privateServiceImport of privateServiceImports) {
-        if (privateServiceImport[1] !== moduleName) return true;
-      }
-
-      return false;
+    name: "backend code must use public context and kernel entrypoints",
+    filePattern: backendSourcePattern,
+    check(_normalized, source) {
+      return hasPrivateModuleImport(source);
     },
   },
   {
-    name: "backend capability modules must not import event-ops compatibility internals",
-    filePattern: backendCapabilityPattern,
-    importPattern: /from\s+["'](?:@prism\/modules\/event-ops|apps\/api\/libs\/modules\/event-ops)/,
+    name: "backend contexts must not import another context's private implementation",
+    filePattern: backendContextPattern,
+    check(normalized, source) {
+      return hasPrivateCrossContextImport(normalized, source);
+    },
   },
   {
-    name: "event-read-models must not mutate Prisma state",
-    filePattern: eventReadModelsPattern,
-    check(_normalized, source) {
+    name: "backend contexts must not import local fixture seed code",
+    filePattern: backendContextPattern,
+    importPattern: /from\s+["'][^"']*\/fixtures\/[^"']+["']/,
+  },
+  {
+    name: "kernel must not import local fixture seed code",
+    filePattern: backendKernelPattern,
+    importPattern: /from\s+["'][^"']*\/fixtures\/[^"']+["']/,
+  },
+  {
+    name: "read models must not mutate Prisma state",
+    filePattern: readModelsPattern,
+    check(normalized, source) {
+      // Database behavior tests seed their own rows; the rule protects production read-model code.
+      if (/\.test\.ts$/.test(normalized)) return false;
       return prismaMutationPattern.test(source);
     },
   },
   {
-    name: "event-read-models raw queries require an approved query builder with a query budget",
-    filePattern: eventReadModelsPattern,
+    name: "read models raw queries require an approved query builder with a query budget",
+    filePattern: readModelsPattern,
     check(normalized, source) {
       if (!rawQueryPattern.test(source)) return false;
-      return !eventReadModelsQueriesPattern.test(normalized) || !source.includes("Query budget:");
+      return !normalized.includes("/application/queries/") || !source.includes("Query budget:");
     },
   },
   {
-    name: "event-ops module must not contain tracked files after sample compatibility migration",
-    filePattern: /^apps\/api\/libs\/modules\/event-ops\//,
+    name: "legacy backend source roots must remain empty after DDD consolidation",
+    filePattern: legacyBackendPattern,
     check() {
       return true;
     },
@@ -135,11 +183,25 @@ export const boundaryRules = [
 ];
 
 export function listTrackedSourceFiles(root = process.cwd()) {
-  return execFileSync("git", ["ls-files", "apps", "packages"], {
-    cwd: root,
-    encoding: "utf8",
-  })
-    .split(/\r?\n/)
+  let files;
+  try {
+    files = execFileSync("git", ["ls-files", "apps", "packages"], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).split(/\r?\n/).filter(Boolean);
+  } catch {
+    const visit = (directory) => readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) return visit(path);
+      return entry.isFile() && /\.tsx?$/.test(entry.name) ? [path] : [];
+    });
+    files = ["apps", "packages"]
+      .flatMap((directory) => visit(join(root, directory)))
+      .map((path) => path.slice(root.length + 1).replaceAll("\\", "/"));
+  }
+
+  return files
     .filter(Boolean)
     .filter((file) => file.endsWith(".ts") || file.endsWith(".tsx"))
     .filter((file) => existsSync(join(root, file)));
@@ -157,7 +219,7 @@ export function findBoundaryViolations(fileSources, rules = boundaryRules) {
         !(rule.allowedFilePattern && rule.allowedFilePattern.test(normalized)) &&
         ((rule.importPattern && rule.importPattern.test(source)) || (rule.check && rule.check(normalized, source)))
       ) {
-        violations.push(`${normalized}: ${rule.name}`);
+        violations.push(normalized + ": " + rule.name);
       }
     }
   }
@@ -172,13 +234,11 @@ export function runBoundaryCheck(root = process.cwd()) {
 
   if (violations.length > 0) {
     console.error("P.R.I.S.M boundary violations:");
-    for (const violation of violations) {
-      console.error(`- ${violation}`);
-    }
+    for (const violation of violations) console.error("- " + violation);
     return { ok: false, checkedCount: files.length, violations };
   }
 
-  console.log(`P.R.I.S.M boundary check passed for ${files.length} files.`);
+  console.log("P.R.I.S.M boundary check passed for " + files.length + " files.");
   return { ok: true, checkedCount: files.length, violations };
 }
 

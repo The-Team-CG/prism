@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent } from "react";
-import { ArrowLeft, ArrowRight, BadgeCheck, Eye, EyeOff, Handshake, Send, Shield } from "lucide-react";
+import { ArrowLeft, ArrowRight, BadgeCheck, Eye, EyeOff, Handshake, Shield } from "lucide-react";
 import { PrismBrandLogo } from "@prism/ui";
 import { Input } from "@/app/components/ui/input";
 import { useSignInViewModel } from "../view-models/use-sign-in-view-model";
@@ -74,7 +74,7 @@ export function SignInView() {
                       required
                       value={vm.draft.email}
                       onChange={(e) => vm.update("email", e.target.value)}
-                      placeholder="ana@ayala.test"
+                      placeholder="name@company.com"
                       className="h-13 rounded-lg border-[#d9d9d9] bg-white text-base text-[#444] placeholder:text-[#a7a7a7] focus-visible:ring-1 focus-visible:ring-[#c01867] sm:h-12 sm:text-sm"
                     />
                   </div>
@@ -104,34 +104,8 @@ export function SignInView() {
                     </div>
                   </div>
 
-                  {vm.error && !vm.pendingUser && (
+                  {vm.error && (
                     <p className="text-sm text-[#b4233a]" role="alert">{vm.error}</p>
-                  )}
-
-                  {vm.pendingUser && (
-                    <div className="rounded-lg border border-[#f06030]/30 bg-[#fff0e6] p-4">
-                      <p className="text-sm font-semibold text-[#f06030]">Approval required</p>
-                      <p className="mt-1 text-sm leading-5 text-[#888888]">
-                        {vm.pendingUser.name} exists but your event team must approve access before sign-in.
-                      </p>
-                      <label className="mt-3 flex items-start gap-2.5 text-sm leading-5 text-[#888888]">
-                        <input
-                          type="checkbox"
-                          checked={vm.approvalConsentAccepted}
-                          onChange={(e) => vm.setApprovalConsentAccepted(e.target.checked)}
-                          className="mt-0.5 size-4 accent-[#c01867]"
-                        />
-                        <span>I consent to this account request being processed for portal access review.</span>
-                      </label>
-                      <button
-                        type="button"
-                        disabled={!vm.approvalConsentAccepted}
-                        onClick={() => void vm.requestApproval(vm.pendingUser!)}
-                        className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-[#d9d9d9] bg-white text-sm font-medium text-[#171216] transition hover:border-[#c01867]/40 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <Send className="size-4" /> Request approval
-                      </button>
-                    </div>
                   )}
 
                   <button
@@ -141,6 +115,10 @@ export function SignInView() {
                   >
                     {vm.busy ? "Signing in…" : "Sign in"}
                   </button>
+
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <a href="/password-reset" className="text-[#c01867] transition hover:text-[#a81459]">Forgot password?</a>
+                  </div>
 
                   <div className="flex items-center justify-between gap-3 text-sm">
                     <a href="/sign-up" className="text-[#c01867] transition hover:text-[#a81459]">
@@ -153,25 +131,6 @@ export function SignInView() {
                 </form>
               )}
 
-              <div className="mt-6 border-t border-[#d9d9d9] pt-5">
-                <p className="mb-3 text-sm font-medium text-[#888888]">Sample accounts</p>
-                <div className="flex flex-col gap-2">
-                  {vm.sampleUsers.map((user) => (
-                    <button
-                      key={user.id}
-                      type="button"
-                      onClick={() => vm.applySampleUser(user)}
-                      className="flex items-center justify-between rounded-lg border border-[#d9d9d9] bg-white px-4 py-3 text-left transition hover:border-[#c01867]/40 hover:bg-white/80"
-                    >
-                      <div>
-                        <p className="text-sm font-semibold text-[#171216]">{user.name}</p>
-                        <p className="text-xs text-[#888888]">{user.organization}</p>
-                      </div>
-                      <ArrowRight className="size-4 text-[#a7a7a7]" />
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
           </div>
 

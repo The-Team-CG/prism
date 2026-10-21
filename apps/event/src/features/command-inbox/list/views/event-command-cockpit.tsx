@@ -9,13 +9,15 @@ import {
   CircleDot,
   ClipboardList,
   FileCheck2,
+  Gamepad2,
+  Gavel,
   LayoutGrid,
   ListChecks,
   MapPinned,
   MessageSquareText,
+  QrCode,
   Radio,
   ReceiptText,
-  RotateCcw,
   ShieldCheck,
   Truck,
   UserCheck,
@@ -23,7 +25,7 @@ import {
 } from "lucide-react";
 import type * as React from "react";
 
-import type { PrismDefenseReadiness, PrismEvent, PrismFloorPlanDraft, SampleRole } from "@prism/types";
+import type { PrismDefenseReadiness, PrismEvent, PrismFloorPlanDraft, PrismUserRole } from "@prism/types";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
@@ -186,13 +188,17 @@ function PageHeader({ eyebrow, title, description, meta, action }: {
 
 export type PmcmDetailTab =
   | "overview"
+  | "files"
   | "floorplans"
   | "briefing"
   | "suppliers"
+  | "registration"
+  | "games"
   | "coordinators"
   | "live-ops"
   | "billing"
   | "closure"
+  | "decisions"
   | "activity";
 
 export interface PmcmWorkflowTabItem {
@@ -215,32 +221,36 @@ export function buildEventWorkflowTabs({
   assignmentsCount: number;
   paymentsCount: number;
   openChecksCount: number;
-  role: SampleRole;
+  role: PrismUserRole;
 }): PmcmWorkflowTabItem[] {
   const tabs: PmcmWorkflowTabItem[] = [
     { id: "overview", label: "Overview", icon: ClipboardList },
     { id: "floorplans", label: "Floorplans", icon: MapPinned, badge: draftsCount || undefined },
     { id: "briefing", label: "Briefing", icon: FileCheck2 },
     { id: "suppliers", label: "Suppliers", icon: Truck, badge: quotesCount || undefined },
+    { id: "registration", label: "Registration", icon: QrCode },
     { id: "coordinators", label: "Coordinators", icon: UserCheck, badge: assignmentsCount || undefined },
     { id: "live-ops", label: "Live ops", icon: Radio },
+    { id: "games", label: "Games", icon: Gamepad2 },
     { id: "billing", label: "Finance", icon: ReceiptText, badge: paymentsCount || undefined },
     { id: "closure", label: "Closure", icon: Archive, badge: openChecksCount || undefined },
+    { id: "decisions", label: "Decision log", icon: Gavel },
     { id: "activity", label: "Messages", icon: MessageSquareText },
   ];
-  return isPmcmAdmin(role) ? tabs : tabs.filter((t) => t.id !== "floorplans");
+  // The decision log is PMCM-only (FL-019); the API refuses every other role as well.
+  return isPmcmAdmin(role)
+    ? tabs
+    : tabs.filter((tab) => tab.id !== "floorplans" && tab.id !== "decisions" && (role === "coordinator" || tab.id !== "games"));
 }
 
 export function EventQueuePanel({
   events,
   selectedEventId,
   onSelectEvent,
-  onReset,
 }: {
   events: PrismEvent[];
   selectedEventId?: string;
   onSelectEvent: (eventId: string) => void;
-  onReset: () => void;
 }) {
   return (
     <section className="rounded-lg border border-border bg-card p-3 shadow-sm">
@@ -249,17 +259,6 @@ export function EventQueuePanel({
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Event queue</p>
           <p className="mt-1 text-xs text-muted-foreground">{events.length} active PMCM workspace(s)</p>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={onReset}
-          title="Reset sample data"
-          className="size-8 rounded-md"
-        >
-          <RotateCcw aria-hidden="true" />
-          <span className="sr-only">Reset sample data</span>
-        </Button>
       </div>
       <CompactRecordList
         className="mt-2"
@@ -320,7 +319,7 @@ export function SelectedEventCockpit({
           { label: "Client", value: event.clientName, detail: event.clientPortalStatus === "unlocked" ? "Client portal unlocked" : "Client portal locked" },
           { label: "Event date", value: event.eventDate, detail: event.readiness ?? "Readiness pending" },
           { label: "Event readiness", value: readinessLabel, detail: defenseReadiness ? `Stage: ${label(defenseReadiness.lifecycleStage)}` : "Loading readiness check" },
-          { label: "Guest access", value: event.guestAccessCode ?? "Pending", detail: event.guestAccessCode ? "Ready for guest portal sample" : "Generated after event setup" },
+          { label: "Guest access", value: event.guestAccessCode ?? "Pending", detail: event.guestAccessCode ? "Ready for guest portal access" : "Generated after event setup" },
         ].map((item) => (
           <div key={item.label} className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
             <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">{item.label}</p>
