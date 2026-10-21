@@ -263,7 +263,12 @@ export class PlansService {
   ) {
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Client], 'floorplan', eventId);
     const draft = plan.opsDraft;
-    if (!draft || !eventId || draft.sourceType !== 'client_preference' || draft.status !== 'client_submitted') {
+    if (
+      !draft ||
+      !eventId ||
+      draft.sourceType !== 'client_preference' ||
+      !['client_submitted', 'revision_requested'].includes(draft.status)
+    ) {
       await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'official floorplan', eventId);
       throw new ForbiddenException('Official floorplans are available through the event-scoped snapshot');
     }
@@ -303,9 +308,13 @@ export class PlansService {
   ) {
     if (!lifecycleEvent || !eventId) throw new NotFoundException('Event not found');
     const draft = plan.opsDraft;
-    if (!draft || draft.sourceType !== 'client_preference' || draft.status !== 'client_submitted') {
+    if (!draft || draft.sourceType !== 'client_preference' || draft.status !== 'revision_requested') {
       await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'official floorplan mutation', eventId);
-      throw new ForbiddenException('Official floorplans are read-only for clients');
+      throw new ForbiddenException('Clients may revise a preference only after PMCM requests a revision');
+    }
+    if (plan.ownerId !== actor.id) {
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'client floorplan preference mutation', eventId);
+      throw new ForbiddenException('Only the submitting client can revise this preference');
     }
     if (!actor.verified || !actor.email?.trim()) {
       await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'client floorplan preference mutation', eventId);

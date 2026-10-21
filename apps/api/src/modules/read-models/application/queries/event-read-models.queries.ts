@@ -13,8 +13,23 @@ import { AuditCategory, CoordinatorAssignmentStatus, OpsUserRole } from '@prism/
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { PRISM_PMCM_COMMAND_INBOX_MAX_PAGE } from '@prism/types';
 import { findFloorPlanDraftsByEvent, withFloorPlanDrafts } from '@prism/contexts/floorplan/event-drafts';
+import { CLIENT_CHANGE_REQUEST_SELECT } from '@prism/contexts/event-lifecycle';
 
 type SupplierEventReference = Pick<OpsEvent, 'id' | 'eventName' | 'eventDate' | 'clientName'>;
+
+const SUPPLIER_READINESS_INCLUDE = {
+  contractVersions: {
+    select: { reviewStatus: true, reviewReason: true, reviewedAt: true },
+    orderBy: { version: 'desc' },
+    take: 1,
+  },
+  schedule: {
+    select: {
+      ingressAt: true, egressAt: true, location: true, status: true, revision: true,
+      acknowledgedRevision: true, acknowledgedAt: true, changeRequestNote: true, changeRequestedAt: true,
+    },
+  },
+} satisfies Prisma.OpsSupplierQuoteRequestInclude;
 type SupplierProfileBase = OpsSupplier & {
   category: OpsSupplierCategory;
   reviews: OpsSupplierReview[];
@@ -36,6 +51,23 @@ export const MAX_EVENT_SCHEDULE_DAYS = 100;
 export const MAX_EVENT_SCHEDULE_SEGMENTS = 200;
 export const MAX_TASK_REASSIGNMENT_REQUESTS = 100;
 export const MAX_EVENT_HANDOFFS = 200;
+export const MAX_DECISION_LOG_SOURCE_ROWS = 200;
+export const MAX_DECISION_LOG_AUDIT_ROWS = 500;
+/** Audit `affectedType`s that attribute (actor name and role) a decision-log source row. */
+export const DECISION_LOG_AUDIT_AFFECTED_TYPES = [
+  'event',
+  'event_decision',
+  'freeze_exception',
+  'addendum',
+  'compliance_check',
+  'compliance_risk',
+  'ocular_visit_request',
+  'billing_correction',
+  'additional_billing',
+  'billing_source',
+  'event_task_reassignment',
+] as const;
+export const MAX_RUN_SHEET_SUPPLIER_SCHEDULES = 500;
 export const MAX_READINESS_ROWS = 500;
 export const MAX_BILLING_ROWS = 500;
 export const MAX_CLIENT_WORKSPACE_ROWS = 500;
@@ -313,6 +345,16 @@ export class EventReadModelQueries {
     });
   }
 
+  // Run sheet supplier windows (FL-026). Selects timing fields only; supplier schedule notes stay private.
+  supplierSchedulesForEvent(eventId: string) {
+    return this.prisma.opsSupplierSchedule.findMany({
+      where: { eventId },
+      select: { id: true, requestId: true, ingressAt: true, egressAt: true, location: true, status: true },
+      orderBy: [{ ingressAt: 'asc' }, { id: 'asc' }],
+      take: MAX_RUN_SHEET_SUPPLIER_SCHEDULES,
+    });
+  }
+
   activeOperatorForCoordinator(eventId: string, coordinatorId: string) {
     return this.prisma.opsEventOperatorDesignation.findFirst({
       where: { eventId, coordinatorId, revokedAt: null },
@@ -326,6 +368,133 @@ export class EventReadModelQueries {
       orderBy: [{ requestedAt: 'desc' }, { id: 'desc' }],
       take: MAX_TASK_REASSIGNMENT_REQUESTS,
     });
+  }
+
+  // Query budget: one selected event query plus twelve bounded event-scoped decision-source queries
+  // (FL-019), no per-row Prisma loop. Reasons come from each source row's dedicated field; the audit
+  // query only returns attribution columns (actor, role, affected record), never metadata.
+  async decisionLogSourcesForEvent(eventId: string) {
+    const event = await this.prisma.opsEvent.findUnique({
+      where: { id: eventId },
+      select: {
+        id: true,
+        inquiryId: true,
+        clientName: true,
+        clientPortalStatus: true,
+        archivedAt: true,
+        archiveOverrideReason: true,
+        archiveOverrideBy: true,
+        updatedAt: true,
+      },
+    });
+    if (!event) return null;
+    const take = MAX_DECISION_LOG_SOURCE_ROWS;
+    const [
+      eventDecisions,
+      freezeExceptions,
+      addenda,
+      complianceOverrides,
+      riskChanges,
+      ocularWaivers,
+      billingCorrections,
+      billingWaivers,
+      paymentTermsOverrides,
+      reassignments,
+      inquiryMerges,
+      auditAttributions,
+    ] = await Promise.all([
+      this.prisma.opsEventDecision.findMany({
+        where: { eventId },
+        select: { id: true, decision: true, reason: true, actorName: true, actorRole: true, decidedAt: true },
+        orderBy: [{ decidedAt: 'desc' }, { id: 'desc' }],
+        take,
+      }),
+      this.prisma.opsEventFreezeException.findMany({
+        where: { eventId, decidedAt: { not: null } },
+        select: { id: true, requestedChange: true, reason: true, status: true, decidedBy: true, decisionNote: true, decidedAt: true },
+        orderBy: [{ decidedAt: 'desc' }, { id: 'desc' }],
+        take,
+      }),
+      this.prisma.opsAddendum.findMany({
+        where: { eventId },
+        select: { id: true, versionNumber: true, title: true, summary: true, status: true, financialDelta: true, issuedAt: true, _count: { select: { impacts: true } } },
+        orderBy: [{ issuedAt: 'desc' }, { id: 'desc' }],
+        take,
+      }),
+      this.prisma.opsComplianceCheck.findMany({
+        where: { eventId, overrideAt: { not: null } },
+        select: { id: true, title: true, status: true, overrideReason: true, overrideAt: true, overrideBy: true },
+        orderBy: [{ overrideAt: 'desc' }, { id: 'desc' }],
+        take,
+      }),
+      // Engine-raised history rows are automated evaluations, not management decisions.
+      this.prisma.opsComplianceRiskHistory.findMany({
+        where: { risk: { eventId }, action: { in: ['create', 'update'] } },
+        select: { id: true, riskId: true, action: true, status: true, severity: true, actor: true, reason: true, createdAt: true, risk: { select: { title: true } } },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take,
+      }),
+      this.prisma.opsOcularVisitRequest.findMany({
+        where: { eventId, waivedAt: { not: null } },
+        select: { id: true, status: true, waiverReason: true, waivedAt: true, waivedBy: true },
+        take: 1,
+      }),
+      this.prisma.opsBillingCorrection.findMany({
+        where: { eventId, resolvedAt: { not: null } },
+        select: { id: true, statementId: true, reason: true, status: true, correctedTotalAmount: true, resolvedBy: true, resolutionNotes: true, resolvedAt: true },
+        orderBy: [{ resolvedAt: 'desc' }, { id: 'desc' }],
+        take,
+      }),
+      this.prisma.opsAdditionalBilling.findMany({
+        where: { eventId, waivedAt: { not: null } },
+        select: { id: true, description: true, amount: true, status: true, waiverReason: true, waivedBy: true, waivedAt: true },
+        orderBy: [{ waivedAt: 'desc' }, { id: 'desc' }],
+        take,
+      }),
+      this.prisma.opsBillingSource.findMany({
+        where: { eventId, paymentTermsPolicyState: 'repeat_client_override' },
+        select: { id: true, sourceLabel: true, status: true, paymentTermsOverrideReason: true, paymentTermsApprovedBy: true, approvedAt: true, createdAt: true },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take,
+      }),
+      this.prisma.opsEventTaskReassignmentRequest.findMany({
+        where: { eventId, decidedAt: { not: null } },
+        select: {
+          id: true, status: true, reason: true, decisionReason: true, decidedBy: true, decidedAt: true,
+          fromOwnerRole: true, fromOwnerName: true, toOwnerRole: true, toOwnerName: true,
+          task: { select: { title: true } },
+        },
+        orderBy: [{ decidedAt: 'desc' }, { id: 'desc' }],
+        take,
+      }),
+      this.prisma.opsInquiryMerge.findMany({
+        where: { OR: [{ primaryInquiryId: event.inquiryId }, { mergedInquiryId: event.inquiryId }] },
+        select: { id: true, primaryInquiryId: true, mergedInquiryId: true, matchBasis: true, reason: true, actorName: true, actorRole: true, createdAt: true },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take,
+      }),
+      this.prisma.opsAuditLog.findMany({
+        where: { eventId, affectedType: { in: [...DECISION_LOG_AUDIT_AFFECTED_TYPES] }, category: { not: AuditCategory.Access } },
+        select: { actor: true, actorRole: true, affectedType: true, affectedId: true, createdAt: true },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: MAX_DECISION_LOG_AUDIT_ROWS,
+      }),
+    ]);
+    return {
+      event,
+      eventDecisions,
+      freezeExceptions,
+      addenda,
+      complianceOverrides,
+      riskChanges,
+      ocularWaivers,
+      billingCorrections,
+      billingWaivers,
+      paymentTermsOverrides,
+      reassignments,
+      inquiryMerges,
+      auditAttributions,
+    };
   }
 
   // Query budget: one selected event query plus seven event-scoped readiness queries, no per-row Prisma loop.
@@ -511,7 +680,7 @@ export class EventReadModelQueries {
     ] as const;
   }
   // Every action source is fetched in bounded keyset pages for the visible event set.
-  async clientActionCenterForEvents(eventIds: string[]) {
+  async clientActionCenterForEvents(eventIds: string[], changeDecisionsSince = new Date(0)) {
     const [
       briefings,
       documents,
@@ -520,6 +689,8 @@ export class EventReadModelQueries {
       paymentMilestones,
       paymentRecords,
       postEventDocuments,
+      closeoutResponses,
+      changeRequests,
     ] = await Promise.all([
       readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>
         this.prisma.opsBriefing.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
@@ -549,6 +720,22 @@ export class EventReadModelQueries {
         this.prisma.opsPostEventDocument.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
           orderBy: { id: 'asc' }, take: MAX_CLIENT_ACTION_CENTER_ROWS }),
       ),
+      // Feedback presence only: the response content is not part of the action center.
+      readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>
+        this.prisma.opsClientCloseoutResponse.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+          select: { id: true, eventId: true }, orderBy: { id: 'asc' }, take: MAX_CLIENT_ACTION_CENTER_ROWS }),
+      ),
+      // Client-safe change request columns only; PMCM reasons and decision notes are never selected.
+      readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>
+        this.prisma.opsEventFreezeException.findMany({
+          where: {
+            eventId: { in: eventIds },
+            OR: [{ status: 'pending' }, { decidedAt: { gte: changeDecisionsSince } }],
+            ...(afterId ? { id: { gt: afterId } } : {}),
+          },
+          select: { ...CLIENT_CHANGE_REQUEST_SELECT, eventId: true },
+          orderBy: { id: 'asc' }, take: MAX_CLIENT_ACTION_CENTER_ROWS }),
+      ),
     ]);
     return [
       sortByDate(briefings, (row) => row.submittedAt, 'desc'),
@@ -560,6 +747,8 @@ export class EventReadModelQueries {
       postEventDocuments.sort(
         (left, right) => left.title.localeCompare(right.title) || left.id.localeCompare(right.id),
       ),
+      closeoutResponses,
+      sortByDate(changeRequests, (row) => row.requestedAt, 'desc'),
     ] as const;
   }
   // Supplier and event eligibility is applied before each bounded keyset page.
@@ -638,18 +827,38 @@ export class EventReadModelQueries {
     const requests = await readAllRowsById(MAX_SUPPLIER_WORKSPACE_ROWS, (afterId) =>
       this.prisma.opsSupplierQuoteRequest.findMany({
         where: { supplierId, eventId: { in: activeEventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
-        include: { contractVersions: { select: { reviewStatus: true }, orderBy: { version: 'desc' }, take: 1 } },
+        include: SUPPLIER_READINESS_INCLUDE,
         orderBy: { id: 'asc' }, take: MAX_SUPPLIER_WORKSPACE_ROWS,
       }),
     );
     return sortByDate(requests, (row) => row.createdAt, 'desc');
   }
 
+  /** PMCM event-scoped readiness rows; callers must already hold PMCM access to the event. */
+  pmcmSupplierReadinessRequests(eventId: string) {
+    return this.prisma.opsSupplierQuoteRequest.findMany({
+      where: { eventId },
+      include: SUPPLIER_READINESS_INCLUDE,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: MAX_PMCM_EVENT_WORKSPACE_ROWS,
+    });
+  }
+
   // Each actionable source has its own deterministic page so combined queue rows are never silently dropped.
-  async pmcmCommandInbox(page: number, pageSize = MAX_PMCM_COMMAND_INBOX_PAGE_SIZE) {
+  async pmcmCommandInbox(page: number, pageSize = MAX_PMCM_COMMAND_INBOX_PAGE_SIZE, now = new Date()) {
     const skip = page * pageSize;
     const take = pageSize + 1;
-    const [inquiries, events, paymentMilestones, quoteRequests, coordinatorAssignments, floorPlanDrafts, postEventDocuments] = await Promise.all([
+    const [
+      inquiries,
+      events,
+      paymentMilestones,
+      quoteRequests,
+      coordinatorAssignments,
+      floorPlanDrafts,
+      postEventDocuments,
+      eventDayTasks,
+      urgentIssues,
+    ] = await Promise.all([
       this.prisma.opsInquiry.findMany({
         where: { OR: [{ status: 'new' }, { status: 'accepted', conformeSignedAt: null }] },
         select: { id: true, status: true, clientName: true, eventName: true, createdAt: true, acceptedAt: true, conformeSignedAt: true, portalInvitationExpiresAt: true },
@@ -699,8 +908,33 @@ export class EventReadModelQueries {
         // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
         skip, take,
       }),
+      // Event-day work is actionable when it is blocked or past its SLA (falling back to the due time).
+      this.prisma.opsEventDayTask.findMany({
+        where: {
+          status: { notIn: ['done', 'cancelled'] },
+          completedAt: null,
+          OR: [
+            { status: 'blocked' },
+            { slaStatus: 'overdue' },
+            { slaDueAt: { lt: now } },
+            { slaDueAt: null, dueAt: { lt: now } },
+          ],
+        },
+        select: { id: true, eventId: true, title: true, status: true, assignedRole: true, ownerName: true, dueAt: true, slaDueAt: true, slaStatus: true },
+        orderBy: [{ slaDueAt: 'asc' }, { id: 'asc' }],
+        // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
+        skip, take,
+      }),
+      this.prisma.opsUrgentIssue.findMany({
+        where: { status: { in: ['open', 'assigned'] }, resolvedAt: null },
+        select: { id: true, eventId: true, title: true, severity: true, status: true, slaDueAt: true, slaStatus: true, createdAt: true },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
+        skip, take,
+      }),
     ]);
     const items = <T>(rows: T[]) => rows.slice(0, pageSize);
+    const sources = [inquiries, events, paymentMilestones, quoteRequests, coordinatorAssignments, floorPlanDrafts, postEventDocuments, eventDayTasks, urgentIssues];
 
     return {
       inquiries: items(inquiries),
@@ -710,8 +944,9 @@ export class EventReadModelQueries {
       coordinatorAssignments: items(coordinatorAssignments),
       floorPlanDrafts: items(floorPlanDrafts),
       postEventDocuments: items(postEventDocuments),
-      hasMore: page < PRISM_PMCM_COMMAND_INBOX_MAX_PAGE && [inquiries, events, paymentMilestones, quoteRequests, coordinatorAssignments, floorPlanDrafts, postEventDocuments]
-        .some((rows) => rows.length > pageSize),
+      eventDayTasks: items(eventDayTasks),
+      urgentIssues: items(urgentIssues),
+      hasMore: page < PRISM_PMCM_COMMAND_INBOX_MAX_PAGE && sources.some((rows) => rows.length > pageSize),
     };
   }
 

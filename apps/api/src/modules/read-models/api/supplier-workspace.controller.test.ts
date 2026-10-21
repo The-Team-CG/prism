@@ -51,6 +51,9 @@ describe('OpsSupplierWorkspaceReadsController', () => {
             readinessStatus: 'confirmed',
             readinessConfirmedAt: new Date('2026-06-20T09:00:00.000Z'),
             readinessNotes: 'Ready for ingress',
+            eventDayVerificationStatus: 'rejected',
+            eventDayVerificationNotes: 'PMCM-SENTINEL-verification',
+            eventDayVerifiedBy: 'PMCM-SENTINEL-verifier',
             contractDocumentId: 'doc_contract',
             createdAt: new Date('2026-06-19T08:00:00.000Z'),
           }),
@@ -98,7 +101,10 @@ describe('OpsSupplierWorkspaceReadsController', () => {
       id: 'qr_sonic',
       assignmentStatus: 'confirmed',
       assignmentConfirmedAt: '2026-06-20T08:00:00.000Z',
+      eventDayVerificationStatus: 'rejected',
     });
+    // PMCM verification notes and verifier identity never reach the supplier workspace.
+    expect(JSON.stringify(workspace)).not.toContain('PMCM-SENTINEL');
     expect(workspace.supplierQuotes[0]).toMatchObject({ id: 'quote_sonic', amount: 125000 });
     expect(workspace.supplierQuotes[0]).not.toHaveProperty('acceptableMin');
     expect(board).toEqual({ items: [{ id: 'supplier-readiness:qr_sonic' }] });

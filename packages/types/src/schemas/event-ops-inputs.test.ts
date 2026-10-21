@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { requestApprovalSchema } from "./auth-inputs.js";
-import { pmcmCommandInboxQuerySchema } from "./event-ops-inputs.js";
+import { createFileRequirementSchema, updateFileRequirementSchema } from "./file-requirement-inputs.js";
+import { decisionLogQuerySchema, pmcmCommandInboxQuerySchema } from "./event-ops-inputs.js";
 import {
   createPrismInquirySchema,
   createGuestFeedbackSchema,
@@ -365,6 +366,14 @@ describe("event-ops write schemas", () => {
     expect(pmcmCommandInboxQuerySchema.safeParse({ page: "101" }).success).toBe(false);
   });
 
+  it("defaults decision log paging, accepts only known kinds, and bounds page size", () => {
+    expect(decisionLogQuerySchema.parse({})).toEqual({ page: 0, pageSize: 25 });
+    expect(decisionLogQuerySchema.parse({ kind: "archive_override", page: "1", pageSize: "10" })).toEqual({ kind: "archive_override", page: 1, pageSize: 10 });
+    for (const invalid of [{ kind: "audit" }, { page: "-1" }, { page: "101" }, { pageSize: "0" }, { pageSize: "101" }]) {
+      expect(decisionLogQuerySchema.safeParse(invalid).success).toBe(false);
+    }
+  });
+
   it("requires reasons for negative moderation and at least one consent withdrawal", () => {
     expect(moderateGuestFeedbackSchema.safeParse({ action: "approve" }).success).toBe(true);
     expect(moderateGuestFeedbackSchema.safeParse({ action: "reject" }).success).toBe(false);
@@ -686,5 +695,33 @@ describe("event-ops write schemas", () => {
     expect(waiveOcularVisitSchema.parse({ reason: "  Venue access is unavailable.  " })).toEqual({
       reason: "Venue access is unavailable.",
     });
+  });
+});
+
+describe("file requirement contracts", () => {
+  const base = { key: "venue_permit", label: "Venue permit", ownerRole: "client", visibleToRoles: ["pmcm-admin", "client"] };
+
+  it("defaults custom requirements to required and custom source, and accepts an offset due date", () => {
+    expect(createFileRequirementSchema.parse({ ...base, dueAt: "2026-10-25T23:59:59+08:00" })).toMatchObject({
+      required: true,
+      sourceWorkflow: "custom",
+      dueAt: "2026-10-25T23:59:59+08:00",
+    });
+  });
+
+  it.each([
+    ["visibility without PMCM", { ...base, visibleToRoles: ["client"] }],
+    ["an owner who cannot see the item", { ...base, ownerRole: "supplier" }],
+    ["a guest role", { ...base, visibleToRoles: ["pmcm-admin", "guest"] }],
+    ["a key with spaces", { ...base, key: "Venue permit" }],
+    ["a date-only due date", { ...base, dueAt: "2026-10-25" }],
+    ["an unknown field", { ...base, storageUrl: "https://example.test" }],
+  ])("rejects %s", (_label, input) => {
+    expect(createFileRequirementSchema.safeParse(input).success).toBe(false);
+  });
+
+  it("requires at least one changed field on update and allows clearing the due date", () => {
+    expect(updateFileRequirementSchema.safeParse({ expectedRevision: 2 }).success).toBe(false);
+    expect(updateFileRequirementSchema.parse({ dueAt: null, expectedRevision: 2 })).toEqual({ dueAt: null, expectedRevision: 2 });
   });
 });

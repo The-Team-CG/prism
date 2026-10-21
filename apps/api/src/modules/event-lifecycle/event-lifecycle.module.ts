@@ -26,11 +26,17 @@ import { FILE_REQUIREMENT_COMMANDS, FILE_REQUIREMENT_READER } from './contracts/
 import { DocumentVaultService } from './application/files/document-vault.service';
 import { DOCUMENT_VAULT } from './contracts/document-vault.port';
 import { FileRequirementsMatrixService } from './application/files/file-requirements-matrix.service';
+import { FileRequirementCommandsService } from './application/files/file-requirement-commands.service';
+import { FileRequirementReminderScheduler } from './application/files/file-requirement-reminder.scheduler';
 import { EventDocumentJourneyController } from './api/files/event-document-journey.controller';
 import { EventDecisionController } from './api/decisions/event-decision.controller';
 import { EventDecisionService } from './application/decisions/event-decision.service';
 import { ChangeManagementController } from './api/change/change-management.controller';
 import { ChangeManagementService } from './application/change/change-management.service';
+import { ScopeChangeRequestController } from './api/change/scope-change-request.controller';
+import { ScopeChangeRequestService } from './application/change/scope-change-request.service';
+import { EventRiskAssessmentController } from './api/change/event-risk-assessment.controller';
+import { EventRiskAssessmentService } from './application/change/event-risk-assessment.service';
 import { AddendumConformeController } from './api/change/addendum-conforme.controller';
 import { AddendumConformeService } from './application/change/addendum-conforme.service';
 import { ClientEventDayViewController } from './api/client-visibility/client-event-day-view.controller';
@@ -56,8 +62,6 @@ import { ClientCloseoutService } from './application/closure/client-closeout.ser
 import { ConformeSigningController } from './api/onboarding/conforme-signing.controller';
 import { ConformeSigningService } from './application/onboarding/conforme-signing.service';
 
-const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const };
-
 /**
  * Bounded-context composition root for event-lifecycle: the event record's
  * own lifecycle from inquiry through closure. Merged from the former
@@ -66,19 +70,20 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
  * itself; `compliance-ops` and `closure-ops` write status/derived fields
  * onto it, and Floorplan sends a versioned state projection through the
  * Lifecycle capability. `file-ops` is a read-only requirements-matrix view over
- * documents owned by this and other contexts. Kept as four sub-areas
+ * documents owned by this and other contexts, plus PMCM-managed requirement
+ * overrides and custom requirements (`OpsFileRequirement`). Kept as four sub-areas
  * (`onboarding`, `compliance`, `closure`, `files`) under one context.
  *
  * Owned tables: OpsBriefing, OpsDocument (all document metadata), OpsEvent,
  * OpsEventClientFloorplanAccessGrant,
- * OpsInquiry, OpsPostEventDocument, OpsEventWrapUp, OpsComplianceCheck,
+ * OpsFileRequirement, OpsInquiry, OpsPostEventDocument, OpsEventWrapUp, OpsComplianceCheck,
  * OpsComplianceRule, and OpsEventInsight. Lifecycle owns addendum records and
  * impact history; Commercial applies billing-source and selected-quote changes
  * through its owner capability. Current briefing and conforme workflows do
  * not create initial billing rows because they carry no priced-source input.
  * Read-only: ongoing billing records and OpsSupplierReview via commercial.
- * File requirements is a read-only composition over owned and external
- * document kinds.
+ * File requirements compose owned and external document kinds on read and
+ * merge PMCM overrides; only PMCM writes requirement rows.
  */
 @Module({
   imports: [
@@ -108,6 +113,8 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     EventDocumentJourneyController,
     EventDecisionController,
     ChangeManagementController,
+    ScopeChangeRequestController,
+    EventRiskAssessmentController,
     AddendumConformeController,
     ClientEventDayViewController,
     OcularVisitController,
@@ -134,9 +141,13 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     { provide: DOCUMENT_VAULT, useExisting: DocumentVaultService },
     FileRequirementsMatrixService,
     { provide: FILE_REQUIREMENT_READER, useExisting: FileRequirementsMatrixService },
-    { provide: FILE_REQUIREMENT_COMMANDS, useValue: metadataOnlyFileCommands },
+    FileRequirementCommandsService,
+    FileRequirementReminderScheduler,
+    { provide: FILE_REQUIREMENT_COMMANDS, useExisting: FileRequirementCommandsService },
     EventDecisionService,
     ChangeManagementService,
+    ScopeChangeRequestService,
+    EventRiskAssessmentService,
     AddendumConformeService,
     ClientEventDayViewService,
     OcularVisitService,

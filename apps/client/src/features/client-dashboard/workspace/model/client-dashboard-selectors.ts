@@ -91,7 +91,22 @@ export function selectOfficialDraft(eventDrafts: PrismFloorPlanDraft[]) {
 }
 
 export function selectPreferenceDrafts(eventDrafts: PrismFloorPlanDraft[]) {
-  return eventDrafts.filter((draft) => draft.createdByRole === "client" || draft.sourceType === "client_preference");
+  return eventDrafts.filter(
+    (draft) => draft.sourceType === "client_preference" && draft.createdByRole === "client",
+  ).sort((left, right) =>
+    right.updatedAt.localeCompare(left.updatedAt) ||
+    right.createdAt.localeCompare(left.createdAt) ||
+    right.id.localeCompare(left.id),
+  );
+}
+
+export function selectClientFloorPlanDraft(
+  officialDraft: PrismFloorPlanDraft | undefined,
+  preferenceDrafts: PrismFloorPlanDraft[],
+) {
+  if (officialDraft?.status === "approved" && draftIsOfficial(officialDraft)) return officialDraft;
+  const latestPreference = preferenceDrafts[0];
+  return latestPreference?.status === "revision_requested" ? latestPreference : officialDraft ?? latestPreference;
 }
 
 export function selectClientDashboardActions(

@@ -13,8 +13,12 @@ import { OpsBillingController } from './api/billing.controller';
 import { OpsClientController } from './api/client-workspace.controller';
 import { OpsDefenseReadinessController } from './api/defense-readiness.controller';
 import { OpsEventReadsController } from './api/events.controller';
+import { OpsDecisionLogController } from './api/decision-log.controller';
+import { DecisionLogReadModelsService } from './application/services/decision-log-read-models.service';
 import { OpsHandoffBriefController } from './api/handoff-brief.controller';
 import { HandoffBriefReadModelsService } from './application/services/handoff-brief-read-models.service';
+import { OpsRunSheetController } from './api/run-sheet.controller';
+import { RunSheetReadModelsService } from './application/services/run-sheet-read-models.service';
 import { OpsPmcmCommandInboxController } from './api/pmcm-command-inbox.controller';
 import { OpsPmcmDashboardController } from './api/pmcm-dashboard.controller';
 import { OpsSupplierWorkspaceReadsController } from './api/supplier-workspace.controller';
@@ -28,6 +32,7 @@ import { EventReadModelQueries } from './application/queries/event-read-models.q
 import { EventReadModelsService } from './application/services/event-read-models.service';
 import { LiveOpsReadModelsService } from './application/services/live-ops-read-models.service';
 import { PlatformReferenceReadModelsService } from './application/services/platform-reference-read-models.service';
+import { PlatformRetentionReadModelsService } from './application/services/platform-retention-read-models.service';
 import { LIVE_OPS_READ_MODEL } from './contracts/ports/live-ops-read-models.tokens';
 import { GuestEventProjectionModule } from './guest-event-projection.module';
 import { CommercialFactsReaderModule } from './commercial-facts-reader.module';
@@ -56,9 +61,11 @@ import { CommercialFactsReaderModule } from './commercial-facts-reader.module';
     OpsClientController,
     OpsDefenseReadinessController,
     OpsEventReadsController,
+    OpsDecisionLogController,
     OpsHandoffBriefController,
     OpsPmcmCommandInboxController,
     OpsPmcmDashboardController,
+    OpsRunSheetController,
     OpsSupplierWorkspaceReadsController,
   ],
   providers: [
@@ -66,7 +73,10 @@ import { CommercialFactsReaderModule } from './commercial-facts-reader.module';
     EventReadModelsService,
     LiveOpsReadModelsService,
     HandoffBriefReadModelsService,
+    DecisionLogReadModelsService,
+    RunSheetReadModelsService,
     PlatformReferenceReadModelsService,
+    PlatformRetentionReadModelsService,
     { provide: LIVE_OPS_READ_MODEL, useExisting: LiveOpsReadModelsService },
     { provide: PMCM_EVENT_READ_MODEL, useExisting: EventReadModelsService },
     { provide: CLIENT_EVENT_READ_MODEL, useExisting: EventReadModelsService },
@@ -82,6 +92,7 @@ import { CommercialFactsReaderModule } from './commercial-facts-reader.module';
     BILLING_READ_MODEL,
     LIVE_OPS_READ_MODEL,
     PlatformReferenceReadModelsService,
+    PlatformRetentionReadModelsService,
     GuestEventProjectionModule,
     CommercialFactsReaderModule,
   ],

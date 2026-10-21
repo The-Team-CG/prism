@@ -225,6 +225,10 @@ function createPmcmReadModelService() {
     opsCoordinatorAssignment: { findMany: vi.fn(async () => []) },
     opsFloorPlanDraft: { findMany: vi.fn(async () => []) },
     opsPostEventDocument: { findMany: vi.fn(async () => []) },
+    opsEventDayTask: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
+    opsUrgentIssue: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
+    opsClientCloseoutResponse: { findMany: vi.fn(async (): Promise<Array<{ id: string; eventId: string }>> => []) },
+    opsEventFreezeException: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
     opsApprovalRequest: { count: vi.fn(async () => 2) },
     opsDocument: { findMany: vi.fn(async () => [{ id: 'doc_1', eventId: 'evt_visible' }]) },
     opsBriefing: { findMany: vi.fn(async () => []) },
@@ -562,6 +566,80 @@ describe('EventReadModelsService', () => {
     },
   );
 
+  it('redacts PMCM verification notes from the supplier readiness board while keeping schedule and concerns', async () => {
+    const { service, policy, prisma } = createSupplierWorkspaceService();
+    const request = (await prisma.opsSupplierQuoteRequest.findMany())[0] as any;
+    Object.assign(request, {
+      status: 'selected',
+      eventDayVerificationStatus: 'rejected',
+      eventDayVerificationNotes: 'PMCM-SENTINEL-verification',
+      eventDayVerifiedBy: 'PMCM-SENTINEL-verifier',
+      eventDayNotes: 'Truck delayed at gate',
+      schedule: {
+        ingressAt: new Date('2099-01-01T08:00:00.000Z'), egressAt: new Date('2099-01-01T20:00:00.000Z'),
+        location: 'Bay 2', status: 'planned', revision: 1, acknowledgedRevision: 1,
+        acknowledgedAt: null, changeRequestNote: null, changeRequestedAt: null,
+      },
+    });
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.Supplier, supplierId: 'sup_sonicline', actorEmail: 'supplier@example.com' });
+
+    const board = await service.supplierReadinessBoard(actor);
+
+    expect(board.items[0]).toMatchObject({
+      verificationStatus: 'rejected',
+      schedule: { location: 'Bay 2', acknowledged: true },
+      concerns: [expect.objectContaining({ kind: 'event_day_note', message: 'Truck delayed at gate' })],
+    });
+    expect(JSON.stringify(board)).not.toContain('PMCM-SENTINEL');
+    expect(board.items[0]).not.toHaveProperty('pmcmReview');
+  });
+
+  it('serves PMCM the same per-request readiness item for one event plus private review notes', async () => {
+    const { service, policy, prisma } = createPmcmReadModelService();
+    prisma.opsSupplierQuoteRequest.findMany.mockResolvedValue([
+      {
+        id: 'qr_open', eventId: 'evt_visible', supplierId: 'sup_open', supplierName: 'Open Bid Catering', category: 'Catering',
+        status: 'open', dueDate: null, assignmentStatus: 'pending_confirmation', readinessStatus: 'not_requested',
+        readinessNotes: '', eventDayStatus: 'not_started', eventDayNotes: '', eventDayVerificationStatus: 'self_reported',
+        eventDayVerificationNotes: '', eventDayVerifiedBy: null, eventDayVerifiedAt: null, contractVersions: [], schedule: null,
+      },
+      {
+        id: 'qr_sonic', eventId: 'evt_visible', supplierId: 'sup_sonic', supplierName: 'Sonic Line', category: 'Technicals',
+        status: 'selected', dueDate: null, assignmentStatus: 'confirmed', readinessStatus: 'confirmed',
+        readinessNotes: 'Crew of six', eventDayStatus: 'set_up_ready', eventDayNotes: '', eventDayVerificationStatus: 'verified',
+        eventDayVerificationNotes: 'Rigging checked by PMCM', eventDayVerifiedBy: 'Francis', eventDayVerifiedAt: new Date('2026-06-18T06:00:00.000Z'),
+        contractVersions: [{ reviewStatus: 'accepted', reviewReason: null, reviewedAt: null }], schedule: null,
+      },
+    ] as never);
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
+
+    const board = await service.pmcmSupplierReadinessBoard(actor, 'evt_visible');
+
+    expect(prisma.opsSupplierQuoteRequest.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { eventId: 'evt_visible' } }));
+    expect(board.eventId).toBe('evt_visible');
+    expect(board.counts).toEqual({ critical: 0, warning: 1, attention: 0, info: 1 });
+    expect(board.items.map((item) => [item.requestId, item.quoteLocked])).toEqual([['qr_open', false], ['qr_sonic', true]]);
+    expect(board.items[1]).toMatchObject({
+      eventName: 'Ayala Summit',
+      supplierName: 'Sonic Line',
+      setupStatus: 'ready',
+      pmcmReview: { verificationNotes: 'Rigging checked by PMCM', verifiedBy: 'Francis', readinessNotes: 'Crew of six' },
+    });
+  });
+
+  it.each([
+    [{ actorRole: OpsUserRole.Supplier, supplierId: 'sup_sonicline', actorEmail: 'supplier@example.com' }, 'supplier'],
+    [{ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' }, 'client'],
+    [{ actorRole: OpsUserRole.Coordinator, actorName: 'Rhea Santos' }, 'coordinator'],
+  ])('denies %o from the PMCM supplier readiness board before reading requests', async (input, role) => {
+    const { service, policy, prisma } = createPmcmReadModelService();
+
+    await expect(service.pmcmSupplierReadinessBoard(policy.resolveActor(input as never), 'evt_visible')).rejects.toThrow(
+      `${role} cannot access PMCM supplier readiness board`,
+    );
+    expect(prisma.opsSupplierQuoteRequest.findMany).not.toHaveBeenCalled();
+  });
+
   it('builds a PMCM-only defense readiness checklist through reader ports', async () => {
     const policy = new EventAccessPolicyService({ write: vi.fn() } as any);
     const event = {
@@ -721,6 +799,91 @@ describe('EventReadModelsService', () => {
     const floorplanItems = actionCenter.items.filter((item) => item.kind === 'floorplan');
     expect(floorplanItems.length).toBeGreaterThan(0);
     expect(floorplanItems.every((item) => item.href?.includes('/floor-plan'))).toBe(true);
+  });
+
+  it('surfaces overdue or blocked event-day tasks and open urgent issues as live-ops inbox work', async () => {
+    const { service, policy, prisma } = createPmcmReadModelService();
+    const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const inTwoHours = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    prisma.opsEventDayTask.findMany.mockImplementation(async () => [
+      { id: 'edt_overdue', eventId: 'evt_visible', title: 'Confirm stage power', status: 'open', assignedRole: 'Technical Lead', ownerName: 'Dane', dueAt: null, slaDueAt: hourAgo, slaStatus: 'on_track' },
+      { id: 'edt_blocked', eventId: 'evt_visible', title: 'Release VIP gate', status: 'blocked', assignedRole: 'Access Lead', ownerName: '', dueAt: inTwoHours, slaDueAt: inTwoHours, slaStatus: 'on_track' },
+      { id: 'edt_on_track', eventId: 'evt_visible', title: 'Brief ushers', status: 'in_progress', assignedRole: 'Usher Lead', ownerName: '', dueAt: inTwoHours, slaDueAt: inTwoHours, slaStatus: 'on_track' },
+    ]);
+    prisma.opsUrgentIssue.findMany.mockImplementation(async () => [
+      { id: 'iss_high', eventId: 'evt_visible', title: 'Projector failure', severity: 'high', status: 'open', slaDueAt: inTwoHours, slaStatus: 'on_track', createdAt: hourAgo },
+      { id: 'iss_low', eventId: 'evt_visible', title: 'Signage typo', severity: 'low', status: 'assigned', slaDueAt: null, slaStatus: 'on_track', createdAt: hourAgo },
+      { id: 'iss_hidden', eventId: 'evt_archived_or_missing', title: 'Unscoped', severity: 'critical', status: 'open', slaDueAt: null, slaStatus: 'on_track', createdAt: hourAgo },
+    ]);
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
+
+    const inbox = await service.pmcmCommandInbox(actor);
+
+    const liveOps = inbox.items.filter((item) => item.kind === 'live_ops');
+    expect(liveOps.map((item) => [item.id, item.severity, item.status])).toEqual([
+      ['live-ops:task:edt_overdue', 'critical', 'overdue'],
+      // Same severity and due time: ties break on the stable item id.
+      ['live-ops:issue:iss_high', 'warning', 'open'],
+      ['live-ops:task:edt_blocked', 'warning', 'blocked'],
+      ['live-ops:issue:iss_low', 'attention', 'assigned'],
+    ]);
+    expect(liveOps.every((item) => item.href === '/dashboard/events/evt_visible/live-ops')).toBe(true);
+    const severities = inbox.items.map((item) => item.severity);
+    expect(severities).toEqual([...severities].sort((left, right) =>
+      ['critical', 'warning', 'attention', 'info'].indexOf(left) - ['critical', 'warning', 'attention', 'info'].indexOf(right)));
+    expect(inbox.counts.critical).toBe(2);
+    expect(prisma.opsEventDayTask.findMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 0, take: 11 }));
+  });
+
+  it('asks clients for feedback only inside the post-event window and only until they respond', async () => {
+    const { service, policy, prisma } = createPmcmReadModelService();
+    const ended = { id: 'evt_ended', eventName: 'Ended Gala', clientName: 'Ana Reyes', eventDate: new Date('2026-05-01T00:00:00.000Z'), status: 'completed', floorPlanStatus: 'approved', clientPortalStatus: 'unlocked', archived: false, actualEndedAt: new Date('2026-05-01T22:00:00.000Z'), floorPlanDrafts: [] };
+    const responded = { ...ended, id: 'evt_responded', eventName: 'Responded Gala' };
+    const upcoming = { ...ended, id: 'evt_upcoming', eventName: 'Upcoming Gala', status: 'planning', actualEndedAt: null };
+    prisma.opsEvent.findMany.mockImplementation(async () => [ended, responded, upcoming] as never);
+    prisma.opsClientCloseoutResponse.findMany.mockImplementation(async () => [{ id: 'resp_1', eventId: 'evt_responded' }]);
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });
+
+    const actionCenter = await service.clientActionCenter(actor);
+
+    const feedback = actionCenter.items.filter((item) => item.kind === 'feedback');
+    expect(feedback).toEqual([expect.objectContaining({
+      id: 'feedback:evt_ended',
+      eventId: 'evt_ended',
+      priority: 'attention',
+      href: '/dashboard/events/evt_ended/summary',
+    })]);
+  });
+
+  it('shows client-visible change request status without PMCM-only reasons, notes, or actors', async () => {
+    const { service, policy, prisma } = createPmcmReadModelService();
+    const recent = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    const internal = { reason: 'Internal margin concern', decisionNote: 'PMCM-only decision note', requestedBy: 'Ms. Mys', decidedBy: 'Francis', consumedAt: null };
+    // The mock returns internal columns too, proving the projection strips them even if a query ever over-selects.
+    prisma.opsEventFreezeException.findMany.mockImplementation(async () => [
+      { id: 'fx_pending', eventId: 'evt_visible', requestedChange: 'Add 20 guests', status: 'pending', requestedAt: recent, decidedAt: null, ...internal },
+      { id: 'fx_rejected', eventId: 'evt_visible', requestedChange: 'Move to ballroom B', status: 'rejected', requestedAt: recent, decidedAt: recent, ...internal },
+      { id: 'fx_other', eventId: 'evt_other_client', requestedChange: 'Hidden', status: 'pending', requestedAt: recent, decidedAt: null, ...internal },
+    ]);
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });
+
+    const actionCenter = await service.clientActionCenter(actor);
+
+    const changes = actionCenter.items.filter((item) => item.kind === 'change_request');
+    expect(changes.map((item) => [item.id, item.status, item.priority])).toEqual([
+      ['change-request:fx_rejected', 'not_approved', 'attention'],
+      ['change-request:fx_pending', 'under_review', 'info'],
+    ]);
+    const allowedKeys = ['id', 'kind', 'priority', 'label', 'description', 'status', 'eventId', 'eventName', 'dueAt', 'href'];
+    for (const item of actionCenter.items) {
+      expect(Object.keys(item).every((key) => allowedKeys.includes(key))).toBe(true);
+    }
+    const serialized = JSON.stringify(actionCenter.items);
+    for (const secret of ['Internal margin concern', 'PMCM-only decision note', 'Ms. Mys', 'Francis', 'clientName']) {
+      expect(serialized).not.toContain(secret);
+    }
+    const query = (prisma.opsEventFreezeException.findMany.mock.calls as unknown as Array<[{ select: Record<string, boolean> }]>)[0][0];
+    expect(Object.keys(query.select).sort()).toEqual(['decidedAt', 'eventId', 'id', 'requestedAt', 'requestedChange', 'status']);
   });
 
   it('omits internal billing sources for client actors while still serving statements and milestones', async () => {
@@ -990,6 +1153,8 @@ describe('EventReadModelsService', () => {
       },
       opsPaymentRecord: { findMany: vi.fn(async () => []) },
       opsPostEventDocument: { findMany: vi.fn(async () => []) },
+      opsClientCloseoutResponse: { findMany: vi.fn(async () => []) },
+      opsEventFreezeException: { findMany: vi.fn(async () => []) },
     };
     const policy = new EventAccessPolicyService({ write: vi.fn() } as any);
     const guestReader = createGuestReader();

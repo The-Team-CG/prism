@@ -1,9 +1,8 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
-import { mapSupplierQuoteForSupplier } from '@prism/contexts/commercial';
+import { mapSupplierQuoteForSupplier, mapSupplierQuoteRequestForSupplier } from '@prism/contexts/commercial';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
-import { mapSupplierQuoteRequest } from '@prism/contexts/commercial';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { createSupplierWorkspaceMappers } from '../application/mappers/event-read-model.mappers';
 import { EventReadModelsService } from '../application/services/event-read-models.service';
@@ -38,7 +37,7 @@ export class OpsSupplierWorkspaceReadsController {
     return this.eventReadModelsService.supplierWorkspace(
       actor,
       createSupplierWorkspaceMappers({
-        mapSupplierQuoteRequest,
+        mapSupplierQuoteRequest: mapSupplierQuoteRequestForSupplier,
         mapSupplierQuoteForSupplier,
       }),
     );
