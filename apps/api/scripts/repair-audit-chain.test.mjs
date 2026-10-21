@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseRepairArguments, validateApplyEvidence } from './repair-audit-chain.mjs';
+import { directDatabaseHost, parseRepairArguments, validateApplyEvidence } from './repair-audit-chain.mjs';
+
+test('repair rejects complete pooler hostnames while permitting distinct direct hosts', () => {
+  for (const hostname of ['pooler.supabase.com', 'aws-0.pooler.supabase.com', 'AWS-0.POOLER.SUPABASE.COM']) {
+    assert.throws(() => directDatabaseHost(`postgresql://user:pass@${hostname}:5432/prism`), /points to a pooler/);
+  }
+  for (const hostname of ['notpooler.supabase.com', 'pooler.supabase.com.example.test', 'pooler.supabase.comevil.test']) {
+    assert.equal(directDatabaseHost(`postgresql://user:pass@${hostname}:5432/prism`), `${hostname}:5432`);
+  }
+  assert.throws(() => directDatabaseHost('postgresql://user:pass@db.example.test:6543/prism'), /points to a pooler/);
+});
 
 test('repair command defaults to a read-only dry run', () => {
   assert.deepEqual(parseRepairArguments([]), { apply: false, dryrun: true });

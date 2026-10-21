@@ -2,7 +2,10 @@ export const PUBLIC_INQUIRY_LINK_SOURCE = "Colleague or Friend";
 export const PUBLIC_INQUIRY_LINK_CHANNEL = "pmcm-inquiry-link";
 
 export function buildPublicInquiryLink(origin: string): string {
-  const base = origin.trim().replace(/\/+$/, "") || "http://localhost:3001";
+  const trimmed = origin.trim();
+  let end = trimmed.length;
+  while (end > 0 && trimmed[end - 1] === "/") end -= 1;
+  const base = trimmed.slice(0, end) || "http://localhost:3001";
   const url = new URL("/inquiry", `${base}/`);
   url.searchParams.set("source", PUBLIC_INQUIRY_LINK_SOURCE);
   url.searchParams.set("channel", PUBLIC_INQUIRY_LINK_CHANNEL);
