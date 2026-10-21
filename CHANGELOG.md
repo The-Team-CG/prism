@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Database tooling recognizes Supabase poolers by complete hostname labels, and public inquiry links handle long trailing-slash inputs without regex backtracking. Owner D (Anthony).
+
 - Updated Vite test tooling to resolve the Windows editor-command security advisory and restore the dependency audit gate.
 
 - Main-branch promotions now run the same build, security, migration, and behavior checks as staging and prod.
