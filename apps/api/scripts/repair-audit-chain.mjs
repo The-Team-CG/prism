@@ -386,18 +386,14 @@ function loadCompiledAuditModules() {
 
 function databaseUrlFromEnvironment() {
   const value = process.env.DIRECT_URL?.trim();
-  if (!value) throw new Error('DIRECT_URL is required; audit repair does not use a pooled connection');
-  const parsed = new URL(value);
-  if (parsed.hostname.includes('pooler.supabase.com') || parsed.port === '6543') {
-    throw new Error('DIRECT_URL points to a pooler; use the direct PostgreSQL connection for this maintenance operation');
-  }
-  return { connectionString: value, host: `${parsed.hostname}:${parsed.port || '5432'}` };
+  return { connectionString: value, host: directDatabaseHost(value) };
 }
 
-function directDatabaseHost(value) {
+export function directDatabaseHost(value) {
   if (!value) throw new Error('DIRECT_URL is required; audit repair does not use a pooled connection');
   const parsed = new URL(value);
-  if (parsed.hostname.includes('pooler.supabase.com') || parsed.port === '6543') {
+  const hostname = parsed.hostname.toLowerCase();
+  if (hostname === 'pooler.supabase.com' || hostname.endsWith('.pooler.supabase.com') || parsed.port === '6543') {
     throw new Error('DIRECT_URL points to a pooler; use the direct PostgreSQL connection for this maintenance operation');
   }
   return `${parsed.hostname}:${parsed.port || '5432'}`;
