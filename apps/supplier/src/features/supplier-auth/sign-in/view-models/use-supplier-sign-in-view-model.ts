@@ -2,15 +2,15 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { PrismAuthenticatedSession } from "@prism/types";
 import {
   DEFAULT_SIGN_IN_DRAFT,
   isExistingSupplierSession,
   isSupplierSignInDraftValid,
   mapApprovalRequestError,
   mapSupplierSignInError,
-  SAMPLE_SUPPLIER_ACCOUNTS,
 } from "../model/supplier-sign-in-rules";
-import type { SupplierSession, SupplierSignInDraft, SupplierSignInStatus } from "../model/supplier-sign-in-types";
+import type { SupplierSignInDraft, SupplierSignInStatus } from "../model/supplier-sign-in-types";
 import {
   loadExistingSupplierSession,
   requestSupplierApproval,
@@ -26,7 +26,7 @@ export function useSupplierSignInViewModel() {
   const [approvalConsentAccepted, setApprovalConsentAccepted] = useState(false);
   const [showApproval, setShowApproval] = useState(false);
   const [status, setStatus] = useState<SupplierSignInStatus>("idle");
-  const [existing, setExisting] = useState<SupplierSession | null>(null);
+  const [existing, setExisting] = useState<PrismAuthenticatedSession | null>(null);
 
   useEffect(() => {
     const current = loadExistingSupplierSession();
@@ -39,10 +39,6 @@ export function useSupplierSignInViewModel() {
 
   function updatePassword(password: string) {
     setDraft((prev) => ({ ...prev, password }));
-  }
-
-  function applySampleAccount(email: string, password: string) {
-    setDraft({ email, password });
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -92,11 +88,10 @@ export function useSupplierSignInViewModel() {
     showApproval,
     setShowApproval,
     existing,
+    status,
     busy: status === "loading",
-    sampleAccounts: SAMPLE_SUPPLIER_ACCOUNTS,
     updateEmail,
     updatePassword,
-    applySampleAccount,
     submit,
     requestApproval,
   };

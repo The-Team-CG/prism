@@ -4,7 +4,7 @@ import type { PrismEvent, PrismFloorPlanDraft } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { StatusBadge } from "@/app/components/ui/status-badge";
-import type { FloorPlanTemplate } from "@/features/floorplan/editor/templates";
+import type { FloorPlanTemplate } from "@/features/floorplan/editor";
 import { label } from "@/features/pmcm-kit";
 import { Panel } from "@/features/pmcm-kit";
 import {
@@ -82,6 +82,12 @@ export function EventFloorplansTab({
                     <p>
                       <span className="font-bold text-foreground">Stage:</span> {draft.clientPreference.stagePreference}
                     </p>
+                  </div>
+                )}
+                {draft.status === "revision_requested" && draft.revisionComment && (
+                  <div className="mt-3 rounded-lg border border-(--prism-warning)/25 bg-(--prism-warning)/8 p-3 text-xs leading-5 text-foreground">
+                    <p className="font-bold text-(--prism-warning)">Client revision requested</p>
+                    <p className="mt-1 text-muted-foreground">{draft.revisionComment}</p>
                   </div>
                 )}
                 <div className="mt-4 flex flex-wrap gap-2">

@@ -1,0 +1,4 @@
+# SHA-256 checksum of the immutable identity-access schema baseline SQL.
+# This is a content hash, not a credential; verify against the LF-normalized SQL.
+# Fingerprints pin the current file and line, so moving the checksum invalidates this exclusion.
+apps/api/prisma/migration-policy.json:generic-api-key:22

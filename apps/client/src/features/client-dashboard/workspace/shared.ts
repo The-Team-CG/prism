@@ -29,18 +29,23 @@ export {
   PORTAL_ROUTE_TO_NAV_ITEM,
   ROUTE_TO_DETAIL_TAB,
   dashboardHref,
+  clientEventCardOpenRoute,
+  clientEventWorkspaceAvailable,
   dashboardLoadingVariant,
   findClientSidebarLink,
   portalViewFromLink,
   sidebarActiveItemId,
 } from "./model/client-dashboard-navigation";
 export {
+  clientEventMatchesFilter,
   selectClientEvents,
+  selectClientEventHistoryEvents,
   selectEventDrafts,
   selectEventWorkspaceResources,
   selectSelectedClientEvent,
 } from "./model/client-dashboard-selectors";
 export {
+  clientFloorplanDashboardActionLabel,
   eventProgressDots,
   formatStatusLabel,
   greetingByTime,

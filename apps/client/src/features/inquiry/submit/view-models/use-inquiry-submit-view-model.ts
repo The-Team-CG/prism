@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
+  applyInquiryPrefill,
   isInquiryStepValid,
   mapInquirySubmitError,
   nextInquiryStep,
@@ -21,6 +22,10 @@ export function useInquirySubmitViewModel() {
   const [currentStep, setCurrentStep] = useState(0);
   const [status, setStatus] = useState<InquirySubmitStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setForm((current) => applyInquiryPrefill(current, new URLSearchParams(window.location.search)));
+  }, []);
 
   const minDate = useMemo(() => inquiryMinDate(), []);
   const submitted = status === "submitted";
@@ -69,6 +74,7 @@ export function useInquirySubmitViewModel() {
   return {
     form,
     currentStep,
+    status,
     submitted,
     busy,
     error,

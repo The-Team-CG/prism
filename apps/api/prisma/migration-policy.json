@@ -1,0 +1,771 @@
+{
+  "policyVersion": 1,
+  "legacyMaxVersion": "20260909100000",
+  "legacyDuplicateVersions": [],
+  "ownerAwareNamePattern": "YYYYMMDDHHmmss_<owner>_<change_slug>",
+  "legacyMigrationNames": [],
+  "legacyMigrationChecksums": {},
+  "ownerAwareBaselineMaxVersion": "20261006120006",
+  "ownerAwareBaselineNames": [
+    "20261006120000_commercial_schema_baseline",
+    "20261006120001_event-lifecycle_schema_baseline",
+    "20261006120002_floorplan_schema_baseline",
+    "20261006120003_identity-access_schema_baseline",
+    "20261006120004_live-ops_schema_baseline",
+    "20261006120005_operations_schema_baseline",
+    "20261006120006_platform-ops_schema_baseline"
+  ],
+  "ownerAwareBaselineChecksums": {
+    "20261006120000_commercial_schema_baseline": "5de2a5fa3ec097986968b84a34c86f9bd74d8b4338855613ca86b9069cd8a651",
+    "20261006120001_event-lifecycle_schema_baseline": "7b6e9c8cc1a2f682ecf5304c500080d31332d18b278f05b065877923b102245d",
+    "20261006120002_floorplan_schema_baseline": "8be18852adfaaa82f3bfa597880ae8a9ebae133287765d68e42dd81b2be00a6e",
+    "20261006120003_identity-access_schema_baseline": "885fbee0ab8c90de419a3ea2217895bd23fa09f117a5ed8ec4c00609dc57b03e",
+    "20261006120004_live-ops_schema_baseline": "935740d3c3ee9c173638a42e0e53d1c4cf6cb1e0064fb7bd8d17498a5729a8cb",
+    "20261006120005_operations_schema_baseline": "c8e7df01267e324b5a4bcba559be51050e498300e514d04e5f1e293791a45453",
+    "20261006120006_platform-ops_schema_baseline": "5852eb1b5be5796b774930cb06adcd7161a3441c5145ec61a46d02d6aa1c7058"
+  },
+  "systemSchemas": [
+    "information_schema",
+    "pg_catalog"
+  ],
+  "forbiddenSchemas": [
+    "public"
+  ],
+  "historicalOwnerSchemas": {
+    "commercial": {
+      "schemas": [
+        "commercial"
+      ],
+      "note": "Supplier and finance persistence owned by the commercial context."
+    },
+    "event-lifecycle": {
+      "schemas": [
+        "event_lifecycle"
+      ],
+      "note": "Inquiry, event, briefing, compliance, closure, and lifecycle records."
+    },
+    "floorplan": {
+      "schemas": [
+        "floorplan"
+      ],
+      "note": "Official floorplans, drafts, templates, and published snapshots."
+    },
+    "identity-access": {
+      "schemas": [
+        "identity_access"
+      ],
+      "note": "Authentication, account approval, session, and identity records."
+    },
+    "live-ops": {
+      "schemas": [
+        "live_ops"
+      ],
+      "note": "Event-day tasks, urgent issues, logs, attendance, and handoff records."
+    },
+    "operations": {
+      "schemas": [
+        "operations"
+      ],
+      "note": "Guest workflows and operations-owned staffing records."
+    },
+    "platform-ops": {
+      "schemas": [
+        "platform_ops"
+      ],
+      "note": "Storage metadata, audit, notification, security, and AI governance records."
+    }
+  },
+  "historicalTableOwners": {},
+  "historicalIndexOwners": {
+    "floorplan": {
+      "venue_templates": [
+        "floorplan"
+      ],
+      "event_instances": [
+        "floorplan"
+      ],
+      "published_snapshots": [
+        "floorplan"
+      ],
+      "floor_plan_drafts": [
+        "floorplan"
+      ]
+    },
+    "identity_access": {
+      "users": [
+        "identity-access"
+      ],
+      "password_reset_tokens": [
+        "identity-access"
+      ],
+      "password_reset_rate_limits": [
+        "identity-access"
+      ],
+      "approval_requests": [
+        "identity-access"
+      ]
+    },
+    "event_lifecycle": {
+      "inquiries": [
+        "event-lifecycle"
+      ],
+      "inquiry_status_history": [
+        "event-lifecycle"
+      ],
+      "events": [
+        "event-lifecycle"
+      ],
+      "ocular_visit_requests": [
+        "event-lifecycle"
+      ],
+      "client_floorplan_access_grants": [
+        "event-lifecycle"
+      ],
+      "event_decisions": [
+        "event-lifecycle"
+      ],
+      "documents": [
+        "event-lifecycle"
+      ],
+      "briefings": [
+        "event-lifecycle"
+      ],
+      "event_freeze_exceptions": [
+        "event-lifecycle"
+      ],
+      "addenda": [
+        "event-lifecycle"
+      ],
+      "addendum_impacts": [
+        "event-lifecycle"
+      ],
+      "compliance_rules": [
+        "event-lifecycle"
+      ],
+      "compliance_checks": [
+        "event-lifecycle"
+      ],
+      "compliance_runs": [
+        "event-lifecycle"
+      ],
+      "compliance_risks": [
+        "event-lifecycle"
+      ],
+      "compliance_risk_history": [
+        "event-lifecycle"
+      ],
+      "post_event_documents": [
+        "event-lifecycle"
+      ],
+      "event_wrap_ups": [
+        "event-lifecycle"
+      ],
+      "event_insights": [
+        "event-lifecycle"
+      ]
+    },
+    "platform_ops": {
+      "privacy_requests": [
+        "platform-ops"
+      ],
+      "privacy_legal_holds": [
+        "platform-ops"
+      ],
+      "audit_logs": [
+        "platform-ops"
+      ],
+      "notification_logs": [
+        "platform-ops"
+      ],
+      "pare_dispatches": [
+        "platform-ops"
+      ],
+      "command_receipts": [
+        "platform-ops"
+      ],
+      "stored_objects": [
+        "platform-ops"
+      ],
+      "ai_audit_logs": [
+        "platform-ops"
+      ],
+      "ai_daily_token_usage": [
+        "platform-ops"
+      ],
+      "ai_approval_records": [
+        "platform-ops"
+      ],
+      "conforme_comms_drafts": [
+        "platform-ops"
+      ],
+      "login_history": [
+        "platform-ops"
+      ],
+      "security_alerts": [
+        "platform-ops"
+      ]
+    },
+    "commercial": {
+      "cost_estimates": [
+        "commercial"
+      ],
+      "cost_estimate_lines": [
+        "commercial"
+      ],
+      "proposal_versions": [
+        "commercial"
+      ],
+      "quote_requests": [
+        "commercial"
+      ],
+      "supplier_schedules": [
+        "commercial"
+      ],
+      "quote_rounds": [
+        "commercial"
+      ],
+      "quotes": [
+        "commercial"
+      ],
+      "supplier_categories": [
+        "commercial"
+      ],
+      "suppliers": [
+        "commercial"
+      ],
+      "supplier_availability": [
+        "commercial"
+      ],
+      "supplier_reviews": [
+        "commercial"
+      ],
+      "supplier_review_dimensions": [
+        "commercial"
+      ],
+      "supplier_review_dimension_ratings": [
+        "commercial"
+      ],
+      "supplier_reliability_notes": [
+        "commercial"
+      ],
+      "supplier_certifications": [
+        "commercial"
+      ],
+      "supplier_applications": [
+        "commercial"
+      ],
+      "supplier_promotions": [
+        "commercial"
+      ],
+      "billing_sources": [
+        "commercial"
+      ],
+      "billing_statements": [
+        "commercial"
+      ],
+      "payment_milestones": [
+        "commercial"
+      ],
+      "payment_records": [
+        "commercial"
+      ],
+      "billing_corrections": [
+        "commercial"
+      ],
+      "billing_disputes": [
+        "commercial"
+      ],
+      "additional_billings": [
+        "commercial"
+      ],
+      "communication_threads": [
+        "commercial"
+      ],
+      "communication_participants": [
+        "commercial"
+      ],
+      "communication_messages": [
+        "commercial"
+      ]
+    },
+    "operations": {
+      "coordinators": [
+        "operations"
+      ],
+      "coordinator_availability": [
+        "operations"
+      ],
+      "event_coverage_requirements": [
+        "operations"
+      ],
+      "coordinator_assignments": [
+        "operations"
+      ],
+      "coordinator_assignment_acknowledgments": [
+        "operations"
+      ],
+      "coordinator_reliability_notes": [
+        "operations"
+      ],
+      "check_ins": [
+        "operations"
+      ],
+      "guest_roster_entries": [
+        "operations"
+      ],
+      "guest_roster_imports": [
+        "operations"
+      ],
+      "feedback": [
+        "operations"
+      ],
+      "feedback_media": [
+        "operations"
+      ],
+      "registration_platforms": [
+        "operations"
+      ]
+    },
+    "live_ops": {
+      "event_day_tasks": [
+        "live-ops"
+      ],
+      "task_reassignment_requests": [
+        "live-ops"
+      ],
+      "event_schedule_days": [
+        "live-ops"
+      ],
+      "event_schedule_segments": [
+        "live-ops"
+      ],
+      "event_operator_designations": [
+        "live-ops"
+      ],
+      "event_handoffs": [
+        "live-ops"
+      ],
+      "event_eod_reports": [
+        "live-ops"
+      ],
+      "event_eod_replies": [
+        "live-ops"
+      ],
+      "urgent_issues": [
+        "live-ops"
+      ],
+      "event_day_logs": [
+        "live-ops"
+      ]
+    },
+    "event_games": {
+      "game_definitions": [
+        "event-games"
+      ],
+      "lobby_slugs": [
+        "event-games"
+      ],
+      "game_config_versions": [
+        "event-games"
+      ],
+      "game_sessions": [
+        "event-games"
+      ],
+      "active_pin_reservations": [
+        "event-games"
+      ],
+      "pin_history": [
+        "event-games"
+      ],
+      "participant_credentials": [
+        "event-games"
+      ],
+      "session_participation_grants": [
+        "event-games"
+      ],
+      "submissions": [
+        "event-games"
+      ],
+      "score_ledger": [
+        "event-games"
+      ],
+      "awards": [
+        "event-games"
+      ],
+      "moderation_actions": [
+        "event-games"
+      ],
+      "rate_limit_buckets": [
+        "event-games"
+      ]
+    }
+  },
+  "historicalRequireTableOwnerMappingsForSchemas": [],
+  "indexOwners": {
+    "floorplan": {
+      "venue_templates": [
+        "floorplan"
+      ],
+      "event_instances": [
+        "floorplan"
+      ],
+      "published_snapshots": [
+        "floorplan"
+      ],
+      "floor_plan_drafts": [
+        "floorplan"
+      ]
+    },
+    "identity_access": {
+      "users": [
+        "identity-access"
+      ],
+      "password_reset_tokens": [
+        "identity-access"
+      ],
+      "password_reset_rate_limits": [
+        "identity-access"
+      ],
+      "approval_requests": [
+        "identity-access"
+      ]
+    },
+    "event_lifecycle": {
+      "inquiries": [
+        "event-lifecycle"
+      ],
+      "inquiry_status_history": [
+        "event-lifecycle"
+      ],
+      "events": [
+        "event-lifecycle"
+      ],
+      "ocular_visit_requests": [
+        "event-lifecycle"
+      ],
+      "client_floorplan_access_grants": [
+        "event-lifecycle"
+      ],
+      "event_decisions": [
+        "event-lifecycle"
+      ],
+      "documents": [
+        "event-lifecycle"
+      ],
+      "briefings": [
+        "event-lifecycle"
+      ],
+      "event_freeze_exceptions": [
+        "event-lifecycle"
+      ],
+      "addenda": [
+        "event-lifecycle"
+      ],
+      "addendum_impacts": [
+        "event-lifecycle"
+      ],
+      "compliance_rules": [
+        "event-lifecycle"
+      ],
+      "compliance_checks": [
+        "event-lifecycle"
+      ],
+      "compliance_runs": [
+        "event-lifecycle"
+      ],
+      "compliance_risks": [
+        "event-lifecycle"
+      ],
+      "compliance_risk_history": [
+        "event-lifecycle"
+      ],
+      "post_event_documents": [
+        "event-lifecycle"
+      ],
+      "event_wrap_ups": [
+        "event-lifecycle"
+      ],
+      "event_insights": [
+        "event-lifecycle"
+      ]
+    },
+    "platform_ops": {
+      "privacy_requests": [
+        "platform-ops"
+      ],
+      "privacy_legal_holds": [
+        "platform-ops"
+      ],
+      "audit_logs": [
+        "platform-ops"
+      ],
+      "notification_logs": [
+        "platform-ops"
+      ],
+      "pare_dispatches": [
+        "platform-ops"
+      ],
+      "command_receipts": [
+        "platform-ops"
+      ],
+      "stored_objects": [
+        "platform-ops"
+      ],
+      "ai_audit_logs": [
+        "platform-ops"
+      ],
+      "ai_daily_token_usage": [
+        "platform-ops"
+      ],
+      "ai_approval_records": [
+        "platform-ops"
+      ],
+      "conforme_comms_drafts": [
+        "platform-ops"
+      ],
+      "login_history": [
+        "platform-ops"
+      ],
+      "security_alerts": [
+        "platform-ops"
+      ]
+    },
+    "commercial": {
+      "cost_estimates": [
+        "commercial"
+      ],
+      "cost_estimate_lines": [
+        "commercial"
+      ],
+      "proposal_versions": [
+        "commercial"
+      ],
+      "quote_requests": [
+        "commercial"
+      ],
+      "supplier_schedules": [
+        "commercial"
+      ],
+      "quote_rounds": [
+        "commercial"
+      ],
+      "quotes": [
+        "commercial"
+      ],
+      "supplier_categories": [
+        "commercial"
+      ],
+      "suppliers": [
+        "commercial"
+      ],
+      "supplier_availability": [
+        "commercial"
+      ],
+      "supplier_reviews": [
+        "commercial"
+      ],
+      "supplier_review_dimensions": [
+        "commercial"
+      ],
+      "supplier_review_dimension_ratings": [
+        "commercial"
+      ],
+      "supplier_reliability_notes": [
+        "commercial"
+      ],
+      "supplier_certifications": [
+        "commercial"
+      ],
+      "supplier_applications": [
+        "commercial"
+      ],
+      "supplier_promotions": [
+        "commercial"
+      ],
+      "billing_sources": [
+        "commercial"
+      ],
+      "billing_statements": [
+        "commercial"
+      ],
+      "payment_milestones": [
+        "commercial"
+      ],
+      "payment_records": [
+        "commercial"
+      ],
+      "billing_corrections": [
+        "commercial"
+      ],
+      "billing_disputes": [
+        "commercial"
+      ],
+      "additional_billings": [
+        "commercial"
+      ],
+      "communication_threads": [
+        "commercial"
+      ],
+      "communication_participants": [
+        "commercial"
+      ],
+      "communication_messages": [
+        "commercial"
+      ]
+    },
+    "operations": {
+      "coordinators": [
+        "operations"
+      ],
+      "coordinator_availability": [
+        "operations"
+      ],
+      "event_coverage_requirements": [
+        "operations"
+      ],
+      "coordinator_assignments": [
+        "operations"
+      ],
+      "coordinator_assignment_acknowledgments": [
+        "operations"
+      ],
+      "coordinator_reliability_notes": [
+        "operations"
+      ],
+      "check_ins": [
+        "operations"
+      ],
+      "guest_roster_entries": [
+        "operations"
+      ],
+      "guest_roster_imports": [
+        "operations"
+      ],
+      "feedback": [
+        "operations"
+      ],
+      "feedback_media": [
+        "operations"
+      ],
+      "registration_platforms": [
+        "operations"
+      ]
+    },
+    "live_ops": {
+      "event_day_tasks": [
+        "live-ops"
+      ],
+      "task_reassignment_requests": [
+        "live-ops"
+      ],
+      "event_schedule_days": [
+        "live-ops"
+      ],
+      "event_schedule_segments": [
+        "live-ops"
+      ],
+      "event_operator_designations": [
+        "live-ops"
+      ],
+      "event_handoffs": [
+        "live-ops"
+      ],
+      "event_eod_reports": [
+        "live-ops"
+      ],
+      "event_eod_replies": [
+        "live-ops"
+      ],
+      "urgent_issues": [
+        "live-ops"
+      ],
+      "event_day_logs": [
+        "live-ops"
+      ]
+    },
+    "event_games": {
+      "game_definitions": [
+        "event-games"
+      ],
+      "lobby_slugs": [
+        "event-games"
+      ],
+      "game_config_versions": [
+        "event-games"
+      ],
+      "game_sessions": [
+        "event-games"
+      ],
+      "active_pin_reservations": [
+        "event-games"
+      ],
+      "pin_history": [
+        "event-games"
+      ],
+      "participant_credentials": [
+        "event-games"
+      ],
+      "participant_credentials_event_digest_key": [
+        "event-games"
+      ],
+      "session_participation_grants_event_id_idempotency_key": [
+        "event-games"
+      ],
+      "active_pin_reservations_event_issue_key_key": [
+        "event-games"
+      ],
+      "session_participation_grants": [
+        "event-games"
+      ],
+      "submissions": [
+        "event-games"
+      ],
+      "score_ledger": [
+        "event-games"
+      ],
+      "awards": [
+        "event-games"
+      ],
+      "moderation_actions": [
+        "event-games"
+      ],
+      "rate_limit_buckets": [
+        "event-games"
+      ]
+    }
+  },
+  "owners": {
+    "commercial": {
+      "schema": "commercial",
+      "note": "Supplier and finance persistence owned by the commercial context."
+    },
+    "event-lifecycle": {
+      "schema": "event_lifecycle",
+      "note": "Inquiry, event, briefing, compliance, closure, and lifecycle records."
+    },
+    "event-games": {
+      "schema": "event_games",
+      "note": "Event game definitions, sessions, participant credentials, and play records."
+    },
+    "floorplan": {
+      "schema": "floorplan",
+      "note": "Official floorplans, drafts, templates, and published snapshots."
+    },
+    "identity-access": {
+      "schema": "identity_access",
+      "note": "Authentication, account approval, session, and identity records."
+    },
+    "live-ops": {
+      "schema": "live_ops",
+      "note": "Event-day tasks, urgent issues, logs, attendance, and handoff records."
+    },
+    "operations": {
+      "schema": "operations",
+      "note": "Guest workflows and operations-owned staffing records."
+    },
+    "platform-ops": {
+      "schema": "platform_ops",
+      "note": "Storage metadata, audit, notification, security, and AI governance records."
+    }
+  }
+}

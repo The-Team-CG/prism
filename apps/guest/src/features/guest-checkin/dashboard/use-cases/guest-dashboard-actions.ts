@@ -5,6 +5,7 @@ import {
 } from "../model/guest-dashboard-rules";
 import type { CheckInMode, GuestSession } from "../model/guest-dashboard-types";
 import { guestDashboardRepository } from "../data/guest-dashboard-repository";
+import { createGuestFeedbackSchema, parseContract } from "@prism/types";
 
 export function loadGuestDashboardSession(): GuestSession | null {
   return guestDashboardRepository.readSession();
@@ -19,10 +20,18 @@ export async function refreshGuestEvent(
   return next;
 }
 
+export async function refreshGuestEventIfChanged(
+  session: GuestSession,
+): Promise<GuestSession> {
+  const { watermark } = await guestDashboardRepository.fetchWatermark(session);
+  if (session.watermark === watermark) return session;
+  return refreshGuestEvent(session);
+}
+
 export async function submitGuestCheckIn(input: {
   session: GuestSession;
   checkInMode: CheckInMode;
-  walkIn: boolean;
+  guestName?: string;
   consentAccepted: boolean;
 }): Promise<{ session: GuestSession; notice: string }> {
   const payload = buildCheckInPayload(input);
@@ -35,12 +44,13 @@ export async function submitGuestCheckIn(input: {
   }
   return {
     session,
-    notice: checkInSuccessNotice(input.checkInMode, input.walkIn),
+    notice: checkInSuccessNotice(),
   };
 }
 
 export async function submitGuestFeedback(input: {
   session: GuestSession;
+  guestName: string;
   rating: string;
   comment: string;
   consentAccepted: boolean;
@@ -48,7 +58,10 @@ export async function submitGuestFeedback(input: {
   video?: File | null;
 }): Promise<void> {
   const payload = buildFeedbackPayload(input);
-  await guestDashboardRepository.submitFeedback(input.session, payload);
+  await guestDashboardRepository.submitFeedback(
+    input.session,
+    parseContract(createGuestFeedbackSchema, payload, "Guest feedback"),
+  );
 }
 
 export function leaveGuestEvent(): void {

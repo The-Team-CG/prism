@@ -1,0 +1,3644 @@
+{
+  "summary": {
+    "totalTables": 129,
+    "targetSchemas": 8,
+    "tableMoves": 83,
+    "currentCrossSchemaFks": 50,
+    "targetSameDomainFks": 120,
+    "crossDomainFksToDrop": 45,
+    "crossDomainPairsToDrop": {
+      "platform-ops → event-lifecycle": 8,
+      "commercial → event-lifecycle": 17,
+      "floorplan → event-lifecycle": 1,
+      "operations → event-lifecycle": 8,
+      "platform-ops → identity-access": 1,
+      "operations → identity-access": 1,
+      "live-ops → event-lifecycle": 8,
+      "live-ops → operations": 1
+    },
+    "domains": [
+      {
+        "domain": "event-lifecycle",
+        "schema": "event_lifecycle",
+        "tables": 30,
+        "columns": 431
+      },
+      {
+        "domain": "commercial",
+        "schema": "commercial",
+        "tables": 35,
+        "columns": 428
+      },
+      {
+        "domain": "operations",
+        "schema": "operations",
+        "tables": 12,
+        "columns": 149
+      },
+      {
+        "domain": "floorplan",
+        "schema": "floorplan",
+        "tables": 9,
+        "columns": 97
+      },
+      {
+        "domain": "live-ops",
+        "schema": "live_ops",
+        "tables": 10,
+        "columns": 122
+      },
+      {
+        "domain": "identity-access",
+        "schema": "identity_access",
+        "tables": 4,
+        "columns": 42
+      },
+      {
+        "domain": "platform-ops",
+        "schema": "platform_ops",
+        "tables": 16,
+        "columns": 229
+      },
+      {
+        "domain": "event-games",
+        "schema": "event_games",
+        "tables": 13,
+        "columns": 128
+      }
+    ]
+  },
+  "ownership": [
+    {
+      "model": "FloorPlan",
+      "currentSchema": "floorplan",
+      "table": "floor_plans",
+      "domain": "floorplan",
+      "targetSchema": "floorplan",
+      "columnCount": 16
+    },
+    {
+      "model": "FloorPlanObject",
+      "currentSchema": "floorplan",
+      "table": "floor_plan_objects",
+      "domain": "floorplan",
+      "targetSchema": "floorplan",
+      "columnCount": 8
+    },
+    {
+      "model": "VenueTemplate",
+      "currentSchema": "floorplan",
+      "table": "venue_templates",
+      "domain": "floorplan",
+      "targetSchema": "floorplan",
+      "columnCount": 16
+    },
+    {
+      "model": "EventInstance",
+      "currentSchema": "floorplan",
+      "table": "event_instances",
+      "domain": "floorplan",
+      "targetSchema": "floorplan",
+      "columnCount": 8
+    },
+    {
+      "model": "PublishedSnapshot",
+      "currentSchema": "floorplan",
+      "table": "published_snapshots",
+      "domain": "floorplan",
+      "targetSchema": "floorplan",
+      "columnCount": 5
+    },
+    {
+      "model": "OpsUser",
+      "currentSchema": "identity",
+      "table": "users",
+      "domain": "identity-access",
+      "targetSchema": "identity_access",
+      "columnCount": 19
+    },
+    {
+      "model": "OpsPasswordResetToken",
+      "currentSchema": "identity",
+      "table": "password_reset_tokens",
+      "domain": "identity-access",
+      "targetSchema": "identity_access",
+      "columnCount": 6
+    },
+    {
+      "model": "OpsPasswordResetRateLimit",
+      "currentSchema": "identity",
+      "table": "password_reset_rate_limits",
+      "domain": "identity-access",
+      "targetSchema": "identity_access",
+      "columnCount": 6
+    },
+    {
+      "model": "OpsApprovalRequest",
+      "currentSchema": "identity",
+      "table": "approval_requests",
+      "domain": "identity-access",
+      "targetSchema": "identity_access",
+      "columnCount": 11
+    },
+    {
+      "model": "OpsInquiry",
+      "currentSchema": "event_core",
+      "table": "inquiries",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 36
+    },
+    {
+      "model": "OpsInquiryStatusHistory",
+      "currentSchema": "event_core",
+      "table": "inquiry_status_history",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 10
+    },
+    {
+      "model": "OpsEvent",
+      "currentSchema": "event_core",
+      "table": "events",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 34
+    },
+    {
+      "model": "OpsEventClientFloorplanAccessGrant",
+      "currentSchema": "event_lifecycle",
+      "table": "client_floorplan_access_grants",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "introducedAfterCutover": true,
+      "columnCount": 10
+    },
+    {
+      "model": "OpsFileRequirement",
+      "currentSchema": "event_lifecycle",
+      "table": "file_requirements",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "introducedAfterCutover": true,
+      "columnCount": 15
+    },
+    {
+      "model": "OpsLogisticsCompletion",
+      "currentSchema": "event_lifecycle",
+      "table": "logistics_completions",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "introducedAfterCutover": true,
+      "columnCount": 11
+    },
+    {
+      "model": "OpsScopeChangeRequest",
+      "currentSchema": "event_lifecycle",
+      "table": "scope_change_requests",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "introducedAfterCutover": true,
+      "columnCount": 26
+    },
+    {
+      "model": "OpsEventRiskAssessment",
+      "currentSchema": "event_lifecycle",
+      "table": "event_risk_assessments",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "introducedAfterCutover": true,
+      "columnCount": 11
+    },
+    {
+      "model": "OpsEventRiskAssessmentHistory",
+      "currentSchema": "event_lifecycle",
+      "table": "event_risk_assessment_history",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "introducedAfterCutover": true,
+      "columnCount": 12
+    },
+    {
+      "model": "OpsOcularVisitRequest",
+      "currentSchema": "event_core",
+      "table": "ocular_visit_requests",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 12
+    },
+    {
+      "model": "OpsEventDecision",
+      "currentSchema": "event_core",
+      "table": "event_decisions",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 17
+    },
+    {
+      "model": "OpsPrivacyRequest",
+      "currentSchema": "event_core",
+      "table": "privacy_requests",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 19
+    },
+    {
+      "model": "OpsPrivacyLegalHold",
+      "currentSchema": "platform_ops",
+      "table": "privacy_legal_holds",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 14
+    },
+    {
+      "model": "OpsRetentionPolicy",
+      "currentSchema": "platform_ops",
+      "table": "retention_policies",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 12
+    },
+    {
+      "model": "OpsRetentionReviewItem",
+      "currentSchema": "platform_ops",
+      "table": "retention_review_items",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 14
+    },
+    {
+      "model": "OpsFloorPlanDraft",
+      "currentSchema": "floorplan",
+      "table": "floor_plan_drafts",
+      "domain": "floorplan",
+      "targetSchema": "floorplan",
+      "columnCount": 19
+    },
+    {
+      "model": "OpsFloorPlanProjectionClock",
+      "currentSchema": "floorplan",
+      "table": "floor_plan_projection_clocks",
+      "domain": "floorplan",
+      "targetSchema": "floorplan",
+      "columnCount": 3
+    },
+    {
+      "model": "OpsDocument",
+      "currentSchema": "event_core",
+      "table": "documents",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 14
+    },
+    {
+      "model": "OpsBriefing",
+      "currentSchema": "event_core",
+      "table": "briefings",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 14
+    },
+    {
+      "model": "OpsCostEstimate",
+      "currentSchema": "finance_ops",
+      "table": "cost_estimates",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 8
+    },
+    {
+      "model": "OpsCostEstimateLine",
+      "currentSchema": "finance_ops",
+      "table": "cost_estimate_lines",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 8
+    },
+    {
+      "model": "OpsProposalVersion",
+      "currentSchema": "finance_ops",
+      "table": "proposal_versions",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 11
+    },
+    {
+      "model": "OpsEventFreezeException",
+      "currentSchema": "event_core",
+      "table": "event_freeze_exceptions",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 10
+    },
+    {
+      "model": "OpsAddendum",
+      "currentSchema": "event_core",
+      "table": "addenda",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 16
+    },
+    {
+      "model": "OpsAddendumImpact",
+      "currentSchema": "event_core",
+      "table": "addendum_impacts",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 9
+    },
+    {
+      "model": "OpsSupplierQuoteRequest",
+      "currentSchema": "supplier_ops",
+      "table": "quote_requests",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 29
+    },
+    {
+      "model": "OpsSupplierSchedule",
+      "currentSchema": "supplier_ops",
+      "table": "supplier_schedules",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 16
+    },
+    {
+      "model": "OpsSupplierQuoteRound",
+      "currentSchema": "supplier_ops",
+      "table": "quote_rounds",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 7
+    },
+    {
+      "model": "OpsSupplierQuote",
+      "currentSchema": "supplier_ops",
+      "table": "quotes",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 21
+    },
+    {
+      "model": "OpsSupplierCategory",
+      "currentSchema": "supplier_ops",
+      "table": "supplier_categories",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 8
+    },
+    {
+      "model": "OpsSupplier",
+      "currentSchema": "supplier_ops",
+      "table": "suppliers",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 13
+    },
+    {
+      "model": "OpsSupplierAvailability",
+      "currentSchema": "supplier_ops",
+      "table": "supplier_availability",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 8
+    },
+    {
+      "model": "OpsSupplierReview",
+      "currentSchema": "supplier_ops",
+      "table": "supplier_reviews",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 8
+    },
+    {
+      "model": "OpsSupplierReviewDimension",
+      "currentSchema": "supplier_ops",
+      "table": "supplier_review_dimensions",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 7
+    },
+    {
+      "model": "OpsSupplierReviewDimensionRating",
+      "currentSchema": "supplier_ops",
+      "table": "supplier_review_dimension_ratings",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 4
+    },
+    {
+      "model": "OpsSupplierReliabilityNote",
+      "currentSchema": "supplier_ops",
+      "table": "supplier_reliability_notes",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 7
+    },
+    {
+      "model": "OpsSupplierCertification",
+      "currentSchema": "supplier_ops",
+      "table": "supplier_certifications",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 9
+    },
+    {
+      "model": "OpsSupplierApplication",
+      "currentSchema": "supplier_ops",
+      "table": "supplier_applications",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 25
+    },
+    {
+      "model": "OpsSupplierPromotion",
+      "currentSchema": "supplier_ops",
+      "table": "supplier_promotions",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 10
+    },
+    {
+      "model": "OpsCoordinator",
+      "currentSchema": "staffing_ops",
+      "table": "coordinators",
+      "domain": "operations",
+      "targetSchema": "operations",
+      "columnCount": 9
+    },
+    {
+      "model": "OpsCoordinatorAvailability",
+      "currentSchema": "staffing_ops",
+      "table": "coordinator_availability",
+      "domain": "operations",
+      "targetSchema": "operations",
+      "columnCount": 8
+    },
+    {
+      "model": "OpsEventCoverageRequirement",
+      "currentSchema": "staffing_ops",
+      "table": "event_coverage_requirements",
+      "domain": "operations",
+      "targetSchema": "operations",
+      "columnCount": 9
+    },
+    {
+      "model": "OpsCoordinatorAssignment",
+      "currentSchema": "staffing_ops",
+      "table": "coordinator_assignments",
+      "domain": "operations",
+      "targetSchema": "operations",
+      "columnCount": 24
+    },
+    {
+      "model": "OpsCoordinatorAssignmentAcknowledgment",
+      "currentSchema": "staffing_ops",
+      "table": "coordinator_assignment_acknowledgments",
+      "domain": "operations",
+      "targetSchema": "operations",
+      "columnCount": 6
+    },
+    {
+      "model": "OpsEventDayTask",
+      "currentSchema": "staffing_ops",
+      "table": "event_day_tasks",
+      "domain": "live-ops",
+      "targetSchema": "live_ops",
+      "columnCount": 18
+    },
+    {
+      "model": "OpsEventTaskReassignmentRequest",
+      "currentSchema": "staffing_ops",
+      "table": "task_reassignment_requests",
+      "domain": "live-ops",
+      "targetSchema": "live_ops",
+      "columnCount": 18
+    },
+    {
+      "model": "OpsEventScheduleDay",
+      "currentSchema": "staffing_ops",
+      "table": "event_schedule_days",
+      "domain": "live-ops",
+      "targetSchema": "live_ops",
+      "columnCount": 7
+    },
+    {
+      "model": "OpsEventScheduleSegment",
+      "currentSchema": "staffing_ops",
+      "table": "event_schedule_segments",
+      "domain": "live-ops",
+      "targetSchema": "live_ops",
+      "columnCount": 13
+    },
+    {
+      "model": "OpsEventOperatorDesignation",
+      "currentSchema": "staffing_ops",
+      "table": "event_operator_designations",
+      "domain": "live-ops",
+      "targetSchema": "live_ops",
+      "columnCount": 8
+    },
+    {
+      "model": "OpsEventHandoff",
+      "currentSchema": "staffing_ops",
+      "table": "event_handoffs",
+      "domain": "live-ops",
+      "targetSchema": "live_ops",
+      "columnCount": 11
+    },
+    {
+      "model": "OpsEventEodReport",
+      "currentSchema": "staffing_ops",
+      "table": "event_eod_reports",
+      "domain": "live-ops",
+      "targetSchema": "live_ops",
+      "columnCount": 11
+    },
+    {
+      "model": "OpsEventEodReply",
+      "currentSchema": "staffing_ops",
+      "table": "event_eod_replies",
+      "domain": "live-ops",
+      "targetSchema": "live_ops",
+      "columnCount": 6
+    },
+    {
+      "model": "OpsUrgentIssue",
+      "currentSchema": "staffing_ops",
+      "table": "urgent_issues",
+      "domain": "live-ops",
+      "targetSchema": "live_ops",
+      "columnCount": 20
+    },
+    {
+      "model": "OpsEventDayLog",
+      "currentSchema": "staffing_ops",
+      "table": "event_day_logs",
+      "domain": "live-ops",
+      "targetSchema": "live_ops",
+      "columnCount": 10
+    },
+    {
+      "model": "OpsCoordinatorReliabilityNote",
+      "currentSchema": "staffing_ops",
+      "table": "coordinator_reliability_notes",
+      "domain": "operations",
+      "targetSchema": "operations",
+      "columnCount": 7
+    },
+    {
+      "model": "OpsComplianceRule",
+      "currentSchema": "compliance_ops",
+      "table": "compliance_rules",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 14
+    },
+    {
+      "model": "OpsComplianceCheck",
+      "currentSchema": "compliance_ops",
+      "table": "compliance_checks",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 21
+    },
+    {
+      "model": "OpsComplianceRun",
+      "currentSchema": "compliance_ops",
+      "table": "compliance_runs",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 9
+    },
+    {
+      "model": "OpsComplianceRisk",
+      "currentSchema": "compliance_ops",
+      "table": "compliance_risks",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 14
+    },
+    {
+      "model": "OpsComplianceRiskHistory",
+      "currentSchema": "compliance_ops",
+      "table": "compliance_risk_history",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 11
+    },
+    {
+      "model": "OpsBillingSource",
+      "currentSchema": "finance_ops",
+      "table": "billing_sources",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 20
+    },
+    {
+      "model": "OpsBillingStatement",
+      "currentSchema": "finance_ops",
+      "table": "billing_statements",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 22
+    },
+    {
+      "model": "OpsBillingStatementSequence",
+      "currentSchema": "finance_ops",
+      "table": "billing_statement_sequences",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 2
+    },
+    {
+      "model": "OpsPaymentMilestone",
+      "currentSchema": "finance_ops",
+      "table": "payment_milestones",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 10
+    },
+    {
+      "model": "OpsPaymentRecord",
+      "currentSchema": "finance_ops",
+      "table": "payment_records",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 10
+    },
+    {
+      "model": "OpsBillingCorrection",
+      "currentSchema": "finance_ops",
+      "table": "billing_corrections",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 13
+    },
+    {
+      "model": "OpsBillingDispute",
+      "currentSchema": "finance_ops",
+      "table": "billing_disputes",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 14
+    },
+    {
+      "model": "OpsAdditionalBilling",
+      "currentSchema": "finance_ops",
+      "table": "additional_billings",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 13
+    },
+    {
+      "model": "OpsPostEventDocument",
+      "currentSchema": "compliance_ops",
+      "table": "post_event_documents",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 9
+    },
+    {
+      "model": "OpsEventWrapUp",
+      "currentSchema": "compliance_ops",
+      "table": "event_wrap_ups",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 18
+    },
+    {
+      "model": "OpsEventInsight",
+      "currentSchema": "compliance_ops",
+      "table": "event_insights",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 13
+    },
+    {
+      "model": "OpsAuditChainLock",
+      "currentSchema": "trust_ops",
+      "table": "audit_chain_locks",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 4
+    },
+    {
+      "model": "OpsAuditLog",
+      "currentSchema": "trust_ops",
+      "table": "audit_logs",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 18
+    },
+    {
+      "model": "OpsNotificationLog",
+      "currentSchema": "trust_ops",
+      "table": "notification_logs",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 19
+    },
+    {
+      "model": "OpsPareDispatch",
+      "currentSchema": "platform_ops",
+      "table": "pare_dispatches",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 16
+    },
+    {
+      "model": "OpsCommandReceipt",
+      "currentSchema": "trust_ops",
+      "table": "command_receipts",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 12
+    },
+    {
+      "model": "OpsStoredObject",
+      "currentSchema": "platform_ops",
+      "table": "stored_objects",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 23
+    },
+    {
+      "model": "OpsGuestCheckIn",
+      "currentSchema": "guest_ops",
+      "table": "check_ins",
+      "domain": "operations",
+      "targetSchema": "operations",
+      "columnCount": 13
+    },
+    {
+      "model": "OpsGuestRosterEntry",
+      "currentSchema": "guest_ops",
+      "table": "guest_roster_entries",
+      "domain": "operations",
+      "targetSchema": "operations",
+      "columnCount": 20
+    },
+    {
+      "model": "OpsGuestRosterImport",
+      "currentSchema": "guest_ops",
+      "table": "guest_roster_imports",
+      "domain": "operations",
+      "targetSchema": "operations",
+      "columnCount": 11
+    },
+    {
+      "model": "OpsGuestFeedback",
+      "currentSchema": "guest_ops",
+      "table": "feedback",
+      "domain": "operations",
+      "targetSchema": "operations",
+      "columnCount": 18
+    },
+    {
+      "model": "OpsGuestFeedbackMedia",
+      "currentSchema": "guest_ops",
+      "table": "feedback_media",
+      "domain": "operations",
+      "targetSchema": "operations",
+      "columnCount": 9
+    },
+    {
+      "model": "OpsRegistrationPlatform",
+      "currentSchema": "guest_ops",
+      "table": "registration_platforms",
+      "domain": "operations",
+      "targetSchema": "operations",
+      "columnCount": 15
+    },
+    {
+      "model": "OpsAiAuditLog",
+      "currentSchema": "trust_ops",
+      "table": "ai_audit_logs",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 30
+    },
+    {
+      "model": "OpsAiDailyTokenUsage",
+      "currentSchema": "trust_ops",
+      "table": "ai_daily_token_usage",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 6
+    },
+    {
+      "model": "OpsAiApprovalRecord",
+      "currentSchema": "trust_ops",
+      "table": "ai_approval_records",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 12
+    },
+    {
+      "model": "OpsConformeCommsDraft",
+      "currentSchema": "trust_ops",
+      "table": "conforme_comms_drafts",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 9
+    },
+    {
+      "model": "OpsLoginHistory",
+      "currentSchema": "identity",
+      "table": "login_history",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 10
+    },
+    {
+      "model": "OpsSecurityAlert",
+      "currentSchema": "identity",
+      "table": "security_alerts",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 11
+    },
+    {
+      "model": "OpsCommunicationThread",
+      "currentSchema": "supplier_ops",
+      "table": "communication_threads",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 7
+    },
+    {
+      "model": "OpsCommunicationParticipant",
+      "currentSchema": "supplier_ops",
+      "table": "communication_participants",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 8
+    },
+    {
+      "model": "OpsCommunicationMessage",
+      "currentSchema": "supplier_ops",
+      "table": "communication_messages",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 9
+    },
+    {
+      "model": "EventGameDefinition",
+      "currentSchema": "event_games",
+      "table": "game_definitions",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 15,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGameLobbySlug",
+      "currentSchema": "event_games",
+      "table": "lobby_slugs",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 9,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGameConfigVersion",
+      "currentSchema": "event_games",
+      "table": "game_config_versions",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 7,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGameSession",
+      "currentSchema": "event_games",
+      "table": "game_sessions",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 19,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGameActivePinReservation",
+      "currentSchema": "event_games",
+      "table": "active_pin_reservations",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 8,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGamePinHistory",
+      "currentSchema": "event_games",
+      "table": "pin_history",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 7,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGameParticipantCredential",
+      "currentSchema": "event_games",
+      "table": "participant_credentials",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 6,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGameSessionParticipationGrant",
+      "currentSchema": "event_games",
+      "table": "session_participation_grants",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 11,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGameSubmission",
+      "currentSchema": "event_games",
+      "table": "submissions",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 10,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGameScoreLedger",
+      "currentSchema": "event_games",
+      "table": "score_ledger",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 8,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGameAward",
+      "currentSchema": "event_games",
+      "table": "awards",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 14,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGameModerationAction",
+      "currentSchema": "event_games",
+      "table": "moderation_actions",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 10,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "EventGameRateLimitBucket",
+      "currentSchema": "event_games",
+      "table": "rate_limit_buckets",
+      "domain": "event-games",
+      "targetSchema": "event_games",
+      "columnCount": 4,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsSupplierContractVersion",
+      "currentSchema": "commercial",
+      "table": "supplier_contract_versions",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 17,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsSupplierCreativeTask",
+      "currentSchema": "commercial",
+      "table": "supplier_creative_tasks",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 19,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsSupplierCreativeSubmission",
+      "currentSchema": "commercial",
+      "table": "supplier_creative_submissions",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 7,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsSupplierPayableMilestone",
+      "currentSchema": "commercial",
+      "table": "supplier_payable_milestones",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 14,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsSupplierPayoutRecord",
+      "currentSchema": "commercial",
+      "table": "supplier_payout_records",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 17,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsClientReviewItem",
+      "currentSchema": "commercial",
+      "table": "client_review_items",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 15,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsClientReviewDecision",
+      "currentSchema": "commercial",
+      "table": "client_review_decisions",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 12,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsInquiryMerge",
+      "currentSchema": "event_lifecycle",
+      "table": "inquiry_merges",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 10,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsConformeExecution",
+      "currentSchema": "event_lifecycle",
+      "table": "conforme_executions",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 11,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsConformeSignature",
+      "currentSchema": "event_lifecycle",
+      "table": "conforme_signatures",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 11,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsAddendumConformeExecution",
+      "currentSchema": "event_lifecycle",
+      "table": "addendum_conforme_executions",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 11,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsAddendumConformeSignature",
+      "currentSchema": "event_lifecycle",
+      "table": "addendum_conforme_signatures",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 11,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsClientCloseoutResponse",
+      "currentSchema": "event_lifecycle",
+      "table": "client_closeout_responses",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 11,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsFloorPlanClientDecision",
+      "currentSchema": "floorplan",
+      "table": "client_decisions",
+      "domain": "floorplan",
+      "targetSchema": "floorplan",
+      "columnCount": 11,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsFloorPlanClientAnnotation",
+      "currentSchema": "floorplan",
+      "table": "client_annotations",
+      "domain": "floorplan",
+      "targetSchema": "floorplan",
+      "columnCount": 11,
+      "introducedAfterCutover": true
+    }
+  ],
+  "foreignKeys": [
+    {
+      "schema": "compliance_ops",
+      "table": "compliance_checks",
+      "name": "compliance_checks_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "compliance_ops",
+      "table": "compliance_checks",
+      "name": "compliance_checks_rule_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (rule_id) REFERENCES compliance_ops.compliance_rules(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "columns": [
+        "rule_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "compliance_ops",
+      "targetTable": "compliance_rules",
+      "sameDomain": true
+    },
+    {
+      "schema": "compliance_ops",
+      "table": "compliance_checks",
+      "name": "compliance_checks_run_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (run_id) REFERENCES compliance_ops.compliance_runs(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "columns": [
+        "run_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "compliance_ops",
+      "targetTable": "compliance_runs",
+      "sameDomain": true
+    },
+    {
+      "schema": "compliance_ops",
+      "table": "compliance_risk_history",
+      "name": "compliance_risk_history_risk_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (risk_id) REFERENCES compliance_ops.compliance_risks(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "risk_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "compliance_ops",
+      "targetTable": "compliance_risks",
+      "sameDomain": true
+    },
+    {
+      "schema": "compliance_ops",
+      "table": "compliance_risks",
+      "name": "compliance_risks_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "compliance_ops",
+      "table": "compliance_risks",
+      "name": "compliance_risks_rule_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (rule_id) REFERENCES compliance_ops.compliance_rules(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "columns": [
+        "rule_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "compliance_ops",
+      "targetTable": "compliance_rules",
+      "sameDomain": true
+    },
+    {
+      "schema": "compliance_ops",
+      "table": "compliance_rules",
+      "name": "compliance_rules_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "compliance_ops",
+      "table": "compliance_runs",
+      "name": "compliance_runs_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "compliance_ops",
+      "table": "event_insights",
+      "name": "event_insights_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "compliance_ops",
+      "table": "event_wrap_ups",
+      "name": "event_wrap_ups_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "compliance_ops",
+      "table": "post_event_documents",
+      "name": "post_event_documents_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_core",
+      "table": "addenda",
+      "name": "addenda_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_core",
+      "table": "addenda",
+      "name": "addenda_freeze_exception_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (freeze_exception_id) REFERENCES event_core.event_freeze_exceptions(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "columns": [
+        "freeze_exception_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "event_freeze_exceptions",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_core",
+      "table": "addendum_impacts",
+      "name": "addendum_impacts_addendum_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (addendum_id) REFERENCES event_core.addenda(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "addendum_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "addenda",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_core",
+      "table": "addendum_impacts",
+      "name": "addendum_impacts_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_core",
+      "table": "briefings",
+      "name": "briefings_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_core",
+      "table": "documents",
+      "name": "documents_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_core",
+      "table": "event_decisions",
+      "name": "event_decisions_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_core",
+      "table": "event_freeze_exceptions",
+      "name": "event_freeze_exceptions_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_core",
+      "table": "events",
+      "name": "events_inquiry_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (inquiry_id) REFERENCES event_core.inquiries(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "inquiry_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "inquiries",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_core",
+      "table": "inquiry_status_history",
+      "name": "inquiry_status_history_inquiry_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (inquiry_id) REFERENCES event_core.inquiries(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "inquiry_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "inquiries",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_core",
+      "table": "ocular_visit_requests",
+      "name": "ocular_visit_requests_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_core",
+      "table": "privacy_requests",
+      "name": "privacy_requests_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "platform-ops",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "finance_ops",
+      "table": "additional_billings",
+      "name": "additional_billings_billing_source_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (billing_source_id) REFERENCES finance_ops.billing_sources(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "billing_source_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "finance_ops",
+      "targetTable": "billing_sources",
+      "sameDomain": true
+    },
+    {
+      "schema": "finance_ops",
+      "table": "additional_billings",
+      "name": "additional_billings_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "finance_ops",
+      "table": "billing_corrections",
+      "name": "billing_corrections_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "finance_ops",
+      "table": "billing_corrections",
+      "name": "billing_corrections_statement_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (statement_id, event_id) REFERENCES finance_ops.billing_statements(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "statement_id",
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "finance_ops",
+      "targetTable": "billing_statements",
+      "sameDomain": true
+    },
+    {
+      "schema": "finance_ops",
+      "table": "billing_disputes",
+      "name": "billing_disputes_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "finance_ops",
+      "table": "billing_disputes",
+      "name": "billing_disputes_milestone_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (milestone_id, event_id) REFERENCES finance_ops.payment_milestones(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "milestone_id",
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "finance_ops",
+      "targetTable": "payment_milestones",
+      "sameDomain": true
+    },
+    {
+      "schema": "finance_ops",
+      "table": "billing_disputes",
+      "name": "billing_disputes_statement_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (statement_id, event_id) REFERENCES finance_ops.billing_statements(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "statement_id",
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "finance_ops",
+      "targetTable": "billing_statements",
+      "sameDomain": true
+    },
+    {
+      "schema": "finance_ops",
+      "table": "billing_sources",
+      "name": "billing_sources_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "finance_ops",
+      "table": "billing_statements",
+      "name": "billing_statements_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "finance_ops",
+      "table": "billing_statements",
+      "name": "billing_statements_source_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (source_id) REFERENCES finance_ops.billing_sources(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "columns": [
+        "source_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "finance_ops",
+      "targetTable": "billing_sources",
+      "sameDomain": true
+    },
+    {
+      "schema": "finance_ops",
+      "table": "cost_estimate_lines",
+      "name": "cost_estimate_lines_estimate_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (estimate_id) REFERENCES finance_ops.cost_estimates(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "estimate_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "finance_ops",
+      "targetTable": "cost_estimates",
+      "sameDomain": true
+    },
+    {
+      "schema": "finance_ops",
+      "table": "cost_estimates",
+      "name": "cost_estimates_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "finance_ops",
+      "table": "payment_milestones",
+      "name": "payment_milestones_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "finance_ops",
+      "table": "payment_records",
+      "name": "payment_records_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "finance_ops",
+      "table": "payment_records",
+      "name": "payment_records_milestone_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (milestone_id, event_id) REFERENCES finance_ops.payment_milestones(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "milestone_id",
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "finance_ops",
+      "targetTable": "payment_milestones",
+      "sameDomain": true
+    },
+    {
+      "schema": "finance_ops",
+      "table": "proposal_versions",
+      "name": "proposal_versions_cost_estimate_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (cost_estimate_id, event_id) REFERENCES finance_ops.cost_estimates(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "cost_estimate_id",
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "finance_ops",
+      "targetTable": "cost_estimates",
+      "sameDomain": true
+    },
+    {
+      "schema": "finance_ops",
+      "table": "proposal_versions",
+      "name": "proposal_versions_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "floorplan",
+      "table": "event_instances",
+      "name": "event_instances_floor_plan_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (floor_plan_id) REFERENCES floorplan.floor_plans(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "floor_plan_id"
+      ],
+      "sourceDomain": "floorplan",
+      "targetDomain": "floorplan",
+      "targetCurrentSchema": "floorplan",
+      "targetTable": "floor_plans",
+      "sameDomain": true
+    },
+    {
+      "schema": "floorplan",
+      "table": "event_instances",
+      "name": "event_instances_template_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (template_id) REFERENCES floorplan.venue_templates(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "template_id"
+      ],
+      "sourceDomain": "floorplan",
+      "targetDomain": "floorplan",
+      "targetCurrentSchema": "floorplan",
+      "targetTable": "venue_templates",
+      "sameDomain": true
+    },
+    {
+      "schema": "floorplan",
+      "table": "floor_plan_drafts",
+      "name": "floor_plan_drafts_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "floorplan",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "floorplan",
+      "table": "floor_plan_drafts",
+      "name": "floor_plan_drafts_floor_plan_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (floor_plan_id) REFERENCES floorplan.floor_plans(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "floor_plan_id"
+      ],
+      "sourceDomain": "floorplan",
+      "targetDomain": "floorplan",
+      "targetCurrentSchema": "floorplan",
+      "targetTable": "floor_plans",
+      "sameDomain": true
+    },
+    {
+      "schema": "floorplan",
+      "table": "floor_plan_objects",
+      "name": "floor_plan_objects_floor_plan_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (floor_plan_id) REFERENCES floorplan.floor_plans(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "floor_plan_id"
+      ],
+      "sourceDomain": "floorplan",
+      "targetDomain": "floorplan",
+      "targetCurrentSchema": "floorplan",
+      "targetTable": "floor_plans",
+      "sameDomain": true
+    },
+    {
+      "schema": "floorplan",
+      "table": "published_snapshots",
+      "name": "published_snapshots_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES floorplan.event_instances(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "floorplan",
+      "targetDomain": "floorplan",
+      "targetCurrentSchema": "floorplan",
+      "targetTable": "event_instances",
+      "sameDomain": true
+    },
+    {
+      "schema": "floorplan",
+      "table": "venue_templates",
+      "name": "venue_templates_floor_plan_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (floor_plan_id) REFERENCES floorplan.floor_plans(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "floor_plan_id"
+      ],
+      "sourceDomain": "floorplan",
+      "targetDomain": "floorplan",
+      "targetCurrentSchema": "floorplan",
+      "targetTable": "floor_plans",
+      "sameDomain": true
+    },
+    {
+      "schema": "guest_ops",
+      "table": "check_ins",
+      "name": "check_ins_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "operations",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "guest_ops",
+      "table": "check_ins",
+      "name": "check_ins_roster_entry_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (roster_entry_id, event_id) REFERENCES guest_ops.guest_roster_entries(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "roster_entry_id",
+        "event_id"
+      ],
+      "sourceDomain": "operations",
+      "targetDomain": "operations",
+      "targetCurrentSchema": "guest_ops",
+      "targetTable": "guest_roster_entries",
+      "sameDomain": true
+    },
+    {
+      "schema": "guest_ops",
+      "table": "feedback",
+      "name": "feedback_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "operations",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "guest_ops",
+      "table": "feedback_media",
+      "name": "feedback_media_feedback_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (feedback_id) REFERENCES guest_ops.feedback(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "feedback_id"
+      ],
+      "sourceDomain": "operations",
+      "targetDomain": "operations",
+      "targetCurrentSchema": "guest_ops",
+      "targetTable": "feedback",
+      "sameDomain": true
+    },
+    {
+      "schema": "guest_ops",
+      "table": "guest_roster_entries",
+      "name": "guest_roster_entries_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "operations",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "guest_ops",
+      "table": "guest_roster_entries",
+      "name": "guest_roster_entries_import_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (import_batch_id, event_id) REFERENCES guest_ops.guest_roster_imports(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "import_batch_id",
+        "event_id"
+      ],
+      "sourceDomain": "operations",
+      "targetDomain": "operations",
+      "targetCurrentSchema": "guest_ops",
+      "targetTable": "guest_roster_imports",
+      "sameDomain": true
+    },
+    {
+      "schema": "guest_ops",
+      "table": "guest_roster_imports",
+      "name": "guest_roster_imports_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "operations",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "guest_ops",
+      "table": "registration_platforms",
+      "name": "registration_platforms_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "operations",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "identity",
+      "table": "approval_requests",
+      "name": "approval_requests_user_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES identity.users(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "user_id"
+      ],
+      "sourceDomain": "identity-access",
+      "targetDomain": "identity-access",
+      "targetCurrentSchema": "identity",
+      "targetTable": "users",
+      "sameDomain": true
+    },
+    {
+      "schema": "identity",
+      "table": "login_history",
+      "name": "login_history_user_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES identity.users(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "columns": [
+        "user_id"
+      ],
+      "sourceDomain": "platform-ops",
+      "targetDomain": "identity-access",
+      "targetCurrentSchema": "identity",
+      "targetTable": "users",
+      "sameDomain": false
+    },
+    {
+      "schema": "identity",
+      "table": "password_reset_tokens",
+      "name": "password_reset_tokens_user_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES identity.users(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "user_id"
+      ],
+      "sourceDomain": "identity-access",
+      "targetDomain": "identity-access",
+      "targetCurrentSchema": "identity",
+      "targetTable": "users",
+      "sameDomain": true
+    },
+    {
+      "schema": "identity",
+      "table": "security_alerts",
+      "name": "security_alerts_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "platform-ops",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "platform_ops",
+      "table": "pare_dispatches",
+      "name": "pare_dispatches_approval_record_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (approval_record_id) REFERENCES trust_ops.ai_approval_records(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "approval_record_id"
+      ],
+      "sourceDomain": "platform-ops",
+      "targetDomain": "platform-ops",
+      "targetCurrentSchema": "trust_ops",
+      "targetTable": "ai_approval_records",
+      "sameDomain": true
+    },
+    {
+      "schema": "platform_ops",
+      "table": "pare_dispatches",
+      "name": "pare_dispatches_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "platform-ops",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "platform_ops",
+      "table": "stored_objects",
+      "name": "stored_objects_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "platform-ops",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "coordinator_assignment_acknowledgments",
+      "name": "coordinator_assignment_acknowledgments_assignment_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (assignment_id) REFERENCES staffing_ops.coordinator_assignments(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "assignment_id"
+      ],
+      "sourceDomain": "operations",
+      "targetDomain": "operations",
+      "targetCurrentSchema": "staffing_ops",
+      "targetTable": "coordinator_assignments",
+      "sameDomain": true
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "coordinator_assignments",
+      "name": "coordinator_assignments_coordinator_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (coordinator_id) REFERENCES staffing_ops.coordinators(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "columns": [
+        "coordinator_id"
+      ],
+      "sourceDomain": "operations",
+      "targetDomain": "operations",
+      "targetCurrentSchema": "staffing_ops",
+      "targetTable": "coordinators",
+      "sameDomain": true
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "coordinator_assignments",
+      "name": "coordinator_assignments_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "operations",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "coordinator_availability",
+      "name": "coordinator_availability_coordinator_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (coordinator_id) REFERENCES staffing_ops.coordinators(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "coordinator_id"
+      ],
+      "sourceDomain": "operations",
+      "targetDomain": "operations",
+      "targetCurrentSchema": "staffing_ops",
+      "targetTable": "coordinators",
+      "sameDomain": true
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "coordinator_reliability_notes",
+      "name": "coordinator_reliability_notes_assignment_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (assignment_id) REFERENCES staffing_ops.coordinator_assignments(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "columns": [
+        "assignment_id"
+      ],
+      "sourceDomain": "operations",
+      "targetDomain": "operations",
+      "targetCurrentSchema": "staffing_ops",
+      "targetTable": "coordinator_assignments",
+      "sameDomain": true
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "coordinator_reliability_notes",
+      "name": "coordinator_reliability_notes_coordinator_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (coordinator_id) REFERENCES staffing_ops.coordinators(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "columns": [
+        "coordinator_id"
+      ],
+      "sourceDomain": "operations",
+      "targetDomain": "operations",
+      "targetCurrentSchema": "staffing_ops",
+      "targetTable": "coordinators",
+      "sameDomain": true
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "coordinator_reliability_notes",
+      "name": "coordinator_reliability_notes_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "operations",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "coordinators",
+      "name": "coordinators_user_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES identity.users(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "columns": [
+        "user_id"
+      ],
+      "sourceDomain": "operations",
+      "targetDomain": "identity-access",
+      "targetCurrentSchema": "identity",
+      "targetTable": "users",
+      "sameDomain": false
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "event_coverage_requirements",
+      "name": "event_coverage_requirements_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "operations",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "event_day_logs",
+      "name": "event_day_logs_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "live-ops",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "event_day_tasks",
+      "name": "event_day_tasks_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "live-ops",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "event_eod_replies",
+      "name": "event_eod_replies_report_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (report_id) REFERENCES staffing_ops.event_eod_reports(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "report_id"
+      ],
+      "sourceDomain": "live-ops",
+      "targetDomain": "live-ops",
+      "targetCurrentSchema": "staffing_ops",
+      "targetTable": "event_eod_reports",
+      "sameDomain": true
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "event_eod_reports",
+      "name": "event_eod_reports_day_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (day_id, event_id) REFERENCES staffing_ops.event_schedule_days(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "day_id",
+        "event_id"
+      ],
+      "sourceDomain": "live-ops",
+      "targetDomain": "live-ops",
+      "targetCurrentSchema": "staffing_ops",
+      "targetTable": "event_schedule_days",
+      "sameDomain": true
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "event_eod_reports",
+      "name": "event_eod_reports_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "live-ops",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "event_handoffs",
+      "name": "event_handoffs_day_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (day_id, event_id) REFERENCES staffing_ops.event_schedule_days(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "day_id",
+        "event_id"
+      ],
+      "sourceDomain": "live-ops",
+      "targetDomain": "live-ops",
+      "targetCurrentSchema": "staffing_ops",
+      "targetTable": "event_schedule_days",
+      "sameDomain": true
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "event_handoffs",
+      "name": "event_handoffs_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "live-ops",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "event_operator_designations",
+      "name": "event_operator_designations_coordinator_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (coordinator_id) REFERENCES staffing_ops.coordinators(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "coordinator_id"
+      ],
+      "sourceDomain": "live-ops",
+      "targetDomain": "operations",
+      "targetCurrentSchema": "staffing_ops",
+      "targetTable": "coordinators",
+      "sameDomain": false
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "event_operator_designations",
+      "name": "event_operator_designations_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "live-ops",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "event_schedule_days",
+      "name": "event_schedule_days_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "live-ops",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "event_schedule_segments",
+      "name": "event_schedule_segments_day_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (day_id) REFERENCES staffing_ops.event_schedule_days(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "day_id"
+      ],
+      "sourceDomain": "live-ops",
+      "targetDomain": "live-ops",
+      "targetCurrentSchema": "staffing_ops",
+      "targetTable": "event_schedule_days",
+      "sameDomain": true
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "task_reassignment_requests",
+      "name": "task_reassignment_requests_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "live-ops",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "task_reassignment_requests",
+      "name": "task_reassignment_requests_task_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (task_id, event_id) REFERENCES staffing_ops.event_day_tasks(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "task_id",
+        "event_id"
+      ],
+      "sourceDomain": "live-ops",
+      "targetDomain": "live-ops",
+      "targetCurrentSchema": "staffing_ops",
+      "targetTable": "event_day_tasks",
+      "sameDomain": true
+    },
+    {
+      "schema": "staffing_ops",
+      "table": "urgent_issues",
+      "name": "urgent_issues_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "live-ops",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "communication_messages",
+      "name": "communication_messages_thread_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (thread_id) REFERENCES supplier_ops.communication_threads(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "thread_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "communication_threads",
+      "sameDomain": true
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "communication_participants",
+      "name": "communication_participants_thread_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (thread_id) REFERENCES supplier_ops.communication_threads(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "thread_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "communication_threads",
+      "sameDomain": true
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "communication_threads",
+      "name": "communication_threads_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "quote_requests",
+      "name": "quote_requests_category_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (category_id) REFERENCES supplier_ops.supplier_categories(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "columns": [
+        "category_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "supplier_categories",
+      "sameDomain": true
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "quote_requests",
+      "name": "quote_requests_contract_document_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (contract_document_id) REFERENCES event_core.documents(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "columns": [
+        "contract_document_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "documents",
+      "sameDomain": false
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "quote_requests",
+      "name": "quote_requests_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "quote_requests",
+      "name": "quote_requests_round_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (round_id) REFERENCES supplier_ops.quote_rounds(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "columns": [
+        "round_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "quote_rounds",
+      "sameDomain": true
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "quote_requests",
+      "name": "quote_requests_supplier_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (supplier_id) REFERENCES supplier_ops.suppliers(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "columns": [
+        "supplier_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "suppliers",
+      "sameDomain": true
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "quote_rounds",
+      "name": "quote_rounds_category_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (category_id) REFERENCES supplier_ops.supplier_categories(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "category_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "supplier_categories",
+      "sameDomain": true
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "quote_rounds",
+      "name": "quote_rounds_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "quotes",
+      "name": "quotes_category_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (category_id) REFERENCES supplier_ops.supplier_categories(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "columns": [
+        "category_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "supplier_categories",
+      "sameDomain": true
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "quotes",
+      "name": "quotes_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "quotes",
+      "name": "quotes_request_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (request_id) REFERENCES supplier_ops.quote_requests(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "request_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "quote_requests",
+      "sameDomain": true
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "quotes",
+      "name": "quotes_supplier_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (supplier_id) REFERENCES supplier_ops.suppliers(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "columns": [
+        "supplier_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "suppliers",
+      "sameDomain": true
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "supplier_applications",
+      "name": "supplier_applications_category_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (category_id) REFERENCES supplier_ops.supplier_categories(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "columns": [
+        "category_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "supplier_categories",
+      "sameDomain": true
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "supplier_applications",
+      "name": "supplier_applications_converted_supplier_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (converted_supplier_id) REFERENCES supplier_ops.suppliers(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "converted_supplier_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "suppliers",
+      "sameDomain": true
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "supplier_availability",
+      "name": "supplier_availability_supplier_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (supplier_id) REFERENCES supplier_ops.suppliers(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "supplier_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "suppliers",
+      "sameDomain": true
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "supplier_certifications",
+      "name": "supplier_certifications_supplier_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (supplier_id) REFERENCES supplier_ops.suppliers(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "supplier_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "suppliers",
+      "sameDomain": true
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "supplier_promotions",
+      "name": "supplier_promotions_review_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (review_id) REFERENCES supplier_ops.supplier_reviews(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "review_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "supplier_reviews",
+      "sameDomain": true
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "supplier_promotions",
+      "name": "supplier_promotions_supplier_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (supplier_id) REFERENCES supplier_ops.suppliers(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "supplier_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "suppliers",
+      "sameDomain": true
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "supplier_reliability_notes",
+      "name": "supplier_reliability_notes_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "supplier_reliability_notes",
+      "name": "supplier_reliability_notes_supplier_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (supplier_id) REFERENCES supplier_ops.suppliers(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "supplier_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "suppliers",
+      "sameDomain": true
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "supplier_review_dimension_ratings",
+      "name": "supplier_review_dimension_ratings_dimension_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (dimension_id) REFERENCES supplier_ops.supplier_review_dimensions(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "dimension_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "supplier_review_dimensions",
+      "sameDomain": true
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "supplier_review_dimension_ratings",
+      "name": "supplier_review_dimension_ratings_review_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (review_id) REFERENCES supplier_ops.supplier_reviews(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "review_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "supplier_reviews",
+      "sameDomain": true
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "supplier_review_dimensions",
+      "name": "supplier_review_dimensions_category_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (category_id) REFERENCES supplier_ops.supplier_categories(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "category_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "supplier_categories",
+      "sameDomain": true
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "supplier_reviews",
+      "name": "supplier_reviews_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "supplier_reviews",
+      "name": "supplier_reviews_supplier_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (supplier_id) REFERENCES supplier_ops.suppliers(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "supplier_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "suppliers",
+      "sameDomain": true
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "supplier_schedules",
+      "name": "supplier_schedules_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "supplier_schedules",
+      "name": "supplier_schedules_request_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (request_id, event_id) REFERENCES supplier_ops.quote_requests(id, event_id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "request_id",
+        "event_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "quote_requests",
+      "sameDomain": true
+    },
+    {
+      "schema": "supplier_ops",
+      "table": "suppliers",
+      "name": "suppliers_category_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (category_id) REFERENCES supplier_ops.supplier_categories(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "category_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "supplier_ops",
+      "targetTable": "supplier_categories",
+      "sameDomain": true
+    },
+    {
+      "schema": "trust_ops",
+      "table": "ai_approval_records",
+      "name": "ai_approval_records_ai_audit_log_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (ai_audit_log_id) REFERENCES trust_ops.ai_audit_logs(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "ai_audit_log_id"
+      ],
+      "sourceDomain": "platform-ops",
+      "targetDomain": "platform-ops",
+      "targetCurrentSchema": "trust_ops",
+      "targetTable": "ai_audit_logs",
+      "sameDomain": true
+    },
+    {
+      "schema": "trust_ops",
+      "table": "ai_approval_records",
+      "name": "ai_approval_records_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "platform-ops",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "trust_ops",
+      "table": "ai_audit_logs",
+      "name": "ai_audit_logs_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "platform-ops",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "trust_ops",
+      "table": "audit_logs",
+      "name": "audit_logs_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "platform-ops",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "trust_ops",
+      "table": "conforme_comms_drafts",
+      "name": "conforme_comms_drafts_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (id) REFERENCES trust_ops.ai_approval_records(id) ON DELETE CASCADE",
+      "columns": [
+        "id"
+      ],
+      "sourceDomain": "platform-ops",
+      "targetDomain": "platform-ops",
+      "targetCurrentSchema": "trust_ops",
+      "targetTable": "ai_approval_records",
+      "sameDomain": true
+    },
+    {
+      "schema": "trust_ops",
+      "table": "notification_logs",
+      "name": "notification_logs_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_core.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "platform-ops",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_core",
+      "targetTable": "events",
+      "sameDomain": false
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "client_floorplan_access_grants",
+      "name": "client_floorplan_access_grants_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_lifecycle.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "file_requirements",
+      "name": "file_requirements_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_lifecycle.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "logistics_completions",
+      "name": "logistics_completions_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_lifecycle.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "scope_change_requests",
+      "name": "scope_change_requests_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_lifecycle.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "scope_change_requests",
+      "name": "scope_change_requests_addendum_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (addendum_id) REFERENCES event_lifecycle.addenda(id) ON UPDATE CASCADE ON DELETE SET NULL",
+      "columns": [
+        "addendum_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "addenda",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "event_risk_assessments",
+      "name": "event_risk_assessments_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_lifecycle.events(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "event_risk_assessment_history",
+      "name": "event_risk_assessment_history_assessment_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (assessment_id) REFERENCES event_lifecycle.event_risk_assessments(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "assessment_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "event_risk_assessments",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "game_config_versions",
+      "name": "game_config_versions_event_definition_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, game_definition_id) REFERENCES event_games.game_definitions(event_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "game_definition_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "game_definitions",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "game_sessions",
+      "name": "game_sessions_event_definition_config_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, game_definition_id, config_version_id) REFERENCES event_games.game_config_versions(event_id, game_definition_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "game_definition_id",
+        "config_version_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "game_config_versions",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "active_pin_reservations",
+      "name": "active_pin_reservations_event_session_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, session_id) REFERENCES event_games.game_sessions(event_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "session_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "game_sessions",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "pin_history",
+      "name": "pin_history_event_session_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, session_id) REFERENCES event_games.game_sessions(event_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "session_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "game_sessions",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "session_participation_grants",
+      "name": "session_participation_grants_event_session_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, session_id) REFERENCES event_games.game_sessions(event_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "session_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "game_sessions",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "session_participation_grants",
+      "name": "session_participation_grants_event_credential_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, participant_credential_id) REFERENCES event_games.participant_credentials(event_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "participant_credential_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "participant_credentials",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "submissions",
+      "name": "submissions_event_session_grant_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, session_id, participation_grant_id) REFERENCES event_games.session_participation_grants(event_id, session_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "session_id",
+        "participation_grant_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "session_participation_grants",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "score_ledger",
+      "name": "score_ledger_event_session_grant_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, session_id, participation_grant_id) REFERENCES event_games.session_participation_grants(event_id, session_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "session_id",
+        "participation_grant_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "session_participation_grants",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "awards",
+      "name": "awards_event_session_grant_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, session_id, participation_grant_id) REFERENCES event_games.session_participation_grants(event_id, session_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "session_id",
+        "participation_grant_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "session_participation_grants",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "awards",
+      "name": "awards_event_session_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, session_id) REFERENCES event_games.game_sessions(event_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "session_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "game_sessions",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "moderation_actions",
+      "name": "moderation_actions_event_submission_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, session_id, submission_id) REFERENCES event_games.submissions(event_id, session_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "session_id",
+        "submission_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "submissions",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_games",
+      "table": "moderation_actions",
+      "name": "moderation_actions_event_participation_grant_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id, session_id, participation_grant_id) REFERENCES event_games.session_participation_grants(event_id, session_id, id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "event_id",
+        "session_id",
+        "participation_grant_id"
+      ],
+      "sourceDomain": "event-games",
+      "targetDomain": "event-games",
+      "targetCurrentSchema": "event_games",
+      "targetTable": "session_participation_grants",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_contract_versions",
+      "name": "supplier_contract_versions_request_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (request_id) REFERENCES commercial.quote_requests(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "request_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "quote_requests",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_contract_versions",
+      "name": "supplier_contract_versions_supplier_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (supplier_id) REFERENCES commercial.suppliers(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "supplier_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "suppliers",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_creative_tasks",
+      "name": "supplier_creative_tasks_request_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (request_id) REFERENCES commercial.quote_requests(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "request_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "quote_requests",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_creative_tasks",
+      "name": "supplier_creative_tasks_supplier_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (supplier_id) REFERENCES commercial.suppliers(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "supplier_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "suppliers",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_creative_submissions",
+      "name": "supplier_creative_submissions_task_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (task_id) REFERENCES commercial.supplier_creative_tasks(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "task_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "supplier_creative_tasks",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_payable_milestones",
+      "name": "supplier_payable_milestones_request_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (request_id) REFERENCES commercial.quote_requests(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "request_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "quote_requests",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_payable_milestones",
+      "name": "supplier_payable_milestones_quote_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (quote_id) REFERENCES commercial.quotes(id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "quote_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "quotes",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_payable_milestones",
+      "name": "supplier_payable_milestones_supplier_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (supplier_id) REFERENCES commercial.suppliers(id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "supplier_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "suppliers",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_payout_records",
+      "name": "supplier_payout_records_milestone_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (milestone_id) REFERENCES commercial.supplier_payable_milestones(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "milestone_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "supplier_payable_milestones",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_payout_records",
+      "name": "supplier_payout_records_request_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (request_id) REFERENCES commercial.quote_requests(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "request_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "quote_requests",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_payout_records",
+      "name": "supplier_payout_records_quote_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (quote_id) REFERENCES commercial.quotes(id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "quote_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "quotes",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_payout_records",
+      "name": "supplier_payout_records_supplier_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (supplier_id) REFERENCES commercial.suppliers(id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "supplier_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "suppliers",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "supplier_payout_records",
+      "name": "supplier_payout_records_reverses_record_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (reverses_record_id) REFERENCES commercial.supplier_payout_records(id) ON DELETE RESTRICT ON UPDATE CASCADE",
+      "columns": [
+        "reverses_record_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "supplier_payout_records",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "client_review_decisions",
+      "name": "client_review_decisions_item_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (item_id) REFERENCES commercial.client_review_items(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "item_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "client_review_items",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "inquiry_merges",
+      "name": "inquiry_merges_primary_inquiry_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (primary_inquiry_id) REFERENCES event_lifecycle.inquiries(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "primary_inquiry_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "inquiries",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "inquiry_merges",
+      "name": "inquiry_merges_merged_inquiry_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (merged_inquiry_id) REFERENCES event_lifecycle.inquiries(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "merged_inquiry_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "inquiries",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "conforme_executions",
+      "name": "conforme_executions_inquiry_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (inquiry_id) REFERENCES event_lifecycle.inquiries(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "inquiry_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "inquiries",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "conforme_executions",
+      "name": "conforme_executions_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_lifecycle.events(id) ON DELETE SET NULL ON UPDATE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "conforme_signatures",
+      "name": "conforme_signatures_execution_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (execution_id) REFERENCES event_lifecycle.conforme_executions(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "execution_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "conforme_executions",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "addendum_conforme_executions",
+      "name": "addendum_conforme_executions_addendum_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (addendum_id) REFERENCES event_lifecycle.addenda(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "addendum_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "addenda",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "addendum_conforme_executions",
+      "name": "addendum_conforme_executions_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_lifecycle.events(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "addendum_conforme_signatures",
+      "name": "addendum_conforme_signatures_execution_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (execution_id) REFERENCES event_lifecycle.addendum_conforme_executions(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "execution_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "addendum_conforme_executions",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "client_closeout_responses",
+      "name": "client_closeout_responses_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_lifecycle.events(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "floorplan",
+      "table": "client_decisions",
+      "name": "client_decisions_draft_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (draft_id) REFERENCES floorplan.floor_plan_drafts(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "draft_id"
+      ],
+      "sourceDomain": "floorplan",
+      "targetDomain": "floorplan",
+      "targetCurrentSchema": "floorplan",
+      "targetTable": "floor_plan_drafts",
+      "sameDomain": true
+    },
+    {
+      "schema": "floorplan",
+      "table": "client_annotations",
+      "name": "client_annotations_draft_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (draft_id) REFERENCES floorplan.floor_plan_drafts(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "draft_id"
+      ],
+      "sourceDomain": "floorplan",
+      "targetDomain": "floorplan",
+      "targetCurrentSchema": "floorplan",
+      "targetTable": "floor_plan_drafts",
+      "sameDomain": true
+    }
+  ]
+}

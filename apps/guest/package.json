@@ -3,12 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3003",
+    "dev": "node ../../scripts/dev-portal.mjs --app guest --mode dev",
+    "prebuild": "node ../../scripts/clean-next-dev.cjs",
     "build": "next build",
-    "start": "next start --port 3003",
-    "typecheck": "tsc --noEmit",
+    "start": "node ../../scripts/dev-portal.mjs --app guest --mode start",
+    "typecheck": "node ../../scripts/clean-next-dev.cjs && tsc --noEmit",
     "lint": "next lint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
 
   "dependencies": {
@@ -19,8 +21,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.487.0",
-    "next": "^16.2.4",
-    "qrcode.react": "^4.2.0",
+    "next": "^16.3.8",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "tailwind-merge": "^3.2.0"
@@ -34,7 +35,7 @@
     "eslint-config-next": "^16.2.4",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.10"
   }
 }
 

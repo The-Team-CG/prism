@@ -12,13 +12,12 @@ export async function previewGuestEvent(accessCode: string): Promise<PrismGuestE
 
 export async function openGuestEventPass(input: {
   accessCode: string;
-  guestName: string;
   preview?: PrismGuestEventPass | null;
   nextPath?: string | null;
 }): Promise<{ session: GuestSession; redirectTo: string }> {
   const guestEvent =
     input.preview ?? (await guestAccessRepository.fetchEventPass(input.accessCode));
-  const session = buildGuestSession(guestEvent, input.guestName);
+  const session = buildGuestSession(guestEvent);
   guestAccessRepository.saveSession(session);
   return {
     session,

@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   BadgeCheck,
+  ClipboardList,
   FileText,
   MapPinned,
   MessageSquareText,
@@ -8,11 +9,15 @@ import {
   ReceiptText,
 } from "lucide-react";
 import type { PrismClientActionItem, PrismClientWorkspace, PrismEvent, PrismFloorPlanDraft } from "@prism/types";
-import type { CanvasObject as VenueObject, Project } from "@/features/floorplan/editor/types";
+import type { CanvasObject as VenueObject, Project } from "@/features/floorplan/editor";
 import type { DetailTab } from "./client-dashboard-types";
 
 export function draftIsOfficial(draft: PrismFloorPlanDraft) {
-  return draft.status === "in_review" || draft.status === "approved";
+  const approvedLegacyPmcmPreference = draft.sourceType === "client_preference" &&
+    draft.status === "approved" &&
+    (draft.createdByRole === "pmcm-admin" || draft.createdByRole === "coordinator");
+  return (draft.sourceType !== "client_preference" || approvedLegacyPmcmPreference) &&
+    (draft.status === "in_review" || draft.status === "approved" || draft.status === "revision_requested");
 }
 
 export function objectBox(object: VenueObject, project: Project) {
@@ -36,6 +41,12 @@ export function formatStatusLabel(status?: string) {
   return status ? status.replaceAll("_", " ") : "Pending";
 }
 
+export function clientFloorplanDashboardActionLabel(status?: PrismEvent["floorPlanStatus"]) {
+  if (status === "not_started") return "Set layout preferences";
+  if (status === "in_review" || status === "approved") return "View official floorplan";
+  return "Open floor plan";
+}
+
 export const EVENT_MONTHS = [
   "Jan",
   "Feb",
@@ -51,9 +62,9 @@ export const EVENT_MONTHS = [
   "Dec",
 ];
 
-export function eventDateParts(date?: string) {
+export function eventDateParts(date?: string | null) {
   if (!date) return { day: "--", month: "TBD", year: "" };
-  const [year, month, day] = date.split("-");
+  const [year, month, day] = date.slice(0, 10).split("-");
   const monthIndex = Number(month) - 1;
   return {
     day: day?.padStart(2, "0") ?? "--",
@@ -62,7 +73,7 @@ export function eventDateParts(date?: string) {
   };
 }
 
-export function formatEventDate(date?: string) {
+export function formatEventDate(date?: string | null) {
   const parts = eventDateParts(date);
   if (!date || parts.month === "TBD") return "Date pending";
   return `${EVENT_MONTHS[EVENT_MONTHS.findIndex((month) => month.toUpperCase() === parts.month)]} ${Number(parts.day)}, ${parts.year}`;
@@ -101,6 +112,7 @@ export function clientActionIcon(kind: PrismClientActionItem["kind"]): LucideIco
   if (kind === "floorplan") return MapPinned;
   if (kind === "approval") return BadgeCheck;
   if (kind === "feedback") return MessageSquareText;
+  if (kind === "change_request") return ClipboardList;
   return Presentation;
 }
 
@@ -109,7 +121,7 @@ export function clientActionTarget(kind: PrismClientActionItem["kind"]): DetailT
   if (kind === "document" || kind === "closure") return "documents";
   if (kind === "floorplan") return "floorplan";
   if (kind === "approval") return "proposal";
-  if (kind === "feedback") return "activity";
+  if (kind === "feedback" || kind === "change_request") return "activity";
   return "briefing";
 }
 
@@ -128,7 +140,7 @@ export function actionCenterItemToDashboardAction(
     id: item.id,
     title: item.label,
     description: item.description,
-    detail: item.dueAt ? formatEventDate(item.dueAt) : formatStatusLabel(item.status),
+    detail: formatEventDate(item.dueAt),
     ctaLabel: "Open",
     href: item.href,
     icon: clientActionIcon(item.kind),
@@ -140,11 +152,12 @@ export function actionCenterItemToDashboardAction(
 
 export function selectNextAction(actions: ClientDashboardAction[]) {
   return (
-    actions.find((action) => action.tone === "primary") ??
     actions.find((action) => action.tone === "warning") ??
+    actions.find((action) => action.tone === "primary") ??
     actions[0]
   );
 }
+
 
 export function greetingByTime(name: string) {
   const hour = new Date().getHours();

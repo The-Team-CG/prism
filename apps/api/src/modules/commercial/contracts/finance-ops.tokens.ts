@@ -1,0 +1,2 @@
+export const BILLING_READER = Symbol('BILLING_READER');
+export const PAYMENT_STATUS_READER = Symbol('PAYMENT_STATUS_READER');

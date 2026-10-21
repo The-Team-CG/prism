@@ -1,0 +1,567 @@
+{
+  "version": 1,
+  "sourceManifest": "domain-ownership.json",
+  "profiles": {
+    "event-current": {
+      "eventAgreement": "The command eventId must match the referenced event. When several owners participate, each owner validates its own record against that same event inside the caller transaction.",
+      "authorization": "The initiating context authorizes the verified actor. Lifecycle validates event existence and current eligibility when a command depends on event state. An identifier or successful lookup is never authorization.",
+      "meaning": "Current eligibility for writes and event scope for retained historical reads.",
+      "targetLifecycle": "Archive, cancellation, and postponement are lifecycle state changes; they do not erase owner records. Each owner applies its command-specific eligibility rule. Physical event deletion is unsupported. Any future deletion requires owner-scoped retention/redaction work and a rehearsed recovery path.",
+      "failure": "A missing or cross-event required reference fails closed as not found; an ineligible event returns the command eligibility conflict. No owner mutation is committed.",
+      "recovery": "Roll back the complete caller transaction on owner failure. Retry only through the existing idempotency contract. Repair existing orphans through owner-specific reconciliation; never guess a replacement by name or date."
+    },
+    "event-history": {
+      "eventAgreement": "Event ID is optional historical context. When supplied by a business command it comes from that command's verified scope; evidence consumers do not infer actor access from it.",
+      "authorization": "Authorization belongs to the originating operation. Appending or reading evidence does not grant access to the event or its business records.",
+      "meaning": "Historical attribution or evidence; not a current eligibility check.",
+      "targetLifecycle": "Preserve evidence and review history through archive, cancellation, and postponement. Physical event deletion is unsupported. An approved privacy action that removes event association must be owner-scoped, record an explicit redaction/nulling result, and preserve required evidence.",
+      "failure": "An absent optional event does not erase or reassign evidence. New business operations that require a current event validate it separately.",
+      "recovery": "Keep unresolved historical IDs as scalar attribution; reconcile only from durable owner evidence. Do not reattach by name, email, or event label."
+    },
+    "identity-history": {
+      "eventAgreement": "Not applicable; this identifier records prior actor/account attribution.",
+      "authorization": "Identity Access controls current account/session authority. A historical actor ID is not authority to issue a session or perform a new action.",
+      "meaning": "Historical actor attribution; nullable user links preserve the source record if the account is physically removed.",
+      "targetLifecycle": "Account decline, lockout, password reset, or disablement revokes current authority without deleting business history. Privacy erasure may null identity links only through the approved owner retention path.",
+      "failure": "Historical records do not depend on an account remaining active after the action. New actions fail closed against current actor state.",
+      "recovery": "Retain role/time/security evidence with an explicit absent-account state when needed. Never restore identity by matching mutable email or display name."
+    },
+    "identity-coordinator": {
+      "eventAgreement": "The coordinator profile is global; an event assignment command separately proves coordinator and assignment scope for that event.",
+      "authorization": "Identity Access controls account approval/session state; Operations controls coordinator eligibility, pool state, and assignments.",
+      "meaning": "Current account-to-coordinator association plus historical assignment attribution.",
+      "targetLifecycle": "Disabling or declining an account blocks new authenticated coordinator actions. Operations checks the profile active flag and rechecks the linked Identity role, approval, and active lockout while holding the assignment transaction; read-models excludes inactive profiles from participant access. Coordinator and assignment history is preserved. Physical account deletion may null this link only after Operations has safely disabled the profile.",
+      "failure": "Missing, unapproved, locked, or disabled accounts and inactive coordinator profiles cannot authorize new assignments or communication membership. Existing history remains readable to permitted roles.",
+      "recovery": "Resolve the account and coordinator through their owners, then explicitly relink or deactivate. Do not infer identity from coordinator name or email."
+    },
+    "document-current-optional": {
+      "eventAgreement": "When linked to a commercial record, Lifecycle verifies the document belongs to the same event and has the permitted kind/status.",
+      "authorization": "Commercial authorizes its business command; Lifecycle DOCUMENT_VAULT validates and owns document metadata. Document ID alone grants no download permission.",
+      "meaning": "Optional current document eligibility with a retained scalar link; current SET NULL semantics preserve the source record if metadata is physically removed.",
+      "targetLifecycle": "Document redaction/deletion is disabled pending the retention policy. Archive preserves document and commercial source. Later erasure follows Lifecycle policy without deleting issued billing or bid evidence.",
+      "failure": "Missing, wrong-event, wrong-kind, or ineligible documents are rejected before the commercial write.",
+      "recovery": "Roll back the caller transaction on vault failure. A null historical link remains explicit; repair only through Lifecycle registration/reconciliation, never by choosing a same-name document."
+    },
+    "operations-coordinator-current": {
+      "eventAgreement": "A designation or handoff coordinator/assignment must resolve to the same event. LiveOps authorizes the event-day action; Operations validates coordinator/assignment state in the caller transaction.",
+      "authorization": "LiveOps authorizes designation/handoff policy; Operations alone decides coordinator availability, assignment eligibility, replacement, and cancellation.",
+      "meaning": "Current eligibility for a live event-day command; retained designations and handoffs are historical.",
+      "targetLifecycle": "Coordinator disablement, assignment cancellation, event cancellation, or archive blocks new live mutations under owner policy but preserves completed designations/handoffs. Do not hard-delete a referenced coordinator.",
+      "failure": "Missing, disabled, cancelled, or cross-event coordinator/assignment fails closed before the LiveOps record is written.",
+      "recovery": "Owner failure rolls back the caller transaction; retry through the command receipt/idempotency key. Reassign with an explicit Operations command rather than rewriting old history."
+    },
+    "supplier-current": {
+      "eventAgreement": "Supplier is global; the eventId on an Operations registration record is validated separately by Lifecycle.",
+      "authorization": "Operations authorizes registration changes; Commercial verifies supplier existence and current eligibility.",
+      "meaning": "Current supplier eligibility for a new or changed registration link; retained registration data stays readable as history.",
+      "targetLifecycle": "An inactive/suspended supplier cannot be newly linked. Existing event registration history is preserved on archive or supplier deactivation.",
+      "failure": "Missing or ineligible supplier fails closed before the registration record changes.",
+      "recovery": "Rollback on Commercial lookup failure. Restore eligibility or select a current supplier through its owner; never match by supplier name."
+    },
+    "principal-history": {
+      "eventAgreement": "Event scope is validated separately when the command has one; actor ID is attribution only.",
+      "authorization": "The initiating context verifies role and actor. Platform receipt/storage/audit IDs do not grant actor or record access.",
+      "meaning": "Historical actor attribution that may represent an Identity account, system principal, or role-scoped portal principal.",
+      "targetLifecycle": "Preserve attribution with the recorded role. Current disablement blocks new actions but does not rewrite past receipts, uploads, or replies; privacy removal follows the owning record policy.",
+      "failure": "Missing principal metadata cannot authorize a mutation. Historical attribution may remain unresolved without deleting its parent record.",
+      "recovery": "Keep the original identifier and role snapshot; reconcile only from trusted authentication evidence and never infer an account from a name."
+    },
+    "polymorphic-owner-current": {
+      "eventAgreement": "The selected owner record must belong to the same event as the storage request when usage is event-scoped.",
+      "authorization": "Platform validates storage policy and asks the context selected by the declared record type to verify the record. The source owner decides business eligibility.",
+      "meaning": "Current owner eligibility for confirmation/retrieval; a type-qualified ID is not a general relationship or permission.",
+      "targetLifecycle": "The owner archive/closure rule applies; stored-object receipts remain Platform-owned and require explicit lifecycle/redaction handling.",
+      "failure": "Unknown type, absent owner, wrong event, or ineligible source record fails closed before confirmation or download.",
+      "recovery": "Leave failed storage receipts retryable with their idempotency key. Reconcile through the selected owner capability; never infer record type from an ID."
+    },
+    "polymorphic-history": {
+      "eventAgreement": "Any event scope is recorded separately; the discriminator qualifies the ID and is never an authorization check.",
+      "authorization": "The record owner controls access. History consumers may display the recorded discriminator/ID without dereferencing it.",
+      "meaning": "Historical, type-qualified attribution rather than a current relationship.",
+      "targetLifecycle": "Retain audit/event-day history through archive and source lifecycle changes. Physical event deletion remains unsupported; privacy actions are owner-scoped.",
+      "failure": "A missing target does not invalidate the historical record or grant access.",
+      "recovery": "Preserve discriminator and ID; reconcile only from owner history, with no name-based relinking."
+    },
+    "lifecycle-inquiry-current": {
+      "eventAgreement": "Lifecycle checks inquiry identity and accepted/unsigned eligibility for every draft/approval action.",
+      "authorization": "Platform applies AI-governance and actor policy; Lifecycle owns inquiry state and supplies the eligibility capability.",
+      "meaning": "Current eligibility to prepare or approve a conforme reminder draft.",
+      "targetLifecycle": "A changed, declined, signed, or otherwise ineligible inquiry blocks new generation/approval. Existing audit/review evidence remains readable under Platform policy.",
+      "failure": "Missing or ineligible inquiry fails closed before model work, persistence, or approval.",
+      "recovery": "Retry after Lifecycle state is corrected under existing request/replay rules; do not recreate an inquiry from draft content."
+    },
+    "liveops-issue-current": {
+      "eventAgreement": "The urgent issue must belong to the same event as the additional billing command.",
+      "authorization": "Commercial authorizes billing; LiveOps verifies issue existence, event scope, and current eligibility through an owner capability.",
+      "meaning": "Current incident reference required to issue an additional bill.",
+      "targetLifecycle": "Issue resolution or event closure preserves billing and incident histories. Future issue deletion requires an owner retention rule; billing evidence is never cascaded away.",
+      "failure": "Missing, cross-event, or ineligible issue is rejected before the Commercial write.",
+      "recovery": "Roll back the full billing transaction on owner failure; retry with the original idempotency key after LiveOps is available."
+    },
+    "commercial-addendum-history": {
+      "eventAgreement": "Commercial validates the approved billing source and selected quote against the addendum event in the caller transaction.",
+      "authorization": "Lifecycle decides whether to issue an addendum; Commercial owns and applies billing-source/quote changes.",
+      "meaning": "Immutable historical impact snapshots paired with type-qualified Commercial target IDs.",
+      "targetLifecycle": "Addendum impact rows stay Lifecycle-owned; Commercial state changes remain in the same transaction. Archive retains both histories.",
+      "failure": "An ineligible or missing Commercial target rejects the addendum and rolls back owner changes and history together.",
+      "recovery": "Retry by addendum idempotency/version contract; reconcile only from persisted before/after snapshots and Commercial records."
+    }
+  },
+  "foreignKeyProfiles": [
+    {
+      "profile": "event-history",
+      "constraints": [
+        "privacy_requests_event_id_fkey",
+        "security_alerts_event_id_fkey",
+        "coordinator_reliability_notes_event_id_fkey",
+        "supplier_reliability_notes_event_id_fkey",
+        "supplier_reviews_event_id_fkey",
+        "ai_approval_records_event_id_fkey",
+        "ai_audit_logs_event_id_fkey",
+        "audit_logs_event_id_fkey",
+        "notification_logs_event_id_fkey"
+      ]
+    },
+    {
+      "profile": "identity-history",
+      "constraints": [
+        "login_history_user_id_fkey"
+      ]
+    },
+    {
+      "profile": "identity-coordinator",
+      "constraints": [
+        "coordinators_user_id_fkey"
+      ]
+    },
+    {
+      "profile": "document-current-optional",
+      "constraints": [
+        "quote_requests_contract_document_id_fkey"
+      ]
+    },
+    {
+      "profile": "operations-coordinator-current",
+      "constraints": [
+        "event_operator_designations_coordinator_id_fkey"
+      ]
+    },
+    {
+      "profile": "event-current",
+      "constraints": [
+        "additional_billings_event_id_fkey",
+        "billing_corrections_event_id_fkey",
+        "billing_disputes_event_id_fkey",
+        "billing_sources_event_id_fkey",
+        "billing_statements_event_id_fkey",
+        "cost_estimates_event_id_fkey",
+        "payment_milestones_event_id_fkey",
+        "payment_records_event_id_fkey",
+        "proposal_versions_event_id_fkey",
+        "floor_plan_drafts_event_id_fkey",
+        "check_ins_event_id_fkey",
+        "feedback_event_id_fkey",
+        "guest_roster_entries_event_id_fkey",
+        "guest_roster_imports_event_id_fkey",
+        "registration_platforms_event_id_fkey",
+        "pare_dispatches_event_id_fkey",
+        "stored_objects_event_id_fkey",
+        "coordinator_assignments_event_id_fkey",
+        "event_coverage_requirements_event_id_fkey",
+        "event_day_logs_event_id_fkey",
+        "event_day_tasks_event_id_fkey",
+        "event_eod_reports_event_id_fkey",
+        "event_handoffs_event_id_fkey",
+        "event_operator_designations_event_id_fkey",
+        "event_schedule_days_event_id_fkey",
+        "task_reassignment_requests_event_id_fkey",
+        "urgent_issues_event_id_fkey",
+        "communication_threads_event_id_fkey",
+        "quote_requests_event_id_fkey",
+        "quote_rounds_event_id_fkey",
+        "quotes_event_id_fkey",
+        "supplier_schedules_event_id_fkey"
+      ]
+    }
+  ],
+  "scalarReferences": [
+    {
+      "source": "FloorPlan.eventId",
+      "target": "OpsEvent.id",
+      "profile": "event-current",
+      "meaning": "Optional event association for a floorplan; current event scope is transitional.",
+      "status": "transitional",
+      "sourceOwner": "floorplan",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsEvent.floorPlanId",
+      "target": "FloorPlan.id",
+      "profile": "event-current",
+      "meaning": "Optional Lifecycle projection pointer to the official Floorplan plan.",
+      "status": "transitional",
+      "sourceOwner": "event-lifecycle",
+      "targetOwner": "floorplan"
+    },
+    {
+      "source": "FloorPlan.ownerId",
+      "target": "OpsUser.id",
+      "profile": "identity-history",
+      "meaning": "Verified account attribution for the plan owner; authorization is checked by the caller.",
+      "status": "transitional",
+      "sourceOwner": "floorplan",
+      "targetOwner": "identity-access"
+    },
+    {
+      "source": "VenueTemplate.ownerId",
+      "target": "OpsUser.id",
+      "profile": "identity-history",
+      "meaning": "Verified account attribution for a template owner.",
+      "status": "transitional",
+      "sourceOwner": "floorplan",
+      "targetOwner": "identity-access"
+    },
+    {
+      "source": "EventInstance.ownerId",
+      "target": "OpsUser.id",
+      "profile": "identity-history",
+      "meaning": "Verified account attribution for an event-instance owner.",
+      "status": "transitional",
+      "sourceOwner": "floorplan",
+      "targetOwner": "identity-access"
+    },
+    {
+      "source": "OpsEventDecision.actorId",
+      "target": "OpsUser.id",
+      "profile": "identity-history",
+      "meaning": "Actor captured for an immutable decision with role/name snapshot.",
+      "status": "transitional",
+      "sourceOwner": "event-lifecycle",
+      "targetOwner": "identity-access"
+    },
+    {
+      "source": "OpsInquiryStatusHistory.actorId",
+      "target": "OpsUser.id",
+      "profile": "identity-history",
+      "meaning": "Optional actor attribution for an immutable status transition.",
+      "status": "transitional",
+      "sourceOwner": "event-lifecycle",
+      "targetOwner": "identity-access"
+    },
+    {
+      "source": "OpsEventHandoff.fromAssignmentId",
+      "target": "OpsCoordinatorAssignment.id",
+      "profile": "operations-coordinator-current",
+      "meaning": "Outgoing assignment must be active and belong to the handoff event when written.",
+      "status": "implemented",
+      "sourceOwner": "live-ops",
+      "targetOwner": "operations"
+    },
+    {
+      "source": "OpsEventHandoff.toAssignmentId",
+      "target": "OpsCoordinatorAssignment.id",
+      "profile": "operations-coordinator-current",
+      "meaning": "Incoming assignment must be active and belong to the handoff event when written.",
+      "status": "implemented",
+      "sourceOwner": "live-ops",
+      "targetOwner": "operations"
+    },
+    {
+      "source": "OpsEventEodReply.authorId",
+      "target": "authenticated-principal.id",
+      "targetOwner": "identity-access-or-system-principal",
+      "profile": "principal-history",
+      "meaning": "Historical author attribution; code can store a system/name fallback when no account ID exists.",
+      "status": "transitional",
+      "sourceOwner": "live-ops"
+    },
+    {
+      "source": "OpsEventDayLog.relatedId",
+      "target": "relatedType-qualified event record id",
+      "targetOwner": "owner selected by relatedType",
+      "profile": "polymorphic-history",
+      "meaning": "Optional type-qualified event-day link; it never grants access to the related record.",
+      "status": "transitional",
+      "sourceOwner": "live-ops"
+    },
+    {
+      "source": "OpsAddendumImpact.targetId",
+      "target": "CommercialAddendumImpact.targetId",
+      "targetOwner": "commercial",
+      "profile": "commercial-addendum-history",
+      "meaning": "Immutable impact history restricted to billing_source or supplier_quote and written by the Commercial owner capability.",
+      "status": "implemented",
+      "sourceOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsBillingSource.sourceDocumentId",
+      "target": "OpsDocument.id",
+      "profile": "document-current-optional",
+      "meaning": "Optional evidence link checked by Lifecycle DOCUMENT_VAULT for event, kind, and eligibility.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsBillingStatement.documentId",
+      "target": "OpsDocument.id",
+      "profile": "document-current-optional",
+      "meaning": "Issued statement metadata is registered through Lifecycle DOCUMENT_VAULT.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsBillingStatement.storageObjectId",
+      "target": "OpsStoredObject.id",
+      "profile": "polymorphic-owner-current",
+      "meaning": "Platform storage receipt for a billing statement; event, usage, owner type, and record ID must agree.",
+      "status": "transitional",
+      "sourceOwner": "commercial",
+      "targetOwner": "platform-ops"
+    },
+    {
+      "source": "OpsAdditionalBilling.urgentIssueId",
+      "target": "OpsUrgentIssue.id",
+      "profile": "liveops-issue-current",
+      "meaning": "LiveOps locks and validates the incident in the billing transaction; only the issue ID and event ID cross to Commercial.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "live-ops"
+    },
+    {
+      "source": "OpsCommandReceipt.actorId",
+      "target": "authenticated-principal.id",
+      "targetOwner": "identity-access-or-system-principal",
+      "profile": "principal-history",
+      "meaning": "Receipt identity scope is bound to the initiating principal; replay follows current authorization.",
+      "status": "transitional",
+      "sourceOwner": "platform-ops"
+    },
+    {
+      "source": "OpsCommandReceipt.eventId",
+      "target": "OpsEvent.id",
+      "profile": "event-current",
+      "meaning": "Optional event scope for a durable command receipt; replay is subordinate to current authorization.",
+      "status": "transitional",
+      "sourceOwner": "platform-ops",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsRegistrationPlatform.supplierId",
+      "target": "OpsSupplier.id",
+      "profile": "supplier-current",
+      "meaning": "Optional global registration supplier; Commercial validates category and current event selection, requiring an active category only for a new or changed supplier link inside the caller transaction.",
+      "status": "implemented",
+      "sourceOwner": "operations",
+      "targetOwner": "commercial"
+    },
+    {
+      "source": "OpsCommunicationParticipant.actorId",
+      "target": "OpsUser.id",
+      "profile": "identity-history",
+      "meaning": "Participant identity comes from Identity Access; active membership authorizes communication.",
+      "status": "transitional",
+      "sourceOwner": "commercial",
+      "targetOwner": "identity-access"
+    },
+    {
+      "source": "OpsCommunicationMessage.senderId",
+      "target": "OpsUser.id",
+      "profile": "identity-history",
+      "meaning": "Verified sender attribution for an immutable message; saved sender ID cannot authorize later reads or sends.",
+      "status": "transitional",
+      "sourceOwner": "commercial",
+      "targetOwner": "identity-access"
+    },
+    {
+      "source": "OpsGuestRosterImport.importedById",
+      "target": "authenticated-principal.id",
+      "targetOwner": "identity-access-or-system-principal",
+      "profile": "principal-history",
+      "meaning": "Optional importer attribution; importedBy is a historical display snapshot and never authorizes later actions.",
+      "status": "implemented",
+      "sourceOwner": "operations"
+    },
+    {
+      "source": "OpsGuestFeedback.moderatedById",
+      "target": "OpsUser.id",
+      "profile": "identity-history",
+      "meaning": "Optional moderator attribution for a completed moderation decision; the moderator ID/name is historical evidence and is not dereferenced for future access.",
+      "status": "implemented",
+      "sourceOwner": "operations",
+      "targetOwner": "identity-access"
+    },
+    {
+      "source": "OpsStoredObject.ownerRecordId",
+      "target": "ownerRecordType-qualified record id",
+      "targetOwner": "owner selected by ownerRecordType and usage",
+      "profile": "polymorphic-owner-current",
+      "meaning": "Platform asks the registered owner to verify source record and event before confirmation or retrieval.",
+      "status": "transitional",
+      "sourceOwner": "platform-ops"
+    },
+    {
+      "source": "OpsStoredObject.uploaderActorId",
+      "target": "authenticated-principal.id",
+      "targetOwner": "identity-access-or-role-principal",
+      "profile": "principal-history",
+      "meaning": "Historical uploader attribution paired with role; it never authorizes a download.",
+      "status": "transitional",
+      "sourceOwner": "platform-ops"
+    },
+    {
+      "source": "OpsAuditLog.affectedId",
+      "target": "affectedType-qualified record id",
+      "targetOwner": "owner selected by affectedType",
+      "profile": "polymorphic-history",
+      "meaning": "Append-only audit attribution; audit reads do not dereference or authorize the affected record.",
+      "status": "transitional",
+      "sourceOwner": "platform-ops"
+    },
+    {
+      "source": "OpsConformeCommsDraft.inquiryId",
+      "target": "OpsInquiry.id",
+      "profile": "lifecycle-inquiry-current",
+      "meaning": "Accepted/unsigned inquiry eligibility is checked through the Lifecycle capability before model work or approval.",
+      "status": "implemented",
+      "sourceOwner": "platform-ops",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsCoordinatorAssignment.conflictEventId",
+      "target": "OpsEvent.id",
+      "profile": "event-history",
+      "meaning": "Conflict event ID/name is an advisory snapshot read from Lifecycle when captured, not a current coordinator eligibility decision.",
+      "status": "implemented",
+      "sourceOwner": "operations",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsSupplierContractVersion.eventId",
+      "target": "OpsEvent.id",
+      "profile": "event-current",
+      "meaning": "Event eligibility is validated by Lifecycle before the Commercial command commits.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsSupplierCreativeTask.eventId",
+      "target": "OpsEvent.id",
+      "profile": "event-current",
+      "meaning": "Event eligibility is validated by Lifecycle before the Commercial command commits.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsSupplierPayableMilestone.eventId",
+      "target": "OpsEvent.id",
+      "profile": "event-current",
+      "meaning": "Event eligibility is validated by Lifecycle before the Commercial command commits.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsSupplierPayoutRecord.eventId",
+      "target": "OpsEvent.id",
+      "profile": "event-current",
+      "meaning": "Event eligibility is validated by Lifecycle before the Commercial command commits.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsClientReviewItem.eventId",
+      "target": "OpsEvent.id",
+      "profile": "event-current",
+      "meaning": "Event eligibility is validated by Lifecycle before the Commercial command commits.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsClientReviewDecision.eventId",
+      "target": "OpsEvent.id",
+      "profile": "event-current",
+      "meaning": "The decision is scoped to a verified event; authorization is checked by Commercial.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsClientReviewItem.documentId",
+      "target": "OpsDocument.id",
+      "profile": "document-current-optional",
+      "meaning": "Document evidence is validated through Lifecycle document capability before association.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsSupplierContractVersion.documentId",
+      "target": "OpsDocument.id",
+      "profile": "document-current-optional",
+      "meaning": "Contract evidence is validated through Lifecycle document capability before association.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsSupplierContractVersion.storedObjectId",
+      "target": "OpsStoredObject.id",
+      "profile": "polymorphic-owner-current",
+      "meaning": "Platform confirms event, usage, owner type, and record ID for stored contract evidence.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "platform-ops"
+    },
+    {
+      "source": "OpsSupplierCreativeSubmission.storedObjectId",
+      "target": "OpsStoredObject.id",
+      "profile": "polymorphic-owner-current",
+      "meaning": "Platform confirms event, usage, owner type, and record ID for creative evidence.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "platform-ops"
+    },
+    {
+      "source": "OpsFloorPlanClientDecision.eventId",
+      "target": "OpsEvent.id",
+      "profile": "event-current",
+      "meaning": "The event is verified through Lifecycle before the Floorplan decision is accepted.",
+      "status": "implemented",
+      "sourceOwner": "floorplan",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsFloorPlanClientAnnotation.eventId",
+      "target": "OpsEvent.id",
+      "profile": "event-current",
+      "meaning": "The event is verified through Lifecycle before the Floorplan annotation is accepted.",
+      "status": "implemented",
+      "sourceOwner": "floorplan",
+      "targetOwner": "event-lifecycle"
+    },
+    {
+      "source": "OpsSupplierCreativeTask.submissionObjectId",
+      "target": "OpsStoredObject.id",
+      "profile": "polymorphic-owner-current",
+      "meaning": "Platform confirms event, usage, owner type, and task record ID for the submitted creative object.",
+      "status": "implemented",
+      "sourceOwner": "commercial",
+      "targetOwner": "platform-ops"
+    },
+    {
+      "source": "OpsStoredObject.eventId",
+      "target": "OpsEvent.id",
+      "profile": "event-current",
+      "meaning": "Platform storage commands confirm event scope through Lifecycle; this scalar does not provide authorization or cascade deletion.",
+      "status": "implemented",
+      "sourceOwner": "platform-ops",
+      "targetOwner": "event-lifecycle"
+    }
+  ]
+}

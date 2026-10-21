@@ -1,25 +1,25 @@
-import type { PrismGuestEventPass } from "@prism/types";
+import type { CreateGuestCheckInInput, PrismGuestEventPass } from "@prism/types";
 
 export type GuestSession = PrismGuestEventPass & {
-  guestName: string;
   openedAt: string;
 };
 
-export type CheckInMode = "name_search" | "headcount";
+export type CheckInMode = CreateGuestCheckInInput["checkInMode"];
 
 export type GuestDashboardStatus = "idle" | "loading" | "ready" | "error";
 
 export type GuestBusyAction = "check-in" | "feedback" | null;
 
-export type CheckInPayload = {
-  guestName: string;
-  checkInMode: CheckInMode;
-  walkIn: boolean;
-  verificationStatus: "verified" | "flagged";
-  privacyConsentAccepted: boolean;
-  privacyNoticeVersion: string;
-  marketingConsentAccepted: boolean;
+export type GuestNextAction = {
+  id: "check-in" | "feedback";
+  label: string;
+  detail: string;
+  status: "pending" | "complete";
 };
+
+type WithoutIdempotencyKey<T> = T extends { idempotencyKey: string } ? Omit<T, "idempotencyKey"> : never;
+
+export type CheckInPayload = WithoutIdempotencyKey<CreateGuestCheckInInput>;
 
 export type FeedbackMediaMeta = {
   fileName: string;
@@ -30,7 +30,7 @@ export type FeedbackMediaMeta = {
 export type FeedbackPayload = {
   guestName: string;
   rating: number;
-  comment: string;
+  comment?: string;
   privacyConsentAccepted: boolean;
   privacyNoticeVersion: string;
   marketingConsentAccepted: boolean;

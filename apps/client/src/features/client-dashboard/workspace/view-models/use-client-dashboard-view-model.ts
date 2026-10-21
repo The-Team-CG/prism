@@ -12,8 +12,10 @@ import {
 } from "../use-cases/client-dashboard-actions";
 
 export type { ClientSession };
+export type ClientDashboardStatus = "idle" | "loading" | "success" | "error";
 
 const CLIENT_STATE_CACHE_MS = 30_000;
+const CLIENT_ACTION_CENTER_POLL_MS = 30_000;
 const clientStateCache = new Map<string, { state: PrismClientWorkspace; loadedAt: number }>();
 const clientStateRequests = new Map<string, Promise<PrismClientWorkspace>>();
 const clientActionCenterCache = new Map<string, { actionCenter: PrismClientActionCenter; loadedAt: number }>();
@@ -46,7 +48,7 @@ async function loadClientState(session: Pick<PrismUser, "email" | "name">, force
     if (existing) return existing;
   }
 
-  const request = loadClientWorkspace(session)
+  const request = loadClientWorkspace()
     .then((next) => {
       clientStateCache.set(key, { state: next, loadedAt: Date.now() });
       return next;
@@ -60,15 +62,15 @@ async function loadClientState(session: Pick<PrismUser, "email" | "name">, force
 async function loadActionCenterCached(session: Pick<PrismUser, "email" | "name">, force = false) {
   const key = clientStateCacheKey(session);
 
+  const existing = clientActionCenterRequests.get(key);
+  if (existing) return existing;
+
   if (!force) {
     const cached = clientActionCenterCache.get(key);
     if (cached && isFresh(cached.loadedAt, CLIENT_STATE_CACHE_MS)) return cached.actionCenter;
-
-    const existing = clientActionCenterRequests.get(key);
-    if (existing) return existing;
   }
 
-  const request = loadClientActionCenter(session)
+  const request = loadClientActionCenter()
     .then((next) => {
       clientActionCenterCache.set(key, { actionCenter: next, loadedAt: Date.now() });
       return next;
@@ -91,6 +93,7 @@ export function useClientDashboardViewModel({
   const router = useRouter();
   const [session, setSession] = useState<ClientSession | null>(null);
   const [actionCenter, setActionCenter] = useState<PrismClientActionCenter | null>(null);
+  const [actionCenterLoadFailed, setActionCenterLoadFailed] = useState(false);
   const [state, setState] = useState<PrismClientWorkspace | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -115,7 +118,7 @@ export function useClientDashboardViewModel({
       setState(next);
       setError(null);
       const firstClientEvent = next.events.find(
-        (event) => event.clientName === current.name && event.clientPortalStatus === "unlocked",
+        (event) => !event.archived && event.clientPortalStatus === "unlocked",
       );
       setSelectedEventId(eventId ?? firstClientEvent?.id ?? null);
     };
@@ -123,6 +126,7 @@ export function useClientDashboardViewModel({
     const applyActionCenter = (next: PrismClientActionCenter) => {
       if (cancelled) return;
       setActionCenter(next);
+      setActionCenterLoadFailed(false);
     };
 
     const cached = getCachedClientState(current);
@@ -144,13 +148,72 @@ export function useClientDashboardViewModel({
     if (!actionCenterIsFresh) loadActionCenterCached(current, !cachedActionCenter)
       .then(applyActionCenter)
       .catch(() => {
-        if (!cancelled) setActionCenter(null);
+        if (cancelled) return;
+        const lastGood = getCachedClientActionCenter(current);
+        if (lastGood) {
+          applyActionCenter(lastGood.actionCenter);
+          return;
+        }
+        setActionCenter(null);
+        setActionCenterLoadFailed(true);
       });
 
     return () => {
       cancelled = true;
     };
   }, [eventId, portalView, route, router]);
+
+  useEffect(() => {
+    if (route !== "home" || session?.role !== "client") return;
+
+    let cancelled = false;
+    let intervalId: number | null = null;
+
+    const stopPolling = () => {
+      if (intervalId === null) return;
+      window.clearInterval(intervalId);
+      intervalId = null;
+    };
+
+    const refreshActionCenter = () => {
+      if (cancelled || document.visibilityState !== "visible") return;
+
+      void loadActionCenterCached(session, true)
+        .then((next) => {
+          if (cancelled) return;
+          setActionCenter(next);
+          setActionCenterLoadFailed(false);
+        })
+        .catch(() => {
+          // Keep the last successful payload on transient polling errors.
+        });
+    };
+
+    const startPolling = () => {
+      if (intervalId !== null) return;
+      intervalId = window.setInterval(refreshActionCenter, CLIENT_ACTION_CENTER_POLL_MS);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        startPolling();
+        refreshActionCenter();
+      } else {
+        stopPolling();
+      }
+    };
+
+    if (document.visibilityState === "visible") startPolling();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      stopPolling();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [route, session]);
+
+  const status: ClientDashboardStatus = error ? "error" : state ? "success" : session ? "loading" : "idle";
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -159,12 +222,20 @@ export function useClientDashboardViewModel({
       loadActionCenterCached(session, true).catch(() => null),
     ]);
     setState(next);
-    setActionCenter(nextActionCenter);
+    if (nextActionCenter) {
+      setActionCenter(nextActionCenter);
+      setActionCenterLoadFailed(false);
+    } else if (!getCachedClientActionCenter(session)) {
+      setActionCenter(null);
+      setActionCenterLoadFailed(true);
+    }
   }, [session]);
 
   return {
     actionCenter,
+    actionCenterLoadFailed,
     error,
+    status,
     refresh,
     selectedEventId,
     session,

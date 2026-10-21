@@ -1,5 +1,7 @@
 "use client";
 
+import { portalHref } from "@prism/ui/portal-path";
+
 import {
   ArrowRight,
   CheckCircle2,
@@ -8,8 +10,6 @@ import {
   HelpCircle,
   LockKeyhole,
   MessageCircleHeart,
-  QrCode,
-  ScanLine,
   ShieldCheck,
   TicketCheck,
   UserCheck,
@@ -43,7 +43,7 @@ function GuestPassPanel() {
                 <span key={index} className={index === 0 ? "grid aspect-square place-items-center rounded-md border-2 border-primary text-xl font-black text-primary" : "aspect-square rounded-md border border-border bg-background"}>{index === 0 ? "I" : ""}</span>
               ))}
             </div>
-            <a href="/open" className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-primary font-black text-primary-foreground">
+            <a href={portalHref("/open")} className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-primary font-black text-primary-foreground">
               <LockKeyhole className="size-5" />
               Open pass
             </a>
@@ -113,7 +113,7 @@ export function GuestHomeLandingView() {
                 <a key={label} href={href} className="rounded-md px-2 py-2 transition hover:text-primary">{label}</a>
               ))}
             </nav>
-            <a href="/open" className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-black text-primary-foreground shadow-[0_16px_36px_rgba(192,24,103,0.22)]">
+            <a href={portalHref("/open")} className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-black text-primary-foreground shadow-[0_16px_36px_rgba(192,24,103,0.22)]">
               <DoorOpen className="size-4" />
               Open with code
             </a>
@@ -128,7 +128,7 @@ export function GuestHomeLandingView() {
                 Open your private event pass with a code, confirm consent, check in quickly, and share feedback after the event.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <a href="/open" className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-primary px-6 text-base font-black text-primary-foreground shadow-[0_18px_40px_rgba(192,24,103,0.22)]">
+                <a href={portalHref("/open")} className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-primary px-6 text-base font-black text-primary-foreground shadow-[0_18px_40px_rgba(192,24,103,0.22)]">
                   Open with code <ArrowRight className="size-5" />
                 </a>
                 <a href="#access" className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-card px-6 text-base font-black text-foreground">
@@ -137,7 +137,7 @@ export function GuestHomeLandingView() {
               </div>
               <div className="mt-10 grid grid-cols-2 gap-5 sm:grid-cols-4">
                 {[
-                  [QrCode, "Code required"],
+                  [TicketCheck, "Access code"],
                   [ShieldCheck, "Consent first"],
                   [Zap, "Fast check-in"],
                   [MessageCircleHeart, "Feedback reviewed"],
@@ -163,7 +163,7 @@ export function GuestHomeLandingView() {
       <section className="px-5 py-10 sm:px-8 lg:px-10">
         <div className="mx-auto grid max-w-[1320px] gap-5 rounded-lg border border-primary/12 bg-card p-7 shadow-[0_20px_70px_rgba(23,18,22,0.08)] md:grid-cols-4">
           {[
-            [QrCode, "Code required", "A valid code is required before your pass opens."],
+            [TicketCheck, "Access code", "A valid access code is required before your pass opens. Camera QR check-in is not enabled."],
             [ShieldCheck, "Consent first", "We ask for consent before check-in."],
             [Zap, "Fast check-in", "Arrive, confirm, and check in quickly."],
             [MessageCircleHeart, "Feedback reviewed", "Your feedback helps improve future events."],
@@ -193,7 +193,7 @@ export function GuestHomeLandingView() {
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             {[
-              [QrCode, "Event pass", "Private access, just for you."],
+              [TicketCheck, "Event pass", "Private access, just for you."],
               [ShieldCheck, "Consent", "We value your privacy."],
               [UserCheck, "Check-in ready", "Show this screen at the venue."],
             ].map(([Icon, title, text]) => (
@@ -208,7 +208,7 @@ export function GuestHomeLandingView() {
           <h2 className="text-center prism-serif text-4xl font-black leading-[0.98] text-(--prism-ink)">A simple flow from arrival to feedback</h2>
           <div className="mt-10 grid gap-6 md:grid-cols-4">
             {[
-              [QrCode, "Enter code", "Open your event pass with the code from your host."],
+              [TicketCheck, "Enter code", "Open your event pass with the code from your host."],
               [ShieldCheck, "Confirm consent", "Review and confirm consent before checking in."],
               [UserCheck, "Check in", "Arrive at the venue and check in with our team."],
               [MessageCircleHeart, "Share feedback", "After the event, tell us about your experience."],
@@ -272,7 +272,7 @@ export function GuestHomeLandingView() {
             <h2 className="mt-3 max-w-2xl prism-serif text-4xl font-black leading-tight text-(--prism-ink)">Open your event pass</h2>
           </div>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row lg:mt-0">
-            <a href="/open" className="inline-flex h-12 items-center justify-center rounded-md bg-primary px-6 font-black text-primary-foreground">Open with code</a>
+            <a href={portalHref("/open")} className="inline-flex h-12 items-center justify-center rounded-md bg-primary px-6 font-black text-primary-foreground">Open with code</a>
             <a href="#access" className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-background px-6 font-black text-foreground"><HelpCircle className="size-4" /> Help</a>
           </div>
         </div>

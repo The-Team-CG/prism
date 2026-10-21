@@ -1,4 +1,4 @@
-﻿# Dependencies
+# Dependencies
 node_modules/
 .pnp/
 .pnp.js
@@ -31,6 +31,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 .local-dev/
+.vercel/
 
 # Legacy child repos kept as local backups after the Turborepo migration
 prism-api/
@@ -70,10 +71,18 @@ Thumbs.db
 
 .next
 
-# Docker local secrets (synced from apps/api/.env; never commit)
+# Separate deployment secrets (development uses ignored .local-dev env files)
 .env.docker
 
 # Local-only story logs and audits (removed from main by 0867515; recovered
 # locally for reference, must not be swept back in by git add -A/-u)
-OwnerB_PRISM_StoryLogs/
+Owner*_PRISM_StoryLogs/
+PRISM_StoryLog_*.md
+PRISM_ActiveSkills.md
+PRISM_Repo_Recon_*.md
 PRISM_Audits/
+handoffs_archive/
+
+# Linked git worktrees (local isolation; never commit contents)
+.worktrees/
+

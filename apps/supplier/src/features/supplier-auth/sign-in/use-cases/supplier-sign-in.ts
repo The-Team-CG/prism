@@ -1,26 +1,36 @@
 import { supplierAuthRepository } from "../data/supplier-auth-repository";
 import {
+  isPrismAuthenticatedSession,
+  loginSchema,
+  parseContract,
+  type PrismAuthenticatedSession,
+} from "@prism/types";
+import {
   approvalRequestPayload,
-  buildSupplierSession,
   isSupplierRole,
   mapWrongPortalMessage,
   resolvePostSignInPath,
 } from "../model/supplier-sign-in-rules";
-import type { SupplierSession, SupplierSignInDraft } from "../model/supplier-sign-in-types";
+import type { SupplierSignInDraft } from "../model/supplier-sign-in-types";
 
-export function loadExistingSupplierSession(): SupplierSession | null {
+export function loadExistingSupplierSession(): PrismAuthenticatedSession | null {
   return supplierAuthRepository.readSession();
 }
 
 export async function signInSupplier(input: {
   draft: SupplierSignInDraft;
   nextPath?: string | null;
-}): Promise<{ session: SupplierSession; redirectTo: string }> {
-  const user = await supplierAuthRepository.login(input.draft.email, input.draft.password);
+}): Promise<{ session: PrismAuthenticatedSession; redirectTo: string }> {
+  const credentials = parseContract(loginSchema, input.draft, "Supplier sign-in");
+  const authResponse = await supplierAuthRepository.login(credentials);
+  if (!isPrismAuthenticatedSession(authResponse)) {
+    throw new Error(mapWrongPortalMessage("pmcm-admin"));
+  }
+  const user = authResponse;
   if (!isSupplierRole(user.role)) {
     throw new Error(mapWrongPortalMessage(user.role));
   }
-  const session = buildSupplierSession(user);
+  const session = user;
   supplierAuthRepository.saveSession(session);
   return {
     session,

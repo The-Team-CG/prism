@@ -1,11 +1,21 @@
-import type { PrismApprovalRequest, PrismDefenseReadiness, PrismEventDayStatusFeed, PrismLiveOps, PrismPmcmEventWorkspace } from "@prism/types";
-import { eventOpsRepository } from "@/features/event-ops";
+import type { PrismApprovalRequest, PrismDefenseReadiness, PrismEventDayStatusFeed, PrismGuestPrivacyClassification, PrismLiveOps, PrismPmcmEventWorkspace, PrismRegistrationPlatform } from "@prism/types";
+import { eventApi, eventApiRequest } from "@/lib/prism-api";
 
 type TimedCache<T> = { value: T; loadedAt: number };
 export type EventCommandData = {
   liveOps: PrismLiveOps;
   statusFeed: PrismEventDayStatusFeed;
   defenseReadiness: PrismDefenseReadiness;
+  registrationPlatform: PrismRegistrationPlatform | null;
+  guestPrivacyClassification: PrismGuestPrivacyClassification | null;
+};
+
+export type EventCommandDataErrors = {
+  liveOps?: string;
+  statusFeed?: string;
+  defenseReadiness?: string;
+  registrationPlatform?: string;
+  guestPrivacyClassification?: string;
 };
 
 const EVENT_WORKSPACE_CACHE_MS = 20_000;
@@ -14,7 +24,7 @@ const APPROVAL_CACHE_MS = 30_000;
 let approvalRequestsCache: TimedCache<PrismApprovalRequest[]> | null = null;
 let approvalRequestsRequest: Promise<PrismApprovalRequest[]> | null = null;
 const eventCommandDataCache = new Map<string, TimedCache<EventCommandData>>();
-const eventCommandDataRequests = new Map<string, Promise<EventCommandData>>();
+const eventCommandDataRequests = new Map<string, Promise<{ data: EventCommandData; errors: EventCommandDataErrors }>>();
 
 function isFresh(loadedAt: number, ttl: number) {
   return Date.now() - loadedAt < ttl;
@@ -22,19 +32,19 @@ function isFresh(loadedAt: number, ttl: number) {
 
 export const eventWorkspaceRepository = {
   loadWorkspace(eventId: string): Promise<PrismPmcmEventWorkspace> {
-    return eventOpsRepository.pmcmEventWorkspace(eventId);
+    return eventApi.pmcm.eventWorkspace(eventId);
   },
 
   loadLiveOps(eventId: string): Promise<PrismLiveOps> {
-    return eventOpsRepository.liveOps(eventId);
+    return eventApi.liveOps.eventDayWorkspace(eventId);
   },
 
   loadStatusFeed(eventId: string): Promise<PrismEventDayStatusFeed> {
-    return eventOpsRepository.eventDayStatusFeed(eventId);
+    return eventApiRequest<PrismEventDayStatusFeed>(`/api/events/${eventId}/event-day/status-feed`);
   },
 
   loadDefenseReadiness(eventId: string): Promise<PrismDefenseReadiness> {
-    return eventOpsRepository.defenseReadiness(eventId);
+    return eventApiRequest<PrismDefenseReadiness>(`/api/events/${eventId}/defense-readiness`);
   },
 
   getCachedApprovalRequests() {
@@ -47,8 +57,7 @@ export const eventWorkspaceRepository = {
     }
     if (!force && approvalRequestsRequest) return approvalRequestsRequest;
 
-    approvalRequestsRequest = eventOpsRepository
-      .approvalRequests()
+    approvalRequestsRequest = eventApiRequest<PrismApprovalRequest[]>("/api/auth/approval-requests")
       .then((next) => {
         approvalRequestsCache = { value: next, loadedAt: Date.now() };
         return next;
@@ -64,30 +73,52 @@ export const eventWorkspaceRepository = {
     return eventCommandDataCache.get(eventId);
   },
 
-  loadEventCommandData(eventId: string, force = false): Promise<EventCommandData> {
+  async loadEventCommandData(
+    eventId: string,
+    force = false,
+  ): Promise<{ data: EventCommandData; errors: EventCommandDataErrors }> {
     const cached = eventCommandDataCache.get(eventId);
     if (!force && cached && isFresh(cached.loadedAt, EVENT_WORKSPACE_CACHE_MS)) {
-      return Promise.resolve(cached.value);
+      return { data: cached.value, errors: {} };
     }
 
     const existing = eventCommandDataRequests.get(eventId);
-    if (!force && existing) return existing;
+    if (!force && existing) {
+      return await existing;
+    }
 
-    const request = Promise.all([
-      eventOpsRepository.liveOps(eventId),
-      eventOpsRepository.eventDayStatusFeed(eventId),
-      eventOpsRepository.defenseReadiness(eventId),
-    ])
-      .then(([liveOps, statusFeed, defenseReadiness]) => {
-        const next = { liveOps, statusFeed, defenseReadiness };
-        eventCommandDataCache.set(eventId, { value: next, loadedAt: Date.now() });
-        return next;
-      })
-      .finally(() => {
-        eventCommandDataRequests.delete(eventId);
-      });
+    const request = (async () => {
+      const errors: EventCommandDataErrors = {};
+      const settle = <T>(label: keyof EventCommandDataErrors, promise: Promise<T>) =>
+        promise.catch((err: unknown) => {
+          errors[label] = err instanceof Error ? err.message : String(err);
+          return null as T;
+        });
+
+      const [liveOps, statusFeed, defenseReadiness, registrationPlatform, guestPrivacyClassification] = await Promise.all([
+        settle("liveOps", eventApi.liveOps.eventDayWorkspace(eventId)),
+        settle("statusFeed", eventApiRequest<PrismEventDayStatusFeed>(`/api/events/${eventId}/event-day/status-feed`)),
+        settle("defenseReadiness", eventApiRequest<PrismDefenseReadiness>(`/api/events/${eventId}/defense-readiness`)),
+        settle("registrationPlatform", eventApi.pmcm.registrationPlatform(eventId)),
+        settle("guestPrivacyClassification", eventApi.guest.guestPrivacyClassification(eventId)),
+      ]);
+
+      const next: EventCommandData = {
+        liveOps: liveOps!,
+        statusFeed: statusFeed!,
+        defenseReadiness: defenseReadiness!,
+        registrationPlatform,
+        guestPrivacyClassification,
+      };
+      eventCommandDataCache.set(eventId, { value: next, loadedAt: Date.now() });
+      return { data: next, errors };
+    })();
 
     eventCommandDataRequests.set(eventId, request);
-    return request;
+    try {
+      return await request;
+    } finally {
+      eventCommandDataRequests.delete(eventId);
+    }
   },
 };

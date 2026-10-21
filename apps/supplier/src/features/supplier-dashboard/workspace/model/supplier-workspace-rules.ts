@@ -1,4 +1,11 @@
-import type { BookingStep, CalendarEventItem, QuoteFormState, QuoteSubmitInput, SectionMeta, SupplierDashboardSection, SupplierSession, SupplierWorkspace, WorkspaceDerived, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard } from "./supplier-workspace-types";
+import type {
+  PrismAuthenticatedSession,
+  PrismFileRequirementItem,
+  PrismSupplierReadinessConcernKind,
+  PrismSupplierReadinessItem,
+  PrismSupplierReadinessSetupStatus,
+} from "@prism/types";
+import type { BookingStep, CalendarEventItem, QuoteFormState, QuoteSubmitInput, SectionMeta, SupplierDashboardSection, SupplierWorkspace, WorkspaceDerived, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard } from "./supplier-workspace-types";
 
 export const EVENT_STATUS_ACTIONS = [
   { status: "arrived", label: "Arrived", helper: "Onsite at venue" },
@@ -113,8 +120,25 @@ export function countHandoffPending(selectedRequests: PrismSupplierQuoteRequest[
     (r) =>
       r.assignmentStatus !== "confirmed" ||
       r.readinessStatus !== "confirmed" ||
-      !r.contractDocumentId,
+      r.contractReviewStatus !== "accepted",
   ).length;
+}
+
+export function buildSupplierContractRequirements(workspace: Pick<SupplierWorkspace, "quoteRequests" | "supplierQuotes">): PrismFileRequirementItem[] {
+  return filterSelectedRequests(workspace.quoteRequests, buildQuoteByRequest(workspace.supplierQuotes)).map((request) => ({
+    key: `supplier-contract:${request.id}`,
+    label: `${request.category} signed contract`,
+    ownerRole: "supplier",
+    visibleToRoles: ["supplier", "pmcm-admin"],
+    sourceWorkflow: "supplier_contract",
+    status: request.contractReviewStatus === "accepted" ? "approved"
+      : request.contractReviewStatus === "submitted" ? "submitted"
+        : request.contractReviewStatus === "changes_requested" ? "pending" : "missing",
+    auditCategory: "documents",
+    detail: buildBookingSteps(request)[2].meta,
+    required: true,
+    overdue: false,
+  }));
 }
 
 export function countReadinessNeedsAction(
@@ -258,16 +282,25 @@ export function buildBookingSteps(
         : "Before event day",
     },
     {
-      label: "Contract saved",
-      done: Boolean(req.contractDocumentId),
-      meta: req.contractDocumentId ? "On file" : "Save filename below",
+      label: "Contract accepted",
+      done: req.contractReviewStatus === "accepted",
+      meta: req.contractReviewStatus === "accepted" ? "Accepted by PMCM"
+        : req.contractReviewStatus === "submitted" ? "Awaiting PMCM review"
+          : req.contractReviewStatus === "changes_requested" ? "Upload a corrected version"
+            : "Upload signed contract below",
     },
     {
       label: "Event day status",
-      done: Boolean(req.eventDayStatus && req.eventDayStatus !== "not_started"),
-      meta: req.eventDayStatusAt ? formatDate(req.eventDayStatusAt) : "Update onsite",
+      done: ["arrived", "set_up_ready", "done_leaving"].includes(req.eventDayStatus ?? ""),
+      meta: req.eventDayStatus === "late"
+        ? "Late — arrival not reported"
+        : req.eventDayStatusAt ? formatDate(req.eventDayStatusAt) : "Update onsite",
     },
   ];
+}
+
+export function canReportSupplierEventDayStatus(req: PrismSupplierQuoteRequest): boolean {
+  return req.status === "selected" && req.assignmentStatus === "confirmed" && req.readinessStatus === "confirmed";
 }
 
 export function buildCalendarEvents(
@@ -288,7 +321,7 @@ export function buildCalendarEvents(
 
 export function sectionMeta(
   section: SupplierDashboardSection,
-  session: SupplierSession,
+  session: PrismAuthenticatedSession,
   workspace: SupplierWorkspace | null,
 ): SectionMeta {
   const first = firstNameFrom(session.name);
@@ -326,7 +359,7 @@ export function sectionMeta(
     files: {
       eyebrow: "Files",
       title: "Files & documents",
-      description: "Contract metadata and certification documents.",
+      description: "Uploaded contract versions, review status, and certification documents.",
     },
     payments: {
       eyebrow: "Payments",
@@ -361,4 +394,84 @@ export function quoteSubmitSuccessNotice(isRevision: boolean): string {
 
 export function eventStatusSuccessNotice(status: string): string {
   return `Status updated: ${fmt(status)}.`;
+}
+
+function pluralSuffix(count: number) {
+  return count === 1 ? "" : "s";
+}
+
+export function dashboardGreetingCopy(input: {
+  needsActionCount: number;
+  quoteNeedingSubmission: number;
+  openRequestCount: number;
+}): string {
+  if (input.needsActionCount > 0) {
+    const quotePart = input.quoteNeedingSubmission > 0
+      ? `${input.quoteNeedingSubmission} quote${pluralSuffix(input.quoteNeedingSubmission)} to submit`
+      : "handoff items pending";
+    return `${input.needsActionCount} action${pluralSuffix(input.needsActionCount)} need your attention — ${quotePart}.`;
+  }
+  if (input.openRequestCount > 0) {
+    return `${input.openRequestCount} open request${pluralSuffix(input.openRequestCount)} — all quotes submitted and up to date.`;
+  }
+  return "No open requests right now. PMCM will notify you when a new quote request arrives.";
+}
+
+export function quoteRequestsNavDesc(quoteNeedingSubmission: number, openRequestCount: number) {
+  if (quoteNeedingSubmission) return `${quoteNeedingSubmission} quote(s) need submission`;
+  if (openRequestCount) return `${openRequestCount} open request(s)`;
+  return "No open requests";
+}
+
+export function bookingsNavDesc(handoffPending: number, selectedRequestCount: number) {
+  if (handoffPending) return `${handoffPending} handoff item(s) pending`;
+  if (selectedRequestCount) return "All steps complete";
+  return "No active bookings";
+}
+
+/**
+ * Where a readiness item is actioned: unselected quotes live in Quote requests; selected work
+ * (assignment, contract upload, schedule acknowledgment, event-day status) lives in Bookings.
+ */
+export function supplierReadinessSection(item: Pick<PrismSupplierReadinessItem, "quoteStatus">): SupplierDashboardSection {
+  return item.quoteStatus === "selected" ? "bookings" : "requests";
+}
+
+export type SupplierReadinessEventGroup = {
+  eventId: string;
+  eventName: string;
+  items: PrismSupplierReadinessItem[];
+};
+
+/** Groups every readiness item by event, keeping the server's priority order inside and across groups. */
+export function groupReadinessItemsByEvent(items: PrismSupplierReadinessItem[]): SupplierReadinessEventGroup[] {
+  const groups = new Map<string, SupplierReadinessEventGroup>();
+  for (const item of items) {
+    const group = groups.get(item.eventId) ?? { eventId: item.eventId, eventName: item.eventName ?? "Assigned event", items: [] };
+    group.items.push(item);
+    groups.set(item.eventId, group);
+  }
+  return [...groups.values()];
+}
+
+const READINESS_SETUP_LABELS: Record<PrismSupplierReadinessSetupStatus, string> = {
+  not_started: "Setup not started",
+  late: "Ingress late",
+  arrived: "Arrived",
+  ready: "Set up ready",
+  complete: "Done and leaving",
+};
+
+export function readinessSetupLabel(status: PrismSupplierReadinessSetupStatus): string {
+  return READINESS_SETUP_LABELS[status];
+}
+
+const READINESS_CONCERN_LABELS: Record<PrismSupplierReadinessConcernKind, string> = {
+  schedule_change_request: "Your schedule change request",
+  contract_correction: "Contract correction requested",
+  event_day_note: "Your event-day note",
+};
+
+export function readinessConcernLabel(kind: PrismSupplierReadinessConcernKind): string {
+  return READINESS_CONCERN_LABELS[kind];
 }

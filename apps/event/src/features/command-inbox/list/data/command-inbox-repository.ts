@@ -1,43 +1,46 @@
 import type { PrismPmcmCommandInbox } from "@prism/types";
-import { eventOpsRepository } from "@/features/event-ops";
+import { eventApi } from "@/lib/prism-api";
 
 type TimedCache<T> = { value: T; loadedAt: number };
 
 const COMMAND_INBOX_CACHE_MS = 30_000;
 
-let commandInboxCache: TimedCache<PrismPmcmCommandInbox> | null = null;
-let commandInboxRequest: Promise<PrismPmcmCommandInbox> | null = null;
+const commandInboxCache = new Map<number, TimedCache<PrismPmcmCommandInbox>>();
+const commandInboxRequests = new Map<number, Promise<PrismPmcmCommandInbox>>();
 
 function isFresh(loadedAt: number, ttl = COMMAND_INBOX_CACHE_MS) {
   return Date.now() - loadedAt < ttl;
 }
 
 export const commandInboxRepository = {
-  getCached(): TimedCache<PrismPmcmCommandInbox> | null {
-    return commandInboxCache;
+  getCached(page = 0): TimedCache<PrismPmcmCommandInbox> | null {
+    return commandInboxCache.get(page) ?? null;
   },
 
-  load(force = false): Promise<PrismPmcmCommandInbox> {
-    if (!force && commandInboxCache && isFresh(commandInboxCache.loadedAt)) {
-      return Promise.resolve(commandInboxCache.value);
+  load(force = false, page = 0): Promise<PrismPmcmCommandInbox> {
+    const cached = commandInboxCache.get(page);
+    if (!force && cached && isFresh(cached.loadedAt)) {
+      return Promise.resolve(cached.value);
     }
-    if (!force && commandInboxRequest) return commandInboxRequest;
+    const existing = commandInboxRequests.get(page);
+    if (!force && existing) return existing;
 
-    commandInboxRequest = eventOpsRepository
-      .pmcmCommandInbox()
+    const request = eventApi.pmcm
+      .commandInbox({ page })
       .then((next) => {
-        commandInboxCache = { value: next, loadedAt: Date.now() };
+        commandInboxCache.set(page, { value: next, loadedAt: Date.now() });
         return next;
       })
       .finally(() => {
-        commandInboxRequest = null;
+        commandInboxRequests.delete(page);
       });
 
-    return commandInboxRequest;
+    commandInboxRequests.set(page, request);
+    return request;
   },
 
   clearCache() {
-    commandInboxCache = null;
-    commandInboxRequest = null;
+    commandInboxCache.clear();
+    commandInboxRequests.clear();
   },
 };

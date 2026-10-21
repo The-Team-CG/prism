@@ -1,14 +1,58 @@
+import { createHmac } from 'node:crypto';
+
 const baseUrl = process.env.PRISM_API_URL ?? 'http://localhost:4000';
 
 const jsonHeaders = {
   'content-type': 'application/json',
 };
 
+let bearerToken = null;
+
+const TOTP_PERIOD_SECONDS = 30;
+const TOTP_DIGITS = 6;
+const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+function base32Decode(value) {
+  let bits = 0;
+  let buffer = 0;
+  const bytes = [];
+
+  for (const character of value.replace(/=+$/, '').toUpperCase()) {
+    const index = BASE32_ALPHABET.indexOf(character);
+    if (index < 0) throw new Error('Invalid TOTP secret');
+    buffer = (buffer << 5) | index;
+    bits += 5;
+    if (bits >= 8) {
+      bytes.push((buffer >>> (bits - 8)) & 255);
+      bits -= 8;
+    }
+  }
+  return Buffer.from(bytes);
+}
+
+function totpCodeAt(secret, counter) {
+  const key = base32Decode(secret);
+  const counterBuffer = Buffer.alloc(8);
+  counterBuffer.writeBigUInt64BE(BigInt(counter));
+  const digest = createHmac('sha1', key).update(counterBuffer).digest();
+  const offset = digest[digest.length - 1] & 0x0f;
+  const binary = ((digest[offset] & 0x7f) << 24)
+    | ((digest[offset + 1] & 0xff) << 16)
+    | ((digest[offset + 2] & 0xff) << 8)
+    | (digest[offset + 3] & 0xff);
+  return String(binary % 1_000_000).padStart(TOTP_DIGITS, '0');
+}
+
+function currentTotpCode(secret, nowMs = Date.now()) {
+  return totpCodeAt(secret, Math.floor(nowMs / 1000 / TOTP_PERIOD_SECONDS));
+}
+
 async function request(path, init = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
     ...init,
     headers: {
       ...jsonHeaders,
+      ...(bearerToken ? { Authorization: `Bearer ${bearerToken}` } : {}),
       ...(init.headers ?? {}),
     },
   });
@@ -63,6 +107,39 @@ const health = await expectOk('health', '/health', {
 if (health.status !== 'ok') {
   throw new Error(`health returned unexpected payload: ${JSON.stringify(health)}`);
 }
+
+// Authoring and operational routes require a verified session. Keep login and
+// the two-factor challenge tokenless, then reuse the resulting bearer token for
+// every subsequent guarded request.
+let opsLogin;
+try {
+  opsLogin = await expectOk('event ops auth login', '/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({
+      email: 'mys@pmcm.test',
+      password: 'prism-admin',
+    }),
+  });
+} catch (error) {
+  throw new Error(
+    `${error instanceof Error ? error.message : 'Event ops login failed.'} ` +
+      'Load local fixtures first with `npm --workspace prism-api run db:seed:fixtures -- --confirm-disposable-db prism_sample_disposable`.',
+  );
+}
+
+const opsTwoFactorSetup = await expectOk('event ops 2fa setup', '/api/auth/2fa/setup', {
+  method: 'POST',
+  body: JSON.stringify({ token: opsLogin.token }),
+});
+
+const opsSession = await expectOk('event ops 2fa verify', '/api/auth/2fa/verify', {
+  method: 'POST',
+  body: JSON.stringify({
+    token: opsTwoFactorSetup.token,
+    code: currentTotpCode(opsTwoFactorSetup.secret),
+  }),
+});
+bearerToken = opsSession.accessToken;
 
 const template = await expectOk('create template', '/api/templates', {
   method: 'POST',
@@ -127,27 +204,14 @@ await expectOk('fetch published snapshot', `/api/publish/${published.slug}`);
 await expectBadRequest('reject unknown template field', '/api/templates', {
   method: 'POST',
   body: JSON.stringify({
-    name: `Invalid Smoke Venue ${now}`,
+    description: `Invalid Smoke Venue ${now}`,
     unexpected: true,
   }),
 });
 
-const sample = await expectOk('reset sample compatibility state', '/api/sample/reset', {
-  method: 'POST',
-});
-
-if (!sample.events?.[0]?.id || !sample.inquiries?.[0]?.id) {
-  throw new Error(`event ops reset returned incomplete state: ${JSON.stringify(sample)}`);
-}
-
-await expectOk('event ops auth login', '/api/auth/login', {
-  method: 'POST',
-  body: JSON.stringify({
-    email: 'mys@pmcm.test',
-    password: 'prism-admin',
-  }),
-});
-
+// These auth and approval-request calls are public and intentionally omit the
+// operational bearer token.
+bearerToken = null;
 await expectForbidden('reject pending client auth login', '/api/auth/login', {
   method: 'POST',
   body: JSON.stringify({
@@ -160,8 +224,11 @@ const approvalRequest = await expectOk('request client account approval', '/api/
   method: 'POST',
   body: JSON.stringify({
     email: 'ana@ayala.test',
+    privacyConsentAccepted: true,
+    privacyNoticeVersion: '2026-05-01',
   }),
 });
+bearerToken = opsSession.accessToken;
 
 const approvalRequests = await expectOk('list account approval requests', '/api/auth/approval-requests');
 
@@ -177,6 +244,7 @@ if (approvedRequest.status !== 'approved') {
   throw new Error(`approval request was not approved: ${JSON.stringify(approvedRequest)}`);
 }
 
+bearerToken = null;
 const clientSession = await expectOk('event ops client auth login', '/api/auth/login', {
   method: 'POST',
   body: JSON.stringify({
@@ -184,6 +252,7 @@ const clientSession = await expectOk('event ops client auth login', '/api/auth/l
     password: 'prism-client',
   }),
 });
+bearerToken = opsSession.accessToken;
 
 if (clientSession.role !== 'client') {
   throw new Error(`client login returned wrong role: ${JSON.stringify(clientSession)}`);
@@ -193,7 +262,7 @@ const opsInquiry = await expectOk('create event ops inquiry', '/api/inquiries', 
   method: 'POST',
   body: JSON.stringify({
     clientName: 'Smoke Client',
-    email: 'smoke-client@example.test',
+    email: 'ana@ayala.test',
     eventName: `Smoke Forum ${now}`,
     eventDate: new Date(now + 172_800_000).toISOString(),
     clientType: 'Corporate',
@@ -206,7 +275,9 @@ await expectOk('accept event ops inquiry', `/api/inquiries/${opsInquiry.id}/stat
   body: JSON.stringify({ status: 'accepted' }),
 });
 
-let opsEvents = await expectOk('read scoped event list', '/api/events?actorRole=pmcm-admin&actorName=PMCM%20Admin');
+let opsEvents = await expectOk('read scoped event list', '/api/events?actorRole=pmcm-admin&actorName=PMCM%20Admin', {
+  headers: { Authorization: `Bearer ${opsSession.accessToken}` },
+});
 let opsEvent = opsEvents.find((item) => item.inquiryId === opsInquiry.id);
 
 if (opsEvent?.id) {
@@ -223,13 +294,16 @@ await expectOk('upload event ops conforme', `/api/inquiries/${opsInquiry.id}/con
   }),
 });
 
-opsEvents = await expectOk('read scoped event list after conforme', '/api/events?actorRole=pmcm-admin&actorName=PMCM%20Admin');
+opsEvents = await expectOk('read scoped event list after conforme', '/api/events?actorRole=pmcm-admin&actorName=PMCM%20Admin', {
+  headers: { Authorization: `Bearer ${opsSession.accessToken}` },
+});
 opsEvent = opsEvents.find((item) => item.inquiryId === opsInquiry.id);
 
 if (!opsEvent?.id) {
   throw new Error(`conforme did not create event workspace: ${JSON.stringify(opsEvents)}`);
 }
 
+bearerToken = clientSession.accessToken;
 const preferenceDraft = await expectOk('submit client floorplan preference', `/api/events/${opsEvent.id}/floorplan-preferences`, {
   method: 'POST',
   body: JSON.stringify({
@@ -251,6 +325,7 @@ if (
 ) {
   throw new Error(`client preference draft response is incomplete: ${JSON.stringify(preferenceDraft)}`);
 }
+bearerToken = opsSession.accessToken;
 
 const secondDraft = await expectOk('create PMCM event floorplan draft', `/api/events/${opsEvent.id}/floorplans`, {
   method: 'POST',
@@ -364,7 +439,7 @@ await expectOk('resolve event ops compliance', `/api/events/${opsEvent.id}/compl
 const assignment = await expectOk('assign event ops coordinator', `/api/events/${opsEvent.id}/coordinators`, {
   method: 'POST',
   body: JSON.stringify({
-    coordinatorName: 'Smoke Coordinator',
+    coordinatorName: 'Marco Santos',
     role: 'Floor Director',
   }),
 });
@@ -373,9 +448,34 @@ await expectOk('ack event ops coordinator', `/api/events/${opsEvent.id}/coordina
   method: 'PATCH',
 });
 
+const billingSource = await expectOk('create event ops billing source', `/api/events/${opsEvent.id}/billing-source`, {
+  method: 'POST',
+  body: JSON.stringify({
+    sourceLabel: 'Smoke approved billing source',
+    lineItems: [{ label: 'Event production', amount: 100000 }],
+    paymentSchedule: [{ label: 'Final payment', percentage: 100, dueDate: new Date(now + 86_400_000).toISOString() }],
+    paymentMethods: [{ label: 'Bank transfer', details: 'Smoke test' }],
+  }),
+});
+
+const approvedBillingSource = await expectOk(
+  'approve event ops billing source',
+  `/api/events/${opsEvent.id}/billing-source/${billingSource.id}/approve`,
+  { method: 'PATCH', body: JSON.stringify({ approvalNotes: 'Smoke source approved.' }) },
+);
+if (approvedBillingSource.status !== 'approved') {
+  throw new Error(`billing source was not approved: ${JSON.stringify(approvedBillingSource)}`);
+}
+
+await expectOk('generate event ops billing statement', `/api/events/${opsEvent.id}/billing-statements/generate`, {
+  method: 'POST',
+  body: JSON.stringify({ sourceId: billingSource.id }),
+});
+
 const billingWorkspace = await expectOk(
   'read scoped billing workspace after milestones',
   '/api/billing?actorRole=pmcm-admin&actorName=PMCM%20Admin',
+  { headers: { Authorization: `Bearer ${opsSession.accessToken}` } },
 );
 const closeGates = await expectOk('read scoped close gates after milestones', `/api/events/${opsEvent.id}/close-gates`);
 const payment = billingWorkspace.paymentMilestones.find((item) => item.eventId === opsEvent.id);
@@ -396,12 +496,9 @@ await expectOk(
   { method: 'PATCH' },
 );
 
-const archived = await expectOk('archive event ops event', `/api/events/${opsEvent.id}/archive`, {
+await expectBadRequest('reject archive while closure gates remain incomplete', `/api/events/${opsEvent.id}/archive`, {
   method: 'POST',
+  body: JSON.stringify({}),
 });
-
-if (archived.status !== 'archived') {
-  throw new Error(`event ops archive returned unexpected event: ${JSON.stringify(archived)}`);
-}
 
 console.log('smoke complete');

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { PrismApprovalRequest } from "@prism/types";
-import { selectPendingApprovals } from "../model/event-workspace-selectors";
+import { selectPendingApprovals } from "@/features/pmcm-kit/model/pmcm-dashboard-selectors";
 
 type LoadApprovalRequests = () => Promise<PrismApprovalRequest[]>;
 

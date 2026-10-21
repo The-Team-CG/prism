@@ -1,112 +1,78 @@
 "use client";
 
-
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { PRISM_PRIVACY_NOTICE_VERSION, type CreatePrismInquiryInput, type PrismEvent, type PrismFloorPlanDraft, type SubmitBriefingInput } from "@prism/types";
+import { PrismDashboardShell } from "@prism/ui";
+import { cloneTemplateObjects, type FloorPlanTemplate, type Project } from "@/features/floorplan/editor";
 import { ClientPortalSidebar } from "./sections/client-portal-sidebar";
-import {
-  EventWorkspaceNav,
-  NoticeBanner,
-} from "./sections/shell-presentational";
-
-import {
-  FLOOR_PLAN_PREVIEW_CACHE_MS,
-  actionCenterItemToDashboardAction,
-  draftIsOfficial,
-  floorPlanPreviewCache,
-  floorPlanPreviewCacheKey,
-  formatStatusLabel,
-  isFresh,
-  objectBox,
-  selectNextAction,
-  type ClientDashboardAction,
-} from "../model/client-dashboard-view-rules";
+import { ClientWrongPortalView } from "./sections/client-wrong-portal-view";
+import { ClientDashboardLoadingShell } from "./sections/client-dashboard-loading-shell";
+import { ClientFloorplanEditorScreen } from "./sections/client-floorplan-editor-screen";
+import { ClientDashboardRouteBody } from "./sections/client-dashboard-route-body";
+import { ClientEventHeader, ClientWorkspaceBanners, clientShellMobileActions } from "./sections/client-event-header";
+import { DashboardSessionSkeleton } from "./dashboard-tabs";
 import {
   ClientWorkspaceProvider,
   type ClientRequestForm,
   type ClientWorkspaceValue,
   type PreferenceForm,
 } from "../client-workspace-context";
-
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
 import {
-  ArrowRight,
-  Home,
-  MapPinned,
-  ShieldCheck,
-  WalletCards,
-} from "lucide-react";
-import type {
-  CreatePrismInquiryInput,
-  PrismClientActionItem,
-  PrismEvent,
-  PrismFloorPlanDraft,
-} from "@prism/types";
+  FLOOR_PLAN_PREVIEW_CACHE_MS,
+  draftIsOfficial,
+  floorPlanPreviewCache,
+  floorPlanPreviewCacheKey,
+  isFresh,
+  selectNextAction,
+  type ClientDashboardAction,
+} from "../model/client-dashboard-view-rules";
 import {
-  loadFloorPlanProject,
-  loadOfficialFloorPlan,
-  saveFloorPlanProject,
-  signOutClientSession,
-  submitClientInquiry,
-  submitFloorPlanPreference,
-} from "../use-cases/client-dashboard-actions";
-import { Alert, AlertDescription } from "@/app/components/ui/alert";
-import { Button } from "@/app/components/ui/button";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+  buildFloorPlanPreferencePayload,
+  canEditClientFloorPlanPreference,
+  preferenceFormFromDraft,
+} from "../model/client-floorplan-preference-rules";
 import {
-  PrismDashboardShell,
-} from "@prism/ui";
-import { cloneTemplateObjects, loadTemplates, type FloorPlanTemplate } from "@/features/floorplan/editor/templates";
-import type { Project } from "@/features/floorplan/editor/types";
-import {
-  DashboardSkeleton,
-  DashboardSessionSkeleton,
-} from "./dashboard-tabs";
-import { ClientHomeView } from "../../home";
-import { ClientEventsView } from "../../events";
-import { ClientRequestView } from "../../request";
-import { ClientCalendarView } from "../../calendar";
-import { ClientApprovalsView } from "../../approvals";
-import { ClientFilesView } from "../../files";
-import { ClientMessagesView } from "../../messages";
-import { ClientPortalBillingView } from "../../billing";
-import { ClientEventWorkspaceView } from "../../event-workspace";
-import {
-  CLIENT_PORTAL_VIEW_META,
   CLIENT_SIDEBAR_ITEMS,
   DETAIL_TAB_TO_ROUTE,
   EVENT_ROUTE_TO_NAV_ITEM,
-  EVENT_WORKSPACE_NAV_ITEMS,
-  PORTAL_ROUTE_TO_NAV_ITEM,
   ROUTE_TO_DETAIL_TAB,
   dashboardHref,
-  dashboardLoadingVariant,
+  clientEventWorkspaceAvailable,
   findClientSidebarLink,
   portalViewFromLink,
   sidebarActiveItemId,
 } from "../model/client-dashboard-navigation";
 import {
+  clientShellDescription,
+  clientShellEyebrow,
+  clientShellTitle,
+  isEventScopedClientRoute,
+} from "../model/client-dashboard-shell-copy";
+import {
+  selectClientDashboardActions,
   selectClientEvents,
   selectEventDrafts,
   selectEventWorkspaceResources,
+  selectOfficialDraft,
+  selectPreferenceDrafts,
   selectSelectedClientEvent,
 } from "../model/client-dashboard-selectors";
+import {
+  loadFloorPlanProject,
+  loadOfficialFloorPlan,
+  signOutClientSession,
+  submitClientInquiry,
+  submitClientOcularVisit,
+  submitClientBriefing,
+  submitFloorPlanPreference,
+  submitFloorPlanRevisionComment,
+} from "../use-cases/client-dashboard-actions";
+import { buildFloorPlanRevisionPayload } from "../model/client-floorplan-review-rules";
 import { useClientDashboardViewModel } from "../view-models/use-client-dashboard-view-model";
 import type { ClientDashboardRoute, ClientPortalView, DetailTab } from "../model/client-dashboard-types";
 
 export type { ClientDashboardRoute, ClientPortalView };
-
-const EditorShell = dynamic(
-  () => import("@/features/floorplan/editor/EditorShell").then((mod) => mod.EditorShell),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="grid size-full place-items-center bg-background text-sm text-muted-foreground">
-        Loading layout view...
-      </div>
-    ),
-  },
-);
 
 type Screen =
   | { name: "dashboard" }
@@ -122,7 +88,6 @@ const initialPreference: PreferenceForm = {
   notes: "Client prefers a clean technology summit layout with clear photo wall access.",
 };
 
-
 const initialRequestForm: ClientRequestForm = {
   eventName: "",
   eventDate: "",
@@ -131,8 +96,23 @@ const initialRequestForm: ClientRequestForm = {
   venueCity: "",
   budgetRange: "TBD / Flexible",
   message: "",
+  privacyConsentAccepted: false,
 };
 
+const EVENT_PREFETCH_ROUTES = [
+  "overview",
+  "actions",
+  "briefing",
+  "proposal",
+  "floorplan",
+  "documents",
+  "billing",
+  "messages",
+] as const satisfies ClientDashboardRoute[];
+
+function disableEventNav(requiresEvent: boolean | undefined, hasEvent: boolean) {
+  return Boolean(requiresEvent) && !hasEvent;
+}
 
 export function ClientDashboardWorkspaceView({
   route = "home",
@@ -144,44 +124,50 @@ export function ClientDashboardWorkspaceView({
   portalView?: ClientPortalView;
 }) {
   const router = useRouter();
-  const { actionCenter, error, refresh, selectedEventId, session, setError, setSelectedEventId, state } = useClientDashboardViewModel({
+  const { actionCenter, actionCenterLoadFailed, error, refresh, selectedEventId, session, setError, setSelectedEventId, state } = useClientDashboardViewModel({
     route,
     eventId,
     portalView,
   });
   const [screen, setScreen] = useState<Screen>({ name: "dashboard" });
   const [form, setForm] = useState<PreferenceForm>(initialPreference);
+  const [revisionComment, setRevisionComment] = useState("");
   const [requestForm, setRequestForm] = useState<ClientRequestForm>(initialRequestForm);
   const [eventSearch, setEventSearch] = useState("");
   const [officialProject, setOfficialProject] = useState<Project | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [floorPlanTemplates, setFloorPlanTemplates] = useState<FloorPlanTemplate[]>([]);
+  const floorPlanTemplates: FloorPlanTemplate[] = [];
+
+  const events = useMemo(
+    () => selectClientEvents(state, session, route === "summary" ? eventId : undefined),
+    [eventId, route, session, state],
+  );
+  const selectedEvent = selectSelectedClientEvent(events, eventId, selectedEventId);
+  const ocularVisit = selectedEvent
+    ? state?.ocularVisits?.find((visit) => visit.eventId === selectedEvent.id) ?? null
+    : null;
+  const eventDrafts = useMemo(() => selectEventDrafts(state, selectedEvent), [selectedEvent, state]);
+  const officialDraft = useMemo(() => selectOfficialDraft(eventDrafts), [eventDrafts]);
+  const preferenceDrafts = useMemo(() => selectPreferenceDrafts(eventDrafts), [eventDrafts]);
+  const preferenceDraft = preferenceDrafts[0];
+  const { audit, billing, briefing, disputes, documents, notifications, payments } = selectEventWorkspaceResources(state, selectedEvent);
+  // This is a persisted read model. A failed load must not fall back to
+  // browser-clock-derived urgency from workspace data.
+  const resolvedActionCenter = actionCenter;
+  const clientActions = selectClientDashboardActions(resolvedActionCenter, selectedEvent?.id);
+  const nextAction = selectNextAction(clientActions);
+  const isEventScopedView = isEventScopedClientRoute(route, eventId);
 
   useEffect(() => {
-    let cancelled = false;
-    loadTemplates()
-      .then((templates) => {
-        if (!cancelled) setFloorPlanTemplates(templates);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Unable to load floor plan templates");
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const events = useMemo(() => selectClientEvents(state, session), [session, state]);
-  const selectedEvent = selectSelectedClientEvent(events, eventId, selectedEventId);
-  const eventDrafts = selectEventDrafts(state, selectedEvent);
-  const officialDraft =
-    eventDrafts.find((d) => d.isActive && draftIsOfficial(d)) ?? eventDrafts.find(draftIsOfficial);
-  const preferenceDrafts = eventDrafts.filter(
-    (d) => d.createdByRole === "client" || d.sourceType === "client_preference",
-  );
-  const { audit, billing, briefing, documents, notifications, payments } = selectEventWorkspaceResources(state, selectedEvent);
+    if (!selectedEvent) return;
+    if (preferenceDraft?.status === "revision_requested") {
+      const savedPreference = preferenceFormFromDraft(preferenceDraft);
+      if (savedPreference) setForm(savedPreference);
+      return;
+    }
+    if (!preferenceDraft) setForm(initialPreference);
+  }, [preferenceDraft, selectedEvent]);
 
   useEffect(() => {
     if (route !== "floorplan" || !officialDraft || !selectedEvent) {
@@ -205,7 +191,6 @@ export function ClientDashboardWorkspaceView({
       selectedEvent.id,
       officialDraft.id,
       officialDraft.status === "approved" ? "approved" : "submitted",
-      session ?? undefined,
     )
       .then((project) => {
         floorPlanPreviewCache.set(cacheKey, { project, loadedAt: Date.now() });
@@ -219,49 +204,37 @@ export function ClientDashboardWorkspaceView({
       cancelled = true;
     };
   }, [
-    officialDraft?.id,
-    officialDraft?.floorPlanId,
-    officialDraft?.name,
-    officialDraft?.status,
+    officialDraft,
     route,
-    selectedEvent?.id,
-    selectedEvent?.eventName,
-    session?.email,
-    session?.name,
+    selectedEvent,
+    session,
   ]);
 
   useEffect(() => {
     if (!selectedEvent) return;
-
     router.prefetch("/dashboard");
     router.prefetch("/dashboard/request");
     router.prefetch("/dashboard/events");
-    ([
-      "overview",
-      "actions",
-      "briefing",
-      "proposal",
-      "floorplan",
-      "documents",
-      "billing",
-      "messages",
-    ] satisfies ClientDashboardRoute[]).forEach((nextRoute) => {
+    EVENT_PREFETCH_ROUTES.forEach((nextRoute) => {
       router.prefetch(dashboardHref(nextRoute, selectedEvent.id));
     });
-  }, [router, selectedEvent?.id]);
+  }, [router, selectedEvent]);
 
   async function openFloorplanEditor(draft: PrismFloorPlanDraft, readOnly = false) {
     if (!selectedEvent) return;
-    const locked = readOnly || draft.status === "approved";
-    const project = locked && draftIsOfficial(draft)
+    try {
+      const locked = readOnly || draft.status === "approved";
+      const project = locked && draftIsOfficial(draft)
         ? await loadOfficialFloorPlan(
             selectedEvent.id,
             draft.id,
             draft.status === "approved" ? "approved" : "submitted",
-            session ?? undefined,
           )
-        : await loadFloorPlanProject(draft.floorPlanId, session ?? undefined);
-    setScreen({ name: "editor", event: selectedEvent, draft, project, readOnly: locked });
+        : await loadFloorPlanProject(draft.floorPlanId);
+      setScreen({ name: "editor", event: selectedEvent, draft, project, readOnly: locked });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to open floorplan");
+    }
   }
 
   async function createEditorDraft(template: FloorPlanTemplate) {
@@ -273,21 +246,14 @@ export function ClientDashboardWorkspaceView({
       const objects = cloneTemplateObjects(template);
       const draft = await submitFloorPlanPreference(
         selectedEvent.id,
-        {
+        buildFloorPlanPreferencePayload(form, {
           name: `${template.name} preference draft`,
           venue: template.venue || selectedEvent.eventName,
-          seatingStyle: form.seatingStyle,
-          stagePreference: form.stagePreference,
-          flowNotes: form.flowNotes,
-          guestCount: form.guestCount,
-          constraints: form.constraints.split(/\r?\n/).map((s) => s.trim()).filter(Boolean),
-          notes: form.notes,
           width: template.widthM,
           height: template.heightM,
           gridSize: 1,
           objects,
-        },
-        session ?? undefined,
+        }),
       );
       await refresh();
       await openFloorplanEditor(draft);
@@ -301,26 +267,25 @@ export function ClientDashboardWorkspaceView({
   async function submitPreference(ev: FormEvent<HTMLFormElement>) {
     ev.preventDefault();
     if (!selectedEvent) return;
+    if (!canEditClientFloorPlanPreference(preferenceDraft)) {
+      setError("PMCM must reopen your layout preference before you can revise it.");
+      return;
+    }
+    const isResubmission = Boolean(preferenceDraft);
     setBusy("layout-preference");
     setError(null);
     setNotice(null);
     try {
       await submitFloorPlanPreference(
         selectedEvent.id,
-        {
-          name: form.name,
-          venue: selectedEvent.eventName,
-          seatingStyle: form.seatingStyle,
-          stagePreference: form.stagePreference,
-          flowNotes: form.flowNotes,
-          guestCount: form.guestCount,
-          constraints: form.constraints.split(/\r?\n/).map((s) => s.trim()).filter(Boolean),
-          notes: form.notes,
-        },
-        session ?? undefined,
+        buildFloorPlanPreferencePayload(form, { venue: selectedEvent.eventName }),
       );
       await refresh();
-      setNotice("Floor plan draft saved. PMCM can review it, and approval will lock the plan.");
+      setNotice(
+        isResubmission
+          ? "Your revised layout preference was returned to PMCM."
+          : "Your layout preference was submitted to PMCM. You can revise it after PMCM reopens the request.",
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit layout preference");
     } finally {
@@ -328,12 +293,77 @@ export function ClientDashboardWorkspaceView({
     }
   }
 
-  const clientActions = selectedEvent && actionCenter
-    ? actionCenter.items
-        .filter((item) => item.eventId === selectedEvent.id)
-        .map(actionCenterItemToDashboardAction)
-    : [];
-  const nextAction = selectNextAction(clientActions);
+  async function submitOcularVisit(clientNote: string) {
+    if (!selectedEvent) return;
+    setBusy("ocular-visit");
+    setError(null);
+    setNotice(null);
+    try {
+      await submitClientOcularVisit(selectedEvent.id, {
+        clientNote: clientNote.trim() || undefined,
+      });
+      await refresh();
+      setNotice("Ocular visit requested. PMCM will coordinate scheduling.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to request an ocular visit");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function submitBriefing(eventFor: string, input: SubmitBriefingInput) {
+    if (!selectedEvent || selectedEvent.id !== eventFor) return;
+    setBusy("briefing");
+    setError(null);
+    setNotice(null);
+    try {
+      await submitClientBriefing(eventFor, input);
+      await refresh();
+      setNotice("Your briefing was sent to PMCM and added to the event history.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to submit event briefing");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function submitFloorPlanReview(ev: FormEvent<HTMLFormElement>) {
+    ev.preventDefault();
+    if (!selectedEvent || !officialDraft) return;
+    const note = revisionComment.trim();
+    if (!note) {
+      setError("Write a revision comment before sending it to PMCM.");
+      return;
+    }
+    setBusy("floorplan-revision");
+    setError(null);
+    setNotice(null);
+    try {
+      await submitFloorPlanRevisionComment(
+        selectedEvent.id,
+        officialDraft.id,
+        buildFloorPlanRevisionPayload(note),
+      );
+      setRevisionComment("");
+      await refresh();
+      setNotice("Revision comment sent. PMCM will update the official floorplan.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to send floorplan revision comment");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function navigateToEventRoute(next: DetailTab | ClientDashboardRoute, nextEventId = selectedEvent?.id) {
+    const nextRoute = ROUTE_TO_DETAIL_TAB[next as ClientDashboardRoute]
+      ? (next as ClientDashboardRoute)
+      : DETAIL_TAB_TO_ROUTE[next as DetailTab];
+    if (selectedEvent?.archived && nextEventId === selectedEvent.id && nextRoute !== "summary") {
+      router.push(dashboardHref("summary", selectedEvent.id));
+      return;
+    }
+    router.push(dashboardHref(nextRoute, nextEventId));
+  }
 
   function runClientAction(action: ClientDashboardAction) {
     if (action.href?.startsWith("/dashboard")) {
@@ -347,16 +377,13 @@ export function ClientDashboardWorkspaceView({
     navigateToEventRoute(action.targetTab);
   }
 
-  function navigateToEventRoute(next: DetailTab | ClientDashboardRoute, nextEventId = selectedEvent?.id) {
-    const nextRoute = ROUTE_TO_DETAIL_TAB[next as ClientDashboardRoute]
-      ? (next as ClientDashboardRoute)
-      : DETAIL_TAB_TO_ROUTE[next as DetailTab];
-    router.push(dashboardHref(nextRoute, nextEventId));
-  }
-
   async function submitNewEventRequest(ev: FormEvent<HTMLFormElement>) {
     ev.preventDefault();
     if (!session) return;
+    if (!requestForm.privacyConsentAccepted) {
+      setError("Please accept the privacy notice before submitting your request.");
+      return;
+    }
     setBusy("event-request");
     setError(null);
     setNotice(null);
@@ -369,7 +396,7 @@ export function ClientDashboardWorkspaceView({
         eventType: requestForm.eventType,
         eventName: requestForm.eventName,
         eventDate: requestForm.eventDate,
-        source: "Client Portal",
+        source: "Other",
         referralDetails: "Signed-in client request",
         message: [
           requestForm.message,
@@ -377,7 +404,7 @@ export function ClientDashboardWorkspaceView({
           requestForm.budgetRange ? `Budget range: ${requestForm.budgetRange}` : "",
         ].filter(Boolean).join("\n\n"),
         privacyConsentAccepted: true,
-        privacyNoticeVersion: "2026-05-01",
+        privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
         marketingConsentAccepted: false,
       };
       await submitClientInquiry(payload);
@@ -395,269 +422,70 @@ export function ClientDashboardWorkspaceView({
     router.replace("/sign-in");
   };
 
-  /* Loading and auth redirects */
-
-  if (!session) {
-    return <DashboardSessionSkeleton />;
-  }
-
+  if (!session) return <DashboardSessionSkeleton />;
   if (session.role !== "client") {
-    return (
-      <main className="grid min-h-screen place-items-center bg-background px-6">
-        <section className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
-          <span className="grid size-12 place-items-center rounded-xl bg-amber-50 text-amber-600">
-            <ShieldCheck className="size-5" />
-          </span>
-          <h1 className="mt-5 text-xl font-bold text-foreground">Wrong portal for this account.</h1>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            {session.role === "pmcm-admin" || session.role === "coordinator"
-              ? "Event team and coordinator accounts belong in the event operations portal."
-              : "Supplier accounts belong in the supplier portal."}
-          </p>
-          <div className="mt-5 flex flex-wrap gap-2">
-            {(session.role === "pmcm-admin" || session.role === "coordinator") && (
-              <Button asChild className="rounded-lg font-bold">
-                <a href="http://localhost:3004">
-                  Open event portal <ArrowRight className="size-4" />
-                </a>
-              </Button>
-            )}
-            {session.role === "supplier" && (
-              <Button asChild className="rounded-lg font-bold">
-                <a href="http://localhost:3002">
-                  Open supplier portal <ArrowRight className="size-4" />
-                </a>
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              className="rounded-lg"
-              onClick={() => {
-                signOutClientSession();
-                router.replace("/sign-in?next=/dashboard");
-              }}
-            >
-              Use client sign-in
-            </Button>
-          </div>
-        </section>
-      </main>
-    );
+    return <ClientWrongPortalView session={session} onUseClientSignIn={() => router.replace("/sign-in?next=/dashboard")} />;
   }
-
   if (!state) {
-    const loadingNavItems = CLIENT_SIDEBAR_ITEMS.map((item) => ({
-      ...item,
-      disabled: item.requiresEvent,
-      subItems: item.subItems?.map((subItem) => ({
-        ...subItem,
-        disabled: subItem.requiresEvent,
-      })),
-    }));
-    const loadingPortalViewMeta = portalView ? CLIENT_PORTAL_VIEW_META[portalView] : undefined;
-    const loadingIsEventScopedView = Boolean(eventId) || !PORTAL_ROUTE_TO_NAV_ITEM[route];
-    const loadingActiveItemId = sidebarActiveItemId(route, loadingIsEventScopedView, portalView);
-    const handleLoadingNavSelect = (id: string) => {
-      const item = findClientSidebarLink(id);
-      if (item && !item.requiresEvent) router.push(dashboardHref(item.route, undefined, portalViewFromLink(item)));
-    };
-    const loadingTitle =
-      loadingPortalViewMeta?.title
-      ?? (route === "request"
-        ? "New event request"
-        : route === "events"
-          ? "My events"
-          : "Client portal");
-    const loadingEyebrow =
-      route === "home"
-        ? "Client home"
-        : route === "request"
-          ? "Signed-in request"
-          : route === "events"
-            ? "Event portfolio"
-            : "Event workspace";
-    const loadingDescription =
-      loadingPortalViewMeta?.description
-      ?? (route === "request"
-            ? "Loading event request details…"
-            : route === "events"
-              ? "Loading events…"
-              : "Loading event workspace…");
-
     return (
-      <PrismDashboardShell
-        productLabel="P.R.I.S.M"
-        roleLabel="Client Portal"
-        eyebrow={loadingEyebrow}
-        title={loadingTitle}
-        description={loadingDescription}
-        activeItemId={loadingActiveItemId}
-        navItems={loadingNavItems}
-        onNavSelect={handleLoadingNavSelect}
-        user={{
-          name: session.name,
-          detail: session.organization,
-          initials: session.name.slice(0, 2).toUpperCase(),
-        }}
-        searchPlaceholder="Search proposal, billing, documents..."
-        mobileActions={[]}
-        sidebarMode="single"
-        sidebarContent={({ collapsed }) => (
-          <ClientPortalSidebar
-            navItems={loadingNavItems}
-            activeItemId={loadingActiveItemId}
-            onSelect={handleLoadingNavSelect}
-            collapsed={collapsed}
-          />
-        )}
+      <ClientDashboardLoadingShell
+        route={route}
+        eventId={eventId}
+        portalView={portalView}
+        session={session}
+        error={error}
+        onNavSelect={(href) => router.push(href)}
         onSignOut={signOut}
-      >
-        {error ? (
-          <Alert variant="destructive" className="rounded-lg">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : (
-          <DashboardSkeleton variant={dashboardLoadingVariant(route)} />
-        )}
-      </PrismDashboardShell>
+      />
     );
   }
-
   if (screen.name === "editor") {
-    const editable = !screen.readOnly && screen.draft.status !== "approved";
     return (
-      <main className="h-screen w-full overflow-hidden bg-background">
-        <EditorShell
-          project={screen.project}
-          eventName={screen.event.eventName}
-          draftName={screen.draft.name}
-          draftStatus={screen.draft.status}
-          readOnly={screen.readOnly}
-          onBack={() => setScreen({ name: "dashboard" })}
-          onSave={editable ? (project) => saveFloorPlanProject(project, session ?? undefined) : undefined}
-          onSubmit={
-            editable
-              ? async (project) => {
-                  await saveFloorPlanProject(project, session ?? undefined);
-                  await refresh();
-                  setNotice("Floor plan saved. PMCM approval will lock this plan for review.");
-                  setScreen({ name: "dashboard" });
-                }
-              : undefined
-          }
-        />
-      </main>
+      <ClientFloorplanEditorScreen
+        event={screen.event}
+        draft={screen.draft}
+        project={screen.project}
+        readOnly={screen.readOnly}
+        onBack={() => setScreen({ name: "dashboard" })}
+        onSubmitted={async () => {
+          await refresh();
+          setNotice(screen.draft.sourceType === "client_preference" && screen.draft.status === "revision_requested"
+            ? "Your revised layout preference was returned to PMCM."
+            : "Floor plan saved. PMCM approval will lock this plan for review.");
+          setScreen({ name: "dashboard" });
+        }}
+      />
     );
   }
-
-  /* Main dashboard */
 
   const shellNavItems = CLIENT_SIDEBAR_ITEMS.map((item) => ({
     ...item,
-    disabled: item.requiresEvent && !selectedEvent,
+    disabled: disableEventNav(item.requiresEvent, clientEventWorkspaceAvailable(selectedEvent)),
     subItems: item.subItems?.map((subItem) => ({
       ...subItem,
-      disabled: subItem.requiresEvent && !selectedEvent,
+      disabled: disableEventNav(subItem.requiresEvent, clientEventWorkspaceAvailable(selectedEvent)),
     })),
   }));
-  const isEventScopedView = Boolean(eventId) || !PORTAL_ROUTE_TO_NAV_ITEM[route];
-  const portalViewMeta = portalView ? CLIENT_PORTAL_VIEW_META[portalView] : undefined;
   const activeShellItemId = sidebarActiveItemId(route, isEventScopedView, portalView);
   const activeEventNavItemId = EVENT_ROUTE_TO_NAV_ITEM[route] ?? "event-overview";
 
-  const handleShellNavSelect = (id: string) => {
+  function handleShellNavSelect(id: string) {
     const item = findClientSidebarLink(id);
-    if (!item) return;
-    if (item.requiresEvent && !selectedEvent) return;
+    if (!item || disableEventNav(item.requiresEvent, clientEventWorkspaceAvailable(selectedEvent))) return;
     router.push(dashboardHref(item.route, item.eventScoped ? selectedEvent?.id : undefined, portalViewFromLink(item)));
-  };
+  }
 
-  const shellMobileActions = [
-    { id: "home", label: "Home", icon: Home, active: route === "home", onSelect: () => router.push("/dashboard") },
-    { id: "overview", label: "Overview", icon: Home, active: route === "overview", disabled: !selectedEvent, onSelect: () => navigateToEventRoute("overview") },
-    { id: "floorplan", label: "Plan", icon: MapPinned, active: route === "floorplan", disabled: !selectedEvent, onSelect: () => navigateToEventRoute("floorplan") },
-    { id: "billing", label: "Pay", icon: WalletCards, active: route === "billing", disabled: !selectedEvent, onSelect: () => navigateToEventRoute("billing") },
-  ];
-
-  const shellTitle =
-    isEventScopedView
-      ? selectedEvent?.eventName ?? "Client portal"
-      : portalViewMeta?.title
-        ?? (route === "request"
-        ? "New event request"
-        : route === "events"
-          ? "My events"
-          : route === "calendar"
-            ? "Calendar"
-            : route === "approvals"
-              ? "Approvals"
-              : route === "messages"
-                ? "Messages"
-                : route === "files"
-                  ? "Files"
-                  : route === "billing"
-                    ? "Billing & Payments"
-                    : "Dashboard");
-
-  const shellEyebrow =
-    isEventScopedView
-      ? "Event workspace"
-      : route === "home"
-        ? "Client home"
-        : route === "request"
-          ? "Signed-in request"
-          : route === "events"
-            ? "Event portfolio"
-            : "Client portal";
-
-  const shellDescription =
-    portalViewMeta?.description
-    ?? (route === "request"
-      ? "Start another event request using your client account details."
-      : route === "events"
-        ? "Your confirmed PMCM events."
-        : route === "calendar"
-          ? "Event dates, meetings, deadlines, payments, and approval timing."
-          : route === "approvals"
-            ? "Client approvals grouped by status and document type."
-            : route === "messages"
-              ? "PMCM updates, event conversations, announcements, and archived notes."
-              : route === "files"
-                ? "Contracts, quotations, receipts, layouts, and shared event files."
-                : route === "billing"
-                  ? "Quotations, invoices, payment schedule, receipts, and current balance."
-                  : selectedEvent
-          ? `${selectedEvent.clientName} - ${selectedEvent.eventDate}`
-          : "Portal opens after inquiry is accepted and conforme is signed.");
-
-  const eventHeader = selectedEvent ? (
-    <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-muted/60 to-transparent px-5 py-4">
-        <div className="min-w-0 flex items-center gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--prism-signal)] text-white font-black text-base select-none">
-            {selectedEvent.eventName.slice(0, 1).toUpperCase()}
-          </span>
-          <div className="min-w-0">
-            <h2 className="text-base font-black leading-tight text-foreground truncate">{selectedEvent.eventName}</h2>
-            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-              <span>{selectedEvent.eventDate ?? "Date TBD"}</span>
-              <span aria-hidden>·</span>
-              <StatusBadge status={selectedEvent.status} label={formatStatusLabel(selectedEvent.status)} />
-            </div>
-          </div>
-        </div>
-        <Button size="sm" variant="ghost" className="rounded-lg text-xs font-semibold text-muted-foreground shrink-0" onClick={() => router.push("/dashboard/events")}>
-          Switch event
-        </Button>
-      </div>
-      <EventWorkspaceNav
-        items={EVENT_WORKSPACE_NAV_ITEMS}
-        activeItemId={activeEventNavItemId}
-        onSelect={(item) => navigateToEventRoute(item.route)}
+  function renderEventHeader() {
+    if (!selectedEvent) return null;
+    return (
+      <ClientEventHeader
+        event={selectedEvent}
+        activeEventNavItemId={activeEventNavItemId}
+        onSwitchEvent={() => router.push("/dashboard/events")}
+        onNavigate={navigateToEventRoute}
       />
-    </section>
-  ) : null;
-
+    );
+  }
 
   const workspaceValue: ClientWorkspaceValue = {
     router,
@@ -665,7 +493,8 @@ export function ClientDashboardWorkspaceView({
     portalView,
     session,
     state,
-    actionCenter,
+    actionCenter: resolvedActionCenter,
+    actionCenterLoadFailed,
     error,
     notice,
     busy,
@@ -677,18 +506,24 @@ export function ClientDashboardWorkspaceView({
     selectedEvent,
     selectedEventId,
     setSelectedEventId,
+    ocularVisit,
+    submitOcularVisit,
+    submitBriefing,
     eventDrafts,
     officialDraft,
     preferenceDrafts,
     audit,
     billing,
     briefing,
+    disputes,
     documents,
     payments,
     clientActions,
     nextAction,
     form,
     setForm,
+    revisionComment,
+    setRevisionComment,
     requestForm,
     setRequestForm,
     eventSearch,
@@ -701,9 +536,10 @@ export function ClientDashboardWorkspaceView({
     openFloorplanEditor,
     createEditorDraft,
     submitPreference,
+    submitRevisionComment: submitFloorPlanReview,
     submitNewEventRequest,
     signOut,
-    eventHeader,
+    eventHeader: renderEventHeader(),
     isEventScopedView,
   };
 
@@ -712,9 +548,9 @@ export function ClientDashboardWorkspaceView({
       <PrismDashboardShell
         productLabel="P.R.I.S.M"
         roleLabel="Client Portal"
-        eyebrow={shellEyebrow}
-        title={shellTitle}
-        description={shellDescription}
+        eyebrow={clientShellEyebrow({ isEventScopedView, route })}
+        title={clientShellTitle({ isEventScopedView, eventName: selectedEvent?.eventName, portalView, route })}
+        description={clientShellDescription({ portalView, route, selectedEvent })}
         activeItemId={activeShellItemId}
         navItems={shellNavItems}
         onNavSelect={handleShellNavSelect}
@@ -724,7 +560,7 @@ export function ClientDashboardWorkspaceView({
           initials: session.name.slice(0, 2).toUpperCase(),
         }}
         searchPlaceholder="Search events, documents, billing..."
-        mobileActions={shellMobileActions}
+        mobileActions={clientShellMobileActions(route, selectedEvent, () => router.push("/dashboard"), navigateToEventRoute)}
         sidebarMode="single"
         sidebarContent={({ collapsed }) => (
           <ClientPortalSidebar
@@ -737,17 +573,8 @@ export function ClientDashboardWorkspaceView({
         onSignOut={signOut}
       >
         <div className="space-y-5">
-          {error && <NoticeBanner tone="danger">{error}</NoticeBanner>}
-          {notice && <NoticeBanner tone="success">{notice}</NoticeBanner>}
-          {route === "home" && <ClientHomeView />}
-          {route === "request" && <ClientRequestView />}
-          {route === "events" && <ClientEventsView />}
-          {route === "calendar" && <ClientCalendarView />}
-          {route === "approvals" && !isEventScopedView && <ClientApprovalsView />}
-          {route === "messages" && !isEventScopedView && <ClientMessagesView />}
-          {route === "files" && <ClientFilesView />}
-          {route === "billing" && !isEventScopedView && <ClientPortalBillingView />}
-          {isEventScopedView && <ClientEventWorkspaceView />}
+          <ClientWorkspaceBanners error={error} notice={notice} />
+          <ClientDashboardRouteBody route={route} isEventScopedView={isEventScopedView} />
         </div>
       </PrismDashboardShell>
     </ClientWorkspaceProvider>

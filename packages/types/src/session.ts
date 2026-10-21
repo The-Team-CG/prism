@@ -5,14 +5,14 @@ export const PRISM_SESSION_STORAGE_KEYS = {
   event: "prism:event-command-session",
   supplier: "prism:supplier-session",
   guest: "prism:guest-session",
+  guestCheckInRequest: "prism:guest-check-in-request",
+  gameParticipant: "prism:game-participant-session",
 } as const;
 
 export const PRISM_LEGACY_SESSION_STORAGE_KEYS = {
   clientMockAuth: "prism:mock-auth-session",
   clientMockAuthRequests: "prism:mock-auth-requests",
 } as const;
-
-export const PRISM_SAMPLE_STATE_STORAGE_KEY = "prism:prism-sample-state";
 
 export type PrismSessionStorageKey =
   (typeof PRISM_SESSION_STORAGE_KEYS)[keyof typeof PRISM_SESSION_STORAGE_KEYS];
@@ -93,19 +93,25 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+const PRISM_AUTHENTICATED_SESSION_STRING_FIELDS = [
+  "id",
+  "name",
+  "email",
+  "role",
+  "organization",
+  "approvalStatus",
+  "accessToken",
+  "expiresAt",
+  "signedInAt",
+] as const;
+
+function hasAuthenticatedSessionStrings(value: Record<string, unknown>) {
+  return PRISM_AUTHENTICATED_SESSION_STRING_FIELDS.every((field) => typeof value[field] === "string");
+}
+
 export function isPrismAuthenticatedSession(value: unknown): value is PrismAuthenticatedSession {
   if (!isRecord(value)) return false;
-
-  return (
-    typeof value.id === "string" &&
-    typeof value.name === "string" &&
-    typeof value.email === "string" &&
-    typeof value.role === "string" &&
-    typeof value.organization === "string" &&
-    typeof value.approvalStatus === "string" &&
-    typeof value.accessToken === "string" &&
-    value.accessToken.length > 0 &&
-    typeof value.expiresAt === "string" &&
-    typeof value.signedInAt === "string"
-  );
+  if (!hasAuthenticatedSessionStrings(value)) return false;
+  const token = value.accessToken;
+  return typeof token === "string" && token.length > 0;
 }

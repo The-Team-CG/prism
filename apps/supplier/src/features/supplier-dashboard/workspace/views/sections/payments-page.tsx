@@ -31,6 +31,7 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
+import type { PrismSupplierWorkflowWorkspace } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
 import {
   EVENT_STATUS_ACTIONS,
@@ -47,38 +48,37 @@ import {
   isRequestClosed,
   readinessTone,
 } from "../../model/supplier-workspace-rules";
-import type { PrismSupplier, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierDashboardSection, SupplierSession, SupplierWorkspace } from "../../model/supplier-workspace-types";
+import type { PrismSupplier, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierDashboardSection, SupplierWorkspace } from "../../model/supplier-workspace-types";
 import { useSupplierWorkspaceViewModel } from "../../view-models/use-supplier-workspace-view-model";
 
 
 import { Card, CardBody, CardHeader, SectionAccent, StatCell } from "./shell-ui";
 
-export function PaymentsPage({ workspace }: { workspace: SupplierWorkspace }) {
-  const selected = workspace.supplierQuotes.filter((q) => ["selected", "locked"].includes(q.status));
-
+export function PaymentsPage({ workflowWorkspace }: { workspace: SupplierWorkspace; workflowWorkspace: PrismSupplierWorkflowWorkspace | null }) {
+  const payables = workflowWorkspace?.payables ?? [];
   return (
     <div className="space-y-4">
-      {selected.length === 0 ? (
+      {payables.length === 0 ? (
         <Card><CardBody>
-          <EmptyState icon={Wallet} title="No payment milestones yet." description="Payment tracking becomes available once PMCM selects and locks your quote." />
+          <EmptyState icon={Wallet} title="No supplier payables recorded yet." description="PMCM will publish payment milestones after selecting your quote." />
         </CardBody></Card>
-      ) : selected.map((q) => (
-        <Card key={q.id}>
+      ) : payables.map((milestone) => (
+        <Card key={milestone.id}>
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <SectionAccent>Payment — {q.category}</SectionAccent>
-                <p className="mt-1 text-xl font-black text-foreground">{formatMoney(q.amount)}</p>
+                <SectionAccent>{milestone.label}</SectionAccent>
+                <p className="mt-1 text-xl font-black text-foreground">{formatMoney(milestone.amount)}</p>
               </div>
-              <StatusBadge status={q.status} />
+              <StatusBadge status={milestone.status} />
             </div>
           </CardHeader>
           <CardBody>
             <div className="grid gap-3 sm:grid-cols-3">
               {[
-                { label: "Downpayment (50%)", value: formatMoney(q.amount * 0.5), status: q.lockedAt ? "paid" : "pending" },
-                { label: "Balance (50%)", value: formatMoney(q.amount * 0.5), status: "pending" },
-                { label: "Total locked", value: formatMoney(q.amount), status: q.lockedAt ? "locked" : "selected" },
+                { label: "Scheduled", value: formatMoney(milestone.amount), status: "scheduled" },
+                { label: "Released", value: formatMoney(milestone.amountReleased), status: milestone.amountReleased > 0 ? "released" : "pending" },
+                { label: "Remaining", value: formatMoney(milestone.remainingBalance), status: milestone.remainingBalance === 0 ? "released" : "pending" },
               ].map(({ label, value, status }) => (
                 <div key={label} className="rounded-xl border border-border bg-muted/30 p-4">
                   <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
@@ -87,9 +87,13 @@ export function PaymentsPage({ workspace }: { workspace: SupplierWorkspace }) {
                 </div>
               ))}
             </div>
-            <p className="mt-4 text-xs leading-5 text-muted-foreground">
-              Payment terms: {q.paymentTerms || "As agreed with PMCM."} Actual payment schedule and release is managed by PMCM billing.
-            </p>
+            {milestone.dueDate ? <p className="mt-3 text-xs text-muted-foreground">Due {new Date(milestone.dueDate).toLocaleDateString()}</p> : null}
+            <div className="mt-4 divide-y divide-border rounded-xl border border-border">
+              {milestone.history.length ? milestone.history.map((record) => <div key={record.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-xs">
+                <span className="font-semibold">{record.kind === "reversal" ? "Reversal" : "Payment release"} · {formatMoney(record.amount)}</span>
+                <span className="text-muted-foreground">{record.paymentDate ? new Date(record.paymentDate).toLocaleDateString() : new Date(record.recordedAt).toLocaleDateString()} · {record.method}{record.referenceNumber ? ` · ${record.referenceNumber}` : ""}{record.notes ? ` · ${record.notes}` : ""}</span>
+              </div>) : <p className="px-3 py-2 text-xs text-muted-foreground">No payment releases recorded yet.</p>}
+            </div>
           </CardBody>
         </Card>
       ))}

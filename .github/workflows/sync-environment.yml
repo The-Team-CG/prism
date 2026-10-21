@@ -1,0 +1,82 @@
+name: Sync environment secrets
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment bundle and provider target
+        required: true
+        type: choice
+        options: [staging, production]
+      dry_run:
+        description: Validate without provider mutation
+        required: true
+        type: boolean
+        default: true
+      target:
+        description: Optional logical target name; empty selects all
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  validate-dispatch-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require trusted dispatch ref
+        shell: bash
+        env:
+          DISPATCH_REF: ${{ github.ref }}
+          DISPATCH_ENVIRONMENT: ${{ inputs.environment }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          SCHEMA_HOLD: ${{ vars.PRISM_SCHEMA_CUTOVER_HOLD }}
+        run: |
+          set -euo pipefail
+          case "$DISPATCH_ENVIRONMENT" in
+            staging) expected_ref="refs/heads/staging" ;;
+            production) expected_ref="refs/heads/prod" ;;
+            *) echo "Unsupported environment: $DISPATCH_ENVIRONMENT"; exit 1 ;;
+          esac
+          if [ "$DISPATCH_REF" != "$expected_ref" ]; then
+            echo "Environment synchronization must be dispatched from its trusted branch"
+            exit 1
+          fi
+          if [ "$SCHEMA_HOLD" = "true" ] && [ "$DRY_RUN" != "true" ]; then
+            echo "Non-dry-run environment sync is blocked while the schema cutover hold is active"
+            exit 1
+          fi
+
+  sync-staging:
+    needs: validate-dispatch-branch
+    if: inputs.environment == 'staging'
+    uses: The-Team-CG/.github/.github/workflows/sync-environment.yml@1c186ab95cf1432a7cbb59e24c9be19d527577cf
+    with:
+      environment: staging
+      ref: ${{ github.sha }}
+      manifest_json: ${{ vars.ENV_SYNC_MANIFEST_JSON }}
+      repository_variables_json: ${{ toJSON(vars) }}
+      dry_run: ${{ inputs.dry_run }}
+      target: ${{ inputs.target }}
+    secrets:
+      ENV_SYNC_BUNDLE: ${{ secrets.ENV_SYNC_STAGING }}
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  sync-production:
+    needs: validate-dispatch-branch
+    if: inputs.environment == 'production'
+    uses: The-Team-CG/.github/.github/workflows/sync-environment.yml@1c186ab95cf1432a7cbb59e24c9be19d527577cf
+    with:
+      environment: production
+      ref: ${{ github.sha }}
+      manifest_json: ${{ vars.ENV_SYNC_MANIFEST_JSON }}
+      repository_variables_json: ${{ toJSON(vars) }}
+      dry_run: ${{ inputs.dry_run }}
+      target: ${{ inputs.target }}
+    secrets:
+      ENV_SYNC_BUNDLE: ${{ secrets.ENV_SYNC_PRODUCTION }}
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

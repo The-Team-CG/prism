@@ -1,0 +1,111 @@
+type LinkedAudit = { id: string; immutableHash: string; previousHash: string | null };
+
+/**
+ * Why a chain walk stopped. An extra root is not a broken link, and reporting
+ * both as "broken" sent a real incident investigation down the wrong path.
+ */
+export type AuditChainBreakReason = 'multiple_roots' | 'fork' | 'duplicate_hash' | 'disconnected';
+
+/** Hash links, not UUID order, preserve valid historical same-millisecond appends. */
+export function orderLinkedAuditLogs<T extends LinkedAudit>(
+  logs: T[],
+): { ordered: T[]; firstBrokenLogId: string | null; breakReason: AuditChainBreakReason | null } {
+  const children = new Map<string | null, T>();
+  const hashes = new Set<string>();
+  for (const log of logs) {
+    if (hashes.has(log.immutableHash)) return { ordered: [], firstBrokenLogId: log.id, breakReason: 'duplicate_hash' };
+    if (children.has(log.previousHash)) {
+      // A null previousHash collision means a second chain root, not a severed link.
+      return { ordered: [], firstBrokenLogId: log.id, breakReason: log.previousHash === null ? 'multiple_roots' : 'fork' };
+    }
+    children.set(log.previousHash, log);
+    hashes.add(log.immutableHash);
+  }
+  const ordered: T[] = [];
+  let next = children.get(null);
+  while (next && ordered.length < logs.length) {
+    ordered.push(next);
+    next = children.get(next.immutableHash);
+  }
+  if (ordered.length !== logs.length || next) {
+    const orderedIds = new Set(ordered.map((row) => row.id));
+    return {
+      ordered,
+      firstBrokenLogId: logs.find((row) => !orderedIds.has(row.id))?.id ?? logs[0]?.id ?? null,
+      breakReason: 'disconnected',
+    };
+  }
+  return { ordered, firstBrokenLogId: null, breakReason: null };
+}
+
+/** Return every leaf in the complete hash graph. A valid chain has one leaf. */
+export function auditTailCandidates<T extends LinkedAudit>(logs: T[]): T[] {
+  const parentHashes = new Set(logs.map((row) => row.previousHash).filter((hash): hash is string => Boolean(hash)));
+  const seenHashes = new Set<string>();
+  return logs.filter((row) => {
+    if (seenHashes.has(row.immutableHash)) return false;
+    seenHashes.add(row.immutableHash);
+    return !parentHashes.has(row.immutableHash);
+  });
+}
+
+type AuditChainGraph<T extends LinkedAudit> = {
+  roots: T[];
+  children: Map<string, T[]>;
+};
+
+function buildAuditChainGraph<T extends LinkedAudit>(logs: T[], roots: T[]): AuditChainGraph<T> | null {
+  const byHash = new Map<string, T>();
+  for (const log of logs) {
+    if (byHash.has(log.immutableHash)) return null;
+    byHash.set(log.immutableHash, log);
+  }
+
+  const children = new Map<string, T[]>();
+  for (const log of logs) {
+    if (log.previousHash === null) continue;
+    if (!byHash.has(log.previousHash)) return null;
+    const siblings = children.get(log.previousHash) ?? [];
+    siblings.push(log);
+    if (siblings.length > 1) return null;
+    children.set(log.previousHash, siblings);
+  }
+
+  return { roots, children };
+}
+
+function visitAuditChain<T extends LinkedAudit>(root: T, children: Map<string, T[]>, visited: Set<string>) {
+  let current: T | undefined = root;
+  while (current) {
+    if (visited.has(current.immutableHash)) return false;
+    visited.add(current.immutableHash);
+    current = children.get(current.immutableHash)?.[0];
+  }
+  return true;
+}
+
+/**
+ * Distinguish the approved two-chain historical state from a fork or broken graph.
+ * Hash validation is supplied by the owner of the persisted payload format.
+ */
+export function isIndependentAuditChainSet<T extends LinkedAudit>(logs: T[], isHashValid: (log: T) => boolean) {
+  if (logs.length < 2) return false;
+  const roots = logs.filter((row) => row.previousHash === null);
+  if (roots.length !== 2 || logs.some((log) => !isHashValid(log))) return false;
+
+  const graph = buildAuditChainGraph(logs, roots);
+  if (!graph) return false;
+
+  const visited = new Set<string>();
+  for (const root of graph.roots) {
+    if (!visitAuditChain(root, graph.children, visited)) return false;
+  }
+  return visited.size === logs.length && auditTailCandidates(logs).length === roots.length;
+}
+
+export function selectTiedAuditTail<T extends LinkedAudit>(logs: T[]): T | undefined {
+  const parents = new Set(logs.map((row) => row.previousHash));
+  const tails = logs.filter((row) => !parents.has(row.immutableHash));
+  if (new Set(logs.map((row) => row.immutableHash)).size !== logs.length || tails.length !== 1) return undefined;
+  return tails[0];
+}

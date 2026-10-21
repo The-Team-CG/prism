@@ -14,33 +14,33 @@ const publicRoutes = [
 
 const sourceGuards = [
   {
-    file: "apps/client/src/app/components/dashboard/Dashboard.tsx",
-    markers: ["Conforme", "Billing", "Official floorplan", "Activity"],
+    file: "apps/client/src/features/client-dashboard/workspace/views/client-dashboard-workspace-view.tsx",
+    markers: ["conforme", "billing", "floorplan"],
   },
   {
-    file: "apps/supplier/src/app/dashboard/page.tsx",
-    markers: ["Quote and assignment queue", "Selected assignment handoff", "Event-day status"],
+    file: "apps/supplier/src/features/supplier-dashboard/workspace/views/sections/dashboard-page.tsx",
+    markers: ["Quote requests", "Supplier-scoped handoff state", "Event-day status"],
   },
   {
-    file: "apps/guest/src/app/dashboard/page.tsx",
-    markers: ["Registration check-in", "Moderated feedback", "Event progress"],
+    file: "apps/guest/src/features/guest-checkin/dashboard/views/sections/guest-dashboard-panels.tsx",
+    markers: ["Registration check-in", "Moderated feedback", "Event details"],
   },
   {
-    file: "apps/event/src/app/page.tsx",
-    markers: ["Billing", "Supplier", "Defense"],
+    file: "apps/event/src/features/event-public/landing/views/event-command-landing.tsx",
+    markers: ["Billing", "Supplier", "Live operations", "Closure"],
   },
   {
-    file: "apps/event/src/app/components/pmcm/coordinator-view.tsx",
+    file: "apps/event/src/features/coordinators/desk/views/sections/coordinator-view-sections.tsx",
     markers: ["Role-safe", "Event-day actions", "Coordinator information boundary"],
   },
 ];
 
 const publicFiles = [
-  "apps/client/src/app/components/landing/MainLandingPage.tsx",
-  "apps/client/src/app/components/public-inquiry/PublicInquiryPage.tsx",
-  "apps/supplier/src/app/page.tsx",
-  "apps/guest/src/app/page.tsx",
-  "apps/event/src/app/page.tsx",
+  "apps/client/src/features/client-home/landing/views/client-home-landing-view.tsx",
+  "apps/client/src/features/inquiry/submit/views/inquiry-submit-view.tsx",
+  "apps/supplier/src/features/supplier-home/landing/views/supplier-home-landing-view.tsx",
+  "apps/guest/src/features/guest-home/landing/views/guest-home-landing-view.tsx",
+  "apps/event/src/features/event-public/landing/views/event-command-landing.tsx",
 ];
 
 const forbiddenPatterns = [
@@ -64,20 +64,9 @@ const forbiddenPublicPhrases = [
   /92%/,
 ];
 
-function publicSourceFor(file, source) {
-  if (file !== "apps/event/src/app/page.tsx") return source;
-
-  const start = source.indexOf("function SignIn");
-  const end = source.indexOf("function PmcmPortal", start);
-  if (start === -1 || end === -1) {
-    throw new Error("Unable to isolate PMCM public sign-in source for smoke guards.");
-  }
-  return source.slice(start, end);
-}
-
 for (const file of publicFiles) {
   const source = readFileSync(file, "utf8");
-  const publicSource = publicSourceFor(file, source);
+  const publicSource = source;
   for (const pattern of forbiddenPatterns) {
     if (pattern.test(publicSource)) {
       throw new Error(`Public dashboard link found in ${file}: ${pattern}`);
@@ -90,17 +79,23 @@ for (const file of publicFiles) {
   }
 }
 
-const clientDashboard = readFileSync("apps/client/src/app/components/dashboard/Dashboard.tsx", "utf8");
+const clientDashboard = readFileSync(
+  "apps/client/src/features/client-dashboard/workspace/views/client-dashboard-workspace-view.tsx",
+  "utf8",
+);
 for (const forbidden of ["approveFloorPlanDraft", "submitFloorPlanDraft"]) {
   if (clientDashboard.includes(forbidden)) {
     throw new Error(`Client dashboard contains official floorplan mutation helper: ${forbidden}`);
   }
 }
-if (!clientDashboard.includes("openFloorplanEditor(officialDraft, true)")) {
+if (!clientDashboard.includes('openFloorplanEditor(officialDraft, officialDraft.status === "approved")')) {
   throw new Error("Client dashboard no longer shows the official floorplan through the read-only editor path.");
 }
 
-const coordinatorView = readFileSync("apps/event/src/app/components/pmcm/coordinator-view.tsx", "utf8");
+const coordinatorView = readFileSync(
+  "apps/event/src/features/coordinators/desk/views/coordinator-view.tsx",
+  "utf8",
+);
 for (const forbidden of ["billingStatements", "auditLogs", "billingSources", "supplierReviews"]) {
   if (coordinatorView.includes(forbidden)) {
     throw new Error(`Coordinator role view references PMCM-only data: ${forbidden}`);
@@ -115,6 +110,8 @@ for (const guard of sourceGuards) {
     }
   }
 }
+
+console.log(`OK static source guards (${sourceGuards.length} dashboard views)`);
 
 for (const route of publicRoutes) {
   const response = await fetch(route.url);

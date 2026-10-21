@@ -1,44 +1,56 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import type { LucideIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 import {
-  CalendarDays,
-  CheckCircle2,
-  ClipboardCheck,
-  Download,
-  Eye,
-  FileCheck2,
-  FileSignature,
-  FileText,
-  Grid2X2,
-  LayoutGrid,
-  List,
-  MapPinned,
-  MessageSquareText,
-  MoreHorizontal,
-  Pencil,
-  ReceiptText,
-  RotateCcw,
-  Search,
   Settings,
-  Share2,
-  ShieldCheck,
-  Upload,
 } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
-import { StatusBadge } from "@/app/components/ui/status-badge";
-import { EmptyState } from "@/app/components/ui/empty-state";
-import { Badge } from "@/app/components/ui/badge";
-import { formatShortDate, humanizeToken } from "@/features/event-ops";
+import { humanizeToken } from "@/features/pmcm-kit/model/formatters";
 import type { EventSession } from "@/app/lib/session";
-import type { PrismApprovalRequest, PrismBillingStatement, PrismBriefing, PrismComplianceCheck, PrismDefenseReadiness, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismPmcmDashboardWorkspace, PrismPostEventDocument, PrismSupplierQuoteRequest } from "@prism/types";
-import type { DashboardSection, DetailTab } from "../../model/event-dashboard-routing";
-import { Card, CardBody, CardHeader, SectionAccent } from "./shell-ui";
-import type { EventFileHubItem } from "./event-file-types";
+import type { PrismEvent } from "@prism/types";
+import { Card, CardBody, CardHeader } from "./shell-ui";
+import { isPmcmAdmin } from "@/app/lib/role-guards";
 
 
-export function EventSettingsWorkspace({ session, selectedEvent }: { session: EventSession; selectedEvent?: PrismEvent }) {
+type EventSettingsWorkspaceProps = {
+  session: EventSession;
+  selectedEvent?: PrismEvent;
+  onToggleClientEventDayView: (enabled: boolean) => Promise<boolean>;
+};
+
+export function EventSettingsWorkspace({
+  session,
+  selectedEvent,
+  onToggleClientEventDayView,
+}: EventSettingsWorkspaceProps) {
+  const [clientEventDayViewEnabled, setClientEventDayViewEnabled] = useState(
+    selectedEvent?.clientEventDayViewEnabled === true,
+  );
+  const [savingClientEventDayView, setSavingClientEventDayView] = useState(false);
+  const [clientEventDayViewSaveFailed, setClientEventDayViewSaveFailed] = useState(false);
+  const canManageClientEventDayView = isPmcmAdmin(session.role) && Boolean(selectedEvent);
+
+  useEffect(() => {
+    setClientEventDayViewEnabled(selectedEvent?.clientEventDayViewEnabled === true);
+    setClientEventDayViewSaveFailed(false);
+  }, [selectedEvent?.id, selectedEvent?.clientEventDayViewEnabled]);
+
+  async function toggleClientEventDayView() {
+    if (!canManageClientEventDayView || savingClientEventDayView) return;
+
+    const nextEnabled = !clientEventDayViewEnabled;
+    setSavingClientEventDayView(true);
+    setClientEventDayViewSaveFailed(false);
+    try {
+      const saved = await onToggleClientEventDayView(nextEnabled);
+      if (saved) setClientEventDayViewEnabled(nextEnabled);
+      else setClientEventDayViewSaveFailed(true);
+    } catch {
+      setClientEventDayViewSaveFailed(true);
+    } finally {
+      setSavingClientEventDayView(false);
+    }
+  }
+
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       {[
@@ -68,6 +80,49 @@ export function EventSettingsWorkspace({ session, selectedEvent }: { session: Ev
               <p className="mt-1 text-xs text-muted-foreground">Managed by PMCM event command policy.</p>
             </div>
           ))}
+          {canManageClientEventDayView && (
+            <div className="rounded-md border border-border bg-muted/20 px-4 py-3">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p id="client-event-day-view-label" className="text-sm font-black text-foreground">
+                    Client event-day view
+                  </p>
+                  <p id="client-event-day-view-description" className="mt-1 text-xs text-muted-foreground">
+                    Show a general event-day status on the client timeline.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={clientEventDayViewEnabled}
+                  aria-label="Client event-day view"
+                  aria-describedby="client-event-day-view-description"
+                  data-checked={clientEventDayViewEnabled ? "true" : "false"}
+                  disabled={savingClientEventDayView}
+                  onClick={() => void toggleClientEventDayView()}
+                  className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border border-border bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[checked=true]:border-(--prism-signal) data-[checked=true]:bg-(--prism-signal) disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="size-4 translate-x-1 rounded-full bg-background shadow-sm transition-transform data-[checked=true]:translate-x-6"
+                    data-checked={clientEventDayViewEnabled ? "true" : "false"}
+                  />
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground" aria-live="polite">
+                {savingClientEventDayView
+                  ? "Saving…"
+                  : clientEventDayViewEnabled
+                    ? "Visible to the client"
+                    : "Hidden from the client"}
+              </p>
+              {clientEventDayViewSaveFailed && (
+                <p role="alert" className="mt-2 text-xs text-destructive">
+                  Could not save the client event-day view. Try again.
+                </p>
+              )}
+            </div>
+          )}
         </CardBody>
       </Card>
     </div>

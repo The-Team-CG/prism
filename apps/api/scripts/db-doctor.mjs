@@ -1,5 +1,32 @@
 import process from 'node:process';
 import { Pool } from 'pg';
+import { selectDatabaseConnection } from './db-connection-config.mjs';
+
+/**
+ * PA-309. Mirrors describeDatabaseError in src/kernel/database/prisma-error.ts.
+ * Deliberately duplicated: that helper compiles to CommonJS under
+ * "module": "commonjs", this is a native ESM .mjs, and bridging that split is the
+ * module-system problem PA-308 is deferred on. Keep the two in step.
+ */
+function describeDatabaseError(error) {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (typeof error !== 'object' || error === null) return message;
+
+  const parts = [message];
+  if (typeof error.code === 'string' && error.code.length > 0) parts.push(`(code=${error.code})`);
+  if (error.meta !== undefined && error.meta !== null) {
+    let rendered;
+    try {
+      rendered = JSON.stringify(error.meta) ?? String(error.meta);
+    } catch {
+      rendered = String(error.meta);
+    }
+    parts.push(`meta=${rendered}`);
+  }
+
+  return parts.join(' ');
+}
 
 const args = process.argv.slice(2);
 const modeArg = args.find((arg) => arg.startsWith('--mode='));
@@ -10,84 +37,45 @@ if (mode !== 'prisma' && mode !== 'runtime') {
   process.exit(1);
 }
 
-const prismaCandidates = [
-  ['DIRECT_URL', process.env.DIRECT_URL],
-  ['PRISMA_DATABASE_URL', process.env.PRISMA_DATABASE_URL],
-  ['SUPABASE_DB_URL', process.env.SUPABASE_DB_URL],
-  ['DATABASE_URL', process.env.DATABASE_URL],
-];
-const runtimeCandidates = [
-  ['SUPABASE_DB_URL', process.env.SUPABASE_DB_URL],
-  ['DATABASE_URL', process.env.DATABASE_URL],
-  ['PRISMA_DATABASE_URL', process.env.PRISMA_DATABASE_URL],
-  ['DIRECT_URL', process.env.DIRECT_URL],
-].filter(([, value]) => Boolean(value?.trim()));
-
-function isPoolerUrl(value) {
-  try {
-    const parsed = new URL(value);
-    return parsed.hostname.includes('pooler.supabase.com') || parsed.port === '6543';
-  } catch {
-    return false;
-  }
-}
-
-const selected =
-  mode === 'runtime'
-    ? runtimeCandidates.find(([, value]) => isPoolerUrl(value)) ?? runtimeCandidates[0]
-    : prismaCandidates.find(([, value]) => Boolean(value?.trim()));
-
-if (!selected) {
-  console.error(
-    'No Prisma database URL configured. Set PRISMA_DATABASE_URL, DIRECT_URL, SUPABASE_DB_URL, or DATABASE_URL in prism-api/.env.',
-  );
-  process.exit(1);
-}
-
-const [source, rawUrl] = selected;
-
-let parsed;
+let database;
 try {
-  parsed = new URL(rawUrl);
-} catch {
-  console.error(`The selected ${source} value is not a valid postgres URL.`);
+  database = selectDatabaseConnection({ purpose: mode === 'runtime' ? 'runtime' : 'migration' });
+} catch (error) {
+  console.error(error instanceof Error ? error.message : 'Database connection configuration is invalid.');
   process.exit(1);
 }
 
-const redactedUser = decodeURIComponent(parsed.username || 'postgres');
-const redactedTarget = `${parsed.protocol}//${redactedUser}:<redacted>@${parsed.host}${parsed.pathname}`;
-const isPoolerHost = parsed.hostname.includes('pooler.supabase.com');
-const isLikelyPoolerPort = parsed.port === '6543';
-const isPooler = isPoolerHost || isLikelyPoolerPort;
-
-if (isPooler) {
+if (database.isPooler) {
   const hint =
     'Prefer a direct host (db.<project-ref>.supabase.co:5432) via DIRECT_URL or PRISMA_DATABASE_URL for Prisma migrations and transaction-safe workflows.';
 
   if (mode === 'prisma' && process.env.ALLOW_POOLER_FOR_PRISMA !== '1') {
     console.error(
-      `${source} appears to be a Supabase pooler/pgbouncer connection. ${hint} (To override for edge cases, set ALLOW_POOLER_FOR_PRISMA=1.)`,
+      `${database.source} appears to be a Supabase pooler/pgbouncer connection. ${hint} (To override for edge cases, set ALLOW_POOLER_FOR_PRISMA=1.)`,
     );
     process.exit(1);
   } else {
-    console.warn(`${source} appears to be a Supabase pooler/pgbouncer connection. ${hint}`);
+    console.warn(`${database.source} appears to be a Supabase pooler/pgbouncer connection. ${hint}`);
   }
 }
 
 const pool = new Pool({
-  connectionString: rawUrl,
-  ssl:
-    process.env.DB_SSL === 'false'
-      ? false
-      : {
-          rejectUnauthorized: false,
-        },
+  connectionString: database.connectionString,
+  ssl: database.ssl,
+  // PA-307, values agreed with Anthony. Kept in step with
+  // src/kernel/database/prisma.service.ts so the doctor stays representative of
+  // runtime. max: 5 halves pg's default ceiling of 10. connectionTimeoutMillis is
+  // strictly an improvement here: today this script has no timeout at all and can
+  // hang indefinitely.
+  max: 5,
+  idleTimeoutMillis: 10_000,
+  connectionTimeoutMillis: 30_000,
 });
 
 try {
   await pool.query('select 1');
-  console.log(`Prisma DB check passed using ${source} (mode=${mode}).`);
-  console.log(`Target: ${redactedTarget}`);
+  console.log(`Prisma DB check passed using ${database.source} (mode=${mode}).`);
+  console.log(`Target: ${database.target}`);
 
   try {
     const version = await pool.query('show server_version');
@@ -110,11 +98,11 @@ try {
       console.log('_prisma_migrations: not found (fresh DB or migrations not yet deployed)');
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = describeDatabaseError(error);
     console.warn(`DB metadata check skipped: ${message}`);
   }
 } catch (error) {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = describeDatabaseError(error);
 
   console.error(`Prisma DB check failed using ${source}.`);
   console.error(`Target: ${redactedTarget}`);

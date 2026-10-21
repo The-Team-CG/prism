@@ -1,5 +1,7 @@
 "use client";
 
+import { portalHref } from "@prism/ui/portal-path";
+
 import {
   ArrowRight,
   BadgeCheck,
@@ -136,8 +138,9 @@ export function SupplierHomeLandingView() {
               ].map(([label, href]) => (
                 <a key={label} href={href} className="rounded-md px-2 py-2 transition hover:text-primary">{label}</a>
               ))}
+              <a href={portalHref("/apply")} className="rounded-md px-2 py-2 transition hover:text-primary">Apply</a>
             </nav>
-            <a href="/sign-in" className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-black text-primary-foreground shadow-[0_16px_36px_rgba(192,24,103,0.22)]">
+            <a href={portalHref("/sign-in")} className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-black text-primary-foreground shadow-[0_16px_36px_rgba(192,24,103,0.22)]">
               <LockKeyhole className="size-4" />
               Supplier sign in
             </a>
@@ -154,11 +157,11 @@ export function SupplierHomeLandingView() {
                 See quote deadlines, revision windows, selected assignments, contract details, readiness notes, and onsite status without chasing messages.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <a href="/sign-in" className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-primary px-6 text-base font-black text-primary-foreground shadow-[0_18px_40px_rgba(192,24,103,0.22)]">
+                <a href={portalHref("/sign-in")} className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-primary px-6 text-base font-black text-primary-foreground shadow-[0_18px_40px_rgba(192,24,103,0.22)]">
                   Supplier sign in <ArrowRight className="size-5" />
                 </a>
-                <a href="#quotes" className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-card px-6 text-base font-black text-foreground">
-                  See how it works
+                <a href={portalHref("/apply")} className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-card px-6 text-base font-black text-foreground">
+                  Become a supplier
                 </a>
               </div>
               <div className="mt-10 grid grid-cols-2 gap-5 sm:grid-cols-4">
@@ -227,7 +230,7 @@ export function SupplierHomeLandingView() {
                 <p className="mt-1 text-sm text-muted-foreground">{date}</p>
                 <p className="mt-4 text-sm font-black text-[#F06030]">{status}</p>
                 <div className="mt-4 h-2 rounded-full bg-secondary"><div className="h-2 w-2/5 rounded-full bg-[#F06030]" /></div>
-                <a href="/sign-in" className="mt-5 inline-flex items-center gap-2 text-sm font-black text-primary">{action}<ArrowRight className="size-4" /></a>
+                <a href={portalHref("/sign-in")} className="mt-5 inline-flex items-center gap-2 text-sm font-black text-primary">{action}<ArrowRight className="size-4" /></a>
               </div>
             ))}
           </div>
@@ -253,7 +256,7 @@ export function SupplierHomeLandingView() {
                   <span>{line1}</span>
                   <span>{line2}</span>
                 </div>
-                <a href="/sign-in" className="mt-6 inline-flex items-center gap-2 text-sm font-black text-primary">{action}<ArrowRight className="size-4" /></a>
+                <a href={portalHref("/sign-in")} className="mt-6 inline-flex items-center gap-2 text-sm font-black text-primary">{action}<ArrowRight className="size-4" /></a>
               </div>
             ))}
           </div>
@@ -319,7 +322,7 @@ export function SupplierHomeLandingView() {
           <div className="rounded-lg bg-card p-5">
             <p className="font-black text-foreground">Need something?</p>
             <p className="mt-2 text-sm text-muted-foreground">Your coordinator is ready to help.</p>
-            <a href="/sign-in" className="mt-4 inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-black text-primary-foreground">Contact coordinator</a>
+            <a href={portalHref("/sign-in")} className="mt-4 inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-black text-primary-foreground">Contact coordinator</a>
           </div>
         </div>
         <div className="mx-auto mt-16 max-w-3xl text-center">
@@ -336,8 +339,8 @@ export function SupplierHomeLandingView() {
             <p className="mt-3 text-sidebar-foreground/70">Sign in to view assignments, deadlines, contracts, and event-day updates.</p>
           </div>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row lg:mt-0">
-            <a href="/sign-in" className="inline-flex h-12 items-center justify-center rounded-md bg-primary px-6 font-black text-primary-foreground">Supplier sign in</a>
-            <a href="#quotes" className="inline-flex h-12 items-center justify-center rounded-md border border-white/20 bg-white px-6 font-black text-foreground">See how it works</a>
+            <a href={portalHref("/sign-in")} className="inline-flex h-12 items-center justify-center rounded-md bg-primary px-6 font-black text-primary-foreground">Supplier sign in</a>
+            <a href={portalHref("/apply")} className="inline-flex h-12 items-center justify-center rounded-md border border-white/20 bg-white px-6 font-black text-foreground">Apply to join</a>
           </div>
         </div>
       </section>
