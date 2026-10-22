@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { X } from "lucide-react";
+import { Handshake, LockKeyhole, Mail, Phone, X } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import type {
   PrismPmcmSupplierCertificationsPage,
@@ -15,8 +15,11 @@ import type {
 import type { SupplierActionDraft } from "../use-cases/submit-supplier-action";
 import type { SupplierActionResult } from "../use-cases/save-supplier-action";
 import { SupplierPerformanceScorecards } from "./supplier-performance-scorecards";
-import { SupplierRecentRecords } from "./supplier-recent-records";
+import { SupplierRecentRecords, SupplierRecordHistory } from "./supplier-recent-records";
 import { SupplierProfileActions } from "./supplier-profile-actions";
+import { SupplierPerformanceSummary } from "./supplier-performance-summary";
+import { RatingStars, SupplierAvatar, SupplierTags } from "./supplier-visuals";
+import styles from "./supplier-workspace.module.css";
 
 function contactLine(value: string) {
   return value.trim() || "Not on file";
@@ -84,9 +87,12 @@ export function SupplierDetailDrawer({
 
   useEffect(() => {
     const dialog = dialogRef.current;
+    const previousOverflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = "hidden";
     if (dialog && !dialog.open) dialog.showModal();
     return () => {
       if (dialog?.open) dialog.close();
+      document.documentElement.style.overflow = previousOverflow;
     };
   }, []);
 
@@ -100,18 +106,16 @@ export function SupplierDetailDrawer({
       ref={dialogRef}
       aria-labelledby="supplier-drawer-title"
       onCancel={(event) => { event.preventDefault(); closeDialog(); }}
-      className="fixed inset-y-0 right-0 left-auto m-0 ml-auto h-dvh max-h-dvh w-full max-w-none translate-x-0 border-l border-border bg-background p-0 text-foreground shadow-2xl backdrop:bg-black/35 md:w-[min(560px,45vw)]"
+      className={`${styles.drawer} fixed inset-y-0 right-0 left-auto m-0 ml-auto h-dvh max-h-dvh max-w-none p-0`}
     >
       <div className="flex h-full min-h-0 flex-col">
-        <header className="sticky top-0 z-10 flex min-h-14 items-center justify-between gap-3 border-b border-border bg-background px-5">
-          <div className="min-w-0">
-            <p className="text-xs text-muted-foreground">Supplier details</p>
-            <h2 id="supplier-drawer-title" className="truncate text-base font-semibold">{profile?.supplier.name ?? "Supplier"}</h2>
-          </div>
-          <Button type="button" variant="ghost" size="icon" aria-label="Close supplier details" onClick={closeDialog}><X /></Button>
+        <header className="flex min-h-12 shrink-0 items-center justify-between gap-3 border-b border-border px-5">
+          <p className="flex items-center gap-2 text-xs font-semibold"><Handshake className="size-3.5 text-muted-foreground" />Supplier details</p>
+          <h2 id="supplier-drawer-title" className="sr-only">{profile?.supplier.name ?? "Supplier"}</h2>
+          <Button type="button" variant="ghost" size="icon" className="size-7 rounded-full" aria-label="Close supplier details" onClick={closeDialog}><X className="size-4" /></Button>
         </header>
 
-        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-5">
+        <div className={`${styles.drawerBody} min-h-0 flex-1 overflow-y-auto`}>
           {profileError ? (
             <div role="alert" className="rounded-lg border border-destructive/20 bg-destructive/5 p-4">
               <p className="text-sm font-medium">{profileError.toLowerCase().includes("not found") || profileError.includes("404") ? "Supplier not found" : "Supplier details could not be loaded"}</p>
@@ -128,21 +132,39 @@ export function SupplierDetailDrawer({
           {!profile && profileLoading ? <div aria-live="polite" className="space-y-3"><p className="text-sm text-muted-foreground">Loading supplier details…</p><div className="h-24 animate-pulse rounded-lg bg-muted" /></div> : null}
           {profile ? (
             <>
-              <section className="flex items-start gap-3 border-b border-border pb-5">
-                <div aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-lg bg-primary/10 text-sm font-semibold text-primary">{profile.supplier.name.slice(0, 1).toUpperCase()}</div>
+              <section className="flex items-center gap-3">
+                <SupplierAvatar name={profile.supplier.name} identity />
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-semibold">{profile.supplier.name}</h3>
-                    {profile.supplier.bniMember ? <span className="text-xs text-muted-foreground">BNI member</span> : null}
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">{categoryName ?? "Category unavailable"} · {profile.supplier.tier.replaceAll("_", " ")}</p>
-                  <div className="mt-3 grid gap-1 text-sm sm:grid-cols-2">
-                    <span>{contactLine(profile.supplier.contactName)}</span>
-                    {profile.supplier.email ? <a className="truncate text-primary hover:underline" href={`mailto:${profile.supplier.email}`}>{profile.supplier.email}</a> : <span className="text-muted-foreground">Email not on file</span>}
-                    <span className="text-muted-foreground">{contactLine(profile.supplier.phone)}</span>
-                  </div>
-                  <p className="mt-3 text-sm text-muted-foreground">{profile.rating.average === null ? "No reviews yet" : `${profile.rating.average.toFixed(1)} / 5 from ${profile.rating.count} review${profile.rating.count === 1 ? "" : "s"}`}</p>
+                  <h3 className="mb-2 text-sm font-semibold">{profile.supplier.name}</h3>
+                  <SupplierTags category={categoryName ?? "Category unavailable"} tier={profile.supplier.tier} bniMember={profile.supplier.bniMember} />
                 </div>
+              </section>
+
+              <section aria-labelledby="supplier-account-heading" className="space-y-3">
+                <h3 id="supplier-account-heading" className="text-xs font-semibold">Account summary</h3>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5 text-[11px]">
+                  <span className="flex items-center gap-1.5 font-medium"><SupplierAvatar name={profile.supplier.contactName} />{contactLine(profile.supplier.contactName)}</span>
+                  <span className="flex min-w-0 items-center gap-1.5"><Mail aria-hidden="true" className="size-3 text-muted-foreground" />{profile.supplier.email ? <a className="truncate hover:text-primary" href={`mailto:${profile.supplier.email}`}>{profile.supplier.email}</a> : "Email not on file"}</span>
+                  <span className="flex items-center gap-1.5"><Phone aria-hidden="true" className="size-3 text-muted-foreground" />{contactLine(profile.supplier.phone)}</span>
+                </div>
+              </section>
+
+              <SupplierPerformanceSummary profile={profile} />
+
+              <SupplierRecentRecords records={records} period={recordsPeriod} loading={recordsLoading} error={recordsError} onPeriodChange={onRecordsPeriodChange} onRetry={onRetry} />
+
+              <SupplierPerformanceScorecards profile={profile} period={profilePeriod} onPeriodChange={onProfilePeriodChange} />
+
+              <section aria-labelledby="supplier-reviews-heading" className="space-y-3">
+                <div className="flex items-center justify-between gap-2"><h3 id="supplier-reviews-heading" className="text-xs font-semibold">Private review history</h3><span className="text-[11px] text-muted-foreground">{reviews?.totalCount ?? profile.rating.count} {(reviews?.totalCount ?? profile.rating.count) === 1 ? "review" : "reviews"}</span></div>
+                {reviewsLoading && !reviews ? <p className="text-xs text-muted-foreground">Loading review history…</p> : null}
+                {!reviewsLoading && !reviews?.items.length ? <p className={styles.empty}>No private reviews recorded. Add a review after an eligible event engagement.</p> : null}
+                <div className="space-y-2">{reviews?.items.map((review) => <article key={review.id} className={styles.scorecard}>
+                  <div className="flex items-center justify-between gap-3"><h4 className="text-xs font-semibold">{review.eventName || "Supplier review"}</h4><span className="flex items-center gap-2 text-xs font-semibold">{review.rating}/5<RatingStars rating={review.rating} /></span></div>
+                  <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">{review.notes || "No written feedback recorded."}</p>
+                  {review.dimensionRatings.length ? <div className="mt-3 space-y-1">{review.dimensionRatings.map((dimension) => <div key={dimension.dimensionId} className="flex justify-between gap-2 text-[11px]"><span className="text-muted-foreground">{dimension.dimensionName}</span><span>{dimension.rating}/5</span></div>)}</div> : null}
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px]"><SupplierAvatar name={review.reviewedBy} /><span>{review.reviewedBy}</span><time className="text-muted-foreground" dateTime={review.createdAt}>{new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(new Date(review.createdAt))}</time></div>
+                </article>)}</div>
               </section>
 
               <section aria-labelledby="supplier-engagements-heading" className="space-y-3">
@@ -161,10 +183,6 @@ export function SupplierDetailDrawer({
                 </div>
               </section>
 
-              <SupplierRecentRecords records={records} period={recordsPeriod} loading={recordsLoading} error={recordsError} onPeriodChange={onRecordsPeriodChange} onRetry={onRetry} />
-
-              <SupplierPerformanceScorecards profile={profile} period={profilePeriod} onPeriodChange={onProfilePeriodChange} />
-
               <section aria-labelledby="supplier-certifications-heading" className="space-y-3">
                 <div className="flex items-center justify-between gap-2"><h3 id="supplier-certifications-heading" className="text-sm font-semibold">Certifications</h3><span className="text-xs text-muted-foreground">{certifications?.totalCount ?? profile.certifications.verified + profile.certifications.submitted + profile.certifications.expired + profile.certifications.rejected + profile.certifications.unknown} records</span></div>
                 {certificationsLoading && !certifications ? <p className="text-sm text-muted-foreground">Loading certification records…</p> : null}
@@ -172,11 +190,12 @@ export function SupplierDetailDrawer({
                 <div className="space-y-2">{certifications?.items.map((certification) => <article key={certification.id} className="rounded-lg border border-border p-3"><p className="text-sm font-medium">{certification.fileName}</p><p className="mt-1 text-xs text-muted-foreground">{certification.documentType || "Type not recorded"}{certification.issuer ? ` · ${certification.issuer}` : ""} · {certification.status || "Unknown status"}</p>{certification.expiresAt ? <p className="mt-1 text-xs text-muted-foreground">Expires {new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(new Date(certification.expiresAt))}</p> : null}</article>)}</div>
               </section>
 
+              <SupplierRecordHistory records={records} />
+
               <section aria-labelledby="supplier-private-notes-heading" className="space-y-2">
                 <h3 id="supplier-private-notes-heading" className="text-sm font-semibold">Private PMCM notes</h3>
                 <p className="whitespace-pre-wrap rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">{profile.supplier.performanceNotes || "No private notes recorded."}</p>
-                {profile.supplier.serviceInclusions ? <p className="whitespace-pre-wrap rounded-lg border border-border p-3 text-sm"><span className="mb-1 block text-xs text-muted-foreground">Service inclusions</span>{profile.supplier.serviceInclusions}</p> : null}
-                <p className="text-xs text-muted-foreground">{reviewsLoading ? "Review history loading…" : reviews ? `${reviews.totalCount} private reviews recorded.` : "Review history unavailable."}</p>
+                {profile.supplier.serviceInclusions ? <p className="whitespace-pre-wrap rounded-lg border border-border p-3 text-xs leading-relaxed"><span className="mb-1 block text-muted-foreground">Service inclusions</span>{profile.supplier.serviceInclusions}</p> : null}
               </section>
 
               <SupplierProfileActions
@@ -191,6 +210,10 @@ export function SupplierDetailDrawer({
           ) : null}
           <span className="sr-only">Supplier ID {supplierId}</span>
         </div>
+        <footer className="flex min-h-14 shrink-0 items-center justify-between gap-3 border-t border-border px-5 py-2">
+          <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground"><LockKeyhole className="size-3" />Private to PMCM</span>
+          <div className="flex gap-2"><Button type="button" variant="outline" size="sm" onClick={closeDialog}>Close</Button>{profile ? <Button type="button" size="sm" onClick={() => document.getElementById("supplier-actions-heading")?.scrollIntoView({ block: "start" })}>Supplier actions</Button> : null}</div>
+        </footer>
       </div>
     </dialog>
   );

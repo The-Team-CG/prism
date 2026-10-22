@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Added the PMCM supplier workspace in Event Command: a paged directory with private supplier performance and certification details, event engagement history, reviews, and profile actions. Supplier self-service remains in the supplier portal. Owners A, B, and D.
+
 - Guest deletion now resolves one roster identity and redacts only its linked records; ambiguous or unlinked records require individual review and leave the request approved. The ledger now reflects implemented guest correction. Owner D (Anthony).
 - Updated vulnerable dependencies, removed unused Next.js lint presets, and made the dependency gate reject moderate or higher alerts without advisory exceptions. Portal lint commands use the active repository ESLint configuration. Owner D (Anthony).
 
