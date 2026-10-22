@@ -117,20 +117,24 @@ export class SupplierWorkspaceReaderService implements SupplierWorkspaceReader {
           reviewedBy: true,
           eventId: true,
           createdAt: true,
-          event: { select: { eventName: true } },
           dimensionRatings: {
             select: { dimensionId: true, rating: true, dimension: { select: { name: true } } },
           },
         },
       }),
     ]);
+    const eventIds = [...new Set(reviews.flatMap((review) => review.eventId ? [review.eventId] : []))];
+    const events = eventIds.length
+      ? await this.prisma.opsEvent.findMany({ where: { id: { in: eventIds } }, select: { id: true, eventName: true } })
+      : [];
+    const eventNames = new Map(events.map((event) => [event.id, event.eventName]));
     const items = reviews.map((review) => ({
       id: review.id,
       rating: review.rating,
       notes: review.notes,
       reviewedBy: review.reviewedBy,
       eventId: review.eventId,
-      eventName: review.event?.eventName ?? null,
+      eventName: review.eventId ? eventNames.get(review.eventId) ?? null : null,
       createdAt: review.createdAt.toISOString(),
       dimensionRatings: review.dimensionRatings.map((rating) => ({
         dimensionId: rating.dimensionId,
