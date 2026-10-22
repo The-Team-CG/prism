@@ -20,9 +20,10 @@ describe('SupplierWorkspaceReaderService', () => {
         count: vi.fn(async () => 127),
         findMany: vi.fn(async () => [{
           id: 'review_1', rating: 5, notes: 'Excellent service', reviewedBy: 'Maxine', eventId: 'evt_1',
-          createdAt: new Date('2026-09-20T08:00:00.000Z'), event: { eventName: 'Annual Summit' }, dimensionRatings: [],
+          createdAt: new Date('2026-09-20T08:00:00.000Z'), dimensionRatings: [],
         }]),
       },
+      opsEvent: { findMany: vi.fn(async () => [{ id: 'evt_1', eventName: 'Annual Summit' }]) },
     };
     const service = new SupplierWorkspaceReaderService(prisma as any, {} as any);
 
@@ -30,7 +31,9 @@ describe('SupplierWorkspaceReaderService', () => {
 
     expect(result).toMatchObject({ totalCount: 127, page: 0, pageSize: 25, hasNextPage: true });
     expect(result.items).toHaveLength(1);
+    expect(result.items[0]?.eventName).toBe('Annual Summit');
     expect(prisma.opsSupplierReview.findMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 0, take: 25 }));
+    expect(prisma.opsEvent.findMany).toHaveBeenCalledWith({ where: { id: { in: ['evt_1'] } }, select: { id: true, eventName: true } });
   });
 
   it('returns a focused profile with the selected period and actual active category dimensions', async () => {
