@@ -1,8 +1,17 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PrismaService } from '@prism/kernel/database';
 import { PmcmSupplierEventHeadersQueries } from './pmcm-supplier-event-headers.queries';
 
 describe('PmcmSupplierEventHeadersQueries', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-07T12:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('loads only the allowlisted event header fields for the bounded page of supplier event IDs', async () => {
     const findMany = vi.fn(async () => [{ id: 'evt_1', eventName: 'Summit', eventDate: new Date('2026-09-01'), status: 'completed', actualEndedAt: new Date('2026-09-01T12:00:00Z') }]);
     const prisma = { opsEvent: { findMany } } as unknown as PrismaService;
