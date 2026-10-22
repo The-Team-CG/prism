@@ -30,12 +30,13 @@ import { EventArchiveSearchView } from "@/features/closure/archive";
 import { CoordinatorAssignmentDesk } from "@/features/coordinators/desk";
 import { EventCommandInbox } from "@/features/command-inbox/list";
 import { FinancialWorkspace } from "@/features/finance/workspace";
-import { SupplierDirectory } from "@/features/suppliers/directory";
+import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
+import { SupplierDirectory, SupplierQuotePlanner } from "@/features/suppliers/directory";
 import { SupplierApplicationsInboxView } from "@/features/suppliers/applications";
 import { AuditTrailPanel } from "@/features/audit/trail";
 import { PrivacyConsoleView } from "@/features/privacy/console";
 import { EventMessagesWorkspace } from "@/features/event-dashboard/messages/views/event-messages-workspace";
-import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
+import { useEventDashboardLoadedRouteViewModel, useEventDashboardRouteViewModel } from "../event-dashboard-route-context";
 
 const phpMoney = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
 export function EventDashboardCalendarSectionView() {
@@ -453,40 +454,12 @@ export function EventDashboardFinanceSectionView() {
 }
 
 export function EventDashboardSuppliersSectionView() {
-  const {
-    supplierCategories,
-    suppliers,
-    selectedEvent,
-    session,
-    toggleSupplierBni,
-    createSupplier,
-    updateSupplierProfile,
-    changeSupplierTier,
-    promoteSupplier,
-    addSupplierReview,
-    addSupplierCertification,
-    navigateEvent,
-    busy,
-  } = useEventDashboardLoadedRouteViewModel();
-  return (
-    <div className="space-y-5">
-      <SupplierApplicationsInboxView />
-      <SupplierDirectory
-        categories={supplierCategories}
-        suppliers={suppliers}
-        onToggleBni={toggleSupplierBni}
-        onCreateSupplier={createSupplier}
-        onUpdateSupplier={updateSupplierProfile}
-        onChangeTier={changeSupplierTier}
-        eventId={selectedEvent?.id}
-        onPromote={promoteSupplier}
-        onAddReview={addSupplierReview}
-        onAddCertification={addSupplierCertification}
-        onOpenEvent={(eventId) => navigateEvent(eventId, "overview")}
-        busy={Boolean(busy)}
-      />
-    </div>
-  );
+  const viewModel = useEventDashboardRouteViewModel();
+  return <SupplierDirectory
+    view={viewModel.routeState.view ?? "all"}
+    session={viewModel.session}
+    onOpenEvent={(eventId) => viewModel.navigateEvent(eventId, "suppliers")}
+  />;
 }
 
 export function EventDashboardAuditSectionView() {

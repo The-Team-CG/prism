@@ -1,6 +1,14 @@
 import { Inject, Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import type { CreateSupplierReliabilityNoteInput, CreateSupplierReviewInput, PromoteSupplierInput } from '@prism/types';
+import type {
+  ChangeSupplierTierInput,
+  CreateSupplierCertificationInput,
+  CreateSupplierInput,
+  CreateSupplierReliabilityNoteInput,
+  CreateSupplierReviewInput,
+  PromoteSupplierInput,
+  UpdateSupplierInput,
+} from '@prism/types';
 import type {
   OpsSupplier,
   OpsSupplierCategory,
@@ -41,34 +49,6 @@ function isUniqueViolationOn(error: unknown, fragments: string[]): boolean {
   const names = Array.isArray(target) ? target.map(String) : typeof target === 'string' ? [target] : [];
   return names.some((name) => fragments.some((fragment) => name.includes(fragment)));
 }
-
-export type CreateSupplierInput = {
-  categoryId: string;
-  name: string;
-  contactName?: string;
-  email?: string;
-  phone?: string;
-  tier?: string;
-  bniMember?: boolean;
-  serviceInclusions?: string;
-  performanceNotes?: string;
-};
-
-export type UpdateSupplierInput = Partial<Omit<CreateSupplierInput, 'tier'>>;
-
-export type ChangeSupplierTierInput = {
-  tier: string;
-  reason: string;
-};
-
-export type CreateSupplierCertificationInput = {
-  fileName: string;
-  documentType: string;
-  issuer?: string;
-  expiresAt?: string;
-  status?: string;
-  notes?: string;
-};
 
 type ReviewDimensionRatingWithDimension = OpsSupplierReviewDimensionRating & { dimension: OpsSupplierReviewDimension };
 

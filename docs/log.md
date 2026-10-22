@@ -4,6 +4,10 @@ This log tracks changes to documentation structure and durable contracts. Releas
 notes are in [`../CHANGELOG.md`](../CHANGELOG.md); Git history retains detailed
 implementation and verification history.
 
+## 2026-10-23
+
+- Added the bounded PMCM supplier engagement read seam between Commercial and read-models.
+
 ## 2026-10-21
 
 - Registered the lifecycle-owned file-requirement command seam and integrated feature-ledger evidence, retaining policy and production-readiness gates.

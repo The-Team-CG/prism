@@ -48,7 +48,7 @@ export function EventDashboardShellView({ viewModel, children }: EventDashboardS
       />
     );
   }
-  if (!viewModel.state) {
+  if (!viewModel.state && viewModel.section !== "suppliers") {
     return <EventPmcmLoadingShell viewModel={{ ...viewModel, session }} />;
   }
   return (

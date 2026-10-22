@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   archiveEventSchema,
   approveBillingSourceSchema,
+  createSupplierCertificationSchema,
+  createSupplierSchema,
+  updateSupplierSchema,
   createBillingSourceSchema,
   recordPaymentSchema,
   resolveComplianceSchema,
@@ -53,5 +56,23 @@ describe("session commercial write schemas", () => {
     const parsed = approveBillingSourceSchema.parse({ approvedBy: "Spoofed approver", approvalNotes: "Checked" });
     expect(parsed).toEqual({ approvalNotes: "Checked" });
     expect(parsed).not.toHaveProperty("approvedBy");
+  });
+
+  it("prevents profile edits from changing tier and validates optional certification expiry dates", () => {
+    expect(createSupplierSchema.safeParse({ categoryId: "cat_av", name: " Acme AV " }).success).toBe(true);
+    expect(updateSupplierSchema.safeParse({ phone: "+63 900 111 2222" }).success).toBe(true);
+    expect(updateSupplierSchema.safeParse({ tier: "tier_1" }).success).toBe(false);
+    expect(updateSupplierSchema.safeParse({ unsupported: "field" }).success).toBe(false);
+
+    expect(createSupplierCertificationSchema.safeParse({
+      fileName: "permit.pdf",
+      documentType: "permit",
+      expiresAt: "2027-06-30",
+    }).success).toBe(true);
+    expect(createSupplierCertificationSchema.safeParse({
+      fileName: "permit.pdf",
+      documentType: "permit",
+      expiresAt: "2027-02-30",
+    }).success).toBe(false);
   });
 });
