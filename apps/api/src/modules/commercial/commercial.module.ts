@@ -14,6 +14,7 @@ import { OpsQuoteRequestsController } from './api/quotes/quote-requests.controll
 import { OpsEventSupplierWithdrawalController } from './api/suppliers/event-supplier-withdrawal.controller';
 import { OpsSupplierApplicationsController } from './api/suppliers/supplier-applications.controller';
 import { OpsSupplierDirectoryController } from './api/suppliers/supplier-directory.controller';
+import { OpsPmcmSupplierDirectoryController } from './api/suppliers/pmcm-supplier-directory.controller';
 import { OpsSupplierPareController } from './api/suppliers/supplier-pare.controller';
 import { OpsSupplierWorkspaceCommandsController } from './api/suppliers/supplier-workspace-commands.controller';
 import { OpsSuppliersController } from './api/suppliers/suppliers.controller';
@@ -22,6 +23,7 @@ import { COMMERCIAL_WORKFLOW_COMMANDS, QUOTE_SUPPLIER_RESOLVER } from './contrac
 import {
   SUPPLIER_COMMANDS,
   SUPPLIER_DIRECTORY,
+  SUPPLIER_WORKSPACE_READER,
 } from './contracts/supplier-ops.tokens';
 import { PAYMENT_STATUS_READER } from './contracts/finance-ops.tokens';
 import { CommercialWorkflowService } from './application/quotes/commercial-workflow.service';
@@ -32,6 +34,8 @@ import { SupplierIngressLateMonitorService } from './application/suppliers/suppl
 import { SupplierIngressLateScheduler } from './application/suppliers/supplier-ingress-late.scheduler';
 import { SupplierProfileCommandsService } from './application/suppliers/supplier-profile-commands.service';
 import { SuppliersService } from './application/suppliers/suppliers.service';
+import { SupplierWorkspaceQueries } from './application/suppliers/supplier-workspace.queries';
+import { SupplierWorkspaceReaderService } from './application/suppliers/supplier-workspace-reader.service';
 import { BillingOperationsService } from './application/billing/billing-operations.service';
 import { BillingAdjustmentService } from './application/billing/billing-adjustment.service';
 import { PaymentOperationsService } from './application/billing/payment-operations.service';
@@ -105,6 +109,7 @@ const supplierCommandsProvider = {
     OpsEventSupplierWithdrawalController,
     OpsSupplierApplicationsController,
     OpsSupplierDirectoryController,
+    OpsPmcmSupplierDirectoryController,
     OpsSuppliersController,
     OpsSupplierWorkspaceCommandsController,
     OpsSupplierPareController,
@@ -121,6 +126,9 @@ const supplierCommandsProvider = {
     { provide: COMMERCIAL_WORKFLOW_COMMANDS, useExisting: CommercialWorkflowService },
     { provide: QUOTE_SUPPLIER_RESOLVER, useExisting: PrismaQuoteSupplierResolver },
     SuppliersService,
+    SupplierWorkspaceQueries,
+    SupplierWorkspaceReaderService,
+    { provide: SUPPLIER_WORKSPACE_READER, useExisting: SupplierWorkspaceReaderService },
     SupplierApplicationService,
     supplierDirectoryProvider,
     SupplierProfileCommandsService,
@@ -149,6 +157,7 @@ const supplierCommandsProvider = {
     SupplierProfileCommandsService,
     SupplierNetworkWorkflowService,
     SUPPLIER_COMMANDS,
+    SUPPLIER_WORKSPACE_READER,
     BillingOperationsService,
     PAYMENT_STATUS_READER,
     COMMERCIAL_PRIVACY_REDACTOR,

@@ -25,6 +25,7 @@ export * from './commercial-addendum-impact.module';
 export * from './application/quotes/commercial-workflow.service';
 export { EventDecisionSupplierOwnerModule } from './event-decision-supplier-owner.module';
 export { EventDecisionSupplierOwnerService } from './application/suppliers/event-decision-supplier-owner.service';
+export * from './contracts/supplier-workspace-reader.port';
 export * from './application/suppliers/supplier-network-workflow.service';
 export * from './application/suppliers/supplier-profile-commands.service';
 export * from './api/suppliers/event-supplier-withdrawal.controller';
