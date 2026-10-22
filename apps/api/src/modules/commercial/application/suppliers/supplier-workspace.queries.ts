@@ -103,7 +103,7 @@ const certificationStatusCte = (asOf: Date, supplierId?: string) => Prisma.sql`
         WHEN lower(cert.status) = 'verified' THEN 'verified'
         ELSE 'unknown'
       END AS effective_status
-    FROM supplier_ops.supplier_certifications cert
+    FROM commercial.supplier_certifications cert
     WHERE (${supplierId ?? null}::text IS NULL OR cert.supplier_id = ${supplierId ?? null})
   ),
   certification_summary AS (
