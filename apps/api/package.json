@@ -16,7 +16,7 @@
         "validate": "npm run prisma:validate && npm run typecheck && npm run build",
         "smoke": "node scripts/smoke-api.mjs",
         "db:seed:fixtures": "npm run build && node scripts/run-with-env.mjs scripts/seed-local-fixtures.mjs",
-        "test:fixtures:seed": "node --test scripts/seed-local-fixtures.test.mjs",
+        "test:fixtures:seed": "node --test scripts/seed-local-fixtures.test.mjs scripts/seed.test.mjs",
         "test:db:connection": "node --test scripts/db-connection-config.test.mjs",
         "test:db:preflight:quote-request-fk": "node --test scripts/db-preflight-quote-request-fk.test.mjs",
         "test:db:backup-catalog": "node --test scripts/db-backup-catalog.test.mjs",
@@ -58,7 +58,10 @@
         "postinstall": "prisma generate",
         "db:backup:json": "node scripts/run-with-env.mjs scripts/db-backup-json.mjs",
         "test:db:audit-repair": "node --test scripts/repair-audit-chain.test.mjs",
-        "test:db:password-hashes": "node --test scripts/migrate-password-hashes.test.mjs"
+        "test:db:password-hashes": "node --test scripts/migrate-password-hashes.test.mjs",
+        "db:seed": "node scripts/seed.mjs",
+        "db:seed:verify": "node scripts/seed.mjs --verify",
+        "test:fixtures:postgres": "node --test scripts/seed.postgres.test.mjs"
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.95.0",

@@ -53,6 +53,10 @@ npm run dev:event
 Linked worktrees may use different ports; run `npm run ports` to see them. Local
 fixture accounts are in the [portal accounts runbook](docs/runbooks/portal-accounts.md).
 
+For repeatable accounts and UAT data on an existing database, use the standalone
+[fixture commands](docs/runbooks/environments-and-fixtures.md). They require an
+explicit private env file and run without starting or building the API.
+
 ## Verify changes
 
 ```bash
