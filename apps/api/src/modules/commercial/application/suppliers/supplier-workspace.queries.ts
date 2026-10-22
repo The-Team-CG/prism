@@ -98,7 +98,8 @@ const certificationStatusCte = (asOf: Date, supplierId?: string) => Prisma.sql`
         WHEN lower(cert.status) = 'expired' THEN 'expired'
         WHEN lower(cert.status) IN ('verified', 'submitted')
           AND cert.expires_at IS NOT NULL
-          AND cert.expires_at::date < timezone('Asia/Manila', ${asOf}::timestamptz)::date THEN 'expired'
+          AND timezone('Asia/Manila', cert.expires_at AT TIME ZONE 'UTC')::date
+            < timezone('Asia/Manila', ${asOf}::timestamptz)::date THEN 'expired'
         WHEN lower(cert.status) = 'submitted' THEN 'submitted'
         WHEN lower(cert.status) = 'verified' THEN 'verified'
         ELSE 'unknown'
