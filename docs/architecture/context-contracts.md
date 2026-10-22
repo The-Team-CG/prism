@@ -4,7 +4,7 @@ title: "P.R.I.S.M context contracts"
 description: "Current public context surfaces, dependency direction, read-model composition, and focused seams in the Prism modular monolith."
 tags: [architecture, contracts, boundaries, ddd]
 status: canonical
-updated: "2026-10-18"
+updated: "2026-10-23"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, backend-engineers, reviewers]
@@ -121,6 +121,7 @@ legacy relation or changing schema placement.
 | Source | Target or resource | Contract rule | Current treatment |
 | --- | --- | --- | --- |
 | modules/read-models | owning business contexts | Public index, serialisable read contract, or approved reader | Read-only composition; no command/write ownership. |
+| modules/read-models | commercial supplier workspace | SUPPLIER_WORKSPACE_READER public port | Joins only the current-page event header and supplier request/assessment facts needed for PMCM review; excludes quote access tokens, prices, client contacts and audit data. |
 | modules/event-lifecycle | read-models closeout reader | Explicit pure public subpath | Reads unresolved urgent issues using the caller transaction. The exact dependency avoids a runtime module cycle. |
 | modules/platform-ops | event-lifecycle reminder eligibility | Focused lifecycle claim contract | Lifecycle validates accepted, unsigned inquiry eligibility and atomically claims the reminder window inside the approval transaction. |
 | modules/event-lifecycle and modules/floorplan | read-models event-scope reader | Explicit public reader contract | Joins scoped event identity and assignment/profile facts; controllers do not trust actor/query labels or expose joined identity fields. |

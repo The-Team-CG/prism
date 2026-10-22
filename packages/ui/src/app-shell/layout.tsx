@@ -35,12 +35,12 @@ function canUseStructuredPrimaryNav(
 
 function desktopAsideWidthClass(hasStructured: boolean, desktopOpen: boolean) {
   if (hasStructured) return desktopOpen ? "w-[20rem]" : "w-[3.75rem]";
-  return desktopOpen ? "w-[18rem]" : "w-[3.75rem]";
+  return desktopOpen ? "w-[var(--prism-shell-sidebar-width,18rem)]" : "w-[3.75rem]";
 }
 
 function mainPaddingClass(hasStructured: boolean, desktopOpen: boolean) {
   if (hasStructured) return desktopOpen ? "md:pl-[20rem]" : "md:pl-[3.75rem]";
-  return desktopOpen ? "md:pl-[18rem]" : "md:pl-[3.75rem]";
+  return desktopOpen ? "md:pl-[var(--prism-shell-sidebar-width,18rem)]" : "md:pl-[3.75rem]";
 }
 
 function DesktopPrimaryColumn({
