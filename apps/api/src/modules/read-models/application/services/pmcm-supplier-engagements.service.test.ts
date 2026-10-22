@@ -1,10 +1,19 @@
 import { ForbiddenException } from '@nestjs/common';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PmcmSupplierEngagementsService } from './pmcm-supplier-engagements.service';
 
 const actor = { role: 'pmcm-admin', name: 'Maxine' };
 
 describe('PmcmSupplierEngagementsService', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-07T12:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('keeps event requests separate and derives review and promotion actions from recorded facts', async () => {
     const reader = {
       listEngagementFacts: vi.fn(async () => ({
