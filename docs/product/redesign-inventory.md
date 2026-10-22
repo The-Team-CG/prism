@@ -4,7 +4,7 @@ title: "P.R.I.S.M whole-app redesign inventory"
 description: "Current portal and API surface inventory classified by redesign severity, owner goal, and readiness gate."
 tags: [product, redesign, inventory, ownership, frontend, backend]
 status: active
-updated: "2026-09-30"
+updated: "2026-10-23"
 authority: informative
 owner: "A (Maxine), D (Anthony)"
 audience: [design, frontend-engineers, product, reviewers]
@@ -135,6 +135,7 @@ This map connects the app/package inventory to remaining product work. Update it
 | Area | Complete enough today | Remaining work | DRI | Support | Verification |
 | --- | --- | --- | --- | --- | --- |
 | `apps/event` PMCM command | Command inbox and selected-event workspace contracts exist; root entry and several workspace components are extracted. | Make command inbox the working center, deepen one selected-event area, record which finance/files/closure/live-ops tabs remain compatibility-owned. | Francis | Maxine, Anthony | `@prism/event` typecheck; route checks for `/dashboard`, `/dashboard/events`, selected event route; screenshot. |
+| apps/event PMCM supplier network | Paged directory and URL-selected profile with private performance, certification, review history, and event engagement facts are implemented in Event Command; supplier self-service stays in its portal. | Complete owner review, browser acceptance at desktop/mobile sizes, and live PostgreSQL evidence; FL-007 remains partial. | Francis | Maxine, Anthony | Focused API/event tests, typechecks, boundary checks, PostgreSQL evidence, and screenshots. |
 | `apps/event` coordinator/live ops | Live-ops/readiness hooks and coordinator-related data exist in partial form. | Pick one coordinator/staffing/live-ops slice or gate it; do not attempt heatmap, run sheet, and replacement depth together. | Francis | Anthony | Focused API/read-model tests if behavior changes; PMCM route check. |
 | `apps/client` public/auth | Public inquiry and sign-in routes exist; client session helpers are shared. | Verify public pages cannot jump to dashboard; clarify accepted inquiry/conforme requirement in copy/states. | Ethan | Anthony, Maxine | Route checks for `/`, `/inquiry`, `/sign-in`, `/dashboard`. |
 | `apps/client` dashboard/action center | `PrismClientActionCenter` feeds dashboard actions with fallback. | Make next-action hierarchy first, remove or label broad fallback, add file/billing/floorplan/closeout cards only from existing contracts. | Ethan | Maxine, Anthony | `@prism/client` typecheck; client action-center route screenshot; official floorplan read-only evidence. |

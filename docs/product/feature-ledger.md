@@ -4,7 +4,7 @@ title: "P.R.I.S.M feature ledger"
 description: "Active product-family decisions, ownership, sequencing, and evidence for Prism feature work."
 tags: [product, features, decisions, ownership]
 status: canonical
-updated: "2026-10-21"
+updated: "2026-10-23"
 authority: normative
 owner: "B (Francis)"
 audience: [product, engineering, design, agents]
@@ -127,7 +127,7 @@ completion. They do not promote a whole feature family from partial to complete.
   dimensions, and notes remain PMCM-only.
 - **FL-002/FL-010:** Signed conforme no longer fabricates approved billing. Client payment totals reconcile actual paid and outstanding amounts.
 - **FL-005:** Proposal decisions require the primary client's verified identity and an issued proposal version. Reasons, actor/version identity and retries are durable. The production issuer is missing (W12), so the complete review journey remains gated.
-- **FL-007:** Supplier terminal transitions, selected-assignment confirmation, cancellation and event-review retries now enforce state, identity and transactional audit rules. Approved applications create a pending-first-event directory supplier with a conversion audit. An event has one PMCM assessment per supplier, enforced by a database unique index and a service check. The closure assessment form requires every category dimension before submit, and a supplier workspace read test excludes PMCM-only assessment data. Broader performance-reliability reporting remains later work.
+- **FL-007:** Supplier terminal transitions, selected-assignment confirmation, cancellation and event-review retries enforce state, identity and transactional audit rules. Approved applications create a pending-first-event supplier with a conversion audit, and each event allows one PMCM assessment per supplier. PMCM now has a paged supplier directory and profile with private ratings, scorecards, certification status, recent review/reliability/certification records, and event engagement facts. Supplier routes remain scoped away from PMCM-only review data. Live PostgreSQL and browser acceptance are still open; broader reliability analytics remain future work.
 - **FL-008:** Active assignment identity controls coordinator scope and availability. Same-date booking and replacement share a database lock. Namesakes do not grant authority.
 - **FL-013:** Closeout uses explicit deliverables, billing, logistics, unresolved issues and client feedback. Logistics passes only with a PMCM-recorded, audited logistics completion record (replacement requires a correction reason; notes stay PMCM-only); an archive override needs a durable PMCM reason.
 - **FL-015:** Sensitive routes require verified sessions and role/event ownership. Supported operational deletion redacts identity copies atomically; PMCM-executed access/export returns a subject-scoped bundle and native client/supplier/account erasure and validated name/email correction are executed atomically through PMCM privacy operations. Event-scoped guest name/email correction is implemented through PMCM privacy operations (#240), with legal-hold and destination-name collision checks. Guest deletion requires a unique roster identity and updates only that roster and its linked check-ins; ambiguous identities and name-only feedback require individual record review. Live AI remains disabled before any provider call.
