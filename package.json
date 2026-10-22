@@ -55,7 +55,9 @@
     "check:types-dist": "node scripts/check-types-dist.mjs",
     "check:boundaries": "node scripts/check-prism-boundaries.mjs",
     "check:complexity": "node scripts/check-cyclomatic-complexity.mjs",
-    "postinstall": "npm --workspace @prism/types run build"
+    "postinstall": "npm --workspace @prism/types run build",
+    "db:seed": "npm --workspace prism-api run db:seed --",
+    "db:seed:verify": "npm --workspace prism-api run db:seed:verify --"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

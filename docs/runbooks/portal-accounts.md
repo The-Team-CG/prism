@@ -4,12 +4,12 @@ title: "P.R.I.S.M portal accounts"
 description: "Local fixture accounts, access paths, and role-boundary notes for Prism portal verification."
 tags: [runbook, accounts, demo, roles]
 status: canonical
-updated: "2026-09-30"
+updated: "2026-10-23"
 authority: operational
 owner: "D (Anthony)"
 audience: [developers, QA, agents]
 scope: "local seeded accounts and role-bound portal sign-in"
-last_verified: "2026-09-02"
+last_verified: "2026-10-23; local account source and CLI scope; hosted credentials unverified"
 sources:
   - id: fixture-seed
     resource: "apps/api/src/fixtures/local-fixture-seeder.ts"
@@ -45,6 +45,22 @@ Accounts exist after the explicit fixture seed runs against an empty local dispo
 | API | `apps/api` | http://localhost:4000 | Shared backend for all portals |
 
 ## Local fixture accounts
+
+For repeatable account creation on an existing local or UAT database, use the
+[`accounts` CLI profile](environments-and-fixtures.md). It creates the six users
+listed below using passwords supplied privately in the selected environment
+file; it never resets existing credentials or 2FA. The guest code below belongs
+to the legacy sample event, not the new UAT scenarios.
+
+### Hosted account scope
+
+This table documents the **legacy local seed**. It is not a verified hosted
+credential inventory. Matching account emails in staging/UAT do not establish
+that these passwords apply there. The name Talga does not establish a target;
+check [environment identity](environments-and-fixtures.md#environment-identity).
+For hosted testing, verify account role/approval and sign-in in the identified
+environment, and exchange credentials privately. New CLI accounts use the private
+password values you supply; existing accounts retain their current values.
 
 | Portal | Role | Name | Email | Password / code | Notes |
 | --- | --- | --- | --- | --- | --- |
@@ -94,7 +110,7 @@ The fixture seed creates these events and accounts. API startup does not create 
 API startup does **not** seed data. The application has no sample state or reset routes; fixture data is created by a direct database seed command.
 
 1. Create a local PostgreSQL database named `prism_sample_disposable` and apply the Prisma migrations to it.
-2. Ensure the first nonempty runtime URL in this order points to that local database: `SUPABASE_DB_URL`, `DATABASE_URL`, `PRISMA_DATABASE_URL`, then `DIRECT_URL`. Clear or replace any earlier remote URL. Set `DIRECT_URL` to the same local database for migrations, then apply them with `npm --workspace prism-api run db:setup`.
+2. Set canonical `DATABASE_URL` to that local database. Runtime precedence is `DATABASE_URL`, `SUPABASE_DB_URL`, `PRISMA_DATABASE_URL`, then `DIRECT_URL`. A configured `DIRECT_URL` overrides migrations only; clear it or point it at the same local database, then apply migrations with `npm --workspace prism-api run db:setup`.
 3. Run the explicit seed command from the repository root:
 
    ```bash

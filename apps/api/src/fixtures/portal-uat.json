@@ -1,0 +1,1493 @@
+[
+  {
+    "table": "event_lifecycle.inquiries",
+    "key": "id",
+    "columns": [
+      "id",
+      "client_name",
+      "company_name",
+      "email",
+      "event_name",
+      "event_type",
+      "event_date",
+      "client_type",
+      "source",
+      "normalized_email",
+      "message",
+      "status",
+      "accepted_at",
+      "conforme_sent_at",
+      "conforme_signed_at",
+      "portal_activated_at",
+      "privacy_consent_accepted",
+      "privacy_notice_version"
+    ],
+    "select": "'inq_uat_supplier_261121', 'Ana Reyes', 'Ayala UAT', 'ana@ayala.test',\r\n       'UAT Operations Supplier Booking', 'Corporate Event', ($1::timestamptz + ('2026-11-21T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)),\r\n       'corporate', 'UAT Seed', 'ana@ayala.test', 'Synthetic UAT fixture for supplier requests, bookings, briefing, and proposal flows.',\r\n       'accepted', now(), now(), now(), now(), true, 'UAT-2026-10'",
+    "identity": [
+      "email",
+      "source"
+    ]
+  },
+  {
+    "table": "event_lifecycle.inquiries",
+    "key": "id",
+    "columns": [
+      "id",
+      "client_name",
+      "company_name",
+      "email",
+      "event_name",
+      "event_type",
+      "event_date",
+      "client_type",
+      "source",
+      "normalized_email",
+      "message",
+      "status",
+      "accepted_at",
+      "conforme_sent_at",
+      "conforme_signed_at",
+      "portal_activated_at",
+      "privacy_consent_accepted",
+      "privacy_notice_version"
+    ],
+    "select": "'inq_uat_live_261024', 'Ana Reyes', 'Ayala UAT', 'ana@ayala.test',\r\n       'UAT Live Ops Event', 'Corporate Event', ($1::timestamptz + ('2026-10-24T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)),\r\n       'corporate', 'UAT Seed', 'ana@ayala.test', 'Synthetic UAT fixture for event-day staffing, guest registration, and event games.',\r\n       'accepted', now(), now(), now(), now(), true, 'UAT-2026-10'",
+    "identity": [
+      "email",
+      "source"
+    ]
+  },
+  {
+    "table": "event_lifecycle.inquiries",
+    "key": "id",
+    "columns": [
+      "id",
+      "client_name",
+      "company_name",
+      "email",
+      "event_name",
+      "event_type",
+      "event_date",
+      "client_type",
+      "source",
+      "normalized_email",
+      "message",
+      "status",
+      "accepted_at",
+      "conforme_sent_at",
+      "conforme_signed_at",
+      "portal_activated_at",
+      "privacy_consent_accepted",
+      "privacy_notice_version"
+    ],
+    "select": "'inq_uat_feedback_261020', 'Ana Reyes', 'Ayala UAT', 'ana@ayala.test',\r\n       'UAT Guest Feedback', 'Corporate Event', ($1::timestamptz + ('2026-10-20T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)),\r\n       'corporate', 'UAT Seed', 'ana@ayala.test', 'Synthetic UAT fixture for recent post-event guest feedback.',\r\n       'accepted', now(), now(), now(), now(), true, 'UAT-2026-10'",
+    "identity": [
+      "email",
+      "source"
+    ]
+  },
+  {
+    "table": "event_lifecycle.inquiries",
+    "key": "id",
+    "columns": [
+      "id",
+      "client_name",
+      "company_name",
+      "email",
+      "event_name",
+      "event_type",
+      "event_date",
+      "client_type",
+      "source",
+      "normalized_email",
+      "message",
+      "status",
+      "accepted_at",
+      "conforme_sent_at",
+      "conforme_signed_at",
+      "portal_activated_at",
+      "privacy_consent_accepted",
+      "privacy_notice_version"
+    ],
+    "select": "'inq_uat_closure_261019', 'Ana Reyes', 'Ayala UAT', 'ana@ayala.test',\r\n       'UAT Closure Event', 'Corporate Event', ($1::timestamptz + ('2026-10-19T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)),\r\n       'corporate', 'UAT Seed', 'ana@ayala.test', 'Synthetic UAT fixture for closeout and archive workflows.',\r\n       'accepted', now(), now(), now(), now(), true, 'UAT-2026-10'",
+    "identity": [
+      "email",
+      "source"
+    ]
+  },
+  {
+    "table": "event_lifecycle.inquiries",
+    "key": "id",
+    "columns": [
+      "id",
+      "client_name",
+      "company_name",
+      "email",
+      "event_name",
+      "event_type",
+      "event_date",
+      "client_type",
+      "source",
+      "normalized_email",
+      "message",
+      "status",
+      "accepted_at",
+      "conforme_sent_at",
+      "conforme_signed_at",
+      "portal_activated_at",
+      "privacy_consent_accepted",
+      "privacy_notice_version"
+    ],
+    "select": "'inq_uat_archived_260815', 'Ana Reyes', 'Ayala UAT', 'ana@ayala.test',\r\n       'UAT Archived Event', 'Corporate Event', ($1::timestamptz + ('2026-08-15T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)),\r\n       'corporate', 'UAT Seed', 'ana@ayala.test', 'Synthetic UAT fixture for archived-event visibility.',\r\n       'accepted', now(), now(), now(), now(), true, 'UAT-2026-10'",
+    "identity": [
+      "email",
+      "source"
+    ]
+  },
+  {
+    "table": "event_lifecycle.events",
+    "key": "id",
+    "columns": [
+      "id",
+      "inquiry_id",
+      "client_name",
+      "event_name",
+      "event_date",
+      "status",
+      "client_portal_status",
+      "readiness",
+      "proposal_client_status"
+    ],
+    "select": "'evt_uat_ops_261121', 'inq_uat_supplier_261121', 'Ana Reyes',\r\n       'UAT Operations Supplier Booking', ($1::timestamptz + ('2026-11-21T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)),\r\n       'planning', 'unlocked', 'Conforme complete', 'pending'",
+    "identity": [
+      "inquiry_id"
+    ]
+  },
+  {
+    "table": "event_lifecycle.events",
+    "key": "id",
+    "columns": [
+      "id",
+      "inquiry_id",
+      "client_name",
+      "event_name",
+      "event_date",
+      "status",
+      "client_portal_status",
+      "readiness",
+      "proposal_client_status"
+    ],
+    "select": "'evt_uat_live_261024', 'inq_uat_live_261024', 'Ana Reyes',\r\n       'UAT Live Ops Event', ($1::timestamptz + ('2026-10-24T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)),\r\n       'planning', 'unlocked', 'Conforme complete', 'pending'",
+    "identity": [
+      "inquiry_id"
+    ]
+  },
+  {
+    "table": "event_lifecycle.events",
+    "key": "id",
+    "columns": [
+      "id",
+      "inquiry_id",
+      "client_name",
+      "event_name",
+      "event_date",
+      "actual_ended_at",
+      "status",
+      "client_portal_status",
+      "readiness",
+      "proposal_client_status"
+    ],
+    "select": "'evt_uat_guest_261020', 'inq_uat_feedback_261020', 'Ana Reyes',\r\n       'UAT Guest Feedback', ($1::timestamptz + ('2026-10-20T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)),\r\n       ($1::timestamptz + ('2026-10-20T20:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), 'completed', 'unlocked', 'Event complete', 'pending'",
+    "identity": [
+      "inquiry_id"
+    ]
+  },
+  {
+    "table": "event_lifecycle.events",
+    "key": "id",
+    "columns": [
+      "id",
+      "inquiry_id",
+      "client_name",
+      "event_name",
+      "event_date",
+      "actual_ended_at",
+      "status",
+      "client_portal_status",
+      "readiness",
+      "proposal_client_status"
+    ],
+    "select": "'evt_uat_closure_261019', 'inq_uat_closure_261019', 'Ana Reyes',\r\n       'UAT Closure Event', ($1::timestamptz + ('2026-10-19T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)),\r\n       ($1::timestamptz + ('2026-10-19T20:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), 'completed', 'unlocked', 'Event complete', 'pending'",
+    "identity": [
+      "inquiry_id"
+    ]
+  },
+  {
+    "table": "event_lifecycle.events",
+    "key": "id",
+    "columns": [
+      "id",
+      "inquiry_id",
+      "client_name",
+      "event_name",
+      "event_date",
+      "actual_ended_at",
+      "status",
+      "client_portal_status",
+      "readiness",
+      "proposal_client_status",
+      "archived",
+      "archived_at"
+    ],
+    "select": "'evt_uat_archived_260815', 'inq_uat_archived_260815', 'Ana Reyes',\r\n       'UAT Archived Event', ($1::timestamptz + ('2026-08-15T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)),\r\n       ($1::timestamptz + ('2026-08-15T20:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), 'completed', 'unlocked', 'Event complete', 'pending',\r\n       true, ($1::timestamptz + ('2026-08-16T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz))",
+    "identity": [
+      "inquiry_id"
+    ]
+  },
+  {
+    "table": "event_lifecycle.conforme_executions",
+    "key": "id",
+    "columns": [
+      "id",
+      "inquiry_id",
+      "event_id",
+      "template_version",
+      "template_content",
+      "template_sha256",
+      "document_content",
+      "document_sha256",
+      "status",
+      "completed_at"
+    ],
+    "select": "'conf_uat_supplier_261121', 'inq_uat_supplier_261121', 'evt_uat_ops_261121', 1,\r\n       'PRISM UAT conforme fixture v1', 'aaeeff0337aff13c00b1b8f47ac816c38de306a98a6c1a637cff5507b148965d',\r\n       'PRISM UAT conforme fixture v1', 'aaeeff0337aff13c00b1b8f47ac816c38de306a98a6c1a637cff5507b148965d',\r\n       'completed', now()",
+    "identity": [
+      "inquiry_id",
+      "event_id"
+    ]
+  },
+  {
+    "table": "event_lifecycle.conforme_executions",
+    "key": "id",
+    "columns": [
+      "id",
+      "inquiry_id",
+      "event_id",
+      "template_version",
+      "template_content",
+      "template_sha256",
+      "document_content",
+      "document_sha256",
+      "status",
+      "completed_at"
+    ],
+    "select": "'conf_uat_live_261024', 'inq_uat_live_261024', 'evt_uat_live_261024', 1,\r\n       'PRISM UAT conforme fixture v1', 'aaeeff0337aff13c00b1b8f47ac816c38de306a98a6c1a637cff5507b148965d',\r\n       'PRISM UAT conforme fixture v1', 'aaeeff0337aff13c00b1b8f47ac816c38de306a98a6c1a637cff5507b148965d',\r\n       'completed', now()",
+    "identity": [
+      "inquiry_id",
+      "event_id"
+    ]
+  },
+  {
+    "table": "event_lifecycle.conforme_executions",
+    "key": "id",
+    "columns": [
+      "id",
+      "inquiry_id",
+      "event_id",
+      "template_version",
+      "template_content",
+      "template_sha256",
+      "document_content",
+      "document_sha256",
+      "status",
+      "completed_at"
+    ],
+    "select": "'conf_uat_feedback_261020', 'inq_uat_feedback_261020', 'evt_uat_guest_261020', 1,\r\n       'PRISM UAT conforme fixture v1', 'aaeeff0337aff13c00b1b8f47ac816c38de306a98a6c1a637cff5507b148965d',\r\n       'PRISM UAT conforme fixture v1', 'aaeeff0337aff13c00b1b8f47ac816c38de306a98a6c1a637cff5507b148965d',\r\n       'completed', now()",
+    "identity": [
+      "inquiry_id",
+      "event_id"
+    ]
+  },
+  {
+    "table": "event_lifecycle.conforme_executions",
+    "key": "id",
+    "columns": [
+      "id",
+      "inquiry_id",
+      "event_id",
+      "template_version",
+      "template_content",
+      "template_sha256",
+      "document_content",
+      "document_sha256",
+      "status",
+      "completed_at"
+    ],
+    "select": "'conf_uat_closure_261019', 'inq_uat_closure_261019', 'evt_uat_closure_261019', 1,\r\n       'PRISM UAT conforme fixture v1', 'aaeeff0337aff13c00b1b8f47ac816c38de306a98a6c1a637cff5507b148965d',\r\n       'PRISM UAT conforme fixture v1', 'aaeeff0337aff13c00b1b8f47ac816c38de306a98a6c1a637cff5507b148965d',\r\n       'completed', now()",
+    "identity": [
+      "inquiry_id",
+      "event_id"
+    ]
+  },
+  {
+    "table": "event_lifecycle.conforme_executions",
+    "key": "id",
+    "columns": [
+      "id",
+      "inquiry_id",
+      "event_id",
+      "template_version",
+      "template_content",
+      "template_sha256",
+      "document_content",
+      "document_sha256",
+      "status",
+      "completed_at"
+    ],
+    "select": "'conf_uat_archived_260815', 'inq_uat_archived_260815', 'evt_uat_archived_260815', 1,\r\n       'PRISM UAT conforme fixture v1', 'aaeeff0337aff13c00b1b8f47ac816c38de306a98a6c1a637cff5507b148965d',\r\n       'PRISM UAT conforme fixture v1', 'aaeeff0337aff13c00b1b8f47ac816c38de306a98a6c1a637cff5507b148965d',\r\n       'completed', now()",
+    "identity": [
+      "inquiry_id",
+      "event_id"
+    ]
+  },
+  {
+    "table": "event_lifecycle.conforme_signatures",
+    "key": "id",
+    "columns": [
+      "id",
+      "execution_id",
+      "actor_id",
+      "actor_role",
+      "actor_name",
+      "actor_email",
+      "consent_text_version",
+      "consent_text"
+    ],
+    "select": "'sig_uat_supplier_client', 'conf_uat_supplier_261121', 'usr_client', 'client', 'Ana Reyes (UAT fixture)',\r\n       'ana@ayala.test', 'UAT-SEED-ONLY-v1', 'UAT seed record only; this is not a legal signature or client consent.'",
+    "identity": [
+      "execution_id",
+      "actor_id",
+      "actor_role",
+      "actor_email"
+    ]
+  },
+  {
+    "table": "event_lifecycle.conforme_signatures",
+    "key": "id",
+    "columns": [
+      "id",
+      "execution_id",
+      "actor_id",
+      "actor_role",
+      "actor_name",
+      "actor_email",
+      "consent_text_version",
+      "consent_text"
+    ],
+    "select": "'sig_uat_live_client', 'conf_uat_live_261024', 'usr_client', 'client', 'Ana Reyes (UAT fixture)',\r\n       'ana@ayala.test', 'UAT-SEED-ONLY-v1', 'UAT seed record only; this is not a legal signature or client consent.'",
+    "identity": [
+      "execution_id",
+      "actor_id",
+      "actor_role",
+      "actor_email"
+    ]
+  },
+  {
+    "table": "event_lifecycle.conforme_signatures",
+    "key": "id",
+    "columns": [
+      "id",
+      "execution_id",
+      "actor_id",
+      "actor_role",
+      "actor_name",
+      "actor_email",
+      "consent_text_version",
+      "consent_text"
+    ],
+    "select": "'sig_uat_feedback_client', 'conf_uat_feedback_261020', 'usr_client', 'client', 'Ana Reyes (UAT fixture)',\r\n       'ana@ayala.test', 'UAT-SEED-ONLY-v1', 'UAT seed record only; this is not a legal signature or client consent.'",
+    "identity": [
+      "execution_id",
+      "actor_id",
+      "actor_role",
+      "actor_email"
+    ]
+  },
+  {
+    "table": "event_lifecycle.conforme_signatures",
+    "key": "id",
+    "columns": [
+      "id",
+      "execution_id",
+      "actor_id",
+      "actor_role",
+      "actor_name",
+      "actor_email",
+      "consent_text_version",
+      "consent_text"
+    ],
+    "select": "'sig_uat_closure_client', 'conf_uat_closure_261019', 'usr_client', 'client', 'Ana Reyes (UAT fixture)',\r\n       'ana@ayala.test', 'UAT-SEED-ONLY-v1', 'UAT seed record only; this is not a legal signature or client consent.'",
+    "identity": [
+      "execution_id",
+      "actor_id",
+      "actor_role",
+      "actor_email"
+    ]
+  },
+  {
+    "table": "event_lifecycle.conforme_signatures",
+    "key": "id",
+    "columns": [
+      "id",
+      "execution_id",
+      "actor_id",
+      "actor_role",
+      "actor_name",
+      "actor_email",
+      "consent_text_version",
+      "consent_text"
+    ],
+    "select": "'sig_uat_archived_client', 'conf_uat_archived_260815', 'usr_client', 'client', 'Ana Reyes (UAT fixture)',\r\n       'ana@ayala.test', 'UAT-SEED-ONLY-v1', 'UAT seed record only; this is not a legal signature or client consent.'",
+    "identity": [
+      "execution_id",
+      "actor_id",
+      "actor_role",
+      "actor_email"
+    ]
+  },
+  {
+    "table": "event_lifecycle.briefings",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "venue",
+      "guest_count",
+      "budget_range",
+      "service_requirements",
+      "notes",
+      "confirmed_date",
+      "confirmed_start_time",
+      "confirmed_end_time",
+      "program",
+      "mood_and_styling",
+      "styling_budget"
+    ],
+    "select": "'brief_uat_ops_261121_v1', 'evt_uat_ops_261121', 'Function Room A', 120,\r\n       'PHP 1,200,000–1,500,000', '[\"Catering\", \"Registration\", \"Production\"]'::jsonb,\r\n       'Seeded first briefing revision for UAT resubmission.', ($1::timestamptz + ('2026-11-21T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)),\r\n       '08:00', '21:00', '[{\"time\":\"08:00\",\"activity\":\"Registration\"},{\"time\":\"10:00\",\"activity\":\"Program start\"}]'::jsonb,\r\n       'Warm modern Filipino; cream and deep green palette.', 180000",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "event_lifecycle.ocular_visit_requests",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "status",
+      "client_note",
+      "requested_at",
+      "updated_at"
+    ],
+    "select": "'ocular_uat_ops_261121', 'evt_uat_ops_261121', 'requested',\r\n       'Please confirm an available venue walk-through slot for the UAT event.', now(), now()",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "event_lifecycle.scope_change_requests",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "requested_by_role",
+      "requested_by",
+      "requested_by_id",
+      "title",
+      "description",
+      "category",
+      "status"
+    ],
+    "select": "'scope_uat_ops_261121', 'evt_uat_ops_261121', 'client', 'Ana Reyes', 'usr_client',\r\n       'Add a second registration desk', 'Please add one staffed registration desk near the north entrance.',\r\n       'operations', 'submitted'",
+    "identity": [
+      "event_id",
+      "requested_by_id"
+    ]
+  },
+  {
+    "table": "event_lifecycle.file_requirements",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "key",
+      "label",
+      "owner_role",
+      "visible_to_roles",
+      "required",
+      "due_at",
+      "source_workflow",
+      "updated_by"
+    ],
+    "select": "'file_req_uat_supplier_contract', 'evt_uat_ops_261121', 'supplier_contract',\r\n       'Signed supplier contract', 'supplier', ARRAY['supplier', 'pmcm-admin']::text[], true,\r\n       ($1::timestamptz + ('2026-11-07T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), 'supplier_booking', 'usr_pmcm'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "event_lifecycle.file_requirements",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "key",
+      "label",
+      "owner_role",
+      "visible_to_roles",
+      "required",
+      "due_at",
+      "source_workflow",
+      "updated_by"
+    ],
+    "select": "'file_req_uat_client_floorplan', 'evt_uat_ops_261121', 'client_floorplan_preferences',\r\n       'Client floorplan preferences', 'client', ARRAY['client', 'pmcm-admin']::text[], true,\r\n       ($1::timestamptz + ('2026-11-10T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), 'floorplan', 'usr_pmcm'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.quote_requests",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "supplier_id",
+      "category_id",
+      "supplier_name",
+      "category",
+      "message",
+      "due_date",
+      "access_token",
+      "status"
+    ],
+    "select": "'rq_uat_xperto_submit', 'evt_uat_ops_261121', 'sup_xperto', 'supcat_digital_registration',\r\n       'XPERTO Registration', 'Digital Registration', 'Submit an initial registration proposal for this UAT event.',\r\n       ($1::timestamptz + ('2026-11-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), replace(gen_random_uuid()::text, '-', ''), 'open'",
+    "identity": [
+      "event_id",
+      "supplier_id",
+      "category_id"
+    ]
+  },
+  {
+    "table": "commercial.quote_requests",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "supplier_id",
+      "category_id",
+      "supplier_name",
+      "category",
+      "message",
+      "due_date",
+      "access_token",
+      "status"
+    ],
+    "select": "'rq_uat_xperto_revision', 'evt_uat_ops_261121', 'sup_xperto', 'supcat_digital_registration',\r\n       'XPERTO Registration', 'Digital Registration', 'Revise the seeded quote to test supplier resubmission and history.',\r\n       ($1::timestamptz + ('2026-11-02T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), replace(gen_random_uuid()::text, '-', ''), 'open'",
+    "identity": [
+      "event_id",
+      "supplier_id",
+      "category_id"
+    ]
+  },
+  {
+    "table": "commercial.quote_requests",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "supplier_id",
+      "category_id",
+      "supplier_name",
+      "category",
+      "message",
+      "due_date",
+      "access_token",
+      "status"
+    ],
+    "select": "'rq_uat_xperto_selected', 'evt_uat_ops_261121', 'sup_xperto', 'supcat_digital_registration',\r\n       'XPERTO Registration', 'Digital Registration', 'Selected UAT supplier booking awaiting supplier confirmation.',\r\n       ($1::timestamptz + ('2026-11-03T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), replace(gen_random_uuid()::text, '-', ''), 'selected'",
+    "identity": [
+      "event_id",
+      "supplier_id",
+      "category_id"
+    ]
+  },
+  {
+    "table": "commercial.quote_requests",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "supplier_id",
+      "category_id",
+      "supplier_name",
+      "category",
+      "message",
+      "due_date",
+      "access_token",
+      "status",
+      "assignment_status",
+      "assignment_confirmed_at"
+    ],
+    "select": "'rq_uat_bloom_confirmed', 'evt_uat_ops_261121', 'sup_bloom', 'supcat_production',\r\n       'Bloom Florals', 'Production', 'Confirmed UAT booking with schedule, creative task, and payable milestone.',\r\n       ($1::timestamptz + ('2026-11-03T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), replace(gen_random_uuid()::text, '-', ''),\r\n       'selected', 'confirmed', now()",
+    "identity": [
+      "event_id",
+      "supplier_id",
+      "category_id"
+    ]
+  },
+  {
+    "table": "commercial.quote_requests",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "supplier_id",
+      "category_id",
+      "supplier_name",
+      "category",
+      "message",
+      "due_date",
+      "access_token",
+      "status",
+      "assignment_status",
+      "assignment_confirmed_at"
+    ],
+    "select": "'rq_uat_bloom_closed', 'evt_uat_ops_261121', 'sup_bloom', 'supcat_production',\r\n       'Bloom Florals', 'Production', 'Closed UAT request for supplier read-only history checks.',\r\n       ($1::timestamptz + ('2026-11-03T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), replace(gen_random_uuid()::text, '-', ''),\r\n       'closed', 'confirmed', now()",
+    "identity": [
+      "event_id",
+      "supplier_id",
+      "category_id"
+    ]
+  },
+  {
+    "table": "commercial.quotes",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "request_id",
+      "supplier_id",
+      "category_id",
+      "supplier_name",
+      "category",
+      "amount",
+      "inclusions",
+      "payment_terms",
+      "notes",
+      "status",
+      "revision_number",
+      "updated_at"
+    ],
+    "select": "'quote_uat_xperto_revision_1', 'evt_uat_ops_261121', 'rq_uat_xperto_revision',\r\n       'sup_xperto', 'supcat_digital_registration', 'XPERTO Registration', 'Digital Registration', 420000,\r\n       '[\"Online registration portal\", \"On-site check-in team\"]'::jsonb, '50% upon confirmation; balance after event',\r\n       'Seeded submitted quote; supplier can revise from the XPERTO portal.', 'submitted', 1, now()",
+    "identity": [
+      "event_id",
+      "request_id",
+      "supplier_id",
+      "category_id"
+    ]
+  },
+  {
+    "table": "commercial.quotes",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "request_id",
+      "supplier_id",
+      "category_id",
+      "supplier_name",
+      "category",
+      "amount",
+      "inclusions",
+      "payment_terms",
+      "notes",
+      "status",
+      "revision_number",
+      "selected_at",
+      "updated_at"
+    ],
+    "select": "'quote_uat_xperto_selected', 'evt_uat_ops_261121', 'rq_uat_xperto_selected',\r\n       'sup_xperto', 'supcat_digital_registration', 'XPERTO Registration', 'Digital Registration', 485000,\r\n       '[\"Registration portal\", \"QR check-in\", \"Post-event attendance report\"]'::jsonb,\r\n       '50% deposit; balance after event', 'Seeded selected proposal awaiting supplier confirmation.',\r\n       'selected', 1, now(), now()",
+    "identity": [
+      "event_id",
+      "request_id",
+      "supplier_id",
+      "category_id"
+    ]
+  },
+  {
+    "table": "commercial.quotes",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "request_id",
+      "supplier_id",
+      "category_id",
+      "supplier_name",
+      "category",
+      "amount",
+      "inclusions",
+      "payment_terms",
+      "notes",
+      "status",
+      "revision_number",
+      "selected_at",
+      "updated_at"
+    ],
+    "select": "'quote_uat_bloom_confirmed', 'evt_uat_ops_261121', 'rq_uat_bloom_confirmed',\r\n       'sup_bloom', 'supcat_production', 'Bloom Florals', 'Production', 180000,\r\n       '[\"Stage florals\", \"Guest table arrangements\", \"Setup and strike\"]'::jsonb,\r\n       '50% deposit; balance after event', 'Seeded confirmed booking quote.', 'selected', 1, now(), now()",
+    "identity": [
+      "event_id",
+      "request_id",
+      "supplier_id",
+      "category_id"
+    ]
+  },
+  {
+    "table": "commercial.supplier_schedules",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "request_id",
+      "ingress_at",
+      "egress_at",
+      "location",
+      "notes",
+      "status",
+      "updated_at"
+    ],
+    "select": "'schedule_uat_bloom_261121', 'evt_uat_ops_261121', 'rq_uat_bloom_confirmed',\r\n       ($1::timestamptz + ('2026-11-21T07:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), ($1::timestamptz + ('2026-11-21T21:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)),\r\n       'Function Room A', 'Acknowledge this planned supplier ingress and egress schedule.', 'planned', now()",
+    "identity": [
+      "event_id",
+      "request_id"
+    ]
+  },
+  {
+    "table": "commercial.supplier_creative_tasks",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "request_id",
+      "supplier_id",
+      "title",
+      "brief",
+      "due_at",
+      "status",
+      "supplier_progress_note",
+      "created_by",
+      "updated_at"
+    ],
+    "select": "'creative_uat_bloom_261121', 'evt_uat_ops_261121', 'rq_uat_bloom_confirmed', 'sup_bloom',\r\n       'Submit floral mood board', 'Upload a revised visual direction for stage and guest table florals.',\r\n       ($1::timestamptz + ('2026-11-10T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), 'open', '', 'usr_pmcm', now()",
+    "identity": [
+      "event_id",
+      "request_id",
+      "supplier_id"
+    ]
+  },
+  {
+    "table": "commercial.supplier_payable_milestones",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "request_id",
+      "quote_id",
+      "supplier_id",
+      "label",
+      "amount",
+      "due_date",
+      "status",
+      "created_by",
+      "updated_at"
+    ],
+    "select": "'payable_uat_bloom_deposit', 'evt_uat_ops_261121', 'rq_uat_bloom_confirmed',\r\n       'quote_uat_bloom_confirmed', 'sup_bloom', 'Floral production deposit', 90000,\r\n       ($1::timestamptz + ('2026-11-07T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), 'scheduled', 'usr_pmcm', now()",
+    "identity": [
+      "event_id",
+      "request_id",
+      "quote_id",
+      "supplier_id"
+    ]
+  },
+  {
+    "table": "commercial.supplier_applications",
+    "key": "id",
+    "columns": [
+      "id",
+      "company_name",
+      "contact_name",
+      "email",
+      "normalized_email",
+      "phone",
+      "category_id",
+      "past_events",
+      "service_inclusions",
+      "price_range",
+      "additional_notes",
+      "status",
+      "privacy_consent_accepted",
+      "privacy_notice_version",
+      "updated_at"
+    ],
+    "select": "'application_uat_northstar', 'Northstar UAT Logistics', 'Riley Santos',\r\n       'riley@northstar-uat.example', 'riley@northstar-uat.example', '+63 917 555 0142',\r\n       'supcat_production', 'UAT event logistics and technical production',\r\n       'Venue setup, staging, and event-day crew', 'PHP 80,000–220,000',\r\n       'Synthetic supplier application for PMCM review.', 'pending', true, 'UAT-2026-10', now()",
+    "identity": [
+      "email",
+      "category_id"
+    ]
+  },
+  {
+    "table": "commercial.cost_estimates",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "budget_amount",
+      "total_amount",
+      "status",
+      "notes",
+      "updated_at"
+    ],
+    "select": "'estimate_uat_ops_261121', 'evt_uat_ops_261121', 1500000, 865000, 'ready',\r\n       'Synthetic proposal estimate for client approval and revision tests.', now()",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.cost_estimate_lines",
+    "key": "id",
+    "columns": [
+      "id",
+      "estimate_id",
+      "category",
+      "description",
+      "quantity",
+      "unit_amount",
+      "total_amount"
+    ],
+    "select": "'estimate_line_uat_ops_registration', 'estimate_uat_ops_261121', 'Digital Registration',\r\n       'Registration portal and check-in support', 1.000, 485000, 485000",
+    "identity": [
+      "estimate_id"
+    ]
+  },
+  {
+    "table": "commercial.cost_estimate_lines",
+    "key": "id",
+    "columns": [
+      "id",
+      "estimate_id",
+      "category",
+      "description",
+      "quantity",
+      "unit_amount",
+      "total_amount"
+    ],
+    "select": "'estimate_line_uat_ops_production', 'estimate_uat_ops_261121', 'Production',\r\n       'Floral design, setup, and strike', 1.000, 380000, 380000",
+    "identity": [
+      "estimate_id"
+    ]
+  },
+  {
+    "table": "commercial.proposal_versions",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "cost_estimate_id",
+      "version_number",
+      "title",
+      "summary",
+      "total_amount",
+      "status",
+      "issued_at"
+    ],
+    "select": "'proposal_uat_ops_v1', 'evt_uat_ops_261121', 'estimate_uat_ops_261121', 1,\r\n       'UAT Operations Event Proposal', 'Seeded proposal ready for Ana to approve or request a revision.',\r\n       865000, 'issued', now()",
+    "identity": [
+      "event_id",
+      "cost_estimate_id"
+    ]
+  },
+  {
+    "table": "commercial.client_review_items",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "kind",
+      "title",
+      "summary",
+      "version",
+      "status",
+      "budget_range",
+      "created_by",
+      "published_at",
+      "updated_at"
+    ],
+    "select": "'review_uat_venue_v1', 'evt_uat_ops_261121', 'venue', 'Function Room A',\r\n       'Accessible ballroom with a north entrance and built-in stage.', 1, 'published',\r\n       'PHP 280,000–340,000', 'usr_pmcm', now(), now()",
+    "identity": [
+      "event_id",
+      "kind"
+    ]
+  },
+  {
+    "table": "commercial.client_review_items",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "kind",
+      "title",
+      "summary",
+      "version",
+      "status",
+      "budget_range",
+      "created_by",
+      "published_at",
+      "updated_at"
+    ],
+    "select": "'review_uat_styling_v1', 'evt_uat_ops_261121', 'styling', 'Warm modern Filipino',\r\n       'Cream and deep green palette with locally sourced flowers.', 1, 'published',\r\n       'PHP 150,000–220,000', 'usr_pmcm', now(), now()",
+    "identity": [
+      "event_id",
+      "kind"
+    ]
+  },
+  {
+    "table": "commercial.communication_threads",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "subject",
+      "created_by",
+      "updated_at"
+    ],
+    "select": "'thread_uat_ops_supplier', 'evt_uat_ops_261121', 'UAT supplier and event coordination', 'usr_pmcm', now()",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.communication_participants",
+    "key": "id",
+    "columns": [
+      "id",
+      "thread_id",
+      "actor_id",
+      "actor_role",
+      "actor_email"
+    ],
+    "select": "'participant_uat_ops_pmcm', 'thread_uat_ops_supplier', 'usr_pmcm', 'pmcm-admin', 'mys@pmcm.test'",
+    "identity": [
+      "thread_id",
+      "actor_id",
+      "actor_role",
+      "actor_email"
+    ]
+  },
+  {
+    "table": "commercial.communication_participants",
+    "key": "id",
+    "columns": [
+      "id",
+      "thread_id",
+      "actor_id",
+      "actor_role",
+      "actor_email"
+    ],
+    "select": "'participant_uat_ops_client', 'thread_uat_ops_supplier', 'usr_client', 'client', 'ana@ayala.test'",
+    "identity": [
+      "thread_id",
+      "actor_id",
+      "actor_role",
+      "actor_email"
+    ]
+  },
+  {
+    "table": "commercial.communication_participants",
+    "key": "id",
+    "columns": [
+      "id",
+      "thread_id",
+      "actor_id",
+      "actor_role",
+      "actor_email"
+    ],
+    "select": "'participant_uat_ops_bloom', 'thread_uat_ops_supplier', 'usr_supplier_bloom', 'supplier', 'flowers@bloom.test'",
+    "identity": [
+      "thread_id",
+      "actor_id",
+      "actor_role",
+      "actor_email"
+    ]
+  },
+  {
+    "table": "commercial.communication_messages",
+    "key": "id",
+    "columns": [
+      "id",
+      "thread_id",
+      "sender_id",
+      "sender_role",
+      "sender_email",
+      "body",
+      "payload_hash",
+      "idempotency_key"
+    ],
+    "select": "'message_uat_ops_pmcm', 'thread_uat_ops_supplier', 'usr_pmcm', 'pmcm-admin', 'mys@pmcm.test',\r\n       'Seeded UAT coordination notes', 'c7ac27c464e087766f12edcae53cd4f74faf5adf38041f005463e127415694cd', 'uat-seed-pmcm-v1'",
+    "identity": [
+      "thread_id",
+      "sender_id",
+      "sender_email"
+    ]
+  },
+  {
+    "table": "commercial.communication_messages",
+    "key": "id",
+    "columns": [
+      "id",
+      "thread_id",
+      "sender_id",
+      "sender_role",
+      "sender_email",
+      "body",
+      "payload_hash",
+      "idempotency_key"
+    ],
+    "select": "'message_uat_ops_client', 'thread_uat_ops_supplier', 'usr_client', 'client', 'ana@ayala.test',\r\n       'Seeded UAT client reply', '44bd276bf1cdf9582585638177780c9eaec675a8ecc01e86ee7961e72ae507a5', 'uat-seed-client-v1'",
+    "identity": [
+      "thread_id",
+      "sender_id",
+      "sender_email"
+    ]
+  },
+  {
+    "table": "operations.guest_roster_entries",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "source_key",
+      "guest_name",
+      "normalized_name",
+      "email",
+      "category",
+      "table",
+      "eligibility",
+      "verification_status",
+      "source",
+      "privacy_consent_accepted",
+      "privacy_notice_version",
+      "updated_at"
+    ],
+    "select": "'roster_uat_live_sofia', 'evt_uat_live_261024', 'uat-sofia-lim', 'Sofia Lim', 'sofia lim',\r\n       'sofia.lim@example.test', 'VIP', 'Table 1', 'eligible', 'pending', 'manual', false, 'UAT-2026-10', now()",
+    "identity": [
+      "event_id",
+      "source_key",
+      "email"
+    ]
+  },
+  {
+    "table": "operations.guest_roster_entries",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "source_key",
+      "guest_name",
+      "normalized_name",
+      "email",
+      "category",
+      "table",
+      "eligibility",
+      "verification_status",
+      "source",
+      "privacy_consent_accepted",
+      "privacy_notice_version",
+      "privacy_consent_captured_at",
+      "checked_in_at",
+      "updated_at"
+    ],
+    "select": "'roster_uat_live_diego', 'evt_uat_live_261024', 'uat-diego-ramos', 'Diego Ramos', 'diego ramos',\r\n       'diego.ramos@example.test', 'General', 'Table 4', 'eligible', 'verified', 'manual', true,\r\n       'UAT-2026-10', now() - interval '1 hour', now() - interval '1 hour', now()",
+    "identity": [
+      "event_id",
+      "source_key",
+      "email"
+    ]
+  },
+  {
+    "table": "operations.guest_roster_entries",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "source_key",
+      "guest_name",
+      "normalized_name",
+      "email",
+      "category",
+      "eligibility",
+      "verification_status",
+      "source",
+      "privacy_consent_accepted",
+      "privacy_notice_version",
+      "updated_at"
+    ],
+    "select": "'roster_uat_feedback_maya', 'evt_uat_guest_261020', 'uat-maya-cruz', 'Maya Cruz', 'maya cruz',\r\n       'maya.cruz@example.test', 'General', 'eligible', 'verified', 'manual', true, 'UAT-2026-10', now()",
+    "identity": [
+      "event_id",
+      "source_key",
+      "email"
+    ]
+  },
+  {
+    "table": "operations.guest_roster_entries",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "source_key",
+      "guest_name",
+      "normalized_name",
+      "email",
+      "category",
+      "eligibility",
+      "verification_status",
+      "source",
+      "privacy_consent_accepted",
+      "privacy_notice_version",
+      "updated_at"
+    ],
+    "select": "'roster_uat_feedback_noel', 'evt_uat_guest_261020', 'uat-noel-reyes', 'Noel Reyes', 'noel reyes',\r\n       'noel.reyes@example.test', 'General', 'eligible', 'verified', 'manual', true, 'UAT-2026-10', now()",
+    "identity": [
+      "event_id",
+      "source_key",
+      "email"
+    ]
+  },
+  {
+    "table": "operations.check_ins",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "roster_entry_id",
+      "guest_name",
+      "check_in_mode",
+      "status",
+      "walk_in",
+      "verification_status",
+      "privacy_consent_accepted",
+      "privacy_notice_version",
+      "privacy_consent_captured_at",
+      "checked_in_at"
+    ],
+    "select": "'checkin_uat_live_diego', 'evt_uat_live_261024', 'roster_uat_live_diego', 'Diego Ramos',\r\n       'name_search', 'checked_in', false, 'verified', true, 'UAT-2026-10',\r\n       now() - interval '1 hour', now() - interval '1 hour'",
+    "identity": [
+      "event_id",
+      "roster_entry_id"
+    ]
+  },
+  {
+    "table": "operations.feedback",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "guest_name",
+      "rating",
+      "comment",
+      "privacy_consent_accepted",
+      "privacy_notice_version",
+      "moderation_status"
+    ],
+    "select": "'feedback_uat_guest_existing', 'evt_uat_guest_261020', 'Noel Reyes', 5,\r\n       'UAT fixture feedback awaiting PMCM moderation.', true, 'UAT-2026-10', 'pending_review'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "operations.registration_platforms",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "platform_type",
+      "supplier_id",
+      "expected_pax_min",
+      "expected_pax_max",
+      "status",
+      "setup_notes",
+      "updated_at"
+    ],
+    "select": "'registration_uat_live_261024', 'evt_uat_live_261024', 'xperto', 'sup_xperto', 100, 150,\r\n       'not_started', 'UAT registration setup; confirm headcount and import a roster from the event portal.', now()",
+    "identity": [
+      "event_id",
+      "supplier_id"
+    ]
+  },
+  {
+    "table": "operations.event_coverage_requirements",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "role",
+      "required",
+      "required_skills",
+      "created_by",
+      "updated_by",
+      "updated_at"
+    ],
+    "select": "'coverage_uat_live_coord', 'evt_uat_live_261024', 'General Coordinator', 1,\r\n       ARRAY['event-day', 'vendor-coordination']::text[], 'usr_pmcm', 'usr_pmcm', now()",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "operations.event_coverage_requirements",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "role",
+      "required",
+      "required_skills",
+      "created_by",
+      "updated_by",
+      "updated_at"
+    ],
+    "select": "'coverage_uat_live_registration', 'evt_uat_live_261024', 'Registration Staff', 2,\r\n       ARRAY['guest-check-in']::text[], 'usr_pmcm', 'usr_pmcm', now()",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "operations.coordinator_assignments",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "coordinator_id",
+      "coordinator_name",
+      "role",
+      "status",
+      "attendance_status",
+      "event_date",
+      "acknowledged_at",
+      "acknowledged_by",
+      "acknowledgement_reason"
+    ],
+    "select": "'coord_asg_uat_live_marco', 'evt_uat_live_261024', 'coord_marco', 'Marco Santos',\r\n       'General Coordinator', 'acknowledged', 'pending', ($1::timestamptz + ('2026-10-24T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)),\r\n       now(), 'usr_coord', 'Acknowledged UAT fixture assignment.'",
+    "identity": [
+      "event_id",
+      "coordinator_id"
+    ]
+  },
+  {
+    "table": "operations.coordinator_assignments",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "coordinator_id",
+      "coordinator_name",
+      "role",
+      "status",
+      "attendance_status",
+      "event_date"
+    ],
+    "select": "'coord_asg_uat_live_bianca', 'evt_uat_live_261024', 'coord_bianca', 'Bianca Lim',\r\n       'Registration Staff', 'pending_acknowledgement', 'pending', ($1::timestamptz + ('2026-10-24T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz))",
+    "identity": [
+      "event_id",
+      "coordinator_id"
+    ]
+  },
+  {
+    "table": "operations.coordinator_assignments",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "coordinator_id",
+      "coordinator_name",
+      "role",
+      "status",
+      "attendance_status",
+      "event_date",
+      "acknowledged_at",
+      "acknowledged_by",
+      "acknowledgement_reason"
+    ],
+    "select": "'coord_asg_uat_archived_marco', 'evt_uat_archived_260815', 'coord_marco', 'Marco Santos',\r\n       'General Coordinator', 'acknowledged', 'present', ($1::timestamptz + ('2026-08-15T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)),\r\n       ($1::timestamptz + ('2026-08-15T08:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), 'usr_coord', 'Archived UAT event attendance.'",
+    "identity": [
+      "event_id",
+      "coordinator_id"
+    ]
+  },
+  {
+    "table": "live_ops.event_day_tasks",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "title",
+      "assigned_role",
+      "owner_name",
+      "priority",
+      "status",
+      "notes",
+      "due_at"
+    ],
+    "select": "'task_uat_live_registration', 'evt_uat_live_261024', 'Confirm registration desk readiness',\r\n  'General Coordinator', 'Marco Santos', 'high', 'open',\r\n  'Check scanners, guest list, and north entrance signage.', ($1::timestamptz + ('2026-10-24T07:30:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz))",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "live_ops.event_schedule_days",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "day_date",
+      "label"
+    ],
+    "select": "'schedule_day_uat_live', 'evt_uat_live_261024', ($1::timestamptz AT TIME ZONE 'Asia/Manila')::date, 'Main event day'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "live_ops.event_schedule_segments",
+    "key": "id",
+    "columns": [
+      "id",
+      "day_id",
+      "sequence",
+      "title",
+      "planned_start_at",
+      "planned_end_at",
+      "owner_role",
+      "location"
+    ],
+    "select": "'schedule_segment_uat_live_opening', 'schedule_day_uat_live', 1, 'Guest registration and welcome',\r\n  ($1::timestamptz + ('2026-10-24T08:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), ($1::timestamptz + ('2026-10-24T09:30:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)),\r\n  'General Coordinator', 'North entrance'",
+    "identity": [
+      "day_id"
+    ]
+  },
+  {
+    "table": "live_ops.event_operator_designations",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "coordinator_id",
+      "designated_by"
+    ],
+    "select": "'operator_uat_live_marco', 'evt_uat_live_261024', 'coord_marco', 'usr_pmcm'",
+    "identity": [
+      "event_id",
+      "coordinator_id"
+    ]
+  },
+  {
+    "table": "event_games.game_definitions",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "slug",
+      "title",
+      "game_kind",
+      "entry_mode",
+      "status",
+      "created_by",
+      "updated_by",
+      "published_at",
+      "updated_at"
+    ],
+    "select": "'game_uat_live_word_scramble', 'evt_uat_live_261024', 'uat-word-scramble', 'UAT Word Scramble',\r\n  'word-scramble', 'independent', 'published', 'usr_pmcm', 'usr_pmcm', now(), now()",
+    "identity": [
+      "event_id",
+      "slug"
+    ]
+  },
+  {
+    "table": "event_games.game_config_versions",
+    "key": "id",
+    "columns": [
+      "id",
+      "game_definition_id",
+      "event_id",
+      "version",
+      "config",
+      "created_by"
+    ],
+    "select": "'game_config_uat_live_v1', 'game_uat_live_word_scramble', 'evt_uat_live_261024', 1,\r\n  '{\"configuration\":{\"kind\":\"word-scramble\",\"rounds\":[{\"key\":\"uat-round-1\",\"scrambledWord\":\"LEPPA\",\"answer\":\"APPLE\",\"points\":100,\"durationSeconds\":300}]}}'::jsonb,\r\n  'usr_pmcm'",
+    "identity": [
+      "game_definition_id",
+      "event_id"
+    ]
+  },
+  {
+    "table": "event_games.lobby_slugs",
+    "key": "event_id",
+    "columns": [
+      "event_id",
+      "lobby_slug",
+      "brand_theme"
+    ],
+    "select": "'evt_uat_live_261024', replace(gen_random_uuid()::text, '-', ''), 'prism'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "platform_ops.privacy_requests",
+    "key": "id",
+    "columns": [
+      "id",
+      "subject_type",
+      "subject_email",
+      "subject_name",
+      "request_type",
+      "request_notes",
+      "created_by",
+      "due_at",
+      "assigned_to"
+    ],
+    "select": "'privacy_uat_guest_access', 'guest', 'uat.guest@example.test', 'UAT Guest', 'access',\r\n  'Synthetic UAT request for access review and export workflow.', 'usr_pmcm', now() + interval '30 days', 'usr_pmcm'",
+    "identity": [
+      "subject_type",
+      "subject_email",
+      "request_type"
+    ]
+  },
+  {
+    "table": "platform_ops.privacy_requests",
+    "key": "id",
+    "columns": [
+      "id",
+      "subject_type",
+      "subject_email",
+      "subject_name",
+      "request_type",
+      "request_notes",
+      "created_by",
+      "due_at"
+    ],
+    "select": "'privacy_uat_guest_deletion', 'guest', 'uat.guest2@example.test', 'UAT Guest Two', 'deletion',\r\n  'Synthetic UAT request for deletion review and execution workflow.', 'usr_pmcm', now() + interval '30 days'",
+    "identity": [
+      "subject_type",
+      "subject_email",
+      "request_type"
+    ]
+  }
+]
