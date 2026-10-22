@@ -149,7 +149,7 @@ export class SupplierWorkspaceQueries {
       review_summary AS (
         SELECT supplier_id, round(avg(rating)::numeric, 1)::float8 AS average_rating,
           count(*)::int AS review_count, max(created_at) AS last_reviewed_at
-        FROM supplier_ops.supplier_reviews
+        FROM commercial.supplier_reviews
         GROUP BY supplier_id
       ),
       filtered AS (
@@ -166,8 +166,8 @@ export class SupplierWorkspaceQueries {
           COALESCE(cert.unknown, 0)::int AS unknown,
           COALESCE(cert.attention_rank, 6) AS attention_rank,
           ${certificationAttentionSql} AS attention
-        FROM supplier_ops.suppliers supplier
-        JOIN supplier_ops.supplier_categories category ON category.id = supplier.category_id
+        FROM commercial.suppliers supplier
+        JOIN commercial.supplier_categories category ON category.id = supplier.category_id
         LEFT JOIN review_summary review ON review.supplier_id = supplier.id
         LEFT JOIN certification_summary cert ON cert.supplier_id = supplier.id
         WHERE (${queryText} = '' OR concat_ws(' ', supplier.name, supplier.contact_name, supplier.email, category.name) ILIKE '%' || ${queryText} || '%')
@@ -222,7 +222,7 @@ export class SupplierWorkspaceQueries {
       review_summary AS (
         SELECT round(avg(rating)::numeric, 1)::float8 AS average_rating,
           count(*)::int AS review_count, max(created_at) AS last_reviewed_at
-        FROM supplier_ops.supplier_reviews WHERE supplier_id = ${supplierId}
+        FROM commercial.supplier_reviews WHERE supplier_id = ${supplierId}
       ),
       scorecard_rows AS (
         SELECT dimension.id AS dimension_id, dimension.name AS dimension_name,
@@ -231,16 +231,16 @@ export class SupplierWorkspaceQueries {
           round(avg(CASE WHEN review.id IS NOT NULL THEN rating.rating END)::numeric, 1)::float8 AS average,
           latest.rating AS latest_rating, latest.reviewed_by AS latest_reviewed_by,
           latest.created_at AS latest_created_at
-        FROM supplier_ops.supplier_review_dimensions dimension
-        LEFT JOIN supplier_ops.supplier_review_dimension_ratings rating
+        FROM commercial.supplier_review_dimensions dimension
+        LEFT JOIN commercial.supplier_review_dimension_ratings rating
           ON rating.dimension_id = dimension.id
-        LEFT JOIN supplier_ops.supplier_reviews review
+        LEFT JOIN commercial.supplier_reviews review
           ON review.id = rating.review_id AND review.supplier_id = ${supplierId}
           AND (${startAt}::timestamptz IS NULL OR (review.created_at >= ${startAt}::timestamptz AND review.created_at <= ${asOf}::timestamptz))
         LEFT JOIN LATERAL (
           SELECT latest_rating.rating, latest_review.reviewed_by, latest_review.created_at
-          FROM supplier_ops.supplier_review_dimension_ratings latest_rating
-          JOIN supplier_ops.supplier_reviews latest_review ON latest_review.id = latest_rating.review_id
+          FROM commercial.supplier_review_dimension_ratings latest_rating
+          JOIN commercial.supplier_reviews latest_review ON latest_review.id = latest_rating.review_id
           WHERE latest_rating.dimension_id = dimension.id AND latest_review.supplier_id = ${supplierId}
             AND (${startAt}::timestamptz IS NULL OR (latest_review.created_at >= ${startAt}::timestamptz AND latest_review.created_at <= ${asOf}::timestamptz))
           ORDER BY latest_review.created_at DESC, latest_review.id DESC LIMIT 1
@@ -292,15 +292,15 @@ export class SupplierWorkspaceQueries {
       WITH all_records AS (
         SELECT review.id, 'review'::text AS kind, review.created_at AS occurred_at,
           review.notes AS text, review.reviewed_by AS actor_name, review.event_id
-        FROM supplier_ops.supplier_reviews review WHERE review.supplier_id = ${supplierId}
+        FROM commercial.supplier_reviews review WHERE review.supplier_id = ${supplierId}
         UNION ALL
         SELECT note.id, 'reliability_note'::text, note.created_at, note.note, note.created_by, note.event_id
-        FROM supplier_ops.supplier_reliability_notes note WHERE note.supplier_id = ${supplierId}
+        FROM commercial.supplier_reliability_notes note WHERE note.supplier_id = ${supplierId}
         UNION ALL
         SELECT cert.id, 'certification'::text, cert.uploaded_at,
           concat_ws(' · ', nullif(cert.file_name, ''), nullif(cert.document_type, '')),
           NULL::text, NULL::text
-        FROM supplier_ops.supplier_certifications cert WHERE cert.supplier_id = ${supplierId}
+        FROM commercial.supplier_certifications cert WHERE cert.supplier_id = ${supplierId}
       ),
       period_records AS (
         SELECT * FROM all_records
@@ -368,20 +368,20 @@ export class SupplierWorkspaceQueries {
     // QUERY_AUDIT_RAW_SQL: one grouped query preserves every event-level eligibility flag and caps only preview rows.
     const rows = await this.prisma.$queryRaw<EngagementRow[]>(Prisma.sql`
       WITH supplier AS (
-        SELECT id, tier FROM supplier_ops.suppliers WHERE id = ${supplierId}
+        SELECT id, tier FROM commercial.suppliers WHERE id = ${supplierId}
       ),
       ranked_requests AS (
         SELECT request.id, request.event_id, request.category, request.status,
           request.assignment_status, request.readiness_status, request.event_day_status,
           request.created_at,
           row_number() OVER (PARTITION BY request.event_id ORDER BY request.created_at DESC, request.id ASC) AS request_rank
-        FROM supplier_ops.quote_requests request
+        FROM commercial.quote_requests request
         WHERE request.supplier_id = ${supplierId}
       ),
       event_groups AS (
         SELECT request.event_id, max(request.created_at) AS last_request_at,
           bool_or(request.assignment_status = 'confirmed') AS has_confirmed_assignment,
-          EXISTS (SELECT 1 FROM supplier_ops.supplier_reviews review
+          EXISTS (SELECT 1 FROM commercial.supplier_reviews review
             WHERE review.supplier_id = ${supplierId} AND review.event_id = request.event_id) AS has_assessment,
           count(*)::int AS request_count,
           bool_or(request.request_rank > 50) AS has_more_requests,
