@@ -1,11 +1,13 @@
-import { ArrowDown, ArrowUp, RefreshCw, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarDays, ChevronRight, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import type { PmcmSupplierDirectoryQuery, PrismPmcmSupplierDirectoryPage, PrismSupplierCategory } from "@prism/types";
+import { SegmentedMeter, SupplierAvatar, SupplierTags } from "./supplier-visuals";
+import styles from "./supplier-workspace.module.css";
 
 function dateLabel(value: string | null) {
   if (!value) return "Never";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "Unknown" : new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(date);
+  return Number.isNaN(date.getTime()) ? "Unknown" : new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(date);
 }
 
 function ratingLabel(rating: { average: number | null; count: number }) {
@@ -26,6 +28,7 @@ export function SupplierDirectoryTable({
   loading,
   error,
   view,
+  selectedSupplierId,
   onSearch,
   onQueryChange,
   onSelectSupplier,
@@ -39,6 +42,7 @@ export function SupplierDirectoryTable({
   loading: boolean;
   error: string | null;
   view: string;
+  selectedSupplierId?: string | null;
   onSearch: (value: string) => void;
   onQueryChange: (patch: Partial<PmcmSupplierDirectoryQuery>) => void;
   onSelectSupplier: (supplierId: string, trigger: HTMLButtonElement) => void;
@@ -55,16 +59,16 @@ export function SupplierDirectoryTable({
   ];
 
   return (
-    <section aria-label="Supplier directory" className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
-      <div className="flex flex-wrap items-center gap-2 border-b border-border p-3">
-        <label className="relative min-w-[220px] flex-1 sm:max-w-sm">
+    <section aria-label="Supplier directory" className={`${styles.table} min-w-0 overflow-hidden`}>
+      <div className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-3">
+        <label className="relative min-w-[180px] flex-1 sm:max-w-[220px]">
           <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <span className="sr-only">Search suppliers</span>
           <input
             value={searchDraft}
             onChange={(event) => onSearch(event.target.value)}
             placeholder="Search suppliers"
-            className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
+            className="h-8 w-full rounded-md border border-border bg-card pl-9 pr-3 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
           />
         </label>
         <label className="sr-only" htmlFor="supplier-category-filter">Category</label>
@@ -114,9 +118,10 @@ export function SupplierDirectoryTable({
       ) : null}
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] border-collapse text-left text-sm">
-          <thead className="sticky top-0 z-10 bg-muted/80 text-xs font-medium text-muted-foreground backdrop-blur">
-            <tr className="h-10 border-b border-border">
+        <table className="w-full min-w-[1000px] table-fixed border-collapse text-left text-sm">
+          <colgroup>{[17, 16, 12, 20, 12, 12, 11].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}</colgroup>
+          <thead className="sticky top-0 z-10 text-[11px] font-medium text-muted-foreground">
+            <tr className="h-9 border-b border-border">
               <th scope="col" className="px-4">Supplier</th>
               <th scope="col" className="px-3">Category</th>
               <th scope="col" className="px-3">Tier</th>
@@ -128,22 +133,24 @@ export function SupplierDirectoryTable({
           </thead>
           <tbody>
             {directory?.items.map((supplier) => (
-              <tr key={supplier.id} className="h-11 border-b border-border/70 transition-colors hover:bg-muted/40">
+              <tr key={supplier.id} className={`border-b border-border/55 transition-colors ${selectedSupplierId === supplier.id ? styles.selectedRow : ""}`}>
                 <th scope="row" className="px-4 font-medium">
-                  <button type="button" onClick={(event) => onSelectSupplier(supplier.id, event.currentTarget)} className="max-w-[230px] truncate text-left text-foreground underline-offset-4 hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                    {supplier.name}
+                  <div className="flex items-center gap-1.5"><button title={supplier.name} type="button" onClick={(event) => onSelectSupplier(supplier.id, event.currentTarget)} className="group flex min-w-0 flex-1 items-center justify-between gap-1 text-left text-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    <span className="truncate">{supplier.name}</span><ChevronRight aria-hidden="true" className="size-3 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100" />
                   </button>
-                  {supplier.bniMember ? <span className="ml-2 text-xs text-muted-foreground">BNI</span> : null}
+                  {supplier.bniMember ? <span className="text-[9px] text-primary">BNI</span> : null}</div>
                 </th>
-                <td className="px-3 text-muted-foreground">{supplier.categoryName}</td>
-                <td className="px-3">{supplier.tier.replaceAll("_", " ")}</td>
+                <td className="px-3"><SupplierTags category={supplier.categoryName} /></td>
+                <td className="px-3"><SupplierTags tier={supplier.tier} /></td>
                 <td className="max-w-[190px] px-3 text-muted-foreground">
+                  <div className="flex items-center gap-2"><SupplierAvatar name={supplier.contactName || supplier.name} /><div className="min-w-0">
                   <span className="block truncate">{supplier.contactName || "No contact on file"}</span>
-                  <span className="block truncate text-xs">{supplier.email || supplier.phone || ""}</span>
+                  <span className="block truncate text-[10px]">{supplier.email || supplier.phone || ""}</span>
+                  </div></div>
                 </td>
-                <td className="whitespace-nowrap px-3">{ratingLabel(supplier.rating)}</td>
-                <td className="px-3 text-muted-foreground">{certificationLabel(supplier.certifications.attention, supplier.certifications)}</td>
-                <td className="whitespace-nowrap px-3 text-muted-foreground">{dateLabel(supplier.lastReviewedAt)}</td>
+                <td className="min-w-[130px] whitespace-nowrap px-3"><span className="mb-1.5 block text-[11px]">{ratingLabel(supplier.rating)}</span><div className="max-w-24"><SegmentedMeter value={supplier.rating.average} segments={24} /></div></td>
+                <td className="whitespace-nowrap px-3 text-muted-foreground"><span className={`mr-1.5 inline-block size-1.5 rounded-full ${supplier.certifications.attention === "verified" ? "bg-emerald-400" : supplier.certifications.attention === "expired" || supplier.certifications.attention === "rejected" ? "bg-rose-400" : supplier.certifications.attention === "none" ? "bg-slate-500" : "bg-amber-300"}`} />{certificationLabel(supplier.certifications.attention, supplier.certifications)}</td>
+                <td className="whitespace-nowrap px-3 text-muted-foreground"><span title={supplier.lastReviewedAt ? new Date(supplier.lastReviewedAt).toLocaleDateString("en", { dateStyle: "long" }) : undefined} className="flex items-center gap-1.5"><CalendarDays aria-hidden="true" className="size-3" />{dateLabel(supplier.lastReviewedAt)}</span></td>
               </tr>
             ))}
             {!directory?.items.length && !loading ? (

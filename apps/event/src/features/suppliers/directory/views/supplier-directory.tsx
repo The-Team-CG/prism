@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, Plus, Users } from "lucide-react";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
 import type { CreateSupplierInput } from "@prism/types";
@@ -11,6 +11,7 @@ import { SupplierApplicationsInboxView } from "@/features/suppliers/applications
 import { useSupplierDirectoryViewModel } from "../view-models/use-supplier-directory-view-model";
 import { SupplierDetailDrawer } from "./supplier-detail-drawer";
 import { SupplierDirectoryTable } from "./supplier-directory-table";
+import styles from "./supplier-workspace.module.css";
 
 export function SupplierDirectory({
   view,
@@ -57,10 +58,16 @@ export function SupplierDirectory({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><h1 id="supplier-directory-heading" tabIndex={-1} className="text-lg font-semibold outline-none">Supplier directory</h1><p className="mt-1 text-sm text-muted-foreground">{directory.directory ? `${directory.directory.totalCount} suppliers in the PMCM network` : "Manage supplier records, event history and performance."}</p></div>
-        <Button type="button" disabled={Boolean(directory.actionResult?.saved && directory.actionResult.refreshFailed)} onClick={() => setCreateOpen((open) => !open)}>{createOpen ? "Cancel" : "New supplier"}</Button>
+    <div className={styles.workspace}>
+      <h1 id="supplier-directory-heading" tabIndex={-1} className="sr-only">Suppliers</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
+        <div role="group" aria-label="Supplier tier views" className="flex gap-1 overflow-x-auto">
+          {[[undefined, "All suppliers"], ["tier_1", "Tier 1"], ["tier_2", "Tier 2"], ["pending_first_event", "First event pending"]].map(([tier, label]) => <button key={label} type="button" aria-pressed={directory.query.tier === tier} onClick={() => directory.updateQuery({ tier: tier as typeof directory.query.tier, page: 0 })} className={`whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${directory.query.tier === tier ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>{label}</button>)}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="ghost" size="sm" aria-expanded={applicationsOpen} aria-controls="supplier-applications-panel" onClick={() => setApplicationsOpen((open) => !open)}><Users className="size-3.5" />Applications<ChevronDown className={`size-3.5 ${applicationsOpen ? "rotate-180" : ""}`} /></Button>
+          <Button type="button" size="sm" disabled={Boolean(directory.actionResult?.saved && directory.actionResult.refreshFailed)} onClick={() => setCreateOpen((open) => !open)}>{createOpen ? "Cancel" : <><Plus className="size-3.5" />New supplier</>}</Button>
+        </div>
       </div>
 
       {directory.actionResult?.saved && directory.actionResult.refreshFailed && !directory.selectedSupplierId ? (
@@ -68,7 +75,7 @@ export function SupplierDirectory({
       ) : null}
 
       {createOpen ? (
-        <form onSubmit={(event) => void createSupplier(event)} className="grid gap-3 rounded-xl border border-border bg-card p-4 md:grid-cols-2">
+        <form onSubmit={(event) => void createSupplier(event)} className="grid gap-3 border-b border-border bg-card p-5 md:grid-cols-2">
           <label className="grid gap-1 text-xs text-muted-foreground">Supplier name<input required value={createForm.name} onChange={(event) => setCreateForm({ ...createForm, name: event.target.value })} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground" /></label>
           <label className="grid gap-1 text-xs text-muted-foreground">Category<select required value={createForm.categoryId} onChange={(event) => setCreateForm({ ...createForm, categoryId: event.target.value })} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground"><option value="">Choose category</option>{directory.categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
           <label className="grid gap-1 text-xs text-muted-foreground">Contact name<input value={createForm.contactName ?? ""} onChange={(event) => setCreateForm({ ...createForm, contactName: event.target.value })} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground" /></label>
@@ -79,17 +86,7 @@ export function SupplierDirectory({
         </form>
       ) : null}
 
-      <details
-        className="rounded-xl border border-border bg-card"
-        open={applicationsOpen}
-        onToggle={(event) => setApplicationsOpen(event.currentTarget.open)}
-      >
-        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 text-sm font-medium [&::-webkit-details-marker]:hidden">
-          {applicationsOpen ? <ChevronDown aria-hidden="true" className="size-4" /> : <ChevronRight aria-hidden="true" className="size-4" />}
-          Supplier applications
-        </summary>
-        {applicationsOpen ? <div className="border-t border-border p-4"><SupplierApplicationsInboxView /></div> : null}
-      </details>
+      {applicationsOpen ? <div id="supplier-applications-panel" className="border-b border-border bg-card p-5"><SupplierApplicationsInboxView /></div> : null}
 
       {directory.categoriesError && !directory.categoriesLoaded ? <Alert variant="destructive"><AlertDescription>{directory.categoriesError}</AlertDescription></Alert> : null}
 
@@ -101,6 +98,7 @@ export function SupplierDirectory({
         loading={directory.directoryLoading}
         error={directory.directoryError}
         view={directory.view}
+        selectedSupplierId={directory.selectedSupplierId}
         onSearch={directory.setSearchDraft}
         onQueryChange={directory.updateQuery}
         onSelectSupplier={(supplierId, trigger) => {
