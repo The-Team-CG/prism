@@ -112,7 +112,9 @@ export class ConformeSigningService {
     const executionId = input.executionId;
     const snapshot = await this.prisma.opsConformeExecution.findUnique({ where: { id: executionId }, select: { inquiryId: true } });
     if (!snapshot) throw new NotFoundException('Conforme execution not found');
-    return this.prisma.$transaction(async (tx) => {
+    // Set only by the call that completes the conforme, so a replayed signature never reaches the invitation trigger.
+    const completion: { inquiryId?: string } = {};
+    const result = await this.prisma.$transaction(async (tx) => {
       // QUERY_AUDIT_RAW_SQL: inquiry-first lock order serializes signatures with revisions and legacy acceptance.
       await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM event_lifecycle.inquiries WHERE id = ${snapshot.inquiryId} FOR UPDATE`;
       // QUERY_AUDIT_RAW_SQL: serialize client/PMCM signature insertion on the immutable execution version.
@@ -161,6 +163,7 @@ export class ConformeSigningService {
       }
 
       const { event: activatedEvent } = await this.inquiriesService.activateAfterConforme(tx, execution.inquiryId, new Date());
+      completion.inquiryId = execution.inquiryId;
       const now = new Date();
       await writeNotification(this.notificationOutboxWriter, activatedEvent.id, execution.inquiry.email, 'Your event workspace is ready', 'email', {}, { prisma: tx, correlationId: `conforme-activated:${executionId}` });
       const completed = await tx.opsConformeExecution.update({
@@ -176,6 +179,8 @@ export class ConformeSigningService {
       }, { prisma: tx, correlationId: `conforme-complete:${executionId}` });
       return this.toPublicExecution(completed);
     }, { isolationLevel: 'Serializable' });
+    if (completion.inquiryId) await this.inquiriesService.sendClientPortalInvitationAfterCommit(completion.inquiryId);
+    return result;
   }
 
   private async supersedeUnsignedExecution(tx: Prisma.TransactionClient, latest: OpsConformeExecution | null, replacementVersion: number, actor: PrismVerifiedEventActor) {

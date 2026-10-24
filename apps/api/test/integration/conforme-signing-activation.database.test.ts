@@ -44,7 +44,9 @@ describe.skipIf(!live)('conforme dual acknowledgment activation against PostgreS
         eventType: 'Corporate', clientType: 'corporate', status: 'accepted', acceptedAt: new Date(),
       } });
 
-      const inquiries = new InquiriesService(prisma, audit, notifications, new WorkflowCommandService());
+      // Provisioning writes to identity-access and sends mail; this test covers the conforme itself, so the port answers an invite.
+      const accountProvisioning = { provision: async () => ({ outcome: 'invited' as const, sentAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 86_400_000).toISOString() }) };
+      const inquiries = new InquiriesService(prisma, audit, notifications, new WorkflowCommandService(), accountProvisioning);
       const signing = new ConformeSigningService(prisma, inquiries, audit, notifications);
       const prepared = await signing.createExecution(inquiryId, { templateVersion: 1, templateContent: template }, pmcm);
       const signInput = {

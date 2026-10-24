@@ -657,6 +657,19 @@ describe("createEventOpsClient", () => {
     }));
   });
 
+  it("posts a client portal invitation resend for an inquiry", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ outcome: { outcome: "invited" }, inquiry: {} }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api", getAuthToken: () => "session-token" });
+    await client.inquiries.resendPortalInvitation("inq 1/a");
+
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/inquiries/inq%201%2Fa/portal-invitation/resend", expect.objectContaining({
+      method: "POST",
+      headers: { Authorization: "Bearer session-token", "Content-Type": "application/json" },
+    }));
+  });
+
   it("sends actor query params for event lists", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);

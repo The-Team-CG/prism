@@ -1,7 +1,13 @@
-import { Inject, Injectable, BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, BadRequestException, ConflictException, ForbiddenException, Logger, NotFoundException } from '@nestjs/common';
 import type { OpsDocument, OpsEvent, OpsInquiry, OpsInquiryMerge, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
-import { PRISM_PRIVACY_NOTICE_VERSION, type MergeInquiryInput } from '@prism/types';
+import { PRISM_PRIVACY_NOTICE_VERSION, type MergeInquiryInput, type PrismAccountInvitationOutcome } from '@prism/types';
+import {
+  ACCOUNT_PROVISIONING,
+  SYSTEM_INVITATION_ACTOR,
+  type AccountInvitationActor,
+  type AccountProvisioningPort,
+} from '@prism/contexts/identity-access/account-invitation-reference';
 import {
   inquiryOrganizationKey,
   isDeterministicHighFitInquiry,
@@ -10,7 +16,7 @@ import {
 } from '../../domain/inquiry-triage.policy';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { randomUUID } from 'node:crypto';
-import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
+import { AuditActionType, AuditCategory, OpsUserRole, PortalInvitationStatus, WorkflowCommandService } from '@prism/kernel/event-core';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { claimConformeReminderWindow } from './conforme-reminder-window';
@@ -73,11 +79,14 @@ function daysBetween(left: Date, right: Date) {
 
 @Injectable()
 export class InquiriesService {
+  private readonly logger = new Logger(InquiriesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     private readonly workflowCommandService: WorkflowCommandService,
+    @Inject(ACCOUNT_PROVISIONING) private readonly accountProvisioning: AccountProvisioningPort,
   ) {}
 
   async createInquiry(input: CreateInquiryInput) {
@@ -239,6 +248,66 @@ export class InquiriesService {
     });
   }
 
+  /** PMCM re-sends the client's portal invitation. Same rules and outcome recording as the signing trigger. */
+  async resendClientPortalInvitation(inquiryId: string, actor: ResolvedEventOpsActor) {
+    const verified = this.requireVerifiedActor(actor);
+    return this.issueClientPortalInvitation(inquiryId, { id: verified.id, name: verified.name, role: verified.role });
+  }
+
+  /**
+   * Called after a signed conforme commits. Failures are recorded on the inquiry and in the audit trail
+   * instead of reaching the signer, because the signature itself has already been stored.
+   */
+  async sendClientPortalInvitationAfterCommit(inquiryId: string) {
+    try {
+      await this.issueClientPortalInvitation(inquiryId, SYSTEM_INVITATION_ACTOR);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Client portal invitation was not issued for inquiry ${inquiryId}: ${reason}`);
+      await this.prisma.opsInquiry.update({
+        where: { id: inquiryId },
+        data: { portalInvitationStatus: PortalInvitationStatus.NotSent, portalInvitationSentAt: null, portalInvitationOpenedAt: null, portalInvitationExpiresAt: null },
+      });
+      await this.audit(undefined, SYSTEM_INVITATION_ACTOR.name, 'Client portal invitation could not be issued after the conforme was signed', {
+        actorRole: OpsUserRole.System,
+        actionType: AuditActionType.General,
+        category: AuditCategory.Access,
+        affectedType: 'inquiry',
+        affectedId: inquiryId,
+        severity: 'warning',
+      });
+    }
+  }
+
+  private async issueClientPortalInvitation(inquiryId: string, actor: AccountInvitationActor) {
+    const inquiry = await this.prisma.opsInquiry.findUnique({ where: { id: inquiryId } });
+    if (!inquiry) throw new NotFoundException('Inquiry not found');
+    if (inquiry.status !== 'accepted' || !inquiry.conformeSignedAt) {
+      throw new ConflictException('Client portal invitations are sent after the conforme is signed');
+    }
+    const outcome = await this.accountProvisioning.provision({
+      email: inquiry.email,
+      name: inquiry.clientName,
+      role: 'client',
+      organization: inquiry.companyName,
+      source: 'conforme',
+      sourceId: inquiry.id,
+      actor,
+    });
+    const updated = await this.recordPortalInvitationOutcome(inquiryId, outcome);
+    return { outcome, inquiry: updated };
+  }
+
+  /** `invited` is sent, `existing_account` means the client already signs in, and any refusal leaves the invitation not sent. */
+  private recordPortalInvitationOutcome(inquiryId: string, outcome: PrismAccountInvitationOutcome) {
+    const data = outcome.outcome === 'invited'
+      ? { portalInvitationStatus: PortalInvitationStatus.Sent, portalInvitationSentAt: new Date(outcome.sentAt), portalInvitationOpenedAt: null, portalInvitationExpiresAt: new Date(outcome.expiresAt) }
+      : outcome.outcome === 'existing_account'
+        ? { portalInvitationStatus: PortalInvitationStatus.Opened, portalInvitationOpenedAt: new Date() }
+        : { portalInvitationStatus: PortalInvitationStatus.NotSent, portalInvitationSentAt: null, portalInvitationOpenedAt: null, portalInvitationExpiresAt: null };
+    return this.prisma.opsInquiry.update({ where: { id: inquiryId }, data });
+  }
+
   async uploadConforme(
     inquiryId: string,
     input: { type?: string; fileName: string; mimeType?: string; sizeBytes?: number; storageObjectId?: string },
@@ -310,6 +379,7 @@ export class InquiriesService {
             affectedLabel: document.fileName,
           }),
           ...(input.storageObjectId ? [this.notify(event.id, event.clientName, 'Client portal unlocked')] : []),
+          ...(input.storageObjectId ? [this.sendClientPortalInvitationAfterCommit(inquiryId)] : []),
         ];
 
         await Promise.all(sideEffects);
