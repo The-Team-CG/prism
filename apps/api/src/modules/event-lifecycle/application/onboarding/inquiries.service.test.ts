@@ -469,6 +469,7 @@ describe('client portal invitation after the conforme', () => {
     ['a new login', invitedOutcome, { portalInvitationStatus: 'sent', portalInvitationSentAt: new Date(invitedOutcome.sentAt), portalInvitationExpiresAt: new Date(invitedOutcome.expiresAt) }],
     ['an account that already signs in', { outcome: 'existing_account' }, { portalInvitationStatus: 'opened', portalInvitationOpenedAt: expect.any(Date) }],
     ['a delivery failure', { outcome: 'delivery_failed' }, { portalInvitationStatus: 'not_sent', portalInvitationSentAt: null, portalInvitationExpiresAt: null }],
+    ['an account not yet approved', { outcome: 'account_not_active' }, { portalInvitationStatus: 'not_sent', portalInvitationSentAt: null, portalInvitationExpiresAt: null }],
     ['a role conflict', { outcome: 'role_conflict' }, { portalInvitationStatus: 'not_sent', portalInvitationSentAt: null, portalInvitationExpiresAt: null }],
   ])('records the invitation status for %s and provisions the client from the inquiry', async (_label, outcome, expected) => {
     const accountProvisioning = { provision: vi.fn(async (_input: unknown) => outcome) };
