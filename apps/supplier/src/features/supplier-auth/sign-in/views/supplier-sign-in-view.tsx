@@ -9,7 +9,7 @@ import { Field } from "@/app/components/ui/field";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { SUPPLIER_PORTAL_POINTS, SUPPLIER_PORTAL_STATEMENT } from "../model/supplier-portal-copy";
-import { portalUrlsFromEnvironment, wrongPortalLinks } from "../model/wrong-portal-links";
+import { portalUrlsFromEnvironment, wrongPortalLinks } from "@/lib/portal-urls";
 import { useSupplierSignInViewModel } from "../view-models/use-supplier-sign-in-view-model";
 
 function ExistingSessionBanner({ name, organization }: { name: string; organization: string }) {

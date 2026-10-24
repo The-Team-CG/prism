@@ -9,7 +9,7 @@ import { Button } from "@/app/components/ui/button";
 import { Field } from "@/app/components/ui/field";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
-import { portalUrlsFromEnvironment, wrongPortalLinks } from "../model/wrong-portal-links";
+import { portalUrlsFromEnvironment, wrongPortalLinks } from "@/lib/portal-urls";
 import { useGuestAccessOpenViewModel } from "../view-models/use-guest-access-open-view-model";
 
 const GUEST_POINTS = [
