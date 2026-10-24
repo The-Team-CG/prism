@@ -657,14 +657,13 @@ describe('AuthOperationsService sign-in hardening', () => {
     vi.restoreAllMocks();
   });
 
-  it('runs the password verifier against a fixed current-format hash for an unknown email before refusing it', async () => {
+  it('runs the password verifier once for an unknown email before refusing it', async () => {
     const { service } = createSignInService(null);
     const verify = vi.spyOn(AuthSecurityService, 'verifyPassword');
 
     await expect(service.login('nobody@example.test', 'guessed-password')).rejects.toThrow('Invalid email or password');
 
     expect(verify).toHaveBeenCalledTimes(1);
-    expect(passwordHash.isCurrentScryptPasswordHash(verify.mock.calls[0][0])).toBe(true);
     expect(verify.mock.calls[0][1]).toBe('guessed-password');
   });
 

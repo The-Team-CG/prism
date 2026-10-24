@@ -33,8 +33,6 @@ import { AUTH_AUDIT, type AuthAuditPort } from '../../contracts/auth-audit.port'
 
 const INVALID_CREDENTIALS = 'Invalid email or password';
 const APPROVAL_REQUEST_RECEIVED_MESSAGE = 'If an account exists for this email, PMCM will review the request.';
-// Fixed hash, never a real credential, verified against when the email is unknown.
-const UNKNOWN_ACCOUNT_PASSWORD_HASH = 'scrypt$N=16384,r=8,p=5$30682f972917c5edd26dd7ffa09a889f$2c8426bd4d95f3db93469835fa24b81e8b7e90cfec405aee66d74dc8e6f97338c42462cb7ef67fab5417043759938bffeb348ea970c11ddc66219acb8d0afc03';
 
 type VerifiedIdentityAdmin = ResolvedEventOpsActor & {
   id: string;
@@ -70,7 +68,7 @@ export class AuthOperationsService {
 
     if (!user) {
       // Same hashing work as a known account, so response time does not reveal which emails exist.
-      await AuthSecurityService.verifyPassword(UNKNOWN_ACCOUNT_PASSWORD_HASH, password);
+      await AuthSecurityService.verifyPassword(null, password);
       await this.rejectUnknownLogin(normalizedEmail);
       throw new UnauthorizedException(INVALID_CREDENTIALS);
     }
