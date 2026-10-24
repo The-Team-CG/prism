@@ -18,9 +18,6 @@ import {
   type ProvisionAccountInput,
 } from '../../contracts/account-invitation.port';
 
-/** The conforme and supplier-approval triggers are system actions, not a signed-in person. */
-export const SYSTEM_INVITATION_ACTOR: AccountInvitationActor = { id: 'system', name: 'System', role: OpsUserRole.System };
-
 const INVITABLE_ROLES: ReadonlySet<string> = new Set<InvitableAccountRole>(['client', 'supplier', 'pmcm-admin', 'coordinator']);
 
 export function invitableAccountRole(role: string): InvitableAccountRole | null {
