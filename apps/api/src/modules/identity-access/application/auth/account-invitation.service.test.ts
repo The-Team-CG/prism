@@ -51,7 +51,7 @@ const clientInput = {
   name: 'Ana Reyes',
   role: 'client' as const,
   organization: 'Ana Events',
-  source: 'conforme' as const,
+  source: 'inquiry_acceptance' as const,
   sourceId: 'inq_1',
   actor: { id: 'usr_pmcm', name: 'Maxine PMCM', role: 'pmcm-admin' },
 };
@@ -75,7 +75,7 @@ describe('AccountInvitationService.provision', () => {
 
     expect(invitations).toEqual([expect.objectContaining({
       tokenHash: sha256(token),
-      source: 'conforme',
+      source: 'inquiry_acceptance',
       sourceId: 'inq_1',
       createdBy: 'usr_pmcm',
       expiresAt: new Date(Date.parse((outcome as { sentAt: string }).sentAt) + SEVEN_DAYS_MS),
@@ -172,7 +172,7 @@ describe('AccountInvitationService staff invites and resends', () => {
     ['a coordinator', { ...pmcmAdmin, role: 'coordinator' }],
     ['an unverified PMCM admin', { ...pmcmAdmin, verified: false }],
   ])('refuses staff invites and resends from %s before touching accounts', async (_label, actor) => {
-    const { service, prisma, delivery } = fixture({ id: 'usr_ana', role: 'client', approvalStatus: 'invited', password: null, email: 'ana@example.test', name: 'Ana', organization: 'Ana Events' }, { source: 'conforme', sourceId: 'inq_1' });
+    const { service, prisma, delivery } = fixture({ id: 'usr_ana', role: 'client', approvalStatus: 'invited', password: null, email: 'ana@example.test', name: 'Ana', organization: 'Ana Events' }, { source: 'inquiry_acceptance', sourceId: 'inq_1' });
 
     await expect(service.inviteStaff({ email: 'coord@pmcm.test', name: 'Coordinator', role: 'coordinator', organization: 'PMCM' }, actor as ResolvedEventOpsActor))
       .rejects.toBeInstanceOf(ForbiddenException);
@@ -185,18 +185,18 @@ describe('AccountInvitationService staff invites and resends', () => {
 
   it('resends to an invited account with the source of its latest invitation and replaces the open link', async () => {
     const invited = { id: 'usr_ana', name: 'Ana Reyes', email: 'ana@example.test', role: 'client', organization: 'Ana Events', approvalStatus: 'invited', password: null };
-    const { service, prisma, invitations, delivery } = fixture(invited, { source: 'conforme', sourceId: 'inq_1' });
+    const { service, prisma, invitations, delivery } = fixture(invited, { source: 'inquiry_acceptance', sourceId: 'inq_1' });
 
     await expect(service.resendInvitation('usr_ana', pmcmAdmin)).resolves.toEqual({ outcome: 'invited', sentAt: expect.any(String), expiresAt: expect.any(String) });
 
     expect(prisma.opsAccountInvitation.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { revokedAt: expect.any(Date) } }));
-    expect(invitations).toEqual([expect.objectContaining({ userId: 'usr_ana', source: 'conforme', sourceId: 'inq_1' })]);
+    expect(invitations).toEqual([expect.objectContaining({ userId: 'usr_ana', source: 'inquiry_acceptance', sourceId: 'inq_1' })]);
     expect(delivery.deliver).toHaveBeenCalledTimes(1);
   });
 
   it('refuses a resend to an account that has already been activated', async () => {
     const active = { id: 'usr_ana', name: 'Ana Reyes', email: 'ana@example.test', role: 'client', organization: 'Ana Events', approvalStatus: 'approved', password: 'stored-hash' };
-    const { service, delivery } = fixture(active, { source: 'conforme', sourceId: 'inq_1' });
+    const { service, delivery } = fixture(active, { source: 'inquiry_acceptance', sourceId: 'inq_1' });
 
     await expect(service.resendInvitation('usr_ana', pmcmAdmin)).rejects.toBeInstanceOf(ConflictException);
     expect(delivery.deliver).not.toHaveBeenCalled();

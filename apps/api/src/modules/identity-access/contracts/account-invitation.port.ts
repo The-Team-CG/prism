@@ -8,7 +8,8 @@ export const ACCOUNT_INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 /** Roles that get a login through an invitation. Guests use event codes and never receive one. */
 export type InvitableAccountRole = 'client' | 'supplier' | 'pmcm-admin' | 'coordinator';
 
-export type AccountInvitationSource = 'conforme' | 'supplier_application' | 'admin';
+/** What caused the invitation. `inquiry_acceptance` is PMCM accepting a client's inquiry; the conforme is signed later. */
+export type AccountInvitationSource = 'inquiry_acceptance' | 'supplier_application' | 'admin';
 
 export interface AccountInvitationActor {
   id: string;
