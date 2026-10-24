@@ -14,6 +14,7 @@ import {
   isPrimaryCheckout,
   normalizeWorktreePath,
   parseWorktreeList,
+  portalUrlsFor,
   resolvePort,
   resolvePortSet,
 } from "./prism-ports.mjs";
@@ -179,5 +180,16 @@ describe("checkout discovery", () => {
       );
       assert.equal(nested.isPrimary, baseline.isPrimary, `checkout kind drifted when resolved from ${cwd}`);
     }
+  });
+});
+
+describe("portal origins", () => {
+  it("builds every portal origin from the live port set", () => {
+    assert.deepEqual(portalUrlsFor({ api: 4010, client: 3011, supplier: 3012, guest: 3013, event: 3014 }), {
+      NEXT_PUBLIC_CLIENT_PORTAL_URL: "http://localhost:3011",
+      NEXT_PUBLIC_SUPPLIER_PORTAL_URL: "http://localhost:3012",
+      NEXT_PUBLIC_GUEST_PORTAL_URL: "http://localhost:3013",
+      NEXT_PUBLIC_EVENT_PORTAL_URL: "http://localhost:3014",
+    });
   });
 });
