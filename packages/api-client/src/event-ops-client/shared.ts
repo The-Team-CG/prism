@@ -30,6 +30,7 @@ export function withBase(
     ...init,
     authToken: init.authToken ?? options.getAuthToken?.() ?? null,
     baseUrl: init.baseUrl ?? options.baseUrl,
+    onUnauthorized: init.onUnauthorized ?? options.onUnauthorized,
   };
 }
 

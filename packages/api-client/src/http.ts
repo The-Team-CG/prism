@@ -95,6 +95,8 @@ export interface PrismRequestInit extends Omit<RequestInit, "body"> {
   authToken?: string | null;
   baseUrl?: string;
   body?: unknown;
+  /** Runs only for a 401 on a request that sent a bearer token (a signed-in session the API rejected). */
+  onUnauthorized?: () => void;
 }
 
 /** Read at request time: service bindings exist only in server functions at runtime. */
@@ -131,7 +133,7 @@ async function parseResponseBody(response: Response): Promise<unknown> {
 }
 
 export async function prismRequest<T>(path: string, init: PrismRequestInit = {}): Promise<T> {
-  const { authToken, baseUrl, body, headers, ...requestInit } = init;
+  const { authToken, baseUrl, body, headers, onUnauthorized, ...requestInit } = init;
   const request: RequestInit = {
     ...requestInit,
     headers: {
@@ -149,6 +151,7 @@ export async function prismRequest<T>(path: string, init: PrismRequestInit = {})
   const responseBody = await parseResponseBody(response);
 
   if (!response.ok) {
+    if (response.status === 401 && authToken) onUnauthorized?.();
     throw new PrismApiError(response.status, responseBody);
   }
 

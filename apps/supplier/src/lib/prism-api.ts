@@ -11,7 +11,8 @@ export type {
 } from "@prism/types";
 
 import { createEventOpsClient, resolvePrismApiOrigin } from "@prism/api-client";
-import { PRISM_SESSION_STORAGE_KEYS, isPrismAuthenticatedSession } from "@prism/types";
+import { PRISM_SESSION_STORAGE_KEYS, clearPrismSession, isPrismAuthenticatedSession } from "@prism/types";
+import { portalAppPath, portalHref } from "@prism/ui/portal-path";
 import type {
   PrismAuthenticatedSession,
   PrismSupplierApplication,
@@ -28,7 +29,7 @@ export type { CreateSupplierApplicationInput, SupplierApplicationStatusQuery } f
 
 export type SupplierWorkspace = PrismSupplierWorkspace;
 
-const API_OFFLINE_MESSAGE = "P.R.I.S.M API is offline. Start `prism-api` on port 4000, then try again.";
+const API_OFFLINE_MESSAGE = "Can't reach P.R.I.S.M right now. Try again in a moment.";
 
 /**
  * Mirrors storedClientAccessToken in apps/client. Reads the persisted supplier
@@ -47,8 +48,18 @@ export function storedSupplierAccessToken() {
   }
 }
 
+/** The API rejected the stored session: sign out locally and return here after sign-in. */
+function expireSupplierSession() {
+  if (typeof window === "undefined") return;
+  clearPrismSession(PRISM_SESSION_STORAGE_KEYS.supplier);
+  if (window.location.pathname.endsWith("/sign-in")) return;
+  const next = `${portalAppPath(window.location.pathname)}${window.location.search}`;
+  window.location.assign(portalHref(`/sign-in?next=${encodeURIComponent(next)}`));
+}
+
 const eventOpsClient = createEventOpsClient({
   getAuthToken: storedSupplierAccessToken,
+  onUnauthorized: expireSupplierSession,
 });
 
 function actorFromSession(session: PrismAuthenticatedSession) {
