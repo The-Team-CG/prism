@@ -185,6 +185,18 @@ export interface PrismApprovalRequestReceipt {
   message: string;
 }
 
+/** Same body whether or not the token matched, so an activation response never reveals token state. */
+export interface PrismAccountActivationReceipt {
+  message: string;
+}
+
+/** Result of provisioning an account login. `invited` means the activation email was accepted by the mail provider. */
+export type PrismAccountInvitationOutcome =
+  | { outcome: "invited"; sentAt: string; expiresAt: string }
+  | { outcome: "existing_account" }
+  | { outcome: "role_conflict" }
+  | { outcome: "delivery_failed" };
+
 export interface PrismCurrentUser {
   id: string;
   name: string;

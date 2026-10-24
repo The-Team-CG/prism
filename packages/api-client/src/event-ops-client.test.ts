@@ -633,6 +633,30 @@ describe("createEventOpsClient", () => {
     });
   });
 
+  it("posts account activation, staff invites and invitation resends to their routes", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ outcome: "invited" }), { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api", getAuthToken: () => "session-token" });
+    await client.auth.activateAccount({ token: "a".repeat(43), password: "a sufficiently long password" });
+    await client.auth.inviteStaff({ email: "coord@pmcm.test", name: "Coordinator", role: "coordinator", organization: "PMCM" });
+    await client.auth.resendAccountInvitation("usr pmcm/1");
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "http://localhost:4000/api/auth/activate", expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ token: "a".repeat(43), password: "a sufficiently long password" }),
+    }));
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "http://localhost:4000/api/auth/invitations", expect.objectContaining({
+      method: "POST",
+      headers: { Authorization: "Bearer session-token", "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "coord@pmcm.test", name: "Coordinator", role: "coordinator", organization: "PMCM" }),
+    }));
+    expect(fetchMock).toHaveBeenNthCalledWith(3, "http://localhost:4000/api/auth/invitations/usr%20pmcm%2F1/resend", expect.objectContaining({
+      method: "POST",
+      headers: { Authorization: "Bearer session-token", "Content-Type": "application/json" },
+    }));
+  });
+
   it("sends actor query params for event lists", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);

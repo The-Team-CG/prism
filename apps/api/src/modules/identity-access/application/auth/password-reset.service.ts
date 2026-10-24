@@ -70,7 +70,8 @@ export class PasswordResetService {
       },
     );
 
-    if (!rateLimited && user) {
+    // An account without a password is activated by its invitation, not by a reset, so no link is sent for it.
+    if (!rateLimited && user && user.password !== null) {
       const portal = portalForAccountRole(user.role as OpsUserRole);
       if (portal) {
         const token = randomBytes(32).toString('base64url');

@@ -47,6 +47,21 @@ export function createAuthClient(
           "/auth/password-reset/consume",
           withBase(options, { method: "POST", body: { token, password } }),
         ),
+      activateAccount: (input) =>
+        prismRequest(
+          "/auth/activate",
+          withBase(options, { method: "POST", body: input }),
+        ),
+      inviteStaff: (input) =>
+        prismRequest(
+          "/auth/invitations",
+          withBase(options, { method: "POST", body: input }),
+        ),
+      resendAccountInvitation: (userId) =>
+        prismRequest(
+          `/auth/invitations/${encodeURIComponent(userId)}/resend`,
+          withBase(options, { method: "POST" }),
+        ),
     },
   };
 }
