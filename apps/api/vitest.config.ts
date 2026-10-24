@@ -52,6 +52,7 @@ export default defineConfig({
       '@prism/contexts/operations': resolve(__dirname, './src/modules/operations/index.ts'),
       '@prism/kernel/event-session': resolve(__dirname, './src/kernel/event-session/index.ts'),
       '@prism/kernel/health': resolve(__dirname, './src/kernel/health/index.ts'),
+      '@prism/kernel/mail': resolve(__dirname, './src/kernel/mail/index.ts'),
       '@prism/kernel/shared-kernel': resolve(__dirname, './src/kernel/shared-kernel/index.ts'),
       '@prism/contexts/live-ops/urgent-issue-reference': resolve(__dirname, './src/modules/live-ops/urgent-issue-reference.ts'),
       '@prism/contexts/live-ops': resolve(__dirname, './src/modules/live-ops/index.ts'),
