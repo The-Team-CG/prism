@@ -1,116 +1,50 @@
 "use client";
 
 import { portalHref } from "@prism/ui/portal-path";
-
-import { FormEvent } from "react";
-import { ArrowLeft, Eye, EyeOff, Handshake, Shield } from "lucide-react";
-import { PrismBrandLogo } from "@prism/ui";
+import { PrismAuthShell, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
+import { FormEvent, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
+import { Alert, AlertDescription } from "@/app/components/ui/alert";
+import { Button } from "@/app/components/ui/button";
+import { Field } from "@/app/components/ui/field";
 import { Input } from "@/app/components/ui/input";
+import { Label } from "@/app/components/ui/label";
+import { EVENT_PORTAL_POINTS, EVENT_PORTAL_STATEMENT } from "../model/event-portal-copy";
 import { signInSubmitLabel, twoFactorCopy } from "../model/event-sign-in-copy";
 import { useEventSignInViewModel } from "../view-models/use-event-sign-in-view-model";
 
-function EventSignInPasswordFields({
-  email,
-  password,
-  showPassword,
-  required,
-  onEmail,
-  onPassword,
-  onTogglePassword,
-}: {
-  email: string;
-  password: string;
-  showPassword: boolean;
-  required: boolean;
-  onEmail: (value: string) => void;
-  onPassword: (value: string) => void;
-  onTogglePassword: () => void;
-}) {
-  return (
-    <>
-      <div>
-        <label htmlFor="email" className="mb-2 block text-base font-medium text-[#171216] sm:text-sm">
-          Email address
-        </label>
-        <Input
-          id="email"
-          type="email"
-          required={required}
-          value={email}
-          onChange={(e) => onEmail(e.target.value)}
-          placeholder="name@company.com"
-          className="h-13 rounded-lg border-[#d9d9d9] bg-white text-base text-[#444] placeholder:text-[#a7a7a7] focus-visible:ring-1 focus-visible:ring-[#c01867] sm:h-12 sm:text-sm"
-        />
-      </div>
+const COPY_UNAVAILABLE_MESSAGE = "Copy is not available here. Select the key and copy it manually.";
 
-      <div>
-        <label htmlFor="password" className="mb-2 block text-base font-medium text-[#171216] sm:text-sm">
-          Password
-        </label>
-        <div className="relative">
-          <Input
-            id="password"
-            type={showPassword ? "text" : "password"}
-            required={required}
-            value={password}
-            onChange={(e) => onPassword(e.target.value)}
-            placeholder="Enter your password"
-            className="h-13 rounded-lg border-[#d9d9d9] bg-white pr-11 text-base text-[#444] placeholder:text-[#a7a7a7] focus-visible:ring-1 focus-visible:ring-[#c01867] sm:h-12 sm:text-sm"
-          />
-          <button
-            type="button"
-            onClick={onTogglePassword}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a7a7a7] transition hover:text-[#171216]"
-            aria-label={showPassword ? "Hide password" : "Show password"}
-          >
-            {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
-          </button>
-        </div>
-      </div>
-    </>
-  );
-}
+function SetupSecretBox({ secret }: { secret: string }) {
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "unavailable">("idle");
 
-function EventSignInTwoFactorFields({
-  phase,
-  setupSecret,
-  code,
-  onCode,
-}: {
-  phase: string;
-  setupSecret: string | null;
-  code: string;
-  onCode: (value: string) => void;
-}) {
-  const copy = twoFactorCopy(phase);
+  async function copySecret() {
+    if (!navigator.clipboard?.writeText) {
+      setCopyState("unavailable");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(secret);
+      setCopyState("copied");
+    } catch {
+      setCopyState("unavailable");
+    }
+  }
+
   return (
-    <div className="space-y-3">
-      <div>
-        <p className="text-base font-semibold text-[#171216]">{copy.title}</p>
-        <p className="mt-1 text-sm text-[#666]">{copy.detail}</p>
-        {setupSecret ? (
-          <p className="mt-2 break-all text-xs text-[#666]">
-            Setup key: <code className="font-mono text-[#171216]">{setupSecret}</code>
-          </p>
-        ) : null}
+    <div className="rounded-lg bg-muted p-4">
+      <p className="text-sm text-muted-foreground">Setup key</p>
+      <div className="mt-2 flex items-center gap-3">
+        <code className="min-w-0 flex-1 break-all font-mono text-sm text-foreground">{secret}</code>
+        <Button type="button" variant="outline" size="sm" onClick={copySecret} className="shrink-0">
+          {copyState === "copied" ? "Copied" : "Copy"}
+        </Button>
       </div>
-      <div>
-        <label htmlFor="two-factor-code" className="mb-2 block text-base font-medium text-[#171216] sm:text-sm">
-          Authenticator code
-        </label>
-        <Input
-          id="two-factor-code"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          pattern="[0-9]{6}"
-          maxLength={6}
-          required
-          value={code}
-          onChange={(e) => onCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-          placeholder="000000"
-          className="h-13 rounded-lg border-[#d9d9d9] bg-white text-base tracking-[0.3em] text-[#444] placeholder:text-[#a7a7a7] focus-visible:ring-1 focus-visible:ring-[#c01867] sm:h-12 sm:text-sm"
-        />
-      </div>
+      {copyState === "unavailable" ? (
+        <p role="status" className="mt-2 text-sm text-muted-foreground">
+          {COPY_UNAVAILABLE_MESSAGE}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -118,6 +52,7 @@ function EventSignInTwoFactorFields({
 export function EventSignInView() {
   const vm = useEventSignInViewModel();
   const passwordPhase = vm.phase === "password";
+  const copy = twoFactorCopy(vm.phase);
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -125,89 +60,97 @@ export function EventSignInView() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f6f6f6]">
-      <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
-        <a
-          href={portalHref("/")}
-          aria-label="Back to P.R.I.S.M. home"
-          className="inline-flex size-10 items-center justify-center rounded-full text-[#444] transition hover:bg-white hover:text-[#c01867] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c01867]/40"
-        >
-          <ArrowLeft className="size-5" />
-        </a>
-
-        <section className="mx-auto mt-6 w-full max-w-lg sm:mt-8">
-          <div className="flex justify-center">
-            <PrismBrandLogo
-              detail="Event Command Portal"
-              className="justify-center"
-              markClassName="size-16 bg-transparent ring-0 sm:size-20"
+    <PrismAuthShell
+      portal="event"
+      portalName="Event Command Portal"
+      statement={EVENT_PORTAL_STATEMENT}
+      points={EVENT_PORTAL_POINTS}
+      homeHref={portalHref("/")}
+      title="Sign in to the event command portal"
+      description={passwordPhase ? undefined : copy.detail}
+      footer={
+        <>
+          <p>Authorized PMCM team access only.</p>
+          <p>Admin and coordinator accounts only. Other roles have separate portals.</p>
+        </>
+      }
+    >
+      <form className="flex flex-col gap-5" onSubmit={onSubmit}>
+        <div hidden={!passwordPhase} className="flex flex-col gap-5">
+          <Field>
+            <Label htmlFor="email">Email address</Label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="username"
+              required={passwordPhase}
+              value={vm.email}
+              onChange={(e) => vm.setEmail(e.target.value)}
+              placeholder="name@company.com"
+              className="h-12 rounded-lg bg-card text-base"
             />
-          </div>
+          </Field>
 
-          <div className="mt-6 overflow-hidden rounded-xl border border-[#d9d9d9] shadow-[0_8px_22px_rgba(17,24,39,0.12)] sm:mt-8">
-            <div className="flex items-center gap-3 bg-[#c01867] px-5 py-5 sm:px-6 sm:py-6">
-              <div className="inline-flex size-10 items-center justify-center rounded-lg border border-white/20 bg-white/10">
-                <Handshake className="size-5 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-semibold text-white sm:text-[24px]">Welcome Back</h2>
-                <p className="text-base text-white/90 sm:text-sm">Sign in to continue</p>
-              </div>
+          <Field>
+            <Label htmlFor="password">Password</Label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={vm.showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                required={passwordPhase}
+                value={vm.password}
+                onChange={(e) => vm.setPassword(e.target.value)}
+                placeholder="Enter your password"
+                className="h-12 rounded-lg bg-card pr-12 text-base"
+              />
+              <button
+                type="button"
+                onClick={() => vm.setShowPassword(!vm.showPassword)}
+                className="absolute right-1 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                aria-label={vm.showPassword ? "Hide password" : "Show password"}
+              >
+                {vm.showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+              </button>
             </div>
+            <a href={portalHref("/password-reset")} className="self-end text-sm text-primary transition-colors hover:text-primary/80">
+              Forgot password?
+            </a>
+          </Field>
+        </div>
 
-            <div className="bg-[#f6f6f6] px-4 py-6 sm:px-8 sm:py-8">
-              <form className="space-y-5" onSubmit={onSubmit}>
-                <div hidden={!passwordPhase}>
-                  <EventSignInPasswordFields
-                    email={vm.email}
-                    password={vm.password}
-                    showPassword={vm.showPassword}
-                    required={passwordPhase}
-                    onEmail={vm.setEmail}
-                    onPassword={vm.setPassword}
-                    onTogglePassword={() => vm.setShowPassword(!vm.showPassword)}
-                  />
-                </div>
-
-                {passwordPhase ? null : (
-                  <EventSignInTwoFactorFields
-                    phase={vm.phase}
-                    setupSecret={vm.setupSecret}
-                    code={vm.code}
-                    onCode={vm.setCode}
-                  />
-                )}
-
-                {vm.error ? (
-                  <p className="text-sm text-[#b4233a]" role="alert">{vm.error}</p>
-                ) : null}
-
-                <button
-                  type="submit"
-                  disabled={vm.busy}
-                  className="flex h-14 w-full items-center justify-center rounded-lg bg-[#c01867] text-lg font-semibold text-white transition hover:bg-[#a81459] disabled:cursor-not-allowed disabled:opacity-70 sm:h-12 sm:text-base"
-                >
-                  {signInSubmitLabel(vm.busy, vm.phase)}
-                </button>
-                <a hidden={!passwordPhase} href={portalHref("/password-reset")} className="block text-center text-sm text-[#c01867] transition hover:text-[#a81459]">
-                  Forgot password?
-                </a>
-              </form>
-
-            </div>
+        {passwordPhase ? null : (
+          <div className="flex flex-col gap-5">
+            <p className="text-base font-semibold text-foreground">{copy.title}</p>
+            {vm.setupSecret ? <SetupSecretBox secret={vm.setupSecret} /> : null}
+            <Field>
+              <Label htmlFor="two-factor-code">Authenticator code</Label>
+              <Input
+                id="two-factor-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                required
+                value={vm.code}
+                onChange={(e) => vm.setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="000000"
+                className="h-12 rounded-lg bg-card text-base tracking-[0.3em]"
+              />
+            </Field>
           </div>
+        )}
 
-          <div className="mt-6 text-center sm:mt-10">
-            <p className="inline-flex items-center gap-2 text-base text-[#888888] sm:text-sm">
-              <Shield className="size-4" />
-              Authorized PMCM team access only
-            </p>
-            <p className="mt-2 text-sm text-[#a0a0a0] sm:text-xs">
-              Admin and coordinator accounts only. Other roles have separate portals.
-            </p>
-          </div>
-        </section>
-      </div>
-    </main>
+        {vm.error ? (
+          <Alert variant="destructive" role="alert">
+            <AlertDescription>{vm.error}</AlertDescription>
+          </Alert>
+        ) : null}
+
+        <Button type="submit" disabled={vm.busy} className={prismAuthSubmitClassName("event")}>
+          {signInSubmitLabel(vm.busy, vm.phase)}
+        </Button>
+      </form>
+    </PrismAuthShell>
   );
 }
