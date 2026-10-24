@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { SupplierApplicationService } from './supplier-application.service';
@@ -264,6 +264,7 @@ describe('SupplierApplicationService approval conversion', () => {
     expect(fake.provisioning.provision).toHaveBeenCalledTimes(1);
     expect(fake.provisioning.provision).toHaveBeenCalledWith(expect.objectContaining({
       email: 'Ava@Northstar.test', name: 'Ava', role: 'supplier', organization: 'Northstar', source: 'supplier_application', sourceId: 'sap_1',
+      actor: { id: 'admin_1', name: 'PMCM Admin', role: 'pmcm-admin' },
     }));
   });
 
@@ -275,6 +276,40 @@ describe('SupplierApplicationService approval conversion', () => {
 
     expect(approved.status).toBe('approved');
     expect(fake.audits).toContainEqual(expect.objectContaining({ action: 'Supplier login was not created for approved application: Northstar', severity: 'warning' }));
+  });
+
+  it.each([
+    ['PMCM admin', pmcmAdminActor],
+    ['the system', { id: 'system_1', role: OpsUserRole.System, name: 'System', explicit: true }],
+  ])('lets %s re-send an approved application supplier login, attributed to that actor', async (_label, actor) => {
+    const fake = createConversionFake();
+    fake.applications[0]!.status = 'approved';
+
+    await expect(fake.service.resendAccountInvitation('sap_1', actor)).resolves.toEqual({ outcome: 'invited', sentAt: expect.any(String), expiresAt: expect.any(String) });
+
+    expect(fake.provisioning.provision).toHaveBeenCalledWith(expect.objectContaining({
+      email: 'Ava@Northstar.test', role: 'supplier', source: 'supplier_application', sourceId: 'sap_1',
+      actor: { id: actor.id, name: actor.name, role: actor.role },
+    }));
+  });
+
+  it('refuses a supplier login re-send from a client or a supplier, before anything is sent', async () => {
+    const fake = createConversionFake();
+    fake.applications[0]!.status = 'approved';
+
+    await expect(fake.service.resendAccountInvitation('sap_1', clientActor)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(fake.service.resendAccountInvitation('sap_1', supplierActor)).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(fake.provisioning.provision).not.toHaveBeenCalled();
+  });
+
+  it.each(['pending', 'declined'])('refuses a supplier login re-send for an application that is %s', async (status) => {
+    const fake = createConversionFake();
+    fake.applications[0]!.status = status;
+
+    await expect(fake.service.resendAccountInvitation('sap_1', pmcmAdminActor)).rejects.toBeInstanceOf(ConflictException);
+
+    expect(fake.provisioning.provision).not.toHaveBeenCalled();
   });
 
   it('rejects a replayed approval whose payload differs from the original conversion', async () => {

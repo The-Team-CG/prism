@@ -1,7 +1,7 @@
 import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
-import { AccountInvitationService, SYSTEM_INVITATION_ACTOR } from './account-invitation.service';
+import { AccountInvitationService } from './account-invitation.service';
 import type { AccountInvitationDeliveryPort } from '../../contracts/account-invitation.port';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 
@@ -53,7 +53,7 @@ const clientInput = {
   organization: 'Ana Events',
   source: 'conforme' as const,
   sourceId: 'inq_1',
-  actor: SYSTEM_INVITATION_ACTOR,
+  actor: { id: 'usr_pmcm', name: 'Maxine PMCM', role: 'pmcm-admin' },
 };
 
 describe('AccountInvitationService.provision', () => {
@@ -77,7 +77,7 @@ describe('AccountInvitationService.provision', () => {
       tokenHash: sha256(token),
       source: 'conforme',
       sourceId: 'inq_1',
-      createdBy: 'system',
+      createdBy: 'usr_pmcm',
       expiresAt: new Date(Date.parse((outcome as { sentAt: string }).sentAt) + SEVEN_DAYS_MS),
     })]);
     expect(JSON.stringify(invitations)).not.toContain(token);

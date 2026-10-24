@@ -670,6 +670,19 @@ describe("createEventOpsClient", () => {
     }));
   });
 
+  it("posts a supplier login re-send for an approved application", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ outcome: "invited" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api", getAuthToken: () => "session-token" });
+    await client.supplierApplications.resendAccountInvitation("sap 1");
+
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/supplier-applications/sap%201/account-invitation/resend", expect.objectContaining({
+      method: "POST",
+      headers: { Authorization: "Bearer session-token", "Content-Type": "application/json" },
+    }));
+  });
+
   it("sends actor query params for event lists", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
