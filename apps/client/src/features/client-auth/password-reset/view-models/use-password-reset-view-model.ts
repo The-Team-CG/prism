@@ -1,66 +1,95 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { consumePasswordResetSchema, requestPasswordResetSchema } from "@prism/types";
-import { clientAuthRepository } from "../../sign-in/data/client-auth-repository";
+import { FormEvent, useEffect, useState } from "react";
+import { passwordResetChecks, type PasswordResetView } from "../model/password-reset-model";
+import { consumeClientPasswordReset, requestClientPasswordReset } from "../use-cases/password-reset";
 
-export const PASSWORDS_MISMATCH_MESSAGE = "Passwords do not match.";
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
 
 export function useClientPasswordResetViewModel() {
-  const [token, setToken] = useState("");
+  const [token, setToken] = useState<string | null>(null);
   const [email, setEmail] = useState("");
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setToken(new URLSearchParams(window.location.search).get("token") ?? "");
   }, []);
 
-  const isSetStep = token.length > 0;
-  const passwordsMatch = password === confirmPassword;
+  const view: PasswordResetView = done
+    ? "done"
+    : token === null
+      ? "loading"
+      : token
+        ? "set"
+        : sentTo
+          ? "check"
+          : "request";
+  const checks = passwordResetChecks(password, confirmPassword);
+  const passwordsMatch = password.length > 0 && password === confirmPassword;
+  const canSetPassword = checks.every((check) => check.met);
 
-  async function submit() {
+  async function requestReset(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setBusy(true);
-    setNotice(null);
     setError(null);
     try {
-      if (isSetStep) {
-        if (!passwordsMatch) throw new Error(PASSWORDS_MISMATCH_MESSAGE);
-        const parsed = consumePasswordResetSchema.safeParse({ token, password });
-        if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Check the new password.");
-        const result = await clientAuthRepository.consumePasswordReset(parsed.data);
-        setNotice(result.message);
-        return;
-      }
-      const parsed = requestPasswordResetSchema.safeParse({ email });
-      if (!parsed.success) throw new Error("Enter a valid email address.");
-      const result = await clientAuthRepository.requestPasswordReset(parsed.data.email);
-      setNotice(result.message);
+      setSentTo(await requestClientPasswordReset(email));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to process password reset");
+      setError(errorMessage(err, "Unable to request a password reset."));
     } finally {
       setBusy(false);
     }
   }
 
+  async function consumeReset(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token || !canSetPassword) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await consumeClientPasswordReset({ token, password });
+      setPassword("");
+      setConfirmPassword("");
+      setDone(true);
+    } catch (err) {
+      setError(errorMessage(err, "Unable to set a new password."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function useDifferentEmail() {
+    setSentTo(null);
+    setEmail("");
+    setError(null);
+  }
+
   return {
-    isSetStep,
+    view,
     email,
+    sentTo,
     password,
     confirmPassword,
-    passwordsMatch,
     showPassword,
-    notice,
-    error,
+    passwordsMatch,
+    checks,
+    canSetPassword,
     busy,
+    error,
     setEmail,
     setPassword,
     setConfirmPassword,
     setShowPassword,
-    submit,
+    requestReset,
+    consumeReset,
+    useDifferentEmail,
   };
 }
