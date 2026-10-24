@@ -62,6 +62,7 @@ export class AccountInvitationService implements AccountProvisioningPort {
         recipient: email,
         name: input.name,
         role: input.role,
+        source: input.source,
         activationUrl: this.activationUrlFor(input.role, decision.token),
       });
     } catch {

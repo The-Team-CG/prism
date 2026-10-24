@@ -66,7 +66,8 @@ describe('AccountInvitationService.provision', () => {
     expect(Date.parse((outcome as { expiresAt: string }).expiresAt) - Date.parse((outcome as { sentAt: string }).sentAt)).toBe(SEVEN_DAYS_MS);
     expect(created).toEqual([expect.objectContaining({ email: 'ana@example.test', password: null, role: 'client', approvalStatus: 'invited', organization: 'Ana Events' })]);
 
-    const { recipient, activationUrl } = delivery.deliver.mock.calls[0][0];
+    const { recipient, activationUrl, source } = delivery.deliver.mock.calls[0][0];
+    expect(source).toBe('inquiry_acceptance');
     const link = new URL(activationUrl);
     expect(recipient).toBe('ana@example.test');
     expect(`${link.origin}${link.pathname}`).toBe('https://client.example.test/activate');
