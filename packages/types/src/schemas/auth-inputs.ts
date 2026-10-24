@@ -18,6 +18,21 @@ export const consumePasswordResetSchema = z.object({
 });
 export type ConsumePasswordResetInput = z.infer<typeof consumePasswordResetSchema>;
 
+export const activateAccountSchema = z.object({
+  token: z.string().trim().min(32),
+  password: passwordSchema,
+});
+export type ActivateAccountInput = z.infer<typeof activateAccountSchema>;
+
+/** Staff accounts PMCM admins can invite. Clients and suppliers get their accounts from the conforme and supplier approval. */
+export const createAccountInvitationSchema = z.object({
+  email: z.string().trim().email(),
+  name: nonEmptyStringSchema,
+  role: z.enum(['pmcm-admin', 'coordinator']),
+  organization: nonEmptyStringSchema,
+});
+export type CreateAccountInvitationInput = z.infer<typeof createAccountInvitationSchema>;
+
 export const requestApprovalSchema = z
   .object({ email: z.string().trim().email() })
   .merge(privacyConsentSchema)

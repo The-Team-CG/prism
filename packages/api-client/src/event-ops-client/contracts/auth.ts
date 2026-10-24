@@ -1,5 +1,9 @@
 import type {
+  ActivateAccountInput,
+  CreateAccountInvitationInput,
   LoginInput,
+  PrismAccountActivationReceipt,
+  PrismAccountInvitationOutcome,
   PrismApprovalRequestReceipt,
   PrismAuthResponse,
   PrismAuthenticatedSession,
@@ -27,5 +31,8 @@ export interface EventOpsAuthContract {
       token: string,
       password: string,
     ): Promise<{ message: string }>;
+    activateAccount(input: ActivateAccountInput): Promise<PrismAccountActivationReceipt>;
+    inviteStaff(input: CreateAccountInvitationInput): Promise<PrismAccountInvitationOutcome>;
+    resendAccountInvitation(userId: string): Promise<PrismAccountInvitationOutcome>;
   };
 }
