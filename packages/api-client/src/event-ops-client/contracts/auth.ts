@@ -1,8 +1,10 @@
 import type {
   LoginInput,
-  PrismApprovalRequest,
+  PrismApprovalRequestReceipt,
   PrismAuthResponse,
   PrismAuthenticatedSession,
+  PrismCurrentUser,
+  PrismIdentityAccountSummary,
   PrismTwoFactorSetup,
   RequestApprovalInput,
   VerifyTwoFactorInput,
@@ -11,7 +13,11 @@ import type {
 export interface EventOpsAuthContract {
   auth: {
     login(input: LoginInput): Promise<PrismAuthResponse>;
-    requestApproval(input: RequestApprovalInput): Promise<PrismApprovalRequest>;
+    requestApproval(input: RequestApprovalInput): Promise<PrismApprovalRequestReceipt>;
+    logout(): Promise<void>;
+    me(): Promise<PrismCurrentUser>;
+    unlockUser(userId: string): Promise<PrismIdentityAccountSummary>;
+    resetUserTwoFactor(userId: string): Promise<PrismIdentityAccountSummary>;
     setupTwoFactor(token: string): Promise<PrismTwoFactorSetup>;
     verifyTwoFactor(input: VerifyTwoFactorInput): Promise<PrismAuthenticatedSession>;
     requestPasswordReset(

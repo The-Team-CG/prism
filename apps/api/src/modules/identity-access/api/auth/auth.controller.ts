@@ -56,7 +56,7 @@ export class OpsAuthController {
 
   @Post('approval-requests')
   @PublicRateLimit('accountRequest')
-  @HttpCode(HttpStatus.CREATED)
+  @HttpCode(HttpStatus.ACCEPTED)
   requestApproval(@Body(zodBody(requestApprovalSchema)) dto: RequestApprovalInput) {
     return this.authOperationsService.requestApproval(dto);
   }
@@ -67,10 +67,35 @@ export class OpsAuthController {
     return this.requireAdmin(actor).then(() => this.authOperationsService.listApprovalRequests());
   }
 
+  @Post('logout')
+  @UseGuards(EventSessionGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  logout(@VerifiedEventActor() actor: PrismVerifiedEventActor) {
+    return this.authOperationsService.logout(actor);
+  }
+
+  @Get('me')
+  @UseGuards(EventSessionGuard)
+  me(@VerifiedEventActor() actor: PrismVerifiedEventActor) {
+    return this.authOperationsService.currentUser(actor);
+  }
+
   @Get('users/:userId/login-history')
   @UseGuards(EventSessionGuard)
   listLoginHistory(@Param('userId') userId: string, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
     return this.requireAdmin(actor).then(() => this.authOperationsService.listLoginHistory(userId));
+  }
+
+  @Patch('users/:userId/unlock')
+  @UseGuards(EventSessionGuard)
+  unlockUser(@Param('userId') userId: string, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
+    return this.requireAdmin(actor).then((verifiedActor) => this.authOperationsService.unlockUser(userId, verifiedActor));
+  }
+
+  @Patch('users/:userId/two-factor/reset')
+  @UseGuards(EventSessionGuard)
+  resetUserTwoFactor(@Param('userId') userId: string, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
+    return this.requireAdmin(actor).then((verifiedActor) => this.authOperationsService.resetUserTwoFactor(userId, verifiedActor));
   }
 
   @Patch('approval-requests/:requestId/approve')

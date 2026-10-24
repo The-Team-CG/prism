@@ -24,7 +24,7 @@ describe.skipIf(!enabled)('native password recovery PostgreSQL integrity', () =>
     prisma = new PrismaService();
     await prisma.$connect();
     await prisma.opsUser.create({ data: {
-      id: userId, name: 'P1 Recovery Fixture', email: `${prefix}@example.test`, password: AuthSecurityService.hashPassword('old-password-123'), role: 'client', organization: 'P1', approvalStatus: 'approved',
+      id: userId, name: 'P1 Recovery Fixture', email: `${prefix}@example.test`, password: await AuthSecurityService.hashPassword('old-password-123'), role: 'client', organization: 'P1', approvalStatus: 'approved',
     } });
     await prisma.opsPasswordResetToken.create({ data: {
       id: `${prefix}_token`, userId, tokenHash: createHash('sha256').update(rawToken).digest('hex'), expiresAt: new Date(Date.now() + 60_000),

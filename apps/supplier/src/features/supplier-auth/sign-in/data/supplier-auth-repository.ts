@@ -11,7 +11,7 @@ import {
   savePrismSession,
   type ConsumePasswordResetInput,
   type LoginInput,
-  type PrismApprovalRequest,
+  type PrismApprovalRequestReceipt,
   type PrismAuthResponse,
   type PrismAuthenticatedSession,
   type RequestApprovalInput,
@@ -58,7 +58,7 @@ export const supplierAuthRepository = {
     );
   },
 
-  requestApproval(input: RequestApprovalInput): Promise<PrismApprovalRequest> {
+  requestApproval(input: RequestApprovalInput): Promise<PrismApprovalRequestReceipt> {
     return runSupplierAuthRequest(
       () => supplierAuthClient.auth.requestApproval(input),
       "Unable to request supplier account approval",

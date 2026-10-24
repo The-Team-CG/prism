@@ -75,7 +75,7 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
       id: challengeUserId,
       name: 'P0 Two Factor Fixture',
       email: challengeEmail,
-      password: AuthSecurityService.hashPassword('P0-two-factor-password-long-enough'),
+      password: await AuthSecurityService.hashPassword('P0-two-factor-password-long-enough'),
       role: 'pmcm-admin',
       organization: prefix,
       approvalStatus: 'approved',

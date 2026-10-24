@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { BadRequestException } from '@nestjs/common';
 import { PasswordResetService } from './password-reset.service';
+import { AuthSecurityService } from './auth-security.service';
 
 function fixture() {
   const user = { id: 'user_1', email: 'ana@example.test' };
@@ -45,12 +46,18 @@ describe('PasswordResetService', () => {
     expect(userUpdate).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         sessionVersion: { increment: 1 },
+        failedLoginCount: 0,
+        lockoutCount: 0,
+        lockedUntil: null,
+        permanentLockout: false,
         twoFactorChallengeHash: null,
         twoFactorChallengeExpiresAt: null,
         twoFactorChallengeAttempts: 0,
         twoFactorChallengeConsumedAt: null,
       }),
     }));
+    const storedPassword = userUpdate.mock.calls[0][0].data.password;
+    expect(await AuthSecurityService.verifyPassword(storedPassword, 'a sufficiently long password')).toBe(true);
     expect(authAudit.write).toHaveBeenCalledWith(expect.objectContaining({ action: 'Password reset consumed' }));
   });
 

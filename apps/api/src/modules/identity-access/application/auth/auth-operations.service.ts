@@ -9,8 +9,17 @@ import {
 import { createHash, randomBytes } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import type { OpsApprovalRequest, OpsUser } from '@prisma/client';
-import { PRISM_PRIVACY_NOTICE_VERSION, type PrismUser, type RequestApprovalInput } from '@prism/types';
+import {
+  PRISM_PRIVACY_NOTICE_VERSION,
+  type PrismApprovalRequestReceipt,
+  type PrismCurrentUser,
+  type PrismIdentityAccountSummary,
+  type PrismUser,
+  type PrismVerifiedEventActor,
+  type RequestApprovalInput,
+} from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
+import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
 import { writeAudit, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { AuthSessionService, type VerifiedTwoFactorToken } from '@prism/kernel/event-session';
@@ -22,6 +31,11 @@ import { canonicalAccountEmail } from './account-email';
 import { INQUIRY_COMMANDS } from '../../../event-lifecycle/contracts/inquiry-onboarding.tokens';
 import type { InquiryCommands } from '../../../event-lifecycle/contracts/inquiry-commands.port';
 import { AUTH_AUDIT, type AuthAuditPort } from '../../contracts/auth-audit.port';
+
+const INVALID_CREDENTIALS = 'Invalid email or password';
+const APPROVAL_REQUEST_RECEIVED_MESSAGE = 'If an account exists for this email, PMCM will review the request.';
+// Fixed hash, never a real credential, verified against when the email is unknown.
+const UNKNOWN_ACCOUNT_PASSWORD_HASH = 'scrypt$N=16384,r=8,p=5$30682f972917c5edd26dd7ffa09a889f$2c8426bd4d95f3db93469835fa24b81e8b7e90cfec405aee66d74dc8e6f97338c42462cb7ef67fab5417043759938bffeb348ea970c11ddc66219acb8d0afc03';
 
 type VerifiedIdentityAdmin = ResolvedEventOpsActor & {
   id: string;
@@ -56,8 +70,10 @@ export class AuthOperationsService {
     const user = await this.prisma.opsUser.findUnique({ where: { email: normalizedEmail } });
 
     if (!user) {
+      // Same hashing work as a known account, so response time does not reveal which emails exist.
+      await AuthSecurityService.verifyPassword(UNKNOWN_ACCOUNT_PASSWORD_HASH, password);
       await this.rejectUnknownLogin(normalizedEmail);
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException(INVALID_CREDENTIALS);
     }
 
     await this.assertLoginAllowed(user, normalizedEmail, password);
@@ -82,6 +98,15 @@ export class AuthOperationsService {
 
   private async assertLoginAllowed(user: OpsUser, normalizedEmail: string, password: string) {
     const now = new Date();
+    const locked = user.permanentLockout || Boolean(user.lockedUntil && user.lockedUntil > now);
+
+    // The password is checked before any lock is disclosed. A locked account never gets
+    // a counter increment from a wrong password, so an attacker cannot extend a lock.
+    if (!(await AuthSecurityService.verifyPassword(user.password, password))) {
+      if (!locked) await this.recordFailedLoginAttempt(user.id, 'Invalid password');
+      throw new UnauthorizedException(INVALID_CREDENTIALS);
+    }
+
     if (user.permanentLockout) {
       await this.authAudit.handleForbiddenAccess(user, normalizedEmail, 'Permanent lockout');
       throw new ForbiddenException('This account is permanently locked and requires PMCM Admin intervention');
@@ -92,11 +117,6 @@ export class AuthOperationsService {
       throw new ForbiddenException('This account is temporarily locked after repeated failed login attempts');
     }
 
-    if (!AuthSecurityService.verifyPassword(user.password, password)) {
-      await this.recordFailedLoginAttempt(user.id, 'Invalid password');
-      throw new UnauthorizedException('Invalid email or password');
-    }
-
     if (user.approvalStatus !== 'approved') {
       await this.authAudit.handleForbiddenAccess(user, normalizedEmail, 'Account waiting for approval');
       throw new ForbiddenException('This account is waiting for admin approval');
@@ -104,16 +124,18 @@ export class AuthOperationsService {
   }
 
   private async recordPasswordVerified(user: OpsUser, normalizedEmail: string, password: string) {
+    // PMCM admins still need a second factor, so their lock counters reset only when a session is issued
+    // (see verifyTwoFactor). Everyone else's counters reset here.
     const requiresTwoFactor = user.role === OpsUserRole.PmcmAdmin;
     const updated = await this.prisma.opsUser.update({
       where: { id: user.id },
       data: {
-        ...(!AuthSecurityService.isHashedPassword(user.password)
-          ? { password: AuthSecurityService.hashPassword(password) }
+        ...(AuthSecurityService.needsRehash(user.password)
+          ? { password: await AuthSecurityService.hashPassword(password) }
           : {}),
-        failedLoginCount: requiresTwoFactor ? user.failedLoginCount : 0,
-        lockedUntil: requiresTwoFactor ? user.lockedUntil : null,
-        lastLoginAt: requiresTwoFactor ? user.lastLoginAt : new Date(),
+        ...(requiresTwoFactor
+          ? {}
+          : { failedLoginCount: 0, lockoutCount: 0, lockedUntil: null, lastLoginAt: new Date() }),
       },
     });
 
@@ -243,6 +265,7 @@ export class AuthOperationsService {
             data: {
               twoFactorChallengeConsumedAt: now,
               failedLoginCount: 0,
+              lockoutCount: 0,
               lockedUntil: null,
               lastLoginAt: now,
             },
@@ -367,41 +390,144 @@ export class AuthOperationsService {
     return result.user;
   }
 
-  async requestApproval(input: string | RequestApprovalInput) {
+  async requestApproval(input: string | RequestApprovalInput): Promise<PrismApprovalRequestReceipt> {
     if (typeof input === 'string' || input.privacyConsentAccepted !== true) {
       throw new BadRequestException('Privacy consent is required before requesting account approval');
     }
     const approvalInput = input;
-    const user = await this.prisma.opsUser.findUnique({
-      where: { email: canonicalAccountEmail(approvalInput.email) },
+    const normalizedEmail = canonicalAccountEmail(approvalInput.email);
+    const user = await this.prisma.opsUser.findUnique({ where: { email: normalizedEmail } });
+
+    // An existing request (pending, approved or declined) is never rewritten by a new request.
+    // A declined request therefore stays declined until a PMCM admin acts on it.
+    if (user) {
+      await this.prisma.opsApprovalRequest.upsert({
+        where: { id: `approval_${user.id}` },
+        create: {
+          id: `approval_${user.id}`,
+          userId: user.id,
+          name: user.name,
+          email: canonicalAccountEmail(user.email),
+          role: user.role as PrismUser['role'],
+          organization: user.organization,
+          status: 'pending',
+          privacyConsentAccepted: approvalInput.privacyConsentAccepted,
+          privacyNoticeVersion: approvalInput.privacyNoticeVersion ?? PRISM_PRIVACY_NOTICE_VERSION,
+          marketingConsentAccepted: Boolean(approvalInput.marketingConsentAccepted),
+        },
+        update: {},
+      });
+    }
+
+    await this.authAudit.write({
+      actor: user?.name ?? 'Unknown user',
+      action: `Account approval requested for ${normalizedEmail}`,
+      actorRole: user?.role ?? OpsUserRole.Unknown,
+      actorEmail: normalizedEmail,
+      actionType: AuditActionType.General,
+      category: AuditCategory.Access,
+      affectedType: 'account',
+      affectedId: user?.id,
+      affectedLabel: normalizedEmail,
+      metadata: { accountFound: Boolean(user) },
     });
 
-    if (!user) throw new NotFoundException('User not found');
+    return { message: APPROVAL_REQUEST_RECEIVED_MESSAGE };
+  }
 
-    const request = await this.prisma.opsApprovalRequest.upsert({
-      where: { id: `approval_${user.id}` },
-      create: {
-        id: `approval_${user.id}`,
-        userId: user.id,
-        name: user.name,
-        email: canonicalAccountEmail(user.email),
-        role: user.role as PrismUser['role'],
-        organization: user.organization,
-        status: 'pending',
-        privacyConsentAccepted: approvalInput.privacyConsentAccepted,
-        privacyNoticeVersion: approvalInput.privacyNoticeVersion ?? PRISM_PRIVACY_NOTICE_VERSION,
-        marketingConsentAccepted: Boolean(approvalInput.marketingConsentAccepted),
-      },
-      update: {
-        status: 'pending',
-        privacyConsentAccepted: approvalInput.privacyConsentAccepted,
-        privacyNoticeVersion: approvalInput.privacyNoticeVersion ?? PRISM_PRIVACY_NOTICE_VERSION,
-        marketingConsentAccepted: Boolean(approvalInput.marketingConsentAccepted),
-        requestedAt: new Date(),
-      },
+  async logout(actor: PrismVerifiedEventActor) {
+    await this.prisma.$transaction(async (tx) => {
+      const revoked = await tx.opsUser.updateMany({
+        where: { id: actor.id, sessionVersion: actor.sessionVersion },
+        data: { sessionVersion: { increment: 1 } },
+      });
+      if (revoked.count !== 1) throw new UnauthorizedException('Session has already been revoked');
+      await writeAudit(
+        this.authAudit,
+        undefined,
+        actor.name,
+        'Signed out and revoked open sessions',
+        {
+          actorRole: actor.role,
+          actorEmail: actor.email,
+          actionType: AuditActionType.General,
+          category: AuditCategory.Access,
+          affectedType: 'account',
+          affectedId: actor.id,
+          affectedLabel: actor.email,
+        },
+        { prisma: tx, correlationId: actor.id, actorId: actor.id },
+      );
     });
+  }
 
-    return this.mapApprovalRequest(request);
+  async currentUser(actor: PrismVerifiedEventActor): Promise<PrismCurrentUser> {
+    const user = await this.prisma.opsUser.findUnique({ where: { id: actor.id } });
+    if (!user) throw new UnauthorizedException('Session has been revoked or account access is no longer eligible');
+    return this.mapCurrentUser(user, actor.expiresAt);
+  }
+
+  async unlockUser(userId: string, actor: ResolvedEventOpsActor): Promise<PrismIdentityAccountSummary> {
+    const admin = this.requireVerifiedIdentityAdmin(actor);
+    return this.prisma.$transaction(async (tx) => {
+      const user = await tx.opsUser.findUnique({ where: { id: userId } });
+      if (!user) throw new NotFoundException('Account not found');
+      const saved = await tx.opsUser.update({
+        where: { id: user.id },
+        data: { lockedUntil: null, failedLoginCount: 0, lockoutCount: 0, permanentLockout: false },
+      });
+      await this.writeIdentityAdminAudit(tx, admin, saved, 'Unlocked account', { previousLockedUntil: user.lockedUntil?.toISOString() ?? null, previousPermanentLockout: user.permanentLockout });
+      return this.mapAccountSummary(saved);
+    });
+  }
+
+  async resetUserTwoFactor(userId: string, actor: ResolvedEventOpsActor): Promise<PrismIdentityAccountSummary> {
+    const admin = this.requireVerifiedIdentityAdmin(actor);
+    return this.prisma.$transaction(async (tx) => {
+      const user = await tx.opsUser.findUnique({ where: { id: userId } });
+      if (!user) throw new NotFoundException('Account not found');
+      if (user.role !== OpsUserRole.PmcmAdmin) throw new BadRequestException('Two-factor reset applies only to PMCM admin accounts');
+      // Bumping sessionVersion revokes every open session; the next sign-in starts two-factor setup again.
+      const saved = await tx.opsUser.update({
+        where: { id: user.id },
+        data: {
+          twoFactorSecret: null,
+          twoFactorChallengeHash: null,
+          twoFactorChallengeExpiresAt: null,
+          twoFactorChallengeAttempts: 0,
+          twoFactorChallengeConsumedAt: null,
+          sessionVersion: { increment: 1 },
+        },
+      });
+      await this.writeIdentityAdminAudit(tx, admin, saved, 'Reset two-factor enrolment and revoked open sessions', { previousSessionVersion: user.sessionVersion });
+      return this.mapAccountSummary(saved);
+    });
+  }
+
+  private writeIdentityAdminAudit(
+    tx: PrismTransactionContext['prisma'],
+    admin: VerifiedIdentityAdmin,
+    target: OpsUser,
+    action: string,
+    metadata: Record<string, unknown>,
+  ) {
+    return writeAudit(
+      this.authAudit,
+      undefined,
+      admin.name,
+      `${action} for ${target.email}`,
+      {
+        actorRole: admin.role,
+        actorEmail: admin.email,
+        actionType: AuditActionType.Update,
+        category: AuditCategory.Access,
+        affectedType: 'account',
+        affectedId: target.id,
+        affectedLabel: target.email,
+        metadata: { actorId: admin.id, ...metadata },
+      },
+      { prisma: tx, correlationId: target.id, actorId: admin.id },
+    );
   }
 
   async listApprovalRequests() {
@@ -519,6 +645,33 @@ export class AuthOperationsService {
       lastLoginAt: user.lastLoginAt ? timestamp(user.lastLoginAt) : null,
       lockedUntil: user.lockedUntil ? timestamp(user.lockedUntil) : null,
       permanentLockout: user.permanentLockout,
+      sessionVersion: user.sessionVersion,
+    };
+  }
+
+  private mapCurrentUser(user: OpsUser, expiresAt: string): PrismCurrentUser {
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role as PrismUser['role'],
+      organization: user.organization,
+      twoFactorEnabled: Boolean(user.twoFactorSecret),
+      expiresAt,
+    };
+  }
+
+  private mapAccountSummary(user: OpsUser): PrismIdentityAccountSummary {
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role as PrismUser['role'],
+      approvalStatus: user.approvalStatus,
+      lockedUntil: user.lockedUntil ? timestamp(user.lockedUntil) : null,
+      permanentLockout: user.permanentLockout,
+      failedLoginCount: user.failedLoginCount,
+      lockoutCount: user.lockoutCount,
+      twoFactorEnabled: Boolean(user.twoFactorSecret),
       sessionVersion: user.sessionVersion,
     };
   }
