@@ -29,7 +29,12 @@ describe.skipIf(!enabled)('native password recovery PostgreSQL integrity', () =>
     await prisma.opsPasswordResetToken.create({ data: {
       id: `${prefix}_token`, userId, tokenHash: createHash('sha256').update(rawToken).digest('hex'), expiresAt: new Date(Date.now() + 60_000),
     } });
-    service = new PasswordResetService(prisma);
+    service = new PasswordResetService(prisma, { deliver: async () => undefined }, {
+      client: 'https://client.example.test',
+      supplier: 'https://supplier.example.test',
+      guest: 'https://guest.example.test',
+      event: 'https://event.example.test',
+    });
   });
 
   afterAll(async () => {
