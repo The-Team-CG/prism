@@ -66,6 +66,7 @@ function createFixture() {
       inquiry.conformeSignedAt = signedAt;
       return { event, inquiry };
     }),
+    // Acceptance, not signing, sends the client invitation; signing must never reach this.
     sendClientPortalInvitationAfterCommit: vi.fn(async () => undefined),
   };
   const service = new ConformeSigningService(prisma as never, inquiriesService as never, auditWriter as never, notifications as never);
@@ -102,11 +103,10 @@ describe('ConformeSigningService', () => {
     expect(f.auditWriter.write).toHaveBeenCalledTimes(2);
     expect(pmcmResult.signatures).toHaveLength(2);
     expect(pmcmResult.signatures[0]).not.toHaveProperty('ipHash');
-    expect(f.inquiriesService.sendClientPortalInvitationAfterCommit).toHaveBeenCalledOnce();
-    expect(f.inquiriesService.sendClientPortalInvitationAfterCommit).toHaveBeenCalledWith('inq_1', { id: 'pmcm-user', name: 'PMCM Person', role: 'pmcm-admin' });
+    expect(f.inquiriesService.sendClientPortalInvitationAfterCommit).not.toHaveBeenCalled();
     await expect(f.service.signForPmcm('inq_1', signed, pmcmActor as never, {})).resolves.toMatchObject({ status: 'completed' });
     expect(f.inquiriesService.activateAfterConforme).toHaveBeenCalledOnce();
-    expect(f.inquiriesService.sendClientPortalInvitationAfterCommit).toHaveBeenCalledOnce();
+    expect(f.inquiriesService.sendClientPortalInvitationAfterCommit).not.toHaveBeenCalled();
     expect(f.notifications.write).toHaveBeenCalledOnce();
     expect(f.auditWriter.write).toHaveBeenCalledTimes(2);
   });

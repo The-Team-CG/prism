@@ -461,9 +461,10 @@ describe('InquiriesService', () => {
   });
 });
 
-describe('client portal invitation after the conforme', () => {
-  const signed = { status: 'accepted', conformeSignedAt: new Date('2026-10-20T00:00:00.000Z') };
-  const pmcmUploader = { id: 'usr_pmcm', name: 'PMCM Admin', role: OpsUserRole.PmcmAdmin };
+describe('client portal invitation after acceptance', () => {
+  const invitedOutcome = { outcome: 'invited', sentAt: '2026-10-25T00:00:00.000Z', expiresAt: '2026-11-01T00:00:00.000Z' };
+  const pmcmAccepter = { id: 'usr_pmcm', role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true, verified: true } as ResolvedEventOpsActor;
+  const invitedPayload = { role: 'client', source: 'inquiry_acceptance', sourceId: 'inq_existing', actor: { id: 'usr_pmcm', name: 'PMCM Admin', role: 'pmcm-admin' } };
 
   it.each([
     ['a new login', invitedOutcome, { portalInvitationStatus: 'sent', portalInvitationSentAt: new Date(invitedOutcome.sentAt), portalInvitationExpiresAt: new Date(invitedOutcome.expiresAt) }],
@@ -471,67 +472,69 @@ describe('client portal invitation after the conforme', () => {
     ['a delivery failure', { outcome: 'delivery_failed' }, { portalInvitationStatus: 'not_sent', portalInvitationSentAt: null, portalInvitationExpiresAt: null }],
     ['an account not yet approved', { outcome: 'account_not_active' }, { portalInvitationStatus: 'not_sent', portalInvitationSentAt: null, portalInvitationExpiresAt: null }],
     ['a role conflict', { outcome: 'role_conflict' }, { portalInvitationStatus: 'not_sent', portalInvitationSentAt: null, portalInvitationExpiresAt: null }],
-  ])('records the invitation status for %s and provisions the client from the inquiry', async (_label, outcome, expected) => {
+  ])('accepting an inquiry provisions the client once and records %s', async (_label, outcome, expected) => {
     const accountProvisioning = { provision: vi.fn(async (_input: unknown) => outcome) };
-    const { service, records } = createService([inquiry(signed)], accountProvisioning);
+    const { service, records } = createService([inquiry({ status: 'pending' })], accountProvisioning);
 
-    await service.sendClientPortalInvitationAfterCommit('inq_existing', pmcmUploader);
+    await service.updateInquiryStatus('inq_existing', { status: 'accepted' }, pmcmAccepter);
 
-    expect(accountProvisioning.provision).toHaveBeenCalledWith({
-      email: 'ana@ayala.test',
-      name: 'Ana Reyes',
-      role: 'client',
-      organization: 'Ayala Corp',
-      source: 'conforme',
-      sourceId: 'inq_existing',
-      actor: pmcmUploader,
-    });
+    expect(accountProvisioning.provision).toHaveBeenCalledOnce();
+    expect(accountProvisioning.provision).toHaveBeenCalledWith(expect.objectContaining({
+      email: 'ana@ayala.test', name: 'Ana Reyes', organization: 'Ayala Corp', ...invitedPayload,
+    }));
     expect(records[0]).toMatchObject(expected);
   });
 
-  it('issues the login once when the conforme is uploaded as stored, and never again on a repeat upload', async () => {
-    const accountProvisioning = { provision: vi.fn(async (_input: unknown) => invitedOutcome) };
-    const { service, records } = createService([inquiry({ status: 'accepted' })], accountProvisioning);
-    const actor = { role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true, verified: true, id: 'usr_pmcm' };
+  it('a repeat accept provisions nothing and announces nothing new', async () => {
+    const { service, accountProvisioning, notifications, audits } = createService([inquiry({ status: 'pending' })]);
 
-    await service.uploadConforme('inq_existing', { fileName: 'signed-conforme.pdf', storageObjectId: 'obj_conforme' }, actor as ResolvedEventOpsActor);
-    await expect(service.uploadConforme('inq_existing', { fileName: 'signed-conforme.pdf', storageObjectId: 'obj_conforme' }, actor as ResolvedEventOpsActor))
-      .rejects.toBeInstanceOf(BadRequestException);
+    await service.updateInquiryStatus('inq_existing', { status: 'accepted' }, pmcmAccepter);
+    const notificationsAfterFirst = notifications.length;
+    const auditsAfterFirst = audits.length;
+    await expect(service.updateInquiryStatus('inq_existing', { status: 'accepted' }, pmcmAccepter)).resolves.toMatchObject({ status: 'accepted' });
 
-    expect(accountProvisioning.provision).toHaveBeenCalledTimes(1);
-    expect(accountProvisioning.provision).toHaveBeenCalledWith(expect.objectContaining({ actor: { id: 'usr_pmcm', name: 'PMCM Admin', role: 'pmcm-admin' } }));
-    expect(records[0]).toMatchObject({ portalInvitationStatus: 'sent' });
+    expect(accountProvisioning.provision).toHaveBeenCalledOnce();
+    expect(notifications).toHaveLength(notificationsAfterFirst);
+    expect(audits).toHaveLength(auditsAfterFirst);
   });
 
-  it('keeps the signature and records the failure when provisioning throws after the commit', async () => {
+  it('keeps the acceptance and records not sent when provisioning throws after commit', async () => {
     const accountProvisioning = { provision: vi.fn(async (_input: unknown) => { throw new Error('mail transport offline'); }) };
-    const { service, records, audits } = createService([inquiry(signed)], accountProvisioning);
+    const { service, records, audits } = createService([inquiry({ status: 'pending' })], accountProvisioning);
 
-    await expect(service.sendClientPortalInvitationAfterCommit('inq_existing', pmcmUploader)).resolves.toBeUndefined();
+    await expect(service.updateInquiryStatus('inq_existing', { status: 'accepted' }, pmcmAccepter)).resolves.toMatchObject({ status: 'accepted' });
 
-    expect(records[0]).toMatchObject({ portalInvitationStatus: 'not_sent', conformeSignedAt: signed.conformeSignedAt });
+    expect(records[0]).toMatchObject({ status: 'accepted', portalInvitationStatus: 'not_sent' });
     expect(audits.map(([entry]) => entry)).toContainEqual(expect.objectContaining({
       actor: 'PMCM Admin',
-      action: 'Client portal invitation could not be issued after the conforme was signed',
-      actorRole: OpsUserRole.PmcmAdmin,
+      action: 'Client portal invitation could not be issued after the inquiry was accepted',
     }));
   });
 
-  it('refuses a PMCM resend before the conforme is signed, and sends nothing', async () => {
+  it('allows a PMCM resend for an accepted inquiry whose conforme is not signed yet', async () => {
     const { service, accountProvisioning } = createService([inquiry({ status: 'accepted' })]);
-    const pmcm = { id: 'usr_pmcm', role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true, verified: true } as ResolvedEventOpsActor;
 
-    await expect(service.resendClientPortalInvitation('inq_existing', pmcm)).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.resendClientPortalInvitation('inq_existing', pmcmAccepter))
+      .resolves.toMatchObject({ outcome: invitedOutcome, inquiry: { id: 'inq_existing', portalInvitationStatus: 'sent' } });
+
+    expect(accountProvisioning.provision).toHaveBeenCalledWith(expect.objectContaining(invitedPayload));
+  });
+
+  it('refuses a resend for an inquiry that PMCM has not accepted, and sends nothing', async () => {
+    const { service, accountProvisioning } = createService([inquiry({ status: 'pending' })]);
+
+    await expect(service.resendClientPortalInvitation('inq_existing', pmcmAccepter)).rejects.toBeInstanceOf(ConflictException);
 
     expect(accountProvisioning.provision).not.toHaveBeenCalled();
   });
 
-  it('returns the outcome and the inquiry as recorded when PMCM re-sends the invitation', async () => {
-    const { service } = createService([inquiry(signed)]);
-    const pmcm = { id: 'usr_pmcm', role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true, verified: true } as ResolvedEventOpsActor;
+  it('does not send a client invitation when a stored conforme activates the portal', async () => {
+    const { service, accountProvisioning, records } = createService([inquiry({ status: 'accepted' })]);
+    const actor = { role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true, verified: true, id: 'usr_pmcm' };
 
-    const result = await service.resendClientPortalInvitation('inq_existing', pmcm);
+    await service.uploadConforme('inq_existing', { fileName: 'signed-conforme.pdf', storageObjectId: 'obj_conforme' }, actor as ResolvedEventOpsActor);
 
-    expect(result).toMatchObject({ outcome: invitedOutcome, inquiry: { id: 'inq_existing', portalInvitationStatus: 'sent' } });
+    expect(records[0]).toMatchObject({ conformeSignedAt: expect.any(Date), portalInvitationStatus: 'not_sent' });
+    expect(accountProvisioning.provision).not.toHaveBeenCalled();
   });
 });
