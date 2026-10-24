@@ -1,4 +1,5 @@
 import { portalUrlFor } from "@prism/types";
+import { portalUrlsFromEnvironment } from "@/lib/portal-urls";
 
 export type EventPortalRole = "pmcm-admin" | "coordinator" | "client" | "supplier" | string;
 
@@ -6,7 +7,7 @@ export function isEventPortalRole(role: EventPortalRole): boolean {
   return role === "pmcm-admin" || role === "coordinator";
 }
 
-export function eventRoleRejectionMessage(role: EventPortalRole, env: Record<string, string | undefined> = process.env): string {
+export function eventRoleRejectionMessage(role: EventPortalRole, env: Record<string, string | undefined> = portalUrlsFromEnvironment()): string {
   if (role === "client") {
     return `Client accounts sign in through the client portal at ${portalUrlFor("client", env)}.`;
   }

@@ -14,18 +14,17 @@ describe("event-sign-in-rules", () => {
     expect(isEventPortalRole("supplier")).toBe(false);
   });
 
-  it("maps rejected roles to portal messages", () => {
-    expect(eventRoleRejectionMessage("client")).toContain("3001");
-    expect(eventRoleRejectionMessage("supplier")).toContain("3002");
-  });
-
-  it("uses checkout-derived portal URLs when provided", () => {
+  it("maps rejected roles to their configured portal messages", () => {
     const env = {
       NEXT_PUBLIC_CLIENT_PORTAL_URL: "http://localhost:3151",
       NEXT_PUBLIC_SUPPLIER_PORTAL_URL: "http://localhost:3152",
     };
     expect(eventRoleRejectionMessage("client", env)).toContain("http://localhost:3151");
     expect(eventRoleRejectionMessage("supplier", env)).toContain("http://localhost:3152");
+  });
+
+  it("names the missing portal URL instead of falling back to a default origin", () => {
+    expect(() => eventRoleRejectionMessage("client", {})).toThrow("NEXT_PUBLIC_CLIENT_PORTAL_URL is required");
   });
 
   it("resolves safe post-login paths", () => {
