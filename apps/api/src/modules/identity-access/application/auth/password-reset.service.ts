@@ -3,8 +3,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { PrismaService } from '../../../../kernel/database';
 import type { AuditWriteInput } from '../../../../kernel/access-control';
 import { AuditCategory, OpsUserRole } from '../../../../kernel/event-core';
-import { PRISM_PORTAL_URLS, type PrismPortalUrls } from '@prism/kernel/shared';
-import type { PrismPortalApp } from '@prism/types';
+import { PRISM_PORTAL_URLS, type ApiLinkedPortalApp, type PrismPortalUrls } from '@prism/kernel/shared';
 import { AuthSecurityService } from './auth-security.service';
 import { PASSWORD_RESET_DELIVERY, PASSWORD_RESET_TTL_MS, type PasswordResetDeliveryPort } from '../../contracts/password-reset-delivery.port';
 import { AUTH_AUDIT, type AuthAuditPort } from '../../contracts/auth-audit.port';
@@ -23,7 +22,7 @@ function tokenHash(token: string) {
  * role constants, so a new role is a compile error here. Guests sign in with event codes and have no
  * password reset page; system and unknown accounts have no portal sign-in. Those roles receive no link.
  */
-export function portalForAccountRole(role: OpsUserRole): PrismPortalApp | null {
+export function portalForAccountRole(role: OpsUserRole): ApiLinkedPortalApp | null {
   switch (role) {
     case OpsUserRole.Client:
       return 'client';
@@ -143,7 +142,7 @@ export class PasswordResetService {
     return { message: 'Password reset completed. Please sign in again.' };
   }
 
-  private resetUrlFor(portal: PrismPortalApp, token: string) {
+  private resetUrlFor(portal: ApiLinkedPortalApp, token: string) {
     const link = new URL(`${this.portalUrls[portal]}/password-reset`);
     link.searchParams.set('token', token);
     return link.toString();

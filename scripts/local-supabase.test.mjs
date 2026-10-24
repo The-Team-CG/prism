@@ -23,9 +23,11 @@ test('generated environments contain one local URL, clear stale overrides, and r
   assert.equal(generated.CORS_ORIGIN, 'http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:3004');
   assert.equal(generated.PRISM_MAIL_TRANSPORT, 'log');
   assert.deepEqual(
-    ['PRISM_CLIENT_PORTAL_URL', 'PRISM_SUPPLIER_PORTAL_URL', 'PRISM_GUEST_PORTAL_URL', 'PRISM_EVENT_PORTAL_URL'].map((name) => generated[name]),
-    ['http://localhost:3001', 'http://localhost:3002', 'http://localhost:3003', 'http://localhost:3004'],
+    ['PRISM_CLIENT_PORTAL_URL', 'PRISM_SUPPLIER_PORTAL_URL', 'PRISM_EVENT_PORTAL_URL'].map((name) => generated[name]),
+    ['http://localhost:3001', 'http://localhost:3002', 'http://localhost:3004'],
   );
+  assert.equal(generated.PRISM_GUEST_PORTAL_URL, undefined);
+  assert.equal(generated.NEXT_PUBLIC_GUEST_PORTAL_URL, 'http://localhost:3003');
   assert.throws(() => developmentEnv('postgresql://postgres:secret@prod.example.com:54322/postgres', project, ports, 'local-secret'));
 });
 test('config rendering does not replace unrelated ports', () => {

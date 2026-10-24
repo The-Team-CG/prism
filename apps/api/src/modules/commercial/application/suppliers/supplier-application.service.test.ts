@@ -8,7 +8,6 @@ const accountProvisioning = { provision: async () => ({ outcome: 'invited' as co
 const portalUrls = {
   client: 'https://client.example.test',
   supplier: 'https://supplier.example.test',
-  guest: 'https://guest.example.test',
   event: 'https://event.example.test',
 };
 

@@ -9,7 +9,6 @@ import type { PasswordResetDeliveryPort } from '../../contracts/password-reset-d
 const portalUrls = {
   client: 'https://client.example.test',
   supplier: 'https://supplier.example.test',
-  guest: 'https://guest.example.test',
   event: 'https://event.example.test',
 };
 const GENERIC_MESSAGE = 'If an account exists for that email, password reset instructions will be sent.';

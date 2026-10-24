@@ -8,7 +8,6 @@ import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 const portalUrls = {
   client: 'https://client.example.test',
   supplier: 'https://supplier.example.test',
-  guest: 'https://guest.example.test',
   event: 'https://event.example.test',
 };
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
