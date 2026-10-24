@@ -44,6 +44,7 @@ import { PaymentRiskScheduler } from './application/billing/payment-risk.schedul
 import { CommunicationController } from './api/suppliers/communication.controller';
 import { CommunicationService } from './application/suppliers/communication.service';
 import { IdentityAccessModule } from '../identity-access/identity-access.module';
+import { AccountInvitationReferenceModule } from '@prism/contexts/identity-access/account-invitation-reference';
 import { ProposalLifecycleController } from './api/quotes/proposal-lifecycle.controller';
 import { ProposalLifecycleService } from './application/quotes/proposal-lifecycle.service';
 import { CommercialPrivacyRedactorService } from './application/suppliers/commercial-privacy-redactor.service';
@@ -94,6 +95,7 @@ const supplierCommandsProvider = {
     AccessControlModule,
     PlatformOpsModule,
     PortalUrlsModule,
+    AccountInvitationReferenceModule,
     EventCoreModule,
     EventLifecycleModule,
     UrgentIssueReferenceModule,

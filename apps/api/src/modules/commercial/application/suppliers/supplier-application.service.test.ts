@@ -1,7 +1,9 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { SupplierApplicationService } from './supplier-application.service';
+
+const accountProvisioning = { provision: async () => ({ outcome: 'invited' as const, sentAt: '2026-10-25T00:00:00.000Z', expiresAt: '2026-11-01T00:00:00.000Z' }) };
 
 const portalUrls = {
   client: 'https://client.example.test',
@@ -102,7 +104,7 @@ function createPrisma() {
 describe('SupplierApplicationService inbox', () => {
   it('rejects a client from listing or reviewing applications', async () => {
     const fake = createPrisma();
-    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never, { write: async () => ({}) }, { write: async () => ({}) }, portalUrls);
+    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never, { write: async () => ({}) }, { write: async () => ({}) }, portalUrls, accountProvisioning as never);
     await expect(service.listInbox(clientActor)).rejects.toBeInstanceOf(ForbiddenException);
     await expect(
       service.reviewApplication('sap_1', { action: 'request_proposal' }, clientActor),
@@ -111,7 +113,7 @@ describe('SupplierApplicationService inbox', () => {
 
   it('lets PMCM request a proposal from the inbox', async () => {
     const fake = createPrisma();
-    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never, { write: async () => ({}) }, { write: async () => ({}) }, portalUrls);
+    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never, { write: async () => ({}) }, { write: async () => ({}) }, portalUrls, accountProvisioning as never);
     const listed = await service.listInbox(pmcmAdminActor);
     expect(listed[0]?.status).toBe('pending');
     const reviewed = await service.reviewApplication(
@@ -125,7 +127,7 @@ describe('SupplierApplicationService inbox', () => {
 
   it('returns a redacted public status only when the submitting email matches', async () => {
     const fake = createPrisma();
-    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never, { write: async () => ({}) }, { write: async () => ({}) }, portalUrls);
+    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never, { write: async () => ({}) }, { write: async () => ({}) }, portalUrls, accountProvisioning as never);
     const result = await service.getPublicStatus({ applicationId: 'sap_1', email: 'AVA@NORTHSTAR.TEST' });
     expect(result).toMatchObject({
       id: 'sap_1', companyName: 'Northstar', status: 'pending', submittedAt: '2026-09-01T00:00:00.000Z', reviewedAt: null,
@@ -138,7 +140,7 @@ describe('SupplierApplicationService inbox', () => {
   it('rejects reviewing an application after a terminal transition', async () => {
     const fake = createPrisma();
     fake.applications[0].status = 'proposal_requested';
-    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never, { write: async () => ({}) }, { write: async () => ({}) }, portalUrls);
+    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never, { write: async () => ({}) }, { write: async () => ({}) }, portalUrls, accountProvisioning as never);
     await expect(service.reviewApplication('sap_1', { action: 'decline', declineReason: 'No fit' }, pmcmAdminActor))
       .rejects.toBeInstanceOf(BadRequestException);
   });
@@ -159,6 +161,7 @@ describe('SupplierApplicationService inbox', () => {
       { write: async () => ({}) },
       notificationWriter as never,
       portalUrls,
+      accountProvisioning as never,
     );
 
     const application = await service.createSupplierApplication({
@@ -225,8 +228,9 @@ describe('SupplierApplicationService approval conversion', () => {
       $transaction: async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx),
     };
     const auditWriter = { write: async (input: Record<string, any>) => { audits.push(input); return {}; } };
-    const service = new SupplierApplicationService(prisma as never, createAccessPolicy() as never, auditWriter as never, { write: async () => ({}) } as never, portalUrls);
-    return { service, applications, suppliers, audits };
+    const provisioning = { provision: vi.fn(async (_input: unknown) => ({ outcome: 'invited' as const, sentAt: '2026-10-25T00:00:00.000Z', expiresAt: '2026-11-01T00:00:00.000Z' })) };
+    const service = new SupplierApplicationService(prisma as never, createAccessPolicy() as never, auditWriter as never, { write: async () => ({}) } as never, portalUrls, provisioning as never);
+    return { service, applications, suppliers, audits, provisioning };
   }
 
   it('converts an approved application into one pending directory supplier with an audit trail', async () => {
@@ -251,6 +255,27 @@ describe('SupplierApplicationService approval conversion', () => {
     expect(replayed.status).toBe('approved');
     expect(fake.suppliers).toHaveLength(1);
     expect(fake.audits.filter((audit) => audit.affectedType === 'supplier')).toHaveLength(1);
+  });
+
+  it('provisions the supplier login from the contact once the approval commits, and not again on replay', async () => {
+    const fake = createConversionFake();
+    await fake.service.reviewApplication('sap_1', { action: 'approve', idempotencyKey: 'approve-1' }, pmcmAdminActor);
+    await fake.service.reviewApplication('sap_1', { action: 'approve', idempotencyKey: 'approve-1' }, pmcmAdminActor);
+
+    expect(fake.provisioning.provision).toHaveBeenCalledTimes(1);
+    expect(fake.provisioning.provision).toHaveBeenCalledWith(expect.objectContaining({
+      email: 'Ava@Northstar.test', name: 'Ava', role: 'supplier', organization: 'Northstar', source: 'supplier_application', sourceId: 'sap_1',
+    }));
+  });
+
+  it('audits a failed supplier login without undoing the approval', async () => {
+    const fake = createConversionFake();
+    fake.provisioning.provision.mockRejectedValueOnce(new Error('database unavailable'));
+
+    const approved = await fake.service.reviewApplication('sap_1', { action: 'approve', idempotencyKey: 'approve-1' }, pmcmAdminActor);
+
+    expect(approved.status).toBe('approved');
+    expect(fake.audits).toContainEqual(expect.objectContaining({ action: 'Supplier login was not created for approved application: Northstar', severity: 'warning' }));
   });
 
   it('rejects a replayed approval whose payload differs from the original conversion', async () => {
