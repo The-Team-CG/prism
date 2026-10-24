@@ -93,6 +93,13 @@ Configure real deployment inputs through Vercel environment settings:
   database operation, never as a portal build side effect.
 - `PRISM_SESSION_SECRET`: a strong deployment signing secret of at least 32
   characters. Use `NODE_ENV=production`; the API refuses to start without it.
+  Earlier deployments may have set `JWT_SECRET`; that name is no longer read, so
+  rename it to `PRISM_SESSION_SECRET` before deploying.
+- `PRISM_SESSION_TTL_SECONDS`: required whole-number session lifetime (28800 is
+  eight hours). The API refuses to start without it.
+- `PRISM_TRUST_PROXY`: required; `false` for direct connections, `true`,
+  `loopback`, or a hop count (for example `1`) behind a reverse proxy. The API
+  refuses to start without it.
 - `CORS_ORIGIN`: comma-separated public origins, including preview and custom
   domains that will call the API. Use exact origins without portal path suffixes.
 - Configure AI and external delivery providers only for intended capabilities.

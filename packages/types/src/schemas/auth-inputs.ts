@@ -18,7 +18,10 @@ export const consumePasswordResetSchema = z.object({
 });
 export type ConsumePasswordResetInput = z.infer<typeof consumePasswordResetSchema>;
 
-export const requestApprovalSchema = z.object({ email: z.string().trim().email() }).merge(privacyConsentSchema);
+export const requestApprovalSchema = z
+  .object({ email: z.string().trim().email() })
+  .merge(privacyConsentSchema)
+  .extend({ privacyNoticeVersion: z.string().min(1) });
 export type RequestApprovalInput = z.infer<typeof requestApprovalSchema>;
 
 export const twoFactorTokenSchema = z.object({ token: nonEmptyStringSchema });

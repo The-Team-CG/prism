@@ -27,7 +27,7 @@ export class PasswordResetService {
     @Optional() @Inject(AUTH_AUDIT) private readonly authAudit?: Pick<AuthAuditPort, 'write'>,
   ) {}
 
-  async request(email: string, clientIp = 'unknown') {
+  async request(email: string, clientIp: string) {
     const normalizedEmail = canonicalAccountEmail(email);
     const deliveryAvailable = Boolean(this.delivery && this.buildTrustedResetUrl('placeholder'));
     const rateLimited = await this.consumeRateLimit(normalizedEmail, clientIp);

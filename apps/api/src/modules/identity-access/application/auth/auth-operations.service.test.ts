@@ -11,7 +11,7 @@ import * as passwordHash from './password-hash.cjs';
 
 const approvalReceipt = { message: 'If an account exists for this email, PMCM will review the request.' };
 
-function createApprovalService(options: { requestUpdateFails?: boolean; auditFails?: boolean; noAccount?: boolean } = {}) {
+function createApprovalService(options: { requestUpdateFails?: boolean; auditFails?: boolean; noAccount?: boolean; accountApproved?: boolean } = {}) {
   const state = {
     request: {
       id: 'approval_1',
@@ -33,7 +33,7 @@ function createApprovalService(options: { requestUpdateFails?: boolean; auditFai
       password: 'hashed-password',
       role: 'client',
       organization: 'Ana Events',
-      approvalStatus: 'pending',
+      approvalStatus: options.accountApproved ? 'approved' : 'pending',
       sessionVersion: 0,
       lockedUntil: null,
       permanentLockout: false,
@@ -208,7 +208,7 @@ describe('AuthOperationsService', () => {
   it('resolves a case-variant approval request to the canonical account and stores its canonical email', async () => {
     const { service, prisma } = createApprovalService();
 
-    await service.requestApproval({ email: '  Ana@Example.TEST ', privacyConsentAccepted: true });
+    await service.requestApproval({ email: '  Ana@Example.TEST ', privacyConsentAccepted: true, privacyNoticeVersion: '2026-05-01' });
 
     expect(prisma.opsUser.findUnique).toHaveBeenCalledWith({ where: { email: 'ana@example.test' } });
     expect(prisma.opsApprovalRequest.upsert).toHaveBeenCalledWith(expect.objectContaining({
@@ -217,18 +217,24 @@ describe('AuthOperationsService', () => {
   });
 
   it.each([
-    { label: 'an unknown email', options: { noAccount: true }, requestStatus: 'pending' },
-    { label: 'a pending request', options: {}, requestStatus: 'pending' },
-    { label: 'an approved request', options: {}, requestStatus: 'approved' },
-    { label: 'a declined request', options: {}, requestStatus: 'declined' },
-  ])('answers $label with the same receipt, keeps the request status, and audits internally', async ({ options, requestStatus }) => {
-    const { service, state, authAudit } = createApprovalService(options);
+    { label: 'an unknown email', options: { noAccount: true }, requestStatus: 'pending', opensRequest: false },
+    { label: 'a pending request', options: {}, requestStatus: 'pending', opensRequest: true },
+    { label: 'an approved request', options: {}, requestStatus: 'approved', opensRequest: true },
+    { label: 'a declined request', options: {}, requestStatus: 'declined', opensRequest: true },
+    { label: 'an already approved account', options: { accountApproved: true }, requestStatus: 'pending', opensRequest: false },
+  ])('answers $label with the same receipt, keeps the request status, and audits internally', async ({ options, requestStatus, opensRequest }) => {
+    const { service, state, prisma, authAudit } = createApprovalService(options);
     state.request.status = requestStatus;
 
-    const receipt = await service.requestApproval({ email: 'ana@example.test', privacyConsentAccepted: true });
+    const receipt = await service.requestApproval({
+      email: 'ana@example.test',
+      privacyConsentAccepted: true,
+      privacyNoticeVersion: '2026-05-01',
+    });
 
     expect(receipt).toEqual(approvalReceipt);
     expect(state.request.status).toBe(requestStatus);
+    expect(prisma.opsApprovalRequest.upsert).toHaveBeenCalledTimes(opensRequest ? 1 : 0);
     expect(authAudit.write).toHaveBeenCalledWith(expect.objectContaining({
       action: 'Account approval requested for ana@example.test',
       metadata: { accountFound: !options.noAccount },
@@ -264,6 +270,7 @@ describe('AuthOperationsService', () => {
     const { service, prisma, state } = createApprovalService();
     const authSessionService = new AuthSessionService(new ConfigService({
       PRISM_SESSION_SECRET: 'account-revocation-test-secret-123456',
+      PRISM_SESSION_TTL_SECONDS: '28800',
     }));
     const oldSession = authSessionService.issueSession({
       id: state.user.id,
@@ -824,6 +831,7 @@ describe('AuthOperationsService account recovery and sessions', () => {
     const authAudit = { write: vi.fn(async () => undefined) };
     const authSessionService = new AuthSessionService(new ConfigService({
       PRISM_SESSION_SECRET: 'session-revocation-test-secret-123456',
+      PRISM_SESSION_TTL_SECONDS: '28800',
     }));
     const service = new AuthOperationsService(prisma as never, authAudit as never, {} as never, authSessionService, {} as never);
     const guard = new EventSessionGuard(authSessionService, prisma as never);

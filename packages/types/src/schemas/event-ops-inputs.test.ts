@@ -355,7 +355,9 @@ describe("event-ops write schemas", () => {
   it("requires explicit consent for account approval requests", () => {
     expect(requestApprovalSchema.safeParse({ email: "ana@example.test" }).success).toBe(false);
     expect(requestApprovalSchema.safeParse({ email: "ana@example.test", privacyConsentAccepted: false }).success).toBe(false);
-    expect(requestApprovalSchema.safeParse({ email: "ana@example.test", privacyConsentAccepted: true }).success).toBe(true);
+    expect(requestApprovalSchema.safeParse({ email: "ana@example.test", privacyConsentAccepted: true }).success).toBe(false);
+    expect(requestApprovalSchema.safeParse({ email: "ana@example.test", privacyConsentAccepted: true, privacyNoticeVersion: "" }).success).toBe(false);
+    expect(requestApprovalSchema.safeParse({ email: "ana@example.test", privacyConsentAccepted: true, privacyNoticeVersion: "2026-05-01" }).success).toBe(true);
   });
 
   it("caps inbox paging at one hundred pages and rejects invalid offsets", () => {
