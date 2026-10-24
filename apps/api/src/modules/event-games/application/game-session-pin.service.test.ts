@@ -111,13 +111,12 @@ describe('EventGamesSessionPinService', () => {
     expect(hostCommands.executeHostCommand).not.toHaveBeenCalled();
   });
 
-  it('uses the established JWT secret fallback when no session secret is configured', async () => {
+  it('does not fall back to the retired JWT_SECRET when PRISM_SESSION_SECRET is missing', async () => {
     const { service, hostCommands } = createService({ secret: null, jwtSecret: secret });
 
-    const result = await service.issueSessionPin(eventId, sessionId, actor(), { idempotencyKey });
-
-    expect(result.pin).toMatch(/^\d{6}$/);
-    expect(hostCommands.executeHostCommand).toHaveBeenCalledOnce();
+    await expect(service.issueSessionPin(eventId, sessionId, actor(), { idempotencyKey }))
+      .rejects.toThrow('Session PIN issuance is unavailable');
+    expect(hostCommands.executeHostCommand).not.toHaveBeenCalled();
   });
 
   it('does not reveal a candidate when a concurrent retry did not reserve it', async () => {

@@ -1,4 +1,5 @@
 import {
+  PRISM_PRIVACY_NOTICE_VERSION,
   PRISM_SESSION_STORAGE_KEYS,
   savePrismSession,
   isPrismAuthenticatedSession,
@@ -24,7 +25,12 @@ export const clientAuthRepository = {
   },
 
   requestApproval(email: string, consent: PrivacyConsentInput) {
-    return clientApi.auth.requestApproval({ email, ...consent });
+    return clientApi.auth.requestApproval({
+      email,
+      privacyConsentAccepted: consent.privacyConsentAccepted,
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
+      marketingConsentAccepted: Boolean(consent.marketingConsentAccepted),
+    });
   },
 
   requestPasswordReset(email: string) {

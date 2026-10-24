@@ -10,7 +10,6 @@ import { createHash, randomBytes } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import type { OpsApprovalRequest, OpsUser } from '@prisma/client';
 import {
-  PRISM_PRIVACY_NOTICE_VERSION,
   type PrismApprovalRequestReceipt,
   type PrismCurrentUser,
   type PrismIdentityAccountSummary,
@@ -398,9 +397,10 @@ export class AuthOperationsService {
     const normalizedEmail = canonicalAccountEmail(approvalInput.email);
     const user = await this.prisma.opsUser.findUnique({ where: { email: normalizedEmail } });
 
-    // An existing request (pending, approved or declined) is never rewritten by a new request.
-    // A declined request therefore stays declined until a PMCM admin acts on it.
-    if (user) {
+    // An existing request (pending, approved or declined) is never rewritten by a new request, so a
+    // declined request stays declined until a PMCM admin acts on it. An already-approved account gets
+    // no request at all. The receipt and audit are the same either way.
+    if (user && user.approvalStatus !== 'approved') {
       await this.prisma.opsApprovalRequest.upsert({
         where: { id: `approval_${user.id}` },
         create: {
@@ -412,7 +412,7 @@ export class AuthOperationsService {
           organization: user.organization,
           status: 'pending',
           privacyConsentAccepted: approvalInput.privacyConsentAccepted,
-          privacyNoticeVersion: approvalInput.privacyNoticeVersion ?? PRISM_PRIVACY_NOTICE_VERSION,
+          privacyNoticeVersion: approvalInput.privacyNoticeVersion,
           marketingConsentAccepted: Boolean(approvalInput.marketingConsentAccepted),
         },
         update: {},

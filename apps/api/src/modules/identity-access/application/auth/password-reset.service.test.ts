@@ -33,7 +33,7 @@ describe('PasswordResetService', () => {
     const { prisma, userUpdate, authAudit } = fixture();
     const delivery = { deliver: vi.fn().mockResolvedValue(undefined) };
     const service = new PasswordResetService(prisma as never, delivery, authAudit);
-    const result = await service.request('ANA@EXAMPLE.TEST');
+    const result = await service.request('ANA@EXAMPLE.TEST', '203.0.113.10');
     expect(result).toEqual({ message: expect.not.stringContaining('token'), deliveryAvailable: false });
     expect(delivery.deliver).not.toHaveBeenCalled();
     expect(authAudit.write).toHaveBeenCalledWith(expect.objectContaining({ action: 'Password reset requested for ana@example.test' }));

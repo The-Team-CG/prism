@@ -1,6 +1,7 @@
 import { ConflictException, Inject, Injectable, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac, randomInt } from 'node:crypto';
+import { readSessionSecret } from '@prism/kernel/event-session';
 import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
 import type { PrismGameHostPinIssueResult, PrismVerifiedEventActor } from '@prism/types';
 import { GAME_ACTION_CLOCK } from '../contracts/game-action-store.port';
@@ -65,11 +66,11 @@ export class EventGamesSessionPinService {
   }
 
   private sessionSecret(): string {
-    const secret = this.config.get<string>('PRISM_SESSION_SECRET') ?? this.config.get<string>('JWT_SECRET');
-    if (!secret || secret.length < 32) {
+    try {
+      return readSessionSecret(this.config);
+    } catch {
       throw new ServiceUnavailableException('Session PIN issuance is unavailable');
     }
-    return secret;
   }
 
   private createCandidates(secret: string, now: Date) {
