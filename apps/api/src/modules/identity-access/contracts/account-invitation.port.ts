@@ -34,5 +34,5 @@ export interface AccountProvisioningPort {
 
 export interface AccountInvitationDeliveryPort {
   /** Resolves when the mail provider accepted the message; rejects otherwise, without the activation URL. */
-  deliver(input: { recipient: string; name: string; role: InvitableAccountRole; activationUrl: string }): Promise<void>;
+  deliver(input: { recipient: string; name: string; role: InvitableAccountRole; source: AccountInvitationSource; activationUrl: string }): Promise<void>;
 }
