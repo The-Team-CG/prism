@@ -11,7 +11,7 @@ import * as passwordHash from './password-hash.cjs';
 
 const approvalReceipt = { message: 'If an account exists for this email, PMCM will review the request.' };
 
-function createApprovalService(options: { requestUpdateFails?: boolean; auditFails?: boolean; noAccount?: boolean; accountApproved?: boolean } = {}) {
+function createApprovalService(options: { requestUpdateFails?: boolean; auditFails?: boolean; noAccount?: boolean; accountApproved?: boolean; accountInvited?: boolean } = {}) {
   const state = {
     request: {
       id: 'approval_1',
@@ -33,7 +33,7 @@ function createApprovalService(options: { requestUpdateFails?: boolean; auditFai
       password: 'hashed-password',
       role: 'client',
       organization: 'Ana Events',
-      approvalStatus: options.accountApproved ? 'approved' : 'pending',
+      approvalStatus: options.accountApproved ? 'approved' : options.accountInvited ? 'invited' : 'pending',
       sessionVersion: 0,
       lockedUntil: null,
       permanentLockout: false,
@@ -222,6 +222,7 @@ describe('AuthOperationsService', () => {
     { label: 'an approved request', options: {}, requestStatus: 'approved', opensRequest: true },
     { label: 'a declined request', options: {}, requestStatus: 'declined', opensRequest: true },
     { label: 'an already approved account', options: { accountApproved: true }, requestStatus: 'pending', opensRequest: false },
+    { label: 'an invited account awaiting activation', options: { accountInvited: true }, requestStatus: 'pending', opensRequest: false },
   ])('answers $label with the same receipt, keeps the request status, and audits internally', async ({ options, requestStatus, opensRequest }) => {
     const { service, state, prisma, authAudit } = createApprovalService(options);
     state.request.status = requestStatus;
@@ -655,6 +656,17 @@ function createSignInService(account: Record<string, unknown> | null) {
 describe('AuthOperationsService sign-in hardening', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('refuses an invited account with no password exactly like a wrong password', async () => {
+    const account = await clientAccount({ password: null, approvalStatus: 'invited' });
+    const { service } = createSignInService(account);
+    const verify = vi.spyOn(AuthSecurityService, 'verifyPassword');
+
+    await expect(service.login('ana@example.test', 'any-password-123')).rejects.toThrow('Invalid email or password');
+
+    expect(verify).toHaveBeenCalledTimes(1);
+    expect(account).toMatchObject({ password: null, approvalStatus: 'invited', sessionVersion: 0, failedLoginCount: 1 });
   });
 
   it('runs the password verifier once for an unknown email before refusing it', async () => {

@@ -19,7 +19,7 @@ import {
 } from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
-import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
+import { AccountApprovalStatus, AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
 import { writeAudit, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { AuthSessionService, type VerifiedTwoFactorToken } from '@prism/kernel/event-session';
 import type { AuthenticationFailureDetails } from '@prism/contexts/platform-ops';
@@ -397,8 +397,9 @@ export class AuthOperationsService {
 
     // An existing request (pending, approved or declined) is never rewritten by a new request, so a
     // declined request stays declined until a PMCM admin acts on it. An already-approved account gets
-    // no request at all. The receipt and audit are the same either way.
-    if (user && user.approvalStatus !== 'approved') {
+    // no request at all, and neither does an invited one: its invitation is the path to a login.
+    // The receipt and audit are the same either way.
+    if (user && user.approvalStatus !== AccountApprovalStatus.Approved && user.approvalStatus !== AccountApprovalStatus.Invited) {
       await this.prisma.opsApprovalRequest.upsert({
         where: { id: `approval_${user.id}` },
         create: {

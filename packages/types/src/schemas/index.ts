@@ -241,12 +241,16 @@ export {
   passwordSchema,
   requestPasswordResetSchema,
   consumePasswordResetSchema,
+  activateAccountSchema,
+  createAccountInvitationSchema,
   type LoginInput,
   type RequestApprovalInput,
   type TwoFactorTokenInput,
   type VerifyTwoFactorInput,
   type RequestPasswordResetInput,
   type ConsumePasswordResetInput,
+  type ActivateAccountInput,
+  type CreateAccountInvitationInput,
 } from "./auth-inputs.js";
 
 export {
