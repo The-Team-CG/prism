@@ -107,13 +107,12 @@ describe('EventGamesSessionJoinService', () => {
     }));
   });
 
-  it('uses the same JWT secret fallback as host PIN issuance', async () => {
-    const { service } = setup({ sessionSecret: null, jwtSecret: 'legacy-session-secret-for-event-games-123456' });
+  it('does not fall back to the retired JWT_SECRET when PRISM_SESSION_SECRET is missing', async () => {
+    const { service, pinStore } = setup({ sessionSecret: null, jwtSecret: 'legacy-session-secret-for-event-games-123456' });
 
-    const result = await service.joinActiveMultiplayerSession(joinInput(), undefined, '203.0.113.10');
-
-    expect(result.sessionId).toBe(sessionId);
-    expect(result.participantCredential).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    await expect(service.joinActiveMultiplayerSession(joinInput(), undefined, '203.0.113.10'))
+      .rejects.toThrow('Game joining is unavailable');
+    expect(pinStore.findJoinableSessionByPinDigest).not.toHaveBeenCalled();
   });
 
   it('reuses an event-matched retained credential only after an active row lookup', async () => {

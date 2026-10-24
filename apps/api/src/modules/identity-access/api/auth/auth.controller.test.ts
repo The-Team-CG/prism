@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import type { AddressInfo } from 'node:net';
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, InternalServerErrorException } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { PrismaService } from '@prism/kernel/database';
@@ -20,6 +20,13 @@ function controllerPath(controller: Function): string {
 }
 
 describe('OpsAuthController', () => {
+  it('refuses a password reset request whose client address is unavailable instead of bucketing it with others', () => {
+    const controller = new OpsAuthController({} as never, {} as never, {} as never);
+
+    expect(() => controller.requestPasswordReset({ ip: undefined } as never, { email: 'ana@example.test' }))
+      .toThrow(InternalServerErrorException);
+  });
+
   it('keeps the public auth route base stable under identity-ops ownership', () => {
     expect(controllerPath(OpsAuthController)).toBe('auth');
   });
@@ -59,7 +66,7 @@ describe('OpsAuthController', () => {
     );
 
     await expect(controller.login({ email: 'maxine@pmcm.test', password: 'secret' })).resolves.toEqual({ id: 'user_pmcm' });
-    await expect(controller.requestApproval({ email: 'client@example.test', privacyConsentAccepted: true })).resolves.toEqual(receipt);
+    await expect(controller.requestApproval({ email: 'client@example.test', privacyConsentAccepted: true, privacyNoticeVersion: '2026-05-01' })).resolves.toEqual(receipt);
     await expect(controller.listApprovalRequests(actor)).resolves.toEqual([{ id: 'approval_user' }]);
     await expect(controller.listLoginHistory('user_pmcm', actor)).resolves.toEqual([{ id: 'login_1' }]);
     await expect(controller.approveApprovalRequest('approval_user', actor)).resolves.toEqual({ status: 'approved' });
@@ -73,6 +80,7 @@ describe('OpsAuthController', () => {
     expect(authOperationsService.requestApproval).toHaveBeenCalledWith({
       email: 'client@example.test',
       privacyConsentAccepted: true,
+      privacyNoticeVersion: '2026-05-01',
     });
     expect(authOperationsService.listLoginHistory).toHaveBeenCalledWith('user_pmcm');
     expect(authOperationsService.approveApprovalRequest).toHaveBeenCalledWith('approval_user', resolvedAdmin);
@@ -169,7 +177,7 @@ describe('OpsAuthController public rate limits over HTTP', () => {
     const response = await fetch(`${baseUrl}/auth/approval-requests`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email: 'nobody@example.test', privacyConsentAccepted: true }),
+      body: JSON.stringify({ email: 'nobody@example.test', privacyConsentAccepted: true, privacyNoticeVersion: '2026-05-01' }),
     });
 
     expect(response.status).toBe(202);

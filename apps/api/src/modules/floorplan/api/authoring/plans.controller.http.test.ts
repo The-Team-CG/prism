@@ -117,7 +117,7 @@ const prismaMock = {
     EventAccessPolicyService,
     EventSessionGuard,
     AuthSessionService,
-    { provide: ConfigService, useValue: { get: (key: string) => (key === 'PRISM_SESSION_SECRET' ? sessionSecret : undefined) } },
+    { provide: ConfigService, useValue: { get: (key: string) => (key === 'PRISM_SESSION_SECRET' ? sessionSecret : key === 'PRISM_SESSION_TTL_SECONDS' ? '28800' : undefined) } },
     { provide: PrismaServiceToken, useValue: prismaMock as unknown as PrismaService },
     { provide: AUDIT_WRITER, useValue: auditWriter },
     { provide: FLOORPLAN_EVENT_REFERENCE_READER, useValue: lifecycleEventReferences },
@@ -133,7 +133,7 @@ describe('PlansController authenticated HTTP authorization', () => {
   let pmcmToken: string;
 
   beforeAll(async () => {
-    const config = { get: (key: string) => (key === 'PRISM_SESSION_SECRET' ? sessionSecret : undefined) };
+    const config = { get: (key: string) => (key === 'PRISM_SESSION_SECRET' ? sessionSecret : key === 'PRISM_SESSION_TTL_SECONDS' ? '28800' : undefined) };
     const session = new AuthSessionService(config as unknown as ConfigService);
     const user = (id: string, email: string, role: PrismUser['role']): PrismUser => ({
       id,

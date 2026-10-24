@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { readSessionSecret } from '@prism/kernel/event-session';
 
 const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 const TOTP_PERIOD_SECONDS = 30;
@@ -101,10 +102,6 @@ export class TotpService {
   }
 
   private encryptionKey() {
-    const configured = this.configService.get<string>('PRISM_SESSION_SECRET') ?? this.configService.get<string>('JWT_SECRET');
-    if (!configured || configured.length < 32) {
-      throw new Error('PRISM_SESSION_SECRET or JWT_SECRET must be configured with at least 32 characters');
-    }
-    return createHash('sha256').update(configured).digest();
+    return createHash('sha256').update(readSessionSecret(this.configService)).digest();
   }
 }

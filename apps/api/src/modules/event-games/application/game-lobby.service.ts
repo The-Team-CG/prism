@@ -12,6 +12,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { isIP } from 'node:net';
+import { readSessionSecret } from '@prism/kernel/event-session';
 import { PrismTransactionRunner, type PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import {
   eventGameLobbyBrandingSettingsSchema,
@@ -390,12 +391,10 @@ export class EventGamesLobbyService {
   }
 
   private sessionSecret(): string {
-    const configured = this.configService.get<string>('PRISM_SESSION_SECRET') ?? this.configService.get<string>('JWT_SECRET');
-    if (configured && configured.length >= 32) return configured;
-
-    const nodeEnv = this.configService.get<string>('NODE_ENV') ?? process.env.NODE_ENV;
-    if (nodeEnv === 'test') return 'prism-local-event-game-credential-secret';
-
-    throw new ServiceUnavailableException('Event game credentials are not configured');
+    try {
+      return readSessionSecret(this.configService);
+    } catch {
+      throw new ServiceUnavailableException('Event game credentials are not configured');
+    }
   }
 }

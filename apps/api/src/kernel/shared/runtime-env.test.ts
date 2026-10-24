@@ -33,16 +33,20 @@ describe('validateRuntimeEnv', () => {
   });
 
   it('accepts a deployment env with a database URL and session secret', () => {
-    const env = { NODE_ENV: 'production', DATABASE_URL: hostedDatabaseUrl, PRISM_SESSION_SECRET: sessionSecret, PORT: '4000' };
+    const env = { NODE_ENV: 'production', DATABASE_URL: hostedDatabaseUrl, PRISM_SESSION_SECRET: sessionSecret, PRISM_SESSION_TTL_SECONDS: '28800', PORT: '4000' };
 
     expect(validateRuntimeEnv(env)).toBe(env);
   });
 
   it.each([
-    ['development', {}, ['PRISM_SESSION_SECRET', 'DATABASE_URL']],
-    ['production', { DATABASE_URL: hostedDatabaseUrl, PRISM_SESSION_SECRET: 'short' }, ['PRISM_SESSION_SECRET']],
-    [undefined, { PRISM_SESSION_SECRET: sessionSecret }, ['DATABASE_URL']],
-    ['production', { DATABASE_URL: hostedDatabaseUrl, PRISM_SESSION_SECRET: sessionSecret, PORT: 'eighty' }, ['PORT']],
+    ['development', {}, ['PRISM_SESSION_SECRET', 'PRISM_SESSION_TTL_SECONDS', 'DATABASE_URL']],
+    ['production', { DATABASE_URL: hostedDatabaseUrl, PRISM_SESSION_SECRET: 'short', PRISM_SESSION_TTL_SECONDS: '28800' }, ['PRISM_SESSION_SECRET']],
+    ['production', { DATABASE_URL: hostedDatabaseUrl, JWT_SECRET: sessionSecret, PRISM_SESSION_TTL_SECONDS: '28800' }, ['PRISM_SESSION_SECRET']],
+    ['production', { DATABASE_URL: hostedDatabaseUrl, PRISM_SESSION_SECRET: sessionSecret }, ['PRISM_SESSION_TTL_SECONDS']],
+    ['production', { DATABASE_URL: hostedDatabaseUrl, PRISM_SESSION_SECRET: sessionSecret, PRISM_SESSION_TTL_SECONDS: '0' }, ['PRISM_SESSION_TTL_SECONDS']],
+    ['production', { DATABASE_URL: hostedDatabaseUrl, PRISM_SESSION_SECRET: sessionSecret, PRISM_SESSION_TTL_SECONDS: '28800', PRISM_SESSION_TTL_SECONDS_CLIENT: 'soon' }, ['PRISM_SESSION_TTL_SECONDS_CLIENT']],
+    [undefined, { PRISM_SESSION_SECRET: sessionSecret, PRISM_SESSION_TTL_SECONDS: '28800' }, ['DATABASE_URL']],
+    ['production', { DATABASE_URL: hostedDatabaseUrl, PRISM_SESSION_SECRET: sessionSecret, PRISM_SESSION_TTL_SECONDS: '28800', PORT: 'eighty' }, ['PORT']],
   ])('fails fast outside tests (NODE_ENV=%s) and names every missing or invalid variable', (nodeEnv, env, invalidKeys) => {
     const run = () => validateRuntimeEnv({ NODE_ENV: nodeEnv, ...env });
 

@@ -8,8 +8,13 @@ import type {
   PrismVerifiedEventActor,
 } from '@prism/types';
 import { PRISM_EVENT_OPS_ACTOR_ROLES } from '@prism/types';
+import {
+  PRISM_SESSION_TTL_ENV,
+  PRISM_SESSION_TTL_ROLE_ENV_PREFIX,
+  parseSessionTtlSeconds,
+  readSessionSecret,
+} from '../session-config';
 
-const DEFAULT_SESSION_TTL_SECONDS = 8 * 60 * 60;
 const TOKEN_HEADER = { alg: 'HS256', typ: 'JWT' } as const;
 
 type SessionTokenPayload = {
@@ -207,21 +212,15 @@ export class AuthSessionService {
   }
 
   private sessionSecret() {
-    const configured = this.configService.get<string>('PRISM_SESSION_SECRET') ?? this.configService.get<string>('JWT_SECRET');
-    if (configured && configured.length >= 32) return configured;
-
-    // Only unit tests may sign with the built-in secret; local development gets a
-    // generated secret from start-prism (.local-dev/api.env).
-    const nodeEnv = this.configService.get<string>('NODE_ENV') ?? process.env.NODE_ENV;
-    if (nodeEnv === 'test') return 'prism-local-sample-auth-session-secret';
-
-    throw new Error('PRISM_SESSION_SECRET or JWT_SECRET must be configured with at least 32 characters');
+    return readSessionSecret(this.configService);
   }
 
   private sessionTtlSeconds(role?: PrismEventOpsActorRole) {
-    const roleKey = role ? `PRISM_SESSION_TTL_SECONDS_${role.replace(/[^a-z0-9]/gi, '_').toUpperCase()}` : undefined;
-    const raw = (roleKey ? this.configService.get<string>(roleKey) : undefined) ?? this.configService.get<string>('PRISM_SESSION_TTL_SECONDS');
-    const parsed = raw ? Number(raw) : NaN;
-    return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : DEFAULT_SESSION_TTL_SECONDS;
+    if (role) {
+      const roleKey = `${PRISM_SESSION_TTL_ROLE_ENV_PREFIX}${role.replace(/[^a-z0-9]/gi, '_').toUpperCase()}`;
+      const override = this.configService.get<string>(roleKey);
+      if (override) return parseSessionTtlSeconds(override, roleKey);
+    }
+    return parseSessionTtlSeconds(this.configService.get<string>(PRISM_SESSION_TTL_ENV), PRISM_SESSION_TTL_ENV);
   }
 }

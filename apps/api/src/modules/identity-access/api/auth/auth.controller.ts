@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, InternalServerErrorException, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
@@ -30,7 +30,11 @@ export class OpsAuthController {
   @PublicRateLimit('accountRequest')
   @HttpCode(HttpStatus.ACCEPTED)
   requestPasswordReset(@Req() request: Request, @Body(zodBody(requestPasswordResetSchema)) dto: RequestPasswordResetInput) {
-    return this.passwordResetService!.request(dto.email, request.ip || 'unknown');
+    // Express sets req.ip from the trusted proxy setting (PRISM_TRUST_PROXY is required at startup).
+    // Missing means the server is misconfigured; refuse rather than sharing one bucket for everyone.
+    const clientIp = request.ip;
+    if (!clientIp) throw new InternalServerErrorException('Client address is unavailable for password reset rate limiting');
+    return this.passwordResetService!.request(dto.email, clientIp);
   }
 
   @Post('password-reset/consume')

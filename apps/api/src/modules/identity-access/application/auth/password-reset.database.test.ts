@@ -40,7 +40,7 @@ describe.skipIf(!enabled)('native password recovery PostgreSQL integrity', () =>
   });
 
   it('allows exactly one concurrent consumer, increments epoch once, and rejects the old session', async () => {
-    const oldSession = new AuthSessionService(new ConfigService({ PRISM_SESSION_SECRET: 'p1-test-session-secret-long-enough' })).issueSession({
+    const oldSession = new AuthSessionService(new ConfigService({ PRISM_SESSION_SECRET: 'p1-test-session-secret-long-enough', PRISM_SESSION_TTL_SECONDS: '28800' })).issueSession({
       id: userId, name: 'P1 Recovery Fixture', email: `${prefix}@example.test`, role: 'client', organization: 'P1', approvalStatus: 'approved', sessionVersion: 0,
     });
     const results = await Promise.allSettled([
@@ -52,10 +52,10 @@ describe.skipIf(!enabled)('native password recovery PostgreSQL integrity', () =>
     await expect(prisma.opsUser.findUniqueOrThrow({ where: { id: userId }, select: { sessionVersion: true } })).resolves.toMatchObject({ sessionVersion: 1 });
     await expect(prisma.opsPasswordResetToken.findUniqueOrThrow({ where: { id: `${prefix}_token` }, select: { consumedAt: true } })).resolves.toMatchObject({ consumedAt: expect.any(Date) });
 
-    const guard = new EventSessionGuard(new AuthSessionService(new ConfigService({ PRISM_SESSION_SECRET: 'p1-test-session-secret-long-enough' })), prisma);
+    const guard = new EventSessionGuard(new AuthSessionService(new ConfigService({ PRISM_SESSION_SECRET: 'p1-test-session-secret-long-enough', PRISM_SESSION_TTL_SECONDS: '28800' })), prisma);
     await expect(guard.canActivate({ switchToHttp: () => ({ getRequest: () => ({ headers: { authorization: `Bearer ${oldSession.accessToken}` } }) }) } as never)).rejects.toThrow(/revoked/i);
     const renewed = await prisma.opsUser.findUniqueOrThrow({ where: { id: userId } });
-    const newSession = new AuthSessionService(new ConfigService({ PRISM_SESSION_SECRET: 'p1-test-session-secret-long-enough' })).issueSession({
+    const newSession = new AuthSessionService(new ConfigService({ PRISM_SESSION_SECRET: 'p1-test-session-secret-long-enough', PRISM_SESSION_TTL_SECONDS: '28800' })).issueSession({
       id: renewed.id, name: renewed.name, email: renewed.email, role: 'client', organization: renewed.organization, approvalStatus: 'approved', sessionVersion: renewed.sessionVersion,
     });
     await expect(guard.canActivate({ switchToHttp: () => ({ getRequest: () => ({ headers: { authorization: `Bearer ${newSession.accessToken}` } }) }) } as never)).resolves.toBe(true);

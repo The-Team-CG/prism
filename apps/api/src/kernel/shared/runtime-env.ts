@@ -1,16 +1,21 @@
 import { z } from 'zod';
 import { resolveDatabaseUrl } from '@prism/kernel/database';
+import {
+  isSessionTtlText,
+  MIN_SESSION_SECRET_LENGTH,
+  PRISM_SESSION_SECRET_ENV,
+  PRISM_SESSION_TTL_ENV,
+  PRISM_SESSION_TTL_ROLE_ENV_PREFIX,
+} from '../event-session/session-config';
 
 /**
  * prism-api process configuration. App-internal runtime config, not a shared
  * contract, so it stays in the API kernel instead of `@prism/types`.
  *
- * Only `NODE_ENV=test` may start without a database URL or session secret;
+ * Only `NODE_ENV=test` may start without a database URL, session secret or session TTL;
  * every other environment fails during bootstrap with the full list of
  * problems instead of failing later on the first request.
  */
-export const MIN_SESSION_SECRET_LENGTH = 32;
-
 const optionalText = z.string().trim().optional();
 
 const runtimeEnvSchema = z
@@ -24,18 +29,37 @@ const runtimeEnvSchema = z
       .optional()
       .or(z.literal('')),
     PRISM_SESSION_SECRET: optionalText,
-    JWT_SECRET: optionalText,
+    PRISM_SESSION_TTL_SECONDS: optionalText,
   })
   .superRefine((env, context) => {
     if (env.NODE_ENV === 'test') return;
 
-    const secret = env.PRISM_SESSION_SECRET || env.JWT_SECRET;
+    const secret = env[PRISM_SESSION_SECRET_ENV];
     if (!secret || secret.length < MIN_SESSION_SECRET_LENGTH) {
       context.addIssue({
         code: 'custom',
-        path: ['PRISM_SESSION_SECRET'],
-        message: `PRISM_SESSION_SECRET (or JWT_SECRET) must be set to at least ${MIN_SESSION_SECRET_LENGTH} characters`,
+        path: [PRISM_SESSION_SECRET_ENV],
+        message: `${PRISM_SESSION_SECRET_ENV} must be set to at least ${MIN_SESSION_SECRET_LENGTH} characters`,
       });
+    }
+
+    const ttl = env[PRISM_SESSION_TTL_ENV];
+    if (!ttl || !isSessionTtlText(ttl)) {
+      context.addIssue({
+        code: 'custom',
+        path: [PRISM_SESSION_TTL_ENV],
+        message: `${PRISM_SESSION_TTL_ENV} must be set to a positive whole number of seconds (8 hours is 28800)`,
+      });
+    }
+    for (const [key, value] of Object.entries(env)) {
+      if (!key.startsWith(PRISM_SESSION_TTL_ROLE_ENV_PREFIX) || !value) continue;
+      if (!isSessionTtlText(String(value))) {
+        context.addIssue({
+          code: 'custom',
+          path: [key],
+          message: `${key} must be a positive whole number of seconds when set`,
+        });
+      }
     }
 
     try {

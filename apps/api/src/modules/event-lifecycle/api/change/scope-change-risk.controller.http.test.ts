@@ -101,7 +101,7 @@ const prismaMock = {
     EventAccessPolicyService,
     EventSessionGuard,
     AuthSessionService,
-    { provide: ConfigService, useValue: { get: (key: string) => (key === 'PRISM_SESSION_SECRET' ? sessionSecret : undefined) } },
+    { provide: ConfigService, useValue: { get: (key: string) => (key === 'PRISM_SESSION_SECRET' ? sessionSecret : key === 'PRISM_SESSION_TTL_SECONDS' ? '28800' : undefined) } },
     { provide: PrismaServiceToken, useValue: prismaMock as unknown as PrismaService },
     { provide: AUDIT_WRITER, useValue: { write: async () => undefined } as AuditWriter },
     { provide: NOTIFICATION_OUTBOX_WRITER, useValue: { write: async () => undefined } },
@@ -115,7 +115,7 @@ describe('scope change and risk routes, authenticated HTTP authorization', () =>
   const tokens: Record<string, string> = {};
 
   beforeAll(async () => {
-    const session = new AuthSessionService({ get: (key: string) => (key === 'PRISM_SESSION_SECRET' ? sessionSecret : undefined) } as unknown as ConfigService);
+    const session = new AuthSessionService({ get: (key: string) => (key === 'PRISM_SESSION_SECRET' ? sessionSecret : key === 'PRISM_SESSION_TTL_SECONDS' ? '28800' : undefined) } as unknown as ConfigService);
     const issuedAt = new Date();
     for (const [id, account] of Object.entries(accounts)) {
       const user: PrismUser = {

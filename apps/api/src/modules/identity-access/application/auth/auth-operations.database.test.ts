@@ -37,7 +37,7 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
     prisma = new PrismaService();
     await prisma.$connect();
     audit = new AuditService(prisma);
-    sessions = new AuthSessionService(new ConfigService({ PRISM_SESSION_SECRET: secret }));
+    sessions = new AuthSessionService(new ConfigService({ PRISM_SESSION_SECRET: secret, PRISM_SESSION_TTL_SECONDS: '28800' }));
     const authAudit = new AuthAuditAdapter(audit, {} as SecurityOperationsService);
     operations = new AuthOperationsService(prisma, authAudit, {} as never, sessions, {} as never);
     actor = {
