@@ -463,7 +463,7 @@ describe('InquiriesService', () => {
 
 describe('client portal invitation after the conforme', () => {
   const signed = { status: 'accepted', conformeSignedAt: new Date('2026-10-20T00:00:00.000Z') };
-  const systemActor = { id: 'system', name: 'System', role: OpsUserRole.System };
+  const pmcmUploader = { id: 'usr_pmcm', name: 'PMCM Admin', role: OpsUserRole.PmcmAdmin };
 
   it.each([
     ['a new login', invitedOutcome, { portalInvitationStatus: 'sent', portalInvitationSentAt: new Date(invitedOutcome.sentAt), portalInvitationExpiresAt: new Date(invitedOutcome.expiresAt) }],
@@ -475,7 +475,7 @@ describe('client portal invitation after the conforme', () => {
     const accountProvisioning = { provision: vi.fn(async (_input: unknown) => outcome) };
     const { service, records } = createService([inquiry(signed)], accountProvisioning);
 
-    await service.sendClientPortalInvitationAfterCommit('inq_existing');
+    await service.sendClientPortalInvitationAfterCommit('inq_existing', pmcmUploader);
 
     expect(accountProvisioning.provision).toHaveBeenCalledWith({
       email: 'ana@ayala.test',
@@ -484,7 +484,7 @@ describe('client portal invitation after the conforme', () => {
       organization: 'Ayala Corp',
       source: 'conforme',
       sourceId: 'inq_existing',
-      actor: systemActor,
+      actor: pmcmUploader,
     });
     expect(records[0]).toMatchObject(expected);
   });
@@ -499,6 +499,7 @@ describe('client portal invitation after the conforme', () => {
       .rejects.toBeInstanceOf(BadRequestException);
 
     expect(accountProvisioning.provision).toHaveBeenCalledTimes(1);
+    expect(accountProvisioning.provision).toHaveBeenCalledWith(expect.objectContaining({ actor: { id: 'usr_pmcm', name: 'PMCM Admin', role: 'pmcm-admin' } }));
     expect(records[0]).toMatchObject({ portalInvitationStatus: 'sent' });
   });
 
@@ -506,10 +507,14 @@ describe('client portal invitation after the conforme', () => {
     const accountProvisioning = { provision: vi.fn(async (_input: unknown) => { throw new Error('mail transport offline'); }) };
     const { service, records, audits } = createService([inquiry(signed)], accountProvisioning);
 
-    await expect(service.sendClientPortalInvitationAfterCommit('inq_existing')).resolves.toBeUndefined();
+    await expect(service.sendClientPortalInvitationAfterCommit('inq_existing', pmcmUploader)).resolves.toBeUndefined();
 
     expect(records[0]).toMatchObject({ portalInvitationStatus: 'not_sent', conformeSignedAt: signed.conformeSignedAt });
-    expect(JSON.stringify(audits)).toContain('Client portal invitation could not be issued');
+    expect(audits.map(([entry]) => entry)).toContainEqual(expect.objectContaining({
+      actor: 'PMCM Admin',
+      action: 'Client portal invitation could not be issued after the conforme was signed',
+      actorRole: OpsUserRole.PmcmAdmin,
+    }));
   });
 
   it('refuses a PMCM resend before the conforme is signed, and sends nothing', async () => {
