@@ -585,8 +585,28 @@ describe("toQueryString", () => {
 });
 
 describe("createEventOpsClient", () => {
+  it("sends session, current-user and recovery calls with the session token and encoded account ids", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: "usr_pmcm" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({
+      baseUrl: "http://localhost:4000/api",
+      getAuthToken: () => "session-token",
+    });
+    await client.auth.me();
+    await client.auth.logout();
+    await client.auth.unlockUser("usr pmcm/1");
+    await client.auth.resetUserTwoFactor("usr_pmcm");
+
+    const bearer = { Authorization: "Bearer session-token", "Content-Type": "application/json" };
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "http://localhost:4000/api/auth/me", expect.objectContaining({ method: "GET", headers: bearer }));
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "http://localhost:4000/api/auth/logout", expect.objectContaining({ method: "POST", headers: bearer }));
+    expect(fetchMock).toHaveBeenNthCalledWith(3, "http://localhost:4000/api/auth/users/usr%20pmcm%2F1/unlock", expect.objectContaining({ method: "PATCH", headers: bearer }));
+    expect(fetchMock).toHaveBeenNthCalledWith(4, "http://localhost:4000/api/auth/users/usr_pmcm/two-factor/reset", expect.objectContaining({ method: "PATCH", headers: bearer }));
+  });
+
   it("posts login and approval requests through the shared auth contract", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: "approval_1" }), { status: 201 }));
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ message: "If an account exists for this email, PMCM will review the request." }), { status: 202 }));
     vi.stubGlobal("fetch", fetchMock);
 
     const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });

@@ -1,27 +1,19 @@
-import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import * as passwordHash from './password-hash.cjs';
 
-const SCRYPT_PREFIX = 'scrypt';
-const KEY_LENGTH = 64;
-
+/**
+ * Operator password hashing. Stored values must be in the current scrypt format
+ * (see password-hash.cjs); anything else fails verification.
+ */
 export class AuthSecurityService {
-  static hashPassword(password: string, salt = randomBytes(16).toString('hex')) {
-    const derived = scryptSync(password, salt, KEY_LENGTH).toString('hex');
-    return `${SCRYPT_PREFIX}$${salt}$${derived}`;
+  static hashPassword(password: string): Promise<string> {
+    return passwordHash.hashScryptPassword(password);
   }
 
-  static isHashedPassword(value: string) {
-    return value.startsWith(`${SCRYPT_PREFIX}$`);
+  static verifyPassword(storedPassword: string, candidatePassword: string): Promise<boolean> {
+    return passwordHash.verifyScryptPassword(storedPassword, candidatePassword);
   }
 
-  static verifyPassword(storedPassword: string, candidatePassword: string) {
-    if (!this.isHashedPassword(storedPassword)) {
-      return storedPassword === candidatePassword;
-    }
-
-    const [, salt, expectedHex] = storedPassword.split('$');
-    if (!salt || !expectedHex) return false;
-    const expected = Buffer.from(expectedHex, 'hex');
-    const actual = scryptSync(candidatePassword, salt, expected.length);
-    return expected.length === actual.length && timingSafeEqual(expected, actual);
+  static needsRehash(storedPassword: string): boolean {
+    return !passwordHash.isCurrentScryptPasswordHash(storedPassword);
   }
 }

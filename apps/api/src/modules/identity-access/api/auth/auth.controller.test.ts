@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import type { AddressInfo } from 'node:net';
+import { ForbiddenException } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { PrismaService } from '@prism/kernel/database';
@@ -39,13 +40,18 @@ describe('OpsAuthController', () => {
       explicit: true,
       verified: true,
     } satisfies ResolvedEventOpsActor;
+    const receipt = { message: 'If an account exists for this email, PMCM will review the request.' };
     const authOperationsService = {
       login: vi.fn(async () => ({ id: 'user_pmcm' })),
-      requestApproval: vi.fn(async () => ({ id: 'approval_user' })),
+      requestApproval: vi.fn(async () => receipt),
       listApprovalRequests: vi.fn(async () => [{ id: 'approval_user' }]),
       listLoginHistory: vi.fn(async () => [{ id: 'login_1' }]),
       approveApprovalRequest: vi.fn(async () => ({ status: 'approved' })),
       declineApprovalRequest: vi.fn(async () => ({ status: 'declined' })),
+      unlockUser: vi.fn(async () => ({ id: 'usr_client' })),
+      resetUserTwoFactor: vi.fn(async () => ({ id: 'usr_pmcm' })),
+      logout: vi.fn(async () => undefined),
+      currentUser: vi.fn(async () => ({ id: 'u1' })),
     };
     const controller = new OpsAuthController(
       authOperationsService as unknown as ConstructorParameters<typeof OpsAuthController>[0],
@@ -53,11 +59,15 @@ describe('OpsAuthController', () => {
     );
 
     await expect(controller.login({ email: 'maxine@pmcm.test', password: 'secret' })).resolves.toEqual({ id: 'user_pmcm' });
-    await expect(controller.requestApproval({ email: 'client@example.test', privacyConsentAccepted: true })).resolves.toEqual({ id: 'approval_user' });
+    await expect(controller.requestApproval({ email: 'client@example.test', privacyConsentAccepted: true })).resolves.toEqual(receipt);
     await expect(controller.listApprovalRequests(actor)).resolves.toEqual([{ id: 'approval_user' }]);
     await expect(controller.listLoginHistory('user_pmcm', actor)).resolves.toEqual([{ id: 'login_1' }]);
     await expect(controller.approveApprovalRequest('approval_user', actor)).resolves.toEqual({ status: 'approved' });
     await expect(controller.declineApprovalRequest('approval_user', actor)).resolves.toEqual({ status: 'declined' });
+    await expect(controller.unlockUser('usr_client', actor)).resolves.toEqual({ id: 'usr_client' });
+    await expect(controller.resetUserTwoFactor('usr_pmcm', actor)).resolves.toEqual({ id: 'usr_pmcm' });
+    await expect(controller.logout(actor)).resolves.toBeUndefined();
+    await expect(controller.me(actor)).resolves.toEqual({ id: 'u1' });
 
     expect(authOperationsService.login).toHaveBeenCalledWith('maxine@pmcm.test', 'secret');
     expect(authOperationsService.requestApproval).toHaveBeenCalledWith({
@@ -67,16 +77,51 @@ describe('OpsAuthController', () => {
     expect(authOperationsService.listLoginHistory).toHaveBeenCalledWith('user_pmcm');
     expect(authOperationsService.approveApprovalRequest).toHaveBeenCalledWith('approval_user', resolvedAdmin);
     expect(authOperationsService.declineApprovalRequest).toHaveBeenCalledWith('approval_user', resolvedAdmin);
+    expect(authOperationsService.unlockUser).toHaveBeenCalledWith('usr_client', resolvedAdmin);
+    expect(authOperationsService.resetUserTwoFactor).toHaveBeenCalledWith('usr_pmcm', resolvedAdmin);
+    expect(authOperationsService.logout).toHaveBeenCalledWith(actor);
+    expect(authOperationsService.currentUser).toHaveBeenCalledWith(actor);
   });
+
+  it.each(['client', 'supplier', 'coordinator'] as const)(
+    'refuses identity administration to a %s before the service runs',
+    async (role) => {
+      const authOperationsService = {
+        listApprovalRequests: vi.fn(),
+        listLoginHistory: vi.fn(),
+        unlockUser: vi.fn(),
+        resetUserTwoFactor: vi.fn(),
+      };
+      const controller = new OpsAuthController(
+        authOperationsService as unknown as ConstructorParameters<typeof OpsAuthController>[0],
+        new EventAccessPolicyService({ write: vi.fn(async () => undefined) } as never),
+      );
+      const outsider: Parameters<OpsAuthController['listApprovalRequests']>[0] = {
+        id: `${role}_1`, actorId: `${role}_1`, role, actorRole: role, email: `${role}@example.test`, actorEmail: `${role}@example.test`,
+        name: 'Outsider', actorName: 'Outsider', expiresAt: '2099-01-01',
+      };
+
+      await expect(controller.listApprovalRequests(outsider)).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(controller.listLoginHistory('usr_client', outsider)).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(controller.unlockUser('usr_client', outsider)).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(controller.resetUserTwoFactor('usr_pmcm', outsider)).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(authOperationsService.listApprovalRequests).not.toHaveBeenCalled();
+      expect(authOperationsService.listLoginHistory).not.toHaveBeenCalled();
+      expect(authOperationsService.unlockUser).not.toHaveBeenCalled();
+      expect(authOperationsService.resetUserTwoFactor).not.toHaveBeenCalled();
+    },
+  );
 });
 
 const login = vi.fn(async () => ({ id: 'user_pmcm' }));
+const requestApproval = vi.fn(async () => ({ message: 'If an account exists for this email, PMCM will review the request.' }));
 
 @Module({
   imports: [PublicRateLimitModule],
   controllers: [OpsAuthController],
   providers: [
-    { provide: AuthOperationsService, useValue: { login } },
+    { provide: AuthOperationsService, useValue: { login, requestApproval } },
     { provide: PasswordResetService, useValue: {} },
     { provide: EventAccessPolicyService, useValue: {} },
     { provide: AuthSessionService, useValue: {} },
@@ -118,5 +163,18 @@ describe('OpsAuthController public rate limits over HTTP', () => {
     expect(throttled.status).toBe(429);
     expect(Number(throttled.headers.get('retry-after'))).toBeGreaterThan(0);
     expect(login).toHaveBeenCalledTimes(limit);
+  }, 30_000);
+
+  it('answers an approval request with 202 and the same receipt whatever the account state', async () => {
+    const response = await fetch(`${baseUrl}/auth/approval-requests`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'nobody@example.test', privacyConsentAccepted: true }),
+    });
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toEqual({
+      message: 'If an account exists for this email, PMCM will review the request.',
+    });
   }, 30_000);
 });

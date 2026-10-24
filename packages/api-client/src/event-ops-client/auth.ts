@@ -14,6 +14,19 @@ export function createAuthClient(
           "/auth/approval-requests",
           withBase(options, { method: "POST", body: input }),
         ),
+      logout: () =>
+        prismRequest<void>("/auth/logout", withBase(options, { method: "POST" })),
+      me: () => prismRequest("/auth/me", withBase(options, { method: "GET" })),
+      unlockUser: (userId) =>
+        prismRequest(
+          `/auth/users/${encodeURIComponent(userId)}/unlock`,
+          withBase(options, { method: "PATCH" }),
+        ),
+      resetUserTwoFactor: (userId) =>
+        prismRequest(
+          `/auth/users/${encodeURIComponent(userId)}/two-factor/reset`,
+          withBase(options, { method: "PATCH" }),
+        ),
       setupTwoFactor: (token) =>
         prismRequest(
           "/auth/2fa/setup",
