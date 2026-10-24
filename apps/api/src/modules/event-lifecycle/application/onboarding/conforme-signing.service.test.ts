@@ -103,7 +103,7 @@ describe('ConformeSigningService', () => {
     expect(pmcmResult.signatures).toHaveLength(2);
     expect(pmcmResult.signatures[0]).not.toHaveProperty('ipHash');
     expect(f.inquiriesService.sendClientPortalInvitationAfterCommit).toHaveBeenCalledOnce();
-    expect(f.inquiriesService.sendClientPortalInvitationAfterCommit).toHaveBeenCalledWith('inq_1');
+    expect(f.inquiriesService.sendClientPortalInvitationAfterCommit).toHaveBeenCalledWith('inq_1', { id: 'pmcm-user', name: 'PMCM Person', role: 'pmcm-admin' });
     await expect(f.service.signForPmcm('inq_1', signed, pmcmActor as never, {})).resolves.toMatchObject({ status: 'completed' });
     expect(f.inquiriesService.activateAfterConforme).toHaveBeenCalledOnce();
     expect(f.inquiriesService.sendClientPortalInvitationAfterCommit).toHaveBeenCalledOnce();

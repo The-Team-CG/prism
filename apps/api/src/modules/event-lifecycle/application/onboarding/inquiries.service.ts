@@ -4,7 +4,6 @@ import { PrismaService } from '@prism/kernel/database';
 import { PRISM_PRIVACY_NOTICE_VERSION, type MergeInquiryInput, type PrismAccountInvitationOutcome } from '@prism/types';
 import {
   ACCOUNT_PROVISIONING,
-  SYSTEM_INVITATION_ACTOR,
   type AccountInvitationActor,
   type AccountProvisioningPort,
 } from '@prism/contexts/identity-access/account-invitation-reference';
@@ -251,16 +250,16 @@ export class InquiriesService {
   /** PMCM re-sends the client's portal invitation. Same rules and outcome recording as the signing trigger. */
   async resendClientPortalInvitation(inquiryId: string, actor: ResolvedEventOpsActor) {
     const verified = this.requireVerifiedActor(actor);
-    return this.issueClientPortalInvitation(inquiryId, { id: verified.id, name: verified.name, role: verified.role });
+    return this.issueClientPortalInvitation(inquiryId, this.invitationActorFor(verified));
   }
 
   /**
    * Called after a signed conforme commits. Failures are recorded on the inquiry and in the audit trail
    * instead of reaching the signer, because the signature itself has already been stored.
    */
-  async sendClientPortalInvitationAfterCommit(inquiryId: string) {
+  async sendClientPortalInvitationAfterCommit(inquiryId: string, actor: AccountInvitationActor) {
     try {
-      await this.issueClientPortalInvitation(inquiryId, SYSTEM_INVITATION_ACTOR);
+      await this.issueClientPortalInvitation(inquiryId, actor);
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       this.logger.error(`Client portal invitation was not issued for inquiry ${inquiryId}: ${reason}`);
@@ -268,8 +267,8 @@ export class InquiriesService {
         where: { id: inquiryId },
         data: { portalInvitationStatus: PortalInvitationStatus.NotSent, portalInvitationSentAt: null, portalInvitationOpenedAt: null, portalInvitationExpiresAt: null },
       });
-      await this.audit(undefined, SYSTEM_INVITATION_ACTOR.name, 'Client portal invitation could not be issued after the conforme was signed', {
-        actorRole: OpsUserRole.System,
+      await this.audit(undefined, actor.name, 'Client portal invitation could not be issued after the conforme was signed', {
+        actorRole: actor.role,
         actionType: AuditActionType.General,
         category: AuditCategory.Access,
         affectedType: 'inquiry',
@@ -315,6 +314,8 @@ export class InquiriesService {
   ): Promise<OpsDocument> {
     let inquiry: OpsInquiry | null = null;
     const now = new Date();
+    // Only a stored conforme activates the portal and triggers a login, so only then is the uploader required to be verified.
+    const invitationActor = input.storageObjectId ? this.invitationActorFor(actor) : null;
 
     return this.workflowCommandService.execute<
       { document: OpsDocument; event: OpsEvent },
@@ -379,7 +380,7 @@ export class InquiriesService {
             affectedLabel: document.fileName,
           }),
           ...(input.storageObjectId ? [this.notify(event.id, event.clientName, 'Client portal unlocked')] : []),
-          ...(input.storageObjectId ? [this.sendClientPortalInvitationAfterCommit(inquiryId)] : []),
+          ...(invitationActor ? [this.sendClientPortalInvitationAfterCommit(inquiryId, invitationActor)] : []),
         ];
 
         await Promise.all(sideEffects);
@@ -683,6 +684,12 @@ export class InquiriesService {
         });
       },
     });
+  }
+
+  /** The person who caused the invitation, so the audit trail names them rather than a generic system actor. */
+  private invitationActorFor(actor: ResolvedEventOpsActor): AccountInvitationActor {
+    const verified = this.requireVerifiedActor(actor);
+    return { id: verified.id, name: verified.name, role: verified.role };
   }
 
   private requireVerifiedActor(actor: ResolvedEventOpsActor | undefined): ResolvedEventOpsActor & { id: string; verified: true } {
