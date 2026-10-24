@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { PrismaService } from '@prism/kernel/database';
 import { WorkflowCommandService, OpsUserRole } from '@prism/kernel/event-core';
 import type { PrismVerifiedEventActor } from '@prism/types';
+import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { ConformeSigningService } from '../../src/modules/event-lifecycle/application/onboarding/conforme-signing.service';
 import { InquiriesService } from '../../src/modules/event-lifecycle/application/onboarding/inquiries.service';
 
@@ -41,13 +42,25 @@ describe.skipIf(!live)('conforme dual acknowledgment activation against PostgreS
       await prisma.opsInquiry.create({ data: {
         id: inquiryId, clientName: 'Portal Test Client', companyName: 'Test Company', email: clientEmail,
         normalizedEmail: clientEmail, eventName: 'Portal Conforme Event', eventDate: new Date('2031-04-18T09:00:00.000Z'),
-        eventType: 'Corporate', clientType: 'corporate', status: 'accepted', acceptedAt: new Date(),
+        eventType: 'Corporate', clientType: 'corporate', status: 'pending',
       } });
 
-      // Provisioning writes to identity-access and sends mail; this test covers the conforme itself, so the port answers an invite.
-      const accountProvisioning = { provision: async () => ({ outcome: 'invited' as const, sentAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 86_400_000).toISOString() }) };
+      // The client invitation goes out when PMCM accepts the inquiry. The port records each call, so signing below can prove it adds none.
+      const provision = vi.fn(async (_input: unknown) => ({ outcome: 'invited' as const, sentAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString() }));
+      const accountProvisioning = { provision };
       const inquiries = new InquiriesService(prisma, audit, notifications, new WorkflowCommandService(), accountProvisioning);
       const signing = new ConformeSigningService(prisma, inquiries, audit, notifications);
+      const acceptor = { id: pmcm.id, name: pmcm.name, role: pmcm.role, email: pmcm.email, explicit: true, verified: true } as ResolvedEventOpsActor;
+
+      await inquiries.updateInquiryStatus(inquiryId, { status: 'accepted' }, acceptor);
+      expect(provision).toHaveBeenCalledOnce();
+      expect(provision).toHaveBeenCalledWith(expect.objectContaining({ email: clientEmail, role: 'client', source: 'inquiry_acceptance', sourceId: inquiryId, actor: { id: pmcm.id, name: pmcm.name, role: pmcm.role } }));
+      const accepted = await prisma.opsInquiry.findUniqueOrThrow({ where: { id: inquiryId } });
+      expect(accepted).toMatchObject({ status: 'accepted', portalInvitationStatus: 'sent', conformeSignedAt: null });
+      expect(accepted.portalInvitationSentAt).toBeInstanceOf(Date);
+      expect(accepted.portalInvitationExpiresAt).toBeInstanceOf(Date);
+      await inquiries.updateInquiryStatus(inquiryId, { status: 'accepted' }, acceptor);
+      expect(provision).toHaveBeenCalledOnce();
       const prepared = await signing.createExecution(inquiryId, { templateVersion: 1, templateContent: template }, pmcm);
       const signInput = {
         executionId: prepared.id,
@@ -80,7 +93,9 @@ describe.skipIf(!live)('conforme dual acknowledgment activation against PostgreS
       const inquiry = await prisma.opsInquiry.findUniqueOrThrow({ where: { id: inquiryId } });
       expect(inquiry.conformeSignedAt).toBeInstanceOf(Date);
       expect(inquiry.portalActivatedAt).toBeInstanceOf(Date);
-      expect(inquiry.portalInvitationStatus).toBe('not_sent');
+      // Signing leaves the invitation fields as acceptance set them and adds no provisioning call.
+      expect(inquiry).toMatchObject({ portalInvitationStatus: 'sent', portalInvitationSentAt: accepted.portalInvitationSentAt, portalInvitationExpiresAt: accepted.portalInvitationExpiresAt });
+      expect(provision).toHaveBeenCalledOnce();
 
       await signing.createExecution(inquiryId, { templateVersion: 1, templateContent: template }, pmcm);
       await signing.signForClient(signInput, client, {});

@@ -112,6 +112,8 @@ export class InquiriesService {
     const verifiedActor = this.requireVerifiedActor(actor);
     let current: OpsInquiry | null = null;
     let data: Prisma.OpsInquiryUpdateInput = {};
+    // True only for the call that moves the inquiry into accepted, so a repeat accept announces and invites nothing new.
+    let movedToAccepted = false;
 
     return this.workflowCommandService.execute<OpsInquiry>({
       name: 'update_inquiry_status',
@@ -154,6 +156,15 @@ export class InquiriesService {
                   };
       },
       write: () => this.prisma.$transaction(async (tx) => {
+        // QUERY_AUDIT_RAW_SQL: lock the inquiry so concurrent status changes serialize before the transition is checked.
+        await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM event_lifecycle.inquiries WHERE id = ${inquiryId} FOR UPDATE`;
+        const locked = await tx.opsInquiry.findUnique({ where: { id: inquiryId } });
+        if (!locked) throw new NotFoundException('Inquiry not found');
+        if (input.status === 'accepted' && locked.status === 'accepted') return locked;
+        if (locked.status === 'declined' && input.status !== 'declined') {
+          throw new BadRequestException('Declined inquiries are permanently flagged and cannot be reopened');
+        }
+        movedToAccepted = input.status === 'accepted';
         const updated = await tx.opsInquiry.update({ where: { id: inquiryId }, data });
         if (tx.opsInquiryStatusHistory?.create) {
           await tx.opsInquiryStatusHistory.create({
@@ -173,7 +184,7 @@ export class InquiriesService {
         return updated;
       }),
       sideEffects: async (inquiry) => {
-        if (input.status === 'accepted') {
+        if (input.status === 'accepted' && movedToAccepted) {
           await Promise.all([
           this.audit(undefined, verifiedActor.name, `Accepted inquiry for ${inquiry.clientName}; conforme sent`, {
             actorRole: verifiedActor.role,
@@ -183,6 +194,8 @@ export class InquiriesService {
             this.notify(undefined, inquiry.email, 'Inquiry accepted; signed conforme required'),
             this.notify(undefined, inquiry.clientName, 'Conforme sent by PMCM', 'viber'),
           ]);
+          // The client needs the account to read and sign the conforme, so the invitation goes out with the acceptance.
+          await this.sendClientPortalInvitationAfterCommit(inquiry.id, this.invitationActorFor(verifiedActor));
         }
         if (input.status === 'pending') {
           await this.audit(undefined, verifiedActor.name, `Marked inquiry pending for ${inquiry.clientName}`, {
@@ -247,14 +260,14 @@ export class InquiriesService {
     });
   }
 
-  /** PMCM re-sends the client's portal invitation. Same rules and outcome recording as the signing trigger. */
+  /** PMCM re-sends the client's portal invitation for an accepted inquiry, whether or not the conforme is signed yet. */
   async resendClientPortalInvitation(inquiryId: string, actor: ResolvedEventOpsActor) {
     const verified = this.requireVerifiedActor(actor);
     return this.issueClientPortalInvitation(inquiryId, this.invitationActorFor(verified));
   }
 
   /**
-   * Called after a signed conforme commits. Failures are recorded on the inquiry and in the audit trail
+   * Called after PMCM's acceptance commits. Failures are recorded on the inquiry and in the audit trail
    * instead of reaching the signer, because the signature itself has already been stored.
    */
   async sendClientPortalInvitationAfterCommit(inquiryId: string, actor: AccountInvitationActor) {
@@ -267,7 +280,7 @@ export class InquiriesService {
         where: { id: inquiryId },
         data: { portalInvitationStatus: PortalInvitationStatus.NotSent, portalInvitationSentAt: null, portalInvitationOpenedAt: null, portalInvitationExpiresAt: null },
       });
-      await this.audit(undefined, actor.name, 'Client portal invitation could not be issued after the conforme was signed', {
+      await this.audit(undefined, actor.name, 'Client portal invitation could not be issued after the inquiry was accepted', {
         actorRole: actor.role,
         actionType: AuditActionType.General,
         category: AuditCategory.Access,
@@ -281,15 +294,15 @@ export class InquiriesService {
   private async issueClientPortalInvitation(inquiryId: string, actor: AccountInvitationActor) {
     const inquiry = await this.prisma.opsInquiry.findUnique({ where: { id: inquiryId } });
     if (!inquiry) throw new NotFoundException('Inquiry not found');
-    if (inquiry.status !== 'accepted' || !inquiry.conformeSignedAt) {
-      throw new ConflictException('Client portal invitations are sent after the conforme is signed');
+    if (inquiry.status !== 'accepted') {
+      throw new ConflictException('Client portal invitations are sent once PMCM has accepted the inquiry');
     }
     const outcome = await this.accountProvisioning.provision({
       email: inquiry.email,
       name: inquiry.clientName,
       role: 'client',
       organization: inquiry.companyName,
-      source: 'conforme',
+      source: 'inquiry_acceptance',
       sourceId: inquiry.id,
       actor,
     });
@@ -314,8 +327,6 @@ export class InquiriesService {
   ): Promise<OpsDocument> {
     let inquiry: OpsInquiry | null = null;
     const now = new Date();
-    // Only a stored conforme activates the portal and triggers a login, so only then is the uploader required to be verified.
-    const invitationActor = input.storageObjectId ? this.invitationActorFor(actor) : null;
 
     return this.workflowCommandService.execute<
       { document: OpsDocument; event: OpsEvent },
@@ -380,7 +391,6 @@ export class InquiriesService {
             affectedLabel: document.fileName,
           }),
           ...(input.storageObjectId ? [this.notify(event.id, event.clientName, 'Client portal unlocked')] : []),
-          ...(invitationActor ? [this.sendClientPortalInvitationAfterCommit(inquiryId, invitationActor)] : []),
         ];
 
         await Promise.all(sideEffects);
