@@ -5,6 +5,7 @@ export * from "./client-review.js";
 export * from "./conforme-signing.js";
 export * from "./inquiry-link.js";
 export * from "./lifecycle.js";
+export * from "./navigation.js";
 export * from "./portal-urls.js";
 export * from "./privacy.js";
 export * from "./privacy-notice.js";
