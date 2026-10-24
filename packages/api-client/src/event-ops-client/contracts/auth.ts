@@ -22,7 +22,7 @@ export interface EventOpsAuthContract {
     verifyTwoFactor(input: VerifyTwoFactorInput): Promise<PrismAuthenticatedSession>;
     requestPasswordReset(
       email: string,
-    ): Promise<{ message: string; deliveryAvailable: boolean }>;
+    ): Promise<{ message: string }>;
     consumePasswordReset(
       token: string,
       password: string,

@@ -65,7 +65,7 @@ export const supplierAuthRepository = {
     );
   },
 
-  requestPasswordReset(input: RequestPasswordResetInput): Promise<{ message: string; deliveryAvailable: boolean }> {
+  requestPasswordReset(input: RequestPasswordResetInput): Promise<{ message: string }> {
     const contract = parseContract(requestPasswordResetSchema, input, "Password reset request");
     return runSupplierAuthRequest(
       () => supplierAuthClient.auth.requestPasswordReset(contract.email),
