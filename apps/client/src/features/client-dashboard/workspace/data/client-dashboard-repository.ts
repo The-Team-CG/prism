@@ -1,5 +1,4 @@
 import {
-  PRISM_LEGACY_SESSION_STORAGE_KEYS,
   PRISM_SESSION_STORAGE_KEYS,
   clearPrismSession,
   readPrismSession,
@@ -43,15 +42,11 @@ function toProject(plan: ApiFloorPlanSnapshot): Project {
 
 export const clientDashboardRepository = {
   readSession(): ClientSession | null {
-    return readPrismSession<ClientSession>(PRISM_SESSION_STORAGE_KEYS.client, {
-      legacyKeys: [PRISM_LEGACY_SESSION_STORAGE_KEYS.clientMockAuth],
-    });
+    return readPrismSession<ClientSession>(PRISM_SESSION_STORAGE_KEYS.client);
   },
 
   clearSession(): void {
-    clearPrismSession(PRISM_SESSION_STORAGE_KEYS.client, {
-      legacyKeys: [PRISM_LEGACY_SESSION_STORAGE_KEYS.clientMockAuth],
-    });
+    clearPrismSession(PRISM_SESSION_STORAGE_KEYS.client);
   },
 
   async loadWorkspace(): Promise<PrismClientWorkspace> {

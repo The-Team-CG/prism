@@ -9,11 +9,6 @@ export const PRISM_SESSION_STORAGE_KEYS = {
   gameParticipant: "prism:game-participant-session",
 } as const;
 
-export const PRISM_LEGACY_SESSION_STORAGE_KEYS = {
-  clientMockAuth: "prism:mock-auth-session",
-  clientMockAuthRequests: "prism:mock-auth-requests",
-} as const;
-
 export type PrismSessionStorageKey =
   (typeof PRISM_SESSION_STORAGE_KEYS)[keyof typeof PRISM_SESSION_STORAGE_KEYS];
 
@@ -25,7 +20,6 @@ export interface PrismSessionStorageAdapter {
 
 export interface PrismSessionStorageOptions {
   storage?: PrismSessionStorageAdapter;
-  legacyKeys?: readonly string[];
 }
 
 function browserStorage() {
@@ -39,10 +33,6 @@ function sessionStorageFrom(options?: PrismSessionStorageOptions) {
   return options?.storage ?? browserStorage();
 }
 
-function allSessionKeys(key: string, legacyKeys: readonly string[] = []) {
-  return [key, ...legacyKeys];
-}
-
 export function readPrismSession<TSession>(
   key: PrismSessionStorageKey,
   options: PrismSessionStorageOptions = {},
@@ -50,22 +40,13 @@ export function readPrismSession<TSession>(
   const storage = sessionStorageFrom(options);
   if (!storage) return null;
 
-  const keys = allSessionKeys(key, options.legacyKeys);
-  const sourceKey = keys.find((candidate) => storage.getItem(candidate));
-  if (!sourceKey) return null;
-
-  const raw = storage.getItem(sourceKey);
+  const raw = storage.getItem(key);
   if (!raw) return null;
 
   try {
-    const session = JSON.parse(raw) as TSession;
-    if (sourceKey !== key) {
-      storage.setItem(key, raw);
-      storage.removeItem(sourceKey);
-    }
-    return session;
+    return JSON.parse(raw) as TSession;
   } catch {
-    keys.forEach((candidate) => storage.removeItem(candidate));
+    storage.removeItem(key);
     return null;
   }
 }
@@ -84,9 +65,7 @@ export function clearPrismSession(
   key: PrismSessionStorageKey,
   options: PrismSessionStorageOptions = {},
 ) {
-  const storage = sessionStorageFrom(options);
-  if (!storage) return;
-  allSessionKeys(key, options.legacyKeys).forEach((candidate) => storage.removeItem(candidate));
+  sessionStorageFrom(options)?.removeItem(key);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -109,9 +88,15 @@ function hasAuthenticatedSessionStrings(value: Record<string, unknown>) {
   return PRISM_AUTHENTICATED_SESSION_STRING_FIELDS.every((field) => typeof value[field] === "string");
 }
 
+function isUnexpired(expiresAt: string) {
+  const expiry = Date.parse(expiresAt);
+  return !Number.isNaN(expiry) && expiry > Date.now();
+}
+
 export function isPrismAuthenticatedSession(value: unknown): value is PrismAuthenticatedSession {
   if (!isRecord(value)) return false;
   if (!hasAuthenticatedSessionStrings(value)) return false;
   const token = value.accessToken;
-  return typeof token === "string" && token.length > 0;
+  if (typeof token !== "string" || token.length === 0) return false;
+  return isUnexpired(value.expiresAt as string);
 }

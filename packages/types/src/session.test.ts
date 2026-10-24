@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  PRISM_LEGACY_SESSION_STORAGE_KEYS,
   PRISM_SESSION_STORAGE_KEYS,
   clearPrismSession,
   isPrismAuthenticatedSession,
@@ -32,52 +31,26 @@ describe("shared Prism session storage helpers", () => {
     expect(readPrismSession<typeof session>(PRISM_SESSION_STORAGE_KEYS.client, { storage })).toEqual(session);
   });
 
-  it("migrates an allowed legacy session key to the canonical key", () => {
-    const session = { email: "ana@ayala.test", role: "client", signedInAt: "2026-06-15T00:00:00.000Z" };
-    const storage = createStorage({
-      [PRISM_LEGACY_SESSION_STORAGE_KEYS.clientMockAuth]: JSON.stringify(session),
-    });
-
-    expect(
-      readPrismSession<typeof session>(PRISM_SESSION_STORAGE_KEYS.client, {
-        legacyKeys: [PRISM_LEGACY_SESSION_STORAGE_KEYS.clientMockAuth],
-        storage,
-      }),
-    ).toEqual(session);
-    expect(storage.snapshot()).toEqual({
-      [PRISM_SESSION_STORAGE_KEYS.client]: JSON.stringify(session),
-    });
-  });
-
-  it("clears corrupt canonical and legacy session values", () => {
+  it("clears a corrupt stored session instead of reading it", () => {
     const storage = createStorage({
       [PRISM_SESSION_STORAGE_KEYS.client]: "{",
-      [PRISM_LEGACY_SESSION_STORAGE_KEYS.clientMockAuth]: "{",
     });
 
-    expect(
-      readPrismSession(PRISM_SESSION_STORAGE_KEYS.client, {
-        legacyKeys: [PRISM_LEGACY_SESSION_STORAGE_KEYS.clientMockAuth],
-        storage,
-      }),
-    ).toBeNull();
+    expect(readPrismSession(PRISM_SESSION_STORAGE_KEYS.client, { storage })).toBeNull();
     expect(storage.snapshot()).toEqual({});
   });
 
-  it("saves and clears canonical and legacy session keys", () => {
+  it("saves and clears a role session under its canonical key only", () => {
     const session = { email: "ops@xperto.test", role: "supplier", signedInAt: "2026-06-15T00:00:00.000Z" };
     const storage = createStorage({
-      [PRISM_LEGACY_SESSION_STORAGE_KEYS.clientMockAuth]: JSON.stringify({ stale: true }),
+      "prism:unrelated-key": JSON.stringify({ stale: true }),
     });
 
     savePrismSession(PRISM_SESSION_STORAGE_KEYS.supplier, session, { storage });
     expect(readPrismSession<typeof session>(PRISM_SESSION_STORAGE_KEYS.supplier, { storage })).toEqual(session);
 
-    clearPrismSession(PRISM_SESSION_STORAGE_KEYS.supplier, {
-      legacyKeys: [PRISM_LEGACY_SESSION_STORAGE_KEYS.clientMockAuth],
-      storage,
-    });
-    expect(storage.snapshot()).toEqual({});
+    clearPrismSession(PRISM_SESSION_STORAGE_KEYS.supplier, { storage });
+    expect(storage.snapshot()).toEqual({ "prism:unrelated-key": JSON.stringify({ stale: true }) });
   });
 
   it("keeps game participation separate from guest check-in state", () => {
@@ -98,6 +71,7 @@ describe("shared Prism session storage helpers", () => {
   });
 });
 
+
 describe("Prism authenticated session validation", () => {
   it("accepts signed flattened API sessions", () => {
     expect(
@@ -109,10 +83,26 @@ describe("Prism authenticated session validation", () => {
         organization: "PMCM",
         approvalStatus: "approved",
         accessToken: "header.payload.signature",
-        expiresAt: "2026-07-03T12:00:00.000Z",
+        expiresAt: "2099-07-03T12:00:00.000Z",
         signedInAt: "2026-07-03T04:00:00.000Z",
       }),
     ).toBe(true);
+  });
+
+  it("treats expired or unreadable session expiry as signed out", () => {
+    const session = {
+      id: "user_pmcm",
+      name: "Ms. Mys",
+      email: "mys@pmcm.test",
+      role: "pmcm-admin",
+      organization: "PMCM",
+      approvalStatus: "approved",
+      accessToken: "header.payload.signature",
+      signedInAt: "2026-07-03T04:00:00.000Z",
+    };
+
+    expect(isPrismAuthenticatedSession({ ...session, expiresAt: "2001-01-01T00:00:00.000Z" })).toBe(false);
+    expect(isPrismAuthenticatedSession({ ...session, expiresAt: "not-a-date" })).toBe(false);
   });
 
   it("rejects unsigned legacy role-only sessions", () => {
