@@ -6,6 +6,7 @@ import {
   checkInButtonLabel,
   formatFileSize,
   isFileWithinSizeLimit,
+  isGuestAccessEndedError,
   isVideoDurationAllowed,
   mapGuestDashboardError,
   MAX_VIDEO_DURATION_S,
@@ -70,10 +71,14 @@ export function useGuestDashboardViewModel() {
     try {
       const next = await refreshGuestEventIfChanged(current);
       setSession(next);
-    } catch {
-      // Silently ignore poll errors — stale data is acceptable
+    } catch (err) {
+      if (isGuestAccessEndedError(err)) {
+        leaveGuestEvent();
+        router.replace("/open");
+      }
+      // Other poll errors are ignored; stale event data is acceptable until the next poll.
     }
-  }, [session]);
+  }, [session, router]);
 
   useEffect(() => {
     if (!session) return;
