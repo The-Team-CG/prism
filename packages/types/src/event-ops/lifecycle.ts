@@ -1,4 +1,10 @@
-import type { PrismProjectLike, PrismUserRole } from "./core.js";
+import type { PrismAccountInvitationOutcome, PrismProjectLike, PrismUserRole } from "./core.js";
+
+/** A client portal invitation re-sent for an inquiry, with the inquiry as it now stands. */
+export interface PrismPortalInvitationResend {
+  outcome: PrismAccountInvitationOutcome;
+  inquiry: PrismInquiry;
+}
 
 export interface PrismInquiryMergeRecord {
   id: string;
