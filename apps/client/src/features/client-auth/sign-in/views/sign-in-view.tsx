@@ -9,7 +9,7 @@ import { Field } from "@/app/components/ui/field";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { CLIENT_PORTAL_POINTS, CLIENT_PORTAL_STATEMENT } from "../model/client-portal-copy";
-import { portalUrlsFromEnvironment, wrongPortalLinks } from "../model/wrong-portal-links";
+import { portalUrlsFromEnvironment, wrongPortalLinks } from "@/lib/portal-urls";
 import { useSignInViewModel } from "../view-models/use-sign-in-view-model";
 
 export function SignInView() {
