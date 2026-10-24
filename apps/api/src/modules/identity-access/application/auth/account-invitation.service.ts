@@ -56,7 +56,7 @@ export class AccountInvitationService implements AccountProvisioningPort {
     const now = new Date();
     const decision = await this.decide(email, input, now);
     if (decision.outcome !== 'issued') {
-      await this.audit(input, email, decision.userId, decision.outcome, 'warning');
+      await this.audit(input, email, decision.userId, decision.outcome, decision.outcome === 'role_conflict' ? 'warning' : 'info');
       return { outcome: decision.outcome };
     }
 

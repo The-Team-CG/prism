@@ -1,7 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { ConfigService } from '@nestjs/config';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PrismaService } from '../../../../kernel/database';
+import { AuthSessionService } from '../../../../kernel/event-session/services/auth-session.service';
 import { AccountActivationService } from './account-activation.service';
+import { AuthOperationsService } from './auth-operations.service';
 
 const databaseUrl = process.env.P0_TEST_DATABASE_URL?.trim();
 const enabled = Boolean(databaseUrl && /^postgresql:\/\/[^@]+@127\.0\.0\.1:55437\/prism_p0(?:\?|$)/.test(databaseUrl));
@@ -42,7 +45,7 @@ describe.skipIf(!enabled)('account activation PostgreSQL integrity', () => {
   it('allows exactly one of two concurrent activations, and activates the account once', async () => {
     const results = await Promise.allSettled([
       service.activate(raceToken, 'first-password-123'),
-      service.activate(raceToken, 'second-password-456'),
+      service.activate(raceToken, 'first-password-123'),
     ]);
 
     expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
@@ -51,6 +54,14 @@ describe.skipIf(!enabled)('account activation PostgreSQL integrity', () => {
       .resolves.toMatchObject({ approvalStatus: 'approved', sessionVersion: 1, password: expect.stringMatching(/^scrypt\$/) });
     await expect(prisma.opsAccountInvitation.findUniqueOrThrow({ where: { id: `${raceUserId}_invitation` }, select: { consumedAt: true } }))
       .resolves.toMatchObject({ consumedAt: expect.any(Date) });
+  });
+
+  it('lets the activated account sign in with the password it just set', async () => {
+    const sessions = new AuthSessionService(new ConfigService({ PRISM_SESSION_SECRET: 'p1-activation-session-secret-long-enough', PRISM_SESSION_TTL_SECONDS: '28800' }));
+    const authAudit = { write: async () => undefined, recordLoginHistory: async () => undefined, recordAuthenticationAudit: async () => undefined, handleFailedLogin: async () => undefined, handleForbiddenAccess: async () => undefined };
+    const signIn = new AuthOperationsService(prisma as never, authAudit as never, { markPortalInvitationOpenedByEmail: async () => undefined } as never, sessions, {} as never);
+
+    await expect(signIn.login(`${raceUserId}@example.test`, 'first-password-123')).resolves.toMatchObject({ accessToken: expect.any(String) });
   });
 
   it('keeps the token usable when the account is no longer waiting for activation', async () => {
