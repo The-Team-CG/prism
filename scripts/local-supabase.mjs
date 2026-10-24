@@ -48,10 +48,11 @@ export function developmentEnv(url, project, ports, sessionSecret) {
     NEXT_PUBLIC_API_URL: `http://localhost:${ports.api}`,
     NEXT_PUBLIC_PRISM_API_BASE_URL: `http://localhost:${ports.api}/api`,
     NEXT_PUBLIC_CLIENT_ORIGIN: `http://localhost:${ports.client}`,
-    ...Object.fromEntries(['client', 'supplier', 'guest', 'event'].map((app) => [`NEXT_PUBLIC_${app.toUpperCase()}_PORTAL_URL`, `http://localhost:${ports[app]}`])),
+    ...portalUrlsFor(ports),
     // Local mail is written to the API log instead of sent. Production rejects this transport.
     PRISM_MAIL_TRANSPORT: 'log',
-    ...Object.fromEntries(Object.entries(portalUrlsFor(ports)).map(([name, url]) => [name.replace(/^NEXT_PUBLIC_/, 'PRISM_'), url])),
+    // The API links to these portals only; guests sign in with event codes and have no API link.
+    ...Object.fromEntries(['client', 'supplier', 'event'].map((app) => [`PRISM_${app.toUpperCase()}_PORTAL_URL`, `http://localhost:${ports[app]}`])),
     PRISM_SESSION_SECRET: sessionSecret, PRISM_SESSION_TTL_SECONDS: '28800', PRISM_TRUST_PROXY: 'false', AI_ROUTE_PROFILE: 'mock', AI_PROVIDER: 'mock', PARE_MODE: 'mock',
     PRISM_DISABLE_CONFORME_REMINDER_JOB: '1',
   };

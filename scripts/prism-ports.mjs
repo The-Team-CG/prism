@@ -126,7 +126,7 @@ export function apiUrlFor(ports) {
   return `http://localhost:${ports.api}`;
 }
 
-/** Each portal's browser-facing origin on the live port set. The API reads the same origins as PRISM_*_PORTAL_URL. */
+/** Each portal's browser-facing origin on the live port set. The API reads the client, supplier and event origins as PRISM_*_PORTAL_URL. */
 export function portalUrlsFor(ports) {
   return Object.fromEntries(PRISM_PORTAL_APPS.map((app) => [
     `NEXT_PUBLIC_${app.toUpperCase()}_PORTAL_URL`,

@@ -32,7 +32,6 @@ describe.skipIf(!enabled)('native password recovery PostgreSQL integrity', () =>
     service = new PasswordResetService(prisma, { deliver: async () => undefined }, {
       client: 'https://client.example.test',
       supplier: 'https://supplier.example.test',
-      guest: 'https://guest.example.test',
       event: 'https://event.example.test',
     });
   });
