@@ -1,7 +1,7 @@
 "use client";
 
 import { portalHref } from "@prism/ui/portal-path";
-import { PrismAuthShell, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
+import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, PrismWrongPortalLinks, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
 import { ArrowRight, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
@@ -9,6 +9,7 @@ import { Field } from "@/app/components/ui/field";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { SUPPLIER_PORTAL_POINTS, SUPPLIER_PORTAL_STATEMENT } from "../model/supplier-portal-copy";
+import { portalUrlsFromEnvironment, wrongPortalLinks } from "../model/wrong-portal-links";
 import { useSupplierSignInViewModel } from "../view-models/use-supplier-sign-in-view-model";
 
 function ExistingSessionBanner({ name, organization }: { name: string; organization: string }) {
@@ -83,6 +84,7 @@ function ApprovalRequestPanel({
 
 export function SupplierSignInView() {
   const vm = useSupplierSignInViewModel();
+  const otherPortals = wrongPortalLinks("supplier", portalUrlsFromEnvironment());
 
   return (
     <PrismAuthShell
@@ -96,6 +98,7 @@ export function SupplierSignInView() {
         <>
           <p>Approved supplier accounts only.</p>
           <p>Contact PMCM for account issues or access requests.</p>
+          <PrismWrongPortalLinks links={otherPortals} />
         </>
       }
     >
@@ -116,7 +119,7 @@ export function SupplierSignInView() {
             onChange={(e) => vm.updateEmail(e.target.value)}
             placeholder="supplier@example.com"
             required
-            className="h-12 rounded-lg bg-card text-base"
+            className={`h-12 rounded-lg bg-card text-base ${PRISM_AUTH_INPUT_CLASS_NAME}`}
           />
         </Field>
 
@@ -131,7 +134,7 @@ export function SupplierSignInView() {
               onChange={(e) => vm.updatePassword(e.target.value)}
               placeholder="Enter your password"
               required
-              className="h-12 rounded-lg bg-card pr-12 text-base"
+              className={`h-12 rounded-lg bg-card pr-12 text-base ${PRISM_AUTH_INPUT_CLASS_NAME}`}
             />
             <button
               type="button"
@@ -162,6 +165,15 @@ export function SupplierSignInView() {
           {vm.busy ? "Signing in..." : "Sign in"}
         </Button>
       </form>
+
+      <div className="mt-6 flex flex-col gap-2 text-sm">
+        <a href={portalHref("/apply")} className="text-primary transition-colors hover:text-primary/80">
+          Apply to become a PMCM supplier
+        </a>
+        <a href={portalHref("/status")} className="text-primary transition-colors hover:text-primary/80">
+          Check an application
+        </a>
+      </div>
 
       <div className="mt-8">
         <ApprovalRequestPanel

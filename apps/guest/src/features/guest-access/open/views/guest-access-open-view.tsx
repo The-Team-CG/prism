@@ -1,7 +1,7 @@
 "use client";
 
 import { portalHref } from "@prism/ui/portal-path";
-import { PrismAuthShell, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
+import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, PrismWrongPortalLinks, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
 import { FormEvent } from "react";
 import { ArrowRight, TicketCheck } from "lucide-react";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
@@ -9,6 +9,7 @@ import { Button } from "@/app/components/ui/button";
 import { Field } from "@/app/components/ui/field";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
+import { portalUrlsFromEnvironment, wrongPortalLinks } from "../model/wrong-portal-links";
 import { useGuestAccessOpenViewModel } from "../view-models/use-guest-access-open-view-model";
 
 const GUEST_POINTS = [
@@ -19,6 +20,7 @@ const GUEST_POINTS = [
 
 export function GuestAccessOpenView() {
   const vm = useGuestAccessOpenViewModel();
+  const otherPortals = wrongPortalLinks("guest", portalUrlsFromEnvironment());
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -46,6 +48,7 @@ export function GuestAccessOpenView() {
             </a>{" "}
             before check-in or feedback consent.
           </p>
+          <PrismWrongPortalLinks links={otherPortals} />
         </>
       }
     >
@@ -60,7 +63,7 @@ export function GuestAccessOpenView() {
             autoComplete="off"
             spellCheck={false}
             placeholder="PMCM EVENT CODE"
-            className="h-12 rounded-lg bg-card text-2xl font-semibold uppercase tracking-[0.18em]"
+            className={`h-12 rounded-lg bg-card text-2xl font-semibold uppercase tracking-[0.18em] ${PRISM_AUTH_INPUT_CLASS_NAME}`}
           />
         </Field>
 
