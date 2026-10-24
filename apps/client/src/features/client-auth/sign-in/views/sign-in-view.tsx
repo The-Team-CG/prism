@@ -2,17 +2,19 @@
 
 import { FormEvent } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { PrismAuthShell, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
+import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, PrismWrongPortalLinks, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
 import { Field } from "@/app/components/ui/field";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { CLIENT_PORTAL_POINTS, CLIENT_PORTAL_STATEMENT } from "../model/client-portal-copy";
+import { portalUrlsFromEnvironment, wrongPortalLinks } from "../model/wrong-portal-links";
 import { useSignInViewModel } from "../view-models/use-sign-in-view-model";
 
 export function SignInView() {
   const vm = useSignInViewModel();
+  const otherPortals = wrongPortalLinks("client", portalUrlsFromEnvironment());
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -32,6 +34,7 @@ export function SignInView() {
         <>
           <p>Approved clients only. Access requires a signed conforme.</p>
           <p>Contact PMCM for account issues or access requests.</p>
+          <PrismWrongPortalLinks links={otherPortals} />
         </>
       }
     >
@@ -59,7 +62,7 @@ export function SignInView() {
               placeholder="name@company.com"
               aria-invalid={vm.error ? true : undefined}
               aria-describedby={vm.error ? "sign-in-error" : undefined}
-              className="h-12 rounded-lg bg-card text-base"
+              className={`h-12 rounded-lg bg-card text-base ${PRISM_AUTH_INPUT_CLASS_NAME}`}
             />
           </Field>
 
@@ -76,7 +79,7 @@ export function SignInView() {
                 placeholder="Enter your password"
                 aria-invalid={vm.error ? true : undefined}
                 aria-describedby={vm.error ? "sign-in-error" : undefined}
-                className="h-12 rounded-lg bg-card pr-12 text-base"
+                className={`h-12 rounded-lg bg-card pr-12 text-base ${PRISM_AUTH_INPUT_CLASS_NAME}`}
               />
               <button
                 type="button"
