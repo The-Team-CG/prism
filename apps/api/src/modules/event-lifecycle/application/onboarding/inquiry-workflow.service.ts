@@ -152,6 +152,13 @@ export class InquiryWorkflowService {
     return context.mapInquiry(inquiry);
   }
 
+  async resendPortalInvitation(inquiryId: string, context: InquiryWorkflowContext, verifiedActor?: PrismVerifiedEventActor) {
+    const actor = context.resolveActor({}, verifiedActor);
+    await context.requireActorRole(actor, context.allowedAdminRoles, 'client portal invitation');
+    const { outcome, inquiry } = await context.inquiriesService.resendClientPortalInvitation(inquiryId, actor);
+    return { outcome, inquiry: context.mapInquiry(inquiry) };
+  }
+
   async uploadConforme(
     inquiryId: string,
     input: { type?: string; fileName: string; mimeType?: string; sizeBytes?: number; storageObjectId?: string },

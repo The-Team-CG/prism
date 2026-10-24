@@ -47,7 +47,12 @@ function inquiry(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function createService(existing = [inquiry()]) {
+const invitedOutcome = { outcome: 'invited', sentAt: '2026-10-25T00:00:00.000Z', expiresAt: '2026-11-01T00:00:00.000Z' };
+
+function createService(
+  existing = [inquiry()],
+  accountProvisioning: { provision: (input: never) => Promise<unknown> } = { provision: vi.fn(async (_input: unknown) => invitedOutcome) },
+) {
   const records: any[] = [...existing];
   const events: any[] = [];
   const documents: any[] = [];
@@ -71,6 +76,9 @@ function createService(existing = [inquiry()]) {
       update: vi.fn(async ({ where, data }) => { const row = events.find((item) => item.id === where.id); Object.assign(row, data); return row; }),
     },
     opsPostEventDocument: { createMany: vi.fn(async () => ({ count: 2 })) },
+    opsStoredObject: {
+      findUnique: vi.fn(async ({ where }) => ({ id: where.id, eventId: events[0]?.id, usage: 'signed_conforme', lifecycleState: 'stored' })),
+    },
     opsDocument: {
       create: vi.fn(async ({ data }) => { const row = { ...data }; documents.push(row); return row; }),
     },
@@ -128,8 +136,9 @@ function createService(existing = [inquiry()]) {
     auditWriter as any,
     notificationOutboxWriter as any,
     new WorkflowCommandService(),
+    accountProvisioning as any,
   );
-  return { service, records, notifications, audits, prisma, merges };
+  return { service, records, notifications, audits, prisma, merges, accountProvisioning };
 }
 
 const pmcmActor = {
@@ -449,5 +458,74 @@ describe('InquiriesService', () => {
     await expect(service.mergeInquiry('inq_primary', { sourceInquiryId: 'inq_parallel', reason: 'Client trying' }, clientActor))
       .rejects.toBeInstanceOf(ForbiddenException);
     expect(merges).toHaveLength(0);
+  });
+});
+
+describe('client portal invitation after the conforme', () => {
+  const signed = { status: 'accepted', conformeSignedAt: new Date('2026-10-20T00:00:00.000Z') };
+  const systemActor = { id: 'system', name: 'System', role: OpsUserRole.System };
+
+  it.each([
+    ['a new login', invitedOutcome, { portalInvitationStatus: 'sent', portalInvitationSentAt: new Date(invitedOutcome.sentAt), portalInvitationExpiresAt: new Date(invitedOutcome.expiresAt) }],
+    ['an account that already signs in', { outcome: 'existing_account' }, { portalInvitationStatus: 'opened', portalInvitationOpenedAt: expect.any(Date) }],
+    ['a delivery failure', { outcome: 'delivery_failed' }, { portalInvitationStatus: 'not_sent', portalInvitationSentAt: null, portalInvitationExpiresAt: null }],
+    ['a role conflict', { outcome: 'role_conflict' }, { portalInvitationStatus: 'not_sent', portalInvitationSentAt: null, portalInvitationExpiresAt: null }],
+  ])('records the invitation status for %s and provisions the client from the inquiry', async (_label, outcome, expected) => {
+    const accountProvisioning = { provision: vi.fn(async (_input: unknown) => outcome) };
+    const { service, records } = createService([inquiry(signed)], accountProvisioning);
+
+    await service.sendClientPortalInvitationAfterCommit('inq_existing');
+
+    expect(accountProvisioning.provision).toHaveBeenCalledWith({
+      email: 'ana@ayala.test',
+      name: 'Ana Reyes',
+      role: 'client',
+      organization: 'Ayala Corp',
+      source: 'conforme',
+      sourceId: 'inq_existing',
+      actor: systemActor,
+    });
+    expect(records[0]).toMatchObject(expected);
+  });
+
+  it('issues the login once when the conforme is uploaded as stored, and never again on a repeat upload', async () => {
+    const accountProvisioning = { provision: vi.fn(async (_input: unknown) => invitedOutcome) };
+    const { service, records } = createService([inquiry({ status: 'accepted' })], accountProvisioning);
+    const actor = { role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true, verified: true, id: 'usr_pmcm' };
+
+    await service.uploadConforme('inq_existing', { fileName: 'signed-conforme.pdf', storageObjectId: 'obj_conforme' }, actor as ResolvedEventOpsActor);
+    await expect(service.uploadConforme('inq_existing', { fileName: 'signed-conforme.pdf', storageObjectId: 'obj_conforme' }, actor as ResolvedEventOpsActor))
+      .rejects.toBeInstanceOf(BadRequestException);
+
+    expect(accountProvisioning.provision).toHaveBeenCalledTimes(1);
+    expect(records[0]).toMatchObject({ portalInvitationStatus: 'sent' });
+  });
+
+  it('keeps the signature and records the failure when provisioning throws after the commit', async () => {
+    const accountProvisioning = { provision: vi.fn(async (_input: unknown) => { throw new Error('mail transport offline'); }) };
+    const { service, records, audits } = createService([inquiry(signed)], accountProvisioning);
+
+    await expect(service.sendClientPortalInvitationAfterCommit('inq_existing')).resolves.toBeUndefined();
+
+    expect(records[0]).toMatchObject({ portalInvitationStatus: 'not_sent', conformeSignedAt: signed.conformeSignedAt });
+    expect(JSON.stringify(audits)).toContain('Client portal invitation could not be issued');
+  });
+
+  it('refuses a PMCM resend before the conforme is signed, and sends nothing', async () => {
+    const { service, accountProvisioning } = createService([inquiry({ status: 'accepted' })]);
+    const pmcm = { id: 'usr_pmcm', role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true, verified: true } as ResolvedEventOpsActor;
+
+    await expect(service.resendClientPortalInvitation('inq_existing', pmcm)).rejects.toBeInstanceOf(ConflictException);
+
+    expect(accountProvisioning.provision).not.toHaveBeenCalled();
+  });
+
+  it('returns the outcome and the inquiry as recorded when PMCM re-sends the invitation', async () => {
+    const { service } = createService([inquiry(signed)]);
+    const pmcm = { id: 'usr_pmcm', role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true, verified: true } as ResolvedEventOpsActor;
+
+    const result = await service.resendClientPortalInvitation('inq_existing', pmcm);
+
+    expect(result).toMatchObject({ outcome: invitedOutcome, inquiry: { id: 'inq_existing', portalInvitationStatus: 'sent' } });
   });
 });

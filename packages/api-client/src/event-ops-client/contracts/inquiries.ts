@@ -4,6 +4,7 @@ import type {
   CommsDraftResult,
   CreatePrismInquiryInput,
   PrismInquiry,
+  PrismPortalInvitationResend,
 } from "@prism/types";
 import type { EventOpsActorQuery } from "./primitives";
 
@@ -11,6 +12,7 @@ export interface EventOpsInquiryContract {
   inquiries: {
     list(actor?: EventOpsActorQuery): Promise<PrismInquiry[]>;
     create(input: CreatePrismInquiryInput): Promise<PrismInquiry>;
+    resendPortalInvitation(inquiryId: string): Promise<PrismPortalInvitationResend>;
   };
 
   conformeDrafts: {
