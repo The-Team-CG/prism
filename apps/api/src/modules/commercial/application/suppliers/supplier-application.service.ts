@@ -7,11 +7,12 @@ import { createHash } from 'node:crypto';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
-import { Inject } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 import { PRISM_PORTAL_URLS, type PrismPortalUrls } from '@prism/kernel/shared';
+import { ACCOUNT_PROVISIONING, SYSTEM_INVITATION_ACTOR, type AccountProvisioningPort } from '@prism/contexts/identity-access/account-invitation-reference';
 import { mapSupplierApplication, mapSupplierApplicationStatus } from './supplier-application.mappers';
 import { applicationStatusForReviewAction } from './supplier-application-status';
 
@@ -38,12 +39,15 @@ type SupplierApplicationWithCategory = Prisma.OpsSupplierApplicationGetPayload<{
 
 @Injectable()
 export class SupplierApplicationService {
+  private readonly logger = new Logger(SupplierApplicationService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     @Inject(PRISM_PORTAL_URLS) private readonly portalUrls: PrismPortalUrls,
+    @Inject(ACCOUNT_PROVISIONING) private readonly accountProvisioning: AccountProvisioningPort,
   ) {}
 
   async createSupplierApplication(input: CreateSupplierApplicationInput) {
@@ -160,6 +164,8 @@ export class SupplierApplicationService {
       throw new BadRequestException('A supplier category is required before approval');
     }
     const now = new Date();
+    // Set only by the call that converts the application, so a replayed approval never provisions a second login.
+    const conversion: { approved?: SupplierApplicationWithCategory } = {};
     const row = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const changed = await tx.opsSupplierApplication.updateMany({
         where: { id: applicationId, status: existing.status },
@@ -173,7 +179,10 @@ export class SupplierApplicationService {
       if (changed.count !== 1) throw new BadRequestException('Supplier application has already been reviewed');
       const updated = await tx.opsSupplierApplication.findUnique({ where: { id: applicationId }, include: { category: true } });
       if (!updated) throw new NotFoundException('Supplier application not found');
-      if (input.action === 'approve' && updated.categoryId) await this.convertApprovedApplication(tx, applicationId, updated, input, actor);
+      if (input.action === 'approve' && updated.categoryId) {
+        await this.convertApprovedApplication(tx, applicationId, updated, input, actor);
+        conversion.approved = updated;
+      }
       await writeAudit(this.auditWriter, undefined, actor.name, `Reviewed supplier application: ${updated.companyName}`, {
         actorRole: actor.role, actorEmail: actor.email, actionType: 'update', category: 'suppliers',
         affectedType: 'supplier_application', affectedId: updated.id, affectedLabel: updated.companyName,
@@ -181,7 +190,38 @@ export class SupplierApplicationService {
       }, { prisma: tx, correlationId: `supplier-application-review:${updated.id}`, actorId: actor.id ?? actor.name });
       return updated;
     });
+    if (conversion.approved) await this.provisionSupplierLogin(conversion.approved);
     return mapSupplierApplication(row);
+  }
+
+  /**
+   * An approved application gets a supplier login. It runs after the approval commits, so a failure is audited and
+   * logged rather than thrown: the approval itself stands and the audit trail shows that the login is missing.
+   */
+  private async provisionSupplierLogin(application: SupplierApplicationWithCategory) {
+    try {
+      await this.accountProvisioning.provision({
+        email: application.email,
+        name: application.contactName,
+        role: 'supplier',
+        organization: application.companyName,
+        source: 'supplier_application',
+        sourceId: application.id,
+        actor: SYSTEM_INVITATION_ACTOR,
+      });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Supplier login was not provisioned for approved application ${application.id}: ${reason}`);
+      await writeAudit(this.auditWriter, undefined, SYSTEM_INVITATION_ACTOR.name, `Supplier login was not created for approved application: ${application.companyName}`, {
+        actorRole: OpsUserRole.System,
+        actionType: 'update',
+        category: 'suppliers',
+        affectedType: 'supplier_application',
+        affectedId: application.id,
+        affectedLabel: application.companyName,
+        severity: 'warning',
+      });
+    }
   }
 
   private approvalReplay(existing: SupplierApplicationWithCategory, applicationId: string, input: ReviewSupplierApplicationInput): SupplierApplicationWithCategory | null {
