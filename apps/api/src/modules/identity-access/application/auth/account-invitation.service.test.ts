@@ -113,6 +113,19 @@ describe('AccountInvitationService.provision', () => {
     expect(auditEntries(auditWriter)).toContainEqual(expect.objectContaining({ action: expect.stringContaining('skipped'), affectedId: 'usr_ana' }));
   });
 
+  it.each(['pending', 'declined'])('refuses an account whose approval is %s: no link, no new account, audited as a warning', async (approvalStatus) => {
+    const existing = { id: 'usr_ana', name: 'Ana Reyes', email: 'ana@example.test', role: 'client', approvalStatus, password: 'stored-hash' };
+    const { service, prisma, invitations, delivery, auditWriter } = fixture(existing);
+
+    await expect(service.provision(clientInput)).resolves.toEqual({ outcome: 'account_not_active' });
+
+    expect(prisma.opsUser.create).not.toHaveBeenCalled();
+    expect(prisma.opsAccountInvitation.updateMany).not.toHaveBeenCalled();
+    expect(invitations).toEqual([]);
+    expect(delivery.deliver).not.toHaveBeenCalled();
+    expect(auditEntries(auditWriter)).toContainEqual(expect.objectContaining({ severity: 'warning', affectedId: 'usr_ana' }));
+  });
+
   it('refuses an email that belongs to a different role, changes nothing, and audits it as a warning', async () => {
     const existing = { id: 'usr_ana', name: 'Ana Reyes', email: 'ana@example.test', role: 'supplier', approvalStatus: 'approved', password: 'stored-hash' };
     const { service, prisma, invitations, delivery, auditWriter } = fixture(existing);

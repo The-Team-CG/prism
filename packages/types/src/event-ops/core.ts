@@ -194,6 +194,7 @@ export interface PrismAccountActivationReceipt {
 export type PrismAccountInvitationOutcome =
   | { outcome: "invited"; sentAt: string; expiresAt: string }
   | { outcome: "existing_account" }
+  | { outcome: "account_not_active" }
   | { outcome: "role_conflict" }
   | { outcome: "delivery_failed" };
 
