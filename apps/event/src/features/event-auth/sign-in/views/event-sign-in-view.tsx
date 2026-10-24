@@ -13,7 +13,7 @@ import { Label } from "@/app/components/ui/label";
 import { EVENT_PORTAL_POINTS, EVENT_PORTAL_STATEMENT } from "../model/event-portal-copy";
 import { signInSubmitLabel, twoFactorCopy } from "../model/event-sign-in-copy";
 import { eventSignInProgress } from "../model/event-sign-in-steps";
-import { portalUrlsFromEnvironment, wrongPortalLinks } from "../model/wrong-portal-links";
+import { portalUrlsFromEnvironment, wrongPortalLinks } from "@/lib/portal-urls";
 import { useEventSignInViewModel } from "../view-models/use-event-sign-in-view-model";
 
 const COPY_FAILED_MESSAGE = "Couldn't copy. Select the key and copy it.";
