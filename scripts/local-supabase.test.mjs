@@ -18,6 +18,7 @@ test('generated environments contain one local URL, clear stale overrides, and r
   assert.equal(generated.DIRECT_URL, '');
   assert.equal(generated.SUPABASE_DB_URL, '');
   assert.equal(generated.DB_SSL, 'false');
+  assert.equal(generated.PRISM_TRUST_PROXY, 'false');
   assert.equal(generated.CORS_ORIGIN, 'http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:3004');
   assert.throws(() => developmentEnv('postgresql://postgres:secret@prod.example.com:54322/postgres', project, ports, 'local-secret'));
 });
