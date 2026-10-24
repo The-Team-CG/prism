@@ -140,6 +140,22 @@ describe("prism port resolution", () => {
     );
   });
 
+  it("gives each portal its own origin on the port the launcher serves it from", () => {
+    assert.deepEqual(portalUrlsFor(resolvePortSet({ isPrimary: true })), {
+      NEXT_PUBLIC_CLIENT_PORTAL_URL: "http://localhost:3001",
+      NEXT_PUBLIC_SUPPLIER_PORTAL_URL: "http://localhost:3002",
+      NEXT_PUBLIC_GUEST_PORTAL_URL: "http://localhost:3003",
+      NEXT_PUBLIC_EVENT_PORTAL_URL: "http://localhost:3004",
+    });
+    const ports = resolvePortSet({ worktreeRoot: "C:/repo/.worktrees/alpha", isPrimary: false });
+    assert.deepEqual(portalUrlsFor(ports), {
+      NEXT_PUBLIC_CLIENT_PORTAL_URL: `http://localhost:${ports.client}`,
+      NEXT_PUBLIC_SUPPLIER_PORTAL_URL: `http://localhost:${ports.supplier}`,
+      NEXT_PUBLIC_GUEST_PORTAL_URL: `http://localhost:${ports.guest}`,
+      NEXT_PUBLIC_EVENT_PORTAL_URL: `http://localhost:${ports.event}`,
+    });
+  });
+
   it("detects a linked worktree from the git directory layout", () => {
     assert.equal(isPrimaryCheckout({ gitDir: "C:/repo/.git", gitCommonDir: "C:/repo/.git" }), true);
     assert.equal(
