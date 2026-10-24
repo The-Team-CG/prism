@@ -7,8 +7,6 @@ import { AccountApprovalStatus, AuditCategory, OpsUserRole } from '../../../../k
 import type { PrismAccountActivationReceipt } from '@prism/types';
 import { AuthSecurityService } from './auth-security.service';
 import { AUTH_AUDIT, type AuthAuditPort } from '../../contracts/auth-audit.port';
-import { INQUIRY_COMMANDS } from '../../../event-lifecycle/contracts/inquiry-onboarding.tokens';
-import type { InquiryCommands } from '../../../event-lifecycle/contracts/inquiry-commands.port';
 
 const INVALID_TOKEN_MESSAGE = 'Invalid or expired activation link';
 
@@ -27,7 +25,6 @@ export class AccountActivationService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(AUTH_AUDIT) private readonly authAudit: Pick<AuthAuditPort, 'write'>,
-    @Inject(INQUIRY_COMMANDS) private readonly inquiryCommands: Pick<InquiryCommands, 'markPortalInvitationOpenedByEmail'>,
   ) {}
 
   async activate(token: string, password: string): Promise<PrismAccountActivationReceipt> {
@@ -92,9 +89,6 @@ export class AccountActivationService {
       affectedLabel: activated.email,
       severity: 'info',
     });
-    if (activated.role === OpsUserRole.Client) {
-      await this.inquiryCommands.markPortalInvitationOpenedByEmail(activated.email);
-    }
     return { message: 'Password set. Sign in to continue.' };
   }
 

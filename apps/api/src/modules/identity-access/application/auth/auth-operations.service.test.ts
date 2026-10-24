@@ -459,6 +459,8 @@ describe('AuthOperationsService', () => {
     );
 
     await expect(service.login('ana@example.test', 'prism-client')).resolves.toMatchObject({ accessToken: 'client-session' });
+    // The client's first successful sign-in is what marks the portal invitation opened.
+    expect(inquiriesService.markPortalInvitationOpenedByEmail).toHaveBeenCalledWith('ana@example.test');
     expect(authAudit.recordAuthenticationAudit).toHaveBeenCalledWith(expect.objectContaining({
       actor: 'Ana Reyes',
       action: 'Signed in to client portal',
