@@ -32,7 +32,7 @@ function tokenHash(token: string) {
 }
 
 type Decision =
-  | { outcome: 'role_conflict' | 'existing_account'; userId: string }
+  | { outcome: 'role_conflict' | 'existing_account' | 'account_not_active'; userId: string }
   | { outcome: 'issued'; userId: string; token: string; expiresAt: Date };
 
 /**
@@ -56,7 +56,7 @@ export class AccountInvitationService implements AccountProvisioningPort {
     const now = new Date();
     const decision = await this.decide(email, input, now);
     if (decision.outcome !== 'issued') {
-      await this.audit(input, email, decision.userId, decision.outcome, decision.outcome === 'role_conflict' ? 'warning' : 'info');
+      await this.audit(input, email, decision.userId, decision.outcome, decision.outcome === 'existing_account' ? 'info' : 'warning');
       return { outcome: decision.outcome };
     }
 
@@ -122,8 +122,11 @@ export class AccountInvitationService implements AccountProvisioningPort {
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${email}))`;
       const existing = await tx.opsUser.findUnique({ where: { email } });
       if (existing && existing.role !== input.role) return { outcome: 'role_conflict', userId: existing.id };
-      // Every account past invitation has a password, so it keeps its login and gets no new link.
-      if (existing && existing.approvalStatus !== AccountApprovalStatus.Invited) return { outcome: 'existing_account', userId: existing.id };
+      // Only an approved account with a password already signs in. A pending or declined one is refused, not re-invited.
+      if (existing && existing.approvalStatus !== AccountApprovalStatus.Invited) {
+        const signsIn = existing.approvalStatus === AccountApprovalStatus.Approved && existing.password !== null;
+        return { outcome: signsIn ? 'existing_account' : 'account_not_active', userId: existing.id };
+      }
 
       const user = existing ?? await tx.opsUser.create({
         data: {
@@ -183,13 +186,14 @@ export class AccountInvitationService implements AccountProvisioningPort {
     input: ProvisionAccountInput,
     email: string,
     userId: string,
-    outcome: 'invited' | 'existing_account' | 'role_conflict' | 'delivery_failed',
+    outcome: 'invited' | 'existing_account' | 'account_not_active' | 'role_conflict' | 'delivery_failed',
     severity: 'info' | 'warning',
     expiresAt?: Date,
   ) {
     const actions: Record<typeof outcome, string> = {
       invited: `Account invitation sent to ${email}`,
       existing_account: `Account invitation skipped for ${email}: the account already has a login`,
+      account_not_active: `Account invitation refused for ${email}: the account is not approved for sign-in`,
       role_conflict: `Account invitation refused for ${email}: the email belongs to a different role`,
       delivery_failed: `Account invitation for ${email} was not delivered`,
     };
