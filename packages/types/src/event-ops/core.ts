@@ -180,6 +180,35 @@ export type PrismAuthResponse =
   | PrismTwoFactorSetupRequired
   | PrismTwoFactorRequired;
 
+/** Same body for every approval request, so the response never reveals whether an account exists. */
+export interface PrismApprovalRequestReceipt {
+  message: string;
+}
+
+export interface PrismCurrentUser {
+  id: string;
+  name: string;
+  email: string;
+  role: PrismUser["role"];
+  organization: string;
+  twoFactorEnabled: boolean;
+  expiresAt: string;
+}
+
+/** Identity administration result; carries no secrets or password material. */
+export interface PrismIdentityAccountSummary {
+  id: string;
+  email: string;
+  role: PrismUser["role"];
+  approvalStatus: string;
+  lockedUntil: string | null;
+  permanentLockout: boolean;
+  failedLoginCount: number;
+  lockoutCount: number;
+  twoFactorEnabled: boolean;
+  sessionVersion: number;
+}
+
 export interface PrismVerifiedEventActor extends PrismEventOpsActorContext {
   id: string;
   actorId: string;

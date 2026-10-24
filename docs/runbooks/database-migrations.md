@@ -197,6 +197,23 @@ means Prisma found a non-empty diff that needs review; exit `1` means the
 comparison failed. A non-empty diff is evidence to investigate, not permission
 to apply the generated SQL automatically.
 
+### Password hash rewrite (before the auth-hardening API)
+
+The API now verifies only the current operator password hash format. Run this
+one-off rewrite against the target database after its schema is deployed and
+before the API that contains it starts serving sign-ins. It is idempotent, so a
+second run skips rows that are already current:
+
+```powershell
+npm --workspace prism-api run db:migrate:password-hashes -- --dry-run
+npm --workspace prism-api run db:migrate:password-hashes
+```
+
+The dry run prints counts only. The apply run refuses to write if any stored
+value starts with `scrypt$` but matches neither format. Investigate such rows
+before retrying. Deploying the API without this rewrite locks out operators
+whose values are still legacy or plaintext.
+
 ## One-time pre-production baseline adoption
 
 The seven migration files describe the final schema generated from

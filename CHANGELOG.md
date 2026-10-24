@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Hardened operator sign-in and account administration. Approval requests return one generic receipt for every account state and no longer reveal or reopen accounts. Sign-in checks the password before disclosing a lock and verifies unknown emails against a fixed hash. A successful sign-in clears lock counters, and password reset clears permanent lockout. PMCM admins can unlock accounts and reset two-factor enrolment, both audited. `POST /api/auth/logout` revokes every open session of the caller, including sessions on other devices, and `GET /api/auth/me` returns the current identity. Operator password hashes use one parameterised scrypt format. **Deploy requirement:** run `npm --workspace prism-api run db:migrate:password-hashes` against the target database before the API starts; the API refuses legacy and plaintext values. `PRISM_TRUST_PROXY` is now required (`false`, `true`, `loopback`, or a hop count) so rate limits key on the real client address behind a proxy; local and Docker env generation sets `false`. Owner D (Anthony).
+
 - Added the PMCM supplier workspace in Event Command: a paged directory with private supplier performance and certification details, event engagement history, reviews, and profile actions. Supplier self-service remains in the supplier portal. Owners A, B, and D.
 
 - Added idempotent UAT seed migrations for test cases 67–198, including event workflows, supplier requests and bookings, guest registration and games, coordinator operations, and privacy review. Owner D (Anthony).
