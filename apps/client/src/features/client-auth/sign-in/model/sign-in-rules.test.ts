@@ -19,19 +19,18 @@ describe("sign-in-rules", () => {
     expect(isClientRole("supplier")).toBe(false);
   });
 
-  it("routes non-client roles to their portals", () => {
-    expect(portalMessage("supplier")).toContain("3002");
-    expect(portalMessage("pmcm-admin")).toContain("3004");
-    expect(portalMessage("guest")).toContain("approved client");
-  });
-
-  it("uses checkout-derived portal URLs when provided", () => {
+  it("routes non-client roles to their configured portals", () => {
     const env = {
       NEXT_PUBLIC_EVENT_PORTAL_URL: "http://localhost:3154",
       NEXT_PUBLIC_SUPPLIER_PORTAL_URL: "http://localhost:3152",
     };
-    expect(portalMessage("pmcm-admin", env)).toContain("http://localhost:3154");
     expect(portalMessage("supplier", env)).toContain("http://localhost:3152");
+    expect(portalMessage("pmcm-admin", env)).toContain("http://localhost:3154");
+    expect(portalMessage("guest", env)).toContain("approved client");
+  });
+
+  it("names the missing portal URL instead of falling back to a default origin", () => {
+    expect(() => portalMessage("supplier", {})).toThrow("NEXT_PUBLIC_SUPPLIER_PORTAL_URL is required");
   });
 
   it("resolves post-sign-in path safely", () => {

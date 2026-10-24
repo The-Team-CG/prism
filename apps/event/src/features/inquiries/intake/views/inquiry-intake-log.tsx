@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 
 import { buildPublicInquiryLink, portalUrlFor, type PrismInquiry } from "@prism/types";
+import { portalUrlsFromEnvironment } from "@/lib/portal-urls";
 import {
   declineReasons,
   initialLogForm,
@@ -61,7 +62,7 @@ export function InquiryIntakeLog({
     .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
 
   async function copyInquiryLink() {
-    const origin = process.env.NEXT_PUBLIC_CLIENT_ORIGIN ?? portalUrlFor("client", process.env);
+    const origin = portalUrlFor("client", portalUrlsFromEnvironment());
     try {
       await navigator.clipboard.writeText(buildPublicInquiryLink(origin));
       setCopyLinkState("copied");
