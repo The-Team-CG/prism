@@ -28,9 +28,8 @@ function fixture({ invitation, userUpdated = true, role = 'client' }: {
     $transaction: vi.fn(async (work: (transaction: typeof tx) => Promise<unknown>) => work(tx)),
   };
   const authAudit = { write: vi.fn(async () => undefined) };
-  const inquiryCommands = { markPortalInvitationOpenedByEmail: vi.fn(async () => undefined) };
-  const service = new AccountActivationService(prisma as never, authAudit, inquiryCommands);
-  return { service, tx, authAudit, inquiryCommands };
+  const service = new AccountActivationService(prisma as never, authAudit);
+  return { service, tx, authAudit };
 }
 
 const live = { id: 'inv_1', userId: 'usr_ana', consumedAt: null, revokedAt: null, expiresAt: future() };
@@ -52,37 +51,27 @@ describe('AccountActivationService', () => {
     expect(authAudit.write).toHaveBeenCalledWith(expect.objectContaining({ action: 'Account activated for ana@example.test' }));
   });
 
-  it('marks the inquiry invitation opened when a client activates', async () => {
-    const { service, inquiryCommands } = fixture({ invitation: live, role: 'client' });
-
-    await service.activate(SAMPLE_TOKEN, SAMPLE_PASSWORD);
-
-    expect(inquiryCommands.markPortalInvitationOpenedByEmail).toHaveBeenCalledWith('ana@example.test');
-  });
-
   it.each([
     ['an unknown token', null],
     ['an already used token', { ...live, consumedAt: new Date() }],
     ['a revoked token', { ...live, revokedAt: new Date() }],
     ['an expired token', { ...live, expiresAt: new Date(Date.now() - 1) }],
   ])('rejects %s with the same generic message and touches nothing', async (_label, invitation) => {
-    const { service, tx, inquiryCommands, authAudit } = fixture({ invitation });
+    const { service, tx, authAudit } = fixture({ invitation });
 
     await expect(service.activate(SAMPLE_TOKEN, SAMPLE_PASSWORD)).rejects.toThrow(BadRequestException);
     await expect(service.activate(SAMPLE_TOKEN, SAMPLE_PASSWORD)).rejects.toThrow(INVALID);
 
     expect(tx.opsAccountInvitation.updateMany).not.toHaveBeenCalled();
     expect(tx.opsUser.updateMany).not.toHaveBeenCalled();
-    expect(inquiryCommands.markPortalInvitationOpenedByEmail).not.toHaveBeenCalled();
     expect(authAudit.write).toHaveBeenCalledWith(expect.objectContaining({ action: 'Account activation failed' }));
   });
 
   it('rejects a live token whose account is no longer waiting for activation, so the token is not consumed', async () => {
-    const { service, tx, inquiryCommands } = fixture({ invitation: live, userUpdated: false });
+    const { service, tx } = fixture({ invitation: live, userUpdated: false });
 
     await expect(service.activate(SAMPLE_TOKEN, SAMPLE_PASSWORD)).rejects.toThrow(INVALID);
 
     expect(tx.opsUser.findUniqueOrThrow).not.toHaveBeenCalled();
-    expect(inquiryCommands.markPortalInvitationOpenedByEmail).not.toHaveBeenCalled();
   });
 });

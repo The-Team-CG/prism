@@ -32,7 +32,7 @@ describe.skipIf(!enabled)('account activation PostgreSQL integrity', () => {
         id: `${userId}_invitation`, userId, tokenHash: createHash('sha256').update(token).digest('hex'), expiresAt: new Date(Date.now() + 60_000), source: 'admin', createdBy: 'usr_pmcm',
       } });
     }
-    service = new AccountActivationService(prisma as never, { write: async () => undefined }, { markPortalInvitationOpenedByEmail: async () => undefined });
+    service = new AccountActivationService(prisma as never, { write: async () => undefined });
   });
 
   afterAll(async () => {
