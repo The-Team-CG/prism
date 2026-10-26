@@ -10,8 +10,10 @@ const loadCommandInboxMock = vi.hoisted(() => vi.fn());
 const eventWorkspaceLoadMock = vi.hoisted(() => vi.fn());
 const selectedEventWorkspaceHookMock = vi.hoisted(() => vi.fn());
 const routerMock = vi.hoisted(() => ({ replace: vi.fn() }));
+const logoutEventSessionMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({ useRouter: () => routerMock }));
+vi.mock("../data/session-commands", () => ({ logoutEventSession: logoutEventSessionMock }));
 vi.mock("@/app/lib/role-guards", () => ({ isPmcmAdmin: (role: string) => role === "pmcm-admin" }));
 vi.mock("@/features/floorplan/editor", () => ({ loadTemplates: loadTemplatesMock }));
 vi.mock("@/features/event-workspace/shell", () => ({
@@ -41,6 +43,8 @@ import { loadCommandInbox } from "@/features/command-inbox/list";
 import { loadPmcmState } from "../use-cases/load-dashboard-workspace";
 import type { DashboardSection, DetailTab } from "../model/event-dashboard-routing";
 import { useEventDashboardWorkspaceViewModel } from "./use-event-dashboard-workspace-view-model";
+import { useEventDashboardNavigationViewModel } from "./use-event-dashboard-navigation-view-model";
+import { EVENT_SESSION_KEY } from "@/app/lib/session";
 
 function eventData(eventId: string) {
   return {
@@ -161,5 +165,36 @@ describe("PMCM event-day live updates", () => {
     expect(eventWorkspaceRepository.loadWorkspace).toHaveBeenCalledWith("evt_1");
     expect(loadPmcmState).toHaveBeenCalled();
     expect(loadTemplates).toHaveBeenCalled();
+  });
+});
+
+describe("event sign-out", () => {
+  it("clears the stored event session and returns to sign-in when the logout request fails", async () => {
+    window.localStorage.setItem(
+      EVENT_SESSION_KEY,
+      JSON.stringify({ accessToken: "token_1", role: "pmcm-admin", name: "PMCM Admin", email: "admin@pmcm.test" }),
+    );
+    logoutEventSessionMock.mockRejectedValue(new Error("Can't reach P.R.I.S.M right now. Try again in a moment."));
+
+    const { result } = renderHook(() =>
+      useEventDashboardNavigationViewModel({
+        routeState: { section: "dashboard", tab: "overview" },
+        session: null,
+        screenName: "portal",
+        selectedEventId: null,
+        setSection: vi.fn(),
+        setTab: vi.fn(),
+        setSelectedEventId: vi.fn(),
+        setSelectedClientId: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.signOut();
+    });
+
+    expect(logoutEventSessionMock).toHaveBeenCalledTimes(1);
+    expect(window.localStorage.getItem(EVENT_SESSION_KEY)).toBeNull();
+    expect(routerMock.replace).toHaveBeenCalledWith("/sign-in");
   });
 });

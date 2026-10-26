@@ -24,6 +24,7 @@ export function useEventSignInViewModel() {
   const [phase, setPhase] = useState<"password" | "setup" | "verify">("password");
   const [twoFactorToken, setTwoFactorToken] = useState<string | null>(null);
   const [setupSecret, setSetupSecret] = useState<string | null>(null);
+  const [otpauthUri, setOtpauthUri] = useState<string | null>(null);
   const [code, setCode] = useState("");
 
   async function submitTwoFactor(next: string | null) {
@@ -42,11 +43,22 @@ export function useEventSignInViewModel() {
     router.replace(verified.redirectTo);
   }
 
+  function startOver() {
+    setPhase("password");
+    setTwoFactorToken(null);
+    setSetupSecret(null);
+    setOtpauthUri(null);
+    setCode("");
+    setError(null);
+    setStatus("idle");
+  }
+
   async function beginTwoFactor(result: { token: string; setupRequired?: boolean }) {
     setTwoFactorToken(result.token);
     if (result.setupRequired) {
       const setup = await beginEventTwoFactorSetup(result.token);
       setSetupSecret(setup.secret);
+      setOtpauthUri(setup.otpauthUri);
       setPhase("setup");
     } else {
       setPhase("verify");
@@ -96,6 +108,7 @@ export function useEventSignInViewModel() {
     showPassword,
     phase,
     setupSecret,
+    otpauthUri,
     code,
     error,
     status,
@@ -104,6 +117,7 @@ export function useEventSignInViewModel() {
     setPassword,
     setShowPassword,
     setCode,
+    startOver,
     submit,
   };
 }

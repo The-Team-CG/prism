@@ -53,7 +53,7 @@ export function SupplierWorkspaceView() {
         readinessNeedsActionCount,
         onNavigate: setSection,
       })}
-      onSignOut={vm.signOut}
+      onSignOut={() => void vm.signOut()}
       headerActions={
         <>
           <Button variant="outline" size="icon" disabled={busy === "refresh"} onClick={() => void vm.refresh()} className="size-9 rounded-xl" aria-label="Refresh">
@@ -64,7 +64,7 @@ export function SupplierWorkspaceView() {
           </Badge>
         </>
       }
-      mobileActions={supplierMobileActions(section, setSection, vm.signOut)}
+      mobileActions={supplierMobileActions(section, setSection, () => void vm.signOut())}
       >
       <div className="space-y-5">
         <SupplierWorkspaceBanners error={error} notice={notice} />

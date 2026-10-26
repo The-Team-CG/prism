@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { PrismaService } from '@prism/kernel/database';
 import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
 import { WorkflowCommandService, OpsUserRole, CoordinatorAssignmentStatus } from '@prism/kernel/event-core';
@@ -174,7 +174,7 @@ databaseSuite('CoordinatorsService PostgreSQL concurrency invariants', () => {
 
     const auditService = new AuditService(prisma);
     auditWriter = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma, auditService));
-    notificationWriter = new NotificationOutboxWriterAdapter(new NotificationOutboxService(prisma));
+    notificationWriter = new NotificationOutboxWriterAdapter(new NotificationOutboxService(prisma, { deliver: vi.fn() }));
     const access = new EventAccessPolicyService(auditWriter);
     const eventReferences = createOperationsEventReferences(prisma);
     const buildCoordinators = (workflow: WorkflowCommandService) => new CoordinatorAssignmentCommandService(

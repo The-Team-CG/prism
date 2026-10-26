@@ -1,17 +1,19 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const repository = vi.hoisted(() => ({
   createFloorPlanPreference: vi.fn(),
   savePlan: vi.fn(),
+  logout: vi.fn(),
 }));
 
-vi.mock("../data/client-dashboard-repository", () => ({
-  clientDashboardRepository: repository,
-}));
+vi.mock("../data/client-dashboard-repository", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../data/client-dashboard-repository")>();
+  return { clientDashboardRepository: { ...actual.clientDashboardRepository, ...repository } };
+});
 
-import type { PrismFloorPlanDraft } from "@prism/types";
+import { PRISM_SESSION_STORAGE_KEYS, type PrismFloorPlanDraft } from "@prism/types";
 import type { Project } from "@/features/floorplan/editor";
-import { submitFloorPlanEditorProject } from "./client-dashboard-actions";
+import { signOutClientSession, submitFloorPlanEditorProject } from "./client-dashboard-actions";
 
 describe("submitFloorPlanEditorProject", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -64,5 +66,28 @@ describe("submitFloorPlanEditorProject", () => {
       objects: project.objects,
     }));
     expect(repository.savePlan).not.toHaveBeenCalled();
+  });
+});
+
+describe("signOutClientSession", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("clears the stored client session and resolves when the server logout fails", async () => {
+    const storage = new Map<string, string>([
+      [PRISM_SESSION_STORAGE_KEYS.client, JSON.stringify({ accessToken: "stored-token" })],
+    ]);
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        setItem: (key: string, value: string) => void storage.set(key, value),
+        removeItem: (key: string) => void storage.delete(key),
+      },
+    });
+    repository.logout.mockRejectedValueOnce(new Error("Network unreachable"));
+
+    await expect(signOutClientSession()).resolves.toBeUndefined();
+
+    expect(repository.logout).toHaveBeenCalledTimes(1);
+    expect(storage.has(PRISM_SESSION_STORAGE_KEYS.client)).toBe(false);
   });
 });
