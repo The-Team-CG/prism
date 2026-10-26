@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, Inject, Injectable, Logger, NotFoundException, Optional, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Inject, Injectable, Logger, NotFoundException, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
 import type { OpsNotificationLog } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { createHash, randomUUID } from 'node:crypto';
@@ -18,7 +18,7 @@ export class NotificationOutboxService implements OnApplicationBootstrap, OnAppl
   private readonly logger = new Logger(NotificationOutboxService.name);
   constructor(
     private readonly prisma: PrismaService,
-    @Optional() @Inject(NOTIFICATION_DELIVERY) private readonly delivery?: NotificationDeliveryPort,
+    @Inject(NOTIFICATION_DELIVERY) private readonly delivery: NotificationDeliveryPort,
   ) {}
 
   async queue(
@@ -51,7 +51,6 @@ export class NotificationOutboxService implements OnApplicationBootstrap, OnAppl
         correlationId,
         idempotencyKey: options.idempotencyKey ?? null,
         payloadHash,
-        failureReason: this.delivery ? null : 'Delivery provider is not configured',
       };
     if (!options.idempotencyKey) return prisma.opsNotificationLog.create({ data });
     // A non-empty no-op update keeps Prisma on PostgreSQL's atomic ON CONFLICT path.
@@ -65,7 +64,6 @@ export class NotificationOutboxService implements OnApplicationBootstrap, OnAppl
   }
 
   onApplicationBootstrap() {
-    if (!this.delivery) return;
     this.timer = setInterval(() => { void this.runScheduled(); }, 30_000);
     this.timer.unref();
     void this.runScheduled();
