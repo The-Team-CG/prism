@@ -1,15 +1,49 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { PrismaService } from '@prism/kernel/database';
-import { OpsUserRole } from '@prism/kernel/event-core';
+import { CoordinatorAssignmentStatus, INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES, OpsUserRole } from '@prism/kernel/event-core';
 import type { PrismApprovedClientAccount } from '@prism/types';
 import type { AccountContactReadModel } from '../../contracts/ports/account-contact-read-model.port';
 
 const accountSelect = { id: true, name: true, email: true } as const;
+const NON_OCCUPYING_ASSIGNMENT_STATUSES = [...INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES, CoordinatorAssignmentStatus.Declined];
 
 @Injectable()
 export class AccountContactReadModelsService implements AccountContactReadModel {
   constructor(private readonly prisma: PrismaService) {}
+
+  async findApprovedPmcmAdminEmails(): Promise<string[]> {
+    const now = new Date();
+    const admins = await this.prisma.opsUser.findMany({
+      where: {
+        role: OpsUserRole.PmcmAdmin,
+        approvalStatus: 'approved',
+        permanentLockout: false,
+        OR: [{ lockedUntil: null }, { lockedUntil: { lte: now } }],
+      },
+      select: { email: true },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    });
+    return admins.map(({ email }) => email);
+  }
+
+  async findActiveCoordinatorEmailsForEvent(eventId: string): Promise<string[]> {
+    const assignments = await this.prisma.opsCoordinatorAssignment.findMany({
+      where: { eventId, status: { notIn: NON_OCCUPYING_ASSIGNMENT_STATUSES } },
+      select: { coordinator: { select: { email: true } } },
+      orderBy: { id: 'asc' },
+    });
+    return assignments.flatMap(({ coordinator }) => (coordinator ? [coordinator.email] : []));
+  }
+
+  async findEventNotificationContact(eventId: string): Promise<{ eventName: string; clientEmail: string | null } | null> {
+    const event = await this.prisma.opsEvent.findUnique({
+      where: { id: eventId },
+      select: { eventName: true, inquiry: { select: { email: true } } },
+    });
+    if (!event) return null;
+    return { eventName: event.eventName, clientEmail: event.inquiry.email.trim() || null };
+  }
 
   async findApprovedEmailByRole(role: string): Promise<string | null> {
     const account = await this.prisma.opsUser.findFirst({

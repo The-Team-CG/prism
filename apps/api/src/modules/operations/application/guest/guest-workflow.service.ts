@@ -237,7 +237,7 @@ export class GuestWorkflowService implements GuestCommands {
       metadata: Record<string, unknown>;
     } | null = null;
 
-    const privacyNoticeVersion = input.privacyNoticeVersion || PRISM_PRIVACY_NOTICE_VERSION;
+    const privacyNoticeVersion = input.privacyNoticeVersion;
     const payloadHash = createHash('sha256').update(JSON.stringify({
       checkInMode: input.checkInMode,
       guestName: input.checkInMode === 'name_search' ? input.guestName.trim().toLowerCase() : null,
@@ -482,7 +482,7 @@ export class GuestWorkflowService implements GuestCommands {
             photoFileName: null,
             videoFileName: null,
             privacyConsentAccepted: input.privacyConsentAccepted === true,
-            privacyNoticeVersion: input.privacyNoticeVersion ?? PRISM_PRIVACY_NOTICE_VERSION,
+            privacyNoticeVersion: input.privacyNoticeVersion,
             marketingConsentAccepted: Boolean(input.marketingConsentAccepted),
             moderationStatus: 'pending_review',
             ...(mediaAttachments.length > 0 ? { mediaAttachments: { create: mediaAttachments } } : {}),

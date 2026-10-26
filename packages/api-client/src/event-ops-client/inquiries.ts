@@ -1,4 +1,4 @@
-import type { PrismInquiry } from "@prism/types";
+import type { PrismInquiry, PrismPortalInvitationResend } from "@prism/types";
 import { prismRequest, prismSse } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
 import { withBase, actorPath, parseCommsDraftStreamEvent } from "./shared";
@@ -17,6 +17,11 @@ export function createInquiriesClient(
         prismRequest<PrismInquiry>(
           "/inquiries",
           withBase(options, { method: "POST", body: input }),
+        ),
+      resendPortalInvitation: (inquiryId) =>
+        prismRequest<PrismPortalInvitationResend>(
+          `/inquiries/${encodeURIComponent(inquiryId)}/portal-invitation/resend`,
+          withBase(options, { method: "POST" }),
         ),
     },
     conformeDrafts: {

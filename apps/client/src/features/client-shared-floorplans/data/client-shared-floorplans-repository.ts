@@ -1,5 +1,4 @@
 import {
-  PRISM_LEGACY_SESSION_STORAGE_KEYS,
   PRISM_SESSION_STORAGE_KEYS,
   readPrismSession,
   type PrismClientFloorplanSnapshotType,
@@ -33,9 +32,7 @@ function toProject(plan: ApiFloorPlanSnapshot): Project {
 
 export const clientSharedFloorplansRepository = {
   readSession(): ClientSession | null {
-    return readPrismSession<ClientSession>(PRISM_SESSION_STORAGE_KEYS.client, {
-      legacyKeys: [PRISM_LEGACY_SESSION_STORAGE_KEYS.clientMockAuth],
-    });
+    return readPrismSession<ClientSession>(PRISM_SESSION_STORAGE_KEYS.client);
   },
 
   listSharedFloorplans(): Promise<PrismClientSharedFloorplanEntry[]> {

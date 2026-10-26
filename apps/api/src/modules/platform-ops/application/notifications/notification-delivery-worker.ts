@@ -5,7 +5,6 @@ import type { PrismaService } from '@prism/kernel/database';
 import type { NotificationDeliveryPort, NotificationDeliveryResult } from '../../contracts/notifications/notification-delivery.port';
 
 const LEASE_MS = 5 * 60_000;
-const UNCONFIGURED_DELAY_MS = 60 * 60_000;
 const logger = new Logger('NotificationDeliveryWorker');
 
 function available(now: Date): Prisma.OpsNotificationLogWhereInput {
@@ -14,10 +13,9 @@ function available(now: Date): Prisma.OpsNotificationLogWhereInput {
   ] };
 }
 
-async function deliver(row: OpsNotificationLog, adapter?: NotificationDeliveryPort): Promise<NotificationDeliveryResult> {
-  if (!adapter) return { status: 'unconfigured' };
+async function deliver(row: OpsNotificationLog, adapter: NotificationDeliveryPort): Promise<NotificationDeliveryResult> {
   try {
-    const result = await withTimeout(adapter.deliver({ idempotencyKey: row.id, channel: row.channel, recipient: row.recipient, message: row.message }));
+    const result = await withTimeout(adapter.deliver({ idempotencyKey: row.id, channel: row.channel, eventId: row.eventId, recipient: row.recipient, message: row.message }));
     if (result.status === 'accepted' && !result.receipt.trim()) return { status: 'retryable_failure' };
     return result;
   } catch {
@@ -38,17 +36,16 @@ async function withTimeout(delivery: Promise<NotificationDeliveryResult>) {
 
 function settlement(row: OpsNotificationLog, result: NotificationDeliveryResult, maxAttempts: number, now: Date): Prisma.OpsNotificationLogUpdateManyMutationInput {
   const release = { leaseToken: null, leaseExpiresAt: null };
-  if (result.status === 'unconfigured') return { ...release, failureReason: 'Delivery provider is not configured', nextAttemptAt: new Date(now.getTime() + UNCONFIGURED_DELAY_MS) };
   const attempts = row.attempts + 1;
   if (result.status === 'accepted') return { ...release, attempts, status: 'sent', sentAt: now, providerReceipt: result.receipt, failureReason: null, failedAt: null };
   const terminal = result.status === 'permanent_failure' || attempts >= maxAttempts;
   return { ...release, attempts, status: terminal ? 'failed' : 'queued', failedAt: now,
-    failureReason: terminal ? 'Delivery failed; operator review required' : 'Delivery failed; retry scheduled',
+    failureReason: result.reason ?? (terminal ? 'Delivery failed; operator review required' : 'Delivery failed; retry scheduled'),
     nextAttemptAt: new Date(now.getTime() + Math.min(60 * 60_000, 60_000 * 2 ** Math.min(attempts - 1, 6))),
   };
 }
 
-export async function processNotificationQueue(prisma: PrismaService, adapter: NotificationDeliveryPort | undefined, requestedMaxAttempts?: number) {
+export async function processNotificationQueue(prisma: PrismaService, adapter: NotificationDeliveryPort, requestedMaxAttempts?: number) {
   const maxAttempts = Number.isFinite(requestedMaxAttempts) ? Math.min(10, Math.max(1, Math.floor(requestedMaxAttempts!))) : 3;
   const now = new Date();
   const rows = await prisma.opsNotificationLog.findMany({ where: available(now), orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: 100 });

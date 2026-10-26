@@ -121,6 +121,9 @@
       "@prism/contexts/platform-ops/*": [
         "src/modules/platform-ops/*"
       ],
+      "@prism/contexts/identity-access/account-invitation-reference": [
+        "src/modules/identity-access/account-invitation-reference"
+      ],
       "@prism/contexts/identity-access/coordinator-reference": [
         "src/modules/identity-access/coordinator-reference"
       ],

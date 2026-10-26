@@ -10,7 +10,7 @@ const live = Boolean(url && /^postgresql:\/\/[^@]+@127\.0\.0\.1:55437\/prism_p0(
 if (url && !live) throw new Error('Notification tests require isolated 127.0.0.1:55437/prism_p0');
 
 describe.skipIf(!live)('durable notification delivery', () => {
-  it('claims once, binds content, preserves unconfigured state and retries with provider idempotency', async () => {
+  it('claims once, binds content and retries with provider idempotency', async () => {
     const prisma = new PrismaService();
     const prefix = `p1_delivery_${randomUUID()}`;
     // Scope queue enumeration to this fixture; all persistence/claim operations use real PostgreSQL.
@@ -21,7 +21,7 @@ describe.skipIf(!live)('durable notification delivery', () => {
         return (args: Prisma.OpsNotificationLogFindManyArgs) => delegate.findMany({ ...args, where: { AND: [args.where ?? {}, { idempotencyKey: { startsWith: prefix } }] } });
       } });
     } });
-    const service = new NotificationOutboxService(fixturePrisma);
+    const service = new NotificationOutboxService(fixturePrisma, { deliver: vi.fn() });
     try {
       const [first, replay] = await Promise.all([
         service.queue(undefined, 'fixture@example.test', 'Test', 'email', { idempotencyKey: prefix }),
@@ -29,7 +29,6 @@ describe.skipIf(!live)('durable notification delivery', () => {
       ]);
       expect(first.id).toBe(replay.id);
       await expect(service.queue(undefined, 'different@example.test', 'Test', 'email', { idempotencyKey: prefix })).rejects.toThrow(/different content/);
-      expect((await service.processQueued())[0]).toMatchObject({ status: 'queued', attempts: 0, sentAt: null, providerReceipt: null });
       await prisma.opsNotificationLog.update({ where: { id: first.id }, data: { nextAttemptAt: new Date(0) } });
       const deliver = vi.fn<NotificationDeliveryPort['deliver']>().mockResolvedValue({ status: 'retryable_failure' });
       const worker = new NotificationOutboxService(fixturePrisma, { deliver });
@@ -38,14 +37,15 @@ describe.skipIf(!live)('durable notification delivery', () => {
       expect(await prisma.opsNotificationLog.findUniqueOrThrow({ where: { id: first.id } })).toMatchObject({ status: 'queued', attempts: 1, sentAt: null });
       expect(await worker.processQueued()).toEqual([]);
       const failureAdapters: NotificationDeliveryPort[] = [
-        { deliver: async () => ({ status: 'permanent_failure' }) },
+        { deliver: async () => ({ status: 'permanent_failure', reason: 'provider refused' }) },
         { deliver: async () => ({ status: 'accepted', receipt: '' }) },
         { deliver: async () => { throw new Error('private provider diagnostic'); } },
       ];
+      const failureReasons = ['provider refused', 'Delivery failed; operator review required', 'Delivery failed; operator review required'];
       for (const [index, adapter] of failureAdapters.entries()) {
         const row = await service.queue(undefined, 'fixture@example.test', 'Failure test', 'email', { idempotencyKey: `${prefix}_${index}` });
         const failed = await new NotificationOutboxService(fixturePrisma, adapter).processQueued({ maxAttempts: 1 });
-        expect(failed[0]).toMatchObject({ id: row.id, status: 'failed', attempts: 1, sentAt: null, providerReceipt: null, failureReason: 'Delivery failed; operator review required' });
+        expect(failed[0]).toMatchObject({ id: row.id, status: 'failed', attempts: 1, sentAt: null, providerReceipt: null, failureReason: failureReasons[index] });
         await expect(service.acknowledge(row.id)).rejects.toThrow(/provider-accepted/);
       }
       await prisma.opsNotificationLog.update({ where: { id: first.id }, data: { nextAttemptAt: new Date(0), leaseToken: 'crashed-worker', leaseExpiresAt: new Date(0) } });

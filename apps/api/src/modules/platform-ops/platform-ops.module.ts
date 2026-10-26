@@ -17,6 +17,9 @@ import { AuditExportService } from './application/trust/audit-export.service';
 import { AuditReadService } from './application/trust/audit-read.service';
 import { SecurityOperationsService } from './application/trust/security-operations.service';
 import { NotificationOutboxService } from './application/notifications/notification-outbox.service';
+import { NOTIFICATION_DELIVERY } from './contracts/notifications/notification-delivery.port';
+import { MailNotificationDeliveryAdapter } from './infrastructure/notifications/mail-notification-delivery.adapter';
+import { MailModule } from '@prism/kernel/mail';
 import { AiGovernanceService } from './application/ai-governance/ai-governance.service';
 import { AiGatewayService } from './application/ai-governance/gateway/ai-gateway.service';
 import {
@@ -134,7 +137,7 @@ export function createAiProviderAdapters(
  * capabilities rather than writing their tables from Platform.
  */
 @Module({
-  imports: [DatabaseModule, EventSessionModule, ConfigModule, AccessControlModule, ConformeReminderWindowModule, AccountContactReadModelModule],
+  imports: [DatabaseModule, EventSessionModule, ConfigModule, AccessControlModule, ConformeReminderWindowModule, AccountContactReadModelModule, MailModule],
   controllers: [OpsAuditController, OpsNotificationsController, OpsAiGovernanceController, StorageController, ConformeCommsDraftsController],
   providers: [
     AuditService,
@@ -146,6 +149,7 @@ export function createAiProviderAdapters(
     NotificationOutboxService,
     NotificationOutboxWriterAdapter,
     notificationOutboxWriterProvider,
+    { provide: NOTIFICATION_DELIVERY, useClass: MailNotificationDeliveryAdapter },
     AiGovernanceService,
     ConformeCommsDraftService,
     MockAiProviderAdapter,

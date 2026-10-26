@@ -1,4 +1,4 @@
-import type { PrismGuestEventPass } from "@prism/types";
+import { safeNextPath, type PrismGuestEventPass } from "@prism/types";
 import type { GuestAccessOpenDraft, GuestSession } from "./guest-access-open-types";
 
 export { GUEST_API_OFFLINE_MESSAGE as GUEST_ACCESS_API_OFFLINE_MESSAGE } from "@/features/guest-shared/guest-messages";
@@ -34,8 +34,7 @@ export function buildGuestSession(
 }
 
 export function resolvePostOpenPath(nextParam: string | null | undefined): string {
-  if (nextParam && nextParam.startsWith("/")) return nextParam;
-  return "/dashboard";
+  return safeNextPath(nextParam, "/dashboard");
 }
 
 export function mapGuestAccessError(error: unknown, fallback = "Unable to open event"): string {

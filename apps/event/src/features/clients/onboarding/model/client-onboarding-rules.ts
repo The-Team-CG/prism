@@ -1,4 +1,13 @@
-import type { PrismInquiry } from "@prism/types";
+import type { PrismInquiry, PrismUserRole } from "@prism/types";
+
+/** Mirrors the inquiry workflow: PMCM admins may re-send the portal invitation until the client has opened it. */
+export function canResendPortalInvitation(
+  inquiry: Pick<PrismInquiry, "portalInvitationStatus">,
+  viewerRole: PrismUserRole | null,
+) {
+  const status = inquiry.portalInvitationStatus;
+  return viewerRole === "pmcm-admin" && (status === "not_sent" || status === "expired");
+}
 
 export type OnboardingTimelineStep = {
   title: string;

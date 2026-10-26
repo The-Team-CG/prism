@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@prism/kernel/database';
 import type { CreateSupplierApplicationInput, ReviewSupplierApplicationInput, SupplierApplicationStatusQuery } from '@prism/types';
 import type { Prisma } from '@prisma/client';
@@ -7,11 +7,11 @@ import { createHash } from 'node:crypto';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
-import { Inject } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
-import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 import { PRISM_PORTAL_URLS, type PrismPortalUrls } from '@prism/kernel/shared';
+import { ACCOUNT_PROVISIONING, type AccountInvitationActor, type AccountProvisioningPort } from '@prism/contexts/identity-access/account-invitation-reference';
 import { mapSupplierApplication, mapSupplierApplicationStatus } from './supplier-application.mappers';
 import { applicationStatusForReviewAction } from './supplier-application-status';
 
@@ -38,12 +38,15 @@ type SupplierApplicationWithCategory = Prisma.OpsSupplierApplicationGetPayload<{
 
 @Injectable()
 export class SupplierApplicationService {
+  private readonly logger = new Logger(SupplierApplicationService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     @Inject(PRISM_PORTAL_URLS) private readonly portalUrls: PrismPortalUrls,
+    @Inject(ACCOUNT_PROVISIONING) private readonly accountProvisioning: AccountProvisioningPort,
   ) {}
 
   async createSupplierApplication(input: CreateSupplierApplicationInput) {
@@ -86,7 +89,7 @@ export class SupplierApplicationService {
           portfolioUrl: input.portfolioUrl ?? '',
           additionalNotes: input.additionalNotes ?? '',
           privacyConsentAccepted: input.privacyConsentAccepted,
-          privacyNoticeVersion: input.privacyNoticeVersion ?? PRISM_PRIVACY_NOTICE_VERSION,
+          privacyNoticeVersion: input.privacyNoticeVersion,
           status: 'pending',
         },
         include: { category: true, convertedSupplier: true },
@@ -154,12 +157,16 @@ export class SupplierApplicationService {
     const replay = this.approvalReplay(existing, applicationId, input);
     if (replay) return mapSupplierApplication(replay);
     this.assertReviewTransition(existing.status, input.action);
+    // Checked before the approval commits, so an unnamed actor cannot leave an approval without its login attempt.
+    const approver = input.action === 'approve' ? this.invitationActorFor(actor) : null;
 
     const nextStatus = applicationStatusForReviewAction(input.action);
     if (input.action === 'approve' && (!existing.categoryId || !existing.category?.active)) {
       throw new BadRequestException('A supplier category is required before approval');
     }
     const now = new Date();
+    // Set only by the call that converts the application, so a replayed approval never provisions a second login.
+    const conversion: { approved?: SupplierApplicationWithCategory } = {};
     const row = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const changed = await tx.opsSupplierApplication.updateMany({
         where: { id: applicationId, status: existing.status },
@@ -173,7 +180,10 @@ export class SupplierApplicationService {
       if (changed.count !== 1) throw new BadRequestException('Supplier application has already been reviewed');
       const updated = await tx.opsSupplierApplication.findUnique({ where: { id: applicationId }, include: { category: true } });
       if (!updated) throw new NotFoundException('Supplier application not found');
-      if (input.action === 'approve' && updated.categoryId) await this.convertApprovedApplication(tx, applicationId, updated, input, actor);
+      if (input.action === 'approve' && updated.categoryId) {
+        await this.convertApprovedApplication(tx, applicationId, updated, input, actor);
+        conversion.approved = updated;
+      }
       await writeAudit(this.auditWriter, undefined, actor.name, `Reviewed supplier application: ${updated.companyName}`, {
         actorRole: actor.role, actorEmail: actor.email, actionType: 'update', category: 'suppliers',
         affectedType: 'supplier_application', affectedId: updated.id, affectedLabel: updated.companyName,
@@ -181,7 +191,61 @@ export class SupplierApplicationService {
       }, { prisma: tx, correlationId: `supplier-application-review:${updated.id}`, actorId: actor.id ?? actor.name });
       return updated;
     });
+    if (conversion.approved && approver) {
+      await this.provisionSupplierLogin(conversion.approved, approver).catch((error: unknown) => this.recordMissingSupplierLogin(conversion.approved!, approver, error));
+    }
     return mapSupplierApplication(row);
+  }
+
+  /**
+   * PMCM admins and the system re-send an approved application's supplier login, for example after a login could not be created.
+   * Refused for any application that is not approved, so a login is never sent for a rejected or pending supplier.
+   */
+  async resendAccountInvitation(applicationId: string, actor: ResolvedEventOpsActor) {
+    await this.requirePmcm(actor, 'supplier account invitation');
+    const invitedBy = this.invitationActorFor(actor);
+    const application = await this.prisma.opsSupplierApplication.findUnique({ where: { id: applicationId }, include: { category: true } });
+    if (!application) throw new NotFoundException('Supplier application not found');
+    if (application.status !== 'approved') throw new ConflictException('Supplier logins are sent for approved applications only');
+    return this.provisionSupplierLogin(application, invitedBy);
+  }
+
+  /** Attributes the invitation to the person who acted, not a generic system actor. */
+  private invitationActorFor(actor: ResolvedEventOpsActor): AccountInvitationActor {
+    const id = actor.id?.trim();
+    const name = actor.name?.trim();
+    if (!id || !name) throw new ForbiddenException('A named actor is required to invite a supplier');
+    return { id, name, role: actor.role };
+  }
+
+  /**
+   * Approval runs this after it commits, so a failure is audited and logged rather than thrown: the approval stands and
+   * the audit trail shows the login is missing. The resend route calls the same method and lets failures surface.
+   */
+  private async provisionSupplierLogin(application: SupplierApplicationWithCategory, invitedBy: AccountInvitationActor) {
+    return this.accountProvisioning.provision({
+      email: application.email,
+      name: application.contactName,
+      role: 'supplier',
+      organization: application.companyName,
+      source: 'supplier_application',
+      sourceId: application.id,
+      actor: invitedBy,
+    });
+  }
+
+  private async recordMissingSupplierLogin(application: SupplierApplicationWithCategory, invitedBy: AccountInvitationActor, error: unknown) {
+    const reason = error instanceof Error ? error.message : String(error);
+    this.logger.error(`Supplier login was not provisioned for approved application ${application.id}: ${reason}`);
+    await writeAudit(this.auditWriter, undefined, invitedBy.name, `Supplier login was not created for approved application: ${application.companyName}`, {
+      actorRole: invitedBy.role,
+      actionType: 'update',
+      category: 'suppliers',
+      affectedType: 'supplier_application',
+      affectedId: application.id,
+      affectedLabel: application.companyName,
+      severity: 'warning',
+    });
   }
 
   private approvalReplay(existing: SupplierApplicationWithCategory, applicationId: string, input: ReviewSupplierApplicationInput): SupplierApplicationWithCategory | null {

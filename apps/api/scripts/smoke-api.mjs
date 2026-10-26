@@ -225,7 +225,7 @@ const approvalRequest = await expectOk('request client account approval', '/api/
   body: JSON.stringify({
     email: 'ana@ayala.test',
     privacyConsentAccepted: true,
-    privacyNoticeVersion: '2026-05-01',
+    privacyNoticeVersion: '2026-10-25',
   }),
 });
 bearerToken = opsSession.accessToken;

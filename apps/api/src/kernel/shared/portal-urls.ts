@@ -2,19 +2,20 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import type { PrismPortalApp } from '@prism/types';
 
-/** Browser origins of the four portals, used to build links the API sends (reset emails, supplier status). */
-export type PrismPortalUrls = Record<PrismPortalApp, string>;
+/** Portals the API sends people to: password reset, account invitations and supplier status. Guests sign in with event codes, so they have no API link. */
+export type ApiLinkedPortalApp = Extract<PrismPortalApp, 'client' | 'supplier' | 'event'>;
+
+export type PrismPortalUrls = Record<ApiLinkedPortalApp, string>;
 
 export const PRISM_PORTAL_URLS = Symbol('PRISM_PORTAL_URLS');
 
-export const PORTAL_URL_ENV: Record<PrismPortalApp, string> = {
+export const PORTAL_URL_ENV: Record<ApiLinkedPortalApp, string> = {
   client: 'PRISM_CLIENT_PORTAL_URL',
   supplier: 'PRISM_SUPPLIER_PORTAL_URL',
-  guest: 'PRISM_GUEST_PORTAL_URL',
   event: 'PRISM_EVENT_PORTAL_URL',
 };
 
-const PORTAL_APPS = Object.keys(PORTAL_URL_ENV) as PrismPortalApp[];
+const PORTAL_APPS = Object.keys(PORTAL_URL_ENV) as ApiLinkedPortalApp[];
 
 /** https everywhere, or http on loopback only; no credentials and no fragment. */
 export function isTrustedPortalUrl(url: URL): boolean {

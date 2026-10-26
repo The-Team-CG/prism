@@ -1,4 +1,4 @@
-import { portalUrlFor } from "@prism/types";
+import { portalUrlFor, safeNextPath } from "@prism/types";
 import { portalUrlsFromEnvironment } from "@/lib/portal-urls";
 
 export type EventPortalRole = "pmcm-admin" | "coordinator" | "client" | "supplier" | string;
@@ -18,8 +18,7 @@ export function eventRoleRejectionMessage(role: EventPortalRole, env: Record<str
 }
 
 export function resolveEventPostSignInPath(nextParam: string | null | undefined): string {
-  if (nextParam && nextParam.startsWith("/")) return nextParam;
-  return "/dashboard";
+  return safeNextPath(nextParam, "/dashboard");
 }
 
 export function isSignInDraftValid(email: string, password: string): boolean {

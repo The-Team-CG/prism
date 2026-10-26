@@ -1,3 +1,5 @@
+"use client";
+
 import { CheckCircle2, Circle, FileCheck2 } from "lucide-react";
 
 import type { PrismInquiry } from "@prism/types";
@@ -6,6 +8,7 @@ import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { compactTimestamp, label } from "@/features/pmcm-kit";
 import { onboardingTimelineSteps, reminderEvidenceCopy } from "../model/client-onboarding-rules";
+import { usePortalInvitationResendViewModel } from "../view-models/use-portal-invitation-resend-view-model";
 
 function TimelineStep({ title, done, meta }: { title: string; done: boolean; meta?: string }) {
   return (
@@ -32,7 +35,9 @@ export function ClientOnboardingTracker({
   onSendReminder: (inquiry: PrismInquiry) => Promise<void>;
   busy: boolean;
 }) {
+  const invitations = usePortalInvitationResendViewModel();
   const tracked = inquiries
+    .map(invitations.trackedInquiry)
     .filter((inq) => inq.status === "accepted" || Boolean(inq.acceptedAt))
     .sort((a, b) => new Date(b.acceptedAt ?? b.createdAt).getTime() - new Date(a.acceptedAt ?? a.createdAt).getTime());
 
@@ -70,11 +75,29 @@ export function ClientOnboardingTracker({
                       {inq.clientName} — follow up every {inq.followUpIntervalDays ?? 3} days
                     </p>
                   </div>
-                  <StatusBadge
-                    status={inq.portalInvitationStatus ?? "pending"}
-                    label={`Invitation ${label(inq.portalInvitationStatus ?? "not_sent")}`}
-                  />
+                  <div className="flex shrink-0 items-center gap-2">
+                    <StatusBadge
+                      status={inq.portalInvitationStatus ?? "pending"}
+                      label={`Invitation ${label(inq.portalInvitationStatus ?? "not_sent")}`}
+                    />
+                    {invitations.canResend(inq) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={invitations.busyInquiryId === inq.id}
+                        onClick={() => void invitations.resend(inq)}
+                        className="rounded-lg font-bold"
+                      >
+                        {invitations.busyInquiryId === inq.id ? "Sending…" : "Resend invitation"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
+                {invitations.feedback?.inquiryId === inq.id && (
+                  <p role="status" className={`mt-2 text-xs ${invitations.feedback.tone === "error" ? "text-destructive" : "text-(--prism-success)"}`}>
+                    {invitations.feedback.text}
+                  </p>
+                )}
 
                 <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                   {steps.map((step) => (

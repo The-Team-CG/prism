@@ -1,6 +1,12 @@
 import { eventApi } from "@/lib/prism-api";
-import { saveEventSession, type EventSession } from "@/app/lib/session";
-import type { PrismAuthenticatedSession, PrismAuthResponse, PrismTwoFactorSetup } from "@prism/types";
+import { readStoredEventSession, saveEventSession, type EventSession } from "@/app/lib/session";
+import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
+import type {
+  ActivateAccountInput,
+  PrismSignInSession,
+  PrismAuthResponse,
+  PrismTwoFactorSetup,
+} from "@prism/types";
 
 export const eventAuthRepository = {
   login(input: { email: string; password: string }): Promise<PrismAuthResponse> {
@@ -11,7 +17,7 @@ export const eventAuthRepository = {
     return eventApi.auth.setupTwoFactor(token);
   },
 
-  verifyTwoFactor(token: string, code: string): Promise<PrismAuthenticatedSession> {
+  verifyTwoFactor(token: string, code: string): Promise<PrismSignInSession> {
     return eventApi.auth.verifyTwoFactor({ token, code });
   },
 
@@ -21,6 +27,18 @@ export const eventAuthRepository = {
 
   consumePasswordReset(input: { token: string; password: string }) {
     return eventApi.auth.consumePasswordReset(input.token, input.password);
+  },
+
+  activateAccount(input: ActivateAccountInput) {
+    return eventApi.auth.activateAccount(input);
+  },
+
+  hasSignedInSession(): boolean {
+    return readStoredEventSession() !== null;
+  },
+
+  acknowledgePrivacyNotice(): Promise<void> {
+    return eventApi.auth.acknowledgePrivacyNotice({ version: PRISM_PRIVACY_NOTICE_VERSION });
   },
 
   persistSession(session: EventSession): void {
