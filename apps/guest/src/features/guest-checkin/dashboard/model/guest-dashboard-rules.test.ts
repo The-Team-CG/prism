@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
 import { GuestApiError } from "@/features/guest-shared/guest-http";
 import {
   buildCheckInPayload,
@@ -44,7 +45,7 @@ describe("guest-dashboard-rules", () => {
       checkInMode: "name_search",
       guestName: "Tess Green",
       privacyConsentAccepted: true,
-      privacyNoticeVersion: "2026-05-01",
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       marketingConsentAccepted: false,
     });
 
@@ -56,7 +57,7 @@ describe("guest-dashboard-rules", () => {
     expect(headcount).toEqual({
       checkInMode: "headcount",
       privacyConsentAccepted: true,
-      privacyNoticeVersion: "2026-05-01",
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       marketingConsentAccepted: false,
     });
   });
