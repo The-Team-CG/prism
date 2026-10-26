@@ -47,6 +47,7 @@ function hasPrivateModuleImport(source) {
     '@prism/contexts/event-lifecycle/conforme-reminder-window',
     '@prism/contexts/event-lifecycle/post-event-reference',
     '@prism/contexts/event-lifecycle/operations-reference',
+    '@prism/contexts/identity-access/account-invitation-reference',
     '@prism/contexts/identity-access/coordinator-reference',
     '@prism/contexts/operations/live-ops-reference',
     '@prism/contexts/commercial/registration-supplier-reference',

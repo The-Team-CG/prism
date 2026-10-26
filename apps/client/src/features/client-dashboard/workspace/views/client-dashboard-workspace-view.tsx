@@ -417,8 +417,8 @@ export function ClientDashboardWorkspaceView({
     }
   }
 
-  const signOut = () => {
-    signOutClientSession();
+  const signOut = async () => {
+    await signOutClientSession();
     router.replace("/sign-in");
   };
 

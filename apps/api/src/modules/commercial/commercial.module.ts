@@ -29,6 +29,7 @@ import { PAYMENT_STATUS_READER } from './contracts/finance-ops.tokens';
 import { CommercialWorkflowService } from './application/quotes/commercial-workflow.service';
 import { PrismaQuoteSupplierResolver } from './application/quotes/prisma-quote-supplier-resolver.service';
 import { SupplierApplicationService } from './application/suppliers/supplier-application.service';
+import { PortalUrlsModule } from '@prism/kernel/shared';
 import { SupplierNetworkWorkflowService } from './application/suppliers/supplier-network-workflow.service';
 import { SupplierIngressLateMonitorService } from './application/suppliers/supplier-ingress-late-monitor.service';
 import { SupplierIngressLateScheduler } from './application/suppliers/supplier-ingress-late.scheduler';
@@ -43,6 +44,7 @@ import { PaymentRiskScheduler } from './application/billing/payment-risk.schedul
 import { CommunicationController } from './api/suppliers/communication.controller';
 import { CommunicationService } from './application/suppliers/communication.service';
 import { IdentityAccessModule } from '../identity-access/identity-access.module';
+import { AccountInvitationReferenceModule } from '@prism/contexts/identity-access/account-invitation-reference';
 import { ProposalLifecycleController } from './api/quotes/proposal-lifecycle.controller';
 import { ProposalLifecycleService } from './application/quotes/proposal-lifecycle.service';
 import { CommercialPrivacyRedactorService } from './application/suppliers/commercial-privacy-redactor.service';
@@ -92,6 +94,8 @@ const supplierCommandsProvider = {
     DatabaseModule,
     AccessControlModule,
     PlatformOpsModule,
+    PortalUrlsModule,
+    AccountInvitationReferenceModule,
     EventCoreModule,
     EventLifecycleModule,
     UrgentIssueReferenceModule,

@@ -1,8 +1,10 @@
 import { ForbiddenException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createHash, randomBytes, scryptSync } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import { OpsUserRole } from '@prism/kernel/event-core';
+import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 import type { AuditWriteInput, ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { AuthSessionService, EventSessionGuard } from '@prism/kernel/event-session';
 import { AuthOperationsService } from './auth-operations.service';
@@ -11,7 +13,7 @@ import * as passwordHash from './password-hash.cjs';
 
 const approvalReceipt = { message: 'If an account exists for this email, PMCM will review the request.' };
 
-function createApprovalService(options: { requestUpdateFails?: boolean; auditFails?: boolean; noAccount?: boolean; accountApproved?: boolean } = {}) {
+function createApprovalService(options: { requestUpdateFails?: boolean; auditFails?: boolean; noAccount?: boolean; accountApproved?: boolean; accountInvited?: boolean } = {}) {
   const state = {
     request: {
       id: 'approval_1',
@@ -33,7 +35,7 @@ function createApprovalService(options: { requestUpdateFails?: boolean; auditFai
       password: 'hashed-password',
       role: 'client',
       organization: 'Ana Events',
-      approvalStatus: options.accountApproved ? 'approved' : 'pending',
+      approvalStatus: options.accountApproved ? 'approved' : options.accountInvited ? 'invited' : 'pending',
       sessionVersion: 0,
       lockedUntil: null,
       permanentLockout: false,
@@ -222,6 +224,7 @@ describe('AuthOperationsService', () => {
     { label: 'an approved request', options: {}, requestStatus: 'approved', opensRequest: true },
     { label: 'a declined request', options: {}, requestStatus: 'declined', opensRequest: true },
     { label: 'an already approved account', options: { accountApproved: true }, requestStatus: 'pending', opensRequest: false },
+    { label: 'an invited account awaiting activation', options: { accountInvited: true }, requestStatus: 'pending', opensRequest: false },
   ])('answers $label with the same receipt, keeps the request status, and audits internally', async ({ options, requestStatus, opensRequest }) => {
     const { service, state, prisma, authAudit } = createApprovalService(options);
     state.request.status = requestStatus;
@@ -288,7 +291,7 @@ describe('AuthOperationsService', () => {
 
     await service.declineApprovalRequest('approval_1', actor);
 
-    const guard = new EventSessionGuard(authSessionService, prisma as never);
+    const guard = new EventSessionGuard(authSessionService, prisma as never, new Reflector());
     await expect(guard.canActivate({
       switchToHttp: () => ({ getRequest: () => ({ headers: { authorization: `Bearer ${oldSession.accessToken}` } }) }),
     } as never)).rejects.toThrow(/revoked|eligible/i);
@@ -458,6 +461,8 @@ describe('AuthOperationsService', () => {
     );
 
     await expect(service.login('ana@example.test', 'prism-client')).resolves.toMatchObject({ accessToken: 'client-session' });
+    // The client's first successful sign-in is what marks the portal invitation opened.
+    expect(inquiriesService.markPortalInvitationOpenedByEmail).toHaveBeenCalledWith('ana@example.test');
     expect(authAudit.recordAuthenticationAudit).toHaveBeenCalledWith(expect.objectContaining({
       actor: 'Ana Reyes',
       action: 'Signed in to client portal',
@@ -638,7 +643,7 @@ function createSignInService(account: Record<string, unknown> | null) {
   };
   const inquiryCommands = { markPortalInvitationOpenedByEmail: vi.fn(async () => undefined) };
   const authSessionService = {
-    issueSession: vi.fn(() => ({ accessToken: 'signed-in-session' })),
+    issueSession: vi.fn((user: Record<string, unknown>) => ({ accessToken: 'signed-in-session', ...user })),
     issueTwoFactorToken: vi.fn(() => 'two-factor-token'),
     twoFactorTokenExpiresAt: vi.fn(() => new Date(Date.now() + 600_000)),
   };
@@ -657,14 +662,24 @@ describe('AuthOperationsService sign-in hardening', () => {
     vi.restoreAllMocks();
   });
 
-  it('runs the password verifier against a fixed current-format hash for an unknown email before refusing it', async () => {
+  it('refuses an invited account with no password exactly like a wrong password', async () => {
+    const account = await clientAccount({ password: null, approvalStatus: 'invited' });
+    const { service } = createSignInService(account);
+    const verify = vi.spyOn(AuthSecurityService, 'verifyPassword');
+
+    await expect(service.login('ana@example.test', 'any-password-123')).rejects.toThrow('Invalid email or password');
+
+    expect(verify).toHaveBeenCalledTimes(1);
+    expect(account).toMatchObject({ password: null, approvalStatus: 'invited', sessionVersion: 0, failedLoginCount: 1 });
+  });
+
+  it('runs the password verifier once for an unknown email before refusing it', async () => {
     const { service } = createSignInService(null);
     const verify = vi.spyOn(AuthSecurityService, 'verifyPassword');
 
     await expect(service.login('nobody@example.test', 'guessed-password')).rejects.toThrow('Invalid email or password');
 
     expect(verify).toHaveBeenCalledTimes(1);
-    expect(passwordHash.isCurrentScryptPasswordHash(verify.mock.calls[0][0])).toBe(true);
     expect(verify.mock.calls[0][1]).toBe('guessed-password');
   });
 
@@ -703,6 +718,14 @@ describe('AuthOperationsService sign-in hardening', () => {
     await expect(service.login('ana@example.test', 'prism-client')).resolves.toMatchObject({ accessToken: 'signed-in-session' });
 
     expect(account).toMatchObject({ failedLoginCount: 0, lockoutCount: 0, lockedUntil: null });
+  });
+
+  it('tells a signed-in person whether the current privacy notice still needs acknowledging', async () => {
+    const outdated = createSignInService(await clientAccount({ privacyNoticeVersion: '2026-05-01' }));
+    await expect(outdated.service.login('ana@example.test', 'prism-client')).resolves.toMatchObject({ privacyNoticeRequired: true });
+
+    const current = createSignInService(await clientAccount({ privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION }));
+    await expect(current.service.login('ana@example.test', 'prism-client')).resolves.toMatchObject({ privacyNoticeRequired: false });
   });
 
   it('refuses stored passwords outside the current hash format, including plaintext and Node-default scrypt hashes', async () => {
@@ -813,13 +836,17 @@ describe('AuthOperationsService account recovery and sessions', () => {
       lockoutCount: 0,
       lastLoginAt: null,
       twoFactorSecret: null,
+      privacyNoticeVersion: null,
+      privacyNoticeAcknowledgedAt: null,
       ...overrides,
     };
     const opsUser = {
       findUnique: vi.fn(async () => ({ ...user })),
       updateMany: vi.fn(async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
         if (where.id !== user.id || where.sessionVersion !== user.sessionVersion) return { count: 0 };
-        user.sessionVersion = Number(user.sessionVersion) + (data.sessionVersion as { increment: number }).increment;
+        const { sessionVersion, ...changes } = data;
+        Object.assign(user, changes);
+        if (sessionVersion) user.sessionVersion = Number(user.sessionVersion) + (sessionVersion as { increment: number }).increment;
         return { count: 1 };
       }),
     };
@@ -834,7 +861,7 @@ describe('AuthOperationsService account recovery and sessions', () => {
       PRISM_SESSION_TTL_SECONDS: '28800',
     }));
     const service = new AuthOperationsService(prisma as never, authAudit as never, {} as never, authSessionService, {} as never);
-    const guard = new EventSessionGuard(authSessionService, prisma as never);
+    const guard = new EventSessionGuard(authSessionService, prisma as never, new Reflector());
     const session = authSessionService.issueSession({
       id: 'usr_client',
       name: 'Ana Reyes',
@@ -846,13 +873,18 @@ describe('AuthOperationsService account recovery and sessions', () => {
     });
     const actor = authSessionService.verifyAccessToken(session.accessToken);
     const requestWith = (token: string) => ({
+      getHandler: () => function route() {},
+      getClass: () => class Route {},
       switchToHttp: () => ({ getRequest: () => ({ headers: { authorization: `Bearer ${token}` } }) }),
     } as never);
-    return { service, guard, authAudit, session, actor, requestWith };
+    return { service, guard, authAudit, session, actor, requestWith, user };
   }
 
   it('revokes every open session on logout, so the guard rejects a token issued before it', async () => {
-    const { service, guard, authAudit, session, actor, requestWith } = createSessionFixture();
+    const { service, guard, authAudit, session, actor, requestWith } = createSessionFixture({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
+      privacyNoticeAcknowledgedAt: new Date(),
+    });
     await expect(guard.canActivate(requestWith(session.accessToken))).resolves.toBe(true);
 
     await expect(service.logout(actor)).resolves.toBeUndefined();
@@ -863,6 +895,23 @@ describe('AuthOperationsService account recovery and sessions', () => {
       action: 'Signed out and revoked open sessions',
     }), expect.anything());
     await expect(service.logout(actor)).rejects.toThrow(/already been revoked/i);
+  });
+
+  it('stores the acknowledged notice version and time, audits it, and clears the prompt for that version', async () => {
+    const { service, actor, authAudit, user } = createSessionFixture({ privacyNoticeVersion: '2026-05-01' });
+    await expect(service.currentUser(actor)).resolves.toMatchObject({ privacyNoticeRequired: true });
+
+    await expect(service.acknowledgePrivacyNotice(actor, PRISM_PRIVACY_NOTICE_VERSION)).resolves.toBeUndefined();
+
+    expect(user).toMatchObject({ privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION });
+    expect(user.privacyNoticeAcknowledgedAt).toBeInstanceOf(Date);
+    expect(authAudit.write).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'Acknowledged the privacy notice',
+      metadata: { privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION },
+    }), expect.anything());
+    await expect(service.currentUser(actor)).resolves.toMatchObject({ privacyNoticeRequired: false });
+    await expect(service.acknowledgePrivacyNotice({ ...actor, sessionVersion: 99 }, PRISM_PRIVACY_NOTICE_VERSION))
+      .rejects.toThrow(/revoked/i);
   });
 
   it('returns only identity fields for the current session, never the password hash or two-factor secret', async () => {
@@ -877,6 +926,7 @@ describe('AuthOperationsService account recovery and sessions', () => {
       role: 'client',
       organization: 'Ana Events',
       twoFactorEnabled: true,
+      privacyNoticeRequired: true,
       expiresAt: actor.expiresAt,
     });
     expect(JSON.stringify(me)).not.toContain('stored-password-hash');

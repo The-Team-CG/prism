@@ -45,6 +45,14 @@ export class OpsSupplierApplicationsController {
     return this.supplierApplicationService.listInbox(actor);
   }
 
+  @Post(':applicationId/account-invitation/resend')
+  @UseGuards(EventSessionGuard)
+  @HttpCode(HttpStatus.OK)
+  resendAccountInvitation(@Param('applicationId') applicationId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.supplierApplicationService.resendAccountInvitation(applicationId, actor);
+  }
+
   @Patch(':applicationId/review')
   @UseGuards(EventSessionGuard)
   review(

@@ -3,7 +3,14 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "env": ["PRISM_DOCKER_STANDALONE", "PRISM_VERCEL_SERVICES"],
+      "env": [
+        "PRISM_DOCKER_STANDALONE",
+        "PRISM_VERCEL_SERVICES",
+        "NEXT_PUBLIC_CLIENT_PORTAL_URL",
+        "NEXT_PUBLIC_SUPPLIER_PORTAL_URL",
+        "NEXT_PUBLIC_GUEST_PORTAL_URL",
+        "NEXT_PUBLIC_EVENT_PORTAL_URL"
+      ],
       "outputs": [".next/**", "dist/**", "!.next/cache/**"]
     },
     "typecheck": {

@@ -1,8 +1,10 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
-import type { PrismVerifiedEventActor } from '@prism/types';
+import { PRISM_PRIVACY_NOTICE_REQUIRED_CODE, privacyNoticeRequired, type PrismVerifiedEventActor } from '@prism/types';
 import { PrismaService } from '../../database';
 import { AuthSessionService } from '../services/auth-session.service';
+import { ALLOW_PENDING_PRIVACY_NOTICE_METADATA } from '../decorators/allow-pending-privacy-notice.decorator';
 
 export type EventSessionRequest = Request & {
   prismActor?: PrismVerifiedEventActor;
@@ -10,7 +12,11 @@ export type EventSessionRequest = Request & {
 
 @Injectable()
 export class EventSessionGuard implements CanActivate {
-  constructor(private readonly authSessionService: AuthSessionService, private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly authSessionService: AuthSessionService,
+    private readonly prisma: PrismaService,
+    private readonly reflector: Reflector,
+  ) {}
 
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<EventSessionRequest>();
@@ -25,6 +31,7 @@ export class EventSessionGuard implements CanActivate {
         permanentLockout: true,
         role: true,
         email: true,
+        privacyNoticeVersion: true,
       },
     });
     const locked = Boolean(user?.lockedUntil && user.lockedUntil > new Date());
@@ -42,8 +49,21 @@ export class EventSessionGuard implements CanActivate {
     ) {
       throw new UnauthorizedException('Session has been revoked or account access is no longer eligible');
     }
+    if (privacyNoticeRequired(user.privacyNoticeVersion) && !this.allowsPendingPrivacyNotice(context)) {
+      throw new ForbiddenException({
+        code: PRISM_PRIVACY_NOTICE_REQUIRED_CODE,
+        message: 'Review the privacy notice to continue.',
+      });
+    }
     request.prismActor = actor;
     return true;
+  }
+
+  private allowsPendingPrivacyNotice(context: ExecutionContext) {
+    return this.reflector.getAllAndOverride<boolean | undefined>(ALLOW_PENDING_PRIVACY_NOTICE_METADATA, [
+      context.getHandler(),
+      context.getClass(),
+    ]) === true;
   }
 
   private extractToken(request: Request) {

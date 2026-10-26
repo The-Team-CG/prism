@@ -55,6 +55,7 @@ import { FloorplanReferenceModule } from './floorplan-reference.module';
 import { ClientFloorplanAccessModule } from './client-floorplan-access.module';
 import { LifecycleFactsReaderModule } from '@prism/contexts/read-models/lifecycle-facts';
 import { CommercialFactsReaderModule } from '@prism/contexts/read-models/commercial-facts-reader';
+import { AccountInvitationReferenceModule } from '@prism/contexts/identity-access/account-invitation-reference';
 import { ProposalReviewOwnerService } from './application/onboarding/proposal-review-owner.service';
 import { PROPOSAL_REVIEW_OWNER } from './contracts/proposal-review-owner.port';
 import { ClientCloseoutController } from './api/closure/client-closeout.controller';
@@ -100,6 +101,7 @@ import { ConformeSigningService } from './application/onboarding/conforme-signin
     ClientFloorplanAccessModule,
     LifecycleFactsReaderModule,
     CommercialFactsReaderModule,
+    AccountInvitationReferenceModule,
     AccessControlModule,
     EventSessionModule,
   ],

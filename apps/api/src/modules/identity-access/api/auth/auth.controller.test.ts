@@ -10,8 +10,11 @@ import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/ker
 import { PrismaService } from '@prism/kernel/database';
 import { AuthSessionService } from '@prism/kernel/event-session';
 import { PUBLIC_RATE_LIMITS, PublicRateLimitModule } from '@prism/kernel/shared';
+import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 import { AuthOperationsService } from '../../application/auth/auth-operations.service';
 import { PasswordResetService } from '../../application/auth/password-reset.service';
+import { AccountActivationService } from '../../application/auth/account-activation.service';
+import { AccountInvitationService } from '../../application/auth/account-invitation.service';
 import { OpsAuthController } from './auth.controller';
 const actor: Parameters<OpsAuthController['listApprovalRequests']>[0] = { id: 'u1', actorId: 'u1', role: 'pmcm-admin', actorRole: 'pmcm-admin', email: 'pmcm@test', actorEmail: 'pmcm@test', name: 'PMCM', actorName: 'PMCM', expiresAt: '2099-01-01' };
 
@@ -21,7 +24,7 @@ function controllerPath(controller: Function): string {
 
 describe('OpsAuthController', () => {
   it('refuses a password reset request whose client address is unavailable instead of bucketing it with others', () => {
-    const controller = new OpsAuthController({} as never, {} as never, {} as never);
+    const controller = new OpsAuthController({} as never, {} as never, {} as never, {} as never, {} as never);
 
     expect(() => controller.requestPasswordReset({ ip: undefined } as never, { email: 'ana@example.test' }))
       .toThrow(InternalServerErrorException);
@@ -31,7 +34,7 @@ describe('OpsAuthController', () => {
     expect(controllerPath(OpsAuthController)).toBe('auth');
   });
 
-  it.each(['login', 'requestPasswordReset', 'consumePasswordReset', 'setupTwoFactor', 'verifyTwoFactor', 'requestApproval'] as const)(
+  it.each(['login', 'requestPasswordReset', 'consumePasswordReset', 'activateAccount', 'setupTwoFactor', 'verifyTwoFactor', 'requestApproval'] as const)(
     'rate-limits the unauthenticated %s route',
     (handler) => {
       expect(Reflect.getMetadata('__guards__', OpsAuthController.prototype[handler])).toContain(ThrottlerGuard);
@@ -58,14 +61,35 @@ describe('OpsAuthController', () => {
       unlockUser: vi.fn(async () => ({ id: 'usr_client' })),
       resetUserTwoFactor: vi.fn(async () => ({ id: 'usr_pmcm' })),
       logout: vi.fn(async () => undefined),
+      acknowledgePrivacyNotice: vi.fn(async () => undefined),
       currentUser: vi.fn(async () => ({ id: 'u1' })),
+    };
+    const accountActivationService = { activate: vi.fn(async () => ({ message: 'Password set. Sign in to continue.' })) };
+    const invitationOutcome = { outcome: 'invited' as const, sentAt: '2026-10-25T00:00:00.000Z', expiresAt: '2026-11-01T00:00:00.000Z' };
+    const accountInvitationService = {
+      inviteStaff: vi.fn(async () => invitationOutcome),
+      resendInvitation: vi.fn(async () => ({ outcome: 'existing_account' as const })),
     };
     const controller = new OpsAuthController(
       authOperationsService as unknown as ConstructorParameters<typeof OpsAuthController>[0],
       { resolveActor: vi.fn(() => resolvedAdmin), requireActorRole: vi.fn(async () => undefined) } as unknown as ConstructorParameters<typeof OpsAuthController>[1],
+      {} as never,
+      accountActivationService as never,
+      accountInvitationService as never,
     );
 
     await expect(controller.login({ email: 'maxine@pmcm.test', password: 'secret' })).resolves.toEqual({ id: 'user_pmcm' });
+    await expect(controller.activateAccount({ token: 'a'.repeat(43), password: 'a sufficiently long password' }))
+      .resolves.toEqual({ message: 'Password set. Sign in to continue.' });
+    await expect(controller.inviteStaff({ email: 'coord@pmcm.test', name: 'Coordinator', role: 'coordinator', organization: 'PMCM' }, actor))
+      .resolves.toEqual(invitationOutcome);
+    await expect(controller.resendInvitation('usr_coord', actor)).resolves.toEqual({ outcome: 'existing_account' });
+    expect(accountActivationService.activate).toHaveBeenCalledWith('a'.repeat(43), 'a sufficiently long password');
+    expect(accountInvitationService.inviteStaff).toHaveBeenCalledWith(
+      { email: 'coord@pmcm.test', name: 'Coordinator', role: 'coordinator', organization: 'PMCM' },
+      resolvedAdmin,
+    );
+    expect(accountInvitationService.resendInvitation).toHaveBeenCalledWith('usr_coord', resolvedAdmin);
     await expect(controller.requestApproval({ email: 'client@example.test', privacyConsentAccepted: true, privacyNoticeVersion: '2026-05-01' })).resolves.toEqual(receipt);
     await expect(controller.listApprovalRequests(actor)).resolves.toEqual([{ id: 'approval_user' }]);
     await expect(controller.listLoginHistory('user_pmcm', actor)).resolves.toEqual([{ id: 'login_1' }]);
@@ -75,6 +99,7 @@ describe('OpsAuthController', () => {
     await expect(controller.resetUserTwoFactor('usr_pmcm', actor)).resolves.toEqual({ id: 'usr_pmcm' });
     await expect(controller.logout(actor)).resolves.toBeUndefined();
     await expect(controller.me(actor)).resolves.toEqual({ id: 'u1' });
+    await expect(controller.acknowledgePrivacyNotice({ version: PRISM_PRIVACY_NOTICE_VERSION }, actor)).resolves.toBeUndefined();
 
     expect(authOperationsService.login).toHaveBeenCalledWith('maxine@pmcm.test', 'secret');
     expect(authOperationsService.requestApproval).toHaveBeenCalledWith({
@@ -89,6 +114,7 @@ describe('OpsAuthController', () => {
     expect(authOperationsService.resetUserTwoFactor).toHaveBeenCalledWith('usr_pmcm', resolvedAdmin);
     expect(authOperationsService.logout).toHaveBeenCalledWith(actor);
     expect(authOperationsService.currentUser).toHaveBeenCalledWith(actor);
+    expect(authOperationsService.acknowledgePrivacyNotice).toHaveBeenCalledWith(actor, PRISM_PRIVACY_NOTICE_VERSION);
   });
 
   it.each(['client', 'supplier', 'coordinator'] as const)(
@@ -103,6 +129,9 @@ describe('OpsAuthController', () => {
       const controller = new OpsAuthController(
         authOperationsService as unknown as ConstructorParameters<typeof OpsAuthController>[0],
         new EventAccessPolicyService({ write: vi.fn(async () => undefined) } as never),
+        {} as never,
+        {} as never,
+        {} as never,
       );
       const outsider: Parameters<OpsAuthController['listApprovalRequests']>[0] = {
         id: `${role}_1`, actorId: `${role}_1`, role, actorRole: role, email: `${role}@example.test`, actorEmail: `${role}@example.test`,
@@ -120,6 +149,31 @@ describe('OpsAuthController', () => {
       expect(authOperationsService.resetUserTwoFactor).not.toHaveBeenCalled();
     },
   );
+
+  it.each(['client', 'supplier', 'coordinator'] as const)(
+    'refuses staff invites and invitation resends to a %s before the service runs',
+    async (role) => {
+      const accountInvitationService = { inviteStaff: vi.fn(), resendInvitation: vi.fn() };
+      const controller = new OpsAuthController(
+        {} as never,
+        new EventAccessPolicyService({ write: vi.fn(async () => undefined) } as never),
+        {} as never,
+        {} as never,
+        accountInvitationService as never,
+      );
+      const outsider: Parameters<OpsAuthController['listApprovalRequests']>[0] = {
+        id: `${role}_1`, actorId: `${role}_1`, role, actorRole: role, email: `${role}@example.test`, actorEmail: `${role}@example.test`,
+        name: 'Outsider', actorName: 'Outsider', expiresAt: '2099-01-01',
+      };
+
+      await expect(controller.inviteStaff({ email: 'coord@pmcm.test', name: 'Coordinator', role: 'coordinator', organization: 'PMCM' }, outsider))
+        .rejects.toBeInstanceOf(ForbiddenException);
+      await expect(controller.resendInvitation('usr_1', outsider)).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(accountInvitationService.inviteStaff).not.toHaveBeenCalled();
+      expect(accountInvitationService.resendInvitation).not.toHaveBeenCalled();
+    },
+  );
 });
 
 const login = vi.fn(async () => ({ id: 'user_pmcm' }));
@@ -131,6 +185,8 @@ const requestApproval = vi.fn(async () => ({ message: 'If an account exists for 
   providers: [
     { provide: AuthOperationsService, useValue: { login, requestApproval } },
     { provide: PasswordResetService, useValue: {} },
+    { provide: AccountActivationService, useValue: {} },
+    { provide: AccountInvitationService, useValue: {} },
     { provide: EventAccessPolicyService, useValue: {} },
     { provide: AuthSessionService, useValue: {} },
     { provide: ConfigService, useValue: { get: () => undefined } },
@@ -177,7 +233,7 @@ describe('OpsAuthController public rate limits over HTTP', () => {
     const response = await fetch(`${baseUrl}/auth/approval-requests`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email: 'nobody@example.test', privacyConsentAccepted: true, privacyNoticeVersion: '2026-05-01' }),
+      body: JSON.stringify({ email: 'nobody@example.test', privacyConsentAccepted: true, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION }),
     });
 
     expect(response.status).toBe(202);

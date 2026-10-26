@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { requestApprovalSchema } from "./auth-inputs.js";
+import { acknowledgePrivacyNoticeSchema, requestApprovalSchema } from "./auth-inputs.js";
+import { PRISM_PRIVACY_NOTICE_VERSION } from "../privacy.js";
 import { createFileRequirementSchema, updateFileRequirementSchema } from "./file-requirement-inputs.js";
 import { decisionLogQuerySchema, pmcmCommandInboxQuerySchema } from "./event-ops-inputs.js";
 import {
@@ -188,6 +189,7 @@ describe("event-ops write schemas", () => {
       source: "P.R.I.S.M Website",
       message: "Need full planning support.",
       privacyConsentAccepted: true,
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
     });
     expect(parsed.email).toBe("maria@samplecorp.test");
     expect(parsed.eventDate).toBe("2026-06-18");
@@ -202,6 +204,7 @@ describe("event-ops write schemas", () => {
       source: "P.R.I.S.M Website",
       message: "Need full planning support.",
       privacyConsentAccepted: true,
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
     } as const;
     expect(createPrismInquirySchema.parse({ ...base, clientType: " Private " }).clientType).toBe("Individual");
     expect(createPrismInquirySchema.parse({ ...base, clientType: "Non-profit" }).clientType).toBe("Non-profit");
@@ -228,24 +231,26 @@ describe("event-ops write schemas", () => {
       guestName: "  Ana Reyes  ",
       idempotencyKey: "00000000-0000-4000-8000-000000000001",
       privacyConsentAccepted: true,
-      privacyNoticeVersion: "2026-10",
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       marketingConsentAccepted: false,
     })).toEqual({
       checkInMode: "name_search",
       guestName: "Ana Reyes",
       idempotencyKey: "00000000-0000-4000-8000-000000000001",
       privacyConsentAccepted: true,
-      privacyNoticeVersion: "2026-10",
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       marketingConsentAccepted: false,
     });
     expect(createGuestCheckInSchema.parse({
       checkInMode: "headcount",
       idempotencyKey: "00000000-0000-4000-8000-000000000002",
       privacyConsentAccepted: true,
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
     })).toEqual({
       checkInMode: "headcount",
       idempotencyKey: "00000000-0000-4000-8000-000000000002",
       privacyConsentAccepted: true,
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
     });
   });
 
@@ -268,12 +273,14 @@ describe("event-ops write schemas", () => {
       guestName: "Ana Reyes",
       idempotencyKey: "00000000-0000-4000-8000-000000000006",
       privacyConsentAccepted: true,
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       ...serverState,
     }).success).toBe(false);
     expect(createGuestCheckInSchema.safeParse({
       checkInMode: "headcount",
       idempotencyKey: "00000000-0000-4000-8000-000000000007",
       privacyConsentAccepted: true,
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       ...serverState,
     }).success).toBe(false);
   });
@@ -283,6 +290,7 @@ describe("event-ops write schemas", () => {
       checkInMode: "headcount",
       idempotencyKey: "not-a-uuid",
       privacyConsentAccepted: true,
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
     }).success).toBe(false);
   });
 
@@ -329,6 +337,7 @@ describe("event-ops write schemas", () => {
         guestName: "Alex",
         rating: 5,
         privacyConsentAccepted: true,
+        privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       }).success,
     ).toBe(true);
     expect(
@@ -357,7 +366,14 @@ describe("event-ops write schemas", () => {
     expect(requestApprovalSchema.safeParse({ email: "ana@example.test", privacyConsentAccepted: false }).success).toBe(false);
     expect(requestApprovalSchema.safeParse({ email: "ana@example.test", privacyConsentAccepted: true }).success).toBe(false);
     expect(requestApprovalSchema.safeParse({ email: "ana@example.test", privacyConsentAccepted: true, privacyNoticeVersion: "" }).success).toBe(false);
-    expect(requestApprovalSchema.safeParse({ email: "ana@example.test", privacyConsentAccepted: true, privacyNoticeVersion: "2026-05-01" }).success).toBe(true);
+    expect(requestApprovalSchema.safeParse({ email: "ana@example.test", privacyConsentAccepted: true, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION }).success).toBe(true);
+    expect(requestApprovalSchema.safeParse({ email: "ana@example.test", privacyConsentAccepted: true, privacyNoticeVersion: "2026-05-01" }).success).toBe(false);
+  });
+
+  it("accepts an acknowledgement of the current privacy notice only", () => {
+    expect(acknowledgePrivacyNoticeSchema.safeParse({ version: PRISM_PRIVACY_NOTICE_VERSION }).success).toBe(true);
+    expect(acknowledgePrivacyNoticeSchema.safeParse({ version: "2026-05-01" }).success).toBe(false);
+    expect(acknowledgePrivacyNoticeSchema.safeParse({}).success).toBe(false);
   });
 
   it("caps inbox paging at one hundred pages and rejects invalid offsets", () => {
@@ -481,6 +497,7 @@ describe("event-ops write schemas", () => {
       source: "P.R.I.S.M Website",
       message: "Need full planning support.",
       privacyConsentAccepted: true,
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       organizationKey: "spoofed",
       mergedIntoInquiryId: "inq_primary",
       duplicateOfInquiryId: "inq_other",
@@ -557,6 +574,7 @@ describe("event-ops write schemas", () => {
         contactName: "Ava Cruz",
         email: "ava@northstar.test",
         privacyConsentAccepted: true,
+        privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       }).success,
     ).toBe(true);
     expect(

@@ -35,7 +35,7 @@ describe.skipIf(!databaseUrl)('closeout against PostgreSQL', () => {
     const database = prisma as PrismaService;
     const auditService = new AuditService(database);
     auditWriter = new AuditWriterAdapter(auditService, new SecurityOperationsService(database, auditService));
-    outboxWriter = new NotificationOutboxWriterAdapter(new NotificationOutboxService(database));
+    outboxWriter = new NotificationOutboxWriterAdapter(new NotificationOutboxService(database, { deliver: vi.fn() }));
     service = new EventClosureService(database, new FileRequirementsMatrixService(database),
       new EventLifecycleService(), auditWriter, new EventAccessPolicyService(auditWriter),
       outboxWriter, new WorkflowCommandService(), new CommercialFactsReaderService(database), new LifecycleFactsReaderService(database));
