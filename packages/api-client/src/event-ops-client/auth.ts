@@ -16,6 +16,11 @@ export function createAuthClient(
         ),
       logout: () =>
         prismRequest<void>("/auth/logout", withBase(options, { method: "POST" })),
+      acknowledgePrivacyNotice: (input) =>
+        prismRequest<void>(
+          "/auth/privacy-notice/acknowledge",
+          withBase(options, { method: "POST", body: input }),
+        ),
       me: () => prismRequest("/auth/me", withBase(options, { method: "GET" })),
       unlockUser: (userId) =>
         prismRequest(

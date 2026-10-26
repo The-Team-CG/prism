@@ -114,7 +114,7 @@
       "table": "users",
       "domain": "identity-access",
       "targetSchema": "identity_access",
-      "columnCount": 19
+      "columnCount": 21
     },
     {
       "model": "OpsPasswordResetToken",

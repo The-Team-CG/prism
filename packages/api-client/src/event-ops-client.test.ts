@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PrismContractError, type PrismEventOpsActorContext } from "@prism/types";
+import { PRISM_PRIVACY_NOTICE_VERSION, PrismContractError, type PrismEventOpsActorContext } from "@prism/types";
 import { PrismApiError, createEventOpsClient, normalizePrismApiProblem, prismRequest, toQueryString } from "./index";
 
 let fixtureUuidSequence = 0;
@@ -614,7 +614,7 @@ describe("createEventOpsClient", () => {
     await client.auth.requestApproval({
       email: "client@example.test",
       privacyConsentAccepted: true,
-      privacyNoticeVersion: "2026-05-01",
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
     });
 
     expect(fetchMock).toHaveBeenNthCalledWith(1, "http://localhost:4000/api/auth/login", {
@@ -627,7 +627,7 @@ describe("createEventOpsClient", () => {
       body: JSON.stringify({
         email: "client@example.test",
         privacyConsentAccepted: true,
-        privacyNoticeVersion: "2026-05-01",
+        privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       }),
       headers: { "Content-Type": "application/json" },
     });
@@ -1176,6 +1176,7 @@ describe("createEventOpsClient", () => {
       source: "PMCM Facebook",
       message: "Need planning support.",
       privacyConsentAccepted: true,
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
     });
 
     expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/inquiries", {
@@ -1189,6 +1190,7 @@ describe("createEventOpsClient", () => {
         source: "PMCM Facebook",
         message: "Need planning support.",
         privacyConsentAccepted: true,
+        privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       }),
       headers: { "Content-Type": "application/json" },
     });

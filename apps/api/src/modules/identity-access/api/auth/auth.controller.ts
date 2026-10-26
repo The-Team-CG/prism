@@ -5,7 +5,7 @@ import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-sessi
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { PublicRateLimit, zodBody } from '@prism/kernel/shared';
-import { activateAccountSchema, consumePasswordResetSchema, createAccountInvitationSchema, loginSchema, requestApprovalSchema, requestPasswordResetSchema, twoFactorTokenSchema, verifyTwoFactorSchema, type ActivateAccountInput, type ConsumePasswordResetInput, type CreateAccountInvitationInput, type LoginInput, type RequestApprovalInput, type RequestPasswordResetInput, type TwoFactorTokenInput, type VerifyTwoFactorInput } from '@prism/types';
+import { acknowledgePrivacyNoticeSchema, activateAccountSchema, consumePasswordResetSchema, createAccountInvitationSchema, loginSchema, requestApprovalSchema, requestPasswordResetSchema, twoFactorTokenSchema, verifyTwoFactorSchema, type AcknowledgePrivacyNoticeInput, type ActivateAccountInput, type ConsumePasswordResetInput, type CreateAccountInvitationInput, type LoginInput, type RequestApprovalInput, type RequestPasswordResetInput, type TwoFactorTokenInput, type VerifyTwoFactorInput } from '@prism/types';
 import { AuthOperationsService } from '../../application/auth/auth-operations.service';
 import { PasswordResetService } from '../../application/auth/password-reset.service';
 import { AccountActivationService } from '../../application/auth/account-activation.service';
@@ -117,6 +117,13 @@ export class OpsAuthController {
   @UseGuards(EventSessionGuard)
   me(@VerifiedEventActor() actor: PrismVerifiedEventActor) {
     return this.authOperationsService.currentUser(actor);
+  }
+
+  @Post('privacy-notice/acknowledge')
+  @UseGuards(EventSessionGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  acknowledgePrivacyNotice(@Body(zodBody(acknowledgePrivacyNoticeSchema)) dto: AcknowledgePrivacyNoticeInput, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
+    return this.authOperationsService.acknowledgePrivacyNotice(actor, dto.version);
   }
 
   @Get('users/:userId/login-history')
