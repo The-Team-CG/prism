@@ -1,11 +1,23 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
-import { UnauthorizedException, type ExecutionContext } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException, type ExecutionContext } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 import { EventSessionGuard } from './event-session.guard';
+import { AllowPendingPrivacyNotice } from '../decorators/allow-pending-privacy-notice.decorator';
 import type { AuthSessionService } from '../services/auth-session.service';
 
-function createContext(request: Record<string, unknown>): ExecutionContext {
+class ProfileController {
+  protectedRoute() {}
+
+  @AllowPendingPrivacyNotice()
+  acknowledgePrivacyNotice() {}
+}
+
+function createContext(request: Record<string, unknown>, handler: () => void = ProfileController.prototype.protectedRoute): ExecutionContext {
   return {
+    getHandler: () => handler,
+    getClass: () => ProfileController,
     switchToHttp: () => ({
       getRequest: () => request,
     }),
@@ -35,6 +47,7 @@ function prismaFor(version = 0, overrides: Record<string, unknown> = {}) {
         permanentLockout: false,
         role: 'pmcm-admin',
         email: 'mys@pmcm.test',
+        privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
         ...overrides,
       }),
     },
@@ -44,7 +57,7 @@ function prismaFor(version = 0, overrides: Record<string, unknown> = {}) {
 describe('EventSessionGuard', () => {
   it('rejects a request with no session token', async () => {
     const authSessionService = { verifyAccessToken: vi.fn() } as unknown as AuthSessionService;
-    const guard = new EventSessionGuard(authSessionService, prismaFor());
+    const guard = new EventSessionGuard(authSessionService, prismaFor(), new Reflector());
     const context = createContext({ headers: {} });
 
     await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
@@ -53,7 +66,7 @@ describe('EventSessionGuard', () => {
 
   it('rejects a spoofed actorRole query parameter with no session token (PA-138)', async () => {
     const authSessionService = { verifyAccessToken: vi.fn() } as unknown as AuthSessionService;
-    const guard = new EventSessionGuard(authSessionService, prismaFor());
+    const guard = new EventSessionGuard(authSessionService, prismaFor(), new Reflector());
     const context = createContext({ headers: {}, query: { actorRole: 'pmcm-admin' } });
 
     await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
@@ -65,7 +78,7 @@ describe('EventSessionGuard', () => {
     const authSessionService = {
       verifyAccessToken: vi.fn(() => verifiedActor),
     } as unknown as AuthSessionService;
-    const guard = new EventSessionGuard(authSessionService, prismaFor());
+    const guard = new EventSessionGuard(authSessionService, prismaFor(), new Reflector());
     const request: Record<string, unknown> = { headers: { authorization: 'Bearer valid-token' } };
     const context = createContext(request);
 
@@ -86,7 +99,7 @@ describe('EventSessionGuard', () => {
         actorEmail: 'client@example.test',
       })),
     } as unknown as AuthSessionService;
-    const guard = new EventSessionGuard(authSessionService, prismaFor(0, { role: 'client', email: 'client@example.test' }));
+    const guard = new EventSessionGuard(authSessionService, prismaFor(0, { role: 'client', email: 'client@example.test' }), new Reflector());
     const context = createContext({ headers: { 'x-prism-session': 'session-token' } });
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
@@ -98,7 +111,7 @@ describe('EventSessionGuard', () => {
       verifyAccessToken: vi.fn(() => verifiedPmcmActor),
     } as unknown as AuthSessionService;
     const prisma = prismaFor(1);
-    const guard = new EventSessionGuard(authSessionService, prisma as never);
+    const guard = new EventSessionGuard(authSessionService, prisma as never, new Reflector());
     await expect(guard.canActivate(createContext({ headers: { authorization: 'Bearer old-token' } }))).rejects.toThrow('revoked');
   });
 
@@ -113,17 +126,36 @@ describe('EventSessionGuard', () => {
     const authSessionService = {
       verifyAccessToken: vi.fn(() => verifiedPmcmActor),
     } as unknown as AuthSessionService;
-    const guard = new EventSessionGuard(authSessionService, prismaFor(0, userOverrides) as never);
+    const guard = new EventSessionGuard(authSessionService, prismaFor(0, userOverrides) as never, new Reflector());
 
     await expect(guard.canActivate(createContext({ headers: { authorization: 'Bearer old-token' } }))).rejects.toThrow(
       /revoked|eligible/i,
     );
   });
 
+  it('blocks a signed session until its privacy notice is acknowledged, except on an allowed route', async () => {
+    const authSessionService = {
+      verifyAccessToken: vi.fn(() => verifiedPmcmActor),
+    } as unknown as AuthSessionService;
+    const guard = new EventSessionGuard(authSessionService, prismaFor(0, { privacyNoticeVersion: '2020-01-01' }) as never, new Reflector());
+    const request = { headers: { authorization: 'Bearer valid-token' } };
+
+    const blocked = await guard.canActivate(createContext(request)).then(() => null, (error: unknown) => error);
+    expect(blocked).toBeInstanceOf(ForbiddenException);
+    expect((blocked as ForbiddenException).getResponse()).toEqual({
+      code: 'privacy_notice_required',
+      message: 'Review the privacy notice to continue.',
+    });
+    expect(request).not.toHaveProperty('prismActor');
+
+    await expect(guard.canActivate(createContext(request, ProfileController.prototype.acknowledgePrivacyNotice))).resolves.toBe(true);
+    expect(request).toHaveProperty('prismActor', verifiedPmcmActor);
+  });
+
   it('does not allow a guard without a durable user lookup', async () => {
     const authSessionService = { verifyAccessToken: vi.fn(() => ({ id: 'user_1', sessionVersion: 0 })) } as unknown as AuthSessionService;
     const prisma = { opsUser: { findUnique: vi.fn().mockResolvedValue(null) } } as never;
-    const guard = new EventSessionGuard(authSessionService, prisma);
+    const guard = new EventSessionGuard(authSessionService, prisma, new Reflector());
     await expect(guard.canActivate(createContext({ headers: { authorization: 'Bearer old-token' } }))).rejects.toThrow('revoked');
   });
 });

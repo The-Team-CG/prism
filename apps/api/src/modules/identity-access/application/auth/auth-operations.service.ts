@@ -10,7 +10,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import type { OpsApprovalRequest, OpsUser } from '@prisma/client';
 import {
-  PRISM_PRIVACY_NOTICE_VERSION,
+  privacyNoticeRequired,
   type PrismApprovalRequestReceipt,
   type PrismCurrentUser,
   type PrismIdentityAccountSummary,
@@ -52,10 +52,6 @@ function isPrismaSerializationFailure(error: unknown) {
 
 function hashTwoFactorChallenge(challengeId: string) {
   return createHash('sha256').update(challengeId, 'utf8').digest('hex');
-}
-
-function privacyNoticeRequired(user: Pick<OpsUser, 'privacyNoticeVersion'>) {
-  return user.privacyNoticeVersion !== PRISM_PRIVACY_NOTICE_VERSION;
 }
 
 @Injectable()
@@ -213,7 +209,7 @@ export class AuthOperationsService {
   private issueUserSession(user: OpsUser): PrismSignInSession {
     return {
       ...this.authSessionService.issueSession(this.mapUser(user), new Date()),
-      privacyNoticeRequired: privacyNoticeRequired(user),
+      privacyNoticeRequired: privacyNoticeRequired(user.privacyNoticeVersion),
     };
   }
 
@@ -697,7 +693,7 @@ export class AuthOperationsService {
       role: user.role as PrismUser['role'],
       organization: user.organization,
       twoFactorEnabled: Boolean(user.twoFactorSecret),
-      privacyNoticeRequired: privacyNoticeRequired(user),
+      privacyNoticeRequired: privacyNoticeRequired(user.privacyNoticeVersion),
       expiresAt,
     };
   }
