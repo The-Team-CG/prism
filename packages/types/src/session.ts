@@ -84,6 +84,15 @@ function mirrorSessionCookie(key: PrismSessionStorageKey, session: unknown) {
   writeSessionCookie(name, expiresAt, Math.floor((expiry - Date.now()) / 1000));
 }
 
+/** True for keys without a cookie; for the four portal auth keys, true only while the browser cookie is active. */
+function isSessionCookieActiveFor(key: PrismSessionStorageKey) {
+  const name = SESSION_COOKIE_NAME_BY_STORAGE_KEY.get(key);
+  if (!name) return true;
+  const cookies = (globalThis as { document?: { cookie: string } }).document?.cookie ?? "";
+  const value = cookies.split("; ").find((entry) => entry.startsWith(`${name}=`))?.slice(name.length + 1);
+  return isPrismSessionCookieActive(value, new Date());
+}
+
 /** Pure check used by the Next proxies: the cookie is active while its session expiry is in the future. */
 export function isPrismSessionCookieActive(value: string | undefined, now: Date): boolean {
   if (!value) return false;
@@ -101,6 +110,13 @@ export function readPrismSession<TSession>(
 
   const raw = storage.getItem(key);
   if (!raw) return null;
+
+  // A portal session counts only while its navigation cookie is active, so the sign-in page and the
+  // proxy agree. Sessions saved before the cookie existed are cleared and the person signs in again.
+  if (!isSessionCookieActiveFor(key)) {
+    clearPrismSession(key, options);
+    return null;
+  }
 
   try {
     return JSON.parse(raw) as TSession;

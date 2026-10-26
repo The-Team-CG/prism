@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   PRISM_OPEN_ENDED_SESSION_COOKIE_VALUE,
   PRISM_SESSION_STORAGE_KEYS,
@@ -23,14 +23,41 @@ function createStorage(initial: Record<string, string> = {}) {
   };
 }
 
+/** A browser-like cookie jar: a write with Max-Age=0 deletes, a read returns "name=value; ...". */
+function stubCookieJar() {
+  const jar = new Map<string, string>();
+  vi.stubGlobal("document", {
+    set cookie(value: string) {
+      const pair = value.split("; ")[0] ?? "";
+      const name = pair.slice(0, pair.indexOf("="));
+      if (/Max-Age=0(;|$)/.test(value)) jar.delete(name);
+      else jar.set(name, pair.slice(name.length + 1));
+    },
+    get cookie() {
+      return [...jar].map(([name, value]) => `${name}=${value}`).join("; ");
+    },
+  });
+}
+
 describe("shared Prism session storage helpers", () => {
+  beforeEach(() => stubCookieJar());
+  afterEach(() => vi.unstubAllGlobals());
+
   it("reads a role session from the canonical storage key", () => {
-    const session = { email: "ana@ayala.test", role: "client", signedInAt: "2026-06-15T00:00:00.000Z" };
-    const storage = createStorage({
-      [PRISM_SESSION_STORAGE_KEYS.client]: JSON.stringify(session),
-    });
+    const session = { email: "ana@ayala.test", role: "client", signedInAt: "2026-06-15T00:00:00.000Z", expiresAt: "2099-06-15T00:00:00.000Z" };
+    const storage = createStorage();
+    savePrismSession(PRISM_SESSION_STORAGE_KEYS.client, session, { storage });
 
     expect(readPrismSession<typeof session>(PRISM_SESSION_STORAGE_KEYS.client, { storage })).toEqual(session);
+  });
+
+  it("clears a stored portal session whose navigation cookie is missing", () => {
+    const storage = createStorage({
+      [PRISM_SESSION_STORAGE_KEYS.client]: JSON.stringify({ email: "ana@ayala.test", expiresAt: "2099-06-15T00:00:00.000Z" }),
+    });
+
+    expect(readPrismSession(PRISM_SESSION_STORAGE_KEYS.client, { storage })).toBeNull();
+    expect(storage.snapshot()).toEqual({});
   });
 
   it("clears a corrupt stored session instead of reading it", () => {
@@ -43,7 +70,7 @@ describe("shared Prism session storage helpers", () => {
   });
 
   it("saves and clears a role session under its canonical key only", () => {
-    const session = { email: "ops@xperto.test", role: "supplier", signedInAt: "2026-06-15T00:00:00.000Z" };
+    const session = { email: "ops@xperto.test", role: "supplier", signedInAt: "2026-06-15T00:00:00.000Z", expiresAt: "2099-06-15T00:00:00.000Z" };
     const storage = createStorage({
       "prism:unrelated-key": JSON.stringify({ stale: true }),
     });
