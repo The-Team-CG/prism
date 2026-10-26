@@ -204,7 +204,8 @@ export class PaymentOperationsService implements PaymentStatusReader {
             affectedLabel: payment.label,
             metadata: auditMetadata(actor),
           }),
-          writeNotification(this.notificationOutboxWriter, eventId, 'Finance', `${payment.label} ${status}`),
+          // No finance role exists yet; payment status goes to the PMCM Admin inbox.
+          writeNotification(this.notificationOutboxWriter, eventId, 'PMCM Admin', `${payment.label} ${status}`),
         ]);
       },
       project: (payment) => mapPaymentMilestone(payment),
