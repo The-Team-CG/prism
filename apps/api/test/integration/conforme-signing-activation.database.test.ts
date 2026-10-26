@@ -46,7 +46,7 @@ describe.skipIf(!live)('conforme dual acknowledgment activation against PostgreS
       } });
 
       // The client invitation goes out when PMCM accepts the inquiry. The port records each call, so signing below can prove it adds none.
-      const provision = vi.fn(async (_input: unknown) => ({ outcome: 'invited' as const, sentAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString() }));
+      const provision = vi.fn(async (_input: unknown) => ({ outcome: 'invited' as const, sentAt: '2031-04-01T00:00:00.000Z', expiresAt: '2031-04-08T00:00:00.000Z' }));
       const accountProvisioning = { provision };
       const inquiries = new InquiriesService(prisma, audit, notifications, new WorkflowCommandService(), accountProvisioning);
       const signing = new ConformeSigningService(prisma, inquiries, audit, notifications);
