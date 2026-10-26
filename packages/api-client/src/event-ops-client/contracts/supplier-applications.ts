@@ -1,5 +1,6 @@
 import type {
   CreateSupplierApplicationInput,
+  PrismAccountInvitationOutcome,
   SupplierApplicationStatusQuery,
   ReviewSupplierApplicationInput,
   PrismSupplierApplication,
@@ -24,5 +25,6 @@ export interface EventOpsSupplierApplicationsContract {
       input: ReviewSupplierApplicationInput,
       actor?: EventOpsActorQuery,
     ): Promise<PrismSupplierApplication>;
+    resendAccountInvitation(applicationId: string): Promise<PrismAccountInvitationOutcome>;
   };
 }

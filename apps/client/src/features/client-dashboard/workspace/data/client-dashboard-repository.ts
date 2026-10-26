@@ -1,5 +1,4 @@
 import {
-  PRISM_LEGACY_SESSION_STORAGE_KEYS,
   PRISM_SESSION_STORAGE_KEYS,
   clearPrismSession,
   readPrismSession,
@@ -43,14 +42,18 @@ function toProject(plan: ApiFloorPlanSnapshot): Project {
 
 export const clientDashboardRepository = {
   readSession(): ClientSession | null {
-    return readPrismSession<ClientSession>(PRISM_SESSION_STORAGE_KEYS.client, {
-      legacyKeys: [PRISM_LEGACY_SESSION_STORAGE_KEYS.clientMockAuth],
-    });
+    return readPrismSession<ClientSession>(PRISM_SESSION_STORAGE_KEYS.client);
   },
 
   clearSession(): void {
-    clearPrismSession(PRISM_SESSION_STORAGE_KEYS.client, {
-      legacyKeys: [PRISM_LEGACY_SESSION_STORAGE_KEYS.clientMockAuth],
+    clearPrismSession(PRISM_SESSION_STORAGE_KEYS.client);
+  },
+
+  /** A 401 here only means the token is already dead, so it must not start the expiry redirect. */
+  logout(): Promise<void> {
+    return clientApiRequest<void>("/auth/logout", {
+      method: "POST",
+      onUnauthorized: () => undefined,
     });
   },
 

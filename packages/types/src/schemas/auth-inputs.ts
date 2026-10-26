@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { nonEmptyStringSchema, privacyConsentSchema } from './common.js';
+import { nonEmptyStringSchema, privacyConsentSchema, privacyNoticeVersionSchema } from './common.js';
 
 export const loginSchema = z.object({
   email: z.string().trim().email(),
@@ -18,8 +18,31 @@ export const consumePasswordResetSchema = z.object({
 });
 export type ConsumePasswordResetInput = z.infer<typeof consumePasswordResetSchema>;
 
-export const requestApprovalSchema = z.object({ email: z.string().trim().email() }).merge(privacyConsentSchema);
+export const activateAccountSchema = z.object({
+  token: z.string().trim().min(32),
+  password: passwordSchema,
+});
+export type ActivateAccountInput = z.infer<typeof activateAccountSchema>;
+
+/** Staff accounts PMCM admins can invite. Clients and suppliers get their accounts from the conforme and supplier approval. */
+export const createAccountInvitationSchema = z.object({
+  email: z.string().trim().email(),
+  name: nonEmptyStringSchema,
+  role: z.enum(['pmcm-admin', 'coordinator']),
+  organization: nonEmptyStringSchema,
+});
+export type CreateAccountInvitationInput = z.infer<typeof createAccountInvitationSchema>;
+
+export const requestApprovalSchema = z
+  .object({ email: z.string().trim().email() })
+  .merge(privacyConsentSchema);
 export type RequestApprovalInput = z.infer<typeof requestApprovalSchema>;
+
+/** Signed-in person confirming they have read the current privacy notice. */
+export const acknowledgePrivacyNoticeSchema = z.object({
+  version: privacyNoticeVersionSchema,
+}).strict();
+export type AcknowledgePrivacyNoticeInput = z.infer<typeof acknowledgePrivacyNoticeSchema>;
 
 export const twoFactorTokenSchema = z.object({ token: nonEmptyStringSchema });
 export type TwoFactorTokenInput = z.infer<typeof twoFactorTokenSchema>;

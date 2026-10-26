@@ -8,7 +8,7 @@ import type { PrismaService } from '@prism/kernel/database';
 import { PrismaService as PrismaServiceToken } from '@prism/kernel/database';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter } from '@prism/kernel/access-control';
 import { EventSessionGuard, AuthSessionService } from '@prism/kernel/event-session';
-import type { PrismUser } from '@prism/types';
+import { PRISM_PRIVACY_NOTICE_VERSION, type PrismUser } from '@prism/types';
 import { NOTIFICATION_OUTBOX_WRITER } from '@prism/contexts/platform-ops';
 import { ScopeChangeRequestController } from './scope-change-request.controller';
 import { EventRiskAssessmentController } from './event-risk-assessment.controller';
@@ -60,7 +60,7 @@ const prismaMock = {
   opsUser: {
     findUnique: async ({ where }: { where: { id: string } }) => {
       const account = accounts[where.id];
-      return account ? { sessionVersion: 0, approvalStatus: 'approved', lockedUntil: null, permanentLockout: false, ...account } : null;
+      return account ? { sessionVersion: 0, approvalStatus: 'approved', lockedUntil: null, permanentLockout: false, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, ...account } : null;
     },
   },
   opsEvent: {
@@ -101,7 +101,7 @@ const prismaMock = {
     EventAccessPolicyService,
     EventSessionGuard,
     AuthSessionService,
-    { provide: ConfigService, useValue: { get: (key: string) => (key === 'PRISM_SESSION_SECRET' ? sessionSecret : undefined) } },
+    { provide: ConfigService, useValue: { get: (key: string) => (key === 'PRISM_SESSION_SECRET' ? sessionSecret : key === 'PRISM_SESSION_TTL_SECONDS' ? '28800' : undefined) } },
     { provide: PrismaServiceToken, useValue: prismaMock as unknown as PrismaService },
     { provide: AUDIT_WRITER, useValue: { write: async () => undefined } as AuditWriter },
     { provide: NOTIFICATION_OUTBOX_WRITER, useValue: { write: async () => undefined } },
@@ -115,7 +115,7 @@ describe('scope change and risk routes, authenticated HTTP authorization', () =>
   const tokens: Record<string, string> = {};
 
   beforeAll(async () => {
-    const session = new AuthSessionService({ get: (key: string) => (key === 'PRISM_SESSION_SECRET' ? sessionSecret : undefined) } as unknown as ConfigService);
+    const session = new AuthSessionService({ get: (key: string) => (key === 'PRISM_SESSION_SECRET' ? sessionSecret : key === 'PRISM_SESSION_TTL_SECONDS' ? '28800' : undefined) } as unknown as ConfigService);
     const issuedAt = new Date();
     for (const [id, account] of Object.entries(accounts)) {
       const user: PrismUser = {

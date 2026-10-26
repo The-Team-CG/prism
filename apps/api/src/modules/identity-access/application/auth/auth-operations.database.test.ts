@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest';
 import { ConfigService } from '@nestjs/config';
+import { Reflector } from '@nestjs/core';
 import { AuditService, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import { PrismaService } from '@prism/kernel/database';
 import { AuthSessionService, EventSessionGuard } from '@prism/kernel/event-session';
@@ -37,7 +38,7 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
     prisma = new PrismaService();
     await prisma.$connect();
     audit = new AuditService(prisma);
-    sessions = new AuthSessionService(new ConfigService({ PRISM_SESSION_SECRET: secret }));
+    sessions = new AuthSessionService(new ConfigService({ PRISM_SESSION_SECRET: secret, PRISM_SESSION_TTL_SECONDS: '28800' }));
     const authAudit = new AuthAuditAdapter(audit, {} as SecurityOperationsService);
     operations = new AuthOperationsService(prisma, authAudit, {} as never, sessions, {} as never);
     actor = {
@@ -75,7 +76,7 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
       id: challengeUserId,
       name: 'P0 Two Factor Fixture',
       email: challengeEmail,
-      password: AuthSecurityService.hashPassword('P0-two-factor-password-long-enough'),
+      password: await AuthSecurityService.hashPassword('P0-two-factor-password-long-enough'),
       role: 'pmcm-admin',
       organization: prefix,
       approvalStatus: 'approved',
@@ -123,7 +124,7 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
       approvalStatus: 'approved',
       sessionVersion: 0,
     });
-    const guard = new EventSessionGuard(sessions, prisma);
+    const guard = new EventSessionGuard(sessions, prisma, new Reflector());
 
     await operations.declineApprovalRequest(requestId, actor);
 

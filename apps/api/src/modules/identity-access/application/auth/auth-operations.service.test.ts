@@ -1,13 +1,19 @@
 import { ForbiddenException } from '@nestjs/common';
-import { describe, expect, it, vi } from 'vitest';
-import { createHash } from 'node:crypto';
+import { Reflector } from '@nestjs/core';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createHash, randomBytes, scryptSync } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import { OpsUserRole } from '@prism/kernel/event-core';
+import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 import type { AuditWriteInput, ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { AuthSessionService, EventSessionGuard } from '@prism/kernel/event-session';
 import { AuthOperationsService } from './auth-operations.service';
+import { AuthSecurityService } from './auth-security.service';
+import * as passwordHash from './password-hash.cjs';
 
-function createApprovalService(options: { requestUpdateFails?: boolean; auditFails?: boolean } = {}) {
+const approvalReceipt = { message: 'If an account exists for this email, PMCM will review the request.' };
+
+function createApprovalService(options: { requestUpdateFails?: boolean; auditFails?: boolean; noAccount?: boolean; accountApproved?: boolean; accountInvited?: boolean } = {}) {
   const state = {
     request: {
       id: 'approval_1',
@@ -29,7 +35,7 @@ function createApprovalService(options: { requestUpdateFails?: boolean; auditFai
       password: 'hashed-password',
       role: 'client',
       organization: 'Ana Events',
-      approvalStatus: 'pending',
+      approvalStatus: options.accountApproved ? 'approved' : options.accountInvited ? 'invited' : 'pending',
       sessionVersion: 0,
       lockedUntil: null,
       permanentLockout: false,
@@ -38,7 +44,10 @@ function createApprovalService(options: { requestUpdateFails?: boolean; auditFai
   };
   const opsApprovalRequest = {
     findUnique: vi.fn(async () => ({ ...state.request })),
-    upsert: vi.fn(async ({ create }: { create: Record<string, unknown> }) => ({ ...state.request, ...create })),
+    upsert: vi.fn(async ({ update }: { update: Record<string, unknown> }) => {
+      Object.assign(state.request, update);
+      return { ...state.request };
+    }),
     update: vi.fn(async ({ data }: { data: { status: string } }) => {
       if (options.requestUpdateFails) throw new Error('approval request update failed');
       Object.assign(state.request, data);
@@ -46,7 +55,7 @@ function createApprovalService(options: { requestUpdateFails?: boolean; auditFai
     }),
   };
   const opsUser = {
-    findUnique: vi.fn(async () => ({ ...state.user })),
+    findUnique: vi.fn(async () => (options.noAccount ? null : { ...state.user })),
     update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
       const { sessionVersion, ...userChanges } = data;
       Object.assign(state.user, userChanges);
@@ -201,11 +210,37 @@ describe('AuthOperationsService', () => {
   it('resolves a case-variant approval request to the canonical account and stores its canonical email', async () => {
     const { service, prisma } = createApprovalService();
 
-    await service.requestApproval({ email: '  Ana@Example.TEST ', privacyConsentAccepted: true });
+    await service.requestApproval({ email: '  Ana@Example.TEST ', privacyConsentAccepted: true, privacyNoticeVersion: '2026-05-01' });
 
     expect(prisma.opsUser.findUnique).toHaveBeenCalledWith({ where: { email: 'ana@example.test' } });
     expect(prisma.opsApprovalRequest.upsert).toHaveBeenCalledWith(expect.objectContaining({
       create: expect.objectContaining({ email: 'ana@example.test' }),
+    }));
+  });
+
+  it.each([
+    { label: 'an unknown email', options: { noAccount: true }, requestStatus: 'pending', opensRequest: false },
+    { label: 'a pending request', options: {}, requestStatus: 'pending', opensRequest: true },
+    { label: 'an approved request', options: {}, requestStatus: 'approved', opensRequest: true },
+    { label: 'a declined request', options: {}, requestStatus: 'declined', opensRequest: true },
+    { label: 'an already approved account', options: { accountApproved: true }, requestStatus: 'pending', opensRequest: false },
+    { label: 'an invited account awaiting activation', options: { accountInvited: true }, requestStatus: 'pending', opensRequest: false },
+  ])('answers $label with the same receipt, keeps the request status, and audits internally', async ({ options, requestStatus, opensRequest }) => {
+    const { service, state, prisma, authAudit } = createApprovalService(options);
+    state.request.status = requestStatus;
+
+    const receipt = await service.requestApproval({
+      email: 'ana@example.test',
+      privacyConsentAccepted: true,
+      privacyNoticeVersion: '2026-05-01',
+    });
+
+    expect(receipt).toEqual(approvalReceipt);
+    expect(state.request.status).toBe(requestStatus);
+    expect(prisma.opsApprovalRequest.upsert).toHaveBeenCalledTimes(opensRequest ? 1 : 0);
+    expect(authAudit.write).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'Account approval requested for ana@example.test',
+      metadata: { accountFound: !options.noAccount },
     }));
   });
 
@@ -238,6 +273,7 @@ describe('AuthOperationsService', () => {
     const { service, prisma, state } = createApprovalService();
     const authSessionService = new AuthSessionService(new ConfigService({
       PRISM_SESSION_SECRET: 'account-revocation-test-secret-123456',
+      PRISM_SESSION_TTL_SECONDS: '28800',
     }));
     const oldSession = authSessionService.issueSession({
       id: state.user.id,
@@ -255,7 +291,7 @@ describe('AuthOperationsService', () => {
 
     await service.declineApprovalRequest('approval_1', actor);
 
-    const guard = new EventSessionGuard(authSessionService, prisma as never);
+    const guard = new EventSessionGuard(authSessionService, prisma as never, new Reflector());
     await expect(guard.canActivate({
       switchToHttp: () => ({ getRequest: () => ({ headers: { authorization: `Bearer ${oldSession.accessToken}` } }) }),
     } as never)).rejects.toThrow(/revoked|eligible/i);
@@ -318,7 +354,7 @@ describe('AuthOperationsService', () => {
       id: 'usr_pmcm',
       name: 'Ms. Mys',
       email: 'mys@pmcm.test',
-      password: 'prism-admin',
+      password: await AuthSecurityService.hashPassword('prism-admin'),
       role: 'pmcm-admin',
       organization: 'PMCM Events',
       approvalStatus: 'approved',
@@ -388,7 +424,7 @@ describe('AuthOperationsService', () => {
       id: 'usr_client',
       name: 'Ana Reyes',
       email: 'ana@example.test',
-      password: 'prism-client',
+      password: await AuthSecurityService.hashPassword('prism-client'),
       role: 'client',
       organization: 'Ana Events',
       approvalStatus: 'approved',
@@ -425,6 +461,8 @@ describe('AuthOperationsService', () => {
     );
 
     await expect(service.login('ana@example.test', 'prism-client')).resolves.toMatchObject({ accessToken: 'client-session' });
+    // The client's first successful sign-in is what marks the portal invitation opened.
+    expect(inquiriesService.markPortalInvitationOpenedByEmail).toHaveBeenCalledWith('ana@example.test');
     expect(authAudit.recordAuthenticationAudit).toHaveBeenCalledWith(expect.objectContaining({
       actor: 'Ana Reyes',
       action: 'Signed in to client portal',
@@ -517,7 +555,7 @@ describe('AuthOperationsService', () => {
       id: 'usr_client',
       name: 'Ana Reyes',
       email: 'ana@example.test',
-      password: 'prism-client',
+      password: await AuthSecurityService.hashPassword('prism-client'),
       role: 'client',
       organization: 'Ana Events',
       approvalStatus: 'approved',
@@ -556,4 +594,342 @@ describe('AuthOperationsService', () => {
     expect(authSessionService.issueSession).not.toHaveBeenCalled();
   });
 
+});
+
+const adminActor = {
+  id: 'pmcm_user_1', role: OpsUserRole.PmcmAdmin, name: 'Anthony Torres', email: 'anthony@pmcm.test',
+  explicit: true, verified: true,
+} satisfies ResolvedEventOpsActor;
+
+async function clientAccount(overrides: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
+  return {
+    id: 'usr_client',
+    name: 'Ana Reyes',
+    email: 'ana@example.test',
+    password: await AuthSecurityService.hashPassword('prism-client'),
+    role: 'client',
+    organization: 'Ana Events',
+    approvalStatus: 'approved',
+    permanentLockout: false,
+    lockedUntil: null,
+    failedLoginCount: 0,
+    lockoutCount: 0,
+    lastLoginAt: null,
+    twoFactorSecret: null,
+    sessionVersion: 0,
+    ...overrides,
+  };
+}
+
+function createSignInService(account: Record<string, unknown> | null) {
+  const opsUser = {
+    findUnique: vi.fn(async () => (account ? { ...account } : null)),
+    update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+      Object.assign(account as Record<string, unknown>, data);
+      return { ...(account as Record<string, unknown>) };
+    }),
+  };
+  const transaction = { opsUser };
+  const prisma = {
+    ...transaction,
+    $transaction: vi.fn(async (callback: (tx: typeof transaction) => Promise<unknown>) => callback(transaction)),
+  };
+  const authAudit = {
+    write: vi.fn(async () => undefined),
+    recordLoginHistory: vi.fn(async () => undefined),
+    recordAuthenticationAudit: vi.fn(async () => undefined),
+    handleFailedLogin: vi.fn(async () => undefined),
+    handleForbiddenAccess: vi.fn(async () => undefined),
+  };
+  const inquiryCommands = { markPortalInvitationOpenedByEmail: vi.fn(async () => undefined) };
+  const authSessionService = {
+    issueSession: vi.fn((user: Record<string, unknown>) => ({ accessToken: 'signed-in-session', ...user })),
+    issueTwoFactorToken: vi.fn(() => 'two-factor-token'),
+    twoFactorTokenExpiresAt: vi.fn(() => new Date(Date.now() + 600_000)),
+  };
+  const service = new AuthOperationsService(
+    prisma as never,
+    authAudit as never,
+    inquiryCommands as never,
+    authSessionService as never,
+    {} as never,
+  );
+  return { service, account, authAudit, authSessionService };
+}
+
+describe('AuthOperationsService sign-in hardening', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('refuses an invited account with no password exactly like a wrong password', async () => {
+    const account = await clientAccount({ password: null, approvalStatus: 'invited' });
+    const { service } = createSignInService(account);
+    const verify = vi.spyOn(AuthSecurityService, 'verifyPassword');
+
+    await expect(service.login('ana@example.test', 'any-password-123')).rejects.toThrow('Invalid email or password');
+
+    expect(verify).toHaveBeenCalledTimes(1);
+    expect(account).toMatchObject({ password: null, approvalStatus: 'invited', sessionVersion: 0, failedLoginCount: 1 });
+  });
+
+  it('runs the password verifier once for an unknown email before refusing it', async () => {
+    const { service } = createSignInService(null);
+    const verify = vi.spyOn(AuthSecurityService, 'verifyPassword');
+
+    await expect(service.login('nobody@example.test', 'guessed-password')).rejects.toThrow('Invalid email or password');
+
+    expect(verify).toHaveBeenCalledTimes(1);
+    expect(verify.mock.calls[0][1]).toBe('guessed-password');
+  });
+
+  it('answers a locked account with a wrong password with the generic failure and does not move its counters', async () => {
+    const lockedUntil = new Date(Date.now() + 5 * 60_000);
+    const account = await clientAccount({ lockedUntil, failedLoginCount: 0, lockoutCount: 2 });
+    const { service } = createSignInService(account);
+
+    await expect(service.login('ana@example.test', 'wrong-password')).rejects.toThrow('Invalid email or password');
+
+    expect(account).toMatchObject({ lockedUntil, failedLoginCount: 0, lockoutCount: 2 });
+  });
+
+  it('still counts a wrong password against an unlocked account', async () => {
+    const account = await clientAccount({ failedLoginCount: 1 });
+    const { service } = createSignInService(account);
+
+    await expect(service.login('ana@example.test', 'wrong-password')).rejects.toThrow('Invalid email or password');
+
+    expect(account).toMatchObject({ failedLoginCount: 2 });
+  });
+
+  it('discloses a temporary lock only to a caller who proves the password', async () => {
+    const account = await clientAccount({ lockedUntil: new Date(Date.now() + 5 * 60_000) });
+    const { service, authAudit } = createSignInService(account);
+
+    await expect(service.login('ana@example.test', 'prism-client')).rejects.toThrow(/temporarily locked/);
+
+    expect(authAudit.handleForbiddenAccess).toHaveBeenCalledWith(expect.objectContaining({ id: 'usr_client' }), 'ana@example.test', 'Temporary lockout');
+  });
+
+  it('resets the failure count, the lockout count and the lock on a successful sign-in', async () => {
+    const account = await clientAccount({ failedLoginCount: 4, lockoutCount: 3, lockedUntil: new Date(Date.now() - 60_000) });
+    const { service } = createSignInService(account);
+
+    await expect(service.login('ana@example.test', 'prism-client')).resolves.toMatchObject({ accessToken: 'signed-in-session' });
+
+    expect(account).toMatchObject({ failedLoginCount: 0, lockoutCount: 0, lockedUntil: null });
+  });
+
+  it('tells a signed-in person whether the current privacy notice still needs acknowledging', async () => {
+    const outdated = createSignInService(await clientAccount({ privacyNoticeVersion: '2026-05-01' }));
+    await expect(outdated.service.login('ana@example.test', 'prism-client')).resolves.toMatchObject({ privacyNoticeRequired: true });
+
+    const current = createSignInService(await clientAccount({ privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION }));
+    await expect(current.service.login('ana@example.test', 'prism-client')).resolves.toMatchObject({ privacyNoticeRequired: false });
+  });
+
+  it('refuses stored passwords outside the current hash format, including plaintext and Node-default scrypt hashes', async () => {
+    const salt = randomBytes(16).toString('hex');
+    const nodeDefaultScrypt = `scrypt$${salt}$${scryptSync('prism-client', salt, 64).toString('hex')}`;
+
+    for (const stored of ['prism-client', nodeDefaultScrypt]) {
+      const { service, authSessionService } = createSignInService(await clientAccount({ password: stored }));
+
+      await expect(service.login('ana@example.test', 'prism-client')).rejects.toThrow('Invalid email or password');
+      expect(authSessionService.issueSession).not.toHaveBeenCalled();
+    }
+  });
+
+  it('rehashes a current-format password stored with lower parameters on a successful sign-in', async () => {
+    const salt = randomBytes(16).toString('hex');
+    const lowerParams = { N: 16384, r: 8, p: 1 };
+    const stored = passwordHash.formatScryptPasswordHash({
+      params: lowerParams,
+      salt,
+      derivedHex: scryptSync('prism-client', salt, 64, lowerParams).toString('hex'),
+    });
+    const account = await clientAccount({ password: stored });
+    const { service } = createSignInService(account);
+
+    await service.login('ana@example.test', 'prism-client');
+
+    expect(passwordHash.isCurrentScryptPasswordHash(String(account.password))).toBe(true);
+    expect(await AuthSecurityService.verifyPassword(String(account.password), 'prism-client')).toBe(true);
+  });
+
+  it('clears a PMCM admin lock counters only when two-factor sign-in completes', async () => {
+    const { service, user } = createTwoFactorService();
+    user.lockoutCount = 2;
+    user.failedLoginCount = 3;
+
+    await service.verifyTwoFactor('two-factor-token', '123456');
+
+    expect(user).toMatchObject({ lockoutCount: 0, failedLoginCount: 0 });
+  });
+});
+
+describe('AuthOperationsService account recovery and sessions', () => {
+  it('unlocks an account, clears its lock fields and counters, and audits the administrator', async () => {
+    const { service, user, authAudit } = createTwoFactorService();
+    user.lockedUntil = new Date(Date.now() + 60_000);
+    user.permanentLockout = true;
+    user.failedLoginCount = 4;
+    user.lockoutCount = 5;
+
+    const summary = await service.unlockUser('usr_pmcm', adminActor);
+
+    expect(user).toMatchObject({ lockedUntil: null, permanentLockout: false, failedLoginCount: 0, lockoutCount: 0 });
+    expect(summary).toEqual({
+      id: 'usr_pmcm',
+      email: 'mys@pmcm.test',
+      role: 'pmcm-admin',
+      approvalStatus: 'approved',
+      lockedUntil: null,
+      permanentLockout: false,
+      failedLoginCount: 0,
+      lockoutCount: 0,
+      twoFactorEnabled: true,
+      sessionVersion: 0,
+    });
+    expect(authAudit.write).toHaveBeenCalledWith(expect.objectContaining({
+      actor: 'Anthony Torres',
+      action: 'Unlocked account for mys@pmcm.test',
+      metadata: expect.objectContaining({ actorId: 'pmcm_user_1' }),
+    }), expect.anything());
+  });
+
+  it('clears two-factor enrolment and revokes open sessions on reset, and audits the reset', async () => {
+    const { service, user, authAudit } = createTwoFactorService();
+
+    const summary = await service.resetUserTwoFactor('usr_pmcm', adminActor);
+
+    expect(user).toMatchObject({ twoFactorSecret: null, sessionVersion: 1, twoFactorChallengeHash: null, twoFactorChallengeAttempts: 0 });
+    expect(summary).toMatchObject({ twoFactorEnabled: false, sessionVersion: 1 });
+    expect(authAudit.write).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'Reset two-factor enrolment and revoked open sessions for mys@pmcm.test',
+    }), expect.anything());
+  });
+
+  it('refuses unlock and two-factor reset from a non-administrator before touching the account', async () => {
+    const { service, user } = createTwoFactorService();
+    const client: ResolvedEventOpsActor = { id: 'client_1', role: OpsUserRole.Client, name: 'Ana Reyes', explicit: true, verified: true };
+
+    await expect(service.unlockUser('usr_pmcm', client)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.resetUserTwoFactor('usr_pmcm', client)).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(user).toMatchObject({ twoFactorSecret: 'encrypted-secret', sessionVersion: 0, lockedUntil: null });
+  });
+
+  function createSessionFixture(overrides: Record<string, unknown> = {}) {
+    const user: Record<string, unknown> = {
+      id: 'usr_client',
+      name: 'Ana Reyes',
+      email: 'ana@example.test',
+      password: 'stored-password-hash',
+      role: 'client',
+      organization: 'Ana Events',
+      approvalStatus: 'approved',
+      sessionVersion: 0,
+      lockedUntil: null,
+      permanentLockout: false,
+      failedLoginCount: 0,
+      lockoutCount: 0,
+      lastLoginAt: null,
+      twoFactorSecret: null,
+      privacyNoticeVersion: null,
+      privacyNoticeAcknowledgedAt: null,
+      ...overrides,
+    };
+    const opsUser = {
+      findUnique: vi.fn(async () => ({ ...user })),
+      updateMany: vi.fn(async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
+        if (where.id !== user.id || where.sessionVersion !== user.sessionVersion) return { count: 0 };
+        const { sessionVersion, ...changes } = data;
+        Object.assign(user, changes);
+        if (sessionVersion) user.sessionVersion = Number(user.sessionVersion) + (sessionVersion as { increment: number }).increment;
+        return { count: 1 };
+      }),
+    };
+    const transaction = { opsUser };
+    const prisma = {
+      ...transaction,
+      $transaction: vi.fn(async (callback: (tx: typeof transaction) => Promise<unknown>) => callback(transaction)),
+    };
+    const authAudit = { write: vi.fn(async () => undefined) };
+    const authSessionService = new AuthSessionService(new ConfigService({
+      PRISM_SESSION_SECRET: 'session-revocation-test-secret-123456',
+      PRISM_SESSION_TTL_SECONDS: '28800',
+    }));
+    const service = new AuthOperationsService(prisma as never, authAudit as never, {} as never, authSessionService, {} as never);
+    const guard = new EventSessionGuard(authSessionService, prisma as never, new Reflector());
+    const session = authSessionService.issueSession({
+      id: 'usr_client',
+      name: 'Ana Reyes',
+      email: 'ana@example.test',
+      role: 'client',
+      organization: 'Ana Events',
+      approvalStatus: 'approved',
+      sessionVersion: 0,
+    });
+    const actor = authSessionService.verifyAccessToken(session.accessToken);
+    const requestWith = (token: string) => ({
+      getHandler: () => function route() {},
+      getClass: () => class Route {},
+      switchToHttp: () => ({ getRequest: () => ({ headers: { authorization: `Bearer ${token}` } }) }),
+    } as never);
+    return { service, guard, authAudit, session, actor, requestWith, user };
+  }
+
+  it('revokes every open session on logout, so the guard rejects a token issued before it', async () => {
+    const { service, guard, authAudit, session, actor, requestWith } = createSessionFixture({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
+      privacyNoticeAcknowledgedAt: new Date(),
+    });
+    await expect(guard.canActivate(requestWith(session.accessToken))).resolves.toBe(true);
+
+    await expect(service.logout(actor)).resolves.toBeUndefined();
+
+    await expect(guard.canActivate(requestWith(session.accessToken))).rejects.toThrow(/revoked/i);
+    expect(authAudit.write).toHaveBeenCalledWith(expect.objectContaining({
+      actor: 'Ana Reyes',
+      action: 'Signed out and revoked open sessions',
+    }), expect.anything());
+    await expect(service.logout(actor)).rejects.toThrow(/already been revoked/i);
+  });
+
+  it('stores the acknowledged notice version and time, audits it, and clears the prompt for that version', async () => {
+    const { service, actor, authAudit, user } = createSessionFixture({ privacyNoticeVersion: '2026-05-01' });
+    await expect(service.currentUser(actor)).resolves.toMatchObject({ privacyNoticeRequired: true });
+
+    await expect(service.acknowledgePrivacyNotice(actor, PRISM_PRIVACY_NOTICE_VERSION)).resolves.toBeUndefined();
+
+    expect(user).toMatchObject({ privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION });
+    expect(user.privacyNoticeAcknowledgedAt).toBeInstanceOf(Date);
+    expect(authAudit.write).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'Acknowledged the privacy notice',
+      metadata: { privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION },
+    }), expect.anything());
+    await expect(service.currentUser(actor)).resolves.toMatchObject({ privacyNoticeRequired: false });
+    await expect(service.acknowledgePrivacyNotice({ ...actor, sessionVersion: 99 }, PRISM_PRIVACY_NOTICE_VERSION))
+      .rejects.toThrow(/revoked/i);
+  });
+
+  it('returns only identity fields for the current session, never the password hash or two-factor secret', async () => {
+    const { service, actor } = createSessionFixture({ twoFactorSecret: 'encrypted-totp-secret' });
+
+    const me = await service.currentUser(actor);
+
+    expect(me).toEqual({
+      id: 'usr_client',
+      name: 'Ana Reyes',
+      email: 'ana@example.test',
+      role: 'client',
+      organization: 'Ana Events',
+      twoFactorEnabled: true,
+      privacyNoticeRequired: true,
+      expiresAt: actor.expiresAt,
+    });
+    expect(JSON.stringify(me)).not.toContain('stored-password-hash');
+    expect(JSON.stringify(me)).not.toContain('encrypted-totp-secret');
+  });
 });

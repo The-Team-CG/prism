@@ -29,7 +29,7 @@ function checkInPayloadFingerprint(payload: CheckInPayload): string {
     checkInMode: payload.checkInMode,
     guestName: payload.checkInMode === "name_search" ? payload.guestName.trim().toLowerCase() : null,
     privacyConsentAccepted: payload.privacyConsentAccepted,
-    privacyNoticeVersion: payload.privacyNoticeVersion ?? "",
+    privacyNoticeVersion: payload.privacyNoticeVersion,
     marketingConsentAccepted: payload.marketingConsentAccepted ?? false,
   });
   let hash = 2_166_136_261;

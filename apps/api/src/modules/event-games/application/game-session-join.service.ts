@@ -5,6 +5,7 @@ import type {
   PrismJoinedMultiplayerGameSession,
   PrismJoinActiveMultiplayerGameSessionInput,
 } from '@prism/types';
+import { readSessionSecret } from '@prism/kernel/event-session';
 import { PrismTransactionRunner, type PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { GAME_ACTION_CLOCK } from '../contracts/game-action-store.port';
 import { GAME_EVENT_ACCESS, type GameEventAccessPort } from '../contracts/game-event-access.port';
@@ -54,10 +55,10 @@ export class EventGamesSessionJoinService {
     input: PrismJoinActiveMultiplayerGameSessionInput,
     trustedSourceAddress?: string,
   ) {
-    const secret = this.config.get<string>('PRISM_SESSION_SECRET') ?? this.config.get<string>('JWT_SECRET');
-    if (!this.rateLimiter || !secret || secret.length < 32) {
+    if (!this.rateLimiter) {
       throw new ServiceUnavailableException('Game joining is unavailable');
     }
+    const secret = this.sessionSecret();
 
     const now = this.clock();
     const pinDigest = this.digest(secret, 'event-game:pin:v1', input.pin);
@@ -266,6 +267,14 @@ export class EventGamesSessionJoinService {
     return createHmac('sha256', secret)
       .update(`event-game:participant-credential:v1\0${eventId}\0${sessionId}\0${idempotencyKey}`)
       .digest('base64url');
+  }
+
+  private sessionSecret(): string {
+    try {
+      return readSessionSecret(this.config);
+    } catch {
+      throw new ServiceUnavailableException('Game joining is unavailable');
+    }
   }
 
   private digest(secret: string, purpose: string, value: string, encoding: 'hex' | 'base64url' = 'hex') {

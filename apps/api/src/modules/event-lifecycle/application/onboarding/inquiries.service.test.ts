@@ -4,6 +4,7 @@ import { OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { InquiriesService } from './inquiries.service';
 
+import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 function inquiry(overrides: Record<string, unknown> = {}) {
   return {
     id: 'inq_existing',
@@ -47,7 +48,12 @@ function inquiry(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function createService(existing = [inquiry()]) {
+const invitedOutcome = { outcome: 'invited', sentAt: '2026-10-25T00:00:00.000Z', expiresAt: '2026-11-01T00:00:00.000Z' };
+
+function createService(
+  existing = [inquiry()],
+  accountProvisioning: { provision: (input: never) => Promise<unknown> } = { provision: vi.fn(async (_input: unknown) => invitedOutcome) },
+) {
   const records: any[] = [...existing];
   const events: any[] = [];
   const documents: any[] = [];
@@ -71,6 +77,9 @@ function createService(existing = [inquiry()]) {
       update: vi.fn(async ({ where, data }) => { const row = events.find((item) => item.id === where.id); Object.assign(row, data); return row; }),
     },
     opsPostEventDocument: { createMany: vi.fn(async () => ({ count: 2 })) },
+    opsStoredObject: {
+      findUnique: vi.fn(async ({ where }) => ({ id: where.id, eventId: events[0]?.id, usage: 'signed_conforme', lifecycleState: 'stored' })),
+    },
     opsDocument: {
       create: vi.fn(async ({ data }) => { const row = { ...data }; documents.push(row); return row; }),
     },
@@ -128,8 +137,9 @@ function createService(existing = [inquiry()]) {
     auditWriter as any,
     notificationOutboxWriter as any,
     new WorkflowCommandService(),
+    accountProvisioning as any,
   );
-  return { service, records, notifications, audits, prisma, merges };
+  return { service, records, notifications, audits, prisma, merges, accountProvisioning };
 }
 
 const pmcmActor = {
@@ -143,6 +153,7 @@ describe('InquiriesService', () => {
 
     await expect(
       service.createInquiry({
+        privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
         clientName: 'Mia Cruz',
         email: 'mia@example.test',
         eventName: 'Privacy Event',
@@ -159,6 +170,7 @@ describe('InquiriesService', () => {
     await expect(
       service.logInquiryOnBehalf(
         {
+          privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
           clientName: 'Walk In Client',
           email: 'walkin@example.test',
           eventName: 'Walk In Product Launch',
@@ -174,6 +186,7 @@ describe('InquiriesService', () => {
   it('rejects caller-supplied PMCM identity before creating an inquiry on behalf', async () => {
     const { service, prisma } = createService([]);
     const input = {
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       clientName: 'Walk In Client',
       email: 'walkin@example.test',
       eventName: 'Walk In Product Launch',
@@ -199,6 +212,7 @@ describe('InquiriesService', () => {
 
     const created = await service.logInquiryOnBehalf(
       {
+        privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
         clientName: 'Walk In Client',
         email: 'walkin@example.test',
         eventName: 'Walk In Product Launch',
@@ -243,6 +257,7 @@ describe('InquiriesService', () => {
     ]);
 
     const created = await service.createInquiry({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       clientName: 'Ana Reyes',
       email: ' ANA@ayala.test ',
       eventName: 'Ayala Summit Follow-up',
@@ -348,6 +363,7 @@ describe('InquiriesService', () => {
   it('derives organization and triage fields server-side so a public payload cannot set them', async () => {
     const { service, records } = createService([]);
     const spoofed = {
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       clientName: 'Mia Cruz',
       companyName: 'Cruz Holdings',
       email: 'mia@example.test',
@@ -378,6 +394,7 @@ describe('InquiriesService', () => {
 
       // Same email within the 14-day window, corporate client with a named organization, event still ahead.
       await service.createInquiry({
+        privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
         clientName: 'Ana Reyes', companyName: 'Ayala Corp', email: 'ana@ayala.test',
         eventName: 'Ayala Summit Follow-up', eventDate: '2026-07-01', clientType: 'Corporate',
         message: 'Second planning window', privacyConsentAccepted: true,
@@ -390,6 +407,7 @@ describe('InquiriesService', () => {
 
       notifications.length = 0;
       await service.createInquiry({
+        privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
         clientName: 'Walk Client', email: 'walk@example.test', eventName: 'Quiet Party',
         eventDate: '2026-07-20', clientType: 'Private', message: 'Small gathering', privacyConsentAccepted: true,
       });
@@ -449,5 +467,83 @@ describe('InquiriesService', () => {
     await expect(service.mergeInquiry('inq_primary', { sourceInquiryId: 'inq_parallel', reason: 'Client trying' }, clientActor))
       .rejects.toBeInstanceOf(ForbiddenException);
     expect(merges).toHaveLength(0);
+  });
+});
+
+describe('client portal invitation after acceptance', () => {
+  const invitedOutcome = { outcome: 'invited', sentAt: '2026-10-25T00:00:00.000Z', expiresAt: '2026-11-01T00:00:00.000Z' };
+  const pmcmAccepter = { id: 'usr_pmcm', role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true, verified: true } as ResolvedEventOpsActor;
+  const invitedPayload = { role: 'client', source: 'inquiry_acceptance', sourceId: 'inq_existing', actor: { id: 'usr_pmcm', name: 'PMCM Admin', role: 'pmcm-admin' } };
+
+  it.each([
+    ['a new login', invitedOutcome, { portalInvitationStatus: 'sent', portalInvitationSentAt: new Date(invitedOutcome.sentAt), portalInvitationExpiresAt: new Date(invitedOutcome.expiresAt) }],
+    ['an account that already signs in', { outcome: 'existing_account' }, { portalInvitationStatus: 'opened', portalInvitationOpenedAt: expect.any(Date) }],
+    ['a delivery failure', { outcome: 'delivery_failed' }, { portalInvitationStatus: 'not_sent', portalInvitationSentAt: null, portalInvitationExpiresAt: null }],
+    ['an account not yet approved', { outcome: 'account_not_active' }, { portalInvitationStatus: 'not_sent', portalInvitationSentAt: null, portalInvitationExpiresAt: null }],
+    ['a role conflict', { outcome: 'role_conflict' }, { portalInvitationStatus: 'not_sent', portalInvitationSentAt: null, portalInvitationExpiresAt: null }],
+  ])('accepting an inquiry provisions the client once and records %s', async (_label, outcome, expected) => {
+    const accountProvisioning = { provision: vi.fn(async (_input: unknown) => outcome) };
+    const { service, records } = createService([inquiry({ status: 'pending' })], accountProvisioning);
+
+    await service.updateInquiryStatus('inq_existing', { status: 'accepted' }, pmcmAccepter);
+
+    expect(accountProvisioning.provision).toHaveBeenCalledOnce();
+    expect(accountProvisioning.provision).toHaveBeenCalledWith(expect.objectContaining({
+      email: 'ana@ayala.test', name: 'Ana Reyes', organization: 'Ayala Corp', ...invitedPayload,
+    }));
+    expect(records[0]).toMatchObject(expected);
+  });
+
+  it('a repeat accept provisions nothing and announces nothing new', async () => {
+    const { service, accountProvisioning, notifications, audits } = createService([inquiry({ status: 'pending' })]);
+
+    await service.updateInquiryStatus('inq_existing', { status: 'accepted' }, pmcmAccepter);
+    const notificationsAfterFirst = notifications.length;
+    const auditsAfterFirst = audits.length;
+    await expect(service.updateInquiryStatus('inq_existing', { status: 'accepted' }, pmcmAccepter)).resolves.toMatchObject({ status: 'accepted' });
+
+    expect(accountProvisioning.provision).toHaveBeenCalledOnce();
+    expect(notifications).toHaveLength(notificationsAfterFirst);
+    expect(audits).toHaveLength(auditsAfterFirst);
+  });
+
+  it('keeps the acceptance and records not sent when provisioning throws after commit', async () => {
+    const accountProvisioning = { provision: vi.fn(async (_input: unknown) => { throw new Error('mail transport offline'); }) };
+    const { service, records, audits } = createService([inquiry({ status: 'pending' })], accountProvisioning);
+
+    await expect(service.updateInquiryStatus('inq_existing', { status: 'accepted' }, pmcmAccepter)).resolves.toMatchObject({ status: 'accepted' });
+
+    expect(records[0]).toMatchObject({ status: 'accepted', portalInvitationStatus: 'not_sent' });
+    expect(audits.map(([entry]) => entry)).toContainEqual(expect.objectContaining({
+      actor: 'PMCM Admin',
+      action: 'Client portal invitation could not be issued after the inquiry was accepted',
+    }));
+  });
+
+  it('allows a PMCM resend for an accepted inquiry whose conforme is not signed yet', async () => {
+    const { service, accountProvisioning } = createService([inquiry({ status: 'accepted' })]);
+
+    await expect(service.resendClientPortalInvitation('inq_existing', pmcmAccepter))
+      .resolves.toMatchObject({ outcome: invitedOutcome, inquiry: { id: 'inq_existing', portalInvitationStatus: 'sent' } });
+
+    expect(accountProvisioning.provision).toHaveBeenCalledWith(expect.objectContaining(invitedPayload));
+  });
+
+  it('refuses a resend for an inquiry that PMCM has not accepted, and sends nothing', async () => {
+    const { service, accountProvisioning } = createService([inquiry({ status: 'pending' })]);
+
+    await expect(service.resendClientPortalInvitation('inq_existing', pmcmAccepter)).rejects.toBeInstanceOf(ConflictException);
+
+    expect(accountProvisioning.provision).not.toHaveBeenCalled();
+  });
+
+  it('does not send a client invitation when a stored conforme activates the portal', async () => {
+    const { service, accountProvisioning, records } = createService([inquiry({ status: 'accepted' })]);
+    const actor = { role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true, verified: true, id: 'usr_pmcm' };
+
+    await service.uploadConforme('inq_existing', { fileName: 'signed-conforme.pdf', storageObjectId: 'obj_conforme' }, actor as ResolvedEventOpsActor);
+
+    expect(records[0]).toMatchObject({ conformeSignedAt: expect.any(Date), portalInvitationStatus: 'not_sent' });
+    expect(accountProvisioning.provision).not.toHaveBeenCalled();
   });
 });

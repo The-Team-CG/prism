@@ -43,6 +43,12 @@
       "@prism/kernel/access-control/*": [
         "src/kernel/access-control/*"
       ],
+      "@prism/kernel/mail": [
+        "src/kernel/mail/index"
+      ],
+      "@prism/kernel/mail/*": [
+        "src/kernel/mail/*"
+      ],
       "@prism/kernel/event-session": [
         "src/kernel/event-session/index"
       ],
@@ -114,6 +120,9 @@
       ],
       "@prism/contexts/platform-ops/*": [
         "src/modules/platform-ops/*"
+      ],
+      "@prism/contexts/identity-access/account-invitation-reference": [
+        "src/modules/identity-access/account-invitation-reference"
       ],
       "@prism/contexts/identity-access/coordinator-reference": [
         "src/modules/identity-access/coordinator-reference"

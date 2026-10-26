@@ -138,6 +138,12 @@ export const PortalInvitationStatus = {
   Expired: 'expired',
 } as const;
 
+/** OpsUser.approvalStatus values this codebase writes. `invited` accounts have no password until activation. */
+export const AccountApprovalStatus = {
+  Invited: 'invited',
+  Approved: 'approved',
+} as const;
+
 export const NotificationChannel = {
   Email: 'email',
   Viber: 'viber',

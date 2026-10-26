@@ -3,6 +3,7 @@ import {
   isPrismAuthenticatedSession,
   loginSchema,
   parseContract,
+  privacyNoticePath,
   type PrismAuthenticatedSession,
 } from "@prism/types";
 import {
@@ -32,9 +33,10 @@ export async function signInSupplier(input: {
   }
   const session = user;
   supplierAuthRepository.saveSession(session);
+  const nextPath = resolvePostSignInPath(input.nextPath);
   return {
     session,
-    redirectTo: resolvePostSignInPath(input.nextPath),
+    redirectTo: session.privacyNoticeRequired ? privacyNoticePath(nextPath) : nextPath,
   };
 }
 

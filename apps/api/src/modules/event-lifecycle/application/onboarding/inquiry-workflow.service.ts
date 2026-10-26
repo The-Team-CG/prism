@@ -23,7 +23,7 @@ export type CreateInquiryInput = {
   referralDetails?: string;
   message: string;
   privacyConsentAccepted?: boolean;
-  privacyNoticeVersion?: string;
+  privacyNoticeVersion: string;
   marketingConsentAccepted?: boolean;
 };
 
@@ -150,6 +150,13 @@ export class InquiryWorkflowService {
     await context.requireActorRole(actor, context.allowedAdminRoles, 'conforme reminder');
     const inquiry = await context.inquiriesService.sendConformeReminder(inquiryId, actor);
     return context.mapInquiry(inquiry);
+  }
+
+  async resendPortalInvitation(inquiryId: string, context: InquiryWorkflowContext, verifiedActor?: PrismVerifiedEventActor) {
+    const actor = context.resolveActor({}, verifiedActor);
+    await context.requireActorRole(actor, context.allowedAdminRoles, 'client portal invitation');
+    const { outcome, inquiry } = await context.inquiriesService.resendClientPortalInvitation(inquiryId, actor);
+    return { outcome, inquiry: context.mapInquiry(inquiry) };
   }
 
   async uploadConforme(

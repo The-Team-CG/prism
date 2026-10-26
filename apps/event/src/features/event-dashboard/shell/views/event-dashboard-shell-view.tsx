@@ -24,7 +24,7 @@ export function EventDashboardShellView({ viewModel, children }: EventDashboardS
     return <EventDashboardSessionSkeleton />;
   }
   if (isUnsupportedEventPortalRole(session.role)) {
-    return <EventWrongPortalView session={session} onSignOut={viewModel.signOut} />;
+    return <EventWrongPortalView session={session} onSignOut={() => void viewModel.signOut()} />;
   }
   if (screen.name === "editor") {
     return (
