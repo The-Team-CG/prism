@@ -31,6 +31,7 @@ export function withBase(
     authToken: init.authToken ?? options.getAuthToken?.() ?? null,
     baseUrl: init.baseUrl ?? options.baseUrl,
     onUnauthorized: init.onUnauthorized ?? options.onUnauthorized,
+    onPrivacyNoticeRequired: init.onPrivacyNoticeRequired ?? options.onPrivacyNoticeRequired,
   };
 }
 

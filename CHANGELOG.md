@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- The API now enforces the privacy notice. A signed-in account that has not acknowledged the current notice gets `403` with `code: "privacy_notice_required"` on every session-guarded route, except `GET /auth/me`, `POST /auth/logout` and `POST /auth/privacy-notice/acknowledge`. The client, supplier and event portals send such users to `/privacy`. Local fixture seed users are left unacknowledged, so they see the notice once. Owner D (Anthony).
+
 - After sign-in, client, supplier and PMCM accounts that have not acknowledged the current privacy notice see it before reaching their portal. Every portal, guest included, has a public `/privacy` page, and the guest open-pass link now opens it. Client sign-up copy now says accounts are created when PMCM accepts the inquiry. Owners A (Maxine) and D (Anthony).
 - Every account now sees a versioned privacy notice on first sign-in (requirement New-SEC2). Sign-in and `/auth/me` report `privacyNoticeRequired`, and `POST /auth/privacy-notice/acknowledge` records the current version. Consent forms must send the current notice version, and an outdated version is refused. The notice text is a draft for PMCM to review before launch. Deploy: run `prisma migrate deploy`. Owner D (Anthony).
 

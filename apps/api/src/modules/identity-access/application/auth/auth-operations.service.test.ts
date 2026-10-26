@@ -1,4 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createHash, randomBytes, scryptSync } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
@@ -290,7 +291,7 @@ describe('AuthOperationsService', () => {
 
     await service.declineApprovalRequest('approval_1', actor);
 
-    const guard = new EventSessionGuard(authSessionService, prisma as never);
+    const guard = new EventSessionGuard(authSessionService, prisma as never, new Reflector());
     await expect(guard.canActivate({
       switchToHttp: () => ({ getRequest: () => ({ headers: { authorization: `Bearer ${oldSession.accessToken}` } }) }),
     } as never)).rejects.toThrow(/revoked|eligible/i);
@@ -860,7 +861,7 @@ describe('AuthOperationsService account recovery and sessions', () => {
       PRISM_SESSION_TTL_SECONDS: '28800',
     }));
     const service = new AuthOperationsService(prisma as never, authAudit as never, {} as never, authSessionService, {} as never);
-    const guard = new EventSessionGuard(authSessionService, prisma as never);
+    const guard = new EventSessionGuard(authSessionService, prisma as never, new Reflector());
     const session = authSessionService.issueSession({
       id: 'usr_client',
       name: 'Ana Reyes',
@@ -872,13 +873,18 @@ describe('AuthOperationsService account recovery and sessions', () => {
     });
     const actor = authSessionService.verifyAccessToken(session.accessToken);
     const requestWith = (token: string) => ({
+      getHandler: () => function route() {},
+      getClass: () => class Route {},
       switchToHttp: () => ({ getRequest: () => ({ headers: { authorization: `Bearer ${token}` } }) }),
     } as never);
     return { service, guard, authAudit, session, actor, requestWith, user };
   }
 
   it('revokes every open session on logout, so the guard rejects a token issued before it', async () => {
-    const { service, guard, authAudit, session, actor, requestWith } = createSessionFixture();
+    const { service, guard, authAudit, session, actor, requestWith } = createSessionFixture({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
+      privacyNoticeAcknowledgedAt: new Date(),
+    });
     await expect(guard.canActivate(requestWith(session.accessToken))).resolves.toBe(true);
 
     await expect(service.logout(actor)).resolves.toBeUndefined();
