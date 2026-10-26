@@ -138,6 +138,23 @@ async function parseResponseBody(response: Response): Promise<unknown> {
   }
 }
 
+function handleErrorResponse(
+  status: number,
+  responseBody: unknown,
+  { authToken, onUnauthorized, onPrivacyNoticeRequired }: Pick<PrismRequestInit, "authToken" | "onUnauthorized" | "onPrivacyNoticeRequired">,
+): never {
+  if (status === 401 && authToken) onUnauthorized?.();
+  if (status === 403 && authToken && isPrivacyNoticeRequiredBody(responseBody)) onPrivacyNoticeRequired?.();
+  throw new PrismApiError(status, responseBody);
+}
+
+function unwrapData<T>(responseBody: unknown): T {
+  if (responseBody && typeof responseBody === "object" && "data" in responseBody) {
+    return (responseBody as { data: T }).data;
+  }
+  return responseBody as T;
+}
+
 export async function prismRequest<T>(path: string, init: PrismRequestInit = {}): Promise<T> {
   const { authToken, baseUrl, body, headers, onUnauthorized, onPrivacyNoticeRequired, ...requestInit } = init;
   const request: RequestInit = {
@@ -156,17 +173,8 @@ export async function prismRequest<T>(path: string, init: PrismRequestInit = {})
   const response = await fetch(`${resolvePrismApiBaseUrl(baseUrl)}${path}`, request);
   const responseBody = await parseResponseBody(response);
 
-  if (!response.ok) {
-    if (response.status === 401 && authToken) onUnauthorized?.();
-    if (response.status === 403 && authToken && isPrivacyNoticeRequiredBody(responseBody)) onPrivacyNoticeRequired?.();
-    throw new PrismApiError(response.status, responseBody);
-  }
-
-  if (responseBody && typeof responseBody === "object" && "data" in responseBody) {
-    return (responseBody as { data: T }).data;
-  }
-
-  return responseBody as T;
+  if (!response.ok) handleErrorResponse(response.status, responseBody, { authToken, onUnauthorized, onPrivacyNoticeRequired });
+  return unwrapData<T>(responseBody);
 }
 
 type SseBuffer = { text: string; dataLines: string[] };

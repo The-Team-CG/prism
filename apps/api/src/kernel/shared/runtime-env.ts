@@ -35,55 +35,70 @@ const runtimeEnvSchema = z
   })
   .superRefine((env, context) => {
     if (env.NODE_ENV === 'test') return;
-
-    const secret = env[PRISM_SESSION_SECRET_ENV];
-    if (!secret || secret.length < MIN_SESSION_SECRET_LENGTH) {
-      context.addIssue({
-        code: 'custom',
-        path: [PRISM_SESSION_SECRET_ENV],
-        message: `${PRISM_SESSION_SECRET_ENV} must be set to at least ${MIN_SESSION_SECRET_LENGTH} characters`,
-      });
-    }
-
-    const ttl = env[PRISM_SESSION_TTL_ENV];
-    if (!ttl || !isSessionTtlText(ttl)) {
-      context.addIssue({
-        code: 'custom',
-        path: [PRISM_SESSION_TTL_ENV],
-        message: `${PRISM_SESSION_TTL_ENV} must be set to a positive whole number of seconds (8 hours is 28800)`,
-      });
-    }
-    for (const [key, value] of Object.entries(env)) {
-      if (!key.startsWith(PRISM_SESSION_TTL_ROLE_ENV_PREFIX) || !value) continue;
-      if (!isSessionTtlText(String(value))) {
-        context.addIssue({
-          code: 'custom',
-          path: [key],
-          message: `${key} must be a positive whole number of seconds when set`,
-        });
-      }
-    }
-
-    try {
-      if (!resolveDatabaseUrl(env as Record<string, string | undefined>)) {
-        context.addIssue({ code: 'custom', path: ['DATABASE_URL'], message: 'DATABASE_URL must be set' });
-      }
-    } catch (error) {
-      context.addIssue({
-        code: 'custom',
-        path: ['DATABASE_URL'],
-        message: error instanceof Error ? error.message : 'DATABASE_URL is invalid',
-      });
-    }
-
-    const read = (name: string) => {
-      const value = env[name];
-      return typeof value === 'string' ? value : undefined;
-    };
-    for (const problem of [...mailTransportProblems(read), ...portalUrlProblems(read)]) {
-      context.addIssue({ code: 'custom', path: [problem.name], message: problem.message });
-    }
+    addSessionIssues(env, context);
+    addDatabaseIssue(env, context);
+    addMailAndPortalIssues(env, context);
   });
+
+type RuntimeEnv = z.infer<typeof runtimeEnvSchema>;
+
+function addSessionIssues(env: RuntimeEnv, context: z.RefinementCtx) {
+  const secret = env[PRISM_SESSION_SECRET_ENV];
+  if (!secret || secret.length < MIN_SESSION_SECRET_LENGTH) {
+    context.addIssue({
+      code: 'custom',
+      path: [PRISM_SESSION_SECRET_ENV],
+      message: `${PRISM_SESSION_SECRET_ENV} must be set to at least ${MIN_SESSION_SECRET_LENGTH} characters`,
+    });
+  }
+
+  const ttl = env[PRISM_SESSION_TTL_ENV];
+  if (!ttl || !isSessionTtlText(ttl)) {
+    context.addIssue({
+      code: 'custom',
+      path: [PRISM_SESSION_TTL_ENV],
+      message: `${PRISM_SESSION_TTL_ENV} must be set to a positive whole number of seconds (8 hours is 28800)`,
+    });
+  }
+  addSessionTtlRoleIssues(env, context);
+}
+
+function addSessionTtlRoleIssues(env: RuntimeEnv, context: z.RefinementCtx) {
+  for (const [key, value] of Object.entries(env)) {
+    if (!key.startsWith(PRISM_SESSION_TTL_ROLE_ENV_PREFIX) || !value) continue;
+    if (!isSessionTtlText(String(value))) {
+      context.addIssue({
+        code: 'custom',
+        path: [key],
+        message: `${key} must be a positive whole number of seconds when set`,
+      });
+    }
+  }
+}
+
+function addDatabaseIssue(env: RuntimeEnv, context: z.RefinementCtx) {
+  try {
+    if (!resolveDatabaseUrl(env as Record<string, string | undefined>)) {
+      context.addIssue({ code: 'custom', path: ['DATABASE_URL'], message: 'DATABASE_URL must be set' });
+    }
+  } catch (error) {
+    context.addIssue({
+      code: 'custom',
+      path: ['DATABASE_URL'],
+      message: error instanceof Error ? error.message : 'DATABASE_URL is invalid',
+    });
+  }
+}
+
+function addMailAndPortalIssues(env: RuntimeEnv, context: z.RefinementCtx) {
+  const read = (name: string) => {
+    const value = env[name];
+    return typeof value === 'string' ? value : undefined;
+  };
+  for (const problem of [...mailTransportProblems(read), ...portalUrlProblems(read)]) {
+    context.addIssue({ code: 'custom', path: [problem.name], message: problem.message });
+  }
+}
 
 /** `ConfigModule.forRoot({ validate })` hook: returns the env unchanged or throws a readable startup error. */
 export function validateRuntimeEnv(env: Record<string, unknown>): Record<string, unknown> {
