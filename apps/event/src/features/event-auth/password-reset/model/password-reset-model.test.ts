@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { passwordResetChecks, passwordResetProgress, passwordResetSentCopy } from "./password-reset-model";
+import { passwordSetupChecks } from "../../password-setup/model/password-setup-model";
+import { passwordResetProgress, passwordResetSentCopy } from "./password-reset-model";
 
 describe("password reset steps", () => {
   it("numbers each view within the three-step flow", () => {
@@ -13,7 +14,7 @@ describe("password reset steps", () => {
 describe("password reset checklist", () => {
   it("ticks length and match rules as the passwords change", () => {
     const metIds = (password: string, confirm: string) =>
-      passwordResetChecks(password, confirm)
+      passwordSetupChecks(password, confirm)
         .filter((check) => check.met)
         .map((check) => check.id);
 

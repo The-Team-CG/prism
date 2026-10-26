@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent } from "react";
-import { Eye, EyeOff } from "lucide-react";
 import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
 import { portalHref } from "@prism/ui/portal-path";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
@@ -17,6 +16,7 @@ import {
   type PasswordResetView,
 } from "../model/password-reset-model";
 import { useClientPasswordResetViewModel } from "../view-models/use-password-reset-view-model";
+import { PasswordSetFields } from "./password-set-fields";
 
 const TITLES: Record<PasswordResetView, string> = {
   loading: "Reset your password",
@@ -34,7 +34,6 @@ const DESCRIPTIONS: Partial<Record<PasswordResetView, string>> = {
 
 export function ClientPasswordResetView() {
   const vm = useClientPasswordResetViewModel();
-  const mismatch = vm.confirmPassword.length > 0 && !vm.passwordsMatch;
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     if (vm.view === "set") void vm.consumeReset(event);
@@ -76,62 +75,14 @@ export function ClientPasswordResetView() {
       ) : (
         <form className="flex flex-col gap-5" onSubmit={onSubmit}>
           {vm.view === "set" ? (
-            <>
-              <Field>
-                <Label htmlFor="new-password">New password</Label>
-                <div className="relative">
-                  <Input
-                    id="new-password"
-                    type={vm.showPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    required
-                    minLength={12}
-                    maxLength={128}
-                    value={vm.password}
-                    onChange={(e) => vm.setPassword(e.target.value)}
-                    aria-describedby="password-checklist"
-                    className={`h-12 rounded-lg bg-card pr-12 text-base ${PRISM_AUTH_INPUT_CLASS_NAME}`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => vm.setShowPassword(!vm.showPassword)}
-                    className="absolute right-1 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                    aria-label={vm.showPassword ? "Hide password" : "Show password"}
-                  >
-                    {vm.showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
-                  </button>
-                </div>
-              </Field>
-              <Field>
-                <Label htmlFor="confirm-password">Confirm new password</Label>
-                <Input
-                  id="confirm-password"
-                  type={vm.showPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  required
-                  minLength={12}
-                  maxLength={128}
-                  value={vm.confirmPassword}
-                  onChange={(e) => vm.setConfirmPassword(e.target.value)}
-                  aria-invalid={mismatch ? true : undefined}
-                  aria-describedby={mismatch ? "confirm-password-error" : undefined}
-                  className={`h-12 rounded-lg bg-card text-base ${PRISM_AUTH_INPUT_CLASS_NAME}`}
-                />
-                {mismatch ? (
-                  <p id="confirm-password-error" className="text-sm text-destructive">
-                    Passwords do not match.
-                  </p>
-                ) : null}
-              </Field>
-              <ul id="password-checklist" className="flex flex-col gap-1.5 text-sm">
-                {vm.checks.map((check) => (
-                  <li key={check.id} className={check.met ? "text-foreground" : "text-muted-foreground"}>
-                    <span aria-hidden="true">{check.met ? "✓ " : "○ "}</span>
-                    {check.label}
-                  </li>
-                ))}
-              </ul>
-            </>
+            <PasswordSetFields
+              password={vm.password}
+              confirmPassword={vm.confirmPassword}
+              showPassword={vm.showPassword}
+              onPasswordChange={vm.setPassword}
+              onConfirmPasswordChange={vm.setConfirmPassword}
+              onShowPasswordChange={vm.setShowPassword}
+            />
           ) : (
             <Field>
               <Label htmlFor="email">Email address</Label>
