@@ -10,7 +10,7 @@ export type {
   SubmitSupplierQuoteInput as SubmitQuoteInput,
 } from "@prism/types";
 
-import { createEventOpsClient, resolvePrismApiOrigin } from "@prism/api-client";
+import { createEventOpsClient, prismRequest, resolvePrismApiOrigin } from "@prism/api-client";
 import { PRISM_SESSION_STORAGE_KEYS, clearPrismSession, isPrismAuthenticatedSession } from "@prism/types";
 import { portalAppPath, portalHref } from "@prism/ui/portal-path";
 import type {
@@ -90,6 +90,16 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const prismApi = {
+  /**
+   * Revokes the stored session on the server. A 401 here must not run expireSupplierSession:
+   * the caller is already signing out and navigates itself.
+   */
+  logout: (): Promise<void> =>
+    prismRequest<void>("/auth/logout", {
+      method: "POST",
+      authToken: storedSupplierAccessToken(),
+      onUnauthorized: () => undefined,
+    }),
   // Identity now comes from the bearer token that getAuthToken attaches, so these
   // reads no longer pass an actor at all - the server derives it from the verified
   // session (PA-284). The `session` parameter is retained so callers still have to
