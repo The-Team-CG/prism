@@ -8,6 +8,7 @@
     "./blocks": "./src/blocks.tsx",
     "./auth-shell": "./src/auth-shell.tsx",
     "./portal-path": "./src/portal-path.ts",
+    "./privacy-notice": "./src/privacy-notice.tsx",
     "./public-blocks": "./src/public-blocks.tsx",
     "./status-badge": "./src/status-badge.tsx"
   },

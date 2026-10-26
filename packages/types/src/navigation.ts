@@ -17,3 +17,8 @@ export function safeNextPath(raw: string | null | undefined, defaultPath: string
   if (resolved.origin !== NAVIGATION_ORIGIN) return defaultPath;
   return `${resolved.pathname}${resolved.search}${resolved.hash}`;
 }
+
+/** Where a signed-in person reads and acknowledges the privacy notice before continuing to `nextPath`. */
+export function privacyNoticePath(nextPath: string): string {
+  return `/privacy?next=${encodeURIComponent(nextPath)}`;
+}

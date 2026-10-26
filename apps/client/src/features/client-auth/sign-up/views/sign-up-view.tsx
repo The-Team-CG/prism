@@ -14,7 +14,7 @@ export function SignUpView() {
       points={CLIENT_PORTAL_POINTS}
       homeHref="/"
       title="Client accounts come from PMCM"
-      description="Client accounts open after your inquiry is accepted and your conforme is signed. PMCM then creates your account and sends an invitation to your email."
+      description="When PMCM accepts your inquiry, it creates your client account and emails you a link to set your password. You then review and sign the conforme in the portal."
     >
       <div className="flex flex-col gap-6">
         <Button asChild className="h-12 w-full rounded-lg text-base font-semibold shadow-none hover:shadow-none sm:text-sm">

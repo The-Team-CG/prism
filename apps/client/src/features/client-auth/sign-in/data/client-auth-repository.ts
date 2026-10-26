@@ -2,10 +2,12 @@ import { PrismApiError } from "@prism/api-client";
 import {
   PRISM_PRIVACY_NOTICE_VERSION,
   PRISM_SESSION_STORAGE_KEYS,
+  readPrismSession,
   savePrismSession,
   isPrismAuthenticatedSession,
   type ActivateAccountInput,
   type PrismAuthenticatedSession,
+  type PrismSignInSession,
   type PrivacyConsentInput,
 } from "@prism/types";
 import { clientApi } from "@/lib/prism-api";
@@ -15,13 +17,21 @@ export type ClientAuthSession = PrismAuthenticatedSession;
 export type ClientAccountActivationOutcome = { status: "activated" } | { status: "invalid_token" };
 
 export const clientAuthRepository = {
-  login(input: { email: string; password: string }): Promise<ClientAuthSession> {
+  login(input: { email: string; password: string }): Promise<PrismSignInSession> {
     return clientApi.auth.login(input).then((response) => {
       if (!isPrismAuthenticatedSession(response)) {
         throw new Error("Client sign-in requires an authenticated session.");
       }
       return response;
     });
+  },
+
+  hasSignedInSession(): boolean {
+    return isPrismAuthenticatedSession(readPrismSession(PRISM_SESSION_STORAGE_KEYS.client));
+  },
+
+  acknowledgePrivacyNotice(): Promise<void> {
+    return clientApi.auth.acknowledgePrivacyNotice({ version: PRISM_PRIVACY_NOTICE_VERSION });
   },
 
   saveClientSession(session: ClientAuthSession): void {

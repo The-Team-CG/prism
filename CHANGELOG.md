@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- After sign-in, client, supplier and PMCM accounts that have not acknowledged the current privacy notice see it before reaching their portal. Every portal, guest included, has a public `/privacy` page, and the guest open-pass link now opens it. Client sign-up copy now says accounts are created when PMCM accepts the inquiry. Owners A (Maxine) and D (Anthony).
 - Every account now sees a versioned privacy notice on first sign-in (requirement New-SEC2). Sign-in and `/auth/me` report `privacyNoticeRequired`, and `POST /auth/privacy-notice/acknowledge` records the current version. Consent forms must send the current notice version, and an outdated version is refused. The notice text is a draft for PMCM to review before launch. Deploy: run `prisma migrate deploy`. Owner D (Anthony).
 
 - Accounts can now be created and activated. When PMCM accepts an inquiry, the client gets a single-use activation link that expires after seven days, to set a password and review and sign the conforme. The inquiry tracks the invitation as sent, opened or expired, and PMCM can re-send it from the inquiry. Signing the conforme does not send anything. An approved supplier application creates the supplier's login. PMCM admins can invite `pmcm-admin` and `coordinator` staff and re-send a pending invitation. Activation sets the first password with the password-reset rules, and an account with no password cannot sign in. Owners B (Francis) and D (Anthony).
