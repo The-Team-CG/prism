@@ -1,9 +1,17 @@
 import { z } from "zod";
+import { PRISM_PRIVACY_NOTICE_VERSION } from "../privacy.js";
+
+export const PRIVACY_NOTICE_CHANGED_MESSAGE = "The privacy notice has changed. Review it and try again.";
+
+/** The notice version a person agreed to. Only the current version is accepted. */
+export const privacyNoticeVersionSchema = z
+  .string()
+  .refine((value) => value === PRISM_PRIVACY_NOTICE_VERSION, PRIVACY_NOTICE_CHANGED_MESSAGE);
 
 /** Shared privacy consent fields used on public / guest write surfaces. */
 export const privacyConsentSchema = z.object({
   privacyConsentAccepted: z.literal(true),
-  privacyNoticeVersion: z.string().min(1).optional(),
+  privacyNoticeVersion: privacyNoticeVersionSchema,
   marketingConsentAccepted: z.boolean().optional(),
 });
 

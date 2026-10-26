@@ -4,6 +4,7 @@ import { OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { InquiriesService } from './inquiries.service';
 
+import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 function inquiry(overrides: Record<string, unknown> = {}) {
   return {
     id: 'inq_existing',
@@ -152,6 +153,7 @@ describe('InquiriesService', () => {
 
     await expect(
       service.createInquiry({
+        privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
         clientName: 'Mia Cruz',
         email: 'mia@example.test',
         eventName: 'Privacy Event',
@@ -168,6 +170,7 @@ describe('InquiriesService', () => {
     await expect(
       service.logInquiryOnBehalf(
         {
+          privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
           clientName: 'Walk In Client',
           email: 'walkin@example.test',
           eventName: 'Walk In Product Launch',
@@ -183,6 +186,7 @@ describe('InquiriesService', () => {
   it('rejects caller-supplied PMCM identity before creating an inquiry on behalf', async () => {
     const { service, prisma } = createService([]);
     const input = {
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       clientName: 'Walk In Client',
       email: 'walkin@example.test',
       eventName: 'Walk In Product Launch',
@@ -208,6 +212,7 @@ describe('InquiriesService', () => {
 
     const created = await service.logInquiryOnBehalf(
       {
+        privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
         clientName: 'Walk In Client',
         email: 'walkin@example.test',
         eventName: 'Walk In Product Launch',
@@ -252,6 +257,7 @@ describe('InquiriesService', () => {
     ]);
 
     const created = await service.createInquiry({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       clientName: 'Ana Reyes',
       email: ' ANA@ayala.test ',
       eventName: 'Ayala Summit Follow-up',
@@ -357,6 +363,7 @@ describe('InquiriesService', () => {
   it('derives organization and triage fields server-side so a public payload cannot set them', async () => {
     const { service, records } = createService([]);
     const spoofed = {
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       clientName: 'Mia Cruz',
       companyName: 'Cruz Holdings',
       email: 'mia@example.test',
@@ -387,6 +394,7 @@ describe('InquiriesService', () => {
 
       // Same email within the 14-day window, corporate client with a named organization, event still ahead.
       await service.createInquiry({
+        privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
         clientName: 'Ana Reyes', companyName: 'Ayala Corp', email: 'ana@ayala.test',
         eventName: 'Ayala Summit Follow-up', eventDate: '2026-07-01', clientType: 'Corporate',
         message: 'Second planning window', privacyConsentAccepted: true,
@@ -399,6 +407,7 @@ describe('InquiriesService', () => {
 
       notifications.length = 0;
       await service.createInquiry({
+        privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
         clientName: 'Walk Client', email: 'walk@example.test', eventName: 'Quiet Party',
         eventDate: '2026-07-20', clientType: 'Private', message: 'Small gathering', privacyConsentAccepted: true,
       });

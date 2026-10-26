@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { InquiryWorkflowService } from './inquiry-workflow.service';
 
+import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 function createService() {
   const prisma = {
     opsInquiry: { findMany: vi.fn(async () => []) },
@@ -78,6 +79,7 @@ describe('InquiryWorkflowService', () => {
   it('denies non-PMCM actors before logging inquiries on behalf of clients', async () => {
     const { service, context } = createService();
     const input = {
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       clientName: 'Walk In Client',
       email: 'walkin@example.test',
       eventName: 'Walk In Product Launch',
@@ -99,6 +101,7 @@ describe('InquiryWorkflowService', () => {
     const { service, context } = createService();
     const verifiedActor = { actorId: 'client_1', actorRole: 'client', actorName: 'A Client' };
     const input = {
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       clientName: 'Walk In Client',
       email: 'walkin@example.test',
       eventName: 'Walk In Product Launch',
@@ -123,6 +126,7 @@ describe('InquiryWorkflowService', () => {
   it('rejects caller-supplied PMCM context before role checks or inquiry creation', async () => {
     const { service, context } = createService();
     const input = {
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       clientName: 'Walk In Client',
       email: 'walkin@example.test',
       eventName: 'Walk In Product Launch',
@@ -145,6 +149,7 @@ describe('InquiryWorkflowService', () => {
     const { service, context } = createService();
     const verifiedActor = { actorId: 'pmcm_1', actorRole: 'pmcm-admin', actorName: 'Ms. Mys' };
     const input = {
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       clientName: 'Walk In Client',
       email: 'walkin@example.test',
       eventName: 'Walk In Product Launch',
