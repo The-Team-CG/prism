@@ -66,6 +66,13 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
     @Inject(COORDINATOR_ACCOUNT_ELIGIBILITY_READER) private readonly coordinatorAccountEligibility: CoordinatorAccountEligibilityReader,
   ) {}
 
+  /** The coordinator's email on file, or null when the assignment has no linked coordinator. */
+  private async coordinatorEmail(coordinatorId: string | null) {
+    if (!coordinatorId) return null;
+    const coordinator = await this.prisma.opsCoordinator.findUnique({ where: { id: coordinatorId }, select: { email: true } });
+    return coordinator?.email ?? null;
+  }
+
   private async resolveAssignmentPlan(
     eventId: string,
     input: CreateCoordinatorAssignmentInput,
@@ -643,7 +650,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
           }, transactionContext),
           this.notificationOutboxWriter.write({
             eventId,
-            recipient: assignment.coordinatorName,
+            recipient: (await this.coordinatorEmail(assignment.coordinatorId)) ?? assignment.coordinatorName,
             message: `Your coordinator assignment for this event has been withdrawn${input.reason ? `: ${input.reason}` : '.'}`,
             correlationId: commandContext.correlationId,
             idempotencyKey: `${commandContext.idempotencyKey}:notify`,
@@ -792,7 +799,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
           }, transactionContext),
           this.notificationOutboxWriter.write({
             eventId,
-            recipient: updatedOld.coordinatorName,
+            recipient: (await this.coordinatorEmail(updatedOld.coordinatorId)) ?? updatedOld.coordinatorName,
             message: `You have been replaced on this assignment${input.reason ? `: ${input.reason}` : '.'}`,
             correlationId: commandContext.correlationId,
             idempotencyKey: `${commandContext.idempotencyKey}:outgoing`,
