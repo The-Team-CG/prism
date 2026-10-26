@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Signed-out visitors to dashboard pages are redirected to sign-in before the page renders, so the dashboard frame no longer flashes. The client, supplier and event portals cover `/dashboard` (and the client `/conforme` page), and the guest portal covers `/dashboard`. Sign-in now sets a navigation cookie per portal that holds only the session expiry; the API still checks every request. **Users signed in before this update must sign in once more.** Owner C (Ethan).
+
 - After sign-in, client, supplier and PMCM accounts that have not acknowledged the current privacy notice see it before reaching their portal. Every portal, guest included, has a public `/privacy` page, and the guest open-pass link now opens it. Client sign-up copy now says accounts are created when PMCM accepts the inquiry. Owners A (Maxine) and D (Anthony).
 - Every account now sees a versioned privacy notice on first sign-in (requirement New-SEC2). Sign-in and `/auth/me` report `privacyNoticeRequired`, and `POST /auth/privacy-notice/acknowledge` records the current version. Consent forms must send the current notice version, and an outdated version is refused. The notice text is a draft for PMCM to review before launch. Deploy: run `prisma migrate deploy`. Owner D (Anthony).
 
