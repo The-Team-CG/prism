@@ -12,8 +12,15 @@ export function loadSupplierDashboardSession(): PrismAuthenticatedSession | null
   return supplierWorkspaceRepository.readSession();
 }
 
-export function signOutSupplier(): void {
-  supplierWorkspaceRepository.clearSession();
+/** Signing out locally is the user's intent; the server token dies at expiry, so a failed logout is not surfaced. */
+export async function signOutSupplier(): Promise<void> {
+  try {
+    await supplierWorkspaceRepository.logout();
+  } catch {
+    // Ignored on purpose: the local session is cleared below regardless.
+  } finally {
+    supplierWorkspaceRepository.clearSession();
+  }
 }
 
 export async function loadSupplierWorkspace(session: PrismAuthenticatedSession): Promise<{

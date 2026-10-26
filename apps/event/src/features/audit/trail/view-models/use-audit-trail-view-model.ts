@@ -50,19 +50,16 @@ export function useAuditTrailViewModel() {
     setSession(readStoredEventSession());
   }, []);
 
+  const refreshUsers = useCallback(() => repository.loadContext()
+    .then(({ events: nextEvents, users: nextUsers }) => {
+      setEvents(nextEvents);
+      setUsers(nextUsers);
+    })
+    .catch(() => undefined), [repository]);
+
   useEffect(() => {
-    let cancelled = false;
-    repository.loadContext()
-      .then(({ events: nextEvents, users: nextUsers }) => {
-        if (cancelled) return;
-        setEvents(nextEvents);
-        setUsers(nextUsers);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [repository]);
+    void refreshUsers();
+  }, [refreshUsers]);
 
   const filters = useMemo<AuditLogFilters>(() => ({
     query,
@@ -155,6 +152,7 @@ export function useAuditTrailViewModel() {
     auditActionTypes,
     auditDateRanges,
     refreshAudit,
+    refreshUsers,
     exportLog,
     ...summary,
   };

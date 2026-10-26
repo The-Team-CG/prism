@@ -1,5 +1,13 @@
 import type { CheckInMode, CheckInPayload, FeedbackMediaMeta, FeedbackPayload, GuestNextAction, GuestSession } from "./guest-dashboard-types";
 import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
+import { GuestApiError } from "@/features/guest-shared/guest-http";
+
+const GUEST_ACCESS_ENDED_STATUSES: readonly number[] = [401, 403, 404, 410];
+
+/** The API no longer accepts this guest's access to the event; the stored session must be dropped. */
+export function isGuestAccessEndedError(error: unknown): boolean {
+  return error instanceof GuestApiError && GUEST_ACCESS_ENDED_STATUSES.includes(error.status);
+}
 
 export function guestNextActions(checkedIn: boolean, feedbackSubmitted: boolean): GuestNextAction[] {
   return [

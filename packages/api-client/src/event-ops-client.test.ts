@@ -984,6 +984,58 @@ describe("createEventOpsClient", () => {
       headers: { "Content-Type": "application/json", Authorization: "Bearer signed-token" },
     });
   });
+
+  it("reports a 401 only for signed-in requests, never for failed sign-in", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ message: "Invalid credentials" }), { status: 401 })),
+    );
+    const onUnauthorized = vi.fn();
+    const client = createEventOpsClient({
+      baseUrl: "http://localhost:4000/api",
+      getAuthToken: () => "stale-token",
+      onUnauthorized,
+    });
+
+    await expect(client.pmcmDashboard.detail()).rejects.toMatchObject({ status: 401 });
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+
+    await expect(
+      client.auth.login({ email: "mys@pmcm.test", password: "wrong" }),
+    ).rejects.toMatchObject({ status: 401 });
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+
+    const anonymous = createEventOpsClient({ baseUrl: "http://localhost:4000/api", onUnauthorized });
+    await expect(anonymous.pmcmDashboard.detail()).rejects.toMatchObject({ status: 401 });
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a pending privacy notice only for signed-in 403 privacy_notice_required responses", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ code: "privacy_notice_required", message: "Review the privacy notice to continue." }), { status: 403 })),
+    );
+    const onPrivacyNoticeRequired = vi.fn();
+    const onUnauthorized = vi.fn();
+    const client = createEventOpsClient({
+      baseUrl: "http://localhost:4000/api",
+      getAuthToken: () => "pending-token",
+      onPrivacyNoticeRequired,
+      onUnauthorized,
+    });
+
+    await expect(client.pmcmDashboard.detail()).rejects.toMatchObject({
+      status: 403,
+      problem: { code: "privacy_notice_required" },
+    });
+    expect(onPrivacyNoticeRequired).toHaveBeenCalledTimes(1);
+    expect(onUnauthorized).not.toHaveBeenCalled();
+
+    const anonymous = createEventOpsClient({ baseUrl: "http://localhost:4000/api", onPrivacyNoticeRequired });
+    await expect(anonymous.pmcmDashboard.detail()).rejects.toMatchObject({ status: 403 });
+    expect(onPrivacyNoticeRequired).toHaveBeenCalledTimes(1);
+  });
+
   it("loads the PMCM dashboard as a scoped read model", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ events: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);

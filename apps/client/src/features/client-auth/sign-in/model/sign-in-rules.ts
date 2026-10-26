@@ -1,4 +1,4 @@
-import { portalUrlFor } from "@prism/types";
+import { portalUrlFor, safeNextPath } from "@prism/types";
 import { portalUrlsFromEnvironment } from "@/lib/portal-urls";
 import type { SignInDraft } from "./sign-in-types";
 
@@ -21,8 +21,7 @@ export function portalMessage(role: string, env: Record<string, string | undefin
 }
 
 export function resolvePostSignInPath(nextParam: string | null | undefined): string {
-  if (nextParam && nextParam.startsWith("/")) return nextParam;
-  return "/dashboard";
+  return safeNextPath(nextParam, "/dashboard");
 }
 
 export function mapSignInFailure(input: {

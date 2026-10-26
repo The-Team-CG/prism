@@ -11,7 +11,7 @@ const supplierSession: PrismAuthenticatedSession = {
   organization: "Supplier Co",
   approvalStatus: "approved",
   accessToken: "verified-supplier-token",
-  expiresAt: "2026-09-30T12:00:00.000Z",
+  expiresAt: "2099-09-30T12:00:00.000Z",
   signedInAt: "2026-09-30T04:00:00.000Z",
 };
 
