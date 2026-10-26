@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
+import type { Prisma } from '@prisma/client';
 import { PRISM_PRIVACY_NOTICE_REQUIRED_CODE, privacyNoticeRequired, type PrismVerifiedEventActor } from '@prism/types';
 import { PrismaService } from '../../database';
 import { AuthSessionService } from '../services/auth-session.service';
@@ -9,6 +10,38 @@ import { ALLOW_PENDING_PRIVACY_NOTICE_METADATA } from '../decorators/allow-pendi
 export type EventSessionRequest = Request & {
   prismActor?: PrismVerifiedEventActor;
 };
+
+const SESSION_USER_SELECT = {
+  sessionVersion: true,
+  approvalStatus: true,
+  lockedUntil: true,
+  permanentLockout: true,
+  role: true,
+  email: true,
+  privacyNoticeVersion: true,
+} as const satisfies Prisma.OpsUserSelect;
+
+type SessionUser = Prisma.OpsUserGetPayload<{ select: typeof SESSION_USER_SELECT }>;
+
+function isLockedOut(user: SessionUser) {
+  return user.permanentLockout || Boolean(user.lockedUntil && user.lockedUntil > new Date());
+}
+
+function identityMatches(user: SessionUser, actor: PrismVerifiedEventActor) {
+  return user.role === actor.actorRole && user.email.trim().toLowerCase() === actor.actorEmail.trim().toLowerCase();
+}
+
+function assertSessionCurrent(user: SessionUser | null, actor: PrismVerifiedEventActor): asserts user is SessionUser {
+  if (
+    !user ||
+    user.sessionVersion !== (actor.sessionVersion ?? 0) ||
+    user.approvalStatus !== 'approved' ||
+    isLockedOut(user) ||
+    !identityMatches(user, actor)
+  ) {
+    throw new UnauthorizedException('Session has been revoked or account access is no longer eligible');
+  }
+}
 
 @Injectable()
 export class EventSessionGuard implements CanActivate {
@@ -20,35 +53,12 @@ export class EventSessionGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<EventSessionRequest>();
-    const token = this.extractToken(request);
-    const actor = this.authSessionService.verifyAccessToken(token);
+    const actor = this.authSessionService.verifyAccessToken(this.extractToken(request));
     const user = await this.prisma.opsUser.findUnique({
       where: { id: actor.id },
-      select: {
-        sessionVersion: true,
-        approvalStatus: true,
-        lockedUntil: true,
-        permanentLockout: true,
-        role: true,
-        email: true,
-        privacyNoticeVersion: true,
-      },
+      select: SESSION_USER_SELECT,
     });
-    const locked = Boolean(user?.lockedUntil && user.lockedUntil > new Date());
-    const identityChanged = user && (
-      user.role !== actor.actorRole ||
-      user.email.trim().toLowerCase() !== actor.actorEmail.trim().toLowerCase()
-    );
-    if (
-      !user ||
-      user.sessionVersion !== (actor.sessionVersion ?? 0) ||
-      user.approvalStatus !== 'approved' ||
-      user.permanentLockout ||
-      locked ||
-      identityChanged
-    ) {
-      throw new UnauthorizedException('Session has been revoked or account access is no longer eligible');
-    }
+    assertSessionCurrent(user, actor);
     if (privacyNoticeRequired(user.privacyNoticeVersion) && !this.allowsPendingPrivacyNotice(context)) {
       throw new ForbiddenException({
         code: PRISM_PRIVACY_NOTICE_REQUIRED_CODE,

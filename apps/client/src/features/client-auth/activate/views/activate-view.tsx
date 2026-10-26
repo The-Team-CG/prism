@@ -10,6 +10,8 @@ import { PasswordSetFields } from "../../password-reset/views/password-set-field
 import { ACTIVATION_INVALID_COPY, activateProgress } from "../model/activate-model";
 import { useClientActivateViewModel } from "../view-models/use-activate-view-model";
 
+type ActivateVm = ReturnType<typeof useClientActivateViewModel>;
+
 export function ClientActivateView() {
   const vm = useClientActivateViewModel();
 
@@ -27,47 +29,65 @@ export function ClientActivateView() {
       }
     >
       {vm.view === "loading" ? null : vm.view === "done" ? (
-        <Button asChild className={prismAuthSubmitClassName("client")}>
-          <a href={portalHref("/sign-in")}>Sign in</a>
-        </Button>
+        <ActivateDoneStep />
       ) : vm.view === "invalid" ? (
-        <div className="flex flex-col gap-5">
-          <p role="alert" className="text-sm text-foreground">
-            {ACTIVATION_INVALID_COPY}
-          </p>
-          <a href={portalHref("/sign-in")} className="text-center text-sm text-primary transition-colors hover:text-primary/80">
-            Back to sign in
-          </a>
-        </div>
+        <ActivateInvalidStep />
       ) : (
-        <form
-          className="flex flex-col gap-5"
-          onSubmit={(event: FormEvent<HTMLFormElement>) => void vm.activate(event)}
-        >
-          <PasswordSetFields
-            password={vm.password}
-            confirmPassword={vm.confirmPassword}
-            showPassword={vm.showPassword}
-            onPasswordChange={vm.setPassword}
-            onConfirmPasswordChange={vm.setConfirmPassword}
-            onShowPasswordChange={vm.setShowPassword}
-          />
-
-          {vm.error ? (
-            <Alert variant="destructive" role="alert">
-              <AlertDescription>{vm.error}</AlertDescription>
-            </Alert>
-          ) : null}
-
-          <Button type="submit" disabled={vm.busy || !vm.canSubmit} className={prismAuthSubmitClassName("client")}>
-            {vm.busy ? "Processing..." : "Set password"}
-          </Button>
-
-          <a href={portalHref("/sign-in")} className="text-center text-sm text-primary transition-colors hover:text-primary/80">
-            Back to sign in
-          </a>
-        </form>
+        <ActivateSetForm vm={vm} />
       )}
     </PrismAuthShell>
+  );
+}
+
+function ActivateDoneStep() {
+  return (
+    <Button asChild className={prismAuthSubmitClassName("client")}>
+      <a href={portalHref("/sign-in")}>Sign in</a>
+    </Button>
+  );
+}
+
+function ActivateInvalidStep() {
+  return (
+    <div className="flex flex-col gap-5">
+      <p role="alert" className="text-sm text-foreground">
+        {ACTIVATION_INVALID_COPY}
+      </p>
+      <a href={portalHref("/sign-in")} className="text-center text-sm text-primary transition-colors hover:text-primary/80">
+        Back to sign in
+      </a>
+    </div>
+  );
+}
+
+function ActivateSetForm({ vm }: { vm: ActivateVm }) {
+  return (
+    <form
+      className="flex flex-col gap-5"
+      onSubmit={(event: FormEvent<HTMLFormElement>) => void vm.activate(event)}
+    >
+      <PasswordSetFields
+        password={vm.password}
+        confirmPassword={vm.confirmPassword}
+        showPassword={vm.showPassword}
+        onPasswordChange={vm.setPassword}
+        onConfirmPasswordChange={vm.setConfirmPassword}
+        onShowPasswordChange={vm.setShowPassword}
+      />
+
+      {vm.error ? (
+        <Alert variant="destructive" role="alert">
+          <AlertDescription>{vm.error}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      <Button type="submit" disabled={vm.busy || !vm.canSubmit} className={prismAuthSubmitClassName("client")}>
+        {vm.busy ? "Processing..." : "Set password"}
+      </Button>
+
+      <a href={portalHref("/sign-in")} className="text-center text-sm text-primary transition-colors hover:text-primary/80">
+        Back to sign in
+      </a>
+    </form>
   );
 }
