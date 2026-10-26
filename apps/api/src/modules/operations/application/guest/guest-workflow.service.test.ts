@@ -4,6 +4,7 @@ import type { CommandReceiptCreate, CommandReceiptKey, CommandReceiptRecord, Com
 import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
 import { GuestWorkflowService } from './guest-workflow.service';
 
+import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 let guestCheckInRequestSequence = 0;
 
 function withGuestCheckInKey<T extends { checkInMode: 'name_search' | 'headcount' }>(input: T): T & { idempotencyKey: string } {
@@ -338,7 +339,7 @@ describe('GuestWorkflowService', () => {
     const { service, state, prisma } = createGuestWorkflowFixture();
     state.guestCheckIns.length = 0;
     state.guestRoster.push(guestRosterFixture({ id: 'gre_sofia', normalizedName: 'sofia lim' }));
-    const input = withGuestCheckInKey({ checkInMode: 'name_search' as const, guestName: ' SOFIA LIM ', privacyConsentAccepted: true });
+    const input = withGuestCheckInKey({ privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, checkInMode: 'name_search' as const, guestName: ' SOFIA LIM ', privacyConsentAccepted: true });
 
     await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', input)).resolves.toEqual({ accepted: true });
     await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', input)).resolves.toEqual({ accepted: true });
@@ -358,6 +359,7 @@ describe('GuestWorkflowService', () => {
     const { service, state, prisma } = createGuestWorkflowFixture();
     state.guestCheckIns.length = 0;
     const request = withGuestCheckInKey({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       checkInMode: 'name_search', guestName: 'Unmatched Guest', privacyConsentAccepted: true,
     });
 
@@ -372,6 +374,7 @@ describe('GuestWorkflowService', () => {
     const { service, state } = createGuestWorkflowFixture();
     state.guestCheckIns.length = 0;
     const request = withGuestCheckInKey({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       checkInMode: 'name_search', guestName: 'First Guest', privacyConsentAccepted: true,
     });
 
@@ -389,7 +392,7 @@ describe('GuestWorkflowService', () => {
       guestRosterFixture({ id: 'gre_one', guestName: 'Sofia Lim', normalizedName: 'sofia lim' }),
       guestRosterFixture({ id: 'gre_two', guestName: 'Sofia Lim', normalizedName: 'sofia lim' }),
     );
-    const input = withGuestCheckInKey({ checkInMode: 'name_search' as const, guestName: 'Sofia Lim', privacyConsentAccepted: true });
+    const input = withGuestCheckInKey({ privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, checkInMode: 'name_search' as const, guestName: 'Sofia Lim', privacyConsentAccepted: true });
 
     await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', input)).resolves.toEqual({ accepted: true });
     await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', input)).resolves.toEqual({ accepted: true });
@@ -414,6 +417,7 @@ describe('GuestWorkflowService', () => {
     state.events[0].briefingGuestCount = 199;
 
     await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       checkInMode: 'name_search', guestName: 'New Guest', privacyConsentAccepted: true,
     }))).resolves.toEqual({ accepted: true });
 
@@ -437,6 +441,7 @@ describe('GuestWorkflowService', () => {
     }));
 
     const request = withGuestCheckInKey({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       checkInMode: 'name_search', guestName: 'New Guest', privacyConsentAccepted: true,
     });
     await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', request)).resolves.toEqual({ accepted: true });
@@ -456,6 +461,7 @@ describe('GuestWorkflowService', () => {
     }));
 
     await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       checkInMode: 'name_search', guestName: 'Walk-In Guest', privacyConsentAccepted: true,
     }))).resolves.toEqual({ accepted: true });
 
@@ -477,6 +483,7 @@ describe('GuestWorkflowService', () => {
     (state.events[0] as any).briefingGuestCount = guestCount;
 
     await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       checkInMode: 'name_search', guestName: 'Walk In Guest', privacyConsentAccepted: true,
     }))).resolves.toEqual({ accepted: true });
 
@@ -490,6 +497,7 @@ describe('GuestWorkflowService', () => {
     state.guestCheckIns.length = 0;
 
     await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       checkInMode: 'headcount', privacyConsentAccepted: true,
     }))).resolves.toEqual({ accepted: true });
 
@@ -507,6 +515,7 @@ describe('GuestWorkflowService', () => {
     state.events[0].briefingGuestCount = 199;
 
     const request = withGuestCheckInKey({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       checkInMode: 'headcount', privacyConsentAccepted: true,
     });
     await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', request)).resolves.toEqual({ accepted: true });
@@ -577,6 +586,7 @@ describe('GuestWorkflowService', () => {
     }
 
     await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       checkInMode: 'name_search', guestName: 'New Guest', privacyConsentAccepted: true,
     }))).rejects.toThrow(message);
     expect(state.guestRoster).toHaveLength(0);
@@ -601,7 +611,7 @@ describe('GuestWorkflowService', () => {
   it('requires privacy consent before guest check-in writes', async () => {
     const { service } = createGuestWorkflowFixture();
 
-    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({ checkInMode: 'name_search', guestName: 'Sofia Lim' }))).rejects.toThrow(
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({ checkInMode: 'name_search', guestName: 'Sofia Lim', privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION }))).rejects.toThrow(
       'Privacy consent is required before guest check-in',
     );
   });
@@ -611,6 +621,7 @@ describe('GuestWorkflowService', () => {
     delete (prisma as { opsGuestRosterEntry?: unknown }).opsGuestRosterEntry;
 
     await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       checkInMode: 'name_search',
       guestName: 'Sofia Lim',
       privacyConsentAccepted: true,
@@ -622,6 +633,7 @@ describe('GuestWorkflowService', () => {
     const { service, state } = createGuestWorkflowFixture();
     state.events[0].archived = true;
     await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       checkInMode: 'name_search',
       guestName: 'Archived Guest', privacyConsentAccepted: true,
     }))).rejects.toThrow('Guest event code was not found');
@@ -633,11 +645,13 @@ describe('GuestWorkflowService', () => {
     const { service, auditWriter } = createGuestWorkflowFixture();
 
     const checkIn = await service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       guestName: 'Sofia Lim',
       checkInMode: 'name_search',
       privacyConsentAccepted: true,
     }));
     const feedback = await service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', {
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       guestName: 'Sofia Lim',
       rating: 5,
       comment: 'Smooth registration.',
@@ -664,6 +678,7 @@ describe('GuestWorkflowService', () => {
       (state.events[0] as any).walkInPolicy = 'closed';
     }
     await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       checkInMode: 'name_search', guestName: 'Walk In Guest', privacyConsentAccepted: true,
     }))).rejects.toThrow(message);
   });
@@ -672,11 +687,13 @@ describe('GuestWorkflowService', () => {
     const { service, state } = createGuestWorkflowFixture();
     (state.events[0] as any).walkInPolicy = 'open';
     await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       checkInMode: 'name_search', guestName: 'Open Walk In', privacyConsentAccepted: true,
     }))).resolves.toEqual({ accepted: true });
     (state.events[0] as any).walkInPolicy = 'threshold';
     (state.events[0] as any).walkInThreshold = 4;
     await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       checkInMode: 'name_search', guestName: 'Threshold Walk In', privacyConsentAccepted: true,
     }))).resolves.toEqual({ accepted: true });
     expect(state.guestCheckIns.slice(-2).map((checkIn) => checkIn.guestName)).toEqual(['Open Walk In', 'Threshold Walk In']);
@@ -925,6 +942,7 @@ describe('GuestWorkflowService', () => {
     vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
     const { service, state } = createGuestWorkflowFixture();
     const feedback = await service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', {
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       guestName: 'Sofia Lim',
       rating: 5,
       comment: 'Smooth registration.',
@@ -961,6 +979,7 @@ describe('GuestWorkflowService', () => {
     });
     const [feedbackWithMedia] = await service.listPendingFeedbackForEvent('evt_sample');
     expect(service.mapGuestFeedback(feedbackWithMedia)).toMatchObject({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       guestName: 'Sofia Lim',
       moderationStatus: 'pending_review',
       privacyConsentAccepted: true,
@@ -983,14 +1002,14 @@ describe('GuestWorkflowService', () => {
     vi.useFakeTimers();
     const { service, state } = createGuestWorkflowFixture();
     vi.setSystemTime(new Date('2026-09-07T11:59:59.000Z'));
-    await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'Before', rating: 5, privacyConsentAccepted: true })).rejects.toThrow('opens after the event has actually ended');
+    await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, guestName: 'Before', rating: 5, privacyConsentAccepted: true })).rejects.toThrow('opens after the event has actually ended');
     vi.setSystemTime(new Date('2026-09-14T12:00:00.000Z'));
-    await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'At deadline', rating: 5, privacyConsentAccepted: true })).resolves.toMatchObject({ eventId: 'evt_sample', submittedAt: expect.any(String) });
+    await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, guestName: 'At deadline', rating: 5, privacyConsentAccepted: true })).resolves.toMatchObject({ eventId: 'evt_sample', submittedAt: expect.any(String) });
     vi.setSystemTime(new Date('2026-09-14T12:00:00.001Z'));
-    await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'After', rating: 5, privacyConsentAccepted: true })).rejects.toThrow('seven-day guest feedback window has closed');
+    await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, guestName: 'After', rating: 5, privacyConsentAccepted: true })).rejects.toThrow('seven-day guest feedback window has closed');
     (state.events[0] as any).actualEndedAt = null;
     vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
-    await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'Unknown end', rating: 5, privacyConsentAccepted: true })).rejects.toThrow('actual event end has not been recorded');
+    await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, guestName: 'Unknown end', rating: 5, privacyConsentAccepted: true })).rejects.toThrow('actual event end has not been recorded');
     vi.useRealTimers();
   });
 
@@ -999,8 +1018,9 @@ describe('GuestWorkflowService', () => {
     vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
     const { service, state, auditWriter } = createGuestWorkflowFixture();
     state.events[0].archived = true;
-    const feedback = await service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'Archived Guest', rating: 4, privacyConsentAccepted: true });
+    const feedback = await service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, guestName: 'Archived Guest', rating: 4, privacyConsentAccepted: true });
     await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       checkInMode: 'name_search', guestName: 'Archived Guest', privacyConsentAccepted: true,
     }))).rejects.toThrow('Guest event code was not found');
     const updated = await service.moderateFeedback('evt_sample', feedback.id, { action: 'reject', reason: 'Contains private details' }, { id: 'pmcm-1', name: 'Maxine', role: 'pmcm-admin' });

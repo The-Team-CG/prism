@@ -60,6 +60,12 @@ describe("event games guest repository", () => {
     vi.clearAllMocks();
     persisted.clear();
     vi.stubGlobal("window", { localStorage: storage });
+    // The guest check-in session is read only while its navigation cookie is set; only that cookie is written here.
+    let cookie = "";
+    vi.stubGlobal("document", {
+      get cookie() { return cookie; },
+      set cookie(value: string) { cookie = value.split("; ")[0] ?? ""; },
+    });
     api.getPublicLobby.mockResolvedValue(eventALobby);
     api.joinActiveMultiplayerGameSession.mockResolvedValue(joinResult);
     api.startIndependentSingleplayerGameSession.mockResolvedValue({

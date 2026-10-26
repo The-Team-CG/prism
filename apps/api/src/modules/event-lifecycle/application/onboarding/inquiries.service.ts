@@ -1,7 +1,7 @@
 import { Inject, Injectable, BadRequestException, ConflictException, ForbiddenException, Logger, NotFoundException } from '@nestjs/common';
 import type { OpsDocument, OpsEvent, OpsInquiry, OpsInquiryMerge, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
-import { PRISM_PRIVACY_NOTICE_VERSION, type MergeInquiryInput, type PrismAccountInvitationOutcome } from '@prism/types';
+import { type MergeInquiryInput, type PrismAccountInvitationOutcome } from '@prism/types';
 import {
   ACCOUNT_PROVISIONING,
   type AccountInvitationActor,
@@ -33,7 +33,7 @@ export type CreateInquiryInput = {
   referralDetails?: string;
   message: string;
   privacyConsentAccepted?: boolean;
-  privacyNoticeVersion?: string;
+  privacyNoticeVersion: string;
   marketingConsentAccepted?: boolean;
 };
 
@@ -504,7 +504,7 @@ export class InquiriesService {
             previousDeclineReason: previousDeclined?.declineReason ?? null,
             message: input.message,
             privacyConsentAccepted: input.privacyConsentAccepted === true,
-            privacyNoticeVersion: input.privacyNoticeVersion ?? PRISM_PRIVACY_NOTICE_VERSION,
+            privacyNoticeVersion: input.privacyNoticeVersion,
             marketingConsentAccepted: Boolean(input.marketingConsentAccepted),
             status: 'new',
           },

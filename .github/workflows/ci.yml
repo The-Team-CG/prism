@@ -19,7 +19,7 @@ jobs:
       typecheck_command: npm run check:migrations && npm run check:domain-persistence && npm run check:invariants && npm run check:test-clocks && npm run check:complexity && npm run check:boundaries && npm run typecheck
       test_command: npm run test:migrations && npm run test:domain-persistence && npm run test:invariants && npm run test:test-clocks && npm --workspace @prism/types run test && npm --workspace @prism/api-client run test && npm --workspace prism-api run test:db:connection && npm --workspace prism-api run test:db:preflight:quote-request-fk && npm --workspace prism-api run test:db:schema-equivalence && npm run test:api:coverage && npm run test:coverage --workspace=@prism/client && npm run test:coverage --workspace=@prism/event && npm run test:coverage --workspace=@prism/guest && npm run test:coverage --workspace=@prism/supplier && npm run test:boundaries
       audit_command: node scripts/npm-audit-ci.mjs
-      build_command: npm run build
+      build_command: PRISM_VERCEL_SERVICES=1 npm run build
     secrets: inherit
   gitleaks:
     uses: The-Team-CG/.github/.github/workflows/security-gitleaks.yml@v2

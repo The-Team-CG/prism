@@ -10,6 +10,7 @@ import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/ker
 import { PrismaService } from '@prism/kernel/database';
 import { AuthSessionService } from '@prism/kernel/event-session';
 import { PUBLIC_RATE_LIMITS, PublicRateLimitModule } from '@prism/kernel/shared';
+import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 import { AuthOperationsService } from '../../application/auth/auth-operations.service';
 import { PasswordResetService } from '../../application/auth/password-reset.service';
 import { AccountActivationService } from '../../application/auth/account-activation.service';
@@ -60,6 +61,7 @@ describe('OpsAuthController', () => {
       unlockUser: vi.fn(async () => ({ id: 'usr_client' })),
       resetUserTwoFactor: vi.fn(async () => ({ id: 'usr_pmcm' })),
       logout: vi.fn(async () => undefined),
+      acknowledgePrivacyNotice: vi.fn(async () => undefined),
       currentUser: vi.fn(async () => ({ id: 'u1' })),
     };
     const accountActivationService = { activate: vi.fn(async () => ({ message: 'Password set. Sign in to continue.' })) };
@@ -97,6 +99,7 @@ describe('OpsAuthController', () => {
     await expect(controller.resetUserTwoFactor('usr_pmcm', actor)).resolves.toEqual({ id: 'usr_pmcm' });
     await expect(controller.logout(actor)).resolves.toBeUndefined();
     await expect(controller.me(actor)).resolves.toEqual({ id: 'u1' });
+    await expect(controller.acknowledgePrivacyNotice({ version: PRISM_PRIVACY_NOTICE_VERSION }, actor)).resolves.toBeUndefined();
 
     expect(authOperationsService.login).toHaveBeenCalledWith('maxine@pmcm.test', 'secret');
     expect(authOperationsService.requestApproval).toHaveBeenCalledWith({
@@ -111,6 +114,7 @@ describe('OpsAuthController', () => {
     expect(authOperationsService.resetUserTwoFactor).toHaveBeenCalledWith('usr_pmcm', resolvedAdmin);
     expect(authOperationsService.logout).toHaveBeenCalledWith(actor);
     expect(authOperationsService.currentUser).toHaveBeenCalledWith(actor);
+    expect(authOperationsService.acknowledgePrivacyNotice).toHaveBeenCalledWith(actor, PRISM_PRIVACY_NOTICE_VERSION);
   });
 
   it.each(['client', 'supplier', 'coordinator'] as const)(
@@ -229,7 +233,7 @@ describe('OpsAuthController public rate limits over HTTP', () => {
     const response = await fetch(`${baseUrl}/auth/approval-requests`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email: 'nobody@example.test', privacyConsentAccepted: true, privacyNoticeVersion: '2026-05-01' }),
+      body: JSON.stringify({ email: 'nobody@example.test', privacyConsentAccepted: true, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION }),
     });
 
     expect(response.status).toBe(202);

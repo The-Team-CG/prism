@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { nonEmptyStringSchema, privacyConsentSchema } from './common.js';
+import { nonEmptyStringSchema, privacyConsentSchema, privacyNoticeVersionSchema } from './common.js';
 
 export const loginSchema = z.object({
   email: z.string().trim().email(),
@@ -35,9 +35,14 @@ export type CreateAccountInvitationInput = z.infer<typeof createAccountInvitatio
 
 export const requestApprovalSchema = z
   .object({ email: z.string().trim().email() })
-  .merge(privacyConsentSchema)
-  .extend({ privacyNoticeVersion: z.string().min(1) });
+  .merge(privacyConsentSchema);
 export type RequestApprovalInput = z.infer<typeof requestApprovalSchema>;
+
+/** Signed-in person confirming they have read the current privacy notice. */
+export const acknowledgePrivacyNoticeSchema = z.object({
+  version: privacyNoticeVersionSchema,
+}).strict();
+export type AcknowledgePrivacyNoticeInput = z.infer<typeof acknowledgePrivacyNoticeSchema>;
 
 export const twoFactorTokenSchema = z.object({ token: nonEmptyStringSchema });
 export type TwoFactorTokenInput = z.infer<typeof twoFactorTokenSchema>;

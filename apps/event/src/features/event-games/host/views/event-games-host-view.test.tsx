@@ -226,6 +226,15 @@ describe("EventGamesHostView", () => {
     expect(screen.getByRole("button", { name: /copy lobby url/i })).toBeTruthy();
   });
 
+  it("names a missing guest portal URL instead of linking the lobby to a default origin", () => {
+    vi.stubEnv("NEXT_PUBLIC_GUEST_PORTAL_URL", "");
+    Object.assign(state, { lobbySlug: "opaque-lobby" });
+
+    expect(() => render(<EventGamesHostView eventId="event-1" role="pmcm-admin" eventStatus="confirmed" archived={false} />)).toThrow(
+      "NEXT_PUBLIC_GUEST_PORTAL_URL is required",
+    );
+  });
+
   it("lets the host save a high-contrast lobby theme and custom colors", async () => {
     state.updateLobbyBranding.mockResolvedValue({
       theme: "forest", primaryColor: "#14532D", secondaryColor: "#166534", logoUrl: null, logoObjectId: null,

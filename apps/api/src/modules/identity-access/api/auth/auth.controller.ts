@@ -1,11 +1,11 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, InternalServerErrorException, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
-import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
+import { AllowPendingPrivacyNotice, EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { PublicRateLimit, zodBody } from '@prism/kernel/shared';
-import { activateAccountSchema, consumePasswordResetSchema, createAccountInvitationSchema, loginSchema, requestApprovalSchema, requestPasswordResetSchema, twoFactorTokenSchema, verifyTwoFactorSchema, type ActivateAccountInput, type ConsumePasswordResetInput, type CreateAccountInvitationInput, type LoginInput, type RequestApprovalInput, type RequestPasswordResetInput, type TwoFactorTokenInput, type VerifyTwoFactorInput } from '@prism/types';
+import { acknowledgePrivacyNoticeSchema, activateAccountSchema, consumePasswordResetSchema, createAccountInvitationSchema, loginSchema, requestApprovalSchema, requestPasswordResetSchema, twoFactorTokenSchema, verifyTwoFactorSchema, type AcknowledgePrivacyNoticeInput, type ActivateAccountInput, type ConsumePasswordResetInput, type CreateAccountInvitationInput, type LoginInput, type RequestApprovalInput, type RequestPasswordResetInput, type TwoFactorTokenInput, type VerifyTwoFactorInput } from '@prism/types';
 import { AuthOperationsService } from '../../application/auth/auth-operations.service';
 import { PasswordResetService } from '../../application/auth/password-reset.service';
 import { AccountActivationService } from '../../application/auth/account-activation.service';
@@ -108,6 +108,7 @@ export class OpsAuthController {
 
   @Post('logout')
   @UseGuards(EventSessionGuard)
+  @AllowPendingPrivacyNotice()
   @HttpCode(HttpStatus.NO_CONTENT)
   logout(@VerifiedEventActor() actor: PrismVerifiedEventActor) {
     return this.authOperationsService.logout(actor);
@@ -115,8 +116,17 @@ export class OpsAuthController {
 
   @Get('me')
   @UseGuards(EventSessionGuard)
+  @AllowPendingPrivacyNotice()
   me(@VerifiedEventActor() actor: PrismVerifiedEventActor) {
     return this.authOperationsService.currentUser(actor);
+  }
+
+  @Post('privacy-notice/acknowledge')
+  @UseGuards(EventSessionGuard)
+  @AllowPendingPrivacyNotice()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  acknowledgePrivacyNotice(@Body(zodBody(acknowledgePrivacyNoticeSchema)) dto: AcknowledgePrivacyNoticeInput, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
+    return this.authOperationsService.acknowledgePrivacyNotice(actor, dto.version);
   }
 
   @Get('users/:userId/login-history')

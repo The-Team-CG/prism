@@ -1,5 +1,6 @@
 import {
   PRISM_PRIVACY_NOTICE_VERSION,
+  safeNextPath,
   parseContract,
   requestApprovalSchema,
   type PrismAuthenticatedSession,
@@ -8,7 +9,7 @@ import {
 import type { SupplierSignInDraft } from "./supplier-sign-in-types";
 
 export const SUPPLIER_AUTH_API_OFFLINE_MESSAGE =
-  "P.R.I.S.M API is offline. Start `prism-api` on port 4000, then try again.";
+  "Can't reach P.R.I.S.M right now. Try again in a moment.";
 
 export const DEFAULT_SIGN_IN_DRAFT: SupplierSignInDraft = {
   email: "",
@@ -31,8 +32,7 @@ export function mapWrongPortalMessage(role: string): string {
 }
 
 export function resolvePostSignInPath(nextParam: string | null | undefined): string {
-  if (nextParam && nextParam.startsWith("/")) return nextParam;
-  return "/dashboard";
+  return safeNextPath(nextParam, "/dashboard");
 }
 
 export function isExistingSupplierSession(session: PrismAuthenticatedSession | null): session is PrismAuthenticatedSession {
