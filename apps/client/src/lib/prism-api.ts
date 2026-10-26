@@ -8,6 +8,7 @@ import {
   PRISM_SESSION_STORAGE_KEYS,
   clearPrismSession,
   isPrismAuthenticatedSession,
+  privacyNoticePath,
 } from "@prism/types";
 import { portalAppPath, portalHref } from "@prism/ui/portal-path";
 
@@ -18,6 +19,14 @@ function expireClientSession() {
   if (window.location.pathname.endsWith("/sign-in")) return;
   const next = `${portalAppPath(window.location.pathname)}${window.location.search}`;
   window.location.assign(portalHref(`/sign-in?next=${encodeURIComponent(next)}`));
+}
+
+/** The API says the signed-in account has not acknowledged the current privacy notice: show it, then return here. */
+function showClientPrivacyNotice() {
+  if (typeof window === "undefined") return;
+  const appPath = portalAppPath(window.location.pathname);
+  if (appPath === "/privacy") return;
+  window.location.assign(portalHref(privacyNoticePath(`${appPath}${window.location.search}`)));
 }
 
 export function storedClientAccessToken() {
@@ -36,6 +45,7 @@ export function storedClientAccessToken() {
 export const clientApi = createEventOpsClient({
   getAuthToken: storedClientAccessToken,
   onUnauthorized: expireClientSession,
+  onPrivacyNoticeRequired: showClientPrivacyNotice,
 });
 
 export function clientApiRequest<T>(path: string, init: PrismRequestInit = {}) {
@@ -44,5 +54,6 @@ export function clientApiRequest<T>(path: string, init: PrismRequestInit = {}) {
     baseUrl: init.baseUrl ?? `${resolvePrismApiOrigin()}/api`,
     authToken: init.authToken ?? storedClientAccessToken(),
     onUnauthorized: init.onUnauthorized ?? expireClientSession,
+    onPrivacyNoticeRequired: init.onPrivacyNoticeRequired ?? showClientPrivacyNotice,
   });
 }
