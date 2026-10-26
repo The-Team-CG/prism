@@ -5,7 +5,9 @@ import {
 import {
   activateAccountSchema,
   consumePasswordResetSchema,
+  isPrismAuthenticatedSession,
   parseContract,
+  PRISM_PRIVACY_NOTICE_VERSION,
   PRISM_SESSION_STORAGE_KEYS,
   readPrismSession,
   requestPasswordResetSchema,
@@ -19,11 +21,13 @@ import {
   type RequestApprovalInput,
   type RequestPasswordResetInput,
 } from "@prism/types";
+import { storedSupplierAccessToken } from "@/lib/prism-api";
 import { SUPPLIER_AUTH_API_OFFLINE_MESSAGE } from "../model/supplier-sign-in-rules";
 import { ActivationTokenRejectedError } from "../../activate/model/activate-model";
 
 const SESSION_KEY = PRISM_SESSION_STORAGE_KEYS.supplier;
 const supplierAuthClient = createEventOpsClient();
+const signedInSupplierClient = createEventOpsClient({ getAuthToken: storedSupplierAccessToken });
 
 function rejectInvalidActivationToken(error: unknown): never {
   if (error instanceof PrismApiError && error.status === 400) throw new ActivationTokenRejectedError();
@@ -53,6 +57,14 @@ async function runSupplierAuthRequest<T>(operation: () => Promise<T>, fallback: 
 export const supplierAuthRepository = {
   readSession(): PrismAuthenticatedSession | null {
     return readPrismSession<PrismAuthenticatedSession>(SESSION_KEY);
+  },
+
+  hasSignedInSession(): boolean {
+    return isPrismAuthenticatedSession(readPrismSession(SESSION_KEY));
+  },
+
+  acknowledgePrivacyNotice(): Promise<void> {
+    return signedInSupplierClient.auth.acknowledgePrivacyNotice({ version: PRISM_PRIVACY_NOTICE_VERSION });
   },
 
   saveSession(session: PrismAuthenticatedSession): void {

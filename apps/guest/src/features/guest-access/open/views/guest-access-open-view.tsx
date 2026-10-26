@@ -37,13 +37,13 @@ export function GuestAccessOpenView() {
       description="Use the event code from your PMCM invitation."
       footer={
         <>
-          <p id="privacy-notice">
+          <p>
             Code access opens only this guest event. Your event team uses check-in and feedback details to support
             event access and review.
           </p>
           <p>
             Read the{" "}
-            <a href="#privacy-notice" className="font-semibold text-primary transition-colors hover:text-primary/80">
+            <a href={portalHref("/privacy")} className="font-semibold text-primary transition-colors hover:text-primary/80">
               privacy notice
             </a>{" "}
             before check-in or feedback consent.
