@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, describe, expect, it } from 'vitest';
+import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '@prism/kernel/database';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
@@ -29,7 +29,7 @@ describe.skipIf(!enabled)('communication service PostgreSQL transaction', () => 
     await prisma.opsCommunicationParticipant.create({ data: { id: ids.participant2, threadId: ids.thread, actorId: ids.user2, actorRole: actor.role, actorEmail: `${prefix}_recipient@example.test` } });
     const auditService = new AuditService(prisma);
     const audit = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma, auditService));
-    const notifications = new NotificationOutboxWriterAdapter(new NotificationOutboxService(prisma));
+    const notifications = new NotificationOutboxWriterAdapter(new NotificationOutboxService(prisma, { deliver: vi.fn() }));
     const access = new EventAccessPolicyService(audit);
     const reader = new ParticipantReaderService(prisma, access, {
       findForEvent: async (eventId) => {
