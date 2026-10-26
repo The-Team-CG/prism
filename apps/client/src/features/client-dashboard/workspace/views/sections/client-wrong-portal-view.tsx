@@ -51,8 +51,7 @@ export function ClientWrongPortalView({
             variant="outline"
             className="rounded-lg"
             onClick={() => {
-              signOutClientSession();
-              onUseClientSignIn();
+              void signOutClientSession().then(onUseClientSignIn);
             }}
           >
             Use client sign-in

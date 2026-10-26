@@ -5,14 +5,19 @@ import { withBase } from "./shared";
 export function createAuthClient(
   options: EventOpsClientOptions,
 ): Pick<EventOpsClient, "auth"> {
+  // Sign-in and password endpoints answer 401 for bad credentials; they must not trigger session expiry.
+  const authOptions: EventOpsClientOptions = {
+    baseUrl: options.baseUrl,
+    getAuthToken: options.getAuthToken,
+  };
   return {
     auth: {
       login: (input) =>
-        prismRequest("/auth/login", withBase(options, { method: "POST", body: input })),
+        prismRequest("/auth/login", withBase(authOptions, { method: "POST", body: input })),
       requestApproval: (input) =>
         prismRequest(
           "/auth/approval-requests",
-          withBase(options, { method: "POST", body: input }),
+          withBase(authOptions, { method: "POST", body: input }),
         ),
       logout: () =>
         prismRequest<void>("/auth/logout", withBase(options, { method: "POST" })),
@@ -35,22 +40,22 @@ export function createAuthClient(
       setupTwoFactor: (token) =>
         prismRequest(
           "/auth/2fa/setup",
-          withBase(options, { method: "POST", body: { token } }),
+          withBase(authOptions, { method: "POST", body: { token } }),
         ),
       verifyTwoFactor: (input) =>
         prismRequest(
           "/auth/2fa/verify",
-          withBase(options, { method: "POST", body: input }),
+          withBase(authOptions, { method: "POST", body: input }),
         ),
       requestPasswordReset: (email) =>
         prismRequest(
           "/auth/password-reset/request",
-          withBase(options, { method: "POST", body: { email } }),
+          withBase(authOptions, { method: "POST", body: { email } }),
         ),
       consumePasswordReset: (token, password) =>
         prismRequest(
           "/auth/password-reset/consume",
-          withBase(options, { method: "POST", body: { token, password } }),
+          withBase(authOptions, { method: "POST", body: { token, password } }),
         ),
       activateAccount: (input) =>
         prismRequest(
