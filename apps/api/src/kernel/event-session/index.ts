@@ -3,3 +3,4 @@ export * from './guards/event-session.guard';
 export * from './services/auth-session.service';
 export * from './session-config';
 export * from './decorators/verified-event-actor.decorator';
+export * from './decorators/allow-pending-privacy-notice.decorator';

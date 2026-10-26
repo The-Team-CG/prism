@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { PrismEvent } from "@prism/types";
 import { clearEventSession, type EventSession } from "@/app/lib/session";
 import type { EventClientRecord } from "../model/event-dashboard-selectors";
+import { logoutEventSession } from "../data/session-commands";
 import {
   CLIENT_DETAIL_ROUTES,
   EVENT_DETAIL_ROUTES,
@@ -161,9 +162,15 @@ export function useEventDashboardNavigationViewModel({
     }
   }
 
-  function signOut() {
-    clearEventSession();
-    router.replace("/sign-in");
+  async function signOut(): Promise<void> {
+    try {
+      await logoutEventSession();
+    } catch {
+      // Signing out locally is the user's intent; the server token dies at expiry if this call fails.
+    } finally {
+      clearEventSession();
+      router.replace("/sign-in");
+    }
   }
 
   return {

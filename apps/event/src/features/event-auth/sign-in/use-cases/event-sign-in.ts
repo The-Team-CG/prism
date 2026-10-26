@@ -1,5 +1,6 @@
 import { eventAuthRepository } from "../data/event-auth-repository";
 import type { EventSession } from "@/app/lib/session";
+import { privacyNoticePath } from "@prism/types";
 import {
   eventRoleRejectionMessage,
   isEventPortalRole,
@@ -27,11 +28,12 @@ export async function signInToEventPortal(input: {
     };
   }
   const session: EventSession = response;
+  const nextPath = resolveEventPostSignInPath(input.nextPath);
   if (!isEventPortalRole(session.role)) {
     return { error: eventRoleRejectionMessage(session.role) };
   }
   eventAuthRepository.persistSession(session);
-  return { kind: "redirect", redirectTo: resolveEventPostSignInPath(input.nextPath), session };
+  return { kind: "redirect", redirectTo: response.privacyNoticeRequired ? privacyNoticePath(nextPath) : nextPath, session };
 }
 
 export async function beginEventTwoFactorSetup(token: string) {
@@ -42,5 +44,6 @@ export async function verifyEventTwoFactor(input: { token: string; code: string;
   const session = await eventAuthRepository.verifyTwoFactor(input.token, input.code);
   if (!isEventPortalRole(session.role)) return { error: eventRoleRejectionMessage(session.role) } as const;
   eventAuthRepository.persistSession(session);
-  return { kind: "redirect", redirectTo: resolveEventPostSignInPath(input.nextPath) } as const;
+  const nextPath = resolveEventPostSignInPath(input.nextPath);
+  return { kind: "redirect", redirectTo: session.privacyNoticeRequired ? privacyNoticePath(nextPath) : nextPath } as const;
 }

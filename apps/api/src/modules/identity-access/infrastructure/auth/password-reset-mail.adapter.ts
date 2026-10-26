@@ -7,7 +7,7 @@ const SUBJECT = 'Reset your P.R.I.S.M password';
 const EXPIRY_MINUTES = PASSWORD_RESET_TTL_MS / 60_000;
 const IGNORE_NOTICE = "If you didn't ask for this, ignore this email.";
 
-function escapeHtml(value: string) {
+export function escapeHtml(value: string) {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

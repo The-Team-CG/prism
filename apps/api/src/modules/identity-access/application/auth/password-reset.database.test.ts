@@ -1,11 +1,19 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ConfigService } from '@nestjs/config';
+import { Reflector } from '@nestjs/core';
+import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 import { PrismaService } from '../../../../kernel/database';
 import { AuthSessionService } from '../../../../kernel/event-session/services/auth-session.service';
 import { EventSessionGuard } from '../../../../kernel/event-session/guards/event-session.guard';
 import { AuthSecurityService } from './auth-security.service';
 import { PasswordResetService } from './password-reset.service';
+
+const routeContext = (authorization: string) => ({
+  getHandler: () => function route() {},
+  getClass: () => class Route {},
+  switchToHttp: () => ({ getRequest: () => ({ headers: { authorization } }) }),
+} as never);
 
 const databaseUrl = process.env.P0_TEST_DATABASE_URL?.trim();
 const enabled = Boolean(databaseUrl && /^postgresql:\/\/[^@]+@127\.0\.0\.1:55437\/prism_p0(?:\?|$)/.test(databaseUrl));
@@ -24,7 +32,7 @@ describe.skipIf(!enabled)('native password recovery PostgreSQL integrity', () =>
     prisma = new PrismaService();
     await prisma.$connect();
     await prisma.opsUser.create({ data: {
-      id: userId, name: 'P1 Recovery Fixture', email: `${prefix}@example.test`, password: await AuthSecurityService.hashPassword('old-password-123'), role: 'client', organization: 'P1', approvalStatus: 'approved',
+      id: userId, name: 'P1 Recovery Fixture', email: `${prefix}@example.test`, password: await AuthSecurityService.hashPassword('old-password-123'), role: 'client', organization: 'P1', approvalStatus: 'approved', privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, privacyNoticeAcknowledgedAt: new Date(),
     } });
     await prisma.opsPasswordResetToken.create({ data: {
       id: `${prefix}_token`, userId, tokenHash: createHash('sha256').update(rawToken).digest('hex'), expiresAt: new Date(Date.now() + 60_000),
@@ -32,7 +40,6 @@ describe.skipIf(!enabled)('native password recovery PostgreSQL integrity', () =>
     service = new PasswordResetService(prisma, { deliver: async () => undefined }, {
       client: 'https://client.example.test',
       supplier: 'https://supplier.example.test',
-      guest: 'https://guest.example.test',
       event: 'https://event.example.test',
     });
   });
@@ -57,13 +64,13 @@ describe.skipIf(!enabled)('native password recovery PostgreSQL integrity', () =>
     await expect(prisma.opsUser.findUniqueOrThrow({ where: { id: userId }, select: { sessionVersion: true } })).resolves.toMatchObject({ sessionVersion: 1 });
     await expect(prisma.opsPasswordResetToken.findUniqueOrThrow({ where: { id: `${prefix}_token` }, select: { consumedAt: true } })).resolves.toMatchObject({ consumedAt: expect.any(Date) });
 
-    const guard = new EventSessionGuard(new AuthSessionService(new ConfigService({ PRISM_SESSION_SECRET: 'p1-test-session-secret-long-enough', PRISM_SESSION_TTL_SECONDS: '28800' })), prisma);
-    await expect(guard.canActivate({ switchToHttp: () => ({ getRequest: () => ({ headers: { authorization: `Bearer ${oldSession.accessToken}` } }) }) } as never)).rejects.toThrow(/revoked/i);
+    const guard = new EventSessionGuard(new AuthSessionService(new ConfigService({ PRISM_SESSION_SECRET: 'p1-test-session-secret-long-enough', PRISM_SESSION_TTL_SECONDS: '28800' })), prisma, new Reflector());
+    await expect(guard.canActivate(routeContext(`Bearer ${oldSession.accessToken}`))).rejects.toThrow(/revoked/i);
     const renewed = await prisma.opsUser.findUniqueOrThrow({ where: { id: userId } });
     const newSession = new AuthSessionService(new ConfigService({ PRISM_SESSION_SECRET: 'p1-test-session-secret-long-enough', PRISM_SESSION_TTL_SECONDS: '28800' })).issueSession({
       id: renewed.id, name: renewed.name, email: renewed.email, role: 'client', organization: renewed.organization, approvalStatus: 'approved', sessionVersion: renewed.sessionVersion,
     });
-    await expect(guard.canActivate({ switchToHttp: () => ({ getRequest: () => ({ headers: { authorization: `Bearer ${newSession.accessToken}` } }) }) } as never)).resolves.toBe(true);
+    await expect(guard.canActivate(routeContext(`Bearer ${newSession.accessToken}`))).resolves.toBe(true);
   });
 
   it('keeps the account unchanged when token validation fails', async () => {
