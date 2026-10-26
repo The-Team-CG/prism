@@ -8,6 +8,7 @@ import { WorkflowCommandService } from '@prism/kernel/event-core';
 import { GuestWorkflowService } from './guest-workflow.service';
 import { GuestEventProjectionService } from '../../../read-models/application/services/guest-event-projection.service';
 
+import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 const databaseUrl = process.env.P0_TEST_DATABASE_URL;
 
 describe.skipIf(!databaseUrl)('guest feedback PostgreSQL transaction acceptance', () => {
@@ -76,7 +77,7 @@ describe.skipIf(!databaseUrl)('guest feedback PostgreSQL transaction acceptance'
       data: { id: id(), eventId: event.id, guestName: null, checkInMode: 'headcount', walkIn: true },
     });
     expect(anonymousCheckIn.guestName).toBeNull();
-    const feedback = await service.submitFeedbackByAccessCode(service.guestAccessCode(event), { guestName: 'Guest', rating: 5, privacyConsentAccepted: true });
+    const feedback = await service.submitFeedbackByAccessCode(service.guestAccessCode(event), { privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, guestName: 'Guest', rating: 5, privacyConsentAccepted: true });
     const moderated = await service.moderateFeedback(event.id, feedback.id, { action: 'approve' }, { id: 'w23-pmcm', name: 'PMCM', role: 'pmcm-admin' });
     expect(moderated).toMatchObject({ moderationStatus: 'approved', moderatedById: 'w23-pmcm' });
     expect(await prisma.opsAuditLog.count({ where: { eventId: event.id, affectedId: feedback.id } })).toBe(2);

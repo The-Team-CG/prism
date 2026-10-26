@@ -1,10 +1,13 @@
 import type {
   AuditLogFilters,
+  CreateAccountInvitationInput,
+  PrismAccountInvitationOutcome,
   PrismApprovalRequest,
   PrismAuditExport,
   PrismAuditIntegrity,
   PrismAuditLog,
   PrismEvent,
+  PrismIdentityAccountSummary,
   PrismLoginHistory,
   PrismPrivacyInventory,
   PrismPmcmDashboardWorkspace,
@@ -13,6 +16,7 @@ import type {
   PrismUser,
 } from "@prism/types";
 import { eventApi, eventApiRequest } from "@/lib/prism-api";
+import { identityCommands } from "@/features/event-dashboard/shell/data/commands/identity-commands";
 
 export type AuditTrailData = {
   logs: PrismAuditLog[];
@@ -34,6 +38,10 @@ export type AuditTrailCommands = {
   privacyInventory(eventId?: string): Promise<PrismPrivacyInventory>;
   privacyRequestQueue(eventId?: string): Promise<PrismPrivacyRequestPage>;
   securityAlerts(): Promise<PrismSecurityAlert[]>;
+  unlockUser(userId: string): Promise<PrismIdentityAccountSummary>;
+  resetUserTwoFactor(userId: string): Promise<PrismIdentityAccountSummary>;
+  resendAccountInvitation(userId: string): Promise<PrismAccountInvitationOutcome>;
+  inviteStaff(input: CreateAccountInvitationInput): Promise<PrismAccountInvitationOutcome>;
 };
 
 function eventScope(eventId?: string) {
@@ -63,6 +71,10 @@ const auditTrailCommands = {
     return eventApiRequest<PrismPrivacyRequestPage>(`/api/privacy/requests?${params.toString()}`);
   },
   securityAlerts: () => eventApiRequest<PrismSecurityAlert[]>("/api/audit/alerts"),
+  unlockUser: identityCommands.unlockUser,
+  resetUserTwoFactor: identityCommands.resetUserTwoFactor,
+  resendAccountInvitation: identityCommands.resendAccountInvitation,
+  inviteStaff: identityCommands.inviteStaff,
 } satisfies AuditTrailCommands;
 
 export function createAuditTrailRepository(commands: AuditTrailCommands = auditTrailCommands) {
@@ -94,6 +106,11 @@ export function createAuditTrailRepository(commands: AuditTrailCommands = auditT
     export(filters: AuditLogFilters): Promise<PrismAuditExport> {
       return commands.exportAuditLogs(filters);
     },
+
+    unlockUser: (userId: string) => commands.unlockUser(userId),
+    resetUserTwoFactor: (userId: string) => commands.resetUserTwoFactor(userId),
+    resendAccountInvitation: (userId: string) => commands.resendAccountInvitation(userId),
+    inviteStaff: (input: CreateAccountInvitationInput) => commands.inviteStaff(input),
   };
 }
 

@@ -66,6 +66,8 @@ function createFixture() {
       inquiry.conformeSignedAt = signedAt;
       return { event, inquiry };
     }),
+    // Acceptance, not signing, sends the client invitation; signing must never reach this.
+    sendClientPortalInvitationAfterCommit: vi.fn(async () => undefined),
   };
   const service = new ConformeSigningService(prisma as never, inquiriesService as never, auditWriter as never, notifications as never);
   return { service, tx, prisma, inquiry, execution, signatures, event, auditWriter, notifications, inquiriesService };
@@ -87,6 +89,7 @@ describe('ConformeSigningService', () => {
     const clientResult = await f.service.signForClient(signed, clientActor as never, { ip: '127.0.0.1', userAgent: 'test' });
     expect(clientResult.status).toBe('awaiting_pmcm');
     expect(f.inquiriesService.activateAfterConforme).not.toHaveBeenCalled();
+    expect(f.inquiriesService.sendClientPortalInvitationAfterCommit).not.toHaveBeenCalled();
     expect(f.signatures.map((signature) => signature.actorRole)).toEqual(['client']);
     await expect(f.service.signForClient(signed, clientActor as never, {})).resolves.toMatchObject({ status: 'awaiting_pmcm' });
     expect(f.signatures).toHaveLength(1);
@@ -100,8 +103,10 @@ describe('ConformeSigningService', () => {
     expect(f.auditWriter.write).toHaveBeenCalledTimes(2);
     expect(pmcmResult.signatures).toHaveLength(2);
     expect(pmcmResult.signatures[0]).not.toHaveProperty('ipHash');
+    expect(f.inquiriesService.sendClientPortalInvitationAfterCommit).not.toHaveBeenCalled();
     await expect(f.service.signForPmcm('inq_1', signed, pmcmActor as never, {})).resolves.toMatchObject({ status: 'completed' });
     expect(f.inquiriesService.activateAfterConforme).toHaveBeenCalledOnce();
+    expect(f.inquiriesService.sendClientPortalInvitationAfterCommit).not.toHaveBeenCalled();
     expect(f.notifications.write).toHaveBeenCalledOnce();
     expect(f.auditWriter.write).toHaveBeenCalledTimes(2);
   });

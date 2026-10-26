@@ -3,12 +3,12 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { PrismaService } from '../../../../kernel/database';
 import type { AuditWriteInput } from '../../../../kernel/access-control';
 import { AuditCategory, OpsUserRole } from '../../../../kernel/event-core';
+import { PRISM_PORTAL_URLS, type ApiLinkedPortalApp, type PrismPortalUrls } from '@prism/kernel/shared';
 import { AuthSecurityService } from './auth-security.service';
-import { PASSWORD_RESET_DELIVERY, type PasswordResetDeliveryPort } from '../../contracts/password-reset-delivery.port';
+import { PASSWORD_RESET_DELIVERY, PASSWORD_RESET_TTL_MS, type PasswordResetDeliveryPort } from '../../contracts/password-reset-delivery.port';
 import { AUTH_AUDIT, type AuthAuditPort } from '../../contracts/auth-audit.port';
 import { canonicalAccountEmail } from './account-email';
 
-export const PASSWORD_RESET_TTL_MS = 15 * 60 * 1000;
 const GENERIC_MESSAGE = 'If an account exists for that email, password reset instructions will be sent.';
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 3;
@@ -17,19 +17,40 @@ function tokenHash(token: string) {
   return createHash('sha256').update(token, 'utf8').digest('hex');
 }
 
+/**
+ * The portal an account signs in through, which decides where its reset link leads. Exhaustive over the
+ * role constants, so a new role is a compile error here. Guests sign in with event codes and have no
+ * password reset page; system and unknown accounts have no portal sign-in. Those roles receive no link.
+ */
+export function portalForAccountRole(role: OpsUserRole): ApiLinkedPortalApp | null {
+  switch (role) {
+    case OpsUserRole.Client:
+      return 'client';
+    case OpsUserRole.Supplier:
+      return 'supplier';
+    case OpsUserRole.PmcmAdmin:
+    case OpsUserRole.Coordinator:
+      return 'event';
+    case OpsUserRole.Guest:
+    case OpsUserRole.System:
+    case OpsUserRole.Unknown:
+      return null;
+  }
+}
+
 @Injectable()
 export class PasswordResetService {
   private readonly logger = new Logger(PasswordResetService.name);
 
   constructor(
     private readonly prisma: PrismaService,
-    @Optional() @Inject(PASSWORD_RESET_DELIVERY) private readonly delivery?: PasswordResetDeliveryPort,
+    @Inject(PASSWORD_RESET_DELIVERY) private readonly delivery: PasswordResetDeliveryPort,
+    @Inject(PRISM_PORTAL_URLS) private readonly portalUrls: PrismPortalUrls,
     @Optional() @Inject(AUTH_AUDIT) private readonly authAudit?: Pick<AuthAuditPort, 'write'>,
   ) {}
 
   async request(email: string, clientIp: string) {
     const normalizedEmail = canonicalAccountEmail(email);
-    const deliveryAvailable = Boolean(this.delivery && this.buildTrustedResetUrl('placeholder'));
     const rateLimited = await this.consumeRateLimit(normalizedEmail, clientIp);
     const user = await this.prisma.opsUser.findUnique({ where: { email: normalizedEmail } });
     await this.recordAudit(
@@ -48,25 +69,22 @@ export class PasswordResetService {
       },
     );
 
-    if (!rateLimited && user) {
-      const token = randomBytes(32).toString('base64url');
-      const expiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MS);
-      await this.prisma.$transaction(async (tx) => {
-        await tx.opsPasswordResetToken.create({
-          data: { id: `prt_${randomUUID()}`, userId: user.id, tokenHash: tokenHash(token), expiresAt },
+    // An account without a password is activated by its invitation, not by a reset, so no link is sent for it.
+    if (!rateLimited && user && user.password !== null) {
+      const portal = portalForAccountRole(user.role as OpsUserRole);
+      if (portal) {
+        const token = randomBytes(32).toString('base64url');
+        const expiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MS);
+        await this.prisma.$transaction(async (tx) => {
+          await tx.opsPasswordResetToken.create({
+            data: { id: `prt_${randomUUID()}`, userId: user.id, tokenHash: tokenHash(token), expiresAt },
+          });
         });
-      });
-
-      const resetUrl = this.buildTrustedResetUrl(token);
-      if (resetUrl && this.delivery) {
-        try {
-          await this.delivery.deliver({ recipient: user.email, resetUrl });
-        } catch {
-          this.logger.warn('Password reset provider failed; token remains un-delivered and can expire safely');
-        }
+        // Not awaited: a provider round-trip would make known accounts answer more slowly than unknown ones.
+        void this.deliverResetLink(user.id, user.email, this.resetUrlFor(portal, token));
       }
     }
-    return { message: GENERIC_MESSAGE, deliveryAvailable };
+    return { message: GENERIC_MESSAGE };
   }
 
   async consume(token: string, password: string) {
@@ -124,29 +142,27 @@ export class PasswordResetService {
     return { message: 'Password reset completed. Please sign in again.' };
   }
 
-  private buildTrustedResetUrl(token: string) {
-    const url = this.parseTrustedResetUrl();
-    if (!url) return null;
-    url.searchParams.set('token', token);
-    return url.toString();
+  private resetUrlFor(portal: ApiLinkedPortalApp, token: string) {
+    const link = new URL(`${this.portalUrls[portal]}/password-reset`);
+    link.searchParams.set('token', token);
+    return link.toString();
   }
 
-  private parseTrustedResetUrl() {
-    const configured = process.env.PRISM_PORTAL_RESET_URL?.trim();
-    if (!configured) return null;
+  private async deliverResetLink(userId: string, recipient: string, resetUrl: string) {
     try {
-      const url = new URL(configured);
-      return this.isTrustedResetUrl(url) ? url : null;
+      await this.delivery.deliver({ recipient, resetUrl });
     } catch {
-      return null;
+      // The reason is deliberately not logged: it can carry provider detail, and the URL must never reach a log.
+      this.logger.warn('Password reset email was not delivered; the link expires unused');
+      await this.recordAudit('System', 'Password reset delivery failed', {
+        actorRole: OpsUserRole.System,
+        actionType: 'password_reset_delivery_failed',
+        category: AuditCategory.Access,
+        affectedType: 'account',
+        affectedId: userId,
+        severity: 'warning',
+      });
     }
-  }
-
-  private isTrustedResetUrl(url: URL) {
-    if (url.username || url.password || url.hash) return false;
-    if (url.protocol === 'https:') return true;
-    const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
-    return url.protocol === 'http:' && loopback;
   }
 
   private async consumeRateLimit(normalizedEmail: string, clientIp: string) {

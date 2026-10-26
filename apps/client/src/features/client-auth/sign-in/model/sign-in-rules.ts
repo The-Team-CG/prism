@@ -1,4 +1,5 @@
-import { portalUrlFor } from "@prism/types";
+import { portalUrlFor, safeNextPath } from "@prism/types";
+import { portalUrlsFromEnvironment } from "@/lib/portal-urls";
 import type { SignInDraft } from "./sign-in-types";
 
 export function isSignInDraftValid(draft: SignInDraft): boolean {
@@ -9,7 +10,7 @@ export function isClientRole(role: string): boolean {
   return role === "client";
 }
 
-export function portalMessage(role: string, env: Record<string, string | undefined> = process.env): string {
+export function portalMessage(role: string, env: Record<string, string | undefined> = portalUrlsFromEnvironment()): string {
   if (role === "pmcm-admin" || role === "coordinator") {
     return `Event team accounts sign in through the event operations portal at ${portalUrlFor("event", env)}.`;
   }
@@ -20,8 +21,7 @@ export function portalMessage(role: string, env: Record<string, string | undefin
 }
 
 export function resolvePostSignInPath(nextParam: string | null | undefined): string {
-  if (nextParam && nextParam.startsWith("/")) return nextParam;
-  return "/dashboard";
+  return safeNextPath(nextParam, "/dashboard");
 }
 
 export function mapSignInFailure(input: {

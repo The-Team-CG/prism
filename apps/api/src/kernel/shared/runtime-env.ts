@@ -7,6 +7,8 @@ import {
   PRISM_SESSION_TTL_ENV,
   PRISM_SESSION_TTL_ROLE_ENV_PREFIX,
 } from '../event-session/session-config';
+import { mailTransportProblems } from '../mail/mail-config';
+import { portalUrlProblems } from './portal-urls';
 
 /**
  * prism-api process configuration. App-internal runtime config, not a shared
@@ -72,6 +74,14 @@ const runtimeEnvSchema = z
         path: ['DATABASE_URL'],
         message: error instanceof Error ? error.message : 'DATABASE_URL is invalid',
       });
+    }
+
+    const read = (name: string) => {
+      const value = env[name];
+      return typeof value === 'string' ? value : undefined;
+    };
+    for (const problem of [...mailTransportProblems(read), ...portalUrlProblems(read)]) {
+      context.addIssue({ code: 'custom', path: [problem.name], message: problem.message });
     }
   });
 

@@ -19,8 +19,14 @@ export function readClientSession() {
   return clientDashboardRepository.readSession();
 }
 
-export function signOutClientSession() {
-  clientDashboardRepository.clearSession();
+export async function signOutClientSession(): Promise<void> {
+  try {
+    await clientDashboardRepository.logout();
+  } catch {
+    // Signing out locally is the user's intent; the server token dies at expiry.
+  } finally {
+    clientDashboardRepository.clearSession();
+  }
 }
 
 export function loadClientWorkspace() {
