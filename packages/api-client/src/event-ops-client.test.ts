@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PrismContractError, type PrismEventOpsActorContext } from "@prism/types";
+import { PRISM_PRIVACY_NOTICE_VERSION, PrismContractError, type PrismEventOpsActorContext } from "@prism/types";
 import { PrismApiError, createEventOpsClient, normalizePrismApiProblem, prismRequest, toQueryString } from "./index";
 
 let fixtureUuidSequence = 0;
@@ -585,8 +585,28 @@ describe("toQueryString", () => {
 });
 
 describe("createEventOpsClient", () => {
+  it("sends session, current-user and recovery calls with the session token and encoded account ids", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: "usr_pmcm" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({
+      baseUrl: "http://localhost:4000/api",
+      getAuthToken: () => "session-token",
+    });
+    await client.auth.me();
+    await client.auth.logout();
+    await client.auth.unlockUser("usr pmcm/1");
+    await client.auth.resetUserTwoFactor("usr_pmcm");
+
+    const bearer = { Authorization: "Bearer session-token", "Content-Type": "application/json" };
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "http://localhost:4000/api/auth/me", expect.objectContaining({ method: "GET", headers: bearer }));
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "http://localhost:4000/api/auth/logout", expect.objectContaining({ method: "POST", headers: bearer }));
+    expect(fetchMock).toHaveBeenNthCalledWith(3, "http://localhost:4000/api/auth/users/usr%20pmcm%2F1/unlock", expect.objectContaining({ method: "PATCH", headers: bearer }));
+    expect(fetchMock).toHaveBeenNthCalledWith(4, "http://localhost:4000/api/auth/users/usr_pmcm/two-factor/reset", expect.objectContaining({ method: "PATCH", headers: bearer }));
+  });
+
   it("posts login and approval requests through the shared auth contract", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: "approval_1" }), { status: 201 }));
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ message: "If an account exists for this email, PMCM will review the request." }), { status: 202 }));
     vi.stubGlobal("fetch", fetchMock);
 
     const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
@@ -594,7 +614,7 @@ describe("createEventOpsClient", () => {
     await client.auth.requestApproval({
       email: "client@example.test",
       privacyConsentAccepted: true,
-      privacyNoticeVersion: "2026-05-01",
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
     });
 
     expect(fetchMock).toHaveBeenNthCalledWith(1, "http://localhost:4000/api/auth/login", {
@@ -607,10 +627,60 @@ describe("createEventOpsClient", () => {
       body: JSON.stringify({
         email: "client@example.test",
         privacyConsentAccepted: true,
-        privacyNoticeVersion: "2026-05-01",
+        privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       }),
       headers: { "Content-Type": "application/json" },
     });
+  });
+
+  it("posts account activation, staff invites and invitation resends to their routes", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ outcome: "invited" }), { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api", getAuthToken: () => "session-token" });
+    await client.auth.activateAccount({ token: "a".repeat(43), password: "a sufficiently long password" });
+    await client.auth.inviteStaff({ email: "coord@pmcm.test", name: "Coordinator", role: "coordinator", organization: "PMCM" });
+    await client.auth.resendAccountInvitation("usr pmcm/1");
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "http://localhost:4000/api/auth/activate", expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ token: "a".repeat(43), password: "a sufficiently long password" }),
+    }));
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "http://localhost:4000/api/auth/invitations", expect.objectContaining({
+      method: "POST",
+      headers: { Authorization: "Bearer session-token", "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "coord@pmcm.test", name: "Coordinator", role: "coordinator", organization: "PMCM" }),
+    }));
+    expect(fetchMock).toHaveBeenNthCalledWith(3, "http://localhost:4000/api/auth/invitations/usr%20pmcm%2F1/resend", expect.objectContaining({
+      method: "POST",
+      headers: { Authorization: "Bearer session-token", "Content-Type": "application/json" },
+    }));
+  });
+
+  it("posts a client portal invitation resend for an inquiry", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ outcome: { outcome: "invited" }, inquiry: {} }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api", getAuthToken: () => "session-token" });
+    await client.inquiries.resendPortalInvitation("inq 1/a");
+
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/inquiries/inq%201%2Fa/portal-invitation/resend", expect.objectContaining({
+      method: "POST",
+      headers: { Authorization: "Bearer session-token", "Content-Type": "application/json" },
+    }));
+  });
+
+  it("posts a supplier login re-send for an approved application", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ outcome: "invited" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api", getAuthToken: () => "session-token" });
+    await client.supplierApplications.resendAccountInvitation("sap 1");
+
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/supplier-applications/sap%201/account-invitation/resend", expect.objectContaining({
+      method: "POST",
+      headers: { Authorization: "Bearer session-token", "Content-Type": "application/json" },
+    }));
   });
 
   it("sends actor query params for event lists", async () => {
@@ -914,6 +984,58 @@ describe("createEventOpsClient", () => {
       headers: { "Content-Type": "application/json", Authorization: "Bearer signed-token" },
     });
   });
+
+  it("reports a 401 only for signed-in requests, never for failed sign-in", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ message: "Invalid credentials" }), { status: 401 })),
+    );
+    const onUnauthorized = vi.fn();
+    const client = createEventOpsClient({
+      baseUrl: "http://localhost:4000/api",
+      getAuthToken: () => "stale-token",
+      onUnauthorized,
+    });
+
+    await expect(client.pmcmDashboard.detail()).rejects.toMatchObject({ status: 401 });
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+
+    await expect(
+      client.auth.login({ email: "mys@pmcm.test", password: "wrong" }),
+    ).rejects.toMatchObject({ status: 401 });
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+
+    const anonymous = createEventOpsClient({ baseUrl: "http://localhost:4000/api", onUnauthorized });
+    await expect(anonymous.pmcmDashboard.detail()).rejects.toMatchObject({ status: 401 });
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a pending privacy notice only for signed-in 403 privacy_notice_required responses", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ code: "privacy_notice_required", message: "Review the privacy notice to continue." }), { status: 403 })),
+    );
+    const onPrivacyNoticeRequired = vi.fn();
+    const onUnauthorized = vi.fn();
+    const client = createEventOpsClient({
+      baseUrl: "http://localhost:4000/api",
+      getAuthToken: () => "pending-token",
+      onPrivacyNoticeRequired,
+      onUnauthorized,
+    });
+
+    await expect(client.pmcmDashboard.detail()).rejects.toMatchObject({
+      status: 403,
+      problem: { code: "privacy_notice_required" },
+    });
+    expect(onPrivacyNoticeRequired).toHaveBeenCalledTimes(1);
+    expect(onUnauthorized).not.toHaveBeenCalled();
+
+    const anonymous = createEventOpsClient({ baseUrl: "http://localhost:4000/api", onPrivacyNoticeRequired });
+    await expect(anonymous.pmcmDashboard.detail()).rejects.toMatchObject({ status: 403 });
+    expect(onPrivacyNoticeRequired).toHaveBeenCalledTimes(1);
+  });
+
   it("loads the PMCM dashboard as a scoped read model", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ events: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
@@ -1106,6 +1228,7 @@ describe("createEventOpsClient", () => {
       source: "PMCM Facebook",
       message: "Need planning support.",
       privacyConsentAccepted: true,
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
     });
 
     expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/inquiries", {
@@ -1119,6 +1242,7 @@ describe("createEventOpsClient", () => {
         source: "PMCM Facebook",
         message: "Need planning support.",
         privacyConsentAccepted: true,
+        privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       }),
       headers: { "Content-Type": "application/json" },
     });

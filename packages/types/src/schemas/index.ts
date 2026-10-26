@@ -10,6 +10,7 @@ export {
   nonEmptyStringSchema,
   optionalTrimmedStringSchema,
   privacyConsentSchema,
+  privacyNoticeVersionSchema,
   prismEventOpsActorSchema,
   uploadMetadataSchema,
   type PrivacyConsentInput,
@@ -241,12 +242,18 @@ export {
   passwordSchema,
   requestPasswordResetSchema,
   consumePasswordResetSchema,
+  activateAccountSchema,
+  createAccountInvitationSchema,
+  acknowledgePrivacyNoticeSchema,
+  type AcknowledgePrivacyNoticeInput,
   type LoginInput,
   type RequestApprovalInput,
   type TwoFactorTokenInput,
   type VerifyTwoFactorInput,
   type RequestPasswordResetInput,
   type ConsumePasswordResetInput,
+  type ActivateAccountInput,
+  type CreateAccountInvitationInput,
 } from "./auth-inputs.js";
 
 export {

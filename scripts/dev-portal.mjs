@@ -11,7 +11,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { apiUrlFor, resolveLivePortSet } from "./prism-ports.mjs";
+import { apiUrlFor, portalUrlsFor, resolveLivePortSet } from "./prism-ports.mjs";
 
 const require = createRequire(import.meta.url);
 const { readProcessIdentity, removeCheckoutLease, writeCheckoutLease } = require("./port-ownership.cjs");
@@ -66,7 +66,7 @@ function main() {
   const child = spawn(process.execPath, [nextBin, mode, "--port", String(port)], {
     cwd: appDir,
     stdio: "inherit",
-    env: { ...process.env, NEXT_PUBLIC_API_URL: apiUrlFor(ports), PRISM_CHECKOUT_ROOT: worktreeRoot },
+    env: { ...process.env, NEXT_PUBLIC_API_URL: apiUrlFor(ports), ...portalUrlsFor(ports), PRISM_CHECKOUT_ROOT: worktreeRoot },
   });
   let lease;
   try {

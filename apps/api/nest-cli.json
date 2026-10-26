@@ -21,6 +21,10 @@
           {
             "include": "kernel/database/migration-ledger-compatibility.cjs",
             "outDir": "dist/apps/api/src"
+          },
+          {
+            "include": "modules/identity-access/application/auth/password-hash.cjs",
+            "outDir": "dist/apps/api/src"
           }
         ]
       }

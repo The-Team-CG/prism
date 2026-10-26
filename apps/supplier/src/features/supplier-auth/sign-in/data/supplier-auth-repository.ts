@@ -3,24 +3,36 @@ import {
   PrismApiError,
 } from "@prism/api-client";
 import {
+  activateAccountSchema,
   consumePasswordResetSchema,
+  isPrismAuthenticatedSession,
   parseContract,
+  PRISM_PRIVACY_NOTICE_VERSION,
   PRISM_SESSION_STORAGE_KEYS,
   readPrismSession,
   requestPasswordResetSchema,
   savePrismSession,
+  type ActivateAccountInput,
   type ConsumePasswordResetInput,
   type LoginInput,
-  type PrismApprovalRequest,
+  type PrismApprovalRequestReceipt,
   type PrismAuthResponse,
   type PrismAuthenticatedSession,
   type RequestApprovalInput,
   type RequestPasswordResetInput,
 } from "@prism/types";
+import { storedSupplierAccessToken } from "@/lib/prism-api";
 import { SUPPLIER_AUTH_API_OFFLINE_MESSAGE } from "../model/supplier-sign-in-rules";
+import { ActivationTokenRejectedError } from "../../activate/model/activate-model";
 
 const SESSION_KEY = PRISM_SESSION_STORAGE_KEYS.supplier;
 const supplierAuthClient = createEventOpsClient();
+const signedInSupplierClient = createEventOpsClient({ getAuthToken: storedSupplierAccessToken });
+
+function rejectInvalidActivationToken(error: unknown): never {
+  if (error instanceof PrismApiError && error.status === 400) throw new ActivationTokenRejectedError();
+  throw error;
+}
 
 function apiErrorMessage(error: PrismApiError, fallback: string) {
   const body = error.body;
@@ -47,6 +59,14 @@ export const supplierAuthRepository = {
     return readPrismSession<PrismAuthenticatedSession>(SESSION_KEY);
   },
 
+  hasSignedInSession(): boolean {
+    return isPrismAuthenticatedSession(readPrismSession(SESSION_KEY));
+  },
+
+  acknowledgePrivacyNotice(): Promise<void> {
+    return signedInSupplierClient.auth.acknowledgePrivacyNotice({ version: PRISM_PRIVACY_NOTICE_VERSION });
+  },
+
   saveSession(session: PrismAuthenticatedSession): void {
     savePrismSession(SESSION_KEY, session);
   },
@@ -58,14 +78,14 @@ export const supplierAuthRepository = {
     );
   },
 
-  requestApproval(input: RequestApprovalInput): Promise<PrismApprovalRequest> {
+  requestApproval(input: RequestApprovalInput): Promise<PrismApprovalRequestReceipt> {
     return runSupplierAuthRequest(
       () => supplierAuthClient.auth.requestApproval(input),
       "Unable to request supplier account approval",
     );
   },
 
-  requestPasswordReset(input: RequestPasswordResetInput): Promise<{ message: string; deliveryAvailable: boolean }> {
+  requestPasswordReset(input: RequestPasswordResetInput): Promise<{ message: string }> {
     const contract = parseContract(requestPasswordResetSchema, input, "Password reset request");
     return runSupplierAuthRequest(
       () => supplierAuthClient.auth.requestPasswordReset(contract.email),
@@ -78,6 +98,14 @@ export const supplierAuthRepository = {
     return runSupplierAuthRequest(
       () => supplierAuthClient.auth.consumePasswordReset(contract.token, contract.password),
       "Unable to consume password reset",
+    );
+  },
+
+  async activateAccount(input: ActivateAccountInput): Promise<void> {
+    const contract = parseContract(activateAccountSchema, input, "Account activation");
+    await runSupplierAuthRequest(
+      () => supplierAuthClient.auth.activateAccount(contract).catch(rejectInvalidActivationToken),
+      "Unable to set your password.",
     );
   },
 };

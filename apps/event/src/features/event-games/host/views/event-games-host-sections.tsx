@@ -10,11 +10,13 @@ import type {
   PrismEventGameHostLobbyBranding,
   UpdateEventGameLobbyBrandingInput,
 } from "@prism/types";
+import { portalUrlFor } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { Card, CardBody, CardHeader } from "@/features/event-dashboard/shell/views/sections/shell-ui";
 import { EVENT_GAME_OPTIONS, eventGameModeLabel } from "../model/event-game-catalog";
 import { resolveGuestGameLobbyUrl } from "../model/guest-lobby-url";
+import { portalUrlsFromEnvironment } from "@/lib/portal-urls";
 
 const LOBBY_THEME_LABELS: Record<PrismEventGameBrandTheme, string> = {
   prism: "Prism",
@@ -196,7 +198,7 @@ export function GuestGameLobbyCard({
   const lobbyUrl = lobbySlug && typeof window !== "undefined"
     ? resolveGuestGameLobbyUrl(
       lobbySlug,
-      process.env.NEXT_PUBLIC_GUEST_PORTAL_URL ?? "http://localhost:3003",
+      portalUrlFor("guest", portalUrlsFromEnvironment()),
       window.location.origin,
     )
     : null;

@@ -158,6 +158,12 @@ export interface PrismAuthenticatedSession extends PrismUser {
   tokenType?: "Bearer";
 }
 
+/** Session returned when sign-in or two-factor completes. */
+export interface PrismSignInSession extends PrismAuthenticatedSession {
+  /** True until the person acknowledges the current privacy notice version. */
+  privacyNoticeRequired: boolean;
+}
+
 export interface PrismTwoFactorSetupRequired {
   kind: "two_factor_setup_required";
   token: string;
@@ -176,9 +182,52 @@ export interface PrismTwoFactorSetup {
 }
 
 export type PrismAuthResponse =
-  | PrismAuthenticatedSession
+  | PrismSignInSession
   | PrismTwoFactorSetupRequired
   | PrismTwoFactorRequired;
+
+/** Same body for every approval request, so the response never reveals whether an account exists. */
+export interface PrismApprovalRequestReceipt {
+  message: string;
+}
+
+/** Same body whether or not the token matched, so an activation response never reveals token state. */
+export interface PrismAccountActivationReceipt {
+  message: string;
+}
+
+/** Result of provisioning an account login. `invited` means the activation email was accepted by the mail provider. */
+export type PrismAccountInvitationOutcome =
+  | { outcome: "invited"; sentAt: string; expiresAt: string }
+  | { outcome: "existing_account" }
+  | { outcome: "account_not_active" }
+  | { outcome: "role_conflict" }
+  | { outcome: "delivery_failed" };
+
+export interface PrismCurrentUser {
+  id: string;
+  name: string;
+  email: string;
+  role: PrismUser["role"];
+  organization: string;
+  twoFactorEnabled: boolean;
+  privacyNoticeRequired: boolean;
+  expiresAt: string;
+}
+
+/** Identity administration result; carries no secrets or password material. */
+export interface PrismIdentityAccountSummary {
+  id: string;
+  email: string;
+  role: PrismUser["role"];
+  approvalStatus: string;
+  lockedUntil: string | null;
+  permanentLockout: boolean;
+  failedLoginCount: number;
+  lockoutCount: number;
+  twoFactorEnabled: boolean;
+  sessionVersion: number;
+}
 
 export interface PrismVerifiedEventActor extends PrismEventOpsActorContext {
   id: string;

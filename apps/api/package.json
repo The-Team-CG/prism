@@ -31,6 +31,7 @@
         "db:setup": "npm run db:doctor && prisma migrate deploy",
         "db:migrate": "npm run db:doctor && prisma migrate dev",
         "db:migrate:deploy": "prisma migrate deploy",
+        "db:migrate:password-hashes": "node scripts/run-with-env.mjs scripts/migrate-password-hashes.mjs",
         "db:generate": "prisma generate",
         "db:verify:offline": "npm run prisma:validate && prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script",
         "db:verify": "npm run db:doctor && npm run prisma:validate && prisma migrate status && npm run db:verify:offline",
@@ -55,7 +56,8 @@
         "db:reset:2fa": "node scripts/require-ack.mjs db:reset:2fa PRISM_API_2FA_RESET_I_UNDERSTAND && node scripts/run-with-env.mjs scripts/reset-local-fixture-2fa.mjs",
         "postinstall": "prisma generate",
         "db:backup:json": "node scripts/run-with-env.mjs scripts/db-backup-json.mjs",
-        "test:db:audit-repair": "node --test scripts/repair-audit-chain.test.mjs"
+        "test:db:audit-repair": "node --test scripts/repair-audit-chain.test.mjs",
+        "test:db:password-hashes": "node --test scripts/migrate-password-hashes.test.mjs"
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.95.0",

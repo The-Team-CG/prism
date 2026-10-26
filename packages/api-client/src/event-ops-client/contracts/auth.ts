@@ -1,8 +1,16 @@
 import type {
+  AcknowledgePrivacyNoticeInput,
+  ActivateAccountInput,
+  CreateAccountInvitationInput,
   LoginInput,
-  PrismApprovalRequest,
+  PrismAccountActivationReceipt,
+  PrismAccountInvitationOutcome,
+  PrismApprovalRequestReceipt,
   PrismAuthResponse,
   PrismAuthenticatedSession,
+  PrismCurrentUser,
+  PrismIdentityAccountSummary,
+  PrismSignInSession,
   PrismTwoFactorSetup,
   RequestApprovalInput,
   VerifyTwoFactorInput,
@@ -11,15 +19,23 @@ import type {
 export interface EventOpsAuthContract {
   auth: {
     login(input: LoginInput): Promise<PrismAuthResponse>;
-    requestApproval(input: RequestApprovalInput): Promise<PrismApprovalRequest>;
+    requestApproval(input: RequestApprovalInput): Promise<PrismApprovalRequestReceipt>;
+    logout(): Promise<void>;
+    acknowledgePrivacyNotice(input: AcknowledgePrivacyNoticeInput): Promise<void>;
+    me(): Promise<PrismCurrentUser>;
+    unlockUser(userId: string): Promise<PrismIdentityAccountSummary>;
+    resetUserTwoFactor(userId: string): Promise<PrismIdentityAccountSummary>;
     setupTwoFactor(token: string): Promise<PrismTwoFactorSetup>;
-    verifyTwoFactor(input: VerifyTwoFactorInput): Promise<PrismAuthenticatedSession>;
+    verifyTwoFactor(input: VerifyTwoFactorInput): Promise<PrismSignInSession>;
     requestPasswordReset(
       email: string,
-    ): Promise<{ message: string; deliveryAvailable: boolean }>;
+    ): Promise<{ message: string }>;
     consumePasswordReset(
       token: string,
       password: string,
     ): Promise<{ message: string }>;
+    activateAccount(input: ActivateAccountInput): Promise<PrismAccountActivationReceipt>;
+    inviteStaff(input: CreateAccountInvitationInput): Promise<PrismAccountInvitationOutcome>;
+    resendAccountInvitation(userId: string): Promise<PrismAccountInvitationOutcome>;
   };
 }

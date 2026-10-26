@@ -11,7 +11,7 @@ const supplierSession: PrismAuthenticatedSession = {
   organization: "Supplier Co",
   approvalStatus: "approved",
   accessToken: "verified-supplier-token",
-  expiresAt: "2026-09-30T12:00:00.000Z",
+  expiresAt: "2099-09-30T12:00:00.000Z",
   signedInAt: "2026-09-30T04:00:00.000Z",
 };
 
@@ -19,7 +19,8 @@ describe("signInSupplier", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("persists the authenticated session returned by the API", async () => {
-    const login = vi.spyOn(supplierAuthRepository, "login").mockResolvedValue(supplierSession);
+    const signedIn = { ...supplierSession, privacyNoticeRequired: false };
+    const login = vi.spyOn(supplierAuthRepository, "login").mockResolvedValue(signedIn);
     const saveSession = vi.spyOn(supplierAuthRepository, "saveSession");
 
     const result = await signInSupplier({
@@ -31,8 +32,8 @@ describe("signInSupplier", () => {
       email: "supplier@example.test",
       password: "supplier-password",
     });
-    expect(saveSession).toHaveBeenCalledWith(supplierSession);
-    expect(result).toEqual({ session: supplierSession, redirectTo: "/dashboard/quotes" });
+    expect(saveSession).toHaveBeenCalledWith(signedIn);
+    expect(result).toEqual({ session: signedIn, redirectTo: "/dashboard/quotes" });
   });
 
   it("sends PMCM two-factor responses to the event portal", async () => {
