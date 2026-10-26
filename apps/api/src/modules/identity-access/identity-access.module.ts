@@ -15,6 +15,8 @@ import { AuthAuditAdapter } from './infrastructure/auth/auth-audit.adapter';
 import { ParticipantReaderService } from './application/participants/participant-reader.service';
 import { PARTICIPANT_READER } from './contracts/participant-reader.port';
 import { PasswordResetService } from './application/auth/password-reset.service';
+import { AccountActivationService } from './application/auth/account-activation.service';
+import { AccountInvitationReferenceModule } from './account-invitation-reference.module';
 import { IdentityPrivacyRedactorService } from './application/participants/identity-privacy-redactor.service';
 import { IDENTITY_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 import { PASSWORD_RESET_DELIVERY } from './contracts/password-reset-delivery.port';
@@ -30,11 +32,12 @@ import { PasswordResetMailAdapter } from './infrastructure/auth/password-reset-m
  * Read-only: participant eligibility uses the focused ReadModels participant-facts contract.
  */
 @Module({
-  imports: [DatabaseModule, AccessControlModule, PlatformOpsModule, forwardRef(() => EventLifecycleModule), EventSessionModule, ParticipantFactsModule, MailModule, PortalUrlsModule],
+  imports: [DatabaseModule, AccessControlModule, PlatformOpsModule, forwardRef(() => EventLifecycleModule), EventSessionModule, ParticipantFactsModule, MailModule, PortalUrlsModule, AccountInvitationReferenceModule],
   controllers: [OpsAuthController],
   providers: [
     AuthOperationsService,
     PasswordResetService,
+    AccountActivationService,
     TotpService,
     AuthAuditAdapter,
     ParticipantReaderService,

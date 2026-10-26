@@ -44,6 +44,7 @@ export default defineConfig({
       '@prism/contexts/event-lifecycle/operations-reference': resolve(__dirname, './src/modules/event-lifecycle/operations-reference.ts'),
       '@prism/contexts/event-lifecycle': resolve(__dirname, './src/modules/event-lifecycle/index.ts'),
       '@prism/contexts/platform-ops': resolve(__dirname, './src/modules/platform-ops/index.ts'),
+      '@prism/contexts/identity-access/account-invitation-reference': resolve(__dirname, './src/modules/identity-access/account-invitation-reference.ts'),
       '@prism/contexts/identity-access/coordinator-reference': resolve(__dirname, './src/modules/identity-access/coordinator-reference.ts'),
       '@prism/contexts/identity-access': resolve(__dirname, './src/modules/identity-access/index.ts'),
       '@prism/contexts/floorplan/event-drafts': resolve(__dirname, './src/modules/floorplan/event-drafts.ts'),

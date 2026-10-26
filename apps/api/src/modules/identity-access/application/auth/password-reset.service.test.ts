@@ -9,13 +9,12 @@ import type { PasswordResetDeliveryPort } from '../../contracts/password-reset-d
 const portalUrls = {
   client: 'https://client.example.test',
   supplier: 'https://supplier.example.test',
-  guest: 'https://guest.example.test',
   event: 'https://event.example.test',
 };
 const GENERIC_MESSAGE = 'If an account exists for that email, password reset instructions will be sent.';
 
 function fixture(role: string = OpsUserRole.Client, found = true) {
-  const user = { id: 'user_1', name: 'Ana', email: 'ana@example.test', role };
+  const user = { id: 'user_1', name: 'Ana', email: 'ana@example.test', role, password: 'stored-hash' as string | null };
   const token = { id: 'prt_1', userId: user.id, tokenHash: '', expiresAt: new Date(Date.now() + 60_000), consumedAt: null };
   const userUpdate = vi.fn().mockResolvedValue(user);
   const prisma = {
@@ -92,6 +91,17 @@ describe('PasswordResetService', () => {
     expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
     const stored = prisma.opsPasswordResetToken.create.mock.calls[0][0].data;
     expect(stored.tokenHash).toBe(createHash('sha256').update(token!, 'utf8').digest('hex'));
+  });
+
+  it('sends no reset link to an invited account without a password, and answers the same way', async () => {
+    const { prisma, delivery, authAudit } = fixture(OpsUserRole.Client);
+    prisma.opsUser.findUnique.mockResolvedValueOnce({ id: 'user_1', name: 'Ana', email: 'ana@example.test', role: OpsUserRole.Client, password: null });
+    const service = new PasswordResetService(prisma as never, delivery, portalUrls, authAudit);
+
+    await expect(service.request('ana@example.test', '203.0.113.10')).resolves.toEqual({ message: GENERIC_MESSAGE });
+
+    expect(prisma.opsPasswordResetToken.create).not.toHaveBeenCalled();
+    expect(delivery.deliver).not.toHaveBeenCalled();
   });
 
   it('keeps the generic response and never logs the reset URL when delivery fails', async () => {

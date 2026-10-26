@@ -13,7 +13,6 @@ const mailAndPortals = {
   PRISM_CLIENT_PORTAL_URL: 'https://client.example.test',
   PRISM_SUPPLIER_PORTAL_URL: 'https://supplier.example.test',
   PRISM_EVENT_PORTAL_URL: 'https://event.example.test',
-  PRISM_GUEST_PORTAL_URL: 'https://guest.example.test',
 };
 const deployment = {
   NODE_ENV: 'production',
@@ -88,10 +87,8 @@ describe('validateRuntimeEnv', () => {
     ['PRISM_CLIENT_PORTAL_URL', without(deployment, 'PRISM_CLIENT_PORTAL_URL')],
     ['PRISM_SUPPLIER_PORTAL_URL', without(deployment, 'PRISM_SUPPLIER_PORTAL_URL')],
     ['PRISM_EVENT_PORTAL_URL', without(deployment, 'PRISM_EVENT_PORTAL_URL')],
-    ['PRISM_GUEST_PORTAL_URL', without(deployment, 'PRISM_GUEST_PORTAL_URL')],
     ['PRISM_CLIENT_PORTAL_URL', { ...deployment, PRISM_CLIENT_PORTAL_URL: 'http://client.example.test' }],
     ['PRISM_EVENT_PORTAL_URL', { ...deployment, PRISM_EVENT_PORTAL_URL: 'https://user:secret@event.example.test' }],
-    ['PRISM_GUEST_PORTAL_URL', { ...deployment, PRISM_GUEST_PORTAL_URL: 'https://guest.example.test/#frag' }],
   ])('names %s when the mail or portal configuration is wrong in production', (key, env) => {
     expect(() => validateRuntimeEnv(env)).toThrow(`- ${key}:`);
   });

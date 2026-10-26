@@ -106,13 +106,13 @@ Configure real deployment inputs through Vercel environment settings:
   transport. Set `RESEND_API_KEY` (secret) and `PRISM_MAIL_FROM`, an address on a
   domain verified in Resend, such as `P.R.I.S.M <no-reply@yourdomain>`. `log`
   writes mail to the API log and is refused under `NODE_ENV=production`.
-- `PRISM_CLIENT_PORTAL_URL`, `PRISM_SUPPLIER_PORTAL_URL`, `PRISM_EVENT_PORTAL_URL`,
-  `PRISM_GUEST_PORTAL_URL`: required; each portal's public origin. Password reset
+- `PRISM_CLIENT_PORTAL_URL`, `PRISM_SUPPLIER_PORTAL_URL`, `PRISM_EVENT_PORTAL_URL`:
+  required; each portal's public origin. Password reset and account invitation
   links go to the portal for the account's role. Use `https`; `http` is accepted
   only for localhost. No credentials or fragments. The API refuses to start
-  without all four.
-- Resend is approved (2026-10-25) and used for auth emails: password reset now, and
-  account invites next. Outbox notifications stay gated until their recipients
+  without all three. Guests sign in with event codes and need no origin here.
+- Resend is approved (2026-10-25) and used for auth emails: password reset and
+  account invitations. Outbox notifications stay gated until their recipients
   resolve to real addresses; Viber and other channels also remain gated and are not
   configured here.
 - Configure AI and external delivery providers only for intended capabilities.

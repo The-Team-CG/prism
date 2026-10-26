@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { onboardingTimelineSteps, reminderEvidenceCopy } from "./client-onboarding-rules";
+import { canResendPortalInvitation, onboardingTimelineSteps, reminderEvidenceCopy } from "./client-onboarding-rules";
 import type { PrismInquiry } from "@prism/types";
 
 function inquiry(overrides: Partial<PrismInquiry>): PrismInquiry {
@@ -39,6 +39,17 @@ describe("client-onboarding-rules", () => {
       (value) => value ?? "",
     );
     expect(expired.find((step) => step.title === "Invitation expired")?.done).toBe(true);
+  });
+
+  it.each([
+    { status: "not_sent", viewer: "pmcm-admin" as const, expected: true },
+    { status: "expired", viewer: "pmcm-admin" as const, expected: true },
+    { status: "sent", viewer: "pmcm-admin" as const, expected: false },
+    { status: "opened", viewer: "pmcm-admin" as const, expected: false },
+    { status: "expired", viewer: "coordinator" as const, expected: false },
+    { status: "not_sent", viewer: null, expected: false },
+  ])("resend availability for status $status and viewer $viewer is $expected", ({ status, viewer, expected }) => {
+    expect(canResendPortalInvitation({ portalInvitationStatus: status }, viewer)).toBe(expected);
   });
 
   it("surfaces last reminder evidence when present", () => {

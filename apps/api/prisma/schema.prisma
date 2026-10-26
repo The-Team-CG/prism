@@ -113,7 +113,7 @@ model OpsUser {
   id                           String    @id
   name                         String
   email                        String    @unique(map: "users_email_key")
-  password                     String
+  password                     String?
   role                         String
   organization                 String
   approvalStatus               String    @default("pending") @map("approval_status")
@@ -128,9 +128,12 @@ model OpsUser {
   twoFactorChallengeExpiresAt  DateTime? @map("two_factor_challenge_expires_at")
   twoFactorChallengeAttempts   Int       @default(0) @map("two_factor_challenge_attempts")
   twoFactorChallengeConsumedAt DateTime? @map("two_factor_challenge_consumed_at")
+  privacyNoticeVersion         String?   @map("privacy_notice_version")
+  privacyNoticeAcknowledgedAt  DateTime? @map("privacy_notice_acknowledged_at")
   createdAt                    DateTime  @default(now()) @map("created_at")
 
   passwordResetTokens OpsPasswordResetToken[]
+  accountInvitations  OpsAccountInvitation[]
   approvalRequests    OpsApprovalRequest[]
 
   @@map("users")
@@ -150,6 +153,28 @@ model OpsPasswordResetToken {
   @@index([userId, expiresAt], map: "password_reset_tokens_user_id_expires_at_idx")
   @@index([expiresAt], map: "password_reset_tokens_expires_at_idx")
   @@map("password_reset_tokens")
+  @@schema("identity_access")
+}
+
+/// Activation link for an account created by PMCM (staff invite, conforme, approved supplier application).
+/// The raw token is never stored; a row is single use, and a newer invitation revokes the older open ones.
+model OpsAccountInvitation {
+  id         String    @id
+  userId     String    @map("user_id")
+  tokenHash  String    @unique(map: "account_invitations_token_hash_key") @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  revokedAt  DateTime? @map("revoked_at")
+  source     String
+  sourceId   String?   @map("source_id")
+  createdBy  String    @map("created_by")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user OpsUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt], map: "account_invitations_user_id_expires_at_idx")
+  @@index([expiresAt], map: "account_invitations_expires_at_idx")
+  @@map("account_invitations")
   @@schema("identity_access")
 }
 
