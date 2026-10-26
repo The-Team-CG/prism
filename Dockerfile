@@ -53,7 +53,11 @@ CMD ["node", "dist/apps/api/src/main.js"]
 
 FROM source AS web-builder
 ARG APP
-ENV PRISM_DOCKER_STANDALONE=1
+ARG NEXT_PUBLIC_CLIENT_PORTAL_URL
+ARG NEXT_PUBLIC_SUPPLIER_PORTAL_URL
+ARG NEXT_PUBLIC_GUEST_PORTAL_URL
+ARG NEXT_PUBLIC_EVENT_PORTAL_URL
+ENV PRISM_DOCKER_STANDALONE=1 NEXT_PUBLIC_CLIENT_PORTAL_URL=$NEXT_PUBLIC_CLIENT_PORTAL_URL NEXT_PUBLIC_SUPPLIER_PORTAL_URL=$NEXT_PUBLIC_SUPPLIER_PORTAL_URL NEXT_PUBLIC_GUEST_PORTAL_URL=$NEXT_PUBLIC_GUEST_PORTAL_URL NEXT_PUBLIC_EVENT_PORTAL_URL=$NEXT_PUBLIC_EVENT_PORTAL_URL
 RUN npx turbo run build --filter=@prism/${APP}...
 # Normalize optional public directories and standalone output for a small runtime stage.
 RUN mkdir -p /runtime/apps/${APP}/public && cp -a apps/${APP}/.next/standalone/. /runtime/ && cp -a apps/${APP}/.next/static /runtime/apps/${APP}/.next/static && if [ ! -d apps/${APP}/public ]; then mkdir -p apps/${APP}/public; fi && cp -a apps/${APP}/public/. /runtime/apps/${APP}/public/

@@ -20,6 +20,10 @@ export const supplierWorkspaceRepository = {
     clearPrismSession(SESSION_KEY);
   },
 
+  logout(): Promise<void> {
+    return prismApi.logout();
+  },
+
   fetchWorkspace(session: PrismAuthenticatedSession): Promise<SupplierWorkspace> {
     return prismApi.supplierWorkspace(session);
   },

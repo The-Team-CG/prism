@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest';
 import { ConfigService } from '@nestjs/config';
+import { Reflector } from '@nestjs/core';
 import { AuditService, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import { PrismaService } from '@prism/kernel/database';
 import { AuthSessionService, EventSessionGuard } from '@prism/kernel/event-session';
@@ -123,7 +124,7 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
       approvalStatus: 'approved',
       sessionVersion: 0,
     });
-    const guard = new EventSessionGuard(sessions, prisma);
+    const guard = new EventSessionGuard(sessions, prisma, new Reflector());
 
     await operations.declineApprovalRequest(requestId, actor);
 

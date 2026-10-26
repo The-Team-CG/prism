@@ -8,7 +8,7 @@ import type { PrismaService } from '@prism/kernel/database';
 import { PrismaService as PrismaServiceToken } from '@prism/kernel/database';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter } from '@prism/kernel/access-control';
 import { EventSessionGuard, AuthSessionService } from '@prism/kernel/event-session';
-import type { PrismUser } from '@prism/types';
+import { PRISM_PRIVACY_NOTICE_VERSION, type PrismUser } from '@prism/types';
 import { FLOORPLAN_EVENT_REFERENCE_READER } from '@prism/contexts/event-lifecycle/floorplan-reference';
 import { PlansController } from './plans.controller';
 import { PlansService } from '../../application/authoring/plans.service';
@@ -99,7 +99,7 @@ const prismaMock = {
     findUnique: async ({ where }: { where: { id: string } }) => {
       const account = accounts.get(where.id);
       return account
-        ? { sessionVersion: 0, approvalStatus: 'approved', lockedUntil: null, permanentLockout: false, ...account }
+        ? { sessionVersion: 0, approvalStatus: 'approved', lockedUntil: null, permanentLockout: false, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, ...account }
         : null;
     },
   },

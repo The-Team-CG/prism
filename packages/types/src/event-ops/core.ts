@@ -158,6 +158,12 @@ export interface PrismAuthenticatedSession extends PrismUser {
   tokenType?: "Bearer";
 }
 
+/** Session returned when sign-in or two-factor completes. */
+export interface PrismSignInSession extends PrismAuthenticatedSession {
+  /** True until the person acknowledges the current privacy notice version. */
+  privacyNoticeRequired: boolean;
+}
+
 export interface PrismTwoFactorSetupRequired {
   kind: "two_factor_setup_required";
   token: string;
@@ -176,7 +182,7 @@ export interface PrismTwoFactorSetup {
 }
 
 export type PrismAuthResponse =
-  | PrismAuthenticatedSession
+  | PrismSignInSession
   | PrismTwoFactorSetupRequired
   | PrismTwoFactorRequired;
 
@@ -205,6 +211,7 @@ export interface PrismCurrentUser {
   role: PrismUser["role"];
   organization: string;
   twoFactorEnabled: boolean;
+  privacyNoticeRequired: boolean;
   expiresAt: string;
 }
 
