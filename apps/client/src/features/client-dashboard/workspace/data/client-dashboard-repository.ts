@@ -49,6 +49,14 @@ export const clientDashboardRepository = {
     clearPrismSession(PRISM_SESSION_STORAGE_KEYS.client);
   },
 
+  /** A 401 here only means the token is already dead, so it must not start the expiry redirect. */
+  logout(): Promise<void> {
+    return clientApiRequest<void>("/auth/logout", {
+      method: "POST",
+      onUnauthorized: () => undefined,
+    });
+  },
+
   async loadWorkspace(): Promise<PrismClientWorkspace> {
     const pages: PrismClientWorkspace[] = [];
     const seenCursors = new Set<string>();

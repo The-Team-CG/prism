@@ -1,5 +1,3 @@
-import { passwordSchema } from "@prism/types";
-
 export const PASSWORD_RESET_STEPS = [
   { id: "request", label: "Enter your email" },
   { id: "check", label: "Check your email" },
@@ -17,13 +15,6 @@ export function passwordResetProgress(view: Exclude<PasswordResetView, "loading"
   if (view === "done") return { current: total, total, label: PASSWORD_RESET_DONE_LABEL };
   const index = PASSWORD_RESET_STEPS.findIndex((step) => step.id === view);
   return { current: index + 1, total, label: PASSWORD_RESET_STEPS[index].label };
-}
-
-export function passwordResetChecks(password: string, confirmPassword: string) {
-  return [
-    { id: "length", label: "12 to 128 characters", met: passwordSchema.safeParse(password).success },
-    { id: "match", label: "Both passwords match", met: password.length > 0 && password === confirmPassword },
-  ];
 }
 
 /** Same copy whether or not the account exists, so the page never reveals account membership. */

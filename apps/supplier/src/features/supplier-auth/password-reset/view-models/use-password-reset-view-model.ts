@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { passwordResetChecks, type PasswordResetView } from "../model/password-reset-model";
+import { newPasswordChecks } from "../../new-password/model/new-password-rules";
+import { type PasswordResetView } from "../model/password-reset-model";
 import { consumeSupplierPasswordReset, requestSupplierPasswordReset } from "../use-cases/password-reset";
 
 function errorMessage(error: unknown, fallback: string) {
@@ -32,9 +33,7 @@ export function useSupplierPasswordResetViewModel() {
         : sentTo
           ? "check"
           : "request";
-  const checks = passwordResetChecks(password, confirmPassword);
-  const passwordsMatch = password.length > 0 && password === confirmPassword;
-  const canSetPassword = checks.every((check) => check.met);
+  const canSetPassword = newPasswordChecks(password, confirmPassword).every((check) => check.met);
 
   async function requestReset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -79,8 +78,6 @@ export function useSupplierPasswordResetViewModel() {
     password,
     confirmPassword,
     showPassword,
-    passwordsMatch,
-    checks,
     canSetPassword,
     busy,
     error,

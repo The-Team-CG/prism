@@ -1,6 +1,11 @@
 import { eventApi } from "@/lib/prism-api";
 import { saveEventSession, type EventSession } from "@/app/lib/session";
-import type { PrismAuthenticatedSession, PrismAuthResponse, PrismTwoFactorSetup } from "@prism/types";
+import type {
+  ActivateAccountInput,
+  PrismAuthenticatedSession,
+  PrismAuthResponse,
+  PrismTwoFactorSetup,
+} from "@prism/types";
 
 export const eventAuthRepository = {
   login(input: { email: string; password: string }): Promise<PrismAuthResponse> {
@@ -21,6 +26,10 @@ export const eventAuthRepository = {
 
   consumePasswordReset(input: { token: string; password: string }) {
     return eventApi.auth.consumePasswordReset(input.token, input.password);
+  },
+
+  activateAccount(input: ActivateAccountInput) {
+    return eventApi.auth.activateAccount(input);
   },
 
   persistSession(session: EventSession): void {
