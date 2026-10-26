@@ -136,8 +136,8 @@ export function useSupplierWorkspaceViewModel() {
     }
   }
 
-  function signOut() {
-    signOutSupplier();
+  async function signOut() {
+    await signOutSupplier();
     router.replace("/sign-in");
   }
 

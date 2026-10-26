@@ -48,6 +48,6 @@ export function EventCoordinatorShell({
     );
   }
   return (
-    <CoordinatorView session={session} state={coordinatorState} onRefresh={() => refresh(session)} onSignOut={signOut} />
+    <CoordinatorView session={session} state={coordinatorState} onRefresh={() => refresh(session)} onSignOut={() => void signOut()} />
   );
 }

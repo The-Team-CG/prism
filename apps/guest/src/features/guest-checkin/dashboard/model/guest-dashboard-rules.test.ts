@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
+import { GuestApiError } from "@/features/guest-shared/guest-http";
 import {
   buildCheckInPayload,
   buildFeedbackPayload,
@@ -6,6 +8,7 @@ import {
   checkInSuccessNotice,
   guestApiPath,
   isFileWithinSizeLimit,
+  isGuestAccessEndedError,
   isVideoDurationAllowed,
   MAX_FILE_SIZE_BYTES,
   MAX_VIDEO_DURATION_S,
@@ -42,7 +45,7 @@ describe("guest-dashboard-rules", () => {
       checkInMode: "name_search",
       guestName: "Tess Green",
       privacyConsentAccepted: true,
-      privacyNoticeVersion: "2026-05-01",
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       marketingConsentAccepted: false,
     });
 
@@ -54,7 +57,7 @@ describe("guest-dashboard-rules", () => {
     expect(headcount).toEqual({
       checkInMode: "headcount",
       privacyConsentAccepted: true,
-      privacyNoticeVersion: "2026-05-01",
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       marketingConsentAccepted: false,
     });
   });
@@ -98,5 +101,15 @@ describe("guest-dashboard-rules", () => {
   it("derives the narrow guest action center from session actions", () => {
     expect(guestNextActions(false, false).map((item) => item.status)).toEqual(["pending", "pending"]);
     expect(guestNextActions(true, true).map((item) => item.status)).toEqual(["complete", "complete"]);
+  });
+
+  it("ends guest access only for auth and not-found responses from the API", () => {
+    const apiError = (status: number) => new GuestApiError(status, "message");
+    expect(isGuestAccessEndedError(apiError(401))).toBe(true);
+    expect(isGuestAccessEndedError(apiError(403))).toBe(true);
+    expect(isGuestAccessEndedError(apiError(404))).toBe(true);
+    expect(isGuestAccessEndedError(apiError(410))).toBe(true);
+    expect(isGuestAccessEndedError(apiError(500))).toBe(false);
+    expect(isGuestAccessEndedError(new Error("network"))).toBe(false);
   });
 });

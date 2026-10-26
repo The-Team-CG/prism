@@ -99,6 +99,12 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
     @Inject(QUOTE_SUPPLIER_RESOLVER) private readonly quoteSupplierResolver: QuoteSupplierResolver,
   ) {}
 
+  /** The supplier's email when on file; otherwise the name, which the outbox records as a failed row with its reason. */
+  private async supplierRecipient(supplierId: string | null, supplierName: string) {
+    const supplier = supplierId ? await this.prisma.opsSupplier.findUnique({ where: { id: supplierId }, select: { email: true } }) : null;
+    return supplier?.email.trim() || supplierName;
+  }
+
   async requestSupplierQuotes(eventId: string, input: RequestSupplierQuotesInput, actor: ResolvedEventOpsActor) {
     const verifiedActor = requireVerifiedCommercialActor(actor);
     let event: { eventName: string; clientName: string } | null = null;
@@ -323,7 +329,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
           ),
           writeNotification(this.notificationOutboxWriter,
             eventId,
-            input.status === 'requested' ? quote.supplierName : 'PMCM Admin',
+            input.status === 'requested' ? await this.supplierRecipient(quote.supplierId, quote.supplierName) : 'PMCM Admin',
             input.status === 'requested' ? 'Supplier quote request issued' : 'Supplier quote received',
           ),
         ]);
@@ -428,7 +434,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
             affectedLabel: result.quote.supplierName,
             metadata: { actorId: verifiedActor.id },
           }),
-          writeNotification(this.notificationOutboxWriter, eventId, result.quote.supplierName, 'Your supplier quote was selected'),
+          writeNotification(this.notificationOutboxWriter, eventId, await this.supplierRecipient(result.quote.supplierId, result.quote.supplierName), 'Your supplier quote was selected'),
         ]);
       },
       project: (result) => result.quote,

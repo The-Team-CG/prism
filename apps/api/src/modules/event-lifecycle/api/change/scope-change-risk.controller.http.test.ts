@@ -8,7 +8,7 @@ import type { PrismaService } from '@prism/kernel/database';
 import { PrismaService as PrismaServiceToken } from '@prism/kernel/database';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter } from '@prism/kernel/access-control';
 import { EventSessionGuard, AuthSessionService } from '@prism/kernel/event-session';
-import type { PrismUser } from '@prism/types';
+import { PRISM_PRIVACY_NOTICE_VERSION, type PrismUser } from '@prism/types';
 import { NOTIFICATION_OUTBOX_WRITER } from '@prism/contexts/platform-ops';
 import { ScopeChangeRequestController } from './scope-change-request.controller';
 import { EventRiskAssessmentController } from './event-risk-assessment.controller';
@@ -60,7 +60,7 @@ const prismaMock = {
   opsUser: {
     findUnique: async ({ where }: { where: { id: string } }) => {
       const account = accounts[where.id];
-      return account ? { sessionVersion: 0, approvalStatus: 'approved', lockedUntil: null, permanentLockout: false, ...account } : null;
+      return account ? { sessionVersion: 0, approvalStatus: 'approved', lockedUntil: null, permanentLockout: false, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, ...account } : null;
     },
   },
   opsEvent: {
