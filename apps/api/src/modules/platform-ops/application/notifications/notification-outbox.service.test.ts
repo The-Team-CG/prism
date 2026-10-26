@@ -1,6 +1,54 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { MailTransport } from '@prism/kernel/mail';
 import { NotificationOutboxService } from './notification-outbox.service';
 import { processNotificationQueue } from './notification-delivery-worker';
+import { resolveNotificationRecipients } from './notification-recipient-resolver';
+import { MailNotificationDeliveryAdapter } from '../../infrastructure/notifications/mail-notification-delivery.adapter';
+
+const recipientLookups = {
+  findApprovedPmcmAdminEmails: async () => ['admin-a@example.test', 'Admin-A@example.test', 'admin-b@example.test'],
+  findActiveCoordinatorEmailsForEvent: async (eventId: string) => (eventId === 'evt_1' ? ['coord@example.test'] : []),
+  findEventNotificationContact: async (eventId: string) => (eventId === 'evt_1'
+    ? { eventName: 'Gala', clientEmail: 'client@example.test' }
+    : { eventName: 'Quiet', clientEmail: null }),
+};
+
+describe('resolveNotificationRecipients', () => {
+  it.each([
+    ['an email address', 'ana@example.test', null, { status: 'resolved', addresses: ['ana@example.test'] }],
+    ['PMCM Admin fan-out, de-duplicated', 'PMCM Admin', null, { status: 'resolved', addresses: ['admin-a@example.test', 'admin-b@example.test'] }],
+    ['Client through the event inquiry', 'Client', 'evt_1', { status: 'resolved', addresses: ['client@example.test'] }],
+    ['Coordinator through event assignments', 'Coordinator', 'evt_1', { status: 'resolved', addresses: ['coord@example.test'] }],
+    ['Client without an event', 'Client', null, { status: 'failed', reason: "Recipient 'Client' needs an event to resolve" }],
+    ['Client with no email on file', 'Client', 'evt_2', { status: 'failed', reason: 'No client email address is on file for this event' }],
+    ['Coordinator with no active assignment', 'Coordinator', 'evt_2', { status: 'failed', reason: 'No active coordinator with an email address is assigned to this event' }],
+    ['an unknown label', 'Jane Supplier', null, { status: 'failed', reason: "Recipient 'Jane Supplier' is not an email address or a known role" }],
+  ])('resolves %s', async (_name, recipient, eventId, expected) => {
+    await expect(resolveNotificationRecipients(recipient, eventId, recipientLookups)).resolves.toEqual(expected);
+  });
+});
+
+describe('MailNotificationDeliveryAdapter', () => {
+  function adapter(send: MailTransport['send'] = async () => ({ status: 'accepted', receipt: 'msg_1' })) {
+    const mail = { send: vi.fn(send) };
+    return { mail, adapter: new MailNotificationDeliveryAdapter(mail, recipientLookups as never) };
+  }
+
+  it('fails a non-email channel permanently without sending mail', async () => {
+    const { mail, adapter: delivery } = adapter();
+    await expect(delivery.deliver({ idempotencyKey: 'not_1', channel: 'viber', eventId: 'evt_1', recipient: 'Client', message: 'Hi' }))
+      .resolves.toEqual({ status: 'permanent_failure', reason: 'No viber delivery provider' });
+    expect(mail.send).not.toHaveBeenCalled();
+  });
+
+  it('sends one keyed mail per resolved address with the event name in the subject', async () => {
+    const { mail, adapter: delivery } = adapter();
+    await expect(delivery.deliver({ idempotencyKey: 'not_1', channel: 'email', eventId: 'evt_1', recipient: 'PMCM Admin', message: 'A <b>note</b>' }))
+      .resolves.toEqual({ status: 'accepted', receipt: 'msg_1,msg_1' });
+    expect(mail.send).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: 'not_1:admin-a@example.test', subject: 'P.R.I.S.M update - Gala' }));
+    expect(mail.send).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: 'not_1:admin-b@example.test', text: 'A <b>note</b>', html: '<p>A &lt;b&gt;note&lt;/b&gt;</p>' }));
+  });
+});
 
 function createService() {
   const notifications: Array<Record<string, unknown>> = [];
@@ -50,9 +98,41 @@ function createService() {
   return {
     notifications,
     prisma,
-    service: new NotificationOutboxService(prisma as never),
+    service: new NotificationOutboxService(prisma as never, { deliver: vi.fn() }),
   };
 }
+
+describe('processNotificationQueue with mail delivery', () => {
+  it('leaves a row queued for retry when only some addresses were accepted', async () => {
+    const row: Record<string, any> = {
+      id: 'not_partial', eventId: null, channel: 'email', recipient: 'PMCM Admin', message: 'Review needed',
+      status: 'queued', attempts: 0, nextAttemptAt: new Date(Date.now() - 1_000), leaseToken: null, leaseExpiresAt: null,
+      createdAt: new Date(),
+    };
+    const prisma = {
+      opsNotificationLog: {
+        findMany: vi.fn(async () => [row]),
+        updateMany: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+          Object.assign(row, data);
+          return { count: 1 };
+        }),
+        findUnique: vi.fn(async () => row),
+      },
+    };
+    const mail = {
+      send: vi.fn(async ({ to }: { to: string }) => (to === 'admin-a@example.test'
+        ? { status: 'accepted' as const, receipt: 'email_a' }
+        : { status: 'retryable_failure' as const })),
+    };
+    const contacts = { findApprovedPmcmAdminEmails: async () => ['admin-a@example.test', 'admin-b@example.test'] };
+    const delivery = new MailNotificationDeliveryAdapter(mail, contacts as never);
+
+    const processed = await processNotificationQueue(prisma as never, delivery);
+
+    expect(processed[0]).toMatchObject({ id: 'not_partial', status: 'queued', attempts: 1, failureReason: 'Mail was not accepted for 1 of 2 addresses; retry scheduled' });
+    expect(mail.send).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: 'not_partial:admin-a@example.test' }));
+  });
+});
 
 describe('NotificationOutboxService', () => {
   it('delivers and retains queued evidence when its optional event reference is absent', async () => {
