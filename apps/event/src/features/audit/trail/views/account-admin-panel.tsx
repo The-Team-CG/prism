@@ -55,8 +55,6 @@ function AccountRow({
   vm: AccountAdminVm;
 }) {
   const feedback = vm.accountFeedback?.userId === user.id ? vm.accountFeedback : null;
-  const busy = vm.busyUserId !== null;
-  const hasAction = actions.unlockAccount || actions.resetTwoFactor || actions.resendInvitation;
 
   return (
     <div className="rounded-md border border-border bg-background p-3 text-sm">
@@ -67,28 +65,43 @@ function AccountRow({
             {user.email} · {label(user.role)} · {label(user.approvalStatus)}{locked ? " · Locked" : ""}
           </p>
         </div>
-        {hasAction ? (
-          <div className="flex flex-wrap gap-2">
-            {actions.unlockAccount ? (
-              <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => vm.unlockAccount(user)}>
-                Unlock account
-              </Button>
-            ) : null}
-            {actions.resetTwoFactor ? (
-              <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => vm.resetTwoFactor(user)}>
-                Reset two-factor
-              </Button>
-            ) : null}
-            {actions.resendInvitation ? (
-              <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => vm.resendInvitation(user)}>
-                Resend invitation
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
+        <AccountRowActions user={user} actions={actions} vm={vm} />
       </div>
       {feedback ? (
         <p className={cx("mt-2 text-xs", feedback.tone === "success" ? "text-emerald-700" : "text-rose-700")}>{feedback.text}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function AccountRowActions({
+  user,
+  actions,
+  vm,
+}: {
+  user: PrismUser;
+  actions: ReturnType<typeof adminAccountActionsFor>;
+  vm: AccountAdminVm;
+}) {
+  const busy = vm.busyUserId !== null;
+  if (!(actions.unlockAccount || actions.resetTwoFactor || actions.resendInvitation)) return null;
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {actions.unlockAccount ? (
+        <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => vm.unlockAccount(user)}>
+          Unlock account
+        </Button>
+      ) : null}
+      {actions.resetTwoFactor ? (
+        <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => vm.resetTwoFactor(user)}>
+          Reset two-factor
+        </Button>
+      ) : null}
+      {actions.resendInvitation ? (
+        <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => vm.resendInvitation(user)}>
+          Resend invitation
+        </Button>
       ) : null}
     </div>
   );
