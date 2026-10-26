@@ -7,6 +7,7 @@ export * from "./inquiry-link.js";
 export * from "./lifecycle.js";
 export * from "./portal-urls.js";
 export * from "./privacy.js";
+export * from "./privacy-notice.js";
 export * from "./session.js";
 export * from "./schemas/index.js";
 export * from "./storage.js";

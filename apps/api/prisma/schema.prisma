@@ -128,6 +128,8 @@ model OpsUser {
   twoFactorChallengeExpiresAt  DateTime? @map("two_factor_challenge_expires_at")
   twoFactorChallengeAttempts   Int       @default(0) @map("two_factor_challenge_attempts")
   twoFactorChallengeConsumedAt DateTime? @map("two_factor_challenge_consumed_at")
+  privacyNoticeVersion         String?   @map("privacy_notice_version")
+  privacyNoticeAcknowledgedAt  DateTime? @map("privacy_notice_acknowledged_at")
   createdAt                    DateTime  @default(now()) @map("created_at")
 
   passwordResetTokens OpsPasswordResetToken[]

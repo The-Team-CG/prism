@@ -23,7 +23,7 @@ export type CreateInquiryInput = {
   referralDetails?: string;
   message: string;
   privacyConsentAccepted?: boolean;
-  privacyNoticeVersion?: string;
+  privacyNoticeVersion: string;
   marketingConsentAccepted?: boolean;
 };
 

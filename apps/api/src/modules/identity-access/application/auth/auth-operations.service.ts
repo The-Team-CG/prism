@@ -10,9 +10,11 @@ import { createHash, randomBytes } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import type { OpsApprovalRequest, OpsUser } from '@prisma/client';
 import {
+  PRISM_PRIVACY_NOTICE_VERSION,
   type PrismApprovalRequestReceipt,
   type PrismCurrentUser,
   type PrismIdentityAccountSummary,
+  type PrismSignInSession,
   type PrismUser,
   type PrismVerifiedEventActor,
   type RequestApprovalInput,
@@ -50,6 +52,10 @@ function isPrismaSerializationFailure(error: unknown) {
 
 function hashTwoFactorChallenge(challengeId: string) {
   return createHash('sha256').update(challengeId, 'utf8').digest('hex');
+}
+
+function privacyNoticeRequired(user: Pick<OpsUser, 'privacyNoticeVersion'>) {
+  return user.privacyNoticeVersion !== PRISM_PRIVACY_NOTICE_VERSION;
 }
 
 @Injectable()
@@ -201,7 +207,14 @@ export class AuthOperationsService {
       };
     }
 
-    return this.authSessionService.issueSession(this.mapUser(updated), new Date());
+    return this.issueUserSession(updated);
+  }
+
+  private issueUserSession(user: OpsUser): PrismSignInSession {
+    return {
+      ...this.authSessionService.issueSession(this.mapUser(user), new Date()),
+      privacyNoticeRequired: privacyNoticeRequired(user),
+    };
   }
 
   async setupTwoFactor(token: string) {
@@ -291,7 +304,7 @@ export class AuthOperationsService {
         affectedLabel: updated.email,
       }),
     ]);
-    return this.authSessionService.issueSession(this.mapUser(updated), new Date());
+    return this.issueUserSession(updated);
   }
 
   private async findTwoFactorUser(verifiedToken: VerifiedTwoFactorToken) {
@@ -464,6 +477,34 @@ export class AuthOperationsService {
     const user = await this.prisma.opsUser.findUnique({ where: { id: actor.id } });
     if (!user) throw new UnauthorizedException('Session has been revoked or account access is no longer eligible');
     return this.mapCurrentUser(user, actor.expiresAt);
+  }
+
+  /** Records that the signed-in person has read the current notice. The session version guard refuses a revoked session. */
+  async acknowledgePrivacyNotice(actor: PrismVerifiedEventActor, version: string) {
+    await this.prisma.$transaction(async (tx) => {
+      const saved = await tx.opsUser.updateMany({
+        where: { id: actor.id, sessionVersion: actor.sessionVersion },
+        data: { privacyNoticeVersion: version, privacyNoticeAcknowledgedAt: new Date() },
+      });
+      if (saved.count !== 1) throw new UnauthorizedException('Session has been revoked or account access is no longer eligible');
+      await writeAudit(
+        this.authAudit,
+        undefined,
+        actor.name,
+        'Acknowledged the privacy notice',
+        {
+          actorRole: actor.role,
+          actorEmail: actor.email,
+          actionType: AuditActionType.Update,
+          category: AuditCategory.Access,
+          affectedType: 'account',
+          affectedId: actor.id,
+          affectedLabel: actor.email,
+          metadata: { privacyNoticeVersion: version },
+        },
+        { prisma: tx, correlationId: actor.id, actorId: actor.id },
+      );
+    });
   }
 
   async unlockUser(userId: string, actor: ResolvedEventOpsActor): Promise<PrismIdentityAccountSummary> {
@@ -656,6 +697,7 @@ export class AuthOperationsService {
       role: user.role as PrismUser['role'],
       organization: user.organization,
       twoFactorEnabled: Boolean(user.twoFactorSecret),
+      privacyNoticeRequired: privacyNoticeRequired(user),
       expiresAt,
     };
   }
