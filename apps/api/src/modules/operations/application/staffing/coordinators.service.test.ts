@@ -280,7 +280,7 @@ function createServiceWriters(prisma: any) {
   const auditService = new AuditService(prisma);
   return {
     auditWriter: new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma, auditService)),
-    notificationWriter: new NotificationOutboxWriterAdapter(new NotificationOutboxService(prisma)),
+    notificationWriter: new NotificationOutboxWriterAdapter(new NotificationOutboxService(prisma, { deliver: vi.fn() })),
   };
 }
 
