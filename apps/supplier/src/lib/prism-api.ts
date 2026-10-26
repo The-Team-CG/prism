@@ -11,7 +11,7 @@ export type {
 } from "@prism/types";
 
 import { createEventOpsClient, prismRequest, resolvePrismApiOrigin } from "@prism/api-client";
-import { PRISM_SESSION_STORAGE_KEYS, clearPrismSession, isPrismAuthenticatedSession } from "@prism/types";
+import { PRISM_SESSION_STORAGE_KEYS, clearPrismSession, isPrismAuthenticatedSession, privacyNoticePath } from "@prism/types";
 import { portalAppPath, portalHref } from "@prism/ui/portal-path";
 import type {
   PrismAuthenticatedSession,
@@ -57,9 +57,18 @@ function expireSupplierSession() {
   window.location.assign(portalHref(`/sign-in?next=${encodeURIComponent(next)}`));
 }
 
+/** The API says the signed-in account has not acknowledged the current privacy notice: show it, then return here. */
+function showSupplierPrivacyNotice() {
+  if (typeof window === "undefined") return;
+  const appPath = portalAppPath(window.location.pathname);
+  if (appPath === "/privacy") return;
+  window.location.assign(portalHref(privacyNoticePath(`${appPath}${window.location.search}`)));
+}
+
 const eventOpsClient = createEventOpsClient({
   getAuthToken: storedSupplierAccessToken,
   onUnauthorized: expireSupplierSession,
+  onPrivacyNoticeRequired: showSupplierPrivacyNotice,
 });
 
 function actorFromSession(session: PrismAuthenticatedSession) {
