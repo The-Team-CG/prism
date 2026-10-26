@@ -14,6 +14,7 @@ import {
   isPrimaryCheckout,
   normalizeWorktreePath,
   parseWorktreeList,
+  portalUrlsFor,
   resolvePort,
   resolvePortSet,
 } from "./prism-ports.mjs";
@@ -139,6 +140,22 @@ describe("prism port resolution", () => {
     );
   });
 
+  it("gives each portal its own origin on the port the launcher serves it from", () => {
+    assert.deepEqual(portalUrlsFor(resolvePortSet({ isPrimary: true })), {
+      NEXT_PUBLIC_CLIENT_PORTAL_URL: "http://localhost:3001",
+      NEXT_PUBLIC_SUPPLIER_PORTAL_URL: "http://localhost:3002",
+      NEXT_PUBLIC_GUEST_PORTAL_URL: "http://localhost:3003",
+      NEXT_PUBLIC_EVENT_PORTAL_URL: "http://localhost:3004",
+    });
+    const ports = resolvePortSet({ worktreeRoot: "C:/repo/.worktrees/alpha", isPrimary: false });
+    assert.deepEqual(portalUrlsFor(ports), {
+      NEXT_PUBLIC_CLIENT_PORTAL_URL: `http://localhost:${ports.client}`,
+      NEXT_PUBLIC_SUPPLIER_PORTAL_URL: `http://localhost:${ports.supplier}`,
+      NEXT_PUBLIC_GUEST_PORTAL_URL: `http://localhost:${ports.guest}`,
+      NEXT_PUBLIC_EVENT_PORTAL_URL: `http://localhost:${ports.event}`,
+    });
+  });
+
   it("detects a linked worktree from the git directory layout", () => {
     assert.equal(isPrimaryCheckout({ gitDir: "C:/repo/.git", gitCommonDir: "C:/repo/.git" }), true);
     assert.equal(
@@ -179,5 +196,16 @@ describe("checkout discovery", () => {
       );
       assert.equal(nested.isPrimary, baseline.isPrimary, `checkout kind drifted when resolved from ${cwd}`);
     }
+  });
+});
+
+describe("portal origins", () => {
+  it("builds every portal origin from the live port set", () => {
+    assert.deepEqual(portalUrlsFor({ api: 4010, client: 3011, supplier: 3012, guest: 3013, event: 3014 }), {
+      NEXT_PUBLIC_CLIENT_PORTAL_URL: "http://localhost:3011",
+      NEXT_PUBLIC_SUPPLIER_PORTAL_URL: "http://localhost:3012",
+      NEXT_PUBLIC_GUEST_PORTAL_URL: "http://localhost:3013",
+      NEXT_PUBLIC_EVENT_PORTAL_URL: "http://localhost:3014",
+    });
   });
 });

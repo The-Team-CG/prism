@@ -1,4 +1,5 @@
 import type {
+  PrismAccountInvitationOutcome,
   PrismSupplierApplication,
   PrismSupplierApplicationStatusResult,
 } from "@prism/types";
@@ -35,6 +36,11 @@ export function createSupplierApplicationsClient(
         prismRequest<PrismSupplierApplication>(
           actorPath(`/supplier-applications/${applicationId}/review`, actor),
           withBase(options, { method: "PATCH", body: input }),
+        ),
+      resendAccountInvitation: (applicationId) =>
+        prismRequest<PrismAccountInvitationOutcome>(
+          `/supplier-applications/${encodeURIComponent(applicationId)}/account-invitation/resend`,
+          withBase(options, { method: "POST" }),
         ),
     },
   };

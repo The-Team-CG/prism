@@ -4,6 +4,8 @@ import type {
   PrismLoginHistory,
   PrismPrivacyInventorySurface,
   PrismSecurityAlert,
+  PrismUser,
+  PrismUserRole,
 } from "@prism/types";
 
 export type AuditTrailSummary = {
@@ -66,6 +68,34 @@ export function auditIconKind(category: string, severity: string) {
   if (category === "finance") return "finance";
   if (category === "suppliers") return "suppliers";
   return "default";
+}
+
+export type AdminAccountActions = {
+  unlockAccount: boolean;
+  resetTwoFactor: boolean;
+  resendInvitation: boolean;
+};
+
+export function canManageAccounts(viewerRole: PrismUserRole) {
+  return viewerRole === "pmcm-admin";
+}
+
+export function isAccountLocked(user: Pick<PrismUser, "lockedUntil" | "permanentLockout">, now: Date) {
+  return Boolean(user.permanentLockout) || Boolean(user.lockedUntil && new Date(user.lockedUntil) > now);
+}
+
+/** Mirrors the API: two-factor reset applies only to PMCM admin accounts, and a resend only to accounts not yet activated. */
+export function adminAccountActionsFor(
+  user: Pick<PrismUser, "role" | "approvalStatus" | "lockedUntil" | "permanentLockout">,
+  viewerRole: PrismUserRole,
+  now: Date,
+): AdminAccountActions {
+  const admin = canManageAccounts(viewerRole);
+  return {
+    unlockAccount: admin && isAccountLocked(user, now),
+    resetTwoFactor: admin && user.role === "pmcm-admin",
+    resendInvitation: admin && user.approvalStatus === "invited",
+  };
 }
 
 export function auditIntegrityCopy(integrity: { valid: boolean; checkedCount: number; firstBrokenLogId?: string | null } | null) {

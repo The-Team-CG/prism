@@ -85,7 +85,7 @@ export type ClientWorkspaceValue = {
   submitPreference: (ev: FormEvent<HTMLFormElement>) => Promise<void>;
   submitRevisionComment: (ev: FormEvent<HTMLFormElement>) => Promise<void>;
   submitNewEventRequest: (ev: FormEvent<HTMLFormElement>) => Promise<void>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
   /** Event-scoped chrome (header + subnav) when an event is selected */
   eventHeader: ReactNode;
   isEventScopedView: boolean;

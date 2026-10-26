@@ -90,6 +90,13 @@ export class OpsInquiriesController {
     return this.inquiryWorkflowService.sendConformeReminder(inquiryId, this.inquiryWorkflowContext(), verifiedActor);
   }
 
+  @Post(':inquiryId/portal-invitation/resend')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(EventSessionGuard)
+  resendPortalInvitation(@Param('inquiryId') inquiryId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    return this.inquiryWorkflowService.resendPortalInvitation(inquiryId, this.inquiryWorkflowContext(), verifiedActor);
+  }
+
   @Post(':inquiryId/conforme')
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(EventSessionGuard)
