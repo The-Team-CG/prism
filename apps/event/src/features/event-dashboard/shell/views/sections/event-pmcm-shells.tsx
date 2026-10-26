@@ -30,7 +30,7 @@ export function EventPmcmLoadingShell({ viewModel }: { viewModel: LoadedShell })
       user={{ name: viewModel.session.name, detail: humanizeToken(viewModel.session.role), initials: viewModel.session.name.slice(0, 2).toUpperCase() }}
       searchPlaceholder="Search events, suppliers, inquiries..."
       showTopBarSearch={false}
-      onSignOut={viewModel.signOut}
+      onSignOut={() => void viewModel.signOut()}
     >
       {viewModel.error ? (
         <Alert variant="destructive" className="max-w-md rounded-xl"><AlertDescription>{viewModel.error}</AlertDescription></Alert>
@@ -58,7 +58,7 @@ export function EventPmcmReadyShell({ viewModel, children }: { viewModel: Loaded
       user={{ name: viewModel.session.name, detail: humanizeToken(viewModel.session.role), initials: viewModel.session.name.slice(0, 2).toUpperCase() }}
       searchPlaceholder="Search events, suppliers, inquiries..."
       showTopBarSearch={false}
-      onSignOut={viewModel.signOut}
+      onSignOut={() => void viewModel.signOut()}
     >
       {children}
       {viewModel.conformeUploadTarget ? (

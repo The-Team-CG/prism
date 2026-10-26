@@ -1,7 +1,9 @@
 "use client";
 
 import type { PrismAuthenticatedSession, PrismEvent, PrismUser } from "@prism/types";
+import { useAccountAdminViewModel } from "../view-models/use-account-admin-view-model";
 import { useAuditTrailViewModel } from "../view-models/use-audit-trail-view-model";
+import { AccountAdminPanel } from "./account-admin-panel";
 import {
   AuditTrailOverview,
   LoginHistoryPanel,
@@ -19,6 +21,7 @@ export function AuditTrailPanel({
   session?: PrismAuthenticatedSession;
 } = {}) {
   const vm = useAuditTrailViewModel();
+  const accounts = useAccountAdminViewModel({ onAccountsChanged: vm.refreshUsers });
   const session = sessionProp ?? vm.session;
   const events = eventsProp ?? vm.events;
   const users = usersProp ?? vm.users;
@@ -35,6 +38,7 @@ export function AuditTrailPanel({
         <SecurityAlertsPanel alerts={vm.alerts} />
         <LoginHistoryPanel loginHistory={vm.loginHistory} />
       </div>
+      <AccountAdminPanel users={users} viewerRole={session.role} vm={accounts} />
     </div>
   );
 }
