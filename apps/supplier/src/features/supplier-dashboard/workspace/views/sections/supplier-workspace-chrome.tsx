@@ -119,11 +119,10 @@ function renderDashboard(ctx: SectionContext) {
   if (!ctx.workspace) return null;
   return (
     <DashboardPage
-      session={ctx.session} workspace={ctx.workspace} quoteByRequest={ctx.quoteByRequest}
-      openRequests={ctx.openRequests} selectedRequests={ctx.selectedRequests}
-      selectedQuotes={ctx.selectedQuotes} quoteNeedingSubmission={ctx.quoteNeedingSubmission}
-      handoffPending={ctx.handoffPending} needsActionCount={ctx.needsActionCount}
-      eventsThisMonth={ctx.eventsThisMonth} readinessBoard={ctx.readinessBoard} onNavigate={ctx.onNavigate}
+      quoteNeedingSubmission={ctx.quoteNeedingSubmission}
+      handoffPending={ctx.handoffPending}
+      readinessBoard={ctx.readinessBoard}
+      onNavigate={ctx.onNavigate}
     />
   );
 }
@@ -133,6 +132,7 @@ function renderRequests(ctx: SectionContext) {
   return (
     <RequestsPage
       workspace={ctx.workspace} quoteByRequest={ctx.quoteByRequest}
+      readinessBoard={ctx.readinessBoard}
       forms={ctx.forms} busy={ctx.busy}
       onUpdateForm={ctx.onUpdateForm}
       onSubmitQuote={ctx.onSubmitQuote}
@@ -145,6 +145,7 @@ function renderBookings(ctx: SectionContext) {
   return (
     <BookingsPage
       selectedRequests={ctx.selectedRequests} session={ctx.session}
+      readinessBoard={ctx.readinessBoard}
       readinessNotes={ctx.readinessNotes} workflowWorkspace={ctx.workflowWorkspace} statusNotes={ctx.statusNotes}
       busy={ctx.busy}
       onReadinessNoteChange={ctx.onReadinessNoteChange}

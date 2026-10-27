@@ -324,16 +324,15 @@ export function sectionMeta(
   session: PrismAuthenticatedSession,
   workspace: SupplierWorkspace | null,
 ): SectionMeta {
-  const first = firstNameFrom(session.name);
   const map: Record<SupplierDashboardSection, SectionMeta> = {
     dashboard: {
       eyebrow: "Supplier portal",
-      title: `Hello, ${first}.`,
+      title: "Today",
       description: `${workspace?.supplier.categoryName ?? session.organization} — ${workspace?.supplier.name ?? session.organization}`,
     },
     requests: {
       eyebrow: "Requests",
-      title: "Quote requests",
+      title: "Requests & quotes",
       description: "Submit, revise, and track your quotes before the deadline.",
     },
     bookings: {
@@ -348,7 +347,7 @@ export function sectionMeta(
     },
     quotations: {
       eyebrow: "Quotations",
-      title: "Quote history",
+      title: "Requests & quotes",
       description: "All submitted quotations with revision history and status.",
     },
     messages: {

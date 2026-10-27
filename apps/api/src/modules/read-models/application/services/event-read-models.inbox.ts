@@ -323,7 +323,7 @@ function clientClosureActionItem(document: OpsPostEventDocument, events: EventRe
     status: document.status,
     eventId: event.id,
     eventName: event.eventName,
-    href: `/dashboard/events/${event.id}/activity`,
+    href: `/dashboard/events/${event.id}/messages`,
   };
 }
 
