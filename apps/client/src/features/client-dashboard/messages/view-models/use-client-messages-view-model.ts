@@ -1,37 +1,108 @@
 "use client";
-import { useEffect, useRef, useState } from 'react';
-import type { PrismCommunicationThread } from '@prism/types';
-import { useClientWorkspace } from '../../workspace/shared';
-import { clientMessagesRepository } from '../data/client-messages-repository';
+
+import { useEffect, useRef, useState } from "react";
+import type { PrismCommunicationThread } from "@prism/types";
+import { useClientWorkspace } from "../../workspace/shared";
+import { clientMessagesRepository } from "../data/client-messages-repository";
+
+type EventThreads = {
+  eventId: string;
+  status: "loading" | "ready" | "error";
+  threads: PrismCommunicationThread[];
+  error?: string;
+};
 
 export function useClientMessagesViewModel() {
   const { selectedEvent, session } = useClientWorkspace();
-  const [threads, setThreads] = useState<PrismCommunicationThread[]>([]);
-  const [draft, setDraft] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const eventId = selectedEvent?.id;
+  const [eventThreads, setEventThreads] = useState<EventThreads | null>(null);
+  const [selectedThreads, setSelectedThreads] = useState<Record<string, string>>({});
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [actionError, setActionError] = useState<{ eventId: string; threadId: string; message: string } | null>(null);
   const [busy, setBusy] = useState(false);
-  const pendingKey = useRef<string | null>(null);
+  const [reload, setReload] = useState(0);
+  const attempts = useRef(new Map<string, { text: string; key: string }>());
+  const sending = useRef(false);
+
   useEffect(() => {
-    if (!selectedEvent?.id) { setThreads([]); return; }
-    void clientMessagesRepository.list(selectedEvent.id).then(setThreads).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'Unable to load messages'));
-  }, [selectedEvent?.id]);
-  const activeThread = threads[0];
-  useEffect(() => { if (activeThread) void clientMessagesRepository.markRead(activeThread.id); }, [activeThread?.id]);
-  function updateDraft(value: string) { setDraft(value); if (value.trim() && !pendingKey.current) pendingKey.current = crypto.randomUUID(); }
+    if (!eventId) return;
+    let active = true;
+    setEventThreads({ eventId, status: "loading", threads: [] });
+    void clientMessagesRepository.list(eventId)
+      .then((threads) => { if (active) setEventThreads({ eventId, status: "ready", threads }); })
+      .catch((reason: unknown) => {
+        if (active) setEventThreads({ eventId, status: "error", threads: [], error: reason instanceof Error ? reason.message : "Unable to load messages" });
+      });
+    return () => { active = false; };
+  }, [eventId, reload]);
+
+  const current = eventThreads?.eventId === eventId ? eventThreads : null;
+  const threads = current?.threads ?? [];
+  const selectedThread = eventId ? threads.find((thread) => thread.id === selectedThreads[eventId]) : undefined;
+  const activeThread = selectedThread ?? (threads.length === 1 ? threads[0] : undefined);
+  const draft = activeThread ? drafts[activeThread.id] ?? "" : "";
+
+  useEffect(() => {
+    if (activeThread) void clientMessagesRepository.markRead(activeThread.id).catch(() => undefined);
+  }, [activeThread?.id]);
+
+  function updateDraft(value: string) {
+    if (activeThread) setDrafts((currentDrafts) => ({ ...currentDrafts, [activeThread.id]: value }));
+  }
+
+  function updateThreads(forEventId: string, update: (thread: PrismCommunicationThread) => PrismCommunicationThread) {
+    setEventThreads((previous) => previous?.eventId === forEventId
+      ? { ...previous, threads: previous.threads.map(update) }
+      : previous);
+  }
+
   async function sendMessage() {
-    if (!activeThread || !draft.trim() || busy) return;
-    const key = pendingKey.current ?? crypto.randomUUID(); pendingKey.current = key; setBusy(true); setError(null);
+    if (!eventId || !activeThread || !draft.trim() || sending.current) return;
+    const threadId = activeThread.id;
+    const text = draft.trim();
+    const attempt = attempts.current.get(threadId);
+    const key = attempt?.text === text ? attempt.key : crypto.randomUUID();
+    attempts.current.set(threadId, { text, key });
+    sending.current = true;
+    setBusy(true);
+    setActionError(null);
     try {
-      const message = await clientMessagesRepository.send(activeThread.id, draft.trim(), key);
-      setThreads((current) => current.map((thread) => thread.id === activeThread.id ? { ...thread, messages: [...thread.messages, message], unreadCount: 0 } : thread));
-      setDraft('');
-    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to send message'); }
-    finally { pendingKey.current = null; setBusy(false); }
+      const message = await clientMessagesRepository.send(threadId, text, key);
+      updateThreads(eventId, (thread) => thread.id === threadId && !thread.messages.some((item) => item.id === message.id) ? { ...thread, messages: [...thread.messages, message], unreadCount: 0 } : thread);
+      setDrafts((currentDrafts) => currentDrafts[threadId] === draft ? { ...currentDrafts, [threadId]: "" } : currentDrafts);
+      attempts.current.delete(threadId);
+    } catch (reason) {
+      setActionError({ eventId, threadId, message: reason instanceof Error ? reason.message : "Unable to send message" });
+    } finally {
+      sending.current = false;
+      setBusy(false);
+    }
   }
+
   async function loadOlder() {
-    if (!activeThread?.messagesNextCursor) return;
-    try { const page = await clientMessagesRepository.listOlder(activeThread.id, activeThread.messagesNextCursor); setThreads((current) => current.map((thread) => thread.id === activeThread.id ? { ...thread, messages: [...page.items, ...thread.messages], messagesNextCursor: page.nextCursor } : thread)); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to load older messages'); }
+    if (!eventId || !activeThread?.messagesNextCursor) return;
+    const threadId = activeThread.id;
+    try {
+      const page = await clientMessagesRepository.listOlder(threadId, activeThread.messagesNextCursor);
+      updateThreads(eventId, (thread) => thread.id === threadId ? { ...thread, messages: [...page.items, ...thread.messages], messagesNextCursor: page.nextCursor } : thread);
+    } catch (reason) {
+      setActionError({ eventId, threadId, message: reason instanceof Error ? reason.message : "Unable to load older messages" });
+    }
   }
-  return { selectedEvent, session, activeThread, draft, updateDraft, sendMessage, loadOlder, busy, error };
+
+  return {
+    selectedEvent,
+    session,
+    threads,
+    activeThread,
+    selectThread: (threadId: string) => { if (eventId) setSelectedThreads((currentSelections) => ({ ...currentSelections, [eventId]: threadId })); },
+    status: eventId ? current?.status ?? "loading" : "idle",
+    error: current?.error ?? (actionError && actionError.eventId === eventId && actionError.threadId === activeThread?.id ? actionError.message : null),
+    retry: () => setReload((value) => value + 1),
+    draft,
+    updateDraft,
+    sendMessage,
+    loadOlder,
+    busy,
+  };
 }
