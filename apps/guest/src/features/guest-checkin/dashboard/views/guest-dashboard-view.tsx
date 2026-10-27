@@ -2,7 +2,6 @@
 
 import { LogOut } from "lucide-react";
 import { PrismGuestShell, PrismNoticeBanner } from "@prism/ui";
-import { guestNextActions, humanizeToken } from "../model/guest-dashboard-rules";
 import { useGuestDashboardViewModel } from "../view-models/use-guest-dashboard-view-model";
 import {
   GuestCheckInPanel,
@@ -26,6 +25,7 @@ export function GuestDashboardView() {
   const session = vm.session;
 
   if (!session) return <GuestDashboardLoading />;
+  const feedbackOpen = session.feedbackAvailability === "open";
 
   return (
     <PrismGuestShell
@@ -45,28 +45,14 @@ export function GuestDashboardView() {
         <div className="flex flex-col gap-5">
           {vm.error ? <PrismNoticeBanner tone="danger">{vm.error}</PrismNoticeBanner> : null}
           {vm.notice ? <PrismNoticeBanner tone="success">{vm.notice}</PrismNoticeBanner> : null}
-          <section aria-labelledby="guest-action-center-heading" className="rounded-lg border border-border bg-card p-4 shadow-sm">
-            <h2 id="guest-action-center-heading" className="text-base font-black text-foreground">Your next steps</h2>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {guestNextActions(vm.checkedIn, vm.feedbackSubmitted).map((action) => (
-                <div key={action.id} className="border-l border-primary bg-background/60 px-3 py-2.5">
-                  <p className="text-sm font-bold text-foreground">{action.label}</p>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{action.detail}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-          <GuestCheckInPanel vm={vm} />
-          <GuestEventDetailsPanel
-            session={session}
-            checkedIn={vm.checkedIn}
-            feedbackSubmitted={vm.feedbackSubmitted}
-          />
-          <GuestFeedbackPanel vm={vm} />
-          <div className="rounded-lg border border-border bg-card p-4">
-            <p className="text-sm font-semibold text-foreground">Current readiness</p>
-            <p className="mt-0.5 text-sm text-muted-foreground">{humanizeToken(session.readiness)}</p>
-          </div>
+          <nav aria-label="Guest pass sections" className="flex flex-wrap gap-4 text-sm font-semibold text-primary">
+            <a href="#check-in">My pass</a>
+            <a href="#event-details">Event details</a>
+            {feedbackOpen ? <a href="#feedback">Feedback</a> : null}
+          </nav>
+          <div id="check-in"><GuestCheckInPanel vm={vm} /></div>
+          <div id="event-details"><GuestEventDetailsPanel session={session} /></div>
+          {feedbackOpen ? <div id="feedback"><GuestFeedbackPanel vm={vm} /></div> : null}
         </div>
     </PrismGuestShell>
   );

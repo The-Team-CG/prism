@@ -14,7 +14,7 @@ export class GuestEventProjectionService implements GuestEventProjectionReader {
     // QUERY_AUDIT_ALLOW_UNBOUNDED: access codes derive from event name and ID, so candidates must cover the full active event set.
     return this.prisma.opsEvent.findMany({
       where: includeArchived ? {} : { archived: false },
-      select: { id: true, eventName: true, eventDate: true, updatedAt: true, archived: true },
+      select: { id: true, eventName: true, eventDate: true, actualEndedAt: true, updatedAt: true, archived: true },
       orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
     });
   }

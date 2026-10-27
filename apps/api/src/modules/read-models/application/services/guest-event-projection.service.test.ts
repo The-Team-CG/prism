@@ -10,7 +10,7 @@ describe('GuestEventProjectionService', () => {
 
     expect(findMany).toHaveBeenCalledWith({
       where: { archived: false },
-      select: { id: true, eventName: true, eventDate: true, updatedAt: true, archived: true },
+      select: { id: true, eventName: true, eventDate: true, actualEndedAt: true, updatedAt: true, archived: true },
       orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
     });
   });

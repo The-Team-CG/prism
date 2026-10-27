@@ -1,4 +1,4 @@
-import type { CheckInMode, CheckInPayload, FeedbackMediaMeta, FeedbackPayload, GuestNextAction, GuestSession } from "./guest-dashboard-types";
+import type { CheckInMode, CheckInPayload, FeedbackMediaMeta, FeedbackPayload, GuestSession } from "./guest-dashboard-types";
 import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
 import { GuestApiError } from "@/features/guest-shared/guest-http";
 
@@ -7,13 +7,6 @@ const GUEST_ACCESS_ENDED_STATUSES: readonly number[] = [401, 403, 404, 410];
 /** The API no longer accepts this guest's access to the event; the stored session must be dropped. */
 export function isGuestAccessEndedError(error: unknown): boolean {
   return error instanceof GuestApiError && GUEST_ACCESS_ENDED_STATUSES.includes(error.status);
-}
-
-export function guestNextActions(checkedIn: boolean, feedbackSubmitted: boolean): GuestNextAction[] {
-  return [
-    { id: "check-in", label: checkedIn ? "Attendance recorded" : "Complete event check-in", detail: checkedIn ? "Your attendance is recorded for this event." : "Use the check-in panel to record your name or headcount with consent.", status: checkedIn ? "complete" : "pending" },
-    { id: "feedback", label: feedbackSubmitted ? "Feedback sent for moderation" : "Share feedback after the event", detail: feedbackSubmitted ? "PMCM will review your feedback before any reuse." : "Feedback stays within the guest scope and enters PMCM moderation.", status: feedbackSubmitted ? "complete" : "pending" },
-  ];
 }
 
 export const POLL_INTERVAL_MS = 20_000;
@@ -107,24 +100,10 @@ export function buildFeedbackPayload(input: {
   return payload;
 }
 
-export function humanizeToken(value: string): string {
-  return value.replaceAll("_", " ");
-}
-
 export function checkInModeButtonClass(active: boolean) {
   return active
     ? "bg-primary text-primary-foreground shadow-sm"
     : "text-muted-foreground hover:text-foreground";
-}
-
-export function guestEventStagePresentation(state: "completed" | "current" | "pending") {
-  if (state === "completed") {
-    return { className: "border-l-secondary bg-secondary/10", label: "Complete" };
-  }
-  if (state === "current") {
-    return { className: "border-l-primary bg-primary/8", label: "Current step" };
-  }
-  return { className: "border-l-border bg-background/60", label: "Pending" };
 }
 
 export function mapGuestDashboardError(
