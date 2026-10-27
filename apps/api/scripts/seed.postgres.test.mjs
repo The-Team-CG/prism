@@ -49,7 +49,7 @@ test('migrated PostgreSQL: prerequisites, atomic failure, reruns, edits, collisi
         assert.equal((await run({ profile: 'accounts', passwordFor: () => AuthSecurityService.hashPassword('test-only-password') })).inserted, 12);
         const users = (await client.query('SELECT * FROM identity_access.users')).rows;
         assert.equal(users.length, 6);
-        for (const user of users) assert.equal(AuthSecurityService.verifyPassword(user.password, 'test-only-password'), true);
+        for (const user of users) assert.equal(await AuthSecurityService.verifyPassword(user.password, 'test-only-password'), true);
         await client.query("UPDATE identity_access.users SET two_factor_secret='tester-2fa', failed_login_count=2 WHERE id='usr_pmcm'");
         assert.equal((await run({ profile: 'accounts' })).inserted, 0);
         assert.equal((await client.query("SELECT two_factor_secret FROM identity_access.users WHERE id='usr_pmcm'")).rows[0].two_factor_secret, 'tester-2fa');
