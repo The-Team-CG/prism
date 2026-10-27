@@ -5,10 +5,7 @@ import type { PrismEvent } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { cn } from "@/app/components/ui/utils";
-import { EventSummaryCard, eventProgressDots } from "../../workspace/shared";
 import {
-  CLIENT_PORTAL_VIEW_META,
-  clientFloorplanDashboardActionLabel,
   clientEventCardOpenRoute,
   dashboardHref,
   selectClientEventHistoryEvents,
@@ -22,13 +19,13 @@ export function ClientEventsView() {
     portalView,
     state,
     session,
+    actionCenter,
     setSelectedEventId,
     eventSearch,
     setEventSearch,
   } = useClientWorkspace();
   if (!state) return null;
   const historyEvents = selectClientEventHistoryEvents(state, session);
-  const portalViewMeta = portalView ? CLIENT_PORTAL_VIEW_META[portalView] : undefined;
 
     type EventFilterId = "events-all" | "events-upcoming" | "events-in-planning" | "events-completed" | "events-cancelled";
     const eventFilterOptions: Array<{
@@ -80,12 +77,7 @@ export function ClientEventsView() {
     return (
       <div className="space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-black text-foreground">{portalViewMeta?.title ?? "My events"}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {portalViewMeta?.description ?? `${historyEvents.length} confirmed event${historyEvents.length === 1 ? "" : "s"} with PMCM`}
-            </p>
-          </div>
+          <p className="text-sm text-muted-foreground">{historyEvents.length} event{historyEvents.length === 1 ? "" : "s"}</p>
           <Button className="rounded-lg font-bold" onClick={() => router.push("/dashboard/request")}>
             <Send className="size-4" /> New request
           </Button>
@@ -126,30 +118,21 @@ export function ClientEventsView() {
         </div>
   
         {visibleEvents.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="divide-y divide-border rounded-lg border border-border bg-card">
             {visibleEvents.map((ev) => {
-              const dots = eventProgressDots(ev, state);
-              const statement = state.billingStatements.find((b) => b.eventId === ev.id);
-              const eventBriefing = state.briefings.find((b) => b.eventId === ev.id);
-              const eventDocs = state.documents.filter((document) => document.eventId === ev.id);
+              const nextAction = actionCenter?.items.find((item) => item.eventId === ev.id && item.priority !== "info");
               return (
-                <EventSummaryCard
-                  key={ev.id}
-                  event={ev}
-                  dots={dots}
-                  billingStatement={statement}
-                  briefing={eventBriefing}
-                  documentCount={eventDocs.length}
-                  onOpen={() => {
+                <div key={ev.id} className="flex flex-wrap items-center justify-between gap-4 px-4 py-4">
+                  <div className="min-w-0">
+                    <h2 className="font-semibold text-foreground">{ev.eventName}</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">{ev.eventDate} · {ev.venue || "Venue to be confirmed"} · {ev.status.replaceAll("_", " ")}</p>
+                    {nextAction ? <p className="mt-1 text-sm text-foreground">{nextAction.label}</p> : null}
+                  </div>
+                  <Button variant="outline" onClick={() => {
                     setSelectedEventId(ev.id);
                     router.push(dashboardHref(clientEventCardOpenRoute(ev), ev.id));
-                  }}
-                  onOpenFloorplan={ev.archived ? undefined : () => {
-                    setSelectedEventId(ev.id);
-                    router.push(dashboardHref("floorplan", ev.id));
-                  }}
-                  floorplanActionLabel={clientFloorplanDashboardActionLabel(ev.floorPlanStatus)}
-                />
+                  }}>Open event</Button>
+                </div>
               );
             })}
           </div>

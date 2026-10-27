@@ -57,12 +57,13 @@ import { useSupplierWorkspaceViewModel } from "../../view-models/use-supplier-wo
 import { Card, CardBody, CardHeader, SectionAccent, StatCell } from "./shell-ui";
 
 export function BookingsPage({
-  selectedRequests, session, readinessNotes, workflowWorkspace, statusNotes, busy,
+  selectedRequests, session, readinessBoard, readinessNotes, workflowWorkspace, statusNotes, busy,
   onReadinessNoteChange, onStatusNoteChange,
   onConfirmAssignment, onConfirmReadiness, onSaveContract, onUpdateStatus,
   onAcknowledgeSchedule, onRequestScheduleChange, onUpdateProgress, onSubmitCreativeTask, onDownloadObject,
 }: {
   selectedRequests: PrismSupplierQuoteRequest[];
+  readinessBoard: PrismSupplierReadinessBoard | null;
   session: PrismAuthenticatedSession;
   readinessNotes: Record<string, string>;
   workflowWorkspace: PrismSupplierWorkflowWorkspace | null;
@@ -97,9 +98,15 @@ export function BookingsPage({
       {selectedRequests.map((req) => {
         const steps = buildBookingSteps(req);
         const canReportEventDayStatus = canReportSupplierEventDayStatus(req);
+        const eventName = readinessBoard?.items.find((item) => item.eventId === req.eventId)?.eventName;
 
         return (
-          <Card key={req.id}>
+          <details key={req.id} name="supplier-bookings" className="rounded-lg border border-border bg-card">
+            <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+              {req.category} · {eventName || "Event details pending"}
+              <span className="mt-1 block text-xs font-normal text-muted-foreground">Booking {req.id} · {steps.filter((step) => !step.done).length} steps to complete</span>
+            </summary>
+          <Card>
             <CardHeader>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -231,6 +238,7 @@ export function BookingsPage({
               </div>
             </CardBody>
           </Card>
+          </details>
         );
       })}
     </div>
