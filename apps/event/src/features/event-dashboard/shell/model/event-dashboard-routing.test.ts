@@ -142,9 +142,9 @@ describe("event-dashboard-routing", () => {
       [{ section: "audit", tab: "overview" }, "audit"],
       [{ section: "clients", tab: "overview" }, "clients"],
       [{ section: "calendar", tab: "overview" }, "calendar"],
-      [{ section: "tasks", tab: "overview" }, "tasks"],
-      [{ section: "command-inbox", tab: "overview" }, "command-inbox"],
-      [{ section: "team", tab: "coordinators" }, "dashboard"],
+      [{ section: "tasks", tab: "overview" }, "dashboard"],
+      [{ section: "command-inbox", tab: "overview" }, "dashboard"],
+      [{ section: "team", tab: "coordinators" }, "team"],
       [{ section: "team", tab: "coordinators", eventId: "event-42" }, "event-staff"],
       [{ section: "files", tab: "floorplans" }, "dashboard"],
       [{ section: "files", tab: "floorplans", eventId: "event-42" }, "event-files"],
@@ -170,18 +170,18 @@ describe("event-dashboard-routing", () => {
 
   it("keeps loading copy aligned with each route owner", () => {
     const cases: Array<[RouteState, { eyebrow: string; title: string }]> = [
-      [{ section: "suppliers", tab: "overview" }, { eyebrow: "Supplier directory", title: "Supplier Directory" }],
-      [{ section: "audit", tab: "overview" }, { eyebrow: "Audit log", title: "Audit Trail" }],
-      [{ section: "clients", tab: "overview" }, { eyebrow: "Clients", title: "Client Desk" }],
+      [{ section: "suppliers", tab: "overview" }, { eyebrow: "Supplier directory", title: "Suppliers" }],
+      [{ section: "audit", tab: "overview" }, { eyebrow: "Audit log", title: "Audit" }],
+      [{ section: "clients", tab: "overview" }, { eyebrow: "Clients", title: "Clients" }],
       [{ section: "calendar", tab: "overview" }, { eyebrow: "Calendar", title: "Calendar" }],
       [{ section: "tasks", tab: "overview" }, { eyebrow: "Tasks", title: "Tasks" }],
-      [{ section: "command-inbox", tab: "overview" }, { eyebrow: "Command inbox", title: "Command Inbox" }],
-      [{ section: "team", tab: "overview" }, { eyebrow: "Team", title: "Team & Coordinators" }],
+      [{ section: "command-inbox", tab: "overview" }, { eyebrow: "Command inbox", title: "Inbox" }],
+      [{ section: "team", tab: "overview" }, { eyebrow: "Team", title: "Team" }],
       [{ section: "files", tab: "overview" }, { eyebrow: "Files", title: "Event File Hub" }],
       [{ section: "messages", tab: "overview" }, { eyebrow: "Messages", title: "Event Messages" }],
       [{ section: "finance", tab: "overview" }, { eyebrow: "Finance", title: "Finance Desk" }],
-      [{ section: "inquiries", tab: "overview" }, { eyebrow: "Inquiries", title: "Inquiry Intake" }],
-      [{ section: "events-list", tab: "overview" }, { eyebrow: "Events", title: "All Events" }],
+      [{ section: "inquiries", tab: "overview" }, { eyebrow: "Inquiries", title: "Inquiries" }],
+      [{ section: "events-list", tab: "overview" }, { eyebrow: "Events", title: "Events" }],
       [{ section: "settings", tab: "overview" }, { eyebrow: "Settings", title: "Settings" }],
       [{ section: "events", tab: "overview", eventId: "event-42" }, { eyebrow: "Event workspace", title: "Event workspace" }],
       [{ section: "dashboard", tab: "overview" }, { eyebrow: "Command home", title: "Event Manager" }],
@@ -196,7 +196,7 @@ describe("event-dashboard-routing", () => {
     expect(routeShellCopy({ section: "clients", tab: "overview", view: "active" }, { activeNavLabel: "Active clients" })).toEqual({
       eyebrow: "Clients",
       title: "Active clients",
-      description: "Client intake, conforme status, approval requests, and portal readiness.",
+      description: "Every client contact, with their events and inquiries.",
     });
     expect(
       routeShellCopy(
@@ -220,11 +220,11 @@ describe("event-dashboard-routing", () => {
     });
 
     const sectionTitles: Array<[RouteState, string]> = [
-      [{ section: "suppliers", tab: "overview" }, "Supplier Directory"],
-      [{ section: "audit", tab: "overview" }, "Audit Trail"],
-      [{ section: "command-inbox", tab: "overview" }, "Command Inbox"],
-      [{ section: "team", tab: "overview" }, "Team & Coordinators"],
-      [{ section: "inquiries", tab: "overview" }, "Inquiry Intake"],
+      [{ section: "suppliers", tab: "overview" }, "Suppliers"],
+      [{ section: "audit", tab: "overview" }, "Audit"],
+      [{ section: "command-inbox", tab: "overview" }, "Inbox"],
+      [{ section: "team", tab: "overview" }, "Team"],
+      [{ section: "inquiries", tab: "overview" }, "Inquiries"],
       [{ section: "calendar", tab: "overview" }, "Calendar"],
     ];
     for (const [routeState, expectedTitle] of sectionTitles) {

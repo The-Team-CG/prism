@@ -3,10 +3,7 @@
 import { useEffect, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import {
   AlertCircle,
-  CalendarDays,
   ClipboardList,
-  Eye,
-  Mail,
   MessageSquareText,
   Plus,
   Search,
@@ -25,13 +22,13 @@ import {
   inquiryExtraDetailFields,
   inquiryHistoryCues,
   inquiryMergeCandidates,
-  inquiryStatusAccent,
   isInquiryLogFormReady,
   logFormChannels,
   logFormClientTypes,
   logFormEventTypes,
   logFormReferralSources,
   type InquiryLogForm,
+  inquiryNextStep,
 } from "../model/inquiry-intake-rules";
 
 function DetailField({ label: fieldLabel, value }: { label: string; value?: string | null }) {
@@ -77,8 +74,7 @@ export function InquiryIntakeHeader({
         </div>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        Copy the public inquiry link for a colleague. Production email send stays gated; log-on-behalf records walk-in and phone inquiries here.
-      </p>
+        Share the public inquiry link, or log walk-in and phone inquiries here.</p>
     </div>
   );
 }
@@ -172,22 +168,31 @@ export function InquiryIntakeList({
   }
 
   return (
-    <div>
-      <div className="hidden border-b border-border bg-muted/20 px-6 py-2 text-2xs font-bold uppercase tracking-wide text-muted-foreground 2xl:grid 2xl:grid-cols-[minmax(280px,1fr)_120px_140px_minmax(150px,0.7fr)_90px] 2xl:gap-4">
-        <span>Inquiry</span>
-        <span>Status</span>
-        <span>Event date</span>
-        <span>Source</span>
-        <span>Actions</span>
-      </div>
-      <div className="divide-y divide-border">
+    <table className="w-full text-sm">
+      <thead className="hidden border-b border-border text-left text-xs text-muted-foreground md:table-header-group">
+        <tr>
+          <th scope="col" className="px-6 py-2.5 font-medium">Event and contact</th>
+          <th scope="col" className="px-4 py-2.5 font-medium">Event date</th>
+          <th scope="col" className="hidden px-4 py-2.5 font-medium lg:table-cell">Source</th>
+          <th scope="col" className="px-4 py-2.5 font-medium">Status</th>
+          <th scope="col" className="px-4 py-2.5 font-medium">Next step</th>
+          <th scope="col" className="px-6 py-2.5"><span className="sr-only">Open</span></th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-border">
         {inquiries.map((inquiry) => (
           <InquiryIntakeRow key={inquiry.id} inquiry={inquiry} onOpen={onOpen} />
         ))}
-      </div>
-    </div>
+      </tbody>
+    </table>
   );
 }
+
+const NEXT_STEP_TONE = {
+  action: "font-semibold text-primary",
+  waiting: "text-attention",
+  done: "text-muted-foreground",
+} as const;
 
 function InquiryIntakeRow({
   inquiry,
@@ -196,49 +201,29 @@ function InquiryIntakeRow({
   inquiry: PrismInquiry;
   onOpen: (inquiry: PrismInquiry) => void;
 }) {
+  const next = inquiryNextStep(inquiry);
   return (
-    <div className={`border-l-4 ${inquiryStatusAccent(inquiry.status)} px-6 py-4`}>
-      <div className="grid gap-4 2xl:grid-cols-[minmax(280px,1fr)_120px_140px_minmax(150px,0.7fr)_90px] 2xl:items-center">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-foreground">{inquiry.eventName}</p>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            <span className="truncate">{inquiry.clientName}</span>
-            <span className="inline-flex items-center gap-1">
-              <Mail className="size-3" />
-              {inquiry.email}
-            </span>
-          </div>
-          {inquiry.message ? (
-            <p className="mt-2 line-clamp-1 text-xs text-muted-foreground">{inquiry.message}</p>
-          ) : null}
-        </div>
-        <div>
-          <p className="mb-1 text-3xs font-bold uppercase tracking-wide text-muted-foreground 2xl:hidden">Status</p>
-          <StatusBadge status={inquiry.status} label={label(inquiry.status)} />
-          {inquiry.previouslyDeclined ? (
-            <p className="mt-1 text-3xs font-bold text-destructive">Previously declined</p>
-          ) : null}
-        </div>
-        <div className="text-sm font-semibold text-foreground">
-          <p className="mb-1 text-3xs font-bold uppercase tracking-wide text-muted-foreground 2xl:hidden">Event date</p>
-          <span className="flex items-center gap-2">
-            <CalendarDays className="size-4 text-muted-foreground" />
-            {inquiry.eventDate || "Date pending"}
-          </span>
-        </div>
-        <div className="text-sm">
-          <p className="mb-1 text-3xs font-bold uppercase tracking-wide text-muted-foreground 2xl:hidden">Source</p>
-          <p className="font-semibold text-foreground">{inquiry.source || "-"}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Received {compactTimestamp(inquiry.createdAt)}</p>
-        </div>
-        <div className="flex 2xl:justify-end">
-          <Button size="sm" variant="outline" onClick={() => onOpen(inquiry)} className="w-full rounded-lg font-bold 2xl:w-auto">
-            <Eye className="size-3.5" />
-            Open
-          </Button>
-        </div>
-      </div>
-    </div>
+    <tr className="grid gap-1 px-6 py-3 hover:bg-surface-raised md:table-row md:p-0">
+      <td className="md:px-6 md:py-3">
+        <p className="font-semibold text-foreground">{inquiry.eventName}</p>
+        <p className="text-xs text-muted-foreground">
+          {inquiry.clientName} · {inquiry.email}
+        </p>
+        {inquiry.previouslyDeclined ? <p className="mt-0.5 text-xs font-semibold text-destructive">Previously declined</p> : null}
+      </td>
+      <td className="whitespace-nowrap tabular-nums text-foreground md:px-4 md:py-3">{inquiry.eventDate || "Date pending"}</td>
+      <td className="hidden md:px-4 md:py-3 lg:table-cell">
+        <p className="text-foreground">{inquiry.source || "–"}</p>
+        <p className="text-xs text-muted-foreground">Received {compactTimestamp(inquiry.createdAt)}</p>
+      </td>
+      <td className="md:px-4 md:py-3"><StatusBadge status={inquiry.status} label={label(inquiry.status)} /></td>
+      <td className={`md:px-4 md:py-3 ${NEXT_STEP_TONE[next.tone]}`}>{next.label}</td>
+      <td className="md:px-6 md:py-3 md:text-right">
+        <button type="button" onClick={() => onOpen(inquiry)} className="text-sm font-semibold text-primary hover:text-primary-strong">
+          Open<span className="sr-only"> {inquiry.eventName}</span>
+        </button>
+      </td>
+    </tr>
   );
 }
 

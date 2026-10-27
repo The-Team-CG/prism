@@ -324,6 +324,7 @@ export function PrismPortalShell({
   commandActions = [],
   commandSectionLabel,
   headerActions,
+  sidebarContext,
   accountMenuItems,
   onSignOut,
   children,
@@ -339,6 +340,7 @@ export function PrismPortalShell({
         <Sidebar variant="inset" collapsible="icon">
           <SidebarHeader>
             <SidebarBrand href={homeHref} title={productLabel} detail={roleLabel} />
+            {sidebarContext ? <div className="group-data-[collapsible=icon]:hidden">{sidebarContext}</div> : null}
           </SidebarHeader>
           <SidebarContent>
             {groupNav(navItems).map((group) => (
