@@ -117,10 +117,15 @@ export function useClientDashboardViewModel({
       if (cancelled) return;
       setState(next);
       setError(null);
-      const firstClientEvent = next.events.find(
+      const openEvents = next.events.filter(
         (event) => !event.archived && event.clientPortalStatus === "unlocked",
       );
-      setSelectedEventId(eventId ?? firstClientEvent?.id ?? null);
+      // The route event wins; otherwise keep the client's own choice. Only a single open event is chosen for them.
+      setSelectedEventId((previous) => {
+        if (eventId) return eventId;
+        if (previous && next.events.some((event) => event.id === previous)) return previous;
+        return openEvents.length === 1 ? openEvents[0].id : null;
+      });
     };
 
     const applyActionCenter = (next: PrismClientActionCenter) => {

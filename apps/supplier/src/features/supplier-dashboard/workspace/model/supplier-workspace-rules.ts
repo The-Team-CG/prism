@@ -475,3 +475,18 @@ const READINESS_CONCERN_LABELS: Record<PrismSupplierReadinessConcernKind, string
 export function readinessConcernLabel(kind: PrismSupplierReadinessConcernKind): string {
   return READINESS_CONCERN_LABELS[kind];
 }
+
+export type SupplierMessageEvent = { eventId: string; eventName: string };
+
+/** The events a supplier can message PMCM about: one per booking, named from the readiness board. */
+export function supplierMessageEvents(
+  selectedRequests: PrismSupplierQuoteRequest[],
+  readinessItems: PrismSupplierReadinessItem[],
+): SupplierMessageEvent[] {
+  const names = new Map(readinessItems.map((item) => [item.eventId, item.eventName]));
+  const events = new Map<string, SupplierMessageEvent>();
+  for (const request of selectedRequests) {
+    if (!events.has(request.eventId)) events.set(request.eventId, { eventId: request.eventId, eventName: names.get(request.eventId) ?? "Assigned event" });
+  }
+  return [...events.values()];
+}

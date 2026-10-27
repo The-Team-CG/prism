@@ -36,7 +36,7 @@ import { SupplierApplicationsInboxView } from "@/features/suppliers/applications
 import { AuditTrailPanel } from "@/features/audit/trail";
 import { PrivacyConsoleView } from "@/features/privacy/console";
 import { EventMessagesWorkspace } from "@/features/event-dashboard/messages/views/event-messages-workspace";
-import { useEventDashboardLoadedRouteViewModel, useEventDashboardRouteViewModel } from "../event-dashboard-route-context";
+import { useEventDashboardLoadedRouteViewModel, useEventDashboardRouteViewModel, useEventDashboardScopedRouteViewModel } from "../event-dashboard-route-context";
 
 const phpMoney = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
 export function EventDashboardCalendarSectionView() {
@@ -107,7 +107,7 @@ export function EventDashboardCommandInboxSectionView() {
     refreshCommandInbox,
     changeCommandInboxPage,
     commandInboxLoadFailed,
-  } = useEventDashboardLoadedRouteViewModel();
+  } = useEventDashboardScopedRouteViewModel();
   return (
 
           <EventCommandInbox
@@ -541,7 +541,7 @@ export function EventDashboardHomeSectionView() {
     busy,
     approveApprovalRequest,
     declineApprovalRequest,
-  } = useEventDashboardLoadedRouteViewModel();
+  } = useEventDashboardScopedRouteViewModel();
   return (
 
           <>

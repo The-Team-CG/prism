@@ -23,7 +23,7 @@ const PORTAL_EYEBROWS: Partial<Record<ClientDashboardRoute, string>> = {
 const PORTAL_DESCRIPTIONS: Partial<Record<ClientDashboardRoute, string>> = {
   request: "Start another event request using your client account details.",
   events: "Your confirmed PMCM events.",
-  calendar: "Event dates, meetings, deadlines, payments, and approval timing.",
+  calendar: "Event dates, payment due dates, site visits and layout approvals.",
   approvals: "Client approvals grouped by status and document type.",
   messages: "PMCM updates, event conversations, announcements, and archived notes.",
   files: "Contracts, quotations, receipts, layouts, and shared event files.",
