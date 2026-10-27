@@ -52,7 +52,7 @@ export function clientShellTitle(input: {
 }) {
   if (input.isEventScopedView) return input.eventName ?? "Client portal";
   if (input.portalView) return CLIENT_PORTAL_VIEW_META[input.portalView].title;
-  return PORTAL_TITLES[input.route] ?? "Dashboard";
+  return PORTAL_TITLES[input.route] ?? "Home";
 }
 
 export function clientShellEyebrow(input: { isEventScopedView: boolean; route: ClientDashboardRoute }) {

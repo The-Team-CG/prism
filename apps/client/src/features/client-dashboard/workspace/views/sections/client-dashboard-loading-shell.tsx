@@ -2,7 +2,6 @@
 
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { PrismDashboardShell } from "@prism/ui";
-import { ClientPortalSidebar } from "./client-portal-sidebar";
 import { DashboardSkeleton } from "../dashboard-tabs";
 import {
   CLIENT_SIDEBAR_ITEMS,
@@ -68,15 +67,6 @@ export function ClientDashboardLoadingShell({
       }}
       searchPlaceholder="Search proposal, billing, documents..."
       mobileActions={[]}
-      sidebarMode="single"
-      sidebarContent={({ collapsed }) => (
-        <ClientPortalSidebar
-          navItems={navItems}
-          activeItemId={activeItemId}
-          onSelect={handleNavSelect}
-          collapsed={collapsed}
-        />
-      )}
       onSignOut={onSignOut}
     >
       {error ? (
