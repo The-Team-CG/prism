@@ -586,3 +586,13 @@ export function routeStateFromPath(pathname: string): RouteState {
   return parse ? parse(parts) : DEFAULT_DASHBOARD_ROUTE;
 }
 
+
+/**
+ * Sections that render from their own scoped reads (approval requests, the command inbox, the supplier
+ * workspace) instead of the broad PMCM workspace state. They must not wait for that state to load.
+ */
+const SCOPED_READ_SECTIONS: ReadonlySet<DashboardSection> = new Set(["dashboard", "command-inbox", "suppliers"]);
+
+export function sectionNeedsPmcmWorkspaceState(section: DashboardSection): boolean {
+  return !SCOPED_READ_SECTIONS.has(section);
+}
