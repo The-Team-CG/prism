@@ -5,11 +5,9 @@ import { EmptyState } from "@/app/components/ui/empty-state";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { formatStatusLabel, useClientWorkspace } from "../../workspace/shared";
 import { ClientAccountEventPicker } from "../../workspace/views/sections/client-account-event-picker";
-import { ClientFileRequirementsMatrix } from "./client-file-requirements-matrix";
-import { ClientStoredFilesPanel } from "./client-stored-files-panel";
 
 export function ClientFilesView() {
-  const { state, events, selectedEvent, session } = useClientWorkspace();
+  const { state, events } = useClientWorkspace();
   if (!state) return null;
 
   const eventNames = new Map(events.map((event) => [event.id, event.eventName]));
@@ -17,20 +15,15 @@ export function ClientFilesView() {
 
   return (
     <div className="space-y-5">
-      <ClientAccountEventPicker purpose="event files and requirements" />
-      {selectedEvent ? (
-        <div key={selectedEvent.id} className="space-y-5">
-          <ClientStoredFilesPanel eventId={selectedEvent.id} />
-          <ClientFileRequirementsMatrix eventId={selectedEvent.id} session={session} />
-        </div>
-      ) : events.length === 0 ? (
+      <ClientAccountEventPicker purpose="event files and requirements" destination="documents" />
+      {events.length === 0 ? (
         <EmptyState icon={FileText} title="No active event" description="Event files will appear when your event workspace is available." />
       ) : null}
 
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         <div>
           <h2 className="text-base font-bold text-foreground">Document records</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Client-visible document records across your active events. Choose an event above to upload or download files.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Client-visible document records across your active events. Open an event to upload or download files.</p>
         </div>
         {files.length ? (
           <div className="mt-4 divide-y divide-border">
