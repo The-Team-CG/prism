@@ -95,6 +95,27 @@ function InboxPager({
   );
 }
 
+function CommandInboxHeader({ inbox, loadFailed, onRefresh }: {
+  inbox: PrismPmcmCommandInbox | null;
+  loadFailed: boolean;
+  onRefresh: () => void;
+}) {
+  const attentionCount = inbox ? inbox.counts.critical + inbox.counts.warning + inbox.counts.attention : 0;
+  const title = inbox ? `On this page: ${attentionCount} need attention · ${inbox.counts.info} updates` : loadFailed ? "Updates unavailable" : "Loading updates…";
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center gap-2">
+        <div className="grid size-9 place-items-center rounded-full bg-primary/10 text-primary"><Inbox className="size-4" /></div>
+        <div>
+          <p className="text-sm font-semibold text-foreground">{title}</p>
+          <p className="text-xs text-muted-foreground">{inbox ? `Page ${inbox.page.index + 1} · Updated ${formatPortalDateTime(inbox.generatedAt)} · Philippine time` : "Loading..."}</p>
+        </div>
+      </div>
+      <Button variant="outline" size="sm" className="rounded-lg font-bold" onClick={onRefresh}><RotateCcw className="mr-1.5 size-3.5" />Refresh</Button>
+    </div>
+  );
+}
+
 export function EventCommandInbox({
   inbox,
   onRefresh,
@@ -111,29 +132,9 @@ export function EventCommandInbox({
     [inbox],
   );
 
-  const totalCount = inbox
-    ? inbox.counts.critical + inbox.counts.warning + inbox.counts.attention + inbox.counts.info
-    : 0;
-
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="grid size-9 place-items-center rounded-full bg-primary/10 text-primary">
-            <Inbox className="size-4" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-foreground">{inbox ? `On this page: ${totalCount - inbox.counts.info} need attention · ${inbox.counts.info} updates` : loadFailed ? "Updates unavailable" : "Loading updates…"}</p>
-            <p className="text-xs text-muted-foreground">
-              {inbox ? `Page ${inbox.page.index + 1} · Updated ${formatPortalDateTime(inbox.generatedAt)} · Philippine time` : "Loading..."}
-            </p>
-          </div>
-        </div>
-        <Button variant="outline" size="sm" className="rounded-lg font-bold" onClick={onRefresh}>
-          <RotateCcw className="mr-1.5 size-3.5" />
-          Refresh
-        </Button>
-      </div>
+      <CommandInboxHeader inbox={inbox} loadFailed={loadFailed} onRefresh={onRefresh} />
 
       {loadFailed && inbox ? <p role="alert" className="rounded-md bg-attention-soft p-4 text-sm text-attention">The latest refresh failed. These are the last loaded updates. Refresh again before making a time-sensitive decision.</p> : null}
 

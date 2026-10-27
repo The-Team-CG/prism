@@ -1,4 +1,12 @@
 import type { PrismFileRequirementItem } from "@prism/types";
+import { dashboardHref } from "../../workspace/model/client-dashboard-navigation";
+
+export function clientFileRequirementDestination(item: PrismFileRequirementItem, eventId: string) {
+  if (item.key === "official_floorplan") return { href: dashboardHref("floorplan", eventId), label: "View official layout" };
+  if (item.key === "billing_statement") return { href: dashboardHref("billing", eventId), label: "View billing" };
+  if (item.key === "client_feedback") return { href: `/dashboard/events/${encodeURIComponent(eventId)}/activity`, label: "View event feedback" };
+  return { href: "#event-files", label: "View uploads and shared files" };
+}
 
 export function clientFileRequirementDetail(item: PrismFileRequirementItem): string {
   const available = ["approved", "complete", "generated"].includes(item.status);

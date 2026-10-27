@@ -11,6 +11,21 @@ import type { GuestSession } from "../../model/guest-dashboard-types";
 
 type GuestDashboardVm = ReturnType<typeof useGuestDashboardViewModel>;
 
+function GuestCheckInSubmit({ vm }: { vm: GuestDashboardVm }) {
+  const showGuidance = !vm.canCheckIn && !vm.busy;
+  const guidance = vm.checkInMode === "name_search" && !vm.checkInGuestName.trim()
+    ? "Enter the name on the event list and confirm your consent."
+    : "Confirm your consent to send your check-in request.";
+  return (
+    <>
+      {showGuidance ? <p id="check-in-guidance" className="text-sm text-muted-foreground">{guidance}</p> : null}
+      <Button aria-describedby={showGuidance ? "check-in-guidance" : undefined} disabled={!vm.canCheckIn} onClick={() => void vm.checkIn()} className="h-12 sm:w-fit">
+        <TicketCheck className="size-4" /> {vm.checkInButtonLabel}
+      </Button>
+    </>
+  );
+}
+
 export function GuestCheckInPanel({ vm }: { vm: GuestDashboardVm }) {
   if (vm.checkedIn) {
     return (
@@ -52,10 +67,7 @@ export function GuestCheckInPanel({ vm }: { vm: GuestDashboardVm }) {
             ? "I consent to this attendance being recorded for the event headcount."
             : "I consent to PMCM recording my name and check-in time for event registration."}</span>
         </label>
-        {!vm.canCheckIn && !vm.busy ? <p id="check-in-guidance" className="text-sm text-muted-foreground">{vm.checkInMode === "name_search" && !vm.checkInGuestName.trim() ? "Enter the name on the event list and confirm your consent." : "Confirm your consent to send your check-in request."}</p> : null}
-        <Button aria-describedby={!vm.canCheckIn && !vm.busy ? "check-in-guidance" : undefined} disabled={!vm.canCheckIn} onClick={() => void vm.checkIn()} className="h-12 sm:w-fit">
-          <TicketCheck className="size-4" /> {vm.checkInButtonLabel}
-        </Button>
+        <GuestCheckInSubmit vm={vm} />
       </div>
     </PrismSectionPanel>
   );
