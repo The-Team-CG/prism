@@ -14,7 +14,7 @@ const buttonVariants: Record<NonNullable<PrismButtonProps["variant"]>, string> =
   outline: "border border-border bg-card text-foreground hover:bg-secondary",
   ghost: "text-foreground hover:bg-secondary",
   danger: "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
-  signal: "bg-(--prism-signal) text-white shadow-md hover:bg-(--prism-signal)/90 hover:shadow-lg",
+  signal: "bg-primary text-white shadow-md hover:bg-primary/90 hover:shadow-lg",
 };
 
 const buttonSizes: Record<NonNullable<PrismButtonProps["size"]>, string> = {
@@ -56,13 +56,13 @@ const badgeVariants: Record<PrismBadgeTone, string> = {
   default: "bg-primary/10 text-primary ring-primary/15",
   secondary: "bg-secondary text-secondary-foreground ring-border",
   outline: "bg-card text-foreground ring-border",
-  success: "bg-(--prism-success)/10 text-(--prism-success) ring-(--prism-success)/20",
-  warning: "bg-(--prism-amber)/10 text-(--prism-amber) ring-(--prism-amber)/20",
-  danger: "bg-(--prism-danger)/10 text-(--prism-danger) ring-(--prism-danger)/20",
+  success: "bg-success/10 text-success ring-success/20",
+  warning: "bg-attention/10 text-attention ring-attention/20",
+  danger: "bg-danger/10 text-danger ring-danger/20",
   info: "bg-primary/10 text-primary ring-primary/20",
   neutral: "bg-muted text-muted-foreground ring-border",
-  signal: "bg-(--prism-signal)/10 text-(--prism-signal) ring-(--prism-signal)/20",
-  amber: "bg-(--prism-amber)/10 text-(--prism-amber) ring-(--prism-amber)/20",
+  signal: "bg-primary/10 text-primary ring-primary/20",
+  amber: "bg-attention/10 text-attention ring-attention/20",
 };
 
 export function PrismBadge({ className, variant = "default", tone, ...props }: PrismBadgeProps) {
@@ -71,7 +71,7 @@ export function PrismBadge({ className, variant = "default", tone, ...props }: P
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ring-1",
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-3xs font-bold ring-1",
         badgeVariants[resolvedVariant],
         className,
       )}

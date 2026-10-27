@@ -21,7 +21,7 @@ describe("phase4-workspace-rules", () => {
       value: "1/2",
       detail: "Ready to archive",
     });
-    expect(phase4ComplianceCard(2, 5).tone).toBe("text-rose-700");
+    expect(phase4ComplianceCard(2, 5).tone).toBe("text-danger");
     expect(phase4BillingSourceCard({ totalAmount: 100 }, 1, (amount) => String(amount)).value).toBe("Approved");
   });
 

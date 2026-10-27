@@ -8,16 +8,16 @@
   --card-foreground: var(--prism-ink);
   --popover: var(--prism-surface);
   --popover-foreground: var(--prism-ink);
-  --secondary: var(--prism-sage);
+  --secondary: var(--prism-blue-soft);
   --secondary-foreground: var(--prism-ink);
-  --muted: #f4e5e0;
+  --muted: var(--prism-tint);
   --muted-foreground: var(--prism-muted);
   --border: var(--prism-line);
   --input: var(--prism-surface);
-  --primary: var(--prism-signal);
+  --primary: var(--prism-magenta);
   --primary-foreground: var(--prism-surface);
-  --ring: var(--prism-signal);
-  --accent: var(--prism-amber-soft);
+  --ring: var(--prism-magenta);
+  --accent: var(--prism-orange-soft);
   --accent-foreground: var(--prism-ink);
   --destructive: var(--prism-danger);
   color: var(--foreground);
@@ -69,7 +69,7 @@
 .table thead { background: var(--prism-surface-raised); }
 .table tbody tr { height: 36px; }
 .table tbody tr:hover { background: var(--prism-page); }
-.selectedRow { background: #fbeaf2; }
+.selectedRow { background: var(--prism-magenta-soft); }
 .table select { height: 30px; font-size: 11px; border-color: var(--border); }
 .table [id="supplier-category-filter"] { max-width: 150px; }
 .table [id="supplier-tier-filter"] { max-width: 135px; }
@@ -103,15 +103,15 @@
   text-overflow: ellipsis;
   padding: 3px 7px;
   border-radius: 5px;
-  background: #e8f0fc;
-  color: #285b91;
+  background: var(--prism-info-soft);
+  color: var(--prism-info);
   font-size: 11px;
   line-height: 1.1;
   white-space: nowrap;
 }
-.tier { background: #e6f3eb; color: var(--prism-success); }
-.pending { background: #fff0d4; color: #8a5b12; }
-.network { background: #fbe6f0; color: var(--prism-signal); }
+.tier { background: var(--prism-success-soft); color: var(--prism-success); }
+.pending { background: var(--prism-attention-soft); color: var(--prism-attention); }
+.network { background: var(--prism-magenta-soft); color: var(--prism-magenta); }
 
 .avatar {
   display: inline-grid;
@@ -120,8 +120,8 @@
   height: 24px;
   flex: 0 0 auto;
   border-radius: 50%;
-  color: var(--prism-signal);
-  background: #fbe6f0;
+  color: var(--prism-magenta);
+  background: var(--prism-magenta-soft);
   font-size: 10px;
   font-weight: 600;
 }
@@ -131,8 +131,8 @@
   height: 46px;
   border-radius: 10px;
   font-size: 18px;
-  color: var(--prism-signal);
-  background: #fbe6f0;
+  color: var(--prism-magenta);
+  background: var(--prism-magenta-soft);
   box-shadow: inset 0 0 0 1px rgb(192 24 103 / 6%);
 }
 
@@ -146,7 +146,7 @@
 .drawer .meter { height: 7px; }
 .meter span[data-filled="true"] { background: var(--prism-success); }
 .meter[data-tone="amber"] span[data-filled="true"] { background: #c18a24; }
-.meter[data-tone="pink"] span[data-filled="true"] { background: var(--prism-signal); }
+.meter[data-tone="pink"] span[data-filled="true"] { background: var(--prism-magenta); }
 .meter[data-tone="red"] span[data-filled="true"] { background: var(--prism-danger); }
 
 .metricCard {

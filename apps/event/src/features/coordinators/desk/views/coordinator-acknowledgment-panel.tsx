@@ -25,9 +25,9 @@ export function PendingAcknowledgmentsPanel({ assignments, busy, onSendReminders
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <UserCheck className="size-4 text-(--prism-amber)" />
+            <UserCheck className="size-4 text-attention" />
             <h2 className="text-sm font-bold text-foreground">Pending Acknowledgments</h2>
-            <span className="rounded-full bg-(--prism-amber)/10 px-2 py-0.5 text-[10px] font-bold text-(--prism-amber)">{assignments.length}</span>
+            <span className="rounded-full bg-attention/10 px-2 py-0.5 text-3xs font-bold text-attention">{assignments.length}</span>
           </div>
           <button
             type="button"
@@ -44,7 +44,7 @@ export function PendingAcknowledgmentsPanel({ assignments, busy, onSendReminders
           {assignments.map((assignment) => (
             <div key={assignment.id} className="flex items-center justify-between gap-4 rounded-xl bg-muted/30 px-4 py-2.5">
               <p className="text-sm font-bold text-foreground">{assignment.coordinatorName}</p>
-              <span className="rounded-full border border-(--prism-amber)/25 bg-(--prism-amber)/8 px-2 py-0.5 text-[10px] font-bold text-(--prism-amber)">{assignment.role}</span>
+              <span className="rounded-full border border-attention/25 bg-attention/8 px-2 py-0.5 text-3xs font-bold text-attention">{assignment.role}</span>
             </div>
           ))}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">

@@ -105,12 +105,12 @@ export function ClientEventsView() {
                   className={cn(
                     "inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-semibold transition-colors",
                     active
-                      ? "border-(--prism-signal) bg-(--prism-signal-soft) text-(--prism-signal)"
+                      ? "border-primary bg-primary-soft text-primary"
                       : "border-border bg-card text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {filter.label}
-                  <span className={cn("text-xs", active ? "text-(--prism-signal)" : "text-muted-foreground")}>
+                  <span className={cn("text-xs", active ? "text-primary" : "text-muted-foreground")}>
               {historyEvents.filter(filter.matches).length}
                   </span>
                 </button>

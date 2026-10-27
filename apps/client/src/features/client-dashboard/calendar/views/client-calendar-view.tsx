@@ -44,9 +44,9 @@ export function ClientCalendarView() {
       dateFromIso(date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
     const calendarItemClass = (item: CalendarItem) => {
       if (item.kind === "event") return "border-primary/20 bg-primary/10 text-primary";
-      if (item.kind === "payment" && item.status === "paid") return "border-(--prism-success)/25 bg-(--prism-success)/10 text-(--prism-success)";
-      if (item.kind === "payment") return "border-(--prism-warning)/25 bg-(--prism-warning)/10 text-(--prism-warning)";
-      if (item.kind === "approval") return "border-(--prism-signal)/25 bg-(--prism-signal-soft) text-foreground";
+      if (item.kind === "payment" && item.status === "paid") return "border-success/25 bg-success/10 text-success";
+      if (item.kind === "payment") return "border-attention/25 bg-attention/10 text-attention";
+      if (item.kind === "approval") return "border-primary/25 bg-primary-soft text-foreground";
       return "border-border bg-muted text-foreground";
     };
   
@@ -127,8 +127,8 @@ export function ClientCalendarView() {
     const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const legend: Array<{ label: string; className: string }> = [
       { label: "Event", className: "bg-primary" },
-      { label: "Payment", className: "bg-(--prism-warning)" },
-      { label: "Approval", className: "bg-(--prism-signal)" },
+      { label: "Payment", className: "bg-attention" },
+      { label: "Approval", className: "bg-primary" },
       { label: "Deadline", className: "bg-muted-foreground" },
     ];
   
@@ -180,14 +180,14 @@ export function ClientCalendarView() {
                       {cell.items.slice(0, 3).map((item) => (
                         <div
                           key={item.id}
-                          className={cn("truncate rounded-md border px-2 py-1 text-[11px] font-semibold", calendarItemClass(item))}
+                          className={cn("truncate rounded-md border px-2 py-1 text-2xs font-semibold", calendarItemClass(item))}
                           title={`${item.title} - ${item.detail}`}
                         >
                           {item.title}
                         </div>
                       ))}
                       {cell.items.length > 3 ? (
-                        <p className="px-2 text-[11px] font-semibold text-muted-foreground">+{cell.items.length - 3} more</p>
+                        <p className="px-2 text-2xs font-semibold text-muted-foreground">+{cell.items.length - 3} more</p>
                       ) : null}
                     </div>
                   </div>

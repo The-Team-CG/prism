@@ -28,7 +28,7 @@ function PrismUserAvatar({ user, className }: { user: PrismUserSummary; classNam
       aria-hidden="true"
     >
       {user.initials ?? initialsFor(user.name)}
-      <span className="absolute bottom-0.5 right-0.5 size-2.5 rounded-full border-2 border-card bg-(--prism-success)" />
+      <span className="absolute bottom-0.5 right-0.5 size-2.5 rounded-full border-2 border-card bg-success" />
     </span>
   );
 }

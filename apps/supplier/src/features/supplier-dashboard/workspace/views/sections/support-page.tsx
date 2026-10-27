@@ -59,7 +59,7 @@ export function SupportPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <HelpCircle className="size-4 text-(--prism-signal)" />
+            <HelpCircle className="size-4 text-primary" />
             <h2 className="text-sm font-bold text-foreground">Supplier support</h2>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">Contact the PMCM team for any portal issues, quote questions, or event concerns.</p>

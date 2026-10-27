@@ -119,10 +119,10 @@ export function checkInModeButtonClass(active: boolean) {
 
 export function guestEventStagePresentation(state: "completed" | "current" | "pending") {
   if (state === "completed") {
-    return { className: "border-l-(--prism-sage) bg-(--prism-sage)/10", label: "Complete" };
+    return { className: "border-l-secondary bg-secondary/10", label: "Complete" };
   }
   if (state === "current") {
-    return { className: "border-l-(--prism-signal) bg-(--prism-signal)/8", label: "Current step" };
+    return { className: "border-l-primary bg-primary/8", label: "Current step" };
   }
   return { className: "border-l-border bg-background/60", label: "Pending" };
 }

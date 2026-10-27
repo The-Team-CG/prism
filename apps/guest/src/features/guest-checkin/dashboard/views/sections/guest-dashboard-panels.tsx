@@ -87,7 +87,7 @@ export function GuestCheckInPanel({ vm }: { vm: GuestDashboardVm }) {
 function CheckInModeHelp({ mode }: { mode: GuestDashboardVm["checkInMode"] }) {
   if (mode === "name_search") {
     return (
-      <div className="border-l border-(--prism-sage) bg-background/60 px-3 py-2.5 text-sm">
+      <div className="border-l border-secondary bg-background/60 px-3 py-2.5 text-sm">
         <p className="font-bold text-foreground">Name-based check-in</p>
         <p className="mt-0.5 leading-6 text-muted-foreground">
           The name you enter is matched against the event roster. Unmatched
@@ -99,7 +99,7 @@ function CheckInModeHelp({ mode }: { mode: GuestDashboardVm["checkInMode"] }) {
   }
   if (mode === "headcount") {
     return (
-      <div className="border-l border-(--prism-sage) bg-background/60 px-3 py-2.5 text-sm">
+      <div className="border-l border-secondary bg-background/60 px-3 py-2.5 text-sm">
         <p className="font-bold text-foreground">Headcount-only check-in</p>
         <p className="mt-0.5 leading-6 text-muted-foreground">
           Records one attendance count for this event without
@@ -119,7 +119,7 @@ function CheckInConsent({ vm }: { vm: GuestDashboardVm }) {
         type="checkbox"
         checked={vm.checkInConsentAccepted}
         onChange={(ev) => vm.setCheckInConsentAccepted(ev.target.checked)}
-        className="mt-0.5 size-4 accent-(--prism-amber)"
+        className="mt-0.5 size-4 accent-attention"
       />
       <span>
         {headcount
@@ -216,11 +216,11 @@ function FeedbackMediaPicker({
             <Icon className="size-4 shrink-0 text-muted-foreground" />
             <span className="min-w-0 flex-1 truncate text-sm">{file.name}</span>
             <span className="shrink-0 text-xs text-muted-foreground">{formatFileSize(file.size)}</span>
-            <button type="button" aria-label={`Remove ${label.toLowerCase()}`} onClick={onClear} className="shrink-0 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--prism-signal)">
+            <button type="button" aria-label={`Remove ${label.toLowerCase()}`} onClick={onClear} className="shrink-0 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
               <X className="size-3.5" />
             </button>
           </div>
-          {error ? <p className="text-xs text-(--prism-signal)">{error}</p> : null}
+          {error ? <p className="text-xs text-primary">{error}</p> : null}
         </div>
       ) : (
         <button
@@ -244,7 +244,7 @@ export function GuestFeedbackPanel({ vm }: { vm: GuestDashboardVm }) {
       description="Feedback is saved for PMCM review and is never published automatically."
     >
       <form onSubmit={(ev) => void vm.submitFeedback(ev)} className="flex flex-col gap-3">
-        <div className="border-l border-(--prism-sage) bg-background/60 px-3 py-2.5 text-sm">
+        <div className="border-l border-secondary bg-background/60 px-3 py-2.5 text-sm">
           <p className="font-bold text-foreground">Moderation state</p>
           <p className="mt-0.5 leading-6 text-muted-foreground">
             Submissions enter PMCM review. Nothing becomes public,
@@ -278,9 +278,9 @@ export function GuestFeedbackPanel({ vm }: { vm: GuestDashboardVm }) {
                   onClick={() => {
                     vm.setFeedbackRating(String(rating));
                   }}
-                  className="grid size-11 place-items-center rounded-md border border-border bg-background text-(--prism-amber) transition hover:border-(--prism-amber)/40 hover:bg-(--prism-amber)/8"
+                  className="grid size-11 place-items-center rounded-md border border-border bg-background text-attention transition hover:border-attention/40 hover:bg-attention/8"
                 >
-                  <Star className={active ? "size-5 fill-(--prism-amber)" : "size-5"} />
+                  <Star className={active ? "size-5 fill-attention" : "size-5"} />
                 </button>
               );
             })}
@@ -340,7 +340,7 @@ export function GuestFeedbackPanel({ vm }: { vm: GuestDashboardVm }) {
             type="checkbox"
             checked={vm.feedbackConsentAccepted}
             onChange={(ev) => vm.setFeedbackConsentAccepted(ev.target.checked)}
-            className="mt-0.5 size-4 accent-(--prism-amber)"
+            className="mt-0.5 size-4 accent-attention"
           />
           <span>
             I consent to PMCM saving my name, rating, comment, consent
@@ -359,7 +359,7 @@ export function GuestFeedbackPanel({ vm }: { vm: GuestDashboardVm }) {
         </Button>
 
         {vm.feedbackSubmitted ? (
-          <div className="flex items-start gap-2 rounded-lg border border-(--prism-success)/20 bg-(--prism-success)/8 p-3 text-sm leading-6 text-(--prism-success)">
+          <div className="flex items-start gap-2 rounded-lg border border-success/20 bg-success/8 p-3 text-sm leading-6 text-success">
             <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
             <span>
               Feedback submitted for moderation. PMCM will review before

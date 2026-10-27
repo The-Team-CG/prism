@@ -35,7 +35,7 @@ export function Phase4ClosureBoard({
     <section className="rounded-lg border border-primary/15 bg-card p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-(--prism-amber)">Closure board</p>
+          <p className="text-3xs font-black uppercase tracking-[0.18em] text-attention">Closure board</p>
           <h3 className="mt-1 text-xl font-black text-foreground">{event.eventName}</h3>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
             Archive readiness is local to PMCM: compliance checks, approved billing source, generated statements, and post-event insights stay visible before close.
@@ -48,7 +48,7 @@ export function Phase4ClosureBoard({
       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
           <div key={card.label} className="rounded-lg border border-border bg-secondary/35 px-4 py-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">{card.label}</p>
+            <p className="text-3xs font-black uppercase tracking-[0.14em] text-muted-foreground">{card.label}</p>
             <p className={cx("mt-1 text-lg font-black", card.tone)}>{card.value}</p>
             <p className="mt-1 text-xs text-muted-foreground">{card.detail}</p>
           </div>
@@ -101,13 +101,13 @@ export function Phase4ComplianceSection({
     <section className="rounded-lg border border-border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <ShieldCheck className="mt-1 size-5 text-(--prism-amber)" />
+          <ShieldCheck className="mt-1 size-5 text-attention" />
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-(--prism-amber)">Compliance</p>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-attention">Compliance</p>
             <h3 className="mt-1 text-xl font-black">Rule-backed checks</h3>
           </div>
         </div>
-        <button disabled={busy} onClick={onRunCompliance} className="h-10 rounded-md bg-(--prism-ink) px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">
+        <button disabled={busy} onClick={onRunCompliance} className="h-10 rounded-md bg-ink px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">
           Run checks
         </button>
       </div>
@@ -180,12 +180,12 @@ function Phase4ComplianceCheckCard({
         </div>
         <span className={cx("rounded-full px-2.5 py-1 text-xs font-black capitalize ring-1", phase4StatusTone(check.status))}>{label(check.status)}</span>
       </div>
-      {check.overrideReason && <p className="mt-3 rounded-md bg-amber-50 p-3 text-xs text-amber-800">Override: {check.overrideReason}</p>}
+      {check.overrideReason && <p className="mt-3 rounded-md bg-attention-soft p-3 text-xs text-attention">Override: {check.overrideReason}</p>}
       {check.evidence.length > 0 && <ul className="mt-3 list-disc pl-5 text-xs text-muted-foreground">{check.evidence.map((item) => <li key={item}>{item}</li>)}</ul>}
       {check.status === "open" && (
         <div className="mt-4 flex flex-wrap gap-2">
-          <button disabled={busy} onClick={() => onResolve(check.id)} className="h-8 rounded-md bg-emerald-50 px-3 text-xs font-black text-emerald-700 disabled:opacity-60">Resolve</button>
-          <button disabled={busy} onClick={() => onOverride(check.id, "PMCM accepted documented operational risk.")} className="h-8 rounded-md bg-amber-50 px-3 text-xs font-black text-amber-800 disabled:opacity-60">Override</button>
+          <button disabled={busy} onClick={() => onResolve(check.id)} className="h-8 rounded-md bg-success-soft px-3 text-xs font-black text-success disabled:opacity-60">Resolve</button>
+          <button disabled={busy} onClick={() => onOverride(check.id, "PMCM accepted documented operational risk.")} className="h-8 rounded-md bg-attention-soft px-3 text-xs font-black text-attention disabled:opacity-60">Override</button>
         </div>
       )}
     </div>
@@ -224,9 +224,9 @@ export function Phase4BillingSection({
   return (
     <div className="rounded-lg border border-border bg-card p-5">
       <div className="flex items-start gap-3">
-        <ReceiptText className="mt-1 size-5 text-(--prism-amber)" />
+        <ReceiptText className="mt-1 size-5 text-attention" />
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-(--prism-amber)">Billing Source</p>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-attention">Billing Source</p>
           <h3 className="mt-1 text-xl font-black">Approved CE/proposal total</h3>
         </div>
       </div>
@@ -236,7 +236,7 @@ export function Phase4BillingSection({
           <input value={lineLabel} onChange={(event) => onLineLabel(event.target.value)} className="h-10 rounded-md border border-border bg-white px-3 text-sm" />
           <input value={lineAmount} onChange={(event) => onLineAmount(event.target.value)} type="number" className="h-10 rounded-md border border-border bg-white px-3 text-sm" />
         </div>
-        <button disabled={busy || !billingLabel || Number(lineAmount) <= 0} onClick={onCreate} className="h-10 rounded-md bg-(--prism-ink) px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">Create billing source</button>
+        <button disabled={busy || !billingLabel || Number(lineAmount) <= 0} onClick={onCreate} className="h-10 rounded-md bg-ink px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">Create billing source</button>
       </div>
       <div className="mt-4 space-y-3">
         {billingSources.length === 0 && (
@@ -266,7 +266,7 @@ export function Phase4BillingSection({
             </div>
           </div>
         )}
-        {!approvedSource && billingSources.length > 0 && <p className="text-xs text-amber-800">Approve a source before generating a billing statement.</p>}
+        {!approvedSource && billingSources.length > 0 && <p className="text-xs text-attention">Approve a source before generating a billing statement.</p>}
       </div>
     </div>
   );
@@ -293,7 +293,7 @@ function Phase4BillingSourceCard({
         <span className={cx("rounded-full px-2.5 py-1 text-xs font-black capitalize ring-1", phase4StatusTone(source.status))}>{label(source.status)}</span>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        {source.status !== "approved" && <button disabled={busy} onClick={() => onApprove(source.id)} className="h-8 rounded-md bg-emerald-50 px-3 text-xs font-black text-emerald-700 disabled:opacity-60">Approve</button>}
+        {source.status !== "approved" && <button disabled={busy} onClick={() => onApprove(source.id)} className="h-8 rounded-md bg-success-soft px-3 text-xs font-black text-success disabled:opacity-60">Approve</button>}
         {source.status === "approved" && <button disabled={busy} onClick={() => onGenerate(source.id)} className="h-8 rounded-md border border-border bg-white px-3 text-xs font-black disabled:opacity-60">Generate billing</button>}
       </div>
     </div>
@@ -310,9 +310,9 @@ export function ActualEventEndSection({ event, busy, onRecord }: { event: PrismE
     setReason("");
   }
   return <section className="rounded-lg border border-border bg-card p-5">
-    <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.16em] text-(--prism-amber)">Event end</p><h3 className="mt-1 text-xl font-black">Record actual end</h3></div><span className="text-xs text-muted-foreground">{event.actualEndedAt ? new Date(event.actualEndedAt).toLocaleString() : "Not recorded"}</span></div>
+    <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.16em] text-attention">Event end</p><h3 className="mt-1 text-xl font-black">Record actual end</h3></div><span className="text-xs text-muted-foreground">{event.actualEndedAt ? new Date(event.actualEndedAt).toLocaleString() : "Not recorded"}</span></div>
     <p className="mt-2 text-sm text-muted-foreground">This timestamp opens the seven-day guest feedback window and supports final registration imports.</p>
-    <div className="mt-4 flex flex-wrap items-end gap-3"><label className="text-sm font-semibold">Actual ended at<input type="datetime-local" value={endedAt} onChange={(e) => setEndedAt(e.target.value)} className="mt-1 block h-10 rounded-md border border-border bg-white px-3" /></label>{hasRecorded && <label className="text-sm font-semibold">Correction reason<input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why is the end changing?" className="mt-1 block h-10 rounded-md border border-border bg-white px-3" /></label>}<button disabled={busy || !endedAt || (hasRecorded && !reason.trim())} onClick={() => void submit()} className="h-10 rounded-md bg-(--prism-ink) px-4 text-sm font-black text-sidebar-foreground disabled:opacity-60">{hasRecorded ? "Correct actual end" : "Record actual end"}</button></div>
+    <div className="mt-4 flex flex-wrap items-end gap-3"><label className="text-sm font-semibold">Actual ended at<input type="datetime-local" value={endedAt} onChange={(e) => setEndedAt(e.target.value)} className="mt-1 block h-10 rounded-md border border-border bg-white px-3" /></label>{hasRecorded && <label className="text-sm font-semibold">Correction reason<input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why is the end changing?" className="mt-1 block h-10 rounded-md border border-border bg-white px-3" /></label>}<button disabled={busy || !endedAt || (hasRecorded && !reason.trim())} onClick={() => void submit()} className="h-10 rounded-md bg-ink px-4 text-sm font-black text-sidebar-foreground disabled:opacity-60">{hasRecorded ? "Correct actual end" : "Record actual end"}</button></div>
   </section>;
 }
 
@@ -335,9 +335,9 @@ export function Phase4CloseGatesSection({
     <div className="rounded-lg border border-border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <Archive className="mt-1 size-5 text-(--prism-amber)" />
+          <Archive className="mt-1 size-5 text-attention" />
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-(--prism-amber)">Close Gates</p>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-attention">Close Gates</p>
             <h3 className="mt-1 text-xl font-black">One-screen close</h3>
           </div>
         </div>
@@ -346,7 +346,7 @@ export function Phase4CloseGatesSection({
       <div className="mt-4 space-y-2">
         {closeGates?.gates.map((gate) => (
           <div key={gate.key} className="flex items-start gap-3 rounded-md border border-border bg-background p-3 text-sm">
-            {gate.passed ? <BadgeCheck className="mt-0.5 size-4 text-emerald-600" /> : <XCircle className="mt-0.5 size-4 text-rose-600" />}
+            {gate.passed ? <BadgeCheck className="mt-0.5 size-4 text-success" /> : <XCircle className="mt-0.5 size-4 text-danger" />}
             <div>
               <p className="font-black">{gate.label}</p>
               <p className="mt-1 text-muted-foreground">{gate.detail}</p>
@@ -359,7 +359,7 @@ export function Phase4CloseGatesSection({
           </div>
         )}
         {closeGates?.ready && (
-          <div className="flex items-start gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+          <div className="flex items-start gap-3 rounded-md border border-success/25 bg-success-soft p-3 text-sm text-success">
             <CheckCircle2 className="mt-0.5 size-4" />
             <div>
               <p className="font-black">All close gates passed</p>
@@ -370,14 +370,14 @@ export function Phase4CloseGatesSection({
       </div>
       {!closeGates?.ready && (
         <div className="mt-4">
-          <div className="mb-2 flex items-start gap-2 text-xs leading-5 text-amber-800">
+          <div className="mb-2 flex items-start gap-2 text-xs leading-5 text-attention">
             <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
             <span>Override is only for PMCM-approved operational risk.</span>
           </div>
           <textarea value={overrideReason} onChange={(event) => onOverrideReason(event.target.value)} placeholder="Required PMCM override reason if gates are not complete" className="min-h-20 w-full rounded-md border border-border bg-white p-3 text-sm" />
         </div>
       )}
-      <button disabled={busy || (!closeGates?.ready && !overrideReason)} onClick={onArchive} className="mt-4 h-10 w-full rounded-md bg-(--prism-ink) px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">
+      <button disabled={busy || (!closeGates?.ready && !overrideReason)} onClick={onArchive} className="mt-4 h-10 w-full rounded-md bg-ink px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">
         Archive event
       </button>
     </div>
@@ -397,13 +397,13 @@ export function Phase4InsightsSection({
     <section className="rounded-lg border border-border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <Lightbulb className="mt-1 size-5 text-(--prism-amber)" />
+          <Lightbulb className="mt-1 size-5 text-attention" />
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-(--prism-amber)">Event Insights</p>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-attention">Event Insights</p>
             <h3 className="mt-1 text-xl font-black">Deterministic PMCM knowledge capture</h3>
           </div>
         </div>
-        <button disabled={busy} onClick={onGenerate} className="h-10 rounded-md bg-(--prism-ink) px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">
+        <button disabled={busy} onClick={onGenerate} className="h-10 rounded-md bg-ink px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">
           Generate insights
         </button>
       </div>

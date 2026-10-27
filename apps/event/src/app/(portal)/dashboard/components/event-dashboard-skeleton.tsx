@@ -17,7 +17,7 @@ export function SkeletonCard({ children, className = "" }: { children: ReactNode
     <section
       className={`relative overflow-hidden rounded-xl border border-border/80 bg-card/95 p-4 shadow-sm ring-1 ring-black/5 sm:p-5 ${className}`}
     >
-      <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-(--prism-signal)/60 via-transparent to-transparent" />
+      <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-primary/60 via-transparent to-transparent" />
       {children}
     </section>
   );

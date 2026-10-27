@@ -35,7 +35,7 @@ function PublicBrand({ label }: { label?: string }) {
 
 function DisplayTitle({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <h1 className={cx("prism-serif text-5xl font-black leading-[0.93] tracking-normal text-(--prism-ink) sm:text-6xl xl:text-[4.85rem]", className)}>
+    <h1 className={cx("prism-serif text-5xl font-black leading-[0.93] tracking-normal text-ink sm:text-6xl xl:text-[4.85rem]", className)}>
       {children}
     </h1>
   );
@@ -43,7 +43,7 @@ function DisplayTitle({ children, className }: { children: ReactNode; className?
 
 function SectionTitle({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <h2 className={cx("prism-serif text-4xl font-black leading-[0.98] tracking-normal text-(--prism-ink) sm:text-5xl", className)}>
+    <h2 className={cx("prism-serif text-4xl font-black leading-[0.98] tracking-normal text-ink sm:text-5xl", className)}>
       {children}
     </h2>
   );
@@ -53,9 +53,9 @@ function MiniFloorplan({ compact = false }: { compact?: boolean }) {
   return (
     <div className={cx("grid gap-2 rounded-md border border-border bg-secondary/35 p-4", compact ? "aspect-[1.65]" : "aspect-[1.72]")}>
       <div className="grid grid-cols-[0.45fr_1.05fr_0.45fr] gap-2">
-        <div className="rounded-md border border-primary/15 bg-card p-2 text-center text-[10px] font-black uppercase text-muted-foreground">BAR</div>
-        <div className="rounded-md bg-(--prism-ink) p-2 text-center text-xs font-black uppercase text-sidebar-foreground">Stage</div>
-        <div className="rounded-md border border-primary/15 bg-card p-2 text-center text-[10px] font-black uppercase text-muted-foreground">AV</div>
+        <div className="rounded-md border border-primary/15 bg-card p-2 text-center text-3xs font-black uppercase text-muted-foreground">BAR</div>
+        <div className="rounded-md bg-ink p-2 text-center text-xs font-black uppercase text-sidebar-foreground">Stage</div>
+        <div className="rounded-md border border-primary/15 bg-card p-2 text-center text-3xs font-black uppercase text-muted-foreground">AV</div>
       </div>
       <div className="grid grid-cols-5 gap-2 px-7">
         {Array.from({ length: 15 }).map((_, index) => (
@@ -63,9 +63,9 @@ function MiniFloorplan({ compact = false }: { compact?: boolean }) {
         ))}
       </div>
       <div className="grid grid-cols-[0.7fr_1fr_0.7fr] gap-2">
-        <div className="rounded-md border border-primary/15 bg-card p-2 text-[10px] font-black uppercase text-muted-foreground">Guest flow</div>
-        <div className="rounded-md border border-primary/20 bg-card p-2 text-center text-[10px] font-black uppercase text-primary">Registration</div>
-        <div className="rounded-md border border-[#F06030]/25 bg-[#F06030]/10 p-2 text-[10px] font-black uppercase text-[#F06030]">Service access</div>
+        <div className="rounded-md border border-primary/15 bg-card p-2 text-3xs font-black uppercase text-muted-foreground">Guest flow</div>
+        <div className="rounded-md border border-primary/20 bg-card p-2 text-center text-3xs font-black uppercase text-primary">Registration</div>
+        <div className="rounded-md border border-brand-orange/25 bg-brand-orange/10 p-2 text-3xs font-black uppercase text-brand-orange">Service access</div>
       </div>
     </div>
   );
@@ -82,8 +82,8 @@ function EventCommandMock() {
         <div className="grid grid-cols-4 gap-2 text-xs">
           {[
             ["18", "Action items", "text-primary"],
-            ["7", "Today", "text-[#F06030]"],
-            ["24", "Upcoming", "text-(--prism-success)"],
+            ["7", "Today", "text-brand-orange"],
+            ["24", "Upcoming", "text-success"],
             ["May 15", "Event day", "text-[#9060A0]"],
           ].map(([value, labelText, color]) => (
             <span key={labelText} className="rounded-md border border-border bg-background px-3 py-2">
@@ -99,9 +99,9 @@ function EventCommandMock() {
           <p className="px-1 text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Event queue</p>
           {[
             ["New inquiries", "12", "bg-primary/10 text-primary"],
-            ["Conforme pending", "6", "bg-[#F06030]/10 text-[#F06030]"],
-            ["Planning in progress", "9", "bg-[#F06030]/10 text-[#F06030]"],
-            ["Event day", "3", "bg-(--prism-success)/10 text-(--prism-success)"],
+            ["Conforme pending", "6", "bg-brand-orange/10 text-brand-orange"],
+            ["Planning in progress", "9", "bg-brand-orange/10 text-brand-orange"],
+            ["Event day", "3", "bg-success/10 text-success"],
             ["Closing soon", "2", "bg-secondary text-muted-foreground"],
           ].map(([title, count, color]) => (
             <div key={title} className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2.5">
@@ -129,10 +129,10 @@ function EventCommandMock() {
               <Button variant="outline" size="sm" className="rounded-md text-xs font-black">View board</Button>
             </div>
             {[
-              ["Check-ins", "132", "text-(--prism-success)"],
-              ["Open issues", "3", "text-[#F06030]"],
+              ["Check-ins", "132", "text-success"],
+              ["Open issues", "3", "text-brand-orange"],
               ["Urgent alerts", "1", "text-primary"],
-              ["Announcements", "2", "text-[#40A0D0]"],
+              ["Announcements", "2", "text-brand-blue"],
             ].map(([title, count, color]) => (
               <div key={title} className="flex items-center justify-between border-b border-border py-2 last:border-0">
                 <span className="text-xs text-muted-foreground">{title}</span>
@@ -142,9 +142,9 @@ function EventCommandMock() {
           </div>
           <div className="rounded-md border border-border bg-background p-4">
             <p className="font-black text-foreground">Billing milestone</p>
-            <p className="mt-3 text-sm font-black text-[#F06030]">Deposit paid</p>
+            <p className="mt-3 text-sm font-black text-brand-orange">Deposit paid</p>
             <div className="mt-3 h-2 rounded-full bg-secondary">
-              <div className="h-2 w-2/5 rounded-full bg-[#F06030]" />
+              <div className="h-2 w-2/5 rounded-full bg-brand-orange" />
             </div>
             <Button variant="outline" className="mt-5 h-10 w-full rounded-md font-black">View billing details</Button>
           </div>
@@ -157,7 +157,7 @@ function EventCommandMock() {
           {["Catering", "AV & Lighting", "Decor & Styling", "Transport & Logistics", "Security"].map((item, index) => (
             <div key={item} className="flex items-center justify-between py-1.5">
               <span className="text-xs text-muted-foreground">{item}</span>
-              <span className={cx("rounded-full px-2 py-1 text-[10px] font-black", index === 2 || index === 4 ? "bg-[#F06030]/10 text-[#F06030]" : "bg-(--prism-success)/10 text-(--prism-success)")}>{index === 2 || index === 4 ? "In progress" : "Confirmed"}</span>
+              <span className={cx("rounded-full px-2 py-1 text-3xs font-black", index === 2 || index === 4 ? "bg-brand-orange/10 text-brand-orange" : "bg-success/10 text-success")}>{index === 2 || index === 4 ? "In progress" : "Confirmed"}</span>
             </div>
           ))}
         </div>
@@ -166,7 +166,7 @@ function EventCommandMock() {
           {["Onsite lead", "Registration desk", "Guest experience", "Logistics", "Floorplan manager"].map((item, index) => (
             <div key={item} className="flex items-center justify-between py-1.5">
               <span className="text-xs text-muted-foreground">{item}</span>
-              <span className={cx("rounded-full px-2 py-1 text-[10px] font-black", index === 3 ? "bg-[#F06030]/10 text-[#F06030]" : "bg-(--prism-success)/10 text-(--prism-success)")}>{index === 3 ? "Backup ready" : "Assigned"}</span>
+              <span className={cx("rounded-full px-2 py-1 text-3xs font-black", index === 3 ? "bg-brand-orange/10 text-brand-orange" : "bg-success/10 text-success")}>{index === 3 ? "Backup ready" : "Assigned"}</span>
             </div>
           ))}
         </div>
@@ -197,8 +197,8 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
       <section className="relative min-h-screen overflow-hidden border-b border-primary/10 px-5 py-5 sm:px-8 lg:px-10">
         <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(255,248,242,0.98),rgba(233,247,251,0.68)_58%,rgba(255,248,242,0.96))]" />
         <div className="absolute inset-0 opacity-35 [background-image:linear-gradient(#CCECF4_1px,transparent_1px),linear-gradient(90deg,#CCECF4_1px,transparent_1px)] [background-size:42px_42px]" />
-        <div className="absolute bottom-12 left-0 h-px w-[42rem] bg-[#C01867]/20" />
-        <div className="absolute bottom-10 left-[34rem] size-5 rotate-45 bg-[#C01867]" />
+        <div className="absolute bottom-12 left-0 h-px w-[42rem] bg-primary/20" />
+        <div className="absolute bottom-10 left-[34rem] size-5 rotate-45 bg-primary" />
 
         <div className="relative mx-auto max-w-[1320px]">
           <header className="flex items-center justify-between gap-4 bg-background/80 py-6 backdrop-blur-xl">
@@ -272,7 +272,7 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
             <p className="mt-5 text-lg leading-8 text-muted-foreground">PMCM-owned floorplans keep every plan aligned and every decision visible for the entire team.</p>
             <div className="mt-6 grid gap-3 text-sm text-muted-foreground">
               {["To-scale editing and annotations", "Guest flow, entrances, and service access", "Versioned approvals with history", "All stakeholders stay in sync"].map((item) => (
-                <span key={item} className="flex items-center gap-2"><CheckCircle2 className="size-4 text-(--prism-success)" />{item}</span>
+                <span key={item} className="flex items-center gap-2"><CheckCircle2 className="size-4 text-success" />{item}</span>
               ))}
             </div>
           </div>
@@ -301,8 +301,8 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
               </div>
               <div className="rounded-lg border border-border bg-background p-4">
                 <p className="font-black text-foreground">Billing milestone</p>
-                <p className="mt-2 text-sm font-black text-[#F06030]">Deposit paid</p>
-                <div className="mt-3 h-2 rounded-full bg-secondary"><div className="h-2 w-2/5 rounded-full bg-[#F06030]" /></div>
+                <p className="mt-2 text-sm font-black text-brand-orange">Deposit paid</p>
+                <div className="mt-3 h-2 rounded-full bg-secondary"><div className="h-2 w-2/5 rounded-full bg-brand-orange" /></div>
               </div>
             </div>
           </div>
@@ -340,7 +340,7 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
             <p className="mt-5 text-lg leading-8 text-muted-foreground">Assignments, readiness, and coordinator coverage stay visible to the team that executes the plan.</p>
             <div className="mt-6 grid gap-3 text-sm text-muted-foreground">
               {["Status and deadlines at a glance", "Contract visibility and notes", "Mobile-ready actions for the field"].map((item) => (
-                <span key={item} className="flex items-center gap-2"><CheckCircle2 className="size-4 text-(--prism-success)" />{item}</span>
+                <span key={item} className="flex items-center gap-2"><CheckCircle2 className="size-4 text-success" />{item}</span>
               ))}
             </div>
           </div>
@@ -359,7 +359,7 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
               {["Onsite lead", "Registration desk", "Guest experience", "Logistics", "Floorplan manager"].map((item, index) => (
                 <div key={item} className="flex items-center justify-between py-2 text-sm">
                   <span className="text-muted-foreground">{item}</span>
-                  <Badge variant="outline" className={index === 3 ? "border-[#F06030]/25 bg-[#F06030]/10 text-[#F06030]" : "border-(--prism-success)/25 bg-(--prism-success)/10 text-(--prism-success)"}>{index === 3 ? "Backup ready" : "Assigned"}</Badge>
+                  <Badge variant="outline" className={index === 3 ? "border-brand-orange/25 bg-brand-orange/10 text-brand-orange" : "border-success/25 bg-success/10 text-success"}>{index === 3 ? "Backup ready" : "Assigned"}</Badge>
                 </div>
               ))}
             </div>
@@ -396,7 +396,7 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
                 ["0", "Missed handoffs"],
               ].map(([value, labelText]) => (
                 <div key={labelText} className="rounded-lg border border-primary/10 bg-card p-5 text-center">
-                  <p className="text-3xl font-black text-(--prism-ink)">{value}</p>
+                  <p className="text-3xl font-black text-ink">{value}</p>
                   <p className="mt-2 text-sm text-muted-foreground">{labelText}</p>
                 </div>
               ))}
@@ -405,7 +405,7 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
         </div>
         <div className="mx-auto mt-16 max-w-3xl text-center">
           <p className="font-display text-5xl font-black text-primary">“</p>
-          <p className="text-xl leading-8 text-(--prism-ink)">Command gives our operations team one source of truth for every handoff. We see what needs action, coordinate with confidence, and deliver PMCM events without missing a beat.</p>
+          <p className="text-xl leading-8 text-ink">Command gives our operations team one source of truth for every handoff. We see what needs action, coordinate with confidence, and deliver PMCM events without missing a beat.</p>
           <p className="mt-5 text-sm font-black text-muted-foreground">PMCM Operations Team</p>
         </div>
       </section>

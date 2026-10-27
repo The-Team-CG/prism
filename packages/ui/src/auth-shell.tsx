@@ -4,13 +4,6 @@ import { cn } from "./utils";
 
 export type PrismAuthPortal = "client" | "supplier" | "guest" | "event";
 
-const AUTH_FIELD_COLOURS: Record<PrismAuthPortal, string> = {
-  client: "#c01867",
-  supplier: "#1c7a70",
-  guest: "#c2470a",
-  event: "#171216",
-};
-
 export interface PrismAuthStepProgress {
   current: number;
   total: number;
@@ -76,7 +69,7 @@ export function PrismAuthShell({
   return (
     <main
       className="grid min-h-screen bg-background text-foreground lg:grid-cols-2"
-      style={{ "--prism-auth-field": AUTH_FIELD_COLOURS[portal] } as CSSProperties}
+      style={{ "--prism-auth-field": `var(--prism-portal-${portal})` } as CSSProperties}
     >
       <aside className="flex h-[168px] flex-col justify-center bg-(--prism-auth-field) px-6 text-white lg:h-auto lg:min-h-screen lg:justify-between lg:px-14 lg:py-14">
         <PrismBrandLogo dark detail={portalName} />

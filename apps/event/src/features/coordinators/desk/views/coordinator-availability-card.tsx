@@ -117,7 +117,7 @@ export function CoordinatorAvailabilityCard({ eventId, eventDate, coordinators, 
         </select>
         {loading && <p className="text-xs text-muted-foreground">Loading dates…</p>}
         {coordinatorId && hasUnavailableAssignmentConflict(eventId, eventDate, coordinatorId, assignments, entries) && (
-          <p role="alert" className="rounded-lg border border-(--prism-amber)/25 bg-(--prism-amber)/8 px-3 py-2 text-xs font-semibold text-(--prism-amber)">
+          <p role="alert" className="rounded-lg border border-attention/25 bg-attention/8 px-3 py-2 text-xs font-semibold text-attention">
             An unavailable date overlaps this event assignment. Review coordinator coverage for {eventDate}.
           </p>
         )}
