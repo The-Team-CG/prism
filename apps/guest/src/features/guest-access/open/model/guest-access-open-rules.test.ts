@@ -16,6 +16,7 @@ const sampleEvent = {
   clientName: "Ayala",
   guestAccessCode: "AYALA-TECH-YALA",
   watermark: "2026-08-01T00:00:00.000Z",
+  feedbackAvailability: "not_open",
   guestName: "Legacy Name",
   readiness: "ready_for_event_day",
   floorPlanStatus: "approved",
@@ -41,6 +42,7 @@ describe("guest-access-open-rules", () => {
     expect(session).not.toHaveProperty("guestName");
     expect(session).not.toHaveProperty("attendanceCount");
     expect(session.guestAccessCode).toBe("AYALA-TECH-YALA");
+    expect(session.feedbackAvailability).toBe("not_open");
     expect(session.openedAt).toBe("2026-07-01T00:00:00.000Z");
   });
 

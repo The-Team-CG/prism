@@ -15,7 +15,7 @@ import { useGuestAccessOpenViewModel } from "../view-models/use-guest-access-ope
 const GUEST_POINTS = [
   "Preview the event before you check in",
   "Check in by name or as an anonymous headcount",
-  "Leave feedback through the moderated flow",
+  "Share feedback when the event has ended",
 ] as const;
 
 export function GuestAccessOpenView() {
@@ -74,7 +74,6 @@ export function GuestAccessOpenView() {
             <p className="mt-1 text-sm text-muted-foreground">
               {vm.preview.clientName} - {vm.preview.eventDate}
             </p>
-            <p className="mt-1 text-sm font-semibold text-foreground">{vm.preview.readiness.replaceAll("_", " ")}</p>
           </section>
         ) : null}
 

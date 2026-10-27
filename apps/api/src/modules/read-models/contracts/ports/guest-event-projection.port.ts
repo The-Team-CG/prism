@@ -1,6 +1,6 @@
 import type { OpsEvent, OpsFloorPlanDraft } from '@prisma/client';
 
-export type GuestAccessEventCandidate = Pick<OpsEvent, 'id' | 'eventName' | 'eventDate' | 'updatedAt' | 'archived'>;
+export type GuestAccessEventCandidate = Pick<OpsEvent, 'id' | 'eventName' | 'eventDate' | 'actualEndedAt' | 'updatedAt' | 'archived'>;
 
 export type GuestEventProjection = Pick<OpsEvent,
   'id' | 'eventName' | 'eventDate' | 'status' | 'archived' | 'actualEndedAt' |
