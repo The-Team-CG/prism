@@ -6,16 +6,17 @@ import { Button } from "@/app/components/ui/button";
 import { PrismDashboardShell } from "@prism/ui";
 import { useSupplierWorkspaceViewModel } from "../view-models/use-supplier-workspace-view-model";
 import { supplierCommandActions, supplierMobileActions, supplierNavItems } from "../model/supplier-workspace-nav";
-import { SupplierWorkspaceBanners, SupplierWorkspaceLoading, SupplierWrongPortalView } from "./sections/supplier-workspace-states";
+import { SupplierWorkspaceBanners, SupplierWorkspaceLoading, SupplierWorkspaceSkeleton, SupplierWrongPortalView } from "./sections/supplier-workspace-states";
 import { SupplierWorkspaceSection } from "./sections/supplier-workspace-section";
 
 export function SupplierWorkspaceView() {
   const vm = useSupplierWorkspaceViewModel();
   const { session, workspace, readinessBoard, section, setSection, error, notice, busy, derived, meta } = vm;
 
-  if (!session || (!workspace && !error)) return <SupplierWorkspaceLoading />;
+  if (!session) return <SupplierWorkspaceLoading />;
   if (session.role !== "supplier") return <SupplierWrongPortalView onSignIn={vm.goToSignIn} />;
   if (!meta) return <SupplierWorkspaceLoading />;
+  const loading = !workspace && !error;
 
   const {
     quoteByRequest,
@@ -31,6 +32,7 @@ export function SupplierWorkspaceView() {
 
   return (
     <PrismDashboardShell
+      portal="supplier"
       roleLabel="Supplier portal"
       eyebrow={meta.eyebrow}
       title={meta.title}
@@ -66,6 +68,9 @@ export function SupplierWorkspaceView() {
       }
       mobileActions={supplierMobileActions(section, setSection, () => void vm.signOut())}
       >
+      {loading ? (
+        <SupplierWorkspaceSkeleton />
+      ) : (
       <div className="space-y-5">
         <SupplierWorkspaceBanners error={error} notice={notice} />
         <SupplierWorkspaceSection
@@ -103,6 +108,7 @@ export function SupplierWorkspaceView() {
           onDownloadObject={(objectId) => void vm.downloadObject(objectId)}
         />
       </div>
+      )}
     </PrismDashboardShell>
   );
 }

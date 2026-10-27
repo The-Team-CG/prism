@@ -18,6 +18,7 @@ export function EventPmcmLoadingShell({ viewModel }: { viewModel: LoadedShell })
   const loadingVariant = eventDashboardSkeletonVariant(viewModel.routeState);
   return (
     <PrismDashboardShell
+      portal="event"
       productLabel="P.R.I.S.M"
       roleLabel="PMCM Event Command"
       eyebrow={viewModel.loadingShellCopy.eyebrow}
@@ -44,6 +45,7 @@ export function EventPmcmLoadingShell({ viewModel }: { viewModel: LoadedShell })
 export function EventPmcmReadyShell({ viewModel, children }: { viewModel: LoadedShell; children?: ReactNode }) {
   return (
     <PrismDashboardShell
+      portal="event"
       className={viewModel.section === "suppliers" ? supplierWorkspaceStyles.shell : undefined}
       contentClassName={viewModel.section === "suppliers" ? "max-w-none p-0 sm:p-0" : undefined}
       productLabel="P.R.I.S.M"

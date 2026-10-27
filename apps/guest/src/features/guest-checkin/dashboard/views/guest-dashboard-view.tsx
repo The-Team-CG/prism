@@ -1,7 +1,7 @@
 "use client";
 
-import { LogOut, TicketCheck } from "lucide-react";
-import { PrismNoticeBanner } from "@prism/ui";
+import { LogOut } from "lucide-react";
+import { PrismGuestShell, PrismNoticeBanner } from "@prism/ui";
 import { guestNextActions, humanizeToken } from "../model/guest-dashboard-rules";
 import { useGuestDashboardViewModel } from "../view-models/use-guest-dashboard-view-model";
 import {
@@ -28,48 +28,20 @@ export function GuestDashboardView() {
   if (!session) return <GuestDashboardLoading />;
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <section className="relative overflow-hidden border-b border-border bg-ink">
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,#171216,#251722_48%,#10242b)]" />
-        <div className="absolute inset-0 opacity-40 [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:44px_44px]" />
-        <div className="relative mx-auto flex max-w-5xl items-start justify-between gap-6 px-5 py-8 sm:px-8 lg:px-10">
-          <div className="max-w-2xl">
-            <p className="text-3xs font-black uppercase tracking-[0.2em] text-attention">
-              Guest access
-            </p>
-            <h1 className="mt-2 text-3xl font-black leading-tight text-sidebar-foreground sm:text-4xl">
-              Guest Registration · {session.eventName}
-            </h1>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-sidebar-foreground/66">
-              Code-gated check-in and moderated feedback. Enter your name or
-              record headcount for this event.
-            </p>
-          </div>
-
-          <div className="hidden w-56 shrink-0 rounded-lg border border-white/10 bg-white/6 p-5 text-sidebar-foreground sm:block">
-            <p className="text-3xs font-black uppercase tracking-[0.2em] text-attention">
-              Guest pass
-            </p>
-            <p className="mt-2 text-base font-black leading-tight">
-              {session.eventName}
-            </p>
-            <p className="mt-0.5 text-xs text-sidebar-foreground/60">
-              {session.eventDate}
-            </p>
-            <div className="mt-3 grid place-items-center rounded-md bg-white/6 p-4">
-              <TicketCheck className="size-16 text-sidebar-foreground/40" />
-              <p className="mt-2 text-center text-3xs font-black uppercase tracking-[0.14em] text-sidebar-foreground/50">
-                Access code
-              </p>
-              <p className="mt-1 text-center text-xs font-black text-attention">
-                {session.guestAccessCode}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:px-10">
+    <PrismGuestShell
+      eventName={session.eventName}
+      detail={
+        <>
+          {session.eventDate} · Access code <span className="font-semibold tabular-nums text-foreground">{session.guestAccessCode}</span>
+        </>
+      }
+      actions={
+        <button type="button" onClick={() => vm.leave()} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-semibold text-muted-foreground transition hover:text-foreground">
+          <LogOut aria-hidden="true" className="size-4" />
+          Leave event
+        </button>
+      }
+    >
         <div className="flex flex-col gap-5">
           {vm.error ? <PrismNoticeBanner tone="danger">{vm.error}</PrismNoticeBanner> : null}
           {vm.notice ? <PrismNoticeBanner tone="success">{vm.notice}</PrismNoticeBanner> : null}
@@ -91,22 +63,11 @@ export function GuestDashboardView() {
             feedbackSubmitted={vm.feedbackSubmitted}
           />
           <GuestFeedbackPanel vm={vm} />
-          <div className="flex items-center justify-between rounded-lg border border-border bg-card p-4 shadow-sm">
-            <div className="min-w-0">
-              <p className="text-sm font-black text-foreground">Current readiness</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{humanizeToken(session.readiness)}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => vm.leave()}
-              className="text-sm font-bold text-muted-foreground transition hover:text-foreground"
-            >
-              <LogOut className="mr-1.5 inline size-3.5" />
-              Leave event
-            </button>
+          <div className="rounded-lg border border-border bg-card p-4">
+            <p className="text-sm font-semibold text-foreground">Current readiness</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">{humanizeToken(session.readiness)}</p>
           </div>
         </div>
-      </div>
-    </main>
+    </PrismGuestShell>
   );
 }
