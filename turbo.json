@@ -1,6 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": ["tsconfig.base.json", "eslint.config.mjs", ".nvmrc"],
+  "globalDependencies": ["tsconfig.base.json", "eslint.config.mjs", ".nvmrc", "scripts/clean-next-dev.cjs"],
   "globalEnv": ["CI", "NODE_ENV"],
   "tasks": {
     "build": {
