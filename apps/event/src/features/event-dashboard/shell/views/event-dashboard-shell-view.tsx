@@ -5,7 +5,7 @@ import { isUnsupportedEventPortalRole } from "../model/event-dashboard-shell-cop
 import {
   EventDashboardSessionSkeleton,
 } from "@/app/(portal)/dashboard/components/event-dashboard-skeleton";
-import type { EventDashboardClientProps } from "../model/event-dashboard-routing";
+import { sectionNeedsPmcmWorkspaceState, type EventDashboardClientProps } from "../model/event-dashboard-routing";
 import type { EventDashboardShellViewModel } from "../view-models/use-event-dashboard-shell-view-model";
 import { EventWrongPortalView } from "./sections/event-wrong-portal-view";
 import { EventDashboardEditorScreen } from "./sections/event-dashboard-editor-screen";
@@ -48,7 +48,7 @@ export function EventDashboardShellView({ viewModel, children }: EventDashboardS
       />
     );
   }
-  if (!viewModel.state && viewModel.section !== "suppliers") {
+  if (!viewModel.state && sectionNeedsPmcmWorkspaceState(viewModel.section)) {
     return <EventPmcmLoadingShell viewModel={{ ...viewModel, session }} />;
   }
   return (

@@ -38,3 +38,14 @@ export function useEventDashboardLoadedRouteViewModel(): EventDashboardLoadedVie
     state: viewModel.state,
   };
 }
+
+export type EventDashboardScopedViewModel = Omit<EventDashboardShellViewModel, "session"> & {
+  session: NonNullable<EventDashboardShellViewModel["session"]>;
+};
+
+/** For sections that render from their own scoped reads and must not require the broad workspace state. */
+export function useEventDashboardScopedRouteViewModel(): EventDashboardScopedViewModel {
+  const viewModel = useEventDashboardRouteViewModel();
+  if (!viewModel.session) throw new Error("Event dashboard content requires an authenticated session");
+  return { ...viewModel, session: viewModel.session };
+}
