@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { formatPortalDate } from "@prism/ui/format-date";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@prism/ui/components/sheet";
 import {
   AlertCircle,
   ClipboardList,
@@ -211,7 +213,7 @@ function InquiryIntakeRow({
         </p>
         {inquiry.previouslyDeclined ? <p className="mt-0.5 text-xs font-semibold text-destructive">Previously declined</p> : null}
       </td>
-      <td className="whitespace-nowrap tabular-nums text-foreground md:px-4 md:py-3">{inquiry.eventDate || "Date pending"}</td>
+      <td className="whitespace-nowrap text-foreground md:px-4 md:py-3">{formatPortalDate(inquiry.eventDate)}</td>
       <td className="hidden md:px-4 md:py-3 lg:table-cell">
         <p className="text-foreground">{inquiry.source || "–"}</p>
         <p className="text-xs text-muted-foreground">Received {compactTimestamp(inquiry.createdAt)}</p>
@@ -219,8 +221,8 @@ function InquiryIntakeRow({
       <td className="md:px-4 md:py-3"><StatusBadge status={inquiry.status} label={label(inquiry.status)} /></td>
       <td className={`md:px-4 md:py-3 ${NEXT_STEP_TONE[next.tone]}`}>{next.label}</td>
       <td className="md:px-6 md:py-3 md:text-right">
-        <button type="button" onClick={() => onOpen(inquiry)} className="text-sm font-semibold text-primary hover:text-primary-strong">
-          Open<span className="sr-only"> {inquiry.eventName}</span>
+        <button type="button" onClick={() => onOpen(inquiry)} className="min-h-11 rounded-md px-2 text-sm font-semibold text-primary hover:text-primary-strong focus-visible:ring-2 focus-visible:ring-primary">
+          Review inquiry<span className="sr-only"> {inquiry.eventName}</span>
         </button>
       </td>
     </tr>
@@ -247,9 +249,10 @@ export function InquiryDetailDrawer({
   onMerge: (primary: PrismInquiry, reason: string) => Promise<void>;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/35">
-      <button type="button" aria-label="Close inquiry detail" className="absolute inset-0 cursor-default" onClick={onClose} />
-      <aside className="relative z-10 flex h-full w-full max-w-xl flex-col border-l border-border bg-card shadow-xl">
+    <Sheet open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <SheetContent side="right" showCloseButton={false} className="flex h-full w-full flex-col gap-0 p-0 sm:max-w-xl">
+        <SheetTitle className="sr-only">Review inquiry: {inquiry.eventName}</SheetTitle>
+        <SheetDescription className="sr-only">Review the client’s request and history before accepting, requesting follow-up or declining.</SheetDescription>
         <InquiryDetailHeader inquiry={inquiry} onClose={onClose} />
         <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
           <InquiryDetailFlags inquiry={inquiry} />
@@ -277,8 +280,8 @@ export function InquiryDetailDrawer({
             />
           </div>
         </div>
-      </aside>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 

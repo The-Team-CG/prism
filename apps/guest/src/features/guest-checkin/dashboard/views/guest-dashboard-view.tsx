@@ -1,6 +1,7 @@
 "use client";
 
 import { LogOut } from "lucide-react";
+import { formatPortalDate } from "@prism/ui/format-date";
 import { PrismGuestShell, PrismNoticeBanner } from "@prism/ui";
 import { useGuestDashboardViewModel } from "../view-models/use-guest-dashboard-view-model";
 import {
@@ -32,7 +33,7 @@ export function GuestDashboardView() {
       eventName={session.eventName}
       detail={
         <>
-          {session.eventDate} · Access code <span className="font-semibold tabular-nums text-foreground">{session.guestAccessCode}</span>
+          {formatPortalDate(session.eventDate)} · Hosted by {session.clientName}
         </>
       }
       actions={
@@ -43,12 +44,13 @@ export function GuestDashboardView() {
       }
     >
         <div className="flex flex-col gap-5">
-          {vm.error ? <PrismNoticeBanner tone="danger">{vm.error}</PrismNoticeBanner> : null}
-          {vm.notice ? <PrismNoticeBanner tone="success">{vm.notice}</PrismNoticeBanner> : null}
+          {vm.error ? <PrismNoticeBanner role="alert" tone="danger">{vm.error}</PrismNoticeBanner> : null}
+          {vm.notice ? <PrismNoticeBanner role="status" tone="success">{vm.notice}</PrismNoticeBanner> : null}
+          {vm.refreshFailed ? <PrismNoticeBanner role="status" tone="warning">We could not refresh the event details. Your last loaded pass is shown. Check with registration for current instructions.</PrismNoticeBanner> : null}
           <nav aria-label="Guest pass sections" className="flex flex-wrap gap-4 text-sm font-semibold text-primary">
-            <a href="#check-in">My pass</a>
-            <a href="#event-details">Event details</a>
-            {feedbackOpen ? <a href="#feedback">Feedback</a> : null}
+            <a className="inline-flex min-h-11 items-center rounded-md px-2 focus-visible:ring-2 focus-visible:ring-primary" href="#check-in">Check in</a>
+            <a className="inline-flex min-h-11 items-center rounded-md px-2 focus-visible:ring-2 focus-visible:ring-primary" href="#event-details">Event details</a>
+            {feedbackOpen ? <a className="inline-flex min-h-11 items-center rounded-md px-2 focus-visible:ring-2 focus-visible:ring-primary" href="#feedback">Feedback</a> : null}
           </nav>
           <div id="check-in"><GuestCheckInPanel vm={vm} /></div>
           <div id="event-details"><GuestEventDetailsPanel session={session} /></div>

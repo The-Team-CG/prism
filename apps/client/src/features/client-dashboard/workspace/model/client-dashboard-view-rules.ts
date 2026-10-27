@@ -100,6 +100,7 @@ export type ClientDashboardAction = {
   targetTab: DetailTab;
   status: string;
   tone: "primary" | "success" | "warning" | "neutral";
+  nextActor?: "you" | "pmcm" | "update";
 };
 
 export const money = new Intl.NumberFormat("en-PH", {
@@ -142,8 +143,8 @@ export function actionCenterItemToDashboardAction(
     id: item.id,
     title: item.label,
     description: item.description,
-    detail: formatEventDate(item.dueAt),
-    ctaLabel: "Open",
+    detail: item.dueAt ? `Due ${formatEventDate(item.dueAt)}` : "No deadline set",
+    ctaLabel: clientActionLabel(item),
     href: item.href,
     eventId: item.eventId,
     eventName: item.eventName,
@@ -151,7 +152,26 @@ export function actionCenterItemToDashboardAction(
     targetTab: clientActionTarget(item.kind),
     status: item.status,
     tone: clientActionTone(item.priority),
+    nextActor: clientActionNextActor(item),
   };
+}
+
+function clientActionNextActor(item: PrismClientActionItem): "you" | "pmcm" | "update" {
+  if (item.id.startsWith("floorplan:preference:") && ["submitted", "in_review"].includes(item.status)) return "pmcm";
+  if (item.kind === "document" && !["rejected", "needs_update"].includes(item.status)) return "update";
+  if (item.kind === "change_request" && ["submitted", "pending", "in_review"].includes(item.status)) return "pmcm";
+  if (item.kind === "approval" && item.status === "issued") return "update";
+  return "you";
+}
+
+function clientActionLabel(item: PrismClientActionItem): string {
+  if (item.kind === "billing") return "Review payment";
+  if (item.kind === "briefing") return "Complete briefing";
+  if (item.kind === "feedback") return "Share feedback";
+  if (item.kind === "floorplan") return item.id.startsWith("floorplan:preferences:") ? "Add preferences" : "View layout";
+  if (item.kind === "document" || item.kind === "closure") return "Review documents";
+  if (item.kind === "change_request") return "View request";
+  return "View details";
 }
 
 export function selectNextAction(actions: ClientDashboardAction[]) {

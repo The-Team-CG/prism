@@ -34,8 +34,8 @@ describe("CoordinatorEventSwitcher", () => {
       />,
     );
 
-    expect(screen.getByRole("option", { name: "Leadership Forum" })).toBeTruthy();
-    expect(screen.queryByRole("option", { name: "Private Event" })).toBeNull();
+    expect(screen.getByRole("option", { name: "Leadership Forum — Aug 1, 2026" })).toBeTruthy();
+    expect(screen.queryByRole("option", { name: /^Private Event\b/ })).toBeNull();
     fireEvent.change(screen.getByLabelText("Assigned event"), { target: { value: "evt_past" } });
 
     expect(onSelect).toHaveBeenCalledWith("evt_past");
@@ -60,7 +60,7 @@ it("keeps the chosen event and work section in the URL", async () => {
   render(<CoordinatorView session={{ name: "Marco Santos", email: "marco@pmcm.test", role: "coordinator" } as never}
     state={{ events, assignments } as never} onRefresh={async () => {}} />);
   fireEvent.change(screen.getByLabelText("Assigned event"), { target: { value: "evt_current" } });
-  fireEvent.click(screen.getByRole("button", { name: "My tasks" }));
+  fireEvent.click(screen.getByRole("button", { name: /^Tasks$/ }));
   expect(new URLSearchParams(window.location.search).get("event")).toBe("evt_current");
   expect(new URLSearchParams(window.location.search).get("section")).toBe("coord-queue");
 });

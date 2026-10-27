@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useListFilter } from "@/features/pmcm-kit";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CalendarDays, Search } from "lucide-react";
 import type { PrismEvent } from "@prism/types";
+import { formatPortalDate } from "@prism/ui/format-date";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { cn } from "@/app/components/ui/utils";
@@ -25,10 +26,11 @@ function matches(event: PrismEvent, query: string) {
 /** Every confirmed event as one searchable register; opening a row enters that event's workspace. */
 export function EventRegister({ events, onOpenEvent }: { events: PrismEvent[]; onOpenEvent: (id: string) => void }) {
   const pathname = usePathname();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useListFilter("q");
   const rows = [...events].filter((event) => matches(event, query)).sort((a, b) => a.eventDate.localeCompare(b.eventDate));
   return (
     <div className="grid gap-4">
+      <p className="max-w-3xl text-sm leading-6 text-muted-foreground">Find an event by its date, client or venue. Open its workspace to review decisions, preparation and event-day work.</p>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <nav aria-label="Event views" className="flex flex-wrap gap-1">
           {VIEWS.map((view) => {
@@ -60,7 +62,8 @@ export function EventRegister({ events, onOpenEvent }: { events: PrismEvent[]; o
         </label>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <p role="status" className="text-xs text-muted-foreground">{rows.length} event{rows.length === 1 ? "" : "s"} in this view{query ? ` matching “${query}”` : ""}</p>
+      <div className="overflow-x-auto rounded-lg border border-border bg-card">
         {rows.length === 0 ? (
           <div className="p-6">
             <EmptyState
@@ -71,6 +74,7 @@ export function EventRegister({ events, onOpenEvent }: { events: PrismEvent[]; o
           </div>
         ) : (
           <table className="w-full text-sm">
+            <caption className="sr-only">Events with their client, date, venue and lifecycle stage</caption>
             <thead className="border-b border-border text-left text-xs text-muted-foreground">
               <tr>
                 <th scope="col" className="px-4 py-2.5 font-medium">Event</th>
@@ -87,15 +91,16 @@ export function EventRegister({ events, onOpenEvent }: { events: PrismEvent[]; o
                     <p className="font-semibold text-foreground">{event.eventName}</p>
                     <p className="text-xs text-muted-foreground">
                       {event.clientName}
-                      <span className="sm:hidden"> · {event.eventDate}</span>
+                      <span className="sm:hidden"> · {formatPortalDate(event.eventDate)}</span>
                     </p>
+                    {event.venue ? <p className="mt-1 text-xs text-muted-foreground md:hidden">{event.venue}</p> : null}
                   </td>
-                  <td className="hidden whitespace-nowrap px-4 py-3 tabular-nums text-foreground sm:table-cell">{event.eventDate}</td>
+                  <td className="hidden whitespace-nowrap px-4 py-3 text-foreground sm:table-cell">{formatPortalDate(event.eventDate)}</td>
                   <td className="hidden px-4 py-3 text-muted-foreground md:table-cell">{event.venue || "Not recorded"}</td>
                   <td className="px-4 py-3"><StatusBadge status={event.status} /></td>
                   <td className="px-4 py-3 text-right">
-                    <button type="button" onClick={() => onOpenEvent(event.id)} className="whitespace-nowrap text-sm font-semibold text-primary hover:text-primary-strong">
-                      Open<span className="sr-only"> {event.eventName}</span>
+                    <button type="button" onClick={() => onOpenEvent(event.id)} className="min-h-11 rounded-md px-2 text-sm font-semibold text-primary hover:text-primary-strong focus-visible:ring-2 focus-visible:ring-primary">
+                      Open event<span className="sr-only"> {event.eventName}</span>
                     </button>
                   </td>
                 </tr>
