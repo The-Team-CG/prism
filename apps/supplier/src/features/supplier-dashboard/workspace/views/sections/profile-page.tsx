@@ -61,19 +61,19 @@ export function ProfilePage({ supplier, session }: { supplier: PrismSupplier; se
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <User className="size-4 text-(--prism-signal)" />
+            <User className="size-4 text-primary" />
             <h2 className="text-sm font-bold text-foreground">Supplier profile</h2>
           </div>
         </CardHeader>
         <CardBody>
           <div className="flex items-center gap-4">
-            <span className="grid size-16 shrink-0 place-items-center rounded-2xl bg-linear-to-br from-(--prism-signal) to-[#8b0f48] text-xl font-black text-white">
+            <span className="grid size-16 shrink-0 place-items-center rounded-2xl bg-linear-to-br from-primary to-primary-deep text-xl font-black text-white">
               {supplier.name.slice(0, 2).toUpperCase()}
             </span>
             <div>
               <h3 className="text-lg font-bold text-foreground">{supplier.name}</h3>
               <p className="text-sm text-muted-foreground">{supplier.categoryName}</p>
-              <span className="mt-1 inline-block rounded-full bg-(--prism-amber)/10 px-2.5 py-0.5 text-xs font-bold capitalize text-(--prism-amber)">
+              <span className="mt-1 inline-block rounded-full bg-attention/10 px-2.5 py-0.5 text-xs font-bold capitalize text-attention">
                 {fmt(supplier.tier)}
               </span>
             </div>
@@ -86,7 +86,7 @@ export function ProfilePage({ supplier, session }: { supplier: PrismSupplier; se
               { label: "Member since", value: formatDate(supplier.applicationDate) },
             ].map(({ label, value }) => (
               <div key={label}>
-                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
+                <p className="text-3xs font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
                 <p className="mt-1 text-sm font-semibold text-foreground">{value}</p>
               </div>
             ))}
@@ -98,7 +98,7 @@ export function ProfilePage({ supplier, session }: { supplier: PrismSupplier; se
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <Sparkles className="size-4 text-(--prism-signal)" />
+            <Sparkles className="size-4 text-primary" />
             <h2 className="text-sm font-bold text-foreground">Service inclusions</h2>
           </div>
         </CardHeader>
@@ -115,7 +115,7 @@ export function ProfilePage({ supplier, session }: { supplier: PrismSupplier; se
       <Card>
         <CardBody>
           <div className="flex items-start gap-3">
-            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-(--prism-signal)" />
+            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
             <div>
               <p className="text-sm font-bold text-foreground">Supplier privacy boundary</p>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">

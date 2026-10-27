@@ -38,9 +38,9 @@ export function SupplierReviewPromptList({
     <section className="rounded-lg border border-border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <ClipboardCheck className="mt-1 size-5 text-(--prism-amber)" />
+          <ClipboardCheck className="mt-1 size-5 text-attention" />
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-(--prism-amber)">Supplier reviews</p>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-attention">Supplier reviews</p>
             <h3 className="mt-1 text-xl font-black">Close the loop with assigned suppliers</h3>
             <p className="mt-1 text-sm text-muted-foreground">Private PMCM evidence for {event.eventName}.</p>
           </div>
@@ -96,7 +96,7 @@ function SupplierReviewPromptCard({
           <p className="mt-1 text-sm text-muted-foreground">{subject.requestCategory}</p>
         </div>
         {completed && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700">
+          <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2.5 py-1 text-xs font-black text-success">
             <CheckCircle2 className="size-3.5" /> Review saved
           </span>
         )}

@@ -2,9 +2,9 @@ const PASSED_TONES = ["approved", "resolved", "overridden", "generated", "sent"]
 const OPEN_TONES = ["draft", "issued", "open"];
 
 export function phase4StatusTone(value: string, passed?: boolean) {
-  if (passed || PASSED_TONES.includes(value)) return "bg-emerald-50 text-emerald-700 ring-emerald-100";
-  if (OPEN_TONES.includes(value)) return "bg-amber-50 text-amber-800 ring-amber-100";
-  return "bg-rose-50 text-rose-700 ring-rose-100";
+  if (passed || PASSED_TONES.includes(value)) return "bg-success-soft text-success ring-success/20";
+  if (OPEN_TONES.includes(value)) return "bg-attention-soft text-attention ring-attention/20";
+  return "bg-danger-soft text-danger ring-danger/20";
 }
 
 export function phase4ArchiveStatus(archived: boolean, ready?: boolean) {
@@ -15,14 +15,14 @@ export function phase4ArchiveStatus(archived: boolean, ready?: boolean) {
 
 export function phase4CloseGatesCard(closeGates: { ready: boolean; gates: Array<{ passed: boolean }> } | null) {
   if (!closeGates) {
-    return { label: "Close gates", value: "Loading", detail: "Needs PMCM review", tone: "text-amber-800" };
+    return { label: "Close gates", value: "Loading", detail: "Needs PMCM review", tone: "text-attention" };
   }
   const passed = closeGates.gates.filter((gate) => gate.passed).length;
   return {
     label: "Close gates",
     value: `${passed}/${closeGates.gates.length}`,
     detail: closeGates.ready ? "Ready to archive" : "Needs PMCM review",
-    tone: closeGates.ready ? "text-emerald-700" : "text-amber-800",
+    tone: closeGates.ready ? "text-success" : "text-attention",
   };
 }
 
@@ -31,7 +31,7 @@ export function phase4ComplianceCard(openCount: number, totalCount: number) {
     label: "Compliance",
     value: openCount,
     detail: `${totalCount} generated check(s)`,
-    tone: openCount > 0 ? "text-rose-700" : "text-emerald-700",
+    tone: openCount > 0 ? "text-danger" : "text-success",
   };
 }
 
@@ -45,14 +45,14 @@ export function phase4BillingSourceCard(
       label: "Billing source",
       value: "Approved",
       detail: formatMoney(approvedSource.totalAmount),
-      tone: "text-emerald-700",
+      tone: "text-success",
     };
   }
   return {
     label: "Billing source",
     value: sourceCount,
     detail: "Approve before statement",
-    tone: "text-amber-800",
+    tone: "text-attention",
   };
 }
 
@@ -61,7 +61,7 @@ export function phase4StatementsCard(statementCount: number, insightReady: boole
     label: "Statements",
     value: statementCount,
     detail: insightReady ? "Insight ready" : "Insight pending",
-    tone: statementCount > 0 ? "text-emerald-700" : "text-amber-800",
+    tone: statementCount > 0 ? "text-success" : "text-attention",
   };
 }
 

@@ -63,7 +63,7 @@ export function ClientFileRequirementsMatrix({
               <div className="min-w-0">
                 <p className="text-sm font-bold text-foreground">{item.label}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">{item.detail}</p>
-                <p className={`mt-1 text-[11px] font-semibold ${item.overdue ? "text-destructive" : "text-muted-foreground"}`}>
+                <p className={`mt-1 text-2xs font-semibold ${item.overdue ? "text-destructive" : "text-muted-foreground"}`}>
                   {fileRequirementDueSummary(item)}
                 </p>
               </div>

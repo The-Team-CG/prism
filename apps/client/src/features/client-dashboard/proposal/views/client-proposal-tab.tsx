@@ -125,7 +125,7 @@ function ProposalPackageCard({
       <CardHeader>
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Presentation className="size-4 text-(--prism-signal)" />
+            <Presentation className="size-4 text-primary" />
             <h3 className="text-sm font-bold text-foreground">Proposal package</h3>
           </div>
           <StatusBadge
@@ -211,7 +211,7 @@ function ProposalReviewChecklist({
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <MessageSquareText className="size-4 text-(--prism-signal)" />
+          <MessageSquareText className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Review checklist</h3>
         </div>
       </CardHeader>

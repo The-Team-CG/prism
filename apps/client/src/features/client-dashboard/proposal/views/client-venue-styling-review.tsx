@@ -22,7 +22,7 @@ export function ClientVenueStylingReview({ eventId }: { eventId: string }) {
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <MessageSquareText className="size-4 text-(--prism-signal)" />
+          <MessageSquareText className="size-4 text-primary" />
           <h2 className="text-sm font-bold text-foreground">Venue and styling review</h2>
         </div>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">Review the options issued by PMCM. Your decision applies to that version only; a revised option will have its own review.</p>

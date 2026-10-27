@@ -29,9 +29,9 @@ function GuestPassPanel() {
     <section className="rounded-lg border border-primary/12 bg-card p-4 shadow-[0_30px_110px_rgba(23,18,22,0.14)]">
       <div className="relative overflow-hidden rounded-lg bg-[linear-gradient(135deg,#171216,#40122b_58%,#F06030)] p-6 text-sidebar-foreground">
         <div className="absolute right-10 top-8 hidden size-36 rounded-t-full border border-primary/55 bg-[linear-gradient(180deg,#FFB256,#F06030_62%,#C01867)] shadow-[0_0_70px_rgba(192,24,103,0.42)] md:block" />
-        <div className="absolute right-5 top-20 hidden h-28 w-16 rotate-12 rounded-t-full border border-(--prism-success)/35 bg-(--prism-ink) md:block" />
-        <div className="absolute right-40 top-24 hidden h-20 w-10 -rotate-12 rounded-t-full border border-(--prism-success)/35 bg-(--prism-ink) md:block" />
-        <p className="relative text-xs font-black uppercase tracking-[0.2em] text-(--prism-amber)">Your event pass</p>
+        <div className="absolute right-5 top-20 hidden h-28 w-16 rotate-12 rounded-t-full border border-success/35 bg-ink md:block" />
+        <div className="absolute right-40 top-24 hidden h-20 w-10 -rotate-12 rounded-t-full border border-success/35 bg-ink md:block" />
+        <p className="relative text-xs font-black uppercase tracking-[0.2em] text-attention">Your event pass</p>
         <h2 className="relative mt-4 text-3xl font-black leading-tight">You're invited.</h2>
         <p className="relative mt-3 max-w-lg text-base leading-7 text-sidebar-foreground/72">Use your private code to open your pass and get ready for a seamless event experience.</p>
         <div className="mt-8 grid gap-4 rounded-lg bg-white p-4 text-foreground lg:grid-cols-[1fr_0.82fr]">
@@ -63,7 +63,7 @@ function GuestPassPanel() {
               return (
                 <div key={title as string} className="flex items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-3">
                   <div className="flex items-center gap-3">
-                    <span className={tone === "success" ? "grid size-10 place-items-center rounded-full bg-(--prism-success)/10 text-(--prism-success)" : tone === "warning" ? "grid size-10 place-items-center rounded-full bg-[#F06030]/10 text-[#F06030]" : tone === "info" ? "grid size-10 place-items-center rounded-full bg-[#40A0D0]/10 text-[#40A0D0]" : "grid size-10 place-items-center rounded-full bg-primary/10 text-primary"}>
+                    <span className={tone === "success" ? "grid size-10 place-items-center rounded-full bg-success/10 text-success" : tone === "warning" ? "grid size-10 place-items-center rounded-full bg-brand-orange/10 text-brand-orange" : tone === "info" ? "grid size-10 place-items-center rounded-full bg-brand-blue/10 text-brand-blue" : "grid size-10 place-items-center rounded-full bg-primary/10 text-primary"}>
                       <IconComponent className="size-5" />
                     </span>
                     <span>
@@ -121,7 +121,7 @@ export function GuestHomeLandingView() {
 
           <div className="grid min-h-[calc(100vh-5.5rem)] items-start gap-10 py-14 lg:grid-cols-[0.78fr_1.22fr] xl:py-20">
             <div className="max-w-3xl">
-              <h1 className="max-w-4xl prism-serif text-5xl font-black leading-[0.93] tracking-normal text-(--prism-ink) sm:text-6xl xl:text-[4.65rem]">
+              <h1 className="max-w-4xl prism-serif text-5xl font-black leading-[0.93] tracking-normal text-ink sm:text-6xl xl:text-[4.65rem]">
                 Fast event access for check-in, consent, and <span className="text-primary">feedback</span>
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground">
@@ -183,11 +183,11 @@ export function GuestHomeLandingView() {
         <div className="mx-auto grid max-w-[1320px] gap-8 lg:grid-cols-[0.3fr_0.7fr] lg:items-start">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Open. Confirm. Check in.</p>
-            <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-(--prism-ink) sm:text-5xl">Your event pass is your easy access point</h2>
+            <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-ink sm:text-5xl">Your event pass is your easy access point</h2>
             <p className="mt-4 text-lg leading-8 text-muted-foreground">A few simple steps get you in, keep you informed, and make your experience smooth from start to finish.</p>
             <div className="mt-6 grid gap-2 text-sm text-muted-foreground">
               {["Use the code from your host", "Confirm consent and preferences", "Check in quickly at the venue", "Share feedback after the event"].map((item) => (
-                <span key={item} className="flex items-center gap-2"><CheckCircle2 className="size-4 text-(--prism-success)" />{item}</span>
+                <span key={item} className="flex items-center gap-2"><CheckCircle2 className="size-4 text-success" />{item}</span>
               ))}
             </div>
           </div>
@@ -205,7 +205,7 @@ export function GuestHomeLandingView() {
 
       <section id="check-in" className="border-y border-primary/10 bg-card px-5 py-16 sm:px-8 lg:px-10">
         <div className="mx-auto max-w-[1320px] rounded-lg border border-primary/12 bg-background p-8">
-          <h2 className="text-center prism-serif text-4xl font-black leading-[0.98] text-(--prism-ink)">A simple flow from arrival to feedback</h2>
+          <h2 className="text-center prism-serif text-4xl font-black leading-[0.98] text-ink">A simple flow from arrival to feedback</h2>
           <div className="mt-10 grid gap-6 md:grid-cols-4">
             {[
               [TicketCheck, "Enter code", "Open your event pass with the code from your host."],
@@ -230,7 +230,7 @@ export function GuestHomeLandingView() {
         <div className="mx-auto grid max-w-[1320px] gap-8 lg:grid-cols-[0.3fr_0.7fr] lg:items-center">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Your privacy. Your comfort.</p>
-            <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-(--prism-ink) sm:text-5xl">We protect your information and support a smooth experience</h2>
+            <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-ink sm:text-5xl">We protect your information and support a smooth experience</h2>
             <p className="mt-4 text-lg leading-8 text-muted-foreground">We keep things simple, secure, and respectful so you can focus on the experience ahead.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
@@ -245,20 +245,20 @@ export function GuestHomeLandingView() {
         <div className="mx-auto grid max-w-[1320px] gap-8 rounded-lg border border-primary/12 bg-card p-8 lg:grid-cols-[0.3fr_0.7fr] lg:items-center">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">After the event</p>
-            <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-(--prism-ink) sm:text-5xl">Your feedback makes a difference</h2>
+            <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-ink sm:text-5xl">Your feedback makes a difference</h2>
             <p className="mt-4 text-lg leading-8 text-muted-foreground">Share your thoughts to help us create even better events in the future.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-[1fr_0.8fr]">
             <div className="rounded-lg border border-border bg-background p-6">
               <p className="font-black text-foreground">How was your experience?</p>
-              <div className="mt-4 flex gap-2 text-[#F06030]">☆ ☆ ☆ ☆ ☆</div>
+              <div className="mt-4 flex gap-2 text-brand-orange">☆ ☆ ☆ ☆ ☆</div>
               <div className="mt-4 rounded-md border border-border bg-card p-4 text-sm text-muted-foreground">Share any additional comments...</div>
               <button className="mt-4 h-11 w-full rounded-md bg-primary font-black text-primary-foreground">Send feedback</button>
             </div>
             <div className="rounded-lg border border-border bg-background p-6">
               <p className="font-black text-foreground">Thank you.</p>
               {["Feedback received", "Under review", "Used to improve"].map((item) => (
-                <p key={item} className="mt-4 flex items-center gap-2 text-sm text-muted-foreground"><CheckCircle2 className="size-4 text-(--prism-success)" />{item}</p>
+                <p key={item} className="mt-4 flex items-center gap-2 text-sm text-muted-foreground"><CheckCircle2 className="size-4 text-success" />{item}</p>
               ))}
             </div>
           </div>
@@ -269,7 +269,7 @@ export function GuestHomeLandingView() {
         <div className="mx-auto rounded-lg border border-primary/12 bg-card p-8 shadow-[0_24px_80px_rgba(23,18,22,0.08)] sm:p-10 lg:flex lg:items-center lg:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Guest access</p>
-            <h2 className="mt-3 max-w-2xl prism-serif text-4xl font-black leading-tight text-(--prism-ink)">Open your event pass</h2>
+            <h2 className="mt-3 max-w-2xl prism-serif text-4xl font-black leading-tight text-ink">Open your event pass</h2>
           </div>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row lg:mt-0">
             <a href={portalHref("/open")} className="inline-flex h-12 items-center justify-center rounded-md bg-primary px-6 font-black text-primary-foreground">Open with code</a>

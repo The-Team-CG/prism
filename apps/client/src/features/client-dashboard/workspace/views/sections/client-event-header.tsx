@@ -33,7 +33,7 @@ export function ClientEventHeader({
     <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-muted/60 to-transparent px-5 py-4">
         <div className="min-w-0 flex items-center gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--prism-signal)] text-white font-black text-base select-none">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary text-white font-black text-base select-none">
             {event.eventName.slice(0, 1).toUpperCase()}
           </span>
           <div className="min-w-0">

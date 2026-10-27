@@ -33,7 +33,7 @@ export function AdminApprovalsPanel({
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold text-foreground">{request.name}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">{request.email}</p>
-                  <p className="mt-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-(--prism-amber)">
+                  <p className="mt-1.5 text-3xs font-black uppercase tracking-[0.14em] text-attention">
                     {label(request.role)} - {request.organization}
                   </p>
                 </div>

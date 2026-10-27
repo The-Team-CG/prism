@@ -76,7 +76,7 @@ function StatusSummaryCard({ item }: { item: StatusSummaryItem }) {
           </span>
         ) : null}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[10px] font-black uppercase tracking-widest text-muted-foreground">{item.label}</p>
+          <p className="truncate text-3xs font-black uppercase tracking-widest text-muted-foreground">{item.label}</p>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-sm font-black text-foreground">
             <span className="min-w-0 truncate">{item.value}</span>
             {item.status ? <StatusBadge status={item.status} /> : null}
@@ -137,7 +137,7 @@ function EventDayActionButton({ action }: { action: EventDayAction }) {
 }
 
 function SectionAccent({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">{children}</p>;
+  return <p className="text-xs font-bold uppercase tracking-widest text-primary">{children}</p>;
 }
 
 export type CoordinatorWorkspaceModel = {
@@ -188,7 +188,7 @@ export function CoordinatorGreetingBanner({
   const showAcknowledged = assignment?.status === "acknowledged";
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-(--prism-signal) to-[#8b0f48] px-6 py-7 text-white shadow-lg">
+    <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-primary to-primary-deep px-6 py-7 text-white shadow-lg">
       <div className="relative z-10 flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-white/70">P.R.I.S.M Coordinator Portal</p>
@@ -196,7 +196,7 @@ export function CoordinatorGreetingBanner({
           <p className="mt-2 max-w-xl text-sm leading-6 text-white/80">{greeting.description}</p>
           {showAcknowledge ? (
             <Button
-              className="mt-5 rounded-lg bg-white font-bold text-(--prism-signal) hover:bg-white/90"
+              className="mt-5 rounded-lg bg-white font-bold text-primary hover:bg-white/90"
               onClick={onAcknowledge}
               disabled={busy}
             >
@@ -239,7 +239,7 @@ export function CoordinatorGreetingBanner({
               </AvatarFallback>
             </Avatar>
             <span className="text-sm font-black leading-tight">{roleName}</span>
-            <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-white/70">
+            <span className="mt-1 text-3xs font-semibold uppercase tracking-wider text-white/70">
               {label(attendanceStatus)}
             </span>
           </div>
@@ -255,7 +255,7 @@ export function CoordinatorBoundaryNotice() {
   return (
     <CCard>
       <CCardBody className="flex items-start gap-3">
-        <LockKeyhole className="mt-0.5 size-5 shrink-0 text-(--prism-amber)" />
+        <LockKeyhole className="mt-0.5 size-5 shrink-0 text-attention" />
         <div>
           <p className="text-sm font-bold text-foreground">Coordinator information boundary</p>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
@@ -395,7 +395,7 @@ export function CoordinatorTimelineCard({ roleView }: { roleView: PrismCoordinat
     <CCard>
       <CCardHeader>
         <div className="flex items-center gap-2">
-          <CalendarClock className="size-4 text-(--prism-signal)" />
+          <CalendarClock className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Critical timeline</h3>
         </div>
       </CCardHeader>

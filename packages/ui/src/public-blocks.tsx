@@ -119,11 +119,11 @@ export function PrismPublicFeatureBand({
             const Icon = feature.icon ?? ShieldCheck;
             return (
               <div key={feature.title} className={cn("rounded-lg border p-4", dark ? "border-white/10 bg-black/12" : "border-border bg-background/70")}>
-                <div className={cn("mb-3 flex size-10 items-center justify-center rounded-md", dark ? "bg-white/10 text-(--prism-amber)" : "bg-primary/10 text-primary")}>
+                <div className={cn("mb-3 flex size-10 items-center justify-center rounded-md", dark ? "bg-white/10 text-attention" : "bg-primary/10 text-primary")}>
                   <Icon className="size-5" />
                 </div>
                 {feature.eyebrow ? (
-                  <p className={cn("text-[10px] font-black uppercase tracking-[0.14em]", dark ? "text-sidebar-foreground/48" : "text-muted-foreground")}>{feature.eyebrow}</p>
+                  <p className={cn("text-3xs font-black uppercase tracking-[0.14em]", dark ? "text-sidebar-foreground/48" : "text-muted-foreground")}>{feature.eyebrow}</p>
                 ) : null}
                 <h3 className={cn("mt-1 text-base font-black", dark ? "text-sidebar-foreground" : "text-foreground")}>{feature.title}</h3>
                 <p className={cn("mt-2 text-sm leading-6", dark ? "text-sidebar-foreground/66" : "text-muted-foreground")}>{feature.description}</p>
