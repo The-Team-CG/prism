@@ -15,14 +15,14 @@ export function ClientPortalBillingView() {
   } = useClientWorkspace();
   const choiceRequired = useClientAccountEventChoiceRequired();
 
-  if (!selectedEvent) {
+  if (!selectedEvent && !choiceRequired) {
     return <EmptyState icon={WalletCards} title="No billing workspace yet" description="Billing opens after your event workspace is activated." />;
   }
 
   return (
     <div className="space-y-5">
       <ClientAccountEventPicker purpose="billing" />
-      {choiceRequired ? null : <ClientBillingTab payments={payments} billing={billing} disputes={disputes} />}
+      {selectedEvent && !choiceRequired ? <ClientBillingTab payments={payments} billing={billing} disputes={disputes} /> : null}
     </div>
   );
 }
