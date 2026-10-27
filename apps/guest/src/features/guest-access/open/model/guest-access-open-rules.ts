@@ -29,6 +29,7 @@ export function buildGuestSession(
     ...(event.activeFloorPlanDraftId ? { activeFloorPlanDraftId: event.activeFloorPlanDraftId } : {}),
     guestAccessCode: event.guestAccessCode,
     watermark: event.watermark,
+    feedbackAvailability: event.feedbackAvailability,
     openedAt,
   };
 }

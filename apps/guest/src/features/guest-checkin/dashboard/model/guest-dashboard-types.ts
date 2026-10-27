@@ -10,13 +10,6 @@ export type GuestDashboardStatus = "idle" | "loading" | "ready" | "error";
 
 export type GuestBusyAction = "check-in" | "feedback" | null;
 
-export type GuestNextAction = {
-  id: "check-in" | "feedback";
-  label: string;
-  detail: string;
-  status: "pending" | "complete";
-};
-
 type WithoutIdempotencyKey<T> = T extends { idempotencyKey: string } ? Omit<T, "idempotencyKey"> : never;
 
 export type CheckInPayload = WithoutIdempotencyKey<CreateGuestCheckInInput>;
