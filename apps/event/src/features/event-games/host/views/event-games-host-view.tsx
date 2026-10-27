@@ -648,7 +648,7 @@ function hostResumeLabel(kind: PrismGameHostState["game"]["kind"]): string {
 function SessionPinDisclosure({ pin, dismissed, onDismiss }: { pin: string | null; dismissed: boolean; onDismiss: () => void }) {
   if (pin) {
     return (
-      <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-(--prism-signal)/30 bg-(--prism-signal-soft) p-3">
+      <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary-soft p-3">
         <p className="text-sm font-semibold text-foreground">Share this PIN with attendees:</p>
         <code className="rounded bg-background px-3 py-1 text-lg font-bold tracking-[0.25em]">{pin}</code>
         <Button type="button" size="sm" variant="outline" onClick={onDismiss}>Hide PIN</Button>

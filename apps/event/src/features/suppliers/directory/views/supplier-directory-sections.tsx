@@ -91,7 +91,7 @@ export function SupplierDirectoryList({
     <section className="min-w-0 rounded-lg border border-primary/12 bg-card p-4 shadow-none">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-(--prism-amber)">Supplier Directory</p>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-attention">Supplier Directory</p>
           <h2 className="mt-2 text-2xl font-black">PMCM supplier database</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Eight configurable categories, tier tags, BNI auto-trust, reviews, and reliability history.
@@ -103,7 +103,7 @@ export function SupplierDirectoryList({
         <button
           type="button"
           onClick={onToggleCreate}
-          className="inline-flex h-10 items-center gap-2 rounded-md bg-(--prism-ink) px-3 text-sm font-black text-sidebar-foreground"
+          className="inline-flex h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-black text-sidebar-foreground"
         >
           <Plus className="size-4" /> Add supplier
         </button>
@@ -151,7 +151,7 @@ export function SupplierDirectoryList({
 
       <div className="mt-4 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
-          <div className="grid min-w-[1040px] grid-cols-[minmax(260px,1.6fr)_minmax(160px,1fr)_9rem_7rem_10rem_8rem] gap-4 border-b border-border bg-secondary/45 px-4 py-3 text-[11px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+          <div className="grid min-w-[1040px] grid-cols-[minmax(260px,1.6fr)_minmax(160px,1fr)_9rem_7rem_10rem_8rem] gap-4 border-b border-border bg-secondary/45 px-4 py-3 text-2xs font-black uppercase tracking-[0.16em] text-muted-foreground">
             <span>Name</span>
             <span>Category</span>
             <span>Tier</span>
@@ -195,7 +195,7 @@ function SupplierCreateFormFields({
 }) {
   return (
     <div className="mt-5 rounded-lg border border-border bg-muted p-4">
-      <p className="text-xs font-black uppercase tracking-[0.14em] text-(--prism-amber)">New supplier</p>
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-attention">New supplier</p>
       <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
         <Input value={createForm.name} onChange={(event) => onCreateForm({ name: event.target.value })} className="h-10 bg-white" placeholder="Supplier name" />
         <Input value={createForm.contactName} onChange={(event) => onCreateForm({ contactName: event.target.value })} className="h-10 bg-white" placeholder="Contact person" />
@@ -214,7 +214,7 @@ function SupplierCreateFormFields({
         <textarea value={createForm.serviceInclusions} onChange={(event) => onCreateForm({ serviceInclusions: event.target.value })} className="min-h-20 rounded-md border border-border bg-white px-3 py-2 text-sm" placeholder="Service inclusions" />
         <textarea value={createForm.performanceNotes} onChange={(event) => onCreateForm({ performanceNotes: event.target.value })} className="min-h-20 rounded-md border border-border bg-white px-3 py-2 text-sm" placeholder="Private performance notes" />
       </div>
-      <button type="button" disabled={busy || !createForm.name.trim()} onClick={onSubmitCreate} className="mt-3 inline-flex h-10 items-center gap-2 rounded-md bg-(--prism-ink) px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">
+      <button type="button" disabled={busy || !createForm.name.trim()} onClick={onSubmitCreate} className="mt-3 inline-flex h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">
         <Check className="size-4" /> Save supplier
       </button>
     </div>
@@ -248,9 +248,9 @@ function SupplierDirectoryRow({
       </span>
       <span>
         {supplier.bniMember ? (
-          <Badge variant="outline" className="rounded-full border-[#F06030]/30 bg-accent px-2.5 py-1 text-[11px] font-black text-(--prism-amber)">BNI</Badge>
+          <Badge variant="outline" className="rounded-full border-brand-orange/30 bg-accent px-2.5 py-1 text-2xs font-black text-attention">BNI</Badge>
         ) : (
-          <span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-[11px] font-black text-muted-foreground">No BNI</span>
+          <span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-2xs font-black text-muted-foreground">No BNI</span>
         )}
       </span>
       <span>
@@ -345,7 +345,7 @@ function SupplierProfileHeader({ supplier, onBack }: { supplier: PrismSupplier; 
     <div>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-(--prism-amber)">Supplier Profile</p>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-attention">Supplier Profile</p>
           <h3 className="mt-2 truncate text-2xl font-black">{supplier.name}</h3>
         </div>
         <button
@@ -361,7 +361,7 @@ function SupplierProfileHeader({ supplier, onBack }: { supplier: PrismSupplier; 
         <SupplierTierBadge tier={supplier.tier} />
         <Badge variant="outline" className="rounded-full bg-secondary">{supplier.categoryName}</Badge>
         {supplier.autoTrust && (
-          <Badge variant="outline" className="rounded-full border-[#F06030]/30 bg-accent text-(--prism-amber)">Auto-Trust</Badge>
+          <Badge variant="outline" className="rounded-full border-brand-orange/30 bg-accent text-attention">Auto-Trust</Badge>
         )}
       </div>
     </div>
@@ -389,7 +389,7 @@ function SupplierBniPanel({
           onClick={onToggleBni}
           className={cx(
             "h-9 rounded-full px-4 text-xs font-black",
-            supplier.bniMember ? "bg-(--prism-ink) text-sidebar-foreground" : "border border-border bg-white text-foreground",
+            supplier.bniMember ? "bg-ink text-sidebar-foreground" : "border border-border bg-white text-foreground",
           )}
         >
           {supplier.bniMember ? "BNI On" : "BNI Off"}
@@ -412,7 +412,7 @@ function SupplierEditProfileForm({
 }) {
   return (
     <div className="rounded-lg border border-border bg-muted p-4">
-      <p className="text-xs font-black uppercase tracking-[0.14em] text-(--prism-amber)">Edit Profile</p>
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-attention">Edit Profile</p>
       <div className="mt-3 grid gap-2">
         <Input value={editForm.name} onChange={(event) => onEditForm({ name: event.target.value })} className="h-10 bg-white" placeholder="Supplier name" />
         <Input value={editForm.contactName} onChange={(event) => onEditForm({ contactName: event.target.value })} className="h-10 bg-white" placeholder="Contact person" />
@@ -423,7 +423,7 @@ function SupplierEditProfileForm({
         <textarea value={editForm.serviceInclusions} onChange={(event) => onEditForm({ serviceInclusions: event.target.value })} className="min-h-20 rounded-md border border-border bg-white px-3 py-2 text-sm" placeholder="Service inclusions" />
         <textarea value={editForm.performanceNotes} onChange={(event) => onEditForm({ performanceNotes: event.target.value })} className="min-h-20 rounded-md border border-border bg-white px-3 py-2 text-sm" placeholder="Private PMCM performance notes" />
       </div>
-      <button type="button" disabled={busy || !editForm.name.trim()} onClick={onSaveProfile} className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-(--prism-ink) px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60">
+      <button type="button" disabled={busy || !editForm.name.trim()} onClick={onSaveProfile} className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-ink px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60">
         <Check className="size-4" /> Save profile
       </button>
     </div>
@@ -443,7 +443,7 @@ function SupplierTierChangeForm({
 }) {
   return (
     <div className="rounded-lg border border-border bg-muted p-4">
-      <p className="text-xs font-black uppercase tracking-[0.14em] text-(--prism-amber)">Tier Change</p>
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-attention">Tier Change</p>
       <div className="mt-3 grid gap-2">
         <select value={tierForm.tier} onChange={(event) => onTierForm({ tier: event.target.value as SupplierTierForm["tier"] })} className="h-10 rounded-md border border-border bg-white px-3 text-sm">
           <option value="tier_1">Tier 1</option>
@@ -452,7 +452,7 @@ function SupplierTierChangeForm({
         </select>
         <textarea value={tierForm.reason} onChange={(event) => onTierForm({ reason: event.target.value })} className="min-h-16 rounded-md border border-border bg-white px-3 py-2 text-sm" placeholder="Required reason for audit trail" />
       </div>
-      <button type="button" disabled={busy || !tierForm.reason.trim()} onClick={onSubmitTier} className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-(--prism-ink) px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60">
+      <button type="button" disabled={busy || !tierForm.reason.trim()} onClick={onSubmitTier} className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-ink px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60">
         <Check className="size-4" /> Change tier
       </button>
     </div>
@@ -472,7 +472,7 @@ function SupplierCertificationForm({
 }) {
   return (
     <div className="rounded-lg border border-border bg-muted p-4">
-      <p className="text-xs font-black uppercase tracking-[0.14em] text-(--prism-amber)">Certification Metadata</p>
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-attention">Certification Metadata</p>
       <div className="mt-3 grid gap-2">
         <Input value={certForm.fileName} onChange={(event) => onCertForm({ fileName: event.target.value })} className="h-10 bg-white" placeholder="File name" />
         <Input value={certForm.documentType} onChange={(event) => onCertForm({ documentType: event.target.value })} className="h-10 bg-white" placeholder="Document type" />
@@ -488,7 +488,7 @@ function SupplierCertificationForm({
         </select>
         <textarea value={certForm.notes} onChange={(event) => onCertForm({ notes: event.target.value })} className="min-h-16 rounded-md border border-border bg-white px-3 py-2 text-sm" placeholder="Metadata notes" />
       </div>
-      <button type="button" disabled={busy || !certForm.fileName.trim() || !certForm.documentType.trim()} onClick={onSubmitCertification} className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-(--prism-ink) px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60">
+      <button type="button" disabled={busy || !certForm.fileName.trim() || !certForm.documentType.trim()} onClick={onSubmitCertification} className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-ink px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60">
         <FilePlus2 className="size-4" /> Add certification
       </button>
     </div>
@@ -499,20 +499,20 @@ function SupplierFacts({ supplier }: { supplier: PrismSupplier }) {
   return (
     <div className="grid gap-3 text-sm">
       <div className="rounded-md bg-background p-3">
-        <p className="text-xs font-black uppercase tracking-wide text-(--prism-amber)">Contact</p>
+        <p className="text-xs font-black uppercase tracking-wide text-attention">Contact</p>
         <p className="mt-1 font-semibold">{supplier.contactName || "No contact person"}</p>
         <p className="text-muted-foreground">{supplier.email || "No email"} - {supplier.phone || "No phone"}</p>
       </div>
       <div className="rounded-md bg-background p-3">
-        <p className="text-xs font-black uppercase tracking-wide text-(--prism-amber)">Internal Rating</p>
+        <p className="text-xs font-black uppercase tracking-wide text-attention">Internal Rating</p>
         <div className="mt-2"><RatingStars rating={supplier.aggregateRating} /></div>
       </div>
       <div className="rounded-md bg-background p-3">
-        <p className="text-xs font-black uppercase tracking-wide text-(--prism-amber)">Service Inclusions</p>
+        <p className="text-xs font-black uppercase tracking-wide text-attention">Service Inclusions</p>
         <p className="mt-1 leading-6 text-muted-foreground">{supplier.serviceInclusions}</p>
       </div>
       <div className="rounded-md bg-background p-3">
-        <p className="text-xs font-black uppercase tracking-wide text-(--prism-amber)">Performance Notes</p>
+        <p className="text-xs font-black uppercase tracking-wide text-attention">Performance Notes</p>
         <p className="mt-1 leading-6 text-muted-foreground">{supplier.performanceNotes}</p>
       </div>
     </div>

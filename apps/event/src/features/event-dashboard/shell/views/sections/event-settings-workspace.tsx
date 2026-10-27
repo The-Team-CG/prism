@@ -60,7 +60,7 @@ export function EventSettingsWorkspace({
       ].map((item) => (
         <Card key={item.label}>
           <CardBody>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">{item.label}</p>
+            <p className="text-3xs font-black uppercase tracking-[0.16em] text-muted-foreground">{item.label}</p>
             <p className="mt-2 text-lg font-black text-foreground">{item.value}</p>
             <p className="mt-1 text-sm text-muted-foreground">{item.detail}</p>
           </CardBody>
@@ -69,7 +69,7 @@ export function EventSettingsWorkspace({
       <Card className="lg:col-span-3">
         <CardHeader>
           <div className="flex items-center gap-2">
-            <Settings className="size-4 text-(--prism-signal)" />
+            <Settings className="size-4 text-primary" />
             <h2 className="text-sm font-black text-foreground">Workspace controls</h2>
           </div>
         </CardHeader>
@@ -100,7 +100,7 @@ export function EventSettingsWorkspace({
                   data-checked={clientEventDayViewEnabled ? "true" : "false"}
                   disabled={savingClientEventDayView}
                   onClick={() => void toggleClientEventDayView()}
-                  className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border border-border bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[checked=true]:border-(--prism-signal) data-[checked=true]:bg-(--prism-signal) disabled:cursor-not-allowed disabled:opacity-50"
+                  className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border border-border bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[checked=true]:border-primary data-[checked=true]:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <span
                     aria-hidden="true"

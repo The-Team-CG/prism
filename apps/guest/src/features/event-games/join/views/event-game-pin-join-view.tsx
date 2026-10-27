@@ -16,10 +16,10 @@ export function EventGamePinJoinView({ expectedEventSlug }: { expectedEventSlug?
   }
 
   return (
-    <main className="min-h-screen bg-(--prism-page) px-5 py-8 text-foreground">
+    <main className="min-h-screen bg-page px-5 py-8 text-foreground">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-xl items-center">
         <section className="w-full rounded-lg border border-border bg-card p-6 shadow-sm sm:p-9">
-          <div className="mb-7 h-1 w-20 rounded-sm bg-(--prism-signal)" />
+          <div className="mb-7 h-1 w-20 rounded-sm bg-primary" />
           <div className="flex items-start gap-4">
             <span className="grid size-12 shrink-0 place-items-center rounded-md bg-secondary text-primary">
               <Gamepad2 className="size-6" aria-hidden="true" />

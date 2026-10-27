@@ -49,10 +49,10 @@ export function SupplierRecentRecords({
             <div className="flex items-end gap-2.5">
               <span className="text-[28px] font-semibold leading-none">{records.counts.total}</span>
               <div aria-hidden="true" className="flex h-7 w-32 items-end gap-[2px]">
-                {records.dailyBuckets.map((bucket) => <span key={bucket.date} title={`${bucket.date}: ${bucket.count}`} className={`min-w-0 flex-1 ${bucket.count ? "bg-emerald-400/80" : "bg-muted"}`} style={{ height: `${bucket.count ? Math.max(12, Math.round(bucket.count / maxCount * 100)) : 8}%` }} />)}
+                {records.dailyBuckets.map((bucket) => <span key={bucket.date} title={`${bucket.date}: ${bucket.count}`} className={`min-w-0 flex-1 ${bucket.count ? "bg-success/80" : "bg-muted"}`} style={{ height: `${bucket.count ? Math.max(12, Math.round(bucket.count / maxCount * 100)) : 8}%` }} />)}
               </div>
             </div>
-            <p role="img" aria-label={chartDescription} className="mt-1 text-[11px] leading-tight text-muted-foreground">{chartDescription}</p>
+            <p role="img" aria-label={chartDescription} className="mt-1 text-2xs leading-tight text-muted-foreground">{chartDescription}</p>
           </div>
           <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {[
@@ -60,7 +60,7 @@ export function SupplierRecentRecords({
               { label: "Reviews", value: records.counts.reviews, Icon: Star },
               { label: "Reliability notes", value: records.counts.reliabilityNotes, Icon: MessageSquareText },
               { label: "Certifications", value: records.counts.certifications, Icon: FileCheck2 },
-            ].map(({ label, value, Icon }) => <div key={label} className={styles.metricCard}><dt className="flex items-start gap-1 text-[10px] text-muted-foreground"><Icon aria-hidden="true" className="mt-0.5 size-3 shrink-0" />{label}</dt><dd className="mt-1.5 text-xs font-semibold">{value}</dd></div>)}
+            ].map(({ label, value, Icon }) => <div key={label} className={styles.metricCard}><dt className="flex items-start gap-1 text-3xs text-muted-foreground"><Icon aria-hidden="true" className="mt-0.5 size-3 shrink-0" />{label}</dt><dd className="mt-1.5 text-xs font-semibold">{value}</dd></div>)}
           </dl>
           {!records.counts.total ? <p className="text-xs text-muted-foreground">Activity will appear when a review, reliability note or certification is recorded.</p> : null}
         </>

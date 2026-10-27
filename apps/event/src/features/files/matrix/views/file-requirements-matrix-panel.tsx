@@ -27,7 +27,7 @@ export function FileRequirementsMatrixPanel({ eventId }: { eventId?: string }) {
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-6 py-4">
         <div>
           <div className="flex items-center gap-2">
-            <FileCheck2 className="size-4 text-(--prism-signal)" />
+            <FileCheck2 className="size-4 text-primary" />
             <h2 className="text-sm font-bold text-foreground">File requirements matrix</h2>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">{FILE_HUB_HELP_COPY}</p>
@@ -85,15 +85,15 @@ function FileRequirementRow({ item, editable, editor }: { item: PrismFileRequire
         <div className="min-w-0">
           <p className="text-sm font-bold text-foreground">{item.label}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">{item.detail}</p>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="mt-1 text-2xs text-muted-foreground">
             Owner {humanizeToken(item.ownerRole)} · Visible to {item.visibleToRoles.map(humanizeToken).join(", ")} · {item.sourceWorkflow}
           </p>
-          <p className="mt-1 text-[11px] font-semibold text-muted-foreground">
+          <p className="mt-1 text-2xs font-semibold text-muted-foreground">
             {item.required ? "Required" : "Optional"}
             {item.dueDate ? ` · Due ${formatFileRequirementDate(item.dueDate)}` : ""}
             {item.overdue ? <span className="text-destructive"> · Overdue</span> : null}
           </p>
-          {item.notes ? <p className="mt-1 text-[11px] text-muted-foreground">PMCM note: {item.notes}</p> : null}
+          {item.notes ? <p className="mt-1 text-2xs text-muted-foreground">PMCM note: {item.notes}</p> : null}
         </div>
         <div className="flex items-center gap-2">
           <StatusBadge status={item.status} label={humanizeToken(item.status)} />

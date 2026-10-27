@@ -36,7 +36,7 @@ function RecordedPostponementImpact({ vm }: { vm: ReturnType<typeof usePostponem
         <p className="mt-4 text-sm text-muted-foreground">No coordinator conflict snapshot is recorded for this event.</p>
       ) : null}
       {vm.effectiveSnapshot?.dateNeedsConfirmation ? (
-        <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+        <p className="mt-4 rounded-lg bg-attention-soft p-3 text-sm text-attention dark:bg-amber-950/30 dark:text-amber-200">
           The event date is still being confirmed. This conflict snapshot was recorded for {reschedule ? rescheduleDateLabel(reschedule.toDate) : "the prior rescheduled date"}; recheck coordinator availability after the date is confirmed.
         </p>
       ) : null}
@@ -62,7 +62,7 @@ function RecordedPostponementImpact({ vm }: { vm: ReturnType<typeof usePostponem
                           : "Declared unavailable on that date."}
                       </p>
                     </div>
-                    <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">Conflict recorded</span>
+                    <span className="text-xs font-semibold text-attention dark:text-amber-300">Conflict recorded</span>
                   </li>
                 ))}
               </ul>

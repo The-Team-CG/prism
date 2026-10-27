@@ -33,11 +33,11 @@ const wizardSteps = APPLICATION_WIZARD_STEPS;
 const priceRanges = APPLICATION_PRICE_RANGES;
 
 export const compactControlClass =
-  "h-14 rounded-lg border-[#DDE3EA] bg-white/90 px-5 text-base shadow-sm placeholder:text-muted-foreground/75 focus-visible:border-primary/45 focus-visible:ring-primary/15";
+  "h-14 rounded-lg border-border bg-white/90 px-5 text-base shadow-sm placeholder:text-muted-foreground/75 focus-visible:border-primary/45 focus-visible:ring-primary/15";
 export const compactSelectTriggerClass =
-  "h-14 rounded-lg border-[#DDE3EA] bg-white/90 px-5 text-base shadow-sm focus:border-primary/45 focus:ring-primary/15";
+  "h-14 rounded-lg border-border bg-white/90 px-5 text-base shadow-sm focus:border-primary/45 focus:ring-primary/15";
 export const compactTextareaClass =
-  "min-h-[120px] rounded-lg border-[#DDE3EA] bg-white/90 px-5 py-4 text-base shadow-sm placeholder:text-muted-foreground/75 focus-visible:border-primary/45 focus-visible:ring-primary/15";
+  "min-h-[120px] rounded-lg border-border bg-white/90 px-5 py-4 text-base shadow-sm placeholder:text-muted-foreground/75 focus-visible:border-primary/45 focus-visible:ring-primary/15";
 export const compactFieldGroupClass =
   "gap-6 [&_[data-slot=field-description]]:text-base [&_[data-slot=field-label]]:text-base [&_[data-slot=field-label]]:font-black [&_[data-slot=field]]:gap-3";
 
@@ -53,10 +53,10 @@ export function SupplierApplicationSubmitted({ applicationId, onReset }: { appli
           <ApplyAside submitted />
           <section className="grid h-full min-h-0 place-items-center overflow-y-auto px-5 py-6 lg:px-7">
             <div className="max-w-xl text-center">
-              <span className="mx-auto grid size-20 place-items-center rounded-full bg-(--prism-success)/10 text-(--prism-success)">
+              <span className="mx-auto grid size-20 place-items-center rounded-full bg-success/10 text-success">
                 <CheckCircle2 className="size-10" />
               </span>
-              <h2 className="mt-8 prism-serif text-5xl font-black text-(--prism-ink)">Application submitted.</h2>
+              <h2 className="mt-8 prism-serif text-5xl font-black text-ink">Application submitted.</h2>
               <p className="mt-4 text-lg leading-8 text-muted-foreground">
                 PMCM will review your application and contact you within 5 business days.
               </p>
@@ -94,7 +94,7 @@ export function ApplyAside({ submitted = false }: { submitted?: boolean }) {
           <Sparkles className="size-5" />
           Supplier application
         </div>
-        <h1 className="mt-9 max-w-[24rem] prism-serif text-[3.5rem] font-black leading-[1.03] text-(--prism-ink)">
+        <h1 className="mt-9 max-w-[24rem] prism-serif text-[3.5rem] font-black leading-[1.03] text-ink">
           Join PMCM&apos;s supplier network<span className="text-primary">.</span>
         </h1>
         <p className="mt-8 max-w-[15.5rem] text-lg leading-8 text-muted-foreground">
@@ -114,7 +114,7 @@ function TrustList() {
   return (
     <div className="mt-10 grid gap-5">
       {items.map((item) => (
-        <div key={item} className="flex items-center gap-4 text-base font-medium text-(--prism-ink)">
+        <div key={item} className="flex items-center gap-4 text-base font-medium text-ink">
           <span className="grid size-8 place-items-center rounded-full border border-primary/10 bg-primary/10 text-primary">
             <Check className="size-4" />
           </span>
@@ -128,7 +128,7 @@ function TrustList() {
 export function StepHeading({ title, description, serif = true }: { title: string; description: string; serif?: boolean }) {
   return (
     <div className="mb-10">
-      <h2 className={serif ? "prism-serif text-4xl font-black leading-tight text-(--prism-ink)" : "text-4xl font-black leading-tight text-(--prism-ink)"}>{title}</h2>
+      <h2 className={serif ? "prism-serif text-4xl font-black leading-tight text-ink" : "text-4xl font-black leading-tight text-ink"}>{title}</h2>
       <p className="mt-3 text-lg leading-8 text-muted-foreground">{description}</p>
     </div>
   );
@@ -233,7 +233,7 @@ function ServicesStep({
             </SelectContent>
           </Select>
           {categoriesError ? (
-            <FieldDescription className="text-amber-600">Showing demo categories — live list unavailable: {categoriesError}</FieldDescription>
+            <FieldDescription className="text-attention">Showing demo categories — live list unavailable: {categoriesError}</FieldDescription>
           ) : null}
           {categories.length === 0 && !categoriesLoading ? (
             <FieldDescription className="text-muted-foreground">No service categories found — contact PMCM.</FieldDescription>
@@ -383,7 +383,7 @@ function ReviewStep({
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
-      <div className="ml-auto mt-4 flex w-full max-w-[560px] items-center gap-3 rounded-md border border-(--prism-success)/20 bg-(--prism-success)/8 px-5 py-3 text-sm font-medium text-(--prism-success)">
+      <div className="ml-auto mt-4 flex w-full max-w-[560px] items-center gap-3 rounded-md border border-success/20 bg-success/8 px-5 py-3 text-sm font-medium text-success">
         <CheckCircle2 className="size-5 shrink-0" />
         After submission, PMCM will review and respond within 5 business days.
       </div>

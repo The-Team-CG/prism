@@ -35,7 +35,7 @@ export function EventActivityPanel({
               <div key={thread.title} className={cx("rounded-md px-3 py-3", index === 0 ? "bg-card shadow-sm" : "hover:bg-card/70")}>
                 <div className="flex items-center justify-between gap-2">
                   <p className="truncate text-sm font-black text-foreground">{thread.title}</p>
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-black text-primary">
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-3xs font-black text-primary">
                     {thread.tag}
                   </span>
                 </div>
@@ -56,7 +56,7 @@ export function EventActivityPanel({
                   <div className="rounded-2xl rounded-br-md bg-primary px-4 py-3 text-sm font-medium leading-6 text-primary-foreground">
                     {notification.message}
                   </div>
-                  <p className="mt-1 text-right text-[11px] font-semibold text-muted-foreground">
+                  <p className="mt-1 text-right text-2xs font-semibold text-muted-foreground">
                     {label(notification.channel)} to {notification.recipient}
                     {" · "}{notification.status === "sent" ? "Sent to provider" : label(notification.status)}
                     {notification.failureReason ? ` · ${notification.failureReason}` : ""}
@@ -70,12 +70,12 @@ export function EventActivityPanel({
                   <div className="rounded-2xl rounded-bl-md bg-card px-4 py-3 text-sm font-medium leading-6 text-foreground ring-1 ring-border">
                     {assignment.coordinatorName} is assigned as {assignment.role}.
                   </div>
-                  <p className="mt-1 text-[11px] font-semibold text-muted-foreground">{label(assignment.status)}</p>
+                  <p className="mt-1 text-2xs font-semibold text-muted-foreground">{label(assignment.status)}</p>
                 </div>
               </div>
             ))}
             {audit.slice(0, 4).map((item) => (
-              <div key={item.id} className="mx-auto w-fit rounded-full bg-secondary px-3 py-1 text-[11px] font-black text-muted-foreground">
+              <div key={item.id} className="mx-auto w-fit rounded-full bg-secondary px-3 py-1 text-2xs font-black text-muted-foreground">
                 {item.action}
               </div>
             ))}

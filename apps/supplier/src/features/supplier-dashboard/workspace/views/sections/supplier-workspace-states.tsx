@@ -15,7 +15,7 @@ export function SupplierWrongPortalView({ onSignIn }: { onSignIn: () => void }) 
   return (
     <main className="grid min-h-screen place-items-center bg-background px-6">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
-        <ShieldCheck className="size-12 rounded-xl bg-amber-50 p-2.5 text-amber-600" />
+        <ShieldCheck className="size-12 rounded-xl bg-attention-soft p-2.5 text-attention" />
         <h1 className="mt-5 text-xl font-bold text-foreground">Wrong portal for this account.</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           Supplier dashboard access requires an approved supplier account.
@@ -32,12 +32,12 @@ export function SupplierWorkspaceBanners({ error, notice }: { error: string | nu
   return (
     <>
       {error ? (
-        <div className="rounded-xl border border-(--prism-danger)/25 bg-(--prism-danger)/8 px-5 py-3.5 text-sm font-semibold text-(--prism-danger)">
+        <div className="rounded-xl border border-danger/25 bg-danger/8 px-5 py-3.5 text-sm font-semibold text-danger">
           {error}
         </div>
       ) : null}
       {notice ? (
-        <div className="rounded-xl border border-(--prism-success)/25 bg-(--prism-success)/8 px-5 py-3.5 text-sm font-semibold text-(--prism-success)">
+        <div className="rounded-xl border border-success/25 bg-success/8 px-5 py-3.5 text-sm font-semibold text-success">
           {notice}
         </div>
       ) : null}

@@ -21,13 +21,13 @@ describe("phase4-workspace-rules", () => {
       value: "1/2",
       detail: "Ready to archive",
     });
-    expect(phase4ComplianceCard(2, 5).tone).toBe("text-rose-700");
+    expect(phase4ComplianceCard(2, 5).tone).toBe("text-danger");
     expect(phase4BillingSourceCard({ totalAmount: 100 }, 1, (amount) => String(amount)).value).toBe("Approved");
   });
 
   it("maps status tones and rule layers", () => {
-    expect(phase4StatusTone("approved")).toContain("emerald");
-    expect(phase4StatusTone("open")).toContain("amber");
+    expect(phase4StatusTone("approved")).toContain("success");
+    expect(phase4StatusTone("open")).toContain("attention");
     expect(phase4RuleLayer("watch_out")).toBe("Should-Fix");
     expect(phase4RuleLayer("must_fix")).toBe("Must-Fix");
   });

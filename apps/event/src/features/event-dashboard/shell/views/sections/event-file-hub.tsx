@@ -75,7 +75,7 @@ export function EventFileHub({
       extension: "PLAN",
       kind: "floorplan" as const,
       meta: `Floor plan ${draft.floorPlanId}`,
-      accent: "bg-(--prism-success)",
+      accent: "bg-success",
     }));
 
     const invoices = billingStatements.map((statement) => ({
@@ -90,7 +90,7 @@ export function EventFileHub({
       kind: "invoice" as const,
       meta: statement.number,
       amount: statement.totalAmount,
-      accent: "bg-(--prism-amber)",
+      accent: "bg-attention",
     }));
 
     const contracts = quoteRequests
@@ -207,7 +207,7 @@ export function EventFileHub({
             <div className="mt-3 flex flex-wrap gap-2">
               <button type="button" onClick={openSelected} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground"><Eye className="size-3.5" /> Open</button>
             </div>
-            <p className="mt-2 text-[11px] text-muted-foreground">Open jumps to the owning workflow. Binary deliverables can be uploaded and downloaded in the stored event files panel.</p>
+            <p className="mt-2 text-2xs text-muted-foreground">Open jumps to the owning workflow. Binary deliverables can be uploaded and downloaded in the stored event files panel.</p>
           </div>
 
           <div className="px-4 py-4">
@@ -226,7 +226,7 @@ export function EventFileHub({
                     {view === "grid" ? (
                       <EventFileThumbnail item={item} active={active} />
                     ) : (
-                      <span className="grid size-10 shrink-0 place-items-center rounded-md border border-border bg-white text-[10px] font-black text-primary">{item.extension}</span>
+                      <span className="grid size-10 shrink-0 place-items-center rounded-md border border-border bg-white text-3xs font-black text-primary">{item.extension}</span>
                     )}
                     <span className={view === "grid" ? "mt-2 block min-w-0" : "block min-w-0 flex-1"}>
                       <span className="block truncate text-sm font-black text-foreground">{item.title}</span>

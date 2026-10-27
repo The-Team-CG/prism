@@ -6,19 +6,19 @@ export function liveOpsPillClass(value: string): string {
       value,
     )
   ) {
-    return "bg-emerald-50 text-emerald-700 ring-emerald-100";
+    return "bg-success-soft text-success ring-success/20";
   }
   if (
     ["late", "disputed", "blocked", "critical", "high", "absent", "overdue", "pmcm"].includes(value)
   ) {
-    return "bg-rose-50 text-rose-700 ring-rose-100";
+    return "bg-danger-soft text-danger ring-danger/20";
   }
   if (
     ["in_progress", "assigned", "arrived", "medium", "self_reported", "due_soon", "role_lead"].includes(
       value,
     )
   ) {
-    return "bg-amber-50 text-amber-800 ring-amber-100";
+    return "bg-attention-soft text-attention ring-attention/20";
   }
   return "bg-muted text-muted-foreground ring-border";
 }

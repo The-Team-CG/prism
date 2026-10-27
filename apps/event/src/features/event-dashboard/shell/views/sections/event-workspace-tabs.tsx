@@ -73,7 +73,7 @@ export function EventWorkspaceFloorplansTab() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <LayoutGrid className="size-4 text-(--prism-signal)" />
+            <LayoutGrid className="size-4 text-primary" />
             <h2 className="text-sm font-bold text-foreground">Floorplan drafts and client preferences</h2>
           </div>
         </CardHeader>
@@ -99,7 +99,7 @@ function EventFloorplanTemplatePicker() {
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <MapPinned className="size-4 text-(--prism-signal)" />
+          <MapPinned className="size-4 text-primary" />
           <h2 className="text-sm font-bold text-foreground">Start PMCM draft</h2>
         </div>
       </CardHeader>
@@ -110,7 +110,7 @@ function EventFloorplanTemplatePicker() {
               <button
                 key={template.id}
                 onClick={() => run("create floorplan", () => createTemplateDraft(template))}
-                className="rounded-xl border border-border bg-muted/30 p-4 text-left transition hover:border-(--prism-signal)/40 hover:bg-(--prism-signal-soft)"
+                className="rounded-xl border border-border bg-muted/30 p-4 text-left transition hover:border-primary/40 hover:bg-primary-soft"
               >
                 <p className="text-sm font-bold text-foreground">{template.name}</p>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">{template.description || template.venue || "Saved PMCM template"}</p>
@@ -167,7 +167,7 @@ function EventFloorplanDraftCard({ draft }: { draft: PrismFloorPlanDraft }) {
           </Button>
         ) : null}
         {canApprove ? (
-          <Button size="sm" variant="outline" className="rounded-lg border-(--prism-success)/25 bg-(--prism-success)/8 font-bold text-(--prism-success) hover:bg-(--prism-success)/15" onClick={() => approveFloorPlanDraft(draft)}>
+          <Button size="sm" variant="outline" className="rounded-lg border-success/25 bg-success/8 font-bold text-success hover:bg-success/15" onClick={() => approveFloorPlanDraft(draft)}>
             Approve
           </Button>
         ) : null}
@@ -192,7 +192,7 @@ export function EventWorkspaceBriefingTab() {
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <FileCheck2 className="size-4 text-(--prism-signal)" />
+          <FileCheck2 className="size-4 text-primary" />
           <h2 className="text-sm font-bold text-foreground">Event briefing</h2>
         </div>
       </CardHeader>
@@ -227,7 +227,7 @@ export function EventWorkspaceSuppliersTab() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <Truck className="size-4 text-(--prism-signal)" />
+            <Truck className="size-4 text-primary" />
             <h2 className="text-sm font-bold text-foreground">Supplier desk</h2>
           </div>
         </CardHeader>
@@ -251,14 +251,14 @@ export function EventWorkspaceSuppliersTab() {
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="grid size-5 place-items-center rounded bg-[var(--prism-signal)] text-white">
+              <span className="grid size-5 place-items-center rounded bg-primary text-white">
                 <svg viewBox="0 0 16 16" fill="none" className="size-3" aria-hidden="true">
                   <path d="M8 2l1.5 3 3.5.5-2.5 2.5.5 3.5L8 10l-3 1.5.5-3.5L3 5.5l3.5-.5L8 2z" fill="currentColor"/>
                 </svg>
               </span>
               <h2 className="text-sm font-bold text-foreground">PARE · Emergency Response Engine</h2>
             </div>
-            <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-muted-foreground">
+            <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-3xs font-black uppercase tracking-wide text-muted-foreground">
               FR-AI-04
             </span>
           </div>

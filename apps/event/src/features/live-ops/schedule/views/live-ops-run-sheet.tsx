@@ -131,7 +131,7 @@ function RunSheetBody({ runSheet, timeline, now }: { runSheet: PrismEventRunShee
 
 function RunSheetRows({ timeline, now }: { timeline: RunSheetTimeline; now: Date }) {
   const marker = (
-    <li key="now-marker" role="separator" aria-label="Now" className="flex items-center gap-2 py-1 text-xs font-semibold text-(--prism-signal) print:hidden">
+    <li key="now-marker" role="separator" aria-label="Now" className="flex items-center gap-2 py-1 text-xs font-semibold text-primary print:hidden">
       <span className="h-px flex-1 bg-current" />
       <span>Now {formatRunSheetTime(now.toISOString())}</span>
       <span className="h-px flex-1 bg-current" />

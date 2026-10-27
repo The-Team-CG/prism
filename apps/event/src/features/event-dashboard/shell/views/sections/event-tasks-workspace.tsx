@@ -113,13 +113,13 @@ export function EventTasksWorkspace({
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <ClipboardCheck className="size-4 text-(--prism-signal)" />
+              <ClipboardCheck className="size-4 text-primary" />
               <h2 className="text-sm font-black text-foreground">Task queue</h2>
             </div>
           </CardHeader>
           <div className="divide-y divide-border">
             {tasks.map((task) => (
-              <button key={task.id} type="button" onClick={task.action} className="flex w-full items-center justify-between gap-4 px-6 py-4 text-left transition hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--prism-signal) focus-visible:ring-inset">
+              <button key={task.id} type="button" onClick={task.action} className="flex w-full items-center justify-between gap-4 px-6 py-4 text-left transition hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset">
                 <span className="min-w-0">
                   <span className="block text-sm font-black text-foreground">{task.label}</span>
                   <span className="mt-1 block text-xs text-muted-foreground">{task.detail}</span>
@@ -150,7 +150,7 @@ export function EventTasksWorkspace({
           <CardHeader><h2 className="text-sm font-black text-foreground">PMCM action center</h2></CardHeader>
           <CardBody className="space-y-2">
             {actionCenter.length ? actionCenter.slice(0, 6).map((action) => (
-              <div key={action.id} className="border-l border-(--prism-signal) bg-muted/20 px-3 py-2">
+              <div key={action.id} className="border-l border-primary bg-muted/20 px-3 py-2">
                 <p className="text-xs font-black text-foreground">{action.label}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{action.detail}</p>
               </div>

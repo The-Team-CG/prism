@@ -6,15 +6,15 @@ import type { EventFileHubItem } from "./event-file-types";
 export function EventFileThumbnail({ item, active }: { item: EventFileHubItem; active: boolean }) {
   if (item.kind === "floorplan") {
     return (
-      <div className="relative h-28 overflow-hidden rounded-md border border-border bg-[#fff8f2]">
+      <div className="relative h-28 overflow-hidden rounded-md border border-border bg-page">
         <div className="absolute inset-0 bg-[linear-gradient(#eadbd3_1px,transparent_1px),linear-gradient(90deg,#eadbd3_1px,transparent_1px)] bg-size-[18px_18px]" />
         <div className="absolute left-4 top-4 h-14 w-24 rounded-sm border border-primary/30 bg-primary/10" />
         <div className="absolute bottom-4 right-4 grid grid-cols-3 gap-1">
           {Array.from({ length: 9 }).map((_, index) => (
-            <span key={index} className="size-3 rounded-full bg-(--prism-success)/55" />
+            <span key={index} className="size-3 rounded-full bg-success/55" />
           ))}
         </div>
-        <div className="absolute bottom-3 left-4 h-2 w-20 rounded-full bg-(--prism-amber)/70" />
+        <div className="absolute bottom-3 left-4 h-2 w-20 rounded-full bg-attention/70" />
       </div>
     );
   }

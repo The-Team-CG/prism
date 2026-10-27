@@ -34,7 +34,7 @@ export function ClientCloseoutView({ eventId, archived }: { eventId: string; arc
   if (!workspace) return <section className="rounded-xl border border-border bg-card p-5">{vm.error ?? "Loading closeout…"}</section>;
   return <section className="space-y-4 rounded-xl border border-border bg-card p-5">
     <div><p className="text-xs font-semibold text-muted-foreground">Event closeout</p><h2 className="mt-1 text-xl font-bold">Deliverables and feedback</h2><p className="mt-1 text-sm text-muted-foreground">Confirm receipt of the event documents and share feedback with the event team.</p></div>
-    {vm.error && <p role="alert" className="text-sm text-red-700">{vm.error}</p>}{vm.notice && <p role="status" className="text-sm text-green-700">{vm.notice}</p>}
+    {vm.error && <p role="alert" className="text-sm text-danger">{vm.error}</p>}{vm.notice && <p role="status" className="text-sm text-success">{vm.notice}</p>}
     {archived && <p className="rounded-lg border border-border p-3 text-sm text-muted-foreground">This event is archived. Acknowledgements and feedback are read-only.</p>}
     <label className="block text-sm">Acknowledgement note (optional)<input disabled={archived} value={note} onChange={(event) => setNote(event.target.value)} maxLength={2000} className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2" /></label>
     <WrapUpAcknowledgement wrapUp={workspace.wrapUp} busy={vm.busy} archived={archived} note={note} onAcknowledge={vm.acknowledgeWrapUp} />

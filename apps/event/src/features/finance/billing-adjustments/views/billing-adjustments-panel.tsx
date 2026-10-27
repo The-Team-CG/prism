@@ -5,7 +5,7 @@ import { money } from "@/features/pmcm-kit";
 import { useBillingAdjustmentsPanel } from "../view-models/use-billing-adjustments-panel";
 
 const fieldClass = "mt-1 block w-full rounded-md border border-border bg-white px-3 py-2 text-sm";
-const buttonClass = "h-9 rounded-md bg-(--prism-ink) px-4 text-xs font-black text-sidebar-foreground disabled:opacity-50";
+const buttonClass = "h-9 rounded-md bg-ink px-4 text-xs font-black text-sidebar-foreground disabled:opacity-50";
 
 type BillingAdjustmentsVm = ReturnType<typeof useBillingAdjustmentsPanel>;
 
@@ -30,8 +30,8 @@ export function BillingAdjustmentsPanel({
           Disputes, corrections, and additional billing are recorded by PMCM. Clients see dispute status only.
         </p>
       </div>
-      {vm.error ? <p role="alert" className="text-xs font-semibold text-red-700">{vm.error}</p> : null}
-      {vm.notice ? <p role="status" className="text-xs font-semibold text-(--prism-success)">{vm.notice}</p> : null}
+      {vm.error ? <p role="alert" className="text-xs font-semibold text-danger">{vm.error}</p> : null}
+      {vm.notice ? <p role="status" className="text-xs font-semibold text-success">{vm.notice}</p> : null}
 
       <div className="grid gap-5 xl:grid-cols-2">
         <DisputeSection vm={vm} />
