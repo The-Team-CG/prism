@@ -33,6 +33,7 @@ export function useGuestDashboardViewModel() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<GuestBusyAction>(null);
+  const [refreshFailed, setRefreshFailed] = useState(false);
 
   useEffect(() => {
     const current = loadGuestDashboardSession();
@@ -49,12 +50,14 @@ export function useGuestDashboardViewModel() {
     try {
       const next = await refreshGuestEventIfChanged(current);
       setSession(next);
+      setRefreshFailed(false);
     } catch (err) {
       if (isGuestAccessEndedError(err)) {
         leaveGuestEvent();
         router.replace("/open");
+        return;
       }
-      // Other poll errors are ignored; stale event data is acceptable until the next poll.
+      setRefreshFailed(true);
     }
   }, [session, router]);
 
@@ -108,7 +111,7 @@ export function useGuestDashboardViewModel() {
         consentAccepted: feedbackConsentAccepted,
       });
       setFeedbackSubmitted(true);
-      setNotice("Feedback submitted for moderation.");
+      setNotice("Feedback sent to PMCM for review. It will not be published automatically.");
       setFeedbackGuestName("");
       setFeedbackComment("");
       setStatus("ready");
@@ -159,6 +162,7 @@ export function useGuestDashboardViewModel() {
     error,
     notice,
     busy,
+    refreshFailed,
     canCheckIn: !checkedIn
       && !busy
       && checkInConsentAccepted

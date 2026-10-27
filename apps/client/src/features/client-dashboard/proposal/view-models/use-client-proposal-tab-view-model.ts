@@ -41,7 +41,7 @@ export function useClientProposalTabViewModel() {
       await proposalReviewRepository.review(event.id, input);
       pendingDecision.current = null;
       setRevisionNote("");
-      setNotice(action === "approve" ? "Proposal approved." : "Revision requested.");
+      setNotice(action === "approve" ? "Proposal approval recorded. PMCM can review your decision and continue planning." : "Revision request sent to PMCM. Your notes are recorded with this proposal.");
       await refresh();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not review the proposal.");

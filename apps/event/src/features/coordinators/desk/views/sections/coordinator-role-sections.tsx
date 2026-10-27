@@ -114,7 +114,7 @@ export function CoordinatorRoleBadgeCard({
       <CCardHeader>
         <div className="flex items-center gap-2">
           <BadgeCheck className="size-4 text-primary" />
-          <h3 className="text-sm font-bold text-foreground">Role badge</h3>
+          <h3 className="text-base font-semibold text-foreground">Your assignment and attendance</h3>
         </div>
       </CCardHeader>
       <CCardBody id="coordinator-attendance" className="scroll-mt-24">
@@ -168,7 +168,7 @@ function CoordinatorAttendanceControl({
 
   return (
     <div className="mt-5 border-t border-border pt-4">
-      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{copy.heading}</p>
+      <p className="text-sm font-semibold text-foreground">{copy.heading}</p>
       {copy.blockedReason ? (
         <p className="mt-2 text-sm text-muted-foreground">{copy.blockedReason}</p>
       ) : (
@@ -234,26 +234,15 @@ function CoordinatorAssignedBadge({
   const acknowledged = assignmentStatus === "acknowledged";
   return (
     <div>
-      <div className="rounded-xl bg-muted/50 p-5 text-center">
-        <p className="text-xs font-bold uppercase tracking-widest text-primary">Assigned role</p>
-        <p className="mt-2 text-2xl font-black text-foreground">{roleName}</p>
-        <div className="mt-3 flex flex-wrap justify-center gap-2">
-          <Badge
-            variant="outline"
-            className="rounded-full border-success/25 bg-success/8 px-3 py-1 text-success"
-          >
-            Role-safe view
-          </Badge>
-          <Badge variant="outline" className="rounded-full px-3 py-1">
-            {label(attendanceStatus)}
-          </Badge>
-        </div>
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <p className="text-lg font-semibold text-foreground">{roleName}</p>
+        <p className="text-sm text-muted-foreground">Attendance: {label(attendanceStatus)}</p>
       </div>
       {acknowledged ? (
-        <p className="mt-4 text-center text-sm font-semibold text-success">PMCM has your definite yes.</p>
+        <p className="mt-2 text-sm text-success">Assignment confirmed with PMCM.</p>
       ) : (
-        <Button disabled={busy} onClick={onAcknowledge} className="mt-4 w-full rounded-xl font-bold">
-          <CheckCircle2 className="size-4" /> Acknowledge role
+        <Button disabled={busy} onClick={onAcknowledge} className="mt-3 min-h-11 font-semibold">
+          <CheckCircle2 className="size-4" /> Confirm assignment
         </Button>
       )}
     </div>

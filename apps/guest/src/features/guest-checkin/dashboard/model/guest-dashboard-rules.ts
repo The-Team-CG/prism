@@ -46,7 +46,7 @@ export function buildCheckInPayload(input: {
 }
 
 export function checkInSuccessNotice(): string {
-  return "Check-in submitted.";
+  return "Check-in request received. The registration team can confirm your attendance.";
 }
 
 export function checkInButtonLabel(checkedIn: boolean): string {

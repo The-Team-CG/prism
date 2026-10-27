@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useListFilter } from "@/features/pmcm-kit";
 
 import { buildPublicInquiryLink, portalUrlFor, type PrismInquiry } from "@prism/types";
 import { portalUrlsFromEnvironment } from "@/lib/portal-urls";
@@ -39,11 +40,11 @@ export function InquiryIntakeLog({
   onLogOnBehalf: (input: LogInquiryOnBehalfInput) => Promise<void>;
   busy: boolean;
 }) {
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("all");
-  const [source, setSource] = useState("all");
-  const [clientType, setClientType] = useState("all");
-  const [dateRange, setDateRange] = useState("all");
+  const [query, setQuery] = useListFilter("q");
+  const [status, setStatus] = useListFilter("inquiryStatus", "all");
+  const [source, setSource] = useListFilter("inquirySource", "all");
+  const [clientType, setClientType] = useListFilter("clientType", "all");
+  const [dateRange, setDateRange] = useListFilter("dateRange", "all");
   const [opened, setOpened] = useState<PrismInquiry | null>(null);
   const [declining, setDeclining] = useState<PrismInquiry | null>(null);
   const [declineReason, setDeclineReason] = useState(declineReasons[0]);

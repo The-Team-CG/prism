@@ -11,6 +11,7 @@
     "./privacy-notice": "./src/privacy-notice.tsx",
     "./public-blocks": "./src/public-blocks.tsx",
     "./status-badge": "./src/status-badge.tsx",
+    "./format-date": "./src/format-date.ts",
     "./components/*": "./src/components/ui/*.tsx"
   },
   "scripts": {

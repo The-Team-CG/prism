@@ -70,7 +70,7 @@ const SECTION_RENDERERS: Record<SupplierDashboardSection, SectionRenderer> = {
       quoteNeedingSubmission={p.quoteNeedingSubmission}
       handoffPending={p.handoffPending}
       readinessBoard={p.readinessBoard}
-      onNavigate={p.onNavigate}
+      quoteByRequest={p.quoteByRequest}
     />
   ),
   requests: (p) => (

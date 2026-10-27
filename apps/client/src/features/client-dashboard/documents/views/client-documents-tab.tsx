@@ -68,17 +68,9 @@ export function ClientDocumentsTab({ documents }: { documents: PrismDocument[] }
   if (documents.length === 0) {
     return (
       <div className="space-y-5">
-        {matrix}
         {storedFiles}
-        <Card>
-        <CardBody>
-          <EmptyState
-            icon={LockKeyhole}
-            title="No documents yet"
-            description="Signed conforme files, billing statements, and approval documents will appear here."
-          />
-        </CardBody>
-      </Card>
+        {matrix}
+        <p className="text-sm text-muted-foreground">PMCM-issued document records will appear here when they are available.</p>
       </div>
     );
   }
@@ -94,8 +86,8 @@ export function ClientDocumentsTab({ documents }: { documents: PrismDocument[] }
 
   return (
     <div className="space-y-5">
-      {matrix}
       {storedFiles}
+      {matrix}
       <div className="flex items-center gap-3 rounded-2xl border border-border bg-card px-5 py-4 shadow-sm">
         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
           <FileText className="size-5" />

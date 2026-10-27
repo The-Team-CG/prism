@@ -45,11 +45,11 @@ export function ClientActionGroup({
                   <Icon className="size-4" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-center justify-between gap-2">
+                  <span className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-sm font-bold text-foreground">{action.title}</span>
                     <StatusBadge status={action.status} />
                   </span>
-                  <span className="mt-0.5 block text-xs leading-5 text-muted-foreground line-clamp-2">
+                  <span className="mt-1 block max-w-3xl text-sm leading-6 text-muted-foreground">
                     {action.description}
                   </span>
                   {action.eventName ? <span className="mt-1 block text-xs font-medium text-foreground">{action.eventName}</span> : null}

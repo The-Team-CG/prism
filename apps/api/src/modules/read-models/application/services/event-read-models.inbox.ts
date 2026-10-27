@@ -30,7 +30,7 @@ export type ClientChangeRequestRef = ClientChangeRequestSource & { eventId: stri
 const DOCUMENT_ACTION_STATUSES = ['needs_update', 'pending', 'rejected'];
 const FLOORPLAN_DRAFT_ACTION_STATUSES = ['submitted', 'in_review'];
 const CLOSED_QUOTE_REQUEST_STATUSES = ['selected', 'closed', 'cancelled'];
-const SETTLED_COORDINATOR_STATUSES = ['confirmed', 'checked_in', 'completed'];
+const SETTLED_COORDINATOR_STATUSES = ['acknowledged', 'confirmed', 'checked_in', 'completed'];
 const CLOSED_LIVE_OPS_STATUSES = ['done', 'resolved', 'cancelled', 'closed'];
 /** A decided change request stays in the client action center long enough for the client to review the outcome. */
 export const CLIENT_CHANGE_DECISION_REVIEW_DAYS = 14;
@@ -127,7 +127,7 @@ export function collectClientActionItems(input: {
   return items;
 }
 
-function collectClientEventActionItems(events: EventRef[], briefingEventIds: Set<string>) {
+function collectClientEventActionItems(events: ClientEventRef[], briefingEventIds: Set<string>) {
   const items: PrismClientActionItem[] = [];
   for (const event of events) {
     items.push(...clientEventActionItems(event, briefingEventIds));
@@ -135,8 +135,9 @@ function collectClientEventActionItems(events: EventRef[], briefingEventIds: Set
   return items;
 }
 
-function clientEventActionItems(event: EventRef, briefingEventIds: Set<string>): PrismClientActionItem[] {
+function clientEventActionItems(event: ClientEventRef, briefingEventIds: Set<string>): PrismClientActionItem[] {
   const items: PrismClientActionItem[] = [];
+  if (event.archived || event.actualEndedAt || ['completed', 'closed', 'cancelled'].includes(event.status)) return items;
   if (!briefingEventIds.has(event.id)) {
     items.push({
       id: `briefing:${event.id}`,
@@ -147,7 +148,6 @@ function clientEventActionItems(event: EventRef, briefingEventIds: Set<string>):
       status: 'missing',
       eventId: event.id,
       eventName: event.eventName,
-      dueAt: toIso(event.eventDate),
       href: `/dashboard/events/${event.id}/briefing`,
     });
   }
@@ -237,7 +237,7 @@ function clientDocumentActionItem(document: OpsDocument, events: EventRef[]): Pr
     id: `document:${document.id}`,
     kind: 'document',
     priority: document.status === 'rejected' ? 'warning' : 'attention',
-    label: 'Document needs attention',
+    label: document.status === 'pending' ? 'Document available to review' : 'Document needs an update',
     description: `${document.fileName} is ${document.status.replaceAll('_', ' ')}.`,
     status: document.status,
     eventId: event.id,
@@ -259,12 +259,14 @@ function clientFloorplanDraftActionItem(draft: OpsFloorPlanDraft, events: EventR
   if (!FLOORPLAN_DRAFT_ACTION_STATUSES.includes(draft.status)) return null;
   const event = eventById(events, draft.eventId);
   if (!event) return null;
+  const preference = draft.sourceType === 'client_preference';
+  if (!preference && event.floorPlanStatus === 'in_review') return null;
   return {
-    id: `floorplan:draft:${draft.id}`,
+    id: `floorplan:${preference ? 'preference' : 'draft'}:${draft.id}`,
     kind: 'floorplan',
     priority: 'attention',
-    label: 'Floorplan draft waiting for response',
-    description: `${draft.name} is ${draft.status.replaceAll('_', ' ')}.`,
+    label: preference ? 'Layout preferences awaiting PMCM review' : 'Review official floorplan',
+    description: preference ? `Your preferences for ${event.eventName} have been sent to PMCM.` : `${draft.name} is available for your review.`,
     status: draft.status,
     eventId: event.id,
     eventName: event.eventName,
@@ -458,18 +460,17 @@ function collectEventFloorplanInboxItems(events: EventRef[]) {
 }
 
 function eventFloorplanInboxItem(event: EventRef): PrismCommandInboxItem | null {
-  if (event.floorPlanStatus === 'approved') return null;
+  if (event.floorPlanStatus === 'approved' || ['completed', 'closed', 'cancelled'].includes(event.status)) return null;
   return {
     id: `floorplan:event:${event.id}`,
     kind: 'floorplan',
     severity: event.floorPlanStatus === 'in_review' ? 'attention' : 'info',
-    label: 'Official floorplan needs attention',
+    label: event.floorPlanStatus === 'in_review' ? 'Official floorplan in client review' : 'Prepare official floorplan',
     description: `${event.eventName} floorplan is ${event.floorPlanStatus.replaceAll('_', ' ')}.`,
     status: event.floorPlanStatus,
     eventId: event.id,
     eventName: event.eventName,
     clientName: event.clientName,
-    dueAt: toIso(event.eventDate),
     href: `/dashboard/events/${event.id}/floorplans`,
   };
 }
@@ -554,7 +555,7 @@ function coordinatorInboxItem(
     id: `coordinator:${assignment.id}`,
     kind: 'coordinator',
     severity: assignment.status === 'replacement_requested' ? 'critical' : 'warning',
-    label: 'Coordinator assignment needs confirmation',
+    label: ['declined', 'withdrawn', 'replacement_requested'].includes(assignment.status) ? 'Coordinator coverage needs review' : 'Coordinator assignment needs confirmation',
     description: `${assignment.coordinatorName} is ${assignment.status.replaceAll('_', ' ')} for ${event.eventName}.`,
     status: assignment.status,
     eventId: event.id,

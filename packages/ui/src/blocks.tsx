@@ -85,6 +85,7 @@ export function PrismSectionPanel({
 
 export interface PrismNoticeBannerProps {
   tone?: "info" | "success" | "warning" | "danger";
+  role?: "status" | "alert";
   title?: string;
   children: React.ReactNode;
   className?: string;
@@ -97,9 +98,10 @@ const noticeToneClasses: Record<NonNullable<PrismNoticeBannerProps["tone"]>, str
   danger: "border-primary/20 bg-primary/8 text-primary border-l-primary",
 };
 
-export function PrismNoticeBanner({ tone = "info", title, children, className }: PrismNoticeBannerProps) {
+export function PrismNoticeBanner({ tone = "info", role, title, children, className }: PrismNoticeBannerProps) {
   return (
     <div
+      role={role}
       className={cn(
         "rounded-lg border border-l-4 px-4 py-3 text-sm leading-6",
         noticeToneClasses[tone],
