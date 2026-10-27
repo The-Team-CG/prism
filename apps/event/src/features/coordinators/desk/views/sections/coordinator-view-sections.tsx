@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import {
   BadgeCheck,
   BellRing,
@@ -10,7 +12,6 @@ import {
   LockKeyhole,
   ShieldCheck,
   Truck,
-  UserCheck,
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
@@ -19,7 +20,6 @@ import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { label } from "@/features/pmcm-kit";
 import {
-  coordinatorAcknowledgeCopy,
   coordinatorAssignmentDetail,
   coordinatorGreetingCopy,
   coordinatorIssueActionCopy,
@@ -76,10 +76,9 @@ function StatusSummaryCard({ item }: { item: StatusSummaryItem }) {
           </span>
         ) : null}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-3xs font-black uppercase tracking-widest text-muted-foreground">{item.label}</p>
+          <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-sm font-black text-foreground">
             <span className="min-w-0 truncate">{item.value}</span>
-            {item.status ? <StatusBadge status={item.status} /> : null}
           </div>
           {item.detail ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{item.detail}</p> : null}
         </div>
@@ -293,18 +292,18 @@ export function CoordinatorStatusSummary({
         {
           id: "suppliers",
           label: "Supplier setup",
-          value: roleViewLoading ? "Loading" : roleView?.supplierStatuses.length ?? 0,
+          value: roleViewLoading ? "Loading" : !roleView || roleDataStatus === "unavailable" ? "Unavailable" : `${roleView.supplierStatuses.length} supplier updates`,
           icon: Truck,
           status: roleDataStatus,
-          detail: "Readiness signals only.",
+          detail: "Reported preparation and onsite updates.",
         },
         {
           id: "attendance",
           label: "Guest attendance",
-          value: roleViewLoading ? "—" : roleView?.guestAttendanceCount ?? 0,
+          value: roleViewLoading ? "Loading" : !roleView || roleDataStatus === "unavailable" ? "Unavailable" : roleView.guestAttendanceCount,
           icon: UsersRound,
           status: roleDataStatus,
-          detail: registrationRole ? "Registration role: check-in context visible." : "Aggregate count only.",
+          detail: registrationRole ? "Open Registration to review check-ins." : "Recorded event attendance count.",
         },
         {
           id: "assignment",
@@ -320,21 +319,16 @@ export function CoordinatorStatusSummary({
 }
 
 export function CoordinatorEventDayActions({
-  assignment,
-  busy,
   roleViewLoading,
   roleViewError,
   roleView,
-  attendanceStatus,
-  onAcknowledge,
   scrollTo,
 }: Pick<
   CoordinatorWorkspaceModel,
-  "assignment" | "busy" | "roleViewLoading" | "roleViewError" | "roleView" | "scrollTo"
-> & { attendanceStatus: string; onAcknowledge: () => void }) {
-  const ack = coordinatorAcknowledgeCopy(assignment?.status);
-  const taskCopy = coordinatorTaskActionCopy(roleViewLoading, roleViewError, roleView?.tasks.length ?? 0);
-  const issueCopy = coordinatorIssueActionCopy(roleViewLoading, roleViewError, roleView?.urgentIssues.length ?? 0);
+  "roleViewLoading" | "roleViewError" | "roleView" | "scrollTo"
+>) {
+  const taskCopy = coordinatorTaskActionCopy(roleViewLoading, roleViewError, roleView?.tasks.filter((task) => !["done", "cancelled", "closed"].includes(task.status)).length ?? 0);
+  const issueCopy = coordinatorIssueActionCopy(roleViewLoading, roleViewError, roleView?.urgentIssues.filter((issue) => !["resolved", "cancelled", "closed"].includes(issue.status)).length ?? 0);
 
   return (
     <CCard>
@@ -348,18 +342,8 @@ export function CoordinatorEventDayActions({
         <EventDayActionGroup
           actions={[
             {
-              id: "acknowledge",
-              label: ack.label,
-              description: ack.description,
-              icon: BadgeCheck,
-              status: assignment?.status ?? "pending",
-              active: ack.active,
-              disabled: busy || !assignment || assignment.status === "acknowledged",
-              onSelect: onAcknowledge,
-            },
-            {
               id: "queue",
-              label: "Run role queue",
+              label: "Review tasks",
               description: taskCopy.description,
               icon: ClipboardList,
               status: taskCopy.status,
@@ -367,21 +351,11 @@ export function CoordinatorEventDayActions({
             },
             {
               id: "issues",
-              label: "Review urgent issues",
+              label: "Review or report an issue",
               description: issueCopy.description,
               icon: BellRing,
               status: issueCopy.status,
               onSelect: () => scrollTo("coordinator-live-data"),
-            },
-            {
-              id: "attendance",
-              label: "Attendance state",
-              description: assignment
-                ? `Current attendance is ${label(attendanceStatus)}.`
-                : "No assignment state available.",
-              icon: UserCheck,
-              status: attendanceStatus,
-              onSelect: () => scrollTo("coordinator-attendance"),
             },
           ]}
         />
@@ -390,21 +364,42 @@ export function CoordinatorEventDayActions({
   );
 }
 
-export function CoordinatorTimelineCard({ roleView }: { roleView: PrismCoordinatorRoleView | null }) {
+export function CoordinatorTimelineCard({ roleView, readOnly = false }: { roleView: PrismCoordinatorRoleView | null; readOnly?: boolean }) {
+  const [view, setView] = useState<"run-sheet" | "brief" | "reports">("run-sheet");
   return (
     <CCard>
       <CCardHeader>
         <div className="flex items-center gap-2">
           <CalendarClock className="size-4 text-primary" />
-          <h3 className="text-sm font-bold text-foreground">Critical timeline</h3>
+          <h2 className="text-base font-semibold text-foreground">Run sheet and shift records</h2>
+        </div>
+        <p className="mt-2 text-sm text-muted-foreground">Follow the live timeline, review your handoff brief or record shift reports.</p>
+        <div role="group" aria-label="Run sheet views" className="mt-4 flex flex-wrap gap-2">
+          {([
+            { id: "run-sheet", label: "Live run sheet" },
+            { id: "brief", label: "Handoff brief" },
+            { id: "reports", label: "Schedule and reports" },
+          ] as const).map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              aria-pressed={view === item.id}
+              onClick={() => setView(item.id)}
+              className={view === item.id
+                ? "min-h-11 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                : "min-h-11 rounded-md px-3 text-sm text-muted-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
       </CCardHeader>
       <CCardBody id="coordinator-timeline" className="scroll-mt-24 space-y-3">
-        {roleView?.schedule ? <LiveOpsControlSurface eventId={roleView.event.id} schedule={roleView.schedule} timer={roleView.timer} /> : (
+        <fieldset disabled={readOnly} hidden={view !== "run-sheet"} className="min-w-0">{roleView?.schedule ? <LiveOpsControlSurface eventId={roleView.event.id} schedule={roleView.schedule} timer={roleView.timer} /> : (
           <p className="rounded-xl bg-muted/40 p-4 text-sm text-muted-foreground">No event schedule has been published yet. Check with PMCM for the latest timing.</p>
-        )}
-        {roleView ? <HandoffBriefPanel eventId={roleView.event.id} /> : null}
-        {roleView ? (
+        )}</fieldset>
+        {roleView ? <fieldset disabled={readOnly} hidden={view !== "brief"} className="min-w-0"><HandoffBriefPanel eventId={roleView.event.id} /></fieldset> : null}
+        {roleView ? <fieldset disabled={readOnly} hidden={view !== "reports"} className="min-w-0">
           <LiveOpsScheduleDesk
             eventId={roleView.event.id}
             assignments={roleView.coordinatorAssignments}
@@ -412,7 +407,7 @@ export function CoordinatorTimelineCard({ roleView }: { roleView: PrismCoordinat
             canReplyToReports={false}
             canSubmitReports
           />
-        ) : null}
+        </fieldset> : null}
       </CCardBody>
     </CCard>
   );

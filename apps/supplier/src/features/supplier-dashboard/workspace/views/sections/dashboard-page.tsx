@@ -1,99 +1,62 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
-import type { PrismSupplierReadinessItem } from "@prism/types";
-import {
-  fmt,
-  groupReadinessItemsByEvent,
-  readinessConcernLabel,
-  readinessSetupLabel,
-  readinessTone,
-  supplierReadinessSection,
-} from "../../model/supplier-workspace-rules";
-import type { PrismSupplierReadinessBoard, SupplierDashboardSection } from "../../model/supplier-workspace-types";
+import Link from "next/link";
+import { formatPortalDateTime } from "@prism/ui/format-date";
+import type { PrismSupplierQuote, PrismSupplierReadinessItem, PrismSupplierReadinessBoard } from "@prism/types";
+import { groupReadinessItemsByEvent, readinessConcernLabel, readinessSetupLabel } from "../../model/supplier-workspace-rules";
+import { supplierNextStep, supplierWorkHref } from "../../model/supplier-next-step";
 import { Card, CardBody, CardHeader } from "./shell-ui";
 
-function ReadinessItem({ item, onNavigate }: {
-  item: PrismSupplierReadinessItem;
-  onNavigate: (section: SupplierDashboardSection) => void;
-}) {
-  const section = supplierReadinessSection(item);
+function ReadinessItem({ item, hasQuote }: { item: PrismSupplierReadinessItem; hasQuote: boolean }) {
+  const next = supplierNextStep(item, hasQuote);
+  const selected = item.quoteStatus === "selected";
   return (
-    <button
-      type="button"
-      onClick={() => onNavigate(section)}
-      aria-label={`${item.category}: open ${section === "bookings" ? "bookings" : "quote requests"}`}
-      className="flex w-full items-start justify-between gap-4 rounded-lg px-3 py-3 text-left hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-    >
-      <span className="min-w-0">
-        <span className="block text-sm font-semibold text-foreground">{item.category}</span>
-        <span className="mt-1 block text-xs text-muted-foreground">Request {item.requestId}</span>
-        <span className="mt-1 block text-sm leading-5 text-muted-foreground">
-          Quote {fmt(item.quoteStatus)} · assignment {fmt(item.assignmentStatus ?? "pending")} · readiness {fmt(item.readinessStatus ?? "not confirmed")} · contract {fmt(item.contractStatus)} · {readinessSetupLabel(item.setupStatus)}
-        </span>
-        {item.schedule ? (
-          <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-            Ingress {new Date(item.schedule.ingressAt).toLocaleString()} · Egress {new Date(item.schedule.egressAt).toLocaleString()} · {item.schedule.acknowledged ? "schedule acknowledged" : "schedule needs your acknowledgment"}
-          </span>
-        ) : null}
-        {item.ingressLate ? <span className="mt-1 block text-xs font-semibold text-danger">Ingress time has passed without an arrival report.</span> : null}
-        {item.concerns.map((concern) => (
-          <span key={`${concern.kind}:${concern.at ?? ""}`} className="mt-1 block text-xs text-attention">
-            {readinessConcernLabel(concern.kind)}: {concern.message}
-          </span>
-        ))}
-      </span>
-      <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold capitalize ${readinessTone(item.priority)}`}>{fmt(item.priority)}</span>
-    </button>
+    <article className="py-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h4 className="text-base font-semibold text-foreground">{next.title}</h4>
+        <p className={item.ingressLate ? "text-sm font-medium text-danger" : "text-xs text-muted-foreground"}>{next.owner}</p>
+      </div>
+      <p className="mt-1 text-sm font-medium text-foreground">{item.category}</p>
+      <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{next.detail}</p>
+      {!selected ? <p className="mt-2 text-sm text-muted-foreground">Quote deadline: {formatPortalDateTime(item.dueAt, "Not specified")}</p> : null}
+      {selected ? (
+        <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+          <div><dt className="text-xs text-muted-foreground">Contract</dt><dd className="mt-1">{item.contractStatus.replaceAll("_", " ")}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Preparation</dt><dd className="mt-1">{item.readinessStatus === "confirmed" ? "Readiness confirmed" : "Readiness not confirmed"}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Onsite</dt><dd className="mt-1">{readinessSetupLabel(item.setupStatus)}</dd></div>
+        </dl>
+      ) : null}
+      {item.schedule ? <p className="mt-3 text-sm text-muted-foreground">Arrival: {formatPortalDateTime(item.schedule.ingressAt)} · {item.schedule.location || "Location not specified"}</p> : null}
+      {item.concerns.map((concern) => <p key={concern.kind + ":" + (concern.at ?? "")} className="mt-2 text-sm text-attention">{readinessConcernLabel(concern.kind)}: {concern.message}</p>)}
+      <Link href={supplierWorkHref(item)} className="mt-3 inline-flex min-h-11 items-center rounded-md px-1 text-sm font-semibold text-primary outline-none focus-visible:ring-2 focus-visible:ring-primary">{next.action}<span className="sr-only"> for {item.category} at {item.eventName}</span></Link>
+    </article>
   );
 }
 
-export function DashboardPage({ readinessBoard, quoteNeedingSubmission, handoffPending, onNavigate }: {
+export function DashboardPage({ readinessBoard, quoteByRequest, quoteNeedingSubmission, handoffPending }: {
   readinessBoard: PrismSupplierReadinessBoard | null;
+  quoteByRequest: Map<string, PrismSupplierQuote>;
   quoteNeedingSubmission: number;
   handoffPending: number;
-  onNavigate: (section: SupplierDashboardSection) => void;
 }) {
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_18rem]">
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_17rem]">
       <Card>
-        <CardHeader>
-          <h2 className="text-lg font-semibold text-foreground">Your work</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Quotes and booking updates, grouped by event.</p>
-        </CardHeader>
+        <CardHeader><h2 className="text-lg font-semibold text-foreground">Your next steps</h2><p className="mt-1 text-sm text-muted-foreground">Quote requests and booked work, with the next action for each.</p>{readinessBoard ? <p className="mt-2 text-xs text-muted-foreground">Updated {formatPortalDateTime(readinessBoard.generatedAt)} · Philippine time</p> : null}</CardHeader>
         <CardBody>
-          {!readinessBoard ? (
-            <p role="status" className="text-sm text-muted-foreground">Your work could not be loaded. Refresh to try again.</p>
-          ) : readinessBoard.items.length ? (
-            <div className="space-y-5">
-              {groupReadinessItemsByEvent(readinessBoard.items).map((group) => (
-                <section key={group.eventId} aria-label={`${group.eventName} work`}>
-                  <h3 className="px-3 text-sm font-semibold text-foreground">{group.eventName}</h3>
-                  <div className="mt-1 divide-y divide-border">
-                    {group.items.map((item) => <ReadinessItem key={item.id} item={item} onNavigate={onNavigate} />)}
-                  </div>
-                </section>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">There are no quote or booking updates to review.</p>
-          )}
+          {!readinessBoard ? <p role="status" className="text-sm text-muted-foreground">We could not load your work. Use Refresh above to try again.</p> : readinessBoard.items.length ? groupReadinessItemsByEvent(readinessBoard.items).map((group) => (
+            <section key={group.eventId} aria-label={group.eventName + " work"} className="mb-5 last:mb-0">
+              <h3 className="border-b border-border pb-3 text-base font-semibold text-foreground">{group.eventName}</h3>
+              <div className="divide-y divide-border">{group.items.map((item) => <ReadinessItem key={item.id} item={item} hasQuote={quoteByRequest.has(item.requestId)} />)}</div>
+            </section>
+          )) : <p className="text-sm text-muted-foreground">No requests or booking updates to review. New work from PMCM will appear here.</p>}
         </CardBody>
       </Card>
-      <Card>
-        <CardHeader><h2 className="text-lg font-semibold text-foreground">Quick access</h2></CardHeader>
-        <CardBody className="space-y-3">
-          <Button variant="outline" className="h-auto w-full justify-between py-3 text-left" onClick={() => onNavigate("requests")}>
-            <span><span className="block">Requests & quotes</span><span className="block text-xs font-normal text-muted-foreground">{quoteNeedingSubmission} awaiting a quote</span></span>
-            <ArrowRight className="size-4" />
-          </Button>
-          <Button variant="outline" className="h-auto w-full justify-between py-3 text-left" onClick={() => onNavigate("bookings")}>
-            <span><span className="block">Bookings</span><span className="block text-xs font-normal text-muted-foreground">{handoffPending} with steps to complete</span></span>
-            <ArrowRight className="size-4" />
-          </Button>
-        </CardBody>
-      </Card>
+      <aside className="space-y-4">
+        <Link href="/dashboard/requests" className="block rounded-lg bg-card p-5 outline-none focus-visible:ring-2 focus-visible:ring-primary"><p className="text-sm font-semibold text-foreground">Requests & quotes</p><p className="mt-2 text-sm text-muted-foreground">{quoteNeedingSubmission} awaiting your quote</p></Link>
+        <Link href="/dashboard/bookings" className="block rounded-lg bg-card p-5 outline-none focus-visible:ring-2 focus-visible:ring-primary"><p className="text-sm font-semibold text-foreground">Bookings</p><p className="mt-2 text-sm text-muted-foreground">{handoffPending} with preparation steps remaining</p></Link>
+        <p className="px-1 text-xs leading-5 text-muted-foreground">A submitted quote is an offer. PMCM selection, your confirmation and contract review are separate steps.</p>
+      </aside>
     </div>
   );
 }

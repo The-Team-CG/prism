@@ -60,9 +60,9 @@ export function ClientBillingTab({
       {totalAmount > 0 && (
         <div className="grid gap-3 sm:grid-cols-3">
           {[
-            { label: "Total contract", value: money.format(totalAmount), color: "text-foreground" },
-            { label: "Paid to date", value: money.format(totalPaid), color: "text-success" },
-            { label: "Balance due", value: money.format(balance), color: balance > 0 ? "text-attention" : "text-success" },
+            { label: billing ? "Statement total" : "Scheduled payments total", value: money.format(totalAmount), color: "text-foreground" },
+            { label: "Payments recorded", value: money.format(totalPaid), color: "text-success" },
+            { label: "Remaining scheduled balance", value: money.format(balance), color: balance > 0 ? "text-attention" : "text-success" },
           ].map((stat) => (
             <div key={stat.label} className="rounded-2xl border border-border bg-card px-5 py-4 shadow-sm">
               <p className="text-xs font-semibold text-muted-foreground">{stat.label}</p>

@@ -25,9 +25,10 @@ export function ClientHomeView() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2">
-        <Button onClick={() => router.push("/dashboard/request")}>New event request</Button>
+        <Button variant="outline" onClick={() => router.push("/dashboard/request")}>New event request</Button>
         <Button variant="outline" onClick={() => router.push(CLIENT_CONFORME_REVIEW_HREF)}>Review conforme</Button>
       </div>
+      {actionCenterLoadFailed && actionCenter ? <p role="alert" className="rounded-md bg-attention-soft p-4 text-sm text-attention">The latest refresh failed. These are your last loaded updates. Refresh the page to try again.</p> : null}
       {actionCenter || actionCenterLoadFailed ? (
         <ClientHomeActionCenter
           actionCenter={actionCenter}

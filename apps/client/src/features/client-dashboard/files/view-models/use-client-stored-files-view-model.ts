@@ -22,6 +22,8 @@ export function useClientStoredFilesViewModel(eventId?: string) {
   const [busy, setBusy] = useState(false);
   const [activeDownload, setActiveDownload] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [loading, setLoading] = useState(Boolean(eventId));
 
   async function refresh(forEventId: string) {
     const result = await clientStoredFilesRepository.list(forEventId);
@@ -32,13 +34,24 @@ export function useClientStoredFilesViewModel(eventId?: string) {
     let active = true;
     setFiles([]);
     setError(null);
+    setNotice(null);
+    setLoading(Boolean(eventId));
     setActiveDownload(null);
     if (!eventId) return () => { active = false; };
     clientStoredFilesRepository.list(eventId)
       .then((result) => { if (active) { setFiles(result.filter((file) => file.lifecycleState !== "deleted")); setError(null); } })
-      .catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : "Unable to load files."); });
+      .catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : "Unable to load files."); })
+      .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [eventId]);
+
+  async function refreshAfterUpload(uploadEventId: string) {
+    try {
+      await refresh(uploadEventId);
+    } catch {
+      if (activeEventIdRef.current === uploadEventId) setError("Your file was uploaded, but the list could not refresh. Reload this page to see the updated files.");
+    }
+  }
 
   async function uploadSelectedFile(file?: File) {
     if (!file || !eventId) return;
@@ -48,10 +61,12 @@ export function useClientStoredFilesViewModel(eventId?: string) {
     uploadAttempts.current.set(fileKey, attemptId);
     setBusy(true);
     setError(null);
+    setNotice(null);
     try {
       await clientStoredFilesRepository.upload(file, uploadEventId, "client_document", attemptId);
-      await refresh(uploadEventId);
+      if (activeEventIdRef.current === uploadEventId) setNotice(`${file.name} uploaded. PMCM can review it for this event.`);
       uploadAttempts.current.delete(fileKey);
+      await refreshAfterUpload(uploadEventId);
     } catch (reason) {
       if (activeEventIdRef.current === uploadEventId) setError(reason instanceof Error ? reason.message : "Unable to upload this file.");
     } finally {
@@ -74,5 +89,5 @@ export function useClientStoredFilesViewModel(eventId?: string) {
     }
   }
 
-  return { inputRef, files, busy, activeDownload, error, uploadSelectedFile, downloadFile };
+  return { inputRef, files, busy, activeDownload, error, notice, loading, uploadSelectedFile, downloadFile };
 }

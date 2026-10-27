@@ -12,6 +12,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
+import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { ClientActionGroup } from "../../../shared/client-action-group";
 import {
@@ -186,7 +187,7 @@ export function ClientHomeActionCenter({
       <section aria-labelledby="client-action-center-heading" className="space-y-4">
         <h2 id="client-action-center-heading" className="text-base font-black text-foreground">Action center</h2>
         <div role="status" className="rounded-2xl border border-attention/20 bg-attention/8 px-5 py-6 text-sm text-muted-foreground">
-          Action center data is temporarily unavailable. Refresh to check for persisted next actions.
+          We could not load your event updates. Refresh the page to try again.
         </div>
       </section>
     );
@@ -201,7 +202,7 @@ export function ClientHomeActionCenter({
             <CheckCircle2 className="size-5 text-success" />
           </span>
           <h3 className="mt-4 text-sm font-bold text-foreground">No pending actions</h3>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">Everything here is up to date. PMCM will notify you when something needs your attention.</p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">No pending items were returned in this update. You can still open an event to review its progress.</p>
         </div>
       </section>
     );
@@ -209,7 +210,15 @@ export function ClientHomeActionCenter({
   return (
     <section aria-labelledby="client-action-center-heading" className="space-y-4">
       <h2 id="client-action-center-heading" className="text-base font-black text-foreground">Action center</h2>
-      <ClientActionGroup title="Event updates" description="Review the next steps for your events." actions={clientActions} onAction={runClientAction} showDetailsAndCta />
+      <p className="text-xs text-muted-foreground">Updated {formatPortalDateTime(actionCenter.generatedAt)} · Philippine time</p>
+      {([
+        { actor: "you", title: "Needs your action", description: "Review these items and choose the next step." },
+        { actor: "pmcm", title: "Waiting for PMCM", description: "Your item is with PMCM. Open it to review the current status." },
+        { actor: "update", title: "Available to review", description: "New records and information for your events." },
+      ] as const).map((group) => {
+        const actions = clientActions.filter((action) => (action.nextActor ?? "you") === group.actor);
+        return actions.length ? <ClientActionGroup key={group.actor} title={group.title} description={group.description} actions={actions} onAction={runClientAction} showDetailsAndCta /> : null;
+      })}
     </section>
   );
 }
@@ -225,6 +234,10 @@ export function ClientHomeEvents({
   onRequest: () => void;
   onOpen: (eventId: string) => void;
 }) {
+  const isPastEvent = (event: PrismEvent) => ["completed", "cancelled", "closed"].includes(event.status);
+  const upcomingEvents = events.filter((event) => !isPastEvent(event)).sort((left, right) => left.eventDate.localeCompare(right.eventDate));
+  const pastEvents = events.filter(isPastEvent).sort((left, right) => right.eventDate.localeCompare(left.eventDate));
+  const previewEvents = [...upcomingEvents, ...pastEvents].slice(0, 3);
   if (events.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-8 py-12 text-center">
@@ -255,11 +268,12 @@ export function ClientHomeEvents({
         </button>
       </div>
       <div className="divide-y divide-border rounded-lg border border-border bg-card">
-        {events.slice(0, 3).map((ev) => (
+        {previewEvents.map((ev) => (
           <div key={ev.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
             <div className="min-w-0">
               <p className="font-semibold text-foreground">{ev.eventName}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{ev.eventDate} · {ev.status.replaceAll("_", " ")}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{formatPortalDate(ev.eventDate)} · {ev.status.replaceAll("_", " ")}</p>
+              {ev.venue ? <p className="mt-1 text-xs text-muted-foreground">{ev.venue}</p> : null}
             </div>
             <Button variant="outline" onClick={() => onOpen(ev.id)}>Open event</Button>
           </div>
