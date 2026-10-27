@@ -33,7 +33,7 @@ import {
 import { startDashboardSessionLoad } from "../use-cases/start-dashboard-session-load";
 import { usePmcmSelectedEventWorkspace } from "@/features/event-workspace/shell";
 import { useEventDayLiveUpdates } from "@/features/live-ops/workspace";
-import type { DashboardSection, DetailTab } from "../model/event-dashboard-routing";
+import { sectionNeedsPmcmWorkspaceState, type DashboardSection, type DetailTab } from "../model/event-dashboard-routing";
 
 type ScreenName = "portal" | "editor";
 type WorkspaceStatus = "idle" | "loading" | "ready" | "error";
@@ -120,7 +120,7 @@ export function useEventDashboardWorkspaceViewModel({
         setStatus("ready");
         return;
       }
-      const shouldLoadBroadState = section !== "dashboard" && section !== "command-inbox";
+      const shouldLoadBroadState = sectionNeedsPmcmWorkspaceState(section);
       const [next, requests, inboxResult] = await Promise.all([
         shouldLoadBroadState ? loadPmcmState(true) : Promise.resolve(state),
         loadApprovalRequests(true),
@@ -153,7 +153,7 @@ export function useEventDashboardWorkspaceViewModel({
 
   useEffect(() => {
     if (!session || session.role !== "pmcm-admin") return;
-    if (section === "dashboard" || section === "command-inbox" || section === "suppliers") {
+    if (!sectionNeedsPmcmWorkspaceState(section)) {
       setState(null);
       return;
     }
