@@ -8,19 +8,81 @@ permissions:
   contents: read
   security-events: write
   actions: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   monorepo:
-    uses: The-Team-CG/.github/.github/workflows/ci-node.yml@v2
-    with:
-      working_directory: .
-      node_version: "24"
-      package_manager: npm
-      install_command: npm ci
-      typecheck_command: npm run check:migrations && npm run check:domain-persistence && npm run check:invariants && npm run check:test-clocks && npm run check:complexity && npm run check:boundaries && npm run typecheck
-      test_command: npm run test:migrations && npm run test:domain-persistence && npm run test:invariants && npm run test:test-clocks && npm --workspace @prism/types run test && npm --workspace @prism/api-client run test && npm --workspace prism-api run test:db:connection && npm --workspace prism-api run test:db:preflight:quote-request-fk && npm --workspace prism-api run test:db:schema-equivalence && npm run test:api:coverage && npm run test:coverage --workspace=@prism/client && npm run test:coverage --workspace=@prism/event && npm run test:coverage --workspace=@prism/guest && npm run test:coverage --workspace=@prism/supplier && npm run test:boundaries
-      audit_command: node scripts/npm-audit-ci.mjs
-      build_command: PRISM_VERCEL_SERVICES=1 npm run build
-    secrets: inherit
+    name: Node CI
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      # Pull requests run turbo tasks only for the workspaces they change and their dependents.
+      # Pushes to staging, prod and main run every task. Unchanged tasks replay from the turbo cache either way.
+      TURBO_AFFECTED: ${{ github.event_name == 'pull_request' && '--affected' || '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # turbo --affected diffs against the pull request base, which needs the history.
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          check-latest: true
+          cache: npm
+
+      - name: Turbo cache
+        uses: actions/cache@v6
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Dependency audit
+        run: node scripts/npm-audit-ci.mjs
+
+      # Repository-wide gates. They always run in full: migrations, persistence ownership, invariants and boundaries.
+      - name: Repository checks
+        run: >-
+          npm run check:migrations && npm run check:domain-persistence && npm run check:invariants &&
+          npm run check:test-clocks && npm run check:complexity && npm run check:boundaries
+
+      - name: Lint and typecheck
+        run: npx turbo run lint typecheck $TURBO_AFFECTED
+
+      - name: Script and database guard tests
+        run: >-
+          npm run test:migrations && npm run test:domain-persistence && npm run test:invariants &&
+          npm run test:test-clocks && npm --workspace prism-api run test:db:connection &&
+          npm --workspace prism-api run test:db:preflight:quote-request-fk &&
+          npm --workspace prism-api run test:db:schema-equivalence && npm run test:boundaries
+
+      # One suite at a time: the API and portal suites each start their own vitest workers and time out when run together.
+      - name: Workspace tests with coverage
+        env:
+          CI: "true"
+        run: npx turbo run test:ci --concurrency=1 $TURBO_AFFECTED
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        continue-on-error: true
+        with:
+          name: coverage-${{ github.run_id }}
+          path: |
+            **/coverage/lcov.info
+            !node_modules/**
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Build
+        run: PRISM_VERCEL_SERVICES=1 npx turbo run build
   gitleaks:
     uses: The-Team-CG/.github/.github/workflows/security-gitleaks.yml@v2
     secrets: inherit
