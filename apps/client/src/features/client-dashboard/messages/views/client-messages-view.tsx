@@ -92,11 +92,11 @@ function MessagesBody({ vm, hasEvents }: { vm: MessagesVm; hasEvents: boolean })
 
 export function ClientMessagesView() {
   const { events, isEventScopedView } = useClientWorkspace();
-  const vm = useClientMessagesViewModel();
+  const vm = useClientMessagesViewModel(isEventScopedView);
   return (
     <div className="space-y-4">
-      {!isEventScopedView ? <ClientAccountEventPicker purpose="messages" /> : null}
-      <MessagesBody vm={vm} hasEvents={events.length > 0} />
+      {!isEventScopedView ? <ClientAccountEventPicker purpose="messages" destination="messages" /> : null}
+      {isEventScopedView || events.length === 0 ? <MessagesBody vm={vm} hasEvents={events.length > 0} /> : null}
     </div>
   );
 }
