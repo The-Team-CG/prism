@@ -39,6 +39,7 @@
   --prism-ink-raised: #2a1f29;
   --prism-ink-line: #4a3945;
   --prism-page: #fff8f2;
+  --prism-page-strong: #f8ebe1;
   --prism-surface: #ffffff;
   --prism-surface-raised: #fff4ec;
   --prism-muted: #62535c;
@@ -99,7 +100,13 @@
   --sidebar-accent-foreground: var(--prism-surface);
   --sidebar-border: var(--prism-ink-line);
   --sidebar-ring: var(--prism-magenta);
+  --prism-portal-current: var(--prism-magenta);
 }
+
+.prism-shell[data-portal="client"] { --prism-portal-current: var(--prism-portal-client); }
+.prism-shell[data-portal="supplier"] { --prism-portal-current: var(--prism-portal-supplier); }
+.prism-shell[data-portal="guest"] { --prism-portal-current: var(--prism-portal-guest); }
+.prism-shell[data-portal="event"] { --prism-portal-current: var(--prism-portal-event); }
 
 @theme inline {
   --color-background: var(--background);
@@ -162,6 +169,20 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* The signed-in portal frame: a white sidebar frame around the page-toned content sheet.
+   On phones the sidebar opens as a sheet outside the frame, so it takes the same values. */
+.prism-shell,
+[data-slot="sidebar"][data-mobile="true"] {
+  --sidebar: var(--prism-surface);
+  --sidebar-foreground: var(--prism-ink);
+  --sidebar-primary: var(--prism-magenta);
+  --sidebar-primary-foreground: var(--prism-surface);
+  --sidebar-accent: var(--prism-page-strong);
+  --sidebar-accent-foreground: var(--prism-ink);
+  --sidebar-border: var(--prism-line);
+  --sidebar-ring: var(--prism-magenta);
 }
 
 @layer base {

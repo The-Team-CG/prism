@@ -69,9 +69,12 @@ export interface PrismAccountMenuItem {
 }
 
 export interface PrismAppShellProps {
+  /** Which portal this shell frames; sets the portal identity in the frame. */
+  portal: "client" | "supplier" | "guest" | "event";
   productLabel?: string;
   roleLabel: string;
-  eyebrow: string;
+  /** @deprecated Eyebrows are not shown; the title names the page. */
+  eyebrow?: string;
   title: string;
   description?: string;
   activeItemId: string;

@@ -52,6 +52,7 @@ export function ClientDashboardLoadingShell({
 
   return (
     <PrismDashboardShell
+      portal="client"
       productLabel="P.R.I.S.M"
       roleLabel="Client Portal"
       eyebrow={copy.eyebrow}

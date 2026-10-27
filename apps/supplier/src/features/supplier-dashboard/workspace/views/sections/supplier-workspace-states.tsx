@@ -11,6 +11,20 @@ export function SupplierWorkspaceLoading() {
   );
 }
 
+/** Placeholder rows inside the shell while the workspace loads. */
+export function SupplierWorkspaceSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Loading your workspace" className="grid gap-4">
+      <div className="grid gap-4 md:grid-cols-3">
+        {[0, 1, 2].map((key) => (
+          <div key={key} className="h-24 animate-pulse rounded-lg border border-border bg-card" />
+        ))}
+      </div>
+      <div className="h-72 animate-pulse rounded-lg border border-border bg-card" />
+    </div>
+  );
+}
+
 export function SupplierWrongPortalView({ onSignIn }: { onSignIn: () => void }) {
   return (
     <main className="grid min-h-screen place-items-center bg-background px-6">
