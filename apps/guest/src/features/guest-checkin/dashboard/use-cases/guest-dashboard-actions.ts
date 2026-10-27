@@ -23,8 +23,13 @@ export async function refreshGuestEvent(
 export async function refreshGuestEventIfChanged(
   session: GuestSession,
 ): Promise<GuestSession> {
-  const { watermark } = await guestDashboardRepository.fetchWatermark(session);
-  if (session.watermark === watermark) return session;
+  const { watermark, feedbackAvailability } = await guestDashboardRepository.fetchWatermark(session);
+  if (session.watermark === watermark && session.feedbackAvailability === feedbackAvailability) return session;
+  if (session.watermark === watermark) {
+    const next = { ...session, feedbackAvailability };
+    guestDashboardRepository.saveSession(next);
+    return next;
+  }
   return refreshGuestEvent(session);
 }
 

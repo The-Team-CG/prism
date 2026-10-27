@@ -1,15 +1,11 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   checkInButtonLabel,
-  formatFileSize,
-  isFileWithinSizeLimit,
   isGuestAccessEndedError,
-  isVideoDurationAllowed,
   mapGuestDashboardError,
-  MAX_VIDEO_DURATION_S,
   POLL_INTERVAL_MS,
 } from "../model/guest-dashboard-rules";
 import type { CheckInMode, GuestBusyAction, GuestDashboardStatus, GuestSession } from "../model/guest-dashboard-types";
@@ -20,19 +16,6 @@ import {
   submitGuestCheckIn,
   submitGuestFeedback,
 } from "../use-cases/guest-dashboard-actions";
-
-function checkVideoDuration(file: File): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement("video");
-    video.preload = "metadata";
-    video.onloadedmetadata = () => {
-      URL.revokeObjectURL(video.src);
-      resolve(video.duration);
-    };
-    video.onerror = () => reject(new Error("Unable to read video."));
-    video.src = URL.createObjectURL(file);
-  });
-}
 
 export function useGuestDashboardViewModel() {
   const router = useRouter();
@@ -50,11 +33,6 @@ export function useGuestDashboardViewModel() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<GuestBusyAction>(null);
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [videoDurationError, setVideoDurationError] = useState<string | null>(null);
-  const photoInputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const current = loadGuestDashboardSession();
@@ -82,6 +60,7 @@ export function useGuestDashboardViewModel() {
 
   useEffect(() => {
     if (!session) return;
+    void refreshEvent();
     const id = setInterval(() => {
       void refreshEvent();
     }, POLL_INTERVAL_MS);
@@ -120,21 +99,6 @@ export function useGuestDashboardViewModel() {
     setError(null);
     setNotice(null);
 
-    if (videoFile) {
-      try {
-        const duration = await checkVideoDuration(videoFile);
-        if (!isVideoDurationAllowed(duration)) {
-          setVideoDurationError(
-            `Video must be ${MAX_VIDEO_DURATION_S} seconds or shorter.`,
-          );
-          setBusy(null);
-          return;
-        }
-      } catch {
-        // If we can't check duration, allow submission
-      }
-    }
-
     try {
       await submitGuestFeedback({
         session,
@@ -142,18 +106,11 @@ export function useGuestDashboardViewModel() {
         rating: feedbackRating,
         comment: feedbackComment,
         consentAccepted: feedbackConsentAccepted,
-        photo: photoFile,
-        video: videoFile,
       });
       setFeedbackSubmitted(true);
       setNotice("Feedback submitted for moderation.");
       setFeedbackGuestName("");
       setFeedbackComment("");
-      setPhotoFile(null);
-      setVideoFile(null);
-      setVideoDurationError(null);
-      if (photoInputRef.current) photoInputRef.current.value = "";
-      if (videoInputRef.current) videoInputRef.current.value = "";
       setStatus("ready");
     } catch (err) {
       setStatus("error");
@@ -161,29 +118,6 @@ export function useGuestDashboardViewModel() {
     } finally {
       setBusy(null);
     }
-  }
-
-  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!isFileWithinSizeLimit(file.size)) {
-      setError("Photo must be 10 MB or smaller.");
-      return;
-    }
-    setPhotoFile(file);
-    setError(null);
-  }
-
-  function handleVideoSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!isFileWithinSizeLimit(file.size)) {
-      setError("Video must be 10 MB or smaller.");
-      return;
-    }
-    setVideoFile(file);
-    setVideoDurationError(null);
-    setError(null);
   }
 
   function leave() {
@@ -225,33 +159,17 @@ export function useGuestDashboardViewModel() {
     error,
     notice,
     busy,
-    photoFile,
-    videoFile,
-    videoDurationError,
-    photoInputRef,
-    videoInputRef,
     canCheckIn: !checkedIn
       && !busy
       && checkInConsentAccepted
       && (checkInMode === "headcount" || checkInGuestName.trim().length > 0),
-    canSubmitFeedback: !busy
+    canSubmitFeedback: session?.feedbackAvailability === "open"
+      && !busy
       && feedbackConsentAccepted
       && feedbackGuestName.trim().length > 0,
     checkInButtonLabel: checkInButtonLabel(checkedIn),
-    formatFileSize,
     checkIn,
     submitFeedback,
-    handlePhotoSelect,
-    handleVideoSelect,
-    clearPhoto: () => {
-      setPhotoFile(null);
-      if (photoInputRef.current) photoInputRef.current.value = "";
-    },
-    clearVideo: () => {
-      setVideoFile(null);
-      setVideoDurationError(null);
-      if (videoInputRef.current) videoInputRef.current.value = "";
-    },
     leave,
   };
 }
