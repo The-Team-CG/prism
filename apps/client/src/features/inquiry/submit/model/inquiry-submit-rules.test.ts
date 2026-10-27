@@ -18,7 +18,7 @@ function form(overrides: Partial<InquiryForm> = {}): InquiryForm {
 
 describe("inquiry-submit-rules", () => {
   it("validates contact step fields", () => {
-    expect(isInquiryStepValid(form(), 0)).toBe(false);
+    expect(isInquiryStepValid(form(), 2)).toBe(false);
     expect(
       isInquiryStepValid(
         form({
@@ -28,7 +28,7 @@ describe("inquiry-submit-rules", () => {
           clientType: "Corporate",
           source: "PMCM Facebook",
         }),
-        0,
+        2,
       ),
     ).toBe(true);
   });
@@ -40,8 +40,8 @@ describe("inquiry-submit-rules", () => {
       eventDate: "2026-08-01",
       expectedGuests: "150",
     });
-    expect(isInquiryStepValid(base, 1)).toBe(true);
-    expect(isInquiryStepValid(form({ eventName: "Summit" }), 1)).toBe(false);
+    expect(isInquiryStepValid(base, 0)).toBe(true);
+    expect(isInquiryStepValid(form({ eventName: "Summit" }), 0)).toBe(false);
   });
 
   it("requires privacy consent on confirm step", () => {
@@ -50,7 +50,7 @@ describe("inquiry-submit-rules", () => {
   });
 
   it("advances and retreats wizard steps within bounds", () => {
-    expect(canAdvanceInquiryStep(form({ clientName: "A", email: "a@b.c", phoneNumber: "1", clientType: "Corporate", source: "PMCM Facebook" }), 0)).toBe(true);
+    expect(canAdvanceInquiryStep(form({ clientName: "A", email: "a@b.c", phoneNumber: "1", clientType: "Corporate", source: "PMCM Facebook" }), 2)).toBe(true);
     expect(canAdvanceInquiryStep(form({ privacyConsentAccepted: true }), 3)).toBe(false);
     expect(nextInquiryStep(0)).toBe(1);
     expect(nextInquiryStep(3)).toBe(3);
