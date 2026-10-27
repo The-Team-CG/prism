@@ -69,7 +69,7 @@ function createOperationsEventReferences(prisma: PrismaService) {
     })).map((event) => event.id),
     findEventReadAccess: async (eventId: string) => prisma.opsEvent.findUnique({
       where: { id: eventId },
-      select: { id: true, clientName: true, clientPortalStatus: true, clientEmail: true, inquiry: { select: { email: true } } },
+      select: { id: true, clientName: true, clientPortalStatus: true, inquiry: { select: { email: true } } },
     }),
   };
 }

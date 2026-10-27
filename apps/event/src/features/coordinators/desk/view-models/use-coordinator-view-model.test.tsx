@@ -123,6 +123,8 @@ describe("coordinator event selection", () => {
       onRefresh: async () => {},
     }));
 
+    expect(result.current.event).toBeUndefined();
+    act(() => result.current.selectEvent("evt_1"));
     await waitFor(() => expect(result.current.event?.id).toBe("evt_1"));
     act(() => result.current.selectEvent("evt_2"));
 
@@ -185,6 +187,7 @@ describe("coordinator event selection", () => {
       onRefresh: async () => {},
     }));
 
+    act(() => result.current.selectEvent("evt_1"));
     await waitFor(() => expect(loadCoordinatorRoleView).toHaveBeenCalledWith(SESSION, "evt_1"));
     act(() => result.current.selectEvent("evt_2"));
     await waitFor(() => expect(result.current.roleView?.role).toBe("Usher"));

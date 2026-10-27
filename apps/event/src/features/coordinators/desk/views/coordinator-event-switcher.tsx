@@ -30,34 +30,25 @@ export function CoordinatorEventSwitcher({
   onSelect: (eventId: string) => void;
 }) {
   const cards = eventCards(events, assignments);
+  const selected = cards.find(({ event }) => event.id === selectedEventId);
 
   return (
     <CCard>
-      <CCardHeader>
-        <h2 className="text-sm font-bold text-foreground">Your events</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Open any event assigned to you, including previous events.</p>
-      </CCardHeader>
+      <CCardHeader><h2 className="text-sm font-semibold text-foreground">Your assigned event</h2></CCardHeader>
       <CCardBody>
         {cards.length ? (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {cards.map(({ event, assignment }) => {
-              const selected = event.id === selectedEventId;
-              return (
-                <button
-                  key={event.id}
-                  type="button"
-                  aria-label={`Open ${event.eventName}`}
-                  aria-pressed={selected}
-                  onClick={() => onSelect(event.id)}
-                  className={`min-h-28 rounded-lg border p-4 text-left transition ${selected ? "border-primary bg-primary/5" : "border-border bg-background hover:border-primary/40 hover:bg-secondary/35"}`}
-                >
-                  <span className="block truncate text-sm font-black text-foreground">{event.eventName}</span>
-                  <span className="mt-1 block text-xs text-muted-foreground">{event.eventDate} · {assignment.role}</span>
-                  <span className="mt-2 block text-xs text-muted-foreground">{event.venue?.trim() ? `Venue: ${event.venue}` : "Venue not recorded"}</span>
-                  <span className="mt-2 block text-xs font-semibold text-muted-foreground">Assignment: {assignment.status}</span>
-                </button>
-              );
-            })}
+          <div className="grid gap-2">
+            <label htmlFor="coordinator-assigned-event" className="text-sm text-muted-foreground">Assigned event</label>
+            <select
+              id="coordinator-assigned-event"
+              value={selectedEventId ?? ""}
+              onChange={(event) => onSelect(event.target.value)}
+              className="w-full max-w-lg rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <option value="" disabled>Choose an event</option>
+              {cards.map(({ event }) => <option key={event.id} value={event.id}>{event.eventName}</option>)}
+            </select>
+            {selected ? <p className="text-sm text-muted-foreground">{selected.event.eventDate} · {selected.event.venue || "Venue not recorded"} · {selected.assignment.role}</p> : null}
           </div>
         ) : (
           <p className="rounded-md border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">No coordinator events are assigned to you.</p>

@@ -5,10 +5,10 @@ import type { PrismCoordinatorAssignment, PrismEvent } from "@prism/types";
 import { CoordinatorEventSwitcher } from "./coordinator-event-switcher";
 import { CoordinatorView } from "./coordinator-view";
 
-vi.mock("@prism/ui", () => ({ PrismDashboardShell: ({ children }: { children: import("react").ReactNode }) => <main>{children}</main> }));
+vi.mock("@prism/ui", () => ({ PrismDashboardShell: ({ children, navItems, onNavSelect }: { children: import("react").ReactNode; navItems: Array<{ id: string; label: string }>; onNavSelect: (id: string) => void }) => <main><nav>{navItems.map((item) => <button key={item.id} onClick={() => onNavSelect(item.id)}>{item.label}</button>)}</nav>{children}</main> }));
 vi.mock("../use-cases/coordinator-desk-actions", () => ({ loadCoordinatorRoleView: vi.fn(async () => null) }));
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); window.history.replaceState(null, "", "/"); });
 
 const events = [
   { id: "evt_current", eventName: "Summit 2026", eventDate: "2026-10-04", venue: "Updated Hall" },
@@ -34,10 +34,9 @@ describe("CoordinatorEventSwitcher", () => {
       />,
     );
 
-    const pastEvent = screen.getByRole("button", { name: "Open Leadership Forum" });
-    expect(screen.getByText("Venue: Historic Hall")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Open Private Event" })).toBeNull();
-    fireEvent.click(pastEvent);
+    expect(screen.getByRole("option", { name: "Leadership Forum" })).toBeTruthy();
+    expect(screen.queryByRole("option", { name: "Private Event" })).toBeNull();
+    fireEvent.change(screen.getByLabelText("Assigned event"), { target: { value: "evt_past" } });
 
     expect(onSelect).toHaveBeenCalledWith("evt_past");
   });
@@ -47,12 +46,21 @@ it("keeps archived coordinator actions disabled while the event switcher remains
   render(<CoordinatorView session={{ name: "Marco Santos", email: "marco@pmcm.test", role: "coordinator" } as never}
     state={{ events, assignments: assignments.map((item) => ({ ...item, status: "pending_acknowledgement" })) } as never}
     onRefresh={async () => {}} />);
-  fireEvent.click(screen.getByRole("button", { name: "Open Leadership Forum" }));
+  fireEvent.change(screen.getByLabelText("Assigned event"), { target: { value: "evt_past" } });
   await waitFor(() => expect(screen.getByText("Archived event: operational records are read-only.")).toBeTruthy());
   const archivedActionButtons = [...document.querySelectorAll('fieldset button')];
   expect(archivedActionButtons.length).toBeGreaterThan(0);
   expect(archivedActionButtons.every((button) => button.matches(':disabled'))).toBe(true);
-  fireEvent.click(screen.getByRole("button", { name: "Open Summit 2026" }));
+  fireEvent.change(screen.getByLabelText("Assigned event"), { target: { value: "evt_current" } });
   await waitFor(() => expect(screen.queryByText("Archived event: operational records are read-only.")).toBeNull());
   expect([...document.querySelectorAll('fieldset')].every((fieldset) => !fieldset.disabled)).toBe(true);
+});
+
+it("keeps the chosen event and work section in the URL", async () => {
+  render(<CoordinatorView session={{ name: "Marco Santos", email: "marco@pmcm.test", role: "coordinator" } as never}
+    state={{ events, assignments } as never} onRefresh={async () => {}} />);
+  fireEvent.change(screen.getByLabelText("Assigned event"), { target: { value: "evt_current" } });
+  fireEvent.click(screen.getByRole("button", { name: "My tasks" }));
+  expect(new URLSearchParams(window.location.search).get("event")).toBe("evt_current");
+  expect(new URLSearchParams(window.location.search).get("section")).toBe("coord-queue");
 });

@@ -106,7 +106,6 @@ export class OperationsEventReferenceService implements OperationsEventReference
         id: true,
         clientName: true,
         clientPortalStatus: true,
-        clientEmail: true,
         inquiry: { select: { email: true } },
       },
     });

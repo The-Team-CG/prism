@@ -339,10 +339,9 @@ export function CoordinatorEventDayActions({
   return (
     <CCard>
       <CCardHeader>
-        <SectionAccent>Event-day actions</SectionAccent>
-        <h2 className="mt-1 text-base font-bold text-foreground">{assignment?.role ?? "Coordinator"} run controls</h2>
+        <h2 className="text-base font-bold text-foreground">What needs attention</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Large actions stay readable on phones during ingress, supplier calls, and issue escalation.
+          Review your tasks, issues and attendance for this event.
         </p>
       </CCardHeader>
       <CCardBody>
@@ -382,6 +381,7 @@ export function CoordinatorEventDayActions({
                 : "No assignment state available.",
               icon: UserCheck,
               status: attendanceStatus,
+              onSelect: () => scrollTo("coordinator-attendance"),
             },
           ]}
         />
