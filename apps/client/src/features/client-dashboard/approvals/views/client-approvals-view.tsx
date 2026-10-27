@@ -4,9 +4,7 @@ import type { ReactNode } from "react";
 import { BadgeCheck, CheckCircle2, Clock } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
-import { PageHeader } from "../../workspace/shared";
 import { formatStatusLabel } from "../../workspace/shared";
-import { CLIENT_PORTAL_VIEW_META } from "../../workspace/shared";
 import { useClientWorkspace } from "../../workspace/shared";
 import { ClientAccountEventPicker, useClientAccountEventChoiceRequired } from "../../workspace/views/sections/client-account-event-picker";
 import {
@@ -107,20 +105,15 @@ export function ClientApprovalsView() {
     documents,
     isEventScopedView,
   } = useClientWorkspace();
-  const portalViewMeta = portalView ? CLIENT_PORTAL_VIEW_META[portalView] : undefined;
   const visibleApprovalItems = filterApprovalItems(
     buildApprovalItems(selectedEvent, documents, billing, officialDraft),
     portalView,
   );
-  const showHeader = !isEventScopedView && Boolean(portalViewMeta);
   const choiceRequired = useClientAccountEventChoiceRequired() && !isEventScopedView;
   const showNoEvent = !selectedEvent && !isEventScopedView;
 
   return (
     <div className="space-y-5">
-      {showHeader && portalViewMeta ? (
-        <PageHeader eyebrow="Client approvals" title={portalViewMeta.title} description={portalViewMeta.description} />
-      ) : null}
       {!isEventScopedView ? <ClientAccountEventPicker purpose="approvals" /> : null}
       <ApprovalsBody
         choiceRequired={choiceRequired}

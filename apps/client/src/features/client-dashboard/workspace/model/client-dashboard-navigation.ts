@@ -1,11 +1,14 @@
 import {
   BadgeCheck,
   CalendarDays,
+  ClipboardList,
   FileText,
   Home,
+  LayoutGrid,
   MapPinned,
   MessageSquareText,
   WalletCards,
+  type LucideIcon,
 } from "lucide-react";
 
 import type { ClientDashboardRoute, ClientPortalView, ClientSidebarLink, ClientSidebarNavItem, ClientSidebarSubItem, DetailTab } from "./client-dashboard-types";
@@ -15,7 +18,7 @@ export const CLIENT_CONFORME_REVIEW_HREF = "/conforme";
 export const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
   {
     id: "client-dashboard",
-    label: "Dashboard",
+    label: "Home",
     icon: Home,
     section: "Client Portal",
     route: "home",
@@ -84,12 +87,38 @@ export const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
 export const EVENT_WORKSPACE_NAV_ITEMS: ClientSidebarSubItem[] = [
   { id: "event-overview", label: "Overview", route: "overview", requiresEvent: true, eventScoped: true },
   { id: "event-progress", label: "Planning", route: "progress", requiresEvent: true, eventScoped: true },
-  { id: "event-floorplan", label: "Floor Plan", route: "floorplan", requiresEvent: true, eventScoped: true },
+  { id: "event-floorplan", label: "Floor plan", route: "floorplan", requiresEvent: true, eventScoped: true },
   { id: "event-approvals", label: "Approvals", route: "approvals", requiresEvent: true, eventScoped: true },
   { id: "event-billing", label: "Billing", route: "billing", requiresEvent: true, eventScoped: true },
   { id: "event-files", label: "Documents", route: "documents", requiresEvent: true, eventScoped: true },
   { id: "event-messages", label: "Messages", route: "messages", requiresEvent: true, eventScoped: true },
 ];
+
+const EVENT_NAV_ICONS: Record<string, LucideIcon> = {
+  "event-overview": LayoutGrid,
+  "event-progress": ClipboardList,
+  "event-floorplan": MapPinned,
+  "event-approvals": BadgeCheck,
+  "event-billing": WalletCards,
+  "event-files": FileText,
+  "event-messages": MessageSquareText,
+};
+
+/**
+ * Inside one event the sidebar is that event's workspace, with My Events and Home as the way back,
+ * instead of the portal sidebar plus a second row of tabs.
+ */
+export function clientEventSidebarItems(eventName: string) {
+  return [
+    ...EVENT_WORKSPACE_NAV_ITEMS.map((item) => ({ id: item.id, label: item.label, icon: EVENT_NAV_ICONS[item.id] ?? LayoutGrid, section: eventName })),
+    { id: "my-events", label: "My Events", icon: CalendarDays, section: "Client portal" },
+    { id: "client-dashboard", label: "Home", icon: Home, section: "Client portal" },
+  ];
+}
+
+export function findClientEventNavItem(id: string) {
+  return EVENT_WORKSPACE_NAV_ITEMS.find((item) => item.id === id);
+}
 
 export const PORTAL_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, string>> = {
   home: "client-dashboard",
@@ -106,12 +135,12 @@ export const PORTAL_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, stri
 export const EVENT_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, string>> = {
   overview: "event-overview",
   actions: "event-progress",
-  details: "event-details",
+  details: "event-overview",
   progress: "event-progress",
-  schedule: "event-schedule",
-  guests: "event-guests",
-  preferences: "event-preferences",
-  briefing: "event-preferences",
+  schedule: "event-progress",
+  guests: "event-progress",
+  preferences: "event-progress",
+  briefing: "event-progress",
   floorplan: "event-floorplan",
   proposal: "event-approvals",
   documents: "event-files",
@@ -120,8 +149,8 @@ export const EVENT_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, strin
   messages: "event-messages",
   approvals: "event-approvals",
   files: "event-files",
-  changes: "event-change-requests",
-  summary: "event-final-summary",
+  changes: "event-progress",
+  summary: "event-overview",
 };
 
 export const ROUTE_TO_DETAIL_TAB: Partial<Record<ClientDashboardRoute, DetailTab>> = {
@@ -200,7 +229,7 @@ export const CLIENT_PORTAL_VIEW_HREFS: Record<ClientPortalView, string> = {
 };
 
 export const CLIENT_PORTAL_VIEW_META: Record<ClientPortalView, { title: string; description: string }> = {
-  "dashboard-overview": { title: "Dashboard", description: "Client account overview, active events, and PMCM updates." },
+  "dashboard-overview": { title: "Home", description: "Your events and the decisions that need your attention." },
   "dashboard-upcoming-events": { title: "Upcoming events", description: "Confirmed PMCM events that still need planning attention." },
   "dashboard-pending-approvals": { title: "Pending approvals", description: "Client-visible items waiting for approval or review." },
   "dashboard-recent-messages": { title: "Recent messages", description: "Recent PMCM updates and client-visible activity." },

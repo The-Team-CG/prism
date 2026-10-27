@@ -11,17 +11,29 @@ export type SupplierWorkspace = PrismSupplierWorkspace;
 
 export type SupplierWorkspaceStatus = "idle" | "loading" | "success" | "error";
 
-export type SupplierDashboardSection =
-  | "dashboard"
-  | "requests"
-  | "bookings"
-  | "calendar"
-  | "quotations"
-  | "messages"
-  | "files"
-  | "payments"
-  | "profile"
-  | "support";
+export const SUPPLIER_DASHBOARD_SECTIONS = [
+  "dashboard",
+  "requests",
+  "bookings",
+  "calendar",
+  "quotations",
+  "messages",
+  "files",
+  "payments",
+  "profile",
+  "support",
+] as const;
+
+export type SupplierDashboardSection = (typeof SUPPLIER_DASHBOARD_SECTIONS)[number];
+
+export function isSupplierDashboardSection(value: string): value is SupplierDashboardSection {
+  return (SUPPLIER_DASHBOARD_SECTIONS as readonly string[]).includes(value);
+}
+
+/** Each section has its own URL, so refresh, back and shared links keep the supplier where they were. */
+export function supplierSectionHref(section: SupplierDashboardSection) {
+  return section === "dashboard" ? "/dashboard" : `/dashboard/${section}`;
+}
 
 export type QuoteFormState = {
   amount: string;

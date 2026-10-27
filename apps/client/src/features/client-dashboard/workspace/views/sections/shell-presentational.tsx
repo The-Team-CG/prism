@@ -13,7 +13,6 @@ import { Label } from "@/app/components/ui/label";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { cn } from "@/app/components/ui/utils";
 import type { PrismBillingStatement, PrismBriefing, PrismEvent } from "@prism/types";
-import type { ClientSidebarSubItem } from "../../model/client-dashboard-types";
 import {
   eventDateParts,
   formatEventDate,
@@ -26,74 +25,6 @@ export function NoticeBanner({ tone, children }: { tone: "danger" | "success"; c
     : "border-success/20 bg-success/8 text-success border-l-success";
   return (
     <div className={`rounded-lg border border-l-4 px-4 py-3 text-sm leading-6 ${cls}`}>{children}</div>
-  );
-}
-
-export function PageHeader({ eyebrow, title, description, meta, action }: {
-  eyebrow?: string;
-  title: string;
-  description?: string;
-  meta?: Array<string | React.ReactNode>;
-  action?: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-md border border-border bg-card px-4 py-3 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          {eyebrow ? <p className="text-3xs font-black uppercase text-muted-foreground">{eyebrow}</p> : null}
-          <h2 className="mt-0.5 text-lg font-black leading-tight text-foreground sm:text-xl">{title}</h2>
-          {description ? <p className="mt-1 max-w-3xl text-sm leading-5 text-muted-foreground">{description}</p> : null}
-          {meta?.length ? (
-            <div className="mt-2 flex flex-wrap gap-2">
-              {meta.map((item, i) =>
-                typeof item === "string"
-                  ? <span key={i} className="rounded-full border border-border bg-card px-2.5 py-0.5 text-xs font-semibold text-foreground">{item}</span>
-                  : <span key={i}>{item}</span>
-              )}
-            </div>
-          ) : null}
-        </div>
-        {action ? <div className="shrink-0">{action}</div> : null}
-      </div>
-    </section>
-  );
-}
-
-export function EventWorkspaceNav({
-  items,
-  activeItemId,
-  onSelect,
-}: {
-  items: ClientSidebarSubItem[];
-  activeItemId: string;
-  onSelect: (item: ClientSidebarSubItem) => void;
-}) {
-  return (
-    <nav aria-label="Selected event sections" className="border-t border-border">
-      <div className="overflow-x-auto">
-        <div className="flex min-w-max items-center px-2">
-          {items.map((item) => {
-            const active = item.id === activeItemId;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => onSelect(item)}
-                className={cn(
-                  "relative h-11 shrink-0 px-3 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground",
-                  active && "text-primary",
-                )}
-              >
-                {item.label}
-                {active ? (
-                  <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-primary" />
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </nav>
   );
 }
 

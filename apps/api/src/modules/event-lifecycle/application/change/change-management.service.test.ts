@@ -208,6 +208,23 @@ describe('ChangeManagementService client change requests', () => {
     expect(serialized).not.toContain('PMCM Admin');
   });
 
+  it('lets the client who owns the event through its inquiry email read change requests and addenda', async () => {
+    // The event has no client email of its own, as in fixtures and older records; ownership falls back to the inquiry email.
+    const event = { id: 'evt_1', clientPortalStatus: 'unlocked', clientEmail: null, clientName: 'Ana Reyes' };
+    const findUniqueOrThrow = vi.fn(async (args: { include?: { inquiry?: unknown } }) =>
+      args.include?.inquiry ? { ...event, inquiry: { email: 'ana@ayala.test' } } : event);
+    const service = new ChangeManagementService(
+      { opsEvent: { findUniqueOrThrow }, opsEventFreezeException: { findMany: async () => [] }, opsAddendum: { findMany: async () => [] } } as unknown as PrismaService,
+      new EventAccessPolicyService({ write: async () => undefined } as unknown as AuditWriter),
+      { write: async () => undefined } as unknown as AuditWriter,
+      { apply: vi.fn(async () => []) } as unknown as CommercialAddendumImpactWriter,
+    );
+    const owner = { ...client, email: 'ANA@ayala.test', verified: true } satisfies ResolvedEventOpsActor;
+
+    await expect(service.listClientChangeRequests('evt_1', owner)).resolves.toEqual([]);
+    await expect(service.listAddenda('evt_1', owner)).resolves.toEqual([]);
+  });
+
   it('denies change request status to actors who cannot read the event, before reading any exception', async () => {
     const findMany = vi.fn(async () => [row]);
     const service = new ChangeManagementService(

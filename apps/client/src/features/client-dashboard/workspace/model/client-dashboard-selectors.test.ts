@@ -293,11 +293,12 @@ describe("client-dashboard selectors", () => {
     expect(clientEventMatchesFilter(archived!, "events-in-planning")).toBe(false);
   });
 
-  it("selects the preferred event by route id, then selection, then first", () => {
+  it("uses an explicit event, or the only event when there is no choice", () => {
     const clientEvents = selectClientEvents(workspace, session);
     expect(selectSelectedClientEvent(clientEvents, "evt_1")?.id).toBe("evt_1");
     expect(selectSelectedClientEvent(clientEvents, undefined, "evt_1")?.id).toBe("evt_1");
-    expect(selectSelectedClientEvent(clientEvents)?.id).toBe("evt_1");
+    expect(selectSelectedClientEvent(clientEvents)).toBeUndefined();
+    expect(selectSelectedClientEvent([clientEvents[0]])?.id).toBe(clientEvents[0].id);
   });
 
   it("filters drafts for the selected event", () => {

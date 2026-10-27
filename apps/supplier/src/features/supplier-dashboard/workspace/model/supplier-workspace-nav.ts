@@ -21,17 +21,25 @@ export function supplierNavItems(input: {
   handoffPending: number;
 }) {
   return [
-    { id: "dashboard", label: "Dashboard", icon: Warehouse, badge: input.needsActionCount || undefined },
-    { id: "requests", label: "Requests", icon: ClipboardList, badge: input.openRequestCount || undefined },
+    { id: "dashboard", label: "Today", icon: Warehouse, badge: input.needsActionCount || undefined },
+    { id: "requests", label: "Requests & quotes", icon: ClipboardList, badge: input.openRequestCount || undefined },
     { id: "bookings", label: "Bookings", icon: BadgeCheck, badge: input.handoffPending || undefined },
     { id: "calendar", label: "Calendar", icon: CalendarDays },
-    { id: "quotations", label: "Quotations", icon: FileText },
     { id: "messages", label: "Messages", icon: MessageSquare },
     { id: "files", label: "Files", icon: FileCheck2 },
     { id: "payments", label: "Payments", icon: Wallet },
-    { id: "profile", label: "Services / Profile", icon: User },
-    { id: "support", label: "Support", icon: HelpCircle },
+    { id: "profile", label: "Services & profile", icon: User },
   ] as Array<{ id: SupplierDashboardSection; label: string; icon: LucideIcon; badge?: number }>;
+}
+
+/** Quotations are a view of Requests & quotes, so that sidebar item stays active on either. */
+export function supplierActiveNavId(section: SupplierDashboardSection): SupplierDashboardSection {
+  return section === "quotations" ? "requests" : section;
+}
+
+/** Help lives in the account menu, out of the way of daily work. */
+export function supplierAccountMenuItems(onNavigate: (section: SupplierDashboardSection) => void) {
+  return [{ id: "support", label: "Help & support", icon: HelpCircle, onSelect: () => onNavigate("support") }];
 }
 
 export function supplierCommandActions(input: {

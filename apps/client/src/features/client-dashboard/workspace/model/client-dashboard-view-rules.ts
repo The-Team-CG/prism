@@ -94,6 +94,8 @@ export type ClientDashboardAction = {
   detail: string;
   ctaLabel: string;
   href?: string;
+  eventId?: string;
+  eventName?: string;
   icon: LucideIcon;
   targetTab: DetailTab;
   status: string;
@@ -143,6 +145,8 @@ export function actionCenterItemToDashboardAction(
     detail: formatEventDate(item.dueAt),
     ctaLabel: "Open",
     href: item.href,
+    eventId: item.eventId,
+    eventName: item.eventName,
     icon: clientActionIcon(item.kind),
     targetTab: clientActionTarget(item.kind),
     status: item.status,

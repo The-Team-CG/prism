@@ -19,6 +19,7 @@ import type {
   SupplierWorkspace,
   SupplierWorkspaceStatus,
 } from "../model/supplier-workspace-types";
+import { supplierSectionHref } from "../model/supplier-workspace-types";
 import {
   confirmSupplierAssignment,
   confirmSupplierReadiness,
@@ -35,7 +36,7 @@ import {
 } from "../use-cases/supplier-workspace-actions";
 import { supplierWorkflowRepository } from "../data/supplier-workflow-repository";
 
-export function useSupplierWorkspaceViewModel() {
+export function useSupplierWorkspaceViewModel(section: SupplierDashboardSection) {
   const router = useRouter();
   const [session, setSession] = useState<PrismAuthenticatedSession | null>(null);
   const [workspace, setWorkspace] = useState<SupplierWorkspace | null>(null);
@@ -43,7 +44,7 @@ export function useSupplierWorkspaceViewModel() {
     null,
   );
   const [workflowWorkspace, setWorkflowWorkspace] = useState<PrismSupplierWorkflowWorkspace | null>(null);
-  const [section, setSection] = useState<SupplierDashboardSection>("dashboard");
+  const setSection = (next: SupplierDashboardSection) => router.push(supplierSectionHref(next));
   const [forms, setForms] = useState<Record<string, QuoteFormState>>({});
   const [readinessNotes, setReadinessNotes] = useState<Record<string, string>>({});
   const [statusNotes, setStatusNotes] = useState<Record<string, string>>({});

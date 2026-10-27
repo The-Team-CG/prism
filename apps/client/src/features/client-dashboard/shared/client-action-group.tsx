@@ -52,6 +52,7 @@ export function ClientActionGroup({
                   <span className="mt-0.5 block text-xs leading-5 text-muted-foreground line-clamp-2">
                     {action.description}
                   </span>
+                  {action.eventName ? <span className="mt-1 block text-xs font-medium text-foreground">{action.eventName}</span> : null}
                   {showDetailsAndCta ? (
                     <span className="mt-2 flex items-center justify-between gap-3 text-xs">
                       <span className="text-muted-foreground">{action.detail}</span>

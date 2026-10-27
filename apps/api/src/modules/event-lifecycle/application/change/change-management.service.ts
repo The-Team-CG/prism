@@ -122,8 +122,13 @@ export class ChangeManagementService {
    * Client-safe change request status. Only the requested change and its status leave the server; the internal
    * reason, decision note, and actor identities stay in the PMCM register.
    */
+  /** The event with its inquiry email, which client ownership falls back to when the event has no client email. */
+  private readableEvent(eventId: string) {
+    return this.prisma.opsEvent.findUniqueOrThrow({ where: { id: eventId }, include: { inquiry: { select: { email: true } } } });
+  }
+
   async listClientChangeRequests(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismClientChangeRequest[]> {
-    await this.access.requireCanReadEvent(actor, await this.prisma.opsEvent.findUniqueOrThrow({ where: { id: eventId } }), 'change requests');
+    await this.access.requireCanReadEvent(actor, await this.readableEvent(eventId), 'change requests');
     const values = await this.prisma.opsEventFreezeException.findMany({
       where: { eventId },
       orderBy: { requestedAt: 'desc' },
@@ -133,7 +138,7 @@ export class ChangeManagementService {
   }
 
   async listAddenda(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismAddendum[]> {
-    await this.access.requireCanReadEvent(actor, await this.prisma.opsEvent.findUniqueOrThrow({ where: { id: eventId } }), 'addenda');
+    await this.access.requireCanReadEvent(actor, await this.readableEvent(eventId), 'addenda');
     const values = await this.prisma.opsAddendum.findMany({ where: { eventId }, orderBy: { versionNumber: 'desc' }, include: { conformeExecution: { include: { signatures: true } } } });
     const includeSupplierQuotes = this.access.canViewInternalCosts(actor);
     return values.map((value) => presentAddendumFor(mapAddendum(value), includeSupplierQuotes));
