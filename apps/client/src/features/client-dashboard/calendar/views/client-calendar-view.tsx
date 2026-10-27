@@ -7,6 +7,7 @@ import { cn } from "@/app/components/ui/utils";
 import { formatStatusLabel } from "../../workspace/shared";
 import { CLIENT_PORTAL_VIEW_META } from "../../workspace/shared";
 import { useClientWorkspace } from "../../workspace/shared";
+import { buildClientCalendarItems, type ClientCalendarItem } from "../model/client-calendar-items";
 
 export function ClientCalendarView() {
   const {
@@ -18,16 +19,6 @@ export function ClientCalendarView() {
   if (!state) return null;
   const portalViewMeta = portalView ? CLIENT_PORTAL_VIEW_META[portalView] : undefined;
 
-    type CalendarItemKind = "event" | "payment" | "deadline" | "approval" | "meeting";
-    type CalendarItem = {
-      id: string;
-      date: string;
-      title: string;
-      detail: string;
-      status: string;
-      kind: CalendarItemKind;
-    };
-  
     const toIsoDate = (date: Date) => {
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -35,70 +26,17 @@ export function ClientCalendarView() {
       return `${year}-${month}-${day}`;
     };
     const dateFromIso = (date: string) => new Date(`${date}T00:00:00`);
-    const addDays = (date: string, days: number) => {
-      const value = dateFromIso(date);
-      value.setDate(value.getDate() + days);
-      return toIsoDate(value);
-    };
     const formatCalendarDate = (date: string) =>
       dateFromIso(date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    const calendarItemClass = (item: CalendarItem) => {
+    const calendarItemClass = (item: ClientCalendarItem) => {
       if (item.kind === "event") return "border-primary/20 bg-primary/10 text-primary";
       if (item.kind === "payment" && item.status === "paid") return "border-success/25 bg-success/10 text-success";
       if (item.kind === "payment") return "border-attention/25 bg-attention/10 text-attention";
-      if (item.kind === "approval") return "border-primary/25 bg-primary-soft text-foreground";
-      return "border-border bg-muted text-foreground";
+      if (item.kind === "approval") return "border-success/25 bg-success-soft text-foreground";
+      return "border-info/25 bg-info-soft text-foreground";
     };
   
-    const eventIds = new Set(events.map((ev) => ev.id));
-    const allPayments = state.paymentMilestones.filter((payment) => eventIds.has(payment.eventId));
-    const eventDates: CalendarItem[] = events.map((ev) => ({
-        id: `event-${ev.id}`,
-        date: ev.eventDate,
-        title: ev.eventName,
-        detail: "Event date",
-        status: ev.status,
-        kind: "event",
-    }));
-    const paymentDates: CalendarItem[] = allPayments.map((payment) => {
-        const ev = events.find((candidate) => candidate.id === payment.eventId);
-        return {
-          id: `payment-${payment.id}`,
-          date: payment.dueDate,
-          title: payment.label,
-          detail: ev ? `${ev.eventName} payment due` : "Payment due",
-          status: payment.status,
-          kind: "payment",
-        };
-    });
-    const planningDates: CalendarItem[] = events.flatMap((ev) => [
-      {
-        id: `approval-${ev.id}`,
-        date: addDays(ev.eventDate, -14),
-        title: "Layout approval",
-        detail: ev.eventName,
-        status: ev.floorPlanStatus || "pending",
-        kind: "approval" as const,
-      },
-      {
-        id: `deadline-${ev.id}`,
-        date: addDays(ev.eventDate, -7),
-        title: "Final planning deadline",
-        detail: ev.eventName,
-        status: ev.status,
-        kind: "deadline" as const,
-      },
-    ]);
-    const calendarItems = [...eventDates, ...paymentDates, ...planningDates]
-      .filter((item) => {
-        if (portalView === "calendar-event-dates") return item.kind === "event";
-        if (portalView === "calendar-payment-due-dates") return item.kind === "payment";
-        if (portalView === "calendar-meetings") return item.kind === "meeting";
-        if (portalView === "calendar-deadlines") return item.kind === "deadline" || item.kind === "payment";
-        if (portalView === "calendar-approval-deadlines") return item.kind === "approval";
-        return true;
-      })
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const calendarItems = buildClientCalendarItems(state, events, portalView);
     const monthSource = selectedEvent?.eventDate ?? calendarItems.find((item) => item.kind === "event")?.date ?? calendarItems[0]?.date ?? toIsoDate(new Date());
     const monthDate = dateFromIso(monthSource);
     const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
@@ -106,7 +44,7 @@ export function ClientCalendarView() {
     gridStart.setDate(monthStart.getDate() - monthStart.getDay());
     const monthLabel = monthStart.toLocaleDateString("en-US", { month: "long", year: "numeric" });
     const todayIso = toIsoDate(new Date());
-    const itemsByDate = calendarItems.reduce<Map<string, CalendarItem[]>>((map, item) => {
+    const itemsByDate = calendarItems.reduce<Map<string, ClientCalendarItem[]>>((map, item) => {
       const group = map.get(item.date) ?? [];
       group.push(item);
       map.set(item.date, group);
@@ -125,12 +63,14 @@ export function ClientCalendarView() {
       };
     });
     const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const legend: Array<{ label: string; className: string }> = [
-      { label: "Event", className: "bg-primary" },
-      { label: "Payment", className: "bg-attention" },
-      { label: "Approval", className: "bg-primary" },
-      { label: "Deadline", className: "bg-muted-foreground" },
-    ];
+    const legend = (
+      [
+        { kind: "event", label: "Event", className: "bg-primary" },
+        { kind: "payment", label: "Payment", className: "bg-attention" },
+        { kind: "visit", label: "Site visit", className: "bg-info" },
+        { kind: "approval", label: "Layout approved", className: "bg-success" },
+      ] as const
+    ).filter((entry) => calendarItems.some((item) => item.kind === entry.kind));
   
     return (
       <div className="space-y-5">
@@ -219,7 +159,7 @@ export function ClientCalendarView() {
             </div>
           ) : (
             <div className="mt-4 rounded-xl border border-dashed border-border px-6 py-8">
-              <EmptyState icon={CalendarDays} title="No calendar items yet" description="Event dates and deadlines will appear after portal activation." />
+              <EmptyState icon={CalendarDays} title="No calendar items yet" description="Event dates, payment due dates and site visits appear here once PMCM schedules them." />
             </div>
           )}
         </section>
