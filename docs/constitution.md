@@ -103,11 +103,12 @@ register; it is not permission to add more kernel-to-business imports.
   at an untrusted boundary.
 - HTTP transport belongs in `@prism/api-client`, called from feature `data/`
   adapters or thin portal adapters.
-- The API exposes no `/sample/*` runtime routes. Local fixture data is loaded
-  only by `npm --workspace prism-api run db:seed:fixtures` into an empty,
-  loopback PostgreSQL database named `prism_sample_disposable`; the command
-  requires explicit database confirmation and refuses production or populated
-  fixture tables.
+- The API exposes no `/sample/*` runtime routes. Fixtures run only through explicit
+  CLI commands outside the HTTP application. `db:seed` supports repeatable missing-row
+  insertion into explicitly selected local/UAT targets, preserving tester edits and
+  existing credentials; production is refused. The legacy `db:seed:fixtures` command
+  retains its fresh loopback `prism_sample_disposable` restriction. See the
+  [environment/fixture contract](runbooks/environments-and-fixtures.md).
 - Session storage keys belong in `@prism/types`; apps must not add new literal
   `prism:*` keys.
 - No Prisma model is a public API. Controllers delegate to context services and

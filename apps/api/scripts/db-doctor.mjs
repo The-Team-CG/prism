@@ -1,6 +1,7 @@
 import process from 'node:process';
 import { Pool } from 'pg';
 import { selectDatabaseConnection } from './db-connection-config.mjs';
+import { inspectMigrationHistory } from './db-migration-history.mjs';
 
 /**
  * PA-309. Mirrors describeDatabaseError in src/kernel/database/prisma-error.ts.
@@ -45,7 +46,7 @@ try {
   process.exit(1);
 }
 
-if (database.isPooler) {
+if (database.isPooler && database.port === '6543') {
   const hint =
     'Prefer a direct host (db.<project-ref>.supabase.co:5432) via DIRECT_URL or PRISMA_DATABASE_URL for Prisma migrations and transaction-safe workflows.';
 
@@ -77,6 +78,19 @@ try {
   console.log(`Prisma DB check passed using ${database.source} (mode=${mode}).`);
   console.log(`Target: ${database.target}`);
 
+  if (args.includes('--migration-history')) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN READ ONLY');
+      const history = await inspectMigrationHistory(client);
+      console.log(JSON.stringify(history, null, 2));
+      if (history.issues.length) process.exitCode = 1;
+    } finally {
+      try { await client.query('ROLLBACK'); }
+      finally { client.release(); }
+    }
+  }
+
   try {
     const version = await pool.query('show server_version');
     const serverVersion = version.rows?.[0]?.server_version;
@@ -104,8 +118,8 @@ try {
 } catch (error) {
   const message = describeDatabaseError(error);
 
-  console.error(`Prisma DB check failed using ${source}.`);
-  console.error(`Target: ${redactedTarget}`);
+  console.error(`Prisma DB check failed using ${database.source}.`);
+  console.error(`Target: ${database.target}`);
 
   if (message.toLowerCase().includes('password authentication failed')) {
     console.error(
@@ -115,7 +129,7 @@ try {
     console.error(message);
   }
 
-  process.exit(1);
+  process.exitCode = 1;
 } finally {
   await pool.end();
 }

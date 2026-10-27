@@ -1,5 +1,7 @@
 # Runbooks
 
+* [Environments and fixture commands](environments-and-fixtures.md) - explicit target selection, repeatable accounts/UAT scenarios, and read-only migration comparison.
+
 * [Docker development and testing](docker-dev-testing.md) - local Docker modes, ports, environment files, and troubleshooting.
 * [Database migrations](database-migrations.md) - Prisma migration ownership, preflight, deployment, drift diagnosis, and recovery.
 * [Pre-production schema baseline adoption](domain-schema-cutover.md) - local replay and backup-gated staging database rebuild guidance.

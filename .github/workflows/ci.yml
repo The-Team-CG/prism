@@ -58,7 +58,7 @@ jobs:
 
       - name: Script and database guard tests
         run: >-
-          npm run test:migrations && npm run test:domain-persistence && npm run test:invariants &&
+          npm --workspace prism-api run test:fixtures:seed && npm run test:migrations && npm run test:domain-persistence && npm run test:invariants &&
           npm run test:test-clocks && npm --workspace prism-api run test:db:connection &&
           npm --workspace prism-api run test:db:preflight:quote-request-fk &&
           npm --workspace prism-api run test:db:schema-equivalence && npm run test:boundaries

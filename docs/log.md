@@ -6,6 +6,8 @@ implementation and verification history.
 
 ## 2026-10-23
 
+- Added the environment/fixture command runbook and direct operational task navigation; clarified hosted account scope and preserved immutable migration history.
+
 - Added the bounded PMCM supplier engagement read seam between Commercial and read-models.
 
 ## 2026-10-21

@@ -33,5 +33,9 @@ jobs:
           node-version: "24"
           cache: npm
       - run: npm ci
+      - name: Verify repeatable fixture commands against migrated PostgreSQL
+        run: npm --workspace prism-api run test:fixtures:postgres
+        env:
+          PRISM_SEED_TEST_URL: ${{ env.DB_INTEGRITY_ADMIN_URL }}
       - name: Replay migrations and verify real database behavior
         run: npm --workspace prism-api run db:integrity:ci
