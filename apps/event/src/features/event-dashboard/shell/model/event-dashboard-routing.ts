@@ -117,8 +117,11 @@ export const EVENT_WORKSPACE_ROUTE_TABS: Record<string, DetailTab> = {
 export const EVENT_WORKSPACE_ROUTE_ITEMS: Record<string, string> = {
   overview: "event-overview",
   games: "event-games",
+  registration: "event-games",
   "planning-checklist": "event-planning",
   briefing: "event-planning",
+  decisions: "event-planning",
+  "decision-log": "event-planning",
   schedule: "event-timeline",
   attendees: "event-timeline",
   staff: "event-staff",
