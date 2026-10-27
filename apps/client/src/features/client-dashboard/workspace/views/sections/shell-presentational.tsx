@@ -22,8 +22,8 @@ import {
 
 export function NoticeBanner({ tone, children }: { tone: "danger" | "success"; children: React.ReactNode }) {
   const cls = tone === "danger"
-    ? "border-(--prism-signal)/20 bg-(--prism-signal)/8 text-(--prism-signal) border-l-(--prism-signal)"
-    : "border-(--prism-success)/20 bg-(--prism-success)/8 text-(--prism-success) border-l-(--prism-success)";
+    ? "border-primary/20 bg-primary/8 text-primary border-l-primary"
+    : "border-success/20 bg-success/8 text-success border-l-success";
   return (
     <div className={`rounded-lg border border-l-4 px-4 py-3 text-sm leading-6 ${cls}`}>{children}</div>
   );
@@ -40,7 +40,7 @@ export function PageHeader({ eyebrow, title, description, meta, action }: {
     <section className="rounded-md border border-border bg-card px-4 py-3 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          {eyebrow ? <p className="text-[10px] font-black uppercase text-muted-foreground">{eyebrow}</p> : null}
+          {eyebrow ? <p className="text-3xs font-black uppercase text-muted-foreground">{eyebrow}</p> : null}
           <h2 className="mt-0.5 text-lg font-black leading-tight text-foreground sm:text-xl">{title}</h2>
           {description ? <p className="mt-1 max-w-3xl text-sm leading-5 text-muted-foreground">{description}</p> : null}
           {meta?.length ? (
@@ -81,12 +81,12 @@ export function EventWorkspaceNav({
                 onClick={() => onSelect(item)}
                 className={cn(
                   "relative h-11 shrink-0 px-3 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground",
-                  active && "text-(--prism-signal)",
+                  active && "text-primary",
                 )}
               >
                 {item.label}
                 {active ? (
-                  <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-(--prism-signal)" />
+                  <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-primary" />
                 ) : null}
               </button>
             );
@@ -122,11 +122,11 @@ export function EventSummaryCard({
 
   return (
     <article className={cn("overflow-hidden rounded-xl border border-border bg-card shadow-sm", className)}>
-      <div className="bg-(--prism-ink) px-4 py-4 text-white">
+      <div className="bg-ink px-4 py-4 text-white">
         <div className="flex items-start justify-between gap-3">
-          <div className="rounded-md bg-white px-3 py-2 text-center text-(--prism-ink)">
+          <div className="rounded-md bg-white px-3 py-2 text-center text-ink">
             <p className="text-lg font-black leading-none">{dateParts.day}</p>
-            <p className="mt-1 text-[10px] font-black uppercase leading-none">{dateParts.month}</p>
+            <p className="mt-1 text-3xs font-black uppercase leading-none">{dateParts.month}</p>
           </div>
           <StatusBadge status={event.status} label={formatStatusLabel(event.status)} />
         </div>
@@ -159,13 +159,13 @@ export function EventSummaryCard({
             <span
               key={dot.label}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-semibold",
+                "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-2xs font-semibold",
                 dot.done
-                  ? "border-(--prism-success)/20 bg-(--prism-success)/8 text-(--prism-success)"
+                  ? "border-success/20 bg-success/8 text-success"
                   : "border-border bg-muted/40 text-muted-foreground",
               )}
             >
-              <span className={cn("size-1.5 rounded-full", dot.done ? "bg-(--prism-success)" : "bg-muted-foreground/35")} />
+              <span className={cn("size-1.5 rounded-full", dot.done ? "bg-success" : "bg-muted-foreground/35")} />
               {dot.label}
             </span>
           ))}

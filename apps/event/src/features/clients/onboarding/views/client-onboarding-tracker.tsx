@@ -13,12 +13,12 @@ import { usePortalInvitationResendViewModel } from "../view-models/use-portal-in
 function TimelineStep({ title, done, meta }: { title: string; done: boolean; meta?: string }) {
   return (
     <div className="flex items-start gap-3">
-      <span className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full ${done ? "bg-(--prism-success) text-white" : "border-2 border-border bg-background text-muted-foreground"}`}>
+      <span className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full ${done ? "bg-success text-white" : "border-2 border-border bg-background text-muted-foreground"}`}>
         {done ? <CheckCircle2 className="size-3" /> : <Circle className="size-3" />}
       </span>
       <div className="min-w-0 flex-1">
-        <p className={`text-xs font-bold ${done ? "text-(--prism-success)" : "text-muted-foreground"}`}>{title}</p>
-        {meta && <p className="mt-0.5 text-[10px] text-muted-foreground">{meta}</p>}
+        <p className={`text-xs font-bold ${done ? "text-success" : "text-muted-foreground"}`}>{title}</p>
+        {meta && <p className="mt-0.5 text-3xs text-muted-foreground">{meta}</p>}
       </div>
     </div>
   );
@@ -45,7 +45,7 @@ export function ClientOnboardingTracker({
     <div className="rounded-2xl border border-border bg-card shadow-sm">
       <div className="border-b border-border px-6 py-4">
         <div className="flex items-center gap-2">
-          <FileCheck2 className="size-4 text-(--prism-signal)" />
+          <FileCheck2 className="size-4 text-primary" />
           <h2 className="text-sm font-bold text-foreground">Client onboarding</h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -94,7 +94,7 @@ export function ClientOnboardingTracker({
                   </div>
                 </div>
                 {invitations.feedback?.inquiryId === inq.id && (
-                  <p role="status" className={`mt-2 text-xs ${invitations.feedback.tone === "error" ? "text-destructive" : "text-(--prism-success)"}`}>
+                  <p role="status" className={`mt-2 text-xs ${invitations.feedback.tone === "error" ? "text-destructive" : "text-success"}`}>
                     {invitations.feedback.text}
                   </p>
                 )}
@@ -106,7 +106,7 @@ export function ClientOnboardingTracker({
                 </div>
 
                 {!inq.conformeSignedAt && (
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-(--prism-amber)/20 bg-(--prism-amber)/5 px-4 py-3">
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-attention/20 bg-attention/5 px-4 py-3">
                     <p className="text-xs text-muted-foreground">
                       {reminderEvidenceCopy(inq, compactTimestamp)}
                     </p>
@@ -117,7 +117,7 @@ export function ClientOnboardingTracker({
                           variant="outline"
                           disabled={busy}
                           onClick={() => onSendReminder(inq)}
-                          className="rounded-lg border-(--prism-amber)/25 font-bold text-(--prism-amber) hover:bg-(--prism-amber)/8"
+                          className="rounded-lg border-attention/25 font-bold text-attention hover:bg-attention/8"
                         >
                           Send reminder
                         </Button>

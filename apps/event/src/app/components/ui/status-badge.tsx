@@ -28,9 +28,9 @@ const STATUS_MAP: Record<string, StatusTier> = {
 };
 
 const TIER_CLASSES: Record<StatusTier, string> = {
-  success: "bg-(--prism-success)/10 text-(--prism-success) ring-(--prism-success)/20",
-  pending: "bg-(--prism-amber)/10 text-(--prism-amber) ring-(--prism-amber)/20",
-  danger:  "bg-(--prism-danger)/10 text-(--prism-danger) ring-(--prism-danger)/20",
+  success: "bg-success/10 text-success ring-success/20",
+  pending: "bg-attention/10 text-attention ring-attention/20",
+  danger:  "bg-danger/10 text-danger ring-danger/20",
   default: "bg-primary/10 text-primary ring-primary/15",
 };
 
@@ -50,7 +50,7 @@ export function StatusBadge({ status, label, className }: StatusBadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold capitalize ring-1",
+        "inline-flex items-center rounded-full px-2.5 py-1 text-2xs font-bold capitalize ring-1",
         statusClass(status),
         className,
       )}

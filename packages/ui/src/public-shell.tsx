@@ -221,7 +221,7 @@ function MarketingStats({ stats, dark }: { stats: PrismMarketingStat[]; dark: bo
     <div className="mt-8 grid max-w-3xl gap-3 sm:grid-cols-3">
       {stats.map((stat) => (
         <div key={stat.label} className={cn("rounded-lg border p-4", marketingStatCardClass(dark))}>
-          <p className={cn("text-[10px] font-black uppercase tracking-[0.16em]", dark ? "text-(--prism-amber)" : "text-(--prism-amber)")}>{stat.label}</p>
+          <p className={cn("text-3xs font-black uppercase tracking-[0.16em]", dark ? "text-attention" : "text-attention")}>{stat.label}</p>
           <p className={cn("mt-2 text-3xl font-black", dark ? "text-sidebar-foreground" : "text-foreground")}>{stat.value}</p>
           <p className={cn("mt-1 text-sm leading-5", dark ? "text-sidebar-foreground/66" : "text-muted-foreground")}>{stat.detail}</p>
         </div>
@@ -269,7 +269,7 @@ export function PrismMarketingShell({
   const dark = surface === "dark";
 
   return (
-    <main className={cn("min-h-screen overflow-auto bg-background text-foreground", dark && "bg-(--prism-ink)", className)}>
+    <main className={cn("min-h-screen overflow-auto bg-background text-foreground", dark && "bg-ink", className)}>
       <section className={cn("relative min-h-screen overflow-hidden px-5 py-5 sm:px-8 lg:px-10", dark && "text-sidebar-foreground")}>
         <div className={cn("absolute inset-0", marketingBackdropClass(dark))} />
         <div className={cn("absolute inset-0 opacity-40", marketingGridClass(dark))} />

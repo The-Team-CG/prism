@@ -68,7 +68,7 @@ function AccountRow({
         <AccountRowActions user={user} actions={actions} vm={vm} />
       </div>
       {feedback ? (
-        <p className={cx("mt-2 text-xs", feedback.tone === "success" ? "text-emerald-700" : "text-rose-700")}>{feedback.text}</p>
+        <p className={cx("mt-2 text-xs", feedback.tone === "success" ? "text-success" : "text-danger")}>{feedback.text}</p>
       ) : null}
     </div>
   );
@@ -139,7 +139,7 @@ function StaffInviteForm({ vm }: { vm: AccountAdminVm }) {
           Send invitation
         </Button>
         {vm.inviteFeedback ? (
-          <p className={cx("text-xs", vm.inviteFeedback.tone === "success" ? "text-emerald-700" : "text-rose-700")}>{vm.inviteFeedback.text}</p>
+          <p className={cx("text-xs", vm.inviteFeedback.tone === "success" ? "text-success" : "text-danger")}>{vm.inviteFeedback.text}</p>
         ) : null}
       </div>
     </form>

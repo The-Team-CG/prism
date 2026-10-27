@@ -26,7 +26,7 @@ export function LogisticsCompletionPanel({ eventId }: { eventId: string }) {
       <p className="mt-2 text-sm text-muted-foreground">
         PMCM-only record. It clears the logistics close gate. Private notes stay inside PMCM and are never shown to clients or suppliers.
       </p>
-      {vm.error ? <p className="mt-3 text-sm text-amber-800">{vm.error}</p> : null}
+      {vm.error ? <p className="mt-3 text-sm text-attention">{vm.error}</p> : null}
       {vm.loaded ? (
         <form
           className="mt-4 grid gap-3"

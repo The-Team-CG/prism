@@ -42,9 +42,9 @@ function certificationLabel(attention: string, counts: { rejected: number; expir
 function certificationDotClass(attention: string) {
   const classes: Record<string, string> = {
     none: "bg-slate-500",
-    verified: "bg-emerald-400",
-    expired: "bg-rose-400",
-    rejected: "bg-rose-400",
+    verified: "bg-success",
+    expired: "bg-danger",
+    rejected: "bg-danger",
   };
   return classes[attention] ?? "bg-amber-300";
 }
@@ -61,7 +61,7 @@ export function SupplierDirectoryTable(props: SupplierDirectoryTableProps) {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1000px] table-fixed border-collapse text-left text-sm">
           <colgroup>{[17, 16, 12, 20, 12, 12, 11].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}</colgroup>
-          <thead className="sticky top-0 z-10 text-[11px] font-medium text-muted-foreground">
+          <thead className="sticky top-0 z-10 text-2xs font-medium text-muted-foreground">
             <tr className="h-9 border-b border-border">
               <th scope="col" className="px-4">Supplier</th>
               <th scope="col" className="px-3">Category</th>
@@ -183,10 +183,10 @@ function SupplierDirectoryRow({ supplier, selected, onSelect }: { supplier: Supp
       <td className="max-w-[190px] px-3 text-muted-foreground">
         <div className="flex items-center gap-2"><SupplierAvatar name={supplier.contactName || supplier.name} /><div className="min-w-0">
           <span className="block truncate">{contact}</span>
-          <span className="block truncate text-[10px]">{contactValue}</span>
+          <span className="block truncate text-3xs">{contactValue}</span>
         </div></div>
       </td>
-      <td className="min-w-[130px] whitespace-nowrap px-3"><span className="mb-1.5 block text-[11px]">{ratingLabel(supplier.rating)}</span><div className="max-w-24"><SegmentedMeter value={supplier.rating.average} segments={24} /></div></td>
+      <td className="min-w-[130px] whitespace-nowrap px-3"><span className="mb-1.5 block text-2xs">{ratingLabel(supplier.rating)}</span><div className="max-w-24"><SegmentedMeter value={supplier.rating.average} segments={24} /></div></td>
       <td className="whitespace-nowrap px-3 text-muted-foreground"><span className={`mr-1.5 inline-block size-1.5 rounded-full ${certificationDotClass(supplier.certifications.attention)}`} />{certificationLabel(supplier.certifications.attention, supplier.certifications)}</td>
       <td className="whitespace-nowrap px-3 text-muted-foreground"><span title={supplier.lastReviewedAt ? new Date(supplier.lastReviewedAt).toLocaleDateString("en", { dateStyle: "long" }) : undefined} className="flex items-center gap-1.5"><CalendarDays aria-hidden="true" className="size-3" />{dateLabel(supplier.lastReviewedAt)}</span></td>
     </tr>

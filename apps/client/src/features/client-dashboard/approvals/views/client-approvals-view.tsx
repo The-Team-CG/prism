@@ -17,8 +17,8 @@ import {
 
 function statusIcon(status: string) {
   const kind = approvalStatusKind(status);
-  if (kind === "success") return <CheckCircle2 className="size-4 text-(--prism-success)" />;
-  if (kind === "pending") return <Clock className="size-4 text-(--prism-amber)" />;
+  if (kind === "success") return <CheckCircle2 className="size-4 text-success" />;
+  if (kind === "pending") return <Clock className="size-4 text-attention" />;
   return <BadgeCheck className="size-4 text-muted-foreground" />;
 }
 
@@ -47,7 +47,7 @@ function ApprovalsEmpty({
 
 function ApprovalItemRow({ item }: { item: ApprovalItem }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border bg-card px-5 py-4 shadow-sm hover:border-(--prism-signal)/20 transition-colors">
+    <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border bg-card px-5 py-4 shadow-sm hover:border-primary/20 transition-colors">
       <div className="flex items-start gap-3 min-w-0">
         <span className="mt-0.5 shrink-0">{statusIcon(item.status)}</span>
         <div className="min-w-0">

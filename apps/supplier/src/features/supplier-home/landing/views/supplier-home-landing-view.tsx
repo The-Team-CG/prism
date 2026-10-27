@@ -42,7 +42,7 @@ function SupplierActionBoard() {
   return (
     <section className="overflow-hidden rounded-lg border border-primary/12 bg-card shadow-[0_30px_110px_rgba(23,18,22,0.12)]">
       <div className="grid lg:grid-cols-[76px_1fr]">
-        <aside className="hidden bg-(--prism-ink) p-4 text-sidebar-foreground lg:grid lg:content-start lg:gap-6">
+        <aside className="hidden bg-ink p-4 text-sidebar-foreground lg:grid lg:content-start lg:gap-6">
           {[Target, FileCheck2, ClipboardCheck, UserRound, MessageSquareText, Bell, ShieldCheck].map((Icon, index) => (
             <span key={index} className="grid size-10 place-items-center rounded-md text-sidebar-foreground/80">
               <Icon className="size-5" />
@@ -65,7 +65,7 @@ function SupplierActionBoard() {
             {rows.map(({ title, detail, scope, meta, tone, icon: Icon }) => (
               <div key={title} className="grid gap-3 rounded-md border border-border bg-background p-4 sm:grid-cols-[1fr_1.1fr_auto] sm:items-center">
                 <div className="flex items-center gap-4">
-                  <span className={tone === "green" ? "grid size-12 place-items-center rounded-md bg-(--prism-success)/10 text-(--prism-success)" : tone === "blue" ? "grid size-12 place-items-center rounded-md bg-[#40A0D0]/10 text-[#40A0D0]" : "grid size-12 place-items-center rounded-md bg-[#F06030]/10 text-[#F06030]"}>
+                  <span className={tone === "green" ? "grid size-12 place-items-center rounded-md bg-success/10 text-success" : tone === "blue" ? "grid size-12 place-items-center rounded-md bg-brand-blue/10 text-brand-blue" : "grid size-12 place-items-center rounded-md bg-brand-orange/10 text-brand-orange"}>
                     <Icon className="size-6" />
                   </span>
                   <span>
@@ -77,7 +77,7 @@ function SupplierActionBoard() {
                   <p className="text-sm font-bold text-foreground">{scope}</p>
                   <p className="text-xs leading-5 text-muted-foreground">Assigned by PMCM</p>
                 </div>
-                <span className={tone === "green" ? "w-fit rounded-full bg-(--prism-success)/10 px-3 py-1.5 text-xs font-black text-(--prism-success)" : tone === "blue" ? "w-fit rounded-full bg-[#40A0D0]/10 px-3 py-1.5 text-xs font-black text-[#40A0D0]" : "w-fit rounded-full bg-[#F06030]/10 px-3 py-1.5 text-xs font-black text-[#F06030]"}>
+                <span className={tone === "green" ? "w-fit rounded-full bg-success/10 px-3 py-1.5 text-xs font-black text-success" : tone === "blue" ? "w-fit rounded-full bg-brand-blue/10 px-3 py-1.5 text-xs font-black text-brand-blue" : "w-fit rounded-full bg-brand-orange/10 px-3 py-1.5 text-xs font-black text-brand-orange"}>
                   {meta}
                 </span>
               </div>
@@ -95,7 +95,7 @@ function SupplierActionBoard() {
                 ["Setup ongoing", "In progress", "warning"],
                 ["Completed", "All done", "neutral"],
               ].map(([title, detail, tone]) => (
-                <button key={title} className={tone === "success" ? "rounded-md border border-(--prism-success)/35 bg-(--prism-success)/8 px-4 py-3 text-left" : tone === "warning" ? "rounded-md border border-[#F06030]/35 bg-[#F06030]/8 px-4 py-3 text-left" : "rounded-md border border-border bg-card px-4 py-3 text-left"}>
+                <button key={title} className={tone === "success" ? "rounded-md border border-success/35 bg-success/8 px-4 py-3 text-left" : tone === "warning" ? "rounded-md border border-brand-orange/35 bg-brand-orange/8 px-4 py-3 text-left" : "rounded-md border border-border bg-card px-4 py-3 text-left"}>
                   <span className="block font-black text-foreground">{title}</span>
                   <span className="text-sm text-muted-foreground">{detail}</span>
                 </button>
@@ -149,7 +149,7 @@ export function SupplierHomeLandingView() {
           <div className="grid min-h-[calc(100vh-5.5rem)] items-start gap-10 py-14 lg:grid-cols-[0.78fr_1.22fr] xl:py-20">
             <div className="max-w-3xl">
               <h1
-                className="max-w-4xl prism-serif text-5xl font-black leading-[0.93] tracking-normal text-(--prism-ink) sm:text-6xl xl:text-[4.6rem]"
+                className="max-w-4xl prism-serif text-5xl font-black leading-[0.93] tracking-normal text-ink sm:text-6xl xl:text-[4.6rem]"
               >
                 Know what is due, what is locked, and what PMCM needs next
               </h1>
@@ -215,7 +215,7 @@ export function SupplierHomeLandingView() {
         <div className="mx-auto grid max-w-[1320px] gap-8 rounded-lg border border-primary/10 bg-card p-8 lg:grid-cols-[0.3fr_0.7fr] lg:items-start">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Quote clarity</p>
-            <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-(--prism-ink) sm:text-5xl">Quote deadlines you can trust</h2>
+            <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-ink sm:text-5xl">Quote deadlines you can trust</h2>
             <p className="mt-4 text-lg leading-8 text-muted-foreground">See what is due, what is open for revision, and what has been locked at a glance.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
@@ -225,11 +225,11 @@ export function SupplierHomeLandingView() {
               ["Quote locked", "AV & Staging", "Locked May 6, 2026", "Confirmed", "View details"],
             ].map(([label, title, date, status, action]) => (
               <div key={label} className="rounded-lg border border-primary/12 bg-background p-6">
-                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-primary">{label}</p>
+                <p className="text-2xs font-black uppercase tracking-[0.18em] text-primary">{label}</p>
                 <p className="mt-4 text-lg font-black text-foreground">{title}</p>
                 <p className="mt-1 text-sm text-muted-foreground">{date}</p>
-                <p className="mt-4 text-sm font-black text-[#F06030]">{status}</p>
-                <div className="mt-4 h-2 rounded-full bg-secondary"><div className="h-2 w-2/5 rounded-full bg-[#F06030]" /></div>
+                <p className="mt-4 text-sm font-black text-brand-orange">{status}</p>
+                <div className="mt-4 h-2 rounded-full bg-secondary"><div className="h-2 w-2/5 rounded-full bg-brand-orange" /></div>
                 <a href={portalHref("/sign-in")} className="mt-5 inline-flex items-center gap-2 text-sm font-black text-primary">{action}<ArrowRight className="size-4" /></a>
               </div>
             ))}
@@ -240,8 +240,8 @@ export function SupplierHomeLandingView() {
       <section id="assignments" className="px-5 py-16 sm:px-8 lg:px-10">
         <div className="mx-auto grid max-w-[1320px] gap-8 rounded-lg border border-primary/10 bg-card p-8 lg:grid-cols-[0.3fr_0.7fr] lg:items-center">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-(--prism-amber)">Assignment handoff</p>
-            <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-(--prism-ink) sm:text-5xl">Assignments and handoffs, all in one place</h2>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-attention">Assignment handoff</p>
+            <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-ink sm:text-5xl">Assignments and handoffs, all in one place</h2>
             <p className="mt-4 text-lg leading-8 text-muted-foreground">Access contracts, confirm readiness, and see ingress details so your team arrives prepared and on time.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
@@ -267,10 +267,10 @@ export function SupplierHomeLandingView() {
         <div className="mx-auto grid max-w-[1320px] gap-8 rounded-lg border border-primary/10 bg-primary/5 p-8 lg:grid-cols-[0.32fr_0.34fr_0.34fr] lg:items-center">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Mobile event day</p>
-            <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-(--prism-ink) sm:text-5xl">Mobile-ready on event day</h2>
+            <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-ink sm:text-5xl">Mobile-ready on event day</h2>
             <p className="mt-4 text-lg leading-8 text-muted-foreground">Arrival, setup, and completion states are sized for phone use when teams are already onsite.</p>
           </div>
-          <div className="mx-auto w-full max-w-[260px] rounded-[2rem] border-8 border-(--prism-ink) bg-card p-4 shadow-[0_28px_80px_rgba(23,18,22,0.22)]">
+          <div className="mx-auto w-full max-w-[260px] rounded-[2rem] border-8 border-ink bg-card p-4 shadow-[0_28px_80px_rgba(23,18,22,0.22)]">
             <p className="text-center text-sm font-black text-foreground">Event-day status</p>
             <div className="mt-5 grid gap-3">
               {[
@@ -299,7 +299,7 @@ export function SupplierHomeLandingView() {
               ["Event day complete", ""],
             ].map(([title, time], index) => (
               <div key={title} className="flex gap-4 py-4">
-                <span className={index < 3 ? "mt-1 size-3 rounded-full bg-(--prism-success)" : "mt-1 size-3 rounded-full border border-border"} />
+                <span className={index < 3 ? "mt-1 size-3 rounded-full bg-success" : "mt-1 size-3 rounded-full border border-border"} />
                 <span><span className="block font-black text-foreground">{title}</span><span className="text-sm text-muted-foreground">{time}</span></span>
               </div>
             ))}
@@ -309,7 +309,7 @@ export function SupplierHomeLandingView() {
 
       <section className="px-5 py-16 sm:px-8 lg:px-10">
         <div className="mx-auto grid max-w-[1320px] gap-8 rounded-lg border border-primary/12 bg-secondary/55 p-8 md:grid-cols-[0.3fr_1fr_0.28fr] md:items-center">
-          <h2 className="prism-serif text-3xl font-black leading-tight text-(--prism-ink)">Everything needed for the assigned work</h2>
+          <h2 className="prism-serif text-3xl font-black leading-tight text-ink">Everything needed for the assigned work</h2>
           <div className="grid gap-4 sm:grid-cols-4">
             {["120+", "98%", "24/7", "All"].map((value, index) => (
               <div key={value} className="text-center">
@@ -327,13 +327,13 @@ export function SupplierHomeLandingView() {
         </div>
         <div className="mx-auto mt-16 max-w-3xl text-center">
           <p className="font-display text-5xl font-black text-primary">“</p>
-          <p className="text-xl leading-8 text-(--prism-ink)">The supplier portal keeps everything clear and easy to find. We know what is due, what is locked, and how to stay in sync onsite.</p>
+          <p className="text-xl leading-8 text-ink">The supplier portal keeps everything clear and easy to find. We know what is due, what is locked, and how to stay in sync onsite.</p>
           <p className="mt-5 text-sm font-black text-muted-foreground">PMCM Supplier Partner</p>
         </div>
       </section>
 
       <section className="px-5 pb-20 sm:px-8 lg:px-10">
-        <div className="mx-auto max-w-[1320px] rounded-lg border border-primary/12 bg-(--prism-ink) p-8 text-sidebar-foreground shadow-[0_24px_80px_rgba(23,18,22,0.08)] sm:p-10 lg:flex lg:items-center lg:justify-between">
+        <div className="mx-auto max-w-[1320px] rounded-lg border border-primary/12 bg-ink p-8 text-sidebar-foreground shadow-[0_24px_80px_rgba(23,18,22,0.08)] sm:p-10 lg:flex lg:items-center lg:justify-between">
           <div>
             <h2 className="max-w-2xl prism-serif text-4xl font-black leading-tight">Return to your supplier workspace</h2>
             <p className="mt-3 text-sidebar-foreground/70">Sign in to view assignments, deadlines, contracts, and event-day updates.</p>

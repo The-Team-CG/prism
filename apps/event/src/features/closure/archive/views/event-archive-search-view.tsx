@@ -14,13 +14,13 @@ export function EventArchiveSearchView() {
     <section className="rounded-2xl border border-border bg-card shadow-sm">
       <div className="border-b border-border px-6 py-4">
         <div className="flex items-center gap-2">
-          <Archive className="size-4 text-(--prism-signal)" />
+          <Archive className="size-4 text-primary" />
           <h2 className="text-sm font-bold text-foreground">Archived events</h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">Search closed records by venue, event type, or month. Full-record retain stays on the event record.</p>
       </div>
       <div className="space-y-4 px-6 py-5">
-        {vm.error ? <p className="text-sm font-semibold text-(--prism-amber)">{vm.error}</p> : null}
+        {vm.error ? <p className="text-sm font-semibold text-attention">{vm.error}</p> : null}
         <div className="grid gap-3 md:grid-cols-6">
           <label className="text-xs font-semibold text-muted-foreground">
             Venue

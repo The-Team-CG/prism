@@ -122,20 +122,20 @@ export function ClientFilesView() {
                     className={cn(
                       "group min-w-0 rounded-xl border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm",
                       isActive
-                        ? "border-(--prism-success)/40 bg-(--prism-success)/10"
-                        : "border-border bg-background hover:border-(--prism-success)/30",
+                        ? "border-success/40 bg-success/10"
+                        : "border-border bg-background hover:border-success/30",
                     )}
                   >
                     <div
                       className={cn(
                         "relative h-20 rounded-lg",
-                        isActive ? "bg-(--prism-success)/30" : "bg-muted",
+                        isActive ? "bg-success/30" : "bg-muted",
                       )}
                     >
                       <span
                         className={cn(
                           "absolute -top-1 left-0 h-4 w-16 rounded-t-lg",
-                          isActive ? "bg-(--prism-success)/30" : "bg-muted",
+                          isActive ? "bg-success/30" : "bg-muted",
                         )}
                       />
                       <span className="absolute right-2 top-2 opacity-0 transition group-hover:opacity-100">
@@ -163,8 +163,8 @@ export function ClientFilesView() {
               <MoreVertical className="size-4 text-muted-foreground" />
             </div>
             <div className="mt-5">
-              <div className="relative h-24 rounded-xl bg-(--prism-success)/25">
-                <span className="absolute -top-1 left-0 h-5 w-20 rounded-t-xl bg-(--prism-success)/25" />
+              <div className="relative h-24 rounded-xl bg-success/25">
+                <span className="absolute -top-1 left-0 h-5 w-20 rounded-t-xl bg-success/25" />
               </div>
               <div className="mt-5 space-y-3 text-xs">
                 <div className="flex justify-between gap-3">
@@ -205,7 +205,7 @@ export function ClientFilesView() {
           {files.length ? (
             <div className="mt-4 overflow-x-auto">
               <div className="min-w-[620px]">
-                <div className="grid grid-cols-[minmax(220px,1.4fr)_140px_minmax(180px,1fr)_150px_120px] gap-3 border-b border-border px-2 pb-2 text-[11px] font-bold text-muted-foreground">
+                <div className="grid grid-cols-[minmax(220px,1.4fr)_140px_minmax(180px,1fr)_150px_120px] gap-3 border-b border-border px-2 pb-2 text-2xs font-bold text-muted-foreground">
                   <span>File name</span>
                   <span>Folder</span>
                   <span>Event</span>
@@ -221,7 +221,7 @@ export function ClientFilesView() {
                         className="grid grid-cols-[minmax(220px,1.4fr)_140px_minmax(180px,1fr)_150px_120px] items-center gap-3 px-2 py-3 text-sm"
                       >
                         <div className="flex min-w-0 items-center gap-3">
-                          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-(--prism-warning)/12 text-(--prism-warning)">
+                          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-attention/12 text-attention">
                             <FileText className="size-4" />
                           </span>
                           <span className="truncate font-bold text-foreground">{file.fileName}</span>

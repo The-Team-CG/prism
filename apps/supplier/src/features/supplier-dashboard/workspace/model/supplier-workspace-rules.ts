@@ -60,13 +60,13 @@ export function isPastDate(value?: string | null, now: number = Date.now()): boo
 
 export function readinessTone(priority: string): string {
   if (priority === "critical") {
-    return "border-(--prism-danger)/25 bg-(--prism-danger)/8 text-(--prism-danger)";
+    return "border-danger/25 bg-danger/8 text-danger";
   }
   if (priority === "warning") {
-    return "border-(--prism-amber)/25 bg-(--prism-amber)/8 text-(--prism-amber)";
+    return "border-attention/25 bg-attention/8 text-attention";
   }
   if (priority === "attention") {
-    return "border-(--prism-signal)/20 bg-(--prism-signal-soft) text-(--prism-signal)";
+    return "border-primary/20 bg-primary-soft text-primary";
   }
   return "border-border bg-muted text-muted-foreground";
 }

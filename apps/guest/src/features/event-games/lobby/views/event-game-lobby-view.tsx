@@ -12,7 +12,7 @@ export function EventGameLobbyView({ eventSlug }: { eventSlug: string }) {
   const lobby = vm.lobby;
 
   return (
-    <main className="min-h-screen bg-(--prism-page) px-5 py-8 text-foreground">
+    <main className="min-h-screen bg-page px-5 py-8 text-foreground">
       <div className="mx-auto w-full max-w-4xl">
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-5">
           <a href="/games/join" className="text-sm font-black tracking-wide text-primary">P.R.I.S.M</a>
@@ -29,7 +29,7 @@ export function EventGameLobbyView({ eventSlug }: { eventSlug: string }) {
         </header>
 
         <section className="pt-8 sm:pt-12" aria-labelledby="event-game-lobby-title">
-          <div className="mb-7 h-1 w-20 rounded-sm" style={{ background: lobby ? `linear-gradient(90deg, ${lobby.branding.primaryColor}, ${lobby.branding.secondaryColor})` : "var(--prism-signal)" }} />
+          <div className="mb-7 h-1 w-20 rounded-sm" style={{ background: lobby ? `linear-gradient(90deg, ${lobby.branding.primaryColor}, ${lobby.branding.secondaryColor})` : "var(--primary)" }} />
           <p className="text-sm font-semibold text-muted-foreground">Independent (Singleplayer) games</p>
           <h1 id="event-game-lobby-title" className="mt-2 text-3xl font-black leading-tight sm:text-4xl">
             {lobby?.eventName ?? "Event games"}

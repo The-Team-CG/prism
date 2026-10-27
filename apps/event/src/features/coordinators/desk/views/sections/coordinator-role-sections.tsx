@@ -78,7 +78,7 @@ function CompactRecordRow({ item }: { item: CompactRecordItem }) {
           ) : null}
         </span>
         {item.description ? <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-muted-foreground">{item.description}</span> : null}
-        {item.meta ? <span className="mt-0.5 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{item.meta}</span> : null}
+        {item.meta ? <span className="mt-0.5 block text-3xs font-bold uppercase tracking-widest text-muted-foreground">{item.meta}</span> : null}
       </span>
     </span>
   );
@@ -113,7 +113,7 @@ export function CoordinatorRoleBadgeCard({
     <CCard>
       <CCardHeader>
         <div className="flex items-center gap-2">
-          <BadgeCheck className="size-4 text-(--prism-signal)" />
+          <BadgeCheck className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Role badge</h3>
         </div>
       </CCardHeader>
@@ -188,8 +188,8 @@ function CoordinatorAttendanceControl({
         </div>
       )}
       {copy.confirmPrompt ? (
-        <div className="mt-3 rounded-md border border-(--prism-danger)/25 bg-(--prism-danger)/8 px-3 py-3">
-          <p className="text-xs font-bold text-(--prism-danger)">{copy.confirmPrompt}</p>
+        <div className="mt-3 rounded-md border border-danger/25 bg-danger/8 px-3 py-3">
+          <p className="text-xs font-bold text-danger">{copy.confirmPrompt}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             <button
               type="button"
@@ -235,12 +235,12 @@ function CoordinatorAssignedBadge({
   return (
     <div>
       <div className="rounded-xl bg-muted/50 p-5 text-center">
-        <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">Assigned role</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-primary">Assigned role</p>
         <p className="mt-2 text-2xl font-black text-foreground">{roleName}</p>
         <div className="mt-3 flex flex-wrap justify-center gap-2">
           <Badge
             variant="outline"
-            className="rounded-full border-(--prism-success)/25 bg-(--prism-success)/8 px-3 py-1 text-(--prism-success)"
+            className="rounded-full border-success/25 bg-success/8 px-3 py-1 text-success"
           >
             Role-safe view
           </Badge>
@@ -250,7 +250,7 @@ function CoordinatorAssignedBadge({
         </div>
       </div>
       {acknowledged ? (
-        <p className="mt-4 text-center text-sm font-semibold text-(--prism-success)">PMCM has your definite yes.</p>
+        <p className="mt-4 text-center text-sm font-semibold text-success">PMCM has your definite yes.</p>
       ) : (
         <Button disabled={busy} onClick={onAcknowledge} className="mt-4 w-full rounded-xl font-bold">
           <CheckCircle2 className="size-4" /> Acknowledge role
@@ -305,7 +305,7 @@ function CoordinatorTaskForm({ taskForm }: { taskForm: CoordinatorTaskFormModel 
     <CCard>
       <CCardHeader>
         <div className="flex items-center gap-2">
-          <ClipboardList className="size-4 text-(--prism-signal)" />
+          <ClipboardList className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Log an event-day task</h3>
         </div>
       </CCardHeader>
@@ -383,7 +383,7 @@ function CoordinatorTaskForm({ taskForm }: { taskForm: CoordinatorTaskFormModel 
           </p>
         ) : null}
         {copy.routesAwayNotice ? (
-          <p className="rounded-md bg-(--prism-amber)/10 px-3 py-2 text-xs text-(--prism-amber)">
+          <p className="rounded-md bg-attention/10 px-3 py-2 text-xs text-attention">
             {copy.routesAwayNotice}
           </p>
         ) : null}
@@ -411,7 +411,7 @@ function CoordinatorIssueForm({ issueForm }: { issueForm: CoordinatorIssueFormMo
     <CCard>
       <CCardHeader>
         <div className="flex items-center gap-2">
-          <Radio className="size-4 text-(--prism-signal)" />
+          <Radio className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Log an urgent issue</h3>
         </div>
       </CCardHeader>
@@ -537,7 +537,7 @@ function CoordinatorRoleLoadingCard() {
   return (
     <CCard>
       <CCardBody className="flex items-center gap-3">
-        <ShieldCheck className="size-5 shrink-0 text-(--prism-signal)" />
+        <ShieldCheck className="size-5 shrink-0 text-primary" />
         <div>
           <p className="text-sm font-bold text-foreground">Loading role-safe data</p>
           <p className="mt-0.5 text-sm text-muted-foreground">
@@ -553,7 +553,7 @@ function CoordinatorRoleErrorCard({ message }: { message: string }) {
   return (
     <CCard>
       <CCardBody className="flex items-start gap-3">
-        <AlertTriangle className="mt-0.5 size-5 shrink-0 text-(--prism-amber)" />
+        <AlertTriangle className="mt-0.5 size-5 shrink-0 text-attention" />
         <div>
           <p className="text-sm font-bold text-foreground">Role-safe data unavailable</p>
           <p className="mt-0.5 text-sm text-muted-foreground">
@@ -599,7 +599,7 @@ function CoordinatorBriefingCard({ roleView }: { roleView: PrismCoordinatorRoleV
     <CCard>
       <CCardHeader>
         <div className="flex items-center gap-2">
-          <LayoutGrid className="size-4 text-(--prism-signal)" />
+          <LayoutGrid className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Floor and stage briefing</h3>
         </div>
       </CCardHeader>
@@ -633,7 +633,7 @@ function CoordinatorRoleLiveData({ roleView, registrationRole }: { roleView: Pri
     <CCard>
       <CCardHeader>
         <div className="flex items-center gap-2">
-          <Radio className="size-4 text-(--prism-signal)" />
+          <Radio className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Role-safe live data</h3>
         </div>
       </CCardHeader>
@@ -663,7 +663,7 @@ export function CoordinatorAssignmentHistory({ assignments }: { assignments: Pri
     <CCard>
       <CCardHeader>
         <div className="flex items-center gap-2">
-          <CalendarClock className="size-4 text-(--prism-signal)" />
+          <CalendarClock className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Assignment history</h3>
         </div>
       </CCardHeader>

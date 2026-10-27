@@ -92,7 +92,7 @@ export function ClientRequestView() {
           />
         </FieldGroup>
 
-        <div className="rounded-xl border border-primary/15 bg-(--prism-signal-soft) p-4 text-sm">
+        <div className="rounded-xl border border-primary/15 bg-primary-soft p-4 text-sm">
           <p className="font-bold text-foreground">What happens next</p>
           <ol className="mt-2 space-y-1 text-muted-foreground">
             <li>1. PMCM reviews fit and scope.</li>

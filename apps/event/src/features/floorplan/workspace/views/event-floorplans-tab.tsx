@@ -85,8 +85,8 @@ export function EventFloorplansTab({
                   </div>
                 )}
                 {draft.status === "revision_requested" && draft.revisionComment && (
-                  <div className="mt-3 rounded-lg border border-(--prism-warning)/25 bg-(--prism-warning)/8 p-3 text-xs leading-5 text-foreground">
-                    <p className="font-bold text-(--prism-warning)">Client revision requested</p>
+                  <div className="mt-3 rounded-lg border border-attention/25 bg-attention/8 p-3 text-xs leading-5 text-foreground">
+                    <p className="font-bold text-attention">Client revision requested</p>
                     <p className="mt-1 text-muted-foreground">{draft.revisionComment}</p>
                   </div>
                 )}
@@ -108,7 +108,7 @@ export function EventFloorplansTab({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="rounded-lg border-(--prism-success)/25 bg-(--prism-success)/8 font-bold text-(--prism-success) hover:bg-(--prism-success)/12"
+                      className="rounded-lg border-success/25 bg-success/8 font-bold text-success hover:bg-success/12"
                       onClick={() => onApproveDraft(draft)}
                     >
                       Approve

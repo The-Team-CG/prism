@@ -30,7 +30,7 @@ export function SupplierReviewPanel({
 }: SupplierReviewPanelProps) {
   return (
     <div className="rounded-lg border border-border bg-muted p-4">
-      <p className="text-xs font-black uppercase tracking-[0.14em] text-(--prism-amber)">Private PMCM Review</p>
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-attention">Private PMCM Review</p>
       <div className="mt-3 grid gap-2">
         <select
           aria-label="Overall supplier rating"
@@ -75,7 +75,7 @@ export function SupplierReviewPanel({
         type="button"
         disabled={busy || !canSubmit}
         onClick={onSubmitReview}
-        className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-(--prism-ink) px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60"
+        className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-ink px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60"
       >
         <Star className="size-4" /> Add review
       </button>

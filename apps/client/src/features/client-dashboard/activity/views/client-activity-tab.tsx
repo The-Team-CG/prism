@@ -63,7 +63,7 @@ export function ClientActivityTab({ audit }: { audit: PrismAuditLog[] }) {
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Activity className="size-4 text-(--prism-signal)" />
+          <Activity className="size-4 text-primary" />
           <h2 className="text-sm font-bold text-foreground">Event activity</h2>
         </div>
       </CardHeader>
@@ -73,7 +73,7 @@ export function ClientActivityTab({ audit }: { audit: PrismAuditLog[] }) {
             <div key={day}>
               <div className="mb-3 flex items-center gap-3">
                 <span className="h-px flex-1 bg-border" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                <span className="text-3xs font-bold uppercase tracking-widest text-muted-foreground">
                   {formatDayLabel(day)}
                 </span>
                 <span className="h-px flex-1 bg-border" />

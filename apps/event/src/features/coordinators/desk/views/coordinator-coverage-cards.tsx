@@ -32,7 +32,7 @@ export function StaffingSummary({ roleRequirements, assignmentCounts, onEdit }: 
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <UsersRound className="size-4 text-(--prism-signal)" />
+          <UsersRound className="size-4 text-primary" />
           <h2 className="text-sm font-bold text-foreground">Staffing summary</h2>
         </div>
       </CardHeader>
@@ -63,7 +63,7 @@ function RequirementTile({ requirement, assignedFallback, onEdit }: {
     <div className="rounded-xl border border-border bg-muted/30 p-3.5">
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-bold text-foreground">{requirement.role}</p>
-        <span className={"rounded-full px-2 py-0.5 text-xs font-bold " + (complete ? "bg-(--prism-success)/10 text-(--prism-success)" : "bg-(--prism-amber)/10 text-(--prism-amber)")}>
+        <span className={"rounded-full px-2 py-0.5 text-xs font-bold " + (complete ? "bg-success/10 text-success" : "bg-attention/10 text-attention")}>
           {assigned}/{requirement.required}{"acknowledged" in requirement ? " · " + acknowledged + " ack" : ""}
         </span>
       </div>

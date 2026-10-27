@@ -19,6 +19,6 @@ export function CardBody({ children, className = "" }: { children: React.ReactNo
 
 export function SectionAccent({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">{children}</p>
+    <p className="text-xs font-bold uppercase tracking-widest text-primary">{children}</p>
   );
 }

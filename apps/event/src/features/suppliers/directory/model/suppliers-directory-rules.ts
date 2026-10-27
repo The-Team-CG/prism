@@ -140,14 +140,14 @@ export function isQuoteClosed(status: string) {
 }
 
 export function quoteCardAccentClass(quote: { status: string; outsideAcceptableRange?: boolean }) {
-  if (quote.status === "selected" || quote.status === "locked") return "border-emerald-300 bg-emerald-50/70";
-  if (quote.outsideAcceptableRange) return "border-rose-200 bg-rose-50/70";
+  if (quote.status === "selected" || quote.status === "locked") return "border-success/25 bg-success-soft/70";
+  if (quote.outsideAcceptableRange) return "border-danger/25 bg-danger-soft/70";
   return "border-border";
 }
 
 export function quoteSelectButtonClass(status: string) {
-  if (status === "selected" || status === "locked") return "bg-emerald-100 text-emerald-700";
-  return "bg-(--prism-ink) text-sidebar-foreground";
+  if (status === "selected" || status === "locked") return "bg-success-soft text-success";
+  return "bg-ink text-sidebar-foreground";
 }
 
 export function quoteSelectLabel(status: string) {

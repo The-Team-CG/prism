@@ -21,9 +21,9 @@ export function EventQueueCard({
   onNavigateEvent: (id: string) => void;
 }) {
   function statusAccent(status: string) {
-    if (/approved|confirmed|complete|paid/i.test(status)) return "border-l-(--prism-success)";
-    if (/planning|in_progress|active|draft/i.test(status)) return "border-l-(--prism-signal)";
-    if (/pending|review/i.test(status)) return "border-l-(--prism-amber)";
+    if (/approved|confirmed|complete|paid/i.test(status)) return "border-l-success";
+    if (/planning|in_progress|active|draft/i.test(status)) return "border-l-primary";
+    if (/pending|review/i.test(status)) return "border-l-attention";
     return "border-l-border";
   }
 
@@ -57,7 +57,7 @@ export function EventQueueCard({
               className={`group flex w-full items-center justify-between gap-4 border-l-4 ${statusAccent(ev.status)} px-6 py-4 text-left transition hover:bg-muted/30`}
             >
               <div className="min-w-0">
-                <p className={`truncate text-sm font-bold ${ev.id === selectedEventId ? "text-(--prism-signal)" : "text-foreground"}`}>
+                <p className={`truncate text-sm font-bold ${ev.id === selectedEventId ? "text-primary" : "text-foreground"}`}>
                   {ev.eventName}
                 </p>
                 <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">

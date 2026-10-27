@@ -41,7 +41,7 @@ export function ClientStoredFilesPanel({ eventId }: { eventId?: string }) {
             type="button"
             onClick={() => model.inputRef.current?.click()}
             disabled={model.busy}
-            className="inline-flex items-center gap-2 rounded-lg bg-(--prism-signal) px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
           >
             {model.busy ? <LoaderCircle className="size-4 animate-spin" /> : <Upload className="size-4" />}
             {model.busy ? "Uploading" : "Upload file"}
@@ -56,7 +56,7 @@ export function ClientStoredFilesPanel({ eventId }: { eventId?: string }) {
         <div className="mt-4 divide-y divide-border">
           {model.files.map((file) => (
             <div key={file.id} className="flex items-center gap-3 py-3">
-              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-(--prism-signal)"><FileText className="size-4" /></span>
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-primary"><FileText className="size-4" /></span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-foreground">{file.originalFileName}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">{displayUsage(file)} · {displaySize(file.declaredByteSize)} · {file.lifecycleState === "stored" ? "Available" : file.lifecycleState}</p>

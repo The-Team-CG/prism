@@ -35,9 +35,9 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_COLORS: Record<string, string> = {
   not_started: "border-l-border bg-background/60",
-  configuring: "border-l-(--prism-amber) bg-(--prism-amber)/8",
-  live: "border-l-(--prism-signal) bg-(--prism-signal)/8",
-  closed: "border-l-(--prism-sage) bg-(--prism-sage)/10",
+  configuring: "border-l-attention bg-attention/8",
+  live: "border-l-primary bg-primary/8",
+  closed: "border-l-secondary bg-secondary/10",
 };
 
 function getNextStatus(status: string): string {
@@ -331,7 +331,7 @@ function HeadcountSummary({ platform }: { platform: PrismRegistrationPlatform })
   if (hasImport) {
     return (
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="border-l border-(--prism-sage) bg-(--prism-sage)/10 px-3 py-2.5">
+        <div className="border-l border-secondary bg-secondary/10 px-3 py-2.5">
           <p className="text-xs font-bold text-muted-foreground">Imported headcount</p>
           <p className="mt-1 text-lg font-black text-foreground">{platform.importedHeadcount}</p>
         </div>

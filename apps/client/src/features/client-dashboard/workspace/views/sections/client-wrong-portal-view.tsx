@@ -27,7 +27,7 @@ export function ClientWrongPortalView({
   return (
     <main className="grid min-h-screen place-items-center bg-background px-6">
       <section className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
-        <span className="grid size-12 place-items-center rounded-xl bg-amber-50 text-amber-600">
+        <span className="grid size-12 place-items-center rounded-xl bg-attention-soft text-attention">
           <ShieldCheck className="size-5" />
         </span>
         <h1 className="mt-5 text-xl font-bold text-foreground">Wrong portal for this account.</h1>

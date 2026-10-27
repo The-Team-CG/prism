@@ -285,7 +285,7 @@ export function EventGameAnalyticsCard({
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Trophy className="size-4 text-(--prism-signal)" aria-hidden="true" />
+          <Trophy className="size-4 text-primary" aria-hidden="true" />
           <h3 className="text-base font-bold text-foreground">Event analytics</h3>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">Participation counts event-scoped browser credentials, not verified people.</p>

@@ -63,7 +63,7 @@ export function MessagesPage({ session, selectedRequests }: { session: PrismAuth
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <MessageSquare className="size-4 text-(--prism-signal)" />
+          <MessageSquare className="size-4 text-primary" />
           <h2 className="text-sm font-bold text-foreground">Messages</h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">Direct communication with the PMCM team regarding your quote requests and assignments.</p>

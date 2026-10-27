@@ -19,7 +19,7 @@ export function EventWrapUpView({ eventId }: { eventId: string }) {
     setRequiredItems(vm.record.requiredItems);
     setSections({ issues: vm.record.sections.issues, feedback: vm.record.sections.feedback });
   }, [vm.record]);
-  if (vm.error) return <p className="text-sm text-amber-800">{vm.error}</p>;
+  if (vm.error) return <p className="text-sm text-attention">{vm.error}</p>;
   if (!vm.record) return <div className="flex flex-wrap gap-2"><button type="button" disabled={vm.busy} onClick={() => void vm.start({ mode: "full" })} className="rounded-md border border-border px-3 py-2 text-sm font-semibold">Start full wrap-up</button><button type="button" disabled={vm.busy} onClick={() => void vm.start({ mode: "quick" })} className="rounded-md border border-border px-3 py-2 text-sm font-semibold">Start quick wrap-up</button></div>;
   const logistics = wrapUpLogisticsMirror(vm.record);
   const editableItems = Object.entries(requiredItems).filter(([key]) => key !== WRAP_UP_LOGISTICS_KEY);

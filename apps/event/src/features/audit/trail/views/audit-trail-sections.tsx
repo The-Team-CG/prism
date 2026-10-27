@@ -91,7 +91,7 @@ function AuditTrailHeader({
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-(--prism-amber)">New-SEC4</p>
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-attention">New-SEC4</p>
         <h2 className="mt-2 text-2xl font-black text-foreground">Comprehensive Audit Trail & Activity Log</h2>
         <p className="mt-1 text-sm text-muted-foreground">Full history of user, system, access, supplier, finance, and document actions visible only to PMCM command users.</p>
       </div>
@@ -125,7 +125,7 @@ function AuditIntegrityCards({
     <div className="mt-3 grid gap-3 md:grid-cols-3">
       <div className={cx(
         "rounded-lg border p-4",
-        integrity.valid ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800",
+        integrity.valid ? "border-success/25 bg-success-soft text-success" : "border-danger/25 bg-danger-soft text-danger",
       )}>
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs font-black uppercase tracking-[0.16em]">Audit integrity</p>
@@ -137,14 +137,14 @@ function AuditIntegrityCards({
       <div className="rounded-lg border border-border bg-white p-4">
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">Privacy records</p>
-          <Database className="size-4 text-(--prism-amber)" />
+          <Database className="size-4 text-attention" />
         </div>
         <p className="mt-2 text-2xl font-black text-foreground">{privacyRecordCount}</p>
         <p className="mt-1 text-xs text-muted-foreground">{privacySurfaceCount} personal-data surfaces indexed</p>
       </div>
       <div className={cx(
         "rounded-lg border p-4",
-        missingConsentCount > 0 ? "border-amber-200 bg-amber-50 text-amber-900" : "border-border bg-white text-foreground",
+        missingConsentCount > 0 ? "border-attention/25 bg-attention-soft text-attention" : "border-border bg-white text-foreground",
       )}>
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs font-black uppercase tracking-[0.16em]">Consent gaps</p>
@@ -270,8 +270,8 @@ function AuditLogRow({ log }: { log: PrismAuditLog }) {
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-black text-foreground">{log.actor}</p>
             <span className="text-xs text-muted-foreground">({label(log.actorRole)})</span>
-            <span className={cx("rounded-full px-2 py-0.5 text-[11px] font-black capitalize ring-1", auditTone(log.category))}>{label(log.category)}</span>
-            {log.severity !== "info" ? <span className={cx("rounded-full px-2 py-0.5 text-[11px] font-black capitalize ring-1", severityTone(log.severity))}>{log.severity}</span> : null}
+            <span className={cx("rounded-full px-2 py-0.5 text-2xs font-black capitalize ring-1", auditTone(log.category))}>{label(log.category)}</span>
+            {log.severity !== "info" ? <span className={cx("rounded-full px-2 py-0.5 text-2xs font-black capitalize ring-1", severityTone(log.severity))}>{log.severity}</span> : null}
           </div>
           <p className="mt-1 text-sm text-foreground">{log.action}</p>
           {log.affectedLabel ? <p className="mt-1 text-xs text-muted-foreground">Affected: {log.affectedLabel}</p> : null}
@@ -280,7 +280,7 @@ function AuditLogRow({ log }: { log: PrismAuditLog }) {
       <div className="text-left text-xs text-muted-foreground md:text-right">
         <p className="font-semibold text-foreground">{compactTimestamp(log.createdAt)}</p>
         <p>{log.ipAddress}</p>
-        <p className="font-mono text-[10px] uppercase tracking-wide">{log.id}</p>
+        <p className="font-mono text-3xs uppercase tracking-wide">{log.id}</p>
       </div>
     </article>
   );
@@ -313,7 +313,7 @@ export function SecurityAlertsPanel({ alerts }: { alerts: PrismSecurityAlert[] }
                 <p className="font-black">{alert.title}</p>
                 <p className="mt-1 text-muted-foreground">{alert.description}</p>
               </div>
-              <span className={cx("rounded-full px-2 py-1 text-[11px] font-black capitalize ring-1", severityTone(alert.severity))}>{alert.severity}</span>
+              <span className={cx("rounded-full px-2 py-1 text-2xs font-black capitalize ring-1", severityTone(alert.severity))}>{alert.severity}</span>
             </div>
             <p className="mt-2 text-xs text-muted-foreground">{compactTimestamp(alert.createdAt)} - {alert.triggeredBy}</p>
           </div>
@@ -332,13 +332,13 @@ export function LoginHistoryPanel({ loginHistory }: { loginHistory: PrismLoginHi
           <div key={entry.id} className="rounded-md bg-background p-3 text-sm">
             <div className="flex items-center justify-between gap-3">
               <p className="font-black capitalize">{label(entry.status)}</p>
-              <span className={cx("rounded-full px-2 py-1 text-[11px] font-black capitalize ring-1", entry.status === "success" ? severityTone("info") : severityTone("warning"))}>
+              <span className={cx("rounded-full px-2 py-1 text-2xs font-black capitalize ring-1", entry.status === "success" ? severityTone("info") : severityTone("warning"))}>
                 {label(entry.userRole)}
               </span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">{compactTimestamp(entry.createdAt)}</p>
             <p className="mt-1 text-xs text-muted-foreground">{entry.ipAddress} - {entry.device}</p>
-            {entry.failureReason ? <p className="mt-1 text-xs text-rose-700">{entry.failureReason}</p> : null}
+            {entry.failureReason ? <p className="mt-1 text-xs text-danger">{entry.failureReason}</p> : null}
           </div>
         ))}
       </div>

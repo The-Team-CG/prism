@@ -30,7 +30,7 @@ export function SupplierPerformanceScorecards({
           <article key={scorecard.dimensionId} className={styles.scorecard}>
             <h4 className="text-sm font-medium">{scorecard.dimensionName}</h4>
             <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{scorecard.average === null ? "No assessment recorded in this period." : `Based on ${scorecard.sampleCount} PMCM assessment${scorecard.sampleCount === 1 ? "" : "s"} in the selected period.`}</p>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-[10px]">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-3xs">
               {scorecard.latest ? <span className="flex flex-wrap items-center gap-1.5"><SupplierAvatar name={scorecard.latest.reviewedBy} /><span>{scorecard.latest.reviewedBy}</span><Clock3 aria-hidden="true" className="ml-1 size-3 text-muted-foreground" /><time className="text-muted-foreground" dateTime={scorecard.latest.createdAt}>{new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(new Date(scorecard.latest.createdAt))}</time></span> : <span className="text-muted-foreground">Awaiting assessment</span>}
               <span className="flex items-center gap-2 font-semibold">{scorecard.average === null ? "Not rated" : `${scorecard.average.toFixed(1)} / 5`}<RatingStars rating={scorecard.average} /></span>
             </div>

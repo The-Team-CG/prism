@@ -40,9 +40,9 @@ function riskIcon(level: PARERisk["level"]) {
 
 function StatusPill({ status }: { status: PAREApprovalRecord["status"] }) {
   const cls =
-    status === "approved" ? "bg-green-100 text-green-700 border-green-200"
-    : status === "rejected" ? "bg-red-100 text-red-700 border-red-200"
-    : "bg-amber-100 text-amber-700 border-amber-200";
+    status === "approved" ? "bg-success-soft text-success border-success/25"
+    : status === "rejected" ? "bg-danger-soft text-danger border-danger/25"
+    : "bg-attention-soft text-attention border-attention/25";
   const Icon = status === "approved" ? CheckCircle2 : status === "rejected" ? ThumbsDown : Clock;
   return (
     <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-bold ${cls}`}>
@@ -96,11 +96,11 @@ function PAREApprovalCard({
     <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
       <PareApprovalHeader record={record} />
       <div className="space-y-5 p-5">
-        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-          <UserX className="size-4 shrink-0 text-red-600 mt-0.5" />
+        <div className="flex items-start gap-3 rounded-xl border border-danger/25 bg-danger-soft px-4 py-3">
+          <UserX className="size-4 shrink-0 text-danger mt-0.5" />
           <div>
-            <p className="text-sm font-bold text-red-800">Supplier withdrawn</p>
-            <p className="text-xs text-red-600 mt-0.5">
+            <p className="text-sm font-bold text-danger">Supplier withdrawn</p>
+            <p className="text-xs text-danger mt-0.5">
               {r.withdrawnSupplier.name} · {formatPareTier(r.withdrawnSupplier.tier)} · {money.format(r.withdrawnSupplier.quotedAmount)}
             </p>
           </div>
@@ -128,9 +128,9 @@ function PareApprovalHeader({ record }: { record: PAREApprovalRecord }) {
   const r = record.pareResult;
   const mode = pareModeCopy(r.mode);
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-gradient-to-r from-[var(--prism-signal)]/8 to-transparent px-5 py-4">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-gradient-to-r from-primary/8 to-transparent px-5 py-4">
       <div className="flex items-center gap-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--prism-signal)] text-white">
+        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary text-white">
           <Bot className="size-4" />
         </span>
         <div>
@@ -141,7 +141,7 @@ function PareApprovalHeader({ record }: { record: PAREApprovalRecord }) {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${mode.className}`}>
+        <span className={`rounded-full border px-2 py-0.5 text-3xs font-black uppercase tracking-wide ${mode.className}`}>
           {mode.label}
         </span>
         <StatusPill status={record.status} />
@@ -197,7 +197,7 @@ function PareReplacementPanel({ analysis }: { analysis: PAREApprovalRecord["pare
               <span>{money.format(candidate.quotedAmount)}</span>
               <span>·</span>
               <span>Reliability {Math.round(candidate.reliabilityScore * 100)}%</span>
-              {candidate.halal ? <span className="text-green-700 font-semibold">· Halal ✓</span> : null}
+              {candidate.halal ? <span className="text-success font-semibold">· Halal ✓</span> : null}
             </div>
           </div>
           <span className="text-sm font-black text-foreground">{analysis.costDeltaLabel}</span>
@@ -217,7 +217,7 @@ function PareOtherCandidates({ candidates }: { candidates: PAREApprovalRecord["p
           <div key={c.supplierId} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
             <div>
               <p className="text-xs font-bold text-foreground">{c.supplierName}</p>
-              <p className="text-[11px] text-muted-foreground">{formatPareTier(c.tier)} · Reliability {Math.round(c.reliabilityScore * 100)}%</p>
+              <p className="text-2xs text-muted-foreground">{formatPareTier(c.tier)} · Reliability {Math.round(c.reliabilityScore * 100)}%</p>
             </div>
             <span className="text-xs font-semibold text-foreground">{money.format(c.quotedAmount)}</span>
           </div>
@@ -245,7 +245,7 @@ function PareReviewFooter({
           type="button"
           disabled={busy}
           onClick={onApprove}
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--prism-success)] px-5 py-3 text-sm font-black text-white transition hover:opacity-90 disabled:opacity-50"
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-success px-5 py-3 text-sm font-black text-white transition hover:opacity-90 disabled:opacity-50"
         >
           <ThumbsUp className="size-4" />
           Approve — confirm replacement
@@ -254,7 +254,7 @@ function PareReviewFooter({
           type="button"
           disabled={busy}
           onClick={onReject}
-          className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-5 py-3 text-sm font-bold text-destructive transition hover:bg-red-50 disabled:opacity-50"
+          className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-5 py-3 text-sm font-bold text-destructive transition hover:bg-danger-soft disabled:opacity-50"
         >
           <ThumbsDown className="size-4" />
           Reject
@@ -306,7 +306,7 @@ export function PAREPanel({
       {/* Section header */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <span className="grid size-8 place-items-center rounded-lg bg-[var(--prism-signal)] text-white">
+          <span className="grid size-8 place-items-center rounded-lg bg-primary text-white">
             <Zap className="size-4" />
           </span>
           <div>
@@ -326,7 +326,7 @@ export function PAREPanel({
       </div>
 
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-xl border border-danger/25 bg-danger-soft px-4 py-3 text-sm text-danger">
           {error}
         </div>
       )}
@@ -354,7 +354,7 @@ export function PAREPanel({
                   type="button"
                   disabled={parentBusy || withdrawingId === req.id}
                   onClick={() => handleWithdraw(req.id)}
-                  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-danger/25 bg-danger-soft px-3 py-1.5 text-xs font-bold text-danger transition hover:bg-danger-soft disabled:opacity-50"
                 >
                   <UserX className="size-3.5" />
                   {withdrawingId === req.id ? "Triggering PARE…" : "Withdraw · Trigger PARE"}

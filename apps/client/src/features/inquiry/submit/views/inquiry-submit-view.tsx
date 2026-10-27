@@ -64,7 +64,7 @@ function TrustList() {
   return (
     <div className="mt-10 grid gap-5">
       {items.map((item) => (
-        <div key={item} className="flex items-center gap-4 text-base font-medium text-(--prism-ink)">
+        <div key={item} className="flex items-center gap-4 text-base font-medium text-ink">
           <span className="grid size-8 place-items-center rounded-full border border-primary/10 bg-primary/10 text-primary">
             <Check className="size-4" />
           </span>
@@ -92,7 +92,7 @@ function InquiryAside({ submitted = false }: { submitted?: boolean }) {
           <Sparkles className="size-5" />
           PMCM event inquiry
         </div>
-        <h1 className="mt-9 max-w-[24rem] prism-serif text-[3.5rem] font-black leading-[1.03] text-(--prism-ink)">
+        <h1 className="mt-9 max-w-[24rem] prism-serif text-[3.5rem] font-black leading-[1.03] text-ink">
           Tell us about your event<span className="text-primary">.</span>
         </h1>
         <p className="mt-8 max-w-[15.5rem] text-lg leading-8 text-muted-foreground">
@@ -115,10 +115,10 @@ function InquirySubmittedView({ onReset }: { onReset: () => void }) {
           <InquiryAside submitted />
           <section className="grid min-h-screen place-items-center px-5 py-6 lg:px-7">
             <div className="max-w-xl text-center">
-              <span className="mx-auto grid size-20 place-items-center rounded-full bg-(--prism-success)/10 text-(--prism-success)">
+              <span className="mx-auto grid size-20 place-items-center rounded-full bg-success/10 text-success">
                 <CheckCircle2 className="size-10" />
               </span>
-              <h2 className="mt-8 prism-serif text-5xl font-black text-(--prism-ink)">Inquiry submitted.</h2>
+              <h2 className="mt-8 prism-serif text-5xl font-black text-ink">Inquiry submitted.</h2>
               <p className="mt-4 text-lg leading-8 text-muted-foreground">
                 PMCM will review your event details and contact you with next steps if the inquiry is accepted.
               </p>

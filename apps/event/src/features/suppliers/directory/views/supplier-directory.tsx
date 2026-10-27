@@ -181,7 +181,7 @@ function SupplierCreateForm({ form, categories, actionSaving, actionResult, onCh
 }
 
 function SavedRefreshWarning({ onRetry }: { onRetry: () => void }) {
-  return <div role="status" className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-sm"><span>Saved. Refresh failed.</span><Button type="button" variant="outline" size="sm" onClick={onRetry}>Retry refresh</Button></div>;
+  return <div role="status" className="flex flex-wrap items-center gap-3 rounded-lg border border-attention/25 bg-attention/5 px-3 py-2 text-sm"><span>Saved. Refresh failed.</span><Button type="button" variant="outline" size="sm" onClick={onRetry}>Retry refresh</Button></div>;
 }
 
 function SupplierApplicationsPanel() {

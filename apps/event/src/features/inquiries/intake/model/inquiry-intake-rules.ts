@@ -52,8 +52,8 @@ export const initialLogForm = {
 export type InquiryLogForm = typeof initialLogForm;
 
 const STATUS_ACCENT: Record<string, string> = {
-  new: "border-l-(--prism-amber)",
-  accepted: "border-l-(--prism-success)",
+  new: "border-l-attention",
+  accepted: "border-l-success",
   declined: "border-l-destructive",
 };
 
