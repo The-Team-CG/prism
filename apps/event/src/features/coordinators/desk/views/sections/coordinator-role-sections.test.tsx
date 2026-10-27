@@ -43,6 +43,7 @@ function renderRoleData(view: Record<string, unknown>, actions: { operator?: Rec
   };
   const props = { roleViewLoading: false, roleViewError: null, roleView: view, registrationRole: false, ...models };
   render(<CoordinatorRoleData {...(props as unknown as ComponentProps<typeof CoordinatorRoleData>)} />);
+  fireEvent.click(screen.getByText("On-site controls"));
   return models;
 }
 

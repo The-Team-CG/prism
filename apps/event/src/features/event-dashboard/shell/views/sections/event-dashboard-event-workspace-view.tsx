@@ -57,7 +57,6 @@ export function EventDashboardEventWorkspaceView() {
   const renderTab = EVENT_TAB_VIEWS[tab];
   return (
     <div className="space-y-5">
-      <EventWorkspaceHeader />
       {renderTab ? renderTab() : null}
     </div>
   );
