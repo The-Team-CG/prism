@@ -8,8 +8,7 @@ import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { clientFileRequirementsRepository } from "../data/client-file-requirements-repository";
 import { fileRequirementDueSummary } from "../model/file-requirement-due-summary";
-import { dashboardHref } from "../../workspace/model/client-dashboard-navigation";
-import { clientFileRequirementDetail } from "../model/client-file-requirement-copy";
+import { clientFileRequirementDetail, clientFileRequirementDestination } from "../model/client-file-requirement-copy";
 
 const STORAGE_HELP_COPY =
   "See what is required, who provides it and whether PMCM has reviewed it.";
@@ -69,7 +68,9 @@ export function ClientFileRequirementsMatrix({
         </div>
       ) : (
         <div className="mt-4 divide-y divide-border">
-          {items.map((item) => (
+          {items.map((item) => {
+            const destination = clientFileRequirementDestination(item, eventId);
+            return (
             <div key={item.key} className="flex items-start justify-between gap-3 py-3">
               <div className="min-w-0">
                 <p className="text-sm font-bold text-foreground">{item.key === "client_feedback" ? "Event feedback" : item.label}</p>
@@ -78,11 +79,12 @@ export function ClientFileRequirementsMatrix({
                 <p className={`mt-1 text-2xs font-semibold ${item.overdue ? "text-destructive" : "text-muted-foreground"}`}>
                   {fileRequirementDueSummary(item)}
                 </p>
-                {!["approved", "complete"].includes(item.status) ? <Link href={item.key === "official_floorplan" ? dashboardHref("floorplan", eventId) : item.key === "billing_statement" ? dashboardHref("billing", eventId) : item.key === "client_feedback" ? `/dashboard/events/${encodeURIComponent(eventId)}/activity` : "#event-files"} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-primary focus-visible:ring-2 focus-visible:ring-primary">{item.key === "official_floorplan" ? "View official layout" : item.key === "billing_statement" ? "View billing" : item.key === "client_feedback" ? "View event feedback" : "View uploads and shared files"}</Link> : null}
+                {!["approved", "complete"].includes(item.status) ? <Link href={destination.href} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-primary focus-visible:ring-2 focus-visible:ring-primary">{destination.label}</Link> : null}
               </div>
               <StatusBadge status={item.status} />
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </section>

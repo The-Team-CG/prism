@@ -48,7 +48,7 @@ import {
   isRequestClosed,
   readinessTone,
 } from "../../model/supplier-workspace-rules";
-import type { PrismAuthenticatedSession } from "@prism/types";
+import type { PrismAuthenticatedSession, PrismSupplierReadinessItem } from "@prism/types";
 import type { PrismSupplierWorkflowWorkspace } from "@prism/types";
 import type { PrismSupplier, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierDashboardSection, SupplierWorkspace } from "../../model/supplier-workspace-types";
 import { useSupplierWorkspaceViewModel } from "../../view-models/use-supplier-workspace-view-model";
@@ -57,6 +57,16 @@ import { supplierNextStep } from "../../model/supplier-next-step";
 
 
 import { Card, CardBody, CardHeader, SectionAccent, StatCell } from "./shell-ui";
+
+function BookingSummary({ request, readiness }: { request: PrismSupplierQuoteRequest; readiness?: PrismSupplierReadinessItem }) {
+  const title = readiness ? supplierNextStep(readiness, true).title : "Review booking preparation";
+  return (
+    <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+      {request.category} · {readiness?.eventName || "Event details pending"}
+      <span className="mt-1 block text-sm font-normal text-muted-foreground">{title}</span>
+    </summary>
+  );
+}
 
 export function BookingsPage({
   selectedRequests, session, readinessBoard, readinessNotes, workflowWorkspace, statusNotes, busy,
@@ -102,15 +112,10 @@ export function BookingsPage({
         const steps = buildBookingSteps(req);
         const canReportEventDayStatus = canReportSupplierEventDayStatus(req);
         const readiness = readinessBoard?.items.find((item) => item.requestId === req.id);
-        const eventName = readiness?.eventName;
-        const next = readiness ? supplierNextStep(readiness, true) : null;
 
         return (
           <details key={req.id} id={`supplier-work-${encodeURIComponent(req.id)}`} className="scroll-mt-6 rounded-lg border border-border bg-card" open={selectedRequests.length === 1 ? true : undefined}>
-            <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-              {req.category} · {eventName || "Event details pending"}
-              <span className="mt-1 block text-sm font-normal text-muted-foreground">{next?.title ?? "Review booking preparation"}</span>
-            </summary>
+            <BookingSummary request={req} readiness={readiness} />
           <Card>
             <CardHeader>
               <div className="flex flex-wrap items-start justify-between gap-3">
