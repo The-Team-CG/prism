@@ -15,13 +15,10 @@ import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { ClientActionGroup } from "../../../shared/client-action-group";
 import {
-  clientFloorplanDashboardActionLabel,
-  EventSummaryCard,
-  eventProgressDots,
   greetingByTime,
   type ClientDashboardAction,
 } from "../../../workspace/shared";
-import type { PrismClientActionCenter, PrismClientWorkspace, PrismDocument, PrismEvent, PrismNotificationLog, PrismPaymentMilestone } from "@prism/types";
+import type { PrismClientActionCenter, PrismDocument, PrismEvent, PrismNotificationLog, PrismPaymentMilestone } from "@prism/types";
 
 export function daysUntilEvent(eventDate?: string | null, now = Date.now()): number | null {
   if (!eventDate) return null;
@@ -209,31 +206,24 @@ export function ClientHomeActionCenter({
       </section>
     );
   }
-  const needsAction = clientActions.filter((a) => a.tone === "primary" || a.tone === "warning");
-  const waiting = clientActions.filter((a) => a.tone === "neutral");
   return (
     <section aria-labelledby="client-action-center-heading" className="space-y-4">
       <h2 id="client-action-center-heading" className="text-base font-black text-foreground">Action center</h2>
-      {needsAction.length > 0 ? <ClientActionGroup title="Needs your action" description="Client decisions that can move planning forward." actions={needsAction} onAction={runClientAction} showDetailsAndCta /> : null}
-      {waiting.length > 0 ? <ClientActionGroup title="Waiting on PMCM" description="Being prepared or reviewed by the event team." actions={waiting} onAction={runClientAction} showDetailsAndCta /> : null}
+      <ClientActionGroup title="Event updates" description="Review the next steps for your events." actions={clientActions} onAction={runClientAction} showDetailsAndCta />
     </section>
   );
 }
 
 export function ClientHomeEvents({
   events,
-  state,
   onViewAll,
   onRequest,
   onOpen,
-  onOpenFloorplan,
 }: {
   events: PrismEvent[];
-  state: PrismClientWorkspace;
   onViewAll: () => void;
   onRequest: () => void;
   onOpen: (eventId: string) => void;
-  onOpenFloorplan: (eventId: string) => void;
 }) {
   if (events.length === 0) {
     return (
@@ -264,19 +254,15 @@ export function ClientHomeEvents({
           View all <ArrowRight className="size-3" />
         </button>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="divide-y divide-border rounded-lg border border-border bg-card">
         {events.slice(0, 3).map((ev) => (
-          <EventSummaryCard
-            key={ev.id}
-            event={ev}
-            dots={eventProgressDots(ev, state)}
-            billingStatement={state.billingStatements.find((b) => b.eventId === ev.id)}
-            briefing={state.briefings.find((b) => b.eventId === ev.id)}
-            documentCount={state.documents.filter((document) => document.eventId === ev.id).length}
-            onOpen={() => onOpen(ev.id)}
-            onOpenFloorplan={() => onOpenFloorplan(ev.id)}
-            floorplanActionLabel={clientFloorplanDashboardActionLabel(ev.floorPlanStatus)}
-          />
+          <div key={ev.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
+            <div className="min-w-0">
+              <p className="font-semibold text-foreground">{ev.eventName}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{ev.eventDate} · {ev.status.replaceAll("_", " ")}</p>
+            </div>
+            <Button variant="outline" onClick={() => onOpen(ev.id)}>Open event</Button>
+          </div>
         ))}
       </div>
     </div>

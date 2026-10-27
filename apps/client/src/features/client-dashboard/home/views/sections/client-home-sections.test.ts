@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import type { PrismClientActionCenter } from '@prism/types';
-import { selectClientDashboardActions } from '../../../workspace/model/client-dashboard-selectors';
+import { selectClientAccountActions, selectClientDashboardActions } from '../../../workspace/model/client-dashboard-selectors';
 import { ClientHomeActionCenter, ClientHomeGreeting } from './client-home-sections';
 
 describe('ClientHomeGreeting', () => {
@@ -28,6 +28,25 @@ describe('ClientHomeActionCenter', () => {
     items: [{ id: 'briefing:evt_other', kind: 'briefing', priority: 'attention', label: 'Complete event briefing', description: '', status: 'missing', eventId: 'evt_other', eventName: 'Other' }],
   };
 
+  it('shows actions from each event with their event names and destinations', () => {
+    const center: PrismClientActionCenter = {
+      ...loaded,
+      items: [
+        { ...loaded.items[0], eventId: 'evt_one', eventName: 'First event', href: '/dashboard/events/evt_one/briefing' },
+        { ...loaded.items[0], id: 'briefing:evt_two', eventId: 'evt_two', eventName: 'Second event', href: '/dashboard/events/evt_two/briefing' },
+      ],
+    };
+    const actions = selectClientAccountActions(center);
+    const markup = renderToStaticMarkup(createElement(ClientHomeActionCenter, {
+      actionCenter: center, clientActions: actions, runClientAction: vi.fn(),
+    }));
+    expect(markup).toContain('First event');
+    expect(markup).toContain('Second event');
+    expect(actions.map((action) => action.href)).toEqual([
+      '/dashboard/events/evt_one/briefing', '/dashboard/events/evt_two/briefing',
+    ]);
+  });
+
   it('renders the empty state when the loaded action center has nothing for the selected event', () => {
     const markup = renderToStaticMarkup(createElement(ClientHomeActionCenter, {
       actionCenter: loaded,
@@ -48,7 +67,7 @@ describe('ClientHomeActionCenter', () => {
     }));
 
     expect(markup).toContain('Complete event briefing');
-    expect(markup).toContain('Needs your action');
+    expect(markup).toContain('Event updates');
     expect(markup).not.toContain('Waiting on PMCM');
     expect(markup).not.toContain('No pending actions');
   });

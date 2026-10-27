@@ -73,6 +73,7 @@ export function RequestQuoteCard({
               {closed ? <Badge variant="outline" className="rounded-full text-3xs"><LockKeyhole className="size-3" /> Locked</Badge> : null}
               {req.confidentialBid ? <Badge variant="outline" className="rounded-full text-3xs">Confidential</Badge> : null}
             </div>
+            <p className="mt-1 text-xs text-muted-foreground">Request {req.id}</p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">{req.message}</p>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">

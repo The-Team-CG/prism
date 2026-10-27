@@ -5,12 +5,13 @@ import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { PrismDashboardShell } from "@prism/ui";
 import { useSupplierWorkspaceViewModel } from "../view-models/use-supplier-workspace-view-model";
-import { supplierCommandActions, supplierMobileActions, supplierNavItems } from "../model/supplier-workspace-nav";
+import { supplierAccountMenuItems, supplierActiveNavId, supplierCommandActions, supplierMobileActions, supplierNavItems } from "../model/supplier-workspace-nav";
+import type { SupplierDashboardSection } from "../model/supplier-workspace-types";
 import { SupplierWorkspaceBanners, SupplierWorkspaceLoading, SupplierWorkspaceSkeleton, SupplierWrongPortalView } from "./sections/supplier-workspace-states";
 import { SupplierWorkspaceSection } from "./sections/supplier-workspace-section";
 
-export function SupplierWorkspaceView() {
-  const vm = useSupplierWorkspaceViewModel();
+export function SupplierWorkspaceView({ section: routeSection }: { section: SupplierDashboardSection }) {
+  const vm = useSupplierWorkspaceViewModel(routeSection);
   const { session, workspace, readinessBoard, section, setSection, error, notice, busy, derived, meta } = vm;
 
   if (!session) return <SupplierWorkspaceLoading />;
@@ -37,7 +38,7 @@ export function SupplierWorkspaceView() {
       eyebrow={meta.eyebrow}
       title={meta.title}
       description={meta.description}
-      activeItemId={section}
+      activeItemId={supplierActiveNavId(section)}
       navItems={supplierNavItems({
         needsActionCount,
         openRequestCount: openRequests.length,
@@ -55,6 +56,7 @@ export function SupplierWorkspaceView() {
         readinessNeedsActionCount,
         onNavigate: setSection,
       })}
+      accountMenuItems={supplierAccountMenuItems(setSection)}
       onSignOut={() => void vm.signOut()}
       headerActions={
         <>

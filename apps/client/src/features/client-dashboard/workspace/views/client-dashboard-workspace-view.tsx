@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { PRISM_PRIVACY_NOTICE_VERSION, type CreatePrismInquiryInput, type PrismEvent, type PrismFloorPlanDraft, type SubmitBriefingInput } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
 import { cloneTemplateObjects, type FloorPlanTemplate, type Project } from "@/features/floorplan/editor";
-import { ClientPortalSidebar } from "./sections/client-portal-sidebar";
+import { ClientEventSwitcher } from "./sections/client-event-switcher";
 import { ClientWrongPortalView } from "./sections/client-wrong-portal-view";
 import { ClientDashboardLoadingShell } from "./sections/client-dashboard-loading-shell";
 import { ClientFloorplanEditorScreen } from "./sections/client-floorplan-editor-screen";
 import { ClientDashboardRouteBody } from "./sections/client-dashboard-route-body";
-import { ClientEventHeader, ClientWorkspaceBanners, clientShellMobileActions } from "./sections/client-event-header";
+import { ClientWorkspaceBanners, clientShellMobileActions } from "./sections/client-event-header";
 import { DashboardSessionSkeleton } from "./dashboard-tabs";
 import {
   ClientWorkspaceProvider,
@@ -39,6 +39,8 @@ import {
   ROUTE_TO_DETAIL_TAB,
   dashboardHref,
   clientEventWorkspaceAvailable,
+  clientEventSidebarItems,
+  findClientEventNavItem,
   findClientSidebarLink,
   portalViewFromLink,
   sidebarActiveItemId,
@@ -112,6 +114,30 @@ const EVENT_PREFETCH_ROUTES = [
 
 function disableEventNav(requiresEvent: boolean | undefined, hasEvent: boolean) {
   return Boolean(requiresEvent) && !hasEvent;
+}
+
+function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, selectedEvent }: {
+  route: ClientDashboardRoute;
+  portalView?: ClientPortalView;
+  isEventScopedView: boolean;
+  selectedEvent?: PrismEvent;
+}) {
+  const shellNavItems = CLIENT_SIDEBAR_ITEMS.map((item) => ({
+    ...item,
+    disabled: disableEventNav(item.requiresEvent, clientEventWorkspaceAvailable(selectedEvent)),
+    subItems: item.subItems?.map((subItem) => ({
+      ...subItem,
+      disabled: disableEventNav(subItem.requiresEvent, clientEventWorkspaceAvailable(selectedEvent)),
+    })),
+  }));
+  const inEventWorkspace = isEventScopedView && Boolean(selectedEvent);
+  return {
+    inEventWorkspace,
+    activeShellItemId: inEventWorkspace
+      ? EVENT_ROUTE_TO_NAV_ITEM[route] ?? "event-overview"
+      : sidebarActiveItemId(route, isEventScopedView, portalView),
+    sidebarNavItems: inEventWorkspace && selectedEvent ? clientEventSidebarItems(selectedEvent.eventName) : shellNavItems,
+  };
 }
 
 export function ClientDashboardWorkspaceView({
@@ -374,7 +400,7 @@ export function ClientDashboardWorkspaceView({
       void openFloorplanEditor(officialDraft, officialDraft.status === "approved");
       return;
     }
-    navigateToEventRoute(action.targetTab);
+    navigateToEventRoute(action.targetTab, action.eventId);
   }
 
   async function submitNewEventRequest(ev: FormEvent<HTMLFormElement>) {
@@ -458,33 +484,19 @@ export function ClientDashboardWorkspaceView({
     );
   }
 
-  const shellNavItems = CLIENT_SIDEBAR_ITEMS.map((item) => ({
-    ...item,
-    disabled: disableEventNav(item.requiresEvent, clientEventWorkspaceAvailable(selectedEvent)),
-    subItems: item.subItems?.map((subItem) => ({
-      ...subItem,
-      disabled: disableEventNav(subItem.requiresEvent, clientEventWorkspaceAvailable(selectedEvent)),
-    })),
-  }));
-  const activeShellItemId = sidebarActiveItemId(route, isEventScopedView, portalView);
-  const activeEventNavItemId = EVENT_ROUTE_TO_NAV_ITEM[route] ?? "event-overview";
+  const { inEventWorkspace, activeShellItemId, sidebarNavItems } = clientWorkspaceShellNavigation({
+    route, portalView, isEventScopedView, selectedEvent,
+  });
 
   function handleShellNavSelect(id: string) {
+    const eventItem = findClientEventNavItem(id);
+    if (eventItem) {
+      navigateToEventRoute(eventItem.route);
+      return;
+    }
     const item = findClientSidebarLink(id);
     if (!item || disableEventNav(item.requiresEvent, clientEventWorkspaceAvailable(selectedEvent))) return;
     router.push(dashboardHref(item.route, item.eventScoped ? selectedEvent?.id : undefined, portalViewFromLink(item)));
-  }
-
-  function renderEventHeader() {
-    if (!selectedEvent) return null;
-    return (
-      <ClientEventHeader
-        event={selectedEvent}
-        activeEventNavItemId={activeEventNavItemId}
-        onSwitchEvent={() => router.push("/dashboard/events")}
-        onNavigate={navigateToEventRoute}
-      />
-    );
   }
 
   const workspaceValue: ClientWorkspaceValue = {
@@ -539,7 +551,7 @@ export function ClientDashboardWorkspaceView({
     submitRevisionComment: submitFloorPlanReview,
     submitNewEventRequest,
     signOut,
-    eventHeader: renderEventHeader(),
+    eventHeader: null,
     isEventScopedView,
   };
 
@@ -553,7 +565,7 @@ export function ClientDashboardWorkspaceView({
         title={clientShellTitle({ isEventScopedView, eventName: selectedEvent?.eventName, portalView, route })}
         description={clientShellDescription({ portalView, route, selectedEvent })}
         activeItemId={activeShellItemId}
-        navItems={shellNavItems}
+        navItems={sidebarNavItems}
         onNavSelect={handleShellNavSelect}
         user={{
           name: session.name,
@@ -562,15 +574,16 @@ export function ClientDashboardWorkspaceView({
         }}
         searchPlaceholder="Search events, documents, billing..."
         mobileActions={clientShellMobileActions(route, selectedEvent, () => router.push("/dashboard"), navigateToEventRoute)}
-        sidebarMode="single"
-        sidebarContent={({ collapsed }) => (
-          <ClientPortalSidebar
-            navItems={shellNavItems}
-            activeItemId={activeShellItemId}
-            onSelect={handleShellNavSelect}
-            collapsed={collapsed}
-          />
-        )}
+        sidebarContext={
+          inEventWorkspace && selectedEvent ? (
+            <ClientEventSwitcher
+              events={events.filter((event) => !event.archived)}
+              selected={selectedEvent}
+              onSwitch={(eventId) => navigateToEventRoute(route, eventId)}
+              onAllEvents={() => router.push("/dashboard/events")}
+            />
+          ) : null
+        }
         onSignOut={signOut}
       >
         <div className="space-y-5">
