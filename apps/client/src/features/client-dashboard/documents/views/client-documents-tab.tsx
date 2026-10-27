@@ -61,9 +61,9 @@ function categorizeDoc(doc: PrismDocument) {
 export function ClientDocumentsTab({ documents }: { documents: PrismDocument[] }) {
   const { selectedEvent, session } = useClientWorkspace();
   const matrix = selectedEvent ? (
-    <ClientFileRequirementsMatrix key={selectedEvent.id} eventId={selectedEvent.id} session={session} />
+    <ClientFileRequirementsMatrix key={`requirements-${selectedEvent.id}`} eventId={selectedEvent.id} session={session} />
   ) : null;
-  const storedFiles = selectedEvent ? <ClientStoredFilesPanel key={selectedEvent.id} eventId={selectedEvent.id} /> : null;
+  const storedFiles = selectedEvent ? <ClientStoredFilesPanel key={`files-${selectedEvent.id}`} eventId={selectedEvent.id} /> : null;
 
   if (documents.length === 0) {
     return (

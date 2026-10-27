@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ClientPortalBillingView } from "../../billing/views/client-portal-billing-view";
 import { ClientFilesView } from "../../files/views/client-files-view";
+import { ClientAccountEventPicker } from "./sections/client-account-event-picker";
 
 const mocks = vi.hoisted(() => ({
   workspace: {
@@ -18,9 +19,6 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("../client-workspace-context", () => ({ useClientWorkspace: () => mocks.workspace }));
 vi.mock("../shared", () => ({ useClientWorkspace: () => mocks.workspace, formatStatusLabel: (value: string) => value }));
-vi.mock("../../files/views/client-stored-files-panel", () => ({ ClientStoredFilesPanel: ({ eventId }: { eventId: string }) => `Stored files for ${eventId}` }));
-vi.mock("../../files/views/client-file-requirements-matrix", () => ({ ClientFileRequirementsMatrix: ({ eventId }: { eventId: string }) => `Requirements for ${eventId}` }));
-vi.mock("../../billing/views/client-billing-tab", () => ({ ClientBillingTab: () => "Billing detail" }));
 
 afterEach(() => {
   mocks.workspace.selectedEvent = undefined;
@@ -31,22 +29,40 @@ describe("account pages with multiple events", () => {
   it("offers an event choice for billing before showing event details", () => {
     const markup = renderToStaticMarkup(createElement(ClientPortalBillingView));
     expect(markup).toContain("Choose an event to see its billing");
+    expect(markup).toContain('href="/dashboard/events/event-a/billing"');
+    expect(markup).toContain('href="/dashboard/events/event-b/billing"');
     expect(markup).not.toContain("No billing workspace yet");
-    expect(markup).not.toContain("Billing detail");
   });
 
-  it("shows real document records across events but opens file controls only for the selected event", () => {
-    const before = renderToStaticMarkup(createElement(ClientFilesView));
-    expect(before).toContain("Choose an event to see its event files and requirements");
-    expect(before).toContain("Event B");
-    expect(before).toContain("agreement.pdf");
-    expect(before).not.toContain("Stored files for");
-
+  it("shows real document records across events and links each event to its own documents", () => {
     mocks.workspace.selectedEvent = mocks.workspace.events[1];
     mocks.workspace.selectedEventId = "event-b";
-    const after = renderToStaticMarkup(createElement(ClientFilesView));
-    expect(after).toContain("Stored files for event-b");
-    expect(after).toContain("Requirements for event-b");
-    expect(after).not.toContain("Stored files for event-a");
+    const markup = renderToStaticMarkup(createElement(ClientFilesView));
+    expect(markup).toContain("Choose an event to see its event files and requirements");
+    expect(markup).toContain("Event B");
+    expect(markup).toContain("agreement.pdf");
+    expect(markup).toContain('href="/dashboard/events/event-b/documents"');
+    expect(markup).not.toContain("Upload file");
+  });
+
+  it("links messages and approvals to the chosen event instead of a temporary selection", () => {
+    for (const destination of ["messages", "approvals"] as const) {
+      const markup = renderToStaticMarkup(createElement(ClientAccountEventPicker, { purpose: destination, destination }));
+      expect(markup).toContain(`href="/dashboard/events/event-a/${destination}"`);
+      expect(markup).toContain(`href="/dashboard/events/event-b/${destination}"`);
+    }
+  });
+
+  it("offers a direct event link even when there is only one event", () => {
+    const original = mocks.workspace.events;
+    try {
+      mocks.workspace.events = [original[0]];
+      mocks.workspace.selectedEvent = original[0];
+      const markup = renderToStaticMarkup(createElement(ClientPortalBillingView));
+      expect(markup).toContain("Choose an event to see its billing");
+      expect(markup).toContain('href="/dashboard/events/event-a/billing"');
+    } finally {
+      mocks.workspace.events = original;
+    }
   });
 });
