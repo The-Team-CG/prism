@@ -256,7 +256,7 @@ export const CLIENT_PORTAL_VIEW_META: Record<ClientPortalView, { title: string; 
   "messages-organizer-updates": { title: "Organizer updates", description: "Updates from the PMCM event team." },
   "messages-announcements": { title: "Announcements", description: "Broadcast-style notices for client review." },
   "messages-archived": { title: "Archived messages", description: "Older client-visible updates and audit notes." },
-  "files-all": { title: "All files", description: "All client-visible files across active PMCM events." },
+  "files-all": { title: "Files", description: "Choose an event to manage its files and requirements." },
   "files-contracts": { title: "Contracts", description: "Conforme, MOA, NDA, and other contract files." },
   "files-quotations": { title: "Quotations", description: "Client-facing quotation files and references." },
   "files-invoices-receipts": { title: "Invoices / Receipts", description: "Invoices, billing statements, receipts, and payment proof." },
