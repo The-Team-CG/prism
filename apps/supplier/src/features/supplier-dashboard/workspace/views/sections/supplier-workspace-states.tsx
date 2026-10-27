@@ -46,12 +46,12 @@ export function SupplierWorkspaceBanners({ error, notice }: { error: string | nu
   return (
     <>
       {error ? (
-        <div className="rounded-xl border border-danger/25 bg-danger/8 px-5 py-3.5 text-sm font-semibold text-danger">
+        <div role="alert" className="rounded-xl border border-danger/25 bg-danger/8 px-5 py-3.5 text-sm font-semibold text-danger">
           {error}
         </div>
       ) : null}
       {notice ? (
-        <div className="rounded-xl border border-success/25 bg-success/8 px-5 py-3.5 text-sm font-semibold text-success">
+        <div role="status" className="rounded-xl border border-success/25 bg-success/8 px-5 py-3.5 text-sm font-semibold text-success">
           {notice}
         </div>
       ) : null}

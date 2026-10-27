@@ -2,6 +2,7 @@
 
 import { Check, ChevronsUpDown } from "lucide-react";
 import type { PrismEvent } from "@prism/types";
+import { formatPortalDate } from "@prism/ui/format-date";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,7 +34,7 @@ export function ClientEventSwitcher({
         <span className="grid min-w-0 flex-1">
           <span className="truncate text-sm font-semibold text-foreground">{selected.eventName}</span>
           <span className="truncate text-xs text-muted-foreground">
-            {selected.eventDate} · {formatStatusLabel(selected.status)}
+            {formatPortalDate(selected.eventDate)} · {formatStatusLabel(selected.status)}
           </span>
         </span>
         <ChevronsUpDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
@@ -47,7 +48,7 @@ export function ClientEventSwitcher({
             <span className="grid min-w-0 flex-1">
               <span className="truncate font-medium">{event.eventName}</span>
               <span className="truncate text-xs text-muted-foreground">
-                {event.eventDate} · {formatStatusLabel(event.status)}
+                {formatPortalDate(event.eventDate)} · {formatStatusLabel(event.status)}
               </span>
             </span>
             {event.id === selected.id ? <Check aria-hidden="true" className="mt-0.5 size-4" /> : null}

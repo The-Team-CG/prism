@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import { ClipboardList, Home, BellRing, CalendarClock, ClipboardCheck, UsersRound } from "lucide-react";
 import type { PrismAuthenticatedSession, PrismCoordinatorWorkspace } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
@@ -20,7 +21,7 @@ import { CoordinatorAssignmentHistory, CoordinatorRoleBadgeCard, CoordinatorRole
 
 const SECTION_LABELS = {
   "coord-home": "My shift",
-  "coord-queue": "My tasks",
+  "coord-queue": "Tasks",
   "coord-issues": "Issues",
   "coord-timeline": "Run sheet",
   "coord-assignments": "Assignments",
@@ -62,16 +63,28 @@ function CoordinatorShift({ vm, roleName, onNavigate }: {
   roleName: string;
   onNavigate: (section: CoordinatorSection) => void;
 }) {
+  const nextTask = [...(vm.roleView?.tasks ?? [])]
+    .filter((task) => !["done", "cancelled", "closed"].includes(task.status))
+    .sort((left, right) => (left.dueAt ?? "9999").localeCompare(right.dueAt ?? "9999"))[0];
   return (
     <div className="space-y-5">
+      {nextTask && !vm.roleViewError ? (
+        <section className="rounded-lg bg-primary-soft p-5" aria-label="Next task for your role">
+          <p className="text-sm font-medium text-primary">Next task for your role</p>
+          <h2 className="mt-2 text-xl font-semibold text-foreground">{nextTask.title}</h2>
+          {nextTask.notes ? <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{nextTask.notes}</p> : null}
+          <p className="mt-3 text-sm text-muted-foreground">
+            Owner: {nextTask.ownerName || nextTask.assignedRole} · {nextTask.dueAt ? `Due ${formatPortalDateTime(nextTask.dueAt)}` : "No deadline set"}
+          </p>
+          <button type="button" onClick={() => onNavigate("coord-queue")} className="mt-3 min-h-11 rounded-md px-1 text-sm font-semibold text-primary focus-visible:ring-2 focus-visible:ring-primary">
+            Open task queue
+          </button>
+        </section>
+      ) : null}
       <CoordinatorEventDayActions
-        assignment={vm.assignment}
-        busy={vm.busy}
         roleViewLoading={vm.roleViewLoading}
         roleViewError={vm.roleViewError}
         roleView={vm.roleView}
-        attendanceStatus={vm.attendanceStatus}
-        onAcknowledge={vm.acknowledge}
         scrollTo={(id) => {
           if (id === "coordinator-attendance") document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
           else onNavigate(id === "coordinator-role-queue" ? "coord-queue" : "coord-issues");
@@ -117,7 +130,7 @@ function CoordinatorSectionView({ vm, section, sessionName, roleName, onNavigate
     case "coord-home": return <CoordinatorShift vm={vm} roleName={roleName} onNavigate={onNavigate} />;
     case "coord-queue": return <CoordinatorRoleSection vm={vm} section="tasks" />;
     case "coord-issues": return <CoordinatorRoleSection vm={vm} section="issues" />;
-    case "coord-timeline": return <CoordinatorTimelineCard roleView={vm.roleView} />;
+    case "coord-timeline": return <CoordinatorTimelineCard roleView={vm.roleView} readOnly={vm.readOnly} />;
     case "coord-assignments": return (
       <div className="space-y-5">
         <CoordinatorGreetingBanner event={vm.event} assignment={vm.assignment} busy={vm.busy} roleName={roleName} attendanceStatus={vm.attendanceStatus} sessionName={sessionName} onAcknowledge={vm.acknowledge} onDecline={vm.decline} onWithdraw={vm.withdraw} />
@@ -176,7 +189,7 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
       roleLabel="Coordinator Portal"
       eyebrow="Event operations"
       title={SECTION_LABELS[activeSection]}
-      description={vm.event ? `${vm.event.eventName} · ${vm.event.eventDate} · ${roleName}` : "Choose an assigned event to get started."}
+      description={vm.event ? `${vm.event.eventName} · ${formatPortalDate(vm.event.eventDate)} · ${roleName}` : "Choose an assigned event to get started."}
       activeItemId={activeSection}
       navItems={navItems}
       onNavSelect={handleNav}
@@ -187,7 +200,7 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
       <div className="space-y-5">
         <CoordinatorEventSwitcher events={state.events} assignments={vm.assignments} selectedEventId={vm.event?.id} onSelect={handleEvent} />
         {vm.readOnly ? <p role="status" className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">Archived event: operational records are read-only.</p> : null}
-        <fieldset disabled={vm.readOnly} className="min-w-0">
+        <fieldset disabled={vm.readOnly && activeSection !== "coord-timeline"} className="min-w-0">
           <CoordinatorSectionView vm={vm} section={activeSection} sessionName={session.name} roleName={roleName} onNavigate={handleNav} />
         </fieldset>
       </div>

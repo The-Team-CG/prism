@@ -6,7 +6,7 @@ export function coordinatorTaskActionCopy(loading: boolean, error: string | null
   if (loading) return { description: "Loading assigned role tasks.", status: "loading" };
   if (error) return { description: "Role task data is unavailable.", status: "unavailable" };
   return {
-    description: `${count} assigned task(s) for this role.`,
+    description: count ? `${count} ${count === 1 ? "task" : "tasks"} in your role’s queue. Open it to see owners, deadlines and next steps.` : "No tasks were returned for your role.",
     status: count > 0 ? "open" : "clear",
   };
 }
@@ -15,7 +15,7 @@ export function coordinatorIssueActionCopy(loading: boolean, error: string | nul
   if (loading) return { description: "Loading visible urgent issues.", status: "loading" };
   if (error) return { description: "Urgent issue data is unavailable.", status: "unavailable" };
   return {
-    description: `${count} visible issue(s). Escalations route to PMCM only.`,
+    description: count ? `${count} issues to review. PMCM receives escalations.` : "No urgent issues were returned. You can still report a new problem.",
     status: count > 0 ? "open" : "clear",
   };
 }
@@ -23,13 +23,13 @@ export function coordinatorIssueActionCopy(loading: boolean, error: string | nul
 export function coordinatorAcknowledgeCopy(status?: string) {
   if (status === "acknowledged") {
     return {
-      label: "Role acknowledged",
-      description: "PMCM has your definite yes.",
+      label: "Assignment confirmed",
+      description: "Your acknowledgment has been recorded for PMCM.",
       active: true,
     };
   }
   return {
-    label: "Acknowledge role",
+    label: "Confirm assignment",
     description: "Confirm this assignment before event day.",
     active: false,
   };

@@ -26,8 +26,13 @@ function quoteFormTitle(closed: boolean, hasQuote: boolean) {
 
 function quoteFormHint(closed: boolean, hasQuote: boolean) {
   if (closed) return "Locked after selection or closure.";
-  if (hasQuote) return "Revise while this request is open.";
-  return "Fill in all fields before the deadline.";
+  if (hasQuote) return "You can revise your offer while the request is open. PMCM reviews each submitted version.";
+  return "Review your amount, scope and payment terms before sending. PMCM will review your offer; this does not confirm a booking.";
+}
+
+function quoteSubmitLabel(sending: boolean, hasQuote: boolean) {
+  if (sending) return "Sending quote…";
+  return hasQuote ? "Send revised quote to PMCM" : "Send quote to PMCM";
 }
 
 function QuoteSummary({ quote }: { quote: PrismSupplierQuote }) {
@@ -126,7 +131,7 @@ export function RequestQuoteCard({
           </label>
           {closed ? null : (
             <Button type="submit" disabled={busy === req.id} className="rounded-xl font-bold">
-              <Send className="size-4" />{quote ? "Save revision" : "Submit quote"}
+              <Send className="size-4" />{quoteSubmitLabel(busy === req.id, Boolean(quote))}
             </Button>
           )}
         </form>

@@ -2,6 +2,7 @@
 
 import { CheckCircle2, ClipboardCheck, MessageCircleHeart, Star, TicketCheck, Users } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
+import { formatPortalDate } from "@prism/ui/format-date";
 import { Input } from "@/app/components/ui/input";
 import { PrismSectionPanel, PrismTextarea } from "@prism/ui";
 import { checkInModeButtonClass } from "../../model/guest-dashboard-rules";
@@ -10,7 +11,34 @@ import type { GuestSession } from "../../model/guest-dashboard-types";
 
 type GuestDashboardVm = ReturnType<typeof useGuestDashboardViewModel>;
 
+function GuestCheckInSubmit({ vm }: { vm: GuestDashboardVm }) {
+  const showGuidance = !vm.canCheckIn && !vm.busy;
+  const guidance = vm.checkInMode === "name_search" && !vm.checkInGuestName.trim()
+    ? "Enter the name on the event list and confirm your consent."
+    : "Confirm your consent to send your check-in request.";
+  return (
+    <>
+      {showGuidance ? <p id="check-in-guidance" className="text-sm text-muted-foreground">{guidance}</p> : null}
+      <Button aria-describedby={showGuidance ? "check-in-guidance" : undefined} disabled={!vm.canCheckIn} onClick={() => void vm.checkIn()} className="h-12 sm:w-fit">
+        <TicketCheck className="size-4" /> {vm.checkInButtonLabel}
+      </Button>
+    </>
+  );
+}
+
 export function GuestCheckInPanel({ vm }: { vm: GuestDashboardVm }) {
+  if (vm.checkedIn) {
+    return (
+      <PrismSectionPanel title="Check-in request received" icon={TicketCheck} description="Your request was sent successfully.">
+        <p role="status" className="text-sm leading-6 text-muted-foreground">
+          The registration team can confirm your attendance. A name match may need review; sending this request does not guarantee admission.
+        </p>
+        <a href="#event-details" className="mt-3 inline-flex min-h-11 items-center rounded-md px-1 text-sm font-semibold text-primary focus-visible:ring-2 focus-visible:ring-primary">
+          Show event details to registration
+        </a>
+      </PrismSectionPanel>
+    );
+  }
   return (
     <PrismSectionPanel title="Check in" icon={ClipboardCheck} description="Choose how to record your attendance. Ask the registration team if you need help.">
       <div className="flex flex-col gap-4">
@@ -39,9 +67,7 @@ export function GuestCheckInPanel({ vm }: { vm: GuestDashboardVm }) {
             ? "I consent to this attendance being recorded for the event headcount."
             : "I consent to PMCM recording my name and check-in time for event registration."}</span>
         </label>
-        <Button disabled={!vm.canCheckIn} onClick={() => void vm.checkIn()} className="h-12 sm:w-fit">
-          <TicketCheck className="size-4" /> {vm.checkInButtonLabel}
-        </Button>
+        <GuestCheckInSubmit vm={vm} />
       </div>
     </PrismSectionPanel>
   );
@@ -49,11 +75,11 @@ export function GuestCheckInPanel({ vm }: { vm: GuestDashboardVm }) {
 
 export function GuestEventDetailsPanel({ session }: { session: GuestSession }) {
   return (
-    <PrismSectionPanel title="Event details" icon={ClipboardCheck} description="Keep this pass handy for the registration team.">
+    <PrismSectionPanel title="Your event" icon={ClipboardCheck} description="Check these details before registering. Ask the registration team for venue and arrival instructions.">
       <dl className="grid gap-4 sm:grid-cols-2">
         {([
           ["Event", session.eventName],
-          ["Date", session.eventDate],
+          ["Date", formatPortalDate(session.eventDate)],
           ["Host", session.clientName],
           ["Access code", session.guestAccessCode],
         ] as const).map(([title, value]) => (

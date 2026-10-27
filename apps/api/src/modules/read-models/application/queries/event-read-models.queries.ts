@@ -888,7 +888,7 @@ export class EventReadModelQueries {
         skip, take,
       }),
       this.prisma.opsCoordinatorAssignment.findMany({
-        where: { status: { notIn: ['confirmed', 'checked_in', 'completed'] } },
+        where: { status: { notIn: ['acknowledged', 'confirmed', 'checked_in', 'completed'] } },
         select: { id: true, eventId: true, coordinatorName: true, status: true, createdAt: true },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).

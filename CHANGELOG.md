@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Portal work now explains the next action and handoff: clients distinguish their actions from items with PMCM, suppliers open the exact request or booking, coordinators see the next task for their role, and guests see a clear check-in receipt and refresh warning. Event choices include readable dates, PMCM list filters survive browser navigation, inbox timestamps distinguish due dates from added dates, file pages separate uploads from requirements, and billing labels identify recorded payments and scheduled balances. Completed events no longer acquire new briefing/layout preparation prompts; briefing and floorplan prompts no longer treat the event date as a deadline, and acknowledged coordinators no longer appear unconfirmed. Status indicators use restrained text and dots, and inquiry details use an accessible dialog. Owners A (Maxine), B (Francis), C (Ethan), and D (Anthony).
+
 - Client event choices for documents, messages, billing, and approvals now open event-specific URLs, so the chosen event and section survive reload and browser navigation. Owners A (Maxine), C (Ethan), and D (Anthony).
 
 - Clients choose an event before opening its files, billing or messages. Messages show the available conversations and keep each draft while switching; retries retain the same request key. The file page no longer invents sizes or folder activity, and older folder links open the unified file page. Owners A (Maxine), C (Ethan) and D (Anthony).

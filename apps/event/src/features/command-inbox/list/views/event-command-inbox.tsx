@@ -2,30 +2,38 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Eye, Inbox, Loader2, RotateCcw } from "lucide-react";
 import type { PrismCommandInboxItem, PrismCommandInboxSeverity, PrismPmcmCommandInbox } from "@prism/types";
+import { formatPortalDateTime } from "@prism/ui/format-date";
 import { selectCommandInboxGroupedBySeverity } from "../model/command-inbox-selectors";
 import { Button } from "@/app/components/ui/button";
-import { compactTimestamp, cx, label, severityTone } from "@/features/pmcm-kit";
+import { cx, label } from "@/features/pmcm-kit";
 import { Panel } from "@/features/pmcm-kit";
 
 const SEVERITY_LABEL: Record<PrismCommandInboxSeverity, string> = {
-  critical: "Emergency",
-  warning: "Needs Attention",
-  attention: "For Review",
-  info: "Informational",
+  critical: "Urgent attention",
+  warning: "Needs attention",
+  attention: "For review",
+  info: "Updates and reference",
+};
+
+const ITEM_ACTION: Record<PrismCommandInboxItem["kind"], string> = {
+  inquiry: "Review inquiry", conforme: "Review conforme", briefing: "Review briefing",
+  billing: "Review billing", document: "Review document", floorplan: "Review layout",
+  approval: "Review approval", supplier: "Review supplier work", coordinator: "Review assignment",
+  closure: "Review closeout", live_ops: "Open live operations", change_request: "Review change request", feedback: "Review feedback",
 };
 
 function severityIcon(severity: PrismCommandInboxSeverity) {
   if (severity === "critical") return AlertTriangle;
   if (severity === "warning") return AlertTriangle;
   if (severity === "attention") return Eye;
-  return CheckCircle2;
+  return Eye;
 }
 
 function severityIconColor(severity: PrismCommandInboxSeverity) {
   if (severity === "critical") return "text-danger";
   if (severity === "warning") return "text-attention";
   if (severity === "attention") return "text-info";
-  return "text-success";
+  return "text-muted-foreground";
 }
 
 function InboxItem({ item }: { item: PrismCommandInboxItem }) {
@@ -43,25 +51,26 @@ function InboxItem({ item }: { item: PrismCommandInboxItem }) {
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-black text-foreground">{item.label}</p>
-        <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
+        <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">{item.description}</p>
         <div className="mt-1.5 flex flex-wrap items-center gap-2">
           {item.eventName && (
-            <span className="inline-flex items-center rounded-md bg-secondary px-2 py-0.5 text-xs font-bold text-foreground ring-1 ring-inset ring-border">
+            <span className="text-sm font-medium text-foreground">
               {item.eventName}
             </span>
           )}
-          <span className={cx("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ring-1 ring-inset", severityTone(item.severity))}>
+          <span className="text-xs text-muted-foreground">
             {label(item.kind)}
           </span>
-          <span className="text-xs text-muted-foreground">
-            {compactTimestamp(item.dueAt ?? item.createdAt)}
-          </span>
+          {item.clientName ? <span className="text-xs text-muted-foreground">Client: {item.clientName}</span> : null}
+          {item.dueAt || item.createdAt ? <span className="text-xs text-muted-foreground">{item.dueAt ? "Due: " : "Added: "}{formatPortalDateTime(item.dueAt ?? item.createdAt)}</span> : null}
         </div>
+        <p className="mt-2 text-xs text-muted-foreground">Status: {label(item.status)}</p>
+        {item.href ? <span className="mt-3 inline-flex min-h-8 items-center text-sm font-semibold text-primary">{ITEM_ACTION[item.kind]}</span> : null}
       </div>
     </div>
   );
 
-  return item.href ? <Link href={item.href} className="block">{card}</Link> : card;
+  return item.href ? <Link href={item.href} className="block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary">{card}</Link> : card;
 }
 
 function InboxPager({
@@ -86,6 +95,27 @@ function InboxPager({
   );
 }
 
+function CommandInboxHeader({ inbox, loadFailed, onRefresh }: {
+  inbox: PrismPmcmCommandInbox | null;
+  loadFailed: boolean;
+  onRefresh: () => void;
+}) {
+  const attentionCount = inbox ? inbox.counts.critical + inbox.counts.warning + inbox.counts.attention : 0;
+  const title = inbox ? `On this page: ${attentionCount} need attention · ${inbox.counts.info} updates` : loadFailed ? "Updates unavailable" : "Loading updates…";
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center gap-2">
+        <div className="grid size-9 place-items-center rounded-full bg-primary/10 text-primary"><Inbox className="size-4" /></div>
+        <div>
+          <p className="text-sm font-semibold text-foreground">{title}</p>
+          <p className="text-xs text-muted-foreground">{inbox ? `Page ${inbox.page.index + 1} · Updated ${formatPortalDateTime(inbox.generatedAt)} · Philippine time` : "Loading..."}</p>
+        </div>
+      </div>
+      <Button variant="outline" size="sm" className="rounded-lg font-bold" onClick={onRefresh}><RotateCcw className="mr-1.5 size-3.5" />Refresh</Button>
+    </div>
+  );
+}
+
 export function EventCommandInbox({
   inbox,
   onRefresh,
@@ -102,29 +132,11 @@ export function EventCommandInbox({
     [inbox],
   );
 
-  const totalCount = inbox
-    ? inbox.counts.critical + inbox.counts.warning + inbox.counts.attention + inbox.counts.info
-    : 0;
-
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="grid size-9 place-items-center rounded-full bg-primary/10 text-primary">
-            <Inbox className="size-4" />
-          </div>
-          <div>
-            <p className="text-sm font-black text-foreground">{totalCount} action item{totalCount !== 1 ? "s" : ""}</p>
-            <p className="text-xs text-muted-foreground">
-              {inbox ? `Page ${inbox.page.index + 1} · ${compactTimestamp(inbox.generatedAt)}` : "Loading..."}
-            </p>
-          </div>
-        </div>
-        <Button variant="outline" size="sm" className="rounded-lg font-bold" onClick={onRefresh}>
-          <RotateCcw className="mr-1.5 size-3.5" />
-          Refresh
-        </Button>
-      </div>
+      <CommandInboxHeader inbox={inbox} loadFailed={loadFailed} onRefresh={onRefresh} />
+
+      {loadFailed && inbox ? <p role="alert" className="rounded-md bg-attention-soft p-4 text-sm text-attention">The latest refresh failed. These are the last loaded updates. Refresh again before making a time-sensitive decision.</p> : null}
 
       {!inbox && !loadFailed ? (
         <Panel title="Command Inbox" icon={Inbox}>
@@ -134,7 +146,7 @@ export function EventCommandInbox({
             <p className="mt-1 text-xs text-muted-foreground">Fetching the latest action items.</p>
           </div>
         </Panel>
-      ) : loadFailed ? (
+      ) : loadFailed && !inbox ? (
         <Panel title="Command Inbox" icon={Inbox}>
           <div className="py-8 text-center">
             <AlertTriangle className="mx-auto size-8 text-attention" />
@@ -147,14 +159,14 @@ export function EventCommandInbox({
           <div className="py-8 text-center">
             <CheckCircle2 className="mx-auto size-8 text-emerald-400" />
             <p className="mt-3 text-sm font-black text-foreground">No pending actions</p>
-            <p className="mt-1 text-xs text-muted-foreground">All command inbox items have been addressed.</p>
+            <p className="mt-1 text-sm text-muted-foreground">No items were returned for this page. You can still review events and inquiries from the sidebar.</p>
           </div>
         </Panel>
       ) : (
         groups.map((group) => (
           <Panel key={group.severity} title={SEVERITY_LABEL[group.severity]} icon={severityIcon(group.severity)}>
             <div className="flex items-center gap-2 pb-3">
-              <span className={cx("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-black ring-1 ring-inset", severityTone(group.severity))}>
+              <span className="text-xs text-muted-foreground">
                 {group.items.length} item{group.items.length !== 1 ? "s" : ""}
               </span>
             </div>

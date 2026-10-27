@@ -2,7 +2,6 @@
 
 import { Download, FileText, LoaderCircle, Upload } from "lucide-react";
 import type { PrismStoredObject } from "@prism/types";
-import { EmptyState } from "@/app/components/ui/empty-state";
 import { useClientStoredFilesViewModel } from "../view-models/use-client-stored-files-view-model";
 
 const ACCEPTED_FILES = ".pdf,.docx,.xlsx,.jpg,.jpeg,.png";
@@ -22,17 +21,18 @@ export function ClientStoredFilesPanel({ eventId }: { eventId?: string }) {
   if (!eventId) return null;
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+    <section id="event-files" className="scroll-mt-6 rounded-lg border border-border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-base font-black text-foreground">Event files</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Upload documents for PMCM and download files shared with you.</p>
+          <h2 className="text-base font-semibold text-foreground">Uploads and shared files</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Send a file to PMCM or download a file shared with you. Uploading a file does not approve it.</p>
         </div>
         <div>
           <input
             ref={model.inputRef}
             className="sr-only"
             type="file"
+            aria-label="Choose a document to upload for this event"
             accept={ACCEPTED_FILES}
             onChange={(event) => void model.uploadSelectedFile(event.currentTarget.files?.[0])}
             disabled={model.busy}
@@ -50,8 +50,9 @@ export function ClientStoredFilesPanel({ eventId }: { eventId?: string }) {
       </div>
       <p className="mt-2 text-xs text-muted-foreground">PDF, Word, Excel, JPG, or PNG · up to 25 MB</p>
       {model.error && <p role="alert" className="mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{model.error}</p>}
-      {model.files.length === 0 ? (
-        <div className="mt-4"><EmptyState icon={FileText} title="No files yet" description="Your uploads and PMCM-shared files will appear here." /></div>
+      {model.notice ? <p role="status" className="mt-3 text-sm text-success">{model.notice}</p> : null}
+      {model.loading ? <p role="status" className="mt-4 text-sm text-muted-foreground">Loading event files…</p> : model.files.length === 0 ? (
+        !model.error ? <p className="mt-4 rounded-md bg-muted/40 p-4 text-sm text-muted-foreground">No files have been shared yet. Use Upload file to send a requested document to PMCM.</p> : null
       ) : (
         <div className="mt-4 divide-y divide-border">
           {model.files.map((file) => (

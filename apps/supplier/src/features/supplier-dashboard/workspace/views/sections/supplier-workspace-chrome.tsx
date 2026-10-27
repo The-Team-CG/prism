@@ -122,7 +122,7 @@ function renderDashboard(ctx: SectionContext) {
       quoteNeedingSubmission={ctx.quoteNeedingSubmission}
       handoffPending={ctx.handoffPending}
       readinessBoard={ctx.readinessBoard}
-      onNavigate={ctx.onNavigate}
+      quoteByRequest={ctx.quoteByRequest}
     />
   );
 }

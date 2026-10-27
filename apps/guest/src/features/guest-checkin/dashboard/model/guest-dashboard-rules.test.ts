@@ -70,7 +70,7 @@ describe("guest-dashboard-rules", () => {
   });
 
   it("uses generic check-in receipts and never exposes server review state", () => {
-    expect(checkInSuccessNotice()).toBe("Check-in submitted.");
+    expect(checkInSuccessNotice()).toBe("Check-in request received. The registration team can confirm your attendance.");
     expect(checkInButtonLabel(false)).toBe("Submit check-in");
   });
 

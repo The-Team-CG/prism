@@ -15,26 +15,34 @@ const STATUS_MAP: Record<string, StatusTier> = {
   active: "success",
   completed: "success",
   acknowledged: "success",
+  selected: "success",
+  locked: "success",
+  complete: "success",
+  revision_requested: "attention",
+  changes_requested: "attention",
+  needs_update: "attention",
+  missing: "attention",
   in_review: "attention",
   client_submitted: "attention",
   issued: "attention",
-  submitted: "attention",
+  submitted: "default",
   attention: "attention",
-  awaiting: "attention",
-  pending: "attention",
-  open: "danger",
+  awaiting: "default",
+  pending: "default",
+  open: "default",
+  in_progress: "default",
   blocked: "danger",
   at_risk: "danger",
   overdue: "danger",
   rejected: "danger",
-  cancelled: "danger",
+  cancelled: "default",
 };
 
 const TIER_CLASSES: Record<StatusTier, string> = {
-  success: "bg-success/10 text-success ring-success/20",
-  attention: "bg-attention/10 text-attention ring-attention/20",
-  danger: "bg-danger/10 text-danger ring-danger/20",
-  default: "bg-primary/10 text-primary ring-primary/15",
+  success: "text-success",
+  attention: "text-attention",
+  danger: "text-danger",
+  default: "text-muted-foreground",
 };
 
 export function prismStatusClass(status: string): string {
@@ -48,15 +56,17 @@ export interface PrismStatusBadgeProps {
 }
 
 export function PrismStatusBadge({ status, label, className }: PrismStatusBadgeProps) {
+  const display = (label ?? status).replaceAll("_", " ");
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-1 text-2xs font-bold capitalize ring-1",
+        "inline-flex items-center gap-1.5 text-xs font-medium",
         prismStatusClass(status),
         className,
       )}
     >
-      {(label ?? status).replaceAll("_", " ")}
+      <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-current" />
+      {display.charAt(0).toUpperCase() + display.slice(1)}
     </span>
   );
 }
