@@ -25,7 +25,8 @@ export type InquiryForm = {
 
 export type InquirySubmitStatus = "idle" | "loading" | "submitted" | "error";
 
-export const INQUIRY_WIZARD_STEPS = ["Contact Info", "Event Details", "Budget & Notes", "Confirm"] as const;
+// Easy questions first: the event, then scale, then who to contact, then review.
+export const INQUIRY_WIZARD_STEPS = ["Your event", "Venue and budget", "Your details", "Review and send"] as const;
 
 export const INQUIRY_CLIENT_TYPES = INQUIRY_CLIENT_CATEGORIES;
 export const INQUIRY_EVENT_TYPES = [

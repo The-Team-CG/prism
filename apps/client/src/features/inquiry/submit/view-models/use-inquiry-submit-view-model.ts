@@ -6,6 +6,7 @@ import {
   applyInquiryPrefill,
   isInquiryStepValid,
   mapInquirySubmitError,
+  missingInquiryFields,
   nextInquiryStep,
   previousInquiryStep,
   inquiryMinDate,
@@ -22,6 +23,7 @@ export function useInquirySubmitViewModel() {
   const [currentStep, setCurrentStep] = useState(0);
   const [status, setStatus] = useState<InquirySubmitStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [attempted, setAttempted] = useState(false);
 
   useEffect(() => {
     setForm((current) => applyInquiryPrefill(current, new URLSearchParams(window.location.search)));
@@ -40,16 +42,30 @@ export function useInquirySubmitViewModel() {
   }
 
   function nextStep() {
-    if (!canContinue()) return;
+    if (!canContinue()) {
+      setAttempted(true);
+      return;
+    }
+    setAttempted(false);
     setCurrentStep((step) => nextInquiryStep(step));
   }
 
   function previousStep() {
+    setAttempted(false);
     setCurrentStep((step) => previousInquiryStep(step));
   }
 
+  /** Jump back to an earlier step; never forward past an unanswered one. */
+  function goToStep(step: number) {
+    setCurrentStep((current) => Math.min(Math.max(step, 0), current));
+  }
+
   async function submit() {
-    if (!canContinue(3) || busy) return;
+    if (!canContinue(3)) {
+      setAttempted(true);
+      return;
+    }
+    if (busy) return;
     setStatus("loading");
     setError(null);
     try {
@@ -71,8 +87,11 @@ export function useInquirySubmitViewModel() {
     setError(null);
   }
 
+  const missing = attempted ? missingInquiryFields(form, currentStep) : [];
+
   return {
     form,
+    missing,
     currentStep,
     status,
     submitted,
@@ -83,6 +102,7 @@ export function useInquirySubmitViewModel() {
     canContinue,
     nextStep,
     previousStep,
+    goToStep,
     submit,
     resetSubmitted,
   };
