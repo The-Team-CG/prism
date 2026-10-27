@@ -388,7 +388,7 @@ export function mapSupplierWorkspaceError(
 }
 
 export function quoteSubmitSuccessNotice(isRevision: boolean): string {
-  return isRevision ? "Quote revision submitted." : "Quote submitted.";
+  return isRevision ? "Revised quote sent to PMCM for review. Your booking is not confirmed by this submission." : "Quote sent to PMCM for review. Your booking is not confirmed by this submission.";
 }
 
 export function eventStatusSuccessNotice(status: string): string {

@@ -52,6 +52,8 @@ import type { PrismAuthenticatedSession } from "@prism/types";
 import type { PrismSupplierWorkflowWorkspace } from "@prism/types";
 import type { PrismSupplier, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierDashboardSection, SupplierWorkspace } from "../../model/supplier-workspace-types";
 import { useSupplierWorkspaceViewModel } from "../../view-models/use-supplier-workspace-view-model";
+import { useSupplierWorkTarget } from "../../view-models/use-supplier-work-target";
+import { supplierNextStep } from "../../model/supplier-next-step";
 
 
 import { Card, CardBody, CardHeader, SectionAccent, StatCell } from "./shell-ui";
@@ -85,6 +87,7 @@ export function BookingsPage({
   const [scheduleReasons, setScheduleReasons] = useState<Record<string, string>>({});
   const [taskNotes, setTaskNotes] = useState<Record<string, string>>({});
   const [taskFiles, setTaskFiles] = useState<Record<string, File | null>>({});
+  useSupplierWorkTarget();
   if (!selectedRequests.length) {
     return (
       <Card><CardBody>
@@ -98,13 +101,15 @@ export function BookingsPage({
       {selectedRequests.map((req) => {
         const steps = buildBookingSteps(req);
         const canReportEventDayStatus = canReportSupplierEventDayStatus(req);
-        const eventName = readinessBoard?.items.find((item) => item.eventId === req.eventId)?.eventName;
+        const readiness = readinessBoard?.items.find((item) => item.requestId === req.id);
+        const eventName = readiness?.eventName;
+        const next = readiness ? supplierNextStep(readiness, true) : null;
 
         return (
-          <details key={req.id} name="supplier-bookings" className="rounded-lg border border-border bg-card">
+          <details key={req.id} id={`supplier-work-${encodeURIComponent(req.id)}`} className="scroll-mt-6 rounded-lg border border-border bg-card" open={selectedRequests.length === 1 ? true : undefined}>
             <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
               {req.category} · {eventName || "Event details pending"}
-              <span className="mt-1 block text-xs font-normal text-muted-foreground">Booking {req.id} · {steps.filter((step) => !step.done).length} steps to complete</span>
+              <span className="mt-1 block text-sm font-normal text-muted-foreground">{next?.title ?? "Review booking preparation"}</span>
             </summary>
           <Card>
             <CardHeader>
