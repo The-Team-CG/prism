@@ -92,7 +92,7 @@ export function PrivacyRequestCard({ request, vm }: { request: PrismPrivacyReque
         </div>
         <p className="text-xs font-bold capitalize text-foreground">{label(request.status)}</p>
       </div>
-      <p className={cx("mt-2 text-xs", request.overdue ? "font-black text-red-700" : "text-muted-foreground")}>
+      <p className={cx("mt-2 text-xs", request.overdue ? "font-black text-danger" : "text-muted-foreground")}>
         {privacyDeadlineLabel(request, vm.now)}
       </p>
       <p className="mt-1 text-xs text-muted-foreground">Owner: {owner} · Logged {compactTimestamp(request.createdAt)}</p>

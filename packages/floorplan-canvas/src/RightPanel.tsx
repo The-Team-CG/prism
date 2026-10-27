@@ -7,7 +7,7 @@ import { SUPPLIER_KIND_META, SUPPLIER_STATUS_COLOR } from "./SuppliersPanel";
 const RSVP_COLOR: Record<RSVP, string> = {
   confirmed: "#1F7A4B",
   pending: "#F06030",
-  declined: "#B4233A",
+  declined: "var(--prism-danger)",
 };
 
 function SeatingAssignments({ obj }: { obj: CanvasObject }) {
@@ -43,7 +43,7 @@ function SeatingAssignments({ obj }: { obj: CanvasObject }) {
       <div className="h-1.5 overflow-hidden rounded-full bg-neutral-200">
         <div
           className="h-full rounded-full transition-all"
-          style={{ width: `${pct}%`, backgroundColor: full ? "#B4233A" : "var(--prism-signal)" }}
+          style={{ width: `${pct}%`, backgroundColor: full ? "var(--prism-danger)" : "var(--primary)" }}
         />
       </div>
       <div

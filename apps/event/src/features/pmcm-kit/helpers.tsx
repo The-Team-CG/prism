@@ -24,9 +24,9 @@ export function compactTimestamp(value?: string | null) {
 }
 
 export function invitationTone(status?: string | null) {
-  if (status === "opened") return "bg-emerald-50 text-emerald-700 ring-emerald-100";
-  if (status === "expired") return "bg-rose-50 text-rose-700 ring-rose-100";
-  if (status === "sent") return "bg-blue-50 text-blue-700 ring-blue-100";
+  if (status === "opened") return "bg-success-soft text-success ring-success/20";
+  if (status === "expired") return "bg-danger-soft text-danger ring-danger/20";
+  if (status === "sent") return "bg-info-soft text-info ring-info/20";
   return "bg-muted text-muted-foreground ring-border";
 }
 
@@ -38,9 +38,9 @@ export function tierLabel(tier: string) {
 }
 
 export function tierTone(tier: string) {
-  if (tier === "tier_1") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (tier === "tier_2") return "border-[#40A0D0]/30 bg-secondary text-[#40A0D0]";
-  return "border-[#F06030]/30 bg-accent text-(--prism-amber)";
+  if (tier === "tier_1") return "border-success/25 bg-success-soft text-success";
+  if (tier === "tier_2") return "border-brand-blue/30 bg-secondary text-brand-blue";
+  return "border-brand-orange/30 bg-accent text-attention";
 }
 
 export function SupplierTierBadge({ tier }: { tier: string }) {
@@ -64,7 +64,7 @@ export function RatingStars({ rating }: { rating?: number | null }) {
           key={index}
           className={cx(
             "size-3.5",
-            index < rounded ? "fill-(--prism-amber) text-(--prism-amber)" : "text-border",
+            index < rounded ? "fill-attention text-attention" : "text-border",
           )}
         />
       ))}
@@ -83,18 +83,18 @@ export const auditDateRanges = [
 ] as const;
 
 export function auditTone(category: string) {
-  if (category === "finance") return "bg-emerald-50 text-emerald-700 ring-emerald-100";
+  if (category === "finance") return "bg-success-soft text-success ring-success/20";
   if (category === "suppliers") return "bg-pink-50 text-pink-700 ring-pink-100";
-  if (category === "access") return "bg-amber-50 text-amber-800 ring-amber-100";
+  if (category === "access") return "bg-attention-soft text-attention ring-attention/20";
   if (category === "documents") return "bg-violet-50 text-violet-700 ring-violet-100";
   return "bg-secondary text-foreground ring-primary/15";
 }
 
 export function severityTone(severity: string) {
-  if (severity === "critical") return "bg-rose-50 text-rose-700 ring-rose-100";
-  if (severity === "warning") return "bg-amber-50 text-amber-800 ring-amber-100";
-  if (severity === "attention") return "bg-blue-50 text-blue-700 ring-blue-100";
-  return "bg-emerald-50 text-emerald-700 ring-emerald-100";
+  if (severity === "critical") return "bg-danger-soft text-danger ring-danger/20";
+  if (severity === "warning") return "bg-attention-soft text-attention ring-attention/20";
+  if (severity === "attention") return "bg-info-soft text-info ring-info/20";
+  return "bg-success-soft text-success ring-success/20";
 }
 
 export function csvCell(value: unknown) {

@@ -30,7 +30,7 @@ export function PmcmSupplierWorkflowsPanel({ eventId, requests, quotes }: { even
 }
 
 function WorkflowAlert({ error, notice, busy, onReload }: { error: string | null; notice: string | null; busy: boolean; onReload: () => Promise<unknown> }) {
-  return <>{error ? <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"><span>{error}</span><Button size="sm" variant="outline" disabled={busy} onClick={() => void onReload().catch(() => undefined)}>Reload workflows</Button></div> : null}{notice ? <p role="status" className="rounded-lg bg-(--prism-success)/10 px-3 py-2 text-sm text-(--prism-success)">{notice}</p> : null}</>;
+  return <>{error ? <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"><span>{error}</span><Button size="sm" variant="outline" disabled={busy} onClick={() => void onReload().catch(() => undefined)}>Reload workflows</Button></div> : null}{notice ? <p role="status" className="rounded-lg bg-success/10 px-3 py-2 text-sm text-success">{notice}</p> : null}</>;
 }
 
 function WorkflowRows({ vm, requests, quotes }: { vm: WorkflowViewModel; requests: PrismSupplierQuoteRequest[]; quotes: PrismSupplierQuote[] }) {
@@ -53,7 +53,7 @@ function ScheduleEditor({ row, vm }: { row: WorkflowRow; vm: WorkflowViewModel }
   const key = `schedule:${row.requestId}`;
   return <div className="rounded-lg bg-muted/30 p-3"><p className="mb-2 text-xs font-bold">Ingress / egress schedule {row.schedule ? `· revision ${row.schedule.revision}` : ""}</p>
     {row.schedule ? <p className="mb-2 text-xs text-muted-foreground">Current: {new Date(row.schedule.ingressAt).toLocaleString()} – {new Date(row.schedule.egressAt).toLocaleString()} · {row.schedule.location}</p> : null}
-    {row.schedule?.changeRequestNote ? <p className="mb-2 text-xs text-amber-700 dark:text-amber-300">Supplier requested a change: {row.schedule.changeRequestNote}</p> : null}
+    {row.schedule?.changeRequestNote ? <p className="mb-2 text-xs text-attention dark:text-amber-300">Supplier requested a change: {row.schedule.changeRequestNote}</p> : null}
     <div className="grid gap-2 sm:grid-cols-2"><label className="grid gap-1 text-xs font-semibold">Ingress<Input type="datetime-local" value={vm.value(key, "ingressAt")} onChange={(e) => vm.setValue(key, "ingressAt", e.target.value)} /></label><label className="grid gap-1 text-xs font-semibold">Egress<Input type="datetime-local" value={vm.value(key, "egressAt")} onChange={(e) => vm.setValue(key, "egressAt", e.target.value)} /></label><Input aria-label="Schedule location" placeholder="Location" value={vm.value(key, "location")} onChange={(e) => vm.setValue(key, "location", e.target.value)} /><Input aria-label="Schedule notes" placeholder="Notes for supplier" value={vm.value(key, "notes")} onChange={(e) => vm.setValue(key, "notes", e.target.value)} /></div>
     <Button className="mt-2" size="sm" disabled={vm.busy || !vm.value(key, "ingressAt") || !vm.value(key, "egressAt")} onClick={() => void vm.publishSchedule(row.requestId)}>Publish schedule</Button>
   </div>;

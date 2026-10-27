@@ -28,18 +28,18 @@ export function ClientActionGroup({
             const Icon = action.icon;
             const toneStyle =
               action.tone === "primary"
-                ? "bg-(--prism-signal-soft) text-(--prism-signal)"
+                ? "bg-primary-soft text-primary"
                 : action.tone === "success"
-                  ? "bg-(--prism-success)/10 text-(--prism-success)"
+                  ? "bg-success/10 text-success"
                   : action.tone === "warning"
-                    ? "bg-(--prism-amber-soft) text-(--prism-amber)"
+                    ? "bg-attention-soft text-attention"
                     : "bg-muted text-muted-foreground";
             return (
               <button
                 key={action.id}
                 type="button"
                 onClick={() => onAction(action)}
-                className="flex w-full items-start gap-4 px-5 py-4 text-left transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--prism-signal) focus-visible:ring-inset"
+                className="flex w-full items-start gap-4 px-5 py-4 text-left transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
               >
                 <span className={`grid size-9 shrink-0 place-items-center rounded-xl ${toneStyle}`}>
                   <Icon className="size-4" />
@@ -55,7 +55,7 @@ export function ClientActionGroup({
                   {showDetailsAndCta ? (
                     <span className="mt-2 flex items-center justify-between gap-3 text-xs">
                       <span className="text-muted-foreground">{action.detail}</span>
-                      <span className="shrink-0 font-semibold text-(--prism-signal)">{action.ctaLabel}</span>
+                      <span className="shrink-0 font-semibold text-primary">{action.ctaLabel}</span>
                     </span>
                   ) : null}
                 </span>

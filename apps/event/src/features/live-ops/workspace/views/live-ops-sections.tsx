@@ -56,9 +56,9 @@ function Pill({ value }: { value: string }) {
 function Header({ icon: Icon, eyebrow, title }: { icon: LucideIcon; eyebrow: string; title: string }) {
   return (
     <div className="flex items-start gap-3">
-      <Icon className="mt-1 size-5 text-(--prism-amber)" />
+      <Icon className="mt-1 size-5 text-attention" />
       <div>
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-(--prism-amber)">{eyebrow}</p>
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-attention">{eyebrow}</p>
         <h3 className="mt-1 text-lg font-black">{title}</h3>
       </div>
     </div>
@@ -69,7 +69,7 @@ function MetricTile({ label: metricLabel, value, icon: Icon }: { label: string; 
   return (
     <div className="rounded-md border border-border bg-background p-3">
       <div className="flex items-center justify-between gap-3">
-        <Icon className="size-5 text-(--prism-amber)" />
+        <Icon className="size-5 text-attention" />
         <p className="text-2xl font-black">{value}</p>
       </div>
       <p className="mt-2 text-xs font-black uppercase tracking-wide text-muted-foreground">{metricLabel}</p>
@@ -100,9 +100,9 @@ export function LiveOpsOverview({
     <section className="rounded-lg border border-primary/12 bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-3">
-          <Radio className="mt-1 size-5 text-(--prism-amber)" />
+          <Radio className="mt-1 size-5 text-attention" />
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-(--prism-amber)">Event-day operations</p>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-attention">Event-day operations</p>
             <h3 className="mt-1 text-xl font-black">{event.eventName} live desk</h3>
             <p className="mt-1 text-sm text-muted-foreground">{event.clientName} - {event.eventDate}</p>
           </div>
@@ -118,7 +118,7 @@ export function LiveOpsOverview({
         <MetricTile label="Suppliers verified" value={metrics.verifiedSuppliers} icon={Truck} />
         <MetricTile label="Coord. present" value={metrics.presentCoordinators} icon={UserCheck} />
       </div>
-      <div className="mt-4 flex items-start gap-3 rounded-md border border-(--prism-amber)/20 bg-(--prism-amber)/8 p-3 text-sm leading-6 text-(--prism-amber)">
+      <div className="mt-4 flex items-start gap-3 rounded-md border border-attention/20 bg-attention/8 p-3 text-sm leading-6 text-attention">
         <ShieldCheck className="mt-0.5 size-4 shrink-0" />
         <span>
           Live operations shows event-day readiness, attendance, tasks, issues, and setup verification only. Finance, audit trail exports, and private supplier reviews stay in their PMCM-only workspaces.
@@ -134,7 +134,7 @@ function LiveOpsStatusFeed({ feed }: { feed: PrismEventDayStatusFeed }) {
     <div className="mt-4 rounded-md border border-border bg-background p-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm font-black">
-          <TimerReset className="size-4 text-(--prism-amber)" />
+          <TimerReset className="size-4 text-attention" />
           Role-safe status feed
         </div>
         <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">
@@ -311,7 +311,7 @@ export function ReassignmentReviewPanel({
           </div>
         ))}
       </div>
-      {error ? <p role="alert" className="mt-3 rounded-md bg-(--prism-danger)/10 px-3 py-2 text-xs font-bold text-(--prism-danger)">{error}</p> : null}
+      {error ? <p role="alert" className="mt-3 rounded-md bg-danger/10 px-3 py-2 text-xs font-bold text-danger">{error}</p> : null}
     </section>
   );
 }
@@ -374,7 +374,7 @@ function LiveOpsIssuesPanel({
         <p className="text-xs leading-5 text-muted-foreground">
           Urgent issues are operational blockers. Escalation notifies PMCM/operator context; it does not expose finance, audit, or private supplier review data.
         </p>
-        <button disabled={busy || !vm.issueTitle.trim()} onClick={vm.createIssue} className="h-12 rounded-md bg-(--prism-ink) px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">
+        <button disabled={busy || !vm.issueTitle.trim()} onClick={vm.createIssue} className="h-12 rounded-md bg-ink px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">
           Open urgent issue
         </button>
       </div>
@@ -446,7 +446,7 @@ function LiveOpsTasksPanel({
             className="h-11 rounded-md border border-border bg-white px-3 text-sm"
           />
         </label>
-        <button disabled={busy || !vm.taskTitle.trim()} onClick={vm.createTask} className="h-12 rounded-md bg-(--prism-ink) px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">
+        <button disabled={busy || !vm.taskTitle.trim()} onClick={vm.createTask} className="h-12 rounded-md bg-ink px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">
           Add task
         </button>
       </div>
@@ -485,10 +485,10 @@ function SupplierRow({ request, busy, onVerify, onDispute }: { request: PrismSup
         <Pill value={verification} />
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        <button disabled={busy || verification === "verified"} onClick={onVerify} className="h-10 rounded-md bg-emerald-50 px-3 text-xs font-black text-emerald-700 disabled:opacity-60">
+        <button disabled={busy || verification === "verified"} onClick={onVerify} className="h-10 rounded-md bg-success-soft px-3 text-xs font-black text-success disabled:opacity-60">
           Verify on site
         </button>
-        <button disabled={busy || verification === "disputed"} onClick={onDispute} className="h-10 rounded-md bg-rose-50 px-3 text-xs font-black text-rose-700 disabled:opacity-60">
+        <button disabled={busy || verification === "disputed"} onClick={onDispute} className="h-10 rounded-md bg-danger-soft px-3 text-xs font-black text-danger disabled:opacity-60">
           Dispute setup
         </button>
       </div>
@@ -527,7 +527,7 @@ function CoordinatorRow({
       {vm.attendanceStatus !== "replaced" ? (
         <div className="mt-3 grid gap-2 rounded-md border border-dashed border-border bg-white p-3">
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-muted-foreground">
-            <UserPlus className="size-4 text-(--prism-amber)" />
+            <UserPlus className="size-4 text-attention" />
             Replacement
           </div>
           <p className="text-xs leading-5 text-muted-foreground">
@@ -580,7 +580,7 @@ function CoordinatorRow({
             placeholder="Replacement reason required for live log"
             className="h-10 rounded-md border border-border bg-white px-2 text-xs"
           />
-          <button disabled={busy || !vm.canReplace} onClick={vm.replace} className="h-10 rounded-md bg-(--prism-ink) px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60">
+          <button disabled={busy || !vm.canReplace} onClick={vm.replace} className="h-10 rounded-md bg-ink px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60">
             Replace coordinator
           </button>
         </div>
@@ -620,10 +620,10 @@ function IssueRow({
       </div>
       {issue.status !== "resolved" ? (
         <div className="mt-3 flex flex-wrap gap-2">
-          <button disabled={busy} onClick={onResolve} className="h-10 rounded-md bg-emerald-50 px-3 text-xs font-black text-emerald-700 disabled:opacity-60">
+          <button disabled={busy} onClick={onResolve} className="h-10 rounded-md bg-success-soft px-3 text-xs font-black text-success disabled:opacity-60">
             Mark resolved
           </button>
-          <button disabled={busy} onClick={onEscalate} className="inline-flex h-10 items-center gap-1 rounded-md bg-rose-50 px-3 text-xs font-black text-rose-700 disabled:opacity-60">
+          <button disabled={busy} onClick={onEscalate} className="inline-flex h-10 items-center gap-1 rounded-md bg-danger-soft px-3 text-xs font-black text-danger disabled:opacity-60">
             <BellRing className="size-3.5" /> Escalate to PMCM
           </button>
         </div>
@@ -656,13 +656,13 @@ function TaskRow({
         <Pill value={task.status} />
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        <button disabled={busy || task.status === "in_progress" || task.status === "done"} onClick={onProgress} className="h-10 rounded-md bg-amber-50 px-3 text-xs font-black text-amber-800 disabled:opacity-60">
+        <button disabled={busy || task.status === "in_progress" || task.status === "done"} onClick={onProgress} className="h-10 rounded-md bg-attention-soft px-3 text-xs font-black text-attention disabled:opacity-60">
           In progress
         </button>
-        <button disabled={busy || task.status === "done"} onClick={onDone} className="h-10 rounded-md bg-emerald-50 px-3 text-xs font-black text-emerald-700 disabled:opacity-60">
+        <button disabled={busy || task.status === "done"} onClick={onDone} className="h-10 rounded-md bg-success-soft px-3 text-xs font-black text-success disabled:opacity-60">
           Done
         </button>
-        <button disabled={busy || task.status === "done"} onClick={onEscalate} className="inline-flex h-10 items-center gap-1 rounded-md bg-rose-50 px-3 text-xs font-black text-rose-700 disabled:opacity-60">
+        <button disabled={busy || task.status === "done"} onClick={onEscalate} className="inline-flex h-10 items-center gap-1 rounded-md bg-danger-soft px-3 text-xs font-black text-danger disabled:opacity-60">
           <BellRing className="size-3.5" /> Escalate task
         </button>
       </div>
@@ -698,9 +698,9 @@ function CoordinatorAttendanceButtons({ status, busy, onStatus }: {
 }) {
   return (
       <div className="mt-3 flex flex-wrap gap-2">
-        <button disabled={busy || status === "present"} onClick={() => onStatus("present")} className="h-10 rounded-md bg-emerald-50 px-3 text-xs font-black text-emerald-700 disabled:opacity-60">Present</button>
-        <button disabled={busy || status === "late"} onClick={() => onStatus("late")} className="h-10 rounded-md bg-amber-50 px-3 text-xs font-black text-amber-800 disabled:opacity-60">Late</button>
-        <button disabled={busy || status === "absent"} onClick={() => onStatus("absent")} className="h-10 rounded-md bg-rose-50 px-3 text-xs font-black text-rose-700 disabled:opacity-60">Absent</button>
+        <button disabled={busy || status === "present"} onClick={() => onStatus("present")} className="h-10 rounded-md bg-success-soft px-3 text-xs font-black text-success disabled:opacity-60">Present</button>
+        <button disabled={busy || status === "late"} onClick={() => onStatus("late")} className="h-10 rounded-md bg-attention-soft px-3 text-xs font-black text-attention disabled:opacity-60">Late</button>
+        <button disabled={busy || status === "absent"} onClick={() => onStatus("absent")} className="h-10 rounded-md bg-danger-soft px-3 text-xs font-black text-danger disabled:opacity-60">Absent</button>
       </div>
   );
 }

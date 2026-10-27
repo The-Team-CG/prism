@@ -30,7 +30,7 @@ function DraftStatus({ model, currentWindowDraft }: { model: DraftModel; current
   }
   if (model.status === 'approved') {
     return currentWindowDraft
-      ? <span className="text-sm font-medium text-emerald-700">Approved and queued for delivery</span>
+      ? <span className="text-sm font-medium text-success">Approved and queued for delivery</span>
       : <span className="text-sm text-muted-foreground">Previous reminder draft was approved</span>;
   }
   if (model.status === 'cancelled') {

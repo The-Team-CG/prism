@@ -7,7 +7,7 @@ export function Panel({ title, icon: Icon, children }: { title: string; icon: Lu
   return (
     <Card className="gap-0 rounded-lg border-primary/12 bg-card shadow-none">
       <CardHeader className="flex min-h-12 flex-row items-center gap-2 border-b border-border px-4 py-0">
-        <Icon className="size-4 text-(--prism-amber)" />
+        <Icon className="size-4 text-attention" />
         <CardTitle className="text-sm font-black text-foreground">{title}</CardTitle>
       </CardHeader>
       <CardContent className="p-4">{children}</CardContent>

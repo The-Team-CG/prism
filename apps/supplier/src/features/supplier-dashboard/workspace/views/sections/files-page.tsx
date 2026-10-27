@@ -30,7 +30,7 @@ export function FilesPage({
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <FileCheck2 className="size-4 text-(--prism-signal)" />
+            <FileCheck2 className="size-4 text-primary" />
             <h2 className="text-sm font-bold text-foreground">Contract files</h2>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">Your uploaded contract versions and PMCM review status.</p>
@@ -43,7 +43,7 @@ export function FilesPage({
           <div className="divide-y divide-border">
             {contracts.map((contract) => (
               <div key={contract.id} className="flex flex-wrap items-center gap-4 px-6 py-4">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted text-(--prism-signal)">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted text-primary">
                   <FileText className="size-5" />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -51,7 +51,7 @@ export function FilesPage({
                   <p className="mt-0.5 text-xs text-muted-foreground">Uploaded {formatDate(contract.uploadedAt)}{contract.reviewReason ? ` · ${contract.reviewReason}` : ""}</p>
                 </div>
                 <StatusBadge status={contract.reviewStatus} />
-                <button type="button" onClick={() => onDownloadObject(contract.storedObjectId)} className="text-xs font-bold text-(--prism-signal) hover:underline">Download</button>
+                <button type="button" onClick={() => onDownloadObject(contract.storedObjectId)} className="text-xs font-bold text-primary hover:underline">Download</button>
               </div>
             ))}
           </div>
@@ -62,7 +62,7 @@ export function FilesPage({
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <ShieldCheck className="size-4 text-(--prism-signal)" />
+            <ShieldCheck className="size-4 text-primary" />
             <h2 className="text-sm font-bold text-foreground">Certifications</h2>
           </div>
         </CardHeader>
@@ -74,7 +74,7 @@ export function FilesPage({
           <div className="divide-y divide-border">
             {workspace.supplier.certifications.map((cert) => (
               <div key={cert.id} className="flex items-center gap-4 px-6 py-4">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted text-(--prism-signal)">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted text-primary">
                   <FileCheck2 className="size-5" />
                 </span>
                 <div className="min-w-0 flex-1">

@@ -49,7 +49,7 @@ export function ClientHomeGreeting({
   onReviewConforme: () => void;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[var(--prism-signal)] to-[#8b0f48] px-6 py-7 text-white shadow-lg sm:px-8 sm:py-8">
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-primary-deep px-6 py-7 text-white shadow-lg sm:px-8 sm:py-8">
       <div className="relative z-10">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -64,7 +64,7 @@ export function ClientHomeGreeting({
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
               <Button
-                className="rounded-lg bg-white font-bold text-[var(--prism-signal)] hover:bg-white/90"
+                className="rounded-lg bg-white font-bold text-primary hover:bg-white/90"
                 onClick={onRequest}
               >
                 <Send className="size-4" /> New event request
@@ -129,21 +129,21 @@ export function ClientHomeSnapshots({
       label: "Next action",
       value: nextAction?.title ?? "No client action pending",
       icon: FileCheck2,
-      accent: "text-(--prism-signal)",
+      accent: "text-primary",
       onSelect: () => selectNextSnapshot(nextAction, runClientAction, navigateToEventRoute),
     },
     {
       label: "Layout review",
       value: layoutStatus,
       icon: MapPinned,
-      accent: "text-(--prism-amber)",
+      accent: "text-attention",
       onSelect: () => navigateToEventRoute("floorplan"),
     },
     {
       label: nextOpenPayment ? "Next payment" : "Documents",
       value: nextOpenPayment?.dueDate ?? `${documentsNeedingReview.length} needing review`,
       icon: nextOpenPayment ? WalletCards : FileText,
-      accent: "text-(--prism-success)",
+      accent: "text-success",
       onSelect: () => navigateToEventRoute(nextOpenPayment ? "billing" : "documents"),
     },
   ];
@@ -157,7 +157,7 @@ export function ClientHomeSnapshots({
             key={item.label}
             type="button"
             onClick={item.onSelect}
-            className="flex min-w-0 items-center gap-4 rounded-xl border border-border bg-card px-4 py-4 text-left shadow-sm transition-colors hover:border-(--prism-signal)/30 hover:bg-(--prism-signal-soft)"
+            className="flex min-w-0 items-center gap-4 rounded-xl border border-border bg-card px-4 py-4 text-left shadow-sm transition-colors hover:border-primary/30 hover:bg-primary-soft"
           >
             <span className={`grid size-10 shrink-0 place-items-center rounded-full bg-muted ${item.accent}`}>
               <Icon className="size-4" />
@@ -188,7 +188,7 @@ export function ClientHomeActionCenter({
     return (
       <section aria-labelledby="client-action-center-heading" className="space-y-4">
         <h2 id="client-action-center-heading" className="text-base font-black text-foreground">Action center</h2>
-        <div role="status" className="rounded-2xl border border-(--prism-amber)/20 bg-(--prism-amber)/8 px-5 py-6 text-sm text-muted-foreground">
+        <div role="status" className="rounded-2xl border border-attention/20 bg-attention/8 px-5 py-6 text-sm text-muted-foreground">
           Action center data is temporarily unavailable. Refresh to check for persisted next actions.
         </div>
       </section>
@@ -200,8 +200,8 @@ export function ClientHomeActionCenter({
       <section aria-labelledby="client-action-center-heading" className="space-y-4">
         <h2 id="client-action-center-heading" className="text-base font-black text-foreground">Action center</h2>
         <div role="status" className="rounded-2xl border border-dashed border-border bg-muted/20 px-8 py-10 text-center">
-          <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-(--prism-success)/10">
-            <CheckCircle2 className="size-5 text-(--prism-success)" />
+          <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-success/10">
+            <CheckCircle2 className="size-5 text-success" />
           </span>
           <h3 className="mt-4 text-sm font-bold text-foreground">No pending actions</h3>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">Everything here is up to date. PMCM will notify you when something needs your attention.</p>
@@ -238,8 +238,8 @@ export function ClientHomeEvents({
   if (events.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-8 py-12 text-center">
-        <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-[var(--prism-signal-soft)]">
-          <CalendarDays className="size-6 text-[var(--prism-signal)]" />
+        <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-primary-soft">
+          <CalendarDays className="size-6 text-primary" />
         </span>
         <h3 className="mt-4 text-base font-black text-foreground">No events yet.</h3>
         <p className="mt-2 max-w-sm mx-auto text-sm leading-6 text-muted-foreground">
@@ -259,7 +259,7 @@ export function ClientHomeEvents({
         <button
           type="button"
           onClick={onViewAll}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-(--prism-signal) hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--prism-signal) focus-visible:ring-offset-2"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         >
           View all <ArrowRight className="size-3" />
         </button>
@@ -289,14 +289,14 @@ export function ClientHomeUpdates({ notifications }: { notifications: PrismNotif
     <div className="rounded-xl border border-border bg-card shadow-sm">
       <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
         <div className="flex items-center gap-2">
-          <Sparkles className="size-4 text-(--prism-signal)" />
+          <Sparkles className="size-4 text-primary" />
           <p className="text-sm font-bold text-foreground">Recent updates from PMCM</p>
         </div>
       </div>
       <div className="divide-y divide-border">
         {notifications.map((n) => (
           <div key={n.id} className="flex items-start gap-3 px-5 py-3.5">
-            <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-primary/10 text-[10px] font-black text-primary">
+            <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-primary/10 text-3xs font-black text-primary">
               PM
             </span>
             <div className="min-w-0 flex-1">

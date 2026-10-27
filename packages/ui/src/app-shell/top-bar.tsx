@@ -92,7 +92,7 @@ export function PrismTopBar({
           aria-label="Notifications"
         >
           <Bell aria-hidden="true" className="size-3.5" />
-          <span className="absolute right-1 top-1 size-1.5 rounded-full bg-(--prism-amber) ring-2 ring-card" aria-hidden="true" />
+          <span className="absolute right-1 top-1 size-1.5 rounded-full bg-attention ring-2 ring-card" aria-hidden="true" />
         </button>
         {user ? (
           <PrismAccountMenu user={user} items={accountMenuItems} onSignOut={onSignOut} />
@@ -115,7 +115,7 @@ export function MobileActionDock({ actions }: { actions: PrismMobileAction[] }) 
             disabled={action.disabled}
             data-active={action.active}
             onClick={action.onSelect}
-            className="flex h-14 flex-col items-center justify-center gap-1 rounded-md text-[11px] font-bold text-muted-foreground transition hover:bg-primary hover:text-primary-foreground focus-visible:bg-primary focus-visible:text-primary-foreground active:bg-primary active:text-primary-foreground disabled:opacity-45 data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
+            className="flex h-14 flex-col items-center justify-center gap-1 rounded-md text-2xs font-bold text-muted-foreground transition hover:bg-primary hover:text-primary-foreground focus-visible:bg-primary focus-visible:text-primary-foreground active:bg-primary active:text-primary-foreground disabled:opacity-45 data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
           >
             <action.icon aria-hidden="true" className="size-5" />
             <span>{action.label}</span>
@@ -146,7 +146,7 @@ export function RolePageHeader({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           {eyebrow ? (
-            <p className="text-[10px] font-black uppercase text-muted-foreground">{eyebrow}</p>
+            <p className="text-3xs font-black uppercase text-muted-foreground">{eyebrow}</p>
           ) : null}
           <h2 className="mt-0.5 text-lg font-black leading-tight text-foreground sm:text-xl">{title}</h2>
           {description ? (

@@ -207,7 +207,7 @@ export function CoordinatorAssignmentDesk({
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <UserCheck className="size-4 text-(--prism-signal)" />
+            <UserCheck className="size-4 text-primary" />
             <h2 className="text-sm font-bold text-foreground">Coordinator assignment</h2>
           </div>
         </CardHeader>
@@ -216,7 +216,7 @@ export function CoordinatorAssignmentDesk({
             {/* Filters */}
             <div className="space-y-4 rounded-2xl border border-border bg-muted/30 p-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">Role</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-primary">Role</p>
                 <select
                   aria-label="Coordinator role filter"
                   value={roleFilter}
@@ -267,7 +267,7 @@ export function CoordinatorAssignmentDesk({
                   return (
                     <div key={role}>
                       <div className="mb-3 flex items-center justify-between gap-2">
-                        <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">{role}</p>
+                        <p className="text-xs font-bold uppercase tracking-widest text-primary">{role}</p>
                         <span className="text-xs text-muted-foreground">{roleCoords.length} match{roleCoords.length === 1 ? "" : "es"}</span>
                       </div>
                       <div className="grid gap-3 lg:grid-cols-2">
@@ -289,7 +289,7 @@ export function CoordinatorAssignmentDesk({
                                     <p className="text-sm font-bold text-foreground">{coord.name}</p>
                                     <Badge
                                       variant="outline"
-                                      className={`rounded-full text-[10px] font-bold ${conflict ? "border-(--prism-amber)/25 bg-(--prism-amber)/8 text-(--prism-amber)" : "border-(--prism-success)/25 bg-(--prism-success)/8 text-(--prism-success)"}`}
+                                      className={`rounded-full text-3xs font-bold ${conflict ? "border-attention/25 bg-attention/8 text-attention" : "border-success/25 bg-success/8 text-success"}`}
                                     >
                                       {conflict ? "Has conflict" : "Available"}
                                     </Badge>
@@ -297,18 +297,18 @@ export function CoordinatorAssignmentDesk({
                                   <p className="mt-0.5 text-xs text-muted-foreground">{coord.email}</p>
                                   <div className="mt-2 flex flex-wrap gap-1.5">
                                     {coordinatorRoleTags(coord).map((tag) => (
-                                      <span key={tag} className="rounded-full border border-border bg-card px-2 py-0.5 text-[10px] font-bold text-foreground">{tag}</span>
+                                      <span key={tag} className="rounded-full border border-border bg-card px-2 py-0.5 text-3xs font-bold text-foreground">{tag}</span>
                                     ))}
                                   </div>
                                   {coord.skillsTags.length > 0 && (
                                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                                       {coord.skillsTags.map((tag) => (
-                                        <span key={tag} className="rounded-full border border-border bg-card px-2 py-0.5 text-[10px] font-bold text-muted-foreground">{tag}</span>
+                                        <span key={tag} className="rounded-full border border-border bg-card px-2 py-0.5 text-3xs font-bold text-muted-foreground">{tag}</span>
                                       ))}
                                     </div>
                                   )}
                                   {conflict && (
-                                    <p className="mt-2 text-xs font-semibold text-(--prism-amber)">
+                                    <p className="mt-2 text-xs font-semibold text-attention">
                                       Assigned to {conflict.conflictEventName ?? "another event"} on {eventDate}.
                                     </p>
                                   )}
@@ -329,7 +329,7 @@ export function CoordinatorAssignmentDesk({
                                     return (
                                       <Badge
                                         variant="outline"
-                                        className={`mt-2 rounded-full text-[10px] font-bold ${isPending ? "border-(--prism-amber)/25 bg-(--prism-amber)/8 text-(--prism-amber)" : "border-(--prism-success)/25 bg-(--prism-success)/8 text-(--prism-success)"}`}
+                                        className={`mt-2 rounded-full text-3xs font-bold ${isPending ? "border-attention/25 bg-attention/8 text-attention" : "border-success/25 bg-success/8 text-success"}`}
                                       >
                                         {isPending ? "Pending Acknowledgment" : "Acknowledged"}
                                       </Badge>
@@ -354,7 +354,7 @@ export function CoordinatorAssignmentDesk({
       {pendingConflict && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4">
           <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
-            <Badge variant="outline" className="rounded-full border-(--prism-amber)/25 bg-(--prism-amber)/8 text-(--prism-amber)">
+            <Badge variant="outline" className="rounded-full border-attention/25 bg-attention/8 text-attention">
               Double-booking blocked
             </Badge>
             <h3 className="mt-4 text-base font-bold text-foreground">Choose another coordinator</h3>

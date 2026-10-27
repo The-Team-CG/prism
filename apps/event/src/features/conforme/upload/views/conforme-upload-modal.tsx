@@ -168,7 +168,7 @@ function DigitalExecutionSignoff({ execution, busy, consent, onConsent, onSign }
 }
 
 function UploadSuccess({ inquiry }: { inquiry: PrismInquiry }) {
-  return <div className="flex flex-col items-center gap-3 py-4"><CheckCircle2 className="size-10 text-(--prism-success)" /><p className="text-sm font-bold text-foreground">Conforme uploaded</p><p className="text-xs text-muted-foreground">{inquiry.clientName} — {inquiry.eventName}</p></div>;
+  return <div className="flex flex-col items-center gap-3 py-4"><CheckCircle2 className="size-10 text-success" /><p className="text-sm font-bold text-foreground">Conforme uploaded</p><p className="text-xs text-muted-foreground">{inquiry.clientName} — {inquiry.eventName}</p></div>;
 }
 
 function ConformeUploadForm({ inquiry, phase, file, validationError, apiError, digitalBusy, fileInputRef, selectButtonRef, onClose, onFileChange, onPrepareDigital, onSubmit }: { inquiry: PrismInquiry; phase: ModalPhase; file: File | null; validationError: string | null; apiError: string | null; digitalBusy: boolean; fileInputRef: React.RefObject<HTMLInputElement | null>; selectButtonRef: React.RefObject<HTMLButtonElement | null>; onClose: () => void; onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void; onPrepareDigital: () => Promise<void>; onSubmit: () => Promise<void> }) {
@@ -183,7 +183,7 @@ function ConformeUploadForm({ inquiry, phase, file, validationError, apiError, d
 }
 
 function FileSelection({ file, busy, inputRef, buttonRef, onFileChange }: { file: File | null; busy: boolean; inputRef: React.RefObject<HTMLInputElement | null>; buttonRef: React.RefObject<HTMLButtonElement | null>; onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void }) {
-  return <div className="mt-4"><input ref={inputRef} type="file" accept=".pdf,application/pdf" onChange={onFileChange} className="hidden" aria-label="Select PDF file" /><button ref={buttonRef} type="button" onClick={() => inputRef.current?.click()} disabled={busy} className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-border px-4 py-8 text-center transition-colors hover:border-(--prism-signal)/40 hover:bg-secondary/50 disabled:opacity-50"><FileUp className="size-6 text-muted-foreground" /><span className="text-sm font-bold text-foreground">{file ? file.name : "Click to select PDF"}</span>{file ? <span className="text-xs text-muted-foreground">{formatSize(file.size)}</span> : <span className="text-xs text-muted-foreground">PDF only, max 10 MB</span>}</button></div>;
+  return <div className="mt-4"><input ref={inputRef} type="file" accept=".pdf,application/pdf" onChange={onFileChange} className="hidden" aria-label="Select PDF file" /><button ref={buttonRef} type="button" onClick={() => inputRef.current?.click()} disabled={busy} className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-border px-4 py-8 text-center transition-colors hover:border-primary/40 hover:bg-secondary/50 disabled:opacity-50"><FileUp className="size-6 text-muted-foreground" /><span className="text-sm font-bold text-foreground">{file ? file.name : "Click to select PDF"}</span>{file ? <span className="text-xs text-muted-foreground">{formatSize(file.size)}</span> : <span className="text-xs text-muted-foreground">PDF only, max 10 MB</span>}</button></div>;
 }
 
 function UploadActions({ file, validationError, busy, onClose, onSubmit }: { file: File | null; validationError: string | null; busy: boolean; onClose: () => void; onSubmit: () => Promise<void> }) {

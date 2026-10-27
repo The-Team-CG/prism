@@ -2,10 +2,15 @@
   "name": "@prism/tokens",
   "version": "0.1.0",
   "private": true,
-  "sideEffects": ["src/theme.css", "src/typography.css"],
+  "sideEffects": [
+    "src/fonts.css",
+    "src/theme.css",
+    "src/typography.css"
+  ],
   "types": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./fonts.css": "./src/fonts.css",
     "./theme.css": "./src/theme.css",
     "./typography.css": "./src/typography.css"
   },
@@ -14,5 +19,8 @@
   },
   "devDependencies": {
     "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "tw-animate-css": "1.3.8"
   }
 }

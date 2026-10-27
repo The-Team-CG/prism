@@ -59,7 +59,7 @@ export function SupplierWorkspaceView() {
           <Button variant="outline" size="icon" disabled={busy === "refresh"} onClick={() => void vm.refresh()} className="size-9 rounded-xl" aria-label="Refresh">
             <RefreshCcw className="size-3.5" />
           </Button>
-          <Badge variant="outline" className="hidden h-9 rounded-xl border-(--prism-success)/25 bg-(--prism-success)/8 px-3 text-(--prism-success) sm:inline-flex">
+          <Badge variant="outline" className="hidden h-9 rounded-xl border-success/25 bg-success/8 px-3 text-success sm:inline-flex">
             Approved
           </Badge>
         </>

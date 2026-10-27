@@ -37,7 +37,7 @@ import {
 function DetailField({ label: fieldLabel, value }: { label: string; value?: string | null }) {
   return (
     <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{fieldLabel}</p>
+      <p className="text-3xs font-bold uppercase tracking-wider text-muted-foreground">{fieldLabel}</p>
       <p className="mt-1 text-sm font-semibold text-foreground">{value || "-"}</p>
     </div>
   );
@@ -58,12 +58,12 @@ export function InquiryIntakeHeader({
     <div className="border-b border-border px-6 py-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <ClipboardList className="size-4 text-(--prism-signal)" />
+          <ClipboardList className="size-4 text-primary" />
           <h2 className="text-sm font-bold text-foreground">Inquiry intake</h2>
         </div>
         <div className="flex items-center gap-2">
           {unreviewedCount > 0 && (
-            <span className="rounded-full bg-(--prism-amber)/10 px-2.5 py-1 text-xs font-bold text-(--prism-amber)">
+            <span className="rounded-full bg-attention/10 px-2.5 py-1 text-xs font-bold text-attention">
               {unreviewedCount} unreviewed
             </span>
           )}
@@ -173,7 +173,7 @@ export function InquiryIntakeList({
 
   return (
     <div>
-      <div className="hidden border-b border-border bg-muted/20 px-6 py-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground 2xl:grid 2xl:grid-cols-[minmax(280px,1fr)_120px_140px_minmax(150px,0.7fr)_90px] 2xl:gap-4">
+      <div className="hidden border-b border-border bg-muted/20 px-6 py-2 text-2xs font-bold uppercase tracking-wide text-muted-foreground 2xl:grid 2xl:grid-cols-[minmax(280px,1fr)_120px_140px_minmax(150px,0.7fr)_90px] 2xl:gap-4">
         <span>Inquiry</span>
         <span>Status</span>
         <span>Event date</span>
@@ -213,21 +213,21 @@ function InquiryIntakeRow({
           ) : null}
         </div>
         <div>
-          <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground 2xl:hidden">Status</p>
+          <p className="mb-1 text-3xs font-bold uppercase tracking-wide text-muted-foreground 2xl:hidden">Status</p>
           <StatusBadge status={inquiry.status} label={label(inquiry.status)} />
           {inquiry.previouslyDeclined ? (
-            <p className="mt-1 text-[10px] font-bold text-destructive">Previously declined</p>
+            <p className="mt-1 text-3xs font-bold text-destructive">Previously declined</p>
           ) : null}
         </div>
         <div className="text-sm font-semibold text-foreground">
-          <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground 2xl:hidden">Event date</p>
+          <p className="mb-1 text-3xs font-bold uppercase tracking-wide text-muted-foreground 2xl:hidden">Event date</p>
           <span className="flex items-center gap-2">
             <CalendarDays className="size-4 text-muted-foreground" />
             {inquiry.eventDate || "Date pending"}
           </span>
         </div>
         <div className="text-sm">
-          <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground 2xl:hidden">Source</p>
+          <p className="mb-1 text-3xs font-bold uppercase tracking-wide text-muted-foreground 2xl:hidden">Source</p>
           <p className="font-semibold text-foreground">{inquiry.source || "-"}</p>
           <p className="mt-1 text-xs text-muted-foreground">Received {compactTimestamp(inquiry.createdAt)}</p>
         </div>
@@ -272,7 +272,7 @@ export function InquiryDetailDrawer({
           <InquiryHistorySection inquiry={inquiry} allInquiries={allInquiries} busy={busy} onMerge={onMerge} />
           <section className="rounded-lg border border-border bg-background px-4 py-3">
             <div className="flex items-center gap-2">
-              <MessageSquareText className="size-4 text-(--prism-signal)" />
+              <MessageSquareText className="size-4 text-primary" />
               <h4 className="text-sm font-bold text-foreground">Inquiry message</h4>
             </div>
             <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
@@ -319,7 +319,7 @@ function InquiryDetailFlags({ inquiry }: { inquiry: PrismInquiry }) {
     <div className="flex flex-wrap items-center gap-2">
       <StatusBadge status={inquiry.status} label={label(inquiry.status)} />
       {inquiry.duplicate ? (
-        <span className="rounded-full border border-(--prism-amber)/25 bg-(--prism-amber)/10 px-2.5 py-1 text-xs font-bold text-(--prism-amber)">
+        <span className="rounded-full border border-attention/25 bg-attention/10 px-2.5 py-1 text-xs font-bold text-attention">
           Duplicate
         </span>
       ) : null}
@@ -364,7 +364,7 @@ function InquiryHistorySection({
   return (
     <section className="space-y-3 rounded-lg border border-border bg-background px-4 py-3">
       <div className="flex items-center gap-2">
-        <ClipboardList className="size-4 text-(--prism-signal)" />
+        <ClipboardList className="size-4 text-primary" />
         <h4 className="text-sm font-bold text-foreground">Organization and history</h4>
       </div>
       {cues.length === 0 ? (
@@ -466,7 +466,7 @@ function InquiryDetailActions({
   onDecline: () => void;
 }) {
   if (status === "accepted") {
-    return <p className="mr-auto text-sm font-semibold text-(--prism-success)">Inquiry accepted</p>;
+    return <p className="mr-auto text-sm font-semibold text-success">Inquiry accepted</p>;
   }
   if (status === "declined") {
     return <p className="mr-auto text-sm font-semibold text-destructive">Inquiry declined</p>;

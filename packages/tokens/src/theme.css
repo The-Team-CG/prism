@@ -1,14 +1,229 @@
+/*
+ * The one P.R.I.S.M theme. Every portal imports this file; no portal defines
+ * its own colors. Three layers:
+ *   1. --prism-* primitives (brand + neutral values)
+ *   2. semantic roles (shadcn names + status roles) that point at primitives
+ *   3. @theme inline, which turns each role into a Tailwind utility
+ *      (bg-primary, text-success, border-attention/25, bg-ink, ...)
+ * Restyle the product by editing layer 1; components only use layers 2 and 3.
+ */
+
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
 :root {
+  color-scheme: light;
+
+  /* Brand */
+  --prism-orange: #f06030;
+  --prism-orange-soft: #fff0e6;
+  --prism-magenta: #c01867;
+  --prism-magenta-strong: #a81459;
+  --prism-magenta-deep: #8b0f48;
+  --prism-magenta-soft: #fdf0f6;
+  --prism-blue: #40a0d0;
+  --prism-blue-soft: #e9f7fb;
+  --prism-teal: #1c7a70;
+  --prism-orange-deep: #c2470a;
+
+  /* Portal identity: the field colour each portal signs in on. */
+  --prism-portal-client: var(--prism-magenta);
+  --prism-portal-supplier: var(--prism-teal);
+  --prism-portal-guest: var(--prism-orange-deep);
+  --prism-portal-event: var(--prism-ink);
+
+  /* Neutrals */
+  --prism-ink: #171216;
+  --prism-ink-soft: #3a2f37;
+  --prism-ink-raised: #2a1f29;
+  --prism-ink-line: #4a3945;
   --prism-page: #fff8f2;
   --prism-surface: #ffffff;
   --prism-surface-raised: #fff4ec;
-  --prism-ink: #171216;
   --prism-muted: #62535c;
+  --prism-muted-soft: #9a8a93;
   --prism-line: #ead5ce;
-  --prism-sage: #e9f7fb;
-  --prism-amber: #f06030;
-  --prism-amber-soft: #fff0e6;
-  --prism-signal: #c01867;
+  --prism-line-strong: #d8c0b8;
+  --prism-tint: #f4e5e0;
+
+  /* Status. Text-safe shades: each passes 4.5:1 on its own soft fill and on the page. */
   --prism-success: #1f7a4b;
+  --prism-success-soft: #e8f5ee;
+  --prism-attention: #b8480f;
+  --prism-attention-soft: var(--prism-orange-soft);
   --prism-danger: #b4233a;
+  --prism-danger-soft: #fbecee;
+  --prism-info: #1d6f9c;
+  --prism-info-soft: var(--prism-blue-soft);
+
+  /* Shape */
+  --radius: 0.5rem;
+
+  /* Semantic roles */
+  --background: var(--prism-page);
+  --foreground: var(--prism-ink);
+  --card: var(--prism-surface);
+  --card-foreground: var(--prism-ink);
+  --popover: var(--prism-surface);
+  --popover-foreground: var(--prism-ink);
+  --primary: var(--prism-magenta);
+  --primary-strong: var(--prism-magenta-strong);
+  --primary-deep: var(--prism-magenta-deep);
+  --primary-soft: var(--prism-magenta-soft);
+  --primary-foreground: var(--prism-surface);
+  --secondary: var(--prism-blue-soft);
+  --secondary-foreground: var(--prism-ink);
+  --muted: var(--prism-tint);
+  --muted-foreground: var(--prism-muted);
+  --accent: var(--prism-orange-soft);
+  --accent-foreground: var(--prism-ink);
+  --destructive: var(--prism-danger);
+  --destructive-foreground: var(--prism-surface);
+  --border: var(--prism-line);
+  --border-strong: var(--prism-line-strong);
+  --input: var(--prism-surface);
+  --input-background: var(--prism-surface);
+  --switch-background: var(--prism-muted-soft);
+  --ring: var(--prism-magenta);
+  --chart-1: var(--prism-orange);
+  --chart-2: var(--prism-magenta);
+  --chart-3: #9060a0;
+  --chart-4: var(--prism-blue);
+  --chart-5: var(--prism-success);
+  --sidebar: var(--prism-ink);
+  --sidebar-foreground: var(--prism-surface);
+  --sidebar-primary: var(--prism-orange);
+  --sidebar-primary-foreground: var(--prism-ink);
+  --sidebar-accent: var(--prism-ink-raised);
+  --sidebar-accent-foreground: var(--prism-surface);
+  --sidebar-border: var(--prism-ink-line);
+  --sidebar-ring: var(--prism-magenta);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-deep: var(--primary-deep);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-ink: var(--prism-ink);
+  --color-ink-soft: var(--prism-ink-soft);
+  --color-page: var(--prism-page);
+  --color-surface: var(--prism-surface);
+  --color-surface-raised: var(--prism-surface-raised);
+  --color-brand-orange: var(--prism-orange);
+  --color-brand-magenta: var(--prism-magenta);
+  --color-brand-blue: var(--prism-blue);
+  --color-success: var(--prism-success);
+  --color-success-soft: var(--prism-success-soft);
+  --color-attention: var(--prism-attention);
+  --color-attention-soft: var(--prism-attention-soft);
+  --color-danger: var(--prism-danger);
+  --color-danger-soft: var(--prism-danger-soft);
+  --color-info: var(--prism-info);
+  --color-info-soft: var(--prism-info-soft);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+    outline-color: color-mix(in oklab, var(--ring) 50%, transparent);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+  }
+
+  button,
+  a,
+  [role="button"] {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--prism-orange);
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background: var(--prism-orange-soft);
+    color: var(--prism-ink);
+  }
+}
+
+/* Print only the marked region (e.g. the event day run sheet) without the dashboard chrome. */
+@media print {
+  body:has(.prism-print-region) * {
+    visibility: hidden;
+  }
+
+  body:has(.prism-print-region) .prism-print-region,
+  body:has(.prism-print-region) .prism-print-region * {
+    visibility: visible;
+  }
+
+  body:has(.prism-print-region) .prism-print-region {
+    position: absolute;
+    inset: 0 0 auto 0;
+    width: 100%;
+    background: #fff;
+    color: #000;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

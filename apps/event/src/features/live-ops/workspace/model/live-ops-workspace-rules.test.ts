@@ -7,9 +7,9 @@ import {
 
 describe("live-ops-workspace-rules", () => {
   it("maps status pill classes", () => {
-    expect(liveOpsPillClass("done")).toContain("emerald");
-    expect(liveOpsPillClass("critical")).toContain("rose");
-    expect(liveOpsPillClass("in_progress")).toContain("amber");
+    expect(liveOpsPillClass("done")).toContain("success");
+    expect(liveOpsPillClass("critical")).toContain("danger");
+    expect(liveOpsPillClass("in_progress")).toContain("attention");
   });
 
   it("parses iso datetimes", () => {

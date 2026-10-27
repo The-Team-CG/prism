@@ -86,3 +86,4 @@ handoffs_archive/
 # Linked git worktrees (local isolation; never commit contents)
 .worktrees/
 
+.taste-skill/

@@ -85,7 +85,7 @@ export function QuotationsPage({ workspace, quoteByRequest }: { workspace: Suppl
                 { label: "Last revised", value: q.revisedAt ? formatDate(q.revisedAt) : "—" },
               ].map(({ label, value }) => (
                 <div key={label} className="px-5 py-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
+                  <p className="text-3xs font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
                   <p className="mt-1 text-sm font-bold text-foreground">{value}</p>
                 </div>
               ))}
@@ -102,7 +102,7 @@ export function QuotationsPage({ workspace, quoteByRequest }: { workspace: Suppl
                     <ul className="mt-1.5 space-y-0.5">
                       {q.inclusions.map((inc, i) => (
                         <li key={i} className="flex items-center gap-1.5 text-sm text-foreground">
-                          <span className="size-1.5 shrink-0 rounded-full bg-(--prism-signal)" /> {inc}
+                          <span className="size-1.5 shrink-0 rounded-full bg-primary" /> {inc}
                         </li>
                       ))}
                     </ul>

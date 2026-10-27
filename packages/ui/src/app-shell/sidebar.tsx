@@ -127,7 +127,7 @@ function SidebarNavSubItems({
           <span className="size-1.5 shrink-0 rounded-full bg-current opacity-40" aria-hidden="true" />
           <span className="min-w-0 flex-1 truncate">{subItem.label}</span>
           {subItem.badge ? (
-            <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] font-black leading-none text-muted-foreground ring-1 ring-border">
+            <span className="rounded-full bg-background px-1.5 py-0.5 text-3xs font-black leading-none text-muted-foreground ring-1 ring-border">
               {subItem.badge}
             </span>
           ) : null}
@@ -168,7 +168,7 @@ function SidebarNavItemButton({
         <item.icon aria-hidden="true" className="size-4 shrink-0" />
         <span className={cn("min-w-0 flex-1 truncate", collapsed && "sr-only")}>{item.label}</span>
         {item.badge && !collapsed ? (
-          <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] font-black leading-none text-muted-foreground ring-1 ring-border">
+          <span className="rounded-full bg-background px-1.5 py-0.5 text-3xs font-black leading-none text-muted-foreground ring-1 ring-border">
             {item.badge}
           </span>
         ) : null}
@@ -201,7 +201,7 @@ function SidebarNavGroups({
     <>
       {navGroups.map((group, groupIndex) => (
         <div key={group.section} className={cn("flex flex-col gap-1", groupIndex > 0 && "mt-5")}>
-          <p className={cn("px-2 pb-1 text-[11px] font-semibold uppercase text-muted-foreground", collapsed && "sr-only")}>
+          <p className={cn("px-2 pb-1 text-2xs font-semibold uppercase text-muted-foreground", collapsed && "sr-only")}>
             {group.section}
           </p>
           {group.items.map((item) => (
@@ -231,7 +231,7 @@ function SidebarCommandList({
   if (!commandActions.length || collapsed) return null;
   return (
     <div className="mt-6 flex flex-col gap-1.5">
-      <p className="px-1.5 pb-1 text-[11px] font-black uppercase text-primary">
+      <p className="px-1.5 pb-1 text-2xs font-black uppercase text-primary">
         {commandSectionLabel}
       </p>
       {commandActions.slice(0, 5).map((action) => (
@@ -245,13 +245,13 @@ function SidebarCommandList({
           <span className="min-w-0 flex-1">
             <span className="block truncate">{action.label}</span>
             {action.description ? (
-              <span className="block truncate text-[11px] font-medium text-muted-foreground">
+              <span className="block truncate text-2xs font-medium text-muted-foreground">
                 {action.description}
               </span>
             ) : null}
           </span>
           {action.status ? (
-            <span className="max-w-12 truncate rounded-full bg-background px-1.5 py-0.5 text-[10px] font-black leading-none text-foreground ring-1 ring-border">
+            <span className="max-w-12 truncate rounded-full bg-background px-1.5 py-0.5 text-3xs font-black leading-none text-foreground ring-1 ring-border">
               {action.status}
             </span>
           ) : null}
@@ -354,7 +354,7 @@ export function PrismIconRail({
           >
             <item.icon aria-hidden="true" className="size-4" />
             {item.badge ? (
-              <span className="absolute right-1 top-1 size-1.5 rounded-full bg-(--prism-amber) ring-2 ring-background" aria-hidden="true" />
+              <span className="absolute right-1 top-1 size-1.5 rounded-full bg-attention ring-2 ring-background" aria-hidden="true" />
             ) : null}
             <span className="sr-only">{item.label}</span>
           </button>

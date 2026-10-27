@@ -95,8 +95,8 @@ export function CoordinatorRegistrationDesk({
           </button>
         </form>
 
-        {vm.error ? <p className="rounded-md bg-(--prism-danger)/10 px-3 py-2 text-sm font-semibold text-(--prism-danger)" role="alert">{vm.error}</p> : null}
-        {vm.notice ? <p className="rounded-md bg-(--prism-signal)/10 px-3 py-2 text-sm font-semibold text-foreground" role="status">{vm.notice}</p> : null}
+        {vm.error ? <p className="rounded-md bg-danger/10 px-3 py-2 text-sm font-semibold text-danger" role="alert">{vm.error}</p> : null}
+        {vm.notice ? <p className="rounded-md bg-primary/10 px-3 py-2 text-sm font-semibold text-foreground" role="status">{vm.notice}</p> : null}
       </div>
     </section>
   );

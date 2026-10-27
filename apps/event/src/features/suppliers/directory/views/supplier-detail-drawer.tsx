@@ -145,7 +145,7 @@ export function SupplierDetailDrawer({
           <span className="sr-only">Supplier ID {supplierId}</span>
         </div>
         <footer className="flex min-h-14 shrink-0 items-center justify-between gap-3 border-t border-border px-5 py-2">
-          <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground"><LockKeyhole className="size-3" />Private to PMCM</span>
+          <span className="flex items-center gap-1.5 text-3xs text-muted-foreground"><LockKeyhole className="size-3" />Private to PMCM</span>
           <div className="flex gap-2"><Button type="button" variant="outline" size="sm" onClick={closeDialog}>Close</Button>{profile ? <Button type="button" size="sm" onClick={() => document.getElementById("supplier-actions-heading")?.scrollIntoView({ block: "start" })}>Supplier actions</Button> : null}</div>
         </footer>
       </div>
@@ -195,7 +195,7 @@ function ActionResultBanner({ result, onRetry }: { result: SupplierActionResult 
   if (!result) return null;
   const refreshFailed = result.saved && result.refreshFailed;
   const message = result.saved ? refreshFailed ? "Saved. Refresh failed." : "Saved." : result.message;
-  const tone = result.saved ? "border-emerald-600/20 bg-emerald-600/5" : "border-destructive/20 bg-destructive/5";
+  const tone = result.saved ? "border-success/20 bg-success/5" : "border-destructive/20 bg-destructive/5";
   return (
     <div role={result.saved ? "status" : "alert"} className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3 text-sm ${tone}`}>
       <span>{message}</span>
@@ -239,7 +239,7 @@ function SupplierIdentitySummary({ profile, categories }: { profile: PrismPmcmSu
       </section>
       <section aria-labelledby="supplier-account-heading" className="space-y-3">
         <h3 id="supplier-account-heading" className="text-xs font-semibold">Account summary</h3>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5 text-[11px]">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5 text-2xs">
           <span className="flex items-center gap-1.5 font-medium"><SupplierAvatar name={profile.supplier.contactName} />{contactLine(profile.supplier.contactName)}</span>
           <span className="flex min-w-0 items-center gap-1.5"><Mail aria-hidden="true" className="size-3 text-muted-foreground" />{profile.supplier.email ? <a className="truncate hover:text-primary" href={`mailto:${profile.supplier.email}`}>{profile.supplier.email}</a> : "Email not on file"}</span>
           <span className="flex items-center gap-1.5"><Phone aria-hidden="true" className="size-3 text-muted-foreground" />{contactLine(profile.supplier.phone)}</span>
@@ -253,7 +253,7 @@ function SupplierReviewHistory({ reviews, loading, fallbackCount }: { reviews: P
   const reviewCount = reviews?.totalCount ?? fallbackCount;
   return (
     <section aria-labelledby="supplier-reviews-heading" className="space-y-3">
-      <div className="flex items-center justify-between gap-2"><h3 id="supplier-reviews-heading" className="text-xs font-semibold">Private review history</h3><span className="text-[11px] text-muted-foreground">{reviewCount} {reviewCount === 1 ? "review" : "reviews"}</span></div>
+      <div className="flex items-center justify-between gap-2"><h3 id="supplier-reviews-heading" className="text-xs font-semibold">Private review history</h3><span className="text-2xs text-muted-foreground">{reviewCount} {reviewCount === 1 ? "review" : "reviews"}</span></div>
       {loading && !reviews ? <p className="text-xs text-muted-foreground">Loading review history…</p> : null}
       {!loading && !reviews?.items.length ? <p className={styles.empty}>No private reviews recorded. Add a review after an eligible event engagement.</p> : null}
       <div className="space-y-2">{reviews?.items.map((review) => <ReviewCard key={review.id} review={review} />)}</div>
@@ -266,8 +266,8 @@ function ReviewCard({ review }: { review: PrismPmcmSupplierReviewsPage["items"][
     <article className={styles.scorecard}>
       <div className="flex items-center justify-between gap-3"><h4 className="text-xs font-semibold">{review.eventName || "Supplier review"}</h4><span className="flex items-center gap-2 text-xs font-semibold">{review.rating}/5<RatingStars rating={review.rating} /></span></div>
       <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">{review.notes || "No written feedback recorded."}</p>
-      {review.dimensionRatings.length ? <div className="mt-3 space-y-1">{review.dimensionRatings.map((dimension) => <div key={dimension.dimensionId} className="flex justify-between gap-2 text-[11px]"><span className="text-muted-foreground">{dimension.dimensionName}</span><span>{dimension.rating}/5</span></div>)}</div> : null}
-      <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px]"><SupplierAvatar name={review.reviewedBy} /><span>{review.reviewedBy}</span><time className="text-muted-foreground" dateTime={review.createdAt}>{new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(new Date(review.createdAt))}</time></div>
+      {review.dimensionRatings.length ? <div className="mt-3 space-y-1">{review.dimensionRatings.map((dimension) => <div key={dimension.dimensionId} className="flex justify-between gap-2 text-2xs"><span className="text-muted-foreground">{dimension.dimensionName}</span><span>{dimension.rating}/5</span></div>)}</div> : null}
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-3xs"><SupplierAvatar name={review.reviewedBy} /><span>{review.reviewedBy}</span><time className="text-muted-foreground" dateTime={review.createdAt}>{new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(new Date(review.createdAt))}</time></div>
     </article>
   );
 }
@@ -345,7 +345,7 @@ function EngagementCard({ engagement, onOpenEvent }: { engagement: PrismPmcmSupp
         {engagement.requests.map((request) => <div key={request.id} className="rounded-md bg-muted/45 p-2 text-xs"><p className="font-medium">{request.category}</p><div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground"><span>Request: {request.status.replaceAll("_", " ")}</span><span>Assignment: {request.assignmentStatus.replaceAll("_", " ")}</span><span>Readiness: {request.readinessStatus.replaceAll("_", " ")}</span><span>Event day: {request.eventDayStatus.replaceAll("_", " ")}</span></div></div>)}
       </div>
       {engagement.hasMoreRequests ? <p className="mt-2 text-xs text-muted-foreground">Showing {engagement.requests.length} of {engagement.requestCount} request records.</p> : null}
-      {engagement.canReview ? <p className="mt-2 text-xs text-emerald-700">Eligible for review{engagement.canPromote ? " and tier promotion" : ""}.</p> : null}
+      {engagement.canReview ? <p className="mt-2 text-xs text-success">Eligible for review{engagement.canPromote ? " and tier promotion" : ""}.</p> : null}
     </article>
   );
 }

@@ -15,7 +15,7 @@ export function SupplierApplicationsInboxView() {
     <section className="rounded-2xl border border-border bg-card shadow-sm">
       <div className="border-b border-border px-6 py-4">
         <div className="flex items-center gap-2">
-          <Inbox className="size-4 text-(--prism-signal)" />
+          <Inbox className="size-4 text-primary" />
           <h2 className="text-sm font-bold text-foreground">Supplier applications</h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -23,7 +23,7 @@ export function SupplierApplicationsInboxView() {
         </p>
       </div>
       <div className="space-y-3 px-6 py-5">
-        {error ? <p className="text-sm font-semibold text-(--prism-amber)">{error}</p> : null}
+        {error ? <p className="text-sm font-semibold text-attention">{error}</p> : null}
         <label className="block text-xs font-semibold text-muted-foreground">
           Decline reason
           <input

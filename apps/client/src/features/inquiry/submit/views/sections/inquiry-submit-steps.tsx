@@ -48,11 +48,11 @@ const priorityOptions = INQUIRY_PRIORITY_OPTIONS;
 const referralSources = INQUIRY_REFERRAL_SOURCES;
 
 const compactControlClass =
-  "h-14 rounded-lg border-[#DDE3EA] bg-white/90 px-5 text-base shadow-sm placeholder:text-muted-foreground/75 focus-visible:border-primary/45 focus-visible:ring-primary/15";
+  "h-14 rounded-lg border-border bg-white/90 px-5 text-base shadow-sm placeholder:text-muted-foreground/75 focus-visible:border-primary/45 focus-visible:ring-primary/15";
 const compactSelectTriggerClass =
-  "h-14 rounded-lg border-[#DDE3EA] bg-white/90 px-5 text-base shadow-sm focus:border-primary/45 focus:ring-primary/15";
+  "h-14 rounded-lg border-border bg-white/90 px-5 text-base shadow-sm focus:border-primary/45 focus:ring-primary/15";
 const compactTextareaClass =
-  "min-h-[120px] rounded-lg border-[#DDE3EA] bg-white/90 px-5 py-4 text-base shadow-sm placeholder:text-muted-foreground/75 focus-visible:border-primary/45 focus-visible:ring-primary/15";
+  "min-h-[120px] rounded-lg border-border bg-white/90 px-5 py-4 text-base shadow-sm placeholder:text-muted-foreground/75 focus-visible:border-primary/45 focus-visible:ring-primary/15";
 const compactFieldGroupClass =
   "gap-6 [&_[data-slot=field-description]]:text-base [&_[data-slot=field-label]]:text-base [&_[data-slot=field-label]]:font-black [&_[data-slot=field]]:gap-3";
 
@@ -66,7 +66,7 @@ type InquiryStepProps = {
 function StepHeading({ title, description, serif = true }: { title: string; description: string; serif?: boolean }) {
   return (
     <div className="mb-10">
-      <h2 className={serif ? "prism-serif text-4xl font-black leading-tight text-(--prism-ink)" : "text-4xl font-black leading-tight text-(--prism-ink)"}>{title}</h2>
+      <h2 className={serif ? "prism-serif text-4xl font-black leading-tight text-ink" : "text-4xl font-black leading-tight text-ink"}>{title}</h2>
       <p className="mt-3 text-lg leading-8 text-muted-foreground">{description}</p>
     </div>
   );
@@ -435,7 +435,7 @@ function ConfirmInquiryStep({ form, update, error }: InquiryStepProps & { error:
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
-      <div className="ml-auto mt-4 flex w-full max-w-[560px] items-center gap-3 rounded-md border border-(--prism-success)/20 bg-(--prism-success)/8 px-5 py-3 text-sm font-medium text-(--prism-success)">
+      <div className="ml-auto mt-4 flex w-full max-w-[560px] items-center gap-3 rounded-md border border-success/20 bg-success/8 px-5 py-3 text-sm font-medium text-success">
         <CheckCircle2 className="size-5 shrink-0" />
         After submission, PMCM sends next steps if the inquiry is accepted.
       </div>

@@ -196,7 +196,7 @@ export function EventDashboardClientsSectionView() {
               <Card>
                 <CardHeader>
                   <div className="flex items-center gap-2">
-                    <CircleUserRound className="size-4 text-(--prism-signal)" />
+                    <CircleUserRound className="size-4 text-primary" />
                     <h2 className="text-sm font-bold text-foreground">{activeNavItem?.label ?? "All clients"}</h2>
                   </div>
                 </CardHeader>
@@ -222,7 +222,7 @@ export function EventDashboardClientsSectionView() {
               <Card>
                 <CardHeader>
                   <div className="flex items-center gap-2">
-                    <FileText className="size-4 text-(--prism-signal)" />
+                    <FileText className="size-4 text-primary" />
                     <h2 className="text-sm font-bold text-foreground">{activeNavItem?.label ?? "Client detail"}</h2>
                   </div>
                 </CardHeader>
@@ -264,15 +264,15 @@ export function EventDashboardClientsSectionView() {
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <CircleUserRound className="size-4 text-(--prism-signal)" />
+                  <CircleUserRound className="size-4 text-primary" />
                   <h2 className="text-sm font-bold text-foreground">Client pipeline</h2>
                 </div>
               </CardHeader>
               <CardBody className="grid gap-3 sm:grid-cols-3">
                 {[
-                  { label: "Total inquiries", value: state.inquiries.length, tone: "text-(--prism-signal)" },
-                  { label: "Need review", value: unreviewedInquiries, tone: "text-(--prism-amber)" },
-                  { label: "Pending accounts", value: pendingApprovals.length, tone: "text-(--prism-success)" },
+                  { label: "Total inquiries", value: state.inquiries.length, tone: "text-primary" },
+                  { label: "Need review", value: unreviewedInquiries, tone: "text-attention" },
+                  { label: "Pending accounts", value: pendingApprovals.length, tone: "text-success" },
                 ].map((item) => (
                   <div key={item.label} className="rounded-xl border border-border bg-muted/20 px-4 py-3">
                     <p className={`text-2xl font-black ${item.tone}`}>{item.value}</p>
@@ -342,7 +342,7 @@ export function EventDashboardTeamSectionView() {
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <UsersRound className="size-4 text-(--prism-signal)" />
+                  <UsersRound className="size-4 text-primary" />
                   <h2 className="text-sm font-bold text-foreground">Coordinator roster</h2>
                 </div>
               </CardHeader>
@@ -562,7 +562,7 @@ export function EventDashboardHomeSectionView() {
               <Card>
                 <CardHeader>
                   <div className="flex items-center gap-2">
-                    <ShieldCheck className="size-4 text-(--prism-signal)" />
+                    <ShieldCheck className="size-4 text-primary" />
                     <h2 className="text-sm font-bold text-foreground">Account approvals</h2>
                   </div>
                 </CardHeader>
@@ -572,7 +572,7 @@ export function EventDashboardHomeSectionView() {
                       <div className="min-w-0">
                         <p className="truncate text-sm font-bold text-foreground">{request.name}</p>
                         <p className="mt-0.5 text-xs text-muted-foreground">{request.email}</p>
-                        <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-(--prism-amber)">
+                        <p className="mt-1 text-3xs font-bold uppercase tracking-wider text-attention">
                           {humanizeToken(request.role)} — {request.organization}
                         </p>
                       </div>

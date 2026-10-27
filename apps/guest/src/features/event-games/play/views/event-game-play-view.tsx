@@ -35,7 +35,7 @@ export function EventGamePlayView({ sessionId }: { sessionId: string }) {
   }, [deadlineAt, gameState, secondsRemaining, vm.refresh]);
 
   return (
-    <main className="min-h-screen bg-(--prism-page) px-5 py-6 text-foreground sm:py-10">
+    <main className="min-h-screen bg-page px-5 py-6 text-foreground sm:py-10">
       <div className="mx-auto w-full max-w-3xl">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
           <a href="/games/join" className="text-sm font-black tracking-wide text-primary">P.R.I.S.M games</a>

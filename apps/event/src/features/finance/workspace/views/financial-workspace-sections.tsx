@@ -18,7 +18,7 @@ function CardBody({ children, className = "" }: { children: React.ReactNode; cla
   return <div className={`px-6 py-5 ${className}`}>{children}</div>;
 }
 function SectionAccent({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">{children}</p>;
+  return <p className="text-xs font-bold uppercase tracking-widest text-primary">{children}</p>;
 }
 function StatCell({ label: lbl, value, sub }: { label: string; value: string; sub?: string }) {
   return (
@@ -81,7 +81,7 @@ export function NotificationEvidence({ logs }: { logs: PrismNotificationLog[] })
       <CardHeader>
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <MailCheck className="size-4 text-(--prism-amber)" />
+            <MailCheck className="size-4 text-attention" />
             <h3 className="text-sm font-bold text-foreground">Notification activity</h3>
           </div>
           <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-bold text-muted-foreground">
@@ -133,7 +133,7 @@ export function BillingStatementCard({
           {statement?.number ?? "Awaiting billing source"}
         </h3>
         {statement ? <StatusBadge status={statement.status} label={label(statement.status)} className="mt-2" /> : null}
-        {statement && statement.storageState !== "stored" ? <p className="mt-2 text-xs text-amber-700">PDF storage is pending W10 provider configuration; the statement metadata remains available.</p> : null}
+        {statement && statement.storageState !== "stored" ? <p className="mt-2 text-xs text-attention">PDF storage is pending W10 provider configuration; the statement metadata remains available.</p> : null}
       </CardHeader>
       {statement ? (
         <BillingStatementBody
@@ -295,7 +295,7 @@ function PaymentMilestoneCard({
           { label: "Remaining", value: money.format(payment.remainingBalance) },
         ].map(({ label: lbl, value }) => (
           <div key={lbl} className="rounded-lg bg-background px-2.5 py-2">
-            <p className="text-[10px] font-semibold text-muted-foreground">{lbl}</p>
+            <p className="text-3xs font-semibold text-muted-foreground">{lbl}</p>
             <p className="mt-0.5 font-bold text-foreground">{value}</p>
           </div>
         ))}
