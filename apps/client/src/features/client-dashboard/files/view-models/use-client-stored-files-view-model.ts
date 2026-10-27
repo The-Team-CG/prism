@@ -45,6 +45,14 @@ export function useClientStoredFilesViewModel(eventId?: string) {
     return () => { active = false; };
   }, [eventId]);
 
+  async function refreshAfterUpload(uploadEventId: string) {
+    try {
+      await refresh(uploadEventId);
+    } catch {
+      if (activeEventIdRef.current === uploadEventId) setError("Your file was uploaded, but the list could not refresh. Reload this page to see the updated files.");
+    }
+  }
+
   async function uploadSelectedFile(file?: File) {
     if (!file || !eventId) return;
     const uploadEventId = eventId;
@@ -58,11 +66,7 @@ export function useClientStoredFilesViewModel(eventId?: string) {
       await clientStoredFilesRepository.upload(file, uploadEventId, "client_document", attemptId);
       if (activeEventIdRef.current === uploadEventId) setNotice(`${file.name} uploaded. PMCM can review it for this event.`);
       uploadAttempts.current.delete(fileKey);
-      try {
-        await refresh(uploadEventId);
-      } catch {
-        if (activeEventIdRef.current === uploadEventId) setError("Your file was uploaded, but the list could not refresh. Reload this page to see the updated files.");
-      }
+      await refreshAfterUpload(uploadEventId);
     } catch (reason) {
       if (activeEventIdRef.current === uploadEventId) setError(reason instanceof Error ? reason.message : "Unable to upload this file.");
     } finally {
