@@ -8,7 +8,6 @@ import {
   selectEventWorkspaceResources,
   selectPreferenceDrafts,
   selectSelectedClientEvent,
-  clientAccountEventChoiceRequired,
 } from "./client-dashboard-selectors";
 import { clientEventCardOpenRoute, dashboardHref } from "./client-dashboard-navigation";
 import type { PrismClientWorkspace, PrismEvent, PrismFloorPlanDraft, PrismUser } from "@prism/types";
@@ -313,15 +312,5 @@ describe("client-dashboard selectors", () => {
     expect(resources.documents).toHaveLength(1);
     expect(resources.payments).toHaveLength(1);
     expect(selectEventWorkspaceResources(null, { id: "evt_1" }).documents).toEqual([]);
-  });
-});
-
-describe("clientAccountEventChoiceRequired", () => {
-  it("asks for an event on account pages only when several exist and none is chosen", () => {
-    const events = [{ id: "evt_1" }, { id: "evt_2" }];
-    expect(clientAccountEventChoiceRequired(events, null)).toBe(true);
-    expect(clientAccountEventChoiceRequired(events, "evt_gone")).toBe(true);
-    expect(clientAccountEventChoiceRequired(events, "evt_2")).toBe(false);
-    expect(clientAccountEventChoiceRequired([{ id: "evt_1" }], null)).toBe(false);
   });
 });

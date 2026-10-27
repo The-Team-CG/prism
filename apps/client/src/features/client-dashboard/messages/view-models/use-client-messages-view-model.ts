@@ -12,9 +12,9 @@ type EventThreads = {
   error?: string;
 };
 
-export function useClientMessagesViewModel() {
+export function useClientMessagesViewModel(enabled = true) {
   const { selectedEvent, session } = useClientWorkspace();
-  const eventId = selectedEvent?.id;
+  const eventId = enabled ? selectedEvent?.id : undefined;
   const [eventThreads, setEventThreads] = useState<EventThreads | null>(null);
   const [selectedThreads, setSelectedThreads] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
