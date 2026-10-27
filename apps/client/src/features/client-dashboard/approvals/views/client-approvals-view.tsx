@@ -8,6 +8,7 @@ import { PageHeader } from "../../workspace/shared";
 import { formatStatusLabel } from "../../workspace/shared";
 import { CLIENT_PORTAL_VIEW_META } from "../../workspace/shared";
 import { useClientWorkspace } from "../../workspace/shared";
+import { ClientAccountEventPicker, useClientAccountEventChoiceRequired } from "../../workspace/views/sections/client-account-event-picker";
 import {
   approvalStatusKind,
   buildApprovalItems,
@@ -60,6 +61,42 @@ function ApprovalItemRow({ item }: { item: ApprovalItem }) {
   );
 }
 
+function ApprovalsBody({
+  choiceRequired,
+  showNoEvent,
+  items,
+  onGoToEvents,
+}: {
+  choiceRequired: boolean;
+  showNoEvent: boolean;
+  items: ReturnType<typeof filterApprovalItems>;
+  onGoToEvents: () => void;
+}) {
+  if (choiceRequired) return null;
+  if (showNoEvent) {
+    return (
+      <ApprovalsEmpty
+        title="No active event"
+        description="Select an event from My Events to view approval items."
+        action={
+          <Button variant="outline" className="mt-5 rounded-lg font-semibold" onClick={onGoToEvents}>
+            Go to My Events
+          </Button>
+        }
+      />
+    );
+  }
+  return (
+    <div className="grid gap-3">
+      {items.length ? (
+        items.map((item) => <ApprovalItemRow key={item.title} item={item} />)
+      ) : (
+        <ApprovalsEmpty title="All clear" description="No approval items in this view." compact />
+      )}
+    </div>
+  );
+}
+
 export function ClientApprovalsView() {
   const {
     router,
@@ -76,6 +113,7 @@ export function ClientApprovalsView() {
     portalView,
   );
   const showHeader = !isEventScopedView && Boolean(portalViewMeta);
+  const choiceRequired = useClientAccountEventChoiceRequired() && !isEventScopedView;
   const showNoEvent = !selectedEvent && !isEventScopedView;
 
   return (
@@ -83,25 +121,13 @@ export function ClientApprovalsView() {
       {showHeader && portalViewMeta ? (
         <PageHeader eyebrow="Client approvals" title={portalViewMeta.title} description={portalViewMeta.description} />
       ) : null}
-      {showNoEvent ? (
-        <ApprovalsEmpty
-          title="No active event"
-          description="Select an event from My Events to view approval items."
-          action={
-            <Button variant="outline" className="mt-5 rounded-lg font-semibold" onClick={() => router.push("/dashboard/events")}>
-              Go to My Events
-            </Button>
-          }
-        />
-      ) : (
-        <div className="grid gap-3">
-          {visibleApprovalItems.length ? (
-            visibleApprovalItems.map((item) => <ApprovalItemRow key={item.title} item={item} />)
-          ) : (
-            <ApprovalsEmpty title="All clear" description="No approval items in this view." compact />
-          )}
-        </div>
-      )}
+      {!isEventScopedView ? <ClientAccountEventPicker purpose="approvals" /> : null}
+      <ApprovalsBody
+        choiceRequired={choiceRequired}
+        showNoEvent={showNoEvent}
+        items={visibleApprovalItems}
+        onGoToEvents={() => router.push("/dashboard/events")}
+      />
     </div>
   );
 }
