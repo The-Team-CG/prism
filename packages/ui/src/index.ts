@@ -1,4 +1,4 @@
-export * from "./app-shell";
+export * from "./shell";
 export * from "./blocks";
 export * from "./brand";
 export * from "./dashboard-shell";

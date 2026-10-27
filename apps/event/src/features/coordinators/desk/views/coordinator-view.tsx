@@ -84,6 +84,7 @@ export function CoordinatorView({
 
   return (
     <PrismDashboardShell
+      portal="event"
       productLabel="P.R.I.S.M"
       roleLabel="Coordinator Portal"
       eyebrow="Event operations"
