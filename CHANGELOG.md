@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- CI runs on Turborepo properly. Lint, typecheck, every workspace test suite and the build go through turbo with a cached `.turbo` between runs, so unchanged workspaces are replayed instead of rerun. Pull requests run turbo tasks only for the workspaces they change and their dependents; pushes to `staging`, `prod` and `main` run everything. Lint now runs in CI for the first time, and `@prism/floorplan-canvas` tests join CI. Shared packages no longer typecheck twice, and root config changes (`tsconfig.base.json`, `eslint.config.mjs`, `.nvmrc`) invalidate the cache. New root scripts: `npm run lint`, `npm run test:ci`.
+
 - The API now enforces the privacy notice. A signed-in account that has not acknowledged the current notice gets `403` with `code: "privacy_notice_required"` on every session-guarded route, except `GET /auth/me`, `POST /auth/logout` and `POST /auth/privacy-notice/acknowledge`. The client, supplier and event portals send such users to `/privacy`. Local fixture seed users are left unacknowledged, so they see the notice once. Owner D (Anthony).
 
 - Signed-out visitors to dashboard pages are redirected to sign-in before the page renders, so the dashboard frame no longer flashes. The client, supplier and event portals cover `/dashboard` (and the client `/conforme` page), and the guest portal covers `/dashboard`. Sign-in now sets a navigation cookie per portal that holds only the session expiry; the API still checks every request. **Users signed in before this update must sign in once more.** Owner C (Ethan).

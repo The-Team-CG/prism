@@ -10,7 +10,8 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc --watch -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:ci": "vitest run"
   },
   "devDependencies": {
     "typescript": "^6.0.3"

@@ -118,6 +118,7 @@ Local development fixtures             →  `apps/api/src/fixtures`, invoked onl
 npm install
 npm run build && npm run typecheck # full monorepo; milestone/final verification
 npm run test:api                  # full API suite; use focused workspace tests while iterating
+npm run lint && npm run test:ci    # what CI runs: lint all portals; every workspace suite through turbo (cached)
 npm run check:boundaries          # static boundary scan
 npm run test:boundaries           # guard/tooling tests; not a substitute for check:boundaries
 npm run smoke:ui                  # stack must be up
