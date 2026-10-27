@@ -51,16 +51,6 @@ export const initialLogForm = {
 
 export type InquiryLogForm = typeof initialLogForm;
 
-const STATUS_ACCENT: Record<string, string> = {
-  new: "border-l-attention",
-  accepted: "border-l-success",
-  declined: "border-l-destructive",
-};
-
-export function inquiryStatusAccent(status: string) {
-  return STATUS_ACCENT[status] ?? "border-l-border";
-}
-
 export function matchesAllOrValue(selected: string, value?: string | null) {
   return selected === "all" || selected === value;
 }
@@ -196,4 +186,25 @@ export function toLogInquiryInput(form: InquiryLogForm): LogInquiryOnBehalfInput
     referralDetails: form.referralDetails.trim() || undefined,
     message: form.message.trim(),
   };
+}
+
+export type InquiryNextStep = { label: string; tone: "action" | "waiting" | "done" };
+
+/** What PMCM does next with an inquiry, from first review to the client's portal being in use. */
+export function inquiryNextStep(
+  inquiry: Pick<
+    PrismInquiry,
+    "status" | "conformeSentAt" | "conformeSignedAt" | "portalInvitationStatus" | "portalActivatedAt"
+  >,
+): InquiryNextStep {
+  if (inquiry.status === "declined") return { label: "Declined", tone: "done" };
+  if (inquiry.status !== "accepted") return { label: "Review inquiry", tone: "action" };
+  if (!inquiry.conformeSentAt && !inquiry.conformeSignedAt) return { label: "Send conforme", tone: "action" };
+  if (!inquiry.conformeSignedAt) return { label: "Waiting for signed conforme", tone: "waiting" };
+  if (inquiry.portalActivatedAt) return { label: "Planning in Events", tone: "done" };
+  if (inquiry.portalInvitationStatus === "expired") return { label: "Re-send client invitation", tone: "action" };
+  if (inquiry.portalInvitationStatus === "sent" || inquiry.portalInvitationStatus === "opened") {
+    return { label: "Waiting for client to activate", tone: "waiting" };
+  }
+  return { label: "Send client invitation", tone: "action" };
 }
