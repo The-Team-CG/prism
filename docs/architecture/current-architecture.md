@@ -74,7 +74,7 @@ Commercial's communication service.
 | Role-specific apps | PMCM/coordinator, client, supplier, and guest experiences remain separate apps. |
 | One shared API | `apps/api` remains one NestJS API and one Prisma client. |
 | Scoped contracts first | New role surfaces use scoped APIs and shared types instead of whole-system demo aggregates. |
-| Fixtures are seed-only | There are no `/api/sample/*` runtime routes or browser-local sample state. The explicit seed command writes development fixtures only into an empty loopback `prism_sample_disposable` database. |
+| Fixtures are seed-only | No `/api/sample/*` runtime routes or browser-local sample state. Standalone `db:seed` commands insert missing local/UAT fixtures into explicitly selected targets; the legacy full sample seed remains fresh-loopback-only. See [environment/fixture commands](../runbooks/environments-and-fixtures.md). |
 | PMCM owns official operations | PMCM owns official floorplans, supplier decisions, billing, compliance overrides, privacy operations, and audit review. |
 | Portals are constrained views | Client, supplier, and guest portals see only role-safe event data. |
 | High-risk dependencies are gated | Real storage, external auth, production notifications, QR/camera, and live AI require explicit approval, tests, and fallback behavior. |
@@ -207,9 +207,10 @@ apps/api/src/kernel/
 
 The kernel owns technical primitives: database access, event-core invariants and
 command execution, verified session/auth primitives, access policy, health,
-shared validation, and transaction helpers. `src/fixtures` composes only the
-database service and audit append path for the local seed command; it is not
-registered as an HTTP module or application runtime path.
+shared validation, and transaction helpers. `src/fixtures` contains the legacy
+local seed module and the standalone CLI account/scenario catalogs. The legacy
+module composes the database and audit append path; the repeatable CLI uses pg
+directly. Neither is registered as an HTTP module or application runtime path.
 
 ### Boundary rules
 
@@ -343,7 +344,7 @@ worker restores the idempotent `pare_triggered` activity audit.
 3. Built-in API auth/RBAC is the current implementation; external auth remains gated.
 4. External auth is gated until provider, session migration, tests, and fallback
    behavior are approved.
-5. Development fixtures are inserted only by the explicit seed command into an empty disposable local database; portals use scoped API-backed repositories.
+5. Local/UAT fixtures are inserted only by explicit seed CLI commands; the repeatable runner preserves tester edits and refuses production. Portals use scoped API-backed repositories.
 
 ## Integration and adapter boundaries
 

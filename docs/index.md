@@ -37,6 +37,10 @@ scope, verification, and source/provenance entries.
 
 ## Repository entrypoints
 
+For account lookup go directly to [portal accounts](runbooks/portal-accounts.md).
+For environment identity, seed data, or migration history use
+[environments and fixtures](runbooks/environments-and-fixtures.md).
+
 | Concern | Source |
 | --- | --- |
 | Agent rules and ownership | [`../AGENTS.md`](../AGENTS.md) |

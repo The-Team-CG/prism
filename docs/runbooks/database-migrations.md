@@ -37,6 +37,11 @@ sources:
 
 ## At a glance
 
+For synthetic test data use the [standalone fixture commands](environments-and-fixtures.md),
+not new UAT migrations. `db:doctor -- --mode=runtime --migration-history` compares
+the selected database ledger with local SQL checksums without changing either.
+Keep published migration files immutable; investigate exact mismatches before repair.
+
 - **Purpose:** Keep one clean Prisma migration history with a schema baseline for each bounded context and immutable forward changes.
 - **Runtime source of truth:** `apps/api/prisma/migrations` and Prisma's `_prisma_migrations` ledger; the policy freezes checksums for the seven owner-scoped baselines.
 - **Owner:** D (Anthony), with each bounded context responsible for its own schema changes and review evidence.

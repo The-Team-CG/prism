@@ -4,6 +4,18 @@ Follow this file first. Deepen only via the canonical bundle in `docs/index.md`
 when incomplete or wrong. `CLAUDE.md` is a pointer to this file; this is the
 single agent entrypoint.
 
+## Find the task directly
+
+- Accounts/sign-in: `docs/runbooks/portal-accounts.md`.
+- Environment identity, seeds, UAT prerequisites: `docs/runbooks/environments-and-fixtures.md`.
+- Connections: `db:doctor`; checksums: `db:doctor -- --mode=runtime --migration-history` (API workspace).
+- Schema deployment/recovery: `docs/runbooks/database-migrations.md`.
+- Branch/worktree workflow: `docs/runbooks/parallel-worktrees.md`.
+
+Start with the task's runbook and referenced implementation. Deepen architecture
+only when relevant. Keep account lookup, data preparation, feature delivery, and
+branch cleanup within the requested scope; ask before cleanup becomes feature delivery.
+
 ## Hard rules
 
 | Do | Don't |
@@ -58,7 +70,7 @@ apps/api/          Nest modular monolith + Prisma (port 4000)
   apps/api/src/    bootstrap (prefix `api`, ValidationPipe legacy, Prisma filter)
     modules/       bounded contexts (api, application, contracts, domain, infrastructure as needed)
     kernel/        database, shared helpers, session/auth primitives, access control, health
-    fixtures/      explicit local fixture seed module; CLI only, not imported by AppModule
+    fixtures/      local seed module + standalone CLI catalogs; never imported by AppModule
   prisma/          schema + migrations
 apps/{client,supplier,guest,event}/   Next portals 3001–3004
 packages/types       @prism/types     Zod write schemas + domain types + session keys
@@ -70,7 +82,7 @@ docs/                OKF product, architecture, runbook, and reference bundle (s
 ```
 
 **Bounded-context map (writes):** `event-lifecycle` (`onboarding`, `compliance`, `closure`, `files`), `commercial` (`quotes`, `suppliers`, `billing`), `operations` (`staffing`, `guest`), `floorplan` (`live`, `authoring`), `live-ops`, `identity-access`, and `platform-ops` (`trust`, `notifications`, `ai-governance`).
-**Read-only composition:** `read-models`. **Kernel:** `event-core`, `access-control`, `event-session`, `database`, `shared`, `shared-kernel`, and `health`. **Fixture tooling:** `apps/api/src/fixtures`, invoked only by the guarded local seed command and never registered as an HTTP module. Full ownership: `docs/architecture/current-architecture.md`.
+**Read-only composition:** `read-models`. **Kernel:** `event-core`, `access-control`, `event-session`, `database`, `shared`, `shared-kernel`, and `health`. **Fixture tooling:** `apps/api/src/fixtures`, invoked only by explicit local/UAT CLI commands and never registered as an HTTP module. Full ownership: `docs/architecture/current-architecture.md`.
 
 **FE (new screens):** `page → View → ViewModel → use-case → data → @prism/api-client` (or thin portal adapter). No HTTP/rules in `page.tsx`. Prefer single-screen forms/lists over wizards unless requested.
 
@@ -140,6 +152,8 @@ npm run validate                  # prisma:validate + typecheck + build
 npm run test && npm run test:fixtures:seed
 npm run db:verify:offline && npm run db:audit:queries   # safe offline-ish
 npm run db:doctor | db:status | db:setup | db:migrate | db:generate
+npm run db:seed -- --profile accounts --env-file <absolute-private-file> --dry-run
+npm run db:seed:verify -- --profile portal-uat --scenario-date YYYY-MM-DD --env-file <absolute-private-file>
 npm run db:audit:schemas|naming|indexes | db:perf:report | db:backup:json  # live DB
 # db:reset — destructive, explicit user ACK only
 ```
