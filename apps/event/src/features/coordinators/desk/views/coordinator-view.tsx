@@ -74,7 +74,7 @@ function CoordinatorShift({ vm, roleName, onNavigate }: {
           <h2 className="mt-2 text-xl font-semibold text-foreground">{nextTask.title}</h2>
           {nextTask.notes ? <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{nextTask.notes}</p> : null}
           <p className="mt-3 text-sm text-muted-foreground">
-            Owner: {nextTask.ownerName || nextTask.ownerRole} · {nextTask.dueAt ? `Due ${formatPortalDateTime(nextTask.dueAt)}` : "No deadline set"}
+            Owner: {nextTask.ownerName || nextTask.assignedRole} · {nextTask.dueAt ? `Due ${formatPortalDateTime(nextTask.dueAt)}` : "No deadline set"}
           </p>
           <button type="button" onClick={() => onNavigate("coord-queue")} className="mt-3 min-h-11 rounded-md px-1 text-sm font-semibold text-primary focus-visible:ring-2 focus-visible:ring-primary">
             Open task queue
