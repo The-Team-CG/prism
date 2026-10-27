@@ -53,10 +53,7 @@ export {
 } from "./model/client-dashboard-view-rules";
 export {
   EventSummaryCard,
-  EventWorkspaceNav,
   FieldGroup,
   NoticeBanner,
-  PageHeader,
 } from "./views/sections/shell-presentational";
 export { LayoutPreview } from "./views/sections/layout-preview";
-export { ClientPortalSidebar } from "./views/sections/client-portal-sidebar";

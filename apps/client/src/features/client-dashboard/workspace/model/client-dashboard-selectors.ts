@@ -45,7 +45,7 @@ export function selectSelectedClientEvent(
   selectedEventId?: string | null,
 ): PrismEvent | undefined {
   if (eventId) return events.find((event) => event.id === eventId);
-  return events.find((event) => event.id === selectedEventId) ?? events[0];
+  return events.find((event) => event.id === selectedEventId) ?? (events.length === 1 ? events[0] : undefined);
 }
 
 export function selectEventDrafts(
@@ -114,9 +114,16 @@ export function selectClientDashboardActions(
   eventId?: string,
 ): ClientDashboardAction[] {
   if (!actionCenter || !eventId) return [];
+  return orderedClientActions(actionCenter.items.filter((item) => item.eventId === eventId));
+}
+
+export function selectClientAccountActions(actionCenter: { items: PrismClientActionItem[] } | null | undefined): ClientDashboardAction[] {
+  return orderedClientActions(actionCenter?.items ?? []);
+}
+
+function orderedClientActions(items: PrismClientActionItem[]): ClientDashboardAction[] {
   const priorityOrder = { critical: 0, warning: 1, attention: 2, info: 3 } as const;
-  return actionCenter.items
-    .filter((item) => item.eventId === eventId)
+  return [...items]
     .sort((left, right) => {
       const priority = priorityOrder[left.priority] - priorityOrder[right.priority];
       if (priority !== 0) return priority;
