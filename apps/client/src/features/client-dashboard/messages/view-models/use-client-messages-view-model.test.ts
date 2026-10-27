@@ -25,6 +25,12 @@ afterEach(() => {
 });
 
 describe("client messages", () => {
+  it("does not load or mark conversations read on the account event picker", () => {
+    renderHook(() => useClientMessagesViewModel(false));
+    expect(mocks.list).not.toHaveBeenCalled();
+    expect(mocks.markRead).not.toHaveBeenCalled();
+  });
+
   it("ignores an earlier event's response after switching events", async () => {
     let resolveA!: (threads: PrismCommunicationThread[]) => void;
     const pendingA = new Promise<PrismCommunicationThread[]>((resolve) => { resolveA = resolve; });
