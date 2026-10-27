@@ -47,8 +47,8 @@ describe("EventProgressView client timeline", () => {
       expect.stringContaining("Balance payment due"),
       expect.stringContaining("Event date"),
     ]);
-    expect(within(rows[0]).getByText("completed")).toBeTruthy();
-    expect(within(rows[2]).getByText("current")).toBeTruthy();
+    expect(within(rows[0]).getByText("Completed")).toBeTruthy();
+    expect(within(rows[2]).getByText("Current")).toBeTruthy();
     expect(within(rows[2]).getByText("Date pending")).toBeTruthy();
   });
 

@@ -67,8 +67,9 @@ describe('ClientHomeActionCenter', () => {
     }));
 
     expect(markup).toContain('Complete event briefing');
-    expect(markup).toContain('Event updates');
-    expect(markup).not.toContain('Waiting on PMCM');
+    expect(markup).toContain('Needs your action');
+    expect(markup).not.toContain('Waiting for PMCM');
+    expect(markup).not.toContain('Available to review');
     expect(markup).not.toContain('No pending actions');
   });
 });

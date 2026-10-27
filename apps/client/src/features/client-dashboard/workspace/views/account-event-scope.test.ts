@@ -7,7 +7,10 @@ import { ClientAccountEventPicker } from "./sections/client-account-event-picker
 
 const mocks = vi.hoisted(() => ({
   workspace: {
-    events: [{ id: "event-a", eventName: "Event A" }, { id: "event-b", eventName: "Event B" }],
+    events: [
+      { id: "event-a", eventName: "Event A", eventDate: "2026-10-20", status: "planning", venue: "Hall A" },
+      { id: "event-b", eventName: "Event B", eventDate: "2026-10-21", status: "completed", venue: "Hall B" },
+    ],
     selectedEvent: undefined as { id: string; eventName: string } | undefined,
     selectedEventId: null as string | null,
     setSelectedEventId: vi.fn(),
@@ -31,6 +34,8 @@ describe("account pages with multiple events", () => {
     expect(markup).toContain("Choose an event to see its billing");
     expect(markup).toContain('href="/dashboard/events/event-a/billing"');
     expect(markup).toContain('href="/dashboard/events/event-b/billing"');
+    expect(markup).toContain("Oct 20, 2026");
+    expect(markup).toContain("Hall A");
     expect(markup).not.toContain("No billing workspace yet");
   });
 
@@ -59,7 +64,7 @@ describe("account pages with multiple events", () => {
       mocks.workspace.events = [original[0]];
       mocks.workspace.selectedEvent = original[0];
       const markup = renderToStaticMarkup(createElement(ClientPortalBillingView));
-      expect(markup).toContain("Choose an event to see its billing");
+      expect(markup).toContain("Open your event’s billing");
       expect(markup).toContain('href="/dashboard/events/event-a/billing"');
     } finally {
       mocks.workspace.events = original;
