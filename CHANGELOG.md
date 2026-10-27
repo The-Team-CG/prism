@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Client event choices for documents, messages, billing, and approvals now open event-specific URLs, so the chosen event and section survive reload and browser navigation. Owners A (Maxine), C (Ethan), and D (Anthony).
+
 - Clients choose an event before opening its files, billing or messages. Messages show the available conversations and keep each draft while switching; retries retain the same request key. The file page no longer invents sizes or folder activity, and older folder links open the unified file page. Owners A (Maxine), C (Ethan) and D (Anthony).
 
 - The guest pass puts check-in and event details first and offers feedback when the event's seven-day feedback window is open. Unavailable media upload controls have been removed. Owners A (Maxine), C (Ethan) and D (Anthony).

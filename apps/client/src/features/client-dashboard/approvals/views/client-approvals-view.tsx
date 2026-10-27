@@ -6,7 +6,7 @@ import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { formatStatusLabel } from "../../workspace/shared";
 import { useClientWorkspace } from "../../workspace/shared";
-import { ClientAccountEventPicker, useClientAccountEventChoiceRequired } from "../../workspace/views/sections/client-account-event-picker";
+import { ClientAccountEventPicker } from "../../workspace/views/sections/client-account-event-picker";
 import {
   approvalStatusKind,
   buildApprovalItems,
@@ -103,18 +103,19 @@ export function ClientApprovalsView() {
     officialDraft,
     billing,
     documents,
+    events,
     isEventScopedView,
   } = useClientWorkspace();
   const visibleApprovalItems = filterApprovalItems(
     buildApprovalItems(selectedEvent, documents, billing, officialDraft),
     portalView,
   );
-  const choiceRequired = useClientAccountEventChoiceRequired() && !isEventScopedView;
-  const showNoEvent = !selectedEvent && !isEventScopedView;
+  const choiceRequired = !isEventScopedView && events.length > 0;
+  const showNoEvent = !isEventScopedView && events.length === 0;
 
   return (
     <div className="space-y-5">
-      {!isEventScopedView ? <ClientAccountEventPicker purpose="approvals" /> : null}
+      {!isEventScopedView ? <ClientAccountEventPicker purpose="approvals" destination="approvals" /> : null}
       <ApprovalsBody
         choiceRequired={choiceRequired}
         showNoEvent={showNoEvent}
