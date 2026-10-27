@@ -18,6 +18,7 @@ import type {
   PrismGuestCheckIn,
   PrismGuestCheckInReceipt,
   PrismGuestEventPass,
+  PrismGuestFeedbackAvailability,
   PrismEvent,
   PrismGuestFeedback,
   PrismGuestFeedbackMedia,
@@ -63,6 +64,12 @@ const MAX_GUEST_FEEDBACK = 500;
 const MAX_GUEST_ROSTER_SEARCH = 500;
 const GUEST_REVIEW_SOURCES = ['guest-review', 'guest-review-headcount'] as const;
 const COORDINATOR_REVIEW_SOURCES = ['coordinator-walk-in', ...GUEST_REVIEW_SOURCES] as const;
+const GUEST_FEEDBACK_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+function guestFeedbackAvailability(actualEndedAt: Date | null): PrismGuestFeedbackAvailability {
+  if (!actualEndedAt || Date.now() < actualEndedAt.getTime()) return 'not_open';
+  return Date.now() > actualEndedAt.getTime() + GUEST_FEEDBACK_WINDOW_MS ? 'closed' : 'open';
+}
 
 @Injectable()
 export class GuestWorkflowService implements GuestCommands {
@@ -85,7 +92,7 @@ export class GuestWorkflowService implements GuestCommands {
     const event = events.find((item) => this.guestAccessCode(item) === normalizedCode);
     if (!event) throw new NotFoundException('Guest event code was not found');
 
-    return { watermark: this.guestEventWatermark(event.updatedAt) };
+    return { watermark: this.guestEventWatermark(event.updatedAt), feedbackAvailability: guestFeedbackAvailability(event.actualEndedAt) };
   }
 
   countCheckInsForEvent(eventId: string) {
@@ -733,7 +740,7 @@ export class GuestWorkflowService implements GuestCommands {
     if (!event.actualEndedAt) throw new BadRequestException('Guest feedback is unavailable because the actual event end has not been recorded');
     const now = Date.now();
     if (now < event.actualEndedAt.getTime()) throw new BadRequestException('Guest feedback opens after the event has actually ended');
-    if (now > event.actualEndedAt.getTime() + 7 * 24 * 60 * 60 * 1000) throw new BadRequestException('The seven-day guest feedback window has closed');
+    if (now > event.actualEndedAt.getTime() + GUEST_FEEDBACK_WINDOW_MS) throw new BadRequestException('The seven-day guest feedback window has closed');
   }
 
   guestAccessCode(event: Pick<PrismEvent, 'id' | 'eventName'>) {
@@ -803,6 +810,7 @@ export class GuestWorkflowService implements GuestCommands {
       activeFloorPlanDraftId: activeDraft?.id,
       guestAccessCode: this.guestAccessCode(event),
       watermark: this.guestEventWatermark(event.updatedAt),
+      feedbackAvailability: guestFeedbackAvailability(event.actualEndedAt),
     };
   }
 

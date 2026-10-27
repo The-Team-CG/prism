@@ -234,7 +234,7 @@ function createGuestWorkflowFixture() {
   const eventProjections = {
     listGuestAccessCandidates: vi.fn(async (includeArchived: boolean) => state.events
       .filter((event) => includeArchived || !event.archived)
-      .map(({ id, eventName, eventDate, updatedAt, archived }) => ({ id, eventName, eventDate, updatedAt, archived }))),
+      .map(({ id, eventName, eventDate, actualEndedAt, updatedAt, archived }) => ({ id, eventName, eventDate, actualEndedAt, updatedAt, archived }))),
     findGuestEvent: vi.fn(async (eventId: string) => state.events.find((event) => event.id === eventId) ?? null),
     listCoordinatorWorkspaceEvents: vi.fn(async () => []),
   };
@@ -299,7 +299,7 @@ describe('GuestWorkflowService', () => {
   it('keeps public guest pass and watermark free of attendance signals', async () => {
     const { service, state, prisma } = createGuestWorkflowFixture();
 
-    await expect(service.getEventWatermarkByAccessCode('AYALA-TECH-MPLE')).resolves.toEqual({
+    await expect(service.getEventWatermarkByAccessCode('AYALA-TECH-MPLE')).resolves.toMatchObject({
       watermark: '2026-06-01T00:00:00.000Z',
     });
     const pass = service.mapGuestEvent(state.events[0] as any);
@@ -308,7 +308,7 @@ describe('GuestWorkflowService', () => {
     expect(prisma.opsGuestCheckIn.count).not.toHaveBeenCalled();
 
     state.guestCheckIns.push({ ...state.guestCheckIns[0], id: 'gci_new' });
-    await expect(service.getEventWatermarkByAccessCode('AYALA-TECH-MPLE')).resolves.toEqual({
+    await expect(service.getEventWatermarkByAccessCode('AYALA-TECH-MPLE')).resolves.toMatchObject({
       watermark: '2026-06-01T00:00:00.000Z',
     });
     expect(prisma.opsGuestCheckIn.count).not.toHaveBeenCalled();
@@ -1002,10 +1002,13 @@ describe('GuestWorkflowService', () => {
     vi.useFakeTimers();
     const { service, state } = createGuestWorkflowFixture();
     vi.setSystemTime(new Date('2026-09-07T11:59:59.000Z'));
+    await expect(service.getEventWatermarkByAccessCode('AYALA-TECH-MPLE')).resolves.toMatchObject({ feedbackAvailability: 'not_open' });
     await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, guestName: 'Before', rating: 5, privacyConsentAccepted: true })).rejects.toThrow('opens after the event has actually ended');
     vi.setSystemTime(new Date('2026-09-14T12:00:00.000Z'));
+    await expect(service.getEventWatermarkByAccessCode('AYALA-TECH-MPLE')).resolves.toMatchObject({ feedbackAvailability: 'open' });
     await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, guestName: 'At deadline', rating: 5, privacyConsentAccepted: true })).resolves.toMatchObject({ eventId: 'evt_sample', submittedAt: expect.any(String) });
     vi.setSystemTime(new Date('2026-09-14T12:00:00.001Z'));
+    await expect(service.getEventWatermarkByAccessCode('AYALA-TECH-MPLE')).resolves.toMatchObject({ feedbackAvailability: 'closed' });
     await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, guestName: 'After', rating: 5, privacyConsentAccepted: true })).rejects.toThrow('seven-day guest feedback window has closed');
     (state.events[0] as any).actualEndedAt = null;
     vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));

@@ -224,6 +224,8 @@ export interface PrismCoordinatorRegistrationEntry {
   reviewSubmittedAt?: string | null;
 }
 
+export type PrismGuestFeedbackAvailability = "not_open" | "open" | "closed";
+
 export interface PrismGuestEventPass {
   id: string;
   eventName: string;
@@ -234,10 +236,12 @@ export interface PrismGuestEventPass {
   activeFloorPlanDraftId?: string;
   guestAccessCode: string;
   watermark: string;
+  feedbackAvailability: PrismGuestFeedbackAvailability;
 }
 
 export interface PrismGuestEventWatermark {
   watermark: string;
+  feedbackAvailability: PrismGuestFeedbackAvailability;
 }
 
 export interface PrismGuestFeedback {

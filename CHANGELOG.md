@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- The guest pass puts check-in and event details first and offers feedback when the event's seven-day feedback window is open. Unavailable media upload controls have been removed. Owners A (Maxine), C (Ethan) and D (Anthony).
+
 - PMCM event work starts with an overview, while planning, supplier, finance and live-operation controls are grouped by their task. Coordinators can choose an assigned event and open separate shift, task, issue, run-sheet and assignment views; their selection survives reload and navigation. Client proposal reviews load again because event authorization reads the inquiry email from the actual event model. Owners A (Maxine), B (Francis) and D (Anthony).
 
 - Clients can see actions across their events on Home, open a compact event list and switch between event workspaces without losing their place. Supplier sections now have shareable URLs, with quote requests, quote history and bookings organized around the work to complete. Client change requests and addenda also load for clients whose ownership comes from their inquiry. Owners A (Maxine), C (Ethan) and D (Anthony).
