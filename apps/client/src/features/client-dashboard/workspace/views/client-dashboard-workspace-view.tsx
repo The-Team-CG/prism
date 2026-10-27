@@ -546,6 +546,7 @@ export function ClientDashboardWorkspaceView({
   return (
     <ClientWorkspaceProvider value={workspaceValue}>
       <PrismDashboardShell
+        portal="client"
         productLabel="P.R.I.S.M"
         roleLabel="Client Portal"
         eyebrow={clientShellEyebrow({ isEventScopedView, route })}
