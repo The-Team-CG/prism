@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { EventWorkspaceSwitcher } from "./event-workspace-switcher";
 import { PrismDashboardShell } from "@prism/ui";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { ConformeUploadModal } from "@/features/conforme/upload";
@@ -58,8 +59,12 @@ export function EventPmcmReadyShell({ viewModel, children }: { viewModel: Loaded
       sidebarMode="single"
       onNavSelect={viewModel.handleSidebarNav}
       user={{ name: viewModel.session.name, detail: humanizeToken(viewModel.session.role), initials: viewModel.session.name.slice(0, 2).toUpperCase() }}
-      searchPlaceholder="Search events, suppliers, inquiries..."
-      showTopBarSearch={false}
+      searchPlaceholder="Find a page"
+      sidebarContext={
+        viewModel.routeState.eventId && viewModel.selectedEvent ? (
+          <EventWorkspaceSwitcher events={viewModel.events} selected={viewModel.selectedEvent} view={viewModel.routeState.view} />
+        ) : null
+      }
       onSignOut={() => void viewModel.signOut()}
     >
       {children}

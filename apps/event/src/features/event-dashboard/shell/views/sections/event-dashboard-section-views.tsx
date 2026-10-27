@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardBody, CardHeader, SectionAccent } from "./shell-ui";
+import { Card, CardHeader } from "./shell-ui";
 import { FileRequirementsMatrixPanel } from "@/features/files/matrix";
 import { PmcmDocumentHubView } from "@/features/files/hub";
 import { EventFileHub } from "./event-file-hub";
@@ -9,11 +9,11 @@ import { EventTasksWorkspace } from "./event-tasks-workspace";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { EventSettingsWorkspace } from "./event-settings-workspace";
 import { CommandHomeSelectedEvent } from "./command-home-selected-event";
-import { EventQueueCard } from "./event-queue-card";
+import { EventRegister } from "./event-register";
+import { InquiryViews } from "./inquiry-views";
+import { ClientDirectory, ClientDossier } from "./client-directory";
 import { humanizeToken } from "@/features/pmcm-kit/model/formatters";
 import {
-  CalendarDays,
-  CircleUserRound,
   FileText,
   MessageSquareText,
   ReceiptText,
@@ -135,169 +135,23 @@ export function EventDashboardSettingsSectionView() {
 }
 
 export function EventDashboardClientsSectionView() {
-  const {
-    selectedClient,
-    payments,
-    activeNavItem,
-    clientRecordsForView,
-    navigateClient,
-    navigateSection,
-    routeState,
-    navigateEvent,
-    state,
-    unreviewedInquiries,
-    pendingApprovals,
-    inquiries,
-    acceptInquiry,
-    pendInquiry,
-    declineInquiry,
-    mergeInquiry,
-    logInquiryOnBehalf,
-    busy,
-    openConformeUpload,
-    sendConformeReminder,
-  } = useEventDashboardLoadedRouteViewModel();
-  return (
-
-          <>
-            <EventArchiveSearchView />
-            {selectedClient ? (
-              <Card>
-                <CardHeader>
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <SectionAccent>Client overview</SectionAccent>
-                      <h2 className="mt-1 text-base font-black text-foreground">{selectedClient.name}</h2>
-                      <p className="mt-1 text-sm text-muted-foreground">{selectedClient.contact ?? "Primary contact pending"}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" className="h-8 rounded-md px-3 text-xs font-bold" onClick={() => navigateSection("clients")}>
-                        All Clients
-                      </Button>
-                      <StatusBadge status={selectedClient.events.length ? "active" : "prospect"} />
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardBody className="grid gap-3 md:grid-cols-4">
-                  {[
-                    { label: "Active Events", value: selectedClient.events.length },
-                    { label: "Open Inquiries", value: selectedClient.inquiries.length },
-                    { label: "Balance", value: phpMoney.format(payments.reduce((sum, item) => sum + item.remainingBalance, 0)) },
-                    { label: "Last Activity", value: selectedClient.events[0]?.eventDate ?? "Pending" },
-                  ].map((item) => (
-                    <div key={item.label} className="rounded-md border border-border bg-muted/20 px-4 py-3">
-                      <p className="text-lg font-black text-foreground">{item.value}</p>
-                      <p className="mt-1 text-xs font-bold text-muted-foreground">{item.label}</p>
-                    </div>
-                  ))}
-                </CardBody>
-              </Card>
-            ) : (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <CircleUserRound className="size-4 text-primary" />
-                    <h2 className="text-sm font-bold text-foreground">{activeNavItem?.label ?? "All clients"}</h2>
-                  </div>
-                </CardHeader>
-                <div className="divide-y divide-border">
-                  {clientRecordsForView.map((client) => (
-                    <button key={client.id} type="button" onClick={() => navigateClient(client.id)} className="flex w-full items-center justify-between gap-4 px-6 py-4 text-left transition hover:bg-muted/30">
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-black text-foreground">{client.name}</span>
-                        <span className="mt-1 block truncate text-xs text-muted-foreground">{client.contact ?? "Contact pending"} - {client.events.length} event(s)</span>
-                      </span>
-                      <StatusBadge status={client.events.length ? "active" : "prospect"} />
-                    </button>
-                  ))}
-                  {clientRecordsForView.length === 0 ? (
-                    <div className="px-6 py-8">
-                      <EmptyState icon={CircleUserRound} title="No clients in this view" description="Client records will appear here once their inquiry and event state matches this filter." />
-                    </div>
-                  ) : null}
-                </div>
-              </Card>
-            )}
-            {selectedClient && (routeState.view ?? "overview") !== "overview" ? (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <FileText className="size-4 text-primary" />
-                    <h2 className="text-sm font-bold text-foreground">{activeNavItem?.label ?? "Client detail"}</h2>
-                  </div>
-                </CardHeader>
-                <CardBody>
-                  {routeState.view === "events" ? (
-                    <div className="divide-y divide-border overflow-hidden rounded-md border border-border">
-                      {selectedClient.events.map((event) => (
-                        <button key={event.id} type="button" onClick={() => navigateEvent(event.id, "overview")} className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-muted/30">
-                          <span className="min-w-0">
-                            <span className="block truncate text-sm font-black text-foreground">{event.eventName}</span>
-                            <span className="mt-1 block text-xs text-muted-foreground">{event.eventDate}</span>
-                          </span>
-                          <StatusBadge status={event.status} />
-                        </button>
-                      ))}
-                      {selectedClient.events.length === 0 ? (
-                        <div className="px-4 py-6">
-                          <EmptyState icon={CalendarDays} title="No events yet" description="Accepted inquiries with signed conforme will create client event workspaces here." />
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <div className="grid gap-3 md:grid-cols-3">
-                      {[
-                        { label: "Contact Person", value: selectedClient.contact ?? "Pending" },
-                        { label: "Company", value: selectedClient.company ?? selectedClient.name },
-                        { label: "Record Scope", value: `${selectedClient.events.length} events / ${selectedClient.inquiries.length} inquiries` },
-                      ].map((item) => (
-                        <div key={item.label} className="rounded-md border border-border bg-muted/20 px-4 py-3">
-                          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{item.label}</p>
-                          <p className="mt-1 text-sm font-black text-foreground">{item.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardBody>
-              </Card>
-            ) : null}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <CircleUserRound className="size-4 text-primary" />
-                  <h2 className="text-sm font-bold text-foreground">Client pipeline</h2>
-                </div>
-              </CardHeader>
-              <CardBody className="grid gap-3 sm:grid-cols-3">
-                {[
-                  { label: "Total inquiries", value: state.inquiries.length, tone: "text-primary" },
-                  { label: "Need review", value: unreviewedInquiries, tone: "text-attention" },
-                  { label: "Pending accounts", value: pendingApprovals.length, tone: "text-success" },
-                ].map((item) => (
-                  <div key={item.label} className="rounded-xl border border-border bg-muted/20 px-4 py-3">
-                    <p className={`text-2xl font-black ${item.tone}`}>{item.value}</p>
-                    <p className="mt-1 text-xs font-bold text-muted-foreground">{item.label}</p>
-                  </div>
-                ))}
-              </CardBody>
-            </Card>
-            <InquiryIntakeLog
-              inquiries={state.inquiries}
-              onAccept={acceptInquiry}
-              onPend={pendInquiry}
-              onDecline={declineInquiry}
-              onMerge={mergeInquiry}
-              onLogOnBehalf={logInquiryOnBehalf}
-              busy={Boolean(busy)}
-            />
-            <ClientOnboardingTracker
-              inquiries={state.inquiries}
-               onUploadConforme={openConformeUpload}
-              onSendReminder={sendConformeReminder}
-              busy={Boolean(busy)}
-            />
-          </>
-  );
+  const { selectedClient, state, clientRecordsForView, navigateClient, navigateSection, navigateEvent } =
+    useEventDashboardLoadedRouteViewModel();
+  if (selectedClient) {
+    const eventIds = new Set(selectedClient.events.map((event) => event.id));
+    const balance = state.paymentMilestones
+      .filter((payment) => eventIds.has(payment.eventId))
+      .reduce((sum, payment) => sum + payment.remainingBalance, 0);
+    return (
+      <ClientDossier
+        client={selectedClient}
+        balance={phpMoney.format(balance)}
+        onBack={() => navigateSection("clients")}
+        onOpenEvent={(id) => navigateEvent(id, "overview")}
+      />
+    );
+  }
+  return <ClientDirectory clients={clientRecordsForView} onOpenClient={navigateClient} />;
 }
 
 export function EventDashboardTeamSectionView() {
@@ -488,42 +342,38 @@ export function EventDashboardInquiriesSectionView() {
     sendConformeReminder,
   } = useEventDashboardLoadedRouteViewModel();
   return (
-
-          <>
-            <InquiryIntakeLog
-              inquiries={state.inquiries}
-              onAccept={acceptInquiry}
-              onPend={pendInquiry}
-              onDecline={declineInquiry}
-              onMerge={mergeInquiry}
-              onLogOnBehalf={logInquiryOnBehalf}
-              busy={Boolean(busy)}
-            />
-            <ClientOnboardingTracker
-              inquiries={state.inquiries}
-              onUploadConforme={openConformeUpload}
-              onSendReminder={sendConformeReminder}
-              busy={Boolean(busy)}
-            />
-            <ConformeDraftReviewView inquiries={state.inquiries} />
-          </>
+    <InquiryViews
+      intake={
+        <InquiryIntakeLog
+          inquiries={state.inquiries}
+          onAccept={acceptInquiry}
+          onPend={pendInquiry}
+          onDecline={declineInquiry}
+          onMerge={mergeInquiry}
+          onLogOnBehalf={logInquiryOnBehalf}
+          busy={Boolean(busy)}
+        />
+      }
+      onboarding={
+        <ClientOnboardingTracker
+          inquiries={state.inquiries}
+          onUploadConforme={openConformeUpload}
+          onSendReminder={sendConformeReminder}
+          busy={Boolean(busy)}
+        />
+      }
+      followUp={<ConformeDraftReviewView inquiries={state.inquiries} />}
+    />
   );
 }
 
 export function EventDashboardEventsListSectionView() {
-  const {
-    eventsForView,
-    selectedEvent,
-    navigateEvent,
-  } = useEventDashboardLoadedRouteViewModel();
+  const { eventsForView, navigateEvent } = useEventDashboardLoadedRouteViewModel();
   return (
-
-          <EventQueueCard
-            events={eventsForView}
-            selectedEventId={selectedEvent?.id}
-            onSelectEvent={(id) => navigateEvent(id)}
-            onNavigateEvent={(id) => navigateEvent(id, "overview")}
-          />
+    <div className="grid gap-8">
+      <EventRegister events={eventsForView} onOpenEvent={(id) => navigateEvent(id, "overview")} />
+      <EventArchiveSearchView />
+    </div>
   );
 }
 
