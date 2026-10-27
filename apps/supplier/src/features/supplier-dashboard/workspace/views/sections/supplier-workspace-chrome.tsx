@@ -193,7 +193,7 @@ const SECTION_RENDERERS: Record<SupplierDashboardSection, (ctx: SectionContext) 
   bookings: renderBookings,
   calendar: renderCalendar,
   quotations: renderQuotations,
-  messages: (ctx) => <MessagesPage session={ctx.session} selectedRequests={ctx.selectedRequests} />,
+  messages: (ctx) => <MessagesPage session={ctx.session} selectedRequests={ctx.selectedRequests} readinessBoard={ctx.readinessBoard} />,
   files: renderFiles,
   payments: renderPayments,
   profile: renderProfile,

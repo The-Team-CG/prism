@@ -51,6 +51,20 @@ describe("prismRequest", () => {
     );
   });
 
+  it("keeps a route's own query intact when actor context is added", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({ baseUrl: "https://api.example.test/api" });
+
+    await client.communication.listThreads("evt_1", { actorRole: "supplier", actorName: "Ops" });
+
+    // A second `?` turned the event ID into `evt_1?actorRole=supplier`, which the API reported as "Event not found".
+    const url = new URL(String((fetchMock.mock.calls[0] as unknown as [string])[0]));
+    expect(url.searchParams.get("eventId")).toBe("evt_1");
+    expect(url.searchParams.get("actorRole")).toBe("supplier");
+  });
+
   it("returns the one-time typed host PIN issue result", async () => {
     vi.stubGlobal("window", undefined);
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({

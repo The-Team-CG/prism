@@ -29,6 +29,7 @@ import {
   groupReadinessItemsByEvent,
   quoteSubmitSuccessNotice,
   supplierReadinessSection,
+  supplierMessageEvents,
 } from "./supplier-workspace-rules";
 import type { PrismSupplierReadinessItem } from "@prism/types";
 import type { PrismSupplierQuote, PrismSupplierQuoteRequest, SupplierWorkspace } from "./supplier-workspace-types";
@@ -300,5 +301,16 @@ describe("supplier-workspace-rules", () => {
     expect(quoteRequestsNavDesc(0, 3)).toBe("3 open request(s)");
     expect(bookingsNavDesc(1, 2)).toBe("1 handoff item(s) pending");
     expect(bookingsNavDesc(0, 1)).toBe("All steps complete");
+  });
+});
+
+describe("supplierMessageEvents", () => {
+  it("lists one named event per booking so Messages never silently picks the first", () => {
+    const booking = (id: string, eventId: string) => ({ id, eventId }) as Parameters<typeof supplierMessageEvents>[0][number];
+    const named = { eventId: "evt_ops", eventName: "UAT Operations Supplier Booking" } as PrismSupplierReadinessItem;
+    expect(supplierMessageEvents([booking("rq_1", "evt_ops"), booking("rq_2", "evt_ops"), booking("rq_3", "evt_live")], [named])).toEqual([
+      { eventId: "evt_ops", eventName: "UAT Operations Supplier Booking" },
+      { eventId: "evt_live", eventName: "Assigned event" },
+    ]);
   });
 });

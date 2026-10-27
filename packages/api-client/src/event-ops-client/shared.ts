@@ -40,5 +40,7 @@ export function actorPath(
   actor: EventOpsActorQuery = {},
 ): string {
   const query = toQueryString(actor);
-  return query ? `${path}?${query}` : path;
+  if (!query) return path;
+  // Paths can already carry their own query (for example `?eventId=`); a second `?` would corrupt that value.
+  return `${path}${path.includes("?") ? "&" : "?"}${query}`;
 }
