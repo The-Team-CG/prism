@@ -38,8 +38,6 @@ export function EventWorkspaceOverviewTab() {
   if (!vm.selectedEvent) return null;
   return (
     <div className="space-y-4">
-      <PmcmClientReviewPanel eventId={vm.selectedEvent.id} />
-      <ChangeRegisterPanel eventId={vm.selectedEvent.id} frozen={isScopeFrozen(vm.selectedEvent.freezeStatus)} />
       <EventOverviewPanels
         event={vm.selectedEvent}
         defenseReadiness={vm.defenseReadiness}
@@ -57,9 +55,6 @@ export function EventWorkspaceOverviewTab() {
         onOpenBilling={() => vm.navigateEventTab("billing")}
         onOpenClosure={() => vm.navigateEventTab("closure")}
       />
-      {canManageClientFloorplanAccess(String(vm.session.role)) ? (
-        <EventClientFloorplanAccessPanel eventId={vm.selectedEvent.id} />
-      ) : null}
     </div>
   );
 }
@@ -89,6 +84,12 @@ export function EventWorkspaceFloorplansTab() {
           )}
         </CardBody>
       </Card>
+      {canManageClientFloorplanAccess(String(vm.session.role)) ? (
+        <details className="rounded-lg border border-border bg-card">
+          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Client floorplan access</summary>
+          <EventClientFloorplanAccessPanel eventId={vm.selectedEvent.id} />
+        </details>
+      ) : null}
     </div>
   );
 }
@@ -187,8 +188,11 @@ function ClientFloorplanPreferenceSummary({ preference }: { preference: PrismFlo
 }
 
 export function EventWorkspaceBriefingTab() {
-  const { briefing } = useEventDashboardLoadedRouteViewModel();
+  const vm = useEventDashboardLoadedRouteViewModel();
+  const { briefing, selectedEvent } = vm;
+  if (!selectedEvent) return null;
   return (
+    <div className="space-y-4">
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
@@ -214,8 +218,19 @@ export function EventWorkspaceBriefingTab() {
         ) : (
           <EmptyState icon={FileCheck2} title="No briefing submitted yet" description="Use the quick action to submit a briefing for this event." />
         )}
+        <Button size="sm" className="mt-4" onClick={vm.submitBriefing}>Submit briefing</Button>
+        {isPmcmAdmin(vm.session.role) ? <Button size="sm" variant="outline" className="ml-2 mt-4" onClick={() => vm.navigateEventTab("decisions")}>Decision log</Button> : null}
       </CardBody>
     </Card>
+    <details className="rounded-lg border border-border bg-card">
+      <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Client proposals and reviews</summary>
+      <PmcmClientReviewPanel eventId={selectedEvent.id} />
+    </details>
+    <details className="rounded-lg border border-border bg-card">
+      <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Scope changes and decisions</summary>
+      <ChangeRegisterPanel eventId={selectedEvent.id} frozen={isScopeFrozen(selectedEvent.freezeStatus)} />
+    </details>
+    </div>
   );
 }
 
@@ -224,6 +239,8 @@ export function EventWorkspaceSuppliersTab() {
   if (!vm.selectedEvent) return null;
   return (
     <div className="space-y-5">
+      <details name="pmcm-supplier-work" className="rounded-lg border border-border bg-card">
+      <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Requests and quotes</summary>
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
@@ -243,10 +260,17 @@ export function EventWorkspaceSuppliersTab() {
           />
         </CardBody>
       </Card>
-
+      </details>
+      <details name="pmcm-supplier-work" className="rounded-lg border border-border bg-card">
+      <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Readiness</summary>
       <PmcmSupplierReadinessBoard eventId={vm.selectedEvent.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} />
+      </details>
+      <details name="pmcm-supplier-work" className="rounded-lg border border-border bg-card">
+      <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Bookings and contracts</summary>
       <PmcmSupplierWorkflowsPanel eventId={vm.selectedEvent.id} requests={vm.quoteRequests} quotes={vm.quotes} />
-
+      </details>
+      <details name="pmcm-supplier-work" className="rounded-lg border border-border bg-card">
+      <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Emergency response</summary>
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
@@ -273,6 +297,7 @@ export function EventWorkspaceSuppliersTab() {
           />
         </CardBody>
       </Card>
+      </details>
     </div>
   );
 }
@@ -282,7 +307,6 @@ export function EventWorkspaceCoordinatorsTab() {
   if (!vm.selectedEvent) return null;
   return (
     <div className="space-y-5">
-      <PostponementImpactPanel eventId={vm.selectedEvent.id} />
       <div id="coordinator-assignment-desk">
         <CoordinatorAssignmentDesk
           event={vm.selectedEvent}
@@ -302,6 +326,10 @@ export function EventWorkspaceCoordinatorsTab() {
           onDeleteAvailability={vm.deleteCoordinatorAvailability}
         />
       </div>
+      <details className="rounded-lg border border-border bg-card">
+        <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Postponement impact</summary>
+        <PostponementImpactPanel eventId={vm.selectedEvent.id} />
+      </details>
     </div>
   );
 }
@@ -350,12 +378,15 @@ export function EventWorkspaceBillingTab() {
         onRecordPayment={vm.recordPayment}
         onSendBilling={vm.sendBillingStatement}
       />
+      <details className="rounded-lg border border-border bg-card">
+      <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Billing adjustments and disputes</summary>
       <BillingAdjustmentsPanel
         eventId={vm.selectedEvent.id}
         statements={vm.billingStatements}
         billingSources={vm.billingSources}
         payments={vm.payments}
       />
+      </details>
     </div>
   );
 }
@@ -391,7 +422,10 @@ export function EventWorkspaceClosureTab() {
         onGenerateInsights={vm.generateEventInsights}
         onAddReview={vm.addSupplierReview}
       />
-      <FeedbackModerationPanel eventId={vm.selectedEvent.id} />
+      <details className="rounded-lg border border-border bg-card">
+        <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Guest feedback review</summary>
+        <FeedbackModerationPanel eventId={vm.selectedEvent.id} />
+      </details>
     </>
   );
 }
@@ -421,6 +455,8 @@ export function EventWorkspaceRegistrationTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   return (
+    <div className="space-y-4">
+    <Button variant="outline" onClick={() => vm.navigateEventTab("games")}>Games</Button>
     <EventRegistrationTab
       platform={vm.registrationPlatform}
       suppliers={vm.suppliers}
@@ -440,6 +476,7 @@ export function EventWorkspaceRegistrationTab() {
       guestPrivacyClassification={vm.guestPrivacyClassification?.classification ?? "unclassified"}
       onUpdateGuestPrivacyClassification={vm.updateGuestPrivacyClassification}
     />
+    </div>
   );
 }
 
@@ -448,6 +485,8 @@ export function EventWorkspaceGamesTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   return (
+    <div className="space-y-4">
+    <Button variant="outline" onClick={() => vm.navigateEventTab("registration")}>Registration</Button>
     <EventGamesHostView
       eventId={vm.selectedEvent.id}
       role={vm.session.role}
@@ -455,5 +494,6 @@ export function EventWorkspaceGamesTab() {
       archived={vm.selectedEvent.archived}
       actualEndedAt={vm.selectedEvent.actualEndedAt}
     />
+    </div>
   );
 }
