@@ -6,6 +6,7 @@ import {
   inquiryHistoryCues,
   inquiryMatchesIntakeFilters,
   inquiryMergeCandidates,
+  inquiryNextStep,
   isInquiryLogFormReady,
   toLogInquiryInput,
   initialLogForm,
@@ -139,5 +140,22 @@ describe("inquiry-intake-rules", () => {
     expect(inquiryHistoryCues(inquiryRow({ id: "inq_x", mergedIntoInquiryId: "inq_gone" }), [])).toEqual([
       "Merged into inq_gone",
     ]);
+  });
+});
+
+describe("inquiryNextStep", () => {
+  const base = { status: "accepted", conformeSentAt: null, conformeSignedAt: null, portalInvitationStatus: "not_sent", portalActivatedAt: null };
+  it.each([
+    [{ ...base, status: "new" }, "Review inquiry"],
+    [{ ...base, status: "pending" }, "Review inquiry"],
+    [{ ...base, status: "declined" }, "Declined"],
+    [base, "Send conforme"],
+    [{ ...base, conformeSentAt: "2026-10-01" }, "Waiting for signed conforme"],
+    [{ ...base, conformeSentAt: "2026-10-01", conformeSignedAt: "2026-10-03" }, "Send client invitation"],
+    [{ ...base, conformeSignedAt: "2026-10-03", portalInvitationStatus: "sent" }, "Waiting for client to activate"],
+    [{ ...base, conformeSignedAt: "2026-10-03", portalInvitationStatus: "expired" }, "Re-send client invitation"],
+    [{ ...base, conformeSignedAt: "2026-10-03", portalActivatedAt: "2026-10-05" }, "Planning in Events"],
+  ])("names the next step for %o", (inquiry, label) => {
+    expect(inquiryNextStep(inquiry).label).toBe(label);
   });
 });

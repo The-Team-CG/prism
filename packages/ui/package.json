@@ -10,7 +10,8 @@
     "./portal-path": "./src/portal-path.ts",
     "./privacy-notice": "./src/privacy-notice.tsx",
     "./public-blocks": "./src/public-blocks.tsx",
-    "./status-badge": "./src/status-badge.tsx"
+    "./status-badge": "./src/status-badge.tsx",
+    "./components/*": "./src/components/ui/*.tsx"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit"

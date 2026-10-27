@@ -414,8 +414,8 @@ const SECTION_SIDEBAR_ITEM: Partial<Record<DashboardSection, string>> = {
   privacy: "privacy",
   clients: "clients",
   calendar: "calendar",
-  tasks: "tasks",
-  "command-inbox": "command-inbox",
+  tasks: "dashboard",
+  "command-inbox": "dashboard",
   settings: "settings",
   inquiries: "inquiries",
   "events-list": "events-list",
@@ -429,19 +429,19 @@ const EVENT_SCOPED_SIDEBAR_ITEM: Partial<Record<DashboardSection, string>> = {
 };
 
 const ROUTE_LOADING_COPY: Partial<Record<DashboardSection, { eyebrow: string; title: string }>> = {
-  suppliers: { eyebrow: "Supplier directory", title: "Supplier Directory" },
-  audit: { eyebrow: "Audit log", title: "Audit Trail" },
-  privacy: { eyebrow: "Privacy operations", title: "Privacy Console" },
-  clients: { eyebrow: "Clients", title: "Client Desk" },
+  suppliers: { eyebrow: "Supplier directory", title: "Suppliers" },
+  audit: { eyebrow: "Audit log", title: "Audit" },
+  privacy: { eyebrow: "Privacy operations", title: "Privacy" },
+  clients: { eyebrow: "Clients", title: "Clients" },
   calendar: { eyebrow: "Calendar", title: "Calendar" },
   tasks: { eyebrow: "Tasks", title: "Tasks" },
-  "command-inbox": { eyebrow: "Command inbox", title: "Command Inbox" },
-  team: { eyebrow: "Team", title: "Team & Coordinators" },
+  "command-inbox": { eyebrow: "Command inbox", title: "Inbox" },
+  team: { eyebrow: "Team", title: "Team" },
   files: { eyebrow: "Files", title: "Event File Hub" },
   messages: { eyebrow: "Messages", title: "Event Messages" },
   finance: { eyebrow: "Finance", title: "Finance Desk" },
-  inquiries: { eyebrow: "Inquiries", title: "Inquiry Intake" },
-  "events-list": { eyebrow: "Events", title: "All Events" },
+  inquiries: { eyebrow: "Inquiries", title: "Inquiries" },
+  "events-list": { eyebrow: "Events", title: "Events" },
   settings: { eyebrow: "Settings", title: "Settings" },
 };
 
@@ -451,7 +451,7 @@ export function routeStateForSidebarItem(id: string): RouteState | undefined {
 
 export function activeSidebarItemFromRoute(routeState: RouteState) {
   const scopedItem = EVENT_SCOPED_SIDEBAR_ITEM[routeState.section];
-  if (scopedItem) return routeState.eventId ? scopedItem : "dashboard";
+  if (scopedItem) return routeState.eventId ? scopedItem : routeState.section === "team" ? "team" : "dashboard";
   const sectionItem = SECTION_SIDEBAR_ITEM[routeState.section];
   if (sectionItem) return sectionItem;
   if (!routeState.eventId) return "dashboard";
@@ -477,27 +477,29 @@ const ROUTE_DESCRIPTIONS: Partial<Record<DashboardSection, string>> = {
   suppliers: "Master supplier directory with category tagging, tiering, and performance reviews.",
   audit: "Complete audit trail of all actions, approvals, and system events.",
   privacy: "Privacy requests with 30-day deadlines, owners, execution, legal holds, and retention policies.",
-  clients: "Client intake, conforme status, approval requests, and portal readiness.",
+  clients: "Every client contact, with their events and inquiries.",
   calendar: "Event dates, planning windows, supplier deadlines, and onsite schedule checkpoints.",
   tasks: "PMCM actions across inquiries, approvals, planning, finance, live operations, and closure.",
-  "command-inbox": "Prioritized action queue across inquiries, suppliers, billing, coordinators, and closure.",
-  team: "Coordinator roster, assignment coverage, availability, and event-day staffing.",
+  "command-inbox": "Decisions and blockers across your events. Every item opens the work it belongs to.",
+  team: "PMCM coordinators, their roles and availability. Assign them inside each event.",
   files: "Operational documents, official floorplans, billing statements, contracts, and closeout records.",
   messages: "Client, supplier, coordinator, and internal PMCM communication threads.",
   finance: "Billing statements, payment milestones, balances, and statement delivery.",
   settings: "Workspace preferences, account context, notification defaults, and role-safe system controls.",
-  inquiries: "Review, accept, pend, or decline incoming event inquiries.",
-  "events-list": "Confirmed event workspaces ready for planning and operations.",
-  dashboard: "Active event workspaces, inquiry intake, and client onboarding.",
+  inquiries: "One intake queue, from first contact to the client's portal account.",
+  "events-list": "Every confirmed event. Open one to work inside it.",
+  dashboard: "Decisions and blockers across your events. Every item opens the work it belongs to.",
 };
 
 const ROUTE_TITLES: Partial<Record<DashboardSection, string>> = {
-  suppliers: "Supplier Directory",
-  audit: "Audit Trail",
-  privacy: "Privacy Console",
-  "command-inbox": "Command Inbox",
-  team: "Team & Coordinators",
-  inquiries: "Inquiry Intake",
+  dashboard: "Inbox",
+  suppliers: "Suppliers",
+  audit: "Audit",
+  privacy: "Privacy",
+  "command-inbox": "Inbox",
+  tasks: "Tasks",
+  team: "Team",
+  inquiries: "Inquiries",
 };
 
 export function routeShellCopy(

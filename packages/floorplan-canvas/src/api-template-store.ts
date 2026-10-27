@@ -50,12 +50,12 @@ function toTemplate(template: ApiTemplate): FloorPlanTemplate {
 export function createTemplateStoreAdapter(request: TemplateApiRequest) {
   return {
     async load(): Promise<FloorPlanTemplate[]> {
-      const templates = await request<ApiTemplate[]>("/templates");
+      const templates = await request<ApiTemplate[]>("/api/templates");
       return templates.map(toTemplate);
     },
 
     async add(template: CreateTemplateInput): Promise<FloorPlanTemplate> {
-      const saved = await request<ApiTemplate>("/templates", {
+      const saved = await request<ApiTemplate>("/api/templates", {
         method: "POST",
         body: {
           name: template.name,
@@ -77,13 +77,13 @@ export function createTemplateStoreAdapter(request: TemplateApiRequest) {
     },
 
     async remove(id: string): Promise<void> {
-      await request<ApiTemplate>(`/templates/${encodeURIComponent(id)}`, {
+      await request<ApiTemplate>(`/api/templates/${encodeURIComponent(id)}`, {
         method: "DELETE",
       });
     },
 
     async rename(id: string, name: string): Promise<FloorPlanTemplate> {
-      const saved = await request<ApiTemplate>(`/templates/${encodeURIComponent(id)}`, {
+      const saved = await request<ApiTemplate>(`/api/templates/${encodeURIComponent(id)}`, {
         method: "PATCH",
         body: { name },
       });

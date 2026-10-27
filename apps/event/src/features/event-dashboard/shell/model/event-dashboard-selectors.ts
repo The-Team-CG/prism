@@ -17,38 +17,53 @@ export function selectUnreviewedInquiryCount(inquiries: PrismInquiry[]): number 
   return inquiries.filter((inquiry) => inquiry.status === "new").length;
 }
 
+function contactKey(inquiry: PrismInquiry) {
+  const email = inquiry.email?.trim().toLowerCase();
+  return email ? `email:${email}` : `name:${clientKey(inquiry.companyName || inquiry.clientName)}`;
+}
+
+/**
+ * One record per client contact. Inquiries group by the contact's email, the identity their client
+ * account is created from. Events join the record of the inquiry they came from (`inquiryId`), so an
+ * event never splits from its client because the event's display name differs from the inquiry's.
+ * Events without a known inquiry fall back to their client name.
+ */
 export function selectClientRecords(events: PrismEvent[], inquiries: PrismInquiry[]): EventClientRecord[] {
-  const map = new Map<string, EventClientRecord>();
+  const byContact = new Map<string, EventClientRecord>();
+  const contactByInquiry = new Map<string, string>();
+  const usedIds = new Set<string>();
+
+  function uniqueId(name: string) {
+    const base = clientKey(name);
+    let id = base;
+    for (let n = 2; usedIds.has(id); n += 1) id = `${base}-${n}`;
+    usedIds.add(id);
+    return id;
+  }
 
   inquiries.forEach((inquiry) => {
+    const key = contactKey(inquiry);
+    contactByInquiry.set(inquiry.id, key);
+    const current = byContact.get(key);
+    if (current) {
+      current.inquiries.push(inquiry);
+      return;
+    }
     const name = inquiry.companyName || inquiry.clientName;
-    const id = clientKey(name);
-    const current = map.get(id) ?? {
-      id,
-      name,
-      contact: inquiry.clientName,
-      company: inquiry.companyName,
-      events: [],
-      inquiries: [],
-    };
-    current.inquiries.push(inquiry);
-    map.set(id, current);
+    byContact.set(key, { id: uniqueId(name), name, contact: inquiry.clientName, company: inquiry.companyName, events: [], inquiries: [inquiry] });
   });
 
   events.forEach((event) => {
-    const id = clientKey(event.clientName);
-    const current = map.get(id) ?? {
-      id,
-      name: event.clientName,
-      contact: event.clientName,
-      events: [],
-      inquiries: [],
-    };
-    current.events.push(event);
-    map.set(id, current);
+    const key = (event.inquiryId && contactByInquiry.get(event.inquiryId)) || `name:${clientKey(event.clientName)}`;
+    const current = byContact.get(key);
+    if (current) {
+      current.events.push(event);
+      return;
+    }
+    byContact.set(key, { id: uniqueId(event.clientName), name: event.clientName, contact: event.clientName, events: [event], inquiries: [] });
   });
 
-  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  return Array.from(byContact.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export function selectClientRecordsForView(records: EventClientRecord[], view: string): EventClientRecord[] {
