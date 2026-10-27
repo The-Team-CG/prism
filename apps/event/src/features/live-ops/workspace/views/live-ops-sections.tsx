@@ -204,7 +204,12 @@ export function LiveOpsDesk({
           </Link>
         </div>
       ) : null}
-      <LiveOpsScheduleDesk eventId={eventId} assignments={liveOps.coordinatorAssignments} canManageSchedule canReplyToReports canSubmitReports={false} />
+      <details className="rounded-lg border border-border bg-card">
+        <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Schedule and reports</summary>
+        <LiveOpsScheduleDesk eventId={eventId} assignments={liveOps.coordinatorAssignments} canManageSchedule canReplyToReports canSubmitReports={false} />
+      </details>
+      <details className="rounded-lg border border-border bg-card">
+      <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Attendance and supplier setup</summary>
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="rounded-lg border border-border bg-card p-5">
           <Header icon={Truck} eyebrow="Supplier setup" title="Self-reported status and PMCM verification" />
@@ -240,6 +245,7 @@ export function LiveOpsDesk({
           </div>
         </div>
       </section>
+      </details>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <LiveOpsIssuesPanel liveOps={liveOps} busy={busy} vm={vm} onUpdateIssue={onUpdateIssue} onEscalateIssue={onEscalateIssue} />
@@ -248,6 +254,8 @@ export function LiveOpsDesk({
 
       <ReassignmentReviewPanel liveOps={liveOps} busy={busy} onDecide={onDecideTaskReassignment} />
 
+      <details className="rounded-lg border border-border bg-card">
+      <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Event-day log</summary>
       <section className="rounded-lg border border-border bg-card p-5">
         <Header icon={ShieldCheck} eyebrow="Live log" title="Event-day operational trail" />
         <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -263,6 +271,7 @@ export function LiveOpsDesk({
           ))}
         </div>
       </section>
+      </details>
     </>
   );
 }

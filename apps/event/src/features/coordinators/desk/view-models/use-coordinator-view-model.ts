@@ -71,11 +71,18 @@ export function useCoordinatorViewModel({
   const assignments = state.assignments.filter((item) =>
     sameCoordinatorName(item.coordinatorName, session.name),
   );
-  const defaultAssignment = pickActiveAssignment(assignments.filter(isCoordinatorAssignmentActive));
+  const activeAssignments = assignments.filter(isCoordinatorAssignmentActive);
+  const activeEventIds = new Set(activeAssignments
+    .filter((item) => state.events.some((event) => event.id === item.eventId && !event.archived))
+    .map((item) => item.eventId));
+  const defaultAssignment = activeEventIds.size === 1
+    ? pickActiveAssignment(activeAssignments.filter((item) => activeEventIds.has(item.eventId)))
+    : undefined;
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-  const event =
-    state.events.find((item) => item.id === selectedEventId) ??
-    state.events.find((item) => item.id === defaultAssignment?.eventId);
+  const eventId = selectedEventId ?? defaultAssignment?.eventId;
+  const event = activeAssignments.some((item) => item.eventId === eventId)
+    ? state.events.find((item) => item.id === eventId)
+    : undefined;
   const assignment = pickActiveAssignment(assignments.filter((item) => item.eventId === event?.id));
   const readOnly = Boolean(event?.archived);
   const activeDraft = event?.floorPlanDrafts?.find((draft) => draft.eventId === event.id && draft.isActive);
@@ -83,7 +90,6 @@ export function useCoordinatorViewModel({
   const [roleView, setRoleView] = useState<PrismCoordinatorRoleView | null>(null);
   const [roleViewStatus, setRoleViewStatus] = useState<CoordinatorViewStatus>("idle");
   const [roleViewError, setRoleViewError] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState("coord-home");
   // EP-11-S02: per-flow state. Deliberately NOT reusing busy or roleViewError,
   // which carry PA-285 and PA-294.
   const [taskBusy, setTaskBusy] = useState(false);
@@ -418,13 +424,12 @@ export function useCoordinatorViewModel({
     setPendingAttendanceChoice(null);
   }
 
-  function selectSection(section: string) {
-    setActiveSection(section);
-  }
-
-  function selectEvent(eventId: string) {
-    if (!assignments.some((item) => item.eventId === eventId) || !state.events.some((item) => item.id === eventId)) return;
-    if (eventId === event?.id) return;
+  function selectEvent(eventId: string | null) {
+    if (eventId === selectedEventId) return;
+    if ((eventId ?? defaultAssignment?.eventId) === event?.id) {
+      setSelectedEventId(eventId);
+      return;
+    }
     setRoleView(null);
     setRoleViewStatus("loading");
     setRoleViewError(null);
@@ -450,12 +455,11 @@ export function useCoordinatorViewModel({
     roleViewLoading: roleViewStatus === "loading",
     roleViewError,
     roleDataStatus: coordinatorRoleDataStatus(roleViewStatus, Boolean(roleView)),
-    activeSection,
+    selectedEventId,
     registrationRole: isCoordinatorAssignmentActive(assignment ?? {}) && isRegistrationCoordinatorRole(assignment?.role),
     acknowledge,
     decline: (reason?: string) => acknowledge("declined", reason),
     withdraw,
-    selectSection,
     selectEvent,
     taskForm: {
       title: taskTitle,

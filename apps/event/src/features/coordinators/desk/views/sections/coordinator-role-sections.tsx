@@ -496,6 +496,7 @@ function CoordinatorIssueForm({ issueForm }: { issueForm: CoordinatorIssueFormMo
 }
 
 type CoordinatorRoleDataProps = {
+  section?: "tasks" | "issues";
   roleViewLoading: boolean;
   roleViewError: string | null;
   roleView: PrismCoordinatorRoleView | null;
@@ -507,6 +508,7 @@ type CoordinatorRoleDataProps = {
   operatorActions: CoordinatorOperatorActionsModel;
 };
 export function CoordinatorRoleData({
+  section = "tasks",
   roleViewLoading,
   roleViewError,
   roleView,
@@ -522,6 +524,7 @@ export function CoordinatorRoleData({
   if (!roleView) return null;
   return (
     <CoordinatorRoleQueueAndLive
+      section={section}
       roleView={roleView}
       registrationRole={registrationRole}
       taskForm={taskForm}
@@ -566,6 +569,7 @@ function CoordinatorRoleErrorCard({ message }: { message: string }) {
 }
 
 function CoordinatorRoleQueueAndLive({
+  section,
   roleView,
   registrationRole,
   taskForm,
@@ -574,6 +578,7 @@ function CoordinatorRoleQueueAndLive({
   taskActions,
   operatorActions,
 }: {
+  section: "tasks" | "issues";
   roleView: PrismCoordinatorRoleView;
   registrationRole: boolean;
   taskForm: CoordinatorTaskFormModel;
@@ -583,13 +588,32 @@ function CoordinatorRoleQueueAndLive({
   operatorActions: CoordinatorOperatorActionsModel;
 }) {
   return (
-    <div className="grid gap-4 xl:grid-cols-2">
-      <CoordinatorTaskForm taskForm={taskForm} />
-      <CoordinatorIssueForm issueForm={issueForm} />
-      <CoordinatorBriefingCard roleView={roleView} />
-      <CoordinatorRoleActions roleView={roleView} reassignment={reassignment} operatorActions={operatorActions} />
-      <CoordinatorTaskQueue roleView={roleView} taskActions={taskActions} />
-      <CoordinatorRoleLiveData roleView={roleView} registrationRole={registrationRole} />
+    <div className="space-y-4">
+      {section === "tasks" ? (
+        <>
+          <CoordinatorTaskQueue roleView={roleView} taskActions={taskActions} />
+          <details className="rounded-lg border border-border bg-card">
+          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Log a task</summary>
+          <CoordinatorTaskForm taskForm={taskForm} />
+          </details>
+          <details className="rounded-lg border border-border bg-card">
+          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Event briefing</summary>
+          <CoordinatorBriefingCard roleView={roleView} />
+          </details>
+          <details className="rounded-lg border border-border bg-card">
+          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">On-site controls</summary>
+          <CoordinatorRoleActions roleView={roleView} reassignment={reassignment} operatorActions={operatorActions} />
+          </details>
+        </>
+      ) : (
+        <>
+          <CoordinatorRoleLiveData roleView={roleView} registrationRole={registrationRole} />
+          <details className="rounded-lg border border-border bg-card">
+          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Report an issue</summary>
+          <CoordinatorIssueForm issueForm={issueForm} />
+          </details>
+        </>
+      )}
     </div>
   );
 }
