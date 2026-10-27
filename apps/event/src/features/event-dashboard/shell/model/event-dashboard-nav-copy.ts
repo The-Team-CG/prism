@@ -3,5 +3,5 @@ export function optionalNavBadge(count?: number | string) {
 }
 
 export function eventWorkspaceSectionLabel(eventName?: string) {
-  return eventName ? "Current event" : "Event workspace";
+  return eventName ? eventName : "Event workspace";
 }

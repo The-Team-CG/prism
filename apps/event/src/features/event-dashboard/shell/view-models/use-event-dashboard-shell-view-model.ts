@@ -271,11 +271,11 @@ export function useEventDashboardShellViewModel({
   const openActionCount = defenseReadiness?.nextActions.length ?? pendingApprovals.length + unreviewedInquiries;
   const eventWorkspaceDisabled = !selectedEvent;
   const activeSidebarItemId = activeSidebarItemFromRoute(routeState);
+  const inEventWorkspace = Boolean(routeState.eventId) && !eventWorkspaceDisabled;
   const shellNavItems = eventPortalNavItems({
-    hasEvent: !eventWorkspaceDisabled,
+    inEventWorkspace,
     eventName: selectedEvent?.eventName,
     inquiryCount: unreviewedInquiries + pendingApprovals.length,
-    taskCount: openActionCount,
     commandInboxCount: commandInboxLoadFailed
       ? "!"
       : commandInbox
