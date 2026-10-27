@@ -1,7 +1,6 @@
 "use client";
 
 import { RefreshCcw } from "lucide-react";
-import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { PrismDashboardShell } from "@prism/ui";
 import { useSupplierWorkspaceViewModel } from "../view-models/use-supplier-workspace-view-model";
@@ -63,9 +62,6 @@ export function SupplierWorkspaceView({ section: routeSection }: { section: Supp
           <Button variant="outline" size="icon" disabled={busy === "refresh"} onClick={() => void vm.refresh()} className="size-9 rounded-xl" aria-label="Refresh">
             <RefreshCcw className="size-3.5" />
           </Button>
-          <Badge variant="outline" className="hidden h-9 rounded-xl border-success/25 bg-success/8 px-3 text-success sm:inline-flex">
-            Approved
-          </Badge>
         </>
       }
       mobileActions={supplierMobileActions(section, setSection, () => void vm.signOut())}

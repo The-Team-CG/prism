@@ -1,3 +1,4 @@
+import { formatPortalDate } from "@prism/ui/format-date";
 import {
   CLIENT_PORTAL_VIEW_META,
   PORTAL_ROUTE_TO_NAV_ITEM,
@@ -68,7 +69,7 @@ export function clientShellDescription(input: {
   if (input.portalView) return CLIENT_PORTAL_VIEW_META[input.portalView].description;
   const portalDescription = PORTAL_DESCRIPTIONS[input.route];
   if (portalDescription) return portalDescription;
-  if (input.selectedEvent) return `${input.selectedEvent.clientName} - ${input.selectedEvent.eventDate}`;
+  if (input.selectedEvent) return `${input.selectedEvent.clientName} · ${formatPortalDate(input.selectedEvent.eventDate)}`;
   return "Portal opens after inquiry is accepted and conforme is signed.";
 }
 

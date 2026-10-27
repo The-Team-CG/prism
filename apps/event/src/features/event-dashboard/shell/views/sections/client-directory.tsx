@@ -1,23 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { formatPortalDate } from "@prism/ui/format-date";
 import { ArrowLeft, CircleUserRound, Search } from "lucide-react";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { StatusBadge } from "@/app/components/ui/status-badge";
-import { label } from "@/features/pmcm-kit";
+import { label, useListFilter } from "@/features/pmcm-kit";
 import type { EventClientRecord } from "../../model/event-dashboard-selectors";
 
 function clientStatus(client: EventClientRecord) {
-  return client.events.length ? "active" : "prospect";
+  return client.events.some((event) => !["completed", "cancelled", "closed"].includes(event.status)) ? "active" : client.events.length ? "past client" : "prospect";
 }
 
 /** Every client contact PMCM works with, one row each. */
 export function ClientDirectory({ clients, onOpenClient }: { clients: EventClientRecord[]; onOpenClient: (id: string) => void }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useListFilter("q");
   const needle = query.trim().toLowerCase();
   const rows = clients.filter((client) => `${client.name} ${client.contact ?? ""}`.toLowerCase().includes(needle));
   return (
     <div className="grid gap-4">
+      <p className="max-w-3xl text-sm leading-6 text-muted-foreground">Open a client to see their contact details, inquiries, events and recorded balance. A prospect has not yet had an event workspace.</p>
       <label className="relative w-full max-w-72">
         <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <input
@@ -28,7 +29,8 @@ export function ClientDirectory({ clients, onOpenClient }: { clients: EventClien
           className="h-9 w-full rounded-md border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
         />
       </label>
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <p role="status" className="text-xs text-muted-foreground">{rows.length} client{rows.length === 1 ? "" : "s"} shown</p>
+      <div className="overflow-x-auto rounded-lg border border-border bg-card">
         {rows.length === 0 ? (
           <div className="p-6">
             <EmptyState icon={CircleUserRound} title={needle ? "No client matches" : "No clients yet"} description={needle ? "Try a company or a contact's name." : "Clients appear here once PMCM logs or receives an inquiry."} />
@@ -48,7 +50,7 @@ export function ClientDirectory({ clients, onOpenClient }: { clients: EventClien
             <tbody className="divide-y divide-border">
               {rows.map((client) => (
                 <tr key={client.id} className="hover:bg-surface-raised">
-                  <td className="px-4 py-3 font-semibold text-foreground">{client.name}</td>
+                  <td className="px-4 py-3"><p className="font-semibold text-foreground">{client.name}</p>{client.contact ? <p className="mt-1 text-xs text-muted-foreground sm:hidden">{client.contact}</p> : null}<p className="mt-1 text-xs text-muted-foreground sm:hidden">{client.inquiries.length} inquiries</p></td>
                   <td className="hidden px-4 py-3 text-muted-foreground sm:table-cell">{client.contact ?? "–"}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{client.events.length}</td>
                   <td className="hidden px-4 py-3 text-right tabular-nums sm:table-cell">{client.inquiries.length}</td>
@@ -118,7 +120,7 @@ export function ClientDossier({
                 <li key={event.id} className="flex items-center justify-between gap-4 px-4 py-3">
                   <span className="min-w-0">
                     <span className="block truncate font-semibold text-foreground">{event.eventName}</span>
-                    <span className="block text-xs tabular-nums text-muted-foreground">{event.eventDate}</span>
+                    <span className="block text-xs text-muted-foreground">{formatPortalDate(event.eventDate)}</span>
                   </span>
                   <span className="flex items-center gap-3">
                     <StatusBadge status={event.status} />
