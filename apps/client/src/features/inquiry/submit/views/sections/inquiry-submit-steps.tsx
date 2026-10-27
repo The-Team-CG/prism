@@ -1,31 +1,12 @@
 "use client";
 
-import type { ReactNode } from "react";
-import {
-  ArrowRight,
-  CalendarDays,
-  CheckCircle2,
-  ChevronLeft,
-  LockKeyhole,
-  MessageSquareText,
-  Send,
-  ShieldCheck,
-  UserRound,
-  WalletCards,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, Send } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/app/components/ui/field";
 import { Input } from "@/app/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/app/components/ui/select";
 import { Textarea } from "@/app/components/ui/textarea";
+import { formatInquiryDate } from "../../model/inquiry-submit-rules";
+import { cn } from "@/app/components/ui/utils";
 import type { InquiryForm } from "../../model/inquiry-submit-types";
 import {
   INQUIRY_BUDGET_RANGES,
@@ -37,409 +18,185 @@ import {
   INQUIRY_VENUE_OPTIONS,
   INQUIRY_WIZARD_STEPS,
 } from "../../model/inquiry-submit-types";
+import { InquiryChoiceGroup } from "./inquiry-choice-group";
 
-const wizardSteps = INQUIRY_WIZARD_STEPS;
-const clientTypes = INQUIRY_CLIENT_TYPES;
-const eventTypes = INQUIRY_EVENT_TYPES;
-const dateOptions = INQUIRY_DATE_OPTIONS;
-const venueOptions = INQUIRY_VENUE_OPTIONS;
-const budgetRanges = INQUIRY_BUDGET_RANGES;
-const priorityOptions = INQUIRY_PRIORITY_OPTIONS;
-const referralSources = INQUIRY_REFERRAL_SOURCES;
-
-const compactControlClass =
-  "h-14 rounded-lg border-border bg-white/90 px-5 text-base shadow-sm placeholder:text-muted-foreground/75 focus-visible:border-primary/45 focus-visible:ring-primary/15";
-const compactSelectTriggerClass =
-  "h-14 rounded-lg border-border bg-white/90 px-5 text-base shadow-sm focus:border-primary/45 focus:ring-primary/15";
-const compactTextareaClass =
-  "min-h-[120px] rounded-lg border-border bg-white/90 px-5 py-4 text-base shadow-sm placeholder:text-muted-foreground/75 focus-visible:border-primary/45 focus-visible:ring-primary/15";
-const compactFieldGroupClass =
-  "gap-6 [&_[data-slot=field-description]]:text-base [&_[data-slot=field-label]]:text-base [&_[data-slot=field-label]]:font-black [&_[data-slot=field]]:gap-3";
+const controlClass = "h-11 rounded-lg border-border-strong bg-white px-3.5 text-base md:text-base";
 
 type InquiryUpdate = <K extends keyof InquiryForm>(key: K, value: InquiryForm[K]) => void;
+type InquiryStepProps = { form: InquiryForm; update: InquiryUpdate };
 
-type InquiryStepProps = {
-  form: InquiryForm;
-  update: InquiryUpdate;
-};
+const STEP_COPY = [
+  { title: "What are you planning?", intro: "Start with the event itself. A working name is fine." },
+  { title: "Where, and on what budget?", intro: "Rough answers help PMCM size the team and the venue." },
+  { title: "Who should PMCM reply to?", intro: "PMCM replies by email and may call to check details." },
+  { title: "Check it, then send it", intro: "This is the brief PMCM receives. Edit anything that is off." },
+] as const;
 
-function StepHeading({ title, description, serif = true }: { title: string; description: string; serif?: boolean }) {
-  return (
-    <div className="mb-10">
-      <h2 className={serif ? "prism-serif text-4xl font-black leading-tight text-ink" : "text-4xl font-black leading-tight text-ink"}>{title}</h2>
-      <p className="mt-3 text-lg leading-8 text-muted-foreground">{description}</p>
-    </div>
-  );
-}
-
-function SummaryItem({ label, value }: { label: string; value?: string }) {
-  return (
-    <div>
-      <p className="text-sm font-black text-foreground">{label}</p>
-      <p className="mt-2 text-base leading-7 text-muted-foreground">{value || "Not provided yet"}</p>
-    </div>
-  );
-}
-
-function SummarySection({
-  icon,
-  title,
-  children,
+function TextField({
+  id,
+  label,
+  value,
+  onChange,
+  type = "text",
+  required = false,
+  placeholder,
+  hint,
+  min,
+  inputMode,
+  autoComplete,
 }: {
-  icon: ReactNode;
-  title: string;
-  children: ReactNode;
+  id: keyof InquiryForm;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  required?: boolean;
+  placeholder?: string;
+  hint?: string;
+  min?: string;
+  inputMode?: "numeric" | "tel" | "email" | "text";
+  autoComplete?: string;
 }) {
   return (
-    <section className="rounded-lg border border-border bg-background/95 p-5 shadow-sm">
-      <div className="grid gap-5 sm:grid-cols-[4.5rem_minmax(0,1fr)]">
-        <span className="grid size-14 place-items-center rounded-lg bg-primary/10 text-primary">{icon}</span>
-        <div>
-          <h3 className="text-lg font-black text-foreground">{title}</h3>
-          {children}
-        </div>
+    <div className="grid gap-2">
+      <label htmlFor={id} className="text-sm font-semibold text-foreground">
+        {label}
+        {required ? null : <span className="font-normal text-muted-foreground"> (optional)</span>}
+      </label>
+      <Input
+        id={id}
+        type={type}
+        value={value}
+        min={min}
+        inputMode={inputMode}
+        autoComplete={autoComplete}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        required={required}
+        aria-describedby={hint ? `${id}-hint` : undefined}
+        className={controlClass}
+      />
+      {hint ? (
+        <p id={`${id}-hint`} className="text-sm text-muted-foreground">
+          {hint}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function EventStep({ form, update, minDate }: InquiryStepProps & { minDate: string }) {
+  return (
+    <div className="grid gap-7">
+      <InquiryChoiceGroup label="What kind of event?" options={INQUIRY_EVENT_TYPES} value={form.eventType} onChange={(value) => update("eventType", value)} required />
+      <TextField id="eventName" label="Event name" value={form.eventName} onChange={(value) => update("eventName", value)} placeholder="For example, Annual sales kickoff" required />
+      <div className="grid gap-7 md:grid-cols-2">
+        <TextField id="eventDate" label="Preferred date" type="date" min={minDate} value={form.eventDate} onChange={(value) => update("eventDate", value)} required />
+        <TextField id="expectedGuests" label="Expected guests" type="number" min="1" inputMode="numeric" value={form.expectedGuests} onChange={(value) => update("expectedGuests", value)} placeholder="150" required />
       </div>
-    </section>
+      <InquiryChoiceGroup label="How fixed is the date?" options={INQUIRY_DATE_OPTIONS} value={form.dateFlexibility} onChange={(value) => update("dateFlexibility", value)} />
+    </div>
   );
 }
 
-function organizationSummary(form: InquiryForm) {
-  return form.companyName || form.clientType;
-}
-
-function notesPreview(form: InquiryForm) {
-  return form.message || "No additional notes provided.";
-}
-
-function budgetRangeButtonClass(selected: boolean) {
-  if (selected) {
-    return "h-[72px] rounded-lg border border-primary bg-primary text-base font-black text-primary-foreground shadow-[0_14px_36px_rgba(202,18,96,0.18)]";
-  }
-  return "h-[72px] rounded-lg border border-border bg-background text-base font-black text-foreground transition hover:border-primary/45 hover:text-primary";
-}
-
-function ContactStep({ form, update }: InquiryStepProps) {
+function VenueBudgetStep({ form, update }: InquiryStepProps) {
   return (
-    <section>
-      <StepHeading title="Contact Info" description="Where should PMCM send follow-up details?" serif={false} />
-      <FieldGroup className={compactFieldGroupClass}>
-        <div className="grid gap-x-12 gap-y-7 md:grid-cols-2">
-          <Field>
-            <FieldLabel htmlFor="clientName">Full Name</FieldLabel>
-            <Input
-              id="clientName"
-              value={form.clientName}
-              onChange={(event) => update("clientName", event.target.value)}
-              placeholder="Enter full name"
-              required
-              className={compactControlClass}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="companyName">Company / Organization</FieldLabel>
-            <Input
-              id="companyName"
-              value={form.companyName}
-              onChange={(event) => update("companyName", event.target.value)}
-              placeholder="Enter company / organization"
-              className={compactControlClass}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="email">Email Address</FieldLabel>
-            <Input
-              id="email"
-              type="email"
-              value={form.email}
-              onChange={(event) => update("email", event.target.value)}
-              placeholder="Enter email address"
-              required
-              className={compactControlClass}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="phoneNumber">Phone Number</FieldLabel>
-            <Input
-              id="phoneNumber"
-              value={form.phoneNumber}
-              onChange={(event) => update("phoneNumber", event.target.value)}
-              placeholder="Enter phone number"
-              required
-              className={compactControlClass}
-            />
-          </Field>
-        </div>
-        <Field>
-          <FieldLabel>Client Type</FieldLabel>
-          <Select value={form.clientType} onValueChange={(value) => update("clientType", value)}>
-            <SelectTrigger className={compactSelectTriggerClass}>
-              <SelectValue placeholder="Select client type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {clientTypes.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {type}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field>
-          <FieldLabel>Referral Source</FieldLabel>
-          <Select value={form.source} onValueChange={(value) => update("source", value)}>
-            <SelectTrigger className={compactSelectTriggerClass}>
-              <SelectValue placeholder="How did you hear about us?" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {referralSources.map((sourceOption) => (
-                  <SelectItem key={sourceOption} value={sourceOption}>
-                    {sourceOption}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </Field>
-      </FieldGroup>
-    </section>
+    <div className="grid gap-7">
+      <TextField id="venueCity" label="Venue or city" value={form.venueCity} onChange={(value) => update("venueCity", value)} placeholder="For example, Makati" hint="A city is enough if the venue is not final." />
+      <InquiryChoiceGroup label="Venue status" options={INQUIRY_VENUE_OPTIONS} value={form.venueStatus} onChange={(value) => update("venueStatus", value)} />
+      <InquiryChoiceGroup label="Budget range" options={INQUIRY_BUDGET_RANGES} value={form.budgetRange} onChange={(value) => update("budgetRange", value)} required />
+      <InquiryChoiceGroup label="How soon do you need a reply?" options={INQUIRY_PRIORITY_OPTIONS} value={form.inquiryPriority} onChange={(value) => update("inquiryPriority", value)} required />
+      <div className="grid gap-2">
+        <label htmlFor="message" className="text-sm font-semibold text-foreground">
+          Anything else PMCM should know <span className="font-normal text-muted-foreground">(optional)</span>
+        </label>
+        <Textarea
+          id="message"
+          value={form.message}
+          onChange={(event) => update("message", event.target.value)}
+          placeholder="Goals, theme, program, timing, or concerns."
+          rows={4}
+          maxLength={1000}
+          className="min-h-28 rounded-lg border-border-strong bg-white px-3.5 py-3 text-base md:text-base"
+        />
+        <p className="text-right text-sm tabular-nums text-muted-foreground">{form.message.length} / 1000</p>
+      </div>
+    </div>
   );
 }
 
-function EventDetailsStep({ form, update, minDate }: InquiryStepProps & { minDate: string }) {
+function DetailsStep({ form, update }: InquiryStepProps) {
   return (
-    <section>
-      <StepHeading title="Event Details" description="What event should PMCM review?" />
-      <FieldGroup className={compactFieldGroupClass}>
-        <div className="grid gap-x-12 gap-y-7 md:grid-cols-2">
-          <Field>
-            <FieldLabel htmlFor="eventName">Event Name</FieldLabel>
-            <Input
-              id="eventName"
-              value={form.eventName}
-              onChange={(event) => update("eventName", event.target.value)}
-              placeholder="Enter event name"
-              required
-              className={compactControlClass}
-            />
-          </Field>
-          <Field>
-            <FieldLabel>Event Type</FieldLabel>
-            <Select value={form.eventType} onValueChange={(value) => update("eventType", value)}>
-              <SelectTrigger className={compactSelectTriggerClass}>
-                <SelectValue placeholder="Select event type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {eventTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="eventDate">Preferred Date</FieldLabel>
-            <Input
-              id="eventDate"
-              type="date"
-              min={minDate}
-              value={form.eventDate}
-              onChange={(event) => update("eventDate", event.target.value)}
-              required
-              className={compactControlClass}
-            />
-          </Field>
-          <Field>
-            <FieldLabel>Date Flexibility</FieldLabel>
-            <Select value={form.dateFlexibility} onValueChange={(value) => update("dateFlexibility", value)}>
-              <SelectTrigger className={compactSelectTriggerClass}>
-                <SelectValue placeholder="Select date flexibility" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {dateOptions.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </Field>
-        </div>
-        <Field>
-          <FieldLabel htmlFor="expectedGuests">Expected Number of Guests</FieldLabel>
-          <Input
-            id="expectedGuests"
-            type="number"
-            min="1"
-            value={form.expectedGuests}
-            onChange={(event) => update("expectedGuests", event.target.value)}
-            placeholder="e.g., 150"
-            required
-            className={compactControlClass}
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="venueCity">Venue or City</FieldLabel>
-          <Input
-            id="venueCity"
-            value={form.venueCity}
-            onChange={(event) => update("venueCity", event.target.value)}
-            placeholder="e.g., Manila, Philippines"
-            className={compactControlClass}
-          />
-          <FieldDescription>A general city is enough if the venue is not final.</FieldDescription>
-        </Field>
-        <Field>
-          <FieldLabel>Venue Status</FieldLabel>
-          <Select value={form.venueStatus} onValueChange={(value) => update("venueStatus", value)}>
-            <SelectTrigger className={compactSelectTriggerClass}>
-              <SelectValue placeholder="Confirmed, shortlisted, or still looking" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {venueOptions.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </Field>
-      </FieldGroup>
-    </section>
+    <div className="grid gap-7">
+      <div className="grid gap-7 md:grid-cols-2">
+        <TextField id="clientName" label="Full name" value={form.clientName} onChange={(value) => update("clientName", value)} autoComplete="name" required />
+        <TextField id="companyName" label="Company or organisation" value={form.companyName} onChange={(value) => update("companyName", value)} autoComplete="organization" />
+        <TextField id="email" label="Email" type="email" inputMode="email" value={form.email} onChange={(value) => update("email", value)} autoComplete="email" required />
+        <TextField id="phoneNumber" label="Mobile number" type="tel" inputMode="tel" value={form.phoneNumber} onChange={(value) => update("phoneNumber", value)} placeholder="0917 123 4567" autoComplete="tel" required />
+      </div>
+      <InquiryChoiceGroup label="You are booking as" options={INQUIRY_CLIENT_TYPES} value={form.clientType} onChange={(value) => update("clientType", value)} required />
+      <InquiryChoiceGroup label="How did you hear about PMCM?" options={INQUIRY_REFERRAL_SOURCES} value={form.source} onChange={(value) => update("source", value)} required />
+    </div>
   );
 }
 
-function BudgetNotesStep({ form, update }: InquiryStepProps) {
+function ReviewStep({
+  form,
+  update,
+  error,
+  onEdit,
+}: InquiryStepProps & { error: string | null; onEdit: (step: number) => void }) {
+  const groups = [
+    { step: 0, title: "Event", rows: [["Name", form.eventName], ["Type", form.eventType], ["Date", formatInquiryDate(form.eventDate)], ["Date flexibility", form.dateFlexibility], ["Guests", form.expectedGuests]] },
+    { step: 1, title: "Venue and budget", rows: [["Venue or city", form.venueCity], ["Venue status", form.venueStatus], ["Budget", form.budgetRange], ["Reply needed", form.inquiryPriority], ["Notes", form.message]] },
+    { step: 2, title: "Your details", rows: [["Name", form.clientName], ["Organisation", form.companyName], ["Email", form.email], ["Mobile", form.phoneNumber], ["Booking as", form.clientType], ["Heard via", form.source]] },
+  ] as const;
   return (
-    <section>
-      <StepHeading title="Budget & Notes" description="Help PMCM understand the scale and urgency." />
-      <FieldGroup className={compactFieldGroupClass}>
-        <Field>
-          <FieldLabel>Budget range</FieldLabel>
-          <div className="grid gap-4 md:grid-cols-3">
-            {budgetRanges.map((range) => (
-              <button
-                key={range}
-                type="button"
-                onClick={() => update("budgetRange", range)}
-                className={budgetRangeButtonClass(form.budgetRange === range)}
-              >
-                {range}
+    <div className="grid gap-6">
+      <div className="grid gap-3">
+        {groups.map((group) => (
+          <section key={group.title} aria-label={group.title} className="rounded-lg bg-surface-raised px-4 py-4 sm:px-5">
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className="text-sm font-semibold text-foreground">{group.title}</h3>
+              <button type="button" onClick={() => onEdit(group.step)} className="text-sm font-semibold text-primary hover:text-primary-strong">
+                Edit<span className="sr-only"> {group.title.toLowerCase()}</span>
               </button>
-            ))}
-          </div>
-        </Field>
-        <Field>
-          <FieldLabel>Inquiry Priority</FieldLabel>
-          <Select value={form.inquiryPriority} onValueChange={(value) => update("inquiryPriority", value)}>
-            <SelectTrigger className={compactSelectTriggerClass}>
-              <SelectValue placeholder="Standard, urgent, or date-sensitive" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {priorityOptions.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="message">Additional Notes</FieldLabel>
-          <Textarea
-            id="message"
-            value={form.message}
-            onChange={(event) => update("message", event.target.value)}
-            placeholder="Share goals, concerns, theme, venue context, timing, or anything PMCM should know."
-            rows={5}
-            maxLength={1000}
-            className={compactTextareaClass}
-          />
-          <FieldDescription className="text-right">{form.message.length} / 1000</FieldDescription>
-        </Field>
-        <div className="flex items-start gap-5 rounded-lg border border-primary/15 bg-primary/5 p-5 text-base leading-7 text-muted-foreground">
-          <ShieldCheck className="mt-1 size-8 shrink-0 text-primary" />
-          <p>By submitting this inquiry, you agree that PMCM may contact you about this event and process these details for review.</p>
-        </div>
-      </FieldGroup>
-    </section>
-  );
-}
-
-function ConfirmInquiryStep({ form, update, error }: InquiryStepProps & { error: string | null }) {
-  return (
-    <section>
-      <StepHeading title="Confirm Inquiry" description="PMCM will review these details and contact you with next steps." />
-      <div className="grid gap-4">
-        <SummarySection icon={<UserRound className="size-7" />} title="Contact summary">
-          <div className="mt-4 grid gap-5 md:grid-cols-4">
-            <SummaryItem label="Full Name" value={form.clientName} />
-            <SummaryItem label="Email" value={form.email} />
-            <SummaryItem label="Phone" value={form.phoneNumber} />
-            <SummaryItem label="Organization" value={organizationSummary(form)} />
-          </div>
-        </SummarySection>
-
-        <SummarySection icon={<CalendarDays className="size-7" />} title="Event summary">
-          <div className="mt-4 grid gap-5 md:grid-cols-3">
-            <SummaryItem label="Event Name" value={form.eventName} />
-            <SummaryItem label="Event Type" value={form.eventType} />
-            <SummaryItem label="Preferred Date" value={form.eventDate} />
-            <SummaryItem label="Expected Guests" value={form.expectedGuests} />
-            <SummaryItem label="Venue or City" value={form.venueCity} />
-            <SummaryItem label="Venue Status" value={form.venueStatus} />
-          </div>
-        </SummarySection>
-
-        <SummarySection icon={<WalletCards className="size-7" />} title="Budget summary">
-          <div className="mt-4 grid gap-5 md:grid-cols-2">
-            <SummaryItem label="Estimated Budget" value={form.budgetRange} />
-            <SummaryItem label="Inquiry Priority" value={form.inquiryPriority} />
-          </div>
-        </SummarySection>
-
-        <SummarySection icon={<MessageSquareText className="size-7" />} title="Notes preview">
-          <p className="mt-3 text-base leading-7 text-muted-foreground">{notesPreview(form)}</p>
-        </SummarySection>
+            </div>
+            <dl className="mt-3 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+              {group.rows.map(([label, value]) => (
+                <div key={label} className={cn("grid grid-cols-[6.25rem_minmax(0,1fr)] gap-3 text-sm sm:grid-cols-[7.5rem_minmax(0,1fr)]", label === "Notes" && "sm:col-span-2")}>
+                  <dt className="text-muted-foreground">{label}</dt>
+                  <dd className={cn("[overflow-wrap:anywhere]", value ? "text-foreground" : "text-muted-foreground")}>{value || "–"}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ))}
       </div>
 
-      <label className="mt-5 flex items-start gap-3 text-base leading-7 text-foreground">
+      <label className="flex items-start gap-3 text-base text-foreground">
         <input
           type="checkbox"
           checked={form.privacyConsentAccepted}
           onChange={(event) => update("privacyConsentAccepted", event.target.checked)}
           required
-          className="mt-1 size-5 accent-primary"
+          className="mt-1 size-5 shrink-0 accent-primary"
         />
-        <span>I confirm these inquiry details are accurate enough for PMCM review.</span>
+        <span>
+          PMCM may use these details to review this inquiry and contact me about it.{" "}
+          <a href="/privacy" className="font-semibold text-primary hover:text-primary-strong">
+            Privacy notice
+          </a>
+        </span>
       </label>
-      <div className="mt-2 flex items-start gap-3 text-base leading-7 text-muted-foreground">
-        <LockKeyhole className="mt-1 size-5 shrink-0 text-muted-foreground" />
-        <span>PMCM will use this information only to review and follow up on this event inquiry.</span>
-      </div>
 
       {error ? (
-        <Alert variant="destructive" className="mt-4 rounded-lg">
-          <AlertTitle>Submission failed</AlertTitle>
+        <Alert variant="destructive" className="rounded-lg">
+          <AlertTitle>The inquiry was not sent</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
-      <div className="ml-auto mt-4 flex w-full max-w-[560px] items-center gap-3 rounded-md border border-success/20 bg-success/8 px-5 py-3 text-sm font-medium text-success">
-        <CheckCircle2 className="size-5 shrink-0" />
-        After submission, PMCM sends next steps if the inquiry is accepted.
-      </div>
-    </section>
+    </div>
   );
 }
 
@@ -449,49 +206,71 @@ export function InquiryStepBody({
   update,
   minDate,
   error,
-}: InquiryStepProps & { currentStep: number; minDate: string; error: string | null }) {
-  if (currentStep === 0) return <ContactStep form={form} update={update} />;
-  if (currentStep === 1) return <EventDetailsStep form={form} update={update} minDate={minDate} />;
-  if (currentStep === 2) return <BudgetNotesStep form={form} update={update} />;
-  if (currentStep === 3) return <ConfirmInquiryStep form={form} update={update} error={error} />;
-  return null;
+  onEdit,
+}: InquiryStepProps & { currentStep: number; minDate: string; error: string | null; onEdit: (step: number) => void }) {
+  return (
+    <section aria-labelledby="inquiry-step-title">
+      <h2 id="inquiry-step-title" className="font-heading text-xl font-bold text-foreground">
+        {STEP_COPY[currentStep]?.title}
+      </h2>
+      <p className="mt-1 text-base text-muted-foreground">{STEP_COPY[currentStep]?.intro}</p>
+      <div className="mt-7">
+        {currentStep === 0 ? <EventStep form={form} update={update} minDate={minDate} /> : null}
+        {currentStep === 1 ? <VenueBudgetStep form={form} update={update} /> : null}
+        {currentStep === 2 ? <DetailsStep form={form} update={update} /> : null}
+        {currentStep === 3 ? <ReviewStep form={form} update={update} error={error} onEdit={onEdit} /> : null}
+      </div>
+    </section>
+  );
+}
+
+function listInWords(items: string[]) {
+  if (items.length <= 1) return items.join("");
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
 }
 
 export function InquiryWizardFooter({
   currentStep,
   busy,
-  canSubmit,
+  missing,
   onBack,
   onContinue,
 }: {
   currentStep: number;
   busy: boolean;
-  canSubmit: boolean;
+  missing: string[];
   onBack: () => void;
   onContinue: () => void;
 }) {
-  const isLast = currentStep >= wizardSteps.length - 1;
+  const isLast = currentStep >= INQUIRY_WIZARD_STEPS.length - 1;
   return (
-    <div className="flex min-h-[148px] items-center justify-between gap-3 border-t border-border bg-card px-6 py-7 sm:px-10 lg:px-12">
+    <div className="mt-8">
+      {missing.length ? (
+        <p role="alert" className="mb-4 rounded-lg bg-attention-soft px-4 py-3 text-sm font-medium text-attention">
+          To continue, add {listInWords(missing)}.
+        </p>
+      ) : null}
+      <div className="flex items-center justify-between gap-3">
       {currentStep > 0 ? (
-        <Button type="button" variant="outline" onClick={onBack} disabled={busy} className="h-14 rounded-lg px-8 text-base font-black">
-          <ChevronLeft className="size-5" />
+        <Button type="button" variant="ghost" onClick={onBack} disabled={busy} className="h-11 px-3 text-base shadow-none">
+          <ArrowLeft className="size-4" />
           Back
         </Button>
       ) : (
         <span />
       )}
       {isLast ? (
-        <Button type="submit" disabled={!canSubmit || busy} className="h-[68px] min-w-[264px] rounded-lg px-12 text-lg font-black">
-          {busy ? "Submitting..." : "Submit Inquiry"}
-          <Send className="size-6" />
+        <Button type="submit" disabled={busy} className="h-11 rounded-lg px-6 text-base shadow-none">
+          {busy ? "Sending…" : "Send inquiry"}
+          <Send className="size-4" />
         </Button>
       ) : (
-        <Button type="button" onClick={onContinue} disabled={busy} className="h-[68px] min-w-[264px] rounded-lg px-12 text-lg font-black">
+        <Button type="button" onClick={onContinue} disabled={busy} className="h-11 rounded-lg px-6 text-base shadow-none">
           Continue
-          <ArrowRight className="size-6" />
+          <ArrowRight className="size-4" />
         </Button>
       )}
+      </div>
     </div>
   );
 }
