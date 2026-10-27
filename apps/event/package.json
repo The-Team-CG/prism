@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "node ../../scripts/clean-next-dev.cjs && tsc --noEmit",
-    "lint": "cd ../.. && eslint --config eslint.config.mjs \"apps/event/src/**/*.{ts,tsx}\""
+    "lint": "cd ../.. && eslint --config eslint.config.mjs \"apps/event/src/**/*.{ts,tsx}\"",
+    "test:ci": "vitest run --coverage"
   },
   "dependencies": {
     "@prism/api-client": "*",

@@ -1,8 +1,11 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": ["tsconfig.base.json", "eslint.config.mjs", ".nvmrc", "scripts/clean-next-dev.cjs"],
+  "globalEnv": ["CI", "NODE_ENV"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "!**/*.test.{ts,tsx,mjs}", "!**/*.md", "!coverage/**"],
       "env": [
         "PRISM_DOCKER_STANDALONE",
         "PRISM_VERCEL_SERVICES",
@@ -14,11 +17,21 @@
       "outputs": [".next/**", "dist/**", "!.next/cache/**"]
     },
     "typecheck": {
-      "dependsOn": ["^build", "^typecheck"],
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "lint": {
+      "dependsOn": ["^build"],
       "outputs": []
     },
     "test": {
       "dependsOn": ["^build"],
+      "env": ["P0_TEST_DATABASE_URL"],
+      "outputs": ["coverage/**"]
+    },
+    "test:ci": {
+      "dependsOn": ["^build"],
+      "env": ["P0_TEST_DATABASE_URL"],
       "outputs": ["coverage/**"]
     },
     "dev": {
