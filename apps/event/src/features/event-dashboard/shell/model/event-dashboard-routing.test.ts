@@ -10,6 +10,7 @@ import {
   routeStateForSidebarItem,
   routeStateFromPath,
   routeLoadingShellCopy,
+  sectionNeedsPmcmWorkspaceState,
   routeShellCopy,
 } from "./event-dashboard-routing";
 
@@ -282,5 +283,13 @@ describe("event-dashboard-routing", () => {
     for (const [pathname, expected] of cases) {
       expect(routeStateFromPath(pathname)).toEqual(expected);
     }
+  });
+});
+
+describe("section readiness", () => {
+  it("renders scoped-read sections without waiting for the broad PMCM workspace state", () => {
+    // Dashboard and Command Inbox load only approvals and the inbox; gating them on the broad state left them loading forever.
+    for (const section of ["dashboard", "command-inbox", "suppliers"] as const) expect(sectionNeedsPmcmWorkspaceState(section)).toBe(false);
+    for (const section of ["clients", "inquiries", "events", "finance"] as const) expect(sectionNeedsPmcmWorkspaceState(section)).toBe(true);
   });
 });

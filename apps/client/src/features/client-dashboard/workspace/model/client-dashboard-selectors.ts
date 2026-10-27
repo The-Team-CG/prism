@@ -126,3 +126,12 @@ export function selectClientDashboardActions(
     })
     .map(actionCenterItemToDashboardAction);
 }
+
+/**
+ * Account-level pages (billing, approvals) show one event's data. With several events and no event chosen,
+ * the client must choose; the page never silently uses the first event.
+ */
+export function clientAccountEventChoiceRequired(events: Pick<PrismEvent, "id">[], selectedEventId?: string | null): boolean {
+  if (events.length <= 1) return false;
+  return !events.some((event) => event.id === selectedEventId);
+}
