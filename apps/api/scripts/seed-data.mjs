@@ -44,7 +44,7 @@ export async function seedProfile(client, { profile, anchor, mode = 'apply', pas
     const inspected = profile === 'accounts' ? accounts : await inspectRows(client, portalRows, anchor);
     const missing = inspected.filter(item => !item.present);
     // Resolve every required password before the first write. Existing users are never updated.
-    const passwords = new Map(missing.filter(item => item.row.passwordKey).map(item => [item.key, readOnly ? '' : passwordFor(item.row.passwordKey)]));
+    const passwords = new Map(await Promise.all(missing.filter(item => item.row.passwordKey).map(async item => [item.key, readOnly ? '' : await passwordFor(item.row.passwordKey)])));
     let inserted = 0;
     if (!readOnly) {
       for (const { row, key } of missing) {
