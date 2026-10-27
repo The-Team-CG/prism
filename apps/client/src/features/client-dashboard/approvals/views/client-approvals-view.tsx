@@ -8,6 +8,7 @@ import { PageHeader } from "../../workspace/shared";
 import { formatStatusLabel } from "../../workspace/shared";
 import { CLIENT_PORTAL_VIEW_META } from "../../workspace/shared";
 import { useClientWorkspace } from "../../workspace/shared";
+import { ClientAccountEventPicker, useClientAccountEventChoiceRequired } from "../../workspace/views/sections/client-account-event-picker";
 import {
   approvalStatusKind,
   buildApprovalItems,
@@ -76,6 +77,7 @@ export function ClientApprovalsView() {
     portalView,
   );
   const showHeader = !isEventScopedView && Boolean(portalViewMeta);
+  const choiceRequired = useClientAccountEventChoiceRequired() && !isEventScopedView;
   const showNoEvent = !selectedEvent && !isEventScopedView;
 
   return (
@@ -83,7 +85,8 @@ export function ClientApprovalsView() {
       {showHeader && portalViewMeta ? (
         <PageHeader eyebrow="Client approvals" title={portalViewMeta.title} description={portalViewMeta.description} />
       ) : null}
-      {showNoEvent ? (
+      {!isEventScopedView ? <ClientAccountEventPicker purpose="approvals" /> : null}
+      {choiceRequired ? null : showNoEvent ? (
         <ApprovalsEmpty
           title="No active event"
           description="Select an event from My Events to view approval items."
