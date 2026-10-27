@@ -280,8 +280,11 @@ describe("supplier-workspace-rules", () => {
     expect(greetingForHour(14)).toBe("Good afternoon");
     expect(greetingForHour(20)).toBe("Good evening");
     expect(firstNameFrom("Ops Lead")).toBe("Ops");
-    expect(quoteSubmitSuccessNotice(true)).toBe("Quote revision submitted.");
-    expect(quoteSubmitSuccessNotice(false)).toBe("Quote submitted.");
+    expect(quoteSubmitSuccessNotice(true)).toMatch(/^Revised quote sent to PMCM for review\./);
+    expect(quoteSubmitSuccessNotice(false)).toMatch(/^Quote sent to PMCM for review\./);
+    for (const revised of [true, false]) {
+      expect(quoteSubmitSuccessNotice(revised)).toContain("Your booking is not confirmed by this submission.");
+    }
   });
 
   it("builds dashboard greeting and quick-nav copy", () => {
