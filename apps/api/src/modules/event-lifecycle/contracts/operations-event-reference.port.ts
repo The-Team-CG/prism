@@ -5,7 +5,6 @@ export type EventReadAccessReference = {
   id: string;
   clientName: string;
   clientPortalStatus: string;
-  clientEmail: string | null;
   inquiry: { email: string } | null;
 };
 

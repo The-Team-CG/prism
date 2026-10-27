@@ -149,7 +149,7 @@ describe('OperationsEventReferenceService', () => {
   });
 
   it('returns only the event fields needed for client read authorization', async () => {
-    const findUnique = vi.fn(async () => ({ id: event.id, clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: null, inquiry: { email: 'client@example.test' } }));
+    const findUnique = vi.fn(async () => ({ id: event.id, clientName: 'Client', clientPortalStatus: 'unlocked', inquiry: { email: 'client@example.test' } }));
     const service = new OperationsEventReferenceService({ opsEvent: { findUnique } } as never);
 
     await expect(service.findEventReadAccess(event.id)).resolves.toMatchObject({
@@ -160,7 +160,7 @@ describe('OperationsEventReferenceService', () => {
     });
     expect(findUnique).toHaveBeenCalledWith({
       where: { id: event.id },
-      select: { id: true, clientName: true, clientPortalStatus: true, clientEmail: true, inquiry: { select: { email: true } } },
+      select: { id: true, clientName: true, clientPortalStatus: true, inquiry: { select: { email: true } } },
     });
   });
 
