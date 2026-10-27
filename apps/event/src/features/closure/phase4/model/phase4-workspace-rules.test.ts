@@ -26,8 +26,8 @@ describe("phase4-workspace-rules", () => {
   });
 
   it("maps status tones and rule layers", () => {
-    expect(phase4StatusTone("approved")).toContain("emerald");
-    expect(phase4StatusTone("open")).toContain("amber");
+    expect(phase4StatusTone("approved")).toContain("success");
+    expect(phase4StatusTone("open")).toContain("attention");
     expect(phase4RuleLayer("watch_out")).toBe("Should-Fix");
     expect(phase4RuleLayer("must_fix")).toBe("Must-Fix");
   });
