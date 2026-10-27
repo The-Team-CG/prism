@@ -130,22 +130,30 @@ function NavItemRow({ item, activeId, onSelect }: { item: PrismNavItem; activeId
           <ChevronRight aria-hidden="true" className={cn("ml-auto size-3.5 text-muted-foreground transition-transform", open && "rotate-90")} />
         ) : null}
       </SidebarMenuButton>
-      {item.badge !== undefined && item.badge !== "" && !hasSub ? <SidebarMenuBadge>{item.badge}</SidebarMenuBadge> : null}
-      {hasSub && open ? (
-        <SidebarMenuSub>
-          {item.subItems?.map((sub) => (
-            <SidebarMenuSubItem key={sub.id}>
-              <SidebarMenuSubButton asChild isActive={sub.id === activeId}>
-                <button type="button" disabled={sub.disabled} onClick={() => onSelect(sub.id)} className="w-full">
-                  <span>{sub.label}</span>
-                  {sub.badge !== undefined && sub.badge !== "" ? <span className="ml-auto tabular-nums text-muted-foreground">{sub.badge}</span> : null}
-                </button>
-              </SidebarMenuSubButton>
-            </SidebarMenuSubItem>
-          ))}
-        </SidebarMenuSub>
-      ) : null}
+      {hasBadge(item.badge) && !hasSub ? <SidebarMenuBadge>{item.badge}</SidebarMenuBadge> : null}
+      {hasSub && open ? <NavSubItems items={item.subItems ?? []} activeId={activeId} onSelect={onSelect} /> : null}
     </SidebarMenuItem>
+  );
+}
+
+function hasBadge(badge: PrismNavItem["badge"]) {
+  return badge !== undefined && badge !== "";
+}
+
+function NavSubItems({ items, activeId, onSelect }: { items: NonNullable<PrismNavItem["subItems"]>; activeId: string; onSelect: (id: string) => void }) {
+  return (
+    <SidebarMenuSub>
+      {items.map((sub) => (
+        <SidebarMenuSubItem key={sub.id}>
+          <SidebarMenuSubButton asChild isActive={sub.id === activeId}>
+            <button type="button" disabled={sub.disabled} onClick={() => onSelect(sub.id)} className="w-full">
+              <span>{sub.label}</span>
+              {hasBadge(sub.badge) ? <span className="ml-auto tabular-nums text-muted-foreground">{sub.badge}</span> : null}
+            </button>
+          </SidebarMenuSubButton>
+        </SidebarMenuSubItem>
+      ))}
+    </SidebarMenuSub>
   );
 }
 
