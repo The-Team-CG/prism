@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Clients choose an event before opening its files, billing or messages. Messages show the available conversations and keep each draft while switching; retries retain the same request key. The file page no longer invents sizes or folder activity, and older folder links open the unified file page. Owners A (Maxine), C (Ethan) and D (Anthony).
+
 - The guest pass puts check-in and event details first and offers feedback when the event's seven-day feedback window is open. Unavailable media upload controls have been removed. Owners A (Maxine), C (Ethan) and D (Anthony).
 
 - PMCM event work starts with an overview, while planning, supplier, finance and live-operation controls are grouped by their task. Coordinators can choose an assigned event and open separate shift, task, issue, run-sheet and assignment views; their selection survives reload and navigation. Client proposal reviews load again because event authorization reads the inquiry email from the actual event model. Owners A (Maxine), B (Francis) and D (Anthony).
