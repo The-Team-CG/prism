@@ -18,10 +18,10 @@ export function SupplierPerformanceSummary({ profile }: { profile: PrismPmcmSupp
     </div>
     <div className="space-y-1.5">
       {metrics.map((metric) => <div key={metric.label}>
-        <div className="mb-1 flex items-center justify-between gap-3 text-[11px]"><span>{metric.label}</span><span className="font-semibold">{total ? `${metric.count} / ${total}` : "No records"}</span></div>
+        <div className="mb-1 flex items-center justify-between gap-3 text-2xs"><span>{metric.label}</span><span className="font-semibold">{total ? `${metric.count} / ${total}` : "No records"}</span></div>
         <SegmentedMeter value={total ? metric.count : null} max={total} tone={metric.tone} segments={60} />
       </div>)}
     </div>
-    {certifications.unknown ? <p className="text-[11px] text-muted-foreground">Includes {certifications.unknown} document{certifications.unknown === 1 ? "" : "s"} with no verification status.</p> : null}
+    {certifications.unknown ? <p className="text-2xs text-muted-foreground">Includes {certifications.unknown} document{certifications.unknown === 1 ? "" : "s"} with no verification status.</p> : null}
   </section>;
 }

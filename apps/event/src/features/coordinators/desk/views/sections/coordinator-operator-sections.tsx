@@ -71,10 +71,10 @@ export function CoordinatorTaskQueue({ roleView, taskActions }: { roleView: Pris
     <CCard>
       <CCardHeader>
         <div className="flex items-center gap-2">
-          <ClipboardList className="size-4 text-(--prism-signal)" />
+          <ClipboardList className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Role queue</h3>
           {roleView.tasks.length > 0 && (
-            <span className="ml-auto rounded-full bg-(--prism-signal)/10 px-2 py-0.5 text-[10px] font-bold text-(--prism-signal)">{roleView.tasks.length}</span>
+            <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-3xs font-bold text-primary">{roleView.tasks.length}</span>
           )}
         </div>
       </CCardHeader>
@@ -134,7 +134,7 @@ function CoordinatorOperatorControls({ roleView, reassignment, operatorActions }
     <CCard>
       <CCardHeader>
         <div className="flex items-center gap-2">
-          <UserCheck className="size-4 text-(--prism-signal)" />
+          <UserCheck className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Operator controls</h3>
         </div>
       </CCardHeader>
@@ -230,8 +230,8 @@ function DelegatedAttendanceList({ roleView, operatorActions }: { roleView: Pris
         <DelegatedAttendanceRow key={item.id} item={item} busy={operatorActions.busy} onMark={(choice) => mark(item, choice)} />
       ))}
       {confirmingTarget ? (
-        <div className="rounded-md border border-(--prism-danger)/25 bg-(--prism-danger)/8 px-3 py-3">
-          <p className="text-xs font-bold text-(--prism-danger)">
+        <div className="rounded-md border border-danger/25 bg-danger/8 px-3 py-3">
+          <p className="text-xs font-bold text-danger">
             Mark {confirmingTarget.coordinatorName} absent? This adds a permanent reliability note to their profile.
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -273,7 +273,7 @@ function CoordinatorSupplierChecks({ roleView, actions }: { roleView: PrismCoord
     <CCard>
       <CCardHeader>
         <div className="flex items-center gap-2">
-          <Truck className="size-4 text-(--prism-signal)" />
+          <Truck className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Supplier setup checks</h3>
         </div>
       </CCardHeader>

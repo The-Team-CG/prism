@@ -20,14 +20,14 @@ export function PmcmSupplierReadinessBoard({ eventId, refreshKey }: { eventId: s
     <section aria-labelledby="pmcm-supplier-readiness-heading" className="rounded-2xl border border-border bg-card shadow-sm">
       <div className="border-b border-border px-6 py-4">
         <div className="flex items-center gap-2">
-          <ClipboardCheck className="size-4 text-(--prism-signal)" />
+          <ClipboardCheck className="size-4 text-primary" />
           <h2 id="pmcm-supplier-readiness-heading" className="text-sm font-bold text-foreground">Supplier readiness</h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
           The same readiness the supplier sees: quote lock, assignment, contract, ingress, concerns, and setup. PMCM review notes stay off the supplier portal.
         </p>
         {vm.gapCopy ? (
-          <p className="mt-3 rounded-xl border border-(--prism-amber)/30 bg-(--prism-amber)/8 px-3 py-2 text-xs font-semibold text-(--prism-amber)">
+          <p className="mt-3 rounded-xl border border-attention/30 bg-attention/8 px-3 py-2 text-xs font-semibold text-attention">
             {vm.gapCopy}
           </p>
         ) : null}
@@ -62,7 +62,7 @@ function ReadinessRow({ item }: { item: PrismPmcmSupplierReadinessItem }) {
       {item.concerns.length > 0 ? (
         <ul aria-label={`${item.supplierName} concerns`} className="space-y-1">
           {item.concerns.map((concern) => (
-            <li key={`${concern.kind}:${concern.at ?? ""}`} className="text-xs text-(--prism-amber)">
+            <li key={`${concern.kind}:${concern.at ?? ""}`} className="text-xs text-attention">
               <span className="font-semibold">{concernLabel(concern.kind)}:</span> {concern.message}
             </li>
           ))}

@@ -97,7 +97,7 @@ export function ClientDocumentsTab({ documents }: { documents: PrismDocument[] }
       {matrix}
       {storedFiles}
       <div className="flex items-center gap-3 rounded-2xl border border-border bg-card px-5 py-4 shadow-sm">
-        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-(--prism-signal-soft) text-(--prism-signal)">
+        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
           <FileText className="size-5" />
         </span>
         <div>
@@ -112,9 +112,9 @@ export function ClientDocumentsTab({ documents }: { documents: PrismDocument[] }
         <Card key={cat}>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <FileText className="size-4 text-(--prism-signal)" />
+              <FileText className="size-4 text-primary" />
               <h3 className="text-sm font-bold text-foreground">{cat}</h3>
-              <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">{docs.length}</span>
+              <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-3xs font-bold text-muted-foreground">{docs.length}</span>
             </div>
           </CardHeader>
           <div className="divide-y divide-border">

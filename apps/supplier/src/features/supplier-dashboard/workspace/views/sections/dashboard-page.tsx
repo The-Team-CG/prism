@@ -53,7 +53,7 @@ function DashboardGreeting({
   const greeting = greetingForHour(new Date().getHours());
   const firstName = firstNameFrom(session.name);
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-(--prism-signal) to-[#8b0f48] px-6 py-7 text-white shadow-lg sm:px-8 sm:py-8">
+    <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-primary to-primary-deep px-6 py-7 text-white shadow-lg sm:px-8 sm:py-8">
       <div className="relative z-10">
         <p className="text-sm font-semibold text-white/70">P.R.I.S.M Supplier Portal</p>
         <h1 className="mt-1 text-2xl font-black leading-tight sm:text-3xl">
@@ -64,7 +64,7 @@ function DashboardGreeting({
         </p>
         <div className="mt-5 flex flex-wrap gap-2">
           {quoteNeedingSubmission > 0 ? (
-            <Button className="rounded-lg bg-white font-bold text-(--prism-signal) hover:bg-white/90" onClick={() => onNavigate("requests")}>
+            <Button className="rounded-lg bg-white font-bold text-primary hover:bg-white/90" onClick={() => onNavigate("requests")}>
               <ClipboardList className="size-4" /> Submit quotes
             </Button>
           ) : null}
@@ -151,7 +151,7 @@ function ReadinessItemButton({
       type="button"
       onClick={() => onNavigate(section)}
       aria-label={`${item.category}: open ${section === "bookings" ? "bookings" : "quote requests"}`}
-      className="flex items-start justify-between gap-4 rounded-xl border border-border bg-background px-4 py-3 text-left transition hover:border-(--prism-signal)/30 hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--prism-signal) focus-visible:ring-inset"
+      className="flex items-start justify-between gap-4 rounded-xl border border-border bg-background px-4 py-3 text-left transition hover:border-primary/30 hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
     >
       <span className="min-w-0">
         <span className="block text-sm font-bold text-foreground">{item.category}</span>
@@ -165,10 +165,10 @@ function ReadinessItemButton({
           </span>
         ) : null}
         {item.ingressLate ? (
-          <span className="mt-1 block text-xs font-semibold text-(--prism-danger)">Ingress time has passed without an arrival report.</span>
+          <span className="mt-1 block text-xs font-semibold text-danger">Ingress time has passed without an arrival report.</span>
         ) : null}
         {item.concerns.map((concern) => (
-          <span key={`${concern.kind}:${concern.at ?? ""}`} className="mt-1 block text-xs text-(--prism-amber)">
+          <span key={`${concern.kind}:${concern.at ?? ""}`} className="mt-1 block text-xs text-attention">
             {readinessConcernLabel(concern.kind)}: {concern.message}
           </span>
         ))}
@@ -237,16 +237,16 @@ function QuickNavCard({
     <button
       type="button"
       onClick={() => onNavigate(item.id)}
-      className="group flex items-start gap-3 rounded-2xl border border-border bg-card p-5 text-left shadow-sm transition hover:border-(--prism-signal)/30 hover:shadow-md"
+      className="group flex items-start gap-3 rounded-2xl border border-border bg-card p-5 text-left shadow-sm transition hover:border-primary/30 hover:shadow-md"
     >
-      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted text-(--prism-signal) transition group-hover:bg-(--prism-signal) group-hover:text-white">
+      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted text-primary transition group-hover:bg-primary group-hover:text-white">
         <Icon className="size-5" />
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm font-bold text-foreground">{item.title}</p>
           {item.badge != null ? (
-            <span className="rounded-full bg-(--prism-amber)/10 px-2 py-0.5 text-[10px] font-bold text-(--prism-amber)">{item.badge}</span>
+            <span className="rounded-full bg-attention/10 px-2 py-0.5 text-3xs font-bold text-attention">{item.badge}</span>
           ) : null}
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground">{item.desc}</p>

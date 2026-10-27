@@ -107,7 +107,7 @@ export function BookingsPage({
                   <h3 className="mt-1 text-sm font-bold text-foreground">{req.category}</h3>
                   <p className="mt-0.5 text-xs text-muted-foreground">{req.message}</p>
                 </div>
-                <Badge variant="outline" className="rounded-full border-(--prism-success)/25 bg-(--prism-success)/8 text-(--prism-success)">
+                <Badge variant="outline" className="rounded-full border-success/25 bg-success/8 text-success">
                   <BadgeCheck className="size-3" /> Selected
                 </Badge>
               </div>
@@ -117,12 +117,12 @@ export function BookingsPage({
             <div className="grid grid-cols-2 gap-3 border-b border-border px-6 py-5 sm:grid-cols-4">
               {steps.map((step) => (
                 <div key={step.label} className="flex items-start gap-2.5">
-                  <span className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full ${step.done ? "bg-(--prism-success) text-white" : "border-2 border-border bg-background"}`}>
+                  <span className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full ${step.done ? "bg-success text-white" : "border-2 border-border bg-background"}`}>
                     {step.done ? <CheckCircle2 className="size-3" /> : <Circle className="size-3 text-muted-foreground" />}
                   </span>
                   <div className="min-w-0">
-                    <p className={`text-xs font-bold ${step.done ? "text-(--prism-success)" : "text-muted-foreground"}`}>{step.label}</p>
-                    <p className="mt-0.5 text-[10px] text-muted-foreground">{step.meta}</p>
+                    <p className={`text-xs font-bold ${step.done ? "text-success" : "text-muted-foreground"}`}>{step.label}</p>
+                    <p className="mt-0.5 text-3xs text-muted-foreground">{step.meta}</p>
                   </div>
                 </div>
               ))}
@@ -179,14 +179,14 @@ export function BookingsPage({
                   <p className="text-sm font-bold text-foreground">Supplier schedule · revision {schedule.revision}</p>
                   <p className="mt-1 text-xs text-muted-foreground">Ingress {new Date(schedule.ingressAt).toLocaleString()} · Egress {new Date(schedule.egressAt).toLocaleString()} · {schedule.location}</p>
                   {schedule.notes ? <p className="mt-1 text-xs text-muted-foreground">{schedule.notes}</p> : null}
-                  {schedule.acknowledgedRevision === schedule.revision ? <p className="mt-2 text-xs font-semibold text-(--prism-success)">You acknowledged this revision.</p> : (
+                  {schedule.acknowledgedRevision === schedule.revision ? <p className="mt-2 text-xs font-semibold text-success">You acknowledged this revision.</p> : (
                     <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
                       <Input value={scheduleReasons[schedule.id] ?? ""} onChange={(e) => setScheduleReasons((current) => ({ ...current, [schedule.id]: e.target.value }))} placeholder="Reason for requested change" className="h-9 rounded-lg" />
                       <Button type="button" size="sm" onClick={() => onAcknowledgeSchedule(req.id, schedule.revision)} className="rounded-lg">Acknowledge</Button>
                       <Button type="button" size="sm" variant="outline" disabled={!scheduleReasons[schedule.id]?.trim()} onClick={() => onRequestScheduleChange(req.id, schedule.revision, scheduleReasons[schedule.id]!.trim())} className="rounded-lg">Request change</Button>
                     </div>
                   )}
-                  {schedule.changeRequestNote ? <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">Change requested: {schedule.changeRequestNote}</p> : null}
+                  {schedule.changeRequestNote ? <p className="mt-2 text-xs text-attention dark:text-amber-300">Change requested: {schedule.changeRequestNote}</p> : null}
                 </div>
               ))}
 
@@ -210,7 +210,7 @@ export function BookingsPage({
                 <p className="text-sm font-bold text-foreground">3. Event day status</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">After PMCM selects this booking, confirm your assignment and readiness above before reporting your onsite status.</p>
                 {req.eventDayStatus === "late" ? (
-                  <p role="status" className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm font-semibold text-amber-800 dark:text-amber-200">
+                  <p role="status" className="mt-3 rounded-lg border border-attention/30 bg-attention/10 px-3 py-2 text-sm font-semibold text-attention dark:text-amber-200">
                     Late arrival — your planned ingress time has passed. Confirm your assignment and readiness above before reporting below.
                   </p>
                 ) : null}
@@ -221,10 +221,10 @@ export function BookingsPage({
                 <div className="mt-3 grid gap-2 sm:grid-cols-3">
                   {EVENT_STATUS_ACTIONS.map(({ status, label, helper }) => (
                     <button key={status} type="button" disabled={!canReportEventDayStatus || busy === `${req.id}:${status}`} onClick={() => onUpdateStatus(req, status)}
-                      className={`flex h-20 w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 font-bold transition ${req.eventDayStatus === status ? "border-(--prism-signal) bg-(--prism-signal) text-white" : "border-border bg-card text-foreground hover:border-(--prism-signal)/40 hover:bg-muted/40"}`}>
+                      className={`flex h-20 w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 font-bold transition ${req.eventDayStatus === status ? "border-primary bg-primary text-white" : "border-border bg-card text-foreground hover:border-primary/40 hover:bg-muted/40"}`}>
                       <Truck className="size-5" />
                       <span className="text-sm">{label}</span>
-                      <span className="text-[11px] font-semibold opacity-70">{helper}</span>
+                      <span className="text-2xs font-semibold opacity-70">{helper}</span>
                     </button>
                   ))}
                 </div>

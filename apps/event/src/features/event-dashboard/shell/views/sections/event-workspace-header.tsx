@@ -14,7 +14,7 @@ export function EventWorkspaceHeader() {
   return (
     <div className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-border bg-card px-6 py-5 shadow-sm">
       <div className="min-w-0">
-        <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">Event workspace</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-primary">Event workspace</p>
         <h1 className="mt-1 text-xl font-bold text-foreground">{selectedEvent.eventName}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{selectedEvent.clientName} — {selectedEvent.eventDate}</p>
         <div className="mt-2 flex flex-wrap gap-2">

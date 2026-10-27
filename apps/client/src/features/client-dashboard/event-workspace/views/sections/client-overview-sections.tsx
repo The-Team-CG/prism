@@ -57,14 +57,14 @@ function overviewLifecycleSteps(
 }
 
 function lifecycleStepClass(state: string) {
-  if (state === "done") return "bg-(--prism-success)/10 border border-(--prism-success)/20";
-  if (state === "current") return "bg-(--prism-signal-soft) border border-(--prism-signal)/20";
+  if (state === "done") return "bg-success/10 border border-success/20";
+  if (state === "current") return "bg-primary-soft border border-primary/20";
   return "bg-muted/40 border border-border";
 }
 
 function lifecycleLabelClass(state: string) {
-  if (state === "done") return "text-(--prism-success)";
-  if (state === "current") return "text-(--prism-signal)";
+  if (state === "done") return "text-success";
+  if (state === "current") return "text-primary";
   return "text-muted-foreground";
 }
 
@@ -89,7 +89,7 @@ export function OverviewLifecycle({
         <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-6">
           {overviewLifecycleSteps(selectedEvent, briefing, billing, officialDraft).map((step, i) => (
             <div key={step.label} className={`rounded-lg px-3 py-2.5 text-sm ${lifecycleStepClass(step.state)}`}>
-              <p className="text-[10px] font-bold text-muted-foreground">Step {i + 1}</p>
+              <p className="text-3xs font-bold text-muted-foreground">Step {i + 1}</p>
               <p className={`mt-1 text-xs font-bold ${lifecycleLabelClass(step.state)}`}>{step.label}</p>
             </div>
           ))}
@@ -112,9 +112,9 @@ export function OverviewStats({
   return (
     <div className="grid gap-3 sm:grid-cols-3">
       {[
-        { label: "Days to event", value: daysToEventLabel(selectedEvent.eventDate), icon: Timer, color: "text-(--prism-signal)" },
-        { label: "Open milestones", value: openMilestones || "0", icon: WalletCards, color: "text-(--prism-amber)" },
-        { label: "Documents on file", value: documents.length || "0", icon: FileText, color: "text-(--prism-success)" },
+        { label: "Days to event", value: daysToEventLabel(selectedEvent.eventDate), icon: Timer, color: "text-primary" },
+        { label: "Open milestones", value: openMilestones || "0", icon: WalletCards, color: "text-attention" },
+        { label: "Documents on file", value: documents.length || "0", icon: FileText, color: "text-success" },
       ].map((stat) => (
         <div key={stat.label} className="flex items-center gap-4 rounded-2xl border border-border bg-card px-5 py-4 shadow-sm">
           <span className={`grid size-11 shrink-0 place-items-center rounded-xl bg-muted ${stat.color}`}>
@@ -141,7 +141,7 @@ export function OverviewEventDetails({
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <ClipboardList className="size-4 text-(--prism-signal)" />
+          <ClipboardList className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Event details</h3>
         </div>
       </CardHeader>
@@ -183,7 +183,7 @@ export function OverviewFloorPlanCard({
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <MapPinned className="size-4 text-(--prism-signal)" />
+            <MapPinned className="size-4 text-primary" />
             <h3 className="text-sm font-bold text-foreground">Floor plan</h3>
           </div>
           {officialDraft ? <StatusBadge status={officialDraft.status} label={formatLabel(officialDraft.status)} /> : null}
@@ -220,7 +220,7 @@ export function OverviewNextPayment({
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <ReceiptText className="size-4 text-(--prism-amber)" />
+          <ReceiptText className="size-4 text-attention" />
           <h3 className="text-sm font-bold text-foreground">Next payment</h3>
         </div>
       </CardHeader>
@@ -258,7 +258,7 @@ export function OverviewRecentActivity({
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Activity className="size-4 text-(--prism-signal)" />
+          <Activity className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Recent activity</h3>
         </div>
       </CardHeader>

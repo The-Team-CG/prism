@@ -39,7 +39,7 @@ export function FloorPlanCardHeader({
   return (
     <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-6 py-5">
       <div>
-        <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">Floor plan workspace</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-primary">Floor plan workspace</p>
         <h2 className="mt-1 text-xl font-black text-foreground">{title}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>
       </div>
@@ -116,7 +116,7 @@ export function FloorPlanRevisionCommentCard({
         <div className="space-y-3 p-6">
           {submittedComment ? (
             <div className="flex gap-3 rounded-xl bg-muted/40 p-4">
-              <MessageSquareText className="size-5 shrink-0 text-(--prism-signal)" />
+              <MessageSquareText className="size-5 shrink-0 text-primary" />
               <div>
                 <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Your revision comment</p>
                 <p className="mt-1 text-sm text-foreground">{submittedComment}</p>
@@ -180,7 +180,7 @@ export function FloorPlanTemplates({
               key={template.id}
               disabled={busy === `editor-${template.id}`}
               onClick={() => onCreate(template)}
-              className="rounded-xl border border-border bg-background p-3.5 text-left transition hover:border-(--prism-signal)/40 hover:bg-(--prism-signal-soft) disabled:opacity-60"
+              className="rounded-xl border border-border bg-background p-3.5 text-left transition hover:border-primary/40 hover:bg-primary-soft disabled:opacity-60"
             >
               <p className="text-sm font-bold text-foreground">{template.name}</p>
               <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{templateSubtitle(template)}</p>

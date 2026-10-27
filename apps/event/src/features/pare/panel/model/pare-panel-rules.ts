@@ -8,9 +8,9 @@ export function selectEventPareApprovals<T extends Pick<PAREApprovalRecord, "eve
 }
 
 const RISK_COLOR: Record<string, string> = {
-  HIGH: "text-red-600 bg-red-50 border-red-200",
-  MEDIUM: "text-amber-600 bg-amber-50 border-amber-200",
-  LOW: "text-green-700 bg-green-50 border-green-200",
+  HIGH: "text-danger bg-danger-soft border-danger/25",
+  MEDIUM: "text-attention bg-attention-soft border-attention/25",
+  LOW: "text-success bg-success-soft border-success/25",
 };
 
 export function pareRiskColor(level: PARERisk["level"] | string) {
@@ -27,16 +27,16 @@ export function pareModeCopy(mode: string) {
 export function pareBudgetTone(feasible: boolean) {
   if (feasible) {
     return {
-      box: "border-green-200 bg-green-50",
-      icon: "text-green-700",
-      title: "text-green-800",
+      box: "border-success/25 bg-success-soft",
+      icon: "text-success",
+      title: "text-success",
       label: "Within Budget",
     };
   }
   return {
-    box: "border-red-200 bg-red-50",
-    icon: "text-red-600",
-    title: "text-red-800",
+    box: "border-danger/25 bg-danger-soft",
+    icon: "text-danger",
+    title: "text-danger",
     label: "Over Budget",
   };
 }

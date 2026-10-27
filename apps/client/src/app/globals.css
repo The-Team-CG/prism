@@ -1,1 +1,7 @@
-@import "../styles/index.css";
+@import "@prism/tokens/fonts.css";
+@import "tailwindcss" source(none);
+@import "@prism/tokens/theme.css";
+@import "@prism/tokens/typography.css";
+@source "../**/*.{js,ts,jsx,tsx}";
+@source "../../../../packages/ui/src/**/*.{ts,tsx}";
+@source "../../../../packages/floorplan-canvas/src/**/*.{ts,tsx}";

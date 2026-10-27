@@ -25,7 +25,7 @@ export function PrismMetricTile({ label, value, icon: Icon, detail, trend, class
       )}
     >
       {/* Top accent bar on hover */}
-      <span className="absolute inset-x-0 top-0 h-0.5 bg-(--prism-signal) opacity-0 transition group-hover:opacity-100" aria-hidden="true" />
+      <span className="absolute inset-x-0 top-0 h-0.5 bg-primary opacity-0 transition group-hover:opacity-100" aria-hidden="true" />
       <span className="grid size-11 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
         <Icon aria-hidden="true" className="size-5" />
       </span>
@@ -34,7 +34,7 @@ export function PrismMetricTile({ label, value, icon: Icon, detail, trend, class
           <p className="text-[28px] font-black leading-none tracking-normal text-foreground">{value}</p>
           {trend ? <PrismBadge variant="success">{trend}</PrismBadge> : null}
         </div>
-        <p className="mt-1.5 truncate text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+        <p className="mt-1.5 truncate text-3xs font-black uppercase tracking-widest text-muted-foreground">
           {label}
         </p>
         {detail ? <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{detail}</p> : null}
@@ -91,10 +91,10 @@ export interface PrismNoticeBannerProps {
 }
 
 const noticeToneClasses: Record<NonNullable<PrismNoticeBannerProps["tone"]>, string> = {
-  info: "border-(--prism-sage)/25 bg-(--prism-sage)/10 text-(--prism-sage) border-l-(--prism-sage)",
-  success: "border-(--prism-success)/20 bg-(--prism-success)/8 text-(--prism-success) border-l-(--prism-success)",
-  warning: "border-(--prism-amber)/25 bg-(--prism-amber)/10 text-(--prism-amber) border-l-(--prism-amber)",
-  danger: "border-(--prism-signal)/20 bg-(--prism-signal)/8 text-(--prism-signal) border-l-(--prism-signal)",
+  info: "border-secondary/25 bg-secondary/10 text-secondary border-l-secondary",
+  success: "border-success/20 bg-success/8 text-success border-l-success",
+  warning: "border-attention/25 bg-attention/10 text-attention border-l-attention",
+  danger: "border-primary/20 bg-primary/8 text-primary border-l-primary",
 };
 
 export function PrismNoticeBanner({ tone = "info", title, children, className }: PrismNoticeBannerProps) {
@@ -148,7 +148,7 @@ export function PrismStatusSummary({
               </span>
             ) : null}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              <p className="truncate text-3xs font-black uppercase tracking-widest text-muted-foreground">
                 {item.label}
               </p>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-sm font-black text-foreground">
@@ -200,7 +200,7 @@ export function PrismWorkflowTabs({
             {item.icon ? <item.icon aria-hidden="true" className="size-4" /> : null}
             <span>{item.label}</span>
             {item.badge ? (
-              <span className="rounded-full bg-background/70 px-1.5 text-[10px] font-black text-current">
+              <span className="rounded-full bg-background/70 px-1.5 text-3xs font-black text-current">
                 {item.badge}
               </span>
             ) : null}
@@ -285,7 +285,7 @@ export function PrismCompactRecordList({
                 </span>
               ) : null}
               {item.meta ? (
-                <span className="mt-0.5 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                <span className="mt-0.5 block text-3xs font-bold uppercase tracking-widest text-muted-foreground">
                   {item.meta}
                 </span>
               ) : null}
@@ -297,7 +297,7 @@ export function PrismCompactRecordList({
         const baseClass = cn(
           "border-l-2 border-l-transparent px-3 py-3 transition",
           item.active
-            ? "border-l-(--prism-signal) bg-secondary/60"
+            ? "border-l-primary bg-secondary/60"
             : "hover:bg-muted/50",
         );
 
@@ -398,7 +398,7 @@ export function PrismActionQueue({
           key={item.id}
           type="button"
           onClick={item.onSelect}
-          className="border-l-2 border-l-transparent px-3 py-3 text-left transition hover:border-l-(--prism-signal) hover:bg-muted/50"
+          className="border-l-2 border-l-transparent px-3 py-3 text-left transition hover:border-l-primary hover:bg-muted/50"
         >
           <span className="flex items-start gap-3">
             {item.icon ? (
@@ -444,7 +444,7 @@ export function PrismStatusTimeline({ items }: { items: PrismTimelineItem[] }) {
               <span
                 className={cn(
                   "absolute bottom-0 left-3 top-6 w-px",
-                  done ? "bg-(--prism-signal)/30" : "bg-border",
+                  done ? "bg-primary/30" : "bg-border",
                 )}
                 aria-hidden="true"
               />
@@ -452,7 +452,7 @@ export function PrismStatusTimeline({ items }: { items: PrismTimelineItem[] }) {
             <span
               className={cn(
                 "relative z-10 mt-1 grid size-6 place-items-center rounded-full",
-                done ? "bg-(--prism-signal) shadow-sm" : "bg-card ring-1 ring-border",
+                done ? "bg-primary shadow-sm" : "bg-card ring-1 ring-border",
               )}
             >
               <span className={cn("rounded-full", done ? "size-2.5 bg-white" : "size-2 bg-muted-foreground/40")} />
@@ -466,7 +466,7 @@ export function PrismStatusTimeline({ items }: { items: PrismTimelineItem[] }) {
                 <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.description}</span>
               ) : null}
               {item.meta ? (
-                <span className="mt-0.5 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                <span className="mt-0.5 block text-3xs font-bold uppercase tracking-widest text-muted-foreground">
                   {item.meta}
                 </span>
               ) : null}
@@ -567,7 +567,7 @@ export function PrismDocumentList({ documents }: { documents: PrismDocumentItem[
               <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{document.description}</p>
             ) : null}
             {document.meta ? (
-              <p className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              <p className="mt-0.5 text-3xs font-bold uppercase tracking-widest text-muted-foreground">
                 {document.meta}
               </p>
             ) : null}

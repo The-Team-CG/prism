@@ -109,14 +109,14 @@ export function ClientBriefingTab({
 }
 
 function BriefingStatus({ complete }: { complete: boolean }) {
-  return <div className={`rounded-2xl border px-5 py-4 ${complete ? "border-(--prism-success)/25 bg-(--prism-success)/8" : "border-(--prism-amber)/25 bg-(--prism-amber-soft)"}`}>
-    <p className={`text-sm font-bold ${complete ? "text-(--prism-success)" : "text-(--prism-amber)"}`}>{complete ? "Briefing complete" : "Briefing in progress"}</p>
+  return <div className={`rounded-2xl border px-5 py-4 ${complete ? "border-success/25 bg-success/8" : "border-attention/25 bg-attention-soft"}`}>
+    <p className={`text-sm font-bold ${complete ? "text-success" : "text-attention"}`}>{complete ? "Briefing complete" : "Briefing in progress"}</p>
     <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{complete ? "All core briefing details are on file." : "Your event team is still confirming the venue, guest count, and service requirements."}</p>
   </div>;
 }
 
 function BriefingSummary({ briefing }: { briefing?: PrismBriefing }) {
-  return <Card><CardHeader><div className="flex items-center gap-2"><FileCheck2 className="size-4 text-(--prism-signal)" /><h2 className="text-sm font-bold text-foreground">Event briefing</h2></div><p className="mt-0.5 text-xs text-muted-foreground">Confirmed details from your PMCM event team</p></CardHeader><CardBody>
+  return <Card><CardHeader><div className="flex items-center gap-2"><FileCheck2 className="size-4 text-primary" /><h2 className="text-sm font-bold text-foreground">Event briefing</h2></div><p className="mt-0.5 text-xs text-muted-foreground">Confirmed details from your PMCM event team</p></CardHeader><CardBody>
     {briefing ? <InfoGrid items={[{ label: "Venue", value: briefing.venue }, { label: "Guest count", value: `${briefing.guestCount} guests` }, { label: "Budget range", value: briefing.budgetRange }, { label: "Service requirements", value: briefing.serviceRequirements.join(", ") }]} /> : <EmptyState icon={FileCheck2} title="No briefing yet" description="Confirmed venue, schedule, guest count, budget, and service notes will appear here." />}
   </CardBody></Card>;
 }
@@ -130,7 +130,7 @@ function BriefingSubmissionForm({ briefing, busy, onSubmit, values, setters }: {
   values: BriefingValues;
   setters: BriefingSetters;
 }) {
-  return <Card><CardHeader><div className="flex items-center gap-2"><ClipboardList className="size-4 text-(--prism-signal)" /><h2 className="text-sm font-bold text-foreground">Submit briefing details</h2></div><p className="mt-0.5 text-xs text-muted-foreground">Share your event requirements with PMCM. Each submission is kept in the event history.</p></CardHeader><CardBody>
+  return <Card><CardHeader><div className="flex items-center gap-2"><ClipboardList className="size-4 text-primary" /><h2 className="text-sm font-bold text-foreground">Submit briefing details</h2></div><p className="mt-0.5 text-xs text-muted-foreground">Share your event requirements with PMCM. Each submission is kept in the event history.</p></CardHeader><CardBody>
     <form onSubmit={onSubmit} className="space-y-4"><div className="grid gap-3 sm:grid-cols-2">
       <BriefingField label="Venue preference" required value={values.venue} onChange={setters.setVenue} />
       <BriefingField label="Expected guest count" required type="number" min={1} value={values.guestCount} onChange={setters.setGuestCount} />

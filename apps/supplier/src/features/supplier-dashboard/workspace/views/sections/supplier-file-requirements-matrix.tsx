@@ -16,7 +16,7 @@ export function SupplierFileRequirementsMatrix({
     <div className="rounded-2xl border border-border bg-card shadow-sm">
       <div className="border-b border-border px-6 py-4">
         <div className="flex items-center gap-2">
-          <FileCheck2 className="size-4 text-(--prism-signal)" />
+          <FileCheck2 className="size-4 text-primary" />
           <h2 className="text-sm font-bold text-foreground">File requirements</h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
