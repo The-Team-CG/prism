@@ -48,6 +48,25 @@ describe("event-dashboard-selectors", () => {
     expect(records[0]?.inquiries).toHaveLength(1);
   });
 
+  it("keeps a contact's events and inquiries in one record when the names differ", () => {
+    const records = selectClientRecords(
+      [
+        event({ id: "e1", clientName: "Ana Reyes", inquiryId: "i1" }),
+        event({ id: "e2", clientName: "Ana Reyes", inquiryId: "i2" }),
+      ],
+      [
+        inquiry({ id: "i1", clientName: "Ana Reyes", companyName: "Ayala UAT", email: "ana@ayala.test", status: "accepted" }),
+        inquiry({ id: "i2", clientName: "Ana Reyes", companyName: "Ayala UAT", email: "ANA@ayala.test", status: "accepted" }),
+        inquiry({ id: "i3", clientName: "Ben Cruz", companyName: "Ayala UAT", email: "ben@ayala.test", status: "new" }),
+      ],
+    );
+    expect(records.map((record) => [record.name, record.events.length, record.inquiries.length])).toEqual([
+      ["Ayala UAT", 2, 2],
+      ["Ayala UAT", 0, 1],
+    ]);
+    expect(new Set(records.map((record) => record.id)).size).toBe(2);
+  });
+
   it("filters client records by view", () => {
     const records = selectClientRecords(
       [event({ id: "e1", clientName: "Active Co", status: "planning" })],

@@ -35,7 +35,7 @@ describe("createTemplateStoreAdapter", () => {
       suppliers: [{ id: "supplier_1", name: "Supplier", kind: "av", status: "booked" }],
     });
 
-    expect(calls).toEqual([{ path: "/templates", init: {
+    expect(calls).toEqual([{ path: "/api/templates", init: {
       method: "POST",
       body: expect.objectContaining({
         width: 30,
