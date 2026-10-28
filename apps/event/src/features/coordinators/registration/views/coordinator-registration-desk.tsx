@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDateTime, formatPortalTime } from "@prism/ui/format-date";
 
 import type { FormEvent } from "react";
 import type { PrismCoordinatorRegistrationEntry } from "@prism/types";
@@ -10,14 +11,12 @@ const inputClass = "min-h-11 w-full rounded-md border border-border bg-backgroun
 
 function checkedInLabel(entry: PrismCoordinatorRegistrationEntry): string {
   if (!entry.checkedInAt) return "Not checked in";
-  const checkedInAt = new Date(entry.checkedInAt);
-  return Number.isNaN(checkedInAt.getTime()) ? "Checked in" : `Checked in at ${checkedInAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  const time = formatPortalTime(entry.checkedInAt, "");
+  return time ? `Checked in at ${time}` : "Checked in";
 }
 
 function submittedLabel(entry: PrismCoordinatorRegistrationEntry): string {
-  if (!entry.reviewSubmittedAt) return "—";
-  const submittedAt = new Date(entry.reviewSubmittedAt);
-  return Number.isNaN(submittedAt.getTime()) ? "—" : submittedAt.toLocaleString();
+  return formatPortalDateTime(entry.reviewSubmittedAt, "—");
 }
 
 export function CoordinatorRegistrationDesk({

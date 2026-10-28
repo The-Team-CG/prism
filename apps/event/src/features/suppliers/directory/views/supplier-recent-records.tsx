@@ -1,3 +1,4 @@
+import { formatPortalDateTime } from "@prism/ui/format-date";
 import type { PrismPmcmSupplierRecordsPage } from "@prism/types";
 import { Activity, FileCheck2, MessageSquareText, Star } from "lucide-react";
 import styles from "./supplier-workspace.module.css";
@@ -78,7 +79,7 @@ export function SupplierRecordHistory({ records }: { records: PrismPmcmSupplierR
               <article key={`${record.kind}:${record.id}`} className="border-l-2 border-border py-1 pl-3">
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                   <span className="font-medium text-foreground">{recordKindLabel(record.kind)}</span>
-                  <time dateTime={record.occurredAt}>{new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(record.occurredAt))}</time>
+                  <time dateTime={record.occurredAt}>{formatPortalDateTime(record.occurredAt)}</time>
                 </div>
                 <p className="mt-2 whitespace-pre-wrap text-xs">{record.text}</p>
                 {record.actorName ? <p className="mt-2 text-xs text-muted-foreground">Recorded by {record.actorName}</p> : null}

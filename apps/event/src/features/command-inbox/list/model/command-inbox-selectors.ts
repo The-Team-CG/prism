@@ -50,7 +50,7 @@ export interface CommandInboxTriage {
   counts: { urgent: number; needsAction: number; reference: number; total: number };
 }
 
-/** Splits loaded rows into triage bands; counts are derived from the rows themselves. */
+/** Splits loaded rows into triage bands. Counts cover the loaded page only; the inbox does not report totals across pages. */
 export function selectCommandInboxTriage(items: PrismCommandInboxItem[]): CommandInboxTriage {
   const sorted = selectCommandInboxItemsBySeverity(items);
   const urgent = sorted.filter((entry) => entry.severity === "critical");

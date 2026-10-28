@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import { ClipboardCheck } from "lucide-react";
 import type { PrismPmcmSupplierReadinessItem } from "@prism/types";
@@ -9,7 +10,7 @@ import { concernLabel, setupStatusLabel } from "../model/pmcm-supplier-readiness
 import { usePmcmSupplierReadinessViewModel } from "../view-models/use-pmcm-supplier-readiness-view-model";
 
 function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  return formatPortalDateTime(iso);
 }
 
 export function PmcmSupplierReadinessBoard({ eventId, refreshKey }: { eventId: string; refreshKey?: string }) {

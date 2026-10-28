@@ -33,6 +33,13 @@ export const updateGuestPrivacyClassificationSchema = z.object({
 }).strict();
 export type UpdateGuestPrivacyClassificationInput = z.infer<typeof updateGuestPrivacyClassificationSchema>;
 
+/** Roster source stamped on walk-ins added by registration staff on the day; imports may not reuse it. */
+export const GUEST_WALK_IN_ROSTER_SOURCE = "coordinator-walk-in";
+/** Roster sources created by guest self-review. */
+export const GUEST_REVIEW_ROSTER_SOURCES = ["guest-review", "guest-review-headcount"] as const;
+/** Roster rows from these sources need PMCM verification before they can be checked in. */
+export const GUEST_VERIFICATION_REQUIRED_ROSTER_SOURCES: readonly string[] = [GUEST_WALK_IN_ROSTER_SOURCE, ...GUEST_REVIEW_ROSTER_SOURCES];
+
 /** Event-scoped registration-staff walk-in input. The server fixes walk-in and verification state. */
 export const coordinatorWalkInCheckInSchema = z.object({
   guestName: nonEmptyStringSchema,

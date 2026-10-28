@@ -274,6 +274,7 @@ export function EventDashboardFilesSectionView() {
               events={events}
               description="Files are organized by event. Choose one to open its file hub."
               actionLabel="Open files"
+              tab="files"
               onOpenEvent={(eventId) => navigateEvent(eventId, "files")}
             />
           )
@@ -299,6 +300,7 @@ export function EventDashboardMessagesSectionView() {
               events={events}
               description="Client, supplier, coordinator, and internal threads belong to one event. Choose one to open its messages."
               actionLabel="Open messages"
+              tab="activity"
               onOpenEvent={(eventId) => navigateEvent(eventId, "activity")}
             />
           )
@@ -338,6 +340,7 @@ export function EventDashboardFinanceSectionView() {
               events={events}
               description="Billing stays tied to each event's proposal and conforme. Choose an event to open its billing."
               actionLabel="Open billing"
+              tab="billing"
               onOpenEvent={(eventId) => navigateEvent(eventId, "billing")}
             />
           )

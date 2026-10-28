@@ -1,8 +1,9 @@
+import type { PrismEventOpsActorRole } from "@prism/types";
+
 /** User-facing names for stored role and status identifiers shown in PMCM metadata. */
 
-const ROLE_LABELS: Record<string, string> = {
+const ROLE_LABELS: Record<PrismEventOpsActorRole, string> = {
   "pmcm-admin": "PMCM administrator",
-  pmcm_admin: "PMCM administrator",
   coordinator: "Coordinator",
   client: "Client",
   supplier: "Supplier",
@@ -25,7 +26,9 @@ function sentenceCase(value: string): string {
 /** Role label for a stored role identifier; unknown identifiers fall back to readable sentence case. */
 export function roleLabel(role?: string | null): string {
   if (!role) return "—";
-  return ROLE_LABELS[role] ?? sentenceCase(role);
+  // Older audit rows store roles with underscores (pmcm_admin); they name the same actor role.
+  const key = role.replaceAll("_", "-");
+  return key in ROLE_LABELS ? ROLE_LABELS[key as PrismEventOpsActorRole] : sentenceCase(role);
 }
 
 /** Label for where a floorplan draft came from (template, client preference…). */

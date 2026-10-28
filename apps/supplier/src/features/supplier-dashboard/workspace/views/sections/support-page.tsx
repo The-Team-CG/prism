@@ -1,6 +1,7 @@
 "use client";
 
 import { PrismAccountHelp } from "@prism/ui/account-help";
+import { pmcmSupportContactFromEnvironment } from "@/lib/portal-urls";
 import { FormEvent, useMemo } from "react";
 import {
   BadgeCheck,
@@ -76,7 +77,7 @@ export function SupportPage() {
           <div>
             <h3 className="text-sm font-semibold text-foreground">Portal access issues</h3>
             <div className="mt-1 text-sm leading-6 text-muted-foreground">
-              <PrismAccountHelp topic="supplier portal access" fallback="If you cannot sign in or see incorrect data, contact your PMCM coordinator directly." />
+              <PrismAccountHelp contact={pmcmSupportContactFromEnvironment()} topic="supplier portal access" fallback="If you cannot sign in or see incorrect data, contact your PMCM coordinator directly." />
             </div>
           </div>
         </CardBody>

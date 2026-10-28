@@ -37,14 +37,32 @@ describe('GuestEventProjectionService', () => {
         floorPlanStatus: true,
         floorPlanId: true,
         updatedAt: true,
+        proposalClientStatus: true,
+        proposalReviewedAt: true,
         // Guests may see where and when to arrive, from the latest briefing only; no budget or notes.
         briefings: {
           orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
           take: 1,
-          select: { venue: true, confirmedStartTime: true },
+          select: { venue: true, confirmedStartTime: true, submittedAt: true },
         },
       },
     });
+  });
+
+  it('exposes arrival facts only for the briefing behind an approved proposal', async () => {
+    const reviewedAt = new Date('2026-09-01T00:00:00.000Z');
+    const briefing = { venue: 'Grand Ballroom', confirmedStartTime: '18:30', submittedAt: new Date('2026-08-20T00:00:00.000Z') };
+    const project = async (event: Record<string, unknown>) => {
+      const findUnique = vi.fn(async () => ({ id: 'evt_1', proposalClientStatus: 'approved', proposalReviewedAt: reviewedAt, briefings: [briefing], ...event }));
+      return new GuestEventProjectionService({ opsEvent: { findUnique }, $queryRaw: vi.fn(async () => []) } as never).findGuestEvent('evt_1');
+    };
+
+    const approved = await project({});
+    expect(approved?.confirmedArrival).toEqual({ venue: 'Grand Ballroom', confirmedStartTime: '18:30' });
+    expect(approved).not.toHaveProperty('briefings');
+    expect(approved).not.toHaveProperty('proposalClientStatus');
+    expect(await project({ proposalClientStatus: 'pending', proposalReviewedAt: null })).not.toHaveProperty('confirmedArrival');
+    expect(await project({ briefings: [{ ...briefing, submittedAt: new Date('2026-09-05T00:00:00.000Z') }] })).not.toHaveProperty('confirmedArrival');
   });
 
   it('bounds coordinator workspace event and floorplan projection queries', async () => {

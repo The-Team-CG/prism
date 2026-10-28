@@ -13,13 +13,13 @@ describe("pmcm display formatters", () => {
     expect(formatShortDate()).toBe("No date");
   });
 
-  it("shows product role, source, and status names instead of stored identifiers", () => {
-    expect(roleLabel("pmcm-admin")).toBe("PMCM administrator");
-    expect(roleLabel("coordinator")).toBe("Coordinator");
+  it("never shows a raw stored identifier", () => {
+    // Older audit rows spell roles with underscores; both spellings name the same actor.
+    expect(roleLabel("pmcm_admin")).toBe(roleLabel("pmcm-admin"));
+    // Identifiers without a product name still read as words rather than tokens.
     expect(roleLabel("event_day_operator")).toBe("Event day operator");
-    expect(roleLabel(null)).toBe("—");
-    expect(floorplanSourceLabel("client_preference")).toBe("Client preference");
-    expect(floorplanSourceLabel("template")).toBe("PMCM template");
+    expect(floorplanSourceLabel("venue_import")).toBe("Venue import");
     expect(statusLabel("in_review")).toBe("In review");
+    expect([roleLabel(null), floorplanSourceLabel(undefined), statusLabel("")]).toEqual(["—", "—", "—"]);
   });
 });

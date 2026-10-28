@@ -1,4 +1,4 @@
-import { Minus, Plus, Maximize2 } from "lucide-react";
+import { Minus, Plus, Maximize2, LocateFixed } from "lucide-react";
 import { useEditor } from "./store";
 
 export function StatusBar() {
@@ -45,6 +45,16 @@ export function StatusBar() {
         >
           <Maximize2 size={11} aria-hidden="true" />
           Fit plan
+        </button>
+        <button
+          type="button"
+          title="Bring the selected objects into view"
+          disabled={state.selectedIds.length === 0}
+          onClick={() => dispatch({ type: "FOCUS_SELECTION" })}
+          className="flex h-5 items-center gap-1 rounded px-1.5 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <LocateFixed size={11} aria-hidden="true" />
+          Find selected
         </button>
       </div>
     </div>

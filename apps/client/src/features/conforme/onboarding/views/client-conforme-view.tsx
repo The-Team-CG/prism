@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import Link from "next/link";
 import type { PrismConformeExecution } from "@prism/types";
@@ -42,7 +43,7 @@ function ExecutionSummary({ execution }: { execution: PrismConformeExecution }) 
 
 function ExecutionSignatures({ execution }: { execution: PrismConformeExecution }) {
   if (!execution.signatures.length) return null;
-  return <div className="space-y-2 text-sm text-muted-foreground" aria-label="Signature record">{execution.signatures.map((signature) => <p key={signature.id}>{signature.actorRole === "client" ? "Client" : "PMCM"} acknowledgment recorded for {signature.actorName} at {new Date(signature.signedAt).toLocaleString()}.</p>)}</div>;
+  return <div className="space-y-2 text-sm text-muted-foreground" aria-label="Signature record">{execution.signatures.map((signature) => <p key={signature.id}>{signature.actorRole === "client" ? "Client" : "PMCM"} acknowledgment recorded for {signature.actorName} at {formatPortalDateTime(signature.signedAt)}.</p>)}</div>;
 }
 
 function ExecutionAction({ model, execution, clientSigned }: { model: ReturnType<typeof useClientConformeViewModel>; execution: PrismConformeExecution; clientSigned: boolean }) {

@@ -11,10 +11,12 @@ import {
   Sparkles,
   WalletCards,
 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/app/components/ui/button";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { ClientActionGroup } from "../../../shared/client-action-group";
+import { groupClientActionsByEvent } from "../../model/client-home-action-groups";
 import {
   greetingByTime,
   type ClientDashboardAction,
@@ -191,8 +193,8 @@ export function ClientHomeActionCenter({
     <section aria-labelledby="client-action-center-heading" className="space-y-4">
       <h2 id="client-action-center-heading" className="text-base font-black text-foreground">Action center</h2>
       <p className="text-xs text-muted-foreground">Updated {formatPortalDateTime(actionCenter.generatedAt)} · Philippine time</p>
+      <ClientOwnActions actions={clientActions.filter((action) => (action.nextActor ?? "you") === "you")} onAction={runClientAction} />
       {([
-        { actor: "you", title: "Needs your action", description: "Review these items and choose the next step." },
         { actor: "pmcm", title: "Waiting for PMCM", description: "Your item is with PMCM. Open it to review the current status." },
         { actor: "update", title: "Available to review", description: "New records and information for your events." },
       ] as const).map((group) => {
@@ -203,15 +205,32 @@ export function ClientHomeActionCenter({
   );
 }
 
+/** What the client must provide, per event: current blockers first, later-stage requirements apart. */
+function ClientOwnActions({ actions, onAction }: { actions: ClientDashboardAction[]; onAction: (action: ClientDashboardAction) => void }) {
+  return groupClientActionsByEvent(actions).map((group) => (
+    <div key={group.eventId} className="space-y-3">
+      {group.now.length ? (
+        <ClientActionGroup title={`Needs your action now · ${group.eventName}`} description="These hold your event back. Review them first." actions={group.now} onAction={onAction} showDetailsAndCta />
+      ) : null}
+      {group.later.length ? (
+        <ClientActionGroup title={`Needs your action later · ${group.eventName}`} description="Requirements for a later stage. They can wait until the current items are done." actions={group.later} onAction={onAction} showDetailsAndCta />
+      ) : null}
+    </div>
+  ));
+}
+
 export function ClientHomeEvents({
   events,
-  onViewAll,
-  onRequest,
+  viewAllHref,
+  requestHref,
+  eventHref,
   onOpen,
 }: {
   events: PrismEvent[];
-  onViewAll: () => void;
-  onRequest: () => void;
+  viewAllHref: string;
+  requestHref: string;
+  eventHref: (eventId: string) => string;
+  /** Records the chosen event before its link navigates. */
   onOpen: (eventId: string) => void;
 }) {
   const isPastEvent = (event: PrismEvent) => ["completed", "cancelled", "closed"].includes(event.status);
@@ -228,8 +247,8 @@ export function ClientHomeEvents({
         <p className="mt-2 max-w-sm mx-auto text-sm leading-6 text-muted-foreground">
           Your event workspace opens after PMCM accepts your inquiry and both you and PMCM acknowledge the conforme. If PMCM has prepared one, review it here; otherwise, submit a request to get started.
         </p>
-        <Button className="mt-5 rounded-lg font-bold" onClick={onRequest}>
-          <Send className="size-4" /> Submit an event request
+        <Button asChild className="mt-5 rounded-lg font-bold">
+          <Link href={requestHref}><Send className="size-4" /> Submit an event request</Link>
         </Button>
       </div>
     );
@@ -239,13 +258,12 @@ export function ClientHomeEvents({
     <div>
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-base font-black text-foreground">Your events</h2>
-        <button
-          type="button"
-          onClick={onViewAll}
+        <Link
+          href={viewAllHref}
           className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         >
           View all <ArrowRight className="size-3" />
-        </button>
+        </Link>
       </div>
       <div className="divide-y divide-border rounded-lg border border-border bg-card">
         {previewEvents.map((ev) => (
@@ -255,7 +273,7 @@ export function ClientHomeEvents({
               <p className="mt-1 text-sm text-muted-foreground">{formatPortalDate(ev.eventDate)} · {ev.status.replaceAll("_", " ")}</p>
               {ev.venue ? <p className="mt-1 text-xs text-muted-foreground">{ev.venue}</p> : null}
             </div>
-            <Button variant="outline" onClick={() => onOpen(ev.id)}>Open event</Button>
+            <Button asChild variant="outline"><Link href={eventHref(ev.id)} onClick={() => onOpen(ev.id)}>Open event</Link></Button>
           </div>
         ))}
       </div>

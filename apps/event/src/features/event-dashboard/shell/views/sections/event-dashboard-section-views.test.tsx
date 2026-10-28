@@ -39,11 +39,13 @@ describe("global event-scoped destinations without a selected event", () => {
     render(<View />);
 
     expect(screen.getByRole("heading", { name: "Choose an event" })).toBeTruthy();
-    const rows = screen.getAllByRole("button", { name: new RegExp(`^${action}:`) });
+    const rows = screen.getAllByRole("link", { name: new RegExp(`^${action}:`) });
     expect(rows.map((row) => row.getAttribute("title"))).toEqual(["Product expo", "Founders gala"]);
     expect(screen.getByText(/15 May 2027|May 15, 2027/)).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: `${action}: Founders gala` }));
+    const chosen = screen.getByRole("link", { name: `${action}: Founders gala` });
+    expect(chosen.getAttribute("href")).toBe(`/dashboard/events/evt-gala/${tab}`);
+    fireEvent.click(chosen);
     expect(routeModel.navigateEvent).toHaveBeenCalledWith("evt-gala", tab);
   });
 });
