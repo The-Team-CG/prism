@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole, SupplierVerificationStatus, WorkflowCommandService } from '@prism/kernel/event-core';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
@@ -56,6 +56,7 @@ function createService(overrides: {
     opsSupplierQuoteRequest: {
       findUnique: vi.fn(async ({ where }: { where: { id: string } }) => (where.id === request.id ? request : null)),
       update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => Object.assign(request, data)),
+      findUniqueOrThrow: vi.fn(async () => request),
       updateMany: vi.fn(async ({ where, data }: { where: { id: string; status?: string; assignmentStatus?: string | null; eventDayStatus?: string }; data: Record<string, unknown> }) => {
         if (where.status && request.status !== where.status) return { count: 0 };
         if (Object.prototype.hasOwnProperty.call(where, 'assignmentStatus') && request.assignmentStatus !== where.assignmentStatus) return { count: 0 };
@@ -262,16 +263,36 @@ describe('SupplierNetworkWorkflowService', () => {
     expect((await report('arrived')).eventDayStatus).toBe('arrived');
     await expect(report('done_leaving')).rejects.toThrow(/Report "set-up ready" next/);
 
-    const writesBeforeReplay = prisma.opsSupplierQuoteRequest.update.mock.calls.length;
+    const writesBeforeReplay = prisma.opsSupplierQuoteRequest.updateMany.mock.calls.length;
     const auditsBeforeReplay = audit.mock.calls.length;
     expect((await report('arrived')).eventDayStatus).toBe('arrived');
-    expect(prisma.opsSupplierQuoteRequest.update.mock.calls).toHaveLength(writesBeforeReplay);
+    expect(prisma.opsSupplierQuoteRequest.updateMany.mock.calls).toHaveLength(writesBeforeReplay);
     expect(audit.mock.calls).toHaveLength(auditsBeforeReplay);
 
     expect((await report('set_up_ready')).eventDayStatus).toBe('set_up_ready');
     await expect(report('arrived')).rejects.toThrow(/cannot move backward to "arrived"/);
     expect((await report('done_leaving')).eventDayStatus).toBe('done_leaving');
     await expect(report('set_up_ready')).rejects.toThrow(/already complete and cannot move back/);
+  });
+
+
+  it.each(['supplier', 'pmcm'])('refuses a stale %s status write without overwriting a concurrent correction or auditing it', async (kind) => {
+    const { service, request, prisma, audit } = createService();
+    Object.assign(request, { status: 'selected', assignmentStatus: 'confirmed', readinessStatus: 'confirmed', eventDayStatus: 'arrived' });
+    const update = prisma.opsSupplierQuoteRequest.updateMany.getMockImplementation();
+    if (!update) throw new Error('Missing fixture update behavior');
+    prisma.opsSupplierQuoteRequest.updateMany.mockImplementationOnce(async (input) => {
+      request.eventDayStatus = 'done_leaving';
+      return update(input);
+    });
+    const supplier = { name: 'Sonic Line Events', role: OpsUserRole.Supplier, supplierId: 'sup_sonicline', email: 'supplier@example.com', explicit: true, verified: true };
+    const pmcm = { id: 'pmcm_1', name: 'PMCM Admin', role: OpsUserRole.PmcmAdmin, explicit: true, verified: true };
+    const command = kind === 'supplier'
+      ? service.updateSupplierEventStatus('qr_sonic', { status: 'set_up_ready' }, supplier)
+      : service.correctSupplierEventStatus('evt_sample', 'qr_sonic', { status: 'not_started', reason: 'Correct mistaken arrival' }, pmcm);
+    await expect(command).rejects.toBeInstanceOf(ConflictException);
+    expect(request.eventDayStatus).toBe('done_leaving');
+    expect(audit).not.toHaveBeenCalled();
   });
 
   it('lets PMCM correct a supplier status in either direction with a reason, and the supplier continues from it', async () => {

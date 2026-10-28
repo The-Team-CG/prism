@@ -523,10 +523,11 @@ function createRevisionCapScenario(revisionNumber: number | null) {
           where,
           data,
         }: {
-          where: { revisionNumber?: { lt: number } };
+          where: { revisionNumber?: { lt: number }; status?: { notIn: string[] } };
           data: Record<string, unknown> & { revisionNumber?: { increment: number } };
         }) => {
           if (!quote) return { count: 0 };
+          if (where.status?.notIn.includes(quote.status)) return { count: 0 };
           const cap = where.revisionNumber?.lt;
           if (cap !== undefined && quote.revisionNumber >= cap) return { count: 0 };
           const { revisionNumber: bump, ...rest } = data;
@@ -557,6 +558,18 @@ function createRevisionCapScenario(revisionNumber: number | null) {
 }
 
 describe('CommercialWorkflowService revision cap (PA-268, EP-07-S02 AC4)', () => {
+  it('does not revise a quote locked by selection after request validation', async () => {
+    const { service, prisma, quote } = createRevisionCapScenario(1);
+    prisma.$transaction.mockImplementationOnce(async (callback) => {
+      if (quote) quote.status = 'selected';
+      return callback(prisma);
+    });
+    await expect(service.reviseSupplierQuoteByToken('token-sample', { amount: 60000 })).rejects.toThrow();
+    expect(quote?.status).toBe('selected');
+    expect(quote?.revisionNumber).toBe(1);
+    expect(prisma.opsSupplierQuoteRequest.update).not.toHaveBeenCalled();
+  });
+
   it('allows a first submission when no quote row exists yet', async () => {
     const { service, prisma, created } = createRevisionCapScenario(null);
 

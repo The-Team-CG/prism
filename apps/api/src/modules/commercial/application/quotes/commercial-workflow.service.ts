@@ -612,7 +612,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
             // `revisionNumber < 2` and incrementing atomically means the loser of the
             // race matches no rows and is rejected instead of silently overwriting.
             const { count } = await tx.opsSupplierQuote.updateMany({
-              where: { id: quote.id, revisionNumber: { lt: 2 } },
+              where: { id: quote.id, revisionNumber: { lt: 2 }, status: { notIn: [SupplierQuoteStatus.Selected, SupplierQuoteStatus.Locked, SupplierQuoteStatus.NotSelected] } },
               data: {
                 amount,
                 ...(input.inclusions ? { inclusions: toPrismaJson(input.inclusions) } : {}),
