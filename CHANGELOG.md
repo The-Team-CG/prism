@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Local development can now run Supabase Storage, so the API uses the same storage adapter as production: start with `PRISM_LOCAL_SUPABASE_STORAGE=1` and the launcher enables the service, creates a private `prism-documents` bucket and writes the storage settings into the generated env files. The default start is unchanged.
+
 - Persona lifecycle checks now verify persisted public walk-ins, reconciled PMCM attendance and client-scoped live event state instead of passing on prerequisite checks alone.
 
 - Lifecycle test helpers use cryptographic randomness for synthetic client identities, simulated client addresses and retry jitter; exploratory database retries remain explicit and prevent a green report.
