@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PrismPmcmSupplierWorkflowWorkspace, PrismSupplierQuote, PrismSupplierSchedule } from "@prism/types";
 import {
   assignSupplierCreativeTask,
+  correctSupplierEventStatus,
   createSupplierPayable,
   downloadPmcmSupplierFile,
   loadPmcmSupplierWorkflows,
@@ -131,6 +132,16 @@ export function usePmcmSupplierWorkflows(eventId: string) {
     }));
   }, [run, value]);
 
+  const correctStatus = useCallback(async (requestId: string) => {
+    const key = `status:${requestId}`;
+    const saved = await run("Supplier status corrected", () => correctSupplierEventStatus(eventId, requestId, {
+      status: value(key, "status") as "not_started" | "arrived" | "set_up_ready" | "done_leaving",
+      reason: value(key, "reason"),
+    }));
+    if (saved) clearValues(key, ["reason"]);
+    return saved;
+  }, [clearValues, eventId, run, value]);
+
   const assignTask = useCallback(async (requestId: string) => {
     const key = `task:${requestId}`;
     const payload = {
@@ -230,6 +241,7 @@ export function usePmcmSupplierWorkflows(eventId: string) {
     load,
     publishSchedule,
     decideContract,
+    correctStatus,
     assignTask,
     decideTask,
     addPayable,

@@ -111,7 +111,8 @@ export async function run(ctx) {
   // ---------- golden path: proposal ----------
   await step("PMCM issues proposal version 1", async () => {
     need("ev", "estimate");
-    s.v1 = expectStatus(await pmcm("POST", `/events/${E()}/proposal/versions`, { title: "Golden Summit Proposal", summary: "Venue, AV and registration for 150 guests.", costEstimateId: s.estimate.id }), 201);
+    s.issueKey = idem("issue-v1");
+    s.v1 = expectStatus(await pmcm("POST", `/events/${E()}/proposal/versions`, { title: "Golden Summit Proposal", summary: "Venue, AV and registration for 150 guests.", costEstimateId: s.estimate.id, idempotencyKey: s.issueKey }), 201);
     expect(s.v1.versionNumber === 1 && s.v1.status === "issued", `version ${s.v1.versionNumber} ${s.v1.status}`);
     return `${s.v1.id}, total ${s.v1.totalAmount}`;
   });
@@ -161,12 +162,16 @@ export async function run(ctx) {
       expect(r.status === 403, `${who} proposal review -> ${r.status}: ${msg(r)}`);
     }
   });
-  await step("a retried issue request is recognised instead of creating a duplicate version", async () => {
-    need("v1", "estimate");
-    const body = { title: "Golden Summit Proposal", summary: "Venue, AV and registration for 150 guests.", costEstimateId: s.estimate.id };
+  await step("a retried issue request replays the issued version; the same key with other content is refused", async () => {
+    need("v1", "estimate", "issueKey");
+    const body = { title: "Golden Summit Proposal", summary: "Venue, AV and registration for 150 guests.", costEstimateId: s.estimate.id, idempotencyKey: s.issueKey };
     const again = expectStatus(await pmcm("POST", `/events/${E()}/proposal/versions`, body), 201);
-    s.v1 = again.versionNumber > 1 ? again : s.v1;
-    if (again.versionNumber > 1) review(`identical proposal issuance creates version ${again.versionNumber}; decide whether this version-creation command should support an idempotency key`);
+    expect(again.id === s.v1.id && again.versionNumber === 1, `an identical retry returned ${again.id} as version ${again.versionNumber}, expected ${s.v1.id} as version 1`);
+    const changed = await pmcm("POST", `/events/${E()}/proposal/versions`, { ...body, title: "Golden Summit Proposal (changed)" });
+    expect(changed.status === 400, `the same key with other content -> ${changed.status}: ${msg(changed)}`);
+    const latest = expectStatus(await clientCall("GET", `/events/${E()}/proposal`), 200);
+    expect(latest.proposal?.id === s.v1.id && latest.proposal.versionNumber === 1, `the latest issued proposal is ${JSON.stringify(latest.proposal)} after the retries`);
+    return msg(changed);
   });
   await step("revision request without a reason is rejected", async () => {
     need("v1");
@@ -394,12 +399,14 @@ export async function run(ctx) {
   await step("a billing source cannot cite a superseded proposal version as evidence", async () => {
     need("source", "doc1");
     const r = await pmcm("POST", `/events/${E()}/billing-source`, { ...s.sourceBody, idempotencyKey: idem("stale-evidence"), sourceDocumentId: s.doc1.id });
-    if (r.status < 400) review(`source citing superseded v1 was accepted (${r.status}); decide whether source evidence must match the latest approved version`);
+    expect(r.status === 400 && /superseded/i.test(msg(r)), `${r.status}: ${msg(r)}`);
+    return msg(r);
   });
   await step("a billing source whose total differs from the approved proposal total is refused", async () => {
     need("source");
     const r = await pmcm("POST", `/events/${E()}/billing-source`, { ...s.sourceBody, idempotencyKey: idem("mismatch"), lineItems: [{ label: "Venue", amount: 999000 }] });
-    if (r.status < 400) review(`source totalling 999000 citing an approved 500000 proposal was accepted (${r.status}); clarify allowed adjustments and approval controls`);
+    expect(r.status === 400 && /totalOverrideReason/.test(msg(r)), `${r.status}: ${msg(r)}`);
+    return msg(r);
   });
   await step("a statement cannot be generated from an unapproved source", async () => {
     need("source");
@@ -425,6 +432,17 @@ export async function run(ctx) {
     if (again.status >= 400) return `refused: ${msg(again)}`;
     expect(again.body.approvedBy === s.firstApprover && again.body.approvedAt === s.firstApprovedAt, `re-approval returned ${again.status} and replaced the approver "${s.firstApprover}" with "${again.body.approvedBy}"`);
   });
+  await step("a source created with a total override cannot be approved by the admin who created it", async () => {
+    need("source", "docLatest");
+    const r = await pmcm("POST", `/events/${E()}/billing-source`, { ...s.sourceBody, idempotencyKey: idem("override-source"), sourceLabel: "Discounted source", lineItems: [{ label: "Venue", amount: 450000 }], totalOverrideReason: "Negotiated discount" });
+    const created = expectStatus(r, 201);
+    const own = await pmcm("PATCH", `/events/${E()}/billing-source/${created.id}/approve`, {});
+    expect(own.status === 403 && /different PMCM admin/i.test(msg(own)), `creator approval -> ${own.status}: ${msg(own)}`);
+    // The second admin passes the separation rule and is then stopped only by the event-level cap.
+    const other = await pmcm("PATCH", `/events/${E()}/billing-source/${created.id}/approve`, {}, T.admin2);
+    expect(other.status === 400 && /additional billing/i.test(msg(other)), `second admin approval -> ${other.status}: ${msg(other)}`);
+    return msg(other);
+  });
   await step("PMCM generates the billing statement; PDF stored, numbered, milestones created", async () => {
     need("source");
     s.genKey = idem("generate");
@@ -443,12 +461,19 @@ export async function run(ctx) {
     expect(replay.id === s.statement.id, "a keyed retry created another statement");
     const second = await pmcm("POST", `/events/${E()}/billing-statements/generate`, { sourceId: s.source.id });
     expect(second.status === 400 || second.status === 409, `second statement -> ${second.status}`);
-    if (/storage|logical target/i.test(msg(second))) review(`duplicate generation is refused with ${second.status} "${msg(second)}"; a billing-domain response would explain this better`);
+    expect(second.status === 409 && /billing statement already exists for this source/i.test(msg(second)), `${second.status}: ${msg(second)}`);
+    return msg(second);
   });
   await step("the client does not see a statement before PMCM sends it", async () => {
     need("statement");
-    const seen = [...(await clientBilling()).billingStatements, ...(await clientWorkspace()).billingStatements].filter((b) => b.id === s.statement.id);
-    if (seen.length) review(`client sees ${s.statement.number} with status "${seen[0]?.status}" and sentAt ${seen[0]?.sentAt}; clarify whether issuing or sending publishes the statement`);
+    const billing = await clientBilling();
+    const workspaceView = await clientWorkspace();
+    const seen = [...billing.billingStatements, ...workspaceView.billingStatements].filter((b) => b.id === s.statement.id);
+    expect(!seen.length, `client sees ${s.statement.number} with status "${seen[0]?.status}" and sentAt ${seen[0]?.sentAt}`);
+    const milestones = [...billing.paymentMilestones, ...workspaceView.paymentMilestones].filter((m) => m.eventId === E() && !m.supersededAt);
+    expect(!milestones.length, `client sees ${milestones.length} payment milestone(s) of the unsent statement`);
+    const objects = asList(expectStatus(await clientCall("GET", `/storage/objects/events/${E()}`), 200));
+    expect(!objects.some((o) => o.ownerRecordType === "billing_statement"), "client sees the statement file before it is sent");
   });
   await step("PMCM sends the statement; the client now sees it with its milestones", async () => {
     need("statement");
@@ -698,16 +723,18 @@ export async function run(ctx) {
     expect(noReason.status === 400, `waive without reason -> ${noReason.status}`);
     return msg(r);
   });
-  await step("a second approved source cannot double-bill the event by generating another statement", async () => {
+  await step("a second source cannot be approved when the approved sources would exceed the issued proposal total", async () => {
     need("statement", "docLatest");
+    const milestoneTotal = async () => ((await workspace()).paymentMilestones ?? []).filter((m) => !m.supersededAt).reduce((sum, m) => sum + m.amount, 0);
+    const before = await milestoneTotal();
     const second = expectStatus(await pmcm("POST", `/events/${E()}/billing-source`, { ...s.sourceBody, idempotencyKey: idem("second-source"), sourceLabel: "Second source" }), 201);
-    expectStatus(await pmcm("PATCH", `/events/${E()}/billing-source/${second.id}/approve`, {}), 200);
+    const approval = await pmcm("PATCH", `/events/${E()}/billing-source/${second.id}/approve`, {});
+    expect(approval.status === 400 && /additional billing/i.test(msg(approval)), `approval -> ${approval.status}: ${msg(approval)}`);
     const r = await pmcm("POST", `/events/${E()}/billing-statements/generate`, { sourceId: second.id });
-    if (r.status < 300) {
-      const total = ((await workspace()).paymentMilestones ?? []).reduce((sum, m) => sum + m.amount, 0);
-      review(`second approved source generated statement ${r.body.number}; milestones total ${total} against an approved proposal of 500000. Clarify event-level billing caps and revisions`);
-    }
-    expect(r.status === 400 || r.status === 409, `${r.status}: ${msg(r)}`);
+    expect(r.status === 400 && /approved/i.test(msg(r)), `generate -> ${r.status}: ${msg(r)}`);
+    const after = await milestoneTotal();
+    expect(after === before, `milestones total changed from ${before} to ${after}`);
+    return msg(approval);
   });
 
   // ---------- portal wiring ----------

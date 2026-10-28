@@ -55,6 +55,7 @@ function SupplierWorkflowRow({ row, vm, request, quote }: { row: WorkflowRow; vm
   return <section className="space-y-3 rounded-xl border border-border p-4">
     <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-bold">{row.supplierName} · {request?.category ?? "Supplier booking"}</p><p className="mt-1 text-xs text-muted-foreground">Assignment {row.assignmentStatus}</p></div>{quote ? <p className="text-sm font-bold">Selected quote {money(quote.amount)}</p> : null}</div>
     <ScheduleEditor row={row} vm={vm} />
+    <StatusCorrection row={row} vm={vm} />
     <ContractVersions contracts={row.contracts} vm={vm} />
     <CreativeTasks row={row} vm={vm} />
     <PayableMilestones row={row} quote={quote} vm={vm} />
@@ -69,6 +70,18 @@ function ScheduleEditor({ row, vm }: { row: WorkflowRow; vm: WorkflowViewModel }
     <div className="grid gap-2 sm:grid-cols-2"><label className="grid gap-1 text-xs font-semibold">Ingress<Input type="datetime-local" value={vm.value(key, "ingressAt")} onChange={(e) => vm.setValue(key, "ingressAt", e.target.value)} /></label><label className="grid gap-1 text-xs font-semibold">Egress<Input type="datetime-local" value={vm.value(key, "egressAt")} onChange={(e) => vm.setValue(key, "egressAt", e.target.value)} /></label><Input aria-label="Schedule location" placeholder="Location" value={vm.value(key, "location")} onChange={(e) => vm.setValue(key, "location", e.target.value)} /><Input aria-label="Schedule notes" placeholder="Notes for supplier" value={vm.value(key, "notes")} onChange={(e) => vm.setValue(key, "notes", e.target.value)} /></div>
     <Button className="mt-2" size="sm" disabled={vm.busy || !vm.value(key, "ingressAt") || !vm.value(key, "egressAt")} onClick={() => void vm.publishSchedule(row.requestId)}>Publish schedule</Button>
   </div>;
+}
+
+const EVENT_DAY_STATUSES = [["not_started", "Not started"], ["arrived", "Arrived"], ["set_up_ready", "Set up and ready"], ["done_leaving", "Done and leaving"]] as const;
+
+function StatusCorrection({ row, vm }: { row: WorkflowRow; vm: WorkflowViewModel }) {
+  const key = `status:${row.requestId}`;
+  const status = vm.value(key, "status");
+  const reason = vm.value(key, "reason");
+  return <div className="rounded-lg bg-muted/30 p-3"><p className="mb-2 text-xs font-bold">Correct event-day status</p><div className="flex flex-wrap items-center gap-2">
+    <select aria-label="Corrected event-day status" className="h-8 rounded-lg border border-border bg-background px-2 text-xs" value={status} onChange={(e) => vm.setValue(key, "status", e.target.value)}><option value="">Choose status</option>{EVENT_DAY_STATUSES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+    <Input className="h-8 max-w-xs" aria-label="Status correction reason" placeholder="Reason for correction" value={reason} onChange={(e) => vm.setValue(key, "reason", e.target.value)} />
+    <Button size="sm" variant="outline" disabled={vm.busy || !status || !reason.trim()} onClick={() => void vm.correctStatus(row.requestId)}>Correct status</Button></div></div>;
 }
 
 function ContractVersions({ contracts, vm }: { contracts: ContractRow[]; vm: WorkflowViewModel }) {

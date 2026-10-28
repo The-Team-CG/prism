@@ -21,6 +21,7 @@ function createController() {
   };
   const fileRequirementsMatrixService = {
     buildForEvent: vi.fn(async () => matrix),
+    hasSentBillingStatement: vi.fn(async () => false),
     requireEvent: vi.fn(async () => ({
       id: 'evt_file', clientName: 'Ana Reyes', clientPortalStatus: 'unlocked',
       inquiry: { email: 'ana@pmcm.test' },
@@ -120,6 +121,19 @@ describe('OpsEventFileRequirementsController', () => {
 
     const pmcmView = await controller.fileRequirements('evt_file', verified(OpsUserRole.PmcmAdmin, 'Maxine'));
     expect(pmcmView.items[0]).toMatchObject({ notes: 'Internal chase note' });
+  });
+
+  it('withholds the billing row from the client until PMCM has sent a statement, while PMCM always sees it', async () => {
+    const { controller, fileRequirementsMatrixService } = createController();
+    const billing = { key: 'billing_statement', visibleToRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.Client], generatedDocumentId: 'bill_1', detail: '2 payment milestone(s); 2 still unpaid' };
+    fileRequirementsMatrixService.buildForEvent.mockResolvedValue({ eventId: 'evt_file', items: [billing] } as never);
+    const client = verified(OpsUserRole.Client, 'Ana Reyes', 'ana@pmcm.test');
+
+    expect((await controller.fileRequirements('evt_file', client)).items).toEqual([]);
+    expect((await controller.fileRequirements('evt_file', verified(OpsUserRole.PmcmAdmin, 'Maxine'))).items).toEqual([billing]);
+
+    fileRequirementsMatrixService.hasSentBillingStatement.mockResolvedValue(true);
+    expect((await controller.fileRequirements('evt_file', client)).items).toEqual([billing]);
   });
 
   it('forwards requirement writes with the verified actor and rejects malformed keys before the command runs', async () => {
