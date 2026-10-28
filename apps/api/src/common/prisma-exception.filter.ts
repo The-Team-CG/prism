@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Request, Response } from 'express';
+import { isSerializationConflict } from '../kernel/database/serialization-retry';
 
 const DATABASE_UNAVAILABLE_MESSAGE =
   'P.R.I.S.M database is unavailable. Check the prism-api database URL/network, then run npm run db:doctor:runtime.';
@@ -81,6 +82,11 @@ function problemFor(exception: unknown): ProblemBody {
     return problem(HttpStatus.SERVICE_UNAVAILABLE, 'Service Unavailable', DATABASE_UNAVAILABLE_MESSAGE);
   }
 
+  // Only reached after the transaction retries in PrismaService were used up.
+  if (isSerializationConflict(exception)) {
+    return problem(HttpStatus.SERVICE_UNAVAILABLE, 'Service Unavailable', 'This request conflicted with another update and was not applied. Try again in a moment.');
+  }
+
   if (exception instanceof Prisma.PrismaClientKnownRequestError) {
     if (exception.code === 'P2025') {
       return problem(HttpStatus.NOT_FOUND, 'Not Found', 'The requested record was not found.');
@@ -126,6 +132,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
       return;
     }
 
+    if (body.statusCode === HttpStatus.SERVICE_UNAVAILABLE && isSerializationConflict(exception)) response.setHeader('Retry-After', '1');
     response.status(body.statusCode).json(body);
   }
 }
