@@ -143,6 +143,7 @@ describe.skipIf(!live)('supplier identity ownership against PostgreSQL', () => {
         { queue: async () => ({}) },
         documentVault,
         new OperationsEventReferenceService(prisma),
+        { write: async () => ({}) } as never,
       );
 
       const own = await service.supplierWorkspace(

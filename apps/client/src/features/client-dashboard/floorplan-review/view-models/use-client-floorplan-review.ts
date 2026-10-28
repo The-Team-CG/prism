@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createClientFloorPlanAnnotationSchema, decideClientFloorPlanSchema, parseContract, type PrismClientFloorPlanReview } from "@prism/types";
 import { clientFloorplanReviewRepository } from "../data/client-floorplan-review-repository";
 
-export function useClientFloorplanReview(eventId: string, draftId: string) {
+/** `onDecided` runs after a decision is saved so the workspace can show the draft's new state (a revision request returns it to PMCM). */
+export function useClientFloorplanReview(eventId: string, draftId: string, onDecided?: () => Promise<void>) {
   const [review, setReview] = useState<PrismClientFloorPlanReview | null>(null);
   const [reviewKey, setReviewKey] = useState<string | null>(null);
   const [comment, setComment] = useState("");
@@ -48,7 +49,9 @@ export function useClientFloorplanReview(eventId: string, draftId: string) {
     try {
       const input = parseContract(decideClientFloorPlanSchema, { snapshotHash: visibleReview.snapshotHash, action, comment, idempotencyKey: crypto.randomUUID() }, "Floorplan decision");
       await clientFloorplanReviewRepository.decide(eventId, draftId, input);
-      setComment(""); await load();
+      setComment("");
+      if (action === "request_revision") await onDecided?.();
+      else { await load(); await onDecided?.(); }
     } catch (cause) { if (currentKey.current === requestedKey) setError(cause instanceof Error ? cause.message : "Could not save the floorplan decision."); }
     finally { if (currentKey.current === requestedKey) setBusy(false); }
   };

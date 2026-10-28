@@ -52,10 +52,10 @@ export function buildCostEstimateInput(draft: ProposalDraft) {
   );
 }
 
-export function buildIssueProposalInput(draft: ProposalDraft, costEstimateId: string) {
+export function buildIssueProposalInput(draft: ProposalDraft, costEstimateId: string, idempotencyKey: string) {
   return parseContract(
     issueProposalVersionSchema,
-    { title: draft.title, summary: draft.summary, revisionNote: draft.revisionNote, costEstimateId },
+    { title: draft.title, summary: draft.summary, revisionNote: draft.revisionNote, costEstimateId, idempotencyKey },
     "Proposal",
   );
 }

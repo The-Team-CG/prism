@@ -41,6 +41,8 @@ export function renderBillingPdf(input: { number: string; sourceLabel: string; t
   return Buffer.from(pdf, 'utf8');
 }
 
+type ProposalEvidenceCheck = { citedProposalVersion?: number; evidenceOverrideReason?: string; totalOverrideReason?: string };
+
 function isIdempotencyKeyViolation(error: unknown): boolean {
   if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') return false;
   const target = error.meta?.target;
@@ -96,6 +98,7 @@ export class BillingOperationsService {
     let paymentMethods: ReturnType<BillingOperationsService['normalizeBillingMethods']> = [];
     let paymentTermsPolicyState = 'standard';
     let paymentTermsOverrideReason: string | null = null;
+    let evidenceCheck: ProposalEvidenceCheck = {};
     let replayed = false;
     const payloadHash = createHash('sha256').update(JSON.stringify(input)).digest('hex');
 
@@ -107,8 +110,9 @@ export class BillingOperationsService {
       idempotencyPayloadHash: payloadHash,
       validateState: async () => {
         await this.requireEvent(eventId, transaction?.prisma);
+        let reference: Awaited<ReturnType<DocumentVault['findEligibleReference']>> | undefined;
         if (input.sourceDocumentId) {
-          await this.documentVault.findEligibleReference({
+          reference = await this.documentVault.findEligibleReference({
             eventId,
             purpose: 'billing_source_evidence',
             documentId: input.sourceDocumentId,
@@ -117,6 +121,10 @@ export class BillingOperationsService {
         lineItems = this.normalizeBillingLineItems(input.lineItems);
         totalAmount = lineItems.reduce((sum, item) => sum + item.amount, 0);
         if (!Number.isSafeInteger(totalAmount) || totalAmount <= 0 || totalAmount > 2147483647) throw new BadRequestException('Billing source total must be a positive whole amount within the supported range');
+        // A keyed retry replays the stored source; it is not re-judged against proposals issued since.
+        if (reference && !(await this.isKeyedReplay(input.idempotencyKey, transaction?.prisma))) {
+          evidenceCheck = await this.checkProposalEvidence(eventId, reference, totalAmount, input, transaction?.prisma);
+        }
         paymentSchedule = this.normalizeBillingSchedule(input.paymentSchedule, totalAmount);
         const terms = validatePaymentTerms({ schedule: paymentSchedule, policy: input.paymentTermsPolicy, overrideReason: input.paymentTermsOverrideReason });
         paymentTermsPolicyState = terms.state;
@@ -172,7 +180,7 @@ export class BillingOperationsService {
           affectedType: 'billing_source',
           affectedId: source.id,
           affectedLabel: source.sourceLabel,
-          metadata: auditMetadata(actor, { totalAmount }),
+          metadata: auditMetadata(actor, { totalAmount, ...evidenceCheck }),
         }, context);
       },
       project: (source) => mapBillingSource(source),
@@ -197,9 +205,16 @@ export class BillingOperationsService {
         await this.requireEvent(eventId, transaction?.prisma);
         source = await (transaction?.prisma ?? this.prisma).opsBillingSource.findUnique({ where: { id: sourceId } });
         if (!source || source.eventId !== eventId) throw new NotFoundException('Billing source not found');
+        // An enclosing correction replaces an already-approved invoice and is governed by the correction flow.
+        if (source.status !== 'approved' && !transaction) {
+          await this.assertDifferentApproverForTotalOverride(eventId, source, actor);
+        }
       },
-      write: async () => {
-        const approved = await (transaction?.prisma ?? this.prisma).opsBillingSource.updateMany({
+      write: async (context) => {
+        const db = transaction?.prisma ?? context?.prisma ?? this.prisma;
+        // The cap is checked under a per-event lock so two simultaneous approvals cannot both fit.
+        if (source && source.status !== 'approved' && !transaction) await this.assertWithinIssuedProposalTotal(eventId, source, db);
+        const approved = await db.opsBillingSource.updateMany({
           where: { id: sourceId, eventId, status: { not: 'approved' } },
           data: {
             status: 'approved',
@@ -210,7 +225,7 @@ export class BillingOperationsService {
           },
         });
         if (approved.count !== 1) throw new ConflictException('Billing source is already approved');
-        const saved = await (transaction?.prisma ?? this.prisma).opsBillingSource.findUnique({ where: { id: sourceId } });
+        const saved = await db.opsBillingSource.findUnique({ where: { id: sourceId } });
         if (!saved) throw new NotFoundException('Billing source not found');
         return saved;
       },
@@ -297,29 +312,10 @@ export class BillingOperationsService {
             return existingStatement;
           }
         }
-        const billingYear = event.eventDate.getFullYear();
-        // QUERY_AUDIT_RAW_SQL: serialize the one-time yearly sequence bootstrap with statement allocations.
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('prism.billing_statement_sequence'), ${billingYear})`;
-        // QUERY_AUDIT_RAW_SQL: serialize annual number allocation on the sequence row.
-        const sequenceRows = await tx.$queryRaw<Array<{ next_number: number }>>`SELECT "next_number" FROM "commercial"."billing_statement_sequences" WHERE "year" = ${billingYear} FOR UPDATE`;
-        let nextNumber = sequenceRows[0]?.next_number;
-        if (nextNumber === undefined) {
-          // QUERY_AUDIT_RAW_SQL: read legacy statement numbers only when this year has no sequence row.
-          const startingNumberRows = await tx.$queryRaw<Array<{ next_number: number }>>`
-            SELECT COALESCE(MAX(substring("number" FROM '^BS-[0-9]{4}-([0-9]{4})$')::integer), 0) + 1 AS "next_number"
-            FROM "commercial"."billing_statements"
-            WHERE "number" ~ ('^BS-' || ${billingYear}::text || '-[0-9]{4}$')
-          `;
-          nextNumber = startingNumberRows[0]?.next_number ?? 1;
-          // QUERY_AUDIT_RAW_SQL: tolerate an older server initializing the row during a rolling deployment.
-          await tx.$executeRaw`INSERT INTO "commercial"."billing_statement_sequences" ("year", "next_number") VALUES (${billingYear}, ${nextNumber}) ON CONFLICT ("year") DO NOTHING`;
-          // QUERY_AUDIT_RAW_SQL: use whichever transaction won first-time sequence initialization.
-          const initializedRows = await tx.$queryRaw<Array<{ next_number: number }>>`SELECT "next_number" FROM "commercial"."billing_statement_sequences" WHERE "year" = ${billingYear} FOR UPDATE`;
-          nextNumber = initializedRows[0]?.next_number ?? nextNumber;
-        }
-        billingNumber = `BS-${billingYear}-${String(nextNumber).padStart(4, '0')}`;
-        // QUERY_AUDIT_RAW_SQL: advance the locked yearly sequence with the issued statement.
-        await tx.$executeRaw`UPDATE "commercial"."billing_statement_sequences" SET "next_number" = ${nextNumber + 1} WHERE "year" = ${billingYear}`;
+        // One statement per source; a correction replaces an invoice with a statement from a new source.
+        const sourceStatement = await tx.opsBillingStatement.findFirst({ where: { sourceId: source.id }, select: { id: true } });
+        if (sourceStatement) throw new ConflictException('A billing statement already exists for this source.');
+        billingNumber = await this.allocateBillingNumber(tx, event.eventDate.getFullYear());
         pdfBytes = renderBillingPdf({ number: billingNumber, sourceLabel: source.sourceLabel, totalAmount: source.totalAmount });
         const storage = await this.prepareBillingStatementStorage(eventId, statementId, billingNumber, source, pdfBytes, actor);
         storageState = storage.storageState;
@@ -394,21 +390,36 @@ export class BillingOperationsService {
           affectedType: 'billing_statement',
           affectedId: statement.id,
           affectedLabel: billingNumber,
-          metadata: auditMetadata(actor, { sourceId: source?.id, sourceLabel: source?.sourceLabel, totalAmount: source?.totalAmount, notificationStatus: inquiry?.email?.trim() ? 'queued' : 'not_queued', notificationReason: inquiry?.email?.trim() ? undefined : 'No verified client email address is configured' }),
+          metadata: auditMetadata(actor, { sourceId: source?.id, sourceLabel: source?.sourceLabel, totalAmount: source?.totalAmount, notificationStatus: 'not_queued', notificationReason: 'The client is notified when PMCM sends the statement' }),
         }, context);
-        const recipient = inquiry?.email?.trim();
-        if (recipient) await Promise.all(paymentSchedule.map((item, index) => writeNotification(
-            this.notificationOutboxWriter,
-            eventId,
-            recipient,
-            `${item.label} payment milestone for billing statement ${billingNumber} is due ${item.dueDate ?? 'on the agreed date'}`,
-            'email',
-            { idempotencyKey: `billing-reminder:${statement.id}:${index}` },
-            context,
-          )));
       },
       project: (statement) => mapBillingStatement(statement),
     }, transaction);
+  }
+
+  private async allocateBillingNumber(tx: Prisma.TransactionClient, year: number) {
+    // QUERY_AUDIT_RAW_SQL: serialize the one-time yearly sequence bootstrap with statement allocations.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('prism.billing_statement_sequence'), ${year})`;
+    // QUERY_AUDIT_RAW_SQL: serialize annual number allocation on the sequence row.
+    const sequenceRows = await tx.$queryRaw<Array<{ next_number: number }>>`SELECT "next_number" FROM "commercial"."billing_statement_sequences" WHERE "year" = ${year} FOR UPDATE`;
+    let nextNumber = sequenceRows[0]?.next_number;
+    if (nextNumber === undefined) {
+      // QUERY_AUDIT_RAW_SQL: read legacy statement numbers only when this year has no sequence row.
+      const startingNumberRows = await tx.$queryRaw<Array<{ next_number: number }>>`
+        SELECT COALESCE(MAX(substring("number" FROM '^BS-[0-9]{4}-([0-9]{4})$')::integer), 0) + 1 AS "next_number"
+        FROM "commercial"."billing_statements"
+        WHERE "number" ~ ('^BS-' || ${year}::text || '-[0-9]{4}$')
+      `;
+      nextNumber = startingNumberRows[0]?.next_number ?? 1;
+      // QUERY_AUDIT_RAW_SQL: tolerate an older server initializing the row during a rolling deployment.
+      await tx.$executeRaw`INSERT INTO "commercial"."billing_statement_sequences" ("year", "next_number") VALUES (${year}, ${nextNumber}) ON CONFLICT ("year") DO NOTHING`;
+      // QUERY_AUDIT_RAW_SQL: use whichever transaction won first-time sequence initialization.
+      const initializedRows = await tx.$queryRaw<Array<{ next_number: number }>>`SELECT "next_number" FROM "commercial"."billing_statement_sequences" WHERE "year" = ${year} FOR UPDATE`;
+      nextNumber = initializedRows[0]?.next_number ?? nextNumber;
+    }
+    // QUERY_AUDIT_RAW_SQL: advance the locked yearly sequence with the issued statement.
+    await tx.$executeRaw`UPDATE "commercial"."billing_statement_sequences" SET "next_number" = ${nextNumber + 1} WHERE "year" = ${year}`;
+    return `BS-${year}-${String(nextNumber).padStart(4, '0')}`;
   }
 
   async sendBillingStatement(eventId: string, billingId: string, actor: BillingActor) {
@@ -422,16 +433,23 @@ export class BillingOperationsService {
       if (existing.status === 'sent') return mapBillingStatement(existing);
       const billing = await tx.opsBillingStatement.update({ where: { id: billingId }, data: { status: 'sent', sentAt: new Date() } });
       const context: PrismTransactionContext = { prisma: tx, actorId: actor.id, correlationId: `billing-send:${billing.id}` };
-      const recipient = billing.clientContact?.trim();
-      await writeAudit(this.auditWriter, eventId, actor.name, `Sent billing statement ${billing.number}`, {
-        actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance,
-        actionType: AuditActionType.Update, affectedType: 'billing_statement', affectedId: billing.id,
-        affectedLabel: billing.number,
-        metadata: auditMetadata(actor, { notificationStatus: recipient ? 'queued' : 'not_queued', notificationReason: recipient ? undefined : 'No verified client email address is configured' }),
-      }, context);
-      if (recipient) for (const channel of ['email', 'viber'] as const) await writeNotification(this.notificationOutboxWriter, eventId, recipient, `Billing statement ${billing.number} sent`, channel, { idempotencyKey: `billing-send:${billing.id}:${channel}` }, context);
+      await this.queueSentStatementNotifications(billing, actor, context);
       return mapBillingStatement(billing);
     });
+  }
+
+  private async queueSentStatementNotifications(billing: OpsBillingStatement, actor: BillingActor, context: PrismTransactionContext) {
+    const recipient = billing.clientContact?.trim();
+    await writeAudit(this.auditWriter, billing.eventId, actor.name, `Sent billing statement ${billing.number}`, {
+      actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance,
+      actionType: AuditActionType.Update, affectedType: 'billing_statement', affectedId: billing.id,
+      affectedLabel: billing.number,
+      metadata: auditMetadata(actor, { notificationStatus: recipient ? 'queued' : 'not_queued', notificationReason: recipient ? undefined : 'No verified client email address is configured' }),
+    }, context);
+    if (recipient) for (const channel of ['email', 'viber'] as const) await writeNotification(this.notificationOutboxWriter, billing.eventId, recipient, `Billing statement ${billing.number} sent`, channel, { idempotencyKey: `billing-send:${billing.id}:${channel}` }, context);
+    // Milestone due notices go out with the statement: a client is told nothing about a statement they cannot see yet.
+    const schedule = Array.isArray(billing.paymentSchedule) ? (billing.paymentSchedule as Array<{ label: string; dueDate?: string }>) : [];
+    if (recipient) for (const [index, item] of schedule.entries()) await writeNotification(this.notificationOutboxWriter, billing.eventId, recipient, `${item.label} payment milestone for billing statement ${billing.number} is due ${item.dueDate ?? 'on the agreed date'}`, 'email', { idempotencyKey: `billing-reminder:${billing.id}:${index}` }, context);
   }
 
   private async executeBillingCommand<TWrite, TResult>(
@@ -446,6 +464,79 @@ export class BillingOperationsService {
     await definition.sideEffects?.(result, transaction);
     if (!definition.project) throw new Error('Billing commands require a projection');
     return definition.project(result);
+  }
+
+  private async isKeyedReplay(idempotencyKey: string | undefined, db: Prisma.TransactionClient | PrismaService = this.prisma) {
+    if (!idempotencyKey) return false;
+    return Boolean(await db.opsBillingSource.findUnique({ where: { idempotencyKey }, select: { id: true } }));
+  }
+
+  /**
+   * A source that cites a proposal version must cite the current one and match its total, unless PMCM records a reason.
+   * Only overrides that were actually needed are returned, for the audit entry.
+   */
+  private async checkProposalEvidence(
+    eventId: string,
+    reference: { kind: string; fileName: string },
+    totalAmount: number,
+    input: CreateBillingSourceInput,
+    db: Prisma.TransactionClient | PrismaService = this.prisma,
+  ): Promise<ProposalEvidenceCheck> {
+    const versionNumber = reference.kind === 'proposal' ? Number(/^Proposal v(\d+)\b/.exec(reference.fileName)?.[1]) : NaN;
+    if (!Number.isInteger(versionNumber)) return {};
+    const version = await db.opsProposalVersion.findFirst({ where: { eventId, versionNumber }, select: { status: true, totalAmount: true } });
+    if (!version) return {};
+    const check: ProposalEvidenceCheck = { citedProposalVersion: versionNumber };
+    if (version.status === 'superseded') {
+      const reason = input.evidenceOverrideReason?.trim();
+      if (!reason) throw new BadRequestException(`Proposal v${versionNumber} has been superseded by a newer version. Cite the latest issued proposal, or give an evidenceOverrideReason to cite this one.`);
+      check.evidenceOverrideReason = reason;
+    }
+    if (version.totalAmount !== totalAmount) {
+      const reason = input.totalOverrideReason?.trim();
+      if (!reason) throw new BadRequestException(`The source total ${totalAmount} does not match the Proposal v${versionNumber} total ${version.totalAmount}. Match the proposal total, or give a totalOverrideReason; a different PMCM admin must then approve the source.`);
+      check.totalOverrideReason = reason;
+    }
+    return check;
+  }
+
+  /** The create audit entry is the record of who created a source and whether its total was overridden. */
+  private async assertDifferentApproverForTotalOverride(eventId: string, source: OpsBillingSource, actor: BillingActor) {
+    const created = await this.prisma.opsAuditLog.findFirst({
+      where: { eventId, affectedType: 'billing_source', affectedId: source.id, actionType: AuditActionType.Create },
+      orderBy: { createdAt: 'asc' },
+      select: { metadata: true },
+    });
+    const metadata = created?.metadata;
+    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return;
+    const { totalOverrideReason, actorId } = metadata as { totalOverrideReason?: unknown; actorId?: unknown };
+    if (totalOverrideReason && actorId === actor.id) {
+      throw new ForbiddenException('A billing source with a total override must be approved by a different PMCM admin than the one who created it');
+    }
+  }
+
+  /** Approved sources together may not exceed the latest issued proposal; later changes go through additional billing. */
+  private async assertWithinIssuedProposalTotal(eventId: string, source: OpsBillingSource, db: Prisma.TransactionClient | PrismaService) {
+    // QUERY_AUDIT_RAW_SQL: serialize source approvals per event so the cap sees every committed approval.
+    await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('prism.billing_source_cap'), hashtext(${eventId}))`;
+    const proposal = await db.opsProposalVersion.findFirst({
+      where: { eventId, status: 'issued' },
+      orderBy: { versionNumber: 'desc' },
+      select: { versionNumber: true, totalAmount: true },
+    });
+    if (!proposal) return;
+    const approved = await db.opsBillingSource.findMany({
+      where: { eventId, status: 'approved', id: { not: source.id } },
+      select: { totalAmount: true, billingStatements: { select: { status: true } } },
+    });
+    // A source whose every statement was replaced by a correction no longer counts toward the cap.
+    const committed = approved
+      .filter((other) => other.billingStatements.length === 0 || other.billingStatements.some((statement) => statement.status !== 'superseded'))
+      .reduce((sum, other) => sum + other.totalAmount, 0);
+    const total = committed + source.totalAmount;
+    if (total > proposal.totalAmount) {
+      throw new BadRequestException(`Approving this source would bring approved billing to ${total}, above the Proposal v${proposal.versionNumber} total of ${proposal.totalAmount}. Changes after approval belong in additional billing.`);
+    }
   }
 
   private async prepareBillingStatementStorage(

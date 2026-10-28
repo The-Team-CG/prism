@@ -1,7 +1,7 @@
 // Phase 5: floorplans, file requirements and uploads, compliance, change control, notifications.
 import { readFileSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
-import { cfg, http, msg, step, startPhase, blocked, gap, review, expect, expectStatus, mailsTo, waitForMail } from "../lib.mjs";
+import { cfg, http, msg, step, startPhase, blocked, gap, expect, expectStatus, mailsTo, waitForMail } from "../lib.mjs";
 
 export const name = "Floorplans, files, compliance, change control";
 
@@ -226,19 +226,22 @@ export async function run(ctx) {
     if (!s.hash1) blocked("no review hash");
     const none = await http("POST", `${base()}/floorplans/${s.d1.id}/client-review`, { token: s.client, body: { snapshotHash: s.hash1, action: "request_revision" } });
     expect(none.status === 400, `revision request without a comment returned ${none.status}`);
-    const dec = expectStatus(await http("POST", `${base()}/floorplans/${s.d1.id}/client-review`, { token: s.client, body: { snapshotHash: s.hash1, action: "request_revision", comment: "Please add a registration desk" } }), 200, 201);
+    s.revisionKey = `e2e-fp-revise-${Date.now()}`;
+    const dec = expectStatus(await http("POST", `${base()}/floorplans/${s.d1.id}/client-review`, { token: s.client, body: { snapshotHash: s.hash1, action: "request_revision", comment: "Please add a registration desk", idempotencyKey: s.revisionKey } }), 200, 201);
+    s.revisionDecisionId = dec.id;
     const detail = expectStatus(await http("GET", `${base()}`, { token: s.client }), 200);
     const draft = detail.floorPlanDrafts.find((d) => d.id === s.d1.id);
-    if (draft.status !== "revision_requested") review(`client-review records decision ${dec.id ?? ""} but draft remains "${draft.status}"; the portal uses a separate PATCH /review command to change workflow state. Review atomicity and intended API contract`);
+    expect(draft.status === "revision_requested", `the decision ${dec.id ?? ""} was recorded but the draft is "${draft.status}"`);
+    expect(draft.revisionComment === "Please add a registration desk", `the draft keeps the comment "${draft.revisionComment}"`);
+    expect(detail.floorPlanStatus === "revision_requested", `the event floorplan status is "${detail.floorPlanStatus}"`);
   });
-  await step("client revision via the review route returns the layout to PMCM", async () => {
-    if (!s.d1) blocked("no submitted layout");
-    const r = await http("PATCH", `${base()}/floorplans/${s.d1.id}/review`, { token: s.client, body: { revisionNote: "Please add a registration desk" } });
-    const draft = expectStatus(r, 200, 201);
-    expect(draft.status === "revision_requested", `status ${draft.status}`);
-    const bad = await http("PATCH", `${base()}/floorplans/${s.d1.id}/review`, { token: s.client, body: {} });
-    expect(bad.status === 400, `empty revision note returned ${bad.status}`);
-    const wrong = await http("PATCH", `${base()}/floorplans/${s.d1.id}/review`, { token: s.admin, body: { revisionNote: "x" } });
+  await step("a retried revision request replays its decision; PMCM cannot decide for the client", async () => {
+    if (!s.revisionDecisionId) blocked("no revision request");
+    const retry = expectStatus(await http("POST", `${base()}/floorplans/${s.d1.id}/client-review`, { token: s.client, body: { snapshotHash: s.hash1, action: "request_revision", comment: "Please add a registration desk", idempotencyKey: s.revisionKey } }), 200, 201);
+    expect(retry.id === s.revisionDecisionId, `the retry returned decision ${retry.id}, expected ${s.revisionDecisionId}`);
+    const reused = await http("POST", `${base()}/floorplans/${s.d1.id}/client-review`, { token: s.client, body: { snapshotHash: s.hash1, action: "approve", idempotencyKey: s.revisionKey } });
+    expect(reused.status === 400, `the same key for another decision returned ${reused.status}`);
+    const wrong = await http("POST", `${base()}/floorplans/${s.d1.id}/client-review`, { token: s.admin, body: { snapshotHash: s.hash1, action: "request_revision", comment: "x" } });
     expect(wrong.status === 403, `PMCM using the client review route returned ${wrong.status}`);
   });
   await step("PMCM revises and resubmits; the old snapshot hash can no longer be approved", async () => {
@@ -792,10 +795,15 @@ export async function run(ctx) {
     s.logs = logs;
     return `${logs.length} notifications: ${[...new Set(logs.map((l) => l.recipient.includes("@") ? "client email" : l.recipient))].join(", ")}`;
   });
-  await step("notification recipients use one convention", async () => {
+  await step("every notification recipient is an email address or a known role label", async () => {
     if (!s.logs) blocked("no notification log");
-    const kinds = new Set(s.logs.map((l) => (l.recipient.includes("@") ? "email address" : "role label")));
-    if (kinds.size > 1) review(`notification logs contain ${[...kinds].join(" and ")} recipients; role-address resolution and provider delivery remain unverified`);
+    // The delivery worker resolves role labels to addresses at send time (notification-recipient-resolver.ts), so the
+    // recipient can change between queueing and sending. Anything else could never be delivered.
+    const known = new Set(["PMCM Admin", "pmcm-inquiry-desk", "Coordinator", "Client"]);
+    const looksLikeEmail = (value) => /^[^@ ]+@[^@ ]+[.][^@ ]+$/.test(value);
+    const unknown = [...new Set(s.logs.map((l) => l.recipient).filter((r) => !looksLikeEmail(r) && !known.has(r)))];
+    expect(!unknown.length, `recipients that are neither an email address nor a known role label: ${unknown.join(", ")}`);
+    return `${s.logs.length} notifications, all addressable`;
   });
   await step("the client's workspace shows the notifications addressed to the client", async () => {
     const ws = expectStatus(await http("GET", `/client/workspace`, { token: s.client }), 200);

@@ -70,6 +70,12 @@ export const DECISION_LOG_AUDIT_AFFECTED_TYPES = [
 export const MAX_RUN_SHEET_SUPPLIER_SCHEDULES = 500;
 export const MAX_READINESS_ROWS = 500;
 export const MAX_BILLING_ROWS = 500;
+
+/** A billing statement, its milestones and payments reach the client only after PMCM sends the statement. */
+const CLIENT_VISIBLE_STATEMENT = { sentAt: { not: null } } satisfies Prisma.OpsBillingStatementWhereInput;
+const CLIENT_VISIBLE_MILESTONE = {
+  OR: [{ statementId: null }, { statement: { is: { sentAt: { not: null } } } }],
+} satisfies Prisma.OpsPaymentMilestoneWhereInput;
 export const MAX_CLIENT_WORKSPACE_ROWS = 500;
 export const MAX_CLIENT_ARCHIVED_EVENTS = 100;
 export const MAX_CLIENT_ACTION_CENTER_ROWS = 500;
@@ -539,13 +545,13 @@ export class EventReadModelQueries {
   }
 
   // Query budget: four finance queries for a bounded actor-visible event id set, no per-row Prisma loop.
-  billingForEvents(eventIds: string[], includeInternalCosts: boolean) {
+  billingForEvents(eventIds: string[], includeInternalCosts: boolean, clientView = false) {
     return Promise.all([
       includeInternalCosts
         ? this.prisma.opsBillingSource.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_BILLING_ROWS })
         : Promise.resolve([]),
-      this.prisma.opsBillingStatement.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ generatedAt: 'desc' }, { id: 'desc' }], take: MAX_BILLING_ROWS }),
-      this.prisma.opsPaymentMilestone.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: MAX_BILLING_ROWS }),
+      this.prisma.opsBillingStatement.findMany({ where: { eventId: { in: eventIds }, ...(clientView ? CLIENT_VISIBLE_STATEMENT : {}) }, orderBy: [{ generatedAt: 'desc' }, { id: 'desc' }], take: MAX_BILLING_ROWS }),
+      this.prisma.opsPaymentMilestone.findMany({ where: { eventId: { in: eventIds }, ...(clientView ? CLIENT_VISIBLE_MILESTONE : {}) }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: MAX_BILLING_ROWS }),
       this.prisma.opsPaymentRecord.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ recordedAt: 'desc' }, { id: 'desc' }], take: MAX_BILLING_ROWS }),
     ]);
   }
@@ -594,7 +600,7 @@ export class EventReadModelQueries {
         take: MAX_VISIBLE_EVENTS,
       }),
       this.prisma.opsPaymentMilestone.findMany({
-        where: { eventId: { in: visibleIds }, label: { contains: 'balance', mode: 'insensitive' } },
+        where: { eventId: { in: visibleIds }, label: { contains: 'balance', mode: 'insensitive' }, ...CLIENT_VISIBLE_MILESTONE },
         select: { eventId: true, dueDate: true, status: true, remainingBalance: true },
         distinct: ['eventId'],
         orderBy: [{ eventId: 'asc' }, { dueDate: 'asc' }, { id: 'asc' }],
@@ -636,11 +642,11 @@ export class EventReadModelQueries {
           orderBy: { id: 'asc' }, take: MAX_CLIENT_WORKSPACE_ROWS }),
       ),
       readAllRowsById(MAX_CLIENT_WORKSPACE_ROWS, (afterId) =>
-        this.prisma.opsBillingStatement.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+        this.prisma.opsBillingStatement.findMany({ where: { eventId: { in: eventIds }, ...CLIENT_VISIBLE_STATEMENT, ...(afterId ? { id: { gt: afterId } } : {}) },
           orderBy: { id: 'asc' }, take: MAX_CLIENT_WORKSPACE_ROWS }),
       ),
       readAllRowsById(MAX_CLIENT_WORKSPACE_ROWS, (afterId) =>
-        this.prisma.opsPaymentMilestone.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+        this.prisma.opsPaymentMilestone.findMany({ where: { eventId: { in: eventIds }, ...CLIENT_VISIBLE_MILESTONE, ...(afterId ? { id: { gt: afterId } } : {}) },
           orderBy: { id: 'asc' }, take: MAX_CLIENT_WORKSPACE_ROWS }),
       ),
       readAllRowsById(MAX_CLIENT_WORKSPACE_ROWS, (afterId) =>
@@ -715,11 +721,11 @@ export class EventReadModelQueries {
           orderBy: { id: 'asc' }, take: MAX_CLIENT_ACTION_CENTER_ROWS }),
       ),
       readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>
-        this.prisma.opsBillingStatement.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+        this.prisma.opsBillingStatement.findMany({ where: { eventId: { in: eventIds }, ...CLIENT_VISIBLE_STATEMENT, ...(afterId ? { id: { gt: afterId } } : {}) },
           orderBy: { id: 'asc' }, take: MAX_CLIENT_ACTION_CENTER_ROWS }),
       ),
       readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>
-        this.prisma.opsPaymentMilestone.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
+        this.prisma.opsPaymentMilestone.findMany({ where: { eventId: { in: eventIds }, ...CLIENT_VISIBLE_MILESTONE, ...(afterId ? { id: { gt: afterId } } : {}) },
           orderBy: { id: 'asc' }, take: MAX_CLIENT_ACTION_CENTER_ROWS }),
       ),
       readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>

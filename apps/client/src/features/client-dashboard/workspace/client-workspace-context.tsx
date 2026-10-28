@@ -69,8 +69,6 @@ export type ClientWorkspaceValue = {
   nextAction: ClientDashboardAction | undefined;
   form: PreferenceForm;
   setForm: Dispatch<SetStateAction<PreferenceForm>>;
-  revisionComment: string;
-  setRevisionComment: (v: string) => void;
   requestForm: ClientRequestForm;
   setRequestForm: Dispatch<SetStateAction<ClientRequestForm>>;
   eventSearch: string;
@@ -83,7 +81,6 @@ export type ClientWorkspaceValue = {
   openFloorplanEditor: (draft: PrismFloorPlanDraft, readOnly?: boolean) => Promise<void>;
   createEditorDraft: (template: FloorPlanTemplate) => Promise<void>;
   submitPreference: (ev: FormEvent<HTMLFormElement>) => Promise<void>;
-  submitRevisionComment: (ev: FormEvent<HTMLFormElement>) => Promise<void>;
   submitNewEventRequest: (ev: FormEvent<HTMLFormElement>) => Promise<void>;
   signOut: () => Promise<void>;
   /** Event-scoped chrome (header + subnav) when an event is selected */

@@ -7,10 +7,9 @@ import { EventAccessPolicyService, type AuditWriter } from '@prism/kernel/access
 import { WorkflowCommandService, OpsUserRole } from '@prism/kernel/event-core';
 import { FloorplanProjectionService } from './floorplan-projection.service';
 import { FloorplanEventReferenceService } from './onboarding/floorplan-event-reference.service';
-import { FloorPlanWorkflowService, FloorPlanReviewService } from '@prism/contexts/floorplan';
+import { FloorPlanWorkflowService, FloorPlanClientReviewService } from '@prism/contexts/floorplan';
 import type { FloorplanProjectionWriter } from '../contracts/floorplan-projection.port';
 import type { NotificationOutboxWriter } from '@prism/contexts/platform-ops';
-import { createFloorPlanRevisionCommentSchema } from '@prism/types';
 
 const databaseUrl = process.env.P0_TEST_DATABASE_URL?.trim();
 
@@ -131,13 +130,13 @@ databaseSuite('Floorplan lifecycle projection PostgreSQL invariants', () => {
   it('serializes concurrent approval and client revision so only one review transition commits', async () => {
     const fixture = await createFixture(prisma);
     const { workflow, auditWriter, notificationWriter } = createWorkflow(prisma);
-    const review = new FloorPlanReviewService(
+    const review = new FloorPlanClientReviewService(
       prisma,
-      { requireActorRole: async () => undefined } as unknown as EventAccessPolicyService,
-      workflow,
+      { requireActorRole: async () => undefined, requireCanReadEvent: async () => undefined } as unknown as EventAccessPolicyService,
       auditWriter,
       notificationWriter,
       new FloorplanEventReferenceService(prisma),
+      workflow,
     );
 
     try {
@@ -147,10 +146,10 @@ databaseSuite('Floorplan lifecycle projection PostgreSQL invariants', () => {
         actor,
       );
       await workflow.submitFloorPlanDraft(fixture.eventId, draft.id, actor);
-      const comment = createFloorPlanRevisionCommentSchema.parse({ revisionNote: 'Please adjust the aisle.' });
+      const { snapshotHash } = await review.getReview(fixture.eventId, draft.id, clientActor);
       const results = await Promise.allSettled([
         workflow.approveFloorPlanDraft(fixture.eventId, draft.id, actor),
-        review.submitRevisionComment(fixture.eventId, draft.id, comment, clientActor),
+        review.decide(fixture.eventId, draft.id, { snapshotHash, action: 'request_revision', comment: 'Please adjust the aisle.' }, clientActor),
       ]);
 
       expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);

@@ -64,6 +64,10 @@ export const createBillingSourceSchema = z.object({
   paymentMethods: z.array(z.object({ label: nonEmptyStringSchema, details: z.string().default("") })).optional(),
   paymentTermsPolicy: z.enum(["standard", "repeat_client_override"]).optional(),
   paymentTermsOverrideReason: optionalTrimmedStringSchema,
+  /** PMCM reason for citing a superseded proposal version as evidence. */
+  evidenceOverrideReason: optionalTrimmedStringSchema,
+  /** PMCM reason for a source total that differs from the cited proposal total; a different PMCM admin must approve it. */
+  totalOverrideReason: optionalTrimmedStringSchema,
   idempotencyKey: optionalTrimmedStringSchema,
 }).superRefine((value, ctx) => {
   if (value.paymentTermsPolicy === "repeat_client_override" && !value.paymentTermsOverrideReason?.trim()) {

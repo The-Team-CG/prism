@@ -2,8 +2,8 @@
 
 import { useClientFloorplanReview } from "../view-models/use-client-floorplan-review";
 
-export function ClientFloorplanReviewPanel({ eventId, draftId }: { eventId: string; draftId: string }) {
-  const vm = useClientFloorplanReview(eventId, draftId);
+export function ClientFloorplanReviewPanel({ eventId, draftId, onDecided }: { eventId: string; draftId: string; onDecided?: () => Promise<void> }) {
+  const vm = useClientFloorplanReview(eventId, draftId, onDecided);
   return <section className="space-y-4 rounded-xl border border-border bg-card p-5">
     <div><p className="text-xs font-semibold text-muted-foreground">Official PMCM floorplan</p><h2 className="mt-1 text-lg font-bold">Review this submitted version</h2><p className="mt-1 text-sm text-muted-foreground">The canvas is read-only. Approval and versioned annotations apply only to this exact submitted version.</p></div>
     {vm.error && <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-3"><p role="alert" className="text-sm text-danger">{vm.error}</p><button type="button" onClick={() => void vm.load()} disabled={vm.loading} className="rounded-md border border-border px-3 py-2 text-sm font-semibold disabled:opacity-50">Retry loading floorplan</button></div>}

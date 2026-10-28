@@ -45,6 +45,8 @@ export const issueProposalVersionSchema = z.object({
   summary: z.string().trim().default(''),
   costEstimateId: nonEmptyStringSchema,
   revisionNote: z.string().trim().default(''),
+  /** One key per drafted proposal: an identical retry replays the issued version instead of creating another. */
+  idempotencyKey: nonEmptyStringSchema.optional(),
 });
 export type IssueProposalVersionInput = z.infer<typeof issueProposalVersionSchema>;
 
@@ -164,6 +166,13 @@ export const updateSupplierEventStatusSchema = z.object({
   photo: uploadMetadataSchema.optional(),
 });
 export type UpdateSupplierEventStatusInput = z.infer<typeof updateSupplierEventStatusSchema>;
+
+/** PMCM-only correction of a supplier's event-day status; may also reset it to "not_started". */
+export const correctSupplierEventStatusSchema = z.object({
+  status: z.enum(["not_started", "arrived", "set_up_ready", "done_leaving"]),
+  reason: z.string().trim().min(1).max(500),
+});
+export type CorrectSupplierEventStatusInput = z.infer<typeof correctSupplierEventStatusSchema>;
 
 export const submitSupplierQuoteSchema = z.object({
   amount: z.number().int().min(0).max(2147483647),
