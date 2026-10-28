@@ -5,7 +5,6 @@ import {
 import {
   parseContract,
   submitClientOcularVisitSchema,
-  type CreateFloorPlanRevisionCommentInput,
   type CreatePrismInquiryInput,
   type SubmitClientOcularVisitInput,
   submitBriefingSchema,
@@ -68,14 +67,6 @@ export function loadOfficialFloorPlan(
 
 export function loadFloorPlanProject(planId: string) {
   return clientDashboardRepository.loadPlan(planId);
-}
-
-export function submitFloorPlanRevisionComment(
-  eventId: string,
-  draftId: string,
-  input: CreateFloorPlanRevisionCommentInput,
-) {
-  return clientDashboardRepository.submitFloorPlanRevisionComment(eventId, draftId, input);
 }
 
 export function saveFloorPlanProject(project: Project) {

@@ -182,6 +182,7 @@ function createService(
     { queue: async (input, context) => { pareCalls += 1; return pareOutbox.queue(input, context); } },
     new DocumentVaultService(servicePrisma),
     new OperationsEventReferenceService(servicePrisma),
+    { write: async () => ({}) } as any,
   );
 }
 

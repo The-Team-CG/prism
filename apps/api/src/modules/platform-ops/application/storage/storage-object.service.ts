@@ -364,6 +364,7 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
     this.assertSupportedOwner(object.ownerRecordType, object.usage);
     input = { ...input, actor: await this.authorizeEvent(object.eventId, input.actor, object.usage as StorageServiceRequest['usage'], 'download storage object') };
     await this.assertCanAccessObject(input.actor, object, 'download storage object', await this.requirementVisibility(input.actor, object.eventId));
+    await this.assertBillingStatementSent(input.actor, object);
     if (object.lifecycleState === 'deleted') throw new NotFoundException('Stored object not found');
     if (object.lifecycleState !== 'stored' || !object.providerObjectKey || !this.adapter) {
       throw new ServiceUnavailableException(object.lifecycleState === 'stored' ? 'Storage provider is not configured' : 'Stored object is not available');
@@ -408,6 +409,7 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
     if (!object) throw new NotFoundException('Stored object not found');
     input = { ...input, actor: await this.authorizeEvent(object.eventId, input.actor, object.usage as StorageServiceRequest['usage'], 'download storage object') };
     await this.assertCanAccessObject(input.actor, object, 'download storage object', await this.requirementVisibility(input.actor, object.eventId));
+    await this.assertBillingStatementSent(input.actor, object);
     if (object.lifecycleState === 'deleted') throw new NotFoundException('Stored object not found');
     if (object.lifecycleState !== 'stored' || !this.adapter?.readAuthorizedDownload) {
       throw new ServiceUnavailableException(object.lifecycleState === 'stored' ? 'This storage provider requires a direct HTTP download' : 'Stored object is not available');
@@ -577,14 +579,29 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
       take: 500,
     });
     const visibility = await this.requirementVisibility(actor, eventId);
-    return objects
-      .filter((object) => this.canSeeObject(actor, object, visibility))
+    const permitted = objects.filter((object) => this.canSeeObject(actor, object, visibility));
+    const unsentStatements = await this.unsentBillingStatementIds(actor, permitted);
+    return permitted
+      .filter((object) => !(object.ownerRecordType === 'billing_statement' && unsentStatements.has(object.ownerRecordId)))
       .map((object) => {
         const mapped = this.mapObject(object);
         if (actor.role !== OpsUserRole.Client && actor.role !== OpsUserRole.Supplier) return mapped;
         const { uploaderActorId: _uploader, providerName: _provider, providerObjectKey: _key, ...visible } = mapped;
         return visible;
       });
+  }
+
+  /** Non-PMCM actors never see a billing statement file before PMCM sends the statement. */
+  private async unsentBillingStatementIds(actor: ResolvedEventOpsActor, objects: OpsStoredObject[]): Promise<Set<string>> {
+    if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return new Set();
+    const statementIds = objects.filter((object) => object.ownerRecordType === 'billing_statement').map((object) => object.ownerRecordId);
+    if (statementIds.length === 0) return new Set();
+    const unsent = await this.prisma.opsBillingStatement.findMany({ where: { id: { in: statementIds }, sentAt: null }, select: { id: true } });
+    return new Set(unsent.map((statement) => statement.id));
+  }
+
+  private async assertBillingStatementSent(actor: ResolvedEventOpsActor, object: OpsStoredObject) {
+    if ((await this.unsentBillingStatementIds(actor, [object])).has(object.ownerRecordId)) throw new NotFoundException('Stored object not found');
   }
 
   private canSeeObject(actor: ResolvedEventOpsActor, object: OpsStoredObject, visibility: RequirementVisibility = {}) {

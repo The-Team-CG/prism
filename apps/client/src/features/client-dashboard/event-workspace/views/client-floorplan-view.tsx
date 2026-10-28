@@ -19,14 +19,12 @@ export function ClientFloorPlanView() {
     preferenceDrafts,
     officialProject,
     floorPlanTemplates,
-    revisionComment,
-    setRevisionComment,
     form,
     setForm,
     openFloorplanEditor,
     createEditorDraft,
+    refresh,
     submitPreference,
-    submitRevisionComment,
     busy,
   } = useClientWorkspace();
 
@@ -54,16 +52,9 @@ export function ClientFloorPlanView() {
           />
         </div>
       </div>
-      <FloorPlanRevisionCommentCard
-        draft={activeDraft}
-        event={selectedEvent}
-        value={revisionComment}
-        setValue={setRevisionComment}
-        busy={busy === "floorplan-revision"}
-        onSubmit={submitRevisionComment}
-      />
+      <FloorPlanRevisionCommentCard draft={activeDraft} event={selectedEvent} />
       {selectedEvent && officialDraft && (officialDraft.status === "in_review" || officialDraft.status === "approved") ? (
-        <ClientFloorplanReviewPanel eventId={selectedEvent.id} draftId={officialDraft.id} />
+        <ClientFloorplanReviewPanel eventId={selectedEvent.id} draftId={officialDraft.id} onDecided={refresh} />
       ) : null}
       <GuidedLayoutNotes
         approved={approved}
