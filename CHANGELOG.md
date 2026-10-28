@@ -6,6 +6,11 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Inquiry review drawers now show refreshed status after PMCM accepts or pends a request.
+- Supplier quote emails now use the configured supplier portal origin. PMCM can start event day from the event overview once the existing lifecycle prerequisites are met, and creates billing sources from the Billing tab instead of Closure.
+- PMCM closure now shows a recorded actual event end and offers correction instead of asking to record it again. Coordinator task and issue selects are labelled by their field name alone.
+- Date pickers keep focus in the field while typing on touch devices and close once a complete date is entered; the client conforme hash wraps on narrow screens instead of pushing the page sideways.
+
 - Added an isolated nightly and on-demand lifecycle CI journey with disposable PostgreSQL, generated actor credentials, report artifacts, and failure on unresolved coverage or rule decisions.
 
 - Local development can now run Supabase Storage, so the API uses the same storage adapter as production: start with `PRISM_LOCAL_SUPABASE_STORAGE=1` and the launcher enables the service, creates a private `prism-documents` bucket and writes the storage settings into the generated env files. The default start is unchanged. When Auth is disabled, the launcher reads the checkout Storage container's generated service key without exposing it in console output.

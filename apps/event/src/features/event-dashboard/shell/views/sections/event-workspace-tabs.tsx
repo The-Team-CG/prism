@@ -16,6 +16,7 @@ import { ChangeRegisterPanel } from "@/features/change-management/register";
 import { isScopeFrozen } from "@/features/change-management/register/model/change-register-rules";
 import { EventOverviewPanels } from "@/features/command-inbox/list";
 import { FinancialWorkspace } from "@/features/finance/workspace";
+import { BillingSourcePanel } from "@/features/finance/billing-source/views/billing-source-panel";
 import { BillingAdjustmentsPanel } from "@/features/finance/billing-adjustments/views/billing-adjustments-panel";
 import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
 import { HandoffBriefPanel } from "@/features/live-ops/handoff-brief";
@@ -42,6 +43,13 @@ export function EventWorkspaceOverviewTab() {
   if (!vm.selectedEvent) return null;
   return (
     <div className="space-y-4">
+      {isPmcmAdmin(vm.session.role) && vm.selectedEvent.status === "planning" && !vm.selectedEvent.archived ? (
+        <section className="rounded-lg border border-border bg-card p-5">
+          <h2 className="text-lg font-bold">Event day</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Start live operations after the conforme is signed and the official floorplan is approved.</p>
+          <Button className="mt-4" disabled={Boolean(vm.busy)} onClick={() => void vm.startEventDay()}>Start event day</Button>
+        </section>
+      ) : null}
       <EventOverviewPanels
         event={vm.selectedEvent}
         defenseReadiness={vm.defenseReadiness}
@@ -382,6 +390,15 @@ export function EventWorkspaceBillingTab() {
   if (!vm.selectedEvent) return null;
   return (
     <div className="space-y-5">
+      <BillingSourcePanel
+        eventName={vm.selectedEvent.eventName}
+        billingSources={vm.billingSources}
+        proposalDocuments={vm.documents.filter((document) => document.eventId === vm.selectedEvent!.id && /proposal/i.test(document.type))}
+        busy={Boolean(vm.busy)}
+        onCreate={vm.createBillingSource}
+        onApprove={vm.approveBillingSource}
+        onGenerate={vm.generateBillingStatement}
+      />
       <FinancialWorkspace
         event={vm.selectedEvent}
         inquiry={vm.selectedInquiry}
@@ -417,7 +434,6 @@ export function EventWorkspaceClosureTab() {
         checks={vm.checks}
         billingSources={vm.billingSources}
         billingStatements={vm.billingStatements}
-        proposalDocuments={vm.documents.filter((document) => document.eventId === vm.selectedEvent!.id && /proposal/i.test(document.type))}
         insights={vm.eventInsights}
         supplierCategories={vm.supplierCategories}
         suppliers={vm.suppliers}
@@ -428,9 +444,6 @@ export function EventWorkspaceClosureTab() {
         onRunCompliance={vm.runComplianceChecks}
         onResolveCompliance={vm.resolveComplianceCheck}
         onOverrideCompliance={vm.overrideComplianceCheck}
-        onCreateBillingSource={vm.createBillingSource}
-        onApproveBillingSource={vm.approveBillingSource}
-        onGenerateBillingStatement={vm.generateBillingStatement}
         onLoadCloseGates={vm.loadCloseGates}
         onArchive={vm.archiveSelectedEvent}
         onRecordActualEventEnd={vm.recordActualEventEnd}

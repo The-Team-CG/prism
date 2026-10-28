@@ -196,7 +196,7 @@ export function CoordinatorGreetingBanner({
           {showAcknowledge ? (
             <Button
               className="mt-5 rounded-lg bg-white font-bold text-primary hover:bg-white/90"
-              onClick={onAcknowledge}
+              onClick={() => onAcknowledge()}
               disabled={busy}
             >
               <BadgeCheck className="size-4" /> Acknowledge role

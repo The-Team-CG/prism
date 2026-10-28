@@ -1,7 +1,10 @@
 import { eventApi as eventOpsClient, eventApiRequest as request } from "@/lib/prism-api";
 import type { PrismBriefing, PrismDocument, PrismEvent, PrismInquiry, PrismInquiryMergeRecord,PrismPmcmOcularVisit, RecordActualEventEndInput, ScheduleOcularVisitInput, SetClientEventDayViewInput, WaiveOcularVisitInput } from "@prism/types";
+import { startEventDaySchema, type StartEventDayResult } from "@prism/types";
 
 export const lifecycleCommands = {
+startEventDay: (eventId: string) =>
+    request<StartEventDayResult>(`/api/events/${eventId}/start-event-day`, { method: "POST", body: startEventDaySchema.parse({}) }),
 scheduleOcularVisit: (eventId: string, input: ScheduleOcularVisitInput) =>
     request<PrismPmcmOcularVisit>(`/api/events/${eventId}/ocular-visit/schedule`, {
       method: "PATCH",
