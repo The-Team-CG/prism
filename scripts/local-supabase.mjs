@@ -43,6 +43,20 @@ function cli(args, capture = false) {
   return result.stdout;
 }
 
+/** Auth is disabled locally, so recent CLI versions omit this key from status output. */
+export function localStorageServiceRoleKey(projectId, inspect = spawnSync) {
+  const result = inspect('docker', ['inspect', '--format', '{{json .Config.Env}}', `supabase_storage_${projectId}`], {
+    encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  if (result.error || result.status !== 0) return '';
+  try {
+    const values = JSON.parse(result.stdout);
+    if (!Array.isArray(values)) return '';
+    const entry = values.find((value) => typeof value === 'string' && value.startsWith('SERVICE_KEY='));
+    return entry ? entry.slice('SERVICE_KEY='.length).trim() : '';
+  } catch { return ''; }
+}
+
 export function developmentEnv(url, project, ports, sessionSecret, { storage } = {}) {
   const parsed = new URL(url);
   const env = {
@@ -125,7 +139,7 @@ export async function runLocalSupabase(command = 'start') {
   const databaseUrl = status.DB_URL;
   const secretFile = join(localRoot, `session-secret-${project.id}`);
   if (!existsSync(secretFile)) writeFileSync(secretFile, randomBytes(32).toString('hex'), { mode: 0o600 });
-  const serviceRoleKey = status.SERVICE_ROLE_KEY || process.env.PRISM_LOCAL_SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey = status.SERVICE_ROLE_KEY || process.env.PRISM_LOCAL_SUPABASE_SERVICE_ROLE_KEY || (storageRequested ? localStorageServiceRoleKey(project.id) : undefined);
   const storage = storageRequested && status.API_URL && serviceRoleKey ? { url: status.API_URL, serviceRoleKey } : undefined;
   if (storageRequested && !storage) throw new Error('PRISM_LOCAL_SUPABASE_STORAGE=1 needs the local Supabase API URL and a service role key. Run db:local:start with Docker running, or set PRISM_LOCAL_SUPABASE_SERVICE_ROLE_KEY.');
   if (storage && command === 'start') await ensureStorageBucket(storage);

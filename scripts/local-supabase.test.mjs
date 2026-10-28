@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { localProject, renderConfig, developmentEnv, excludedServices, excludedServicesFor } from './local-supabase.mjs';
+import { localProject, renderConfig, developmentEnv, excludedServices, excludedServicesFor, localStorageServiceRoleKey } from './local-supabase.mjs';
 
 const ports = { api: 4000, client: 3001, supplier: 3002, guest: 3003, event: 3004 };
 const project = localProject({ worktreeRoot: 'C:/Codes/prism', ports });
@@ -62,4 +62,14 @@ test('local Supabase Storage is opt-in and leaves every default untouched', () =
     [withStorage.PRISM_STORAGE_PROVIDER, withStorage.PRISM_STORAGE_SUPABASE_URL, withStorage.PRISM_STORAGE_SUPABASE_SERVICE_ROLE_KEY, withStorage.PRISM_STORAGE_SUPABASE_BUCKET],
     ['supabase', 'http://127.0.0.1:54321', 'service-key', 'prism-documents'],
   );
+});
+
+test('Storage boot reads only the checkout Storage service key when CLI status omits it', () => {
+  const calls = [];
+  const inspect = (...args) => { calls.push(args); return { status: 0, stdout: JSON.stringify(['ANON_KEY=public', 'SERVICE_KEY=generated-local-service-key', 'S3_PROTOCOL_ACCESS_KEY_SECRET=unrelated']) }; };
+  assert.equal(localStorageServiceRoleKey('prism-test-checkout', inspect), 'generated-local-service-key');
+  assert.deepEqual(calls[0][1], ['inspect', '--format', '{{json .Config.Env}}', 'supabase_storage_prism-test-checkout']);
+  assert.equal(localStorageServiceRoleKey('missing', () => ({ status: 1, stdout: 'unavailable' })), '');
+  assert.equal(localStorageServiceRoleKey('missing', () => ({ status: 0, stdout: 'not json' })), '');
+  assert.equal(localStorageServiceRoleKey('missing', () => ({ status: 0, stdout: JSON.stringify(['ANON_KEY=public']) })), '');
 });
