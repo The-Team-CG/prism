@@ -1,0 +1,58 @@
+name: Browser acceptance
+on:
+  pull_request:
+    branches: [staging, main]
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'scripts/e2e/browser/**'
+      - 'scripts/local-mailpit.mjs'
+      - 'scripts/local-supabase.mjs'
+      - 'package*.json'
+      - '.github/workflows/browser-acceptance.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '0 19 * * *'
+permissions:
+  contents: read
+concurrency:
+  group: browser-acceptance-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: prism_ci
+          POSTGRES_PASSWORD: prism_ci_ephemeral
+          POSTGRES_DB: postgres
+        ports: ['55439:5432']
+        options: >-
+          --health-cmd "pg_isready -U prism_ci -d postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      BROWSER_DATABASE_URL: postgresql://prism_ci:prism_ci_ephemeral@127.0.0.1:55439/postgres
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'staging' || github.ref }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser:guards
+      - run: npm run test:browser
+      - uses: actions/upload-artifact@v6
+        if: failure()
+        with:
+          name: browser-acceptance-failures
+          path: |
+            .local-dev/browser/*/report/
+            .local-dev/browser/*/results/
+          retention-days: 7
