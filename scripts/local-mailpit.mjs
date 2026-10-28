@@ -4,6 +4,8 @@ export const MAILPIT_IMAGE = 'axllent/mailpit:v1.32.0';
 const label = 'com.prism.local-mailpit';
 function docker(args, { allowMissing = false } = {}) {
   const result = spawnSync('docker', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  // Without a docker CLI there is no container to inspect or stop; only lookups may treat that as absent.
+  if (allowMissing && result.error?.code === 'ENOENT') return { status: 1, stdout: '', stderr: '' };
   if (result.error || (result.status !== 0 && !allowMissing)) throw new Error(`Local Mailpit Docker command failed (${args[0]}). Check Docker Desktop.`);
   return result;
 }
