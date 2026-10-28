@@ -4,6 +4,12 @@ This log tracks changes to documentation structure and durable contracts. Releas
 notes are in [`../CHANGELOG.md`](../CHANGELOG.md); Git history retains detailed
 implementation and verification history.
 
+## 2026-10-28
+
+- Registered the Commercial confirmed-fee source writer and Platform stored-requirement upload reader, retaining caller transactions, PMCM financial approval and bounded-context ownership.
+
+- Removed developer assignment metadata and team-based task allocation from the documentation contract. System goals, product roles, bounded-context ownership, independent review evidence and activation gates remain explicit. Acceptance reconciliation now records both literal conformity and product judgment.
+
 ## 2026-10-23
 
 - Added the environment/fixture command runbook and direct operational task navigation; clarified hosted account scope and preserved immutable migration history.

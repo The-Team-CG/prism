@@ -4,9 +4,8 @@ title: "Role-app boundaries"
 description: "Keep Prism's client, supplier, guest, and PMCM event experiences as separate role-owned applications."
 tags: [architecture, decision, frontend, roles]
 status: canonical
-updated: "2026-09-01"
+updated: "2026-10-28"
 authority: normative
-owner: "D (Anthony)"
 audience: [agents, frontend-engineers, product-reviewers]
 scope: "apps/client, apps/supplier, apps/guest, and apps/event"
 last_verified: "581e676"
@@ -37,7 +36,6 @@ sources:
 
 - **Decision:** Keep client, supplier, guest, and PMCM event experiences as separate role-owned applications.
 - **Applies to:** Portal routes, role-visible data, shared UI, and cross-app flows.
-- **Owner:** D (Anthony).
 - **Use when:** Adding a portal surface, moving a workflow, or sharing UI or contracts across apps.
 - **Change when:** Actor ownership or a forbidden data boundary changes; record the successor ADR.
 - **Verify with:** Role-forbidden tests, route checks, and repository boundary checks.

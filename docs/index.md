@@ -7,7 +7,7 @@ bundle: "P.R.I.S.M"
 This is the canonical documentation entrypoint. The bundle follows the Open
 Knowledge Format (OKF) pattern:
 directory `index.md` files are navigation, `log.md` records bundle changes, and
-concept documents use YAML frontmatter with identity, authority, ownership,
+concept documents use YAML frontmatter with identity, authority,
 scope, verification, and source/provenance entries.
 
 ## Reading order
@@ -31,9 +31,9 @@ scope, verification, and source/provenance entries.
   material.
 - `authority` distinguishes `normative` rules, `informative` models,
   `operational` procedures, and `reference` material.
-- `owner`, `audience`, `scope`, and `last_verified` explain who maintains a
-  document, who should read it, what it covers, and which repository/source
-  evidence was last checked.
+- `audience`, `scope`, and `last_verified` explain who should read a document,
+  what it covers, and which repository/source evidence was last checked.
+  Developer assignment metadata is omitted; maintenance follows `AGENTS.md`.
 
 ## Repository entrypoints
 

@@ -27,12 +27,12 @@ branch cleanup within the requested scope; ask before cleanup becomes feature de
 | Scoped APIs + package contracts for new surfaces | Whole-system demo state or browser-local fixture fallback |
 | Session/storage keys only in `@prism/types` | New app-local `prism:*` storage keys |
 | Import packages by role (table below); thin `lib/prism-api` | Re-export domain types from app facades; fat god facades for new code |
-| Name owner goal A–D on redesign/capability work | Treat owners as loose assignees |
+| State the system goal and affected role/context on redesign or capability work | Assign work to former developer teams |
 | Typecheck + focused behavior tests in touched workspaces; `check:boundaries` when imports move | Commit secrets / `.env*` with credentials; casual `db:reset` |
 | Update root `CHANGELOG.md` for each delivery with a concise, notable user/developer effect; update `docs/log.md` only for documentation-bundle structure or contract changes | Turn either log into a PR, commit, or test diary |
 | Preserve unrelated uncommitted work | Drive-by reverts outside task scope |
 
-**Owners:** A Maxine (UX) · B Francis (PMCM ops) · C Ethan (external portals) · D Anthony (platform trust).
+Development has one primary maintainer. Describe work by system goal: UX, PMCM operations, external portals, or platform trust. Add collaborator assignments only when someone actually joins the work. Product roles and context ownership remain unchanged.
 
 **No Changesets** in this monorepo.
 
@@ -251,7 +251,7 @@ artifacts from Git history if forensic context is needed.
 | Target system state | `docs/product/future-state.md` |
 | V4 baseline catalog | `docs/reference/prism-v4/complete-feature-catalog.md` (traceability; not a hard ceiling) |
 
-Typed concept documents use OKF-style frontmatter with authority, owner, scope,
+Typed concept documents use OKF-style frontmatter with authority, scope,
 and verification metadata plus an at-a-glance summary. Directory indexes are
 navigation only, and completed plans are not current sources of truth.
 

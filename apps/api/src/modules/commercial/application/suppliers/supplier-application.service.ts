@@ -264,7 +264,7 @@ export class SupplierApplicationService {
     const supplierId = `sup_application_${applicationId}`;
     const normalizedEmail = updated.email.trim().toLowerCase();
     // QUERY_AUDIT_RAW_SQL: serialize conversions by normalized email to prevent duplicate suppliers.
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${normalizedEmail}))`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${normalizedEmail}))`;
     const conflictingSupplier = await tx.opsSupplier.findFirst({ where: { email: { equals: normalizedEmail, mode: 'insensitive' } } });
     if (conflictingSupplier && conflictingSupplier.id !== supplierId) throw new BadRequestException('A supplier with this email already exists');
     const supplier = await tx.opsSupplier.findUnique({ where: { id: supplierId } });

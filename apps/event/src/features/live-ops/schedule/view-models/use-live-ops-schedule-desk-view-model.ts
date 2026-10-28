@@ -26,6 +26,7 @@ type LocalScheduleSegmentInput = {
 
 export function useLiveOpsScheduleDeskViewModel(eventId: string) {
   const [schedule, setSchedule] = useState<PrismEventSchedule | null>(null);
+  const [eventStatus, setEventStatus] = useState<string | null>(null);
   const [handoffs, setHandoffs] = useState<PrismEventHandoff[]>([]);
   const [reports, setReports] = useState<PrismEventEodReport[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
@@ -39,13 +40,15 @@ export function useLiveOpsScheduleDeskViewModel(eventId: string) {
     setStatus((current) => current === "ready" ? current : "loading");
     setError(null);
     try {
-      const [nextSchedule, nextHandoffs, nextReports] = await Promise.all([
+      const [nextSchedule, nextHandoffs, nextReports, event] = await Promise.all([
         liveOpsScheduleRepository.getSchedule(eventId),
         liveOpsScheduleRepository.listHandoffs(eventId),
         liveOpsScheduleRepository.listEodReports(eventId),
+        liveOpsScheduleRepository.getEvent(eventId),
       ]);
       if (requestVersion.current !== version) return;
       setSchedule(nextSchedule);
+      setEventStatus(event.status);
       setHandoffs(nextHandoffs);
       setReports(nextReports);
       setStatus("ready");
@@ -58,6 +61,7 @@ export function useLiveOpsScheduleDeskViewModel(eventId: string) {
 
   useEffect(() => {
     setSchedule(null);
+    setEventStatus(null);
     setHandoffs([]);
     setReports([]);
     setStatus("loading");
@@ -81,6 +85,8 @@ export function useLiveOpsScheduleDeskViewModel(eventId: string) {
       setBusy(false);
     }
   }, [reload]);
+
+  const startEventDay = useCallback(() => run(() => liveOpsScheduleRepository.startEventDay(eventId), "Event day started."), [eventId, run]);
 
   const createDay = useCallback((value: unknown) => run(async () => {
     const input = parseContract(createEventScheduleDaySchema, value, "Schedule day");
@@ -123,6 +129,8 @@ export function useLiveOpsScheduleDeskViewModel(eventId: string) {
 
   return {
     schedule,
+    eventStatus,
+    startEventDay,
     handoffs,
     reports,
     status,

@@ -4,8 +4,9 @@ export function clientBillingSummary(
   payments: PrismPaymentMilestone[],
   billing?: Pick<PrismBillingStatement, "totalAmount">,
 ) {
-  const totalPaid = payments.reduce((sum, payment) => sum + payment.amountPaid, 0);
-  const balance = payments.reduce((sum, payment) => sum + payment.remainingBalance, 0);
+  const activePayments = payments.filter((payment) => !payment.supersededAt);
+  const totalPaid = activePayments.reduce((sum, payment) => sum + payment.amountPaid, 0);
+  const balance = activePayments.reduce((sum, payment) => sum + payment.remainingBalance, 0);
   const totalAmount = billing?.totalAmount ?? totalPaid + balance;
 
   return { totalAmount, totalPaid, balance };

@@ -10,12 +10,14 @@ import {
   type PrismEventHandoff,
   type PrismEventScheduleDay,
 } from "@prism/types";
+import { DatePicker } from "@prism/ui/components/date-picker";
 import { useLiveOpsScheduleDeskViewModel } from "../view-models/use-live-ops-schedule-desk-view-model";
 
 type LiveOpsScheduleDeskProps = {
   eventId: string;
   assignments: PrismCoordinatorAssignment[];
   canManageSchedule: boolean;
+  canStartEventDay?: boolean;
   canReplyToReports: boolean;
   canSubmitReports: boolean;
 };
@@ -24,6 +26,7 @@ export function LiveOpsScheduleDesk({
   eventId,
   assignments,
   canManageSchedule,
+  canStartEventDay = false,
   canReplyToReports,
   canSubmitReports,
 }: LiveOpsScheduleDeskProps) {
@@ -32,10 +35,7 @@ export function LiveOpsScheduleDesk({
 
   return (
     <section aria-labelledby="event-day-records-heading" className="space-y-5 rounded-xl border border-border bg-card p-5">
-      <header>
-        <h2 id="event-day-records-heading" className="text-lg font-bold text-foreground">Event-day schedule and reports</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Author the run sheet, record shift handoffs, and submit end-of-day notes.</p>
-      </header>
+      <ScheduleDeskHeader vm={vm} canStartEventDay={canStartEventDay} />
 
       {vm.status === "loading" && !vm.schedule ? <p role="status" className="text-sm text-muted-foreground">Loading schedule and reports…</p> : null}
       {vm.error ? (
@@ -102,6 +102,22 @@ export function LiveOpsScheduleDesk({
   );
 }
 
+function ScheduleDeskHeader({ vm, canStartEventDay }: { vm: ReturnType<typeof useLiveOpsScheduleDeskViewModel>; canStartEventDay: boolean }) {
+  return (
+      <header>
+        <h2 id="event-day-records-heading" className="text-lg font-bold text-foreground">Event-day schedule and reports</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Author the run sheet, record shift handoffs, and submit end-of-day notes.</p>
+        {canStartEventDay && vm.eventStatus && !['event_day', 'archived', 'cancelled', 'postponed', 'date_to_be_confirmed', 'completed', 'closure'].includes(vm.eventStatus) ? (
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button type="button" disabled={vm.busy} onClick={() => void vm.startEventDay()} className={primaryButtonClass}>Start event day</button>
+            <p className="text-sm text-muted-foreground">Requires signed conforme and an approved official floorplan.</p>
+          </div>
+        ) : null}
+        {vm.eventStatus === 'event_day' ? <p className="mt-3 text-sm font-semibold text-success">Event day is active</p> : null}
+      </header>
+  );
+}
+
 function ScheduleDayForm({ busy, onCreate }: { busy: boolean; onCreate: (value: unknown) => Promise<boolean> }) {
   const [dayDate, setDayDate] = useState("");
   const [label, setLabel] = useState("");
@@ -114,9 +130,10 @@ function ScheduleDayForm({ busy, onCreate }: { busy: boolean; onCreate: (value: 
 
   return (
     <form onSubmit={submit} className="grid gap-3 rounded-lg border border-border bg-background p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto] sm:items-end">
-      <Field label="Day date">
-        <input type="date" required value={dayDate} onChange={(event) => setDayDate(event.target.value)} className={inputClass} />
-      </Field>
+      <div className="grid gap-1.5">
+        <span className="text-sm font-semibold text-foreground">Day date</span>
+        <DatePicker aria-label="Day date" required value={dayDate} onValueChange={setDayDate} className={inputClass} />
+      </div>
       <Field label="Day label (optional)">
         <input value={label} onChange={(event) => setLabel(event.target.value)} placeholder="Setup, event day, strike…" className={inputClass} />
       </Field>

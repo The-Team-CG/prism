@@ -119,7 +119,7 @@ const EVENT_ROUTE_RENDERERS: Partial<Record<ClientDashboardRoute, (ctx: ClientWo
   approvals: () => <ClientApprovalsView />,
   floorplan: () => <ClientFloorPlanView />,
   documents: (ctx) => <ClientDocumentsTab documents={ctx.documents} />,
-  billing: (ctx) => <ClientBillingTab payments={ctx.payments} billing={ctx.billing} disputes={ctx.disputes} />,
+  billing: (ctx) => <ClientBillingTab eventId={ctx.selectedEvent?.id} eventName={ctx.selectedEvent?.eventName} payments={ctx.payments} billing={ctx.billing} disputes={ctx.disputes} />,
   messages: () => <ClientMessagesView />,
   changes: renderChanges,
   summary: (ctx) => <div className="space-y-4"><ClientFinalSummaryView />{ctx.selectedEvent ? <ClientCloseoutView key={ctx.selectedEvent.id} eventId={ctx.selectedEvent.id} archived={ctx.selectedEvent.archived} /> : null}</div>,

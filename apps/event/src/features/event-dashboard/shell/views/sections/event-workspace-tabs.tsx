@@ -1,5 +1,8 @@
 "use client";
 
+import { PostEventDeliverablesPanel } from "@/features/closure/deliverables/views/post-event-deliverables-panel";
+
+
 import { FileCheck2, Gavel, LayoutGrid, MapPinned, Truck } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
@@ -31,6 +34,7 @@ import { Card, CardBody, CardHeader } from "./shell-ui";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
 import type { PrismFloorPlanDraft } from "@prism/types";
 import { PmcmClientReviewPanel } from "@/features/commercial/client-review/views/pmcm-client-review-panel";
+import { PmcmProposalIssuerPanel } from "@/features/commercial/proposal-issuer/views/pmcm-proposal-issuer-panel";
 import { canReopenClientPreference, canViewClientPreference } from "@/features/floorplan/workspace/model/floorplan-workspace-rules";
 
 export function EventWorkspaceOverviewTab() {
@@ -222,6 +226,12 @@ export function EventWorkspaceBriefingTab() {
         {isPmcmAdmin(vm.session.role) ? <Button size="sm" variant="outline" className="ml-2 mt-4" onClick={() => vm.navigateEventTab("decisions")}>Decision log</Button> : null}
       </CardBody>
     </Card>
+    {isPmcmAdmin(vm.session.role) ? (
+      <details className="rounded-lg border border-border bg-card">
+        <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Commercial proposal</summary>
+        <PmcmProposalIssuerPanel eventId={selectedEvent.id} />
+      </details>
+    ) : null}
     <details className="rounded-lg border border-border bg-card">
       <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Client proposals and reviews</summary>
       <PmcmClientReviewPanel eventId={selectedEvent.id} />
@@ -250,12 +260,15 @@ export function EventWorkspaceSuppliersTab() {
         </CardHeader>
         <CardBody>
           <SupplierQuotePlanner
+            key={vm.selectedEvent.id}
             categories={vm.supplierCategories}
             suppliers={vm.suppliers}
             requests={vm.quoteRequests}
             quotes={vm.quotes}
             onRequestQuotes={vm.requestSupplierQuotes}
             onSelectQuote={vm.selectSupplierQuote}
+            onCompareRound={vm.compareSupplierQuoteRound}
+            onSetAvailability={vm.setSupplierAvailability}
             busy={Boolean(vm.busy)}
           />
         </CardBody>
@@ -319,6 +332,7 @@ export function EventWorkspaceCoordinatorsTab() {
           onSaveCoverage={vm.saveCoordinatorCoverage}
           onSendReminders={vm.sendCoordinatorAcknowledgementReminders}
           onDesignateOperator={vm.designateEventDayOperator}
+          onRevokeOperator={vm.revokeEventDayOperator}
           onLoadOperator={vm.loadEventDayOperator}
           onLoadAvailability={vm.loadCoordinatorAvailability}
           onLoadReliabilityHistory={vm.loadCoordinatorReliabilityHistory}
@@ -377,6 +391,7 @@ export function EventWorkspaceBillingTab() {
         busy={Boolean(vm.busy)}
         onRecordPayment={vm.recordPayment}
         onSendBilling={vm.sendBillingStatement}
+        onMarkPayment={vm.markPayment}
       />
       <details className="rounded-lg border border-border bg-card">
       <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Billing adjustments and disputes</summary>
@@ -402,6 +417,7 @@ export function EventWorkspaceClosureTab() {
         checks={vm.checks}
         billingSources={vm.billingSources}
         billingStatements={vm.billingStatements}
+        proposalDocuments={vm.documents.filter((document) => document.eventId === vm.selectedEvent!.id && /proposal/i.test(document.type))}
         insights={vm.eventInsights}
         supplierCategories={vm.supplierCategories}
         suppliers={vm.suppliers}
@@ -422,6 +438,7 @@ export function EventWorkspaceClosureTab() {
         onGenerateInsights={vm.generateEventInsights}
         onAddReview={vm.addSupplierReview}
       />
+      <PostEventDeliverablesPanel eventId={vm.selectedEvent.id} documents={vm.postEventDocuments} archived={vm.selectedEvent.archived} />
       <details className="rounded-lg border border-border bg-card">
         <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Guest feedback review</summary>
         <FeedbackModerationPanel eventId={vm.selectedEvent.id} />

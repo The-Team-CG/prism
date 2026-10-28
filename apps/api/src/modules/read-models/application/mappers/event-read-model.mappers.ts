@@ -37,6 +37,7 @@ export function createClientWorkspaceMappers(
     mapPaymentMilestone: dependencies.mapPaymentMilestone,
     mapFloorPlanDraft: dependencies.mapFloorPlanDraft,
     mapAuditLog: dependencies.mapAuditLog,
+    mapNotificationLog: dependencies.mapNotificationLog,
   };
 }
 

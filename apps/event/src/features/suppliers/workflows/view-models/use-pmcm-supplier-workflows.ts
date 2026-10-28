@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { PrismPmcmSupplierWorkflowWorkspace, PrismSupplierQuote } from "@prism/types";
+import type { PrismPmcmSupplierWorkflowWorkspace, PrismSupplierQuote, PrismSupplierSchedule } from "@prism/types";
 import {
   assignSupplierCreativeTask,
   createSupplierPayable,
   downloadPmcmSupplierFile,
   loadPmcmSupplierWorkflows,
+  loadPmcmSupplierScheduleWindows,
   publishSupplierSchedule,
   recordSupplierPayout,
   reviewSupplierContract,
@@ -21,7 +22,7 @@ function asIsoDateTime(value: string) {
 }
 
 export function usePmcmSupplierWorkflows(eventId: string) {
-  const [loaded, setLoaded] = useState<{ eventId: string; rows: PrismPmcmSupplierWorkflowWorkspace[] } | null>(null);
+  const [loaded, setLoaded] = useState<{ eventId: string; rows: PrismPmcmSupplierWorkflowWorkspace[]; schedules: PrismSupplierSchedule[] } | null>(null);
   const [drafts, setDrafts] = useState<Drafts>({});
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -34,9 +35,12 @@ export function usePmcmSupplierWorkflows(eventId: string) {
     const requestedEventId = eventId;
     const sequence = ++loadSequence.current;
     try {
-      const rows = await loadPmcmSupplierWorkflows(requestedEventId);
+      const [rows, schedules] = await Promise.all([
+        loadPmcmSupplierWorkflows(requestedEventId),
+        loadPmcmSupplierScheduleWindows(requestedEventId),
+      ]);
       if (eventIdRef.current === requestedEventId && loadSequence.current === sequence) {
-        setLoaded({ eventId: requestedEventId, rows });
+        setLoaded({ eventId: requestedEventId, rows, schedules });
         setError(null);
       }
       return rows;
@@ -216,6 +220,7 @@ export function usePmcmSupplierWorkflows(eventId: string) {
 
   return {
     rows: loaded?.eventId === eventId ? loaded.rows : [],
+    schedules: loaded?.eventId === eventId ? loaded.schedules : [],
     isLoading: loaded?.eventId !== eventId && error === null,
     error,
     notice,

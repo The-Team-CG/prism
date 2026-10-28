@@ -8,6 +8,7 @@ export * from './contracts/supplier-ops.tokens';
 export * from './contracts/event-decision-supplier-owner.port';
 export * from './contracts/privacy-redaction.port';
 export * from './contracts/billing-operations.types';
+export * from './contracts/confirmed-cancellation-fee-writer.port';
 export * from './contracts/finance-ops.tokens';
 export * from './contracts/payment-status-reader.port';
 
@@ -42,3 +43,6 @@ export * from './api/billing/event-billing.controller';
 export * from './application/billing/billing-operations.service';
 export * from './application/billing/payment-operations.service';
 export * from './application/billing/billing-operations.mappers';
+
+export * from './contracts/confirmed-cancellation-fee-writer.port';
+export * from './confirmed-cancellation-fee.module';

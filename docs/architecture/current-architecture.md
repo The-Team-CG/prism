@@ -4,9 +4,8 @@ title: "P.R.I.S.M current architecture"
 description: "Current runtime topology, role-app ownership, shared packages, backend bounded contexts, technical kernel, persistence, and lifecycle boundaries."
 tags: [architecture, current-state, modular-monolith, roles]
 status: canonical
-updated: "2026-10-06"
+updated: "2026-10-28"
 authority: normative
-owner: "D (Anthony)"
 audience: [agents, engineers, reviewers]
 scope: "all Prism portals, API, packages, and runtime boundaries"
 last_verified: "2026-10-06; runtime/context ownership and the seven-schema baseline reconciled with source and owner manifest"
@@ -40,7 +39,6 @@ target direction. Accepted architecture decisions are indexed in
 
 - **Purpose:** Describe the implemented application, package, API, and backend context boundaries.
 - **Authority:** Normative current architecture; accepted exceptions require an ADR.
-- **Owner:** D (Anthony).
 - **Scope:** Four role apps, shared packages, one NestJS API, Prisma, and local fixture seeding.
 - **Use when:** Locating ownership or deciding where a new route, contract, service, or query belongs.
 - **Change when:** A runtime boundary, bounded-context owner, package contract, or compatibility rule changes.

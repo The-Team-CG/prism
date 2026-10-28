@@ -1,21 +1,31 @@
 "use client";
 
 import { FormEvent } from "react";
-import { Check } from "lucide-react";
+import { Check, ChevronLeft } from "lucide-react";
 import { PrismBrandLogo } from "@prism/ui";
 import { Button } from "@/app/components/ui/button";
 import { cn } from "@/app/components/ui/utils";
 import { inquiryImages } from "../content/inquiry-images";
-import { buildInquiryReference, inquiryBriefLine } from "../model/inquiry-submit-rules";
+import { buildInquiryReference } from "../model/inquiry-submit-rules";
 import { INQUIRY_WIZARD_STEPS } from "../model/inquiry-submit-types";
 import { useInquirySubmitViewModel } from "../view-models/use-inquiry-submit-view-model";
-import { InquiryBrief } from "./sections/inquiry-brief";
+import { InquiryNextSteps } from "./sections/inquiry-next-steps";
 import { InquiryStepBody, InquiryWizardFooter } from "./sections/inquiry-submit-steps";
 
 function InquiryHeader() {
   return (
     <header className="mx-auto flex h-16 w-full max-w-[1280px] items-center justify-between px-5 sm:px-8">
-      <PrismBrandLogo href="/" detail="Client portal" compact={false} />
+      <div className="flex items-center gap-2">
+        <a
+          href="/"
+          aria-label="Back to home"
+          title="Back to home"
+          className="grid size-9 place-items-center rounded-lg text-primary transition-colors hover:bg-primary-soft hover:text-primary-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-orange"
+        >
+          <ChevronLeft aria-hidden="true" className="size-5" />
+        </a>
+        <PrismBrandLogo href="/" detail="Client portal" compact={false} />
+      </div>
       <a href="/sign-in" className="text-sm font-semibold text-foreground hover:text-primary">
         <span className="hidden sm:inline">Already a client? </span>Sign in
       </a>
@@ -54,22 +64,10 @@ function InquiryProgress({ currentStep, onGoTo }: { currentStep: number; onGoTo:
   );
 }
 
-function InquiryCredits() {
+function InquiryFooter() {
   return (
     <footer className="mx-auto w-full max-w-[1280px] px-5 pb-8 pt-12 text-sm text-muted-foreground sm:px-8">
       <p>PMCM Events Management, Manila · © {new Date().getFullYear()}</p>
-      <details className="mt-2">
-        <summary className="cursor-pointer">Picture credits</summary>
-        <ul className="mt-2 grid gap-1">
-          {Object.values(inquiryImages).map((image) => (
-            <li key={image.src}>
-              <a href={image.page} className="hover:text-foreground">
-                {image.credit}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </details>
     </footer>
   );
 }
@@ -93,7 +91,7 @@ function InquirySubmittedView({ onReset }: { onReset: () => void }) {
         </div>
         <img src={inquiryImages.ballroom.src} alt={inquiryImages.ballroom.alt} className="aspect-[4/3] w-full rounded-xl object-cover" />
       </section>
-      <InquiryCredits />
+      <InquiryFooter />
     </main>
   );
 }
@@ -121,19 +119,16 @@ export function InquirySubmitView() {
           <div className="mt-8">
             <InquiryProgress currentStep={currentStep} onGoTo={goToStep} />
           </div>
-          {inquiryBriefLine(form) ? (
-            <p className="mt-4 truncate text-sm font-medium text-foreground lg:hidden">{inquiryBriefLine(form)}</p>
-          ) : null}
           <form onSubmit={onSubmit} className="mt-6 rounded-xl border border-border bg-card p-5 sm:p-8">
             <InquiryStepBody currentStep={currentStep} form={form} update={update} minDate={minDate} error={error} onEdit={goToStep} />
             <InquiryWizardFooter currentStep={currentStep} busy={busy} missing={missing} onBack={previousStep} onContinue={nextStep} />
           </form>
         </div>
         <aside className="grid content-start gap-8 lg:sticky lg:top-6 lg:self-start">
-          <InquiryBrief form={form} reviewing={currentStep === INQUIRY_WIZARD_STEPS.length - 1} />
+          <InquiryNextSteps reviewing={currentStep === INQUIRY_WIZARD_STEPS.length - 1} />
         </aside>
       </div>
-      <InquiryCredits />
+      <InquiryFooter />
     </main>
   );
 }

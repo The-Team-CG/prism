@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import type { PrismEventFreezeException } from "@prism/types";
+import { DatePicker } from "@prism/ui/components/date-picker";
 import { useChangeRegisterViewModel } from "../view-models/use-change-register-view-model";
 import { freezeExceptionStatusLabel, pendingFreezeExceptions } from "../model/change-register-rules";
 import { PmcmAddendaStatus } from "../../views/pmcm-addenda-status";
@@ -72,10 +73,10 @@ function FreezeScopeForm({ busy, onSubmit }: { busy: boolean; onSubmit: (reason:
         <span className="text-muted-foreground">Reason for freezing</span>
         <input required value={reason} onChange={(event) => setReason(event.target.value)} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
       </label>
-      <label className="block text-sm">
+      <div className="block text-sm">
         <span className="text-muted-foreground">Freeze deadline (optional)</span>
-        <input type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm" />
-      </label>
+        <DatePicker aria-label="Freeze deadline (optional)" value={deadline} onValueChange={setDeadline} className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm" />
+      </div>
       <button type="submit" disabled={busy || !reason.trim()} className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">Freeze scope</button>
     </form>
   );

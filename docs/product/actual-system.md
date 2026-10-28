@@ -4,9 +4,8 @@ title: "P.R.I.S.M actual system"
 description: "Current product identity, actors, lifecycle, workflows, ownership, and completion evidence for PMCM's event operating system."
 tags: [product, current-state, lifecycle, roles]
 status: canonical
-updated: "2026-10-16"
+updated: "2026-10-28"
 authority: informative
-owner: "B (Francis)"
 audience: [product, engineering, design, reviewers]
 scope: "PMCM product identity, actors, lifecycle, workflows, and ownership"
 last_verified: "2026-10-16; selected client and supplier workflows"
@@ -27,7 +26,6 @@ sources:
 
 - **Purpose:** Describe what Prism is, who uses it, and how the event lifecycle is owned.
 - **Authority:** Informative product model; feature decisions live in the feature ledger.
-- **Owner:** B (Francis).
 - **Scope:** Actors, role surfaces, lifecycle, product workflows, and completion expectations.
 - **Use when:** Explaining product behavior without reading implementation details.
 - **Change when:** A product boundary, actor responsibility, lifecycle step, or role-visible outcome changes.
@@ -46,18 +44,22 @@ For target maturity, use [`future-state.md`](future-state.md).
 
 The [feature ledger](feature-ledger.md) and [readiness foundation](readiness-foundation.md)
 distinguish implemented corrections from incomplete end-to-end capabilities.
-Signed conforme does not create an approved bill. Proposal review requires a real
-issued version; the production issuing workflow remains absent. Archive checks
-five explicit gates and requires a reasoned override while logistics completion
-has no authoritative source. Supported privacy deletion is operational soft
-redaction; unsupported rights and native-account erasure remain unexecuted. Live
-AI remains governed by the separate provider, privacy, and approval gates.
+Signed conforme does not create an approved bill by design: billing statements
+come only from a PMCM-approved billing source. Proposal review requires a real
+issued version. PMCM issues it from the selected event's commercial proposal
+panel, which builds the cost estimate and issues a numbered version together
+with its issued proposal document and a one-page PDF copy; the client sees only
+the title, summary and total. Archive checks five explicit gates; logistics passes with a PMCM-recorded
+completion record and otherwise needs a reasoned override. Supported privacy
+deletion is operational soft redaction; unsupported rights and native-account
+erasure remain unexecuted. Live AI remains governed by the separate provider,
+privacy, and approval gates.
 
 The [authority and lifecycle policy](event-authority-and-lifecycle-policy.md)
 records the approved attendance operator, wrap-up, feedback window and client
-category decisions. Their acceptance does not mean those downstream features are
-running. Current guest access still closes at archive until the recorded-end and
-feedback-window work is implemented.
+category decisions. Guest feedback stays open for seven days after the recorded
+event end, including after archive; guest check-in and other access still close
+at archive.
 
 ## System Identity
 
@@ -228,14 +230,14 @@ P.R.I.S.M is not a public SaaS product. It is not a generic venue, ticketing, su
 | QR/camera | QR scanning must wait for HTTPS/device support, fallback code path, masterlist reconciliation, and consent/privacy review. |
 | AI | AI must wait for ZDR/provider approval, data sanitizer proof, prompt/data policy, audit retention, PMCM approval workflow, and no-autonomous-action enforcement. |
 
-## Owner Outcomes For The Full System
+## Outcomes For The Full System
 
-| Owner | Full-system outcome |
+| Area | Full-system outcome |
 | --- | --- |
-| Maxine | The whole system feels like one coherent PMCM operating system across separate role apps, with usable density, clear states, route-level review, and no banned visual treatments. |
-| Francis | PMCM and coordinator workflows are operationally useful: command inbox, selected event workspace, supplier/quote/floorplan/billing/compliance/live-ops/closure evidence, and chosen depth slices. |
-| Ethan | External portals are safe and useful: clients, suppliers, and guests can complete their own work without seeing PMCM internals or unrelated event data. |
-| Anthony | Platform trust is explicit: scoped contracts, session conventions, file matrix, privacy/audit, AI governance, dependency gates, source-ID traceability, and final evidence packet. |
+| UX | The whole system feels like one coherent PMCM operating system across separate role apps, with usable density, clear states, route-level review, and no banned visual treatments. |
+| PMCM operations | PMCM and coordinator workflows are operationally useful: command inbox, selected event workspace, supplier/quote/floorplan/billing/compliance/live-ops/closure evidence, and chosen depth slices. |
+| External portals | External portals are safe and useful: clients, suppliers, and guests can complete their own work without seeing PMCM internals or unrelated event data. |
+| Platform trust | Platform trust is explicit: scoped contracts, session conventions, file matrix, privacy/audit, AI governance, dependency gates, source-ID traceability, and final evidence packet. |
 
 ## Actual System Completion Rule
 

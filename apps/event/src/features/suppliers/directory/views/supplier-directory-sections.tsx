@@ -1,6 +1,7 @@
 import { ArrowLeft, Check, FilePlus2, Plus, Search } from "lucide-react";
 
 import type { PrismSupplier, PrismSupplierCategory } from "@prism/types";
+import { DatePicker } from "@prism/ui/components/date-picker";
 import { Badge } from "@/app/components/ui/badge";
 import { Input } from "@/app/components/ui/input";
 import { cx, RatingStars, SupplierTierBadge } from "@/features/pmcm-kit";
@@ -478,7 +479,7 @@ function SupplierCertificationForm({
         <Input value={certForm.documentType} onChange={(event) => onCertForm({ documentType: event.target.value })} className="h-10 bg-white" placeholder="Document type" />
         <div className="grid gap-2 sm:grid-cols-2">
           <Input value={certForm.issuer} onChange={(event) => onCertForm({ issuer: event.target.value })} className="h-10 bg-white" placeholder="Issuer" />
-          <Input type="date" value={certForm.expiresAt} onChange={(event) => onCertForm({ expiresAt: event.target.value })} className="h-10 bg-white" />
+          <DatePicker aria-label="Certification expiry date" value={certForm.expiresAt} onValueChange={(value) => onCertForm({ expiresAt: value })} className="h-10 bg-white" />
         </div>
         <select value={certForm.status} onChange={(event) => onCertForm({ status: event.target.value as SupplierCertForm["status"] })} className="h-10 rounded-md border border-border bg-white px-3 text-sm">
           <option value="submitted">Submitted</option>

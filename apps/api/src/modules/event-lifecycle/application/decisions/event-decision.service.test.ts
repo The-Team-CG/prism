@@ -102,6 +102,7 @@ function setup(options: { eventOverrides?: Partial<typeof event>; staffingImpact
     { write: notification } as never,
     staffingCommands as never,
     new EventDecisionSupplierOwnerService(),
+    { createConfirmedCancellationFeeSource: vi.fn(async () => ({ id: 'bsrc_fee', eventId: 'evt-1', sourceLabel: 'Cancellation fee', totalAmount: 25000, status: 'approved' })) },
   );
   return { service, tx, prisma, access, audit, notification, staffingCommands, assignmentImpact };
 }

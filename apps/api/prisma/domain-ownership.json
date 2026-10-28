@@ -1,10 +1,10 @@
 {
   "summary": {
-    "totalTables": 130,
+    "totalTables": 132,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
-    "targetSameDomainFks": 121,
+    "targetSameDomainFks": 125,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -20,14 +20,14 @@
       {
         "domain": "event-lifecycle",
         "schema": "event_lifecycle",
-        "tables": 30,
-        "columns": 431
+        "tables": 31,
+        "columns": 438
       },
       {
         "domain": "commercial",
         "schema": "commercial",
         "tables": 35,
-        "columns": 428
+        "columns": 433
       },
       {
         "domain": "operations",
@@ -38,8 +38,8 @@
       {
         "domain": "floorplan",
         "schema": "floorplan",
-        "tables": 9,
-        "columns": 97
+        "tables": 10,
+        "columns": 105
       },
       {
         "domain": "live-ops",
@@ -190,6 +190,15 @@
       "targetSchema": "event_lifecycle",
       "introducedAfterCutover": true,
       "columnCount": 15
+    },
+    {
+      "model": "OpsFileRequirementTemplate",
+      "currentSchema": "event_lifecycle",
+      "table": "file_requirement_templates",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "introducedAfterCutover": true,
+      "columnCount": 7
     },
     {
       "model": "OpsLogisticsCompletion",
@@ -580,6 +589,15 @@
       "columnCount": 20
     },
     {
+      "model": "OpsFloorPlanSnapshotVersion",
+      "currentSchema": "floorplan",
+      "table": "floor_plan_snapshot_versions",
+      "domain": "floorplan",
+      "targetSchema": "floorplan",
+      "introducedAfterCutover": true,
+      "columnCount": 8
+    },
+    {
       "model": "OpsEventDayLog",
       "currentSchema": "staffing_ops",
       "table": "event_day_logs",
@@ -649,7 +667,7 @@
       "table": "billing_statements",
       "domain": "commercial",
       "targetSchema": "commercial",
-      "columnCount": 22
+      "columnCount": 23
     },
     {
       "model": "OpsBillingStatementSequence",
@@ -665,7 +683,7 @@
       "table": "payment_milestones",
       "domain": "commercial",
       "targetSchema": "commercial",
-      "columnCount": 10
+      "columnCount": 13
     },
     {
       "model": "OpsPaymentRecord",
@@ -681,7 +699,7 @@
       "table": "billing_corrections",
       "domain": "commercial",
       "targetSchema": "commercial",
-      "columnCount": 13
+      "columnCount": 14
     },
     {
       "model": "OpsBillingDispute",
@@ -1553,6 +1571,45 @@
     },
     {
       "schema": "finance_ops",
+      "table": "billing_statements",
+      "name": "billing_statements_supersedes_statement_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (supersedes_statement_id, event_id) REFERENCES finance_ops.billing_statements(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": ["supersedes_statement_id", "event_id"],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "finance_ops",
+      "targetTable": "billing_statements",
+      "sameDomain": true
+    },
+    {
+      "schema": "finance_ops",
+      "table": "payment_milestones",
+      "name": "payment_milestones_statement_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (statement_id, event_id) REFERENCES finance_ops.billing_statements(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": ["statement_id", "event_id"],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "finance_ops",
+      "targetTable": "billing_statements",
+      "sameDomain": true
+    },
+    {
+      "schema": "finance_ops",
+      "table": "billing_corrections",
+      "name": "billing_corrections_replacement_statement_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (replacement_statement_id, event_id) REFERENCES finance_ops.billing_statements(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": ["replacement_statement_id", "event_id"],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "finance_ops",
+      "targetTable": "billing_statements",
+      "sameDomain": true
+    },
+    {
+      "schema": "finance_ops",
       "table": "billing_disputes",
       "name": "billing_disputes_event_id_fkey",
       "kind": "f",
@@ -1808,6 +1865,19 @@
       "targetDomain": "floorplan",
       "targetCurrentSchema": "floorplan",
       "targetTable": "floor_plans",
+      "sameDomain": true
+    },
+    {
+      "schema": "floorplan",
+      "table": "floor_plan_snapshot_versions",
+      "name": "floor_plan_snapshot_versions_draft_id_event_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (draft_id, event_id) REFERENCES floorplan.floor_plan_drafts(id, event_id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": ["draft_id", "event_id"],
+      "sourceDomain": "floorplan",
+      "targetDomain": "floorplan",
+      "targetCurrentSchema": "floorplan",
+      "targetTable": "floor_plan_drafts",
       "sameDomain": true
     },
     {

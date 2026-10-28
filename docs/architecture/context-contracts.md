@@ -4,9 +4,8 @@ title: "P.R.I.S.M context contracts"
 description: "Current public context surfaces, dependency direction, read-model composition, and focused seams in the Prism modular monolith."
 tags: [architecture, contracts, boundaries, ddd]
 status: canonical
-updated: "2026-10-23"
+updated: "2026-10-28"
 authority: normative
-owner: "D (Anthony)"
 audience: [agents, backend-engineers, reviewers]
 scope: "apps/api/src/modules and kernel seams"
 last_verified: "2026-10-18; staging integration of portal storage and signing seams"
@@ -39,7 +38,6 @@ sources:
 
 - **Purpose:** Define the supported in-process seams between bounded contexts.
 - **Authority:** Normative for backend imports, ports, contracts, and read-model composition.
-- **Owner:** D (Anthony).
 - **Scope:** `apps/api/src/modules` and `apps/api/src/kernel`.
 - **Use when:** Adding a context dependency, public index, port, or cross-context query.
 - **Change when:** A supported seam, context owner, or extraction constraint changes.
@@ -49,6 +47,8 @@ This register describes in-process dependency seams in the one NestJS
 deployable. A context index or focused port is an application contract; it is
 not a network endpoint and does not imply that the context is already an
 independent service.
+
+Lifecycle binds file-requirement evidence through Platform's `STORED_REQUIREMENT_UPLOAD_READER` in the caller transaction. Only confirmed, available bytes from the same event and an allowed upload owner can fulfil a custom requirement. Requirement templates and bindings stay owned by Lifecycle; stored bytes stay owned by Platform.
 
 Floorplan uses the focused `event-lifecycle/floorplan-reference` capability
 for event gates and projection facts in event-scoped write transactions.
@@ -130,6 +130,7 @@ legacy relation or changing schema placement.
 | modules/identity-access | platform trust behavior | Identity depends on AUTH_AUDIT; adapter owns the implementation dependency | Authentication/account workflows use an audit/lockout seam; application code does not import AuditService. |
 | modules/event-lifecycle | document storage behavior | DOCUMENT_VAULT owned by Lifecycle | Lifecycle registers commercial contract/statement metadata, checks event and allowed-kind eligibility through the caller transaction, and reports the current document retention policy. Onboarding remains an in-context Lifecycle write. |
 | modules/commercial | Lifecycle document-vault capability | Register and validate document references for commercial records | Commercial keeps contract/billing decisions and scalar document IDs; supplier contracts, billing statements, billing evidence and client proposal review use the public Lifecycle capability. |
+| modules/event-lifecycle | Commercial confirmed-cancellation-fee capability | Create an approved fee source from an acknowledged PMCM cancellation/postponement decision | The focused writer receives the decision transaction, validates the verified PMCM actor and amount, and records an idempotent source. Lifecycle links the source in decision evidence; normal PMCM billing issuance creates its invoice and milestones. |
 | modules/event-lifecycle | Commercial addendum-impact capability | Transaction-aware updates to an approved billing source and selected supplier quotes | Lifecycle owns addendum decisions and impact history; Commercial owns the source/quote writes. Current briefing/conforme workflows do not initialize billing because they provide no priced-source input; do not fabricate billing rows. |
 | modules/commercial | Lifecycle post-event state reader | Validate event existence and recorded end before additional billing | Lifecycle locks and returns only required event state in the caller transaction; Commercial owns the billing command. |
 | modules/commercial | LiveOps urgent-issue reference reader | Validate the incident belongs to the same event before additional billing | LiveOps locks the incident row in the caller transaction and returns only its ID and event ID; Commercial authorizes and writes billing. |

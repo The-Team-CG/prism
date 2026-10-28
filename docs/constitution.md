@@ -4,9 +4,8 @@ title: "P.R.I.S.M documentation and architecture constitution"
 description: "Current invariants for role ownership, bounded contexts, shared contracts, compatibility paths, frontend layering, and documentation maintenance."
 tags: [architecture, constitution, contracts, documentation]
 status: canonical
-updated: "2026-10-06"
+updated: "2026-10-28"
 authority: normative
-owner: "D (Anthony)"
 audience: [agents, maintainers, engineers]
 scope: "repository-wide cross-cutting rules"
 last_verified: "2026-10-06; documentation hierarchy, changelog guidance, and bundle navigation reviewed"
@@ -30,7 +29,6 @@ sources:
 
 - **Purpose:** State the invariants that keep product ownership, architecture, contracts, and documentation coherent.
 - **Authority:** Normative cross-cutting contract below `AGENTS.md` and above detailed architecture/product documents.
-- **Owner:** D (Anthony).
 - **Scope:** Role apps, API contexts, shared contracts, read models, compatibility, frontend layering, and docs.
 - **Use when:** Starting a feature, changing a boundary, or deciding whether a document is still authoritative.
 - **Change when:** A cross-cutting invariant changes; record consequential architecture changes in an ADR.
@@ -50,7 +48,7 @@ changes to the documentation bundle; Git history preserves the detailed record.
 
 ## Authority order
 
-1. `AGENTS.md` defines agent safety, repository commands, ownership goals, and
+1. `AGENTS.md` defines agent safety, repository commands, system goals, and
    hard rules.
 2. This constitution defines cross-cutting invariants and documentation usage.
 3. `docs/architecture/current-architecture.md` defines the current runtime and
@@ -149,12 +147,14 @@ The bundle uses OKF v0.2-style Markdown:
 - `docs/log.md` is a curated bundle log, so it is exempt from concept
   frontmatter and `At a glance` metadata.
 - Every non-index concept under `docs/` has `type`, `title`, `description`,
-  `tags`, `status`, `updated`, `authority`, `owner`, `audience`, `scope`,
+  `tags`, `status`, `updated`, `authority`, `audience`, `scope`,
   `last_verified`, and `sources` frontmatter. Prefer repository-relative
   paths; explicitly named skills, standards, or source artifacts are valid
   provenance when the material is not stored in this repo.
 - Every non-index concept starts with an `At a glance` section that states its
-  purpose, authority, owner, scope, use/change triggers, and verification.
+  purpose, authority, scope, use/change triggers, and verification.
+  Developer assignment fields and former team labels are omitted. Product-role,
+  resource and bounded-context ownership remain part of the system contract.
 - Use `status: canonical` for living sources of truth, `active` for maintained
   inventories or registers, and `reference` for preserved source material.
 - Use `authority: normative`, `informative`, `operational`, or `reference` to
@@ -189,7 +189,7 @@ audit, stale-path search, and proof that no source files changed. Do not use a
 documentation check to claim live database, browser, staging, or production
 behavior that was not executed.
 
-Second-owner review cannot be self-certified. Architecture, contract, and
+Independent review cannot be self-certified. Architecture, contract, and
 auth PRs need a recorded GitHub review from someone other than the author
 before merge. CI passing is not a review. An empty GitHub `reviews` array is
 not a review. Off-GitHub look-overs must be written onto the PR so the record

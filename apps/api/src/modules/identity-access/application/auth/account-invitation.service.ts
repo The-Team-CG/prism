@@ -117,7 +117,7 @@ export class AccountInvitationService implements AccountProvisioningPort {
   private async decide(email: string, input: ProvisionAccountInput, now: Date): Promise<Decision> {
     return this.prisma.$transaction(async (tx) => {
       // QUERY_AUDIT_RAW_SQL: serialize provisioning per email so two concurrent triggers cannot create two accounts.
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${email}))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${email}))`;
       const existing = await tx.opsUser.findUnique({ where: { email } });
       if (existing && existing.role !== input.role) return { outcome: 'role_conflict', userId: existing.id };
       // Only an approved account with a password already signs in. A pending or declined one is refused, not re-invited.

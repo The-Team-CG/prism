@@ -4,9 +4,8 @@ title: "P.R.I.S.M local Supabase and Docker development"
 description: "Isolated local database startup, Docker modes, source syncing, and persistent development data."
 tags: [runbook, docker, supabase, development]
 status: canonical
-updated: "2026-10-07"
+updated: "2026-10-28"
 authority: operational
-owner: "D (Anthony)"
 audience: [developers, QA, agents]
 scope: "local Prism Node/Docker startup and database isolation"
 last_verified: "2026-10-07"
@@ -26,7 +25,6 @@ sources:
 ## At a glance
 
 - **Purpose:** Start Prism on a persistent local database without hosted credentials.
-- **Owner:** D (Anthony), platform trust and development isolation.
 - **Prerequisites:** Node 24, npm, Docker Desktop with its Linux engine.
 - **Database:** Supabase CLI 2.115.0, Postgres 17, Studio, metadata, gateway and REST dependencies. This CLI rejects Postgres 16; the repository's migration CI still replays PostgreSQL 16. Supabase Auth, Storage, Realtime, functions, analytics, SMTP and pooler are disabled.
 - **Schema:** Prisma migrations in `apps/api/prisma/migrations`; Supabase application migrations and automatic seeding are disabled.

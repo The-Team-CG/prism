@@ -206,7 +206,7 @@ export function LiveOpsDesk({
       ) : null}
       <details className="rounded-lg border border-border bg-card">
         <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Schedule and reports</summary>
-        <LiveOpsScheduleDesk eventId={eventId} assignments={liveOps.coordinatorAssignments} canManageSchedule canReplyToReports canSubmitReports={false} />
+        <LiveOpsScheduleDesk eventId={eventId} assignments={liveOps.coordinatorAssignments} canStartEventDay canManageSchedule canReplyToReports canSubmitReports={false} />
       </details>
       <details className="rounded-lg border border-border bg-card">
       <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Attendance and supplier setup</summary>

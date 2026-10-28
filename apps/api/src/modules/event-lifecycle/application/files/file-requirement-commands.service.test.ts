@@ -17,14 +17,17 @@ const signedConforme: DerivedFileRequirementItem = {
 type Row = Record<string, any>;
 
 /** Uses the real merge policy so overrides, custom rows, and rejected uploads flow through the same rules as production. */
-function createHarness(options: { rows?: Row[]; derived?: DerivedFileRequirementItem[]; rejectedDocuments?: Array<{ id: string; type: string }>; dueEvents?: string[] } = {}) {
+function createHarness(options: { rows?: Row[]; derived?: DerivedFileRequirementItem[]; rejectedDocuments?: Array<{ id: string; type: string }>; dueEvents?: string[]; storedUpload?: Row | null } = {}) {
   const rows: Row[] = [...(options.rows ?? [])];
+  const documents: Row[] = [];
+  const templates: Row[] = [];
   const audits: Array<Record<string, any>> = [];
   const outbox: Array<Record<string, any>> = [];
   const tx = {
-    opsEvent: { findUnique: vi.fn(async () => ({ id: eventId, archived: false })), findMany: vi.fn(async () => (options.dueEvents ?? []).map((id) => ({ id }))) },
+    opsEvent: { findUnique: vi.fn(async () => ({ id: eventId, archived: false, eventDate: new Date('2026-12-01T00:00:00.000Z'), inquiry: { eventType: 'wedding' } })), findMany: vi.fn(async () => (options.dueEvents ?? []).map((id) => ({ id }))) },
     opsFileRequirement: {
       findUnique: vi.fn(async ({ where }: { where: { eventId_key: { eventId: string; key: string } } }) => rows.find((row) => row.key === where.eventId_key.key) ?? null),
+      findMany: vi.fn(async ({ where }: { where: Row }) => rows.filter((row) => row.eventId === where.eventId)),
       create: vi.fn(async ({ data }: { data: Row }) => {
         const row = { revision: 1, dueAt: null, notes: null, ...data, id: `freq_${rows.length + 1}` };
         rows.push(row);
@@ -38,7 +41,23 @@ function createHarness(options: { rows?: Row[]; derived?: DerivedFileRequirement
       }),
       findUniqueOrThrow: vi.fn(async ({ where }: { where: { id: string } }) => rows.find((row) => row.id === where.id)),
     },
-    opsDocument: { findMany: vi.fn(async () => options.rejectedDocuments ?? []) },
+    opsFileRequirementTemplate: {
+      findMany: vi.fn(async () => templates),
+      findUnique: vi.fn(async ({ where }: { where: { eventType: string } }) => templates.find((row) => row.eventType === where.eventType) ?? null),
+      upsert: vi.fn(async ({ where, create, update }: { where: { eventType: string }; create: Row; update: Row }) => {
+        const existing = templates.find((row) => row.eventType === where.eventType);
+        if (existing) { Object.assign(existing, update, { revision: existing.revision + 1 }); return existing; }
+        const row = { revision: 1, ...create, id: `frt_${templates.length + 1}`, updatedAt: new Date() };
+        templates.push(row); return row;
+      }),
+    },
+    opsSupplierQuoteRequest: { findMany: vi.fn(async () => []) },
+    opsCoordinatorAssignment: { findMany: vi.fn(async () => []) },
+    opsDocument: {
+      findMany: vi.fn(async () => options.rejectedDocuments ?? []),
+      findFirst: vi.fn(async ({ where }: { where: Row }) => documents.find((row) => row.eventId === where.eventId && row.storageKey === where.storageKey) ?? null),
+      create: vi.fn(async ({ data }: { data: Row }) => { documents.push(data); return data; }),
+    },
   };
   const prisma = { ...tx, $transaction: vi.fn(async (work: (client: unknown) => Promise<unknown>) => work(tx)) };
   const matrix = {
@@ -47,7 +66,10 @@ function createHarness(options: { rows?: Row[]; derived?: DerivedFileRequirement
       items: mergeFileRequirementOverrides(
         options.derived ?? [signedConforme],
         rows.map((row) => ({ ...row, dueAt: row.dueAt ?? null }) as never),
-        (options.rejectedDocuments ?? []).map((document) => ({ id: document.id, type: document.type, status: 'submitted', validationStatus: 'rejected', uploadedAt: new Date('2026-10-10T00:00:00.000Z') })),
+        [
+          ...(options.rejectedDocuments ?? []).map((document) => ({ id: document.id, type: document.type, status: 'submitted', validationStatus: 'rejected', uploadedAt: new Date('2026-10-10T00:00:00.000Z') })),
+          ...documents.map((document) => ({ id: document.id, type: document.type, status: document.status, validationStatus: document.validationStatus, uploadedAt: document.uploadedAt })),
+        ],
         now,
       ),
     })),
@@ -56,11 +78,13 @@ function createHarness(options: { rows?: Row[]; derived?: DerivedFileRequirement
     requireActorRole: vi.fn(async (candidate: { role: string }, roles: readonly string[], resource: string) => {
       if (!roles.includes(candidate.role)) throw new ForbiddenException(`${candidate.role} cannot access ${resource}`);
     }),
+    requireCanReadEvent: vi.fn(async () => undefined),
   };
   const auditWriter = { write: vi.fn(async (input: Record<string, any>) => { audits.push(input); return input; }) };
   const notificationOutboxWriter = { write: vi.fn(async (input: Record<string, any>) => { outbox.push(input); return input; }) };
-  const service = new FileRequirementCommandsService(prisma as never, matrix as never, accessPolicy as never, auditWriter as never, notificationOutboxWriter as never);
-  return { service, rows, audits, outbox, tx };
+  const storedRequirementUploads = { findStoredRequirementUpload: vi.fn(async () => options.storedUpload ?? null) };
+  const service = new FileRequirementCommandsService(prisma as never, matrix as never, accessPolicy as never, auditWriter as never, notificationOutboxWriter as never, storedRequirementUploads as never);
+  return { service, rows, audits, outbox, tx, prisma, documents, templates, storedRequirementUploads };
 }
 
 describe('FileRequirementCommandsService', () => {
@@ -84,6 +108,28 @@ describe('FileRequirementCommandsService', () => {
     expect(harness.tx.opsFileRequirement.create).not.toHaveBeenCalled();
     expect(harness.tx.opsFileRequirement.updateMany).not.toHaveBeenCalled();
     expect(harness.audits).toHaveLength(0);
+  });
+
+  it('recovers from an aborted requirement write without duplicating the requirement or audit', async () => {
+    const harness = createHarness();
+    harness.prisma.$transaction.mockRejectedValueOnce(Object.assign(new Error('Serialization failure'), { code: 'P2034' }));
+    await expect(harness.service.createRequirement(eventId, createInput, pmcm)).resolves.toMatchObject({ key: 'venue_permit' });
+    expect(harness.rows).toHaveLength(1);
+    expect(harness.audits).toHaveLength(1);
+    harness.prisma.$transaction.mockRejectedValueOnce(Object.assign(new Error('Serialization failure'), { code: 'P2034' }));
+    await expect(harness.service.updateRequirement(eventId, 'venue_permit', { required: false, expectedRevision: 1 }, pmcm)).resolves.toMatchObject({ required: false });
+    expect(harness.rows).toHaveLength(1);
+    expect(harness.audits).toHaveLength(2);
+  });
+
+  it('returns a recoverable conflict after repeated transaction aborts and preserves unrelated errors', async () => {
+    const harness = createHarness();
+    harness.prisma.$transaction.mockRejectedValue(Object.assign(new Error('Serialization failure'), { code: 'P2034' }));
+    await expect(harness.service.createRequirement(eventId, createInput, pmcm)).rejects.toBeInstanceOf(ConflictException);
+    expect(harness.prisma.$transaction).toHaveBeenCalledTimes(3);
+    expect(harness.rows).toHaveLength(0);
+    harness.prisma.$transaction.mockRejectedValueOnce(new Error('Database offline'));
+    await expect(harness.service.createRequirement(eventId, createInput, pmcm)).rejects.toThrow('Database offline');
   });
 
   it('creates a custom requirement and audits metadata without the PMCM-private notes', async () => {
@@ -139,5 +185,53 @@ describe('FileRequirementCommandsService', () => {
     const result = await harness.service.runReminderSweep(new Date('2026-10-20T00:00:00.000Z'));
     expect(result.reminders.map((reminder) => reminder.reason)).toEqual(['rejected', 'rejected']);
     expect(result.reminders[0].idempotencyKey).toContain('doc_rejected');
+  });
+
+  it('lets PMCM queue event-scoped overdue reminders and rejects client-triggered reminders', async () => {
+    const overdueRow = { id: 'freq_1', eventId, key: 'signed_conforme', label: 'Signed conforme', ownerRole: 'client', visibleToRoles: ['pmcm-admin', 'client'], required: true, dueAt: new Date('2026-10-01T00:00:00.000Z'), sourceWorkflow: 'client_onboarding', isCustom: false, notes: null, revision: 2 };
+    const harness = createHarness({ rows: [overdueRow] });
+    const result = await harness.service.sendReminders(eventId, pmcm, new Date('2026-10-20T00:00:00.000Z'));
+    expect(result.reminders.map(({ reason, recipient }) => [reason, recipient])).toEqual([['overdue', 'Client'], ['overdue', 'PMCM Admin']]);
+    expect(harness.outbox).toHaveLength(2);
+    await expect(harness.service.sendReminders(eventId, { role: 'client' } as never)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(harness.outbox).toHaveLength(2);
+  });
+
+  it('binds only the requirement owner uploaded bytes from the same event and is idempotent', async () => {
+    const requirement = { id: 'freq_1', eventId, key: 'venue_permit', label: 'Venue permit', ownerRole: 'client', visibleToRoles: ['pmcm-admin', 'client'], required: true, dueAt: null, sourceWorkflow: 'custom', isCustom: true, notes: 'private', revision: 1, updatedBy: 'pmcm' };
+    const upload = { id: 'obj_1', eventId, ownerRecordType: 'event', ownerRecordId: eventId, usage: 'client_document', lifecycleState: 'stored', originalFileName: 'permit.pdf', contentType: 'application/pdf', declaredByteSize: 100, uploaderActorId: 'client_1', uploaderActorRole: 'client' };
+    const client = { id: 'client_1', role: 'client', name: 'Client', explicit: true, verified: true };
+    const harness = createHarness({ rows: [requirement], storedUpload: upload });
+    await expect(harness.service.bindRequirementUpload(eventId, requirement.key, { objectId: upload.id }, client as never)).resolves.toMatchObject({ key: requirement.key, status: 'submitted' });
+    await harness.service.bindRequirementUpload(eventId, requirement.key, { objectId: upload.id }, client as never);
+    expect(harness.documents).toHaveLength(1);
+    expect(harness.documents[0]).toMatchObject({ type: requirement.key, storageKey: upload.id, fileName: 'permit.pdf' });
+    expect(harness.audits).toHaveLength(1);
+    expect(harness.storedRequirementUploads.findStoredRequirementUpload).toHaveBeenCalledWith(expect.objectContaining({ eventId, objectId: upload.id, context: expect.objectContaining({ correlationId: expect.any(String) }) }));
+
+    harness.storedRequirementUploads.findStoredRequirementUpload.mockResolvedValueOnce({ ...upload, eventId: 'evt_other' });
+    await expect(harness.service.bindRequirementUpload(eventId, requirement.key, { objectId: upload.id }, client as never)).rejects.toThrow('stored for this event');
+    expect(harness.documents).toHaveLength(1);
+
+    const changedOwner = createHarness({ rows: [{ ...requirement, ownerRole: 'supplier', visibleToRoles: ['pmcm-admin', 'supplier'] }], storedUpload: upload });
+    await expect(changedOwner.service.bindRequirementUpload(eventId, requirement.key, { objectId: upload.id }, client as never)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(changedOwner.storedRequirementUploads.findStoredRequirementUpload).not.toHaveBeenCalled();
+    expect(changedOwner.documents).toHaveLength(0);
+  });
+
+  it('applies PMCM-configured event templates idempotently and offsets due dates from the event date', async () => {
+    const harness = createHarness();
+    await harness.service.upsertRequirementTemplate({ eventType: 'Wedding', requirements: [
+      { key: 'venue_permit', label: 'Venue permit', ownerRole: 'client', visibleToRoles: ['pmcm-admin', 'client'], required: true, dueOffsetDays: 30 },
+      { key: 'supplier_insurance', label: 'Supplier insurance', ownerRole: 'supplier', visibleToRoles: ['pmcm-admin', 'supplier'], required: true },
+    ] }, pmcm);
+    const first = await harness.service.applyRequirementTemplate(eventId, pmcm);
+    const second = await harness.service.applyRequirementTemplate(eventId, pmcm);
+    expect(first.createdKeys).toEqual(['venue_permit', 'supplier_insurance']);
+    expect(first.eventType).toBe('wedding');
+    expect(second.createdKeys).toEqual([]);
+    expect(second.skippedExistingCount).toBe(2);
+    expect(harness.rows.find((row) => row.key === 'venue_permit')?.dueAt.toISOString()).toBe('2026-11-01T00:00:00.000Z');
+    expect(harness.rows).toHaveLength(2);
   });
 });

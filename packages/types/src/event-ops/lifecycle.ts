@@ -125,6 +125,17 @@ export interface PrismFloorPlanDraft {
   updatedAt: string;
 }
 
+export interface PrismFloorPlanSnapshotVersion {
+  id: string;
+  eventId: string;
+  draftId: string;
+  round: number;
+  snapshotType: "submitted" | "approved";
+  snapshot: PrismFloorPlanSnapshot;
+  createdByRole: PrismUserRole | string;
+  createdAt: string;
+}
+
 export interface PrismEvent {
   id: string;
   inquiryId: string;
@@ -311,6 +322,22 @@ export interface PrismFileRequirementItem {
 export interface PrismFileRequirementsMatrix {
   eventId: string;
   items: PrismFileRequirementItem[];
+}
+
+export interface PrismFileRequirementTemplate {
+  id: string;
+  eventType: string;
+  requirements: import("../schemas/file-requirement-template-inputs.js").FileRequirementTemplateItemInput[];
+  revision: number;
+  updatedAt: string;
+}
+
+export interface PrismFileRequirementReminder {
+  eventId: string;
+  key: string;
+  reason: "overdue" | "rejected";
+  recipient: string;
+  idempotencyKey: string;
 }
 
 export interface PrismBriefing {

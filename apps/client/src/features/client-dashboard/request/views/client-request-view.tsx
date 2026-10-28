@@ -3,6 +3,7 @@
 import { Send } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
+import { DatePicker } from "@prism/ui/components/date-picker";
 import { FieldGroup } from "../../workspace/shared";
 import { CLIENT_PORTAL_VIEW_META } from "../../workspace/shared";
 import { useClientWorkspace } from "../../workspace/shared";
@@ -48,11 +49,11 @@ export function ClientRequestView() {
         </FieldGroup>
         <div className="grid gap-4 sm:grid-cols-2">
           <FieldGroup label="Event date">
-            <Input
+            <DatePicker
               required
-              type="date"
               value={requestForm.eventDate}
-              onChange={(ev) => setRequestForm({ ...requestForm, eventDate: ev.target.value })}
+              onValueChange={(value) => setRequestForm({ ...requestForm, eventDate: value })}
+              aria-label="Event date"
               className="rounded-lg"
             />
           </FieldGroup>

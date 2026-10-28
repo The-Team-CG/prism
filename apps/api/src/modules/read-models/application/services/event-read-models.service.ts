@@ -33,6 +33,8 @@ import {
   type EventClientFloorplanAccessReader,
 } from '@prism/contexts/event-lifecycle';
 import { FLOORPLAN_READER, type FloorplanReader } from '@prism/contexts/floorplan';
+import { isClientVisibleFloorPlanDraft } from '@prism/contexts/floorplan/event-drafts';
+import { mapClientBillingStatement } from '@prism/contexts/commercial';
 import { OpsUserRole, SupplierQuoteRequestStatus, isOpsConstantValue } from '@prism/kernel/event-core';
 import type {
   PrismClientEventTimeline,
@@ -197,6 +199,7 @@ export type ClientWorkspaceMappers = {
   mapPaymentMilestone: (payment: OpsPaymentMilestone, history: OpsPaymentRecord[]) => unknown;
   mapFloorPlanDraft: (draft: OpsFloorPlanDraft) => unknown;
   mapAuditLog: (log: OpsAuditLog) => unknown;
+  mapNotificationLog: (log: OpsNotificationLog) => unknown;
 };
 
 export type SupplierWorkspaceMappers = {
@@ -234,7 +237,7 @@ export class EventReadModelsService {
   async eventList(actor: ResolvedEventOpsActor, mappers: EventListMappers, cursor?: string) {
     const page = await this.visibleEventPageForActor(actor, cursor);
     return {
-      items: page.items.map((event) => mappers.mapEvent(event)),
+      items: page.items.map((event) => mappers.mapEvent(this.eventVisibleToActor(event, actor))),
       pagination: page.pagination,
     };
   }
@@ -243,7 +246,12 @@ export class EventReadModelsService {
     const event = await this.queries.eventWithDrafts(eventId);
     if (!event) throw new NotFoundException('Event not found');
     await this.policy.requireCanReadEvent(actor, event, 'event detail');
-    return mappers.mapEvent(event);
+    return mappers.mapEvent(this.eventVisibleToActor(event, actor));
+  }
+
+  private eventVisibleToActor(event: EventWithDrafts, actor: ResolvedEventOpsActor): EventWithDrafts {
+    if (actor.role !== OpsUserRole.Client) return event;
+    return { ...event, floorPlanDrafts: (event.floorPlanDrafts ?? []).filter(isClientVisibleFloorPlanDraft) };
   }
 
   async defenseReadiness(actor: ResolvedEventOpsActor, eventId: string) {
@@ -385,7 +393,7 @@ export class EventReadModelsService {
       billingDisputes: billingDisputes.map((row) => mappers.mapBillingDispute(row)),
       additionalBillings: additionalBillings.map((row) => mappers.mapAdditionalBilling(row)),
       billingSources: billingSources.map((source) => mappers.mapBillingSource(source)),
-      billingStatements: billingStatements.map((statement) => mappers.mapBillingStatement(statement)),
+      billingStatements: billingStatements.map((statement) => actor.role === OpsUserRole.Client ? mapClientBillingStatement(statement) : mappers.mapBillingStatement(statement)),
       paymentMilestones: paymentMilestones.map((payment) =>
         mappers.mapPaymentMilestone(
           payment,
@@ -434,9 +442,11 @@ export class EventReadModelsService {
     const [
       [documents, briefings, floorPlanDrafts, billingStatements, paymentMilestones, paymentRecords, auditLogs, ocularVisits, billingDisputes],
       timelineSources,
+      notificationLogs,
     ] = await Promise.all([
       this.queries.clientWorkspaceForEvents(eventIds),
       this.queries.clientEventTimelineForEvents(eventIds),
+      this.queries.clientNotificationsForEvents(eventIds),
     ]);
     const timelineSourceByEventId = new Map(timelineSources.map((source) => [source.id, source]));
     const clientEventTimelines = visibleEvents.map((event) =>
@@ -458,7 +468,7 @@ export class EventReadModelsService {
     return {
       users: [],
       inquiries: [],
-      events: visibleEvents.map((event) => mappers.mapEvent(event)),
+      events: visibleEvents.map((event) => mappers.mapEvent(this.eventVisibleToActor(event, actor))),
       archivedEvents,
       clientEventTimelines,
       documents: documents.map((document) => mappers.mapDocument(document)),
@@ -466,7 +476,7 @@ export class EventReadModelsService {
       supplierQuotes: [],
       coordinatorAssignments: [],
       complianceChecks: [],
-      billingStatements: billingStatements.map((statement) => mappers.mapBillingStatement(statement)),
+      billingStatements: billingStatements.map(mapClientBillingStatement),
       billingDisputes: billingDisputes.map((dispute) => mappers.mapClientBillingDispute(dispute)),
       paymentMilestones: paymentMilestones.map((payment) =>
         mappers.mapPaymentMilestone(
@@ -475,9 +485,9 @@ export class EventReadModelsService {
         ),
       ),
       postEventDocuments: [],
-      floorPlanDrafts: floorPlanDrafts.map((draft) => mappers.mapFloorPlanDraft(draft)),
+      floorPlanDrafts: floorPlanDrafts.filter(isClientVisibleFloorPlanDraft).map((draft) => mappers.mapFloorPlanDraft(draft)),
       auditLogs: auditLogs.map((log) => mappers.mapAuditLog(log)),
-      notificationLogs: [],
+      notificationLogs: notificationLogs.map(mappers.mapNotificationLog),
       ocularVisits: ocularVisits.map(mapClientOcularVisit),
       pagination: eventPage.pagination,
     };

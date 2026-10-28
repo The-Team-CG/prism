@@ -4,9 +4,8 @@ title: "Focused ports and composition-root adapters"
 description: "Invert real cross-context dependencies with focused ports while keeping the current modular monolith as one deployable system."
 tags: [architecture, decision, ddd, modular-monolith, ports, extraction]
 status: accepted
-updated: "2026-09-12"
+updated: "2026-10-28"
 authority: normative
-owner: "D (Anthony)"
 audience: [agents, backend-engineers, reviewers]
 scope: "apps/api/src/kernel and bounded-context composition seams"
 last_verified: "codex/architecture-alignment-fe-be"

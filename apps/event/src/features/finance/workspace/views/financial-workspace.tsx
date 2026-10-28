@@ -1,4 +1,5 @@
 import type { PrismBillingStatement, PrismEvent, PrismInquiry, PrismNotificationLog, PrismPaymentMilestone } from "@prism/types";
+import type { MarkPaymentInput } from "@prism/types";
 import { remainingPaymentCopy, sumPaymentAmounts } from "../model/finance-workspace-rules";
 import { useFinancialWorkspaceViewModel } from "../view-models/use-financial-workspace-view-model";
 import type { RecordPaymentInput } from "../model/finance-workspace-types";
@@ -20,6 +21,7 @@ export function FinancialWorkspace({
   busy,
   onRecordPayment,
   onSendBilling,
+  onMarkPayment,
 }: {
   event: PrismEvent;
   inquiry?: PrismInquiry;
@@ -29,6 +31,7 @@ export function FinancialWorkspace({
   busy: boolean;
   onRecordPayment: (milestoneId: string, input: RecordPaymentInput) => Promise<void>;
   onSendBilling: (billingId: string) => Promise<void>;
+  onMarkPayment: (milestoneId: string, input: MarkPaymentInput) => Promise<void>;
 }) {
   const statement = billingStatements.find((b) => b.eventId === event.id);
   const vm = useFinancialWorkspaceViewModel({ statement, busy, onRecordPayment });
@@ -58,7 +61,7 @@ export function FinancialWorkspace({
           busy={busy}
           onSendBilling={onSendBilling}
         />
-        <PaymentTracker payments={payments} busy={busy} onRecord={vm.openRecordModal} />
+        <PaymentTracker payments={payments} busy={busy} onRecord={vm.openRecordModal} onMarkPayment={onMarkPayment} />
       </div>
       {vm.activePayment ? (
         <RecordPaymentModal

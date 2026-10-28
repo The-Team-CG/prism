@@ -68,6 +68,7 @@ const supplierCommandsProvider = {
   useExisting: SupplierNetworkWorkflowService,
 };
 
+
 /**
  * Bounded-context composition root for commercial: the supplier
  * sourcing -> quote -> billing pipeline. Merged from the former

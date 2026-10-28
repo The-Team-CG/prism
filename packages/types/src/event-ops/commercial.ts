@@ -22,10 +22,38 @@ export interface PrismSupplierQuote {
   updatedAt?: string;
 }
 
+export interface PrismSupplierQuoteRoundComparison {
+  id: string;
+  eventId: string;
+  category: string;
+  roundNumber: number;
+  status: string;
+  bids: Array<{
+    id: string;
+    supplierId?: string | null;
+    supplierName: string;
+    amount: number;
+    inclusions: string[];
+    paymentTerms: string;
+    notes: string;
+    outsideAcceptableRange: boolean;
+    status: string;
+  }>;
+}
+
 export type PrismSupplierQuoteForSupplier = Omit<
   PrismSupplierQuote,
   "acceptableMin" | "acceptableMax" | "outsideAcceptableRange"
 >;
+
+export interface PrismSupplierQuoteRequestTokenDetail {
+  request: Pick<PrismSupplierQuoteRequest, 'id' | 'category' | 'status' | 'dueDate' | 'message'>;
+  quote: PrismSupplierQuoteForSupplier | null;
+  eventId: string;
+  eventName: string;
+  clientName: string | null;
+  eventDate: string | null;
+}
 
 export interface PrismSupplierSchedule {
   id: string;
@@ -52,6 +80,8 @@ export interface PrismSupplierQuoteRequest {
   eventId: string;
   supplierId?: string;
   categoryId?: string;
+  roundId?: string;
+  roundNumber?: number;
   supplierName: string;
   category: string;
   message: string;

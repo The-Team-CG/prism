@@ -490,7 +490,7 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
     const rows = await transaction.prisma.$queryRaw<Array<{ event_id: string }>>`
       SELECT DISTINCT "event_id"
       FROM "event_games"."submissions"
-      WHERE "created_at" <= ${now} - INTERVAL '1 year'
+      WHERE "created_at" <= ${now}::timestamptz - INTERVAL '1 year'
         AND "payload" <> '{"redacted":true}'::jsonb
       ORDER BY "event_id"
     `;

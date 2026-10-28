@@ -132,14 +132,14 @@ export class OpsEventBillingController {
   @UseGuards(EventSessionGuard)
   async resolveBillingCorrection(@Param('eventId') eventId: string, @Param('correctionId') correctionId: string, @Body(zodBody(resolveBillingCorrectionSchema)) dto: ResolveBillingCorrectionInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = await this.requireFinanceActor(verifiedActor, 'billing correction resolution', eventId);
-    return this.billingAdjustmentService.resolveBillingCorrection(eventId, correctionId, dto, actor);
+    return this.billingAdjustmentService.resolveBillingCorrection(eventId, correctionId, dto, actor, verifiedActor);
   }
 
   @Post(':eventId/billing-disputes')
   @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.CREATED)
   async createBillingDispute(@Param('eventId') eventId: string, @Body(zodBody(createBillingDisputeSchema)) dto: CreateBillingDisputeInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
-    const actor = await this.requireFinanceActor(verifiedActor, 'billing dispute', eventId);
+    const actor = await this.requireDisputeCreator(verifiedActor, eventId);
     return this.billingAdjustmentService.createBillingDispute(eventId, dto, actor);
   }
 
@@ -182,5 +182,19 @@ export class OpsEventBillingController {
       role: actor.role,
       email: actor.email,
     };
+  }
+
+  private async requireDisputeCreator(verifiedActor: PrismVerifiedEventActor, eventId: string) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    await this.eventAccessPolicyService.requireActorRole(
+      actor,
+      [OpsUserRole.PmcmAdmin, OpsUserRole.Client],
+      'billing dispute',
+      eventId,
+    );
+    if (!actor.id?.trim()) {
+      throw new ForbiddenException('Verified billing actor ID is required');
+    }
+    return { id: actor.id, name: actor.name, role: actor.role, email: actor.email };
   }
 }

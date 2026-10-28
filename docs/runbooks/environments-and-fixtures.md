@@ -4,9 +4,8 @@ title: "Prism environments and fixture commands"
 description: "Explicit database selection, repeatable portal scenarios, and migration history inspection."
 tags: [runbook, environments, fixtures, uat]
 status: canonical
-updated: "2026-10-23"
+updated: "2026-10-28"
 authority: operational
-owner: "D (Anthony)"
 audience: [developers, QA, agents]
 scope: "database selection, synthetic accounts, and portal UAT scenarios"
 last_verified: "2026-10-23; local command contract; hosted identity unverified"
@@ -20,7 +19,6 @@ sources:
 ## At a glance
 
 - **Purpose:** Prepare synthetic portal accounts and scenarios with an explicit CLI.
-- **Owner:** D (Anthony), platform trust.
 - **Use/change when:** Selecting environments or changing fixture prerequisites/commands.
 - **Verify with:** Read-only dry-run/verify, migration comparison, and portal flows.
 
@@ -65,7 +63,7 @@ is non-production. `NODE_ENV=production` is always refused. URLs/passwords are n
 ## Accounts then scenarios
 
 `accounts` creates six missing users, two supplier categories, two suppliers,
-and two coordinators. Existing passwords, 2FA, approval/lockout state, and edits
+and three coordinators (including a second general coordinator for handoff coverage). Existing passwords, 2FA, approval/lockout state, and edits
 are preserved. New accounts are approved synthetic test actors. Missing users
 need these private file values, at least 12 characters each:
 

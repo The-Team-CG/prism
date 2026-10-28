@@ -28,6 +28,7 @@ import { mapSupplierQuote, mapSupplierQuoteForSupplier, mapSupplierQuoteRequest 
 type SelectSupplierQuoteResult = {
   quote: OpsSupplierQuote;
   selectedNow: boolean;
+  notSelected: Array<Pick<OpsSupplierQuote, 'id' | 'supplierId' | 'supplierName'>>;
 };
 
 export type QuoteRequestTokenDetail = {
@@ -44,6 +45,11 @@ function parseDate(value: string) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) throw new BadRequestException('Invalid date');
   return parsed;
+}
+
+function supplierQuoteLink(token: string) {
+  const portal = (process.env.SUPPLIER_PORTAL_URL || 'http://localhost:3002').replace(/\/+$/, '');
+  return `${portal}/quote-requests/${encodeURIComponent(token)}`;
 }
 
 function assertQuoteSaveAllowed(
@@ -217,13 +223,16 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
             writeNotification(this.notificationOutboxWriter,
               eventId,
               supplier?.email || request.supplierName,
-              `Quote request link: /quote-requests/${request.accessToken}`,
+              `Quote request link: ${supplierQuoteLink(request.accessToken)}`,
+              'email',
+              { idempotencyKey: `supplier-quote-request:${request.id}:email` },
             ),
             writeNotification(this.notificationOutboxWriter,
               eventId,
               supplier?.phone || request.supplierName,
-              `Quote request link: /quote-requests/${request.accessToken}`,
+              `Quote request link: ${supplierQuoteLink(request.accessToken)}`,
               'viber',
+              { idempotencyKey: `supplier-quote-request:${request.id}:viber` },
             ),
           ];
         });
@@ -339,6 +348,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
   }
 
   async getQuoteRequestByToken(token: string): Promise<QuoteRequestTokenDetail> {
+    if (!/^[A-Za-z0-9_-]{1,256}$/.test(token)) throw new NotFoundException('Quote request not found');
     const request = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { accessToken: token } });
     if (!request || !isQuoteAccessTokenUsable(request)) throw new NotFoundException('Quote request not found');
 
@@ -369,6 +379,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
   async selectSupplierQuote(eventId: string, quoteId: string, actor: ResolvedEventOpsActor) {
     const verifiedActor = requireVerifiedCommercialActor(actor);
     let quote: OpsSupplierQuote | null = null;
+    let competingQuotes: Array<Pick<OpsSupplierQuote, 'id' | 'supplierId' | 'supplierName'>> = [];
 
     const selected = await this.workflowCommandService.execute<SelectSupplierQuoteResult, OpsSupplierQuote>({
       name: 'select_supplier_quote',
@@ -381,11 +392,15 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
         if (!event) throw new NotFoundException('Event not found');
         if (!foundQuote || foundQuote.eventId !== eventId) throw new NotFoundException('Supplier quote not found');
         quote = foundQuote;
+        competingQuotes = await this.prisma.opsSupplierQuote.findMany({
+          where: { eventId, category: foundQuote.category, id: { not: foundQuote.id } },
+          select: { id: true, supplierId: true, supplierName: true },
+        });
       },
       write: async () => {
         if (!quote) throw new NotFoundException('Supplier quote not found');
         if (isSupplierQuoteLocked(quote.status)) {
-          return { quote, selectedNow: false };
+          return { quote, selectedNow: false, notSelected: [] };
         }
 
         const selected = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -420,7 +435,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
           return nextSelected;
         });
 
-        return { quote: selected, selectedNow: true };
+        return { quote: selected, selectedNow: true, notSelected: competingQuotes };
       },
       sideEffects: async (result) => {
         if (!result.selectedNow) return;
@@ -434,7 +449,24 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
             affectedLabel: result.quote.supplierName,
             metadata: { actorId: verifiedActor.id },
           }),
-          writeNotification(this.notificationOutboxWriter, eventId, await this.supplierRecipient(result.quote.supplierId, result.quote.supplierName), 'Your supplier quote was selected'),
+          writeNotification(
+            this.notificationOutboxWriter,
+            eventId,
+            await this.supplierRecipient(result.quote.supplierId, result.quote.supplierName),
+            'Your supplier quote was selected',
+            'email',
+            { idempotencyKey: `supplier-quote-result:${result.quote.id}:selected` },
+          ),
+          ...await Promise.all(result.notSelected.map(async (rejected) =>
+            writeNotification(
+              this.notificationOutboxWriter,
+              eventId,
+              await this.supplierRecipient(rejected.supplierId, rejected.supplierName),
+              'PMCM selected another supplier for this event. Thank you for submitting a quote.',
+              'email',
+              { idempotencyKey: `supplier-quote-result:${result.quote.id}:${rejected.id}:not-selected` },
+            ),
+          )),
         ]);
       },
       project: (result) => result.quote,
@@ -490,6 +522,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
     input: Partial<SubmitSupplierQuoteInput>,
     requestedMode: 'submit' | 'revise',
   ) {
+    if (!/^[A-Za-z0-9_-]{1,256}$/.test(token)) throw new NotFoundException('Quote request not found');
     let request: OpsSupplierQuoteRequest | null = null;
     let quote: OpsSupplierQuote | null = null;
     let category: OpsSupplierCategory | null = null;

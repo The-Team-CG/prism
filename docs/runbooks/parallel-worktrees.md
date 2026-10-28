@@ -4,9 +4,8 @@ title: "Parallel worktrees"
 description: "Run Prism checkouts concurrently with isolated ports and safe linked-worktree setup and removal."
 tags: [runbook, git, worktrees, local-development]
 status: canonical
-updated: "2026-10-06"
+updated: "2026-10-28"
 authority: operational
-owner: "D (Anthony)"
 audience: [developers, agents]
 scope: "Prism linked worktree ports, environment setup, and safe removal"
 last_verified: "2026-10-06; referenced scripts and package commands reviewed; runtime behavior not rerun"
@@ -27,7 +26,6 @@ sources:
 
 - **Purpose:** Run multiple Prism worktrees without port conflicts or unsafe cleanup.
 - **Authority:** Operational guide for local linked worktrees.
-- **Owner:** D (Anthony).
 - **Scope:** Port allocation, environment preparation, local processes, and teardown.
 - **Use when:** Creating or removing a linked worktree for concurrent development.
 - **Change when:** Worktree or launcher scripts change.

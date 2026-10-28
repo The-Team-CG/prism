@@ -55,7 +55,7 @@ function fakeStore(options: { event?: Partial<Row>; exceptions?: Row[]; addenda?
     opsAddendum: { findFirst: async ({ where }: { where: Row }) => addenda.find((row) => matches(row, where)) ?? null },
     opsScopeChangeRequest: scopeChangeRequest,
     opsEventFreezeException,
-    $transaction: async (callback: (tx: unknown) => Promise<unknown>) => callback(prisma),
+    $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback(prisma)),
   };
   const audit = { write: vi.fn(async () => undefined) } as unknown as AuditWriter & { write: ReturnType<typeof vi.fn> };
   const notifications = { write: vi.fn(async () => undefined) };
@@ -65,10 +65,18 @@ function fakeStore(options: { event?: Partial<Row>; exceptions?: Row[]; addenda?
     audit,
     notifications as never,
   );
-  return { service, rows, exceptions, audit, notifications, scopeChangeRequest, opsEventFreezeException };
+  return { service, prisma, rows, exceptions, audit, notifications, scopeChangeRequest, opsEventFreezeException };
 }
 
 describe('ScopeChangeRequestService submission and withdrawal', () => {
+  it('retries an aborted serializable review without hiding unrelated database failures', async () => {
+    const { service, prisma } = fakeStore();
+    const request = await service.submit('evt_1', submission, primaryClient);
+    prisma.$transaction.mockRejectedValueOnce(Object.assign(new Error('serialization conflict'), { code: 'P2034' }));
+    await expect(service.review('evt_1', request.id, { decision: 'start_review' }, pmcm)).resolves.toMatchObject({ status: 'under_review' });
+    prisma.$transaction.mockRejectedValueOnce(new Error('database unavailable'));
+    await expect(service.review('evt_1', request.id, { decision: 'reject', decisionReason: 'Cannot fulfil this request' }, pmcm)).rejects.toThrow('database unavailable');
+  });
   it('lets the verified primary client submit for their own event and queues a PMCM alert', async () => {
     const { service, notifications, audit } = fakeStore();
 

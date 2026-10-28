@@ -1,6 +1,7 @@
 import { CalendarDays, Check, ChevronDown, Flag, Send, X } from "lucide-react";
 
 import type { PrismSupplier, PrismSupplierCategory } from "@prism/types";
+import { DatePicker } from "@prism/ui/components/date-picker";
 import { cx, label, money, RatingStars, tierLabel } from "@/features/pmcm-kit";
 import type { SupplierQuoteRow } from "@/features/pmcm-kit";
 import {
@@ -286,10 +287,10 @@ export function QuoteRequestModal({
             ))}
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="rounded-md border border-border bg-background p-3 text-sm">
+            <div className="rounded-md border border-border bg-background p-3 text-sm">
               <span className="flex items-center gap-2 font-black"><CalendarDays className="size-4" /> Deadline</span>
-              <input type="date" value={deadline} onChange={(event) => onDeadline(event.target.value)} className="mt-2 h-10 w-full rounded-md border border-border bg-white px-3" />
-            </label>
+              <DatePicker aria-label="Quote deadline" value={deadline} onValueChange={onDeadline} className="mt-2 h-10 w-full rounded-md border border-border bg-white px-3" />
+            </div>
             <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-background p-3 text-sm">
               <span>
                 <span className="block font-black">Confidential Bid</span>

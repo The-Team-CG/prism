@@ -87,6 +87,16 @@ describe('file requirement overdue and merge rules', () => {
     expect(items[0].label).toBe('Signed conforme');
     expect(items[1]).toMatchObject({ key: 'venue_permit', origin: 'custom', status: 'missing', overdue: true });
   });
+
+  it('does not count a requirement upload after its stored bytes were deleted', () => {
+    const items = mergeFileRequirementOverrides(
+      [],
+      [override({ key: 'venue_permit', label: 'Venue permit', ownerRole: 'client', visibleToRoles: ['pmcm-admin', 'client'], isCustom: true, sourceWorkflow: 'custom' })],
+      [{ id: 'doc_deleted', type: 'venue_permit', status: 'submitted', validationStatus: 'accepted', uploadedAt: new Date('2026-10-10T00:00:00.000Z'), available: false }],
+      now,
+    );
+    expect(items[0]).toMatchObject({ status: 'missing', uploadedAssetId: undefined, detail: 'No file submitted yet.' });
+  });
 });
 
 describe('file requirement visibility projection', () => {

@@ -4,9 +4,8 @@ title: "Prism database migrations"
 description: "Create, review, deploy, and recover Prism's Prisma migrations without changing the applied history by hand."
 tags: [runbook, database, migrations, prisma, drift, recovery]
 status: canonical
-updated: "2026-10-16"
+updated: "2026-10-28"
 authority: operational
-owner: "D (Anthony)"
 audience: [developers, reviewers, QA, operators, agents]
 scope: "apps/api Prisma migration creation, static review, deployment, and drift recovery"
 last_verified: "2026-10-06; seven baselines applied on disposable PostgreSQL 16; status and live schema diff clean"
@@ -44,7 +43,6 @@ Keep published migration files immutable; investigate exact mismatches before re
 
 - **Purpose:** Keep one clean Prisma migration history with a schema baseline for each bounded context and immutable forward changes.
 - **Runtime source of truth:** `apps/api/prisma/migrations` and Prisma's `_prisma_migrations` ledger; the policy freezes checksums for the seven owner-scoped baselines.
-- **Owner:** D (Anthony), with each bounded context responsible for its own schema changes and review evidence.
 - **Verify with:** Prisma validation, a fresh PostgreSQL 16 replay, migration status, and live schema equivalence.
 - **Important boundary:** The history replacement targets pre-production only. A database with the retired ledger needs a verified backup and an approved rebuild before the new history is applied.
 

@@ -8,6 +8,8 @@ import {
   type PrismGuestEventWatermark,
   type PrismGuestCheckInReceipt,
   type CreateGuestFeedbackInput,
+  type PrismGuestFeedbackReceipt,
+  type WithdrawGuestFeedbackConsentInput,
 } from "@prism/types";
 import { guestJson } from "@/features/guest-shared/guest-http";
 import { sanitizeGuestSession } from "@/features/guest-shared/guest-session-storage";
@@ -150,8 +152,12 @@ export const guestDashboardRepository = {
     });
   },
 
-  submitFeedback(session: GuestSession, payload: CreateGuestFeedbackInput): Promise<unknown> {
-    return guestJson(guestApiPath(session, "/feedback"), {
+  withdrawFeedbackConsent(session: GuestSession, feedbackId: string, payload: WithdrawGuestFeedbackConsentInput): Promise<unknown> {
+    return guestJson(guestApiPath(session, `/feedback/${encodeURIComponent(feedbackId)}/consent-withdrawal`), { method: "POST", body: JSON.stringify(payload) });
+  },
+
+  submitFeedback(session: GuestSession, payload: CreateGuestFeedbackInput): Promise<PrismGuestFeedbackReceipt> {
+    return guestJson<PrismGuestFeedbackReceipt>(guestApiPath(session, "/feedback"), {
       method: "POST",
       body: JSON.stringify(payload),
     });

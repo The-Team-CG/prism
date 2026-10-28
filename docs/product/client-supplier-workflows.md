@@ -4,9 +4,8 @@ title: "Client and supplier workflows"
 description: "Ownership, durable evidence, and operational limits for client and supplier portal actions."
 tags: [product, client, supplier, files, approvals, payments]
 status: canonical
-updated: "2026-10-18"
+updated: "2026-10-28"
 authority: normative
-owner: "C (Ethan), B (Francis), D (Anthony)"
 audience: [product, engineering, agents, reviewers]
 scope: "Client and supplier portal workflows and their PMCM controls"
 last_verified: "2026-10-16 portal acceptance; 2026-10-18 staging adaptation verification tracked separately below"

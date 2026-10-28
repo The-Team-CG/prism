@@ -21,6 +21,7 @@ function fixture(existing: Record<string, unknown> | null = null, latestInvitati
   const invitations: Array<Record<string, unknown>> = [];
   const prisma = {
     $queryRaw: vi.fn(async () => []),
+    $executeRaw: vi.fn(async () => 0),
     opsUser: {
       findUnique: vi.fn(async () => existing),
       create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
