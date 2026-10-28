@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import { ReceiptText } from "lucide-react";
-import type { CreateBillingSourceInput, PrismBillingSource, PrismDocument } from "@prism/types";
+import { createBillingSourceSchema, type CreateBillingSourceInput, type PrismBillingSource, type PrismDocument } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { label, money } from "@/features/pmcm-kit";
@@ -27,7 +27,8 @@ export function BillingSourcePanel({
   billingSources: PrismBillingSource[];
   proposalDocuments: PrismDocument[];
   busy: boolean;
-  onCreate: (input: CreateBillingSourceInput) => Promise<void>;
+  /** Resolves true when the source was created; on failure the entered values stay for correction. */
+  onCreate: (input: CreateBillingSourceInput) => Promise<boolean>;
   onApprove: (sourceId: string) => Promise<void>;
   onGenerate: (sourceId: string) => Promise<void>;
 }) {
@@ -38,21 +39,22 @@ export function BillingSourcePanel({
   const [evidenceOverrideReason, setEvidenceOverrideReason] = useState("");
   const [totalOverrideReason, setTotalOverrideReason] = useState("");
   const evidenceId = useId();
-  const amount = Number(lineAmount);
-  const canCreate = !busy && sourceLabel.trim().length > 0 && lineLabel.trim().length > 0 && Number.isFinite(amount) && amount > 0;
+  const parsed = createBillingSourceSchema.safeParse({
+    sourceLabel: sourceLabel.trim(),
+    lineItems: [{ label: lineLabel.trim(), amount: lineAmount.trim() === "" ? Number.NaN : Number(lineAmount) }],
+    paymentSchedule: [
+      { label: "Downpayment", percentage: 50 },
+      { label: "Balance", percentage: 50 },
+    ],
+    sourceDocumentId: sourceDocumentId || undefined,
+    evidenceOverrideReason: evidenceOverrideReason.trim() || undefined,
+    totalOverrideReason: totalOverrideReason.trim() || undefined,
+  });
+  const canCreate = !busy && parsed.success;
+  const amountInvalid = lineAmount.trim() !== "" && !parsed.success && parsed.error.issues.some((issue) => issue.path.at(-1) === "amount");
 
   async function create() {
-    await onCreate({
-      sourceLabel: sourceLabel.trim(),
-      lineItems: [{ label: lineLabel.trim(), amount }],
-      paymentSchedule: [
-        { label: "Downpayment", percentage: 50 },
-        { label: "Balance", percentage: 50 },
-      ],
-      sourceDocumentId: sourceDocumentId || undefined,
-      evidenceOverrideReason: evidenceOverrideReason.trim() || undefined,
-      totalOverrideReason: totalOverrideReason.trim() || undefined,
-    });
+    if (!parsed.success || !(await onCreate(parsed.data))) return;
     setLineAmount("");
     setEvidenceOverrideReason("");
     setTotalOverrideReason("");
@@ -82,9 +84,10 @@ export function BillingSourcePanel({
           </label>
           <label className={labelClass}>
             Amount (PHP)
-            <input value={lineAmount} onChange={(event) => setLineAmount(event.target.value)} type="number" inputMode="numeric" min={1} step={1} className={fieldClass} />
+            <input value={lineAmount} onChange={(event) => setLineAmount(event.target.value)} type="number" inputMode="numeric" min={1} step={1} aria-invalid={amountInvalid} className={fieldClass} />
           </label>
         </div>
+        {amountInvalid ? <p role="alert" className="text-xs text-danger">Enter a whole peso amount from 1 to 2,147,483,647.</p> : null}
         {/* A select nested in its label would include the chosen option in its name, so it is labelled by id. */}
         <div className={labelClass}>
           <label htmlFor={evidenceId}>Proposal evidence</label>
