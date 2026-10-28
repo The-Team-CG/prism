@@ -314,6 +314,49 @@ describe('CommercialWorkflowService', () => {
     );
   });
 
+  it('refuses to select a bid that was released by an earlier selection and changes nothing', async () => {
+    const releasedQuote = { id: 'quote_released', eventId: 'evt_sample', requestId: 'qr_released', category: 'Technicals', categoryId: 'cat_tech', status: 'not_selected' };
+    const prisma = {
+      opsEvent: { findUnique: vi.fn(async () => ({ id: 'evt_sample' })) },
+      opsSupplierQuote: {
+        findUnique: vi.fn(async () => releasedQuote),
+        findMany: vi.fn(async () => []),
+        updateMany: vi.fn(),
+        update: vi.fn(),
+      },
+      opsSupplierQuoteRequest: { update: vi.fn(), updateMany: vi.fn() },
+      $transaction: vi.fn(),
+    };
+    const service = new CommercialWorkflowService(
+      prisma as any, { write: vi.fn() } as any, { write: vi.fn() } as any, new WorkflowCommandService(), {} as any,
+    );
+
+    await expect(service.selectSupplierQuote('evt_sample', 'quote_released', verifiedAdminActor())).rejects.toMatchObject({
+      status: 400,
+      message: expect.stringMatching(/^This bid was released/),
+    });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(prisma.opsSupplierQuote.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects a quote request whose deadline has already passed and creates nothing', async () => {
+    const prisma = {
+      opsEvent: { findUnique: vi.fn(async () => ({ eventName: 'Summit', clientName: 'Client' })) },
+      opsSupplierCategory: { findUnique: vi.fn(async () => ({ id: 'cat_tech', name: 'Technicals' })) },
+      opsSupplier: { findMany: vi.fn(async () => [{ id: 'sup_a', name: 'Alpha', categoryId: 'cat_tech' }]) },
+      opsSupplierQuoteRequest: { findMany: vi.fn(async () => []) },
+      $transaction: vi.fn(),
+    };
+    const service = new CommercialWorkflowService(
+      prisma as any, { write: vi.fn() } as any, { write: vi.fn() } as any, new WorkflowCommandService(), {} as any,
+    );
+
+    await expect(
+      service.requestSupplierQuotes('evt_1', { categoryId: 'cat_tech', deadline: '2020-01-01' }, verifiedAdminActor()),
+    ).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/deadline is in the past/i) });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['missing actor', undefined],
     ['unverified actor', { ...verifiedAdminActor(), verified: false }],
@@ -574,6 +617,38 @@ describe('CommercialWorkflowService revision cap (PA-268, EP-07-S02 AC4)', () =>
     expect((rejected[0] as PromiseRejectedResult).reason).toMatchObject({
       message: 'Quote has already been revised and cannot be revised again.',
     });
+  });
+
+  it('treats an identical resend as a replay that consumes no revision and has no side effects', async () => {
+    const { service, prisma, quote } = createRevisionCapScenario(1);
+    const body = { amount: 50000, inclusions: [], paymentTerms: '', notes: '' };
+
+    const viaSubmit = await service.submitSupplierQuoteByToken('token-sample', body);
+    const viaRevise = await service.reviseSupplierQuoteByToken('token-sample', { amount: 50000 });
+
+    expect(viaSubmit.revisionNumber).toBe(1);
+    expect(viaRevise.revisionNumber).toBe(1);
+    expect(quote?.revisionNumber).toBe(1);
+    expect(prisma.opsSupplierQuote.updateMany).not.toHaveBeenCalled();
+    expect(prisma.opsSupplierQuote.create).not.toHaveBeenCalled();
+  });
+
+  it('keeps the single revision available after a retried identical submit, and still refuses a second real change', async () => {
+    const { service, quote } = createRevisionCapScenario(1);
+    if (quote) Object.assign(quote, { inclusions: ['6 kiosks'], paymentTerms: '30% down', notes: 'first offer' });
+    const first = { amount: 50000, inclusions: ['6 kiosks'], paymentTerms: '30% down', notes: 'first offer' };
+
+    expect((await service.submitSupplierQuoteByToken('token-sample', first)).revisionNumber).toBe(1);
+    expect((await service.submitSupplierQuoteByToken('token-sample', first)).revisionNumber).toBe(1);
+
+    const revised = await service.reviseSupplierQuoteByToken('token-sample', { amount: 48000 });
+    expect(revised.revisionNumber).toBe(2);
+    // Re-sending the revised content is still a replay; a different body is refused.
+    expect((await service.reviseSupplierQuoteByToken('token-sample', { amount: 48000 })).revisionNumber).toBe(2);
+    await expect(service.reviseSupplierQuoteByToken('token-sample', { amount: 47000 })).rejects.toThrow(
+      'Quote has already been revised and cannot be revised again.',
+    );
+    expect(quote?.revisionNumber).toBe(2);
   });
 
   it('rejects revise when the quote is already selected or locked', async () => {
