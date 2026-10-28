@@ -1,4 +1,5 @@
 // Run context: signed-in actors and the helper that creates a fresh, onboarded event for any phase to build on.
+import { randomUUID } from "node:crypto";
 import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
 import { cfg, http, login, latestMailTo, tokenFromMail, msg, expect, expectStatus } from "./lib.mjs";
 
@@ -66,7 +67,7 @@ export function createContext() {
    * activates, conforme created, signed by the client and then PMCM. Returns the ids the next steps need.
    */
   async function newEvent({ label = "E2E", eventDate = "2027-06-15", guests = 120, eventType = "Conference" } = {}) {
-    const stamp = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    const stamp = randomUUID();
     const clientEmail = `e2e-client-${stamp}@example.test`;
     const admin = await as("admin");
     const inquiry = expectStatus(await http("POST", "/inquiries", { body: {
