@@ -6,7 +6,9 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-- Lifecycle test helpers use cryptographic randomness for simulated client addresses and retry jitter; exploratory database retries remain explicit and prevent a green report.
+- Persona lifecycle checks now verify persisted public walk-ins, reconciled PMCM attendance and client-scoped live event state instead of passing on prerequisite checks alone.
+
+- Lifecycle test helpers use cryptographic randomness for synthetic client identities, simulated client addresses and retry jitter; exploratory database retries remain explicit and prevent a green report.
 
 - Completed lifecycle portal paths for supplier quote links and bid rounds, PMCM operator revocation and deliverable completion, guest consent withdrawal, client disputes and payment receipts. Billing corrections retain original invoices and payment evidence, transfer paid credit once, and preserve approved payment terms; confirmed cancellation fees create an approved billing source for PMCM issuance. PMCM can configure event-type file requirements, bind verified uploads, send reminders, and inspect floorplan revision history.
 

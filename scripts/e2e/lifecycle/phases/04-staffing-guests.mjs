@@ -575,18 +575,20 @@ export async function run(ctx) {
     status(await call("GET", `/events/${A}/guest-privacy`), 401);
   });
   await step("public classification lets an unrostered walk-in check in directly, flagged for follow-up", async () => {
-    const before = list(expectStatus(await call("GET", `/guest/events/${A}/roster/search?checkedIn=true`, s.admin), 200)).length;
+    const before = expectStatus(await call("GET", `/events/${A}/live-ops`, s.admin), 200).guestAttendanceCount;
     expectStatus(await call("POST", `/guest/events/${encodeURIComponent(code)}/check-ins`, undefined, guestBody({ guestName: "Public Pat" })), 201);
-    const after = list(expectStatus(await call("GET", `/guest/events/${A}/roster/search?checkedIn=true`, s.admin), 200));
-    return `checked-in before=${before}, after=${after.length}; Pat listed=${after.some((x) => /Pat/.test(x.guestName ?? ""))}`;
+    const after = expectStatus(await call("GET", `/events/${A}/live-ops`, s.admin), 200);
+    const guest = after.guestCheckIns.find((entry) => entry.guestName === "Public Pat");
+    expect(after.guestAttendanceCount === before + 1, "public walk-in did not increase attendance exactly once");
+    expect(guest?.walkIn === true && guest.verificationStatus === "flagged" && guest.status === "checked_in", "PMCM cannot see the persisted, flagged public walk-in");
+    return `attendance ${before} -> ${after.guestAttendanceCount}; persisted walk-in is flagged for follow-up`;
   });
   await step("attendance counts for PMCM reflect check-ins", async () => {
     const live = await call("GET", `/events/${A}/live-ops`, s.admin);
     expect(live.status === 200, `${live.status}: ${msg(live)}`);
-    const text = JSON.stringify(live.body);
-    const m = text.match(/"(checkedIn|checkedInCount|guestCheckIns|attendance)[A-Za-z]*":\s*(\d+|\[)/);
-    expect(m, "live-ops read has no guest check-in/attendance figure");
-    return m[0];
+    const checkedIn = live.body.guestCheckIns.filter((entry) => entry.status === "checked_in");
+    expect(checkedIn.length > 0 && live.body.guestAttendanceCount === checkedIn.length, "PMCM attendance does not reconcile with the check-ins in this event fixture");
+    return `${live.body.guestAttendanceCount} guests; attendance reconciles with persisted check-ins`;
   });
 
   // ---------------------------------------------------------------- registration platform
