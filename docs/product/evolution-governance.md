@@ -4,11 +4,11 @@ title: "P.R.I.S.M product evolution governance"
 description: "Rules for adding, revising, merging, deferring, and retiring Prism feature families without losing role, contract, or operational clarity."
 tags: [product, governance, features, decisions]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-10-29"
 authority: normative
 audience: [product, engineering, design, agents]
 scope: "feature decisions, product documentation, system goals, and lifecycle governance"
-last_verified: "581e676"
+last_verified: "2026-10-29; ledger FL-017..FL-028 rows and merge decisions; readiness gates against AGENTS.md and the storage workflow contract"
 sources:
   - id: feature-ledger
     resource: "docs/product/feature-ledger.md"
@@ -29,7 +29,7 @@ sources:
 - **Scope:** Feature-family decisions, system goals, evidence requirements, and documentation lifecycle.
 - **Use when:** Evaluating a new feature, changing scope, or deciding whether an existing feature remains justified.
 - **Change when:** Product authority, system goals, decision states, or evidence requirements change.
-- **Verify with:** The feature ledger, product model, readiness gates, and architecture boundaries.
+- **Verify with:** The feature ledger, product model, readiness gates below, and architecture boundaries.
 
 This document defines how P.R.I.S.M can evolve beyond the original Version 4
 catalog. The catalog remains a valuable baseline, but it is not a hard ceiling.
@@ -42,7 +42,6 @@ the product clearer, safer, more usable, or more aligned with PMCM operations.
 | --- | --- |
 | `../reference/prism-v4/complete-feature-catalog.md` | Baseline feature inventory and original manuscript/defense reference. |
 | `feature-ledger.md` | Active feature-family decisions. |
-| `readiness-foundation.md` | Sample-state fencing, session conventions, owner boundaries, and legacy removal rules. |
 | `../architecture/current-architecture.md` | Architecture, module ownership, and stop rules. |
 | `../../AGENTS.md` | App boundaries, system goals, and agent stop rules. |
 | This document | Rules for changing the feature set. |
@@ -149,25 +148,6 @@ Retire a feature from active scope when:
 
 Retired features should remain traceable in the ledger with a short reason. Do not delete the historical catalog row unless the document is explicitly being regenerated as a new catalog version.
 
-## New Features to Consider
-
-These are not yet committed implementation requirements. They are candidates for evaluation against the feature ledger and system goals.
-
-| Candidate | Persona | Why it may improve P.R.I.S.M |
-| --- | --- | --- |
-| Event Command Inbox | PMCM | A unified queue of items requiring PMCM action across inquiries, conformes, billing, suppliers, coordinators, files, privacy, and live ops. |
-| Event Health Score | PMCM | A deterministic score summarizing readiness, overdue actions, supplier/coordinator gaps, billing risk, document gaps, and live issues. |
-| Decision Log | PMCM | Captures important choices, overrides, approvals, scope changes, and why they happened. More useful than generic activity for management review. |
-| Client Action Center | Client | A focused list of what the client needs to do next across briefing, proposal, floorplan, documents, billing, and feedback. |
-| PMCM Handoff Brief | PMCM/coordinator | Generates a concise operational brief from event state for coordinators and event-day operators. |
-| Supplier Readiness Board | PMCM/supplier | Consolidates readiness confirmation, contract status, ingress schedule, concerns, and event-day setup state. |
-| Coordinator Staffing Heatmap | PMCM | Shows availability, double-booking, staffing gaps, role coverage, and replacement options across event dates. |
-| File Requirements Matrix | PMCM/client/supplier | Shows required documents by event type, owner, visibility, due date, validation state, and missing items. |
-| Risk and Change Register | PMCM | Combines risk assessment, scope changes, addendum conformes, postponements, cancellations, and operational mitigations. |
-| Event Day Run Sheet | PMCM/coordinator | Time-ordered operational run sheet combining supplier ingress, coordinator tasks, program moments, guest flow, and live issue status. |
-| Privacy Operations Console | PMCM | Centralizes consent gaps, retention schedules, privacy requests, redaction state, and audit verification. |
-| Workflow Template Builder | PMCM | Lets PMCM define reusable event templates for document requirements, supplier categories, coordinator roles, and compliance checks. |
-
 ## Features Likely to Need Revision
 
 These catalog areas should not be implemented literally without redesign:
@@ -184,15 +164,9 @@ These catalog areas should not be implemented literally without redesign:
 | Event archive | Make it searchable operational knowledge, not just storage. |
 | Security/privacy | Treat as PMCM-operated workflows, not passive compliance pages. |
 
-## Features Likely to be Merged
-
-| Feature family | Merge direction |
-| --- | --- |
-| FR-04 file hub, FR-32 document submission, FR-33 file hub access, FR-67 templates, FR-70 accreditation tracker | Merge into a document and file operations capability with role visibility and required-item matrix. |
-| FR-05 live dashboard, Phase 6 event-day operations, Phase 7 reliability items, coordinator role views | Merge into live operations and coordinator command capability. |
-| FR-19 CE builder, FR-60 proposal review, FR-69 payment terms, FR-20/FR-21 payment flows, cancellation/postponement finance | Merge into commercial workflow capability. |
-| FR-14/FR-15 supplier directory, FR-17 quote requests, FR-75 assignment, New-SUP readiness/status | Merge into supplier network operations capability. |
-| FR-22 closeout, FR-23 archive, New-P2 insights, New-P3 testimonials, New-P4 logistics | Merge into post-event knowledge and archive capability. |
+Committed candidates and merged catalog families are recorded as feature-ledger
+rows (FL-017 through FL-028 and the Merge decisions); do not keep a parallel
+candidate list here.
 
 ## Product Review Gates
 
@@ -216,21 +190,34 @@ Before implementing or redesigning a feature, answer:
 
 If these cannot be answered, the feature is not ready for implementation.
 
-## Documentation Cleanup Rules
+## Readiness Gates
 
-Outdated docs should be handled intentionally:
+A feature may claim readiness only when these gates hold:
 
-- Preserve historical catalog files unless a new catalog version is created.
-- Remove or archive planning docs that contradict the current role-specific app boundaries.
-- Rewrite planning docs that still use old product-name terminology.
-- Prefer one active canonical record per initiative: use the feature ledger for
-  product work and ADRs for accepted architecture decisions. Do not create a
-  long-lived execution-plan document. Delete completed plans after promoting
-  their durable decisions; Git history preserves the original.
-- Keep [`../index.md`](../index.md) and the relevant directory index current
-  whenever new governing docs are added.
-- Keep docs **conversation-agnostic**: durable product/engineering truth only—no chat handoff notes, session diaries, or assumptions that the reader saw a prior conversation.
-- Do not treat historical file sizes or removed plan trees as planning data.
+- **Contract dependency:** UI depends on a field, filter, paging, upload state,
+  error, or action result only after it exists in `@prism/types`,
+  `@prism/api-client`, and focused tests. Lists stay bounded unless the
+  endpoint names its paging/filter fields; infinite scroll, saved views,
+  generalized grids, multipart or bulk upload, bulk action managers, and
+  app-local error taxonomies wait for that support.
+- **Cross-app data flow:** Name the source and target app, actor role, event
+  scope, allowed and forbidden fields, audit and notification effect, empty and
+  error states, and the verification command before UI depends on the flow.
+- **Files:** An attachment counts only after the verified-storage rules in
+  [client and supplier workflows](client-supplier-workflows.md#files) pass.
+- **External dependencies:** AI, QR/camera, production notifications, external
+  auth, and production storage follow the
+  [external dependency policy](actual-system.md#external-dependency-policy).
+- **Evidence:** Source or unit-test completion does not satisfy local database
+  or HTTP acceptance, browser walkthroughs, staging evaluation, provider privacy
+  review, or production approval; record each separately.
+
+## Documentation Rules
+
+Follow the documentation contract in [`../constitution.md`](../constitution.md#documentation-contract):
+one canonical record per initiative (feature ledger for product work, ADRs for
+architecture), no long-lived execution plans, and conversation-agnostic living
+docs. Preserve the V4 catalog unless a new catalog version replaces it.
 
 ## How To Apply This Document
 

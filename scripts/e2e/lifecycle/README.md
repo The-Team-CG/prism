@@ -32,7 +32,7 @@ Reports are written to `.local-dev/e2e-report/latest.json` and `latest.md`. Set 
 
 ### Automated runs
 
-`Lifecycle E2E` runs on demand and at 02:30 Asia/Manila daily. GitHub activates scheduled workflows only after the workflow reaches the default branch; merging into staging alone does not activate the schedule. Scheduled runs check out staging. Pull requests changing the workflow or its CI configuration also exercise the job.
+`Lifecycle E2E` runs on demand and daily at 02:30 Asia/Manila against staging. Pull requests changing the workflow or its CI configuration also exercise the job.
 
 The job provisions its own disposable PostgreSQL 16 database, migrates and seeds accounts, generates private actor credentials, and starts an isolated API on port 4100 with log mail and filesystem storage. It needs no hosted database or provider secrets. Only the structured lifecycle reports are uploaded; environment files, API logs and MFA secrets remain on the ephemeral runner. `E2E_STRICT=1` fails on FAIL, HARNESS_ERROR, GAP, BLOCKED or REVIEW; exploratory local runs retain their existing exit policy.
 
@@ -51,7 +51,7 @@ Database errors are not retried by default. A helper call may explicitly set `re
 
 These checks do not establish browser usability, mobile/keyboard accessibility or visual correctness. Portal wiring checks scan source; they are not browser acceptance. The current local run exercises filesystem storage and log mail, not hosted Supabase Storage, a session pooler, delivery providers or production runtime grants. Starting those services would still require adapter, routing and privilege verification.
 
-The end-to-end lifecycle starts event day through the PMCM capability after signed conforme and official floorplan approval, then exercises closure and archive without changing database statuses directly. The accounts seed now includes two general coordinators for positive handoff coverage and a registration coordinator; rerun that guarded profile against the disposable database when updating an older fixture set. The suite creates actual supplier assignments and confirms readiness before arrival.
+The end-to-end lifecycle starts event day through the PMCM capability after signed conforme and official floorplan approval, then exercises closure and archive without changing database statuses directly. The accounts seed includes two general coordinators for positive handoff coverage and a registration coordinator; rerun that guarded profile against an older disposable database that lacks them. The suite creates actual supplier assignments and confirms readiness before arrival.
 
 Correction checks cover concurrent approval retries, preserved original invoices/payment records, rejected overpayment corrections and refusal to resend superseded invoices. Confirmed cancellation fees create a linked approved source; the scenario explicitly issues its statement through PMCM billing. Receipt checks exercise client payment history over HTTP and inspect the download caller; the client receipt test verifies the PDF bytes. Browser acceptance and external provider delivery remain separate checks.
 

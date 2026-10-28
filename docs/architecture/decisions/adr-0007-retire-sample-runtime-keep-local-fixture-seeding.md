@@ -4,11 +4,11 @@ title: "Retire the broad sample runtime; keep local fixture seeding"
 description: "Remove whole-system sample APIs and browser-local demo state while retaining guarded, seed-only development data."
 tags: [architecture, decision, fixtures, api, compatibility]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-10-29"
 authority: normative
 audience: [agents, engineers, backend-engineers, frontend-engineers, reviewers]
 scope: "API runtime surfaces, portal fallback state, and local development fixture setup"
-last_verified: "2026-09-30; focused checks in PR"
+last_verified: "2026-10-29; AppModule imports, apps/api/src/fixtures, db:seed and db:seed:fixtures scripts, and payment-risk scheduler flag checked against source"
 decision_date: "2026-09-30"
 sources:
   - id: api-composition
@@ -53,11 +53,14 @@ controllers now provide the supported portal flows.
 - Keep the development account/event/workflow data under
   `apps/api/src/fixtures/` as seed-only tooling. The fixture module is loaded
   by the CLI and is never imported into `AppModule`.
-- Provision fixtures only with
+- Provision the full legacy fixture set only with
   `npm --workspace prism-api run db:seed:fixtures -- --confirm-disposable-db prism_sample_disposable`.
   The command rejects production, non-loopback hosts, a different database
   name, and populated seed tables. It inserts records and contains no delete or
-  reset operation.
+  reset operation. The later repeatable `db:seed -- --profile accounts|portal-uat`
+  runner inserts missing account/UAT fixtures into an explicitly selected
+  non-production target and preserves tester edits; see
+  [environments and fixtures](../../runbooks/environments-and-fixtures.md).
 - API startup never seeds data. Recreate and migrate an empty disposable local
   database before reseeding.
 - Run payment-risk evaluation from the commercial scheduler rather than from a

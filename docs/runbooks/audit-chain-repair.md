@@ -4,11 +4,11 @@ title: "Prism audit-chain preproduction repair"
 description: "Safely canonicalize and rehash a single preproduction audit chain after PostgreSQL JSONB key reordering made historical hashes unverifiable."
 tags: [runbook, platform-ops, audit, database, integrity, recovery]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-10-29"
 authority: operational
 audience: [developers, reviewers, operators, agents]
 scope: "apps/api platform_ops.audit_logs hash verification and the guarded preproduction repair CLI"
-last_verified: "codex/pr17g-audit-hash-stability-on-pr17f"
+last_verified: "2026-10-29; db:audit:repair script, CLI flags, environment guard, and DIRECT_URL requirement reviewed; not run"
 sources:
   - id: audit-chain
     resource: "apps/api/src/modules/platform-ops/application/trust/audit-chain.ts"
