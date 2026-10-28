@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Added an isolated nightly and on-demand lifecycle CI journey with disposable PostgreSQL, generated actor credentials, report artifacts, and failure on unresolved coverage or rule decisions.
+
 - Enforced send-before-client visibility and approved-proposal billing caps; proposal and quote retries preserve version limits. Client floorplan revision requests now move the workflow atomically through the shared decision endpoint, replacing the legacy review route. Supplier progress is forward-only, with reasoned PMCM corrections and released-bid protections.
 
 - CI now fails a pull request that edits or deletes a migration already on the base branch, because a database that applied the old file would fail its migration ledger check. A listed exception with a reason is the escape hatch. `npm run db:audit:schemas` now checks the final schema layout, so it passes on a correctly migrated database instead of reporting retired schema names.

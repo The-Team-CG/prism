@@ -11,6 +11,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { cfg, conflicts, http, results, summary } from "./lib.mjs";
 import { createContext } from "./ctx.mjs";
+import { hasFailedChecks } from "./report-result.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const onlyArg = process.argv.indexOf("--only");
@@ -66,4 +67,4 @@ const section = (title, rows) => rows.length ? `\n## ${title} (${rows.length})\n
 writeFileSync(join(reportDir, "latest.md"), `# Lifecycle e2e report\n\nTarget: ${cfg.api}\nGenerated: ${new Date().toISOString()}\n\n${Object.entries(counts).map(([k, v]) => `${v} ${k}`).join(", ")}\n\nThese are API assertions and labelled source scans, not browser acceptance or a percentage of product completion. Phases use separate events to isolate destructive probes. The local filesystem storage adapter is exercised; hosted Storage, pooler behavior and delivery providers are not. A FAIL is an observed assertion failure that still needs contract review before being called a product bug.\n${section("Failed assertions", by("FAIL"))}${section("Harness errors", by("HARNESS_ERROR"))}${section("Unavailable paths and coverage gaps", by("GAP"))}${section("Blocked by an earlier failure", by("BLOCKED"))}`);
 writeFileSync(join(reportDir, "latest.md"), section("Business rules and API contracts to review", by("REVIEW")), { flag: "a" });
 console.log(`Report: ${join(reportDir, "latest.md")}`);
-process.exit(counts.FAIL || counts.HARNESS_ERROR ? 1 : 0);
+process.exit(hasFailedChecks(counts, process.env.E2E_STRICT === "1") ? 1 : 0);
