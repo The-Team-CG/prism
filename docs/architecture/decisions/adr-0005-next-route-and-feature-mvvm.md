@@ -4,11 +4,11 @@ title: "Next route and feature MVVM architecture"
 description: "Keep Next.js App Router routes thin, preserve URLs during organization, and place screen behavior in progressive feature slices."
 tags: [architecture, decision, frontend, nextjs, mvvm, routes]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-10-29"
 authority: normative
 audience: [agents, frontend-engineers, product-reviewers]
 scope: "apps/client, apps/supplier, apps/guest, and apps/event App Router code"
-last_verified: "581e676"
+last_verified: "2026-10-29; portal route groups, event [eventSlug] entry, and features/pmcm-kit/model checked against source"
 decision_date: "2026-09-01"
 sources:
   - id: agent-rules
@@ -65,8 +65,8 @@ app route page -> View -> ViewModel -> use-case -> data -> @prism/api-client
 - Feature slices live under `src/features/<domain>/<action>/` with only the
   layers the action actually needs. Public feature barrels are preferred over
   deep sibling imports.
-- Invisible route groups such as `(auth)` and `(portal)` express layout and
-  access intent without changing the URL.
+- Invisible route groups such as `(access)`, `(portal)`, and `(public)` express
+  layout and access intent without changing the URL.
 - A dynamic segment such as `[filter]` or query state is adopted only after
   existing literal URLs and deep links are proven equivalent.
 - Existing URLs, actor boundaries, loading/error/empty states, and visible
@@ -77,9 +77,9 @@ decision: App Router pages now pass explicit route state and compose the
 owning section view as children of the shared shell runtime. The former
 pathname-driven section dispatcher is gone, event-list filter URLs resolve
 through one dynamic `[eventSlug]` compatibility entry, and shared PMCM
-selectors live in `features/pmcm-kit/model`. The remaining portal-wide route
-group migration remains separate follow-up work and is not implied by this
-dashboard slice.
+selectors live in `features/pmcm-kit/model`. All four portals organize their
+`app/` trees under `(access)` and `(portal)` route groups, with `(public)` where
+the portal has public pages.
 
 ## Rejected alternatives
 

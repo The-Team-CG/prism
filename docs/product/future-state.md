@@ -4,11 +4,11 @@ title: "P.R.I.S.M future state"
 description: "Target maturity for a role-safe, evidence-backed PMCM event operating system and its incremental migration path."
 tags: [product, target-state, maturity]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-10-29"
 authority: informative
 audience: [product, engineering, design, reviewers]
 scope: "Prism target product outcomes, maturity, and migration direction"
-last_verified: "581e676"
+last_verified: "2026-10-29; near-term and later rows checked against the feature ledger, API modules (storage, billing adjustments, change register, decision log, archive compare) and supplier application routes"
 sources:
   - id: current-system
     resource: "docs/product/actual-system.md"
@@ -26,7 +26,7 @@ sources:
 - **Scope:** Product maturity, role outcomes, evidence, governance, and incremental migration direction.
 - **Use when:** Choosing whether proposed work advances the product target.
 - **Change when:** Target outcomes, maturity gates, or migration direction changes.
-- **Verify with:** The current product model, feature ledger, readiness foundation, and architecture decisions.
+- **Verify with:** The current product model, feature ledger, readiness gates in evolution governance, and architecture decisions.
 
 This document describes where P.R.I.S.M should land for full-system maturity.
 Read it after [`../architecture/current-architecture.md`](../architecture/current-architecture.md)
@@ -54,14 +54,14 @@ The future state is not "every catalog item is production-grade immediately." Th
 | Client portal | `apps/client` starts from a next-action center with client-safe event tasks, documents, billing, floorplan review, and closeout signals. |
 | Supplier portal | `apps/supplier` clearly shows supplier quote/assignment/readiness/contract/event-day status for assigned supplier scope. |
 | Guest portal | `apps/guest` supports event-code access, consent, check-in, walk-in flagging, attendance, and moderated feedback without QR overclaiming. |
-| Files | File Requirements Matrix is metadata-complete and role-visible; real storage remains gated unless explicitly approved. |
+| Files | File Requirements Matrix is role-visible and counts only verified uploads through the configured storage adapter; production provider activation, retention, and malware scanning remain gated. |
 | Floorplans | PMCM official floorplan ownership is preserved; clients only submit preferences/comments and review submitted/approved official snapshots read-only. |
-| Billing | Billing evidence is client-safe and source-linked; disputes, waivers, corrections, and additional billing are gated or deferred unless implemented with tests. |
-| Compliance and risk | Compliance rule/override evidence is live; broader risk/change register is gated or selected as one PMCM thin slice. |
+| Billing | Billing evidence is client-safe and source-linked, including disputes, reasoned waivers, two-person corrections, and source-traced additional billing. |
+| Compliance and risk | Compliance rule/override evidence, change requests, freeze exceptions, addendum acknowledgment, and recorded risk level are live; interactive rescheduling and addendum effect timing remain open. |
 | Closure | Close gates and lifecycle transition rules support closure/readiness evidence. |
 | Security and privacy | Built-in API auth/RBAC, privacy request handling, consent, redaction, audit integrity, and role boundaries are verified. External auth remains gated unless approved. |
 | AI | AI governance foundation is visible. Live AI and autonomous action remain gated behind ZDR/provider approval and PMCM approval workflow. |
-| UX | Route-review evidence covers touched PMCM/client/supplier/guest surfaces with route, viewport, pass/fail, and fix/approval notes. |
+| UX | Route-review evidence covers touched PMCM/client/supplier/guest surfaces with route, viewport, pass/fail, and fix/approval notes. Route-level redesign follows the ledger's family decisions: generic dashboards, file hubs and task lists become command inboxes, action centers, requirement matrices and run sheets. |
 | Evidence | Evidence packets link FL outcomes, route checks, screenshots, tests, dependency decisions, and docs updates. |
 
 ## Future Architecture Target
@@ -105,7 +105,7 @@ flowchart TD
 | Delivered | The route, contract, role boundary, failure state, and evidence are complete enough to claim the family. | Event Command Inbox, Client Action Center if fallback is closed or clearly bounded. |
 | Thin delivered | A bounded working slice is complete and honest about remaining maturity. | File Requirements Matrix metadata, supplier readiness board, guest access-code/check-in, close gates. |
 | Gated | Work is blocked until a prerequisite is approved or implemented. | Storage, production notifications, external auth, QR/camera, live AI, broader risk/change if not selected. |
-| Deferred | Valid but not in the current delivery slice. | Deeper billing disputes, archive comparison, testimonial library, supplier application status center if not needed for demo. |
+| Deferred | Valid but not in the current delivery slice. | Testimonial library, health formula, staffing heatmap. |
 | Later maturity | Explicitly outside current build capacity with an explicit future scope and revisit condition. | Workflow Template Builder, health formula editor, storage adapter readiness console if not approved. |
 
 ## Later Maturity Target State
@@ -113,16 +113,15 @@ flowchart TD
 | Area | Later maturity target |
 | --- | --- |
 | External auth | Replace built-in API auth/RBAC with approved provider integration, migration path, session tests, and rollback/fallback behavior. |
-| Storage | Add storage adapter, signed URLs, upload progress/retry, download/delete audit, file previews where appropriate, and storage readiness console. |
+| Storage | Activate the production storage provider with retention, malware scanning, multipart/bulk upload, file previews where appropriate, and a storage readiness console. |
 | Notifications | Connect production delivery adapters behind the queue, with templates, language preference, retry audit, failures, and delivery health. |
 | AI | Connect a ZDR-approved provider only after governance review, sanitizer, audit, approval records, prompt/version retention, and human-in-the-loop PMCM approval. |
 | QR/camera | Add QR scanning only after HTTPS/device constraints and masterlist reconciliation are solved. |
-| Supplier applications | Complete supplier application intake, PMCM review, applicant status center, and supplier onboarding evidence. |
 | Coordinator staffing | Complete availability, heatmap, skills matching, conflict rules, replacement options, and coordinator-safe run views. |
-| Risk/change | Complete risk/change register, freeze exceptions, addendum conformes, cancellation/postponement impact, and decision-log linkage. |
+| Risk/change | Complete interactive cancellation/postponement handling, addendum effect timing, client decision notices, and decision-log linkage. |
 | Event health | Implement deterministic formula, thresholds, stale-data handling, route placement, and test evidence. |
-| Decision log | Build audit-backed decision log with filters, actors, reasons, source workflow, and override linkage. |
-| Archive and learning loop | Add archive search/comparison, testimonial library, richer feedback capture, and post-event knowledge surfacing. |
+| Decision log | Remove the read caps and add pending requests and override linkage to the read-only decision log. |
+| Archive and learning loop | Add a testimonial library, richer feedback capture, and post-event knowledge surfacing on top of archive search/comparison. |
 | Workflow templates | Build template authoring, versioning, permissions, reuse across workflows, and migration from existing plans/templates. |
 
 ## Migration From Current To Future
@@ -148,20 +147,14 @@ flowchart TD
 | AI | Provider, ZDR agreement, prompt/data policy, sanitizer proof, approval workflow, audit retention, failure mode, no-autonomous-action rule. |
 | QR/camera | HTTPS plan, device support, fallback code path, masterlist reconciliation, privacy/consent language, route tests. |
 
+## Backend Target
 
-## Future Backend Modular Monolith Target
+The backend stays a modular monolith in `apps/api` with Prisma as the shared
+data-access layer. Context ownership, read-model composition, and kernel rules
+are defined in
+[`../architecture/current-architecture.md`](../architecture/current-architecture.md);
+product work must not recreate a god hub or whole-system sample routes.
 
-The backend target is a modular monolith, not microservices. `apps/api` remains the single shared NestJS API, and Prisma remains the shared data-access layer. The legacy `event-ops` hub is already removed; workflow ownership stays in capability modules with explicit public ports.
-
-Long-term backend completion requires these conditions:
-
-1. Capability modules own their writes and do not import each other's private services.
-2. `event-read-models` composes role-scoped PMCM, client, supplier, and guest payloads without mutating state.
-3. Audit, notification outbox, access policy, workflow command history, and transaction semantics are injected through stable ports.
-4. `event-core` remains narrow: event identity, lifecycle invariants, status transitions, and command history only.
-5. `closure-ops` assembles closure/archive readiness from public reader ports rather than pulling private services into a new hub.
-6. Sample demo routes stay in `sample-compatibility` only; do not recreate a god hub.
-7. Every capability change has implementation evidence: feature-ledger row, route/app/actor, contract touched, fallback state, forbidden-role test, query budget or command side-effect mode, route-smoke evidence, and docs updated.
 ## Future Evidence Packet
 
 A completion claim should include:

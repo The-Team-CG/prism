@@ -4,11 +4,11 @@ title: "P.R.I.S.M external-reference lifecycle"
 description: "Owner rules for scalar cross-domain identifiers and historical FK behavior, including eligibility, retention, failure, and recovery."
 tags: [architecture, persistence, references, ddd, retention]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-10-29"
 authority: normative
 audience: [agents, backend-engineers, reviewers]
 scope: "apps/api/prisma/domain-reference-policy.json and cross-context commands"
-last_verified: "2026-10-06; legacy reference policy checked; fresh PostgreSQL 16 baseline has zero cross-domain FKs"
+last_verified: "2026-10-29; db:check:references (45 legacy FKs, 42 scalar references) and db:check:domain-persistence --final (132 models, 0 cross-domain relations) passed offline"
 sources:
   - id: reference-policy
     resource: "apps/api/prisma/domain-reference-policy.json"
@@ -25,14 +25,15 @@ sources:
 
 ## At a glance
 
-- **Purpose:** Define what a cross-domain identifier means before its foreign key is removed.
+- **Purpose:** Define what a cross-domain scalar identifier means and how its owner validates, retains, and recovers it.
 - **Authority:** Normative for reference checks, historical attribution, failure, and recovery.
 - **Use when:** Adding, validating, retaining, redacting, or migrating an external identifier.
-- **Current state:** The legacy history records 45 cross-domain FK behaviors and 28 scalar references. The replacement fresh-database baseline creates no cross-domain FKs; this register does not establish the live database catalog.
+- **Current state:** The policy records 45 retired cross-domain FK behaviors and 42 scalar references (25 implemented, 17 transitional). The Prisma schema and migrations create no cross-domain FKs; this register does not establish a live database catalog.
+- **Verify with:** `npm --workspace prism-api run db:check:references` and `db:check:domain-persistence`.
 
 ## Boundary rule
 
-Each write domain owns one PostgreSQL schema in the target state. Foreign keys may remain between tables owned by the same domain. Cross-domain references are scalar identifiers. A command that needs the target's current state asks its owner to validate the target in the same transaction and against the same event scope. The caller remains responsible for actor authorization. A successful lookup or identifier is never authorization.
+Each write domain owns one PostgreSQL schema. Foreign keys may remain between tables owned by the same domain. Cross-domain references are scalar identifiers. A command that needs the target's current state asks its owner to validate the target in the same transaction and against the same event scope. The caller remains responsible for actor authorization. A successful lookup or identifier is never authorization.
 
 Read-model composition can join owner data for a role-safe projection. It is read-only and does not replace owner validation for a command.
 
@@ -42,11 +43,9 @@ The canonical inventories are:
 - apps/api/prisma/domain-reference-policy.json: every cross-domain foreign-key constraint grouped by behavior profile, plus plain scalar references and their intended owner behavior.
 - apps/api/scripts/check-domain-reference-policy.mjs: static coverage and drift guard.
 
-The pre-rebaseline staging snapshot had ten populated application schemas. The
-replacement baselines define seven owner schemas and create no cross-domain
-foreign keys on a fresh database. This source change has not altered an
-existing database; it may still contain the legacy constraints until the
-approved, backed-up pre-production rebuild.
+A database still on the retired pre-baseline ledger may keep the legacy
+constraints until the backed-up rebuild in the
+[domain schema runbook](../runbooks/database-migrations.md#databases-with-the-retired-ledger).
 
 ## Reference meanings and actions
 
@@ -66,20 +65,18 @@ approved, backed-up pre-production rebuild.
 | liveops-issue-current | LiveOps owns urgent issues. Commercial requires the issue to belong to the same event before issuing additional billing. | Billing and issue history survive archive/cancellation. Physical deletion needs owner-defined retention rules. | A missing or cross-event issue fails before billing commits; use an idempotent retry after owner recovery. |
 | commercial-addendum-history | Lifecycle stores an immutable impact snapshot and type-qualified Commercial target ID; Commercial applies billing-source and quote mutations. | Preserve the addendum decision and impact snapshot as history. | A missing or stale target fails the owner capability; do not rewrite historical attribution. |
 
-The machine policy records source field, target, owners, behavior profile, current status, and meaning for all 28 non-FK references. The ownership manifest records each cross-domain foreign-key constraint and its actual ON DELETE and ON UPDATE actions. Read both before a schema change; do not create a partial second source of truth.
+The machine policy records source field, target, owners, behavior profile, current status, and meaning for all 42 non-FK references. The ownership manifest records each retired cross-domain foreign-key constraint and its historical ON DELETE and ON UPDATE actions. Read both before a schema change; do not create a partial second source of truth.
 
 ## Legacy foreign-key delete effects
 
 The replaced migration history recorded 45 cross-domain foreign keys: 38 CASCADE, 6 SET NULL, and 1 RESTRICT. Exact historical actions are in the ownership manifest; the new baselines do not recreate them.
 
-A physical parent delete currently has database consequences across write owners. CASCADE may erase another domain's records; SET NULL preserves the source row but removes its current link; RESTRICT blocks deletion while a dependent remains. These are legacy database behaviors, not approved retention policy. No production event hard-delete command was found. Test cleanup and fixture teardown are not product deletion workflows. Archive, cancellation, and postponement do not authorize a physical delete.
+On a database that still carries them, a physical parent delete has consequences across write owners: CASCADE may erase another domain's records; SET NULL preserves the source row but removes its current link; RESTRICT blocks deletion while a dependent remains. These are legacy database behaviors, not approved retention policy. No production event hard-delete command exists. Test cleanup and fixture teardown are not product deletion workflows. Archive, cancellation, and postponement do not authorize a physical delete.
 
-The new clean-database baseline does not reproduce legacy cross-domain FK delete effects. Existing databases keep their current constraints until the approved rebuild. Owner capabilities must preserve required current checks and define explicit recovery behavior; privacy work requires per-owner retention/redaction receipts, legal-hold checks, retryable partial completion, and preserved audit/issued evidence. There is no generic cascade orchestrator.
+Owner capabilities must preserve required current checks and define explicit recovery behavior; privacy work requires per-owner retention/redaction receipts, legal-hold checks, retryable partial completion, and preserved audit/issued evidence. There is no generic cascade orchestrator.
 
 ## Implemented seams and remaining work
 
-The policy marks a reference implemented only where source inspection found the named capability: Floorplan's versioned event projection clock; Commercial addendum impact writes and registration supplier validation; Lifecycle document, inquiry, event-state, and event-projection capabilities; LiveOps urgent-issue references for billing; and Operations coordinator-conflict, registration, guest/staffing, and Identity-linked assignment checks. Guest and coordinator workspace reads now use focused read-model projections. LiveOps validates Lifecycle event state and asks Operations to lock and recheck current coordinator profiles and event assignments for operator designation and handoff writes. Other references remain transitional until call sites use the required capability and behavior tests cover failures and retries. The new baseline omits cross-domain foreign keys on a fresh database; existing databases are not changed by this source history replacement.
+The policy marks a reference implemented only where source inspection found the named capability: Floorplan's versioned event projection clock; Commercial addendum impact writes and registration supplier validation; Lifecycle document, inquiry, event-state, and event-projection capabilities; LiveOps urgent-issue references for billing; and Operations coordinator-conflict, registration, guest/staffing, and Identity-linked assignment checks. Guest and coordinator workspace reads now use focused read-model projections. LiveOps validates Lifecycle event state and asks Operations to lock and recheck current coordinator profiles and event assignments for operator designation and handoff writes. Other references remain transitional until call sites use the required capability and behavior tests cover failures and retries.
 
-The static guard verifies exact cross-domain FK coverage and scalar source/target ownership/profile drift. It does not prove every caller uses an owner capability, validate a live PostgreSQL catalog, or authorize FK removal.
-
-Before rebuilding a shared pre-production database, verify a clean replay, a restorable backup, the expected zero-cross-domain-FK catalog, and application/deployment compatibility. The replacement baseline is not a data-copy migration.
+The static guard verifies exact cross-domain FK coverage and scalar source/target ownership/profile drift. It does not prove every caller uses an owner capability or validate a live PostgreSQL catalog.
