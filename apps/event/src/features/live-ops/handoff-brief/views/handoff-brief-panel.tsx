@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
+import { formatPortalDate, formatPortalDateTime, formatPortalTime } from "@prism/ui/format-date";
 import type { PrismHandoffBrief } from "@prism/types";
 import { useHandoffBriefViewModel } from "../view-models/use-handoff-brief-view-model";
 
@@ -10,7 +10,7 @@ type Brief = PrismHandoffBrief;
 const words = (value: string) => value.replaceAll("_", " ");
 
 function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return formatPortalTime(iso);
 }
 
 /**

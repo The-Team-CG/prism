@@ -4,9 +4,9 @@ import { formatPortalDate } from "@prism/ui/format-date";
 import { ArrowLeft, CircleUserRound, Search } from "lucide-react";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { StatusBadge } from "@/app/components/ui/status-badge";
-import { label, useListFilter } from "@/features/pmcm-kit";
+import { RouteLink, label, useListFilter } from "@/features/pmcm-kit";
 import type { EventClientRecord } from "../../model/event-dashboard-selectors";
-import type { DetailTab } from "../../model/event-dashboard-routing";
+import { clientDossierHref, eventWorkspaceHref, type DetailTab } from "../../model/event-dashboard-routing";
 import { portalHref } from "@prism/ui/portal-path";
 
 function clientStatus(client: EventClientRecord) {
@@ -58,9 +58,9 @@ export function ClientDirectory({ clients, onOpenClient }: { clients: EventClien
                   <td className="hidden px-4 py-3 text-right tabular-nums sm:table-cell">{client.inquiries.length}</td>
                   <td className="px-4 py-3"><StatusBadge status={clientStatus(client)} /></td>
                   <td className="px-4 py-3 text-right">
-                    <button type="button" onClick={() => onOpenClient(client.id)} className="text-sm font-semibold text-primary hover:text-primary-strong">
+                    <RouteLink href={clientDossierHref(client.id)} onNavigate={() => onOpenClient(client.id)} className="text-sm font-semibold text-primary hover:text-primary-strong">
                       Open<span className="sr-only"> {client.name}</span>
-                    </button>
+                    </RouteLink>
                   </td>
                 </tr>
               ))}
@@ -152,9 +152,9 @@ export function ClientDossier({
                   </span>
                   <span className="flex items-center gap-3">
                     <StatusBadge status={event.status} />
-                    <button type="button" onClick={() => onOpenEvent(event.id)} className="text-sm font-semibold text-primary hover:text-primary-strong">
+                    <RouteLink href={eventWorkspaceHref(event.id)} onNavigate={() => onOpenEvent(event.id)} className="text-sm font-semibold text-primary hover:text-primary-strong">
                       Open<span className="sr-only"> {event.eventName}</span>
-                    </button>
+                    </RouteLink>
                   </span>
                 </li>
               ))}
@@ -227,9 +227,9 @@ function DossierEventLinks({
                 <span className="block break-words font-semibold text-foreground">{event.eventName}</span>
                 <span className="block text-xs text-muted-foreground">{formatPortalDate(event.eventDate)}</span>
               </span>
-              <button type="button" onClick={() => onOpenEvent(event.id, section.tab)} className="min-h-11 text-sm font-semibold text-primary hover:text-primary-strong">
+              <RouteLink href={eventWorkspaceHref(event.id, section.tab)} onNavigate={() => onOpenEvent(event.id, section.tab)} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary hover:text-primary-strong">
                 Open {section.title.toLowerCase()}<span className="sr-only"> for {event.eventName}</span>
-              </button>
+              </RouteLink>
             </li>
           ))}
         </ul>

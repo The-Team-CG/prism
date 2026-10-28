@@ -151,7 +151,7 @@ export function ClientStoredFilesPanel({ eventId }: { eventId?: string }) {
   const pendingKey = useRef<string | undefined>(undefined);
   if (!eventId) return null;
 
-  const checklist = buildClientDocumentChecklist(vm.allRequirements, vm.files);
+  const checklist = buildClientDocumentChecklist(vm.requirements, vm.files);
   const outstanding = checklist.rows.filter((row) => row.needsClient).length;
   const startUpload = (key?: string) => {
     pendingKey.current = key;

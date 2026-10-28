@@ -5,3 +5,4 @@ export * from "./model/pmcm-dashboard-selectors";
 export * from "./primitives";
 export * from "./types";
 export { useListFilter } from "./view-models/use-list-filter";
+export { RouteLink } from "./views/route-link";

@@ -1,5 +1,5 @@
 "use client";
-import { formatPortalDate } from "@prism/ui/format-date";
+import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 
 import {
   Activity,
@@ -20,6 +20,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { PrismAuditLog, PrismBillingStatement, PrismBriefing, PrismClientBillingDispute, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone } from "@prism/types";
+import Link from "next/link";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -40,7 +41,7 @@ import {
   portalBadgeStatus,
   portalStatusLabel,
 } from "../../shared/tab-ui";
-import type { DetailTab } from "../../workspace/shared";
+import { dashboardHref, type DetailTab } from "../../workspace/shared";
 import { clientBillingSummary, clientMilestoneFollowUpCopy, clientMilestoneRemaining } from "../model/client-billing-rules";
 import { useClientBillingDisputeViewModel } from "../view-models/use-client-billing-dispute-view-model";
 import { useClientStatementDownload } from "../view-models/use-client-statement-download";
@@ -66,7 +67,8 @@ export function ClientBillingTab({
   const nextPayment = activePayments
     .filter((payment) => payment.status !== "paid" && clientMilestoneRemaining(payment) > 0)
     .sort((left, right) => String(left.dueDate).localeCompare(String(right.dueDate)))[0];
-  const nextPaymentOverdue = Boolean(nextPayment?.dueDate && nextPayment.dueDate < new Date().toISOString().slice(0, 10));
+  const messagesHref = dashboardHref("messages", eventId);
+  const nextPaymentOverdue = Boolean(nextPayment?.dueDate && nextPayment.dueDate < manilaDateKey());
   const disputeForm = useClientBillingDisputeViewModel({ eventId, billing, disputes });
   const statementDownload = useClientStatementDownload();
   function downloadReceipt(payment: PrismPaymentMilestone["history"][number], milestoneLabel: string) {
@@ -143,9 +145,14 @@ export function ClientBillingTab({
                 <p className="text-sm text-muted-foreground">Next payment · {nextPayment.label}</p>
                 <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">{money.format(clientMilestoneRemaining(nextPayment))}</p>
               </div>
-              <p className={`text-sm ${nextPaymentOverdue ? "font-medium text-danger" : "text-muted-foreground"}`}>
-                {nextPaymentOverdue ? "Overdue since" : "Due"} {formatPortalDate(nextPayment.dueDate)}
-              </p>
+              <div className="text-right">
+                <p className={`text-sm ${nextPaymentOverdue ? "font-medium text-danger" : "text-muted-foreground"}`}>
+                  {nextPaymentOverdue ? "Overdue since" : "Due"} {formatPortalDate(nextPayment.dueDate)}
+                </p>
+                <Link href={messagesHref} className="mt-1 inline-block text-sm font-medium text-primary hover:text-primary/80">
+                  Ask PMCM about this payment
+                </Link>
+              </div>
             </div>
           ) : null}
           <dl className="grid grid-cols-3 divide-x divide-border">
@@ -204,7 +211,8 @@ export function ClientBillingTab({
             <EmptyState
               icon={ReceiptText}
               title="No payment milestones yet"
-              description="Nothing to pay yet. PMCM posts your billing statement once the proposal is approved, and the payment schedule appears here. Questions about billing can go to PMCM in Messages."
+              description="Nothing to pay yet. PMCM posts your billing statement once the proposal is approved, and the payment schedule appears here."
+              action={<Button asChild variant="outline" size="sm"><Link href={messagesHref}>Message PMCM about billing</Link></Button>}
             />
           ) : (
             <div className="space-y-3">

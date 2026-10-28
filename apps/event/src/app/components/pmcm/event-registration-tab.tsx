@@ -1,3 +1,4 @@
+import { formatPortalDate } from "@prism/ui/format-date";
 import { FormEvent, useEffect, useState } from "react";
 import { QrCode, ShieldCheck, Upload, Users, UserRoundCheck } from "lucide-react";
 
@@ -15,7 +16,7 @@ import type {
   UpdateGuestPrivacyClassificationInput,
   UpdateGuestVerificationInput,
 } from "@prism/types";
-import { createRegistrationPlatformSchema, importHeadcountSchema } from "@prism/types";
+import { GUEST_VERIFICATION_REQUIRED_ROSTER_SOURCES, createRegistrationPlatformSchema, importHeadcountSchema } from "@prism/types";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { Panel } from "@/features/pmcm-kit/primitives";
 import { RosterImportPanel } from "@/features/registration/roster-import";
@@ -343,7 +344,7 @@ function HeadcountSummary({ platform }: { platform: PrismRegistrationPlatform })
         <div className="border-l border-border bg-background/60 px-3 py-2.5">
           <p className="text-xs font-bold text-muted-foreground">Imported at</p>
           <p className="mt-1 text-sm font-black text-foreground">
-            {platform.importedAt ? new Date(platform.importedAt).toLocaleDateString() : "—"}
+            {platform.importedAt ? formatPortalDate(platform.importedAt) : "—"}
           </p>
         </div>
       </div>
@@ -627,6 +628,6 @@ export function EventRegistrationTab({
 
 function canCheckInRosterRow(row: PrismGuestRosterEntry): boolean {
   if (row.withdrawnAt || row.checkedInAt || row.verificationStatus === "rejected") return false;
-  return !["coordinator-walk-in", "guest-review", "guest-review-headcount"].includes(row.source)
+  return !GUEST_VERIFICATION_REQUIRED_ROSTER_SOURCES.includes(row.source)
     || row.verificationStatus === "verified";
 }

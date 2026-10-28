@@ -1,7 +1,7 @@
 import { useId } from "react";
 import { ChevronRight, Download } from "lucide-react";
 import type { ImportGuestRosterInput, PrismGuestRosterEntry } from "@prism/types";
-import { ROSTER_COLUMN_LABELS, ROSTER_TEMPLATE_COLUMNS, buildRosterTemplateCsv } from "../model/roster-spreadsheet";
+import { ROSTER_COLUMN_LABELS, ROSTER_TEMPLATE_COLUMNS, buildRosterTemplateCsv, type RosterColumn } from "../model/roster-spreadsheet";
 import { useRosterImportViewModel } from "../view-models/use-roster-import-view-model";
 
 const EM_DASH = "—";
@@ -39,7 +39,7 @@ export function RosterImportPanel({
         <div className="min-w-0">
           <h3 id={`${ids}-title`} className="text-base font-semibold text-foreground">Import guest roster</h3>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Paste rows from a spreadsheet with a header row. Required columns: guest name and guest ID (sourceKey). Category and table are optional.
+            Paste rows from a spreadsheet with a header row. Required columns: guest name and guest ID. Category and table are optional. If a header is not recognised, match it below.
           </p>
         </div>
         <a href={TEMPLATE_HREF} download="guest-roster-template.csv" className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-border px-3 text-sm font-semibold text-foreground no-underline">
@@ -75,9 +75,11 @@ export function RosterImportPanel({
           rows={5}
           spellCheck={false}
           className="rounded-md border border-border bg-background px-3 py-2 font-mono text-xs"
-          placeholder={`${ROSTER_TEMPLATE_COLUMNS.slice(0, 4).join(",")}\nAda Lovelace,VIP,T1,A-001`}
+          placeholder={`${ROSTER_TEMPLATE_COLUMNS.slice(0, 4).map((column) => ROSTER_COLUMN_LABELS[column]).join(",")}\nAda Lovelace,VIP,T1,A-001`}
         />
       </label>
+
+      <RosterColumnMatching preview={preview} onMatch={vm.matchColumn} disabled={disabled} />
 
       {preview.headerErrors.length > 0 ? (
         <p role="alert" className="mt-3 text-sm text-danger">{preview.headerErrors.join(" ")}</p>
@@ -124,6 +126,32 @@ export function RosterImportPanel({
 }
 
 type RosterPreviewModel = ReturnType<typeof useRosterImportViewModel>["preview"];
+
+/** One field picker per pasted column, prefilled from the header so operators only fix what was not recognised. */
+function RosterColumnMatching({ preview, onMatch, disabled }: { preview: RosterPreviewModel; onMatch: (index: number, column: RosterColumn | null) => void; disabled: boolean }) {
+  if (preview.headers.length === 0) return null;
+  return (
+    <fieldset className="mt-3">
+      <legend className="text-xs font-medium text-muted-foreground">Columns</legend>
+      <div className="mt-1 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {preview.headers.map((header, index) => (
+          <label key={`${index}-${header}`} className="grid gap-1 text-sm">
+            <span className="truncate text-foreground" title={header}>{header || `Column ${index + 1}`}</span>
+            <select
+              value={preview.mapping[index] ?? ""}
+              disabled={disabled}
+              onChange={(event) => onMatch(index, (event.target.value || null) as RosterColumn | null)}
+              className="h-11 rounded-md border border-border bg-background px-3 text-sm"
+            >
+              <option value="">Ignore this column</option>
+              {ROSTER_TEMPLATE_COLUMNS.map((column) => <option key={column} value={column}>{ROSTER_COLUMN_LABELS[column]}</option>)}
+            </select>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
 
 function RosterPreview({ preview }: { preview: RosterPreviewModel }) {
   if (preview.rows.length === 0) return null;

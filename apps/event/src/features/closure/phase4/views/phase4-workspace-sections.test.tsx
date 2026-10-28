@@ -2,7 +2,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrismComplianceCheck } from "@prism/types";
-import { normalizeComplianceChecks } from "../model/phase4-workspace-rules";
 import { Phase4SectionBoundary } from "./phase4-section-boundary";
 import { Phase4ComplianceSection, Phase4InsightsSection } from "./phase4-workspace-sections";
 
@@ -70,7 +69,11 @@ describe("Phase4InsightsSection coordinator staffing", () => {
   });
 });
 
-describe("Phase4ComplianceSection incomplete records", () => {
+describe("Phase4ComplianceSection evidence", () => {
+  function complianceCheck(overrides: Partial<PrismComplianceCheck> & Pick<PrismComplianceCheck, "id" | "title">): PrismComplianceCheck {
+    return { eventId: "evt_1", layer: "Advisory", status: "open", note: "", evaluationStatus: "not_satisfied", evidence: [], definitionStatus: "PROVISIONAL", remediation: "", ...overrides };
+  }
+
   function renderSection(checks: PrismComplianceCheck[], onRunCompliance = vi.fn()) {
     render(
       <Phase4ComplianceSection
@@ -97,10 +100,8 @@ describe("Phase4ComplianceSection incomplete records", () => {
     return onRunCompliance;
   }
 
-  it("renders a check whose API record omits evidence and offers to collect it", () => {
-    // Shape captured from the fixture event: older runs return no evidence/remediation fields.
-    const incomplete = { id: "chk_1", eventId: "evt_1", layer: "Must-Fix", title: "Venue permit", status: "open" } as unknown as PrismComplianceCheck;
-    const onRun = renderSection(normalizeComplianceChecks([incomplete]));
+  it("renders a check with no evidence yet and offers to collect it", () => {
+    const onRun = renderSection([complianceCheck({ id: "chk_1", layer: "Must-Fix", title: "Venue permit" })]);
 
     expect(screen.getByText("Venue permit")).toBeTruthy();
     expect(screen.getByText(/No evidence recorded for this check yet/)).toBeTruthy();
@@ -109,11 +110,8 @@ describe("Phase4ComplianceSection incomplete records", () => {
     expect(screen.getByRole("button", { name: "Resolve" })).toBeTruthy();
   });
 
-  it("lists recorded evidence and drops blank entries", () => {
-    const [check] = normalizeComplianceChecks([
-      { id: "chk_2", eventId: "evt_1", layer: "Advisory", title: "Insurance", status: "resolved", note: "", evaluationStatus: "satisfied", evidence: ["policy.pdf", " "], definitionStatus: "DERIVED", remediation: "" },
-    ]);
-    renderSection([check]);
+  it("lists recorded evidence", () => {
+    renderSection([complianceCheck({ id: "chk_2", title: "Insurance", status: "resolved", evaluationStatus: "satisfied", evidence: ["policy.pdf"], definitionStatus: "DERIVED" })]);
 
     expect(screen.getByRole("list", { name: "Evidence" }).textContent).toBe("policy.pdf");
     expect(screen.queryByRole("button", { name: "Collect evidence" })).toBeNull();

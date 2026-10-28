@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { StatusBadge } from "@/app/components/ui/status-badge";
-import { formatPortalDate } from "@prism/ui/format-date";
+import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 import type { PrismEvent } from "@prism/types";
 import {
   buildCalendarMonthGrid,
@@ -12,7 +12,6 @@ import {
   monthLabel,
   monthOfDateKey,
   shiftMonth,
-  todayDateKey,
   type CalendarMonth,
 } from "../../model/event-calendar-grid";
 import { Card, CardBody, CardHeader } from "./shell-ui";
@@ -40,7 +39,7 @@ export function EventCalendarWorkspace({
   selectedEventId?: string | null;
   onOpenEvent: (id: string) => void;
 }) {
-  const today = todayDateKey();
+  const today = manilaDateKey();
   const [visibleMonth, setVisibleMonth] = useState<CalendarMonth>(() => monthOfDateKey(today));
 
   const datedEvents = useMemo(

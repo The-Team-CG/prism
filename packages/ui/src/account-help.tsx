@@ -1,18 +1,6 @@
-declare const process: { env: Record<string, string | undefined> };
-
 export interface PrismSupportContact {
   email?: string;
   phone?: string;
-}
-
-/**
- * The PMCM account-help channel, configured per deployment. Each variable is read literally so Next
- * inlines it at build time; an unset or blank value means "no channel configured", never a guess.
- */
-export function pmcmSupportContact(): PrismSupportContact {
-  const email = process.env.NEXT_PUBLIC_PMCM_SUPPORT_EMAIL?.trim();
-  const phone = process.env.NEXT_PUBLIC_PMCM_SUPPORT_PHONE?.trim();
-  return { ...(email ? { email } : {}), ...(phone ? { phone } : {}) };
 }
 
 /**
@@ -22,12 +10,13 @@ export function pmcmSupportContact(): PrismSupportContact {
 export function PrismAccountHelp({
   topic,
   fallback = "Contact PMCM for account issues or access requests.",
-  contact = pmcmSupportContact(),
+  contact,
 }: {
   topic: string;
   /** Shown when no channel is configured; null when the surrounding copy already says what to do. */
   fallback?: string | null;
-  contact?: PrismSupportContact;
+  /** The deployment's PMCM channel; portals read it from their own environment. */
+  contact: PrismSupportContact;
 }) {
   if (!contact.email && !contact.phone) return fallback ? <p>{fallback}</p> : null;
   const subject = encodeURIComponent(`P.R.I.S.M account help: ${topic}`);

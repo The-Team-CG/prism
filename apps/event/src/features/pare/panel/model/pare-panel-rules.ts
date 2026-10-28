@@ -1,3 +1,4 @@
+import { formatPortalDateTime } from "@prism/ui/format-date";
 import type { PAREApprovalRecord, PARERisk } from "@prism/types";
 
 export function selectEventPareApprovals<T extends Pick<PAREApprovalRecord, "eventId">>(
@@ -44,7 +45,7 @@ export function pareBudgetTone(feasible: boolean) {
 export function pareReviewSummary(record: { status: string; reviewedBy?: string | null; reviewedAt?: string | null }) {
   const verdict = record.status === "approved" ? "Approved" : "Rejected";
   const by = record.reviewedBy ? ` by ${record.reviewedBy}` : "";
-  const at = record.reviewedAt ? ` · ${new Date(record.reviewedAt).toLocaleString()}` : "";
+  const at = record.reviewedAt ? ` · ${formatPortalDateTime(record.reviewedAt)}` : "";
   return `${verdict}${by}${at}`;
 }
 

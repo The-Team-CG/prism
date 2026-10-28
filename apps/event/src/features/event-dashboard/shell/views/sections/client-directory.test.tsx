@@ -21,7 +21,9 @@ describe("client dossier subviews", () => {
 
     expect(screen.getByRole("heading", { name: "Invoices" })).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Inquiries" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /Open invoices/ }));
+    const open = screen.getByRole("link", { name: /Open invoices/ });
+    expect(open.getAttribute("href")).toBe("/dashboard/events/evt-gala/billing");
+    fireEvent.click(open);
     expect(onOpenEvent).toHaveBeenCalledWith("evt-gala", "billing");
   });
 

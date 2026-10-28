@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import type { PrismInquiry } from '@prism/types';
 import { Button } from '@/app/components/ui/button';
@@ -7,8 +8,7 @@ import { useConformeDraftReviewViewModel } from '../view-models/use-conforme-dra
 
 function displayTimestamp(value: string | null | undefined) {
   if (!value) return 'No reminder recorded';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'Reminder date unavailable' : date.toLocaleString();
+  return formatPortalDateTime(value, 'Reminder date unavailable');
 }
 
 type DraftModel = ReturnType<typeof useConformeDraftReviewViewModel>;
@@ -140,7 +140,7 @@ function ConformeDraftCard({ inquiry }: { inquiry: PrismInquiry }) {
   const stalePendingDraft = Boolean(model.draft && !currentWindowDraft && model.status === 'pending');
   const reminderWindowBaseAt = inquiry.lastConformeReminderAt ?? inquiry.conformeSentAt;
   const availableAt = reminderWindowBaseAt
-    ? new Date(Date.parse(reminderWindowBaseAt) + CONFORME_DRAFT_DELAY_MS).toLocaleString()
+    ? formatPortalDateTime(new Date(Date.parse(reminderWindowBaseAt) + CONFORME_DRAFT_DELAY_MS).toISOString())
     : 'after the conforme is sent';
   return (
     <article className="rounded-xl border border-border bg-card p-4 shadow-sm">

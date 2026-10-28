@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCalendarMonthGrid, eventDateKey, shiftMonth, todayDateKey } from "./event-calendar-grid";
+import { buildCalendarMonthGrid, eventDateKey, shiftMonth } from "./event-calendar-grid";
 
 const october2026 = { year: 2026, month: 9 };
 
@@ -49,6 +49,6 @@ describe("calendar date helpers", () => {
     expect(eventDateKey("2026-10-01")).toBe("2026-10-01");
     expect(eventDateKey("2026-09-30T18:00:00.000Z")).toBe("2026-10-01");
     expect(eventDateKey("")).toBeNull();
-    expect(todayDateKey(new Date("2026-10-28T20:00:00.000Z"))).toBe("2026-10-29");
+    expect(eventDateKey("2026-10-28T20:00:00.000Z")).toBe("2026-10-29");
   });
 });

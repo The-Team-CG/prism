@@ -1,11 +1,12 @@
 "use client";
+import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import type { PrismDecisionLogEntry, PrismDecisionLogKind } from "@prism/types";
 import { DECISION_LOG_KIND_LABELS, formatDecisionActor, formatDecisionToken } from "../model/decision-log-kinds";
 import { useDecisionLogViewModel } from "../view-models/use-decision-log-view-model";
 
 function formatDecidedAt(iso: string) {
-  return new Date(iso).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+  return formatPortalDateTime(iso);
 }
 
 type DecisionLogViewModel = ReturnType<typeof useDecisionLogViewModel>;

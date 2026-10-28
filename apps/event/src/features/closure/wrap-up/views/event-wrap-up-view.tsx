@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import { useEffect, useState } from "react";
 import type { PrismWrapUpSection } from "@prism/types";
@@ -25,7 +26,7 @@ export function EventWrapUpView({ eventId }: { eventId: string }) {
   const editableItems = Object.entries(requiredItems).filter(([key]) => key !== WRAP_UP_LOGISTICS_KEY);
   return <section className="rounded-lg border border-border bg-card p-5">
     <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-semibold text-muted-foreground">Post-event wrap-up</p><h2 className="text-xl font-black">{vm.record.mode === "quick" ? "Quick" : "Full"} wrap-up</h2></div><span className="text-sm text-muted-foreground">{vm.progress.completed}/{vm.progress.total} complete · {vm.reminder}</span></div>
-    <p className="mt-2 text-sm text-muted-foreground">Activated {new Date(vm.record.activatedAt).toLocaleString()}; deadline {new Date(vm.record.deadlineAt).toLocaleString()}. Reminder checkpoints do not archive the event.</p>
+    <p className="mt-2 text-sm text-muted-foreground">Activated {formatPortalDateTime(vm.record.activatedAt)}; deadline {formatPortalDateTime(vm.record.deadlineAt)}. Reminder checkpoints do not archive the event.</p>
     <div className="mt-4 grid gap-2 sm:grid-cols-2">
       <div className="flex items-start gap-2 rounded-md border border-border p-3 text-sm" data-testid="wrap-up-logistics-mirror">
         <span className="mt-0.5 size-4 shrink-0 rounded-sm border border-border text-center leading-4" aria-hidden="true">{logistics.complete ? "✓" : ""}</span>

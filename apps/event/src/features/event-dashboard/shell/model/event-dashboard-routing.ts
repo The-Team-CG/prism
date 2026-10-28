@@ -38,6 +38,15 @@ export const EVENT_TAB_ROUTES: Record<DetailTab, string> = {
   activity: "activity",
 };
 
+/** The route of one event workspace tab, so event choosers render real links. */
+export function eventWorkspaceHref(eventId: string, tab: DetailTab = "overview"): string {
+  return `/dashboard/events/${encodeURIComponent(eventId)}/${EVENT_TAB_ROUTES[tab]}`;
+}
+
+export function clientDossierHref(clientId: string): string {
+  return `/dashboard/clients/${encodeURIComponent(clientId)}`;
+}
+
 export const EVENT_TAB_BY_ROUTE = Object.fromEntries(
   Object.entries(EVENT_TAB_ROUTES).map(([tabId, route]) => [route, tabId]),
 ) as Record<string, DetailTab>;

@@ -104,6 +104,8 @@ export type ClientDashboardAction = {
   status: string;
   tone: "primary" | "success" | "warning" | "neutral";
   nextActor?: "you" | "pmcm" | "update";
+  /** Urgent or overdue now, rather than a requirement for a later stage. */
+  blocking?: boolean;
 };
 
 export const money = new Intl.NumberFormat("en-PH", {
@@ -156,6 +158,7 @@ export function actionCenterItemToDashboardAction(
     status: item.status,
     tone: clientActionTone(item.priority),
     nextActor: clientActionNextActor(item),
+    blocking: item.priority === "critical" || item.priority === "warning",
   };
 }
 

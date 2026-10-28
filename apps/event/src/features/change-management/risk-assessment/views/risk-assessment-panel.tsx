@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDate } from "@prism/ui/format-date";
 
 import { useState, type FormEvent } from "react";
 import type { RecordEventRiskAssessmentInput, RiskLevel } from "@prism/types";
@@ -54,7 +55,7 @@ export function RiskAssessmentPanel({ eventId }: { eventId: string }) {
                       Revision {entry.revision}: {riskLevelLabel(entry.level)}
                       {entry.previousLevel ? ` (was ${riskLevelLabel(entry.previousLevel)})` : ""}
                     </p>
-                    <p className="text-muted-foreground">Suggested at the time: {riskLevelLabel(entry.suggestedLevel)} · {new Date(entry.assessedAt).toLocaleDateString()}</p>
+                    <p className="text-muted-foreground">Suggested at the time: {riskLevelLabel(entry.suggestedLevel)} · {formatPortalDate(entry.assessedAt)}</p>
                     {entry.reason ? <p className="text-muted-foreground">Reason: {entry.reason}</p> : null}
                   </li>
                 ))}

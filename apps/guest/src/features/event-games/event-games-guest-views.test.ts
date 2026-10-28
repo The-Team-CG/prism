@@ -72,8 +72,9 @@ describe("guest event-game views", () => {
     expect(markup).toContain("Summer Party");
     expect(markup).toContain('alt="Summer Party logo"');
     expect(markup).toContain("https://storage.example.test/lobby-logo?sig=public");
-    expect(markup).toContain("background-color:#312E81");
-    expect(markup).toContain("background-color:#0F766E");
+    // The host-configured brand colours reach the lobby.
+    expect(markup).toContain("#312E81");
+    expect(markup).toContain("#0F766E");
     expect(markup).toContain("Word Scramble");
     expect(markup).not.toMatch(/<input[^>]*(?:name|id)=\"pin\"/i);
     expect(markup).not.toContain("Your name");

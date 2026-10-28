@@ -14,11 +14,44 @@ import {
   canRequestFloorPlanRevision,
   floorPlanReviewHeadline,
   floorPlanRevisionComment,
+  officialPlanStatusLine,
 } from "../../../workspace/model/client-floorplan-review-rules";
 import { canEditClientFloorPlanPreference } from "../../../workspace/model/client-floorplan-preference-rules";
 
 function templateSubtitle(template: FloorPlanTemplate) {
   return template.description || template.venue || "Saved PMCM floor plan template";
+}
+
+/** The authoritative plan, shown before any preference controls. Clients can view it; only PMCM edits it. */
+export function OfficialFloorPlanCard({
+  draft,
+  officialProject,
+  onOpenEditor,
+}: {
+  draft: PrismFloorPlanDraft;
+  officialProject: Project | null;
+  onOpenEditor: (draft: PrismFloorPlanDraft, readOnly: boolean) => void;
+}) {
+  return (
+    <section aria-labelledby="client-official-floorplan" className="rounded-2xl border border-border bg-card shadow-sm">
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-6 py-5">
+        <div className="min-w-0">
+          <h2 id="client-official-floorplan" className="text-xl font-black text-foreground">Official floorplan</h2>
+          <p className="mt-1 break-words text-sm text-foreground">{draft.name}</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">{officialPlanStatusLine(draft)}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <StatusBadge status={draft.status} label={formatStatusLabel(draft.status)} />
+          <Button className="rounded-lg font-bold" onClick={() => onOpenEditor(draft, true)}>
+            View official floorplan <ArrowRight className="size-4" />
+          </Button>
+        </div>
+      </header>
+      <div className="p-6">
+        <LayoutPreview project={officialProject} />
+      </div>
+    </section>
+  );
 }
 
 export function FloorPlanCardHeader({

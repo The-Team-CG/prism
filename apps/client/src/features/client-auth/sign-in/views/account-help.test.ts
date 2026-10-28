@@ -1,7 +1,8 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { PrismAccountHelp } from "@prism/ui/account-help";
+import { pmcmSupportContactFromEnvironment } from "@/lib/portal-urls";
 
 const render = (props: Parameters<typeof PrismAccountHelp>[0]) => renderToStaticMarkup(createElement(PrismAccountHelp, props));
 
@@ -17,4 +18,12 @@ describe("account help on sign-in and invitation screens", () => {
     expect(render({ topic: "client portal access", contact: {} })).toBe("<p>Contact PMCM for account issues or access requests.</p>");
     expect(render({ topic: "an expired invitation link", contact: {}, fallback: null })).toBe("");
   });
+
+  it("reads the deployment's channel from the portal environment and treats blank values as unset", () => {
+    vi.stubEnv("NEXT_PUBLIC_PMCM_SUPPORT_EMAIL", " help@pmcm.test ");
+    vi.stubEnv("NEXT_PUBLIC_PMCM_SUPPORT_PHONE", "  ");
+    expect(pmcmSupportContactFromEnvironment()).toEqual({ email: "help@pmcm.test" });
+  });
+
+  afterEach(() => vi.unstubAllEnvs());
 });

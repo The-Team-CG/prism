@@ -1,15 +1,26 @@
 import { useMemo, useState } from "react";
 import { importGuestRosterSchema, parseContract, type ImportGuestRosterInput, type PrismGuestRosterEntry } from "@prism/types";
-import { buildRosterImportPayload, previewRosterSpreadsheet, rosterSourceError } from "../model/roster-spreadsheet";
+import { buildRosterImportPayload, previewRosterSpreadsheet, rosterSourceError, type RosterColumn, type RosterColumnOverrides } from "../model/roster-spreadsheet";
 
 export function useRosterImportViewModel(onImport: (input: ImportGuestRosterInput) => Promise<PrismGuestRosterEntry[]>, onImported: (rows: PrismGuestRosterEntry[]) => void) {
   const [source, setSource] = useState("spreadsheet");
-  const [sheet, setSheet] = useState("");
+  const [sheet, setSheetText] = useState("");
+  const [overrides, setOverrides] = useState<RosterColumnOverrides>({});
   const [json, setJson] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
 
-  const preview = useMemo(() => previewRosterSpreadsheet(sheet), [sheet]);
+  const preview = useMemo(() => previewRosterSpreadsheet(sheet, overrides), [sheet, overrides]);
+
+  /** Column choices belong to one header row; a different paste starts from header matching again. */
+  function setSheet(next: string) {
+    if (headerLine(next) !== headerLine(sheet)) setOverrides({});
+    setSheetText(next);
+  }
+
+  function matchColumn(index: number, column: RosterColumn | null) {
+    setOverrides((current) => ({ ...current, [index]: column }));
+  }
   const sourceError = rosterSourceError(source);
   const payload = useMemo(() => (sourceError ? null : buildRosterImportPayload(source, preview)), [source, sourceError, preview]);
 
@@ -53,5 +64,9 @@ export function useRosterImportViewModel(onImport: (input: ImportGuestRosterInpu
     }
   }
 
-  return { source, setSource, sourceError, sheet, setSheet, json, setJson, preview, payload, submitting, message, importSheet, importJson, loadFile };
+  return { source, setSource, sourceError, sheet, setSheet, json, setJson, preview, matchColumn, payload, submitting, message, importSheet, importJson, loadFile };
+}
+
+function headerLine(text: string): string {
+  return text.split(/\r?\n/, 1)[0] ?? "";
 }

@@ -4,6 +4,8 @@ import { ArrowRight, CalendarDays } from "lucide-react";
 import type { PrismEvent, PrismFloorPlanDraft } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
 import { SelectedEventStatusSummary } from "@/features/command-inbox/list";
+import { RouteLink } from "@/features/pmcm-kit";
+import { SIDEBAR_STATIC_ROUTES, eventWorkspaceHref } from "../../model/event-dashboard-routing";
 import { Card, CardBody, CardHeader } from "./shell-ui";
 
 /** Dashboard home companion to the command inbox: the selected event's status, or a way to pick one. */
@@ -37,8 +39,8 @@ export function CommandHomeSelectedEvent({
               <p className="mt-0.5 text-xs text-muted-foreground">Open an event from the inbox or the events list to see its status here.</p>
             </div>
           </div>
-          <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={onBrowseEvents}>
-            Browse events
+          <Button asChild size="sm" variant="outline" className="rounded-lg font-bold">
+            <RouteLink href={SIDEBAR_STATIC_ROUTES["events-list"]} onNavigate={onBrowseEvents}>Browse events</RouteLink>
           </Button>
         </CardBody>
       </Card>
@@ -53,8 +55,10 @@ export function CommandHomeSelectedEvent({
             <h2 className="truncate text-sm font-bold text-foreground">{event.eventName}</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">Selected event{event.clientName ? ` for ${event.clientName}` : ""}</p>
           </div>
-          <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => onOpenEvent(event.id)}>
-            Open workspace <ArrowRight className="size-4" />
+          <Button asChild size="sm" variant="outline" className="rounded-lg font-bold">
+            <RouteLink href={eventWorkspaceHref(event.id)} onNavigate={() => onOpenEvent(event.id)}>
+              Open workspace <ArrowRight className="size-4" />
+            </RouteLink>
           </Button>
         </div>
       </CardHeader>

@@ -5,6 +5,8 @@ import { buildRosterImportPayload, buildRosterTemplateCsv, previewRosterSpreadsh
 describe("roster spreadsheet import", () => {
   it("reads the downloadable template into the shared import payload", () => {
     const preview = previewRosterSpreadsheet(buildRosterTemplateCsv());
+    // Operators see readable headers, never API field names.
+    expect(preview.headers).toEqual(["Guest name", "Category", "Table", "Guest ID", "Email", "Phone", "Eligibility"]);
     expect(preview).toMatchObject({ headerErrors: [], validCount: 2, errorCount: 0 });
     const payload = buildRosterImportPayload("spreadsheet", preview);
     expect(importGuestRosterSchema.safeParse(payload).success).toBe(true);
@@ -42,8 +44,19 @@ describe("roster spreadsheet import", () => {
 
   it("explains a missing required column instead of guessing", () => {
     const preview = previewRosterSpreadsheet("name,table\nAda,T1\n");
-    expect(preview.headerErrors[0]).toContain("sourceKey");
+    expect(preview.headerErrors[0]).toBe("Match a column to each required field. Missing: Guest ID.");
     expect(preview.rows).toHaveLength(0);
+  });
+
+  it("lets the operator match or ignore columns the headers did not name", () => {
+    const sheet = "Name,Ticket,Seat,Table\nAda,TK-1,A3,T1\n";
+    expect(previewRosterSpreadsheet(sheet).headerErrors).not.toEqual([]);
+
+    const matched = previewRosterSpreadsheet(sheet, { 1: "sourceKey", 2: null });
+    expect(matched).toMatchObject({ headerErrors: [], validCount: 1, ignoredHeaders: ["Seat"] });
+    expect(matched.rows[0]?.values).toEqual({ guestName: "Ada", sourceKey: "TK-1", table: "T1" });
+
+    expect(previewRosterSpreadsheet(sheet, { 1: "sourceKey" }).headerErrors).toEqual(["Each field can come from one column only. Used more than once: Table."]);
   });
 
   it("rejects an empty or reserved source", () => {

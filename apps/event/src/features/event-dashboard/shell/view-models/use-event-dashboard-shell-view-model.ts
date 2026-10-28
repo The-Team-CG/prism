@@ -31,7 +31,6 @@ import {
 import { useEventDashboardWorkspaceViewModel } from "./use-event-dashboard-workspace-view-model";
 import { eventDashboardCommands } from "../data/event-dashboard-commands";
 import { runDashboardActionWithSuccess } from "./dashboard-action-runner";
-import { normalizeComplianceChecks } from "@/features/closure/phase4";
 import { countersignConformeExecution, prepareConformeExecution, refreshConformeExecution } from "@/features/conforme/signing/use-cases/conforme-signing";
 
 export type { EventDashboardClientProps };
@@ -135,7 +134,7 @@ export function useEventDashboardShellViewModel({
     billingSources,
     billingStatements,
     briefing,
-    checks: rawChecks,
+    checks,
     documents,
     drafts,
     eventInsights,
@@ -145,7 +144,6 @@ export function useEventDashboardShellViewModel({
     quoteRequests,
     quotes,
   } = selectEventWorkspaceResources(state, selectedEvent, selectedEventWorkspace);
-  const checks = useMemo(() => normalizeComplianceChecks(rawChecks), [rawChecks]);
   const coordinatorRoleRequirements = coordinatorCoverage;
   const selectedInquiry = inquiries.find((item) => item.id === selectedEvent?.inquiryId);
   const pendingApprovals = selectPendingApprovals(approvalRequests);

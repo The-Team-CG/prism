@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import {
   AlertTriangle,
@@ -667,7 +668,7 @@ function CoordinatorRoleLiveData({ roleView, registrationRole }: { roleView: Pri
             id: issue.id,
             title: issue.title,
             description: `${label(issue.status)} — ${issue.ownerRole || "Unassigned"}`,
-            meta: issue.slaDueAt ? `Due ${new Date(issue.slaDueAt).toLocaleString("en-PH")}` : undefined,
+            meta: issue.slaDueAt ? `Due ${formatPortalDateTime(issue.slaDueAt)}` : undefined,
             status: issue.slaStatus ?? issue.status,
             icon: Radio,
           }))}

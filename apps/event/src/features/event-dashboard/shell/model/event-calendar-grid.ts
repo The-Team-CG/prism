@@ -1,3 +1,5 @@
+import { manilaDateKey } from "@prism/ui/format-date";
+
 /** A calendar month addressed by year and 0-based month index (0 = January). */
 export type CalendarMonth = { year: number; month: number };
 
@@ -11,11 +13,6 @@ export function toDateKey(year: number, month: number, day: number) {
   return `${year}-${pad(month + 1)}-${pad(day)}`;
 }
 
-/** Today's calendar date in Philippine time, the portal's operating timezone. */
-export function todayDateKey(now = new Date()) {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
-}
-
 /**
  * Event dates arrive as calendar dates (YYYY-MM-DD) or ISO timestamps. Calendar dates keep their day;
  * timestamps resolve to the Philippine calendar date. Returns null for unusable values.
@@ -25,7 +22,7 @@ export function eventDateKey(value?: string | null): string | null {
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return null;
-  return todayDateKey(date);
+  return manilaDateKey(date);
 }
 
 export function monthOfDateKey(dateKey: string): CalendarMonth {
@@ -58,7 +55,7 @@ export function isDateKeyInMonth(dateKey: string, { year, month }: CalendarMonth
 export function buildCalendarMonthGrid(
   calendarMonth: CalendarMonth,
   events: ReadonlyArray<{ id: string; eventDate: string }>,
-  today: string = todayDateKey(),
+  today: string = manilaDateKey(),
 ): CalendarGridCell[] {
   const { year, month } = calendarMonth;
   const offset = new Date(Date.UTC(year, month, 1)).getUTCDay();

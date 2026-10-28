@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDate } from "@prism/ui/format-date";
 
 import type { PrismAddendum } from "@prism/types";
 import { addendaAwaitingClientAcknowledgment, addendumConformeStatusLabel } from "../model/client-addenda-rules";
@@ -56,7 +57,7 @@ function AddendumRow({
       <strong>Version {addendum.versionNumber}: {addendum.title}</strong>
       <p className="text-muted-foreground">{addendum.summary || "Scope change recorded"}</p>
       <p className="text-xs text-muted-foreground">
-        {addendum.documentState === "pending" ? "Document pending" : "Document available"} · Issued {new Date(addendum.issuedAt).toLocaleDateString()}
+        {addendum.documentState === "pending" ? "Document pending" : "Document available"} · Issued {formatPortalDate(addendum.issuedAt)}
       </p>
       <p className="text-xs text-muted-foreground">{addendumConformeStatusLabel(addendum.conforme)}</p>
       {awaiting && addendum.conforme ? (
