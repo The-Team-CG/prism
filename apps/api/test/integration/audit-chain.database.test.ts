@@ -35,7 +35,8 @@ describe.skipIf(!live)('serialized audit append', () => {
       let allowAppend!: () => void;
       const ready = new Promise<void>((resolve) => { snapshotReady = resolve; });
       const proceed = new Promise<void>((resolve) => { allowAppend = resolve; });
-      const stale = prisma.$transaction(async (tx) => {
+      // The retry in $transaction would run this on a fresh snapshot; here the raw database rejection is the point.
+      const stale = prisma.transactionOnce(async (tx) => {
         await tx.opsAuditChainLock.findUniqueOrThrow({ where: { id: 'global' } });
         snapshotReady();
         await proceed;
@@ -47,6 +48,25 @@ describe.skipIf(!live)('serialized audit append', () => {
       allowAppend();
       expect(await staleResult).toMatchObject({ code: 'P2034' });
       expect(await prisma.opsAuditLog.count({ where: { actor, action: 'Stale snapshot action' } })).toBe(0);
+
+      // Through $transaction the same stale snapshot is retried once on a fresh one and appends exactly one entry.
+      let attempts = 0;
+      let retryReady!: () => void;
+      let retryProceed!: () => void;
+      const firstSnapshot = new Promise<void>((resolve) => { retryReady = resolve; });
+      const allowFirst = new Promise<void>((resolve) => { retryProceed = resolve; });
+      const retried = prisma.$transaction(async (tx) => {
+        attempts += 1;
+        await tx.opsAuditChainLock.findUniqueOrThrow({ where: { id: 'global' } });
+        if (attempts === 1) { retryReady(); await allowFirst; }
+        return service.audit(undefined, actor, 'Retried snapshot action', {}, { prisma: tx, correlationId: 'retry-test' });
+      }, { isolationLevel: 'Serializable', timeout: 10_000 });
+      await firstSnapshot;
+      await service.audit(undefined, actor, 'Committed during first attempt');
+      retryProceed();
+      await retried;
+      expect(attempts).toBe(2);
+      expect(await prisma.opsAuditLog.count({ where: { actor, action: 'Retried snapshot action' } })).toBe(1);
     } finally {
       // Retain fixture audit evidence in this disposable DB: deleting a tail can
       // break a later concurrent writer that has already linked to it.
