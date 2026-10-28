@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- CI now fails a pull request that edits or deletes a migration already on the base branch, because a database that applied the old file would fail its migration ledger check. A listed exception with a reason is the escape hatch. `npm run db:audit:schemas` now checks the final schema layout, so it passes on a correctly migrated database instead of reporting retired schema names.
+
 - Persona lifecycle checks now verify persisted public walk-ins, reconciled PMCM attendance and client-scoped live event state instead of passing on prerequisite checks alone.
 
 - Lifecycle test helpers use cryptographic randomness for synthetic client identities, simulated client addresses and retry jitter; exploratory database retries remain explicit and prevent a green report.
