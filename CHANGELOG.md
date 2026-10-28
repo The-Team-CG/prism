@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Enforced send-before-client visibility and approved-proposal billing caps; proposal and quote retries preserve version limits. Client floorplan revision requests now move the workflow atomically through the shared decision endpoint, replacing the legacy review route. Supplier progress is forward-only, with reasoned PMCM corrections and released-bid protections.
+
 - Persona lifecycle checks now verify persisted public walk-ins, reconciled PMCM attendance and client-scoped live event state instead of passing on prerequisite checks alone.
 
 - Lifecycle test helpers use cryptographic randomness for synthetic client identities, simulated client addresses and retry jitter; exploratory database retries remain explicit and prevent a green report.

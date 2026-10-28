@@ -1,9 +1,7 @@
 import type {
   ArchiveSearchFilters,
   ReviewEventProposalInput,
-  CreateFloorPlanRevisionCommentInput,
   PrismArchivedEventSearchHit,
-  PrismFloorPlanDraft,
   PrismEvent,
   PrismEventPage,
   PrismFileRequirementsMatrix,
@@ -79,12 +77,6 @@ export interface EventOpsEventsContract {
       input: ReviewEventProposalInput,
       actor?: EventOpsActorQuery,
     ): Promise<PrismEvent>;
-    reviewFloorPlanDraft(
-      eventId: string,
-      draftId: string,
-      input: CreateFloorPlanRevisionCommentInput,
-      actor?: EventOpsActorQuery,
-    ): Promise<PrismFloorPlanDraft>;
     searchArchive(
       filters?: ArchiveSearchFilters,
       actor?: EventOpsActorQuery,

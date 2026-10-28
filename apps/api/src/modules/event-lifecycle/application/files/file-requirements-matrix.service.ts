@@ -33,6 +33,11 @@ export class FileRequirementsMatrixService {
     return event;
   }
 
+  /** Non-PMCM readers see the billing row only once PMCM has sent a statement. */
+  async hasSentBillingStatement(eventId: string): Promise<boolean> {
+    return (await this.prisma.opsBillingStatement.count({ where: { eventId, sentAt: { not: null } } })) > 0;
+  }
+
   async buildForEvent(eventId: string, prisma: Prisma.TransactionClient = this.prisma, now: Date = new Date()): Promise<FileRequirementsMatrix> {
     const event = await prisma.opsEvent.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
