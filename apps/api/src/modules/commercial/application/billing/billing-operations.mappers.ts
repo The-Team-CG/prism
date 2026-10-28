@@ -9,7 +9,7 @@ function timestamp(value: Date) {
 }
 
 export function mapBillingCorrection(correction: OpsBillingCorrection) {
-  return { id: correction.id, eventId: correction.eventId, statementId: correction.statementId, reason: correction.reason, correctedTotalAmount: correction.correctedTotalAmount ?? null, status: correction.status, requestedBy: correction.requestedBy, requestedById: correction.requestedById ?? null, resolvedBy: correction.resolvedBy ?? null, resolutionNotes: correction.resolutionNotes ?? null, createdAt: timestamp(correction.createdAt), resolvedAt: correction.resolvedAt ? timestamp(correction.resolvedAt) : null };
+  return { id: correction.id, eventId: correction.eventId, statementId: correction.statementId, replacementStatementId: correction.replacementStatementId ?? null, reason: correction.reason, correctedTotalAmount: correction.correctedTotalAmount ?? null, status: correction.status, requestedBy: correction.requestedBy, requestedById: correction.requestedById ?? null, resolvedBy: correction.resolvedBy ?? null, resolutionNotes: correction.resolutionNotes ?? null, createdAt: timestamp(correction.createdAt), resolvedAt: correction.resolvedAt ? timestamp(correction.resolvedAt) : null };
 }
 
 export function mapBillingDispute(dispute: OpsBillingDispute) {
@@ -58,6 +58,7 @@ export function mapBillingStatement(statement: OpsBillingStatement) {
     id: statement.id,
     eventId: statement.eventId,
     sourceId: statement.sourceId ?? null,
+    supersedesStatementId: statement.supersedesStatementId ?? null,
     number: statement.number,
     clientName: statement.clientName,
     clientContact: statement.clientContact,
@@ -90,6 +91,8 @@ export function mapPaymentMilestone(payment: OpsPaymentMilestone, history: OpsPa
     amountPaid,
     remainingBalance,
     dueDate: isoDate(payment.dueDate),
+    overdue: remainingBalance > 0 && payment.dueDate.getTime() < Date.now(),
+    supersededAt: payment.supersededAt ? timestamp(payment.supersededAt) : null,
     status: payment.status,
     history: history.map((record) => mapPaymentRecord(record)),
   };

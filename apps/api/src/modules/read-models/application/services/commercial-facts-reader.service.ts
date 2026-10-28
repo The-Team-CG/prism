@@ -36,7 +36,7 @@ export class CommercialFactsReaderService implements CommercialFactsReader {
       client.opsBillingSource.findMany({ where: { eventId }, select: { id: true, status: true } }),
       client.opsSupplierReview.findMany({ where: { eventId }, select: { id: true, supplierId: true, rating: true, notes: true, reviewedBy: true } }),
       client.opsBillingStatement.findMany({ where: { eventId }, select: { id: true, totalAmount: true } }),
-      client.opsPaymentMilestone.findMany({ where: { eventId }, select: { id: true, amountPaid: true, remainingBalance: true } }),
+      client.opsPaymentMilestone.findMany({ where: { eventId, supersededAt: null }, select: { id: true, amountPaid: true, remainingBalance: true } }),
     ]);
     return { supplierQuoteRequests, billingSources, supplierReviews, billingStatements, paymentMilestones };
   }

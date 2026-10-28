@@ -564,11 +564,31 @@ model OpsFloorPlanDraft {
   floorPlan         FloorPlan                      @relation("OpsDraftLayout", fields: [floorPlanId], references: [id], onDelete: Cascade)
   clientDecisions   OpsFloorPlanClientDecision[]
   clientAnnotations OpsFloorPlanClientAnnotation[]
+  snapshotVersions  OpsFloorPlanSnapshotVersion[]
 
   @@unique([eventId], where: { isActive: true }, map: "floor_plan_drafts_one_active_per_event_key")
+  @@unique([id, eventId], map: "floor_plan_drafts_id_event_id_key")
   @@index([eventId, status], map: "floor_plan_drafts_event_id_status_idx")
   @@index([eventId, isActive], map: "floor_plan_drafts_event_id_is_active_idx")
   @@map("floor_plan_drafts")
+  @@schema("floorplan")
+}
+
+model OpsFloorPlanSnapshotVersion {
+  id            String   @id
+  eventId       String   @map("event_id")
+  draftId       String   @map("draft_id")
+  round         Int
+  snapshotType  String   @map("snapshot_type")
+  snapshot      Json
+  createdByRole String   @map("created_by_role")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  draft OpsFloorPlanDraft @relation(fields: [draftId, eventId], references: [id, eventId], onDelete: Cascade, map: "floor_plan_snapshot_versions_draft_id_event_id_fkey")
+
+  @@unique([draftId, round, snapshotType], map: "floor_plan_snapshot_versions_draft_round_type_key")
+  @@index([eventId, draftId, createdAt], map: "floor_plan_snapshot_versions_event_draft_created_idx")
+  @@map("floor_plan_snapshot_versions")
   @@schema("floorplan")
 }
 
@@ -2063,15 +2083,21 @@ model OpsBillingStatement {
   status          String    @default("issued")
   sentAt          DateTime? @map("sent_at")
   generatedAt     DateTime  @default(now()) @map("generated_at")
+  supersedesStatementId String? @map("supersedes_statement_id")
 
   source OpsBillingSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  supersedes OpsBillingStatement? @relation("BillingStatementRevisions", fields: [supersedesStatementId, eventId], references: [id, eventId], onDelete: Restrict, map: "billing_statements_supersedes_statement_event_fkey")
+  revisions OpsBillingStatement[] @relation("BillingStatementRevisions")
+  paymentMilestones OpsPaymentMilestone[]
 
-  corrections OpsBillingCorrection[]
+  corrections OpsBillingCorrection[] @relation("BillingCorrectionOriginalStatement")
+  replacementCorrections OpsBillingCorrection[] @relation("BillingCorrectionReplacementStatement")
   disputes    OpsBillingDispute[]
 
   @@unique([id, eventId], map: "billing_statements_id_event_id_key")
   @@index([eventId, generatedAt], map: "billing_statements_event_id_generated_at_idx")
   @@index([sourceId], map: "billing_statements_source_id_idx")
+  @@unique([supersedesStatementId], map: "billing_statements_supersedes_statement_id_key")
   @@map("billing_statements")
   @@schema("commercial")
 }
@@ -2091,17 +2117,22 @@ model OpsPaymentMilestone {
   percentage       Int      @default(50)
   amount           Int
   amountPaid       Int      @default(0) @map("amount_paid")
+  creditApplied    Int      @default(0) @map("credit_applied")
   remainingBalance Int      @default(0) @map("remaining_balance")
   dueDate          DateTime @map("due_date")
   status           String   @default("pending")
+  statementId      String?  @map("statement_id")
+  supersededAt     DateTime? @map("superseded_at")
   createdAt        DateTime @default(now()) @map("created_at")
 
   records  OpsPaymentRecord[]
   disputes OpsBillingDispute[]
+  statement OpsBillingStatement? @relation(fields: [statementId, eventId], references: [id, eventId], onDelete: Restrict, map: "payment_milestones_statement_event_fkey")
 
   @@unique([id, eventId], map: "payment_milestones_id_event_id_key")
   @@index([eventId, status], map: "payment_milestones_event_id_status_idx")
   @@index([eventId, dueDate, id], map: "payment_milestones_event_due_date_idx")
+  @@index([eventId, statementId], map: "payment_milestones_event_statement_idx")
   @@map("payment_milestones")
   @@schema("commercial")
 }
@@ -2141,8 +2172,10 @@ model OpsBillingCorrection {
   payloadHash          String    @map("payload_hash")
   createdAt            DateTime  @default(now()) @map("created_at")
   resolvedAt           DateTime? @map("resolved_at")
+  replacementStatementId String?  @unique(map: "billing_corrections_replacement_statement_id_key") @map("replacement_statement_id")
 
-  statement OpsBillingStatement @relation(fields: [statementId, eventId], references: [id, eventId], onDelete: Restrict, map: "billing_corrections_statement_event_fkey")
+  statement OpsBillingStatement @relation("BillingCorrectionOriginalStatement", fields: [statementId, eventId], references: [id, eventId], onDelete: Restrict, map: "billing_corrections_statement_event_fkey")
+  replacementStatement OpsBillingStatement? @relation("BillingCorrectionReplacementStatement", fields: [replacementStatementId, eventId], references: [id, eventId], onDelete: Restrict, map: "billing_corrections_replacement_statement_event_fkey")
 
   @@index([eventId, status], map: "billing_corrections_event_id_status_idx")
   @@index([statementId, createdAt], map: "billing_corrections_statement_id_created_at_idx")
@@ -2288,6 +2321,19 @@ model OpsFileRequirement {
   @@unique([eventId, key], map: "file_requirements_event_id_key_key")
   @@index([required, dueAt], map: "file_requirements_required_due_at_idx")
   @@map("file_requirements")
+  @@schema("event_lifecycle")
+}
+
+model OpsFileRequirementTemplate {
+  id          String   @id
+  eventType   String   @unique(map: "file_requirement_templates_event_type_key") @map("event_type")
+  requirements Json
+  revision    Int      @default(1)
+  updatedBy   String   @map("updated_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("file_requirement_templates")
   @@schema("event_lifecycle")
 }
 

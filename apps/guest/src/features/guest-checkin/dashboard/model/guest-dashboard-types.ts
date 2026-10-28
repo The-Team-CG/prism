@@ -2,6 +2,7 @@ import type { CreateGuestCheckInInput, PrismGuestEventPass } from "@prism/types"
 
 export type GuestSession = PrismGuestEventPass & {
   openedAt: string;
+  feedbackReceiptId?: string;
 };
 
 export type CheckInMode = CreateGuestCheckInInput["checkInMode"];

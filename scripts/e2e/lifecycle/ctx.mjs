@@ -46,17 +46,32 @@ export function createContext() {
     return result.token;
   }
 
+  async function ensureCoordinator(profile) {
+    const key = profile.email;
+    if (tokens.has(key)) return tokens.get(key);
+    const existing = await login(profile.email, cfg.password.coordinator);
+    if (existing.token) { tokens.set(key, existing.token); return existing.token; }
+    expectStatus(await http("POST", "/auth/invitations", { token: await as("admin"), body: { email: profile.email, name: profile.name, role: "coordinator", organization: "PMCM" } }), 201);
+    const activation = tokenFromMail(latestMailTo(profile.email));
+    expect(activation, "coordinator invitation did not reach the log transport");
+    expectStatus(await http("POST", "/auth/activate", { body: { token: activation, password: cfg.password.coordinator } }), 200);
+    const activated = await login(profile.email, cfg.password.coordinator);
+    expect(activated.token, "invited coordinator could not sign in");
+    tokens.set(key, activated.token);
+    return activated.token;
+  }
+
   /**
    * Creates an event the way a real client would: public inquiry, PMCM accepts, activation email, client
    * activates, conforme created, signed by the client and then PMCM. Returns the ids the next steps need.
    */
-  async function newEvent({ label = "E2E", eventDate = "2027-06-15", guests = 120 } = {}) {
+  async function newEvent({ label = "E2E", eventDate = "2027-06-15", guests = 120, eventType = "Conference" } = {}) {
     const stamp = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
     const clientEmail = `e2e-client-${stamp}@example.test`;
     const admin = await as("admin");
     const inquiry = expectStatus(await http("POST", "/inquiries", { body: {
       clientName: `${label} Client`, companyName: `${label} Corp`, email: clientEmail, eventName: `${label} ${stamp}`,
-      eventType: "Conference", eventDate, clientType: "Corporate", source: "PMCM Facebook",
+      eventType, eventDate, clientType: "Corporate", source: "PMCM Facebook",
       message: `Phone: 0917 123 4567\nExpected guests: ${guests}`,
       privacyConsentAccepted: true, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
     } }), 201);
@@ -76,6 +91,16 @@ export function createContext() {
     return { inquiryId: inquiry.id, eventId: signed.eventId, clientEmail, eventDate, eventName: inquiry.eventName, as: () => as(clientEmail) };
   }
 
+  async function issueMinimalProposal(eventId) {
+    const admin = await as("admin");
+    const estimate = expectStatus(await http("POST", `/events/${eventId}/cost-estimates`, { token: admin, body: { budgetAmount: 100000, lines: [{ category: "Venue", description: "Event scope", quantity: 1, unitAmount: 100000 }], notes: "" } }), 201);
+    const version = expectStatus(await http("POST", `/events/${eventId}/proposal/versions`, { token: admin, body: { costEstimateId: estimate.id, title: "Event scope proposal", summary: "Agreed event scope", revisionNote: "" } }), 201);
+    const workspace = expectStatus(await http("GET", `/pmcm/events/${eventId}/workspace`, { token: admin }), 200);
+    const document = workspace.documents.find((item) => item.type === "proposal" && item.status === "issued");
+    expect(document, "issuing the proposal did not create its source document");
+    return { version, document };
+  }
+
   async function prepareEventDay(eventId) {
     const admin = await as("admin");
     const base = `/events/${eventId}`;
@@ -89,5 +114,5 @@ export function createContext() {
     expectStatus(await http("POST", `${base}/floorplans/${draft.id}/approve`, { token: admin }), 200);
   }
 
-  return { as, newEvent, prepareEventDay, reserveDate, accounts: ACCOUNTS };
+  return { as, newEvent, issueMinimalProposal, prepareEventDay, reserveDate, ensureCoordinator, accounts: ACCOUNTS };
 }

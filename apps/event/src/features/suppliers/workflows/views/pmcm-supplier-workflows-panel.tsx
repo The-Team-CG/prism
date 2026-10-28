@@ -25,9 +25,20 @@ export function PmcmSupplierWorkflowsPanel({ eventId, requests, quotes }: { even
     <CardHeader><h2 className="text-sm font-bold text-foreground">Supplier delivery, contracts and payables</h2><p className="mt-1 text-xs text-muted-foreground">Publish ingress and egress times, review contract evidence, assign deliverables, and record actual supplier payment releases.</p></CardHeader>
     <CardBody className="space-y-4">
       <WorkflowAlert error={vm.error} notice={vm.notice} busy={vm.busy} onReload={vm.load} />
+      <SupplierScheduleList schedules={vm.schedules} />
       <WorkflowRows vm={vm} requests={requests} quotes={quotes} />
     </CardBody>
   </Card>;
+}
+
+function SupplierScheduleList({ schedules }: { schedules: WorkflowViewModel["schedules"] }) {
+  return <section aria-label="Supplier schedule list" className="rounded-lg border border-border p-3">
+    <h3 className="text-xs font-bold">Published supplier schedules</h3>
+    {schedules.length ? <ul className="mt-2 divide-y divide-border">{schedules.map((schedule) => <li key={schedule.id} className="flex flex-wrap justify-between gap-2 py-2 text-xs">
+      <span className="font-semibold">{schedule.supplierName} · {schedule.location || "Location pending"}</span>
+      <span className="text-muted-foreground">{new Date(schedule.ingressAt).toLocaleString()} – {new Date(schedule.egressAt).toLocaleString()} · {schedule.status}</span>
+    </li>)}</ul> : <p className="mt-2 text-xs text-muted-foreground">No supplier schedules published yet.</p>}
+  </section>;
 }
 
 function WorkflowAlert({ error, notice, busy, onReload }: { error: string | null; notice: string | null; busy: boolean; onReload: () => Promise<unknown> }) {

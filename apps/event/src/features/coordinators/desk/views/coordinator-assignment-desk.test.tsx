@@ -210,7 +210,22 @@ describe("CoordinatorAssignmentDesk acknowledgment reminders", () => {
 });
 
 describe("CoordinatorAssignmentDesk Event Day System Operator", () => {
+  it("revokes the current operator and reflects the confirmed authority change", async () => {
+    const onRevokeOperator = vi.fn(async () => true);
+    renderDesk({ onRevokeOperator, onLoadOperator: vi.fn().mockResolvedValueOnce({ coordinatorId: "coord_1", coordinatorName: "Jordan Lee", designatedAt: "2026-09-29T00:00:00.000Z" }).mockResolvedValue(null) });
+    fireEvent.click(await screen.findByRole("button", { name: "Revoke operator" }));
+    expect(await screen.findByText("No operator designated yet.")).toBeTruthy();
+    expect(onRevokeOperator).toHaveBeenCalledTimes(1);
+  });
+
   const operator = (name: string, coordinatorId: string) => ({ coordinatorId, coordinatorName: name, designatedAt: "2026-09-29T00:00:00.000Z" });
+
+  it("reloads authority after revocation instead of hiding a concurrent replacement designation", async () => {
+    renderDesk({ onRevokeOperator: vi.fn(async () => true), onLoadOperator: vi.fn().mockResolvedValueOnce({ coordinatorId: "coord_1", coordinatorName: "Jordan Lee", designatedAt: "2026-09-29T00:00:00.000Z" }).mockResolvedValue({ coordinatorId: "coord_2", coordinatorName: "Sam Cruz", designatedAt: "2026-09-29T00:00:00.000Z" }) });
+    fireEvent.click(await screen.findByRole("button", { name: "Revoke operator" }));
+    expect(await screen.findByText("Current operator: Sam Cruz.")).toBeTruthy();
+    expect(screen.queryByText("No operator designated yet.")).toBeNull();
+  });
 
   it("offers only coordinators still working this event and designates the chosen one", async () => {
     const onLoadOperator = vi.fn()

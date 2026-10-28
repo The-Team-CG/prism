@@ -1,5 +1,8 @@
 "use client";
 
+import { PostEventDeliverablesPanel } from "@/features/closure/deliverables/views/post-event-deliverables-panel";
+
+
 import { FileCheck2, Gavel, LayoutGrid, MapPinned, Truck } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
@@ -257,12 +260,15 @@ export function EventWorkspaceSuppliersTab() {
         </CardHeader>
         <CardBody>
           <SupplierQuotePlanner
+            key={vm.selectedEvent.id}
             categories={vm.supplierCategories}
             suppliers={vm.suppliers}
             requests={vm.quoteRequests}
             quotes={vm.quotes}
             onRequestQuotes={vm.requestSupplierQuotes}
             onSelectQuote={vm.selectSupplierQuote}
+            onCompareRound={vm.compareSupplierQuoteRound}
+            onSetAvailability={vm.setSupplierAvailability}
             busy={Boolean(vm.busy)}
           />
         </CardBody>
@@ -326,6 +332,7 @@ export function EventWorkspaceCoordinatorsTab() {
           onSaveCoverage={vm.saveCoordinatorCoverage}
           onSendReminders={vm.sendCoordinatorAcknowledgementReminders}
           onDesignateOperator={vm.designateEventDayOperator}
+          onRevokeOperator={vm.revokeEventDayOperator}
           onLoadOperator={vm.loadEventDayOperator}
           onLoadAvailability={vm.loadCoordinatorAvailability}
           onLoadReliabilityHistory={vm.loadCoordinatorReliabilityHistory}
@@ -384,6 +391,7 @@ export function EventWorkspaceBillingTab() {
         busy={Boolean(vm.busy)}
         onRecordPayment={vm.recordPayment}
         onSendBilling={vm.sendBillingStatement}
+        onMarkPayment={vm.markPayment}
       />
       <details className="rounded-lg border border-border bg-card">
       <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Billing adjustments and disputes</summary>
@@ -409,6 +417,7 @@ export function EventWorkspaceClosureTab() {
         checks={vm.checks}
         billingSources={vm.billingSources}
         billingStatements={vm.billingStatements}
+        proposalDocuments={vm.documents.filter((document) => document.eventId === vm.selectedEvent!.id && /proposal/i.test(document.type))}
         insights={vm.eventInsights}
         supplierCategories={vm.supplierCategories}
         suppliers={vm.suppliers}
@@ -429,6 +438,7 @@ export function EventWorkspaceClosureTab() {
         onGenerateInsights={vm.generateEventInsights}
         onAddReview={vm.addSupplierReview}
       />
+      <PostEventDeliverablesPanel eventId={vm.selectedEvent.id} documents={vm.postEventDocuments} archived={vm.selectedEvent.archived} />
       <details className="rounded-lg border border-border bg-card">
         <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Guest feedback review</summary>
         <FeedbackModerationPanel eventId={vm.selectedEvent.id} />

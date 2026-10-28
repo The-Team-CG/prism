@@ -5,6 +5,7 @@ import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-sessi
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { mapAuditLog } from '@prism/contexts/platform-ops';
 import { mapBillingEvent, mapReadModelFloorPlanDraft } from '../application/mappers/billing-read-model.mappers';
+import { mapNotificationLog } from '../application/mappers/pmcm-read-model.mappers';
 import { mapClientBriefing, mapClientDocument } from '../application/mappers/client-read-model.mappers';
 import { createClientWorkspaceMappers } from '../application/mappers/event-read-model.mappers';
 import { EventReadModelsService } from '../application/services/event-read-models.service';
@@ -31,6 +32,7 @@ export class OpsClientController {
         mapPaymentMilestone,
         mapFloorPlanDraft: mapReadModelFloorPlanDraft,
         mapAuditLog,
+        mapNotificationLog,
       }),
       cursor,
     );

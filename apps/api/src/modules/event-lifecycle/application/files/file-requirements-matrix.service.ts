@@ -40,7 +40,7 @@ export class FileRequirementsMatrixService {
       prisma.opsDocument.findMany({ where: { eventId } }),
       prisma.opsPostEventDocument.findMany({ where: { eventId } }),
       prisma.opsBillingStatement.findMany({ where: { eventId } }),
-      prisma.opsPaymentMilestone.findMany({ where: { eventId } }),
+      prisma.opsPaymentMilestone.findMany({ where: { eventId, supersededAt: null } }),
       prisma.opsSupplierReview.findMany({ where: { eventId } }),
       readUnresolvedCloseoutIssues(prisma, eventId),
       prisma.opsClientCloseoutResponse.findUnique({ where: { eventId }, select: { id: true, rating: true, submittedAt: true } }),
@@ -49,9 +49,18 @@ export class FileRequirementsMatrixService {
       prisma.opsLogisticsCompletion.findUnique({ where: { eventId }, select: { assetReturnsVerified: true, recordedAt: true } }),
       prisma.opsFileRequirement.findMany({ where: { eventId }, orderBy: { key: 'asc' }, take: 200 }),
     ]);
+    const storedObjectIds = [...new Set(documents.map((document) => document.storageKey).filter((key): key is string => Boolean(key)))];
+    const storedObjects = storedObjectIds.length
+      ? await prisma.opsStoredObject.findMany({ where: { id: { in: storedObjectIds } }, select: { id: true, lifecycleState: true } })
+      : [];
+    const objectAvailability = new Map(storedObjects.map((object) => [object.id, object.lifecycleState === 'stored']));
+    const documentFacts = documents.map((document) => ({
+      ...document,
+      available: !document.storageKey || objectAvailability.get(document.storageKey) !== false,
+    }));
 
     const derived: DerivedFileRequirementItem[] = [
-      ...this.itemsForEvent(event, documents, postEventDocuments, billingStatements, milestones, supplierReviews, clientCloseoutResponse, storedConforme, digitalConforme),
+      ...this.itemsForEvent(event, documentFacts, postEventDocuments, billingStatements, milestones, supplierReviews, clientCloseoutResponse, storedConforme, digitalConforme),
       this.logisticsItem(logisticsCompletion),
       {
         key: 'issues', label: 'Issues', ownerRole: 'pmcm-admin', visibleToRoles: ['pmcm-admin'],
@@ -60,7 +69,7 @@ export class FileRequirementsMatrixService {
       },
     ];
     // Overrides change ownership, visibility, required state, and due dates only; close gates read derived status.
-    return { eventId, items: mergeFileRequirementOverrides(derived, persistedRequirements, documents, now) };
+    return { eventId, items: mergeFileRequirementOverrides(derived, persistedRequirements, documentFacts, now) };
   }
 
   async closeGates(eventId: string, prisma: Prisma.TransactionClient = this.prisma) {

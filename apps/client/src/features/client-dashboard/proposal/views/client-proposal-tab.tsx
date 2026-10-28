@@ -147,6 +147,18 @@ function ProposalPackageCard({
         ) : null}
         <DataRow label="Client review" value={formatLabel(clientStatus)} />
         <DataRow label="Stage" value={proposalReady ? "Client review" : "PMCM preparation"} />
+        <ProposalPlanningFacts briefing={briefing} billing={billing} officialDraft={officialDraft} nextPayment={nextPayment} />
+        {proposal?.summary ? <p className="whitespace-pre-wrap pt-3 text-sm leading-6 text-foreground">{proposal.summary}</p> : null}
+        {proposal?.revisionNote ? (
+          <p className="pt-2 text-sm leading-6 text-muted-foreground">Changed in version {proposal.versionNumber}: {proposal.revisionNote}</p>
+        ) : null}
+      </CardBody>
+    </Card>
+  );
+}
+
+function ProposalPlanningFacts({ briefing, billing, officialDraft, nextPayment }: Pick<Parameters<typeof ProposalPackageCard>[0], "briefing" | "billing" | "officialDraft" | "nextPayment">) {
+  return <>
         <DataRow
           label="Briefing basis"
           value={briefing ? `${briefing.guestCount} guests at ${briefing.venue}` : "Waiting for briefing"}
@@ -163,13 +175,7 @@ function ProposalPackageCard({
           label="Next payment"
           value={nextPayment ? `${nextPayment.label} on ${nextPayment.dueDate}` : "No open milestone"}
         />
-        {proposal?.summary ? <p className="whitespace-pre-wrap pt-3 text-sm leading-6 text-foreground">{proposal.summary}</p> : null}
-        {proposal?.revisionNote ? (
-          <p className="pt-2 text-sm leading-6 text-muted-foreground">Changed in version {proposal.versionNumber}: {proposal.revisionNote}</p>
-        ) : null}
-      </CardBody>
-    </Card>
-  );
+  </>;
 }
 
 function proposalChecklistItems(input: {

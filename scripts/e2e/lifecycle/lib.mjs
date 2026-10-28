@@ -1,5 +1,5 @@
 // Shared helpers for the lifecycle e2e runner. Talks only to the public HTTP API, so the same
-// journey runs against any API (local Postgres, local Supabase, or a hosted Supabase project).
+// journey runs only against the isolated local API/database accepted by the runner guard.
 import { createHmac } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
@@ -123,6 +123,17 @@ export function mailsTo(email, since = 0) {
   return parts.filter((p) => p.startsWith(`Mail to ${email}`));
 }
 export const mailCount = () => (cfg.apiLog && existsSync(cfg.apiLog) ? (readFileSync(cfg.apiLog, "utf8").match(/Mail to /g) ?? []).length : 0);
+/** Wait for the asynchronous outbox worker, without retrying any failed business command. */
+export async function waitForMail(email, predicate, timeoutMs = 45000) {
+  const deadline = Date.now() + timeoutMs;
+  do {
+    const mail = mailsTo(email).find(predicate);
+    if (mail) return mail;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  } while (Date.now() < deadline);
+  return "";
+}
+
 export function latestMailTo(email) { const m = mailsTo(email); return m[m.length - 1] ?? ""; }
 export function tokenFromMail(mail) {
   const m = mail.match(/[?&]token=([A-Za-z0-9_\-.~%]{32,})/) ?? mail.match(/\/(?:activate|conforme|quote)[^\s]*?([A-Za-z0-9_\-]{32,})/);

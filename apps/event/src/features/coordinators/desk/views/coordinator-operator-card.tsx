@@ -11,12 +11,13 @@ function currentOperatorText(current: Operator | undefined) {
   return current ? "Current operator: " + (current.coordinatorName ?? "Unavailable coordinator") + "." : "No operator designated yet.";
 }
 
-export function OperatorDesignationCard({ eventId, candidates, busy, onLoadOperator, onDesignate }: {
+export function OperatorDesignationCard({ eventId, candidates, busy, onLoadOperator, onDesignate, onRevoke }: {
   eventId: string;
   candidates: PrismCoordinatorAssignment[];
   busy: boolean;
   onLoadOperator: () => Promise<Operator>;
   onDesignate: (coordinatorId: string) => Promise<boolean>;
+  onRevoke?: () => Promise<boolean>;
 }) {
   // undefined while the current operator is loading, null when nobody is designated.
   const [current, setCurrent] = useState<Operator | undefined>(undefined);
@@ -24,7 +25,7 @@ export function OperatorDesignationCard({ eventId, candidates, busy, onLoadOpera
   const [selected, setSelected] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const options = Array.from(new Map(candidates.map((item) => [item.coordinatorId, item])).values());
-  const departed = current && !candidates.some((item) => item.coordinatorId === current.coordinatorId) ? current : null;
+  const departed = departedOperator(current, candidates);
 
   useEffect(() => {
     let alive = true;
@@ -47,6 +48,18 @@ export function OperatorDesignationCard({ eventId, candidates, busy, onLoadOpera
     onLoadOperator().then(setCurrent, () => setMessage("Operator designated. Reload to see the current operator."));
   }
 
+  async function revoke() {
+    setMessage(null);
+    if (!onRevoke || !(await onRevoke())) { setMessage("The operator was not revoked. Check the PMCM status message."); return; }
+    setSelected("");
+    try {
+      const operator = await onLoadOperator();
+      setCurrent(operator);
+      setMessage(operator ? "Revocation saved. Another operator is now designated." : "Operator authority revoked.");
+    } catch { setMessage("Revocation saved. Reload to see the current operator."); }
+
+  }
+
   return (
     <Card>
       <CardHeader><h2 className="text-sm font-bold text-foreground">Event Day System Operator</h2></CardHeader>
@@ -60,8 +73,13 @@ export function OperatorDesignationCard({ eventId, candidates, busy, onLoadOpera
         </select>
         {options.length === 0 ? <p className="text-xs text-muted-foreground">Assign a coordinator to this event before designating an operator.</p> : null}
         <Button type="button" size="sm" disabled={busy || current === undefined || !selected || selected === current?.coordinatorId} onClick={() => void designate()}>Designate operator</Button>
+        {current && onRevoke ? <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void revoke()}>Revoke operator</Button> : null}
         {message ? <p role="status" className="text-xs text-muted-foreground">{message}</p> : null}
       </CardBody>
     </Card>
   );
+}
+
+function departedOperator(current: Operator | undefined, candidates: PrismCoordinatorAssignment[]) {
+  return current && !candidates.some((item) => item.coordinatorId === current.coordinatorId) ? current : null;
 }

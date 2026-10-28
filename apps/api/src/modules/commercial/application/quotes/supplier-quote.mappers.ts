@@ -11,7 +11,7 @@ function timestamp(value: Date) {
   return value.toISOString();
 }
 
-export function mapSupplierQuoteRequest(request: OpsSupplierQuoteRequest & { contractVersions?: Array<{ reviewStatus: string }> }) {
+export function mapSupplierQuoteRequest(request: OpsSupplierQuoteRequest & { contractVersions?: Array<{ reviewStatus: string }>; round?: { roundNumber: number } | null }) {
   const reviewStatus = request.contractVersions?.[0]?.reviewStatus;
   const contractReviewStatus: NonNullable<PrismSupplierQuoteRequest['contractReviewStatus']> = reviewStatus === 'submitted' || reviewStatus === 'accepted' || reviewStatus === 'changes_requested'
     ? reviewStatus : 'missing';
@@ -20,6 +20,8 @@ export function mapSupplierQuoteRequest(request: OpsSupplierQuoteRequest & { con
     eventId: request.eventId,
     supplierId: request.supplierId ?? undefined,
     categoryId: request.categoryId ?? undefined,
+    roundId: request.roundId ?? undefined,
+    roundNumber: request.round?.roundNumber,
     supplierName: request.supplierName,
     category: request.category,
     message: request.message,

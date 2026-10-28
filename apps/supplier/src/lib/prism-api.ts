@@ -117,12 +117,12 @@ export const prismApi = {
   supplierReadinessBoard: (_session: PrismAuthenticatedSession): Promise<PrismSupplierReadinessBoard> =>
     eventOpsClient.supplierWorkspace.readinessBoard(),
   submitQuote: (token: string, input: SubmitSupplierQuoteInput) =>
-    request<PrismSupplierQuote>(`/api/quote-requests/${token}/quote`, {
+    request<PrismSupplierQuote>(`/api/quote-requests/${encodeURIComponent(token)}/quote`, {
       method: "POST",
       body: JSON.stringify(input),
     }),
   reviseQuote: (token: string, input: SubmitSupplierQuoteInput) =>
-    request<PrismSupplierQuote>(`/api/quote-requests/${token}/quote`, {
+    request<PrismSupplierQuote>(`/api/quote-requests/${encodeURIComponent(token)}/quote`, {
       method: "PATCH",
       body: JSON.stringify(input),
     }),

@@ -1,3 +1,4 @@
+import type { OpsFloorPlanSnapshotVersion } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
 import { FloorPlanWorkflowService } from './floor-plan-workflow.service';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
@@ -28,6 +29,7 @@ function createService() {
     floorPlans: [] as any[],
     floorPlanObjects: [] as any[],
     floorPlanDrafts: [] as any[],
+    snapshotVersions: [] as OpsFloorPlanSnapshotVersion[],
     venueTemplates: [] as any[],
     projectionClock: null as null | { eventId: string; version: number },
   };
@@ -141,6 +143,20 @@ function createService() {
           count += 1;
         }
         return { count };
+      }),
+    },
+    opsFloorPlanSnapshotVersion: {
+      count: vi.fn(async ({ where }) => state.snapshotVersions.filter((row) => row.draftId === where.draftId && row.snapshotType === where.snapshotType).length),
+      create: vi.fn(async ({ data }) => { state.snapshotVersions.push(data); return data; }),
+      findFirst: vi.fn(async ({ where, orderBy }) => {
+        const matching = state.snapshotVersions.filter((row) => row.eventId === where.eventId && row.draftId === where.draftId && row.snapshotType === where.snapshotType);
+        if (orderBy?.round === 'desc') matching.sort((left, right) => right.round - left.round);
+        return matching[0] ?? null;
+      }),
+      findMany: vi.fn(async ({ where, orderBy }) => {
+        const matching = state.snapshotVersions.filter((row) => row.eventId === where.eventId && row.draftId === where.draftId && (!where.snapshotType || where.snapshotType.in.includes(row.snapshotType)));
+        if (orderBy) matching.sort((left, right) => left.round - right.round || left.createdAt.getTime() - right.createdAt.getTime());
+        return matching.slice(0, 100);
       }),
     },
     opsFloorPlanProjectionClock: {
@@ -1144,6 +1160,24 @@ describe('FloorPlanWorkflowService', () => {
 
     state.events[0].archived = true;
     await expect(service.approveFloorPlanDraft('evt_sample', draft.id, { name: 'PMCM', role: 'pmcm-admin' })).rejects.toThrow('Archived events cannot be changed');
+  });
+
+  it('retains submitted and approved snapshots for each resubmission round', async () => {
+    const { service, state } = createService();
+    const draft = await service.createFloorPlanDraft('evt_sample', { name: 'Official Layout', sourceType: 'blank', objects: [{ id: 'stage', kind: 'stage', x: 10, y: 10 }] }, { actorId: 'pmcm_1', name: 'PMCM', role: 'pmcm-admin' });
+    await service.submitFloorPlanDraft('evt_sample', draft.id, { name: 'PMCM', role: 'pmcm-admin' });
+    await service.approveFloorPlanDraft('evt_sample', draft.id, { name: 'PMCM', role: 'pmcm-admin' });
+    state.floorPlanDrafts[0].status = 'revision_requested';
+    state.floorPlans[0].objects = [{ id: 'stage', kind: 'stage', x: 25, y: 20 }];
+    await service.submitFloorPlanDraft('evt_sample', draft.id, { name: 'PMCM', role: 'pmcm-admin' });
+    await service.approveFloorPlanDraft('evt_sample', draft.id, { name: 'PMCM', role: 'pmcm-admin' });
+
+    const history = await service.listFloorPlanSnapshotHistory('evt_sample', draft.id);
+    expect(history.map(({ round, snapshotType }) => [round, snapshotType])).toEqual([
+      [1, 'submitted'], [1, 'approved'], [2, 'submitted'], [2, 'approved'],
+    ]);
+    expect(history[1].snapshot.objects?.[0]).toMatchObject({ x: 10 });
+    expect(history[3].snapshot.objects?.[0]).toMatchObject({ x: 25 });
   });
 
   it('recovers legacy official drafts that predate persisted snapshots', async () => {

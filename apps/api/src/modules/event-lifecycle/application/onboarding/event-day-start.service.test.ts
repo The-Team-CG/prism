@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrismaService } from '@prism/kernel/database';
 import { AUDIT_WRITER, EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventLifecycleService, OpsUserRole } from '@prism/kernel/event-core';
@@ -9,6 +9,9 @@ import type { StartEventDayResult } from '@prism/types';
 import { EventDayStartService } from './event-day-start.service';
 
 const actor = { id: 'admin_1', name: 'PMCM', role: OpsUserRole.PmcmAdmin, email: 'admin@example.test', verified: true, explicit: true };
+
+beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-28T00:00:00Z')); });
+  afterEach(() => { vi.useRealTimers(); });
 
 async function fixture() {
   const event: Pick<OpsEvent, 'id' | 'status' | 'readiness' | 'archived' | 'actualEndedAt' | 'clientPortalStatus' | 'floorPlanStatus'> & { inquiry: Pick<OpsInquiry, 'conformeSignedAt'> } = {
