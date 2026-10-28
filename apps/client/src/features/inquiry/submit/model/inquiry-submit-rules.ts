@@ -5,18 +5,58 @@ import {
   type CreatePrismInquiryInput,
 } from "@prism/types";
 import type { InquiryForm } from "./inquiry-submit-types";
-import { INQUIRY_REFERRAL_SOURCES, INQUIRY_WIZARD_STEPS } from "./inquiry-submit-types";
+import { INQUIRY_OTHER_OPTION, INQUIRY_REFERRAL_SOURCES, INQUIRY_WIZARD_STEPS } from "./inquiry-submit-types";
 
 function hasText(value: string) {
   return Boolean(value.trim());
 }
 
+/** "Other" only counts as an answer once the client says what it is. */
+function hasChoice(choice: string, otherDetail: string) {
+  return choice === INQUIRY_OTHER_OPTION ? hasText(otherDetail) : Boolean(choice);
+}
+
 function isContactStepValid(form: InquiryForm) {
-  return hasText(form.clientName) && hasText(form.email) && hasText(form.phoneNumber) && Boolean(form.clientType) && Boolean(form.source);
+  return (
+    hasText(form.clientName) &&
+    hasText(form.email) &&
+    hasText(form.phoneNumber) &&
+    Boolean(form.clientType) &&
+    hasChoice(form.source, form.sourceOther)
+  );
 }
 
 function isEventStepValid(form: InquiryForm) {
-  return hasText(form.eventName) && Boolean(form.eventType) && Boolean(form.eventDate) && hasText(form.expectedGuests);
+  return hasText(form.eventName) && hasChoice(form.eventType, form.eventTypeOther) && Boolean(form.eventDate) && hasText(form.expectedGuests);
+}
+
+/** The event type PMCM reads: the client's own words when they picked "Other". */
+export function inquiryEventTypeLabel(form: InquiryForm): string {
+  return form.eventType === INQUIRY_OTHER_OPTION ? form.eventTypeOther.trim() || form.eventType : form.eventType;
+}
+
+export function inquirySourceLabel(form: InquiryForm): string {
+  return form.source === INQUIRY_OTHER_OPTION && hasText(form.sourceOther) ? `Other: ${form.sourceOther.trim()}` : form.source;
+}
+
+function groupDigits(digits: string, sizes: number[]): string {
+  const parts: string[] = [];
+  let index = 0;
+  for (const size of sizes) {
+    if (index >= digits.length) break;
+    parts.push(digits.slice(index, index + size));
+    index += size;
+  }
+  if (index < digits.length) parts.push(digits.slice(index));
+  return parts.join(" ");
+}
+
+/** Keeps only digits (plus a leading "+") and spaces them like a Philippine mobile number as the client types. */
+export function formatInquiryPhone(value: string): string {
+  const international = value.trimStart().startsWith("+");
+  const digits = value.replace(/\D/g, "").slice(0, international ? 15 : 11);
+  if (!international) return groupDigits(digits, [4, 3, 4]);
+  return `+${digits.startsWith("63") ? groupDigits(digits, [2, 3, 3, 4]) : digits}`;
 }
 
 function isBudgetStepValid(form: InquiryForm) {
@@ -92,11 +132,12 @@ export function buildInquiryPayload(form: InquiryForm): CreatePrismInquiryInput 
       companyName: form.companyName.trim() || undefined,
       email: form.email.trim(),
       eventName: form.eventName.trim(),
-      eventType: form.eventType || undefined,
+      eventType: inquiryEventTypeLabel(form) || undefined,
       eventDate: form.eventDate,
       clientType: form.clientType,
       source: form.source,
       channel: form.channel.trim() || undefined,
+      referralDetails: form.source === INQUIRY_OTHER_OPTION ? form.sourceOther.trim() || undefined : undefined,
       message: reviewNotes,
       privacyConsentAccepted: form.privacyConsentAccepted,
       privacyNoticeVersion: form.privacyNoticeVersion,
@@ -136,29 +177,10 @@ export function formatInquiryDate(value: string): string {
   return date.toLocaleDateString("en-PH", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 }
 
-export type InquiryBriefRow = { label: string; value: string };
-
-/** The brief PMCM receives, in the order PMCM reads it. Empty values stay empty so the view can show a dash. */
-export function inquiryBriefRows(form: InquiryForm): InquiryBriefRow[] {
-  const flexibility = form.dateFlexibility && form.dateFlexibility !== "Fixed date" ? ` (${form.dateFlexibility.toLowerCase()})` : "";
-  const date = form.eventDate ? `${formatInquiryDate(form.eventDate)}${flexibility}` : "";
-  const guests = form.expectedGuests.trim() ? `${form.expectedGuests.trim()} guests` : "";
-  const venue = [form.venueCity.trim(), form.venueStatus].filter(Boolean).join(", ");
-  const contact = [form.clientName.trim(), form.companyName.trim() || form.clientType].filter(Boolean).join(", ");
-  return [
-    { label: "Type", value: form.eventType },
-    { label: "Date", value: date },
-    { label: "Guests", value: guests },
-    { label: "Venue", value: venue },
-    { label: "Budget", value: form.budgetRange },
-    { label: "Contact", value: contact },
-  ];
-}
-
 const REQUIRED_BY_STEP: Record<number, Array<[keyof InquiryForm, string]>> = {
-  0: [["eventType", "the kind of event"], ["eventName", "an event name"], ["eventDate", "a date"], ["expectedGuests", "the guest count"]],
+  0: [["eventType", "the kind of event"], ["eventTypeOther", "what kind of event it is"], ["eventName", "an event name"], ["eventDate", "a date"], ["expectedGuests", "the guest count"]],
   1: [["budgetRange", "a budget range"], ["inquiryPriority", "how soon you need a reply"]],
-  2: [["clientName", "your name"], ["email", "your email"], ["phoneNumber", "a mobile number"], ["clientType", "who you are booking as"], ["source", "how you heard about PMCM"]],
+  2: [["clientName", "your name"], ["email", "your email"], ["phoneNumber", "a mobile number"], ["clientType", "who you are booking as"], ["source", "how you heard about PMCM"], ["sourceOther", "where you heard about PMCM"]],
   3: [["privacyConsentAccepted", "your consent"]],
 };
 
@@ -166,15 +188,10 @@ const REQUIRED_BY_STEP: Record<number, Array<[keyof InquiryForm, string]>> = {
 export function missingInquiryFields(form: InquiryForm, step: number): string[] {
   return (REQUIRED_BY_STEP[step] ?? [])
     .filter(([key]) => {
+      if (key === "eventTypeOther") return form.eventType === INQUIRY_OTHER_OPTION && !hasText(form.eventTypeOther);
+      if (key === "sourceOther") return form.source === INQUIRY_OTHER_OPTION && !hasText(form.sourceOther);
       const value = form[key];
       return typeof value === "boolean" ? !value : !String(value).trim();
     })
     .map(([, label]) => label);
-}
-
-/** One line for small screens: the event name and whatever is already known about it. */
-export function inquiryBriefLine(form: InquiryForm): string {
-  return [form.eventName.trim(), formatInquiryDate(form.eventDate), form.expectedGuests.trim() && `${form.expectedGuests.trim()} guests`]
-    .filter(Boolean)
-    .join(" · ");
 }

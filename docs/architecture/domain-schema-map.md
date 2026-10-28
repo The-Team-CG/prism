@@ -4,9 +4,8 @@ title: "P.R.I.S.M domain schema map"
 description: "Before-and-after view of the legacy pre-production database and its seven-schema owner baseline."
 tags: [architecture, database, postgres, ddd, schema, migration]
 status: canonical
-updated: "2026-10-06"
+updated: "2026-10-28"
 authority: normative
-owner: "D (Anthony)"
 audience: [engineers, reviewers, operators, agents]
 scope: "PostgreSQL application schemas, model ownership, and domain foreign-key policy"
 last_verified: "2026-10-06; seven baselines replayed on disposable PostgreSQL 16; no shared database changed"

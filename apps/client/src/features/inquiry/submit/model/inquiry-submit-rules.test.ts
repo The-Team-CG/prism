@@ -4,9 +4,11 @@ import {
   buildInquiryPayload,
   buildInquiryReference,
   canAdvanceInquiryStep,
+  formatInquiryPhone,
   inquiryMinDate,
   isInquiryStepValid,
   mapInquirySubmitError,
+  missingInquiryFields,
   nextInquiryStep,
   previousInquiryStep,
 } from "./inquiry-submit-rules";
@@ -80,6 +82,41 @@ describe("inquiry-submit-rules", () => {
     expect(payload.message).toContain("Phone: 0917");
     expect(payload.message).toContain("Need staging");
     expect(payload.privacyConsentAccepted).toBe(true);
+  });
+
+  it("requires and sends the client's own words when they pick Other", () => {
+    const event = form({ eventName: "Night", eventType: "Other", eventDate: "2026-08-01", expectedGuests: "80" });
+    expect(isInquiryStepValid(event, 0)).toBe(false);
+    expect(missingInquiryFields(event, 0)).toEqual(["what kind of event it is"]);
+    expect(isInquiryStepValid({ ...event, eventTypeOther: "Awards night" }, 0)).toBe(true);
+
+    const payload = buildInquiryPayload(
+      form({
+        clientName: "Ana",
+        email: "ana@test.com",
+        clientType: "Individual",
+        eventName: "Night",
+        eventType: "Other",
+        eventTypeOther: " Awards night ",
+        eventDate: "2026-08-01",
+        source: "Other",
+        sourceOther: " Instagram ",
+        privacyConsentAccepted: true,
+      }),
+    );
+    expect(payload.eventType).toBe("Awards night");
+    expect(payload.source).toBe("Other");
+    expect(payload.referralDetails).toBe("Instagram");
+  });
+
+  it.each([
+    ["09171234567", "0917 123 4567"],
+    ["0917-abc-123", "0917 123"],
+    ["091712345678999", "0917 123 4567"],
+    ["+639171234567", "+63 917 123 4567"],
+    ["+1 (415) 555", "+1415555"],
+  ])("keeps only digits in the mobile number: %s", (typed, shown) => {
+    expect(formatInquiryPhone(typed)).toBe(shown);
   });
 
   it("maps errors and builds reference ids", () => {

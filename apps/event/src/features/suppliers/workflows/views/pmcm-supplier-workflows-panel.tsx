@@ -1,6 +1,7 @@
 "use client";
 
 import type { PrismSupplierQuote, PrismSupplierQuoteRequest } from "@prism/types";
+import { DatePicker } from "@prism/ui/components/date-picker";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { StatusBadge } from "@/app/components/ui/status-badge";
@@ -86,7 +87,7 @@ function TaskSubmissions({ task, vm }: { task: CreativeTask; vm: WorkflowViewMod
 
 function PayableMilestones({ row, quote, vm }: { row: WorkflowRow; quote?: PrismSupplierQuote; vm: WorkflowViewModel }) {
   const key = `payable:${row.requestId}`;
-  return <div className="rounded-lg bg-muted/30 p-3"><p className="mb-2 text-xs font-bold">Supplier payable milestones</p>{quote ? <><div className="grid gap-2 sm:grid-cols-3"><Input placeholder="Milestone name" value={vm.value(key, "label")} onChange={(e) => vm.setValue(key, "label", e.target.value)} /><Input type="number" min="1" step="1" placeholder="Amount" value={vm.value(key, "amount")} onChange={(e) => vm.setValue(key, "amount", e.target.value)} /><Input type="date" aria-label="Payable due date" value={vm.value(key, "dueDate")} onChange={(e) => vm.setValue(key, "dueDate", e.target.value)} /></div><Button className="mt-2" size="sm" disabled={vm.busy || !vm.value(key, "label").trim() || !Number.isInteger(Number(vm.value(key, "amount"))) || Number(vm.value(key, "amount")) <= 0} onClick={() => void vm.addPayable(row.requestId, quote)}>Add milestone</Button></> : <p className="text-xs text-muted-foreground">A selected quote is required before adding a payable.</p>}<div className="mt-3 space-y-2">{row.payables.map((milestone) => <PayableMilestoneCard key={milestone.id} milestone={milestone} vm={vm} />)}</div></div>;
+  return <div className="rounded-lg bg-muted/30 p-3"><p className="mb-2 text-xs font-bold">Supplier payable milestones</p>{quote ? <><div className="grid gap-2 sm:grid-cols-3"><Input placeholder="Milestone name" value={vm.value(key, "label")} onChange={(e) => vm.setValue(key, "label", e.target.value)} /><Input type="number" min="1" step="1" placeholder="Amount" value={vm.value(key, "amount")} onChange={(e) => vm.setValue(key, "amount", e.target.value)} /><DatePicker aria-label="Payable due date" value={vm.value(key, "dueDate")} onValueChange={(value) => vm.setValue(key, "dueDate", value)} /></div><Button className="mt-2" size="sm" disabled={vm.busy || !vm.value(key, "label").trim() || !Number.isInteger(Number(vm.value(key, "amount"))) || Number(vm.value(key, "amount")) <= 0} onClick={() => void vm.addPayable(row.requestId, quote)}>Add milestone</Button></> : <p className="text-xs text-muted-foreground">A selected quote is required before adding a payable.</p>}<div className="mt-3 space-y-2">{row.payables.map((milestone) => <PayableMilestoneCard key={milestone.id} milestone={milestone} vm={vm} />)}</div></div>;
 }
 
 function PayableMilestoneCard({ milestone, vm }: { milestone: PayableMilestone; vm: WorkflowViewModel }) {
@@ -98,7 +99,7 @@ function PayoutReleaseForm({ milestone, vm }: { milestone: PayableMilestone; vm:
   const paymentDate = vm.value(milestone.id, "paymentDate");
   const method = vm.value(milestone.id, "method");
   const canSubmit = Number.isInteger(Number(amount)) && Number(amount) > 0 && Boolean(paymentDate) && Boolean(method.trim());
-  return <div className="mt-2 grid gap-2 sm:grid-cols-4"><Input type="number" min="1" step="1" placeholder="Release amount" value={amount} onChange={(e) => vm.setValue(milestone.id, "amount", e.target.value)} /><Input type="date" aria-label="Payment date" value={paymentDate} onChange={(e) => vm.setValue(milestone.id, "paymentDate", e.target.value)} /><Input placeholder="Method" value={method} onChange={(e) => vm.setValue(milestone.id, "method", e.target.value)} /><Input placeholder="Reference number" value={vm.value(milestone.id, "referenceNumber")} onChange={(e) => vm.setValue(milestone.id, "referenceNumber", e.target.value)} /><Button size="sm" disabled={vm.busy || !canSubmit} onClick={() => void vm.releasePayout(milestone.id)}>Record release</Button></div>;
+  return <div className="mt-2 grid gap-2 sm:grid-cols-4"><Input type="number" min="1" step="1" placeholder="Release amount" value={amount} onChange={(e) => vm.setValue(milestone.id, "amount", e.target.value)} /><DatePicker aria-label="Payment date" value={paymentDate} onValueChange={(value) => vm.setValue(milestone.id, "paymentDate", value)} /><Input placeholder="Method" value={method} onChange={(e) => vm.setValue(milestone.id, "method", e.target.value)} /><Input placeholder="Reference number" value={vm.value(milestone.id, "referenceNumber")} onChange={(e) => vm.setValue(milestone.id, "referenceNumber", e.target.value)} /><Button size="sm" disabled={vm.busy || !canSubmit} onClick={() => void vm.releasePayout(milestone.id)}>Record release</Button></div>;
 }
 
 function PayableHistoryRow({ record, milestone, vm }: { record: PayableRecord; milestone: PayableMilestone; vm: WorkflowViewModel }) {

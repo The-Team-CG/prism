@@ -1,4 +1,4 @@
-import { Inject, Injectable, BadRequestException, ForbiddenException, NotFoundException, Optional, forwardRef } from '@nestjs/common';
+import { Inject, Injectable, BadRequestException, ConflictException, ForbiddenException, NotFoundException, Optional, forwardRef } from '@nestjs/common';
 import { Prisma, type OpsBillingStatement, type OpsBillingSource } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
@@ -116,7 +116,7 @@ export class BillingOperationsService {
         }
         lineItems = this.normalizeBillingLineItems(input.lineItems);
         totalAmount = lineItems.reduce((sum, item) => sum + item.amount, 0);
-        if (totalAmount <= 0) throw new BadRequestException('Billing source total must be greater than zero');
+        if (!Number.isSafeInteger(totalAmount) || totalAmount <= 0 || totalAmount > 2147483647) throw new BadRequestException('Billing source total must be a positive whole amount within the supported range');
         paymentSchedule = this.normalizeBillingSchedule(input.paymentSchedule, totalAmount);
         const terms = validatePaymentTerms({ schedule: paymentSchedule, policy: input.paymentTermsPolicy, overrideReason: input.paymentTermsOverrideReason });
         paymentTermsPolicyState = terms.state;
@@ -196,9 +196,9 @@ export class BillingOperationsService {
         source = await this.prisma.opsBillingSource.findUnique({ where: { id: sourceId } });
         if (!source || source.eventId !== eventId) throw new NotFoundException('Billing source not found');
       },
-      write: () =>
-        this.prisma.opsBillingSource.update({
-          where: { id: sourceId },
+      write: async () => {
+        const approved = await this.prisma.opsBillingSource.updateMany({
+          where: { id: sourceId, eventId, status: { not: 'approved' } },
           data: {
             status: 'approved',
             approvedAt: new Date(),
@@ -206,7 +206,12 @@ export class BillingOperationsService {
             paymentTermsApprovedBy: source?.paymentTermsPolicyState === 'repeat_client_override' ? approvedBy : null,
             approvalNotes: input.approvalNotes?.trim() ?? '',
           },
-        }),
+        });
+        if (approved.count !== 1) throw new ConflictException('Billing source is already approved');
+        const saved = await this.prisma.opsBillingSource.findUnique({ where: { id: sourceId } });
+        if (!saved) throw new NotFoundException('Billing source not found');
+        return saved;
+      },
       sideEffects: async (approvedSource) => {
         await writeAudit(this.auditWriter, eventId, approvedBy, `Approved billing source: ${approvedSource.sourceLabel}`, {
           actorRole: actor.role,
@@ -289,7 +294,7 @@ export class BillingOperationsService {
         }
         const billingYear = event.eventDate.getFullYear();
         // QUERY_AUDIT_RAW_SQL: serialize the one-time yearly sequence bootstrap with statement allocations.
-        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('prism.billing_statement_sequence'), ${billingYear})`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('prism.billing_statement_sequence'), ${billingYear})`;
         // QUERY_AUDIT_RAW_SQL: serialize annual number allocation on the sequence row.
         const sequenceRows = await tx.$queryRaw<Array<{ next_number: number }>>`SELECT "next_number" FROM "commercial"."billing_statement_sequences" WHERE "year" = ${billingYear} FOR UPDATE`;
         let nextNumber = sequenceRows[0]?.next_number;
@@ -474,9 +479,10 @@ export class BillingOperationsService {
       .map((item) => ({
         label: item.label?.trim() ?? '',
         amount: Number(item.amount),
-      }))
-      .filter((item) => item.label && Number.isFinite(item.amount) && item.amount > 0);
-    if (normalized.length === 0) throw new BadRequestException('At least one billing source line item is required');
+      }));
+    if (normalized.length === 0 || normalized.some((item) => !item.label || !Number.isSafeInteger(item.amount) || item.amount <= 0 || item.amount > 2147483647)) {
+      throw new BadRequestException('Every billing source line must have a label and a positive whole amount');
+    }
     return normalized;
   }
 

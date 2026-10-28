@@ -34,6 +34,7 @@ const STORAGE_OWNER_USAGE_REGISTRY: Readonly<Record<string, readonly StorageUsag
   event: ['client_document', 'signed_conforme'],
   event_game_definition: ['event_game_media'],
   event_game_lobby: ['event_game_branding'],
+  proposal_version: ['event_deliverable'],
   supplier: ['supplier_document'],
 };
 
@@ -348,6 +349,7 @@ export class StorageObjectService implements StoredSupplierUploadReader {
     this.assertSupportedOwner(object.ownerRecordType, object.usage);
     input = { ...input, actor: await this.authorizeEvent(object.eventId, input.actor, object.usage as StorageServiceRequest['usage'], 'download storage object') };
     await this.assertCanAccessObject(input.actor, object, 'download storage object', await this.requirementVisibility(input.actor, object.eventId));
+    if (object.lifecycleState === 'deleted') throw new NotFoundException('Stored object not found');
     if (object.lifecycleState !== 'stored' || !object.providerObjectKey || !this.adapter) {
       throw new ServiceUnavailableException(object.lifecycleState === 'stored' ? 'Storage provider is not configured' : 'Stored object is not available');
     }
@@ -379,7 +381,7 @@ export class StorageObjectService implements StoredSupplierUploadReader {
       usage,
       checksumSha256: object.checksumSha256,
     }, input.bytes);
-    const validAuthorization = input.uploadUrl.startsWith('localfs://upload/') || input.uploadUrl === `prismapi://upload/${object.id}`;
+    const validAuthorization = typeof input.uploadUrl === 'string' && (input.uploadUrl.startsWith('localfs://upload/') || input.uploadUrl === `prismapi://upload/${object.id}`);
     if (!validAuthorization) throw new ForbiddenException('Upload authorization is invalid');
     await this.adapter.writeAuthorizedUpload(input.uploadUrl, object.providerObjectKey ?? '', object.contentType, input.bytes);
     // Persist the checksum-bound metadata declaration before the later confirmation call.
@@ -391,10 +393,11 @@ export class StorageObjectService implements StoredSupplierUploadReader {
     if (!object) throw new NotFoundException('Stored object not found');
     input = { ...input, actor: await this.authorizeEvent(object.eventId, input.actor, object.usage as StorageServiceRequest['usage'], 'download storage object') };
     await this.assertCanAccessObject(input.actor, object, 'download storage object', await this.requirementVisibility(input.actor, object.eventId));
+    if (object.lifecycleState === 'deleted') throw new NotFoundException('Stored object not found');
     if (object.lifecycleState !== 'stored' || !this.adapter?.readAuthorizedDownload) {
       throw new ServiceUnavailableException(object.lifecycleState === 'stored' ? 'This storage provider requires a direct HTTP download' : 'Stored object is not available');
     }
-    if (!input.downloadUrl.startsWith('localfs://download/')) throw new ForbiddenException('Download authorization is invalid');
+    if (typeof input.downloadUrl !== 'string' || !input.downloadUrl.startsWith('localfs://download/')) throw new ForbiddenException('Download authorization is invalid');
     const bytes = await this.adapter.readAuthorizedDownload(input.downloadUrl, object.providerObjectKey ?? '');
     this.validation.validateBytes({
       fileName: object.originalFileName,
@@ -561,7 +564,12 @@ export class StorageObjectService implements StoredSupplierUploadReader {
     const visibility = await this.requirementVisibility(actor, eventId);
     return objects
       .filter((object) => this.canSeeObject(actor, object, visibility))
-      .map((object) => this.mapObject(object));
+      .map((object) => {
+        const mapped = this.mapObject(object);
+        if (actor.role !== OpsUserRole.Client && actor.role !== OpsUserRole.Supplier) return mapped;
+        const { uploaderActorId: _uploader, providerName: _provider, providerObjectKey: _key, ...visible } = mapped;
+        return visible;
+      });
   }
 
   private canSeeObject(actor: ResolvedEventOpsActor, object: OpsStoredObject, visibility: RequirementVisibility = {}) {

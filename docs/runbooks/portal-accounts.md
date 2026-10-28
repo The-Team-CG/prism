@@ -4,9 +4,8 @@ title: "P.R.I.S.M portal accounts"
 description: "Local fixture accounts, access paths, and role-boundary notes for Prism portal verification."
 tags: [runbook, accounts, demo, roles]
 status: canonical
-updated: "2026-10-23"
+updated: "2026-10-28"
 authority: operational
-owner: "D (Anthony)"
 audience: [developers, QA, agents]
 scope: "local seeded accounts and role-bound portal sign-in"
 last_verified: "2026-10-23; local account source and CLI scope; hosted credentials unverified"
@@ -24,7 +23,6 @@ sources:
 
 - **Purpose:** Provide local fixture sign-in details for each Prism portal role.
 - **Authority:** Operational local-demo reference; never use these values for deployed environments.
-- **Owner:** D (Anthony).
 - **Scope:** Local client, supplier, guest, and PMCM/coordinator sign-in paths.
 - **Use when:** Verifying role-specific local portal flows.
 - **Change when:** Seeded actors, credentials, or local authentication behavior changes.

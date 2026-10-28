@@ -138,7 +138,7 @@ export interface PrismBillingStatement {
   totalAmount: number;
   documentId?: string | null;
   pdfUrl: string;
-  storageKey: string;
+  storageKey?: string;
   storageObjectId?: string | null;
   storageState?: "stored" | "failed" | "pending" | string;
   status: string;

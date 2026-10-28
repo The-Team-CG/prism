@@ -25,12 +25,14 @@ export type DocumentKind = z.infer<typeof documentKindSchema>;
 export const lifecycleDocumentRegistrationKindSchema = z.enum([
   "supplier_contract",
   "billing_statement",
+  "proposal",
 ]);
 export type LifecycleDocumentRegistrationKind = z.infer<typeof lifecycleDocumentRegistrationKindSchema>;
 
 export const documentLogicalTargetSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("supplier_quote_request"), id: nonEmptyStringSchema }),
   z.object({ kind: z.literal("billing_statement"), id: nonEmptyStringSchema }),
+  z.object({ kind: z.literal("proposal_version"), id: nonEmptyStringSchema }),
 ]);
 export type DocumentLogicalTarget = z.infer<typeof documentLogicalTargetSchema>;
 
@@ -45,16 +47,16 @@ export const registerLifecycleDocumentSchema = z.object({
   validationStatus: z.literal("accepted").optional(),
   storageBucket: optionalTrimmedStringSchema,
   storageKey: optionalTrimmedStringSchema,
-  status: z.enum(["submitted", "stored", "pending_storage"]),
+  status: z.enum(["submitted", "stored", "pending_storage", "issued"]),
   verifiedActor: verifiedDocumentActorSchema,
   idempotencyKey: optionalTrimmedStringSchema,
 }).superRefine((value, ctx) => {
-  const expectedTarget = value.documentKind === "supplier_contract"
+  const expectedTarget: DocumentLogicalTarget["kind"] = value.documentKind === "supplier_contract"
     ? "supplier_quote_request"
     : value.documentKind === "billing_statement"
       ? "billing_statement"
-      : null;
-  if (expectedTarget && value.logicalTarget.kind !== expectedTarget) {
+      : "proposal_version";
+  if (value.logicalTarget.kind !== expectedTarget) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["logicalTarget", "kind"],

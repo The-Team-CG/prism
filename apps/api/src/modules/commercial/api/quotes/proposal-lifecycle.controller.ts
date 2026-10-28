@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { createCostEstimateSchema, issueProposalVersionSchema, type CreateCostEstimateInput, type IssueProposalVersionInput, type PrismVerifiedEventActor } from '@prism/types';
 import { zodBody } from '@prism/kernel/shared';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
@@ -18,6 +18,12 @@ export class ProposalLifecycleController {
   @Post(':eventId/proposal/versions')
   @UseGuards(EventSessionGuard)
   issueProposal(@Param('eventId') eventId: string, @Body(zodBody(issueProposalVersionSchema)) input: IssueProposalVersionInput, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
-    return this.service.issueProposalVersion(eventId, input, this.access.resolveActor({}, verified));
+    return this.service.issueProposalVersion(eventId, input, this.access.resolveActor({}, verified), verified);
+  }
+
+  @Get(':eventId/proposal')
+  @UseGuards(EventSessionGuard)
+  latestProposal(@Param('eventId') eventId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.getLatestIssuedProposal(eventId, this.access.resolveActor({}, verified));
   }
 }
