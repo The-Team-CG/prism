@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { resolveLivePortSet, normalizeWorktreePath, corsOriginFor, portalUrlsFor } from './prism-ports.mjs';
 import { resolveDatabaseUrl } from '../apps/api/src/kernel/database/database-target.ts';
+import { startMailpit, stopMailpit } from './local-mailpit.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const excludedServices = 'gotrue,realtime,storage-api,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor';
@@ -57,7 +58,7 @@ export function localStorageServiceRoleKey(projectId, inspect = spawnSync) {
   } catch { return ''; }
 }
 
-export function developmentEnv(url, project, ports, sessionSecret, { storage } = {}) {
+export function developmentEnv(url, project, ports, sessionSecret, { storage, mailpit } = {}) {
   const parsed = new URL(url);
   const env = {
     DATABASE_URL: parsed.href,
@@ -72,7 +73,8 @@ export function developmentEnv(url, project, ports, sessionSecret, { storage } =
     NEXT_PUBLIC_CLIENT_ORIGIN: `http://localhost:${ports.client}`,
     ...portalUrlsFor(ports),
     // Local mail is written to the API log instead of sent. Production rejects this transport.
-    PRISM_MAIL_TRANSPORT: 'log',
+    PRISM_MAIL_TRANSPORT: mailpit ? 'mailpit' : 'log',
+    PRISM_MAILPIT_URL: mailpit || '',
     // The API links to these portals only; guests sign in with event codes and have no API link.
     ...Object.fromEntries(['client', 'supplier', 'event'].map((app) => [`PRISM_${app.toUpperCase()}_PORTAL_URL`, `http://localhost:${ports[app]}`])),
     PRISM_SESSION_SECRET: sessionSecret, PRISM_SESSION_TTL_SECONDS: '28800', PRISM_TRUST_PROXY: 'false', AI_ROUTE_PROFILE: 'mock', AI_PROVIDER: 'mock', PARE_MODE: 'mock',
@@ -122,6 +124,7 @@ export async function runLocalSupabase(command = 'start') {
   const configPath = join(workdir, 'supabase/config.toml');
   if (command === 'stop') {
     if (existsSync(configPath)) cli(['stop', '--workdir', workdir]);
+    stopMailpit(`prism-mailpit-${project.id}`);
     return;
   }
   const previous = existsSync(configPath) ? readFileSync(configPath, 'utf8') : '';
@@ -143,13 +146,16 @@ export async function runLocalSupabase(command = 'start') {
   const storage = storageRequested && status.API_URL && serviceRoleKey ? { url: status.API_URL, serviceRoleKey } : undefined;
   if (storageRequested && !storage) throw new Error('PRISM_LOCAL_SUPABASE_STORAGE=1 needs the local Supabase API URL and a service role key. Run db:local:start with Docker running, or set PRISM_LOCAL_SUPABASE_SERVICE_ROLE_KEY.');
   if (storage && command === 'start') await ensureStorageBucket(storage);
-  const env = developmentEnv(databaseUrl, project, appPorts, readFileSync(secretFile, 'utf8').trim(), { storage });
+  const mailRequested = process.env.PRISM_LOCAL_MAILPIT === '1';
+  const mailpit = mailRequested ? `http://127.0.0.1:${project.smtpPort}` : undefined;
+  if (mailpit && command === 'start') await startMailpit({ name: `prism-mailpit-${project.id}`, port: project.smtpPort });
+  const env = developmentEnv(databaseUrl, project, appPorts, readFileSync(secretFile, 'utf8').trim(), { storage, mailpit });
   const hostEnvFile = join(localRoot, 'api.env');
   writeEnv(hostEnvFile, env);
   const dockerUrl = new URL(databaseUrl);
   dockerUrl.hostname = 'host.docker.internal';
   const dockerStorage = storage && { ...storage, url: storage.url.replace(/\/\/(?:127\.0\.0\.1|localhost)/, '//host.docker.internal') };
-  writeEnv(join(localRoot, 'docker.env'), developmentEnv(dockerUrl.href, project, appPorts, env.PRISM_SESSION_SECRET, { storage: dockerStorage }));
+  writeEnv(join(localRoot, 'docker.env'), developmentEnv(dockerUrl.href, project, appPorts, env.PRISM_SESSION_SECRET, { storage: dockerStorage, mailpit: mailpit?.replace('127.0.0.1', 'host.docker.internal') }));
   writeFileSync(join(localRoot, 'database.json'), JSON.stringify({ projectId: project.id, dbPort: project.dbPort, studioUrl: `http://127.0.0.1:${project.studioPort}`, hostEnvFile }, null, 2));
   if (command === 'start') {
     const childEnv = { ...process.env, ...env, PRISM_ENV_FILE: hostEnvFile };
@@ -160,6 +166,7 @@ export async function runLocalSupabase(command = 'start') {
     if (migrated.error || migrated.status !== 0) throw new Error('Local migrations failed. Prism apps were not started.');
   }
   console.log(`Local Supabase ready: ${project.id}; database 127.0.0.1:${project.dbPort}; Studio http://127.0.0.1:${project.studioPort}`);
+  if (mailpit) console.log(`Local test inbox: ${mailpit} (captured only; no external relay)`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

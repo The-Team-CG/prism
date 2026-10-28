@@ -15,6 +15,7 @@ export interface EnvProblem {
 
 export type MailTransportConfig =
   | { kind: 'resend'; apiKey: string; from: string }
+  | { kind: 'mailpit'; url: string }
   | { kind: 'log' };
 
 // "P.R.I.S.M <no-reply@example.com>" or a bare "no-reply@example.com".
@@ -22,10 +23,11 @@ const SENDER_PATTERN = /^(?:.+<[^<>\s@]+@[^<>\s@]+>|[^<>\s@]+@[^<>\s@]+)$/;
 
 export function mailTransportProblems(read: EnvReader): EnvProblem[] {
   const transport = read(MAIL_TRANSPORT_ENV)?.trim() ?? '';
-  if (transport !== 'resend' && transport !== 'log') {
+  if (transport !== 'resend' && transport !== 'log' && transport !== 'mailpit') {
     const received = transport ? `; received "${transport}"` : '';
-    return [{ name: MAIL_TRANSPORT_ENV, message: `is required and must be resend or log${received}` }];
+    return [{ name: MAIL_TRANSPORT_ENV, message: `is required and must be resend, log or mailpit${received}` }];
   }
+  if (transport === 'mailpit') return mailpitProblems(read);
   if (transport === 'log') {
     return read('NODE_ENV')?.trim() === 'production'
       ? [{ name: MAIL_TRANSPORT_ENV, message: 'log writes mail to the API log and cannot run with NODE_ENV=production' }]
@@ -52,9 +54,20 @@ export function resolveMailTransportConfig(read: EnvReader): MailTransportConfig
     throw new Error(problems.map((problem) => `${problem.name} ${problem.message}`).join('; '));
   }
   if (read(MAIL_TRANSPORT_ENV)?.trim() === 'log') return { kind: 'log' };
+  if (read(MAIL_TRANSPORT_ENV)?.trim() === 'mailpit') return { kind: 'mailpit', url: new URL(read('PRISM_MAILPIT_URL')!.trim()).origin };
   return {
     kind: 'resend',
     apiKey: read(RESEND_API_KEY_ENV)!.trim(),
     from: read(MAIL_FROM_ENV)!.trim(),
   };
+}
+
+function mailpitProblems(read: EnvReader): EnvProblem[] {
+  if (read('NODE_ENV')?.trim() === 'production') return [{ name: MAIL_TRANSPORT_ENV, message: 'mailpit captures test mail and cannot run with NODE_ENV=production' }];
+  try {
+    const url = new URL(read('PRISM_MAILPIT_URL')?.trim() ?? '');
+    if (url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]', 'host.docker.internal'].includes(url.hostname)
+      && !url.username && !url.password && url.pathname === '/' && !url.search && !url.hash) return [];
+  } catch { /* Report the variable, without echoing its value. */ }
+  return [{ name: 'PRISM_MAILPIT_URL', message: 'must be a local HTTP origin (loopback or host.docker.internal) without credentials, path or query' }];
 }
