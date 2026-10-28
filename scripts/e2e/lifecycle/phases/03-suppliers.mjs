@@ -4,7 +4,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
-import { cfg, http, login, msg, step, startPhase, blocked, gap, review, expect, mailsTo, waitForMail } from "../lib.mjs";
+import { cfg, http, login, msg, step, startPhase, blocked, gap, expect, mailsTo, waitForMail } from "../lib.mjs";
 
 export const name = "Suppliers";
 
@@ -332,9 +332,10 @@ export async function run(ctx) {
     const first = is(await http("POST", `/quote-requests/${s.tokB}/quote`, { body }), 201);
     s.quoteB = first;
     const retry = await http("POST", `/quote-requests/${s.tokB}/quote`, { body });
-    expect(retry.status < 500, `retry returned ${retry.status}`);
-    if (retry.status < 300 && retry.body?.revisionNumber > first.revisionNumber) review(`identical POST consumes revision ${retry.body.revisionNumber}; clarify retry idempotency versus submit-as-revision behavior`);
-    return `retry -> ${retry.status}`;
+    expect(retry.status >= 200 && retry.status < 300, `identical retry returned ${retry.status}: ${msg(retry)}`);
+    expect(retry.body?.id === first.id, `retry returned quote ${retry.body?.id}, expected the existing ${first.id}`);
+    expect(retry.body?.revisionNumber === first.revisionNumber, `identical retry changed the revision from ${first.revisionNumber} to ${retry.body?.revisionNumber}`);
+    return `retry -> ${retry.status}, still rev=${retry.body?.revisionNumber}`;
   });
   await step("supplier A revises its quote once, a second revision is refused clearly", async () => {
     need(s.tokA);
@@ -418,8 +419,10 @@ export async function run(ctx) {
     for (const request of requests) quotes.push(is(await call("POST", `/quote-requests/${request.accessToken}/quote`, undefined, { amount: 50000 }), 201));
     is(await call("PATCH", `/events/${probe.eventId}/supplier-quotes/${quotes[0].id}/select`, admin), 200);
     const r = await call("PATCH", `/events/${probe.eventId}/supplier-quotes/${quotes[1].id}/select`, admin);
-    if (r.status < 400) review("PMCM can select a previously released bid, replacing the winner; clarify whether this is an intentional reselection workflow");
-    expect(r.status < 500, `${r.status}: ${msg(r)}`);
+    expect(r.status === 400 && /released/i.test(msg(r)), `selecting a released bid returned ${r.status}: ${msg(r)}`);
+    const winner = is(await call("PATCH", `/events/${probe.eventId}/supplier-quotes/${quotes[0].id}/select`, admin), 200);
+    expect(winner.status === "selected", `original winner is now ${winner.status}`);
+    return msg(r);
   });
   await step("the unsuccessful supplier is told it was not selected", async () => {
     need(s.reqB, s.quoteB, s.selected);
@@ -659,8 +662,8 @@ export async function run(ctx) {
   await step("event-day: reporting 'done leaving' before 'arrived' is refused", async () => {
     need(s.ready);
     const r = await call("PATCH", `/supplier/quote-requests/${s.reqA.id}/event-status`, A(), { status: "done_leaving" });
-    if (r.status < 400) review(`supplier can report done_leaving as its first status (${r.status}); clarify status correction versus strict ordering`);
-    expect(r.status < 500, `${r.status}: ${msg(r)}`);
+    expect(r.status === 400 && /arrived/i.test(msg(r)), `done_leaving as the first status returned ${r.status}: ${msg(r)}`);
+    return msg(r);
   });
   await step("event-day status updates: invalid status 400, other roles 403, valid sequence accepted", async () => {
     need(s.ready);
@@ -671,6 +674,31 @@ export async function run(ctx) {
     expect((await call("PATCH", p, undefined, { status: "arrived" })).status === 401, "anonymous status update was not 401");
     for (const st of ["arrived", "set_up_ready", "done_leaving"]) {
       const r = is(await call("PATCH", p, A(), { status: st, notes: `status ${st}` }), 200);
+      expect(r.eventDayStatus === st, `status is ${r.eventDayStatus}, expected ${st}`);
+    }
+    const replay = is(await call("PATCH", p, A(), { status: "done_leaving" }), 200);
+    expect(replay.eventDayStatus === "done_leaving", `repeating the current status changed it to ${replay.eventDayStatus}`);
+    const back = await call("PATCH", p, A(), { status: "arrived" });
+    expect(back.status === 400 && /back/i.test(msg(back)), `moving back to arrived returned ${back.status}: ${msg(back)}`);
+  });
+  await step("PMCM corrects a supplier's event-day status with a reason; the supplier then continues from the corrected status", async () => {
+    need(s.ready);
+    const p = `/events/${E()}/quote-requests/${s.reqA.id}/event-status`;
+    const sp = `/supplier/quote-requests/${s.reqA.id}/event-status`;
+    expect((await call("PATCH", p, A(), { status: "arrived", reason: "Mis-tapped" })).status === 403, "supplier could correct its own status");
+    expect((await call("PATCH", p, undefined, { status: "arrived", reason: "Mis-tapped" })).status === 401, "anonymous correction was not 401");
+    const noReason = await call("PATCH", p, admin, { status: "arrived" });
+    const blankReason = await call("PATCH", p, admin, { status: "arrived", reason: "   " });
+    expect(noReason.status === 400 && blankReason.status === 400, `missing reason returned ${noReason.status}, blank reason ${blankReason.status}`);
+    expect((await call("PATCH", p, admin, { status: "teleported", reason: "x" })).status === 400, "unknown status was not 400");
+    const back = is(await call("PATCH", p, admin, { status: "arrived", reason: "Supplier tapped done leaving by mistake" }), 200);
+    expect(back.eventDayStatus === "arrived", `corrected status is ${back.eventDayStatus}`);
+    const replay = is(await call("PATCH", p, admin, { status: "arrived", reason: "Same again" }), 200);
+    expect(replay.eventDayStatus === "arrived", `replay changed the status to ${replay.eventDayStatus}`);
+    const skip = await call("PATCH", sp, A(), { status: "done_leaving" });
+    expect(skip.status === 400 && /set-up ready/i.test(msg(skip)), `supplier skipping ahead of the corrected status returned ${skip.status}: ${msg(skip)}`);
+    for (const st of ["set_up_ready", "done_leaving"]) {
+      const r = is(await call("PATCH", sp, A(), { status: st }), 200);
       expect(r.eventDayStatus === st, `status is ${r.eventDayStatus}, expected ${st}`);
     }
   });
@@ -844,20 +872,12 @@ export async function run(ctx) {
   });
 
   // ------------------------------------------------------------------ 5. expired deadline and withdrawal on a second event
-  await step("second event: a quote request with a deadline in the past is rejected or expires immediately", async () => {
+  await step("second event: a quote request with a deadline in the past is rejected at creation", async () => {
     need(s.direct, admin);
     s.ev2 = await ctx.newEvent({ label: "SuppliersB", eventDate: "2027-07-20" });
     const r = await call("POST", `/events/${s.ev2.eventId}/quote-requests`, admin, { categoryId: CAT, supplierIds: [s.direct.id], deadline: "2020-01-01" });
-    if (r.status === 400) return "refused at creation";
-    expect(r.status === 201, `${r.status}: ${msg(r)}`);
-    s.reqZ = r.body[0];
-    const tok = s.reqZ.accessToken;
-    const view = await call("GET", `/quote-requests/${tok}`);
-    const post = await http("POST", `/quote-requests/${tok}/quote`, { body: { amount: 5000 } });
-    const patch = await http("PATCH", `/quote-requests/${tok}/quote`, { body: { amount: 5000 } });
-    expect(post.status === 400 && /closed|expired/i.test(msg(post)), `submitting after the deadline returned ${post.status}: ${msg(post)}`);
-    expect(patch.status === 404 || patch.status === 400, `revising a never-submitted quote returned ${patch.status}`);
-    review(`a past-deadline request is accepted but immediately ${view.body?.request?.status}; quoting is refused. Decide whether creation should be rejected instead`);
+    expect(r.status === 400 && /deadline/i.test(msg(r)), `past deadline returned ${r.status}: ${msg(r)}`);
+    return msg(r);
   });
   await step("withdrawing a selected supplier is PMCM-only, needs an assignment, and frees the request", async () => {
     need(s.ev2, apps.A.supplierId);
