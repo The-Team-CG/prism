@@ -89,7 +89,7 @@ describe('EventReadModelQueries collection limits', () => {
       distinct: ['eventId'],
     }));
     expect(opsPaymentMilestone.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { eventId: { in: ['evt_a', 'evt_b'] }, label: { contains: 'balance', mode: 'insensitive' } },
+      where: { eventId: { in: ['evt_a', 'evt_b'] }, label: { contains: 'balance', mode: 'insensitive' }, OR: [{ statementId: null }, { statement: { is: { sentAt: { not: null } } } }] },
       distinct: ['eventId'],
     }));
     expect(timeline).toEqual([
@@ -332,6 +332,35 @@ describe('EventReadModelQueries collection limits', () => {
       }),
     );
   });
+  it('shows the client a billing statement, its milestones and its stored file only after PMCM sent it', async () => {
+    const whereOf = (call: unknown[]) => (call[0] as { where: Record<string, unknown> }).where;
+    const opsBillingStatement = model();
+    const opsPaymentMilestone = model();
+    const prisma = new Proxy(
+      { opsBillingStatement, opsPaymentMilestone },
+      {
+        get(target, property: string) {
+          if (property in target) return target[property as keyof typeof target];
+          return model();
+        },
+      },
+    );
+    const queries = new EventReadModelQueries(prisma as unknown as PrismaService);
+
+    await queries.clientWorkspaceForEvents(['evt_client']);
+    await queries.clientActionCenterForEvents(['evt_client']);
+    await queries.billingForEvents(['evt_client'], false, true);
+    await queries.billingForEvents(['evt_client'], true, false);
+
+    const statementFilters = opsBillingStatement.findMany.mock.calls.map(whereOf);
+    const milestoneFilters = opsPaymentMilestone.findMany.mock.calls.map(whereOf);
+    // Client workspace, action center and client billing hide unsent statements; PMCM billing is unfiltered.
+    expect(statementFilters.filter((where) => JSON.stringify(where).includes('"sentAt":{"not":null}'))).toHaveLength(3);
+    expect(statementFilters).toHaveLength(4);
+    expect(milestoneFilters.filter((where) => JSON.stringify(where).includes('"sentAt":{"not":null}'))).toHaveLength(3);
+    expect(milestoneFilters).toHaveLength(4);
+  });
+
   it('bounds PMCM dashboard collections and nested floorplan history', async () => {
     const opsEvent = model();
     const opsFloorPlanDraft = model();
