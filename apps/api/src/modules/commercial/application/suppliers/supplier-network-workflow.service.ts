@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsSupplierQuoteRequest, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { createHash, randomUUID } from 'node:crypto';
@@ -384,9 +384,11 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
     let request: OpsSupplierQuoteRequest | null = null;
     let photo: ValidatedUploadMetadata | null = null;
     let replay = false;
+    let previousStatus = '';
 
     const updated = await this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
       name: 'update_supplier_event_status',
+      sideEffectMode: 'same_tx',
       validatePermission: async () => {
         request = await this.requireSupplierQuoteRequestForActor(requestId, actor);
         if (request.status !== 'selected' || request.assignmentStatus !== 'confirmed' || request.readinessStatus !== 'confirmed') {
@@ -397,16 +399,17 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
         const allowed = ['arrived', 'set_up_ready', 'done_leaving'];
         if (!allowed.includes(input.status)) throw new BadRequestException('Unsupported supplier event-day status');
         if (!request) throw new NotFoundException('Supplier quote request not found');
-        replay = request.eventDayStatus === input.status;
+        previousStatus = request.eventDayStatus;
+        replay = previousStatus === input.status;
         if (!replay) assertSupplierEventStatusStep(request.eventDayStatus, input.status);
         photo = input.photo ? this.validateUploadMetadata(input.photo, `events/${request.eventId}/supplier-status`) : null;
       },
-      write: (transactionContext) => {
+      write: async (transactionContext) => {
         if (!request) throw new NotFoundException('Supplier quote request not found');
         if (replay) return Promise.resolve(request);
         const prisma = transactionContext?.prisma ?? this.prisma;
-        return prisma.opsSupplierQuoteRequest.update({
-          where: { id: request.id },
+        const changed = await prisma.opsSupplierQuoteRequest.updateMany({
+          where: { id: request.id, status: 'selected', assignmentStatus: 'confirmed', readinessStatus: 'confirmed', eventDayStatus: previousStatus },
           data: {
             eventDayStatus: input.status,
             eventDayStatusAt: new Date(),
@@ -414,6 +417,8 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
             statusPhotoFileName: photo?.generatedFileName ?? null,
           },
         });
+        if (changed.count !== 1) throw new ConflictException('Supplier status changed; reload before updating it');
+        return prisma.opsSupplierQuoteRequest.findUniqueOrThrow({ where: { id: request.id } });
       },
       sideEffects: async (updated, transactionContext) => {
         if (!request || replay) return;
@@ -449,6 +454,7 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
 
     const updated = await this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
       name: 'correct_supplier_event_status',
+      sideEffectMode: 'same_tx',
       eventId,
       validatePermission: () => this.requireSupplierAdmin(actor, 'supplier event-day status correction', eventId),
       validateState: async () => {
@@ -462,17 +468,19 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
         previousStatus = request.eventDayStatus;
         replay = previousStatus === input.status;
       },
-      write: (transactionContext) => {
+      write: async (transactionContext) => {
         if (!request) throw new NotFoundException('Supplier quote request not found');
         if (replay) return Promise.resolve(request);
         const prisma = transactionContext?.prisma ?? this.prisma;
-        return prisma.opsSupplierQuoteRequest.update({
-          where: { id: request.id },
+        const changed = await prisma.opsSupplierQuoteRequest.updateMany({
+          where: { id: request.id, status: 'selected', eventDayStatus: previousStatus },
           data: {
             eventDayStatus: input.status,
             eventDayStatusAt: new Date(),
           },
         });
+        if (changed.count !== 1) throw new ConflictException('Supplier status changed; reload before correcting it');
+        return prisma.opsSupplierQuoteRequest.findUniqueOrThrow({ where: { id: request.id } });
       },
       sideEffects: async (saved, transactionContext) => {
         if (!request || replay) return;
