@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { AuthSecurityService } from '../src/modules/identity-access/application/auth/auth-security.service.ts';
 import { seedProfile } from './seed-data.mjs';
+import { accountRows } from '../src/fixtures/seed-accounts.mjs';
 import { inspectMigrationHistory } from './db-migration-history.mjs';
 import { normalizeDatabaseConnection } from './db-connection-config.mjs';
 
@@ -33,7 +34,7 @@ test('migrated PostgreSQL: prerequisites, atomic failure, reruns, edits, collisi
       await t.test('missing prerequisites and read-only previews do not insert', async () => {
         await assert.rejects(run({ profile: 'portal-uat' }), /prerequisites/);
         const preview = await run({ profile: 'accounts', mode: 'dry-run' });
-        assert.equal(preview.missing.length, 12);
+        assert.equal(preview.missing.length, accountRows.length);
         assert.equal(await count('identity_access.users'), 0);
       });
       await t.test('a late constraint failure rolls back every earlier account insert', async () => {
@@ -46,7 +47,7 @@ test('migrated PostgreSQL: prerequisites, atomic failure, reruns, edits, collisi
         await client.query('DROP FUNCTION public.reject_test_coordinator()');
       });
       await t.test('accounts authenticate with the API password implementation and reruns preserve password/2FA', async () => {
-        assert.equal((await run({ profile: 'accounts', passwordFor: () => AuthSecurityService.hashPassword('test-only-password') })).inserted, 12);
+        assert.equal((await run({ profile: 'accounts', passwordFor: () => AuthSecurityService.hashPassword('test-only-password') })).inserted, accountRows.length);
         const users = (await client.query('SELECT * FROM identity_access.users')).rows;
         assert.equal(users.length, 6);
         for (const user of users) assert.equal(await AuthSecurityService.verifyPassword(user.password, 'test-only-password'), true);
