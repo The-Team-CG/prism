@@ -198,7 +198,14 @@ export async function run(ctx) {
     return `client sees status "${mine.status}"; the client UI only renders the live status when status is event_day`;
   });
   await step("client sees live event-day status while the event is live", async () => {
-    if (!s.eventDay) blocked("event never reached event_day, so the client event-day view cannot render");
+    expect(s.eventDay, "event-day prerequisite was not satisfied");
+    const detail = expectStatus(await http("GET", `/events/${E()}`, { token: s.clientA }), 200);
+    const workspace = expectStatus(await http("GET", "/client/workspace", { token: s.clientA }), 200);
+    const selected = workspace.events.find((event) => event.id === E());
+    expect(detail.status === "event_day" && detail.clientEventDayViewEnabled === true, "client event detail lacks its enabled live state");
+    expect(selected?.status === "event_day" && selected.clientEventDayViewEnabled === true, "client workspace does not retain the selected event's live state");
+    denied(await http("GET", `/events/${E()}`, { token: s.clientB }), "another client's live event detail");
+    return "Own detail/workspace expose the enabled live state; another client is denied. Rendering is verified separately by client event-progress tests.";
   });
   await step("guest checks in by access code and PMCM sees the count on live ops", async () => {
     const code = expectStatus(await http("GET", `/events/${E()}`, { token: admin }), 200).guestAccessCode;
@@ -391,8 +398,10 @@ export async function run(ctx) {
     const code = expectStatus(await http("GET", `/events/${E()}`, { token: admin }), 200).guestAccessCode;
     const check = await http("POST", `/guest/events/${encodeURIComponent(code)}/check-ins`, { body: { checkInMode: "headcount", idempotencyKey: randomUUID(), privacyConsentAccepted: true, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION } });
     expect(check.status >= 400, "guest check-in worked on an archived event");
-    const fb = await http("POST", `/guest/events/${encodeURIComponent(code)}/feedback`, { body: { guestName: "Pat Guest", rating: 4, comment: "Lovely", privacyConsentAccepted: true, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION } });
+    const fb = await http("POST", `/guest/events/${encodeURIComponent(code)}/feedback`, { body: { guestName: "Pat Guest", rating: 4, comment: "Lovely", privacyConsentAccepted: true, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, marketingConsentAccepted: true } });
     expect(fb.status === 200 || fb.status === 201, `guest feedback on an archived event inside the window returned ${fb.status}: ${msg(fb)}`);
+    s.guestFeedbackReceipt = fb.body;
+    s.guestFeedbackCode = code;
   });
   await step("guest feedback is refused once seven days have passed since the recorded end", async () => {
     if (!s.archived) blocked("nothing archived");
@@ -400,6 +409,19 @@ export async function run(ctx) {
     const code = expectStatus(await http("GET", `/events/${E()}`, { token: admin }), 200).guestAccessCode;
     const fb = await http("POST", `/guest/events/${encodeURIComponent(code)}/feedback`, { body: { guestName: "Late Guest", rating: 3, comment: "Too late", privacyConsentAccepted: true, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION } });
     expect(fb.status === 400, `late feedback returned ${fb.status}: ${msg(fb)}`);
+  });
+  await step("guest can withdraw saved feedback consent after archive and after the submission window closes", async () => {
+    expect(s.guestFeedbackReceipt?.id && s.guestFeedbackCode, "no guest feedback receipt was saved");
+    const suffix = `/feedback/${s.guestFeedbackReceipt.id}/consent-withdrawal`;
+    const otherCode = expectStatus(await http("GET", `/events/${s.B.eventId}`, { token: admin }), 200).guestAccessCode;
+    expectStatus(await http("POST", `/guest/events/${encodeURIComponent(otherCode)}${suffix}`, { body: { withdrawPrivacyConsent: true } }), 404);
+    const receipt = expectStatus(await http("POST", `/guest/events/${encodeURIComponent(s.guestFeedbackCode)}${suffix}`, { body: { withdrawPrivacyConsent: true, withdrawMarketingConsent: true } }), 200);
+    expect(receipt.id === s.guestFeedbackReceipt.id, "withdrawal changed the feedback identity");
+    const queue = expectStatus(await http("GET", `/guest/events/${E()}/feedback/moderation`, { token: admin }), 200);
+    const saved = queue.find((entry) => entry.id === receipt.id);
+    expect(saved?.privacyConsentAccepted === false && saved.marketingConsentAccepted === false, "withdrawn consent was not persisted");
+    expect(saved.privacyConsentWithdrawnAt && saved.marketingConsentWithdrawnAt, "withdrawal timestamps are missing");
+    return "Own receipt withdrawn after expiry/archive; another event's code is refused; PMCM sees persisted consent changes.";
   });
 
   // ---------------------------------------------------------------- archive search, compare, insights, briefs
