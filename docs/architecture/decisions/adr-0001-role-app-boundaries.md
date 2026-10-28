@@ -4,11 +4,11 @@ title: "Role-app boundaries"
 description: "Keep Prism's client, supplier, guest, and PMCM event experiences as separate role-owned applications."
 tags: [architecture, decision, frontend, roles]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-10-29"
 authority: normative
 audience: [agents, frontend-engineers, product-reviewers]
 scope: "apps/client, apps/supplier, apps/guest, and apps/event"
-last_verified: "581e676"
+last_verified: "2026-10-29; four portal app trees and event-games feature placement checked against source"
 decision_date: "2026-09-01"
 sources:
   - id: agent-rules
@@ -57,8 +57,8 @@ Keep four separate Next.js applications with explicit ownership:
 | --- | --- | --- | --- |
 | `apps/client` | public visitors and clients | landing, inquiry, sign-in, client action center, client-visible status, layout preferences | PMCM commands, official floorplan mutation, supplier private data, audit internals |
 | `apps/supplier` | suppliers and applicants | assigned quotes, quote submission, assignment confirmation, readiness, contract metadata, event-day status | other bids, client data, PMCM private reviews, internal costs |
-| `apps/guest` | guests and walk-ins | access-code entry, event pass, consented check-in, moderated feedback | planning, client/supplier dashboards, PMCM internals, cross-event reads |
-| `apps/event` | PMCM and coordinators | command inbox, selected event workspace, official floorplans, suppliers, billing, compliance, live ops, closure, trust review | public marketing home, supplier/guest self-service ownership |
+| `apps/guest` | guests and walk-ins | access-code entry, event pass, consented check-in, moderated feedback, event game participation | planning, client/supplier dashboards, PMCM internals, cross-event reads |
+| `apps/event` | PMCM and coordinators | command inbox, selected event workspace, official floorplans, suppliers, billing, compliance, live ops, event game hosting, closure, trust review | public marketing home, supplier/guest self-service ownership |
 
 The shared `apps/api` serves all apps through role-scoped contracts and policy.
 It does not own UI rendering or app-local session storage. `packages/ui` may
