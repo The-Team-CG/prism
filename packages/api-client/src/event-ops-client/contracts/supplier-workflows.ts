@@ -2,6 +2,7 @@ import type {
   AcknowledgeSupplierScheduleInput,
   BindSupplierContractInput,
   CreateSupplierCreativeTaskInput,
+  CorrectSupplierEventStatusInput,
   CreateSupplierPayableMilestoneInput,
   CreateSupplierScheduleInput,
   PrismPmcmSupplierWorkflowWorkspace,
@@ -31,5 +32,6 @@ export interface EventOpsSupplierWorkflowsContract {
     createPayable(eventId: string, input: CreateSupplierPayableMilestoneInput): Promise<unknown>;
     releasePayout(milestoneId: string, input: ReleaseSupplierPayoutInput): Promise<unknown>;
     reversePayout(recordId: string, input: ReverseSupplierPayoutInput): Promise<unknown>;
+    correctEventStatus(eventId: string, requestId: string, input: CorrectSupplierEventStatusInput): Promise<unknown>;
   };
 }

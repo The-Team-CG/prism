@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { nonEmptyStringSchema, optionalTrimmedStringSchema } from "./common.js";
+import { optionalTrimmedStringSchema } from "./common.js";
 /* ── Floorplan preference (client layout notes) ───────────────── */
 
 export const createFloorPlanDraftSchema = z.object({
@@ -58,9 +58,3 @@ export const prismFloorPlanSnapshotSchema = z.object({
   seatCategories: z.array(z.unknown()).optional(),
   updatedAt: z.string().optional(),
 });
-
-export const createFloorPlanRevisionCommentSchema = z.object({
-  revisionNote: nonEmptyStringSchema,
-  idempotencyKey: optionalTrimmedStringSchema,
-});
-export type CreateFloorPlanRevisionCommentInput = z.infer<typeof createFloorPlanRevisionCommentSchema>;

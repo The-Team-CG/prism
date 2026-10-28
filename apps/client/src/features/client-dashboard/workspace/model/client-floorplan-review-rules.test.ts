@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildFloorPlanRevisionPayload,
   canRequestFloorPlanRevision,
   floorPlanRevisionComment,
   floorPlanReviewHeadline,
@@ -31,11 +30,6 @@ const unlockedEvent = {
 } as PrismEvent;
 
 describe("floorplan revision comment rules", () => {
-  it("builds a parsed revision comment payload", () => {
-    const payload = buildFloorPlanRevisionPayload("   Move the mingle space near the bar.  ");
-    expect(payload).toEqual({ revisionNote: "Move the mingle space near the bar." });
-  });
-
   it("allows revision comments only for an in-review draft on an unlocked event", () => {
     expect(canRequestFloorPlanRevision(draftWith("in_review"), unlockedEvent)).toBe(true);
     expect(canRequestFloorPlanRevision(draftWith("approved"), unlockedEvent)).toBe(false);

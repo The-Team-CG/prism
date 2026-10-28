@@ -36,7 +36,10 @@ export class OpsEventFileRequirementsController {
     await this.eventAccessPolicyService.requireCanReadEvent(scoped.actor, event, 'file requirements matrix', scoped.scope);
 
     const matrix = await this.fileRequirementsMatrixService.buildForEvent(eventId);
-    return { ...matrix, items: visibleFileRequirementItems(matrix.items, actor.role) };
+    const items = visibleFileRequirementItems(matrix.items, actor.role);
+    const privileged = actor.role === 'pmcm-admin' || actor.role === 'system';
+    const billingWithheld = !privileged && items.some((item) => item.key === 'billing_statement') && !(await this.fileRequirementsMatrixService.hasSentBillingStatement(eventId));
+    return { ...matrix, items: billingWithheld ? items.filter((item) => item.key !== 'billing_statement') : items };
   }
 
   @Post(':eventId/file-requirements')

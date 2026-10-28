@@ -1,14 +1,7 @@
 import {
-  createFloorPlanRevisionCommentSchema,
-  parseContract,
-  type CreateFloorPlanRevisionCommentInput,
   type PrismEvent,
   type PrismFloorPlanDraft,
 } from "@prism/types";
-
-export function buildFloorPlanRevisionPayload(revisionNote: string): CreateFloorPlanRevisionCommentInput {
-  return parseContract(createFloorPlanRevisionCommentSchema, { revisionNote }, "Floorplan revision comment");
-}
 
 export function canRequestFloorPlanRevision(draft: PrismFloorPlanDraft | undefined, event: PrismEvent | undefined) {
   return Boolean(

@@ -7,7 +7,6 @@ import {
   type PrismFloorPlanDraft,
   type CreatePrismInquiryInput,
   type CreateFloorPlanPreferenceInput,
-  type CreateFloorPlanRevisionCommentInput,
   type PrismFloorPlanSnapshot,
   type PrismClientOcularVisit,
   type SubmitClientOcularVisitInput,
@@ -145,14 +144,6 @@ export const clientDashboardRepository = {
       `/events/${eventId}/floorplans/${draftId}/snapshot?type=${type}`,
     );
     return toProject(plan);
-  },
-
-  submitFloorPlanRevisionComment(
-    eventId: string,
-    draftId: string,
-    input: CreateFloorPlanRevisionCommentInput,
-  ): Promise<PrismFloorPlanDraft> {
-    return clientApi.events.reviewFloorPlanDraft(eventId, draftId, input);
   },
 
   async loadPlan(planId: string): Promise<Project> {

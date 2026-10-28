@@ -380,11 +380,15 @@ export class EventReadModelsService {
     }
 
     const includeInternalCosts = this.policy.canViewInternalCosts(actor);
-    const [[billingSources, billingStatements, paymentMilestones, paymentRecords], adjustments] = await Promise.all([
-      this.queries.billingForEvents(eventIds, includeInternalCosts),
+    const isClient = actor.role === OpsUserRole.Client;
+    const [[billingSources, billingStatements, paymentMilestones, allPaymentRecords], adjustments] = await Promise.all([
+      this.queries.billingForEvents(eventIds, includeInternalCosts, isClient),
       includeInternalCosts ? this.queries.billingAdjustmentsForEvents(eventIds) : Promise.resolve([[], [], []] as const),
     ]);
     const [billingCorrections, billingDisputes, additionalBillings] = adjustments;
+    // Payments recorded against a milestone the client cannot see yet stay hidden with it.
+    const visibleMilestoneIds = new Set(paymentMilestones.map((payment) => payment.id));
+    const paymentRecords = isClient ? allPaymentRecords.filter((record) => visibleMilestoneIds.has(record.milestoneId)) : allPaymentRecords;
 
     return {
       events: visibleEvents.map((event) => mappers.mapEvent(event)),
@@ -440,7 +444,7 @@ export class EventReadModelsService {
     }
 
     const [
-      [documents, briefings, floorPlanDrafts, billingStatements, paymentMilestones, paymentRecords, auditLogs, ocularVisits, billingDisputes],
+      [documents, briefings, floorPlanDrafts, billingStatements, paymentMilestones, allPaymentRecords, auditLogs, ocularVisits, billingDisputes],
       timelineSources,
       notificationLogs,
     ] = await Promise.all([
@@ -448,6 +452,8 @@ export class EventReadModelsService {
       this.queries.clientEventTimelineForEvents(eventIds),
       this.queries.clientNotificationsForEvents(eventIds),
     ]);
+    const visibleMilestoneIds = new Set(paymentMilestones.map((payment) => payment.id));
+    const paymentRecords = allPaymentRecords.filter((record) => visibleMilestoneIds.has(record.milestoneId));
     const timelineSourceByEventId = new Map(timelineSources.map((source) => [source.id, source]));
     const clientEventTimelines = visibleEvents.map((event) =>
       mapClientEventTimeline(

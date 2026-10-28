@@ -894,6 +894,12 @@ describe('EventReadModelsService', () => {
     const { service, policy, prisma } = createPmcmReadModelService();
     prisma.opsBillingSource.findMany.mockImplementation(async () => [{ id: 'ce_hidden', eventId: 'evt_visible' }]);
     prisma.opsBillingStatement.findMany.mockImplementation(async () => [{ id: 'bill_visible', eventId: 'evt_visible', generatedAt: new Date(), storageKey: 'internal-key' }]);
+    // The query only returns milestones of sent statements; a payment recorded on any other milestone stays hidden.
+    prisma.opsPaymentMilestone.findMany.mockImplementation(async () => [{ id: 'pay_sent', eventId: 'evt_visible', createdAt: new Date() }] as never);
+    prisma.opsPaymentRecord.findMany.mockImplementation(async () => [
+      { id: 'rec_sent', eventId: 'evt_visible', milestoneId: 'pay_sent', recordedAt: new Date() },
+      { id: 'rec_unsent', eventId: 'evt_visible', milestoneId: 'pay_unsent', recordedAt: new Date() },
+    ] as never);
     const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });
 
     const billing = await service.billing(actor, {
@@ -908,6 +914,7 @@ describe('EventReadModelsService', () => {
     });
 
     expect(billing.billingSources).toEqual([]);
+    expect((billing.paymentRecords as Array<{ id: string }>).map((record) => record.id)).toEqual(['rec_sent']);
     expect(billing.billingStatements).toEqual([expect.objectContaining({ id: 'bill_visible', eventId: 'evt_visible' })]);
     expect(JSON.stringify(billing.billingStatements)).not.toContain('internal-key');
     expect(prisma.opsBillingSource.findMany).not.toHaveBeenCalled();
@@ -1180,7 +1187,7 @@ describe('EventReadModelsService', () => {
     expect(actionCenter.items.map((item) => item.eventId)).toContain('evt_visible');
     expect(actionCenter.items.map((item) => item.eventId)).not.toContain('evt_other_client');
     expect(prisma.opsPaymentMilestone.findMany).toHaveBeenCalledWith({
-      where: { eventId: { in: ['evt_visible'] } },
+      where: { eventId: { in: ['evt_visible'] }, OR: [{ statementId: null }, { statement: { is: { sentAt: { not: null } } } }] },
       orderBy: { id: 'asc' },
       take: 500,
     });

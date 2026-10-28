@@ -66,6 +66,8 @@ export class ProposalLifecycleService {
       const event = await tx.opsEvent.findUnique({ where: { id: eventId } });
       if (!event) throw new NotFoundException('Event not found');
       await this.access.requireCanReadEvent(actor, event, 'issue proposal');
+      const replayed = await this.findIssuedByKey(tx, eventId, input);
+      if (replayed) return { version: replayed };
       if (event.archived || event.clientPortalStatus === 'locked' || event.eventDate <= new Date()) throw new BadRequestException('Proposals can only be issued before event day while the event is unlocked');
       // An approval is tied to one issued version; a silent replacement would leave "approved" on a proposal the client never saw.
       if (event.proposalClientStatus === 'approved') throw new BadRequestException('The client has approved this proposal. Record a scope change instead of issuing a new version.');
@@ -95,10 +97,28 @@ export class ProposalLifecycleService {
         verifiedActor: verified,
       }, { prisma: tx, correlationId: version.id, actorId: actor.id });
       await this.attachProposalPdf(actor, eventId, document.id, version, event.eventName, estimate.totalAmount, { prisma: tx, correlationId: version.id, actorId: actor.id });
-      await writeAudit(this.audit, eventId, actor.email ?? actor.name, 'Issued proposal version', { actorRole: actor.role, actionType: 'create', category: 'events', affectedType: 'proposal_version', affectedId: version.id, metadata: { versionNumber, costEstimateId: estimate.id, totalAmount: estimate.totalAmount, policy: { issuedVersionsImmutable: PROPOSAL_LIFECYCLE_POLICY.issuedVersionsImmutable, versionNumbering: PROPOSAL_LIFECYCLE_POLICY.versionNumbering, revisionMode: PROPOSAL_LIFECYCLE_POLICY.revisionMode, revisionsAllowed: PROPOSAL_LIFECYCLE_POLICY.revisionsAllowed } } }, { prisma: tx, correlationId: version.id, actorId: actor.id });
+      await writeAudit(this.audit, eventId, actor.email ?? actor.name, 'Issued proposal version', { actorRole: actor.role, actionType: 'create', category: 'events', affectedType: 'proposal_version', affectedId: version.id, metadata: { versionNumber, costEstimateId: estimate.id, totalAmount: estimate.totalAmount, idempotencyKey: input.idempotencyKey ?? null, title: input.title, summary: input.summary, revisionNote: input.revisionNote, policy: { issuedVersionsImmutable: PROPOSAL_LIFECYCLE_POLICY.issuedVersionsImmutable, versionNumbering: PROPOSAL_LIFECYCLE_POLICY.versionNumbering, revisionMode: PROPOSAL_LIFECYCLE_POLICY.revisionMode, revisionsAllowed: PROPOSAL_LIFECYCLE_POLICY.revisionsAllowed } } }, { prisma: tx, correlationId: version.id, actorId: actor.id });
       return { version, documentId: document.id, eventName: event.eventName, totalAmount: estimate.totalAmount };
     }, { isolationLevel: 'Serializable' });
     return this.mapProposalVersion(issued.version);
+  }
+
+  /** The version an earlier request with this key issued, or null. The same key with other content is refused. */
+  private async findIssuedByKey(tx: Prisma.TransactionClient, eventId: string, input: IssueProposalVersionInput) {
+    const key = input.idempotencyKey;
+    if (!key) return null;
+    const prior = await tx.opsAuditLog.findFirst({
+      where: { eventId, affectedType: 'proposal_version', metadata: { path: ['idempotencyKey'], equals: key } },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: { affectedId: true, metadata: true },
+    });
+    if (!prior?.affectedId) return null;
+    const issued = (prior.metadata ?? {}) as { costEstimateId?: string; title?: string; summary?: string; revisionNote?: string };
+    const sameContent = issued.costEstimateId === input.costEstimateId && issued.title === input.title && issued.summary === input.summary && issued.revisionNote === input.revisionNote;
+    if (!sameContent) throw new BadRequestException('This idempotency key was already used to issue a different proposal. Use a new key for changed content.');
+    const version = await tx.opsProposalVersion.findFirst({ where: { id: prior.affectedId, eventId } });
+    if (!version) throw new BadRequestException('The proposal version recorded for this idempotency key is no longer available.');
+    return version;
   }
 
   private async attachProposalPdf(

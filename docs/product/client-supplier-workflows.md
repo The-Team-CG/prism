@@ -195,3 +195,11 @@ continues.
 Production provider activation, external signing certification, bank execution,
 and external message delivery remain separate operational work. Database replay
 uses an isolated local PostgreSQL instance and does not migrate a remote database.
+
+## Lifecycle decision boundaries
+
+Clients receive billing statements and their related file requirements after PMCM sends the statement. Sending again preserves the original sent time and notification keys. Source approval locks the event before checking the approved-proposal cap; additional charges use the additional-billing workflow. Superseded proposal evidence and differing totals require an explicit override reason, and an override does not bypass the event cap.
+
+Proposal issue retries with identical content retain the issued version. Identical supplier quote retries do not consume a revision; past deadlines and selection of released bids are refused. Supplier event-day status advances in order; PMCM can correct it with a recorded reason.
+
+Client floorplan decisions use the snapshot-bound decision endpoint. Requesting revision updates the draft and lifecycle projection in the same transaction. The legacy PATCH floorplan review route is retired; official approval remains with PMCM.

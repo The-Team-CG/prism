@@ -15,6 +15,7 @@ function createController() {
   };
   const supplierNetworkWorkflowService = {
     withdrawSupplier: vi.fn(async () => ({ id: 'qr_sample' })),
+    correctSupplierEventStatus: vi.fn(async () => ({ id: 'qr_sample' })),
   };
   return {
     actor,
@@ -78,5 +79,16 @@ describe('OpsEventSupplierWithdrawalController', () => {
       actor,
       'evt_sample',
     );
+  });
+
+  it('guards the PMCM supplier status correction with a session and delegates with the resolved actor', async () => {
+    const guards = Reflect.getMetadata('__guards__', OpsEventSupplierWithdrawalController.prototype.correctSupplierEventStatus);
+    expect(guards).toContain(EventSessionGuard);
+
+    const { actor, controller, supplierNetworkWorkflowService } = createController();
+    const body = { status: 'arrived' as const, reason: 'Reported by mistake' };
+    await controller.correctSupplierEventStatus('evt_sample', 'qr_sample', body, verifiedActor);
+
+    expect(supplierNetworkWorkflowService.correctSupplierEventStatus).toHaveBeenCalledWith('evt_sample', 'qr_sample', body, actor);
   });
 });

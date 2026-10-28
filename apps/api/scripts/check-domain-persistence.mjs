@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import ts from 'typescript';
@@ -553,7 +553,7 @@ export function validatePrivateWrites({ ownershipManifest, schemaText, sourceFil
 export function loadPrivateWriteSources(root = REPO_ROOT) {
   let trackedFiles;
   try {
-    trackedFiles = execFileSync('git', ['ls-files', 'apps/api/src/modules'], {
+    trackedFiles = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', 'apps/api/src/modules'], {
       cwd: root,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
@@ -567,7 +567,7 @@ export function loadPrivateWriteSources(root = REPO_ROOT) {
     });
     trackedFiles = visit(moduleRoot).map((path) => path.slice(root.length + 1).replaceAll('\\', '/'));
   }
-  const files = trackedFiles.filter((file) => /\.tsx?$/.test(file) && !/\.(?:test|spec)\.[cm]?tsx?$/.test(file));
+  const files = [...new Set(trackedFiles)].filter((file) => existsSync(join(root, file)) && /\.tsx?$/.test(file) && !/\.(?:test|spec)\.[cm]?tsx?$/.test(file));
   return Object.fromEntries(files.map((file) => [file, readFileSync(join(root, file), 'utf8')]));
 }
 

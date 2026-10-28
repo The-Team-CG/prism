@@ -34,6 +34,7 @@ import { EmptyState } from "@/app/components/ui/empty-state";
 import { PrismDashboardShell } from "@prism/ui";
 import {
   EVENT_STATUS_ACTIONS,
+  isEventStatusStepAllowed,
   buildBookingSteps,
   buildCalendarEvents,
   canReportSupplierEventDayStatus,
@@ -237,7 +238,7 @@ export function BookingsPage({
                 </label>
                 <div className="mt-3 grid gap-2 sm:grid-cols-3">
                   {EVENT_STATUS_ACTIONS.map(({ status, label, helper }) => (
-                    <button key={status} type="button" disabled={!canReportEventDayStatus || busy === `${req.id}:${status}`} onClick={() => onUpdateStatus(req, status)}
+                    <button key={status} type="button" disabled={!canReportEventDayStatus || !isEventStatusStepAllowed(req.eventDayStatus, status) || busy === `${req.id}:${status}`} onClick={() => onUpdateStatus(req, status)}
                       className={`flex h-20 w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 font-bold transition ${req.eventDayStatus === status ? "border-primary bg-primary text-white" : "border-border bg-card text-foreground hover:border-primary/40 hover:bg-muted/40"}`}>
                       <Truck className="size-5" />
                       <span className="text-sm">{label}</span>
