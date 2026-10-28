@@ -15,13 +15,21 @@ export async function api(method, path, body, token = adminToken) {
   const json = text ? JSON.parse(text) : undefined;
   return json && Object.keys(json).length === 1 && 'data' in json ? json.data : json;
 }
+async function mailpitJson(path) {
+  const response = await fetch(`${process.env.PRISM_MAILPIT_URL}/api/v1/${path}`);
+  if (!response.ok) throw new Error(`Local Mailpit ${path.split('/')[0]} request failed with HTTP ${response.status}.`);
+  return response.json();
+}
 export async function inbox(email, pathPart) {
   let found;
+  const ruledOut = new Set();
   await expect.poll(async () => {
-    const result = await fetch(`${process.env.PRISM_MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`).then(r => r.json());
+    const result = await mailpitJson(`search?query=${encodeURIComponent(`to:${email}`)}`);
     for (const summary of result.messages ?? []) {
-      const message = await fetch(`${process.env.PRISM_MAILPIT_URL}/api/v1/message/${summary.ID}`).then(r => r.json());
+      if (ruledOut.has(summary.ID)) continue;
+      const message = await mailpitJson(`message/${summary.ID}`);
       if ((message.Text ?? '').includes(pathPart) && message.To?.some(to => to.Address === email)) { found = message; return true; }
+      ruledOut.add(summary.ID);
     }
     return false;
   }, { timeout: 45_000, message: 'Expected recipient-specific test email in local Mailpit' }).toBe(true);

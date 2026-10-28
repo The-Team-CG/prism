@@ -54,6 +54,21 @@ async function awaitReady(url, children) {
   }
   throw new Error(`Browser test server did not become ready (${new URL(url).origin}).`);
 }
+// next-env.d.ts may point at .next/types or .next/dev/types depending on the last dev/build; compare without that prefix.
+const normalizeNextTypePaths = text => text.replace(/\.\/\.next(?:-acceptance)?(?:\/dev)?\/types\//g, './<next-types>/');
+const stripAcceptanceIncludes = config => ({ ...config, include: config.include?.filter(value => !value.startsWith('.next-acceptance/')) });
+/** Undo only what `next dev` with PRISM_NEXT_DIST_DIR rewrites; any other edit made during the run is kept. */
+export function restoredNextFile(file, original, current) {
+  if (current === original) return null;
+  if (file === 'tsconfig.json') {
+    return JSON.stringify(stripAcceptanceIncludes(JSON.parse(current))) === JSON.stringify(stripAcceptanceIncludes(JSON.parse(original))) ? original : null;
+  }
+  return normalizeNextTypePaths(current) === normalizeNextTypePaths(original) ? original : null;
+}
+function restoreNextFile({ path, file, original }) {
+  const restored = restoredNextFile(file, original, readFileSync(path, 'utf8'));
+  if (restored !== null) writeFileSync(path, restored);
+}
 export async function main(args = process.argv.slice(2)) {
   for (const port of Object.values(browserPorts)) await requireFreePort(port);
   const selected = process.env.BROWSER_DATABASE_URL || parseEnv(readFileSync(process.env.PRISM_ENV_FILE || join(root, '.local-dev/api.env'), 'utf8')).DATABASE_URL;
@@ -119,24 +134,19 @@ export async function main(args = process.argv.slice(2)) {
     const child = launch(join(root, 'node_modules/@playwright/test/cli.js'), ['test', '--config', 'scripts/e2e/browser/playwright.config.mjs', ...testArgs], root, env, 'playwright');
     child.stdout.on('data', data => process.stdout.write(data)); child.stderr.on('data', data => process.stderr.write(data));
     const code = await new Promise(resolve => child.once('exit', resolve));
-    process.exitCode = code === 0 ? 0 : 1;
+    // Keep 130 from an interrupt so a cancelled run is distinguishable from failing tests.
+    if (process.exitCode !== 130) process.exitCode = code === 0 ? 0 : 1;
     console.log(`Private browser report: ${directory}`);
   } finally {
+    // Each step is isolated so one failure cannot skip restoring tracked files or dropping the database.
+    const cleanup = async (label, step) => {
+      try { await step(); } catch (error) { console.error(`Browser cleanup (${label}) failed: ${error.message}`); process.exitCode ||= 1; }
+    };
     children.reverse().forEach(stopChild);
-    if (mailStarted) stopMailpit(mailName, { remove: true });
-    if (created) {
-      await owner.query('SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()', [dbName]);
-      await owner.query(`DROP DATABASE "${dbName}"`);
-    }
-    await owner.end();
-    for (const { path, file, original } of nextFiles) {
-      const current = readFileSync(path, 'utf8');
-      if (file === 'tsconfig.json') {
-        const parsed = JSON.parse(current);
-        parsed.include = parsed.include?.filter(value => !value.startsWith('.next-acceptance/'));
-        if (JSON.stringify(parsed) === JSON.stringify(JSON.parse(original))) writeFileSync(path, original);
-      } else if (current.includes('./.next-acceptance/') && current.replaceAll('./.next-acceptance/dev/', './.next/').replaceAll('./.next-acceptance/', './.next/') === original) writeFileSync(path, original);
-    }
+    await cleanup('restore portal files', () => { for (const entry of nextFiles) restoreNextFile(entry); });
+    if (mailStarted) await cleanup('stop Mailpit', () => stopMailpit(mailName, { remove: true }));
+    if (created) await cleanup('drop database', () => owner.query(`DROP DATABASE IF EXISTS "${dbName}" WITH (FORCE)`));
+    await cleanup('close pool', () => owner.end());
     process.removeListener('SIGINT', interrupt); process.removeListener('SIGTERM', interrupt);
   }
 }

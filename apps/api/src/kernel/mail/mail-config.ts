@@ -6,6 +6,7 @@
 export const MAIL_TRANSPORT_ENV = 'PRISM_MAIL_TRANSPORT';
 export const RESEND_API_KEY_ENV = 'RESEND_API_KEY';
 export const MAIL_FROM_ENV = 'PRISM_MAIL_FROM';
+export const MAILPIT_URL_ENV = 'PRISM_MAILPIT_URL';
 
 export type EnvReader = (name: string) => string | undefined;
 export interface EnvProblem {
@@ -54,7 +55,7 @@ export function resolveMailTransportConfig(read: EnvReader): MailTransportConfig
     throw new Error(problems.map((problem) => `${problem.name} ${problem.message}`).join('; '));
   }
   if (read(MAIL_TRANSPORT_ENV)?.trim() === 'log') return { kind: 'log' };
-  if (read(MAIL_TRANSPORT_ENV)?.trim() === 'mailpit') return { kind: 'mailpit', url: new URL(read('PRISM_MAILPIT_URL')!.trim()).origin };
+  if (read(MAIL_TRANSPORT_ENV)?.trim() === 'mailpit') return { kind: 'mailpit', url: new URL(read(MAILPIT_URL_ENV)!.trim()).origin };
   return {
     kind: 'resend',
     apiKey: read(RESEND_API_KEY_ENV)!.trim(),
@@ -65,9 +66,9 @@ export function resolveMailTransportConfig(read: EnvReader): MailTransportConfig
 function mailpitProblems(read: EnvReader): EnvProblem[] {
   if (read('NODE_ENV')?.trim() === 'production') return [{ name: MAIL_TRANSPORT_ENV, message: 'mailpit captures test mail and cannot run with NODE_ENV=production' }];
   try {
-    const url = new URL(read('PRISM_MAILPIT_URL')?.trim() ?? '');
+    const url = new URL(read(MAILPIT_URL_ENV)?.trim() ?? '');
     if (url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]', 'host.docker.internal'].includes(url.hostname)
       && !url.username && !url.password && url.pathname === '/' && !url.search && !url.hash) return [];
   } catch { /* Report the variable, without echoing its value. */ }
-  return [{ name: 'PRISM_MAILPIT_URL', message: 'must be a local HTTP origin (loopback or host.docker.internal) without credentials, path or query' }];
+  return [{ name: MAILPIT_URL_ENV, message: 'must be a local HTTP origin (loopback or host.docker.internal) without credentials, path or query' }];
 }
