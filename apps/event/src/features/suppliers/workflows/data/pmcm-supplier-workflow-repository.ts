@@ -1,4 +1,5 @@
 import type {
+  CorrectSupplierEventStatusInput,
   CreateSupplierCreativeTaskInput,
   CreateSupplierPayableMilestoneInput,
   CreateSupplierScheduleInput,
@@ -23,5 +24,6 @@ export const pmcmSupplierWorkflowRepository = {
   reviewCreativeTask: (taskId: string, input: UpdateSupplierCreativeTaskInput) => eventApi.supplierWorkflows.reviewCreativeTask(taskId, input),
   createPayable: (eventId: string, input: CreateSupplierPayableMilestoneInput) => eventApi.supplierWorkflows.createPayable(eventId, input),
   releasePayout: (milestoneId: string, input: ReleaseSupplierPayoutInput) => eventApi.supplierWorkflows.releasePayout(milestoneId, input),
+  correctEventStatus: (eventId: string, requestId: string, input: CorrectSupplierEventStatusInput) => eventApi.supplierWorkflows.correctEventStatus(eventId, requestId, input),
   reversePayout: (recordId: string, input: ReverseSupplierPayoutInput) => eventApi.supplierWorkflows.reversePayout(recordId, input),
 };

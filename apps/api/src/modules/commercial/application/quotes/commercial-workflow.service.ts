@@ -52,23 +52,60 @@ function supplierQuoteLink(token: string) {
   return `${portal}/quote-requests/${encodeURIComponent(token)}`;
 }
 
+function normalizedInclusions(value: unknown): string[] {
+  return Array.isArray(value) ? value.map((item) => String(item).trim()) : [];
+}
+
+/**
+ * True when a resend carries the same normalized content as the supplier's current quote. A submit (POST) treats
+ * omitted fields as empty; a revise (PATCH) treats omitted fields as unchanged.
+ */
+function isIdenticalQuoteResend(
+  requestedMode: 'submit' | 'revise',
+  quote: OpsSupplierQuote,
+  input: Partial<SubmitSupplierQuoteInput>,
+): boolean {
+  const omitted = requestedMode === 'submit';
+  const sameText = (current: string | null, next: string | undefined) =>
+    (current ?? '').trim() === (next === undefined ? (omitted ? '' : (current ?? '').trim()) : next.trim());
+  const nextInclusions = input.inclusions === undefined
+    ? (omitted ? [] : normalizedInclusions(quote.inclusions))
+    : normalizedInclusions(input.inclusions);
+  const currentInclusions = normalizedInclusions(quote.inclusions);
+  return (
+    (input.amount === undefined ? !omitted : input.amount === quote.amount) &&
+    sameText(quote.paymentTerms, input.paymentTerms) &&
+    sameText(quote.notes, input.notes) &&
+    nextInclusions.length === currentInclusions.length &&
+    nextInclusions.every((item, index) => item === currentInclusions[index])
+  );
+}
+
+function assertExistingQuoteSaveAllowed(
+  requestedMode: 'submit' | 'revise',
+  quote: OpsSupplierQuote,
+  input: Partial<SubmitSupplierQuoteInput>,
+): 'revise' | 'replay' {
+  if (isSupplierQuoteLocked(quote.status)) {
+    throw new BadRequestException('Supplier quote is already locked');
+  }
+  // A retried identical request is a replay: it must not consume the single revision.
+  if (isIdenticalQuoteResend(requestedMode, quote, input)) return 'replay';
+  if (quote.revisionNumber >= 2) {
+    throw new BadRequestException('Quote has already been revised and cannot be revised again.');
+  }
+  return 'revise';
+}
+
 function assertQuoteSaveAllowed(
   requestedMode: 'submit' | 'revise',
   quote: OpsSupplierQuote | null,
   input: Partial<SubmitSupplierQuoteInput>,
-): 'submit' | 'revise' {
-  if (requestedMode === 'revise' && !quote) throw new NotFoundException('Supplier quote not found');
-  if (quote && isSupplierQuoteLocked(quote.status)) {
-    throw new BadRequestException('Supplier quote is already locked');
-  }
-  if (quote && quote.revisionNumber >= 2) {
-    throw new BadRequestException('Quote has already been revised and cannot be revised again.');
-  }
-  const effectiveMode = quote ? 'revise' : 'submit';
-  if (effectiveMode === 'submit' && input.amount === undefined) {
-    throw new BadRequestException('Quote amount is required');
-  }
-  return effectiveMode;
+): 'submit' | 'revise' | 'replay' {
+  if (quote) return assertExistingQuoteSaveAllowed(requestedMode, quote, input);
+  if (requestedMode === 'revise') throw new NotFoundException('Supplier quote not found');
+  if (input.amount === undefined) throw new BadRequestException('Quote amount is required');
+  return 'submit';
 }
 
 function quoteOutsideAcceptableRange(category: OpsSupplierCategory | null, amount: number) {
@@ -170,6 +207,9 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
         }
 
         dueDate = input.deadline ? parseDate(input.deadline) : null;
+        if (dueDate && dueDate.getTime() < Date.now()) {
+          throw new BadRequestException('Quote deadline is in the past. Choose a deadline that has not passed yet.');
+        }
       },
       write: () => {
         if (!event || !category) throw new NotFoundException('Supplier category not found');
@@ -391,6 +431,11 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
         ]);
         if (!event) throw new NotFoundException('Event not found');
         if (!foundQuote || foundQuote.eventId !== eventId) throw new NotFoundException('Supplier quote not found');
+        if (foundQuote.status === SupplierQuoteStatus.NotSelected) {
+          throw new BadRequestException(
+            'This bid was released when another supplier was selected, so it cannot be selected again. Reselecting a released bid is not supported.',
+          );
+        }
         quote = foundQuote;
         competingQuotes = await this.prisma.opsSupplierQuote.findMany({
           where: { eventId, category: foundQuote.category, id: { not: foundQuote.id } },
@@ -528,7 +573,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
     let category: OpsSupplierCategory | null = null;
     let amount = 0;
     let outsideAcceptableRange = false;
-    let effectiveMode: 'submit' | 'revise' = requestedMode;
+    let effectiveMode: 'submit' | 'revise' | 'replay' = requestedMode;
     const revisedAt = new Date();
 
     return this.workflowCommandService.execute<OpsSupplierQuote>({
@@ -553,6 +598,10 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
       write: () => {
         if (!request) throw new NotFoundException('Quote request not found');
         const activeRequest = request;
+        if (effectiveMode === 'replay') {
+          if (!quote) throw new NotFoundException('Supplier quote not found');
+          return Promise.resolve(quote);
+        }
         return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
           // Transaction scope: DB reads/writes only. No external IO inside this callback.
           if (effectiveMode === 'revise') {
@@ -616,7 +665,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
         });
       },
       sideEffects: async (saved) => {
-        if (!request) return;
+        if (!request || effectiveMode === 'replay') return;
         await Promise.all([
           writeAudit(this.auditWriter,
             request.eventId,
