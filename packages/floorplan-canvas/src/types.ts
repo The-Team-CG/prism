@@ -74,4 +74,6 @@ export interface EditorState {
   snap: boolean;
   /** Most recent refused table assignment, shown until the next assignment attempt or dismissal. */
   assignmentRejection: TableAssignmentRejection | null;
+  /** Measured canvas size in px; lets controls outside the canvas (Fit plan) frame the plan. */
+  canvasSize?: { w: number; h: number };
 }

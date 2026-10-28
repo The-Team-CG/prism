@@ -22,6 +22,8 @@ export type FileRequirementDocumentFact = {
   status: string;
   validationStatus: string;
   uploadedAt: Date;
+  /** Stored object behind a bound upload, when the document came from storage. */
+  storageKey?: string | null;
   /** Stored bytes may be removed independently of the document metadata. */
   available?: boolean;
 };
@@ -62,6 +64,7 @@ function customItem(row: PersistedFileRequirement, documents: FileRequirementDoc
     sourceWorkflow: row.sourceWorkflow,
     status,
     uploadedAssetId: latest?.id,
+    ...(latest?.storageKey ? { uploadedObjectId: latest.storageKey } : {}),
     auditCategory: 'documents',
     detail: rejected
       ? 'The latest upload was rejected; a replacement file is required.'

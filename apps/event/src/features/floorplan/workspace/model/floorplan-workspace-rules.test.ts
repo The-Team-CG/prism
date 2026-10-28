@@ -4,6 +4,8 @@ import {
   canReopenClientPreference,
   canSubmitFloorPlanDraft,
   canViewClientPreference,
+  floorplanDraftActions,
+  groupFloorplanDrafts,
   selectActiveDraft,
 } from "./floorplan-workspace-rules";
 
@@ -69,5 +71,31 @@ describe("floorplan-workspace-rules", () => {
         [],
       ),
     ).toBe(false);
+  });
+
+  it("groups drafts so the active approved official plan leads, with preferences and history separate", () => {
+    const groups = groupFloorplanDrafts([
+      { id: "v1", sourceType: "template", status: "approved", isActive: false, approvedSnapshotAt: "2026-05-01T00:00:00.000Z" },
+      { id: "v2", sourceType: "template", status: "approved", isActive: true, approvedSnapshotAt: "2026-04-01T00:00:00.000Z" },
+      { id: "v3", sourceType: "template", status: "in_review", updatedAt: "2026-06-01T00:00:00.000Z" },
+      { id: "pref", sourceType: "client_preference", status: "client_submitted", createdByRole: "client" },
+    ]);
+    expect(groups.official?.id).toBe("v2");
+    expect(groups.history.map((draft) => draft.id)).toEqual(["v1"]);
+    expect(groups.inProgress.map((draft) => draft.id)).toEqual(["v3"]);
+    expect(groups.clientPreferences.map((draft) => draft.id)).toEqual(["pref"]);
+
+    const fallback = groupFloorplanDrafts([
+      { id: "old", sourceType: "template", status: "approved", approvedSnapshotAt: "2026-01-01T00:00:00.000Z" },
+      { id: "new", sourceType: "template", status: "approved", approvedSnapshotAt: "2026-03-01T00:00:00.000Z" },
+    ]);
+    expect(fallback.official?.id).toBe("new");
+    expect(groupFloorplanDrafts([{ id: "pref", sourceType: "client_preference", status: "approved" }]).official).toBeUndefined();
+  });
+
+  it("keeps client preferences out of PMCM edit, submit, and approve actions", () => {
+    expect(floorplanDraftActions({ sourceType: "client_preference", status: "in_review", createdByRole: "client" }, null, [])).toMatchObject({ canEdit: false, canSubmit: false, canApprove: false });
+    expect(floorplanDraftActions({ sourceType: "template", status: "revision_requested" }, null, [])).toMatchObject({ canEdit: true, canSubmit: true, canApprove: false });
+    expect(floorplanDraftActions({ sourceType: "template", status: "in_review" }, null, [])).toMatchObject({ canSubmit: false, canApprove: true });
   });
 });

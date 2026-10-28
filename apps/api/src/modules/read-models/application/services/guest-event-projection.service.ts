@@ -6,6 +6,20 @@ import type { GuestEventProjectionReader } from '../../contracts/ports/guest-eve
 const MAX_GUEST_EVENT_FLOORPLAN_DRAFTS = 100;
 const MAX_COORDINATOR_WORKSPACE_DRAFTS = 100;
 
+/**
+ * Guests only see arrival facts PMCM has agreed to: the briefing the client's approved proposal was built on.
+ * A briefing resubmitted after that approval is unconfirmed until the proposal is approved again.
+ */
+function confirmedArrivalFrom(
+  proposalClientStatus: string,
+  proposalReviewedAt: Date | null,
+  briefing?: { venue: string; confirmedStartTime: string | null; submittedAt: Date },
+) {
+  if (proposalClientStatus !== 'approved' || !proposalReviewedAt || !briefing) return undefined;
+  if (briefing.submittedAt > proposalReviewedAt) return undefined;
+  return { venue: briefing.venue, confirmedStartTime: briefing.confirmedStartTime };
+}
+
 @Injectable()
 export class GuestEventProjectionService implements GuestEventProjectionReader {
   constructor(private readonly prisma: PrismaService) {}
@@ -36,12 +50,22 @@ export class GuestEventProjectionService implements GuestEventProjectionReader {
         floorPlanStatus: true,
         floorPlanId: true,
         updatedAt: true,
+        proposalClientStatus: true,
+        proposalReviewedAt: true,
+        briefings: {
+          orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
+          take: 1,
+          select: { venue: true, confirmedStartTime: true, submittedAt: true },
+        },
       },
     });
     if (!event) return null;
+    const { proposalClientStatus, proposalReviewedAt, briefings, ...guestEvent } = event;
     const drafts = await findFloorPlanDraftsByEvent(this.prisma, [eventId], { perEventLimit: MAX_GUEST_EVENT_FLOORPLAN_DRAFTS });
+    const confirmedArrival = confirmedArrivalFrom(proposalClientStatus, proposalReviewedAt, briefings[0]);
     return {
-      ...event,
+      ...guestEvent,
+      ...(confirmedArrival ? { confirmedArrival } : {}),
       floorPlanDrafts: (drafts.get(eventId) ?? []).map(({ id, floorPlanId, isActive }) => ({ id, floorPlanId, isActive })),
     };
   }

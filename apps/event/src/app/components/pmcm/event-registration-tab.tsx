@@ -1,3 +1,4 @@
+import { formatPortalDate } from "@prism/ui/format-date";
 import { FormEvent, useEffect, useState } from "react";
 import { QrCode, ShieldCheck, Upload, Users, UserRoundCheck } from "lucide-react";
 
@@ -15,9 +16,10 @@ import type {
   UpdateGuestPrivacyClassificationInput,
   UpdateGuestVerificationInput,
 } from "@prism/types";
-import { createRegistrationPlatformSchema, importGuestRosterSchema, importHeadcountSchema, parseContract } from "@prism/types";
+import { GUEST_VERIFICATION_REQUIRED_ROSTER_SOURCES, createRegistrationPlatformSchema, importHeadcountSchema } from "@prism/types";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { Panel } from "@/features/pmcm-kit/primitives";
+import { RosterImportPanel } from "@/features/registration/roster-import";
 
 const PLATFORM_LABELS: Record<string, string> = {
   xperto: "XPERTO Registration",
@@ -197,7 +199,7 @@ function PlatformForm({
       <form onSubmit={handleSave} className="flex flex-col gap-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="grid gap-1.5">
-            <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Platform type</span>
+            <span className="text-xs font-medium text-muted-foreground">Platform type</span>
             <select
               value={platformType}
               onChange={(ev) => setPlatformType(ev.target.value)}
@@ -210,7 +212,7 @@ function PlatformForm({
             </select>
           </label>
           <label className="grid gap-1.5">
-            <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Linked supplier</span>
+            <span className="text-xs font-medium text-muted-foreground">Linked supplier</span>
             <select
               value={supplierId}
               onChange={(ev) => setSupplierId(ev.target.value)}
@@ -225,7 +227,7 @@ function PlatformForm({
             </select>
           </label>
           <label className="grid gap-1.5">
-            <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Min pax</span>
+            <span className="text-xs font-medium text-muted-foreground">Min pax</span>
             <input
               type="number"
               value={paxMin}
@@ -235,7 +237,7 @@ function PlatformForm({
             />
           </label>
           <label className="grid gap-1.5">
-            <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Max pax</span>
+            <span className="text-xs font-medium text-muted-foreground">Max pax</span>
             <input
               type="number"
               value={paxMax}
@@ -246,7 +248,7 @@ function PlatformForm({
           </label>
         </div>
         <label className="grid gap-1.5">
-          <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Setup notes</span>
+          <span className="text-xs font-medium text-muted-foreground">Setup notes</span>
           <textarea
             value={setupNotes}
             onChange={(ev) => setSetupNotes(ev.target.value)}
@@ -342,7 +344,7 @@ function HeadcountSummary({ platform }: { platform: PrismRegistrationPlatform })
         <div className="border-l border-border bg-background/60 px-3 py-2.5">
           <p className="text-xs font-bold text-muted-foreground">Imported at</p>
           <p className="mt-1 text-sm font-black text-foreground">
-            {platform.importedAt ? new Date(platform.importedAt).toLocaleDateString() : "—"}
+            {platform.importedAt ? formatPortalDate(platform.importedAt) : "—"}
           </p>
         </div>
       </div>
@@ -387,7 +389,7 @@ function HeadcountImportForm({
     <form onSubmit={handleImport} className="flex flex-col gap-3">
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="grid gap-1.5">
-          <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Source</span>
+          <span className="text-xs font-medium text-muted-foreground">Source</span>
           <input
             type="text"
             value={importSource}
@@ -397,7 +399,7 @@ function HeadcountImportForm({
           />
         </label>
         <label className="grid gap-1.5">
-          <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Headcount</span>
+          <span className="text-xs font-medium text-muted-foreground">Headcount</span>
           <input
             type="number"
             value={importCount}
@@ -409,7 +411,7 @@ function HeadcountImportForm({
           />
         </label>
         <label className="grid gap-1.5">
-          <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">File name (optional)</span>
+          <span className="text-xs font-medium text-muted-foreground">File name (optional)</span>
           <input
             type="text"
             value={importFileName}
@@ -478,18 +480,10 @@ function GuestRosterSection({ eventId, busy, onSearch, onImport, onCheckIn, onVe
   const [eligibility, setEligibility] = useState<"eligible" | "ineligible" | "">("");
   const [checkedIn, setCheckedIn] = useState<"all" | "yes" | "no">("all");
   const [rows, setRows] = useState<PrismGuestRosterEntry[]>([]);
-  const [payload, setPayload] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
   async function search() { setRows(await onSearch({ namePrefix: query, eligibility: eligibility || undefined, checkedIn: checkedIn === "all" ? undefined : checkedIn === "yes" })); }
   async function updateVerification(id: string, status: UpdateGuestVerificationInput["status"]) { await onVerify(id, status); await search(); }
   async function checkIn(id: string) { await onCheckIn(id); await search(); }
-  async function importRows() {
-    try {
-      const parsed = parseContract(importGuestRosterSchema, JSON.parse(payload), "Guest roster import");
-      const result = await onImport(parsed); setRows(result); setPayload(""); setMessage(`Imported ${result.length} roster rows`);
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to import roster"); }
-  }
-  return <Panel title="Guest roster and registration desk" icon={UserRoundCheck}><div className="flex flex-col gap-3"><p className="text-sm text-muted-foreground">PMCM imports authoritative guest rows. Coordinators add walk-ins to this roster pending verification; verified walk-ins can then be checked in by registration staff.</p><textarea value={payload} onChange={(e) => setPayload(e.target.value)} rows={4} className="rounded-md border border-border bg-background px-3 py-2 font-mono text-xs" placeholder={'{"source":"xperto","rows":[{"sourceKey":"A-1","guestName":"Ada Lovelace","category":"VIP","table":"T1"}]}'}/><div className="flex gap-2"><button type="button" disabled={busy || !payload} onClick={() => void importRows()} className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Import roster</button>{message ? <span className="self-center text-sm text-muted-foreground">{message}</span> : null}</div><div className="flex flex-wrap gap-2"><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void search(); }} className="h-10 min-w-48 flex-1 rounded-md border border-border bg-background px-3 text-sm" placeholder="Name prefix"/><select value={eligibility} onChange={(e) => setEligibility(e.target.value as typeof eligibility)} className="h-10 rounded-md border border-border bg-background px-3 text-sm"><option value="">All eligibility</option><option value="eligible">Eligible</option><option value="ineligible">Ineligible</option></select><select value={checkedIn} onChange={(e) => setCheckedIn(e.target.value as typeof checkedIn)} className="h-10 rounded-md border border-border bg-background px-3 text-sm"><option value="all">All attendance</option><option value="yes">Checked in</option><option value="no">Not checked in</option></select><button type="button" onClick={() => void search()} className="rounded-lg border border-border px-4 py-2 text-sm font-bold">Search</button></div><div className="divide-y divide-border border-y border-border">{rows.map((row) => <div key={`${eventId}-${row.id}`} className="flex items-center justify-between gap-2 py-2 text-sm"><span><strong>{row.guestName}</strong><span className="ml-2 text-muted-foreground">{row.category || row.table || row.email || row.phone || row.sourceKey}</span></span><div className="flex items-center gap-2"><select aria-label={`Verification for ${row.guestName}`} value={row.verificationStatus} disabled={busy || Boolean(row.checkedInAt)} onChange={(event) => void updateVerification(row.id, event.target.value as UpdateGuestVerificationInput["status"])} className="h-8 rounded-md border border-border bg-background px-2 text-xs"><option value="pending">Pending</option><option value="verified">Verified</option><option value="rejected">Rejected</option></select><button type="button" disabled={busy || !canCheckInRosterRow(row)} onClick={() => void checkIn(row.id)} className="rounded-md border border-border px-3 py-1.5 text-xs font-bold">Check in</button></div></div>)}{rows.length === 0 ? <p className="py-3 text-sm text-muted-foreground">No roster rows match.</p> : null}</div></div></Panel>;
+  return <Panel title="Guest roster and registration desk" icon={UserRoundCheck}><div className="flex flex-col gap-3"><p className="text-sm text-muted-foreground">PMCM imports authoritative guest rows. Coordinators add walk-ins to this roster pending verification; verified walk-ins can then be checked in by registration staff.</p><RosterImportPanel busy={busy} onImport={onImport} onImported={setRows} /><div className="flex flex-wrap gap-2"><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void search(); }} aria-label="Search guests by name" className="h-10 min-w-48 flex-1 rounded-md border border-border bg-background px-3 text-sm" placeholder="Name prefix"/><select value={eligibility} onChange={(e) => setEligibility(e.target.value as typeof eligibility)} className="h-10 rounded-md border border-border bg-background px-3 text-sm"><option value="">All eligibility</option><option value="eligible">Eligible</option><option value="ineligible">Ineligible</option></select><select value={checkedIn} onChange={(e) => setCheckedIn(e.target.value as typeof checkedIn)} className="h-10 rounded-md border border-border bg-background px-3 text-sm"><option value="all">All attendance</option><option value="yes">Checked in</option><option value="no">Not checked in</option></select><button type="button" onClick={() => void search()} className="rounded-lg border border-border px-4 py-2 text-sm font-bold">Search</button></div><div className="divide-y divide-border border-y border-border">{rows.map((row) => <div key={`${eventId}-${row.id}`} className="flex items-center justify-between gap-2 py-2 text-sm"><span><strong>{row.guestName}</strong><span className="ml-2 text-muted-foreground">{row.category || row.table || row.email || row.phone || row.sourceKey}</span></span><div className="flex items-center gap-2"><select aria-label={`Verification for ${row.guestName}`} value={row.verificationStatus} disabled={busy || Boolean(row.checkedInAt)} onChange={(event) => void updateVerification(row.id, event.target.value as UpdateGuestVerificationInput["status"])} className="h-8 rounded-md border border-border bg-background px-2 text-xs"><option value="pending">Pending</option><option value="verified">Verified</option><option value="rejected">Rejected</option></select><button type="button" disabled={busy || !canCheckInRosterRow(row)} onClick={() => void checkIn(row.id)} className="rounded-md border border-border px-3 py-1.5 text-xs font-bold">Check in</button></div></div>)}{rows.length === 0 ? <p className="py-3 text-sm text-muted-foreground">No roster rows match.</p> : null}</div></div></Panel>;
 }
 
 function WalkInPolicySection({ policy, threshold, busy, onUpdate }: { policy: "closed" | "open" | "threshold"; threshold: number; busy: boolean; onUpdate: (input: UpdateWalkInPolicyInput) => void }) {
@@ -634,6 +628,6 @@ export function EventRegistrationTab({
 
 function canCheckInRosterRow(row: PrismGuestRosterEntry): boolean {
   if (row.withdrawnAt || row.checkedInAt || row.verificationStatus === "rejected") return false;
-  return !["coordinator-walk-in", "guest-review", "guest-review-headcount"].includes(row.source)
+  return !GUEST_VERIFICATION_REQUIRED_ROSTER_SOURCES.includes(row.source)
     || row.verificationStatus === "verified";
 }

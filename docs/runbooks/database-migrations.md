@@ -4,11 +4,11 @@ title: "Prism database migrations"
 description: "Create, review, deploy, and recover Prism's Prisma migrations without changing the applied history by hand."
 tags: [runbook, database, migrations, prisma, drift, recovery]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-10-29"
 authority: operational
 audience: [developers, reviewers, QA, operators, agents]
-scope: "apps/api Prisma migration creation, static review, deployment, and drift recovery"
-last_verified: "2026-10-06; seven baselines applied on disposable PostgreSQL 16; status and live schema diff clean"
+scope: "apps/api Prisma migration creation, static review, deployment, drift recovery, and retired-ledger databases"
+last_verified: "2026-10-29; scripts, migration folders, owner policy, and db-integrity/schema-cutover-preflight workflows reviewed against this text; no database contacted"
 sources:
   - id: migration-config
     resource: "apps/api/prisma.config.ts"
@@ -31,6 +31,9 @@ sources:
   - id: replay-workflow
     resource: ".github/workflows/db-integrity.yml"
     title: "Disposable PostgreSQL migration replay workflow"
+  - id: cutover-preflight
+    resource: ".github/workflows/schema-cutover-preflight.yml"
+    title: "Read-only held-release ledger and diff preflight"
 ---
 # Prism database migrations
 
@@ -41,22 +44,20 @@ not new UAT migrations. `db:doctor -- --mode=runtime --migration-history` compar
 the selected database ledger with local SQL checksums without changing either.
 Keep published migration files immutable; investigate exact mismatches before repair.
 
-- **Purpose:** Keep one clean Prisma migration history with a schema baseline for each bounded context and immutable forward changes.
+- **Purpose:** Keep one clean Prisma migration history with a schema baseline for each original bounded context and immutable forward changes.
 - **Runtime source of truth:** `apps/api/prisma/migrations` and Prisma's `_prisma_migrations` ledger; the policy freezes checksums for the seven owner-scoped baselines.
 - **Verify with:** Prisma validation, a fresh PostgreSQL 16 replay, migration status, and live schema equivalence.
-- **Important boundary:** The history replacement targets pre-production only. A database with the retired ledger needs a verified backup and an approved rebuild before the new history is applied.
+- **Important boundary:** A database that still carries the retired pre-baseline ledger needs a verified backup and an approved rebuild before this history is applied (see [retired-ledger databases](#databases-with-the-retired-ledger)).
 
 ## Local development target
 
 The launchers start local Supabase, apply checked-in migrations, and require the
-API ledger to match the checked-in head. DATABASE_URL is canonical; DIRECT_URL
-is an optional migration override. Hosted connections retain verified TLS.
-
-In a separate terminal, set PRISM_ENV_FILE to the absolute path of
-.local-dev/api.env before running database commands. A replaced initial baseline
-selects a separate local Supabase project and preserves the previous database
-as a CLI backup. Appending migrations retains the same database. Startup never
-resets or adopts an existing retired migration ledger.
+API ledger to match the checked-in head. `DATABASE_URL` is canonical;
+`DIRECT_URL` is an optional migration override. Hosted connections retain
+verified TLS. To run database commands against the local target from another
+terminal, set `PRISM_ENV_FILE` as described in the
+[local development runbook](docker-dev-testing.md#one-database-url). Startup
+never resets or adopts an existing retired migration ledger.
 
 ## Runtime structure
 
@@ -75,24 +76,23 @@ Migration directories are direct children. Do not create
 directories only. Owner-scoped folder names, SQL metadata, and the policy
 preserve domain ownership while Prisma remains the execution engine.
 
-The checked-in history now contains seven bootstrap migrations, one for each
-write domain and schema. The old 102-folder pre-production history was removed
-in a one-time rebaseline. The new baseline files are immutable once any
-environment adopts them. Do not rename, move, rewrite, or regenerate them;
-future changes use new forward migrations. Existing databases retain their old
-`_prisma_migrations` rows until separately rebuilt.
+The checked-in history starts with seven owner-scoped schema baselines,
+followed by immutable forward migrations. Do not rename, move, rewrite, or
+regenerate any published migration; future changes use new forward migrations.
+
 ## Ownership and metadata
 
 The owner-to-schema policy is in
 [`apps/api/prisma/migration-policy.json`](../../apps/api/prisma/migration-policy.json)
 and the domain explanation is in the
 [persistence ownership register](../architecture/persistence-ownership.md).
-The seven owners each own one schema: event-lifecycle/event_lifecycle,
+The eight owners each own one schema: event-lifecycle/event_lifecycle,
 commercial/commercial, operations/operations, live-ops/live_ops,
-floorplan/floorplan, identity-access/identity_access, and
-platform-ops/platform_ops.
+floorplan/floorplan, identity-access/identity_access,
+platform-ops/platform_ops, and event-games/event_games. The event-games schema
+was added by forward migrations after the baselines.
 
-The initial migration sequence is:
+The baseline sequence is:
 
     20261006120000_commercial_schema_baseline
     20261006120001_event-lifecycle_schema_baseline
@@ -217,42 +217,50 @@ value starts with `scrypt$` but matches neither format. Investigate such rows
 before retrying. Deploying the API without this rewrite locks out operators
 whose values are still legacy or plaintext.
 
-## One-time pre-production baseline adoption
+## Fresh disposable replay
 
-The seven migration files describe the final schema generated from
-`apps/api/prisma/schema.prisma`. They replace the retired pre-production
-history; they do not move data or reconcile the old migration ledger.
-
-### Fresh disposable database
-
-On an empty PostgreSQL 16 database, apply the full history and inspect the
-migration status and live schema diff:
+CI replays the full history on disposable PostgreSQL 16 in the
+`Database integrity` workflow (`npm --workspace prism-api run db:integrity:ci`).
+To replay by hand, point the selected env file at an empty, isolated
+PostgreSQL 16 database (never a shared or hosted one) and run:
 
     npm --workspace prism-api run db:migrate:deploy
     npm --workspace prism-api run db:status
     npm --workspace prism-api run db:diff:live
 
-Use an isolated disposable target. Do not point these commands at a shared or
-hosted database.
+## Held schema releases
 
-### Existing staging database
+For a release that needs the exact migration ledger at API startup, follow the
+cutover controls in [deployment secrets](deployment-secrets.md#schema-cutover-controls):
+set the hold, run the read-only `Schema cutover preflight (read-only)` workflow,
+then migrate and deploy under the maintenance procedure. The preflight checks
+that the target ledger is a checksum-valid prefix of the checked-in history and
+prints the pending SQL diff; it never applies migrations.
 
-Do not run the new history against a database whose ledger contains the retired
-102 migration names. Do not use `migrate resolve --applied` alone: it does not
-remove unknown rows or prove schema equivalence.
+## Databases with the retired ledger
 
-Before adopting the baseline, place staging writers and deploy jobs on hold,
-take a backup, and verify a restore to another disposable database. Review
-fixture and operator data with its owner. If the data is disposable, recreate
-only the staging database using the approved provider procedure, deploy the
-seven baselines, and check status, live diff, runtime compatibility, and
+The seven baselines replaced an earlier pre-production history. They describe
+the final schema on an empty database; they do not move data or reconcile the
+old ledger. Do not run this history against a database whose
+`_prisma_migrations` contains the retired names, and do not use
+`migrate resolve --applied` alone: it neither removes unknown rows nor proves
+schema equivalence.
+
+To adopt the baselines on such a database, hold deployments and writers, take a
+backup, and verify a restore to a separate disposable database. Review fixture
+and operator data with its owner. If the data is disposable, recreate only that
+database through the approved provider procedure, apply the history with
+`db:migrate:deploy`, and check status, live diff, runtime compatibility, and
 application acceptance before resuming writes.
 
-If any data must be preserved, stop before recreating the database. This
-baseline contains no data-copy or in-place schema-move migration. Recover the
-retired history from the pre-rebaseline Git revision and plan a separate
-owner-reviewed conversion and restore path. This rebaseline is not a
-production migration.
+If any data must be preserved, stop before recreating the database. The history
+contains no data-copy or in-place schema-move migration. Recover the retired
+history from Git and plan a separate owner-reviewed conversion and restore
+path. Before such a conversion, the read-only
+`npm --workspace prism-api run db:preflight:quote-request-fk` reports orphan
+`commercial.quotes.request_id` values that the baseline's `ON DELETE RESTRICT`
+foreign key would reject; it never deletes or rewrites rows.
+
 ## Data invariants
 
 Schema changes and data backfills are not the only migration risks. Any
@@ -280,11 +288,9 @@ reviewed migration or operator procedure. Do not point the live command at a
 production database from CI, and do not treat a dry-run pass as evidence that
 the target data is compatible.
 
-For the approved domain-schema move rehearsal, safe disposable-target checks,
-and row-preservation evidence, follow the
-[domain schema cutover runbook](domain-schema-cutover.md). The manifest-driven
-JSON export described there is an inspection aid, not a complete database
-backup or recovery procedure.
+`npm --workspace prism-api run db:backup:json` writes a manifest-driven JSON
+export of owned tables. It is an inspection aid, not a complete database backup
+or recovery procedure.
 
 ## Drift and failed-migration recovery
 
@@ -295,7 +301,9 @@ database disagree. Classify the state before changing anything:
 
 The database ledger may be missing a row for SQL whose effects are already
 present, or may contain a failed/unresolved row. Inspect with `db:status` and
-the database's migration metadata. Do not replay an already-applied migration
+`db:doctor -- --mode=runtime --migration-history`, which reports pending,
+unfinished, mismatched, and missing-local-file entries (line-ending-only
+checksum differences are listed separately as `lineEndingOnly`). Do not replay an already-applied migration
 just because its ledger row is absent. `prisma migrate resolve` is an operator
 command for a precisely verified ledger fact and requires an approved target,
 exact migration-effect evidence, and an audit record.
@@ -337,16 +345,10 @@ The normal recovery sequence is:
 `db:reset` is destructive and is not part of this procedure. The migration
 guard itself performs no database mutation and cannot approve emergency repair.
 
-## Migration review evidence
+## Review evidence
 
-For a fresh baseline, retain the concise output for Prisma validation, migration
-status, and a zero-diff schema comparison. Record which database was used;
+A migration PR identifies the owner, migration names, target database class,
+and post-replay status. Retain concise output for Prisma validation, migration
+status, and a zero-diff schema comparison, and record which database was used;
 local evidence does not qualify a different staging or production target.
-
 Never commit database credentials or raw secret-bearing output.
-
-## PR review
-
-A migration change should identify the target database class, the migration
-names, the pre-production adoption boundary, and the post-replay status.
-Do not include credentials or raw secret-bearing output.

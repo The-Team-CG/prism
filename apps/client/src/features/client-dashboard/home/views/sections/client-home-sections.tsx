@@ -11,10 +11,12 @@ import {
   Sparkles,
   WalletCards,
 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/app/components/ui/button";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { ClientActionGroup } from "../../../shared/client-action-group";
+import { groupClientActionsByEvent } from "../../model/client-home-action-groups";
 import {
   greetingByTime,
   type ClientDashboardAction,
@@ -47,55 +49,35 @@ export function ClientHomeGreeting({
   onReviewConforme: () => void;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-primary-deep px-6 py-7 text-white shadow-lg sm:px-8 sm:py-8">
-      <div className="relative z-10">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-white/70">P.R.I.S.M Client Portal</p>
-            <h1 className="mt-1 text-2xl font-black leading-tight sm:text-3xl">
-              {greetingByTime(sessionName)}
-            </h1>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-white/80">
-              {eventCount > 0
-                ? `You have ${eventCount} active event${eventCount === 1 ? "" : "s"} with PMCM. Select an event to review approvals, documents, billing, and planning updates.`
-                : "Your event workspace opens after PMCM accepts your inquiry and both you and PMCM acknowledge the conforme. Review it here when PMCM has prepared it."}
-            </p>
-            <div className="mt-5 flex flex-wrap gap-2">
-              <Button
-                className="rounded-lg bg-white font-bold text-primary hover:bg-white/90"
-                onClick={onRequest}
-              >
-                <Send className="size-4" /> New event request
-              </Button>
-              {eventCount > 0 ? (
-                <Button
-                  variant="ghost"
-                  className="rounded-lg font-semibold text-white hover:bg-white/15 hover:text-white"
-                  onClick={onEvents}
-                >
-                  My events <ArrowRight className="size-4" />
-                </Button>
-              ) : null}
-              <Button
-                variant="ghost"
-                className="rounded-lg font-semibold text-white hover:bg-white/15 hover:text-white"
-                onClick={onReviewConforme}
-              >
-                Review conforme <ArrowRight className="size-4" />
-              </Button>
-            </div>
-          </div>
-          {daysToEvent !== null ? (
-            <div className="hidden shrink-0 flex-col items-center rounded-xl bg-white/15 px-5 py-4 text-center backdrop-blur-sm sm:flex">
-              <span className="text-4xl font-black leading-none">{daysToEvent}</span>
-              <span className="mt-1 text-xs font-semibold uppercase tracking-wider text-white/70">days to event</span>
-            </div>
+    <header className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-semibold leading-tight text-foreground">{greetingByTime(sessionName)}</h1>
+        <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+          {eventCount > 0
+            ? `You have ${eventCount} active event${eventCount === 1 ? "" : "s"} with PMCM. Open an event to review approvals, documents, billing and planning updates.`
+            : "Your event workspace opens after PMCM accepts your inquiry and both you and PMCM acknowledge the conforme. Review it here when PMCM has prepared it."}
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <Button className="h-10 rounded-md font-semibold" onClick={onRequest}>
+            <Send className="size-4" aria-hidden="true" /> New event request
+          </Button>
+          {eventCount > 0 ? (
+            <button type="button" className="inline-flex min-h-10 items-center gap-1 text-sm font-medium text-primary hover:text-primary/80" onClick={onEvents}>
+              My events <ArrowRight className="size-4" aria-hidden="true" />
+            </button>
           ) : null}
+          <button type="button" className="inline-flex min-h-10 items-center gap-1 text-sm font-medium text-primary hover:text-primary/80" onClick={onReviewConforme}>
+            Review conforme <ArrowRight className="size-4" aria-hidden="true" />
+          </button>
         </div>
       </div>
-      <span className="pointer-events-none absolute -right-12 -top-12 size-48 rounded-full bg-white/6" />
-      <span className="pointer-events-none absolute -bottom-16 -right-8 size-64 rounded-full bg-white/4" />
-    </div>
+      {daysToEvent !== null ? (
+        <p className="shrink-0 text-sm text-muted-foreground sm:text-right">
+          <span className="block text-3xl font-semibold tabular-nums text-foreground">{daysToEvent}</span>
+          days to your next event
+        </p>
+      ) : null}
+    </header>
   );
 }
 
@@ -211,8 +193,8 @@ export function ClientHomeActionCenter({
     <section aria-labelledby="client-action-center-heading" className="space-y-4">
       <h2 id="client-action-center-heading" className="text-base font-black text-foreground">Action center</h2>
       <p className="text-xs text-muted-foreground">Updated {formatPortalDateTime(actionCenter.generatedAt)} · Philippine time</p>
+      <ClientOwnActions actions={clientActions.filter((action) => (action.nextActor ?? "you") === "you")} onAction={runClientAction} />
       {([
-        { actor: "you", title: "Needs your action", description: "Review these items and choose the next step." },
         { actor: "pmcm", title: "Waiting for PMCM", description: "Your item is with PMCM. Open it to review the current status." },
         { actor: "update", title: "Available to review", description: "New records and information for your events." },
       ] as const).map((group) => {
@@ -223,15 +205,32 @@ export function ClientHomeActionCenter({
   );
 }
 
+/** What the client must provide, per event: current blockers first, later-stage requirements apart. */
+function ClientOwnActions({ actions, onAction }: { actions: ClientDashboardAction[]; onAction: (action: ClientDashboardAction) => void }) {
+  return groupClientActionsByEvent(actions).map((group) => (
+    <div key={group.eventId} className="space-y-3">
+      {group.now.length ? (
+        <ClientActionGroup title={`Needs your action now · ${group.eventName}`} description="These hold your event back. Review them first." actions={group.now} onAction={onAction} showDetailsAndCta />
+      ) : null}
+      {group.later.length ? (
+        <ClientActionGroup title={`Needs your action later · ${group.eventName}`} description="Requirements for a later stage. They can wait until the current items are done." actions={group.later} onAction={onAction} showDetailsAndCta />
+      ) : null}
+    </div>
+  ));
+}
+
 export function ClientHomeEvents({
   events,
-  onViewAll,
-  onRequest,
+  viewAllHref,
+  requestHref,
+  eventHref,
   onOpen,
 }: {
   events: PrismEvent[];
-  onViewAll: () => void;
-  onRequest: () => void;
+  viewAllHref: string;
+  requestHref: string;
+  eventHref: (eventId: string) => string;
+  /** Records the chosen event before its link navigates. */
   onOpen: (eventId: string) => void;
 }) {
   const isPastEvent = (event: PrismEvent) => ["completed", "cancelled", "closed"].includes(event.status);
@@ -248,8 +247,8 @@ export function ClientHomeEvents({
         <p className="mt-2 max-w-sm mx-auto text-sm leading-6 text-muted-foreground">
           Your event workspace opens after PMCM accepts your inquiry and both you and PMCM acknowledge the conforme. If PMCM has prepared one, review it here; otherwise, submit a request to get started.
         </p>
-        <Button className="mt-5 rounded-lg font-bold" onClick={onRequest}>
-          <Send className="size-4" /> Submit an event request
+        <Button asChild className="mt-5 rounded-lg font-bold">
+          <Link href={requestHref}><Send className="size-4" /> Submit an event request</Link>
         </Button>
       </div>
     );
@@ -259,13 +258,12 @@ export function ClientHomeEvents({
     <div>
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-base font-black text-foreground">Your events</h2>
-        <button
-          type="button"
-          onClick={onViewAll}
+        <Link
+          href={viewAllHref}
           className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         >
           View all <ArrowRight className="size-3" />
-        </button>
+        </Link>
       </div>
       <div className="divide-y divide-border rounded-lg border border-border bg-card">
         {previewEvents.map((ev) => (
@@ -275,7 +273,7 @@ export function ClientHomeEvents({
               <p className="mt-1 text-sm text-muted-foreground">{formatPortalDate(ev.eventDate)} · {ev.status.replaceAll("_", " ")}</p>
               {ev.venue ? <p className="mt-1 text-xs text-muted-foreground">{ev.venue}</p> : null}
             </div>
-            <Button variant="outline" onClick={() => onOpen(ev.id)}>Open event</Button>
+            <Button asChild variant="outline"><Link href={eventHref(ev.id)} onClick={() => onOpen(ev.id)}>Open event</Link></Button>
           </div>
         ))}
       </div>

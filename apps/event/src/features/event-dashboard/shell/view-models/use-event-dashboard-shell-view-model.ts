@@ -20,6 +20,7 @@ import {
 } from "@/features/pmcm-kit/model/pmcm-dashboard-selectors";
 import {
   activeSidebarItemFromRoute,
+  eventSidebarItemHref,
   routeLoadingShellCopy,
   routeShellCopy,
   type DashboardSection,
@@ -286,7 +287,7 @@ export function useEventDashboardShellViewModel({
     draftCount: drafts.length,
     paymentCount: payments.length,
     closeoutCount: openCheckCount,
-  });
+  }).map((item) => ({ ...item, href: item.disabled ? undefined : eventSidebarItemHref(item.id, selectedEvent?.id) }));
   const activeNavItem = shellNavItems.find((item) => item.id === activeSidebarItemId);
 
   return {

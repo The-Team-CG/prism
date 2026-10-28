@@ -5,7 +5,7 @@ import { EventWorkspaceSwitcher } from "./event-workspace-switcher";
 import { PrismDashboardShell } from "@prism/ui";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { ConformeUploadModal } from "@/features/conforme/upload";
-import { humanizeToken } from "@/features/pmcm-kit/model/formatters";
+import { roleLabel } from "@/features/pmcm-kit/model/display-labels";
 import { supplierWorkspaceStyles } from "@/features/suppliers/directory";
 import { EventDashboardSkeleton, eventDashboardSkeletonVariant } from "@/app/(portal)/dashboard/components/event-dashboard-skeleton";
 import type { EventSession } from "@/app/lib/session";
@@ -29,7 +29,7 @@ export function EventPmcmLoadingShell({ viewModel }: { viewModel: LoadedShell })
       navItems={viewModel.loadingShellNavItems}
       sidebarMode="single"
       onNavSelect={viewModel.handleSidebarNav}
-      user={{ name: viewModel.session.name, detail: humanizeToken(viewModel.session.role), initials: viewModel.session.name.slice(0, 2).toUpperCase() }}
+      user={{ name: viewModel.session.name, detail: roleLabel(viewModel.session.role), initials: viewModel.session.name.slice(0, 2).toUpperCase() }}
       searchPlaceholder="Search events, suppliers, inquiries..."
       showTopBarSearch={false}
       onSignOut={() => void viewModel.signOut()}
@@ -58,7 +58,7 @@ export function EventPmcmReadyShell({ viewModel, children }: { viewModel: Loaded
       navItems={viewModel.shellNavItems}
       sidebarMode="single"
       onNavSelect={viewModel.handleSidebarNav}
-      user={{ name: viewModel.session.name, detail: humanizeToken(viewModel.session.role), initials: viewModel.session.name.slice(0, 2).toUpperCase() }}
+      user={{ name: viewModel.session.name, detail: roleLabel(viewModel.session.role), initials: viewModel.session.name.slice(0, 2).toUpperCase() }}
       searchPlaceholder="Find a page"
       sidebarContext={
         viewModel.routeState.eventId && viewModel.selectedEvent ? (

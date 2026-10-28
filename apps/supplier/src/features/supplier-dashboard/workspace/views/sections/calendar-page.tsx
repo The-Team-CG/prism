@@ -79,7 +79,7 @@ export function CalendarPage({ workspace }: { workspace: SupplierWorkspace; quot
               return (
                 <div key={i} className="flex items-center gap-4 px-6 py-4">
                   <div className={`flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl text-center ${isToday ? "bg-primary text-white" : past ? "bg-muted text-muted-foreground" : "bg-muted/50 text-foreground"}`}>
-                    <span className="text-3xs font-bold uppercase leading-none">{new Date(ev.date + "T00:00:00").toLocaleString("en-PH", { month: "short" })}</span>
+                    <span className="text-xs font-medium leading-none">{new Date(ev.date + "T00:00:00").toLocaleString("en-PH", { month: "short" })}</span>
                     <span className="text-lg font-black leading-tight">{new Date(ev.date + "T00:00:00").getDate()}</span>
                   </div>
                   <div className="min-w-0 flex-1">

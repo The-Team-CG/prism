@@ -470,12 +470,43 @@ export function handleCanvasDrop(input: {
   );
 }
 
-export function fittedViewport(size: { w: number; h: number }, project: { widthM: number; heightM: number }): Viewport {
+/** Bounds of what is drawn on the plan, in meters, with a small margin; null when the plan is empty. */
+export function planContentBounds(objects: Pick<CanvasObject, "x" | "y" | "w" | "h">[], marginM = 2) {
+  if (objects.length === 0) return null;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const object of objects) {
+    // Lines store a start point and a signed extent, so take both ends.
+    minX = Math.min(minX, object.x, object.x + object.w);
+    minY = Math.min(minY, object.y, object.y + object.h);
+    maxX = Math.max(maxX, object.x, object.x + object.w);
+    maxY = Math.max(maxY, object.y, object.y + object.h);
+  }
+  if (![minX, minY, maxX, maxY].every(Number.isFinite)) return null;
+  return { x: minX - marginM, y: minY - marginM, w: maxX - minX + marginM * 2, h: maxY - minY + marginM * 2 };
+}
+
+/** Largest zoom (screen px per meter) the fit will choose, so one small object never fills the screen. */
+const MAX_FIT_ZOOM = 60;
+
+/**
+ * Fit the drawn plan to the canvas. A room much larger than its contents (or wrong room units) would
+ * otherwise open at a near-invisible zoom, so the plan's objects decide the frame; the room is the fallback.
+ */
+export function fittedViewport(
+  size: { w: number; h: number },
+  project: { widthM: number; heightM: number; objects?: Pick<CanvasObject, "x" | "y" | "w" | "h">[] },
+): Viewport {
   const pad = 90;
-  const zoom = Math.min((size.w - pad * 2) / project.widthM, (size.h - pad * 2) / project.heightM);
+  const frame = planContentBounds(project.objects ?? []) ?? { x: 0, y: 0, w: project.widthM, h: project.heightM };
+  const width = Math.max(frame.w, 1);
+  const height = Math.max(frame.h, 1);
+  const zoom = Math.min(MAX_FIT_ZOOM, (size.w - pad * 2) / width, (size.h - pad * 2) / height);
   return {
     zoom,
-    tx: (size.w - project.widthM * zoom) / 2,
-    ty: (size.h - project.heightM * zoom) / 2,
+    tx: (size.w - width * zoom) / 2 - frame.x * zoom,
+    ty: (size.h - height * zoom) / 2 - frame.y * zoom,
   };
 }

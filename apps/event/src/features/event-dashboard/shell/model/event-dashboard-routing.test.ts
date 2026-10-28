@@ -2,6 +2,7 @@ import { portalHref } from "@prism/ui/portal-path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RouteState } from "./event-dashboard-routing";
 import {
+  eventSidebarItemHref,
   activeSidebarItemFromRoute,
   dashboardRouteState,
   eventListRouteState,
@@ -17,6 +18,13 @@ import {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("event-dashboard-routing", () => {
+  it("gives sidebar destinations real link targets, and none to event sections without an event", () => {
+    expect(eventSidebarItemHref("inquiries")).toBe("/dashboard/inquiries");
+    expect(eventSidebarItemHref("event-overview", "evt 1")).toBe("/dashboard/events/evt%201/overview");
+    expect(eventSidebarItemHref("event-overview")).toBeUndefined();
+    expect(eventSidebarItemHref("unknown", "evt")).toBeUndefined();
+  });
+
   it("keeps native navigation inside its hosting prefix without changing external links", () => {
     vi.stubEnv("NEXT_PUBLIC_PORTAL_BASE_PATH", "/event");
     expect(["/", "/sign-in?next=%2Fdashboard", "/event/dashboard", "https://supplier.example.test/", "//cdn.example.test/logo.png", "#section"].map(portalHref)).toEqual([
@@ -226,9 +234,13 @@ describe("event-dashboard-routing", () => {
       [{ section: "team", tab: "overview" }, "Team"],
       [{ section: "inquiries", tab: "overview" }, "Inquiries"],
       [{ section: "calendar", tab: "overview" }, "Calendar"],
+      [{ section: "files", tab: "floorplans", view: "all" }, "Files"],
+      [{ section: "messages", tab: "activity", view: "inbox" }, "Messages"],
+      [{ section: "finance", tab: "billing", view: "overview" }, "Finance"],
     ];
     for (const [routeState, expectedTitle] of sectionTitles) {
-      expect(routeShellCopy(routeState).title).toBe(expectedTitle);
+      // Global event-scoped destinations fall back to the Inbox nav item; the title must still name the destination.
+      expect(routeShellCopy(routeState, { activeNavLabel: "Inbox" }).title).toBe(expectedTitle);
     }
   });
 

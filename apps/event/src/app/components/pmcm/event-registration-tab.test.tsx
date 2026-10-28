@@ -99,4 +99,23 @@ describe("EventRegistrationTab", () => {
     fireEvent.click(screen.getByRole("button", { name: "Check in" }));
     await waitFor(() => expect(onCheckInRoster).toHaveBeenCalledWith("gre_review_1"));
   });
+
+  it("imports a pasted spreadsheet only after the preview shows every row ready", async () => {
+    const onImportRoster = vi.fn().mockResolvedValue([{ ...anonymousReview, id: "gre_1", guestName: "Ada Lovelace", sourceKey: "A-1" }]);
+    renderRegistrationTab({ onImportRoster });
+
+    const sheet = screen.getByLabelText("Spreadsheet rows");
+    fireEvent.change(sheet, { target: { value: ["guestName,category,table,sourceKey", "Ada Lovelace,VIP,T1,A-1", ",VIP,T2,A-2"].join("\n") } });
+    expect(screen.getByTestId("roster-preview-summary").textContent).toContain("1 ready · 1 need fixing");
+    expect(screen.getByText("Guest name is required")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Import roster" }) as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.change(sheet, { target: { value: ["guestName,category,table,sourceKey", "Ada Lovelace,VIP,T1,A-1"].join("\n") } });
+    fireEvent.click(screen.getByRole("button", { name: "Import 1 guests" }));
+
+    await waitFor(() => expect(onImportRoster).toHaveBeenCalledWith({ source: "spreadsheet", rows: [{ guestName: "Ada Lovelace", category: "VIP", table: "T1", sourceKey: "A-1" }] }));
+    expect((await screen.findByRole("status")).textContent).toBe("Imported 1 roster rows from spreadsheet.");
+    expect(await screen.findByText("Ada Lovelace")).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Download template/ }).getAttribute("download")).toBe("guest-roster-template.csv");
+  });
 });

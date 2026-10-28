@@ -5,7 +5,7 @@ import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import { ClipboardList, Home, BellRing, CalendarClock, ClipboardCheck, UsersRound } from "lucide-react";
 import type { PrismAuthenticatedSession, PrismCoordinatorWorkspace } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
-import { label } from "@/features/pmcm-kit";
+import { roleLabel } from "@/features/pmcm-kit";
 import { CoordinatorRegistrationDesk } from "@/features/coordinators/registration";
 import { optionalNavBadge } from "../model/coordinator-view-copy";
 import { useCoordinatorViewModel } from "../view-models/use-coordinator-view-model";
@@ -163,7 +163,7 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
     return () => window.removeEventListener("popstate", sync);
   }, []);
 
-  const roleName = vm.assignment?.role ?? label(session.role);
+  const roleName = vm.assignment?.role ?? roleLabel(session.role);
   const navItems = [
     { id: "coord-home", icon: Home, label: SECTION_LABELS["coord-home"], section: "Coordinator" },
     { id: "coord-queue", icon: ClipboardList, label: SECTION_LABELS["coord-queue"], section: "Coordinator", badge: optionalNavBadge(vm.roleView?.tasks.length) },
@@ -193,7 +193,7 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
       activeItemId={activeSection}
       navItems={navItems}
       onNavSelect={handleNav}
-      user={{ name: session.name, detail: label(session.role), initials: session.name.slice(0, 2).toUpperCase() }}
+      user={{ name: session.name, detail: roleLabel(session.role), initials: session.name.slice(0, 2).toUpperCase() }}
       onSignOut={onSignOut}
       searchPlaceholder="Search tasks and issues..."
     >

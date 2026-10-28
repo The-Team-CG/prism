@@ -35,6 +35,8 @@ export function useLiveOperationsWorkspaceViewModel({
   const [issueAffectedArea, setIssueAffectedArea] = useState("");
   const [issueOwnerRole, setIssueOwnerRole] = useState("Event Day System Operator");
   const [issueSlaDueAt, setIssueSlaDueAt] = useState("");
+  const [issueFormOpen, setIssueFormOpen] = useState(false);
+  const [taskFormOpen, setTaskFormOpen] = useState(false);
 
   const metrics = useMemo(() => computeLiveOpsMetrics(liveOps), [liveOps]);
 
@@ -47,6 +49,7 @@ export function useLiveOperationsWorkspaceViewModel({
     });
     setTaskTitle("");
     setTaskSlaDueAt("");
+    setTaskFormOpen(false);
   }
 
   async function createIssue() {
@@ -62,6 +65,7 @@ export function useLiveOperationsWorkspaceViewModel({
     setIssueDescription("");
     setIssueAffectedArea("");
     setIssueSlaDueAt("");
+    setIssueFormOpen(false);
   }
 
   return {
@@ -89,6 +93,10 @@ export function useLiveOperationsWorkspaceViewModel({
     setIssueOwnerRole,
     issueSlaDueAt,
     setIssueSlaDueAt,
+    issueFormOpen,
+    toggleIssueForm: () => setIssueFormOpen((open) => !open),
+    taskFormOpen,
+    toggleTaskForm: () => setTaskFormOpen((open) => !open),
     createTask,
     createIssue,
     status: busy ? ("loading" as const) : ("idle" as const),

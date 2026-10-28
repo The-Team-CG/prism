@@ -52,3 +52,18 @@ export function computeLiveOpsMetrics(liveOps: {
     ).length,
   };
 }
+
+const ISSUE_SEVERITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+
+export function isOpenLiveOpsIssue(issue: { status: string }): boolean {
+  return !["resolved", "cancelled"].includes(issue.status);
+}
+
+/** Desk order: open issues first, most severe first, then closed issues as history. */
+export function orderLiveOpsIssuesForDesk<T extends { status: string; severity: string }>(issues: T[]): T[] {
+  return [...issues].sort((a, b) => {
+    const openDiff = Number(isOpenLiveOpsIssue(b)) - Number(isOpenLiveOpsIssue(a));
+    if (openDiff !== 0) return openDiff;
+    return (ISSUE_SEVERITY_RANK[a.severity] ?? 4) - (ISSUE_SEVERITY_RANK[b.severity] ?? 4);
+  });
+}

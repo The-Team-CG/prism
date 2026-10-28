@@ -2,6 +2,7 @@
 
 import { useClientWorkspace } from "../../workspace/shared";
 import {
+  OfficialFloorPlanCard,
   FloorPlanCardHeader,
   FloorPlanDraftPanel,
   FloorPlanRevisionCommentCard,
@@ -9,8 +10,7 @@ import {
   GuidedLayoutNotes,
 } from "./sections/client-floorplan-sections";
 import { ClientFloorplanReviewPanel } from "../../floorplan-review/views/client-floorplan-review-panel";
-import { selectClientFloorPlanDraft } from "../../workspace/model/client-dashboard-selectors";
-import { draftIsOfficial } from "../../workspace/model/client-dashboard-view-rules";
+import { selectClientFloorPlanLayout } from "../../workspace/model/client-floorplan-review-rules";
 
 export function ClientFloorPlanView() {
   const {
@@ -28,33 +28,35 @@ export function ClientFloorPlanView() {
     busy,
   } = useClientWorkspace();
 
-  const activeDraft = selectClientFloorPlanDraft(officialDraft, preferenceDrafts);
-  const isOfficial = activeDraft !== undefined && draftIsOfficial(activeDraft);
-  const approved = isOfficial && activeDraft?.status === "approved";
+  const { officialPlan, activeDraft, isOfficial, draftApproved, approved, showReview, showPreferenceCard } =
+    selectClientFloorPlanLayout(officialDraft, preferenceDrafts);
 
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl border border-border bg-card shadow-sm">
-        <FloorPlanCardHeader approved={approved} isOfficial={isOfficial} activeDraft={activeDraft} />
-        <div className="p-6">
-          <FloorPlanDraftPanel
-            approved={approved}
-            isOfficial={isOfficial}
-            activeDraft={activeDraft}
-            officialProject={officialProject}
-            onOpenEditor={openFloorplanEditor}
-          />
-          <FloorPlanTemplates
-            approved={approved || Boolean(officialDraft)}
-            templates={floorPlanTemplates}
-            busy={busy}
-            onCreate={createEditorDraft}
-          />
+      {officialPlan ? <OfficialFloorPlanCard draft={officialPlan} officialProject={officialProject} onOpenEditor={openFloorplanEditor} /> : null}
+      {selectedEvent && officialPlan && showReview ? (
+        <ClientFloorplanReviewPanel eventId={selectedEvent.id} draftId={officialPlan.id} onDecided={refresh} />
+      ) : null}
+      <FloorPlanRevisionCommentCard draft={officialPlan ?? activeDraft} event={selectedEvent} />
+      {showPreferenceCard ? (
+        <div className="rounded-2xl border border-border bg-card shadow-sm">
+          <FloorPlanCardHeader approved={draftApproved} isOfficial={isOfficial} activeDraft={activeDraft} />
+          <div className="p-6">
+            <FloorPlanDraftPanel
+              approved={draftApproved}
+              isOfficial={isOfficial}
+              activeDraft={activeDraft}
+              officialProject={officialProject}
+              onOpenEditor={openFloorplanEditor}
+            />
+            <FloorPlanTemplates
+              approved={approved || Boolean(officialDraft)}
+              templates={floorPlanTemplates}
+              busy={busy}
+              onCreate={createEditorDraft}
+            />
+          </div>
         </div>
-      </div>
-      <FloorPlanRevisionCommentCard draft={activeDraft} event={selectedEvent} />
-      {selectedEvent && officialDraft && (officialDraft.status === "in_review" || officialDraft.status === "approved") ? (
-        <ClientFloorplanReviewPanel eventId={selectedEvent.id} draftId={officialDraft.id} onDecided={refresh} />
       ) : null}
       <GuidedLayoutNotes
         approved={approved}

@@ -1,19 +1,17 @@
+import { formatPortalDate } from "@prism/ui/format-date";
 import type {
   CreateFileRequirementInput,
   PrismFileRequirementItem,
   PrismFileRequirementsMatrix,
   UpdateFileRequirementInput,
 } from "@prism/types";
+import { FILE_REQUIREMENT_ROLES } from "@prism/types";
+import { roleLabel, statusLabel } from "@/features/pmcm-kit/model/display-labels";
 
 export const FILE_HUB_HELP_COPY =
   "Upload deliverables in Stored event files. Confirmed files are shared with the client and available to download from the event file hub.";
 
-export const FILE_REQUIREMENT_ROLE_OPTIONS = [
-  { value: "pmcm-admin", label: "PMCM" },
-  { value: "client", label: "Client" },
-  { value: "coordinator", label: "Coordinator" },
-  { value: "supplier", label: "Supplier" },
-] as const;
+export const FILE_REQUIREMENT_ROLE_OPTIONS = FILE_REQUIREMENT_ROLES.map((value) => ({ value, label: roleLabel(value) }));
 
 /** Form state for PMCM edits. Strings are raw input values; the use-case validates them through @prism/types. */
 export type FileRequirementDraft = {
@@ -49,7 +47,7 @@ export function dueDateToIso(date: string): string | null {
 }
 
 export function formatFileRequirementDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  return formatPortalDate(iso);
 }
 
 function sameMembers(left: readonly string[], right: readonly string[]) {
@@ -115,4 +113,21 @@ export function fileRequirementCounts(matrix: PrismFileRequirementsMatrix | null
     open: items.filter((item) => item.status === "missing" || item.status === "pending").length,
     overdue: items.filter((item) => item.overdue).length,
   };
+}
+
+const FILE_WORKFLOW_LABELS: Record<string, string> = {
+  custom: "Custom requirement",
+  closure: "Closure",
+  floorplans: "Floorplans",
+  client_onboarding: "Client onboarding",
+  commercial: "Commercial",
+  live_ops: "Live operations",
+  supplier_network: "Supplier network",
+};
+
+/** One readable metadata line: owner, audience, and source workflow in product terms. */
+export function fileRequirementMetadataLine(item: Pick<PrismFileRequirementItem, "ownerRole" | "visibleToRoles" | "sourceWorkflow">): string {
+  const audience = [...new Set(item.visibleToRoles)].map(roleLabel).join(", ");
+  const workflow = FILE_WORKFLOW_LABELS[item.sourceWorkflow] ?? statusLabel(item.sourceWorkflow);
+  return `Owner: ${roleLabel(item.ownerRole)} · Visible to ${audience || "—"} · ${workflow}`;
 }

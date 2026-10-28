@@ -34,7 +34,7 @@ sources:
   use case can move between qualified external providers by selecting a
   reviewed route profile, with no feature-code or prompt change.
 - **Authority:** Informative execution plan. The product ledger, readiness
-  foundation, architecture decisions, and provider approval record govern
+  gates, architecture decisions, and provider approval record govern
   actual behavior and activation. This plan does not authorize real-data AI.
 - **Scope:** Repair the current PR 0-7 stack, add one second external provider
   route after qualification, prove synthetic switching and full PARE execution,
@@ -361,8 +361,8 @@ are reproducible and signed off for technical, operational and UX acceptance.
 ## Task 7: Promote governance and retire compatibility controls
 
 **Files:** A numbered ADR under `docs/architecture/decisions/`;
-`docs/product/feature-ledger.md`, `readiness-foundation.md`, and
-`actual-system.md`; relevant privacy/deployment runbooks; `docs/log.md`,
+`docs/product/feature-ledger.md`, `evolution-governance.md` (readiness gates),
+and `actual-system.md`; relevant privacy/deployment runbooks; `docs/log.md`,
 `CHANGELOG.md`, and roadmap indexes.
 
 - [ ] Record the exact approved route revisions, provider/model/endpoint,

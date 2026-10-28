@@ -1,6 +1,7 @@
 "use client";
 
 import type { FileRequirementRole } from "@prism/types";
+import { roleLabel } from "@/features/pmcm-kit/model/display-labels";
 import { useFileRequirementTemplateManagerViewModel } from "../view-models/use-file-requirement-template-manager-view-model";
 
 const roles: FileRequirementRole[] = ["client", "supplier", "coordinator", "pmcm-admin"];
@@ -18,7 +19,7 @@ export function FileRequirementTemplateManager({ eventId, onClose, onApplied }: 
         {vm.requirements.map((item, index) => <div key={index} className="grid gap-2 rounded-lg border border-border bg-card p-3 md:grid-cols-[1fr_1.4fr_1fr_8rem_auto]">
           <label className="grid gap-1 text-2xs text-muted-foreground">Key<input value={item.key} onChange={(event) => vm.changeRequirement(index, { key: event.target.value })} className="min-w-0 rounded border border-border bg-background px-2 py-1.5 text-xs text-foreground" placeholder="venue_permit" /></label>
           <label className="grid gap-1 text-2xs text-muted-foreground">Requirement<input value={item.label} onChange={(event) => vm.changeRequirement(index, { label: event.target.value })} className="min-w-0 rounded border border-border bg-background px-2 py-1.5 text-xs text-foreground" placeholder="Venue permit" /></label>
-          <label className="grid gap-1 text-2xs text-muted-foreground">Owner<select value={item.ownerRole} onChange={(event) => vm.changeRequirement(index, { ownerRole: event.target.value as FileRequirementRole })} className="rounded border border-border bg-background px-2 py-1.5 text-xs text-foreground">{roles.map((role) => <option key={role} value={role}>{role}</option>)}</select></label>
+          <label className="grid gap-1 text-2xs text-muted-foreground">Owner<select value={item.ownerRole} onChange={(event) => vm.changeRequirement(index, { ownerRole: event.target.value as FileRequirementRole })} className="rounded border border-border bg-background px-2 py-1.5 text-xs text-foreground">{roles.map((role) => <option key={role} value={role}>{roleLabel(role)}</option>)}</select></label>
           <label className="grid gap-1 text-2xs text-muted-foreground">Days before event<input type="number" min="0" max="3650" value={item.dueOffsetDays ?? ""} onChange={(event) => vm.changeRequirement(index, { dueOffsetDays: event.target.value === "" ? undefined : Number(event.target.value) })} className="rounded border border-border bg-background px-2 py-1.5 text-xs text-foreground" /></label>
           <button type="button" disabled={vm.requirements.length === 1} onClick={() => vm.removeRequirement(index)} className="self-end rounded border border-border px-2 py-1.5 text-xs disabled:opacity-50" aria-label={`Remove ${item.label || "requirement"}`}>Remove</button>
           <label className="flex items-center gap-2 text-xs text-foreground md:col-span-5"><input type="checkbox" checked={item.required} onChange={(event) => vm.changeRequirement(index, { required: event.target.checked })} />Required · visible to PMCM and the owner</label>

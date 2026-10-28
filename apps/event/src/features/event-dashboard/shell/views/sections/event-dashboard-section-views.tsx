@@ -5,6 +5,7 @@ import { FileRequirementsMatrixPanel } from "@/features/files/matrix";
 import { PmcmDocumentHubView } from "@/features/files/hub";
 import { EventFileHub } from "./event-file-hub";
 import { EventCalendarWorkspace } from "./event-calendar-workspace";
+import { EventDestinationPicker } from "./event-destination-picker";
 import { EventTasksWorkspace } from "./event-tasks-workspace";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { EventSettingsWorkspace } from "./event-settings-workspace";
@@ -13,16 +14,9 @@ import { EventRegister } from "./event-register";
 import { InquiryViews } from "./inquiry-views";
 import { ClientDirectory, ClientDossier } from "./client-directory";
 import { humanizeToken } from "@/features/pmcm-kit/model/formatters";
-import {
-  FileText,
-  MessageSquareText,
-  ReceiptText,
-  ShieldCheck,
-  UsersRound,
-} from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
-import { EmptyState } from "@/app/components/ui/empty-state";
 import { ClientOnboardingTracker } from "@/features/clients/onboarding";
 import { InquiryIntakeLog } from "@/features/inquiries/intake";
 import { ConformeDraftReviewView } from "@/features/inquiries/conforme-drafts";
@@ -135,7 +129,7 @@ export function EventDashboardSettingsSectionView() {
 }
 
 export function EventDashboardClientsSectionView() {
-  const { selectedClient, state, clientRecordsForView, navigateClient, navigateSection, navigateEvent } =
+  const { selectedClient, state, clientRecordsForView, navigateClient, navigateSection, navigateEvent, routeState } =
     useEventDashboardLoadedRouteViewModel();
   if (selectedClient) {
     const eventIds = new Set(selectedClient.events.map((event) => event.id));
@@ -147,12 +141,22 @@ export function EventDashboardClientsSectionView() {
         client={selectedClient}
         balance={phpMoney.format(balance)}
         onBack={() => navigateSection("clients")}
-        onOpenEvent={(id) => navigateEvent(id, "overview")}
+        view={routeState.view}
+        onOpenEvent={(id, tab) => navigateEvent(id, tab ?? "overview")}
       />
     );
   }
   return <ClientDirectory clients={clientRecordsForView} onOpenClient={navigateClient} />;
 }
+
+/** Team routes whose data isn't modelled separately yet say so, instead of silently repeating the roster. */
+const TEAM_VIEW_NOTES: Record<string, string> = {
+  roles: "Role tags are shown on each coordinator below.",
+  availability: "Availability is set per event. Open an event's coordinators to see and edit it.",
+  assignments: "Assignments are made per event. Open an event's coordinators to assign roles.",
+  workload: "Workload isn't tracked separately yet. Showing the full roster.",
+  departments: "Departments aren't recorded yet. Showing the full roster.",
+};
 
 export function EventDashboardTeamSectionView() {
   const {
@@ -172,7 +176,11 @@ export function EventDashboardTeamSectionView() {
     loadCoordinatorReliabilityHistory,
     createCoordinatorAvailability,
     deleteCoordinatorAvailability,
+    routeState,
   } = useEventDashboardLoadedRouteViewModel();
+  const teamView = routeState.view ?? "all";
+  const roster = teamView === "archived" ? coordinators.filter((coordinator) => !coordinator.active) : coordinators;
+  const unbackedViewNote = TEAM_VIEW_NOTES[teamView];
   return (
 
           selectedEvent ? (
@@ -197,13 +205,17 @@ export function EventDashboardTeamSectionView() {
           ) : (
             <Card>
               <CardHeader>
-                <div className="flex items-center gap-2">
-                  <UsersRound className="size-4 text-primary" />
-                  <h2 className="text-sm font-bold text-foreground">Coordinator roster</h2>
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <h2 className="text-sm font-semibold text-foreground">{teamView === "archived" ? "Archived coordinators" : "Coordinator roster"}</h2>
+                  <span className="text-sm tabular-nums text-muted-foreground">{roster.length}</span>
                 </div>
+                {unbackedViewNote ? <p className="mt-1 text-sm text-muted-foreground">{unbackedViewNote}</p> : null}
               </CardHeader>
               <div className="divide-y divide-border">
-                {coordinators.map((coordinator) => (
+                {roster.length === 0 ? (
+                  <p className="px-6 py-4 text-sm text-muted-foreground">{teamView === "archived" ? "No archived coordinators." : "No coordinators yet."}</p>
+                ) : null}
+                {roster.map((coordinator) => (
                   <div key={coordinator.id} className="flex items-start justify-between gap-4 px-6 py-4">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold text-foreground">{coordinator.name}</p>
@@ -232,6 +244,8 @@ export function EventDashboardFilesSectionView() {
     checks,
     postEventDocuments,
     navigateEventTab,
+    events,
+    navigateEvent,
   } = useEventDashboardLoadedRouteViewModel();
   return (
 
@@ -256,7 +270,13 @@ export function EventDashboardFilesSectionView() {
               />
             </div>
           ) : (
-            <EmptyState icon={FileText} title="Select an event" description="Files are organized by event workspace after conforme activation." />
+            <EventDestinationPicker
+              events={events}
+              description="Files are organized by event. Choose one to open its file hub."
+              actionLabel="Open files"
+              tab="files"
+              onOpenEvent={(eventId) => navigateEvent(eventId, "files")}
+            />
           )
   );
 }
@@ -265,6 +285,8 @@ export function EventDashboardMessagesSectionView() {
   const {
     selectedEvent,
     session,
+    events,
+    navigateEvent,
   } = useEventDashboardLoadedRouteViewModel();
   return (
 
@@ -274,7 +296,13 @@ export function EventDashboardMessagesSectionView() {
               session={session}
             />
           ) : (
-            <EmptyState icon={MessageSquareText} title="Select an event" description="Client, supplier, coordinator, and internal threads are event-scoped." />
+            <EventDestinationPicker
+              events={events}
+              description="Client, supplier, coordinator, and internal threads belong to one event. Choose one to open its messages."
+              actionLabel="Open messages"
+              tab="activity"
+              onOpenEvent={(eventId) => navigateEvent(eventId, "activity")}
+            />
           )
   );
 }
@@ -290,6 +318,8 @@ export function EventDashboardFinanceSectionView() {
     recordPayment,
     sendBillingStatement,
     markPayment,
+    events,
+    navigateEvent,
   } = useEventDashboardLoadedRouteViewModel();
   return (
 
@@ -306,7 +336,13 @@ export function EventDashboardFinanceSectionView() {
               onMarkPayment={markPayment}
             />
           ) : (
-            <EmptyState icon={ReceiptText} title="Select an event" description="Finance opens inside a confirmed event so billing can stay tied to proposal and conforme records." />
+            <EventDestinationPicker
+              events={events}
+              description="Billing stays tied to each event's proposal and conforme. Choose an event to open its billing."
+              actionLabel="Open billing"
+              tab="billing"
+              onOpenEvent={(eventId) => navigateEvent(eventId, "billing")}
+            />
           )
   );
 }
@@ -426,7 +462,7 @@ export function EventDashboardHomeSectionView() {
                       <div className="min-w-0">
                         <p className="truncate text-sm font-bold text-foreground">{request.name}</p>
                         <p className="mt-0.5 text-xs text-muted-foreground">{request.email}</p>
-                        <p className="mt-1 text-3xs font-bold uppercase tracking-wider text-attention">
+                        <p className="mt-1 text-xs font-medium text-attention">
                           {humanizeToken(request.role)} — {request.organization}
                         </p>
                       </div>

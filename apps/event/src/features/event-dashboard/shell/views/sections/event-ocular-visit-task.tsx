@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import { useState, type FormEvent } from "react";
 import type {
@@ -9,13 +10,7 @@ import type {
 import { Card, CardBody, CardHeader } from "./shell-ui";
 
 function formatScheduledAt(scheduledAt: string | null) {
-  if (!scheduledAt) return "Date pending";
-  const date = new Date(scheduledAt);
-  if (Number.isNaN(date.getTime())) return "Date pending";
-  return new Intl.DateTimeFormat("en-PH", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
+  return formatPortalDateTime(scheduledAt, "Date pending");
 }
 
 function statusLabel(visit: PrismPmcmOcularVisit | null) {

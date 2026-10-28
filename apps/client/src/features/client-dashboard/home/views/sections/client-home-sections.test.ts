@@ -47,6 +47,24 @@ describe('ClientHomeActionCenter', () => {
     ]);
   });
 
+  it('groups the client actions by event and keeps current blockers apart from later requirements', () => {
+    const base = loaded.items[0];
+    const center: PrismClientActionCenter = {
+      ...loaded,
+      items: [
+        { ...base, id: 'closure:evt_one', kind: 'closure', priority: 'info', label: 'Upload signed venue permit', eventId: 'evt_one', eventName: 'First event' },
+        { ...base, id: 'billing:evt_one', kind: 'billing', priority: 'critical', label: 'Pay the deposit', eventId: 'evt_one', eventName: 'First event' },
+        { ...base, id: 'briefing:evt_two', eventId: 'evt_two', eventName: 'Second event' },
+      ],
+    };
+    const markup = renderToStaticMarkup(createElement(ClientHomeActionCenter, {
+      actionCenter: center, clientActions: selectClientAccountActions(center), runClientAction: vi.fn(),
+    }));
+    const headings = [...markup.matchAll(/<h2[^>]*>(Needs your action[^<]*)<\/h2>/g)].map((match) => match[1]);
+    expect(headings).toEqual(['Needs your action now · First event', 'Needs your action later · First event', 'Needs your action later · Second event']);
+    expect(markup.indexOf('Pay the deposit')).toBeLessThan(markup.indexOf('Upload signed venue permit'));
+  });
+
   it('renders the empty state when the loaded action center has nothing for the selected event', () => {
     const markup = renderToStaticMarkup(createElement(ClientHomeActionCenter, {
       actionCenter: loaded,

@@ -1,5 +1,8 @@
 "use client";
+import { formatPortalDate, formatPortalTime } from "@prism/ui/format-date";
 
+import { PrismAccountHelp } from "@prism/ui/account-help";
+import { pmcmSupportContactFromEnvironment } from "@/lib/portal-urls";
 import type { FormEvent } from "react";
 import type { PrismSupplierApplicationStatusResult } from "@prism/types";
 import { Alert, AlertDescription, AlertTitle } from "@/app/components/ui/alert";
@@ -15,11 +18,7 @@ import {
 } from "../model/supplier-application-status-rules";
 
 function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  return formatPortalDate(value);
 }
 
 function StatusFailureAlert({
@@ -73,8 +72,13 @@ function StatusResultCard({
           </div>
         ) : null}
       </dl>
+      {result.status === "declined" ? (
+        <div className="mt-3 text-sm text-muted-foreground">
+          <PrismAccountHelp contact={pmcmSupportContactFromEnvironment()} topic={`the ${result.companyName} supplier application`} fallback={null} />
+        </div>
+      ) : null}
       <p className="mt-4 text-xs text-muted-foreground">
-        {lastCheckedAt ? `Last checked ${lastCheckedAt.toLocaleTimeString()}.` : "Checking for the latest status…"}
+        {lastCheckedAt ? `Last checked ${formatPortalTime(lastCheckedAt.toISOString())}.` : "Checking for the latest status…"}
         {!isTerminal ? " This page checks for updates while it remains open." : ""}
       </p>
     </section>

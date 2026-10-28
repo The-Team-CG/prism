@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDate } from "@prism/ui/format-date";
 
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { formatStatusLabel } from "../../workspace/shared";
@@ -14,7 +15,7 @@ export function ClientEventDetailsView() {
       <div className="mt-4 grid gap-3 text-sm">
         <div className="flex justify-between gap-3"><span className="text-muted-foreground">Event name</span><span className="font-semibold text-foreground">{selectedEvent?.eventName}</span></div>
         <div className="flex justify-between gap-3"><span className="text-muted-foreground">Client</span><span className="font-semibold text-foreground">{selectedEvent?.clientName}</span></div>
-        <div className="flex justify-between gap-3"><span className="text-muted-foreground">Date</span><span className="font-semibold text-foreground">{selectedEvent?.eventDate}</span></div>
+        <div className="flex justify-between gap-3"><span className="text-muted-foreground">Date</span><span className="font-semibold text-foreground">{formatPortalDate(selectedEvent?.eventDate)}</span></div>
         <div className="flex justify-between gap-3"><span className="text-muted-foreground">Status</span><StatusBadge status={selectedEvent?.status ?? "pending"} label={formatStatusLabel(selectedEvent?.status)} /></div>
       </div>
     </div>

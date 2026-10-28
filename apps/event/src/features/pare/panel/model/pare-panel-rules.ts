@@ -1,3 +1,4 @@
+import { formatPortalDateTime } from "@prism/ui/format-date";
 import type { PAREApprovalRecord, PARERisk } from "@prism/types";
 
 export function selectEventPareApprovals<T extends Pick<PAREApprovalRecord, "eventId">>(
@@ -19,9 +20,9 @@ export function pareRiskColor(level: PARERisk["level"] | string) {
 
 export function pareModeCopy(mode: string) {
   if (mode === "live") {
-    return { label: "Claude AI", className: "bg-purple-50 text-purple-700 border-purple-200" };
+    return { label: "Claude AI", className: "bg-info-soft text-info" };
   }
-  return { label: "Mock", className: "bg-gray-100 text-gray-500 border-gray-200" };
+  return { label: "Mock", className: "bg-muted text-muted-foreground" };
 }
 
 export function pareBudgetTone(feasible: boolean) {
@@ -44,7 +45,7 @@ export function pareBudgetTone(feasible: boolean) {
 export function pareReviewSummary(record: { status: string; reviewedBy?: string | null; reviewedAt?: string | null }) {
   const verdict = record.status === "approved" ? "Approved" : "Rejected";
   const by = record.reviewedBy ? ` by ${record.reviewedBy}` : "";
-  const at = record.reviewedAt ? ` · ${new Date(record.reviewedAt).toLocaleString()}` : "";
+  const at = record.reviewedAt ? ` · ${formatPortalDateTime(record.reviewedAt)}` : "";
   return `${verdict}${by}${at}`;
 }
 

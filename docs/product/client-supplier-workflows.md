@@ -4,11 +4,11 @@ title: "Client and supplier workflows"
 description: "Ownership, durable evidence, and operational limits for client and supplier portal actions."
 tags: [product, client, supplier, files, approvals, payments]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-10-29"
 authority: normative
 audience: [product, engineering, agents, reviewers]
 scope: "Client and supplier portal workflows and their PMCM controls"
-last_verified: "2026-10-16 portal acceptance; 2026-10-18 staging adaptation verification tracked separately below"
+last_verified: "2026-10-29; client/supplier routes, floorplan client-review and annotation endpoints, PMCM event files view"
 sources:
   - id: shared-contracts
     resource: "packages/types/src"
@@ -31,10 +31,13 @@ sources:
 ## At a glance
 
 - **Purpose:** Define the evidence behind portal actions and PMCM controls.
-- **Owners:** C owns external portal journeys, B owns PMCM operating policy,
-  and D owns contracts, authorization, storage, and audit. A owns visual quality.
-- **Scope:** The selected client/supplier completion work. The broader feature
-  families retain their ledger status until their other criteria are satisfied.
+- **Authority:** Normative workflow contract for client and supplier portal
+  actions; feature-family status stays in the feature ledger.
+- **Scope:** Files, supplier operations and payables, client decisions,
+  conforme, closeout, and audit integrity. The broader feature families retain
+  their ledger status until their other criteria are satisfied.
+- **Use/change:** Apply when changing these portal workflows or their PMCM
+  controls; revise when ownership, evidence, or a limit changes.
 - **Verify with:** Shared contracts, focused API/portal behavior tests, database
   concurrency tests, migration checks, and the affected role paths.
 
@@ -141,60 +144,11 @@ Active workspace navigation and other closeout controls are unavailable there.
 Audit hashes serialize metadata in PostgreSQL JSONB key order recursively, so
 persisting and reading a nested object does not change its hash. Existing
 valid hashes remain compatible. Previously mismatched history still fails
-integrity checks and blocks workflow writes; this delivery does not rewrite
-historical records or bypass the integrity guard.
+integrity checks and blocks workflow writes; the serialization rule does not
+rewrite historical records or bypass the integrity guard.
 
-## Delivery evidence
-
-The following evidence covers the original local delivery on 2026-10-16,
-before adaptation to staging's owner-specific schema. It is historical evidence,
-not verification of the integrated branch:
-
-| Check | Result |
-| --- | --- |
-| Production builds | The full 10/10-task monorepo build passed. Subsequent API, client, supplier, and PMCM integration fixes each passed their affected production build. |
-| Typechecks | All workspaces passed on the final source: 14/14 Turbo tasks excluding the client, then the client workspace typecheck after its final navigation fix. |
-| API suite | 918 cases passed across the full-suite run (917) and isolated rerun of its timed-out architecture check (1); 47 environment-gated tests skipped. No API source changed between those checks. |
-| Shared packages | Types: 64 passed. API client: 35 passed. |
-| Role portals | Client: 70 passed in 19 files. PMCM event: 234 cases passed across its suite (233) and isolated timeout recheck (1). Supplier: 30 passed. |
-| Actual PostgreSQL behavior | Signing activation, supplier lifecycle and retries, concurrent payout cap, stale floorplan decisions, and audit JSONB round trip passed against isolated local databases. |
-| Architecture and database checks | Boundary scan and 53 guard tests, migration policy and 31 tooling tests, query audit, Prisma validation, and offline schema generation passed. |
-| Client browser acceptance | Upload/download and briefing edits persisted after refresh. Official layouts remained read-only; snapshot-bound approvals, revision requests, and annotations persisted. Venue and styling approval/revision paths, deliverable and wrap-up acknowledgments, feedback with consent initially off, explicit testimonial opt-in, and PMCM moderation persisted after reload. After PMCM archived the test event with an audited override, closeout was read-only and testimonial consent withdrawal persisted as withdrawn after reload. Completed opened the archived Summary, workspace links were absent, return to history worked, and Upcoming excluded archived events. |
-| Supplier browser acceptance | Actual contract uploads, correction and acceptance history, schedule revision/change request/acknowledgment, creative progress and revision history, and arbitrary payable release/reversal balances persisted in both role portals. Contract downloads matched the uploaded bytes. |
-| Signing browser acceptance | Client prefill and acknowledgment, PMCM reopen and countersignature, exactly-one-event activation, and Approved signed-conforme status passed. Actual client-uploaded and PMCM-shared files downloaded with matching byte lengths and SHA-256; legacy metadata-only conforme remained Pending. |
-
-Browser acceptance used production portal builds, the real API, and an isolated
-local database. Supplier contract uploads and corrections, schedule revisions
-and acknowledgments, creative submissions and correction history, and payable
-release/reversal history all survived browser reloads. Downloads matched their
-stored bytes. Concurrent payout caps and stale floorplan decisions also passed
-real PostgreSQL service tests. The earlier failed audit-chain database was
-preserved as evidence.
-
-For the archived-closeout case, guarded fixture setup moved only the isolated
-acceptance event to event day; the PMCM browser then used the real archive
-action with an explicit override reason for incomplete fixture close gates.
-This does not claim that the fixture satisfied the ordinary archive checklist.
-
-The first parallel final-suite attempt exceeded Windows test-worker startup
-and timeout limits. The API architecture check passed in isolation. The PMCM
-filesystem architecture check also passed in isolation (177 ms) with a 15-second
-runner timeout; other portal checks use bounded worker concurrency. Timeout
-attempts are not recorded as clean full-suite passes. After browser mutations,
-the actual acceptance database's complete audit chain passed the rolled-back
-JSONB regression and integrity check without rewriting history.
-
-The staging adaptation preserves the eight current owner schemas. New
-Commercial records use `commercial`, conforme and closeout records use
-`event_lifecycle`, and snapshot decisions use `floorplan`. Cross-domain IDs
-remain scalar references. The five database suites above now use the standard
-`P0_TEST_DATABASE_URL` runner, which recreates an isolated local test database
-between suites. Integrated-branch verification is pending while adaptation
-continues.
-
-Production provider activation, external signing certification, bank execution,
-and external message delivery remain separate operational work. Database replay
-uses an isolated local PostgreSQL instance and does not migrate a remote database.
+Production provider activation, external signing certification, bank
+execution, and external message delivery remain separate operational work.
 
 ## Lifecycle decision boundaries
 

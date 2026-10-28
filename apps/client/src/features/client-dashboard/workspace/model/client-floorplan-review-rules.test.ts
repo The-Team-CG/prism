@@ -4,6 +4,9 @@ import {
   floorPlanRevisionComment,
   floorPlanReviewHeadline,
   floorPlanRevisionSubmittedNote,
+  clientVisibleOfficialPlan,
+  officialPlanStatusLine,
+  selectClientFloorPlanLayout,
 } from "./client-floorplan-review-rules";
 import type { PrismEvent, PrismFloorPlanDraft } from "@prism/types";
 
@@ -56,5 +59,28 @@ describe("floorplan revision comment rules", () => {
       'You asked PMCM to revise the plan: "Move the bar"',
     );
     expect(floorPlanRevisionSubmittedNote(draftWith("in_review"))).toBeNull();
+  });
+});
+
+describe("official floorplan first", () => {
+  it("leads with the plan PMCM approved or sent for review, never an internal draft", () => {
+    expect(clientVisibleOfficialPlan(draftWith("pmcm_draft"))).toBeUndefined();
+    expect(clientVisibleOfficialPlan(undefined)).toBeUndefined();
+    expect(clientVisibleOfficialPlan(draftWith("approved"))?.status).toBe("approved");
+  });
+
+  it("keeps the client's own preference in a separate card under the official plan", () => {
+    const official = { ...draftWith("approved"), sourceType: "template" };
+    const preference = { ...draftWith("client_submitted"), id: "fpd_pref", sourceType: "client_preference" };
+    expect(selectClientFloorPlanLayout(official, [preference])).toMatchObject({ officialPlan: official, activeDraft: preference, isOfficial: false, approved: true });
+    // With nothing of the client's own to show, only the official plan appears.
+    expect(selectClientFloorPlanLayout(official, [])).toMatchObject({ showPreferenceCard: false, showReview: true });
+    // Before PMCM shares a plan, the page works from the client's preference alone.
+    expect(selectClientFloorPlanLayout(undefined, [preference])).toMatchObject({ officialPlan: undefined, activeDraft: preference, showPreferenceCard: true });
+  });
+
+  it("states where the official plan stands and the date it got there", () => {
+    expect(officialPlanStatusLine({ ...draftWith("approved"), approvedAt: "2026-10-03T02:00:00.000Z" })).toMatch(/^Approved (3 Oct|Oct 3,) 2026$/);
+    expect(officialPlanStatusLine({ ...draftWith("in_review"), submittedAt: "2026-10-01T02:00:00.000Z" })).toMatch(/^Sent for your review (1 Oct|Oct 1,) 2026$/);
   });
 });

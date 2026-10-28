@@ -36,7 +36,7 @@ export function useClientStoredFilesViewModel(eventId?: string) {
     setActiveDownload(null);
     if (!eventId) return () => { active = false; };
     loadClientStoredFiles(eventId)
-      .then(([result, matrix]) => { if (active) { setFiles(result.filter((file) => file.lifecycleState !== "deleted")); setRequirements(clientOwnedOpenRequirements(matrix.items)); setError(null); } })
+      .then(([result, matrix]) => { if (active) { setFiles(result.filter((file) => file.lifecycleState !== "deleted")); setRequirements(matrix.items); setError(null); } })
       .catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : "Unable to load files."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -46,7 +46,7 @@ export function useClientStoredFilesViewModel(eventId?: string) {
     try {
       const [files, matrix] = await loadClientStoredFiles(uploadEventId);
       if (activeEventIdRef.current === uploadEventId) setFiles(files.filter((file) => file.lifecycleState !== "deleted"));
-      if (activeEventIdRef.current === uploadEventId) setRequirements(clientOwnedOpenRequirements(matrix.items));
+      if (activeEventIdRef.current === uploadEventId) setRequirements(matrix.items);
     } catch {
       if (activeEventIdRef.current === uploadEventId) setError("Your file was uploaded, but the list could not refresh. Reload this page to see the updated files.");
     }
@@ -89,10 +89,6 @@ export function useClientStoredFilesViewModel(eventId?: string) {
   }
 
   return { inputRef, files, requirements, busy, activeDownload, error, notice, loading, uploadSelectedFile, downloadFile };
-}
-
-function clientOwnedOpenRequirements(items: PrismFileRequirementItem[]) {
-  return items.filter((item) => item.origin === "custom" && item.ownerRole === "client" && !["submitted", "approved", "complete"].includes(item.status));
 }
 
 function uploadSuccessMessage(fileName: string, requirementKey: string | undefined, requirements: PrismFileRequirementItem[]) {

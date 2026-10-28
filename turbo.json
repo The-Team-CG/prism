@@ -12,7 +12,9 @@
         "NEXT_PUBLIC_CLIENT_PORTAL_URL",
         "NEXT_PUBLIC_SUPPLIER_PORTAL_URL",
         "NEXT_PUBLIC_GUEST_PORTAL_URL",
-        "NEXT_PUBLIC_EVENT_PORTAL_URL"
+        "NEXT_PUBLIC_EVENT_PORTAL_URL",
+        "NEXT_PUBLIC_PMCM_SUPPORT_EMAIL",
+        "NEXT_PUBLIC_PMCM_SUPPORT_PHONE"
       ],
       "outputs": [".next/**", "dist/**", "!.next/cache/**"]
     },

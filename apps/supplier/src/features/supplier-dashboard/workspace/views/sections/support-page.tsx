@@ -1,5 +1,7 @@
 "use client";
 
+import { PrismAccountHelp } from "@prism/ui/account-help";
+import { pmcmSupportContactFromEnvironment } from "@/lib/portal-urls";
 import { FormEvent, useMemo } from "react";
 import {
   BadgeCheck,
@@ -11,7 +13,6 @@ import {
   Clock3,
   FileCheck2,
   FileText,
-  HelpCircle,
   LockKeyhole,
   LogOut,
   MessageSquare,
@@ -58,11 +59,8 @@ export function SupportPage() {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <HelpCircle className="size-4 text-primary" />
-            <h2 className="text-sm font-bold text-foreground">Supplier support</h2>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">Contact the PMCM team for any portal issues, quote questions, or event concerns.</p>
+          <h2 className="text-base font-semibold text-foreground">Supplier support</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Contact the PMCM team for any portal issues, quote questions, or event concerns.</p>
         </CardHeader>
         <CardBody className="space-y-4">
           {[
@@ -70,13 +68,18 @@ export function SupportPage() {
             { title: "Assignment handoff", body: "After PMCM selects your quote, go to Bookings to confirm the assignment, upload your signed contract for review, confirm readiness, and update event-day status." },
             { title: "Event day updates", body: "On the day of the event, use the Bookings section to mark Arrived, Set up and ready, and Done and leaving. These update your portal record for PMCM verification." },
             { title: "Payment inquiries", body: "Payment schedule and release is managed by PMCM billing. Check the Payments section for your selected quote amounts. Contact PMCM directly for payment timing." },
-            { title: "Portal access issues", body: "If you cannot sign in or see incorrect data, contact your PMCM coordinator directly." },
           ].map(({ title, body }) => (
-            <div key={title} className="rounded-xl border border-border bg-muted/30 p-4">
-              <p className="text-sm font-bold text-foreground">{title}</p>
-              <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{body}</p>
+            <div key={title} className="border-b border-border pb-4 last:border-b-0">
+              <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">{body}</p>
             </div>
           ))}
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Portal access issues</h3>
+            <div className="mt-1 text-sm leading-6 text-muted-foreground">
+              <PrismAccountHelp contact={pmcmSupportContactFromEnvironment()} topic="supplier portal access" fallback="If you cannot sign in or see incorrect data, contact your PMCM coordinator directly." />
+            </div>
+          </div>
         </CardBody>
       </Card>
     </div>

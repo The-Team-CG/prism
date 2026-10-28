@@ -1,9 +1,9 @@
 "use client";
 
 import { FormEvent } from "react";
-import { ClipboardList } from "lucide-react";
+import { ChevronRight, ClipboardList } from "lucide-react";
 import { EmptyState } from "@/app/components/ui/empty-state";
-import { formatDate, initialForm } from "../../model/supplier-workspace-rules";
+import { fmt, formatDate, formatMoney, initialForm, isPastDate, isRequestClosed } from "../../model/supplier-workspace-rules";
 import type { PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierWorkspace } from "../../model/supplier-workspace-types";
 import { Card, CardBody } from "./shell-ui";
 import { RequestQuoteCard } from "./request-quote-card";
@@ -36,17 +36,35 @@ export function RequestsPage({
       {workspace.quoteRequests.map((req) => {
         const readiness = readinessBoard?.items.find((item) => item.requestId === req.id);
         const eventName = readiness?.eventName;
-        const next = readiness ? supplierNextStep(readiness, quoteByRequest.has(req.id)) : null;
+        const quote = quoteByRequest.get(req.id);
+        const next = readiness ? supplierNextStep(readiness, Boolean(quote)) : null;
+        const deadlinePast = isPastDate(req.dueDate) && !isRequestClosed(req, quote);
         return (
-          <details key={req.id} id={`supplier-work-${encodeURIComponent(req.id)}`} className="scroll-mt-6 rounded-lg border border-border bg-card" open={workspace.quoteRequests.length === 1 ? true : undefined}>
-            <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-              {req.category} · {eventName || "Event details pending"}
-              <span className="mt-1 block text-sm font-normal text-muted-foreground">{next?.title ?? "Review request"} · Quote deadline: {req.dueDate ? formatDate(req.dueDate) : "Not specified"}</span>
+          <details key={req.id} id={`supplier-work-${encodeURIComponent(req.id)}`} className="group scroll-mt-6 rounded-lg border border-border bg-card" open={workspace.quoteRequests.length === 1 ? true : undefined}>
+            <summary className="flex cursor-pointer list-none items-start gap-3 px-4 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-5 [&::-webkit-details-marker]:hidden">
+              <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" aria-hidden="true" />
+              <span className="grid min-w-0 flex-1 gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-6">
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-foreground">{next?.title ?? "Review request"}</span>
+                  <span className="block break-words text-sm text-muted-foreground" title={eventName ?? undefined}>
+                    {req.category} · {eventName || "Event details pending"}
+                  </span>
+                </span>
+                <span className="flex flex-wrap gap-x-4 gap-y-1 text-sm sm:justify-end sm:text-right">
+                  <span className={deadlinePast ? "font-medium text-danger" : "text-muted-foreground"}>
+                    {deadlinePast ? "Past deadline" : "Due"} {req.dueDate ? formatDate(req.dueDate) : "—"}
+                  </span>
+                  <span className="text-foreground tabular-nums">
+                    {quote ? `${formatMoney(quote.amount)} · rev ${quote.revisionNumber ?? 1} · ${fmt(quote.status)}` : <span className="text-muted-foreground">No quote yet</span>}
+                  </span>
+                </span>
+              </span>
             </summary>
             <RequestQuoteCard
+              embedded
               req={req}
-              quote={quoteByRequest.get(req.id)}
-              form={forms[req.id] ?? initialForm(quoteByRequest.get(req.id))}
+              quote={quote}
+              form={forms[req.id] ?? initialForm(quote)}
               busy={busy}
               onUpdateForm={onUpdateForm}
               onSubmitQuote={onSubmitQuote}

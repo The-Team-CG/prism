@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 
 import type { PrismArchiveComparisonRow } from "@prism/types";
 
@@ -9,10 +10,10 @@ const attributes: ComparisonAttribute[] = [
   { label: "Event date", value: (row) => row.eventDate },
   { label: "Venue", value: (row) => row.venue || "Venue pending" },
   { label: "Event type", value: (row) => row.eventType || "Type pending" },
-  { label: "Actual end", value: (row) => (row.actualEndedAt ? new Date(row.actualEndedAt).toLocaleString() : "Not recorded") },
+  { label: "Actual end", value: (row) => (row.actualEndedAt ? formatPortalDateTime(row.actualEndedAt) : "Not recorded") },
   { label: "Close gates", value: (row) => (row.closeGatesReady ? "Passed" : `Missing: ${row.missingCloseGates.join(", ") || "unknown"}`) },
   { label: "Archive override", value: (row) => (row.archiveOverridden ? row.archiveOverrideReason ?? "Override recorded" : "None") },
-  { label: "Logistics completion", value: (row) => (row.logisticsRecorded && row.logisticsRecordedAt ? `Recorded ${new Date(row.logisticsRecordedAt).toLocaleDateString()}` : "Not recorded") },
+  { label: "Logistics completion", value: (row) => (row.logisticsRecorded && row.logisticsRecordedAt ? `Recorded ${formatPortalDate(row.logisticsRecordedAt)}` : "Not recorded") },
 ];
 
 export function ArchiveComparisonTable({ rows, onClose }: { rows: PrismArchiveComparisonRow[]; onClose: () => void }) {

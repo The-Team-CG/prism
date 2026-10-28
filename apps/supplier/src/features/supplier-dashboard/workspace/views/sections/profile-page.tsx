@@ -86,7 +86,7 @@ export function ProfilePage({ supplier, session }: { supplier: PrismSupplier; se
               { label: "Member since", value: formatDate(supplier.applicationDate) },
             ].map(({ label, value }) => (
               <div key={label}>
-                <p className="text-3xs font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
+                <p className="text-xs font-medium text-muted-foreground">{label}</p>
                 <p className="mt-1 text-sm font-semibold text-foreground">{value}</p>
               </div>
             ))}

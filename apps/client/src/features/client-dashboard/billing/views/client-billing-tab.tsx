@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 
 import {
   Activity,
@@ -19,6 +20,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { PrismAuditLog, PrismBillingStatement, PrismBriefing, PrismClientBillingDispute, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone } from "@prism/types";
+import Link from "next/link";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -39,7 +41,7 @@ import {
   portalBadgeStatus,
   portalStatusLabel,
 } from "../../shared/tab-ui";
-import type { DetailTab } from "../../workspace/shared";
+import { dashboardHref, type DetailTab } from "../../workspace/shared";
 import { clientBillingSummary, clientMilestoneFollowUpCopy, clientMilestoneRemaining } from "../model/client-billing-rules";
 import { useClientBillingDisputeViewModel } from "../view-models/use-client-billing-dispute-view-model";
 import { useClientStatementDownload } from "../view-models/use-client-statement-download";
@@ -62,6 +64,11 @@ export function ClientBillingTab({
   const activePayments = payments.filter((payment) => !payment.supersededAt);
   const historicalPayments = payments.filter((payment) => Boolean(payment.supersededAt));
   const { totalAmount, totalPaid, balance } = clientBillingSummary(activePayments, billing);
+  const nextPayment = activePayments
+    .filter((payment) => payment.status !== "paid" && clientMilestoneRemaining(payment) > 0)
+    .sort((left, right) => String(left.dueDate).localeCompare(String(right.dueDate)))[0];
+  const messagesHref = dashboardHref("messages", eventId);
+  const nextPaymentOverdue = Boolean(nextPayment?.dueDate && nextPayment.dueDate < manilaDateKey());
   const disputeForm = useClientBillingDisputeViewModel({ eventId, billing, disputes });
   const statementDownload = useClientStatementDownload();
   function downloadReceipt(payment: PrismPaymentMilestone["history"][number], milestoneLabel: string) {
@@ -129,19 +136,37 @@ export function ClientBillingTab({
 
   return (
     <div className="space-y-5">
-      {/* Summary stats */}
+      {/* Summary: the next payment leads, then the totals as one divided row of figures. */}
       {totalAmount > 0 && (
-        <div className="grid gap-3 sm:grid-cols-3">
-          {[
-            { label: billing ? "Statement total" : "Scheduled payments total", value: money.format(totalAmount), color: "text-foreground" },
-            { label: "Payments recorded", value: money.format(totalPaid), color: "text-success" },
-            { label: "Remaining scheduled balance", value: money.format(balance), color: balance > 0 ? "text-attention" : "text-success" },
-          ].map((stat) => (
-            <div key={stat.label} className="rounded-2xl border border-border bg-card px-5 py-4 shadow-sm">
-              <p className="text-xs font-semibold text-muted-foreground">{stat.label}</p>
-              <p className={`mt-1.5 text-2xl font-black ${stat.color}`}>{stat.value}</p>
+        <div className="rounded-lg border border-border bg-card">
+          {nextPayment ? (
+            <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border px-4 py-4 sm:px-5">
+              <div className="min-w-0">
+                <p className="text-sm text-muted-foreground">Next payment · {nextPayment.label}</p>
+                <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">{money.format(clientMilestoneRemaining(nextPayment))}</p>
+              </div>
+              <div className="text-right">
+                <p className={`text-sm ${nextPaymentOverdue ? "font-medium text-danger" : "text-muted-foreground"}`}>
+                  {nextPaymentOverdue ? "Overdue since" : "Due"} {formatPortalDate(nextPayment.dueDate)}
+                </p>
+                <Link href={messagesHref} className="mt-1 inline-block text-sm font-medium text-primary hover:text-primary/80">
+                  Ask PMCM about this payment
+                </Link>
+              </div>
             </div>
-          ))}
+          ) : null}
+          <dl className="grid grid-cols-3 divide-x divide-border">
+            {[
+              { label: billing ? "Statement total" : "Scheduled total", value: money.format(totalAmount) },
+              { label: "Paid", value: money.format(totalPaid) },
+              { label: "Remaining", value: money.format(balance) },
+            ].map((stat) => (
+              <div key={stat.label} className="min-w-0 px-3 py-3 sm:px-5">
+                <dt className="text-xs text-muted-foreground sm:text-sm">{stat.label}</dt>
+                <dd className="mt-1 break-words text-sm font-semibold tabular-nums text-foreground sm:text-lg">{stat.value}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
       )}
 
@@ -186,7 +211,8 @@ export function ClientBillingTab({
             <EmptyState
               icon={ReceiptText}
               title="No payment milestones yet"
-              description="Milestones appear after the billing statement linked to the approved proposal is posted."
+              description="Nothing to pay yet. PMCM posts your billing statement once the proposal is approved, and the payment schedule appears here."
+              action={<Button asChild variant="outline" size="sm"><Link href={messagesHref}>Message PMCM about billing</Link></Button>}
             />
           ) : (
             <div className="space-y-3">
@@ -208,7 +234,7 @@ export function ClientBillingTab({
                         <div>
                           <p className="text-sm font-bold text-foreground">{payment.label}</p>
                           <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <CalendarDays className="size-3" /> {payment.dueDate}
+                            <CalendarDays className="size-3" /> {formatPortalDate(payment.dueDate)}
                           </div>
                         </div>
                         <div className="text-right shrink-0">
@@ -226,7 +252,7 @@ export function ClientBillingTab({
                         <div className="mt-3 space-y-2 border-t border-border/70 pt-3">
                           {payment.history.map((record) => (
                             <div key={record.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                              <span className="text-muted-foreground">{money.format(record.amountReceived)} received on {record.paymentDate}</span>
+                              <span className="text-muted-foreground">{money.format(record.amountReceived)} received on {formatPortalDate(record.paymentDate)}</span>
                               <Button size="sm" variant="outline" onClick={() => downloadReceipt(record, payment.label)}><ReceiptText className="size-3" /> Download receipt</Button>
                             </div>
                           ))}
@@ -255,7 +281,7 @@ export function ClientBillingTab({
                 </div>
                 {payment.history.map((record) => (
                   <div key={record.id} className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs">
-                    <span className="text-muted-foreground">{money.format(record.amountReceived)} received on {record.paymentDate}</span>
+                    <span className="text-muted-foreground">{money.format(record.amountReceived)} received on {formatPortalDate(record.paymentDate)}</span>
                     <Button size="sm" variant="outline" onClick={() => downloadReceipt(record, payment.label)}><ReceiptText className="size-3" /> Download receipt</Button>
                   </div>
                 ))}

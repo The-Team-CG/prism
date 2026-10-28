@@ -15,7 +15,6 @@ import {
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { label } from "@/features/pmcm-kit";
@@ -136,7 +135,7 @@ function EventDayActionButton({ action }: { action: EventDayAction }) {
 }
 
 function SectionAccent({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs font-bold uppercase tracking-widest text-primary">{children}</p>;
+  return <p className="text-xs font-medium text-primary">{children}</p>;
 }
 
 export type CoordinatorWorkspaceModel = {
@@ -183,69 +182,63 @@ export function CoordinatorGreetingBanner({
   onWithdraw: () => void;
 }) {
   const greeting = coordinatorGreetingCopy(event);
-  const showAcknowledge = Boolean(assignment && assignment.status !== "acknowledged" && assignment.status !== "declined");
-  const showAcknowledged = assignment?.status === "acknowledged";
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-primary to-primary-deep px-6 py-7 text-white shadow-lg">
-      <div className="relative z-10 flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold text-white/70">P.R.I.S.M Coordinator Portal</p>
-          <h1 className="mt-1 text-2xl font-black leading-tight">{greeting.title}</h1>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-white/80">{greeting.description}</p>
-          {showAcknowledge ? (
-            <Button
-              className="mt-5 rounded-lg bg-white font-bold text-primary hover:bg-white/90"
-              onClick={() => onAcknowledge()}
-              disabled={busy}
-            >
-              <BadgeCheck className="size-4" /> Acknowledge role
-            </Button>
-          ) : null}
-          {showAcknowledged ? (
-            <div className="mt-5 inline-flex items-center gap-2 rounded-lg bg-white/15 px-4 py-2 text-sm font-bold backdrop-blur-sm">
-              <CheckCircle2 className="size-4" /> Role acknowledged
-            </div>
-          ) : null}
-          {assignment && assignment.status !== "acknowledged" ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {assignment.status !== "declined" ? (
-                <Button
-                  variant="outline"
-                  className="rounded-lg border-white/50 bg-transparent font-bold text-white hover:bg-white/10"
-                  onClick={() => onDecline(window.prompt("Why are you declining this assignment?")?.trim())}
-                  disabled={busy}
-                >
-                  Decline
-                </Button>
-              ) : null}
-              <Button
-                variant="outline"
-                className="rounded-lg border-white/50 bg-transparent font-bold text-white hover:bg-white/10"
-                onClick={onWithdraw}
-                disabled={busy}
-              >
-                Withdraw
-              </Button>
-            </div>
-          ) : null}
-        </div>
-        {assignment ? (
-          <div className="hidden shrink-0 flex-col items-center rounded-xl bg-white/15 px-5 py-4 text-center backdrop-blur-sm sm:flex">
-            <Avatar className="mb-2 size-10 border-2 border-white/40">
-              <AvatarFallback className="bg-white/20 text-sm font-black text-white">
-                {sessionName.slice(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <span className="text-sm font-black leading-tight">{roleName}</span>
-            <span className="mt-1 text-3xs font-semibold uppercase tracking-wider text-white/70">
-              {label(attendanceStatus)}
-            </span>
-          </div>
-        ) : null}
+    <header className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-semibold leading-tight text-foreground">{greeting.title}</h1>
+        <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">{greeting.description}</p>
+        <CoordinatorAssignmentActions status={assignment?.status} busy={busy} onAcknowledge={onAcknowledge} onDecline={onDecline} onWithdraw={onWithdraw} />
       </div>
-      <span className="pointer-events-none absolute -right-12 -top-12 size-48 rounded-full bg-white/6" />
-      <span className="pointer-events-none absolute -bottom-16 -right-8 size-64 rounded-full bg-white/4" />
+      {assignment ? (
+        <dl className="shrink-0 text-sm sm:text-right">
+          <dt className="text-muted-foreground">Your role</dt>
+          <dd className="font-semibold text-foreground">{roleName}</dd>
+          <dd className="text-muted-foreground">{label(attendanceStatus)}</dd>
+        </dl>
+      ) : null}
+    </header>
+  );
+}
+
+/** Acknowledged shows a confirmation; an open assignment shows Acknowledge, Decline (until declined) and Withdraw. */
+function CoordinatorAssignmentActions({
+  status,
+  busy,
+  onAcknowledge,
+  onDecline,
+  onWithdraw,
+}: {
+  status?: string;
+  busy: boolean;
+  onAcknowledge: () => void;
+  onDecline: (reason?: string) => void;
+  onWithdraw: () => void;
+}) {
+  if (!status) return null;
+  if (status === "acknowledged") {
+    return (
+      <p className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-success">
+        <CheckCircle2 className="size-4" aria-hidden="true" /> Role acknowledged
+      </p>
+    );
+  }
+  const open = status !== "declined";
+  return (
+    <div className="mt-4 flex flex-wrap gap-2">
+      {open ? (
+        <Button className="h-11 rounded-md font-semibold" onClick={() => onAcknowledge()} disabled={busy}>
+          <BadgeCheck className="size-4" aria-hidden="true" /> Acknowledge role
+        </Button>
+      ) : null}
+      {open ? (
+        <Button variant="outline" className="h-11 rounded-md" onClick={() => onDecline(window.prompt("Why are you declining this assignment?")?.trim())} disabled={busy}>
+          Decline
+        </Button>
+      ) : null}
+      <Button variant="ghost" className="h-11 rounded-md" onClick={onWithdraw} disabled={busy}>
+        Withdraw
+      </Button>
     </div>
   );
 }
@@ -398,7 +391,7 @@ export function CoordinatorTimelineCard({ roleView, readOnly = false }: { roleVi
         <fieldset disabled={readOnly} hidden={view !== "run-sheet"} className="min-w-0">{roleView?.schedule ? <LiveOpsControlSurface eventId={roleView.event.id} schedule={roleView.schedule} timer={roleView.timer} /> : (
           <p className="rounded-xl bg-muted/40 p-4 text-sm text-muted-foreground">No event schedule has been published yet. Check with PMCM for the latest timing.</p>
         )}</fieldset>
-        {roleView ? <fieldset disabled={readOnly} hidden={view !== "brief"} className="min-w-0"><HandoffBriefPanel eventId={roleView.event.id} /></fieldset> : null}
+        {roleView ? <fieldset disabled={readOnly} hidden={view !== "brief"} className="min-w-0"><HandoffBriefPanel eventId={roleView.event.id} defaultOpen /></fieldset> : null}
         {roleView ? <fieldset disabled={readOnly} hidden={view !== "reports"} className="min-w-0">
           <LiveOpsScheduleDesk
             eventId={roleView.event.id}

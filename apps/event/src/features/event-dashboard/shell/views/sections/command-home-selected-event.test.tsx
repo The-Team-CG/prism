@@ -7,7 +7,7 @@ import { CommandHomeSelectedEvent } from "./command-home-selected-event";
 const event = { id: "evt_gala", eventName: "Ayala Gala", clientName: "Ana Reyes" } as PrismEvent;
 
 describe("CommandHomeSelectedEvent", () => {
-  it("summarizes the selected event and opens its workspace", () => {
+  it("summarizes the selected event and links to its workspace", () => {
     const onOpenEvent = vi.fn();
     render(
       <CommandHomeSelectedEvent
@@ -25,7 +25,13 @@ describe("CommandHomeSelectedEvent", () => {
     expect(screen.getByText("Official layout")).toBeTruthy();
     expect(screen.getByText("Closure checks")).toBeTruthy();
     expect(screen.queryByText("Active events")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /Open workspace/ }));
+    const open = screen.getByRole("link", { name: /Open workspace/ });
+    // A real address, so PMCM can open the workspace in a new tab or copy its link.
+    expect(open.getAttribute("href")).toBe("/dashboard/events/evt_gala/overview");
+    // Modified clicks are left to the browser; a plain click stays in the app.
+    fireEvent.click(open, { ctrlKey: true });
+    expect(onOpenEvent).not.toHaveBeenCalled();
+    fireEvent.click(open);
     expect(onOpenEvent).toHaveBeenCalledWith("evt_gala");
   });
 
@@ -43,7 +49,9 @@ describe("CommandHomeSelectedEvent", () => {
     );
 
     expect(screen.getByText("No event selected")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Browse events" }));
+    const browse = screen.getByRole("link", { name: "Browse events" });
+    expect(browse.getAttribute("href")).toBe("/dashboard/events");
+    fireEvent.click(browse);
     expect(onBrowseEvents).toHaveBeenCalled();
   });
 });

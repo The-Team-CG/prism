@@ -37,8 +37,11 @@ export function objectBox(object: VenueObject, project: Project) {
   };
 }
 
+/** Enum values read as sentence case: "in_planning" → "In planning". */
 export function formatStatusLabel(status?: string) {
-  return status ? status.replaceAll("_", " ") : "Pending";
+  if (!status) return "Pending";
+  const words = status.replaceAll(/[_-]+/g, " ").trim().toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 export function clientFloorplanDashboardActionLabel(status?: PrismEvent["floorPlanStatus"]) {
@@ -101,6 +104,8 @@ export type ClientDashboardAction = {
   status: string;
   tone: "primary" | "success" | "warning" | "neutral";
   nextActor?: "you" | "pmcm" | "update";
+  /** Urgent or overdue now, rather than a requirement for a later stage. */
+  blocking?: boolean;
 };
 
 export const money = new Intl.NumberFormat("en-PH", {
@@ -153,6 +158,7 @@ export function actionCenterItemToDashboardAction(
     status: item.status,
     tone: clientActionTone(item.priority),
     nextActor: clientActionNextActor(item),
+    blocking: item.priority === "critical" || item.priority === "warning",
   };
 }
 

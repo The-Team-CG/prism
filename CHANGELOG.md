@@ -6,6 +6,12 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Portal UI and UX pass from the October 2026 screen audit (design tokens unchanged): the supplier application works on phones, PMCM Closure no longer crashes on checks without evidence (the read model now returns full compliance records), the PMCM calendar uses real month grids, and every portal shows dates in Philippine time with readable role and status names.
+- Navigation and event choosers are real links that open in a new tab. Client Home groups actions by event and separates current blockers from later requirements; the client floorplan page and PMCM floorplan tab lead with the official plan, and the editor opens fitted to the plan with "Fit plan" and "Find selected" controls.
+- Client documents are one checklist linking each requirement to its upload (requirements now include `uploadedObjectId`). PMCM roster import takes a spreadsheet with readable headers, adjustable column matching and a preview. The guest pass shows the venue and start time once the client has approved PMCM's proposal.
+- Sign-in, invitation and supplier help screens link to PMCM when `NEXT_PUBLIC_PMCM_SUPPORT_EMAIL` or `NEXT_PUBLIC_PMCM_SUPPORT_PHONE` is set at build time; otherwise they keep the plain instruction.
+- Documentation cleanup: removed six completed or superseded documents (plus the legacy column register CSV) and brought the remaining architecture, product and runbook docs in line with the current code; see `docs/log.md`.
+
 - Added desktop/mobile browser acceptance journeys (including a full inquiry-to-archive lifecycle that clears every close gate without an override) and an opt-in local Mailpit inbox for testing activation, reset and notification emails without email-provider credits.
 - Inquiry review drawers now show refreshed status after PMCM accepts or pends a request.
 - Supplier quote emails now use the configured supplier portal origin. PMCM can start event day from the event overview once the existing lifecycle prerequisites are met, and creates billing sources from the Billing tab instead of Closure.

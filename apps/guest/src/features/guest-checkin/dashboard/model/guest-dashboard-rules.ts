@@ -1,3 +1,4 @@
+import { formatPortalDate } from "@prism/ui/format-date";
 import type { CheckInMode, CheckInPayload, FeedbackMediaMeta, FeedbackPayload, GuestSession } from "./guest-dashboard-types";
 import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
 import { GuestApiError } from "@/features/guest-shared/guest-http";
@@ -112,4 +113,24 @@ export function mapGuestDashboardError(
 ): string {
   if (error instanceof Error && error.message.trim()) return error.message;
   return fallback;
+}
+
+/** "18:30" → "6:30 PM"; anything unexpected is shown as recorded rather than guessed. */
+export function formatArrivalTime(value?: string): string | undefined {
+  const match = value?.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return value || undefined;
+  const hours = Number(match[1]);
+  if (hours > 23) return value;
+  return `${hours % 12 || 12}:${match[2]} ${hours < 12 ? "AM" : "PM"}`;
+}
+
+export function guestPassDetails(session: GuestSession): Array<[string, string]> {
+  const startTime = formatArrivalTime(session.startTime);
+  return [
+    ["Event", session.eventName],
+    ["Date", startTime ? `${formatPortalDate(session.eventDate)} · starts ${startTime}` : formatPortalDate(session.eventDate)],
+    ...(session.venue ? ([["Venue", session.venue]] as Array<[string, string]>) : []),
+    ["Host", session.clientName],
+    ["Access code", session.guestAccessCode],
+  ];
 }
