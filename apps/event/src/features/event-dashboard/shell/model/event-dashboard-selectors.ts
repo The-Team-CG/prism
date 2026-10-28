@@ -103,3 +103,16 @@ export function selectEventsForView(events: PrismEvent[], view: string): PrismEv
       return events;
   }
 }
+
+const NOT_STARTABLE_STATUSES = new Set(["event_day", "cancelled", "postponed", "date_to_be_confirmed", "archived"]);
+
+/** Mirrors the API start-event-day guard: unlocked (signed conforme), approved official floorplan, not ended or archived. */
+export function canStartEventDay(event: PrismEvent): boolean {
+  return (
+    !event.archived &&
+    !event.actualEndedAt &&
+    !NOT_STARTABLE_STATUSES.has(event.status) &&
+    event.clientPortalStatus === "unlocked" &&
+    event.floorPlanStatus === "approved"
+  );
+}
