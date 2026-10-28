@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Saving to the platform no longer fails with "A database request failed" when two audited writes overlap. The API now runs the transaction again after a short wait, and answers 503 with a Retry-After header, not a 500, if it still cannot get through. In the full lifecycle suite this removed all six failures; the database still logged 37 conflicts and none reached a user.
+
 - Persona lifecycle checks now verify persisted public walk-ins, reconciled PMCM attendance and client-scoped live event state instead of passing on prerequisite checks alone.
 
 - Lifecycle test helpers use cryptographic randomness for synthetic client identities, simulated client addresses and retry jitter; exploratory database retries remain explicit and prevent a green report.
