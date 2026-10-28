@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
 import { approveBillingSourceSchema } from '@prism/types';
@@ -83,7 +83,10 @@ function createPaymentService() {
         return record;
       }),
     },
+    opsProposalVersion: { findFirst: vi.fn(async (): Promise<Record<string, unknown> | null> => null) },
+    opsAuditLog: { findFirst: vi.fn(async (): Promise<Record<string, unknown> | null> => null) },
     opsBillingSource: {
+      findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []),
       findUnique: vi.fn(async () => billingSource),
       create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ ...billingSource, ...data })),
       update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => Object.assign(billingSource, data)),
@@ -94,6 +97,7 @@ function createPaymentService() {
       }),
     },
     $queryRaw: vi.fn(async () => [{ id: milestone.id, event_id: milestone.eventId }]),
+    $executeRaw: vi.fn(async () => 1),
     $transaction: vi.fn(async (callback: (tx: any) => unknown) => callback(prisma)),
   };
   const audit = { write: vi.fn() };
@@ -130,6 +134,8 @@ function createBillingStatementService(priorNumbers: string[], conflictingSequen
     updatedAt: new Date('2026-07-01T00:00:00.000Z'),
   };
   const statements = priorNumbers.map((number, index) => ({ id: `stmt_${index}`, number }));
+  const otherSource = { ...source, id: 'bsrc_billing_sequence_other' };
+  const issued: Array<Record<string, any>> = [];
   const sequenceRows: Array<{ next_number: number }> = [];
   const queryRaw = vi.fn(async (parts: TemplateStringsArray) => {
     const query = parts.join(' ');
@@ -154,11 +160,16 @@ function createBillingStatementService(priorNumbers: string[], conflictingSequen
   });
   const prisma: any = {
     opsEvent: { findUnique: vi.fn(async () => event) },
-    opsInquiry: { findUnique: vi.fn(async () => ({ clientName: event.clientName, email: '' })) },
-    opsBillingSource: { findUnique: vi.fn(async () => source) },
+    opsInquiry: { findUnique: vi.fn(async () => ({ clientName: event.clientName, email: 'client@example.test' })) },
+    opsBillingSource: { findUnique: vi.fn(async ({ where }: { where: { id: string } }) => (where.id === otherSource.id ? otherSource : source)) },
     opsBillingStatement: {
-      findUnique: vi.fn(async () => null),
-      create: vi.fn(async ({ data }: { data: Record<string, any> }) => ({ ...data, generatedAt: new Date('2026-08-01T01:00:00.000Z') })),
+      findUnique: vi.fn(async ({ where }: { where: { idempotencyKey?: string } }) => issued.find((statement) => where.idempotencyKey && statement.idempotencyKey === where.idempotencyKey) ?? null),
+      findFirst: vi.fn(async ({ where }: { where: { sourceId: string } }) => issued.find((statement) => statement.sourceId === where.sourceId) ?? null),
+      create: vi.fn(async ({ data }: { data: Record<string, any> }) => {
+        const row = { ...data, generatedAt: new Date('2026-08-01T01:00:00.000Z') };
+        issued.push(row);
+        return row;
+      }),
     },
     opsDocument: { create: vi.fn(async ({ data }: { data: Record<string, any> }) => ({ ...data })) },
     opsPaymentMilestone: { createMany: vi.fn(async () => ({ count: 1 })) },
@@ -175,7 +186,7 @@ function createBillingStatementService(priorNumbers: string[], conflictingSequen
     findEligibleReference: vi.fn(),
   };
   const service = new BillingOperationsService(prisma, audit as any, notifications as any, createWorkflowCommandService(prisma), documentVault as any, storageObjectService);
-  return { service, prisma, statements, documentVault };
+  return { service, prisma, statements, documentVault, otherSourceId: otherSource.id, notifications, issued };
 }
 
 describe('BillingOperationsService', () => {
@@ -225,6 +236,151 @@ describe('BillingOperationsService', () => {
       data: expect.objectContaining({ eventId: 'evt_sample', sourceDocumentId: 'doc_proposal' }),
     }));
     expect(documentVault.findEligibleReference).toHaveBeenCalledTimes(2);
+  });
+
+  describe('billing source evidence and approval rules', () => {
+    const proposalDocument = (fileName: string) => ({ id: 'doc_proposal', eventId: 'evt_sample', kind: 'proposal', status: 'issued', fileName });
+    const sourceBody = (overrides: Record<string, unknown> = {}) => ({
+      sourceLabel: 'Approved proposal', sourceDocumentId: 'doc_proposal', lineItems: [{ label: 'Package', amount: 500000 }], ...overrides,
+    });
+    const proposalVersion = (status: string, totalAmount = 500000) => ({ status, totalAmount });
+    const auditedMetadata = (audit: { write: { mock: { calls: unknown[][] } } }) => (audit.write.mock.calls[0][0] as { metadata: Record<string, unknown> }).metadata;
+
+    it('refuses a source that cites a superseded proposal version unless PMCM gives a reason, and audits the reason', async () => {
+      const { service, prisma, documentVault, audit } = createPaymentService();
+      documentVault.findEligibleReference.mockResolvedValue(proposalDocument('Proposal v1 - Summit.pdf') as never);
+      prisma.opsProposalVersion.findFirst.mockResolvedValue(proposalVersion('superseded'));
+
+      const refused = service.createBillingSource('evt_sample', sourceBody(), billingActor);
+      await expect(refused).rejects.toBeInstanceOf(BadRequestException);
+      await expect(refused).rejects.toThrow(/Proposal v1 has been superseded/);
+      expect(prisma.opsBillingSource.create).not.toHaveBeenCalled();
+
+      await service.createBillingSource('evt_sample', sourceBody({ evidenceOverrideReason: 'Client signed v1 terms' }), billingActor);
+      expect(prisma.opsBillingSource.create).toHaveBeenCalledTimes(1);
+      expect(auditedMetadata(audit)).toMatchObject({ evidenceOverrideReason: 'Client signed v1 terms', citedProposalVersion: 1 });
+    });
+
+    it('refuses a source total that differs from the cited proposal unless PMCM gives a reason, and audits the reason', async () => {
+      const { service, prisma, documentVault, audit } = createPaymentService();
+      documentVault.findEligibleReference.mockResolvedValue(proposalDocument('Proposal v2 - Summit.pdf') as never);
+      prisma.opsProposalVersion.findFirst.mockResolvedValue(proposalVersion('issued'));
+
+      await expect(service.createBillingSource('evt_sample', sourceBody({ lineItems: [{ label: 'Package', amount: 999000 }] }), billingActor))
+        .rejects.toThrow(/999000 does not match the Proposal v2 total 500000/);
+      expect(prisma.opsBillingSource.create).not.toHaveBeenCalled();
+
+      await service.createBillingSource('evt_sample', sourceBody({ lineItems: [{ label: 'Package', amount: 450000 }], totalOverrideReason: 'Negotiated discount' }), billingActor);
+      expect(prisma.opsBillingSource.create).toHaveBeenCalledTimes(1);
+      expect(auditedMetadata(audit)).toMatchObject({ totalOverrideReason: 'Negotiated discount', totalAmount: 450000, actorId: billingActor.id });
+    });
+
+    it('accepts a source that matches the latest issued proposal without any override', async () => {
+      const { service, prisma, documentVault } = createPaymentService();
+      documentVault.findEligibleReference.mockResolvedValue(proposalDocument('Proposal v2 - Summit.pdf') as never);
+      prisma.opsProposalVersion.findFirst.mockResolvedValue(proposalVersion('issued'));
+
+      await service.createBillingSource('evt_sample', sourceBody(), billingActor);
+      expect(prisma.opsBillingSource.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not re-judge a keyed retry of an existing source against newer proposals', async () => {
+      const { service, prisma, documentVault } = createPaymentService();
+      documentVault.findEligibleReference.mockResolvedValue(proposalDocument('Proposal v1 - Summit.pdf') as never);
+      prisma.opsProposalVersion.findFirst.mockResolvedValue(proposalVersion('superseded'));
+      const body = sourceBody({ idempotencyKey: 'source-key', evidenceOverrideReason: 'Client signed v1 terms' });
+      prisma.opsBillingSource.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+      await service.createBillingSource('evt_sample', body, billingActor);
+      const stored = await prisma.opsBillingSource.create.mock.results[0].value;
+      prisma.opsBillingSource.findUnique.mockResolvedValue({ ...stored, payloadHash: null });
+
+      await expect(service.createBillingSource('evt_sample', body, billingActor)).resolves.toBeDefined();
+      expect(prisma.opsProposalVersion.findFirst).toHaveBeenCalledTimes(1);
+    });
+
+    it('requires a different PMCM admin to approve a source created with a total override', async () => {
+      const { service, prisma, audit } = createPaymentService();
+      prisma.opsAuditLog.findFirst.mockResolvedValue({ metadata: { actorId: billingActor.id, totalOverrideReason: 'Negotiated discount' } });
+
+      await expect(service.approveBillingSource('evt_sample', 'bsrc_sample', {}, billingActor)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.opsBillingSource.updateMany).not.toHaveBeenCalled();
+
+      const approved = await service.approveBillingSource('evt_sample', 'bsrc_sample', {}, { id: 'user_other', name: 'Other Admin', role: 'pmcm-admin', email: 'other@pmcm.test' });
+      expect(approved.status).toBe('approved');
+      expect(audit.write).toHaveBeenCalledTimes(1);
+    });
+
+    it('lets the creator approve a source that needed no total override', async () => {
+      const { service, prisma } = createPaymentService();
+      prisma.opsAuditLog.findFirst.mockResolvedValue({ metadata: { actorId: billingActor.id, totalAmount: 100000 } });
+      await expect(service.approveBillingSource('evt_sample', 'bsrc_sample', {}, billingActor)).resolves.toMatchObject({ status: 'approved' });
+    });
+
+    it('refuses approval that would take approved sources above the latest issued proposal total', async () => {
+      const { service, prisma } = createPaymentService();
+      prisma.opsProposalVersion.findFirst.mockResolvedValue({ versionNumber: 2, totalAmount: 500000 });
+      prisma.opsBillingSource.findMany.mockResolvedValue([{ totalAmount: 450000, billingStatements: [{ status: 'sent' }] }]);
+
+      const refused = service.approveBillingSource('evt_sample', 'bsrc_sample', {}, billingActor);
+      await expect(refused).rejects.toBeInstanceOf(BadRequestException);
+      await expect(refused).rejects.toThrow(/550000.*Proposal v2 total of 500000.*additional billing/);
+      expect(prisma.opsBillingSource.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('takes the per-event approval lock before reading approved totals and approving, so simultaneous approvals cannot both fit', async () => {
+      const { service, prisma } = createPaymentService();
+      prisma.opsProposalVersion.findFirst.mockResolvedValue({ versionNumber: 2, totalAmount: 500000 });
+
+      await service.approveBillingSource('evt_sample', 'bsrc_sample', {}, billingActor);
+
+      const lock = prisma.$executeRaw.mock.invocationCallOrder[0];
+      expect(String(prisma.$executeRaw.mock.calls[0][0])).toContain('pg_advisory_xact_lock');
+      expect(lock).toBeLessThan(prisma.opsBillingSource.findMany.mock.invocationCallOrder[0]);
+      expect(prisma.opsBillingSource.findMany.mock.invocationCallOrder[0]).toBeLessThan(prisma.opsBillingSource.updateMany.mock.invocationCallOrder[0]);
+    });
+
+    it('approves within the cap and ignores a source whose statements were all replaced by a correction', async () => {
+      const { service, prisma } = createPaymentService();
+      prisma.opsProposalVersion.findFirst.mockResolvedValue({ versionNumber: 2, totalAmount: 100000 });
+      prisma.opsBillingSource.findMany.mockResolvedValue([{ totalAmount: 90000, billingStatements: [{ status: 'superseded' }] }]);
+
+      await expect(service.approveBillingSource('evt_sample', 'bsrc_sample', {}, billingActor)).resolves.toMatchObject({ status: 'approved' });
+    });
+
+    it('does not cap approval when the event has no issued proposal', async () => {
+      const { service, prisma } = createPaymentService();
+      prisma.opsBillingSource.findMany.mockResolvedValue([{ totalAmount: 900000, billingStatements: [] }]);
+      await expect(service.approveBillingSource('evt_sample', 'bsrc_sample', {}, billingActor)).resolves.toMatchObject({ status: 'approved' });
+    });
+  });
+
+  it('tells the client nothing at generate time and queues the milestone notices when PMCM sends the statement', async () => {
+    const { service, prisma, notifications, issued } = createBillingStatementService([]);
+    await service.generateBillingStatement('evt_billing_sequence', 'bsrc_billing_sequence', billingActor, verifiedBillingActor);
+    expect(notifications.write).not.toHaveBeenCalled();
+
+    const row = issued[0];
+    prisma.opsBillingStatement.findUnique.mockResolvedValue({ ...row, sentAt: null } as never);
+    prisma.opsBillingStatement.update = vi.fn(async () => ({ ...row, status: 'sent', sentAt: new Date('2026-08-02T00:00:00.000Z') }));
+    await service.sendBillingStatement('evt_billing_sequence', row.id, billingActor);
+
+    const keys = notifications.write.mock.calls.map((call) => (call[0] as { idempotencyKey: string }).idempotencyKey);
+    expect(keys).toEqual([`billing-send:${row.id}:email`, `billing-send:${row.id}:viber`, `billing-reminder:${row.id}:0`]);
+  });
+
+  it('answers a second statement for the same source with a billing conflict while a keyed retry still replays', async () => {
+    const { service } = createBillingStatementService([]);
+    const generate = (key?: string) => service.generateBillingStatement('evt_billing_sequence', 'bsrc_billing_sequence', billingActor, verifiedBillingActor, key);
+
+    const first = await generate('statement-key');
+    const replay = await generate('statement-key');
+    expect(replay.id).toBe(first.id);
+
+    for (const key of [undefined, 'another-key']) {
+      const duplicate = generate(key);
+      await expect(duplicate).rejects.toBeInstanceOf(ConflictException);
+      await expect(duplicate).rejects.toThrow('A billing statement already exists for this source.');
+    }
   });
 
   it('rejects a payment mutation without a verified actor before database access', async () => {
@@ -402,7 +558,7 @@ describe('BillingOperationsService', () => {
   });
 
   it('uses the stored sequence without rescanning prior statements on subsequent issues', async () => {
-    const { service, prisma } = createBillingStatementService(['BS-2026-0001']);
+    const { service, prisma, otherSourceId } = createBillingStatementService(['BS-2026-0001']);
 
     const first = await service.generateBillingStatement(
       'evt_billing_sequence',
@@ -412,7 +568,7 @@ describe('BillingOperationsService', () => {
     );
     const second = await service.generateBillingStatement(
       'evt_billing_sequence',
-      'bsrc_billing_sequence',
+      otherSourceId,
       billingActor,
       verifiedBillingActor,
     );
