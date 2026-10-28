@@ -34,7 +34,7 @@ export function PrismMetricTile({ label, value, icon: Icon, detail, trend, class
           <p className="text-[28px] font-black leading-none tracking-normal text-foreground">{value}</p>
           {trend ? <PrismBadge variant="success">{trend}</PrismBadge> : null}
         </div>
-        <p className="mt-1.5 truncate text-3xs font-black uppercase tracking-widest text-muted-foreground">
+        <p className="mt-1.5 truncate text-xs font-medium text-muted-foreground">
           {label}
         </p>
         {detail ? <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{detail}</p> : null}
@@ -150,7 +150,7 @@ export function PrismStatusSummary({
               </span>
             ) : null}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-3xs font-black uppercase tracking-widest text-muted-foreground">
+              <p className="truncate text-xs font-medium text-muted-foreground">
                 {item.label}
               </p>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-sm font-black text-foreground">
@@ -287,7 +287,7 @@ export function PrismCompactRecordList({
                 </span>
               ) : null}
               {item.meta ? (
-                <span className="mt-0.5 block text-3xs font-bold uppercase tracking-widest text-muted-foreground">
+                <span className="mt-0.5 block text-xs font-medium text-muted-foreground">
                   {item.meta}
                 </span>
               ) : null}
@@ -468,7 +468,7 @@ export function PrismStatusTimeline({ items }: { items: PrismTimelineItem[] }) {
                 <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.description}</span>
               ) : null}
               {item.meta ? (
-                <span className="mt-0.5 block text-3xs font-bold uppercase tracking-widest text-muted-foreground">
+                <span className="mt-0.5 block text-xs font-medium text-muted-foreground">
                   {item.meta}
                 </span>
               ) : null}
@@ -505,7 +505,7 @@ export function PrismDataTable<RowT>({
           <thead className="bg-muted/50 text-xs text-muted-foreground">
             <tr>
               {columns.map((column) => (
-                <th key={column.id} className="px-4 py-3 text-left font-black uppercase tracking-widest">
+                <th key={column.id} className="px-4 py-3 text-left font-medium">
                   {column.header}
                 </th>
               ))}
@@ -569,7 +569,7 @@ export function PrismDocumentList({ documents }: { documents: PrismDocumentItem[
               <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{document.description}</p>
             ) : null}
             {document.meta ? (
-              <p className="mt-0.5 text-3xs font-bold uppercase tracking-widest text-muted-foreground">
+              <p className="mt-0.5 text-xs font-medium text-muted-foreground">
                 {document.meta}
               </p>
             ) : null}

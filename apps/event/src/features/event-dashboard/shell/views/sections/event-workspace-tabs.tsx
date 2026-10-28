@@ -3,11 +3,9 @@
 import { PostEventDeliverablesPanel } from "@/features/closure/deliverables/views/post-event-deliverables-panel";
 
 
-import { FileCheck2, Gavel, LayoutGrid, MapPinned, Truck } from "lucide-react";
+import { FileCheck2, Gavel, Truck } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
-import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
-import { humanizeToken } from "@/features/pmcm-kit/model/formatters";
 import { PAREPanel } from "@/features/pare/panel";
 import { Phase4Workspace } from "@/features/closure/phase4";
 import { CoordinatorAssignmentDesk } from "@/features/coordinators/desk";
@@ -27,6 +25,7 @@ import { PmcmSupplierReadinessBoard, supplierReadinessRefreshKey } from "@/featu
 import { PmcmSupplierWorkflowsPanel } from "@/features/suppliers/workflows/views/pmcm-supplier-workflows-panel";
 import { EventRegistrationTab } from "@/app/components/pmcm/event-registration-tab";
 import { EventGamesHostView } from "@/features/event-games/host";
+import { EventFloorplansTab } from "@/features/floorplan/workspace";
 import { EventMessagesWorkspace } from "@/features/event-dashboard/messages/views/event-messages-workspace";
 import { FeedbackModerationPanel } from "@/features/feedback/moderation";
 import { EventClientFloorplanAccessPanel } from "@/features/event-dashboard/client-floorplan-access/views/event-client-floorplan-access-panel";
@@ -34,10 +33,8 @@ import { canManageClientFloorplanAccess } from "@/features/event-dashboard/clien
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { Card, CardBody, CardHeader } from "./shell-ui";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
-import type { PrismFloorPlanDraft } from "@prism/types";
 import { PmcmClientReviewPanel } from "@/features/commercial/client-review/views/pmcm-client-review-panel";
 import { PmcmProposalIssuerPanel } from "@/features/commercial/proposal-issuer/views/pmcm-proposal-issuer-panel";
-import { canReopenClientPreference, canViewClientPreference } from "@/features/floorplan/workspace/model/floorplan-workspace-rules";
 
 export function EventWorkspaceOverviewTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
@@ -74,129 +71,28 @@ export function EventWorkspaceOverviewTab() {
 
 export function EventWorkspaceFloorplansTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
-  if (!vm.selectedEvent) return null;
-  return (
-    <div className="space-y-4">
-      <EventFloorplanTemplatePicker />
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <LayoutGrid className="size-4 text-primary" />
-            <h2 className="text-sm font-bold text-foreground">Floorplan drafts and client preferences</h2>
-          </div>
-        </CardHeader>
-        <CardBody>
-          {vm.drafts.length === 0 ? (
-            <EmptyState icon={LayoutGrid} title="No floorplan drafts yet" description="Pick a saved template above to create the first PMCM draft for this event." />
-          ) : (
-            <div className="space-y-4">
-              {vm.drafts.map((draft) => (
-                <EventFloorplanDraftCard key={draft.id} draft={draft} />
-              ))}
-            </div>
-          )}
-        </CardBody>
-      </Card>
-      {canManageClientFloorplanAccess(String(vm.session.role)) ? (
-        <details className="rounded-lg border border-border bg-card">
-          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Client floorplan access</summary>
-          <EventClientFloorplanAccessPanel eventId={vm.selectedEvent.id} />
-        </details>
-      ) : null}
-    </div>
-  );
-}
-
-function EventFloorplanTemplatePicker() {
-  const { floorPlanTemplates, run, createTemplateDraft } = useEventDashboardLoadedRouteViewModel();
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <MapPinned className="size-4 text-primary" />
-          <h2 className="text-sm font-bold text-foreground">Start PMCM draft</h2>
-        </div>
-      </CardHeader>
-      <CardBody>
-        {floorPlanTemplates.length ? (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {floorPlanTemplates.slice(0, 4).map((template) => (
-              <button
-                key={template.id}
-                onClick={() => run("create floorplan", () => createTemplateDraft(template))}
-                className="rounded-xl border border-border bg-muted/30 p-4 text-left transition hover:border-primary/40 hover:bg-primary-soft"
-              >
-                <p className="text-sm font-bold text-foreground">{template.name}</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">{template.description || template.venue || "Saved PMCM template"}</p>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-xs text-muted-foreground">
-            No saved templates yet. Save reusable layouts from the editor before starting a template-based draft.
-          </p>
-        )}
-      </CardBody>
-    </Card>
-  );
-}
-
-function EventFloorplanDraftCard({ draft }: { draft: PrismFloorPlanDraft }) {
-  const { selectedEvent, drafts, run, openEditor, submitFloorPlanDraft, approveFloorPlanDraft, reopenClientPreference } = useEventDashboardLoadedRouteViewModel();
+  const { selectedEvent, run } = vm;
   if (!selectedEvent) return null;
-  const isClientPreference = draft.sourceType === "client_preference";
-  const canSubmit = !isClientPreference && ["pmcm_draft", "revision_requested"].includes(draft.status);
-  const canApprove = !isClientPreference && draft.status === "in_review";
-  const canViewPreference = canViewClientPreference(draft);
-  const canReopenPreference = canReopenClientPreference(draft, selectedEvent.floorPlanStatus, drafts);
+  // The workspace leads with the approved official plan; creation controls come last (UX-13).
   return (
-    <div className="rounded-xl border border-border bg-muted/20 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-foreground">{draft.name}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">{humanizeToken(draft.sourceType)} — {draft.createdByRole ?? "pmcm-admin"}</p>
-        </div>
-        <StatusBadge status={draft.status} />
-      </div>
-      <ClientFloorplanPreferenceSummary preference={draft.clientPreference} />
-      <div className="mt-3 flex flex-wrap gap-2">
-        {!isClientPreference ? (
-          <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => run("open draft", () => openEditor(selectedEvent, draft))}>
-            Open / Edit
-          </Button>
-        ) : null}
-        {canViewPreference ? (
-          <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => run("view preference layout", () => openEditor(selectedEvent, draft, true))}>
-            {draft.status === "approved" ? "View approved layout" : "View preference layout"}
-          </Button>
-        ) : null}
-        {canReopenPreference ? (
-          <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => reopenClientPreference(draft)}>
-            Reopen preference
-          </Button>
-        ) : null}
-        {canSubmit ? (
-          <Button size="sm" className="rounded-lg font-bold" onClick={() => submitFloorPlanDraft(draft)}>
-            Submit
-          </Button>
-        ) : null}
-        {canApprove ? (
-          <Button size="sm" variant="outline" className="rounded-lg border-success/25 bg-success/8 font-bold text-success hover:bg-success/15" onClick={() => approveFloorPlanDraft(draft)}>
-            Approve
-          </Button>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function ClientFloorplanPreferenceSummary({ preference }: { preference: PrismFloorPlanDraft["clientPreference"] }) {
-  if (!preference) return null;
-  return (
-    <div className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-xs leading-5 text-muted-foreground">
-      <p><span className="font-bold text-foreground">Seating:</span> {preference.seatingStyle}</p>
-      <p><span className="font-bold text-foreground">Stage:</span> {preference.stagePreference}</p>
-    </div>
+    <EventFloorplansTab
+      event={selectedEvent}
+      drafts={vm.drafts}
+      floorPlanTemplates={vm.floorPlanTemplates}
+      onCreateTemplateDraft={(template) => run("create floorplan", () => vm.createTemplateDraft(template))}
+      onOpenDraft={(event, draft, readOnly) => run(readOnly ? "view preference layout" : "open draft", () => vm.openEditor(event, draft, readOnly))}
+      onSubmitDraft={(draft) => vm.submitFloorPlanDraft(draft)}
+      onApproveDraft={(draft) => vm.approveFloorPlanDraft(draft)}
+      onReopenClientPreference={(draft) => vm.reopenClientPreference(draft)}
+      accessPanel={
+        canManageClientFloorplanAccess(String(vm.session.role)) ? (
+          <details className="rounded-lg border border-border bg-card">
+            <summary className="flex min-h-11 cursor-pointer items-center px-5 text-sm font-semibold">Client floorplan access</summary>
+            <EventClientFloorplanAccessPanel eventId={selectedEvent.id} />
+          </details>
+        ) : null
+      }
+    />
   );
 }
 
@@ -304,7 +200,7 @@ export function EventWorkspaceSuppliersTab() {
               </span>
               <h2 className="text-sm font-bold text-foreground">PARE · Emergency Response Engine</h2>
             </div>
-            <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-3xs font-black uppercase tracking-wide text-muted-foreground">
+            <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
               FR-AI-04
             </span>
           </div>

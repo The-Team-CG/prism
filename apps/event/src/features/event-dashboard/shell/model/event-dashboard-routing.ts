@@ -500,6 +500,10 @@ const ROUTE_TITLES: Partial<Record<DashboardSection, string>> = {
   audit: "Audit",
   privacy: "Privacy",
   "command-inbox": "Inbox",
+  calendar: "Calendar",
+  files: "Files",
+  messages: "Messages",
+  finance: "Finance",
   tasks: "Tasks",
   team: "Team",
   inquiries: "Inquiries",
@@ -600,4 +604,16 @@ const SCOPED_READ_SECTIONS: ReadonlySet<DashboardSection> = new Set(["dashboard"
 
 export function sectionNeedsPmcmWorkspaceState(section: DashboardSection): boolean {
   return !SCOPED_READ_SECTIONS.has(section);
+}
+
+/**
+ * The route a sidebar destination opens, so the shell renders it as a real link (new tab, copy link).
+ * Event sections need an event; without one they stay buttons and the click handler chooses.
+ */
+export function eventSidebarItemHref(id: string, eventId?: string | null): string | undefined {
+  const staticRoute = SIDEBAR_STATIC_ROUTES[id];
+  if (staticRoute) return staticRoute;
+  const segment = EVENT_DETAIL_ROUTES[id];
+  if (!segment || !eventId) return undefined;
+  return `/dashboard/events/${encodeURIComponent(eventId)}/${segment}`;
 }

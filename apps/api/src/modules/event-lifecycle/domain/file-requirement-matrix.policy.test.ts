@@ -96,6 +96,21 @@ describe('file requirement overdue and merge rules', () => {
       now,
     );
     expect(items[0]).toMatchObject({ status: 'missing', uploadedAssetId: undefined, detail: 'No file submitted yet.' });
+    expect(items[0]).not.toHaveProperty('uploadedObjectId');
+  });
+
+  it('names the stored file that currently fulfils a custom requirement', () => {
+    const requirement = override({ key: 'venue_permit', label: 'Venue permit', ownerRole: 'client', visibleToRoles: ['pmcm-admin', 'client'], isCustom: true, sourceWorkflow: 'custom' });
+    const items = mergeFileRequirementOverrides(
+      [],
+      [requirement],
+      [
+        { id: 'doc_old', type: 'venue_permit', status: 'submitted', validationStatus: 'accepted', uploadedAt: new Date('2026-10-01T00:00:00.000Z'), storageKey: 'obj_old' },
+        { id: 'doc_new', type: 'venue_permit', status: 'submitted', validationStatus: 'accepted', uploadedAt: new Date('2026-10-05T00:00:00.000Z'), storageKey: 'obj_new' },
+      ],
+      now,
+    );
+    expect(items[0]).toMatchObject({ status: 'submitted', uploadedAssetId: 'doc_new', uploadedObjectId: 'obj_new' });
   });
 });
 

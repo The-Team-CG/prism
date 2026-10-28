@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { formatShortDate, humanizeToken } from "@/features/pmcm-kit/model/formatters";
+import { roleLabel } from "@/features/pmcm-kit/model/display-labels";
 import type { PrismBillingStatement, PrismBriefing, PrismComplianceCheck, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPostEventDocument, PrismSupplierQuoteRequest } from "@prism/types";
 import type { EventFileHubItem } from "./event-file-types";
 import { EventFileThumbnail } from "./event-file-thumbnail";
@@ -71,7 +72,7 @@ export function EventFileHub({
       category: "Floorplans",
       status: humanizeToken(draft.status),
       date: formatShortDate(draft.approvedAt ?? draft.submittedAt ?? draft.updatedAt),
-      owner: draft.createdByRole ? humanizeToken(draft.createdByRole) : "PMCM",
+      owner: draft.createdByRole ? roleLabel(draft.createdByRole) : "PMCM",
       extension: "PLAN",
       kind: "floorplan" as const,
       meta: `Floor plan ${draft.floorPlanId}`,

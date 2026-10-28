@@ -38,19 +38,13 @@ export function StatusBar() {
           <Plus size={11} />
         </button>
         <button
-          title="Fit"
-          onClick={() => {
-            const p = state.project;
-            const pad = 80;
-            // Rough fit — Canvas fit effect handles initial; this is a nudge.
-            dispatch({
-              type: "SET_VIEWPORT",
-              viewport: { zoom: Math.min(30, 600 / p.widthM), tx: pad, ty: pad },
-            });
-          }}
-          className="ml-1 flex size-5 items-center justify-center rounded hover:bg-neutral-100"
+          type="button"
+          title="Fit the plan to the screen"
+          onClick={() => dispatch({ type: "FIT_TO_PLAN" })}
+          className="ml-1 flex h-5 items-center gap-1 rounded px-1.5 hover:bg-neutral-100"
         >
-          <Maximize2 size={11} />
+          <Maximize2 size={11} aria-hidden="true" />
+          Fit plan
         </button>
       </div>
     </div>

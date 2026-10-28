@@ -5,6 +5,7 @@ import { ChevronRight, ChevronsUpDown, LogOut, Search, ShieldCheck } from "lucid
 import type { PrismAppShellProps, PrismNavItem } from "./types";
 import { PrismBrandLogo } from "../brand";
 import { cn } from "../utils";
+import { portalHref } from "../portal-path";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -104,32 +105,71 @@ function SidebarBrand({ href, title, detail }: { href: string; title: string; de
   );
 }
 
-function NavItemRow({ item, activeId, onSelect }: { item: PrismNavItem; activeId: string; onSelect: (id: string) => void }) {
+/**
+ * Destinations with an href are real links. A plain click keeps the portal's own (client-side) navigation;
+ * modified or middle clicks fall through to the browser so "open in new tab" and copy-link work.
+ */
+function navLinkClick(event: React.MouseEvent<HTMLAnchorElement>, select: () => void) {
+  if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
+  select();
+}
+
+const NAV_ROW_ACTIVE_CLASS =
+  "relative data-[active=true]:font-semibold data-[active=true]:before:absolute data-[active=true]:before:inset-y-2 data-[active=true]:before:left-0 data-[active=true]:before:w-[3px] data-[active=true]:before:rounded-full data-[active=true]:before:bg-[var(--prism-portal-current)]";
+
+type NavRowProps = { item: PrismNavItem; activeId: string; onSelect: (id: string) => void };
+
+/** A plain destination: a real link so it opens in a new tab, with client-side navigation on a plain click. */
+function NavLinkRow({ item, activeId, onSelect }: NavRowProps) {
+  const current = item.id === activeId;
+  return (
+    <SidebarMenuButton asChild className={NAV_ROW_ACTIVE_CLASS} isActive={current} tooltip={item.label}>
+      <a href={portalHref(item.href ?? "")} aria-current={current ? "page" : undefined} onClick={(event) => navLinkClick(event, () => onSelect(item.id))}>
+        <item.icon aria-hidden="true" />
+        <span>{item.label}</span>
+      </a>
+    </SidebarMenuButton>
+  );
+}
+
+/** A group with sub-destinations, or a destination the portal resolves itself: a button. */
+function NavButtonRow({ item, activeId, onSelect, open, setOpen }: NavRowProps & { open: boolean; setOpen: React.Dispatch<React.SetStateAction<boolean>> }) {
+  const hasSub = Boolean(item.subItems?.length);
+  return (
+    <SidebarMenuButton
+      className={NAV_ROW_ACTIVE_CLASS}
+      isActive={item.id === activeId || (isItemActive(item, activeId) && !open)}
+      tooltip={item.label}
+      disabled={item.disabled}
+      aria-expanded={hasSub ? open : undefined}
+      onClick={() => {
+        onSelect(item.id);
+        if (hasSub) setOpen((value) => !value || item.id !== activeId);
+      }}
+    >
+      <item.icon aria-hidden="true" />
+      <span>{item.label}</span>
+      {hasSub ? <ChevronRight aria-hidden="true" className={cn("ml-auto size-3.5 text-muted-foreground transition-transform", open && "rotate-90")} /> : null}
+    </SidebarMenuButton>
+  );
+}
+
+function NavItemRow({ item, activeId, onSelect }: NavRowProps) {
   const active = isItemActive(item, activeId);
   const [open, setOpen] = React.useState(active);
   React.useEffect(() => {
     if (active) setOpen(true);
   }, [active]);
   const hasSub = Boolean(item.subItems?.length);
+  const asLink = Boolean(item.href) && !hasSub && !item.disabled;
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton
-        className="relative data-[active=true]:font-semibold data-[active=true]:before:absolute data-[active=true]:before:inset-y-2 data-[active=true]:before:left-0 data-[active=true]:before:w-[3px] data-[active=true]:before:rounded-full data-[active=true]:before:bg-[var(--prism-portal-current)]"
-        isActive={item.id === activeId || (active && !open)}
-        tooltip={item.label}
-        disabled={item.disabled}
-        aria-expanded={hasSub ? open : undefined}
-        onClick={() => {
-          onSelect(item.id);
-          if (hasSub) setOpen((value) => !value || item.id !== activeId);
-        }}
-      >
-        <item.icon aria-hidden="true" />
-        <span>{item.label}</span>
-        {hasSub ? (
-          <ChevronRight aria-hidden="true" className={cn("ml-auto size-3.5 text-muted-foreground transition-transform", open && "rotate-90")} />
-        ) : null}
-      </SidebarMenuButton>
+      {asLink ? (
+        <NavLinkRow item={item} activeId={activeId} onSelect={onSelect} />
+      ) : (
+        <NavButtonRow item={item} activeId={activeId} onSelect={onSelect} open={open} setOpen={setOpen} />
+      )}
       {hasBadge(item.badge) && !hasSub ? <SidebarMenuBadge>{item.badge}</SidebarMenuBadge> : null}
       {hasSub && open ? <NavSubItems items={item.subItems ?? []} activeId={activeId} onSelect={onSelect} /> : null}
     </SidebarMenuItem>
@@ -146,10 +186,17 @@ function NavSubItems({ items, activeId, onSelect }: { items: NonNullable<PrismNa
       {items.map((sub) => (
         <SidebarMenuSubItem key={sub.id}>
           <SidebarMenuSubButton asChild isActive={sub.id === activeId}>
-            <button type="button" disabled={sub.disabled} onClick={() => onSelect(sub.id)} className="w-full">
-              <span>{sub.label}</span>
-              {hasBadge(sub.badge) ? <span className="ml-auto tabular-nums text-muted-foreground">{sub.badge}</span> : null}
-            </button>
+            {sub.href && !sub.disabled ? (
+              <a href={portalHref(sub.href)} aria-current={sub.id === activeId ? "page" : undefined} onClick={(event) => navLinkClick(event, () => onSelect(sub.id))} className="w-full">
+                <span>{sub.label}</span>
+                {hasBadge(sub.badge) ? <span className="ml-auto tabular-nums text-muted-foreground">{sub.badge}</span> : null}
+              </a>
+            ) : (
+              <button type="button" disabled={sub.disabled} onClick={() => onSelect(sub.id)} className="w-full">
+                <span>{sub.label}</span>
+                {hasBadge(sub.badge) ? <span className="ml-auto tabular-nums text-muted-foreground">{sub.badge}</span> : null}
+              </button>
+            )}
           </SidebarMenuSubButton>
         </SidebarMenuSubItem>
       ))}

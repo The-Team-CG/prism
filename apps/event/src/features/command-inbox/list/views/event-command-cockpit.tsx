@@ -56,7 +56,7 @@ function StatusSummary({ items }: { items: StatusSummaryItem[] }) {
                 </span>
               ) : null}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-3xs font-black uppercase tracking-widest text-muted-foreground">{item.label}</p>
+                <p className="truncate text-xs font-medium text-muted-foreground">{item.label}</p>
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-sm font-black text-foreground">
                   <span className="min-w-0 truncate">{item.value}</span>
                   {item.status ? <StatusBadge status={item.status} /> : null}
@@ -108,7 +108,7 @@ function CompactRecordList({ items, emptyText = "No records available.", classNa
                 {item.status ? <StatusBadge status={item.status} /> : null}
               </span>
               {item.description ? <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-muted-foreground">{item.description}</span> : null}
-              {item.meta ? <span className="mt-0.5 block text-3xs font-bold uppercase tracking-widest text-muted-foreground">{item.meta}</span> : null}
+              {item.meta ? <span className="mt-0.5 block text-xs font-medium text-muted-foreground">{item.meta}</span> : null}
             </span>
           </span>
         );
@@ -167,7 +167,7 @@ function PageHeader({ eyebrow, title, description, meta, action }: {
     <section className="rounded-md border border-border bg-card px-4 py-3 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          {eyebrow ? <p className="text-3xs font-black uppercase text-muted-foreground">{eyebrow}</p> : null}
+          {eyebrow ? <p className="text-xs font-medium text-muted-foreground">{eyebrow}</p> : null}
           <h2 className="mt-0.5 text-lg font-black leading-tight text-foreground sm:text-xl">{title}</h2>
           {description ? <p className="mt-1 max-w-3xl text-sm leading-5 text-muted-foreground">{description}</p> : null}
           {meta?.length ? (
@@ -256,7 +256,7 @@ export function EventQueuePanel({
     <section className="rounded-lg border border-border bg-card p-3 shadow-sm">
       <div className="flex items-center justify-between gap-3 px-2 pb-2">
         <div>
-          <p className="text-3xs font-black uppercase tracking-[0.16em] text-primary">Event queue</p>
+          <p className="text-xs font-medium text-primary">Event queue</p>
           <p className="mt-1 text-xs text-muted-foreground">{events.length} active PMCM workspace(s)</p>
         </div>
       </div>
@@ -322,7 +322,7 @@ export function SelectedEventCockpit({
           { label: "Guest access", value: event.guestAccessCode ?? "Pending", detail: event.guestAccessCode ? "Ready for guest portal access" : "Generated after event setup" },
         ].map((item) => (
           <div key={item.label} className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
-            <p className="text-3xs font-black uppercase tracking-[0.14em] text-muted-foreground">{item.label}</p>
+            <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
             <p className="mt-1 truncate text-sm font-black text-foreground">{item.value}</p>
             <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{item.detail}</p>
           </div>
@@ -388,7 +388,7 @@ export function DefenseControlPanel({
     <section className="rounded-lg border border-primary/15 bg-card px-4 py-4 shadow-sm sm:px-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-2xl">
-          <p className="text-3xs font-black uppercase tracking-[0.18em] text-attention">Readiness control</p>
+          <p className="text-xs font-medium text-attention">Readiness control</p>
           <h3 className="mt-1 text-lg font-black text-foreground">{defenseReadiness.score}% lifecycle ready</h3>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
             Current stage: {label(defenseReadiness.lifecycleStage)}. The checklist keeps the selected event ready across briefing, floorplans, suppliers, finance, and closure.
@@ -396,11 +396,11 @@ export function DefenseControlPanel({
         </div>
         <div className="grid min-w-[220px] grid-cols-2 gap-4 border-l border-border bg-background/60 px-3 py-2.5">
           <div>
-            <p className="text-3xs font-black uppercase tracking-wide text-muted-foreground">Guests</p>
+            <p className="text-xs font-medium text-muted-foreground">Guests</p>
             <p className="mt-1 text-xl font-black text-foreground">{defenseReadiness.summary.guestAttendanceCount}</p>
           </div>
           <div>
-            <p className="text-3xs font-black uppercase tracking-wide text-muted-foreground">Open ops</p>
+            <p className="text-xs font-medium text-muted-foreground">Open ops</p>
             <p className="mt-1 text-xl font-black text-foreground">{defenseReadiness.summary.openLiveOpsItems}</p>
           </div>
         </div>
@@ -443,7 +443,7 @@ export function DefenseControlPanel({
       <div className="mt-4">
         <div className="mb-2 flex items-center gap-2">
           <ListChecks className="size-4 text-primary" />
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Action queue</p>
+          <p className="text-xs font-medium text-muted-foreground">Action queue</p>
         </div>
       </div>
       <div className="divide-y divide-border">
@@ -532,7 +532,7 @@ function OverviewCardBody({ children, className = "" }: { children: React.ReactN
 }
 
 function OverviewAccent({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs font-bold uppercase tracking-widest text-primary">{children}</p>;
+  return <p className="text-xs font-medium text-primary">{children}</p>;
 }
 
 function StatCell({ label: lbl, value }: { label: string; value: React.ReactNode }) {

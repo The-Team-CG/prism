@@ -84,10 +84,10 @@ export const auditDateRanges = [
 
 export function auditTone(category: string) {
   if (category === "finance") return "bg-success-soft text-success ring-success/20";
-  if (category === "suppliers") return "bg-pink-50 text-pink-700 ring-pink-100";
+  if (category === "suppliers") return "bg-muted text-foreground ring-border";
   if (category === "access") return "bg-attention-soft text-attention ring-attention/20";
-  if (category === "documents") return "bg-violet-50 text-violet-700 ring-violet-100";
-  return "bg-secondary text-foreground ring-primary/15";
+  if (category === "documents") return "bg-muted text-foreground ring-border";
+  return "bg-muted text-foreground ring-border";
 }
 
 export function severityTone(severity: string) {

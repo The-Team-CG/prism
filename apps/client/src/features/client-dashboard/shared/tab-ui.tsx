@@ -73,23 +73,23 @@ export function formatDayLabel(day: string) {
 
 export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-2xl border border-border bg-card shadow-sm ${className}`}>
+    <div className={`min-w-0 rounded-lg border border-border bg-card ${className}`}>
       {children}
     </div>
   );
 }
 
 export function CardHeader({ children }: { children: React.ReactNode }) {
-  return <div className="border-b border-border px-6 py-4">{children}</div>;
+  return <div className="border-b border-border px-4 py-4 sm:px-6">{children}</div>;
 }
 
 export function CardBody({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`px-6 py-5 ${className}`}>{children}</div>;
+  return <div className={`px-4 py-5 sm:px-6 ${className}`}>{children}</div>;
 }
 
 export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-xs font-bold uppercase tracking-widest text-primary">{children}</p>
+    <p className="text-sm text-muted-foreground">{children}</p>
   );
 }
 
@@ -109,8 +109,8 @@ export function InfoGrid({ items }: { items: Array<{ label: string; value: React
 export function DataRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 py-3 not-last:border-b not-last:border-border text-sm">
-      <span className="shrink-0 text-xs font-semibold text-muted-foreground">{label}</span>
-      <span className="text-right font-semibold text-foreground">{value}</span>
+      <span className="shrink-0 text-muted-foreground">{label}</span>
+      <span className="min-w-0 break-words text-right font-medium tabular-nums text-foreground">{value}</span>
     </div>
   );
 }

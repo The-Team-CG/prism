@@ -26,12 +26,12 @@ export function EventFilePreview({ event, item }: { event: PrismEvent; item: Eve
 
         <div className="mt-8 grid gap-5 border-y border-border py-5 sm:grid-cols-2">
           <div>
-            <p className="text-3xs font-black uppercase tracking-[0.16em] text-muted-foreground">Event</p>
+            <p className="text-xs font-medium text-muted-foreground">Event</p>
             <p className="mt-2 text-sm font-black text-foreground">{event.eventName}</p>
             <p className="mt-1 text-xs text-muted-foreground">{event.clientName}</p>
           </div>
           <div>
-            <p className="text-3xs font-black uppercase tracking-[0.16em] text-muted-foreground">File owner</p>
+            <p className="text-xs font-medium text-muted-foreground">File owner</p>
             <p className="mt-2 text-sm font-black text-foreground">{item.owner}</p>
             <p className="mt-1 text-xs text-muted-foreground">{item.date}</p>
           </div>
@@ -52,7 +52,7 @@ export function EventFilePreview({ event, item }: { event: PrismEvent; item: Eve
           </div>
         ) : (
           <div className="mt-7 overflow-hidden rounded-md border border-border">
-            <div className="grid grid-cols-[1fr_6rem_7rem] bg-muted/45 px-4 py-2 text-3xs font-black uppercase tracking-[0.12em] text-muted-foreground">
+            <div className="grid grid-cols-[1fr_6rem_7rem] bg-muted/45 px-4 py-2 text-xs font-medium text-muted-foreground">
               <span>Item</span>
               <span>Qty</span>
               <span className="text-right">Amount</span>
@@ -74,7 +74,7 @@ export function EventFilePreview({ event, item }: { event: PrismEvent; item: Eve
         <div className="mt-7 grid gap-3 sm:grid-cols-3">
           {["Status", "Category", "Source"].map((labelText) => (
             <div key={labelText} className="rounded-md border border-border bg-muted/20 px-3 py-2">
-              <p className="text-3xs font-black uppercase tracking-[0.14em] text-muted-foreground">{labelText}</p>
+              <p className="text-xs font-medium text-muted-foreground">{labelText}</p>
               <p className="mt-1 truncate text-xs font-black text-foreground">
                 {labelText === "Status" ? item.status : labelText === "Category" ? item.category : item.subtitle}
               </p>

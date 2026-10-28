@@ -58,6 +58,11 @@ export function useSupplierApplicationViewModel() {
     setCurrentStep((step) => previousSupplierApplicationStep(step));
   }
 
+  /** Review-step "Edit" links only move backwards, so validation gates stay intact. */
+  function goToStep(step: number) {
+    if (step >= 0 && step < currentStep) setCurrentStep(step);
+  }
+
   async function submit() {
     if (!canContinue(3) || busy) return;
     setStatus("loading");
@@ -102,6 +107,7 @@ export function useSupplierApplicationViewModel() {
     canContinue,
     nextStep,
     previousStep,
+    goToStep,
     submit,
     resetSubmitted,
     resolveCategoryName,

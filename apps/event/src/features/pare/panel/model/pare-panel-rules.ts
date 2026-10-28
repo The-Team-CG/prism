@@ -19,9 +19,9 @@ export function pareRiskColor(level: PARERisk["level"] | string) {
 
 export function pareModeCopy(mode: string) {
   if (mode === "live") {
-    return { label: "Claude AI", className: "bg-purple-50 text-purple-700 border-purple-200" };
+    return { label: "Claude AI", className: "bg-info-soft text-info" };
   }
-  return { label: "Mock", className: "bg-gray-100 text-gray-500 border-gray-200" };
+  return { label: "Mock", className: "bg-muted text-muted-foreground" };
 }
 
 export function pareBudgetTone(feasible: boolean) {

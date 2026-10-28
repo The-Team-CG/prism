@@ -57,7 +57,7 @@ export function EventSummaryCard({
         <div className="flex items-start justify-between gap-3">
           <div className="rounded-md bg-white px-3 py-2 text-center text-ink">
             <p className="text-lg font-black leading-none">{dateParts.day}</p>
-            <p className="mt-1 text-3xs font-black uppercase leading-none">{dateParts.month}</p>
+            <p className="mt-1 text-xs font-medium leading-none">{dateParts.month}</p>
           </div>
           <StatusBadge status={event.status} label={formatStatusLabel(event.status)} />
         </div>
@@ -116,13 +116,12 @@ export function EventSummaryCard({
   );
 }
 
+/** The label wraps its control, so every field gets a programmatic name and clicking the text focuses it. */
 export function FieldGroup({ label: labelText, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <Label className="text-xs font-bold text-muted-foreground">
-        {labelText}
-      </Label>
+    <Label className="flex flex-col items-stretch gap-1.5 text-sm leading-normal font-medium text-foreground select-text">
+      <span>{labelText}</span>
       {children}
-    </div>
+    </Label>
   );
 }

@@ -314,6 +314,8 @@ export interface PrismFileRequirementItem {
   /** PMCM-only notes; stripped for every other role. */
   notes?: string;
   uploadedAssetId?: string;
+  /** Stored file that currently fulfils a custom requirement, so portals can show the upload beside its requirement. */
+  uploadedObjectId?: string;
   generatedDocumentId?: string;
   auditCategory: string;
   detail: string;

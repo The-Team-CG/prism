@@ -34,7 +34,7 @@ export function QuotePlannerToolbar({
     <div className="rounded-lg border border-border bg-muted p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-attention">Supplier Quotes</p>
+          <p className="text-xs font-medium text-attention">Supplier Quotes</p>
           <p className="mt-1 text-sm text-muted-foreground">{rangeCopy.summary}</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -77,7 +77,7 @@ export function QuoteComparisonSection({
     <section className="rounded-xl border border-primary/15 bg-card p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-primary">Quote comparison</p>
+          <p className="text-xs font-medium text-primary">Quote comparison</p>
           <h3 className="mt-1 text-lg font-black text-foreground">{categoryName}</h3>
           <p className="mt-1 text-sm text-muted-foreground">{submittedBidCopy(quotes.length)}</p>
         </div>
@@ -132,7 +132,7 @@ function QuoteComparisonCard({
             {quote.outsideAcceptableRange && <Flag className="size-4 shrink-0 fill-danger text-danger" />}
             <h4 className="truncate text-base font-black text-foreground">{quote.supplierName}</h4>
           </div>
-          <p className="mt-1 text-xs font-black uppercase tracking-wide text-muted-foreground">{label(quote.status)}</p>
+          <p className="mt-1 text-xs font-medium text-muted-foreground">{label(quote.status)}</p>
         </div>
         <p className="shrink-0 text-lg font-black text-foreground">{money.format(quote.amount)}</p>
       </div>
@@ -143,7 +143,7 @@ function QuoteComparisonCard({
       )}
       <div className="mt-4 grid gap-3 text-sm">
         <div>
-          <p className="text-2xs font-black uppercase tracking-wide text-muted-foreground">Inclusions</p>
+          <p className="text-xs font-medium text-muted-foreground">Inclusions</p>
           <button
             onClick={onToggle}
             className="mt-1 inline-flex items-center gap-1 rounded-md border border-border bg-white px-2 py-1 text-xs font-black"
@@ -158,11 +158,11 @@ function QuoteComparisonCard({
           )}
         </div>
         <div>
-          <p className="text-2xs font-black uppercase tracking-wide text-muted-foreground">Payment terms</p>
+          <p className="text-xs font-medium text-muted-foreground">Payment terms</p>
           <p className="mt-1 text-sm text-foreground">{quote.paymentTerms || "Not provided"}</p>
         </div>
         <div>
-          <p className="text-2xs font-black uppercase tracking-wide text-muted-foreground">Notes</p>
+          <p className="text-xs font-medium text-muted-foreground">Notes</p>
           <p className="mt-1 line-clamp-3 text-sm text-foreground">{quote.notes || "No notes"}</p>
         </div>
       </div>
@@ -193,7 +193,7 @@ export function SupplierTierColumns({
   return (
     <div className="grid gap-4 xl:grid-cols-3">
       <section className="rounded-lg border border-border bg-card p-4">
-        <p className="text-xs font-black uppercase tracking-[0.14em] text-success">Auto-Suggested Tier 1</p>
+        <p className="text-xs font-medium text-success">Auto-Suggested Tier 1</p>
         <div className="mt-3 space-y-2">
           {tierOne.map((supplier) => (
             <div key={supplier.id} className="w-full rounded-md border border-success/25 bg-success-soft p-3 text-left text-sm">
@@ -205,7 +205,7 @@ export function SupplierTierColumns({
         </div>
       </section>
       <section className="rounded-lg border border-border bg-card p-4">
-        <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-blue">Backup Suppliers</p>
+        <p className="text-xs font-medium text-brand-blue">Backup Suppliers</p>
         <div className="mt-3 space-y-2">
           {tierTwo.map((supplier) => (
             <div key={supplier.id} className="w-full rounded-md border border-border bg-secondary p-3 text-left text-sm">
@@ -217,7 +217,7 @@ export function SupplierTierColumns({
         </div>
       </section>
       <section className="rounded-lg border border-border bg-card p-4">
-        <p className="text-xs font-black uppercase tracking-[0.14em] text-attention">First Event Manual Select</p>
+        <p className="text-xs font-medium text-attention">First Event Manual Select</p>
         <div className="mt-3 space-y-2">
           {pending.map((supplier) => (
             <div key={supplier.id} className="w-full rounded-md border border-brand-orange/25 bg-accent p-3 text-left text-sm">
@@ -266,7 +266,7 @@ export function QuoteRequestModal({
       <div className="w-full max-w-2xl rounded-lg border border-border bg-card shadow-xl">
         <div className="flex items-start justify-between gap-4 border-b border-border p-5">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-attention">Request Quotes</p>
+            <p className="text-xs font-medium text-attention">Request Quotes</p>
             <h3 className="mt-1 text-xl font-black">{categoryName}</h3>
           </div>
           <button onClick={onClose} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted">

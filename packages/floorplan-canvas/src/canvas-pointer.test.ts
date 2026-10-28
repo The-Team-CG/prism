@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { handleCanvasDrop, handlePointerDown, handlePointerMove, handlePointerUp } from "./canvas-pointer";
+import { fittedViewport, handleCanvasDrop, handlePointerDown, handlePointerMove, handlePointerUp } from "./canvas-pointer";
 import { initialState } from "./store";
 import { reducer } from "./editor-reducer";
 import type { CanvasObject, Project } from "./types";
@@ -137,5 +137,44 @@ describe("floorplan canvas pointer behavior", () => {
     expect(dropped).toEqual({ prevent: true, actions: [] });
     expect(final.project.objects).toEqual([]);
     expect(final.selectedIds).toEqual([]);
+  });
+});
+describe("floorplan initial view", () => {
+  const size = { w: 1000, h: 800 };
+  const toScreen = (viewport: { tx: number; zoom: number; ty: number }, x: number, y: number) => ({
+    x: viewport.tx + x * viewport.zoom,
+    y: viewport.ty + y * viewport.zoom,
+  });
+
+  it("frames the drawn objects even when the room is far larger than its contents", () => {
+    const viewport = fittedViewport(size, {
+      widthM: 1200,
+      heightM: 800,
+      objects: [{ x: 600, y: 400, w: 4, h: 2 }],
+    });
+    const topLeft = toScreen(viewport, 600, 400);
+    const bottomRight = toScreen(viewport, 604, 402);
+
+    // The object is on screen and big enough to see, not a 2%-zoom speck.
+    expect(topLeft.x).toBeGreaterThanOrEqual(0);
+    expect(bottomRight.x).toBeLessThanOrEqual(size.w);
+    expect(bottomRight.y).toBeLessThanOrEqual(size.h);
+    expect(bottomRight.x - topLeft.x).toBeGreaterThan(100);
+  });
+
+  it("falls back to the whole room for an empty plan", () => {
+    const viewport = fittedViewport(size, { widthM: 20, heightM: 10, objects: [] });
+    const roomEnd = toScreen(viewport, 20, 10);
+    expect(toScreen(viewport, 0, 0).x).toBeGreaterThan(0);
+    expect(roomEnd.x).toBeLessThan(size.w);
+  });
+
+  it("refits from the measured canvas when Fit plan is pressed", () => {
+    const hall: Project = { ...project, widthM: 1200, heightM: 800, objects: [table] };
+    let state = { ...initialState(hall), viewport: { tx: 0, ty: 0, zoom: 0.5 } };
+    state = reducer(state, { type: "FIT_TO_PLAN" });
+    expect(state.viewport.zoom).toBe(0.5);
+    state = reducer(reducer(state, { type: "SET_CANVAS_SIZE", size }), { type: "FIT_TO_PLAN" });
+    expect(state.viewport).toEqual(fittedViewport(size, hall));
   });
 });
