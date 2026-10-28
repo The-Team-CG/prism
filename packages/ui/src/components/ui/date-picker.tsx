@@ -106,6 +106,10 @@ export function DatePicker({
     }
 
     setInputText(formatted);
+    if (digits.length < 8 && !open) {
+      openedFromInput.current = true;
+      setOpen(true);
+    }
     if (digits.length === 0) {
       onValueChange("");
       return;

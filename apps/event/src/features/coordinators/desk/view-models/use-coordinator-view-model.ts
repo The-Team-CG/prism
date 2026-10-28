@@ -457,7 +457,8 @@ export function useCoordinatorViewModel({
     roleDataStatus: coordinatorRoleDataStatus(roleViewStatus, Boolean(roleView)),
     selectedEventId,
     registrationRole: isCoordinatorAssignmentActive(assignment ?? {}) && isRegistrationCoordinatorRole(assignment?.role),
-    acknowledge,
+    // Bound so views can pass it straight to onClick without the click event becoming the decision.
+    acknowledge: () => acknowledge("acknowledged"),
     decline: (reason?: string) => acknowledge("declined", reason),
     withdraw,
     selectEvent,
