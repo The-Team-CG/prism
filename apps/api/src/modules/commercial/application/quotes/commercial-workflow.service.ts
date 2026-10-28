@@ -339,6 +339,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
   }
 
   async getQuoteRequestByToken(token: string): Promise<QuoteRequestTokenDetail> {
+    if (!/^[A-Za-z0-9_-]{1,256}$/.test(token)) throw new NotFoundException('Quote request not found');
     const request = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { accessToken: token } });
     if (!request || !isQuoteAccessTokenUsable(request)) throw new NotFoundException('Quote request not found');
 
@@ -490,6 +491,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
     input: Partial<SubmitSupplierQuoteInput>,
     requestedMode: 'submit' | 'revise',
   ) {
+    if (!/^[A-Za-z0-9_-]{1,256}$/.test(token)) throw new NotFoundException('Quote request not found');
     let request: OpsSupplierQuoteRequest | null = null;
     let quote: OpsSupplierQuote | null = null;
     let category: OpsSupplierCategory | null = null;

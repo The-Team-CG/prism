@@ -4,9 +4,8 @@ title: "P.R.I.S.M external-reference lifecycle"
 description: "Owner rules for scalar cross-domain identifiers and historical FK behavior, including eligibility, retention, failure, and recovery."
 tags: [architecture, persistence, references, ddd, retention]
 status: canonical
-updated: "2026-10-06"
+updated: "2026-10-28"
 authority: normative
-owner: "D (Anthony)"
 audience: [agents, backend-engineers, reviewers]
 scope: "apps/api/prisma/domain-reference-policy.json and cross-context commands"
 last_verified: "2026-10-06; legacy reference policy checked; fresh PostgreSQL 16 baseline has zero cross-domain FKs"
@@ -28,7 +27,6 @@ sources:
 
 - **Purpose:** Define what a cross-domain identifier means before its foreign key is removed.
 - **Authority:** Normative for reference checks, historical attribution, failure, and recovery.
-- **Owner:** D (Anthony), with each data-owning context responsible for its capability.
 - **Use when:** Adding, validating, retaining, redacting, or migrating an external identifier.
 - **Current state:** The legacy history records 45 cross-domain FK behaviors and 28 scalar references. The replacement fresh-database baseline creates no cross-domain FKs; this register does not establish the live database catalog.
 

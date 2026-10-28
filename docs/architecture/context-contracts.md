@@ -4,9 +4,8 @@ title: "P.R.I.S.M context contracts"
 description: "Current public context surfaces, dependency direction, read-model composition, and focused seams in the Prism modular monolith."
 tags: [architecture, contracts, boundaries, ddd]
 status: canonical
-updated: "2026-10-23"
+updated: "2026-10-28"
 authority: normative
-owner: "D (Anthony)"
 audience: [agents, backend-engineers, reviewers]
 scope: "apps/api/src/modules and kernel seams"
 last_verified: "2026-10-18; staging integration of portal storage and signing seams"
@@ -39,7 +38,6 @@ sources:
 
 - **Purpose:** Define the supported in-process seams between bounded contexts.
 - **Authority:** Normative for backend imports, ports, contracts, and read-model composition.
-- **Owner:** D (Anthony).
 - **Scope:** `apps/api/src/modules` and `apps/api/src/kernel`.
 - **Use when:** Adding a context dependency, public index, port, or cross-context query.
 - **Change when:** A supported seam, context owner, or extraction constraint changes.

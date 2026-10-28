@@ -4,9 +4,8 @@ title: "Retire the broad sample runtime; keep local fixture seeding"
 description: "Remove whole-system sample APIs and browser-local demo state while retaining guarded, seed-only development data."
 tags: [architecture, decision, fixtures, api, compatibility]
 status: canonical
-updated: "2026-09-30"
+updated: "2026-10-28"
 authority: normative
-owner: "D (Anthony)"
 audience: [agents, engineers, backend-engineers, frontend-engineers, reviewers]
 scope: "API runtime surfaces, portal fallback state, and local development fixture setup"
 last_verified: "2026-09-30; focused checks in PR"
@@ -28,7 +27,6 @@ sources:
 
 - **Decision:** Remove the sample runtime mode and keep its development data only as local fixtures inserted by an explicit seed command.
 - **Applies to:** API routes, API-client contracts, browser state, and developer database setup.
-- **Owner:** D (Anthony).
 - **Use when:** Adding development fixture data or changing local seed behavior.
 - **Change when:** The setup target, database guard, or role-scoped workflow ownership changes.
 - **Verify with:** Seed guard behavior tests, touched portal/API checks, boundary scan, and API typecheck/build.

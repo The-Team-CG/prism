@@ -4,9 +4,8 @@ title: "Deployment secrets and schema cutover controls"
 description: "Configure and verify repository-owned deployment secrets, variables, and database schema cutover gates."
 tags: [runbook, deployment, github-actions, secrets, migrations]
 status: canonical
-updated: "2026-10-06"
+updated: "2026-10-28"
 authority: operational
-owner: "D (Anthony)"
 audience: [developers, reviewers, operators, agents]
 scope: "GitHub Actions deployment configuration and repository-controlled schema cutover gates"
 last_verified: "2026-10-05; repository workflow sources reviewed; external provider and deployment settings not verified"
@@ -24,7 +23,6 @@ sources:
 
 - **Purpose:** Configure the Actions inputs required to deploy and safely hold schema-changing workflows.
 - **Authority:** Operational guide for repository-owned workflow behavior.
-- **Owner:** D (Anthony).
 - **Scope:** Repository/organization variables and secrets consumed by deployment workflows.
 - **Use when:** Setting up or diagnosing a deployment gate.
 - **Change when:** Workflow inputs or cutover controls change.

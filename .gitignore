@@ -87,3 +87,6 @@ handoffs_archive/
 .worktrees/
 
 .taste-skill/
+
+# Isolated lifecycle API compilation
+/apps/api/.e2e-dist/

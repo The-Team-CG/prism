@@ -4,9 +4,8 @@ title: "Vercel services deployment"
 description: "Build and route the API and four role portals as one Vercel project."
 tags: [deployment, vercel, services]
 status: active
-updated: "2026-10-14"
+updated: "2026-10-28"
 authority: operational
-owner: "D (Anthony)"
 audience: [maintainers, engineers]
 scope: "single-project Vercel services deployment"
 last_verified: "2026-10-14"
@@ -24,7 +23,6 @@ sources:
 
 - Purpose: Run the existing Nest API and four Next portals in one Vercel project.
 - Authority: Operational configuration under the repository's role and context rules.
-- Owner: D (Anthony), platform trust and deployment.
 - Scope: Builds, public routing, runtime bindings and verification.
 - Use when: Preparing or testing the single-project deployment.
 - Change when: Service names, portal mounts, callers or runtime requirements change.

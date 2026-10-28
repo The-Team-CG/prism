@@ -889,7 +889,7 @@ describe('EventReadModelsService', () => {
   it('omits internal billing sources for client actors while still serving statements and milestones', async () => {
     const { service, policy, prisma } = createPmcmReadModelService();
     prisma.opsBillingSource.findMany.mockImplementation(async () => [{ id: 'ce_hidden', eventId: 'evt_visible' }]);
-    prisma.opsBillingStatement.findMany.mockImplementation(async () => [{ id: 'bill_visible', eventId: 'evt_visible' }]);
+    prisma.opsBillingStatement.findMany.mockImplementation(async () => [{ id: 'bill_visible', eventId: 'evt_visible', generatedAt: new Date(), storageKey: 'internal-key' }]);
     const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });
 
     const billing = await service.billing(actor, {
@@ -904,7 +904,8 @@ describe('EventReadModelsService', () => {
     });
 
     expect(billing.billingSources).toEqual([]);
-    expect(billing.billingStatements).toEqual([{ id: 'bill_visible', eventId: 'evt_visible' }]);
+    expect(billing.billingStatements).toEqual([expect.objectContaining({ id: 'bill_visible', eventId: 'evt_visible' })]);
+    expect(JSON.stringify(billing.billingStatements)).not.toContain('internal-key');
     expect(prisma.opsBillingSource.findMany).not.toHaveBeenCalled();
     expect(prisma.opsBillingStatement.findMany).toHaveBeenCalled();
   });

@@ -202,6 +202,7 @@ describe('SupplierApplicationService approval conversion', () => {
     const findApplication = (id: string) => applications.find((row) => row.id === id) ?? null;
     const tx = {
       $queryRaw: async () => [],
+      $executeRaw: async () => 0,
       opsSupplierApplication: {
         updateMany: async ({ where, data }: { where: { id: string; status: string }; data: Record<string, unknown> }) => {
           const row = applications.find((item) => item.id === where.id && item.status === where.status);

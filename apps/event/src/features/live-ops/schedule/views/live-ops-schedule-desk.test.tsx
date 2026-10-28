@@ -7,6 +7,8 @@ import { LiveOpsScheduleDesk } from "./live-ops-schedule-desk";
 const { repository } = vi.hoisted(() => ({
   repository: {
     getSchedule: vi.fn(),
+    getEvent: vi.fn(),
+    startEventDay: vi.fn(),
     listHandoffs: vi.fn(),
     listEodReports: vi.fn(),
     createDay: vi.fn(),
@@ -72,6 +74,8 @@ const report: PrismEventEodReport = {
 beforeEach(() => {
   vi.clearAllMocks();
   repository.getSchedule.mockResolvedValue(schedule);
+  repository.getEvent.mockResolvedValue({ status: "event_day" });
+  repository.startEventDay.mockResolvedValue({ eventId: "evt_1", status: "event_day" });
   repository.listHandoffs.mockResolvedValue([]);
   repository.listEodReports.mockResolvedValue([]);
   repository.createDay.mockResolvedValue({});
@@ -83,11 +87,26 @@ beforeEach(() => {
 });
 
 describe("LiveOpsScheduleDesk", () => {
+  it("lets PMCM start event day and reflects the saved event status", async () => {
+    repository.getEvent.mockResolvedValueOnce({ status: "planning" }).mockResolvedValue({ status: "event_day" });
+    render(<LiveOpsScheduleDesk eventId="evt_1" assignments={assignments} canStartEventDay canManageSchedule canReplyToReports canSubmitReports={false} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Start event day" }));
+    await waitFor(() => expect(repository.startEventDay).toHaveBeenCalledWith("evt_1"));
+    expect(await screen.findByText("Event day is active")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Start event day" })).toBeNull();
+  });
+
+  it("does not offer event-day start to a coordinator who can manage the schedule", async () => {
+    repository.getEvent.mockResolvedValue({ status: "planning" });
+    render(<LiveOpsScheduleDesk eventId="evt_1" assignments={assignments} canManageSchedule canReplyToReports={false} canSubmitReports />);
+    await screen.findByText("Doors open");
+    expect(screen.queryByRole("button", { name: "Start event day" })).toBeNull();
+  });
   it("lets the designated operator add a day and a timed schedule segment", async () => {
     render(<LiveOpsScheduleDesk eventId="evt_1" assignments={assignments} canManageSchedule canReplyToReports={false} canSubmitReports />);
 
     await screen.findByText("Doors open");
-    fireEvent.change(screen.getByLabelText("Day date"), { target: { value: "2026-10-03" } });
+    fireEvent.change(screen.getByLabelText("Day date"), { target: { value: "10/03/2026" } });
     fireEvent.change(screen.getByLabelText("Day label (optional)"), { target: { value: "Strike" } });
     fireEvent.click(screen.getByRole("button", { name: "Add day" }));
     await waitFor(() => expect(repository.createDay).toHaveBeenCalledWith("evt_1", { dayDate: "2026-10-03", label: "Strike" }));

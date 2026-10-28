@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { formatPortalDate } from "@prism/ui/format-date";
+import { DatePicker } from "@prism/ui/components/date-picker";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@prism/ui/components/sheet";
 import {
   AlertCircle,
@@ -728,17 +729,17 @@ function InquiryLogFormFields({
           ))}
         </select>
       </label>
-      <label className="text-sm">
+      <div className="text-sm">
         <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
           Event date
         </span>
-        <Input
-          type="date"
+        <DatePicker
+          aria-label="Event date"
           min={todayIso}
           value={logForm.eventDate}
-          onChange={(event) => setLogForm((form) => ({ ...form, eventDate: event.target.value }))}
+          onValueChange={(value) => setLogForm((form) => ({ ...form, eventDate: value }))}
         />
-      </label>
+      </div>
       <label className="text-sm">
         <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
           Client type

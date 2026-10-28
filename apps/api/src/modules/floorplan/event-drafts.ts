@@ -11,6 +11,10 @@ type DraftReader = { $queryRaw<T = unknown>(query: Prisma.Sql): Promise<T> };
 
 export type FloorPlanDraftsByEvent = Map<string, OpsFloorPlanDraft[]>;
 
+export function isClientVisibleFloorPlanDraft(draft: Pick<OpsFloorPlanDraft, 'sourceType' | 'status'>): boolean {
+  return draft.sourceType === 'client_preference' || ['in_review', 'revision_requested', 'approved'].includes(draft.status);
+}
+
 export async function findFloorPlanDraftsByEvent(
   db: DraftReader,
   eventIds: readonly string[],

@@ -166,7 +166,7 @@ export const updateSupplierEventStatusSchema = z.object({
 export type UpdateSupplierEventStatusInput = z.infer<typeof updateSupplierEventStatusSchema>;
 
 export const submitSupplierQuoteSchema = z.object({
-  amount: z.number().min(0),
+  amount: z.number().int().min(0).max(2147483647),
   inclusions: z.array(z.string()).optional(),
   paymentTerms: optionalTrimmedStringSchema,
   notes: optionalTrimmedStringSchema,
