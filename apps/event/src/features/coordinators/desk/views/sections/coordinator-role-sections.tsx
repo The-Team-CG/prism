@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import {
   AlertTriangle,
@@ -79,7 +80,7 @@ function CompactRecordRow({ item }: { item: CompactRecordItem }) {
           ) : null}
         </span>
         {item.description ? <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-muted-foreground">{item.description}</span> : null}
-        {item.meta ? <span className="mt-0.5 block text-3xs font-bold uppercase tracking-widest text-muted-foreground">{item.meta}</span> : null}
+        {item.meta ? <span className="mt-0.5 block text-xs font-medium text-muted-foreground">{item.meta}</span> : null}
       </span>
     </span>
   );
@@ -667,7 +668,7 @@ function CoordinatorRoleLiveData({ roleView, registrationRole }: { roleView: Pri
             id: issue.id,
             title: issue.title,
             description: `${label(issue.status)} — ${issue.ownerRole || "Unassigned"}`,
-            meta: issue.slaDueAt ? `Due ${new Date(issue.slaDueAt).toLocaleString("en-PH")}` : undefined,
+            meta: issue.slaDueAt ? `Due ${formatPortalDateTime(issue.slaDueAt)}` : undefined,
             status: issue.slaStatus ?? issue.status,
             icon: Radio,
           }))}

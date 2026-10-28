@@ -1,3 +1,4 @@
+import { formatPortalDate } from "@prism/ui/format-date";
 import { Star } from "lucide-react";
 
 export const money = new Intl.NumberFormat("en-PH", {
@@ -19,8 +20,7 @@ export function dateKey(value?: string | null) {
 }
 
 export function compactTimestamp(value?: string | null) {
-  if (!value) return "Pending";
-  return new Date(value).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
+  return formatPortalDate(value, "Pending");
 }
 
 export function invitationTone(status?: string | null) {
@@ -84,10 +84,8 @@ export const auditDateRanges = [
 
 export function auditTone(category: string) {
   if (category === "finance") return "bg-success-soft text-success ring-success/20";
-  if (category === "suppliers") return "bg-pink-50 text-pink-700 ring-pink-100";
   if (category === "access") return "bg-attention-soft text-attention ring-attention/20";
-  if (category === "documents") return "bg-violet-50 text-violet-700 ring-violet-100";
-  return "bg-secondary text-foreground ring-primary/15";
+  return "bg-muted text-foreground ring-border";
 }
 
 export function severityTone(severity: string) {

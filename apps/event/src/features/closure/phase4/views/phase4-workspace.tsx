@@ -30,6 +30,7 @@ import {
   Phase4InsightsSection,
   ActualEventEndSection,
 } from "./phase4-workspace-sections";
+import { Phase4SectionBoundary } from "./phase4-section-boundary";
 import { EventWrapUpView } from "../../wrap-up";
 import { LogisticsCompletionPanel } from "../../logistics";
 import { ClientTestimonialModerationPanel } from "../../wrap-up/views/client-testimonial-moderation-panel";
@@ -144,11 +145,12 @@ export function Phase4Workspace({
 
   return (
     <div className="space-y-5">
-      <Phase4ClosureBoard event={event} closeGates={closeGates} cards={closureCards} />
-      <ActualEventEndSection event={event} busy={busy} onRecord={onRecordActualEventEnd} />
-      <LogisticsCompletionPanel eventId={event.id} />
-      <EventWrapUpView eventId={event.id} />
-      <ClientTestimonialModerationPanel eventId={event.id} />
+      <Phase4SectionBoundary title="Closure board"><Phase4ClosureBoard event={event} closeGates={closeGates} cards={closureCards} /></Phase4SectionBoundary>
+      <Phase4SectionBoundary title="Event end"><ActualEventEndSection event={event} busy={busy} onRecord={onRecordActualEventEnd} /></Phase4SectionBoundary>
+      <Phase4SectionBoundary title="Logistics completion"><LogisticsCompletionPanel eventId={event.id} /></Phase4SectionBoundary>
+      <Phase4SectionBoundary title="Wrap-up"><EventWrapUpView eventId={event.id} /></Phase4SectionBoundary>
+      <Phase4SectionBoundary title="Client testimonials"><ClientTestimonialModerationPanel eventId={event.id} /></Phase4SectionBoundary>
+      <Phase4SectionBoundary title="Compliance checks">
       <Phase4ComplianceSection
         phase={phase}
         ruleTitle={ruleTitle}
@@ -169,7 +171,9 @@ export function Phase4Workspace({
         onResolveCompliance={onResolveCompliance}
         onOverrideCompliance={onOverrideCompliance}
       />
-      <ComplianceReviewPanel eventId={event.id} />
+      </Phase4SectionBoundary>
+      <Phase4SectionBoundary title="Compliance review"><ComplianceReviewPanel eventId={event.id} /></Phase4SectionBoundary>
+      <Phase4SectionBoundary title="Close gates">
       <Phase4CloseGatesSection
         closeGates={closeGates}
         overrideReason={overrideReason}
@@ -178,6 +182,8 @@ export function Phase4Workspace({
         onRefresh={refreshCloseGates}
         onArchive={archiveEvent}
       />
+      </Phase4SectionBoundary>
+      <Phase4SectionBoundary title="Supplier reviews">
       {canReviewSuppliers ? (
         <SupplierReviewPromptList
           event={event}
@@ -188,7 +194,8 @@ export function Phase4Workspace({
           onAddReview={onAddReview}
         />
       ) : null}
-      <Phase4InsightsSection latestInsight={latestInsight} busy={busy} onGenerate={generateInsights} />
+      </Phase4SectionBoundary>
+      <Phase4SectionBoundary title="Post-event insights"><Phase4InsightsSection latestInsight={latestInsight} busy={busy} onGenerate={generateInsights} /></Phase4SectionBoundary>
     </div>
   );
 }

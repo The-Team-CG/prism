@@ -8,6 +8,8 @@ export type GuestEventProjection = Pick<OpsEvent,
   'floorPlanId' | 'updatedAt'
 > & {
   floorPlanDrafts: Array<Pick<OpsFloorPlanDraft, 'id' | 'floorPlanId' | 'isActive'>>;
+  /** Attendee-safe venue and start time, present only once the client approved PMCM's proposal for that briefing. */
+  confirmedArrival?: { venue: string; confirmedStartTime: string | null };
 };
 
 export type CoordinatorWorkspaceEventProjection = Pick<OpsEvent,

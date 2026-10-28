@@ -4,11 +4,11 @@ title: "P.R.I.S.M documentation and architecture constitution"
 description: "Current invariants for role ownership, bounded contexts, shared contracts, compatibility paths, frontend layering, and documentation maintenance."
 tags: [architecture, constitution, contracts, documentation]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-10-29"
 authority: normative
 audience: [agents, maintainers, engineers]
 scope: "repository-wide cross-cutting rules"
-last_verified: "2026-10-06; documentation hierarchy, changelog guidance, and bundle navigation reviewed"
+last_verified: "2026-10-29; kernel seam, fixture commands, and verification commands checked against apps/api and root scripts"
 sources:
   - id: prism-agent-rules
     resource: "AGENTS.md"
@@ -91,8 +91,9 @@ technical helper, repository, or deployment mode is not automatically a new
 bounded context.
 
 The kernel may be used by contexts but must not depend on business contexts.
-The known access-control audit seam is recorded in the context-contract
-register; it is not permission to add more kernel-to-business imports.
+Kernel needs that business contexts fulfil, such as the access-control audit
+writer, are kernel-owned ports bound by a composition root; the
+context-contract register records them.
 
 ## Contracts and compatibility
 

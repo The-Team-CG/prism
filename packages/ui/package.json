@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./blocks": "./src/blocks.tsx",
+    "./account-help": "./src/account-help.tsx",
     "./auth-shell": "./src/auth-shell.tsx",
     "./portal-path": "./src/portal-path.ts",
     "./privacy-notice": "./src/privacy-notice.tsx",

@@ -4,11 +4,11 @@ title: "P.R.I.S.M context contracts"
 description: "Current public context surfaces, dependency direction, read-model composition, and focused seams in the Prism modular monolith."
 tags: [architecture, contracts, boundaries, ddd]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-10-29"
 authority: normative
 audience: [agents, backend-engineers, reviewers]
 scope: "apps/api/src/modules and kernel seams"
-last_verified: "2026-10-18; staging integration of portal storage and signing seams"
+last_verified: "2026-10-29; context and kernel folders, injection tokens, and the boundary checker's public-subpath allowlist checked against source"
 sources:
   - id: context-source
     resource: "apps/api/src/modules"
@@ -81,6 +81,7 @@ current transitional writes separately.
 | commercial | modules/commercial/index.ts | Supplier network, quotes, proposals, communications, and billing decisions | Expose owner-validated supplier and commercial commands; lifecycle alone owns document metadata. |
 | event-lifecycle | modules/event-lifecycle/index.ts | Inquiry and event lifecycle, document metadata, compliance, decisions, and closure | Expose lifecycle commands and scoped reads; consume the versioned Floorplan projection and request Commercial-owned impacts for Lifecycle-issued addenda. |
 | floorplan | modules/floorplan/index.ts | Official plans, drafts, templates, publication, and review state | Expose official-layout reads and mutation contracts; consume Lifecycle's transaction-aware reference and versioned projection capabilities. Client preference input remains role-scoped. |
+| event-games | modules/event-games/index.ts | Game definitions, sessions, PIN join, participants, submissions, scoring, awards, and moderation | Consume `read-models/event-scope` for host/admin/public event scope and the platform-ops storage capability for game media; no other context writes game records. |
 | identity-access | modules/identity-access/index.ts | Authentication, account approval, and account access state | Expose verified actor/access checks; do not export session implementation details. |
 | live-ops | modules/live-ops/index.ts | Event-day tasks, schedules, issues, handoffs, end-of-day reports, and event-day policy | Expose live-ops commands and reads; request Operations-owned assignment transitions. |
 | operations | modules/operations/index.ts | Coordinator pool, availability, coverage, assignments, attendance, replacement, cancellation, acknowledgments, reliability, and guest operations | Validate and apply staffing and guest changes through Operations-owned commands. |
@@ -93,23 +94,44 @@ Cross-domain identifiers are scalar references in the target model. For a
 command that depends on current target state, the target owner validates the
 reference and same-event agreement in the command transaction. The initiating
 context still authorizes its actor. Historical attribution is retained without
-becoming current authorization. See the [external-reference lifecycle
-register](external-reference-lifecycle.md) and the machine policy at
-apps/api/prisma/domain-reference-policy.json. That register preserves 45
-former cross-domain foreign-key behaviors and 28 scalar references from the
-legacy pre-production layout. The current Prisma schema and seven baseline
-migrations create 94 tables across seven owner schemas, with 76 same-domain
-foreign keys and no cross-domain foreign keys. An existing staging database
-remains on its old schema and ledger until separately rebuilt; the repository
-change does not mutate it. Cross-domain scalar references remain subject to
-the owner validation and recovery rules in the policy register.
+becoming current authorization. Profiles, counts, and recovery rules are in the
+[external-reference lifecycle register](external-reference-lifecycle.md) and the
+machine policy at `apps/api/prisma/domain-reference-policy.json`.
 
 ## Technical kernel surfaces
 
 The kernel contains technical primitives under
 `apps/api/src/kernel/`: `access-control`, `database`, `event-core`,
-`event-session`, `health`, `shared`, and `shared-kernel`. Contexts may depend on
-these facilities. Kernel code must not import `modules/*`.
+`event-session`, `health`, `mail`, `shared`, and `shared-kernel`. Contexts may
+depend on these facilities. Kernel code must not import `modules/*`.
+
+## Registered public subpath seams
+
+Deep `@prism/contexts/<context>/<path>` imports are rejected except for the
+exact subpaths allowlisted in `scripts/check-prism-boundaries.mjs`:
+
+| Subpath | Supplies |
+| --- | --- |
+| `read-models/closeout` | Unresolved urgent issues for lifecycle closeout, in the caller transaction |
+| `read-models/event-scope` | Trusted inquiry/assignment event scope |
+| `read-models/participant-facts` | Event, supplier, and coordinator participant facts for Identity |
+| `read-models/guest-events` | Guest access-code and coordinator workspace projections for Operations |
+| `read-models/account-contacts` | Approved account and event-notification contact lookups for Lifecycle, LiveOps, and Platform notifications |
+| `read-models/commercial-facts-reader` | Event and audit facts for Commercial supplier review, proposal review, and lifecycle closure |
+| `read-models/lifecycle-facts` | Compliance and closure facts for Lifecycle commands |
+| `read-models/file-evidence` | Confirmed signed-conforme object identity |
+| `event-lifecycle/floorplan-reference` | Locked event gates and projection facts for Floorplan |
+| `event-lifecycle/operations-reference` | Locked event state for Operations |
+| `event-lifecycle/post-event-reference` | Locked post-event state for Commercial additional billing |
+| `event-lifecycle/conforme-reminder-window` | Conforme reminder eligibility claim for Platform |
+| `identity-access/account-invitation-reference` | Account invitation issuance for Lifecycle inquiries and Commercial supplier applications |
+| `identity-access/coordinator-reference` | Coordinator account eligibility for Operations assignments |
+| `operations/live-ops-reference` | Operator and handoff assignment checks for LiveOps |
+| `commercial/registration-supplier-reference` | Supplier/category/selection checks for Operations registration links |
+| `live-ops/urgent-issue-reference` | Same-event urgent-issue checks for Commercial billing |
+| `floorplan/event-drafts` | Floorplan-owned, bounded per-event draft reads for scalar event IDs |
+
+Adding a subpath requires a checker allowlist entry and a row here.
 
 ## Current seam inventory
 
@@ -124,7 +146,7 @@ legacy relation or changing schema placement.
 | modules/read-models | commercial supplier workspace | SUPPLIER_WORKSPACE_READER public port | Joins only the current-page event header and supplier request/assessment facts needed for PMCM review; excludes quote access tokens, prices, client contacts and audit data. |
 | modules/event-lifecycle | read-models closeout reader | Explicit pure public subpath | Reads unresolved urgent issues using the caller transaction. The exact dependency avoids a runtime module cycle. |
 | modules/platform-ops | event-lifecycle reminder eligibility | Focused lifecycle claim contract | Lifecycle validates accepted, unsigned inquiry eligibility and atomically claims the reminder window inside the approval transaction. |
-| modules/event-lifecycle and modules/floorplan | read-models event-scope reader | Explicit public reader contract | Joins scoped event identity and assignment/profile facts; controllers do not trust actor/query labels or expose joined identity fields. |
+| modules/event-lifecycle and modules/floorplan | read-models event-scope reader | Explicit public reader contract | Joins scoped event identity and assignment/profile facts; controllers do not trust actor/query labels or expose joined identity fields. Empty identities and inactive coordinator assignments/profiles confer no event scope. |
 | modules/platform-ops storage | read-models platform reference reader | `findStorageEventScope`, optionally in the caller transaction | Returns archive/portal state, client email, and booked supplier IDs with their persisted emails. Storage derives the supplier identity from verified email and locks the event row before writes. |
 | kernel/access-control | platform audit behavior | Kernel-owned focused port; composition-root adapter | AUDIT_WRITER is bound to Platform by the composition root; kernel imports no business context. |
 | modules/identity-access | platform trust behavior | Identity depends on AUTH_AUDIT; adapter owns the implementation dependency | Authentication/account workflows use an audit/lockout seam; application code does not import AuditService. |
@@ -138,12 +160,12 @@ legacy relation or changing schema placement.
 | modules/operations | Commercial registration supplier-reference capability | Validate supplier category and event selection before registration links | Commercial locks supplier, category, and selected quote rows in the caller transaction. A category must be active when a link is new or changed; existing registration history remains editable. |
 | modules/live-ops | Operations staffing and LiveOps-reference capabilities; Lifecycle event-reference capability | Owner-validated assignment transitions, current operator/handoff eligibility, and event-state checks | Operations validates and mutates assignment state, attendance, reliability and audit effects; for designation and handoff, it locks and rechecks profiles and same-event assignment state in the LiveOps transaction. Lifecycle supplies transaction-aware event state. LiveOps retains event-day authorization, history, and event-day log composition. |
 | modules/event-lifecycle | Operations staffing capability | Owner-validated assignment cancellation/postponement transitions | Event decisions pass their caller transaction to Operations, which validates and applies assignment changes atomically; Lifecycle continues to coordinate the event decision. |
-| modules/floorplan | Lifecycle event capabilities | `FLOORPLAN_EVENT_REFERENCE_READER` and `FLOORPLAN_PROJECTION_WRITER` | Lifecycle supplies locked event, conforme, ocular, archive, freeze, portal, and projection facts. Floorplan validates official-draft gates and blocks archived/frozen writes; its versioned projection clock and draft changes commit with Lifecycle's compare-and-set. The fresh owner-schema baselines retain same-domain FKs only; existing databases remain unchanged until separately rebuilt. |
+| modules/floorplan | Lifecycle event capabilities | `FLOORPLAN_EVENT_REFERENCE_READER` and `FLOORPLAN_PROJECTION_WRITER` | Lifecycle supplies locked event, conforme, ocular, archive, freeze, portal, and projection facts. Floorplan validates official-draft gates and blocks archived/frozen writes; its versioned projection clock and draft changes commit with Lifecycle's compare-and-set. |
 | kernel/event-core | Platform receipt storage | `CommandReceiptStore` port with caller transaction | Platform implements receipt persistence and binds it at the root; kernel keeps command authorization and replay policy, while reservation, command writes, and completion share the caller transaction. |
 | modules/platform-ops | each affected data-owning context | Focused redaction/retention capability | Platform coordinates approved privacy requests; data-owner mutations and resumable partial execution remain to be made explicit. Document metadata stays retained and redaction stays disabled while the PMCM document-retention policy is pending. Operations redaction covers guest roster identity/contact fields and feedback filename metadata, while stored media bytes remain outside database redaction. |
 | modules/platform-ops | read-models reference projection | `PLATFORM_REFERENCE_READ_MODEL`, bound by `PlatformReferenceReadersModule` at the API composition root | Supplies narrow event/storage scope, PARE request/event/supplier facts, trust-recipient email, and privacy consent inventory. Reads only; no owning-context writes. |
 | modules/identity-access | read-models participant event facts | `PARTICIPANT_FACTS` from `read-models/participant-facts`, whose submodule imports only DatabaseModule | Supplies serializable event/inquiry, supplier-assignment, and coordinator-assignment facts; Identity retains approved-account lookup, role eligibility, email matching, actor stamping, and EventAccessPolicy decisions. The focused submodule avoids importing full ReadModelsModule and its Identity/Commercial module cycle. |
-| modules/platform-ops | stored-object owner/usage pairs | Closed owner/usage registry | Only `billing_statement` + `event_deliverable` is production-wired; unregistered pairs fail closed before upload side effects and on stored-object confirmation, retrieval, listing, and deletion. The allowlist does not prove the referenced statement exists or matches the event on later reads; target-owner revalidation remains open. |
+| modules/platform-ops | stored-object owner/usage pairs | Closed owner/usage registry in `storage-object.service.ts` | Registered pairs: `billing_statement` and `proposal_version` + `event_deliverable`; `event` + `client_document`/`signed_conforme`; `supplier` + `supplier_document`; `event_game_definition` + `event_game_media`; `event_game_lobby` + `event_game_branding`. Unregistered pairs fail closed before upload side effects and on stored-object confirmation, retrieval, listing, and deletion. The allowlist does not prove the referenced owner record exists or matches the event; each owner capability must validate that. |
 | modules/event-lifecycle | `@prism/contexts/read-models/file-evidence` | Pure read seam | Returns confirmed signed-conforme object identity without provider paths or credentials. |
 | modules/read-models decision log | Lifecycle, Commercial, LiveOps decision records; Platform audit rows | PMCM-only `GET events/:eventId/decision-log` (FL-019), bounded per-source reads | Audit source: reasons and outcomes come only from the owning record's dedicated fields (event decisions, decided freeze exceptions, addenda and impact counts, archive override, compliance check overrides, PMCM risk history, ocular waiver, resolved billing corrections, waived additional billing, repeat-client payment-terms overrides, decided task reassignments, inquiry merges). `audit_logs` rows supply actor name/role attribution by affected record only; audit metadata is never parsed. |
 | context composition roots | other Nest context modules | Module import only at composition root | Allowed for one-process assembly; not a private application dependency. |
@@ -153,16 +175,11 @@ legacy relation or changing schema placement.
 
 Prism currently uses one PostgreSQL database and one Prisma client. The approved
 ADR-0008 and complete model ownership inventory are linked from this register.
-Every business record has one write owner and one target schema per write
-domain. Foreign keys may join records owned by the same domain; cross-domain
+Every business record has one write owner and lives in its write domain's
+schema. Foreign keys may join records owned by the same domain; cross-domain
 references remain scalar identifiers and use a public owner capability when a
-command depends on the referenced record's current eligibility.
-
-The target namespace is not yet the fully migrated catalog. Preserve the
-current placement as transition evidence until owner capabilities, migration
-guards, populated preflight, restore, and the coordinated schema release are
-ready. A shared database and schema name do not grant another context write
-authority.
+command depends on the referenced record's current eligibility. A shared
+database and schema name do not grant another context write authority.
 
 ## Verification
 

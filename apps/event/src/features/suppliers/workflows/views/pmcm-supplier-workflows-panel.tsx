@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import type { PrismSupplierQuote, PrismSupplierQuoteRequest } from "@prism/types";
 import { DatePicker } from "@prism/ui/components/date-picker";
@@ -36,7 +37,7 @@ function SupplierScheduleList({ schedules }: { schedules: WorkflowViewModel["sch
     <h3 className="text-xs font-bold">Published supplier schedules</h3>
     {schedules.length ? <ul className="mt-2 divide-y divide-border">{schedules.map((schedule) => <li key={schedule.id} className="flex flex-wrap justify-between gap-2 py-2 text-xs">
       <span className="font-semibold">{schedule.supplierName} · {schedule.location || "Location pending"}</span>
-      <span className="text-muted-foreground">{new Date(schedule.ingressAt).toLocaleString()} – {new Date(schedule.egressAt).toLocaleString()} · {schedule.status}</span>
+      <span className="text-muted-foreground">{formatPortalDateTime(schedule.ingressAt)} – {formatPortalDateTime(schedule.egressAt)} · {schedule.status}</span>
     </li>)}</ul> : <p className="mt-2 text-xs text-muted-foreground">No supplier schedules published yet.</p>}
   </section>;
 }
@@ -65,7 +66,7 @@ function SupplierWorkflowRow({ row, vm, request, quote }: { row: WorkflowRow; vm
 function ScheduleEditor({ row, vm }: { row: WorkflowRow; vm: WorkflowViewModel }) {
   const key = `schedule:${row.requestId}`;
   return <div className="rounded-lg bg-muted/30 p-3"><p className="mb-2 text-xs font-bold">Ingress / egress schedule {row.schedule ? `· revision ${row.schedule.revision}` : ""}</p>
-    {row.schedule ? <p className="mb-2 text-xs text-muted-foreground">Current: {new Date(row.schedule.ingressAt).toLocaleString()} – {new Date(row.schedule.egressAt).toLocaleString()} · {row.schedule.location}</p> : null}
+    {row.schedule ? <p className="mb-2 text-xs text-muted-foreground">Current: {formatPortalDateTime(row.schedule.ingressAt)} – {formatPortalDateTime(row.schedule.egressAt)} · {row.schedule.location}</p> : null}
     {row.schedule?.changeRequestNote ? <p className="mb-2 text-xs text-attention dark:text-amber-300">Supplier requested a change: {row.schedule.changeRequestNote}</p> : null}
     <div className="grid gap-2 sm:grid-cols-2"><label className="grid gap-1 text-xs font-semibold">Ingress<Input type="datetime-local" value={vm.value(key, "ingressAt")} onChange={(e) => vm.setValue(key, "ingressAt", e.target.value)} /></label><label className="grid gap-1 text-xs font-semibold">Egress<Input type="datetime-local" value={vm.value(key, "egressAt")} onChange={(e) => vm.setValue(key, "egressAt", e.target.value)} /></label><Input aria-label="Schedule location" placeholder="Location" value={vm.value(key, "location")} onChange={(e) => vm.setValue(key, "location", e.target.value)} /><Input aria-label="Schedule notes" placeholder="Notes for supplier" value={vm.value(key, "notes")} onChange={(e) => vm.setValue(key, "notes", e.target.value)} /></div>
     <Button className="mt-2" size="sm" disabled={vm.busy || !vm.value(key, "ingressAt") || !vm.value(key, "egressAt")} onClick={() => void vm.publishSchedule(row.requestId)}>Publish schedule</Button>

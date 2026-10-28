@@ -4,11 +4,11 @@ title: "P.R.I.S.M local Supabase and Docker development"
 description: "Isolated local database startup, Docker modes, source syncing, and persistent development data."
 tags: [runbook, docker, supabase, development]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-10-29"
 authority: operational
 audience: [developers, QA, agents]
 scope: "local Prism Node/Docker startup and database isolation"
-last_verified: "2026-10-07"
+last_verified: "2026-10-29; launcher switches, local-supabase lifecycle and generated env, compose files, and Supabase config reviewed; stack not started"
 sources:
   - id: startup
     resource: "start-prism.ps1"
@@ -26,7 +26,7 @@ sources:
 
 - **Purpose:** Start Prism on a persistent local database without hosted credentials.
 - **Prerequisites:** Node 24, npm, Docker Desktop with its Linux engine.
-- **Database:** Supabase CLI 2.115.0, Postgres 17, Studio, metadata, gateway and REST dependencies. This CLI rejects Postgres 16; the repository's migration CI still replays PostgreSQL 16. Supabase Auth, Storage, Realtime, functions, analytics, SMTP and pooler are disabled.
+- **Database:** Supabase CLI 2.115.0 (root dev dependency), Postgres 17, Studio, metadata, gateway and REST dependencies. This CLI rejects Postgres 16; the repository's migration CI still replays PostgreSQL 16. Supabase Auth, Realtime, functions, analytics, SMTP and pooler are disabled. Storage is disabled unless `PRISM_LOCAL_SUPABASE_STORAGE=1` is set before startup; the wrapper then starts Supabase Storage, creates a private bucket, and points the API's `supabase` storage adapter at it.
 - **Schema:** Prisma migrations in `apps/api/prisma/migrations`; Supabase application migrations and automatic seeding are disabled.
 - **Verification:** Launch the selected mode, check API/portal HTTP readiness, and confirm source reload and database persistence when changing startup behavior.
 
@@ -41,8 +41,14 @@ npm install
 .\start-prism-docker.cmd -Dev -Foreground
 .\stop-prism.cmd                       # Node apps and Supabase; preserve DB data
 .\stop-prism-docker.cmd                # Compose apps and Supabase; preserve DB data
-.\stop-prism.cmd -All
+.\stop-prism.cmd -All                  # Docker stacks and Node apps
 ```
+
+The same lifecycle is available without launching apps through
+`npm run db:local:start`, `db:local:status`, and `db:local:stop`.
+Set `PRISM_LOCAL_MAILPIT=1` before startup to capture local mail in a
+checkout-specific Mailpit inbox instead of the API log (see the
+[browser acceptance guide](../../scripts/e2e/browser/README.md#local-test-inbox-for-manual-development)).
 
 The first start downloads images. Every start verifies the local target, waits
 for database readiness, applies pending Prisma migrations, and launches the
@@ -112,8 +118,8 @@ Built images use scoped Turbo dependency builds. Portal images use standalone
 Next output plus their own static/public assets. API images carry compiled API
 output, generated Prisma dependencies and shared types; its dependency install
 includes only API runtime workspaces. The shared dev image omits npm's download
-cache. Builds remain serial
-because parallel builds/cache mounts previously crashed Docker Desktop here.
+cache. Builds run serially without cache mounts because parallel builds have
+crashed Docker Desktop.
 
 ```powershell
 docker compose -f compose.dev.yml logs -f api
@@ -136,9 +142,10 @@ approval. Cache trouble is not a reason to reset the database.
 
 ## Worktrees and troubleshooting
 
-Project IDs derive from the normalized checkout path and initial migration baseline. A replaced baseline selects a separate database after backing up the current project; normal forward migrations retain data. Supabase port blocks use
-the persisted Git worktree slot, independent of app port overrides. Node
-worktrees therefore have isolated data and ports. Docker app mode remains
+Each checkout gets its own Supabase project, data, and port block; see
+[parallel worktrees](parallel-worktrees.md#isolated-local-supabase). A replaced
+initial baseline selects a separate database after backing up the current
+project; normal forward migrations retain data. Docker app mode remains
 restricted to the primary checkout.
 
 - Docker unavailable: start Docker Desktop's Linux engine; the wrapper waits for it.

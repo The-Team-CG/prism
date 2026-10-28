@@ -4,11 +4,11 @@ title: "DDD-shaped modular monolith contexts"
 description: "Keep the Prism API as one NestJS deployable organized around business bounded contexts and a technical kernel."
 tags: [architecture, decision, backend, ddd, modular-monolith]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-10-29"
 authority: normative
 audience: [agents, backend-engineers, reviewers]
-scope: "apps/api/src/modules, kernel, and compatibility source"
-last_verified: "1f73cea"
+scope: "apps/api/src/modules, kernel, and fixtures"
+last_verified: "2026-10-29; context and kernel folders and AppModule imports checked against apps/api/src"
 decision_date: "2026-09-01"
 sources:
   - id: agent-rules
@@ -54,6 +54,7 @@ business bounded-context roots under:
 apps/api/src/
 ├── modules/
 │   ├── commercial/
+│   ├── event-games/
 │   ├── event-lifecycle/
 │   ├── floorplan/
 │   ├── identity-access/
@@ -78,6 +79,10 @@ The business contexts own policy and writes:
 | `platform-ops` | trust/audit, notifications, and AI governance |
 | `read-models` | role-scoped cross-context read composition; no writes |
 
+`event-games` (event game sessions, participation, scoring, and moderation)
+was added later under this decision; [current architecture](../current-architecture.md)
+holds the current context list.
+
 Each context has a composition-root module and public `index.ts`. Internal
 depth is progressive: add `api/`, `application/`, `contracts/`, `domain/`, or
 `infrastructure/` when the capability has a real responsibility for that
@@ -85,8 +90,8 @@ layer; do not create empty folders for symmetry. Pure domain policies are
 framework-independent and are added only for real invariants.
 
 The kernel contains technical infrastructure such as database access, shared
-validation, session/auth primitives, access policy, event-core helpers, and
-health. It may be used by contexts but must not import business contexts.
+validation, session/auth primitives, access policy, event-core helpers, mail
+transport, and health. It may be used by contexts but must not import business contexts.
 
 ## Rejected alternatives
 

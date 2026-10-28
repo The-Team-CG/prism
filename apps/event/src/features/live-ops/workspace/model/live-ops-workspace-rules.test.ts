@@ -3,6 +3,7 @@ import {
   asIsoDateTime,
   computeLiveOpsMetrics,
   liveOpsPillClass,
+  orderLiveOpsIssuesForDesk,
 } from "./live-ops-workspace-rules";
 
 describe("live-ops-workspace-rules", () => {
@@ -31,5 +32,15 @@ describe("live-ops-workspace-rules", () => {
       verifiedSuppliers: 1,
       presentCoordinators: 1,
     });
+  });
+
+  it("orders desk issues with open blockers first, most severe first", () => {
+    const ordered = orderLiveOpsIssuesForDesk([
+      { id: "r", status: "resolved", severity: "critical" },
+      { id: "l", status: "open", severity: "low" },
+      { id: "c", status: "assigned", severity: "critical" },
+      { id: "x", status: "cancelled", severity: "high" },
+    ]);
+    expect(ordered.map((issue) => issue.id)).toEqual(["c", "l", "r", "x"]);
   });
 });

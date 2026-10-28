@@ -30,6 +30,8 @@ export function buildGuestSession(
     guestAccessCode: event.guestAccessCode,
     watermark: event.watermark,
     feedbackAvailability: event.feedbackAvailability,
+    ...(event.venue ? { venue: event.venue } : {}),
+    ...(event.startTime ? { startTime: event.startTime } : {}),
     openedAt,
   };
 }

@@ -40,6 +40,7 @@ import {
   dashboardHref,
   clientEventWorkspaceAvailable,
   clientEventSidebarItems,
+  clientSidebarLinkHref,
   findClientEventNavItem,
   findClientSidebarLink,
   portalViewFromLink,
@@ -122,9 +123,11 @@ function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, 
 }) {
   const shellNavItems = CLIENT_SIDEBAR_ITEMS.map((item) => ({
     ...item,
+    href: clientSidebarLinkHref(item.id, selectedEvent?.id),
     disabled: disableEventNav(item.requiresEvent, clientEventWorkspaceAvailable(selectedEvent)),
     subItems: item.subItems?.map((subItem) => ({
       ...subItem,
+      href: clientSidebarLinkHref(subItem.id, selectedEvent?.id),
       disabled: disableEventNav(subItem.requiresEvent, clientEventWorkspaceAvailable(selectedEvent)),
     })),
   }));
@@ -134,7 +137,7 @@ function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, 
     activeShellItemId: inEventWorkspace
       ? EVENT_ROUTE_TO_NAV_ITEM[route] ?? "event-overview"
       : sidebarActiveItemId(route, isEventScopedView, portalView),
-    sidebarNavItems: inEventWorkspace && selectedEvent ? clientEventSidebarItems(selectedEvent.eventName) : shellNavItems,
+    sidebarNavItems: inEventWorkspace && selectedEvent ? clientEventSidebarItems(selectedEvent.eventName, selectedEvent.id) : shellNavItems,
   };
 }
 

@@ -5,12 +5,12 @@ import { useState } from "react";
 import type { PrismFileRequirementItem } from "@prism/types";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
-import { humanizeToken } from "@/features/pmcm-kit/model/formatters";
 import { useFileRequirementsMatrixViewModel } from "../view-models/use-file-requirements-matrix-view-model";
 import { useFileRequirementEditorViewModel } from "../view-models/use-file-requirement-editor-view-model";
 import {
   FILE_HUB_HELP_COPY,
   fileRequirementCounts,
+  fileRequirementMetadataLine,
   formatFileRequirementDate,
   sortFileRequirementItems,
 } from "../model/file-requirements-matrix-rules";
@@ -102,7 +102,7 @@ function FileRequirementRow({ item, editable, editor }: { item: PrismFileRequire
           <p className="text-sm font-bold text-foreground">{item.label}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">{item.detail}</p>
           <p className="mt-1 text-2xs text-muted-foreground">
-            Owner {humanizeToken(item.ownerRole)} · Visible to {item.visibleToRoles.map(humanizeToken).join(", ")} · {item.sourceWorkflow}
+            {fileRequirementMetadataLine(item)}
           </p>
           <p className="mt-1 text-2xs font-semibold text-muted-foreground">
             {item.required ? "Required" : "Optional"}
@@ -112,7 +112,7 @@ function FileRequirementRow({ item, editable, editor }: { item: PrismFileRequire
           {item.notes ? <p className="mt-1 text-2xs text-muted-foreground">PMCM note: {item.notes}</p> : null}
         </div>
         <div className="flex items-center gap-2">
-          <StatusBadge status={item.status} label={humanizeToken(item.status)} />
+          <StatusBadge status={item.status} />
           {editable && !editing ? (
             <button type="button" onClick={() => editor.startEdit(item)} className="rounded-md border border-border px-2 py-1 text-xs font-semibold">
               Edit

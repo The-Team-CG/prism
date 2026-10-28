@@ -72,12 +72,14 @@ describe("guest event-game views", () => {
     expect(markup).toContain("Summer Party");
     expect(markup).toContain('alt="Summer Party logo"');
     expect(markup).toContain("https://storage.example.test/lobby-logo?sig=public");
-    expect(markup).toContain("linear-gradient(90deg, #312E81, #0F766E)");
+    // The host-configured brand colours reach the lobby.
+    expect(markup).toContain("#312E81");
+    expect(markup).toContain("#0F766E");
     expect(markup).toContain("Word Scramble");
     expect(markup).not.toMatch(/<input[^>]*(?:name|id)=\"pin\"/i);
     expect(markup).not.toContain("Your name");
     expect(markup).not.toContain("Upload a photo");
-    expect(markup).toContain("does not verify a person or device");
+    expect(markup).toContain("does not verify who you are or which device you use");
   });
 
   it("shows the public prompt, the guest's own status, and only permitted aggregate results", () => {

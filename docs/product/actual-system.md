@@ -4,11 +4,11 @@ title: "P.R.I.S.M actual system"
 description: "Current product identity, actors, lifecycle, workflows, ownership, and completion evidence for PMCM's event operating system."
 tags: [product, current-state, lifecycle, roles]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-10-29"
 authority: informative
 audience: [product, engineering, design, reviewers]
 scope: "PMCM product identity, actors, lifecycle, workflows, and ownership"
-last_verified: "2026-10-16; selected client and supplier workflows"
+last_verified: "2026-10-29; portal routes under apps/*/src/app, API modules, privacy execution, supplier application and guest games surfaces"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
@@ -42,17 +42,17 @@ For target maturity, use [`future-state.md`](future-state.md).
 
 ## Current correctness limits
 
-The [feature ledger](feature-ledger.md) and [readiness foundation](readiness-foundation.md)
-distinguish implemented corrections from incomplete end-to-end capabilities.
+The [feature ledger](feature-ledger.md) distinguishes implemented corrections
+from incomplete end-to-end capabilities.
 Signed conforme does not create an approved bill by design: billing statements
 come only from a PMCM-approved billing source. Proposal review requires a real
 issued version. PMCM issues it from the selected event's commercial proposal
 panel, which builds the cost estimate and issues a numbered version together
 with its issued proposal document and a one-page PDF copy; the client sees only
 the title, summary and total. Archive checks five explicit gates; logistics passes with a PMCM-recorded
-completion record and otherwise needs a reasoned override. Supported privacy
-deletion is operational soft redaction; unsupported rights and native-account
-erasure remain unexecuted. Live AI remains governed by the separate provider,
+completion record and otherwise needs a reasoned override. PMCM privacy
+operations execute access/export, native-account erasure, correction and
+supported operational redaction; there is no self-service requester flow. Live AI remains governed by the separate provider,
 privacy, and approval gates.
 
 The [authority and lifecycle policy](event-authority-and-lifecycle-policy.md)
@@ -88,8 +88,8 @@ P.R.I.S.M is not a public SaaS product. It is not a generic venue, ticketing, su
 | Coordinator | Receives role-safe event-day assignments, updates status, responds to tasks/issues, and supports live operations. | `apps/event` coordinator-safe views |
 | Client | Submits inquiry, signs conforme, reviews approved planning outputs, completes required actions, submits preferences, pays/acknowledges billing, and reviews closeout items. | `apps/client` |
 | Supplier | Receives quote requests, submits/revises quotes, confirms awarded assignments, submits versioned contract files and creative deliverables, acknowledges ingress/egress revisions, reports readiness and event-day status, and sees its recorded payable releases. | `apps/supplier` |
-| Guest | Uses lightweight event access, checks in with consent, may be flagged as walk-in, and may submit moderated feedback. | `apps/guest` |
-| Public visitor | Views public entry points and submits inquiry or supplier application where enabled. | `apps/client` public pages and future supplier application path |
+| Guest | Uses lightweight event access, checks in with consent, may be flagged as walk-in, joins PMCM-hosted in-event games, and may submit moderated feedback. | `apps/guest` |
+| Public visitor | Views public entry points and submits an inquiry or supplier application. | `apps/client` landing and inquiry; `apps/supplier` application and status pages |
 
 ## System Surfaces
 
@@ -101,7 +101,7 @@ P.R.I.S.M is not a public SaaS product. It is not a generic venue, ticketing, su
 | Client action center | Client's next-action view for conforme, documents, proposal review, billing, floorplan preferences/approval, closeout, and allowed messages/status. |
 | Supplier readiness board | Supplier and PMCM view of quote, assignment, contract, readiness, ingress/egress, concerns, and event-day supplier progress. |
 | Coordinator/live-ops workspace | Role-safe event-day task, issue, attendance, replacement, and status surfaces for PMCM/coordinators. |
-| Guest pass and check-in | Lightweight event-code access, pass display, consented name check-in, walk-in flagging, and feedback. |
+| Guest pass and check-in | Lightweight event-code access, pass display, consented name check-in, walk-in flagging, PIN-joined in-event games, and feedback. |
 | Privacy and audit console | PMCM-only trust surface for privacy requests, redaction, retention, login/security events, audit integrity, and AI governance evidence. |
 | Archive and learning loop | Post-event closure, deliverables, feedback, insights, testimonials, archive search/comparison, and reusable learning. |
 

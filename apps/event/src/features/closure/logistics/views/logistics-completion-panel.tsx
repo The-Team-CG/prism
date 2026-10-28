@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import { useState } from "react";
 import { useLogisticsCompletionViewModel } from "../view-models/use-logistics-completion-view-model";
@@ -19,7 +20,7 @@ export function LogisticsCompletionPanel({ eventId }: { eventId: string }) {
         </div>
         {vm.record ? (
           <span className="text-sm text-muted-foreground">
-            Recorded {new Date(vm.record.recordedAt).toLocaleString()} · revision {vm.record.revision}
+            Recorded {formatPortalDateTime(vm.record.recordedAt)} · revision {vm.record.revision}
           </span>
         ) : null}
       </div>

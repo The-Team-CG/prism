@@ -1,5 +1,6 @@
 "use client";
 
+import { PrismAccountHelp } from "@prism/ui/account-help";
 import { portalHref } from "@prism/ui/portal-path";
 import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, PrismWrongPortalLinks, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
 import { FormEvent, useState } from "react";
@@ -13,7 +14,7 @@ import { Label } from "@/app/components/ui/label";
 import { EVENT_PORTAL_POINTS, EVENT_PORTAL_STATEMENT } from "../model/event-portal-copy";
 import { signInSubmitLabel, twoFactorCopy } from "../model/event-sign-in-copy";
 import { eventSignInProgress } from "../model/event-sign-in-steps";
-import { portalUrlsFromEnvironment, wrongPortalLinks } from "@/lib/portal-urls";
+import { pmcmSupportContactFromEnvironment, portalUrlsFromEnvironment, wrongPortalLinks } from "@/lib/portal-urls";
 import { useEventSignInViewModel } from "../view-models/use-event-sign-in-view-model";
 
 const COPY_FAILED_MESSAGE = "Couldn't copy. Select the key and copy it.";
@@ -85,6 +86,7 @@ export function EventSignInView() {
         <>
           <p>Authorized PMCM team access only.</p>
           <p>Admin and coordinator accounts only. Other roles have separate portals.</p>
+          <PrismAccountHelp contact={pmcmSupportContactFromEnvironment()} topic="PMCM team access" />
           <PrismWrongPortalLinks links={otherPortals} />
         </>
       }

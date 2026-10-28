@@ -1,16 +1,14 @@
 "use client";
+import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 
 import {
   Activity,
   ArrowRight,
   ClipboardList,
-  FileText,
   MapPinned,
   ReceiptText,
-  Timer,
-  WalletCards,
 } from "lucide-react";
-import type { PrismAuditLog, PrismBillingStatement, PrismBriefing, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone } from "@prism/types";
+import type { PrismAuditLog, PrismClientActionItem, PrismBillingStatement, PrismBriefing, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import {
@@ -18,7 +16,6 @@ import {
   CardBody,
   CardHeader,
   DataRow,
-  SectionLabel,
   clientActivityActor,
   clientActivityTitle,
   formatLabel,
@@ -28,77 +25,105 @@ import {
 } from "../../../shared/tab-ui";
 import type { DetailTab } from "../../../workspace/shared";
 
-function daysToEventLabel(eventDate?: string | null) {
+export function daysToEventLabel(eventDate?: string | null, now = Date.now()) {
   if (!eventDate) return "—";
-  try {
-    const diff = Math.ceil(
-      (new Date(eventDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-    );
-    return diff > 0 ? `${diff}d` : "Today";
-  } catch {
-    return "—";
-  }
+  const time = new Date(eventDate).getTime();
+  if (!Number.isFinite(time)) return "—";
+  const diff = Math.ceil((time - now) / (1000 * 60 * 60 * 24));
+  if (diff > 1) return `${diff} days`;
+  if (diff === 1) return "Tomorrow";
+  if (diff === 0) return "Today";
+  return "Held";
 }
 
-function overviewLifecycleSteps(
+export function overviewLifecycleSteps(
   selectedEvent: PrismEvent,
   briefing?: PrismBriefing,
   billing?: PrismBillingStatement,
   officialDraft?: PrismFloorPlanDraft,
 ) {
-  return [
-    { label: "Inquiry accepted", state: "done" as const },
-    { label: "Conforme signed", state: selectedEvent.clientPortalStatus === "unlocked" ? "done" as const : "pending" as const },
-    { label: "Briefing / proposal", state: briefing && billing ? "done" as const : "current" as const },
-    { label: "Planning", state: officialDraft?.status === "approved" ? "done" as const : "current" as const },
-    { label: "Event day", state: "pending" as const },
-    { label: "Closure", state: "pending" as const },
+  const done = [
+    true,
+    selectedEvent.clientPortalStatus === "unlocked",
+    Boolean(briefing && billing),
+    officialDraft?.status === "approved",
+    false,
+    false,
   ];
+  const labels = ["Inquiry accepted", "Conforme signed", "Briefing and proposal", "Planning", "Event day", "Closure"];
+  // Exactly one current stage: the first one not yet done.
+  const current = done.findIndex((value) => !value);
+  return labels.map((label, index) => ({
+    label,
+    state: done[index] ? ("done" as const) : index === current ? ("current" as const) : ("pending" as const),
+  }));
 }
 
-function lifecycleStepClass(state: string) {
-  if (state === "done") return "bg-success/10 border border-success/20";
-  if (state === "current") return "bg-primary-soft border border-primary/20";
-  return "bg-muted/40 border border-border";
-}
-
-function lifecycleLabelClass(state: string) {
-  if (state === "done") return "text-success";
-  if (state === "current") return "text-primary";
-  return "text-muted-foreground";
-}
-
-export function OverviewLifecycle({
+/** The overview's lead: where the event stands and the one thing the client should do next. */
+export function OverviewNextDecision({
   selectedEvent,
   briefing,
   billing,
   officialDraft,
+  nextAction,
 }: {
   selectedEvent: PrismEvent;
   briefing?: PrismBriefing;
   billing?: PrismBillingStatement;
   officialDraft?: PrismFloorPlanDraft;
+  nextAction?: PrismClientActionItem;
 }) {
+  const steps = overviewLifecycleSteps(selectedEvent, briefing, billing, officialDraft);
+  const currentIndex = Math.max(0, steps.findIndex((step) => step.state === "current"));
   return (
     <Card>
-      <CardHeader>
-        <SectionLabel>Event lifecycle</SectionLabel>
-        <h2 className="mt-1 text-base font-bold text-foreground">Planning progress</h2>
-      </CardHeader>
-      <CardBody>
-        <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-6">
-          {overviewLifecycleSteps(selectedEvent, briefing, billing, officialDraft).map((step, i) => (
-            <div key={step.label} className={`rounded-lg px-3 py-2.5 text-sm ${lifecycleStepClass(step.state)}`}>
-              <p className="text-3xs font-bold text-muted-foreground">Step {i + 1}</p>
-              <p className={`mt-1 text-xs font-bold ${lifecycleLabelClass(step.state)}`}>{step.label}</p>
-            </div>
-          ))}
+      <CardBody className="space-y-4">
+        <div>
+          <p className="text-sm text-muted-foreground">Stage {currentIndex + 1} of {steps.length}</p>
+          <h2 className="mt-0.5 text-lg font-semibold text-foreground">{steps[currentIndex]?.label}</h2>
         </div>
+        <ol className="flex gap-1" aria-label="Planning progress">
+          {steps.map((step) => (
+            <li key={step.label} className="flex-1" title={step.label}>
+              <span
+                aria-hidden="true"
+                className={`block h-1.5 rounded-full ${step.state === "done" ? "bg-success" : step.state === "current" ? "bg-primary" : "bg-muted"}`}
+              />
+              <span className="sr-only">
+                {step.label}: {step.state === "done" ? "done" : step.state === "current" ? "current stage" : "not started"}
+              </span>
+            </li>
+          ))}
+        </ol>
+        {nextAction ? (
+          <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm text-muted-foreground">
+                Your next step{nextAction.dueAt ? ` · due ${formatPortalDate(nextAction.dueAt)}` : ""}
+              </p>
+              <p className="mt-0.5 font-medium text-foreground">{nextAction.label}</p>
+              {nextAction.description ? <p className="mt-0.5 text-sm text-muted-foreground">{nextAction.description}</p> : null}
+            </div>
+            {nextAction.href ? (
+              <a
+                href={nextAction.href}
+                className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+              >
+                Open <ArrowRight className="size-4" aria-hidden="true" />
+              </a>
+            ) : null}
+          </div>
+        ) : (
+          <p className="border-t border-border pt-4 text-sm text-muted-foreground">
+            Nothing needs your action right now. PMCM will let you know when it does.
+          </p>
+        )}
       </CardBody>
     </Card>
   );
 }
 
+/** Three peer figures in one divided container: label over value, no icon tiles. */
 export function OverviewStats({
   selectedEvent,
   payments,
@@ -110,23 +135,18 @@ export function OverviewStats({
 }) {
   const openMilestones = payments.filter((p) => p.status !== "paid").length;
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
+    <dl className="grid grid-cols-3 divide-x divide-border rounded-lg border border-border bg-card">
       {[
-        { label: "Days to event", value: daysToEventLabel(selectedEvent.eventDate), icon: Timer, color: "text-primary" },
-        { label: "Open milestones", value: openMilestones || "0", icon: WalletCards, color: "text-attention" },
-        { label: "Documents on file", value: documents.length || "0", icon: FileText, color: "text-success" },
+        { label: "Until the event", value: daysToEventLabel(selectedEvent.eventDate) },
+        { label: "Open payments", value: openMilestones },
+        { label: "Documents", value: documents.length },
       ].map((stat) => (
-        <div key={stat.label} className="flex items-center gap-4 rounded-2xl border border-border bg-card px-5 py-4 shadow-sm">
-          <span className={`grid size-11 shrink-0 place-items-center rounded-xl bg-muted ${stat.color}`}>
-            <stat.icon className="size-5" />
-          </span>
-          <div>
-            <p className="text-2xl font-black leading-none text-foreground">{stat.value}</p>
-            <p className="mt-1 text-xs font-semibold text-muted-foreground">{stat.label}</p>
-          </div>
+        <div key={stat.label} className="min-w-0 px-3 py-3 sm:px-5 sm:py-4">
+          <dt className="text-xs text-muted-foreground sm:text-sm">{stat.label}</dt>
+          <dd className="mt-1 text-lg font-semibold tabular-nums text-foreground sm:text-2xl">{stat.value}</dd>
         </div>
       ))}
-    </div>
+    </dl>
   );
 }
 
@@ -228,7 +248,7 @@ export function OverviewNextPayment({
         {nextPayment ? (
           <>
             <DataRow label="Milestone" value={nextPayment.label} />
-            <DataRow label="Due" value={nextPayment.dueDate} />
+            <DataRow label="Due" value={formatPortalDate(nextPayment.dueDate)} />
             <DataRow label="Amount" value={money.format(nextPayment.amount)} />
           </>
         ) : (
@@ -267,7 +287,7 @@ export function OverviewRecentActivity({
         {latestActivity ? (
           <>
             <DataRow label="Latest update" value={clientActivityTitle(latestActivity.action)} />
-            <DataRow label="Updated by" value={`${clientActivityActor(latestActivity.actor)} — ${latestActivity.createdAt}`} />
+            <DataRow label="Updated by" value={`${clientActivityActor(latestActivity.actor)} — ${formatPortalDateTime(latestActivity.createdAt)}`} />
           </>
         ) : null}
       </CardBody>

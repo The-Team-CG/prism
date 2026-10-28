@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import { useState } from "react";
 import {
@@ -112,7 +113,7 @@ function PAREApprovalCard({
         <PareReplacementPanel analysis={r.budgetAnalysis} />
         {r.candidates.length > 1 ? <PareOtherCandidates candidates={r.candidates} /> : null}
         <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">AI-Drafted Messages</p>
+          <p className="mb-2 text-xs font-medium text-muted-foreground">AI-Drafted Messages</p>
           <div className="space-y-2">
             <DraftMessage label="Supplier notification (to replacement)" text={r.drafts.supplierNotification} />
             <DraftMessage label="Client reassurance (to event client)" text={r.drafts.clientReassurance} />
@@ -128,7 +129,7 @@ function PareApprovalHeader({ record }: { record: PAREApprovalRecord }) {
   const r = record.pareResult;
   const mode = pareModeCopy(r.mode);
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-gradient-to-r from-primary/8 to-transparent px-5 py-4">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
       <div className="flex items-center gap-3">
         <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary text-white">
           <Bot className="size-4" />
@@ -136,12 +137,12 @@ function PareApprovalHeader({ record }: { record: PAREApprovalRecord }) {
         <div>
           <p className="text-sm font-black text-foreground">PARE · Emergency Replacement</p>
           <p className="text-xs text-muted-foreground">
-            {r.withdrawnSupplier.name} · {r.withdrawnSupplier.category} · {new Date(r.triggeredAt).toLocaleString()}
+            {r.withdrawnSupplier.name} · {r.withdrawnSupplier.category} · {formatPortalDateTime(r.triggeredAt)}
           </p>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <span className={`rounded-full border px-2 py-0.5 text-3xs font-black uppercase tracking-wide ${mode.className}`}>
+        <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${mode.className}`}>
           {mode.label}
         </span>
         <StatusPill status={record.status} />
@@ -186,7 +187,7 @@ function PareReplacementPanel({ analysis }: { analysis: PAREApprovalRecord["pare
   const candidate = analysis.selectedCandidate;
   return (
     <div>
-      <p className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">Recommended Replacement</p>
+      <p className="mb-2 text-xs font-medium text-muted-foreground">Recommended Replacement</p>
       <div className="rounded-xl border border-border bg-muted/30 px-4 py-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -211,7 +212,7 @@ function PareReplacementPanel({ analysis }: { analysis: PAREApprovalRecord["pare
 function PareOtherCandidates({ candidates }: { candidates: PAREApprovalRecord["pareResult"]["candidates"] }) {
   return (
     <div>
-      <p className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">Other Candidates ({candidates.length - 1})</p>
+      <p className="mb-2 text-xs font-medium text-muted-foreground">Other Candidates ({candidates.length - 1})</p>
       <div className="divide-y divide-border rounded-xl border border-border bg-muted/20 overflow-hidden">
         {candidates.slice(1).map((c) => (
           <div key={c.supplierId} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
@@ -268,7 +269,7 @@ function PareReviewFooter({
       <span>
         <span className="font-bold">{record.status === "approved" ? "Approved" : "Rejected"}</span>
         {record.reviewedBy ? ` by ${record.reviewedBy}` : ""}
-        {record.reviewedAt ? ` · ${new Date(record.reviewedAt).toLocaleString()}` : ""}
+        {record.reviewedAt ? ` · ${formatPortalDateTime(record.reviewedAt)}` : ""}
       </span>
     </div>
   );
@@ -334,7 +335,7 @@ export function PAREPanel({
       {/* Assigned suppliers — withdraw triggers PARE */}
       {assignedRequests.length > 0 && (
         <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">Assigned Suppliers</p>
+          <p className="mb-2 text-xs font-medium text-muted-foreground">Assigned Suppliers</p>
           <div className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
             {assignedRequests.map((req) => {
               const supplier = suppliers.find((s) => s.id === req.supplierId);
@@ -381,7 +382,7 @@ export function PAREPanel({
       {/* PARE approval cards */}
       {eventApprovals.length > 0 && (
         <div className="space-y-4">
-          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+          <p className="text-xs font-medium text-muted-foreground">
             {pareResultCountLabel(eventApprovals.length)}
           </p>
           {eventApprovals.map((record) => (

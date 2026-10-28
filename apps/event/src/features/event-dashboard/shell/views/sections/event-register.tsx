@@ -1,6 +1,7 @@
 "use client";
 
-import { useListFilter } from "@/features/pmcm-kit";
+import { RouteLink, useListFilter } from "@/features/pmcm-kit";
+import { eventWorkspaceHref } from "../../model/event-dashboard-routing";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CalendarDays, Search } from "lucide-react";
@@ -99,9 +100,9 @@ export function EventRegister({ events, onOpenEvent }: { events: PrismEvent[]; o
                   <td className="hidden px-4 py-3 text-muted-foreground md:table-cell">{event.venue || "Not recorded"}</td>
                   <td className="px-4 py-3"><StatusBadge status={event.status} /></td>
                   <td className="px-4 py-3 text-right">
-                    <button type="button" onClick={() => onOpenEvent(event.id)} className="min-h-11 rounded-md px-2 text-sm font-semibold text-primary hover:text-primary-strong focus-visible:ring-2 focus-visible:ring-primary">
+                    <RouteLink href={eventWorkspaceHref(event.id)} onNavigate={() => onOpenEvent(event.id)} className="inline-flex min-h-11 items-center rounded-md px-2 text-sm font-semibold text-primary hover:text-primary-strong focus-visible:ring-2 focus-visible:ring-primary">
                       Open event<span className="sr-only"> {event.eventName}</span>
-                    </button>
+                    </RouteLink>
                   </td>
                 </tr>
               ))}

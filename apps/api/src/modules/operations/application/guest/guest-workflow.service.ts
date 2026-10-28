@@ -29,7 +29,7 @@ import type {
   WithdrawGuestFeedbackConsentInput,
   PrismGuestEventWatermark,
 } from '@prism/types';
-import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
+import { GUEST_VERIFICATION_REQUIRED_ROSTER_SOURCES, GUEST_WALK_IN_ROSTER_SOURCE, PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 import {
   OPERATIONS_EVENT_REFERENCE_READER,
   type GuestCheckInEventReference,
@@ -44,6 +44,16 @@ import {
 } from '@prism/contexts/read-models/guest-events';
 
 type EventWithDrafts = GuestEventProjection;
+
+/** Only confirmed attendee-facing arrival facts reach the pass; empty values are omitted, never sent as blanks. */
+function guestArrivalDetails(briefing?: { venue: string; confirmedStartTime: string | null }): Pick<PrismGuestEventPass, 'venue' | 'startTime'> {
+  const venue = briefing?.venue.trim();
+  const startTime = briefing?.confirmedStartTime?.trim();
+  return {
+    ...(venue ? { venue } : {}),
+    ...(startTime ? { startTime } : {}),
+  };
+}
 type GuestFeedbackWithMedia = Prisma.OpsGuestFeedbackGetPayload<{ include: { mediaAttachments: true } }>;
 
 type WithOptionalPrivacyConsent<T> = T extends unknown
@@ -62,8 +72,6 @@ const GUEST_UPLOAD_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', '
 const MAX_GUEST_CHECK_INS = 500;
 const MAX_GUEST_FEEDBACK = 500;
 const MAX_GUEST_ROSTER_SEARCH = 500;
-const GUEST_REVIEW_SOURCES = ['guest-review', 'guest-review-headcount'] as const;
-const COORDINATOR_REVIEW_SOURCES = ['coordinator-walk-in', ...GUEST_REVIEW_SOURCES] as const;
 const GUEST_FEEDBACK_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 function guestFeedbackAvailability(actualEndedAt: Date | null): PrismGuestFeedbackAvailability {
@@ -189,13 +197,13 @@ export class GuestWorkflowService implements GuestCommands {
         data: {
           id,
           eventId,
-          sourceKey: `coordinator-walk-in:${id}`,
+          sourceKey: `${GUEST_WALK_IN_ROSTER_SOURCE}:${id}`,
           guestName,
           normalizedName: guestName.toLowerCase(),
           category: 'Walk-in',
           eligibility: 'eligible',
           verificationStatus: 'pending',
-          source: 'coordinator-walk-in',
+          source: GUEST_WALK_IN_ROSTER_SOURCE,
           privacyConsentAccepted: true,
           privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
           privacyConsentCapturedAt,
@@ -259,7 +267,7 @@ export class GuestWorkflowService implements GuestCommands {
         requiresStaffReview = true;
         return;
       }
-      if (roster.source !== 'coordinator-walk-in') return;
+      if (roster.source !== GUEST_WALK_IN_ROSTER_SOURCE) return;
       if (roster.verificationStatus !== 'verified') {
         requiresStaffReview = true;
         return;
@@ -513,7 +521,7 @@ export class GuestWorkflowService implements GuestCommands {
   }
 
   async importRoster(eventId: string, input: ImportGuestRosterInput, actor: { id?: string; name: string; role: string }) {
-    if (input.source.trim().toLowerCase() === 'coordinator-walk-in') {
+    if (input.source.trim().toLowerCase() === GUEST_WALK_IN_ROSTER_SOURCE) {
       throw new BadRequestException('Coordinator walk-in is a reserved roster source');
     }
     const batchId = `roster_${randomUUID()}`;
@@ -552,7 +560,7 @@ export class GuestWorkflowService implements GuestCommands {
       where.checkedInAt = null;
       where.OR = [
         { verificationStatus: 'pending' },
-        { source: { in: [...COORDINATOR_REVIEW_SOURCES] }, verificationStatus: 'verified' },
+        { source: { in: [...GUEST_VERIFICATION_REQUIRED_ROSTER_SOURCES] }, verificationStatus: 'verified' },
       ];
     }
     const rows = await this.prisma.opsGuestRosterEntry.findMany({
@@ -574,7 +582,7 @@ export class GuestWorkflowService implements GuestCommands {
       where.checkedInAt = null;
       where.OR = [
         { verificationStatus: 'pending' },
-        { source: { in: [...COORDINATOR_REVIEW_SOURCES] }, verificationStatus: 'verified' },
+        { source: { in: [...GUEST_VERIFICATION_REQUIRED_ROSTER_SOURCES] }, verificationStatus: 'verified' },
       ];
     }
     const rows = await this.prisma.opsGuestRosterEntry.findMany({
@@ -652,7 +660,7 @@ export class GuestWorkflowService implements GuestCommands {
 
   private async requireRosterCheckInEligibility(tx: Prisma.TransactionClient, event: Pick<OperationsEventReference, 'id' | 'walkInPolicy' | 'walkInThreshold'>, roster: OpsGuestRosterEntry) {
       if (roster.verificationStatus === 'rejected') throw new BadRequestException('Roster entry verification was rejected');
-      const walkIn = COORDINATOR_REVIEW_SOURCES.includes(roster.source as (typeof COORDINATOR_REVIEW_SOURCES)[number]);
+      const walkIn = GUEST_VERIFICATION_REQUIRED_ROSTER_SOURCES.includes(roster.source);
       if (walkIn && roster.verificationStatus !== 'verified') {
         throw new BadRequestException('Walk-in must be verified before check-in');
       }
@@ -809,6 +817,7 @@ export class GuestWorkflowService implements GuestCommands {
       guestAccessCode: this.guestAccessCode(event),
       watermark: this.guestEventWatermark(event.updatedAt),
       feedbackAvailability: guestFeedbackAvailability(event.actualEndedAt),
+      ...guestArrivalDetails(event.confirmedArrival),
     };
   }
 
@@ -848,8 +857,8 @@ export class GuestWorkflowService implements GuestCommands {
       eligibility: entry.eligibility,
       verificationStatus: entry.verificationStatus as PrismCoordinatorRegistrationEntry['verificationStatus'],
       checkedInAt: entry.checkedInAt?.toISOString() ?? null,
-      walkIn: COORDINATOR_REVIEW_SOURCES.includes(entry.source as (typeof COORDINATOR_REVIEW_SOURCES)[number]),
-      ...(COORDINATOR_REVIEW_SOURCES.includes(entry.source as (typeof COORDINATOR_REVIEW_SOURCES)[number])
+      walkIn: GUEST_VERIFICATION_REQUIRED_ROSTER_SOURCES.includes(entry.source),
+      ...(GUEST_VERIFICATION_REQUIRED_ROSTER_SOURCES.includes(entry.source)
         ? { reviewSubmittedAt: entry.createdAt.toISOString() }
         : {}),
     };

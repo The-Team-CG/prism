@@ -4,11 +4,11 @@ title: "P.R.I.S.M portal accounts"
 description: "Local fixture accounts, access paths, and role-boundary notes for Prism portal verification."
 tags: [runbook, accounts, demo, roles]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-10-29"
 authority: operational
 audience: [developers, QA, agents]
 scope: "local seeded accounts and role-bound portal sign-in"
-last_verified: "2026-10-23; local account source and CLI scope; hosted credentials unverified"
+last_verified: "2026-10-29; fixture seeder accounts/passwords, guest code derivation, seed guards, and portal sign-in routes reviewed against code; hosted credentials unverified"
 sources:
   - id: fixture-seed
     resource: "apps/api/src/fixtures/local-fixture-seeder.ts"
@@ -39,8 +39,11 @@ Accounts exist after the explicit fixture seed runs against an empty local dispo
 | Client | `apps/client` | http://localhost:3001/sign-in | Approved client |
 | Supplier | `apps/supplier` | http://localhost:3002/sign-in | Approved supplier |
 | Guest | `apps/guest` | http://localhost:3003/open | Event access code (no password account) |
-| Event command | `apps/event` | http://localhost:3004 | PMCM admin + coordinator |
+| Event command | `apps/event` | http://localhost:3004/sign-in | PMCM admin + coordinator |
 | API | `apps/api` | http://localhost:4000 | Shared backend for all portals |
+
+These are the primary checkout's ports; a linked worktree prints its own with
+`npm run ports` (see [parallel worktrees](parallel-worktrees.md)).
 
 ## Local fixture accounts
 
@@ -117,7 +120,7 @@ API startup does **not** seed data. The application has no sample state or reset
 
    The command refuses production, remote URLs, a different database name, and populated fixture tables across all Prisma models. It writes directly through Prisma, does not start the API server, and never deletes existing rows. Stop the API and other database writers, and run only one seed command at a time: the empty-database check completes before fixture writes begin. Use a newly created disposable database.
 
-After the command completes, you should be able to sign in with every account above. Running the API alone does not create these accounts. The seed only runs on an empty database, so `approver@pmcm.test` is absent from databases seeded before it was added; create a new disposable database to get it.
+After the command completes, you should be able to sign in with every account above. Running the API alone does not create these accounts. The seed only runs on an empty database; to pick up accounts added to the seeder later, create a new disposable database.
 
 ## Portal boundaries
 

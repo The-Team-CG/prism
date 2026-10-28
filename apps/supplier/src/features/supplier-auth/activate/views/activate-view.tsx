@@ -1,5 +1,7 @@
 "use client";
 
+import { PrismAccountHelp } from "@prism/ui/account-help";
+import { pmcmSupportContactFromEnvironment } from "@/lib/portal-urls";
 import { FormEvent } from "react";
 import { PrismAuthShell, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
 import { portalHref } from "@prism/ui/portal-path";
@@ -44,6 +46,9 @@ export function SupplierActivateView() {
           <p role="status" className="text-sm text-foreground">
             {ACTIVATION_INVALID_COPY}
           </p>
+          <div className="text-sm text-muted-foreground">
+            <PrismAccountHelp contact={pmcmSupportContactFromEnvironment()} topic="an expired invitation link" fallback={null} />
+          </div>
           <a href={portalHref("/sign-in")} className="text-center text-sm text-primary transition-colors hover:text-primary/80">
             Back to sign in
           </a>

@@ -9,10 +9,14 @@ import type {
   Viewport,
 } from "./types";
 import { uid } from "./assetLibrary";
+import { fittedViewport } from "./canvas-pointer";
 
 export type Action =
   | { type: "SET_TOOL"; tool: Tool }
   | { type: "SET_VIEWPORT"; viewport: Partial<Viewport> }
+  | { type: "SET_CANVAS_SIZE"; size: { w: number; h: number } }
+  | { type: "FIT_TO_PLAN" }
+  | { type: "FOCUS_SELECTION" }
   | { type: "ADD_OBJECT"; obj: CanvasObject; select?: boolean }
   | { type: "ADD_OBJECTS"; objs: CanvasObject[]; replace?: boolean }
   | { type: "UPDATE_OBJECT"; id: string; patch: Partial<CanvasObject> }
@@ -168,6 +172,21 @@ export const handlers: ActionHandlers = {
   },
   SET_VIEWPORT(state, action) {
     return { ...state, viewport: { ...state.viewport, ...action.viewport } };
+  },
+  SET_CANVAS_SIZE(state, action) {
+    return { ...state, canvasSize: action.size };
+  },
+  FIT_TO_PLAN(state) {
+    const size = state.canvasSize;
+    if (!size || size.w < 100 || size.h < 100) return state;
+    return { ...state, viewport: fittedViewport(size, state.project) };
+  },
+  /** Brings the selected objects into view, so a selection made from a list can be found on a large plan. */
+  FOCUS_SELECTION(state) {
+    const size = state.canvasSize;
+    const selected = state.project.objects.filter((object) => state.selectedIds.includes(object.id));
+    if (!size || size.w < 100 || size.h < 100 || selected.length === 0) return state;
+    return { ...state, viewport: fittedViewport(size, { ...state.project, objects: selected }) };
   },
   HOVER(state, action) {
     return { ...state, hoveredId: action.id };

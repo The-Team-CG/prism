@@ -3,6 +3,7 @@ import { WorkflowCommandService } from '@prism/kernel/event-core';
 import type { CommandReceiptCreate, CommandReceiptKey, CommandReceiptRecord, CommandReceiptStore } from '@prism/kernel/event-core';
 import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
 import { GuestWorkflowService } from './guest-workflow.service';
+import type { GuestEventProjection } from '@prism/contexts/read-models/guest-events';
 
 import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 let guestCheckInRequestSequence = 0;
@@ -957,6 +958,13 @@ describe('GuestWorkflowService', () => {
       }),
     );
     expect(service.mapGuestEvent(state.events[0] as any)).not.toHaveProperty('attendanceCount');
+    // Confirmed arrival facts are trimmed onto the pass; blank values are omitted rather than sent empty.
+    const guestEvent = state.events[0] as GuestEventProjection;
+    expect(service.mapGuestEvent({ ...guestEvent, confirmedArrival: { venue: ' Grand Ballroom, Makati ', confirmedStartTime: '18:30' } }))
+      .toMatchObject({ venue: 'Grand Ballroom, Makati', startTime: '18:30' });
+    const blankArrival = service.mapGuestEvent({ ...guestEvent, confirmedArrival: { venue: '  ', confirmedStartTime: null } });
+    expect(blankArrival).not.toHaveProperty('venue');
+    expect(blankArrival).not.toHaveProperty('startTime');
     const guestCheckInPayload = service.mapGuestCheckIn(state.guestCheckIns[0] as any);
     expect(guestCheckInPayload).toMatchObject({ guestName: 'Existing Guest' });
     expect(guestCheckInPayload).not.toHaveProperty('privacyConsentAccepted');
