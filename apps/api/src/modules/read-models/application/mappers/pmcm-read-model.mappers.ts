@@ -195,7 +195,6 @@ export function mapEvent(event: EventWithDrafts, dependencies: EventReadModelMap
     clientEventDayViewEnabled: event.clientEventDayViewEnabled,
     readiness: event.readiness,
     actualEndedAt: event.actualEndedAt?.toISOString() ?? null,
-    actualEndedBy: event.actualEndedBy,
     archived: event.archived,
     floorPlanStatus: event.floorPlanStatus,
     floorPlanId: event.floorPlanId,

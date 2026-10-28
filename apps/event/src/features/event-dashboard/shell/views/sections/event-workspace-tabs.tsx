@@ -17,6 +17,7 @@ import { isScopeFrozen } from "@/features/change-management/register/model/chang
 import { EventOverviewPanels } from "@/features/command-inbox/list";
 import { FinancialWorkspace } from "@/features/finance/workspace";
 import { BillingSourcePanel } from "@/features/finance/billing-source/views/billing-source-panel";
+import { canStartEventDay } from "../../model/event-dashboard-selectors";
 import { BillingAdjustmentsPanel } from "@/features/finance/billing-adjustments/views/billing-adjustments-panel";
 import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
 import { HandoffBriefPanel } from "@/features/live-ops/handoff-brief";
@@ -43,7 +44,7 @@ export function EventWorkspaceOverviewTab() {
   if (!vm.selectedEvent) return null;
   return (
     <div className="space-y-4">
-      {isPmcmAdmin(vm.session.role) && vm.selectedEvent.status === "planning" && !vm.selectedEvent.archived ? (
+      {isPmcmAdmin(vm.session.role) && canStartEventDay(vm.selectedEvent) ? (
         <section className="rounded-lg border border-border bg-card p-5">
           <h2 className="text-lg font-bold">Event day</h2>
           <p className="mt-1 text-sm text-muted-foreground">Start live operations after the conforme is signed and the official floorplan is approved.</p>
@@ -391,6 +392,7 @@ export function EventWorkspaceBillingTab() {
   return (
     <div className="space-y-5">
       <BillingSourcePanel
+        key={vm.selectedEvent.id}
         eventName={vm.selectedEvent.eventName}
         billingSources={vm.billingSources}
         proposalDocuments={vm.documents.filter((document) => document.eventId === vm.selectedEvent!.id && /proposal/i.test(document.type))}
