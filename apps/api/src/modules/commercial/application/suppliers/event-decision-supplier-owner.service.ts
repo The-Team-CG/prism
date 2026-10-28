@@ -4,11 +4,13 @@ import type { EventDecisionSupplierImpact, EventDecisionSupplierOwner } from '..
 
 @Injectable()
 export class EventDecisionSupplierOwnerService implements EventDecisionSupplierOwner {
-  findEventDecisionSupplierImpact(eventId: string, transaction: PrismTransactionContext): Promise<EventDecisionSupplierImpact[]> {
-    return transaction.prisma.opsSupplierQuoteRequest.findMany({
+
+  async findEventDecisionSupplierImpact(eventId: string, transaction: PrismTransactionContext): Promise<EventDecisionSupplierImpact[]> {
+    const rows = await transaction.prisma.opsSupplierQuoteRequest.findMany({
       where: { eventId, assignmentStatus: { not: 'withdrawn' } },
-      select: { id: true, supplierName: true, assignmentStatus: true },
+      select: { id: true, supplierName: true, assignmentStatus: true, supplier: { select: { email: true } } },
     });
+    return rows.map(({ supplier, ...row }) => ({ ...row, supplierEmail: supplier?.email ?? null }));
   }
 
   async releaseEventSupplierObligations(eventId: string, transaction: PrismTransactionContext) {

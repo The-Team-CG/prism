@@ -41,6 +41,7 @@ import { PAREService } from './application/ai-governance/pare/pare.service';
 import { PareDispatchOutboxService } from './application/ai-governance/pare/pare-dispatch-outbox.service';
 import { PARE_APPROVAL_GOVERNANCE, PARE_DISPATCH_WRITER } from './contracts/ai-governance/pare-ops.tokens';
 import { StorageObjectService } from './application/storage/storage-object.service';
+import { STORED_REQUIREMENT_UPLOAD_READER } from './contracts/storage/storage.port';
 import { StorageValidationService } from './application/storage/storage-validation.service';
 import { STORAGE_ADAPTER, STORED_SUPPLIER_UPLOAD_READER } from './contracts/storage/storage.port';
 import { LocalFileSystemStorageAdapter } from './infrastructure/storage/local-filesystem-storage.adapter';
@@ -173,6 +174,7 @@ export function createAiProviderAdapters(
     StorageValidationService,
     StorageObjectService,
     { provide: STORED_SUPPLIER_UPLOAD_READER, useExisting: StorageObjectService },
+    { provide: STORED_REQUIREMENT_UPLOAD_READER, useExisting: StorageObjectService },
     storageAdapterProvider,
   ],
   exports: [
@@ -195,6 +197,7 @@ export function createAiProviderAdapters(
     StorageValidationService,
     StorageObjectService,
     STORED_SUPPLIER_UPLOAD_READER,
+    STORED_REQUIREMENT_UPLOAD_READER,
     STORAGE_ADAPTER,
   ],
 })

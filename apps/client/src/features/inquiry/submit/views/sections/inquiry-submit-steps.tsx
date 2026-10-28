@@ -1,18 +1,37 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Send } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Briefcase,
+  Building2,
+  GraduationCap,
+  HeartHandshake,
+  Landmark,
+  type LucideIcon,
+  MoreHorizontal,
+  PartyPopper,
+  Presentation,
+  Rocket,
+  Send,
+  Sparkles,
+  User,
+} from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Textarea } from "@/app/components/ui/textarea";
-import { formatInquiryDate } from "../../model/inquiry-submit-rules";
+import { DatePicker } from "@prism/ui/components/date-picker";
+import { formatInquiryDate, formatInquiryPhone, inquiryEventTypeLabel, inquirySourceLabel } from "../../model/inquiry-submit-rules";
 import { cn } from "@/app/components/ui/utils";
 import type { InquiryForm } from "../../model/inquiry-submit-types";
 import {
   INQUIRY_BUDGET_RANGES,
+  INQUIRY_CITY_SUGGESTIONS,
   INQUIRY_CLIENT_TYPES,
   INQUIRY_DATE_OPTIONS,
   INQUIRY_EVENT_TYPES,
+  INQUIRY_OTHER_OPTION,
   INQUIRY_PRIORITY_OPTIONS,
   INQUIRY_REFERRAL_SOURCES,
   INQUIRY_VENUE_OPTIONS,
@@ -21,6 +40,23 @@ import {
 import { InquiryChoiceGroup } from "./inquiry-choice-group";
 
 const controlClass = "h-11 rounded-lg border-border-strong bg-white px-3.5 text-base md:text-base";
+
+const EVENT_TYPE_ICONS: Partial<Record<string, LucideIcon>> = {
+  "Corporate event": Briefcase,
+  Conference: Presentation,
+  Gala: Sparkles,
+  "Product launch": Rocket,
+  "Private celebration": PartyPopper,
+  "Training or workshop": GraduationCap,
+  Other: MoreHorizontal,
+};
+
+const CLIENT_TYPE_ICONS: Partial<Record<string, LucideIcon>> = {
+  Corporate: Building2,
+  Government: Landmark,
+  Individual: User,
+  "Non-profit": HeartHandshake,
+};
 
 type InquiryUpdate = <K extends keyof InquiryForm>(key: K, value: InquiryForm[K]) => void;
 type InquiryStepProps = { form: InquiryForm; update: InquiryUpdate };
@@ -44,6 +80,8 @@ function TextField({
   min,
   inputMode,
   autoComplete,
+  list,
+  autoFocus,
 }: {
   id: keyof InquiryForm;
   label: string;
@@ -56,9 +94,11 @@ function TextField({
   min?: string;
   inputMode?: "numeric" | "tel" | "email" | "text";
   autoComplete?: string;
+  list?: string;
+  autoFocus?: boolean;
 }) {
   return (
-    <div className="grid gap-2">
+    <div className="grid content-start gap-2">
       <label htmlFor={id} className="text-sm font-semibold text-foreground">
         {label}
         {required ? null : <span className="font-normal text-muted-foreground"> (optional)</span>}
@@ -70,6 +110,8 @@ function TextField({
         min={min}
         inputMode={inputMode}
         autoComplete={autoComplete}
+        list={list}
+        autoFocus={autoFocus}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         required={required}
@@ -88,10 +130,20 @@ function TextField({
 function EventStep({ form, update, minDate }: InquiryStepProps & { minDate: string }) {
   return (
     <div className="grid gap-7">
-      <InquiryChoiceGroup label="What kind of event?" options={INQUIRY_EVENT_TYPES} value={form.eventType} onChange={(value) => update("eventType", value)} required />
+      <InquiryChoiceGroup label="What kind of event?" options={INQUIRY_EVENT_TYPES} icons={EVENT_TYPE_ICONS} value={form.eventType} onChange={(value) => update("eventType", value)} required>
+        {form.eventType === INQUIRY_OTHER_OPTION ? (
+          <TextField id="eventTypeOther" label="What kind of event is it?" value={form.eventTypeOther} onChange={(value) => update("eventTypeOther", value)} placeholder="For example, Awards night" required autoFocus />
+        ) : null}
+      </InquiryChoiceGroup>
       <TextField id="eventName" label="Event name" value={form.eventName} onChange={(value) => update("eventName", value)} placeholder="For example, Annual sales kickoff" required />
       <div className="grid gap-7 md:grid-cols-2">
-        <TextField id="eventDate" label="Preferred date" type="date" min={minDate} value={form.eventDate} onChange={(value) => update("eventDate", value)} required />
+        <div className="grid content-start gap-2">
+          <label htmlFor="eventDate" className="text-sm font-semibold text-foreground">Preferred date</label>
+          <DatePicker id="eventDate" value={form.eventDate} onValueChange={(value) => update("eventDate", value)} min={minDate} required aria-describedby="eventDate-hint" className={controlClass} />
+          <p id="eventDate-hint" className={cn("text-sm", form.eventDate ? "font-medium text-foreground" : "text-muted-foreground")}>
+            {form.eventDate ? formatInquiryDate(form.eventDate) : "Month, day, year. Or pick it from the calendar."}
+          </p>
+        </div>
         <TextField id="expectedGuests" label="Expected guests" type="number" min="1" inputMode="numeric" value={form.expectedGuests} onChange={(value) => update("expectedGuests", value)} placeholder="150" required />
       </div>
       <InquiryChoiceGroup label="How fixed is the date?" options={INQUIRY_DATE_OPTIONS} value={form.dateFlexibility} onChange={(value) => update("dateFlexibility", value)} />
@@ -102,7 +154,12 @@ function EventStep({ form, update, minDate }: InquiryStepProps & { minDate: stri
 function VenueBudgetStep({ form, update }: InquiryStepProps) {
   return (
     <div className="grid gap-7">
-      <TextField id="venueCity" label="Venue or city" value={form.venueCity} onChange={(value) => update("venueCity", value)} placeholder="For example, Makati" hint="A city is enough if the venue is not final." />
+      <TextField id="venueCity" label="Venue or city" value={form.venueCity} onChange={(value) => update("venueCity", value)} placeholder="For example, Makati" hint="Pick a city or type the venue name. A city is enough if the venue is not final." list="inquiry-city-suggestions" />
+      <datalist id="inquiry-city-suggestions">
+        {INQUIRY_CITY_SUGGESTIONS.map((city) => (
+          <option key={city} value={city} />
+        ))}
+      </datalist>
       <InquiryChoiceGroup label="Venue status" options={INQUIRY_VENUE_OPTIONS} value={form.venueStatus} onChange={(value) => update("venueStatus", value)} />
       <InquiryChoiceGroup label="Budget range" options={INQUIRY_BUDGET_RANGES} value={form.budgetRange} onChange={(value) => update("budgetRange", value)} required />
       <InquiryChoiceGroup label="How soon do you need a reply?" options={INQUIRY_PRIORITY_OPTIONS} value={form.inquiryPriority} onChange={(value) => update("inquiryPriority", value)} required />
@@ -132,10 +189,14 @@ function DetailsStep({ form, update }: InquiryStepProps) {
         <TextField id="clientName" label="Full name" value={form.clientName} onChange={(value) => update("clientName", value)} autoComplete="name" required />
         <TextField id="companyName" label="Company or organisation" value={form.companyName} onChange={(value) => update("companyName", value)} autoComplete="organization" />
         <TextField id="email" label="Email" type="email" inputMode="email" value={form.email} onChange={(value) => update("email", value)} autoComplete="email" required />
-        <TextField id="phoneNumber" label="Mobile number" type="tel" inputMode="tel" value={form.phoneNumber} onChange={(value) => update("phoneNumber", value)} placeholder="0917 123 4567" autoComplete="tel" required />
+        <TextField id="phoneNumber" label="Mobile number" type="tel" inputMode="tel" value={form.phoneNumber} onChange={(value) => update("phoneNumber", formatInquiryPhone(value))} placeholder="0917 123 4567" autoComplete="tel" required />
       </div>
-      <InquiryChoiceGroup label="You are booking as" options={INQUIRY_CLIENT_TYPES} value={form.clientType} onChange={(value) => update("clientType", value)} required />
-      <InquiryChoiceGroup label="How did you hear about PMCM?" options={INQUIRY_REFERRAL_SOURCES} value={form.source} onChange={(value) => update("source", value)} required />
+      <InquiryChoiceGroup label="You are booking as" options={INQUIRY_CLIENT_TYPES} icons={CLIENT_TYPE_ICONS} value={form.clientType} onChange={(value) => update("clientType", value)} required />
+      <InquiryChoiceGroup label="How did you hear about PMCM?" options={INQUIRY_REFERRAL_SOURCES} value={form.source} onChange={(value) => update("source", value)} required>
+        {form.source === INQUIRY_OTHER_OPTION ? (
+          <TextField id="sourceOther" label="Where did you hear about PMCM?" value={form.sourceOther} onChange={(value) => update("sourceOther", value)} placeholder="For example, an Instagram post" required autoFocus />
+        ) : null}
+      </InquiryChoiceGroup>
     </div>
   );
 }
@@ -147,9 +208,9 @@ function ReviewStep({
   onEdit,
 }: InquiryStepProps & { error: string | null; onEdit: (step: number) => void }) {
   const groups = [
-    { step: 0, title: "Event", rows: [["Name", form.eventName], ["Type", form.eventType], ["Date", formatInquiryDate(form.eventDate)], ["Date flexibility", form.dateFlexibility], ["Guests", form.expectedGuests]] },
+    { step: 0, title: "Event", rows: [["Name", form.eventName], ["Type", inquiryEventTypeLabel(form)], ["Date", formatInquiryDate(form.eventDate)], ["Date flexibility", form.dateFlexibility], ["Guests", form.expectedGuests]] },
     { step: 1, title: "Venue and budget", rows: [["Venue or city", form.venueCity], ["Venue status", form.venueStatus], ["Budget", form.budgetRange], ["Reply needed", form.inquiryPriority], ["Notes", form.message]] },
-    { step: 2, title: "Your details", rows: [["Name", form.clientName], ["Organisation", form.companyName], ["Email", form.email], ["Mobile", form.phoneNumber], ["Booking as", form.clientType], ["Heard via", form.source]] },
+    { step: 2, title: "Your details", rows: [["Name", form.clientName], ["Organisation", form.companyName], ["Email", form.email], ["Mobile", form.phoneNumber], ["Booking as", form.clientType], ["Heard via", inquirySourceLabel(form)]] },
   ] as const;
   return (
     <div className="grid gap-6">

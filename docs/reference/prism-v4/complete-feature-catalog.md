@@ -4,9 +4,8 @@ title: "P.R.I.S.M Version 4 complete feature catalog"
 description: "Source-preserving Version 4 feature tables and official manuscript/defense counts."
 tags: [reference, prism-v4, catalog, manuscript]
 status: reference
-updated: "2026-09-01"
+updated: "2026-10-28"
 authority: reference
-owner: "Product and academic traceability"
 audience: [product, reviewers, researchers]
 scope: "P.R.I.S.M Version 4 feature catalog and source counts"
 last_verified: "V4 source"
@@ -21,7 +20,6 @@ sources:
 
 - **Purpose:** Preserve the Version 4 feature inventory and source counts for traceability.
 - **Authority:** Reference only; it does not override the current product ledger or architecture.
-- **Owner:** Product and academic traceability.
 - **Scope:** Manuscript/defense catalog material and its feature identifiers.
 - **Use when:** Tracing a current decision back to the Version 4 source inventory.
 - **Change when:** A new source catalog version replaces Version 4.

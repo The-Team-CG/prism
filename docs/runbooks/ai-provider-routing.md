@@ -4,9 +4,8 @@ title: "Local AI provider and model routing"
 description: "Configure local synthetic-only AI provider routes and understand the activation limits for Prism's AI gateway."
 tags: [runbook, ai, providers, routing, privacy]
 status: canonical
-updated: "2026-10-06"
+updated: "2026-10-28"
 authority: operational
-owner: "D (Anthony)"
 audience: [developers, reviewers, agents]
 scope: "Local AI provider/model selection and the current staging/real-data activation boundary"
 last_verified: "2026-09-28; local route defaults and synthetic-only limits recorded; external route qualification remains open"
@@ -24,7 +23,6 @@ sources:
 
 - **Purpose:** Configure local synthetic-only provider routes and preserve the current activation gates.
 - **Authority:** Operational guide; staging and production activation require separate approval.
-- **Owner:** D (Anthony).
 - **Scope:** Local provider/model selection and current AI data-use limits.
 - **Use when:** Changing local AI provider, model, or route profile.
 - **Change when:** Provider support or activation policy changes.

@@ -69,6 +69,7 @@ describe('EventScheduleService authority', () => {
     const access = { requireActorRole: vi.fn().mockRejectedValue(new ForbiddenException('denied')) };
     await expect(service(access).designateOperator('evt_1', { coordinatorId: 'coord_1' }, { id: 'coord_1', name: 'Coordinator', role: 'coordinator' } as never)).rejects.toThrow('denied');
     expect(access.requireActorRole).toHaveBeenCalledWith(expect.anything(), ['pmcm-admin'], 'event day system operator designation', 'evt_1');
+    await expect(service(access).revokeOperator('evt_1', { id: 'coord_1', name: 'Coordinator', role: 'coordinator', explicit: true })).rejects.toThrow('denied');
   });
 
   it('does not permit a coordinator to bypass event-day authority checks', async () => {
@@ -104,6 +105,7 @@ describe('EventScheduleService authority', () => {
     const day = { id: 'day_1' };
     const assignment = { id: 'assignment_1', role: 'Floor Director', coordinatorId: 'coord_1', coordinatorName: 'Coordinator One' };
     const tx = {
+      $executeRaw: vi.fn(async () => 0),
       opsEventScheduleDay: { findFirst: vi.fn().mockResolvedValue(day) },
       opsCoordinatorAssignment: { findFirst: vi.fn().mockResolvedValue(assignment) },
       opsEventHandoff: { create: vi.fn() },
@@ -135,6 +137,7 @@ describe('EventScheduleService authority', () => {
       revokedBy: null,
     };
     const tx = {
+      $executeRaw: vi.fn(async () => 0),
       opsCoordinator: { findFirst: vi.fn().mockResolvedValue(current) },
       opsCoordinatorAssignment: { findFirst: vi.fn().mockResolvedValue({ id: 'assignment_2' }) },
       opsEventOperatorDesignation: {
@@ -178,6 +181,7 @@ describe('EventScheduleService operator designation', () => {
 
   function harness(eligibleAssignment: Record<string, unknown> | null) {
     const tx = {
+      $executeRaw: vi.fn(async () => 0),
       opsEventOperatorDesignation: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         create: vi.fn().mockResolvedValue({ id: 'designation_2', eventId: 'evt_1', coordinatorId: 'coord_2' }),
@@ -280,6 +284,7 @@ describe('EventScheduleService schedule-segment transitions', () => {
     };
     let updated = current;
     const tx = {
+      $executeRaw: vi.fn(async () => 0),
       $queryRaw: vi.fn(async () => []),
       opsEventScheduleSegment: {
         findFirst: vi.fn(async () => updated),
@@ -357,6 +362,7 @@ describe('EventScheduleService schedule-segment transitions', () => {
         let stagedDayStatus: string | undefined;
         let releaseDayLock: (() => void) | undefined;
         const tx = {
+      $executeRaw: vi.fn(async () => 0),
           $queryRaw: vi.fn(async () => {
             const priorLock = lockTail;
             let release!: () => void;
@@ -471,6 +477,7 @@ describe('EventScheduleService end-of-day reports', () => {
     const day = { dayDate: new Date('2026-10-02T00:00:00.000Z') };
     const existing = { id: 'report_1', authoredBy: 'user_coord_1' };
     const tx = {
+      $executeRaw: vi.fn(async () => 0),
       opsEventScheduleDay: { findFirst: vi.fn(async () => day) },
       opsEventEodReport: {
         findUnique: vi.fn(async () => existing),
@@ -493,6 +500,7 @@ describe('EventScheduleService end-of-day reports', () => {
   it('turns a concurrent same-day report insert into a reload conflict', async () => {
     const day = { dayDate: new Date('2026-10-02T00:00:00.000Z') };
     const tx = {
+      $executeRaw: vi.fn(async () => 0),
       opsEventScheduleDay: { findFirst: vi.fn(async () => day) },
       opsEventEodReport: {
         findUnique: vi.fn(async () => null),

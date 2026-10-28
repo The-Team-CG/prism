@@ -20,6 +20,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { PrismAuditLog, PrismBillingStatement, PrismBriefing, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone } from "@prism/types";
+import { DatePicker } from "@prism/ui/components/date-picker";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -135,7 +136,10 @@ function BriefingSubmissionForm({ briefing, busy, onSubmit, values, setters }: {
       <BriefingField label="Venue preference" required value={values.venue} onChange={setters.setVenue} />
       <BriefingField label="Expected guest count" required type="number" min={1} value={values.guestCount} onChange={setters.setGuestCount} />
       <BriefingField label="Budget range" required value={values.budgetRange} onChange={setters.setBudgetRange} />
-      <BriefingField label="Confirmed date" type="date" value={values.confirmedDate} onChange={setters.setConfirmedDate} />
+      <div className="block space-y-1.5 text-xs font-semibold text-muted-foreground">
+        <label htmlFor="confirmed-date">Confirmed date</label>
+        <DatePicker id="confirmed-date" aria-label="Confirmed date" value={values.confirmedDate} onValueChange={setters.setConfirmedDate} className="w-full rounded-xl border-border bg-background px-3 py-2 text-sm font-normal text-foreground" />
+      </div>
       <BriefingField label="Start time" type="time" value={values.confirmedStartTime} onChange={setters.setConfirmedStartTime} />
       <BriefingField label="End time" type="time" value={values.confirmedEndTime} onChange={setters.setConfirmedEndTime} />
       <BriefingField label="Styling budget" type="number" min={0} value={values.stylingBudget} onChange={setters.setStylingBudget} />

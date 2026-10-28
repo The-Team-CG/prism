@@ -1,6 +1,6 @@
 import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Download, MailCheck, ReceiptText, Send, WalletCards, X } from "lucide-react";
 
-import type { PrismBillingStatement, PrismEvent, PrismInquiry, PrismNotificationLog, PrismPaymentMilestone } from "@prism/types";
+import type { MarkPaymentInput, PrismBillingStatement, PrismEvent, PrismInquiry, PrismNotificationLog, PrismPaymentMilestone } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -240,10 +240,12 @@ export function PaymentTracker({
   payments,
   busy,
   onRecord,
+  onMarkPayment,
 }: {
   payments: PrismPaymentMilestone[];
   busy: boolean;
   onRecord: (payment: PrismPaymentMilestone) => void;
+  onMarkPayment: (milestoneId: string, input: MarkPaymentInput) => Promise<void>;
 }) {
   return (
     <Card>
@@ -256,7 +258,7 @@ export function PaymentTracker({
           <EmptyState icon={WalletCards} title="No milestones yet" description="Milestones appear after the billing statement is posted." />
         ) : (
           payments.map((payment) => (
-            <PaymentMilestoneCard key={payment.id} payment={payment} busy={busy} onRecord={onRecord} />
+            <PaymentMilestoneCard key={payment.id} payment={payment} busy={busy} onRecord={onRecord} onMarkPayment={onMarkPayment} />
           ))
         )}
       </CardBody>
@@ -268,10 +270,12 @@ function PaymentMilestoneCard({
   payment,
   busy,
   onRecord,
+  onMarkPayment,
 }: {
   payment: PrismPaymentMilestone;
   busy: boolean;
   onRecord: (payment: PrismPaymentMilestone) => void;
+  onMarkPayment: (milestoneId: string, input: MarkPaymentInput) => Promise<void>;
 }) {
   const overdue = isPaymentOverdue(payment.status, payment.dueDate);
   return (
@@ -324,6 +328,17 @@ function PaymentMilestoneCard({
         >
           <WalletCards className="size-3" /> Record payment
         </Button>
+        {payment.status !== "paid" ? (
+          <Button
+            size="sm"
+            disabled={busy}
+            onClick={() => void onMarkPayment(payment.id, { status: payment.status === "at_risk" ? "pending" : "at_risk" })}
+            variant="ghost"
+            className="rounded-lg font-bold"
+          >
+            {payment.status === "at_risk" ? "Clear risk" : "Mark at risk"}
+          </Button>
+        ) : null}
       </div>
     </div>
   );

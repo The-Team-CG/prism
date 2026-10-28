@@ -16,7 +16,7 @@ import { mapPaymentMilestone, mapPaymentRecord } from './billing-operations.mapp
 const MAX_OVERDUE_REMINDERS_PER_SWEEP = 200;
 
 function paymentReplay(milestone: OpsPaymentMilestone, history: OpsPaymentRecord[]) {
-  const amountPaid = history.reduce((sum, record) => sum + record.amountReceived, 0);
+  const amountPaid = milestone.creditApplied + history.reduce((sum, record) => sum + record.amountReceived, 0);
   const remainingBalance = Math.max(0, milestone.amount - amountPaid);
   return {
     payment: {
@@ -37,7 +37,7 @@ function isDuplicatePayment(record: OpsPaymentRecord, input: RecordPaymentInput,
 }
 
 function assertPaymentWithinBalance(milestone: OpsPaymentMilestone, history: OpsPaymentRecord[], input: RecordPaymentInput) {
-  const currentPaid = history.reduce((sum, record) => sum + record.amountReceived, 0);
+  const currentPaid = milestone.creditApplied + history.reduce((sum, record) => sum + record.amountReceived, 0);
   if (currentPaid + input.amountReceived > milestone.amount) {
     throw new BadRequestException('Payment record exceeds remaining milestone balance');
   }
@@ -56,8 +56,7 @@ function paymentStatus(amountPaid: number, amount: number) {
 async function lockPaymentMilestone(tx: Prisma.TransactionClient, milestoneId: string) {
   if (tx.$queryRaw) {
     // QUERY_AUDIT_RAW_SQL: lock the milestone row before applying a payment mutation.
-    const rows = await tx.$queryRaw<OpsPaymentMilestone[]>`SELECT * FROM "commercial"."payment_milestones" WHERE "id" = ${milestoneId} FOR UPDATE`;
-    if (rows.length > 0) return rows[0];
+    await tx.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "commercial"."payment_milestones" WHERE "id" = ${milestoneId} FOR UPDATE`;
   }
   return tx.opsPaymentMilestone.findUnique({ where: { id: milestoneId } });
 }
@@ -89,7 +88,7 @@ export class PaymentOperationsService implements PaymentStatusReader {
     const milestones = eventIds.length === 0
       ? []
       : await this.prisma.opsPaymentMilestone.findMany({
-          where: { eventId: { in: eventIds } },
+          where: { eventId: { in: eventIds }, supersededAt: null },
           orderBy: [{ eventId: 'asc' }, { dueDate: 'asc' }, { id: 'asc' }],
         });
     const milestonesByEventId = new Map<string, OpsPaymentMilestone[]>();
@@ -118,6 +117,7 @@ export class PaymentOperationsService implements PaymentStatusReader {
               eventId: event.id,
               status: { notIn: ['paid', 'at_risk'] },
               remainingBalance: { gt: 0 },
+              supersededAt: null,
             },
             data: { status: 'at_risk' },
           }),
@@ -148,7 +148,7 @@ export class PaymentOperationsService implements PaymentStatusReader {
    */
   private async enqueueOverdueReminders(now: Date) {
     const overdue = await this.prisma.opsPaymentMilestone.findMany({
-      where: { dueDate: { lt: now }, remainingBalance: { gt: 0 }, status: { not: 'paid' } },
+      where: { dueDate: { lt: now }, remainingBalance: { gt: 0 }, status: { not: 'paid' }, supersededAt: null },
       select: { id: true, eventId: true, label: true },
       orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
       take: MAX_OVERDUE_REMINDERS_PER_SWEEP,
@@ -181,17 +181,16 @@ export class PaymentOperationsService implements PaymentStatusReader {
         await this.requireEvent(eventId);
         milestone = await this.prisma.opsPaymentMilestone.findUnique({ where: { id: milestoneId } });
         if (!milestone || milestone.eventId !== eventId) throw new NotFoundException('Payment milestone not found');
+        if (milestone.supersededAt) throw new BadRequestException('A superseded milestone cannot be changed');
         status = nextPaymentMilestoneStatus({ current: milestone.status, amountPaid: milestone.amountPaid, amount: milestone.amount, requested: status });
       },
-      write: () =>
-        this.prisma.opsPaymentMilestone
-          .update({
-            where: { id: milestoneId },
-            data: { status },
-          })
-          .catch(() => {
-            throw new NotFoundException('Payment milestone not found');
-          }),
+      write: async () => {
+        const changed = await this.prisma.opsPaymentMilestone.updateMany({ where: { id: milestoneId, eventId, supersededAt: null }, data: { status } });
+        if (changed.count !== 1) throw new BadRequestException('A superseded milestone cannot be changed');
+        const saved = await this.prisma.opsPaymentMilestone.findUnique({ where: { id: milestoneId } });
+        if (!saved) throw new NotFoundException('Payment milestone not found');
+        return saved;
+      },
       sideEffects: async (payment) => {
         await Promise.all([
           writeAudit(this.auditWriter, eventId, actor.name, `Marked ${payment.label} as ${status}`, {
@@ -237,6 +236,7 @@ export class PaymentOperationsService implements PaymentStatusReader {
         if (!milestone || milestone.eventId !== eventId) {
           throw new NotFoundException('Payment milestone not found');
         }
+        if (milestone.supersededAt) throw new BadRequestException('A superseded milestone cannot receive a payment');
 
         assertPositivePayment(input.amountReceived);
 
@@ -250,6 +250,7 @@ export class PaymentOperationsService implements PaymentStatusReader {
         return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
           const lockedMilestone = await lockPaymentMilestone(tx, milestoneId);
           if (!lockedMilestone || lockedMilestone.eventId !== eventId) throw new NotFoundException('Payment milestone not found');
+          if (lockedMilestone.supersededAt) throw new BadRequestException('A superseded milestone cannot receive a payment');
           milestone = lockedMilestone;
           const history = await tx.opsPaymentRecord.findMany({ where: { milestoneId }, orderBy: { paymentDate: 'asc' } });
           const keyedRecord = input.idempotencyKey ? await tx.opsPaymentRecord.findUnique({ where: { idempotencyKey: input.idempotencyKey } }) : null;
@@ -282,7 +283,7 @@ export class PaymentOperationsService implements PaymentStatusReader {
             where: { milestoneId },
             orderBy: { paymentDate: 'asc' },
           });
-          const amountPaid = updatedHistory.reduce((sum, record) => sum + record.amountReceived, 0);
+          const amountPaid = lockedMilestone.creditApplied + updatedHistory.reduce((sum, record) => sum + record.amountReceived, 0);
           const remainingBalance = Math.max(0, lockedMilestone.amount - amountPaid);
           const nextStatus = paymentStatus(amountPaid, lockedMilestone.amount);
           const payment = await tx.opsPaymentMilestone.update({
@@ -316,7 +317,7 @@ export class PaymentOperationsService implements PaymentStatusReader {
   async getPaymentStatusForEvent(eventId: string) {
     await this.requireEvent(eventId);
     const [milestones, records] = await Promise.all([
-      this.prisma.opsPaymentMilestone.findMany({ where: { eventId }, orderBy: { createdAt: 'asc' } }),
+      this.prisma.opsPaymentMilestone.findMany({ where: { eventId, supersededAt: null }, orderBy: { createdAt: 'asc' } }),
       this.prisma.opsPaymentRecord.findMany({ where: { eventId }, orderBy: { recordedAt: 'desc' } }),
     ]);
 

@@ -1,12 +1,14 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { OpsAdditionalBilling, OpsBillingCorrection, OpsBillingDispute, OpsBillingStatement } from '@prisma/client';
+import type { OpsAdditionalBilling, OpsBillingCorrection, OpsBillingDispute, OpsBillingStatement, OpsBillingSource, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { createHash, randomUUID } from 'node:crypto';
-import { AuditActionType, AuditCategory, WorkflowCommandService } from '@prism/kernel/event-core';
+import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { POST_EVENT_LIFECYCLE_STATE_READER, type PostEventLifecycleStateReader } from '@prism/contexts/event-lifecycle/post-event-reference';
 import { URGENT_ISSUE_REFERENCE_READER, type UrgentIssueReferenceReader } from '@prism/contexts/live-ops/urgent-issue-reference';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
+import type { PrismVerifiedEventActor } from '@prism/types';
+import { createBillingSourceSchema } from '@prism/types';
 import { auditMetadata, billingCommandContext, isBillingCorrectionRequester, requireBillingActor } from './billing-operations.utils';
 import { mapAdditionalBilling, mapBillingCorrection, mapBillingDispute } from './billing-operations.mappers';
 import type {
@@ -18,6 +20,7 @@ import type {
   CreateAdditionalBillingInput,
   WaiveAdditionalBillingInput,
 } from '../../contracts/billing-operations.types';
+import { BillingOperationsService } from './billing-operations.service';
 
 @Injectable()
 export class BillingAdjustmentService {
@@ -27,6 +30,7 @@ export class BillingAdjustmentService {
     private readonly workflowCommandService: WorkflowCommandService,
     @Inject(POST_EVENT_LIFECYCLE_STATE_READER) private readonly postEventStateReader: PostEventLifecycleStateReader,
     @Inject(URGENT_ISSUE_REFERENCE_READER) private readonly urgentIssueReferenceReader: UrgentIssueReferenceReader,
+    private readonly billingOperationsService: BillingOperationsService,
   ) {}
 
   async requestBillingCorrection(eventId: string, input: RequestBillingCorrectionInput, actor: BillingActor) {
@@ -58,28 +62,120 @@ export class BillingAdjustmentService {
     });
   }
 
-  async resolveBillingCorrection(eventId: string, correctionId: string, input: ResolveBillingCorrectionInput, actor: BillingActor) {
+  async resolveBillingCorrection(eventId: string, correctionId: string, input: ResolveBillingCorrectionInput, actor: BillingActor, verifiedActor?: PrismVerifiedEventActor) {
     actor = requireBillingActor(actor);
-    let correction: OpsBillingCorrection | null = null;
-    return this.workflowCommandService.execute<OpsBillingCorrection, ReturnType<typeof mapBillingCorrection>>({
-      name: 'resolve_billing_correction', eventId, sideEffectMode: 'same_tx',
-      validateState: async () => {
-        await this.requireEvent(eventId);
-        correction = await this.prisma.opsBillingCorrection.findUnique({ where: { id: correctionId } });
-        if (!correction || correction.eventId !== eventId) throw new NotFoundException('Billing correction not found');
-        if (correction.status !== 'pending') throw new BadRequestException('Billing correction has already been resolved');
-        if (input.action === 'approve' && isBillingCorrectionRequester(correction, actor)) {
-          throw new ForbiddenException('A billing correction must be approved by a different PMCM user than the one who requested it');
-        }
-      },
-      write: (context) => (context?.prisma ?? this.prisma).opsBillingCorrection.update({ where: { id: correctionId }, data: { status: input.action === 'approve' ? 'approved' : 'rejected', resolvedBy: actor.name, resolutionNotes: input.resolutionNotes?.trim() ?? null, resolvedAt: new Date() } }),
-      sideEffects: async (resolved, context) => { await writeAudit(this.auditWriter, eventId, actor.name, `${input.action === 'approve' ? 'Approved' : 'Rejected'} billing correction`, { actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance, actionType: input.action === 'approve' ? AuditActionType.Approve : AuditActionType.Update, affectedType: 'billing_correction', affectedId: resolved.id, affectedLabel: resolved.statementId, metadata: auditMetadata(actor, { resolutionNotes: input.resolutionNotes ?? '' }) }, context); },
-      project: (resolved) => mapBillingCorrection(resolved),
+    if (actor.role !== OpsUserRole.PmcmAdmin && actor.role !== OpsUserRole.System) throw new ForbiddenException('Only PMCM can resolve a billing correction');
+    return this.prisma.$transaction(async (tx) => {
+      const context: PrismTransactionContext = { prisma: tx, actorId: actor.id, correlationId: `billing-correction:${correctionId}` };
+      // QUERY_AUDIT_RAW_SQL: serialize retries and competing resolutions of the same correction.
+      await tx.$queryRaw`SELECT "id" FROM "commercial"."billing_corrections" WHERE "id" = ${correctionId} AND "event_id" = ${eventId} FOR UPDATE`;
+      const correction = await this.readCorrection(tx, eventId, correctionId);
+      if (input.action === 'approve' && correction.status === 'approved' && correction.replacementStatementId) return mapBillingCorrection(correction);
+      this.assertPendingCorrection(correction, input, actor);
+      let replacementStatementId: string | null = null;
+      if (input.action === 'approve') {
+        if (!verifiedActor) throw new BadRequestException('Verified actor context is required to issue a corrected statement');
+        replacementStatementId = await this.issueCorrectedStatement(correction, actor, verifiedActor, context);
+      }
+      const resolved = await tx.opsBillingCorrection.update({ where: { id: correctionId }, data: {
+        status: input.action === 'approve' ? 'approved' : 'rejected', resolvedBy: actor.name,
+        resolutionNotes: input.resolutionNotes?.trim() ?? null, resolvedAt: new Date(), replacementStatementId,
+      } });
+      await writeAudit(this.auditWriter, eventId, actor.name, `${input.action === 'approve' ? 'Approved' : 'Rejected'} billing correction`, {
+        actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance,
+        actionType: input.action === 'approve' ? AuditActionType.Approve : AuditActionType.Update,
+        affectedType: 'billing_correction', affectedId: resolved.id, affectedLabel: resolved.statementId,
+        metadata: auditMetadata(actor, { resolutionNotes: input.resolutionNotes ?? '', replacementStatementId }),
+      }, context);
+      return mapBillingCorrection(resolved);
+    }, { timeout: 30000 });
+  }
+
+  private async readCorrection(db: Prisma.TransactionClient, eventId: string, correctionId: string) {
+    const correction = await db.opsBillingCorrection.findUnique({ where: { id: correctionId } });
+    if (!correction || correction.eventId !== eventId) throw new NotFoundException('Billing correction not found');
+    return correction;
+  }
+
+  private assertPendingCorrection(correction: OpsBillingCorrection, input: ResolveBillingCorrectionInput, actor: BillingActor) {
+    if (correction.status !== 'pending') throw new BadRequestException('Billing correction has already been resolved');
+    if (input.action === 'approve' && isBillingCorrectionRequester(correction, actor)) throw new ForbiddenException('A billing correction must be approved by a different PMCM user than the one who requested it');
+  }
+
+  private async issueCorrectedStatement(correction: OpsBillingCorrection, actor: BillingActor, verifiedActor: PrismVerifiedEventActor, context: PrismTransactionContext) {
+    const { eventId } = correction;
+    const db = context.prisma;
+    // QUERY_AUDIT_RAW_SQL: different correction requests cannot replace the same invoice concurrently.
+    await db.$queryRaw`SELECT "id" FROM "commercial"."billing_statements" WHERE "id" = ${correction.statementId} AND "event_id" = ${eventId} FOR UPDATE`;
+    const { original, source } = await this.readOriginalInvoice(db, eventId, correction.statementId);
+    const correctedTotal = correction.correctedTotalAmount;
+    if (!correctedTotal || correctedTotal <= 0) throw new BadRequestException('An approved billing correction must include a positive corrected total');
+    // QUERY_AUDIT_RAW_SQL: share payment row locks with payment recording before computing the transferred credit.
+    await db.$queryRaw`SELECT "id" FROM "commercial"."payment_milestones" WHERE "event_id" = ${eventId} AND ("statement_id" = ${original.id} OR "statement_id" IS NULL) ORDER BY "id" FOR UPDATE`;
+    const { originalMilestones, paidTotal } = await this.originalInvoicePayments(db, eventId, original.id);
+    if (paidTotal > correctedTotal) throw new BadRequestException('The corrected total is below the amount already received; resolve the overpayment separately before issuing a replacement');
+    const correctionInput = this.correctionSourceInput(correction, original, source, correctedTotal);
+    let replacementSource = await this.billingOperationsService.createBillingSource(eventId, correctionInput, actor, context);
+    if (replacementSource.status !== 'approved') replacementSource = await this.billingOperationsService.approveBillingSource(eventId, replacementSource.id, { approvalNotes: `Approved with correction ${correction.id}` }, actor, context);
+    const replacement = await this.billingOperationsService.generateBillingStatement(eventId, replacementSource.id, actor, verifiedActor, `billing-correction-statement:${correction.id}`, original.id, context);
+    const replacementMilestones = await db.opsPaymentMilestone.findMany({ where: { eventId, statementId: replacement.id }, orderBy: [{ dueDate: 'asc' }, { id: 'asc' }] });
+    let creditRemaining = paidTotal;
+    await db.opsBillingStatement.update({ where: { id: original.id }, data: { status: 'superseded' } });
+    if (originalMilestones.length) await db.opsPaymentMilestone.updateMany({
+      where: { id: { in: originalMilestones.map((milestone) => milestone.id) }, eventId, supersededAt: null },
+      data: { supersededAt: new Date(), status: 'superseded' },
     });
+    for (const milestone of replacementMilestones) {
+      const creditApplied = Math.min(milestone.amount, creditRemaining);
+      creditRemaining -= creditApplied;
+      const remainingBalance = milestone.amount - creditApplied;
+      await db.opsPaymentMilestone.update({ where: { id: milestone.id }, data: { creditApplied, amountPaid: creditApplied, remainingBalance, status: remainingBalance === 0 ? 'paid' : creditApplied > 0 ? 'partially_paid' : 'pending' } });
+    }
+    return replacement.id;
+  }
+
+  private async readOriginalInvoice(db: Prisma.TransactionClient, eventId: string, statementId: string) {
+    const original = await db.opsBillingStatement.findUnique({ where: { id: statementId } });
+    if (!original || original.eventId !== eventId) throw new NotFoundException('Original billing statement not found');
+    if (original.status === 'superseded') throw new BadRequestException('This statement has already been superseded; correct the current statement');
+    const source = original.sourceId ? await db.opsBillingSource.findUnique({ where: { id: original.sourceId } }) : null;
+    if (!source || source.eventId !== eventId) throw new BadRequestException('The original billing source is unavailable for a corrected statement');
+    return { original, source };
+  }
+
+  private async originalInvoicePayments(db: Prisma.TransactionClient, eventId: string, statementId: string) {
+    let originalMilestones = await db.opsPaymentMilestone.findMany({ where: { eventId, statementId: statementId, supersededAt: null }, orderBy: { createdAt: 'asc' } });
+    if (originalMilestones.length === 0) {
+      const statementsForEvent = await db.opsBillingStatement.count({ where: { eventId } });
+      if (statementsForEvent !== 1) throw new BadRequestException('Cannot safely identify the original payment milestones for this legacy statement');
+      originalMilestones = await db.opsPaymentMilestone.findMany({ where: { eventId, statementId: null, supersededAt: null }, orderBy: { createdAt: 'asc' } });
+    }
+    const originalRecords = originalMilestones.length
+      ? await db.opsPaymentRecord.findMany({ where: { milestoneId: { in: originalMilestones.map((milestone) => milestone.id) } } })
+      : [];
+    const paidTotal = originalMilestones.reduce((sum, milestone) => sum + milestone.creditApplied, 0)
+      + originalRecords.reduce((sum, record) => sum + record.amountReceived, 0);
+    return { originalMilestones, paidTotal };
+  }
+
+  private correctionSourceInput(correction: OpsBillingCorrection, original: OpsBillingStatement, source: OpsBillingSource, correctedTotal: number) {
+    const eventId = correction.eventId;
+    const inputResult = createBillingSourceSchema.safeParse({
+      sourceType: 'billing_correction', sourceLabel: `Corrected statement ${original.number}`,
+      lineItems: [{ label: `Corrected total — ${correction.reason}`, amount: correctedTotal }],
+      paymentSchedule: original.paymentSchedule, paymentMethods: original.paymentMethods,
+      ...(source.paymentTermsPolicyState === 'repeat_client_override' ? { paymentTermsPolicy: 'repeat_client_override', paymentTermsOverrideReason: source.paymentTermsOverrideReason ?? undefined } : {}),
+      idempotencyKey: `billing-correction-source:${correction.id}`,
+    });
+    if (!inputResult.success) throw new BadRequestException('The original payment schedule cannot be reused for a corrected statement');
+    return inputResult.data;
   }
 
   async createBillingDispute(eventId: string, input: CreateBillingDisputeInput, actor: BillingActor) {
     actor = requireBillingActor(actor);
+    if (actor.role !== OpsUserRole.Client && actor.role !== OpsUserRole.PmcmAdmin) {
+      throw new ForbiddenException('Only the event client or PMCM can create a billing dispute');
+    }
     const payloadHash = createHash('sha256').update(JSON.stringify({ eventId, ...input })).digest('hex');
     let statement: OpsBillingStatement | null = null;
     let replayed = false;
@@ -114,6 +210,9 @@ export class BillingAdjustmentService {
 
   async resolveBillingDispute(eventId: string, disputeId: string, input: ResolveBillingDisputeInput, actor: BillingActor) {
     actor = requireBillingActor(actor);
+    if (actor.role !== OpsUserRole.PmcmAdmin && actor.role !== OpsUserRole.System) {
+      throw new ForbiddenException('Only PMCM can resolve a billing dispute');
+    }
     return this.workflowCommandService.execute<OpsBillingDispute, ReturnType<typeof mapBillingDispute>>({
       name: 'resolve_billing_dispute', eventId, sideEffectMode: 'same_tx',
       validateState: async () => {

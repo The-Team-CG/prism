@@ -4,9 +4,8 @@ title: "One PostgreSQL schema per owning domain"
 description: "Assign every business table to exactly one write domain and keep foreign keys within that domain."
 tags: [architecture, decision, persistence, ddd, postgres]
 status: canonical
-updated: "2026-10-06"
+updated: "2026-10-28"
 authority: normative
-owner: "D (Anthony)"
 audience: [agents, engineers, reviewers, operators]
 scope: "apps/api Prisma models, PostgreSQL namespaces, relations, and cross-context persistence contracts"
 last_verified: "2026-10-06; seven baselines replayed on disposable PostgreSQL 16 and matched the Prisma schema"

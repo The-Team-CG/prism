@@ -26,7 +26,7 @@ export function GuestDashboardView() {
   const session = vm.session;
 
   if (!session) return <GuestDashboardLoading />;
-  const feedbackOpen = session.feedbackAvailability === "open";
+  const feedbackOpen = session.feedbackAvailability === "open" || vm.canWithdrawFeedbackConsent;
 
   return (
     <PrismGuestShell

@@ -18,6 +18,7 @@ import {
 import { pmcmSupplierWorkflowRepository } from "../data/pmcm-supplier-workflow-repository";
 
 export const loadPmcmSupplierWorkflows = (eventId: string) => pmcmSupplierWorkflowRepository.load(eventId);
+export const loadPmcmSupplierScheduleWindows = (eventId: string) => pmcmSupplierWorkflowRepository.listSchedules(eventId);
 export const downloadPmcmSupplierFile = (objectId: string) => pmcmSupplierWorkflowRepository.download(objectId);
 
 export function publishSupplierSchedule(eventId: string, input: CreateSupplierScheduleInput) {

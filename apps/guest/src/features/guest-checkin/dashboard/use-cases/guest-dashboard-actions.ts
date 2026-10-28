@@ -5,7 +5,7 @@ import {
 } from "../model/guest-dashboard-rules";
 import type { CheckInMode, GuestSession } from "../model/guest-dashboard-types";
 import { guestDashboardRepository } from "../data/guest-dashboard-repository";
-import { createGuestFeedbackSchema, parseContract } from "@prism/types";
+import { createGuestFeedbackSchema, parseContract, withdrawGuestFeedbackConsentSchema, type PrismGuestFeedbackReceipt } from "@prism/types";
 
 export function loadGuestDashboardSession(): GuestSession | null {
   return guestDashboardRepository.readSession();
@@ -61,9 +61,9 @@ export async function submitGuestFeedback(input: {
   consentAccepted: boolean;
   photo?: File | null;
   video?: File | null;
-}): Promise<void> {
+}): Promise<PrismGuestFeedbackReceipt> {
   const payload = buildFeedbackPayload(input);
-  await guestDashboardRepository.submitFeedback(
+  return guestDashboardRepository.submitFeedback(
     input.session,
     parseContract(createGuestFeedbackSchema, payload, "Guest feedback"),
   );
@@ -71,4 +71,19 @@ export async function submitGuestFeedback(input: {
 
 export function leaveGuestEvent(): void {
   guestDashboardRepository.clearSession();
+}
+
+export async function withdrawGuestFeedbackConsent(session: GuestSession): Promise<GuestSession> {
+  if (!session.feedbackReceiptId) throw new Error("No feedback receipt is saved on this device.");
+  await guestDashboardRepository.withdrawFeedbackConsent(session, session.feedbackReceiptId,
+    parseContract(withdrawGuestFeedbackConsentSchema, { withdrawPrivacyConsent: true, withdrawMarketingConsent: true }, "Withdraw feedback consent"));
+  const next = { ...session, feedbackReceiptId: undefined };
+  guestDashboardRepository.saveSession(next);
+  return next;
+}
+
+export function saveGuestFeedbackReceipt(session: GuestSession, receipt: PrismGuestFeedbackReceipt): GuestSession {
+  const next = { ...session, feedbackReceiptId: receipt.id };
+  guestDashboardRepository.saveSession(next);
+  return next;
 }

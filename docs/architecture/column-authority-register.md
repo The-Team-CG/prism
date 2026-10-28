@@ -4,9 +4,8 @@ title: "P.R.I.S.M column authority and disposition register"
 description: "Per-column baseline facts, provisional domain authority, data semantics, consumer candidates, sensitivity, retention and migration disposition."
 tags: [architecture, persistence, prisma, ddd, schema, data-dictionary]
 status: active
-updated: "2026-10-06"
+updated: "2026-10-28"
 authority: informative
-owner: "B (Francis) and D (Anthony); C (Ethan) for shared contracts"
 audience: [domain_owners, engineers, reviewers]
 scope: "apps/api/prisma/schema.prisma, apps/api/prisma/migrations, and current owner-context readers/writers"
 last_verified: "Legacy column snapshot traced to staging 7f64c0b; current target counts reconciled with the owner manifest on 2026-10-06"
@@ -33,7 +32,6 @@ sources:
 ownership cutover.
 - **Authority:** Informative inventory; owner confirmation is required before changing business
 meaning or stored values.
-- **Owner:** B (Francis) and D (Anthony), with C (Ethan) for shared contracts.
 - **Scope:** The legacy staging snapshot of 91 Prisma models and 1,159 scalar columns, plus the
 current seven-domain target inventory in the ownership manifest.
 - **Use when:** Changing a column, default, nullability, JSON payload, time or money representation;

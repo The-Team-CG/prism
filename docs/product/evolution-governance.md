@@ -4,11 +4,10 @@ title: "P.R.I.S.M product evolution governance"
 description: "Rules for adding, revising, merging, deferring, and retiring Prism feature families without losing role, contract, or operational clarity."
 tags: [product, governance, features, decisions]
 status: canonical
-updated: "2026-09-29"
+updated: "2026-10-28"
 authority: normative
-owner: "B (Francis)"
 audience: [product, engineering, design, agents]
-scope: "feature decisions, product documentation, ownership goals, and lifecycle governance"
+scope: "feature decisions, product documentation, system goals, and lifecycle governance"
 last_verified: "581e676"
 sources:
   - id: feature-ledger
@@ -27,10 +26,9 @@ sources:
 
 - **Purpose:** Define how features are added, revised, merged, deferred, gated, or retired.
 - **Authority:** Normative product decision process; it does not replace architecture ADRs or implementation checks.
-- **Owner:** B (Francis).
-- **Scope:** Feature-family decisions, owner goals, evidence requirements, and documentation lifecycle.
+- **Scope:** Feature-family decisions, system goals, evidence requirements, and documentation lifecycle.
 - **Use when:** Evaluating a new feature, changing scope, or deciding whether an existing feature remains justified.
-- **Change when:** Product authority, owner goals, decision states, or evidence requirements change.
+- **Change when:** Product authority, system goals, decision states, or evidence requirements change.
 - **Verify with:** The feature ledger, product model, readiness gates, and architecture boundaries.
 
 This document defines how P.R.I.S.M can evolve beyond the original Version 4
@@ -46,7 +44,7 @@ the product clearer, safer, more usable, or more aligned with PMCM operations.
 | `feature-ledger.md` | Active feature-family decisions. |
 | `readiness-foundation.md` | Sample-state fencing, session conventions, owner boundaries, and legacy removal rules. |
 | `../architecture/current-architecture.md` | Architecture, module ownership, and stop rules. |
-| `../../AGENTS.md` | App boundaries, owner goals, and agent stop rules. |
+| `../../AGENTS.md` | App boundaries, system goals, and agent stop rules. |
 | This document | Rules for changing the feature set. |
 
 If these documents conflict, use this order for product planning:
@@ -59,25 +57,24 @@ If these documents conflict, use this order for product planning:
 
 The original catalog should still be preserved for traceability, but implementation should not blindly ship catalog items that are outdated, redundant, unsafe, or weak from a product perspective.
 
-## Owner Goal Governance
+## System Goal Governance
 
-Feature decisions must now identify which owner system goal they advance. Ownership is not just assignment to an app or code area.
+Development has one primary maintainer. Evaluate work by its system outcome rather than former developer assignments.
 
-| Owner | Person | System goal used for governance decisions |
-| --- | --- | --- |
-| Owner A | Maxine | The change makes P.R.I.S.M more coherent as a PMCM operating system through IA, design system, workflow language, and interaction standards. |
-| Owner B | Francis | The change makes PMCM/coordinator operations more executable from inquiry through event day and closure without exposing internal state externally. |
-| Owner C | Ethan | The change makes client, supplier, guest, or public surfaces safer, narrower, clearer, and easier to complete without PMCM-only leakage. |
-| Owner D | Anthony | The change makes platform behavior more trustworthy through contracts, permissions, audit, notifications, files, lifecycle, integrations, tests, and docs. |
+| System goal | Outcome used for governance decisions |
+| --- | --- |
+| UX | Coherent information architecture, design system, workflow language and interaction standards. |
+| PMCM operations | Executable inquiry, planning, event-day and closure workflows without exposing internal state externally. |
+| External portals | Safe, narrow and clear client, supplier, guest and public workflows. |
+| Platform trust | Reliable contracts, permissions, audit, notifications, files, lifecycle, integrations, verification and documentation. |
 
-Every ledger row should include:
+Every ledger row includes the affected role/context, permission boundary, audit/notification/file/lifecycle impact and verification requirement. Record an actual collaborator or reviewer when one participates; do not require former team assignments.
 
-- Primary owner.
-- Owner system goal.
-- Secondary owner if another surface is affected.
-- Permission boundary.
-- Audit/notification/file/lifecycle impact.
-- Verification requirement.
+### Evaluate acceptance criteria as product decisions
+
+For each mismatch, record both literal conformance and whether the written requirement remains a useful target. Use one of four actions: retain the stronger current design and revise the criterion; fix the implementation; resolve a business-rule tradeoff; or obtain missing evidence. State the user benefit, replacement observable criterion and remaining verification. Keep the original wording for traceability; do not rewrite criteria merely to make existing code pass.
+
+A source-supported feature is not an executed acceptance pass. More screens, templates or infrastructure do not establish a better user journey. Runtime evidence and business-policy approval remain separate from implementation progress.
 
 If a proposed feature does not advance one of these system goals, it should be deferred, revised, or retired.
 
@@ -154,7 +151,7 @@ Retired features should remain traceable in the ledger with a short reason. Do n
 
 ## New Features to Consider
 
-These are not yet committed implementation requirements. They are candidates for evaluation against the feature ledger and owner system goals.
+These are not yet committed implementation requirements. They are candidates for evaluation against the feature ledger and system goals.
 
 | Candidate | Persona | Why it may improve P.R.I.S.M |
 | --- | --- | --- |
@@ -203,7 +200,7 @@ Before implementing or redesigning a feature, answer:
 
 1. Which persona owns the action?
 2. Which app owns the surface?
-3. Which owner owns the system goal?
+3. Which system goal does the change advance?
 4. What system condition becomes true when this is complete?
 5. What is the one primary user job?
 6. What data does the user need?
