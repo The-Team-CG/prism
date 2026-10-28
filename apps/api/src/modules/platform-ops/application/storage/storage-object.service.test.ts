@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LocalFileSystemStorageAdapter } from '../../infrastructure/storage/local-filesystem-storage.adapter';
 import { StorageObjectService } from './storage-object.service';
@@ -14,6 +14,7 @@ const client = { id: 'user_client', role: 'client', email: 'client@example.test'
 
 function createStore() {
   const objects: Array<Record<string, any>> = [];
+  const statements: Array<{ id: string; sentAt: Date | null }> = [];
   const bookings = [{ id: 'req_1', eventId: 'evt_1', supplierId: 'sup_1', status: 'selected', assignmentStatus: 'confirmed' }];
   const now = () => new Date('2026-09-08T00:00:00.000Z');
   const prisma = {
@@ -51,6 +52,9 @@ function createStore() {
     opsEvent: {
       findUnique: vi.fn(async () => ({ id: 'evt_1', archived: false, clientName: 'Client', clientPortalStatus: 'unlocked', inquiry: { email: 'client@example.test' }, supplierQuoteRequests: [] as Array<{ supplierId: string; supplier: { email: string } }> })),
     },
+    opsBillingStatement: {
+      findMany: vi.fn(async ({ where }: { where: { id: { in: string[] }; sentAt: null } }) => statements.filter((statement) => where.id.in.includes(statement.id) && statement.sentAt === null)),
+    },
     opsSupplierQuoteRequest: {
       findFirst: vi.fn(async ({ where }: { where: Record<string, string> }) => bookings.find((booking) => Object.entries(where).every(([key, value]) => booking[key as keyof typeof booking] === value)) ?? null),
     },
@@ -75,6 +79,7 @@ function createStore() {
   const auditWriter = { write: vi.fn(async (_input: Record<string, any>) => undefined) };
   return {
     objects,
+    statements,
     bookings,
     prisma,
     accessPolicy,
@@ -408,6 +413,25 @@ describe('StorageObjectService', () => {
     expect(adapter.issueDownloadAuthorization).not.toHaveBeenCalled();
 
     await expect(service.issueDownloadAuthorization({ objectId: 'obj_billing', actor })).resolves.toMatchObject({ downloadUrl: 'https://storage.example.test/signed-billing' });
+  });
+
+  it('keeps a billing statement file from the client until PMCM sends the statement', async () => {
+    const store = createStore();
+    store.statements.push({ id: 'bill_1', sentAt: null });
+    const at = new Date('2026-10-19T00:00:00.000Z');
+    store.objects.push({ createdAt: at, updatedAt: at, requestedAt: at, storedAt: at, id: 'obj_billing', eventId: 'evt_1', ownerRecordType: 'billing_statement', ownerRecordId: 'bill_1', usage: 'event_deliverable', lifecycleState: 'stored', providerName: 'test', providerObjectKey: 'events/evt_1/billing.pdf', contentType: 'application/pdf', declaredByteSize: 1, checksumSha256: 'a'.repeat(64), originalFileName: 'billing.pdf' });
+    const adapter = { issueDownloadAuthorization: vi.fn(async () => ({ downloadUrl: 'https://storage.example.test/signed-billing', expiresAt: new Date('2026-10-20T00:00:00.000Z') })) };
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter as never, store.platformReferences as never, store.auditWriter as never);
+
+    await expect(service.listEventObjects('evt_1', client)).resolves.toEqual([]);
+    await expect(service.issueDownloadAuthorization({ objectId: 'obj_billing', actor: client })).rejects.toBeInstanceOf(NotFoundException);
+    expect(adapter.issueDownloadAuthorization).not.toHaveBeenCalled();
+    await expect(service.listEventObjects('evt_1', actor)).resolves.toHaveLength(1);
+    await expect(service.issueDownloadAuthorization({ objectId: 'obj_billing', actor })).resolves.toMatchObject({ downloadUrl: 'https://storage.example.test/signed-billing' });
+
+    store.statements[0].sentAt = new Date('2026-10-20T00:00:00.000Z');
+    await expect(service.listEventObjects('evt_1', client)).resolves.toHaveLength(1);
+    await expect(service.issueDownloadAuthorization({ objectId: 'obj_billing', actor: client })).resolves.toMatchObject({ downloadUrl: 'https://storage.example.test/signed-billing' });
   });
 
   it('writes metadata-only audit rows for confirmed uploads, download authorizations and deletes', async () => {

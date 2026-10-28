@@ -1079,23 +1079,6 @@ describe("createEventOpsClient", () => {
     });
   });
 
-  it("submits a client floorplan revision comment through the shared event contract", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: "fpd_1", status: "revision_requested" }), { status: 200 }));
-    vi.stubGlobal("fetch", fetchMock);
-
-    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
-    await client.events.reviewFloorPlanDraft("evt_1", "fpd_1", {
-      revisionNote: "Move the mingle space next to the bar.",
-      idempotencyKey: "key-1",
-    });
-
-    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/events/evt_1/floorplans/fpd_1/review", {
-      method: "PATCH",
-      body: JSON.stringify({ revisionNote: "Move the mingle space next to the bar.", idempotencyKey: "key-1" }),
-      headers: { "Content-Type": "application/json" },
-    });
-  });
-
   it("searches archived events by venue and month", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);

@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsSupplierQuoteRequest, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { createHash, randomUUID } from 'node:crypto';
@@ -28,12 +28,16 @@ import {
 import {
   PARE_APPROVAL_GOVERNANCE,
   PARE_DISPATCH_WRITER,
+  NOTIFICATION_OUTBOX_WRITER,
+  type NotificationOutboxWriter,
+  writeNotification,
   type PareApprovalGovernance,
   type PareDispatchWriter,
   type PAREApprovalRecord,
 } from '@prism/contexts/platform-ops';
 import { SupplierProfileCommandsService } from './supplier-profile-commands.service';
 import type {
+  CorrectSupplierEventStatusInput,
   CreateSupplierReliabilityNoteInput,
   PromoteSupplierInput,
   CreateSupplierScheduleInput,
@@ -53,6 +57,33 @@ async function lockActiveEvent(prisma: Prisma.TransactionClient, eventId: string
   if (actor.eventId && actor.eventId !== eventId) throw new ForbiddenException('Actor cannot access this event');
   const event = await eventReferences.findOperationsEvent(eventId, { prisma, correlationId: `supplier-event:${eventId}` });
   if (!event || event.archived) throw new NotFoundException('Active event not found');
+}
+
+const SUPPLIER_EVENT_STATUS_ORDER = ['arrived', 'set_up_ready', 'done_leaving'] as const;
+const SUPPLIER_EVENT_STATUS_LABELS: Record<string, string> = {
+  not_started: 'not started',
+  arrived: 'arrived',
+  set_up_ready: 'set-up ready',
+  done_leaving: 'done leaving',
+};
+
+/**
+ * Supplier-reported event-day status moves forward one step at a time. Any
+ * unreported state (not_started, planned, or the automatic late flag) counts
+ * as "before arrived". A repeat of the current status is handled by the caller.
+ */
+function assertSupplierEventStatusStep(current: string, next: string): void {
+  const currentIndex = SUPPLIER_EVENT_STATUS_ORDER.findIndex((status) => status === current);
+  const nextIndex = SUPPLIER_EVENT_STATUS_ORDER.findIndex((status) => status === next);
+  if (nextIndex === currentIndex + 1) return;
+  const expected = SUPPLIER_EVENT_STATUS_ORDER[currentIndex + 1];
+  const nextLabel = SUPPLIER_EVENT_STATUS_LABELS[next] ?? next;
+  if (!expected) {
+    throw new BadRequestException(`Event-day status is already complete and cannot move back to "${nextLabel}".`);
+  }
+  const expectedLabel = SUPPLIER_EVENT_STATUS_LABELS[expected];
+  const direction = nextIndex < currentIndex ? 'cannot move backward to' : 'cannot skip ahead to';
+  throw new BadRequestException(`Event-day status ${direction} "${nextLabel}". Report "${expectedLabel}" next, in order: arrived, set-up ready, done leaving.`);
 }
 
 function requireLockedConfirmationRequest(
@@ -108,6 +139,7 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
     @Inject(PARE_DISPATCH_WRITER) private readonly pareDispatchWriter: PareDispatchWriter,
     @Inject(DOCUMENT_VAULT) private readonly documentVaultService: DocumentVault,
     @Inject(OPERATIONS_EVENT_REFERENCE_READER) private readonly eventReferences: OperationsEventReferenceReader,
+    @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
   ) {}
 
   async createSupplier(input: CreateSupplierInput, actor: ResolvedEventOpsActor) {
@@ -351,9 +383,12 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
   ) {
     let request: OpsSupplierQuoteRequest | null = null;
     let photo: ValidatedUploadMetadata | null = null;
+    let replay = false;
+    let previousStatus = '';
 
     const updated = await this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
       name: 'update_supplier_event_status',
+      sideEffectMode: 'same_tx',
       validatePermission: async () => {
         request = await this.requireSupplierQuoteRequestForActor(requestId, actor);
         if (request.status !== 'selected' || request.assignmentStatus !== 'confirmed' || request.readinessStatus !== 'confirmed') {
@@ -364,13 +399,17 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
         const allowed = ['arrived', 'set_up_ready', 'done_leaving'];
         if (!allowed.includes(input.status)) throw new BadRequestException('Unsupported supplier event-day status');
         if (!request) throw new NotFoundException('Supplier quote request not found');
+        previousStatus = request.eventDayStatus;
+        replay = previousStatus === input.status;
+        if (!replay) assertSupplierEventStatusStep(request.eventDayStatus, input.status);
         photo = input.photo ? this.validateUploadMetadata(input.photo, `events/${request.eventId}/supplier-status`) : null;
       },
-      write: (transactionContext) => {
+      write: async (transactionContext) => {
         if (!request) throw new NotFoundException('Supplier quote request not found');
+        if (replay) return Promise.resolve(request);
         const prisma = transactionContext?.prisma ?? this.prisma;
-        return prisma.opsSupplierQuoteRequest.update({
-          where: { id: request.id },
+        const changed = await prisma.opsSupplierQuoteRequest.updateMany({
+          where: { id: request.id, status: 'selected', assignmentStatus: 'confirmed', readinessStatus: 'confirmed', eventDayStatus: previousStatus },
           data: {
             eventDayStatus: input.status,
             eventDayStatusAt: new Date(),
@@ -378,9 +417,11 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
             statusPhotoFileName: photo?.generatedFileName ?? null,
           },
         });
+        if (changed.count !== 1) throw new ConflictException('Supplier status changed; reload before updating it');
+        return prisma.opsSupplierQuoteRequest.findUniqueOrThrow({ where: { id: request.id } });
       },
       sideEffects: async (updated, transactionContext) => {
-        if (!request) return;
+        if (!request || replay) return;
         await writeAudit(this.auditWriter, request.eventId, actor.name, `Supplier status update: ${input.status}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
@@ -394,6 +435,81 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
       },
     });
     return mapSupplierQuoteRequestForSupplier(updated);
+  }
+
+  /**
+   * PMCM-only correction path for a supplier's event-day status. Unlike the supplier's own forward-only updates it
+   * may move the status in any direction, but needs a reason; the supplier then continues from the corrected status.
+   */
+  async correctSupplierEventStatus(
+    eventId: string,
+    requestId: string,
+    input: CorrectSupplierEventStatusInput,
+    actor: ResolvedEventOpsActor,
+  ) {
+    let request: OpsSupplierQuoteRequest | null = null;
+    let previousStatus = '';
+    let replay = false;
+    const reason = input.reason?.trim();
+
+    const updated = await this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
+      name: 'correct_supplier_event_status',
+      sideEffectMode: 'same_tx',
+      eventId,
+      validatePermission: () => this.requireSupplierAdmin(actor, 'supplier event-day status correction', eventId),
+      validateState: async () => {
+        if (!reason) throw new BadRequestException('A reason is required to correct a supplier status');
+        request = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { id: requestId } });
+        if (request?.eventId !== eventId) request = null;
+        if (!request) throw new NotFoundException('Supplier quote request not found');
+        if (request.status !== 'selected') {
+          throw new BadRequestException('Only a selected supplier assignment has an event-day status to correct');
+        }
+        previousStatus = request.eventDayStatus;
+        replay = previousStatus === input.status;
+      },
+      write: async (transactionContext) => {
+        if (!request) throw new NotFoundException('Supplier quote request not found');
+        if (replay) return Promise.resolve(request);
+        const prisma = transactionContext?.prisma ?? this.prisma;
+        const changed = await prisma.opsSupplierQuoteRequest.updateMany({
+          where: { id: request.id, status: 'selected', eventDayStatus: previousStatus },
+          data: {
+            eventDayStatus: input.status,
+            eventDayStatusAt: new Date(),
+          },
+        });
+        if (changed.count !== 1) throw new ConflictException('Supplier status changed; reload before correcting it');
+        return prisma.opsSupplierQuoteRequest.findUniqueOrThrow({ where: { id: request.id } });
+      },
+      sideEffects: async (saved, transactionContext) => {
+        if (!request || replay) return;
+        const key = `supplier-event-status-correction:${request.id}:${saved.eventDayStatusAt?.getTime() ?? Date.now()}`;
+        await writeAudit(this.auditWriter, request.eventId, actor.name, `Corrected supplier event-day status: ${request.supplierName}, ${previousStatus} to ${input.status}`, {
+          actorRole: actor.role,
+          actorEmail: actor.email,
+          actionType: AuditActionType.Update,
+          category: AuditCategory.Suppliers,
+          affectedType: 'supplier_quote_request',
+          affectedId: request.id,
+          affectedLabel: request.supplierName,
+          metadata: { actorId: actor.id, previousStatus, status: input.status, reason },
+        }, transactionContext);
+        const supplier = request.supplierId
+          ? await this.prisma.opsSupplier.findUnique({ where: { id: request.supplierId }, select: { email: true } })
+          : null;
+        await writeNotification(
+          this.notificationOutboxWriter,
+          request.eventId,
+          supplier?.email.trim() || request.supplierName,
+          `PMCM corrected your event-day status to "${SUPPLIER_EVENT_STATUS_LABELS[input.status] ?? input.status.replace(/_/g, ' ')}". Reason: ${reason}`,
+          'email',
+          { idempotencyKey: key },
+          transactionContext,
+        );
+      },
+    });
+    return mapSupplierQuoteRequest(updated);
   }
 
   async verifySupplierEventStatus(

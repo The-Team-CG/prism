@@ -26,6 +26,8 @@ export function useProposalIssuerViewModel(eventId: string) {
   const [notice, setNotice] = useState<string | null>(null);
   // Kept between attempts so a failed issue retries against the estimate it already created.
   const createdEstimateId = useRef<string | null>(null);
+  // One key per drafted proposal: a retry after a failed attempt replays the same issue request instead of creating another version.
+  const issueKey = useRef<string | null>(null);
   const currentEventId = useRef(eventId);
   currentEventId.current = eventId;
 
@@ -44,14 +46,22 @@ export function useProposalIssuerViewModel(eventId: string) {
     setError(null);
     setNotice(null);
     createdEstimateId.current = null;
+    issueKey.current = null;
     void load();
   }, [load]);
 
-  function editEstimate<T>(setter: (value: T) => void) {
+  function editProposal<T>(setter: (value: T) => void) {
     return (value: T) => {
-      createdEstimateId.current = null;
+      issueKey.current = null;
       setter(value);
     };
+  }
+
+  function editEstimate<T>(setter: (value: T) => void) {
+    return editProposal((value: T) => {
+      createdEstimateId.current = null;
+      setter(value);
+    });
   }
 
   const updateLine = (key: string, patch: Partial<EstimateLineDraft>) =>
@@ -74,9 +84,11 @@ export function useProposalIssuerViewModel(eventId: string) {
         estimateId = estimate.id;
         createdEstimateId.current = estimateId;
       }
-      const version = await proposalIssuerRepository.issue(requestedEventId, buildIssueProposalInput(draft, estimateId));
+      issueKey.current ??= crypto.randomUUID();
+      const version = await proposalIssuerRepository.issue(requestedEventId, buildIssueProposalInput(draft, estimateId, issueKey.current));
       if (currentEventId.current !== requestedEventId) return;
       createdEstimateId.current = null;
+      issueKey.current = null;
       setNotice(`Version ${version.versionNumber} is issued. The client can now review it.`);
       setTitle("");
       setSummary("");
@@ -101,11 +113,11 @@ export function useProposalIssuerViewModel(eventId: string) {
     notes,
     setNotes: editEstimate(setNotes),
     title,
-    setTitle,
+    setTitle: editProposal(setTitle),
     summary,
-    setSummary,
+    setSummary: editProposal(setSummary),
     revisionNote,
-    setRevisionNote,
+    setRevisionNote: editProposal(setRevisionNote),
     busy,
     error,
     notice,
