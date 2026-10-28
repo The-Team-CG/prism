@@ -10,7 +10,7 @@ import { Field } from "@/app/components/ui/field";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { CLIENT_PORTAL_POINTS, CLIENT_PORTAL_STATEMENT } from "../model/client-portal-copy";
-import { portalUrlsFromEnvironment, wrongPortalLinks } from "@/lib/portal-urls";
+import { pmcmSupportContactFromEnvironment, portalUrlsFromEnvironment, wrongPortalLinks } from "@/lib/portal-urls";
 import { useSignInViewModel } from "../view-models/use-sign-in-view-model";
 
 type SignInVm = ReturnType<typeof useSignInViewModel>;
@@ -31,7 +31,7 @@ export function SignInView() {
       footer={
         <>
           <p>Approved clients only. Access requires a signed conforme.</p>
-          <PrismAccountHelp topic="client portal access" />
+          <PrismAccountHelp contact={pmcmSupportContactFromEnvironment()} topic="client portal access" />
           <PrismWrongPortalLinks links={otherPortals} />
         </>
       }

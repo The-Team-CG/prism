@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mapEvent } from './pmcm-read-model.mappers';
+import { mapComplianceCheck, mapEvent } from './pmcm-read-model.mappers';
 
 const dependencies = {
   guestReader: { guestAccessCode: () => 'GUEST-1' },
@@ -37,5 +37,13 @@ describe('PMCM mapEvent', () => {
     // This mapper serves every actor, including clients; the PMCM user id stays internal.
     expect(mapped).not.toHaveProperty('actualEndedBy');
     expect(mapEvent({ ...event, actualEndedAt: null, actualEndedBy: null } as never, dependencies)).toMatchObject({ actualEndedAt: null });
+  });
+
+  it('returns the full compliance contract so closure can show evidence, with safe defaults for older runs', () => {
+    const base = { id: 'chk_1', eventId: 'evt_1', layer: 'Must-Fix', title: 'Venue permit', status: 'open', note: 'Upload the permit' };
+    expect(mapComplianceCheck({ ...base, evaluationStatus: 'satisfied', evidence: ['permit.pdf', ' ', 7], definitionStatus: 'DERIVED', remediation: 'Done', runId: 'run_1' } as never))
+      .toMatchObject({ evaluationStatus: 'satisfied', evidence: ['permit.pdf'], definitionStatus: 'DERIVED', remediation: 'Done', runId: 'run_1' });
+    expect(mapComplianceCheck(base as never))
+      .toMatchObject({ evaluationStatus: 'not_satisfied', evidence: [], definitionStatus: 'PROVISIONAL', remediation: 'Upload the permit', runId: null });
   });
 });

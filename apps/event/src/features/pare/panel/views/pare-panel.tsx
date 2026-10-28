@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import { useState } from "react";
 import {
@@ -136,7 +137,7 @@ function PareApprovalHeader({ record }: { record: PAREApprovalRecord }) {
         <div>
           <p className="text-sm font-black text-foreground">PARE · Emergency Replacement</p>
           <p className="text-xs text-muted-foreground">
-            {r.withdrawnSupplier.name} · {r.withdrawnSupplier.category} · {new Date(r.triggeredAt).toLocaleString()}
+            {r.withdrawnSupplier.name} · {r.withdrawnSupplier.category} · {formatPortalDateTime(r.triggeredAt)}
           </p>
         </div>
       </div>
@@ -268,7 +269,7 @@ function PareReviewFooter({
       <span>
         <span className="font-bold">{record.status === "approved" ? "Approved" : "Rejected"}</span>
         {record.reviewedBy ? ` by ${record.reviewedBy}` : ""}
-        {record.reviewedAt ? ` · ${new Date(record.reviewedAt).toLocaleString()}` : ""}
+        {record.reviewedAt ? ` · ${formatPortalDateTime(record.reviewedAt)}` : ""}
       </span>
     </div>
   );

@@ -1,20 +1,17 @@
+import { formatPortalDate } from "@prism/ui/format-date";
 import type {
   CreateFileRequirementInput,
   PrismFileRequirementItem,
   PrismFileRequirementsMatrix,
   UpdateFileRequirementInput,
 } from "@prism/types";
+import { FILE_REQUIREMENT_ROLES } from "@prism/types";
 import { roleLabel, statusLabel } from "@/features/pmcm-kit/model/display-labels";
 
 export const FILE_HUB_HELP_COPY =
   "Upload deliverables in Stored event files. Confirmed files are shared with the client and available to download from the event file hub.";
 
-export const FILE_REQUIREMENT_ROLE_OPTIONS = [
-  { value: "pmcm-admin", label: "PMCM administrator" },
-  { value: "client", label: "Client" },
-  { value: "coordinator", label: "Coordinator" },
-  { value: "supplier", label: "Supplier" },
-] as const;
+export const FILE_REQUIREMENT_ROLE_OPTIONS = FILE_REQUIREMENT_ROLES.map((value) => ({ value, label: roleLabel(value) }));
 
 /** Form state for PMCM edits. Strings are raw input values; the use-case validates them through @prism/types. */
 export type FileRequirementDraft = {
@@ -50,7 +47,7 @@ export function dueDateToIso(date: string): string | null {
 }
 
 export function formatFileRequirementDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  return formatPortalDate(iso);
 }
 
 function sameMembers(left: readonly string[], right: readonly string[]) {

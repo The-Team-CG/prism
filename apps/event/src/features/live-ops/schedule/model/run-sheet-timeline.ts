@@ -1,3 +1,4 @@
+import { formatPortalDate, formatPortalTime } from "@prism/ui/format-date";
 import type { PrismRunSheetEntry, PrismRunSheetEntryKind } from "@prism/types";
 
 export type RunSheetTimelineRow = PrismRunSheetEntry & {
@@ -39,11 +40,11 @@ export function buildRunSheetTimeline(entries: PrismRunSheetEntry[], now: Date):
 }
 
 export function formatRunSheetTime(iso: string) {
-  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return formatPortalTime(iso);
 }
 
 export function formatRunSheetDate(iso: string) {
-  return new Date(iso).toLocaleDateString([], { month: "short", day: "numeric" });
+  return formatPortalDate(iso);
 }
 
 /** PMCM print-friendly run sheet route for the selected event. */

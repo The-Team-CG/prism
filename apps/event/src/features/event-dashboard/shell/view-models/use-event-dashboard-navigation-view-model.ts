@@ -10,6 +10,8 @@ import {
   CLIENT_DETAIL_ROUTES,
   EVENT_DETAIL_ROUTES,
   EVENT_TAB_ROUTES,
+  clientDossierHref,
+  eventWorkspaceHref,
   EVENT_WORKSPACE_ROUTE_TABS,
   SIDEBAR_STATIC_ROUTES,
   routeStateForSidebarItem,
@@ -89,23 +91,19 @@ export function useEventDashboardNavigationViewModel({
     });
   }, [routeState.eventId, router, screenName, selectedEvent?.id, selectedEventId, session]);
 
-  function eventRoute(eventId: string, nextTab: DetailTab = "overview") {
-    return `/dashboard/events/${encodeURIComponent(eventId)}/${EVENT_TAB_ROUTES[nextTab]}`;
-  }
-
   function navigateEvent(eventId: string, nextTab: DetailTab = "overview") {
     setSidebarActiveOverride(null);
     setSection("events");
     setSelectedEventId(eventId);
     setTab(nextTab);
-    router.push(eventRoute(eventId, nextTab));
+    router.push(eventWorkspaceHref(eventId, nextTab));
   }
 
   function navigateClient(clientId: string) {
     setSidebarActiveOverride(null);
     setSection("clients");
     setSelectedClientId(clientId);
-    router.push(`/dashboard/clients/${encodeURIComponent(clientId)}`);
+    router.push(clientDossierHref(clientId));
   }
 
   function navigateEventTab(nextTab: DetailTab, options: { preserveSidebarActive?: boolean } = {}) {
@@ -113,7 +111,7 @@ export function useEventDashboardNavigationViewModel({
     setSection("events");
     setTab(nextTab);
     const targetId = selectedEvent?.id ?? selectedEventId;
-    router.push(targetId ? eventRoute(targetId, nextTab) : "/dashboard/events");
+    router.push(targetId ? eventWorkspaceHref(targetId, nextTab) : "/dashboard/events");
   }
 
   function navigateSection(nextSection: DashboardSection, options: { preserveSidebarActive?: boolean } = {}) {

@@ -1,16 +1,11 @@
 "use client";
+import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import { useState, type FormEvent } from "react";
 import type { PrismClientOcularVisit } from "@prism/types";
 
 function formatScheduledAt(scheduledAt: string | null) {
-  if (!scheduledAt) return "Date pending";
-  const date = new Date(scheduledAt);
-  if (Number.isNaN(date.getTime())) return "Date pending";
-  return new Intl.DateTimeFormat("en-PH", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
+  return formatPortalDateTime(scheduledAt, "Date pending");
 }
 
 export function ClientOcularVisitPanel({

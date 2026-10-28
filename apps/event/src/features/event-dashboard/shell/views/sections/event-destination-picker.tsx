@@ -3,6 +3,8 @@
 import { ChevronRight } from "lucide-react";
 import { formatPortalDate } from "@prism/ui/format-date";
 import type { PrismEvent } from "@prism/types";
+import { RouteLink } from "@/features/pmcm-kit";
+import { eventWorkspaceHref, type DetailTab } from "../../model/event-dashboard-routing";
 
 /**
  * Inline event chooser for global PMCM destinations (Finance, Files, Messages) that only work inside one
@@ -12,11 +14,14 @@ export function EventDestinationPicker({
   events,
   description,
   actionLabel,
+  tab,
   onOpenEvent,
 }: {
   events: Pick<PrismEvent, "id" | "eventName" | "clientName" | "eventDate">[];
   description: string;
   actionLabel: string;
+  /** The workspace section each row opens. */
+  tab: DetailTab;
   onOpenEvent: (eventId: string) => void;
 }) {
   const sorted = [...events].sort((a, b) => (a.eventDate ?? "").localeCompare(b.eventDate ?? ""));
@@ -32,9 +37,9 @@ export function EventDestinationPicker({
         <ul className="divide-y divide-border">
           {sorted.map((event) => (
             <li key={event.id}>
-              <button
-                type="button"
-                onClick={() => onOpenEvent(event.id)}
+              <RouteLink
+                href={eventWorkspaceHref(event.id, tab)}
+                onNavigate={() => onOpenEvent(event.id)}
                 title={event.eventName}
                 aria-label={`${actionLabel}: ${event.eventName}`}
                 className="flex min-h-11 w-full min-w-0 items-center gap-3 px-5 py-3 text-left transition hover:bg-muted/40"
@@ -47,7 +52,7 @@ export function EventDestinationPicker({
                 </span>
                 <span className="hidden shrink-0 text-sm font-medium text-primary sm:inline">{actionLabel}</span>
                 <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-              </button>
+              </RouteLink>
             </li>
           ))}
         </ul>

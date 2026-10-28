@@ -177,4 +177,18 @@ describe("floorplan initial view", () => {
     state = reducer(reducer(state, { type: "SET_CANVAS_SIZE", size }), { type: "FIT_TO_PLAN" });
     expect(state.viewport).toEqual(fittedViewport(size, hall));
   });
+
+  it("brings the selected object into view on a large plan, and does nothing without a selection", () => {
+    const far = { ...table, id: "far", x: 1100, y: 700 };
+    const hall: Project = { ...project, widthM: 1200, heightM: 800, objects: [table, far] };
+    let state = reducer({ ...initialState(hall), viewport: { tx: 0, ty: 0, zoom: 0.5 } }, { type: "SET_CANVAS_SIZE", size });
+    expect(reducer(state, { type: "FOCUS_SELECTION" }).viewport).toEqual(state.viewport);
+
+    state = reducer(reducer(state, { type: "SET_SELECTION", ids: ["far"] }), { type: "FOCUS_SELECTION" });
+    const topLeft = toScreen(state.viewport, far.x, far.y);
+    const bottomRight = toScreen(state.viewport, far.x + far.w, far.y + far.h);
+    expect(topLeft.x).toBeGreaterThanOrEqual(0);
+    expect(bottomRight.x).toBeLessThanOrEqual(size.w);
+    expect(bottomRight.y).toBeLessThanOrEqual(size.h);
+  });
 });

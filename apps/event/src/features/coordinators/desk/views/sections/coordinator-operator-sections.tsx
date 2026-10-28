@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import { useState, type FormEvent } from "react";
 import { ClipboardList, Truck, UserCheck } from "lucide-react";
@@ -97,7 +98,7 @@ function CoordinatorTaskQueueRow({ task, taskActions, canUpdate }: { task: RoleV
       <div>
         <p className="text-sm font-bold text-foreground">{task.title}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          {task.assignedRole}{task.notes ? " — " + task.notes : ""}{task.slaDueAt ? " · Due " + new Date(task.slaDueAt).toLocaleString("en-PH") : ""}
+          {task.assignedRole}{task.notes ? " — " + task.notes : ""}{task.slaDueAt ? " · Due " + formatPortalDateTime(task.slaDueAt) : ""}
         </p>
       </div>
       <div className="flex items-center gap-2">

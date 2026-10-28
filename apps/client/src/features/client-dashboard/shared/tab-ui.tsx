@@ -63,7 +63,7 @@ export function formatDayLabel(day: string) {
   try {
     const date = new Date(day);
     if (Number.isNaN(date.getTime())) return day;
-    return new Intl.DateTimeFormat("en-PH", { month: "long", day: "numeric", year: "numeric" }).format(date);
+    return new Intl.DateTimeFormat("en-PH", { month: "long", day: "numeric", year: "numeric", timeZone: "Asia/Manila" }).format(date);
   } catch {
     return day;
   }

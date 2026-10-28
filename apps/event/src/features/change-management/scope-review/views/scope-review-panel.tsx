@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDate } from "@prism/ui/format-date";
 
 import { useState, type FormEvent } from "react";
 import type { PrismAddendum, PrismEventFreezeException, PrismScopeChangeRequest } from "@prism/types";
@@ -104,7 +105,7 @@ function ScopeChangeDetails({ request, impacts }: { request: PrismScopeChangeReq
   return (
     <div>
       <p className="font-semibold text-foreground">{request.title}</p>
-      <p className="text-muted-foreground">{scopeChangeCategoryLabels[request.category]} · {request.requestedByRole === "client" ? "Raised by client" : "Logged by PMCM"} · {new Date(request.submittedAt).toLocaleDateString()}</p>
+      <p className="text-muted-foreground">{scopeChangeCategoryLabels[request.category]} · {request.requestedByRole === "client" ? "Raised by client" : "Logged by PMCM"} · {formatPortalDate(request.submittedAt)}</p>
       <p className="mt-1 text-foreground">{request.description}</p>
       {request.decisionReason ? <p className="text-muted-foreground">Internal reason: {request.decisionReason}</p> : null}
       {request.clientResponse ? <p className="text-muted-foreground">Client response: {request.clientResponse}</p> : null}

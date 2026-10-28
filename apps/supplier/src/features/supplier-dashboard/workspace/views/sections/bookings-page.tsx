@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import { FormEvent, useMemo, useState } from "react";
 import {
@@ -195,7 +196,7 @@ export function BookingsPage({
               {workflowWorkspace?.schedules.filter((schedule) => schedule.requestId === req.id).map((schedule) => (
                 <div key={schedule.id} className="rounded-xl border border-border bg-muted/30 p-4">
                   <p className="text-sm font-bold text-foreground">Supplier schedule · revision {schedule.revision}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Ingress {new Date(schedule.ingressAt).toLocaleString()} · Egress {new Date(schedule.egressAt).toLocaleString()} · {schedule.location}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Ingress {formatPortalDateTime(schedule.ingressAt)} · Egress {formatPortalDateTime(schedule.egressAt)} · {schedule.location}</p>
                   {schedule.notes ? <p className="mt-1 text-xs text-muted-foreground">{schedule.notes}</p> : null}
                   {schedule.acknowledgedRevision === schedule.revision ? <p className="mt-2 text-xs font-semibold text-success">You acknowledged this revision.</p> : (
                     <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
@@ -211,7 +212,7 @@ export function BookingsPage({
               {workflowWorkspace?.creativeTasks.filter((task) => task.requestId === req.id).map((task) => (
                 <div key={task.id} className="rounded-xl border border-border bg-muted/30 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-sm font-bold">{task.title}</p><p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{task.brief}</p></div><StatusBadge status={task.status} /></div>
-                  {task.dueAt ? <p className="mt-2 text-xs text-muted-foreground">Due {new Date(task.dueAt).toLocaleString()}</p> : null}
+                  {task.dueAt ? <p className="mt-2 text-xs text-muted-foreground">Due {formatPortalDateTime(task.dueAt)}</p> : null}
                   {["open", "in_progress", "changes_requested"].includes(task.status) ? <>
                     <Input className="mt-3 h-9 rounded-lg" value={taskNotes[task.id] ?? task.supplierProgressNote} disabled={busy === `creative:${task.id}`} onChange={(e) => setTaskNotes((current) => ({ ...current, [task.id]: e.target.value }))} placeholder="Progress note for PMCM" />
                     <div className="mt-2 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" disabled={busy === `creative:${task.id}`} onClick={() => onUpdateProgress(task.id, taskNotes[task.id] ?? task.supplierProgressNote)} className="rounded-lg">Save progress</Button>

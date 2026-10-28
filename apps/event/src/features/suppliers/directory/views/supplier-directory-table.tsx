@@ -1,3 +1,4 @@
+import { formatPortalDate } from "@prism/ui/format-date";
 import { ArrowDown, ArrowUp, CalendarDays, ChevronRight, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import type { PmcmSupplierDirectoryQuery, PrismPmcmSupplierDirectoryPage, PrismSupplierCategory } from "@prism/types";
@@ -26,7 +27,7 @@ type SupplierDirectoryTableProps = {
 function dateLabel(value: string | null) {
   if (!value) return "Never";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "Unknown" : new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(date);
+  return Number.isNaN(date.getTime()) ? "Unknown" : new Intl.DateTimeFormat("en-PH", { month: "short", day: "numeric", timeZone: "Asia/Manila" }).format(date);
 }
 
 function ratingLabel(rating: { average: number | null; count: number }) {
@@ -188,7 +189,7 @@ function SupplierDirectoryRow({ supplier, selected, onSelect }: { supplier: Supp
       </td>
       <td className="min-w-[130px] whitespace-nowrap px-3"><span className="mb-1.5 block text-2xs">{ratingLabel(supplier.rating)}</span><div className="max-w-24"><SegmentedMeter value={supplier.rating.average} segments={24} /></div></td>
       <td className="whitespace-nowrap px-3 text-muted-foreground"><span className={`mr-1.5 inline-block size-1.5 rounded-full ${certificationDotClass(supplier.certifications.attention)}`} />{certificationLabel(supplier.certifications.attention, supplier.certifications)}</td>
-      <td className="whitespace-nowrap px-3 text-muted-foreground"><span title={supplier.lastReviewedAt ? new Date(supplier.lastReviewedAt).toLocaleDateString("en", { dateStyle: "long" }) : undefined} className="flex items-center gap-1.5"><CalendarDays aria-hidden="true" className="size-3" />{dateLabel(supplier.lastReviewedAt)}</span></td>
+      <td className="whitespace-nowrap px-3 text-muted-foreground"><span title={supplier.lastReviewedAt ? formatPortalDate(supplier.lastReviewedAt) : undefined} className="flex items-center gap-1.5"><CalendarDays aria-hidden="true" className="size-3" />{dateLabel(supplier.lastReviewedAt)}</span></td>
     </tr>
   );
 }

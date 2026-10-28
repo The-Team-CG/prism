@@ -96,6 +96,7 @@ function InboxHeader({ inbox, counts, loadFailed, onRefresh }: { inbox: PrismPmc
             <span className="font-semibold tabular-nums">{counts.needsAction} need action</span>
             <span className="text-muted-foreground"> · </span>
             <span className="tabular-nums">{counts.reference} updates</span>
+            {inbox.page.hasMore || inbox.page.index > 0 ? <span className="text-muted-foreground"> on this page</span> : null}
           </p>
         ) : null}
         <p className="text-xs text-muted-foreground">{inboxFreshness(inbox, loadFailed)}</p>

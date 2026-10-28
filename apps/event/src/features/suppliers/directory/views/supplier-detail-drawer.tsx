@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDate } from "@prism/ui/format-date";
 
 import { useEffect, useRef } from "react";
 import { Handshake, LockKeyhole, Mail, Phone, X } from "lucide-react";
@@ -267,7 +268,7 @@ function ReviewCard({ review }: { review: PrismPmcmSupplierReviewsPage["items"][
       <div className="flex items-center justify-between gap-3"><h4 className="text-xs font-semibold">{review.eventName || "Supplier review"}</h4><span className="flex items-center gap-2 text-xs font-semibold">{review.rating}/5<RatingStars rating={review.rating} /></span></div>
       <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">{review.notes || "No written feedback recorded."}</p>
       {review.dimensionRatings.length ? <div className="mt-3 space-y-1">{review.dimensionRatings.map((dimension) => <div key={dimension.dimensionId} className="flex justify-between gap-2 text-2xs"><span className="text-muted-foreground">{dimension.dimensionName}</span><span>{dimension.rating}/5</span></div>)}</div> : null}
-      <div className="mt-3 flex flex-wrap items-center gap-2 text-3xs"><SupplierAvatar name={review.reviewedBy} /><span>{review.reviewedBy}</span><time className="text-muted-foreground" dateTime={review.createdAt}>{new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(new Date(review.createdAt))}</time></div>
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-3xs"><SupplierAvatar name={review.reviewedBy} /><span>{review.reviewedBy}</span><time className="text-muted-foreground" dateTime={review.createdAt}>{formatPortalDate(review.createdAt)}</time></div>
     </article>
   );
 }
@@ -314,7 +315,7 @@ function CertificationRecord({ certification }: { certification: PrismPmcmSuppli
     <article className="rounded-lg border border-border p-3">
       <p className="text-sm font-medium">{certification.fileName}</p>
       <p className="mt-1 text-xs text-muted-foreground">{certification.documentType || "Type not recorded"}{certification.issuer ? ` · ${certification.issuer}` : ""} · {certification.status || "Unknown status"}</p>
-      {certification.expiresAt ? <p className="mt-1 text-xs text-muted-foreground">Expires {new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(new Date(certification.expiresAt))}</p> : null}
+      {certification.expiresAt ? <p className="mt-1 text-xs text-muted-foreground">Expires {formatPortalDate(certification.expiresAt)}</p> : null}
     </article>
   );
 }
