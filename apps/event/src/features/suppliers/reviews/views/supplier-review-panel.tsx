@@ -30,7 +30,7 @@ export function SupplierReviewPanel({
 }: SupplierReviewPanelProps) {
   return (
     <div className="rounded-lg border border-border bg-muted p-4">
-      <p className="text-xs font-black uppercase tracking-[0.14em] text-attention">Private PMCM Review</p>
+      <p className="text-xs font-medium text-attention">Private PMCM Review</p>
       <div className="mt-3 grid gap-2">
         <select
           aria-label="Overall supplier rating"
@@ -50,7 +50,7 @@ export function SupplierReviewPanel({
       </div>
       {dimensions.length > 0 && (
         <div className="mt-3 grid gap-2">
-          <p className="text-xs font-black uppercase tracking-[0.1em] text-muted-foreground">Category dimensions</p>
+          <p className="text-xs font-medium text-muted-foreground">Category dimensions</p>
           {dimensions.map((dimension) => (
             <div key={dimension.id} className="flex items-center justify-between gap-3">
               <span className="text-sm">{dimension.name}</span>

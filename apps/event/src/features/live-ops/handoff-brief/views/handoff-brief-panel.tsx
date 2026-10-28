@@ -1,6 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import type { PrismHandoffBrief } from "@prism/types";
 import { useHandoffBriefViewModel } from "../view-models/use-handoff-brief-view-model";
 
@@ -12,30 +13,56 @@ function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-export function HandoffBriefPanel({ eventId }: { eventId: string }) {
+/**
+ * The brief is reference material on the live desk, so PMCM sees a one-line summary
+ * and expands it on demand. The coordinator brief view passes `defaultOpen`.
+ */
+export function HandoffBriefPanel({ eventId, defaultOpen = false }: { eventId: string; defaultOpen?: boolean }) {
   const vm = useHandoffBriefViewModel(eventId);
   const brief = vm.brief;
+  const [open, setOpen] = useState(defaultOpen);
+  const summary = vm.summary;
 
   return (
-    <section aria-labelledby="handoff-brief-heading" className="space-y-5 rounded-xl border border-border bg-card p-5">
+    <section aria-labelledby="handoff-brief-heading" className="space-y-4 rounded-lg border border-border bg-card p-4 sm:p-5">
       <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 id="handoff-brief-heading" className="text-lg font-bold text-foreground">Handoff brief</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {brief?.scope === "coordinator"
-              ? "Your event-day subset. Finance, private supplier notes and audit records are not shown."
-              : "Planning-to-event-day snapshot for PMCM. Built from the current scoped records."}
+        <div className="min-w-0">
+          <h2 id="handoff-brief-heading" className="text-lg font-semibold text-foreground">Handoff brief</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {summary
+              ? `${summary.openIssueCount} open issues · ${summary.outstandingFileCount} files outstanding · ${summary.latestHandoffOutstandingCount} items from the latest handoff`
+              : brief?.scope === "coordinator"
+                ? "Your event-day subset."
+                : "Planning-to-event-day snapshot."}
           </p>
         </div>
-        <button type="button" onClick={() => void vm.reload()} className="rounded-md border border-border px-3 py-1.5 text-sm font-semibold" disabled={vm.loading}>
-          Refresh brief
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-controls="handoff-brief-body"
+            onClick={() => setOpen((current) => !current)}
+            className="min-h-11 rounded-md border border-border px-3 text-sm font-semibold"
+          >
+            {open ? "Hide brief" : "Show brief"}
+          </button>
+          <button type="button" onClick={() => void vm.reload()} className="min-h-11 rounded-md border border-border px-3 text-sm font-semibold" disabled={vm.loading}>
+            Refresh brief
+          </button>
+        </div>
       </header>
 
       {vm.loading && !brief ? <p role="status" className="text-sm text-muted-foreground">Loading handoff brief…</p> : null}
       {vm.error ? <p role="alert" className="text-sm text-destructive">{vm.error}</p> : null}
 
-      {brief ? <HandoffBriefBody brief={brief} /> : null}
+      <div id="handoff-brief-body" hidden={!open} className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          {brief?.scope === "coordinator"
+            ? "Your event-day subset. Finance, private supplier notes and audit records are not shown."
+            : "Built from the current scoped records."}
+        </p>
+        {brief ? <HandoffBriefBody brief={brief} /> : null}
+      </div>
     </section>
   );
 }
@@ -58,7 +85,7 @@ function KeyDetails({ details }: { details: Brief["keyDetails"] }) {
   return (
     <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
       <Detail label="Event" value={details.eventName} />
-      <Detail label="Date" value={details.eventDate} />
+      <Detail label="Date" value={formatPortalDate(details.eventDate)} />
       <Detail label="Status" value={words(details.status)} />
       <Detail label="Venue" value={details.venue ?? "Not recorded"} />
       <Detail label="Guests" value={details.guestCount === null ? "Not recorded" : String(details.guestCount)} />
@@ -142,7 +169,7 @@ function FilesSection({ files }: { files: Brief["files"] }) {
       {files.map((file) => (
         <li key={file.key} className="flex flex-wrap justify-between gap-2 py-2 text-sm">
           <span className="font-semibold text-foreground">{file.label}</span>
-          <span className="text-muted-foreground">{words(file.status)}{file.dueDate ? ` · due ${file.dueDate}` : ""}</span>
+          <span className="text-muted-foreground">{words(file.status)}{file.dueDate ? ` · due ${formatPortalDate(file.dueDate)}` : ""}</span>
         </li>
       ))}
     </Section>
@@ -156,7 +183,7 @@ function HandoffsSection({ handoffs }: { handoffs: Brief["handoffs"] }) {
         <li key={handoff.id} className="space-y-1 py-2 text-sm">
           <div className="flex flex-wrap justify-between gap-2">
             <span className="font-semibold text-foreground">{handoff.role}</span>
-            <span className="text-muted-foreground">{new Date(handoff.handedOffAt).toLocaleString()} · received by {handoff.receivedBy}</span>
+            <span className="text-muted-foreground">{formatPortalDateTime(handoff.handedOffAt)} · received by {handoff.receivedBy}</span>
           </div>
           {handoff.outstandingItems.length ? (
             <ul className="list-disc pl-5 text-muted-foreground">
@@ -171,7 +198,7 @@ function HandoffsSection({ handoffs }: { handoffs: Brief["handoffs"] }) {
 
 function Detail({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-muted/40 p-3">
+    <div className="border-t border-border pt-2">
       <dt className="text-xs font-semibold text-muted-foreground">{label}</dt>
       <dd className="mt-1 font-semibold text-foreground">{value}</dd>
     </div>
@@ -181,7 +208,7 @@ function Detail({ label, value }: { label: string; value: string }) {
 function Section({ title, empty, count, children }: { title: string; empty: string; count: number; children: ReactNode }) {
   return (
     <section aria-label={title} className="border-t border-border pt-4">
-      <h3 className="font-bold text-foreground">{title}</h3>
+      <h3 className="font-semibold text-foreground">{title}</h3>
       {count > 0 ? <ul className="divide-y divide-border">{children}</ul> : <p className="mt-2 text-sm text-muted-foreground">{empty}</p>}
     </section>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { PrismAccountHelp } from "@prism/ui/account-help";
 import type { FormEvent } from "react";
 import type { PrismSupplierApplicationStatusResult } from "@prism/types";
 import { Alert, AlertDescription, AlertTitle } from "@/app/components/ui/alert";
@@ -73,6 +74,11 @@ function StatusResultCard({
           </div>
         ) : null}
       </dl>
+      {result.status === "declined" ? (
+        <div className="mt-3 text-sm text-muted-foreground">
+          <PrismAccountHelp topic={`the ${result.companyName} supplier application`} fallback={null} />
+        </div>
+      ) : null}
       <p className="mt-4 text-xs text-muted-foreground">
         {lastCheckedAt ? `Last checked ${lastCheckedAt.toLocaleTimeString()}.` : "Checking for the latest status…"}
         {!isTerminal ? " This page checks for updates while it remains open." : ""}

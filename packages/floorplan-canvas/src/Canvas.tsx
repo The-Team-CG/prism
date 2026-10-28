@@ -36,6 +36,10 @@ export function Canvas({ readOnly = false }: { readOnly?: boolean }) {
     return () => ro.disconnect();
   }, []);
 
+  useEffect(() => {
+    dispatch({ type: "SET_CANVAS_SIZE", size });
+  }, [size, dispatch]);
+
   const fittedRef = useRef(false);
   useEffect(() => {
     if (fittedRef.current) return;

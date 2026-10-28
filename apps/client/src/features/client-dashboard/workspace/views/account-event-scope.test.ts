@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
     selectedEventId: null as string | null,
     setSelectedEventId: vi.fn(),
     state: { documents: [{ id: "doc-b", eventId: "event-b", fileName: "agreement.pdf", type: "contract", status: "approved", uploadedAt: "2026-10-20" }] },
-    router: { push: vi.fn() },
+    router: { push: vi.fn(), replace: vi.fn() },
     session: { name: "Client", email: "client@example.test" },
     payments: [], billing: undefined, disputes: [], portalView: "files-all",
   },
@@ -58,13 +58,14 @@ describe("account pages with multiple events", () => {
     }
   });
 
-  it("offers a direct event link even when there is only one event", () => {
+  it("opens the only event's section directly, keeping a link as the fallback", () => {
     const original = mocks.workspace.events;
     try {
       mocks.workspace.events = [original[0]];
       mocks.workspace.selectedEvent = original[0];
       const markup = renderToStaticMarkup(createElement(ClientPortalBillingView));
-      expect(markup).toContain("Open your event’s billing");
+      expect(markup).toContain("Opening billing for");
+      expect(markup).not.toContain("Choose an event");
       expect(markup).toContain('href="/dashboard/events/event-a/billing"');
     } finally {
       mocks.workspace.events = original;

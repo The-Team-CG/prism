@@ -58,5 +58,8 @@ describe("PMCM document hub download availability", () => {
     expect(screen.getByRole("button", { name: "Download run-of-show.pdf" }).hasAttribute("disabled")).toBe(false);
     expect(screen.getAllByText("run-of-show.pdf")).toHaveLength(2);
     expect(screen.getAllByRole("button", { name: "Download run-of-show.pdf" })).toHaveLength(1);
+    // Metadata uses product terms rather than stored enum values.
+    expect(screen.getByText("Event deliverable · Upload not finished")).toBeTruthy();
+    expect(screen.getByText("Event deliverable · Stored")).toBeTruthy();
   });
 });

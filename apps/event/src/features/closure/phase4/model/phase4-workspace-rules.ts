@@ -1,3 +1,30 @@
+import type { PrismComplianceCheck } from "@prism/types";
+
+type IncompleteComplianceCheck = Partial<PrismComplianceCheck> & Pick<PrismComplianceCheck, "id">;
+
+/**
+ * API records from older compliance runs can omit evidence, note, or evaluation fields.
+ * Normalize them once at the workspace boundary so closure views never read undefined arrays.
+ */
+export function normalizeComplianceCheck(check: IncompleteComplianceCheck): PrismComplianceCheck {
+  return {
+    ...check,
+    eventId: check.eventId ?? "",
+    layer: check.layer ?? "Advisory",
+    title: check.title?.trim() || "Untitled compliance check",
+    status: check.status ?? "open",
+    note: check.note ?? "",
+    evaluationStatus: check.evaluationStatus ?? "not_satisfied",
+    evidence: Array.isArray(check.evidence) ? check.evidence.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [],
+    definitionStatus: check.definitionStatus ?? "PROVISIONAL",
+    remediation: check.remediation ?? "",
+  };
+}
+
+export function normalizeComplianceChecks(checks: readonly IncompleteComplianceCheck[] | null | undefined): PrismComplianceCheck[] {
+  return (checks ?? []).map(normalizeComplianceCheck);
+}
+
 const PASSED_TONES = ["approved", "resolved", "overridden", "generated", "sent"];
 const OPEN_TONES = ["draft", "issued", "open"];
 

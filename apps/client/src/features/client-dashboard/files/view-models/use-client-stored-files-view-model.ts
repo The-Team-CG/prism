@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { PrismFileRequirementItem, PrismStoredObject } from "@prism/types";
 import { downloadClientStoredFile, loadClientStoredFiles, uploadClientStoredFile } from "../use-cases/client-stored-file-actions";
+import { isClientUploadableRequirement } from "../model/client-document-checklist";
 
 function saveDownload(file: { blob: Blob; fileName: string }) {
   const url = URL.createObjectURL(file.blob);
@@ -20,6 +21,7 @@ export function useClientStoredFilesViewModel(eventId?: string) {
   activeEventIdRef.current = eventId;
   const [files, setFiles] = useState<PrismStoredObject[]>([]);
   const [requirements, setRequirements] = useState<PrismFileRequirementItem[]>([]);
+  const [allRequirements, setAllRequirements] = useState<PrismFileRequirementItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [activeDownload, setActiveDownload] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -30,13 +32,14 @@ export function useClientStoredFilesViewModel(eventId?: string) {
     let active = true;
     setFiles([]);
     setRequirements([]);
+    setAllRequirements([]);
     setError(null);
     setNotice(null);
     setLoading(Boolean(eventId));
     setActiveDownload(null);
     if (!eventId) return () => { active = false; };
     loadClientStoredFiles(eventId)
-      .then(([result, matrix]) => { if (active) { setFiles(result.filter((file) => file.lifecycleState !== "deleted")); setRequirements(clientOwnedOpenRequirements(matrix.items)); setError(null); } })
+      .then(([result, matrix]) => { if (active) { setFiles(result.filter((file) => file.lifecycleState !== "deleted")); setRequirements(clientOwnedOpenRequirements(matrix.items)); setAllRequirements(matrix.items); setError(null); } })
       .catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : "Unable to load files."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -46,7 +49,10 @@ export function useClientStoredFilesViewModel(eventId?: string) {
     try {
       const [files, matrix] = await loadClientStoredFiles(uploadEventId);
       if (activeEventIdRef.current === uploadEventId) setFiles(files.filter((file) => file.lifecycleState !== "deleted"));
-      if (activeEventIdRef.current === uploadEventId) setRequirements(clientOwnedOpenRequirements(matrix.items));
+      if (activeEventIdRef.current === uploadEventId) {
+        setRequirements(clientOwnedOpenRequirements(matrix.items));
+        setAllRequirements(matrix.items);
+      }
     } catch {
       if (activeEventIdRef.current === uploadEventId) setError("Your file was uploaded, but the list could not refresh. Reload this page to see the updated files.");
     }
@@ -63,7 +69,7 @@ export function useClientStoredFilesViewModel(eventId?: string) {
     setNotice(null);
     try {
       await uploadClientStoredFile(file, uploadEventId, attemptId, requirementKey);
-      if (activeEventIdRef.current === uploadEventId) setNotice(uploadSuccessMessage(file.name, requirementKey, requirements));
+      if (activeEventIdRef.current === uploadEventId) setNotice(uploadSuccessMessage(file.name, requirementKey, allRequirements));
       uploadAttempts.current.delete(fileKey);
       await refreshAfterUpload(uploadEventId);
     } catch (reason) {
@@ -88,11 +94,11 @@ export function useClientStoredFilesViewModel(eventId?: string) {
     }
   }
 
-  return { inputRef, files, requirements, busy, activeDownload, error, notice, loading, uploadSelectedFile, downloadFile };
+  return { inputRef, files, requirements, allRequirements, busy, activeDownload, error, notice, loading, uploadSelectedFile, downloadFile };
 }
 
 function clientOwnedOpenRequirements(items: PrismFileRequirementItem[]) {
-  return items.filter((item) => item.origin === "custom" && item.ownerRole === "client" && !["submitted", "approved", "complete"].includes(item.status));
+  return items.filter((item) => isClientUploadableRequirement(item) && !["submitted", "approved", "complete"].includes(item.status));
 }
 
 function uploadSuccessMessage(fileName: string, requirementKey: string | undefined, requirements: PrismFileRequirementItem[]) {

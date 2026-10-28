@@ -1,5 +1,6 @@
 "use client";
 
+import { PrismAccountHelp } from "@prism/ui/account-help";
 import { portalHref } from "@prism/ui/portal-path";
 import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, PrismWrongPortalLinks, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
 import { ArrowRight, Eye, EyeOff, ShieldCheck } from "lucide-react";
@@ -97,7 +98,7 @@ export function SupplierSignInView() {
       footer={
         <>
           <p>Approved supplier accounts only.</p>
-          <p>Contact PMCM for account issues or access requests.</p>
+          <PrismAccountHelp topic="supplier portal access" />
           <PrismWrongPortalLinks links={otherPortals} />
         </>
       }

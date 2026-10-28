@@ -81,7 +81,7 @@ export function PaymentsPage({ workflowWorkspace }: { workspace: SupplierWorkspa
                 { label: "Remaining", value: formatMoney(milestone.remainingBalance), status: milestone.remainingBalance === 0 ? "released" : "pending" },
               ].map(({ label, value, status }) => (
                 <div key={label} className="rounded-xl border border-border bg-muted/30 p-4">
-                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
+                  <p className="text-xs font-medium text-muted-foreground">{label}</p>
                   <p className="mt-2 text-lg font-black text-foreground">{value}</p>
                   <div className="mt-2"><StatusBadge status={status} /></div>
                 </div>

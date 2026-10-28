@@ -47,55 +47,35 @@ export function ClientHomeGreeting({
   onReviewConforme: () => void;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-primary-deep px-6 py-7 text-white shadow-lg sm:px-8 sm:py-8">
-      <div className="relative z-10">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-white/70">P.R.I.S.M Client Portal</p>
-            <h1 className="mt-1 text-2xl font-black leading-tight sm:text-3xl">
-              {greetingByTime(sessionName)}
-            </h1>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-white/80">
-              {eventCount > 0
-                ? `You have ${eventCount} active event${eventCount === 1 ? "" : "s"} with PMCM. Select an event to review approvals, documents, billing, and planning updates.`
-                : "Your event workspace opens after PMCM accepts your inquiry and both you and PMCM acknowledge the conforme. Review it here when PMCM has prepared it."}
-            </p>
-            <div className="mt-5 flex flex-wrap gap-2">
-              <Button
-                className="rounded-lg bg-white font-bold text-primary hover:bg-white/90"
-                onClick={onRequest}
-              >
-                <Send className="size-4" /> New event request
-              </Button>
-              {eventCount > 0 ? (
-                <Button
-                  variant="ghost"
-                  className="rounded-lg font-semibold text-white hover:bg-white/15 hover:text-white"
-                  onClick={onEvents}
-                >
-                  My events <ArrowRight className="size-4" />
-                </Button>
-              ) : null}
-              <Button
-                variant="ghost"
-                className="rounded-lg font-semibold text-white hover:bg-white/15 hover:text-white"
-                onClick={onReviewConforme}
-              >
-                Review conforme <ArrowRight className="size-4" />
-              </Button>
-            </div>
-          </div>
-          {daysToEvent !== null ? (
-            <div className="hidden shrink-0 flex-col items-center rounded-xl bg-white/15 px-5 py-4 text-center backdrop-blur-sm sm:flex">
-              <span className="text-4xl font-black leading-none">{daysToEvent}</span>
-              <span className="mt-1 text-xs font-semibold uppercase tracking-wider text-white/70">days to event</span>
-            </div>
+    <header className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-semibold leading-tight text-foreground">{greetingByTime(sessionName)}</h1>
+        <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+          {eventCount > 0
+            ? `You have ${eventCount} active event${eventCount === 1 ? "" : "s"} with PMCM. Open an event to review approvals, documents, billing and planning updates.`
+            : "Your event workspace opens after PMCM accepts your inquiry and both you and PMCM acknowledge the conforme. Review it here when PMCM has prepared it."}
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <Button className="h-10 rounded-md font-semibold" onClick={onRequest}>
+            <Send className="size-4" aria-hidden="true" /> New event request
+          </Button>
+          {eventCount > 0 ? (
+            <button type="button" className="inline-flex min-h-10 items-center gap-1 text-sm font-medium text-primary hover:text-primary/80" onClick={onEvents}>
+              My events <ArrowRight className="size-4" aria-hidden="true" />
+            </button>
           ) : null}
+          <button type="button" className="inline-flex min-h-10 items-center gap-1 text-sm font-medium text-primary hover:text-primary/80" onClick={onReviewConforme}>
+            Review conforme <ArrowRight className="size-4" aria-hidden="true" />
+          </button>
         </div>
       </div>
-      <span className="pointer-events-none absolute -right-12 -top-12 size-48 rounded-full bg-white/6" />
-      <span className="pointer-events-none absolute -bottom-16 -right-8 size-64 rounded-full bg-white/4" />
-    </div>
+      {daysToEvent !== null ? (
+        <p className="shrink-0 text-sm text-muted-foreground sm:text-right">
+          <span className="block text-3xl font-semibold tabular-nums text-foreground">{daysToEvent}</span>
+          days to your next event
+        </p>
+      ) : null}
+    </header>
   );
 }
 

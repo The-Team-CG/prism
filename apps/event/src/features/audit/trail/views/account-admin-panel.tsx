@@ -111,19 +111,19 @@ function StaffInviteForm({ vm }: { vm: AccountAdminVm }) {
   return (
     <form onSubmit={vm.submitInvite} className="grid gap-3 rounded-md border border-border bg-muted p-4 md:grid-cols-2">
       <p className="text-sm font-black md:col-span-2">Invite staff</p>
-      <label className="text-xs font-black uppercase tracking-wide text-muted-foreground">
+      <label className="text-xs font-medium text-muted-foreground">
         Name
         <Input value={vm.draft.name} onChange={(event) => vm.updateDraft("name", event.target.value)} className="mt-2 h-10 bg-white" />
       </label>
-      <label className="text-xs font-black uppercase tracking-wide text-muted-foreground">
+      <label className="text-xs font-medium text-muted-foreground">
         Email
         <Input value={vm.draft.email} onChange={(event) => vm.updateDraft("email", event.target.value)} className="mt-2 h-10 bg-white" />
       </label>
-      <label className="text-xs font-black uppercase tracking-wide text-muted-foreground">
+      <label className="text-xs font-medium text-muted-foreground">
         Organization
         <Input value={vm.draft.organization} onChange={(event) => vm.updateDraft("organization", event.target.value)} className="mt-2 h-10 bg-white" />
       </label>
-      <label className="text-xs font-black uppercase tracking-wide text-muted-foreground">
+      <label className="text-xs font-medium text-muted-foreground">
         Role
         <select
           value={vm.draft.role}

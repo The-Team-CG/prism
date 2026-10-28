@@ -8,6 +8,8 @@ export interface PrismNavItem {
   groupId?: string;
   badge?: string | number;
   disabled?: boolean;
+  /** Route this destination opens. When set the item renders as a link, so it can open in a new tab. */
+  href?: string;
   subItems?: PrismNavSubItem[];
 }
 
@@ -16,6 +18,7 @@ export interface PrismNavSubItem {
   label: string;
   badge?: string | number;
   disabled?: boolean;
+  href?: string;
 }
 
 export interface PrismPrimaryNavItem {

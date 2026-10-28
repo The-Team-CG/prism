@@ -40,7 +40,7 @@ export function SupplierReviewPromptList({
         <div className="flex items-start gap-3">
           <ClipboardCheck className="mt-1 size-5 text-attention" />
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-attention">Supplier reviews</p>
+            <p className="text-xs font-medium text-attention">Supplier reviews</p>
             <h3 className="mt-1 text-xl font-black">Close the loop with assigned suppliers</h3>
             <p className="mt-1 text-sm text-muted-foreground">Private PMCM evidence for {event.eventName}.</p>
           </div>

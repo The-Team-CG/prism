@@ -185,7 +185,7 @@ function ProductPanel() {
         <div className="rounded-lg border border-primary/12 bg-card/88 p-4 shadow-sm backdrop-blur">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-3xs font-black uppercase tracking-[0.2em] text-primary">Official floorplan review</p>
+              <p className="text-xs font-medium text-primary">Official floorplan review</p>
               <h2 className="mt-2 text-2xl font-black leading-tight text-foreground">Approved ballroom layout</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">Review the approved layout with guest flow, entrances, and service access.</p>
             </div>
@@ -193,9 +193,9 @@ function ProductPanel() {
           </div>
           <div className="mt-4 grid aspect-[1.58] gap-2 rounded-lg border border-border bg-secondary/45 p-4">
             <div className="grid grid-cols-[0.5fr_1.05fr_0.5fr] gap-2">
-              <div className="rounded-md border border-primary/15 bg-card p-2 text-center text-3xs font-black uppercase text-muted-foreground">BAR</div>
-              <div className="rounded-md bg-ink p-2 text-center text-xs font-black uppercase tracking-wide text-sidebar-foreground">Stage</div>
-              <div className="rounded-md border border-primary/15 bg-card p-2 text-center text-3xs font-black uppercase text-muted-foreground">AV</div>
+              <div className="rounded-md border border-primary/15 bg-card p-2 text-center text-xs font-medium text-muted-foreground">BAR</div>
+              <div className="rounded-md bg-ink p-2 text-center text-xs font-medium text-sidebar-foreground">Stage</div>
+              <div className="rounded-md border border-primary/15 bg-card p-2 text-center text-xs font-medium text-muted-foreground">AV</div>
             </div>
             <div className="grid grid-cols-5 gap-2 px-5">
               {Array.from({ length: 15 }).map((_, index) => (
@@ -203,9 +203,9 @@ function ProductPanel() {
               ))}
             </div>
             <div className="grid grid-cols-[0.7fr_1fr_0.7fr] gap-2">
-              <div className="rounded-md border border-primary/20 bg-card p-2 text-3xs font-black uppercase text-muted-foreground">Guest flow</div>
-              <div className="rounded-md border border-primary/20 bg-card p-2 text-center text-3xs font-black uppercase text-primary">Registration</div>
-              <div className="rounded-md border border-attention/25 bg-attention/10 p-2 text-3xs font-black uppercase text-attention">Service access</div>
+              <div className="rounded-md border border-primary/20 bg-card p-2 text-xs font-medium text-muted-foreground">Guest flow</div>
+              <div className="rounded-md border border-primary/20 bg-card p-2 text-center text-xs font-medium text-primary">Registration</div>
+              <div className="rounded-md border border-attention/25 bg-attention/10 p-2 text-xs font-medium text-attention">Service access</div>
             </div>
           </div>
         </div>
@@ -351,12 +351,12 @@ export function ClientHomeLandingView() {
                 Start with a PMCM inquiry, then review approved layouts, billing, documents, and activity in one place.
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <Button asChild className="h-12 rounded-full px-5 text-sm font-black uppercase tracking-[0.14em] shadow-[0_18px_40px_rgba(23,18,22,0.24)]">
+                <Button asChild className="h-12 rounded-full px-5 text-sm font-medium shadow-[0_18px_40px_rgba(23,18,22,0.24)]">
                   <a href="/inquiry">
                     Start an inquiry <ArrowRight data-icon="inline-end" />
                   </a>
                 </Button>
-                <Button asChild variant="outline" className="h-12 rounded-full px-5 text-sm font-black uppercase tracking-[0.14em]">
+                <Button asChild variant="outline" className="h-12 rounded-full px-5 text-sm font-medium">
                   <a href="/sign-in">
                     <LockKeyhole data-icon="inline-start" />
                     Sign in
@@ -396,7 +396,7 @@ export function ClientHomeLandingView() {
       <section id="platform" className="px-5 py-16 sm:px-8 lg:px-10">
         <div className="mx-auto grid max-w-[1320px] gap-8 lg:grid-cols-[0.34fr_0.66fr] lg:items-center">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Your workspace</p>
+            <p className="text-xs font-medium text-primary">Your workspace</p>
             <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-ink sm:text-5xl">Everything you need, all in one place</h2>
             <p className="mt-4 text-lg leading-8 text-muted-foreground">From the official floorplan to billing, documents, and activity, stay informed and in control as your event comes to life.</p>
             <div className="mt-6 grid gap-3 text-sm text-muted-foreground">
@@ -415,17 +415,17 @@ export function ClientHomeLandingView() {
               </div>
               <div className="grid aspect-[1.5] gap-2 rounded-lg border border-border bg-secondary/45 p-4">
                 <div className="grid grid-cols-[0.52fr_1.08fr_0.52fr] gap-2">
-                  <span className="rounded-md border border-primary/15 bg-card p-2 text-center text-3xs font-black uppercase text-muted-foreground">Bar</span>
-                  <span className="rounded-md bg-ink p-2 text-center text-xs font-black uppercase text-sidebar-foreground">Stage</span>
-                  <span className="rounded-md border border-primary/15 bg-card p-2 text-center text-3xs font-black uppercase text-muted-foreground">AV</span>
+                  <span className="rounded-md border border-primary/15 bg-card p-2 text-center text-xs font-medium text-muted-foreground">Bar</span>
+                  <span className="rounded-md bg-ink p-2 text-center text-xs font-medium text-sidebar-foreground">Stage</span>
+                  <span className="rounded-md border border-primary/15 bg-card p-2 text-center text-xs font-medium text-muted-foreground">AV</span>
                 </div>
                 <div className="grid grid-cols-5 gap-2 px-5">
                   {Array.from({ length: 15 }).map((_, index) => <span key={index} className="aspect-square rounded-full border border-primary/20 bg-card" />)}
                 </div>
                 <div className="grid grid-cols-[0.7fr_1fr_0.7fr] gap-2">
-                  <span className="rounded-md border border-primary/20 bg-card p-2 text-3xs font-black uppercase text-primary">Guest flow</span>
-                  <span className="rounded-md border border-primary/20 bg-card p-2 text-center text-3xs font-black uppercase text-muted-foreground">Registration</span>
-                  <span className="rounded-md border border-attention/25 bg-attention/10 p-2 text-3xs font-black uppercase text-attention">Service access</span>
+                  <span className="rounded-md border border-primary/20 bg-card p-2 text-xs font-medium text-primary">Guest flow</span>
+                  <span className="rounded-md border border-primary/20 bg-card p-2 text-center text-xs font-medium text-muted-foreground">Registration</span>
+                  <span className="rounded-md border border-attention/25 bg-attention/10 p-2 text-xs font-medium text-attention">Service access</span>
                 </div>
               </div>
             </div>
@@ -453,7 +453,7 @@ export function ClientHomeLandingView() {
 
       <section id="roles" className="border-y border-primary/10 bg-card px-5 py-20 sm:px-8 lg:px-10">
         <div className="mx-auto max-w-[1320px]">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Your event life cycle</p>
+          <p className="text-xs font-medium text-primary">Your event life cycle</p>
           <div className="mt-4 grid gap-8 lg:grid-cols-[0.32fr_0.68fr] lg:items-center">
             <h2 className="prism-serif text-4xl font-black leading-[0.98] text-ink sm:text-5xl">Guided from inquiry to closure</h2>
             <div className="grid gap-4 md:grid-cols-6">
@@ -482,7 +482,7 @@ export function ClientHomeLandingView() {
       <DarkBand>
         <div id="floorplans" className="grid gap-10 lg:grid-cols-[0.34fr_0.66fr] lg:items-center">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Official floorplan control</p>
+            <p className="text-xs font-medium text-primary">Official floorplan control</p>
             <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-sidebar-foreground sm:text-5xl">Review layouts with confidence</h2>
             <p className="mt-5 text-lg leading-8 text-sidebar-foreground/75">PMCM creates and controls the official floorplans so accuracy, safety, and version history stay protected from the start.</p>
             <div className="mt-6 grid gap-3 text-sm text-sidebar-foreground/75">
@@ -503,11 +503,11 @@ export function ClientHomeLandingView() {
                   <Badge variant="outline" className={index === 2 ? "rounded-full border-brand-orange/25 bg-brand-orange/10 text-brand-orange" : "rounded-full border-success/25 bg-success/10 text-success"}>{index === 2 ? "In review" : "Approved"}</Badge>
                 </div>
                 <div className="grid aspect-[0.86] gap-2 rounded-md border border-border bg-secondary/45 p-3">
-                  <span className="rounded bg-ink p-1 text-center text-3xs font-black uppercase text-sidebar-foreground">Stage</span>
+                  <span className="rounded bg-ink p-1 text-center text-xs font-medium text-sidebar-foreground">Stage</span>
                   <div className="grid grid-cols-3 gap-2">
                     {Array.from({ length: index === 1 ? 12 : 9 }).map((_, tableIndex) => <span key={tableIndex} className="aspect-square rounded-full border border-primary/20 bg-card" />)}
                   </div>
-                  <span className="rounded border border-primary/15 bg-card p-1 text-center text-3xs font-black uppercase text-muted-foreground">Registration</span>
+                  <span className="rounded border border-primary/15 bg-card p-1 text-center text-xs font-medium text-muted-foreground">Registration</span>
                 </div>
                 <p className="mt-4 text-sm leading-6 text-muted-foreground">{index === 0 ? "Ideal for dinners and galas." : index === 1 ? "Built for presentations and sessions." : "Perfect for networking and receptions."}</p>
               </div>
@@ -551,7 +551,7 @@ export function ClientHomeLandingView() {
             ["Services", "Event planning", "Floorplan review", "Operations support", "Client success"],
             ["Resources", "Help center", "Guides", "Templates", "Contact us"],
           ].map(([title, ...items]) => (
-            <div key={title}><p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">{title}</p><div className="mt-3 grid gap-2 text-sm text-muted-foreground">{items.map((item) => <span key={item}>{item}</span>)}</div></div>
+            <div key={title}><p className="text-xs font-medium text-muted-foreground">{title}</p><div className="mt-3 grid gap-2 text-sm text-muted-foreground">{items.map((item) => <span key={item}>{item}</span>)}</div></div>
           ))}
         </div>
       </footer>
