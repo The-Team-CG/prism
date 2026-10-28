@@ -73,3 +73,12 @@ test('Storage boot reads only the checkout Storage service key when CLI status o
   assert.equal(localStorageServiceRoleKey('missing', () => ({ status: 0, stdout: 'not json' })), '');
   assert.equal(localStorageServiceRoleKey('missing', () => ({ status: 0, stdout: JSON.stringify(['ANON_KEY=public']) })), '');
 });
+
+test('Mailpit is explicit and generated host/container environments point to the local inbox', () => {
+  const args = ['postgresql://postgres:postgres@127.0.0.1:54322/postgres', project, ports, 'secret'];
+  assert.equal(developmentEnv(...args).PRISM_MAIL_TRANSPORT, 'log');
+  const env = developmentEnv(...args, { mailpit: 'http://127.0.0.1:54324' });
+  assert.equal(env.PRISM_MAIL_TRANSPORT, 'mailpit');
+  assert.equal(env.PRISM_MAILPIT_URL, 'http://127.0.0.1:54324');
+  assert.equal(env.RESEND_API_KEY, undefined);
+});

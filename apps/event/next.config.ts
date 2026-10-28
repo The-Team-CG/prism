@@ -5,6 +5,7 @@ const serviceMode = process.env.PRISM_VERCEL_SERVICES === "1";
 const basePath = serviceMode ? "/event" : "";
 
 const nextConfig: NextConfig = {
+  ...(process.env.PRISM_NEXT_DIST_DIR ? { distDir: process.env.PRISM_NEXT_DIST_DIR } : {}),
   basePath,
   ...(serviceMode ? { env: {
     NEXT_PUBLIC_API_URL: "",

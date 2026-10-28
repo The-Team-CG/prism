@@ -6,6 +6,8 @@ implementation and verification history.
 
 ## 2026-10-28
 
+- Added the local-only Mailpit transport and browser acceptance command contract to the environment runbook, with disposable target isolation and bounded browser coverage.
+
 - Consolidated client floorplan decisions onto the snapshot-bound endpoint, retired the legacy review contract, and recorded statement publication, source-cap approval and supplier correction boundaries.
 
 - Registered the Commercial confirmed-fee source writer and Platform stored-requirement upload reader, retaining caller transactions, PMCM financial approval and bounded-context ownership.
