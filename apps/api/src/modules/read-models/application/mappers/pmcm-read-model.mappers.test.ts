@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mapEvent } from './pmcm-read-model.mappers';
 
 const dependencies = {
@@ -22,6 +22,15 @@ const event = {
 };
 
 describe('PMCM mapEvent', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-09T00:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('exposes the recorded actual end so PMCM closure can correct it, without the recording staff id', () => {
     const mapped = mapEvent({ ...event, actualEndedAt: new Date('2026-09-08T22:00:00.000Z'), actualEndedBy: 'usr_pmcm' } as never, dependencies);
     expect(mapped).toMatchObject({ actualEndedAt: '2026-09-08T22:00:00.000Z' });
