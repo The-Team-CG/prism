@@ -5,6 +5,4 @@
 * [Feature ledger](feature-ledger.md) - active feature-family decisions, ownership, and verification.
 * [Client and supplier workflows](client-supplier-workflows.md) - files, supplier operational evidence and payables, client versioned decisions, conforme acknowledgement, and closeout ownership.
 * [Event authority and lifecycle policy](event-authority-and-lifecycle-policy.md) - accepted operator, official-layout, close/archive, feedback-window and client-category rules with implementation limits.
-* [Evolution governance](evolution-governance.md) - rules for adding, revising, merging, deferring, or retiring features.
-* [Redesign inventory](redesign-inventory.md) - route, severity, owner, and redesign inventory.
-* [Readiness foundation](readiness-foundation.md) - contract, sample-state, session, and external-dependency gates.
+* [Evolution governance](evolution-governance.md) - rules for adding, revising, merging, deferring, or retiring features, plus readiness gates.

@@ -4,11 +4,11 @@ title: "Deployment secrets and schema cutover controls"
 description: "Configure and verify repository-owned deployment secrets, variables, and database schema cutover gates."
 tags: [runbook, deployment, github-actions, secrets, migrations]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-10-29"
 authority: operational
 audience: [developers, reviewers, operators, agents]
 scope: "GitHub Actions deployment configuration and repository-controlled schema cutover gates"
-last_verified: "2026-10-05; repository workflow sources reviewed; external provider and deployment settings not verified"
+last_verified: "2026-10-29; deploy, promote, rollback, sync-environment, and schema-cutover-preflight workflow sources reviewed; external provider and deployment settings not verified"
 sources:
   - id: deploy-workflow
     resource: ".github/workflows/deploy.yml"
@@ -90,7 +90,7 @@ after acceptance. The normal manual environment-sync workflow rejects
 non-dry-run operation while the hold is active. Do not clear the hold early to
 make that workflow run. Configure environment protection and the external
 provider pause/health checks separately; their current settings are not
-verified by this repository change.
+verified by this repository.
 
 | Provider surface | External control to verify before cutover |
 | --- | --- |
@@ -133,14 +133,15 @@ If staging and production use different Vercel projects, the repository/org
 variable source must resolve to the intended values for the workflow's target;
 do not silently substitute a project ID from another portal.
 
-## Why the current run fails
+## When the deploy gate fails
 
 For a `staging` workflow-run event, `check-deploy-secrets` first requires
 `RENDER_PRISM_API_STAGING_DEPLOY_HOOK_URL`, then
-`PRISM_API_STAGING_URL`. When either is empty it exits non-zero, so the API and
-all four frontend jobs are correctly blocked. The reported error means the
-staging Render hook is absent or not visible to the repository; it is not an
-application test failure and it is not safe to make this gate soft-pass.
+`PRISM_API_STAGING_URL` (the `prod` branch checks the production pair). When
+either is empty it exits non-zero, so the API and all four frontend jobs are
+correctly blocked. The error means the named value is absent or not visible to
+the repository; it is not an application test failure and it is not safe to
+make this gate soft-pass.
 
 ## Verification after configuration
 

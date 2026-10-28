@@ -1,7 +1,7 @@
 # P.R.I.S.M Google Forms UAT
 
 One form covers the existing question bank: 5 roles, 51 modules, 197 test cases.
-Each submission records one module. Owner D (Anthony).
+Each submission records one module.
 
 ## Create the Google Form
 
@@ -25,10 +25,8 @@ Select the private environment file, preview the target, seed missing accounts,
 then seed scenarios with an explicit live-event date in Asia/Manila. Reruns
 preserve tester edits and existing passwords; verify reports missing records.
 
-The six October 21 seed migrations remain immutable historical artifacts. New
-seeding does not require a database-wide opt-in flag or ALTER DATABASE. The name
-Talga came from that historical procedure; its exact hosted project mapping is
-not established by this repository. Verify the selected target before use.
+The October 21 `*_uat_*` data migrations are immutable history, not the seeding
+path. Verify the selected target before use.
 
 ## Tester flow
 
@@ -61,9 +59,9 @@ The selected format uses one ratings grid and one required comment box per modul
 
 Role selection routes the questionnaire; it does not authenticate the tester's application role. Testers still need the correct portal accounts and event assignments.
 
-The builder creates 167 items including page breaks, across 58 sections. This fits Google's documented [300 content items and 75 sections](https://support.google.com/docs/answer/2839737?hl=en). The previous per-case comment-page layout exceeded those limits.
+The builder creates 167 items including page breaks, across 58 sections. This fits Google's documented [300 content items and 75 sections](https://support.google.com/docs/answer/2839737?hl=en).
 
-The supplied test cases are the existing UAT bank. This delivery converts its format; it does not certify that every case passes or re-audit current implementation coverage. The [question bank](UAT-question-bank.md) contains all steps and expected results.
+The form carries the UAT bank as written; it does not certify that every case passes or that the bank matches current implementation coverage. The [question bank](UAT-question-bank.md) contains all steps and expected results.
 
 ## Maintain and verify
 

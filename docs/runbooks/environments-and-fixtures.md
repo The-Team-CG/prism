@@ -4,15 +4,21 @@ title: "Prism environments and fixture commands"
 description: "Explicit database selection, repeatable portal scenarios, and migration history inspection."
 tags: [runbook, environments, fixtures, uat]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-10-29"
 authority: operational
 audience: [developers, QA, agents]
 scope: "database selection, synthetic accounts, and portal UAT scenarios"
-last_verified: "2026-10-23; local command contract; hosted identity unverified"
+last_verified: "2026-10-29; seed CLI flags, target guards, account catalog, and db-doctor history mode reviewed against code; hosted identity unverified"
 sources:
   - id: seed-cli
     resource: "apps/api/scripts/seed.mjs"
     title: "Standalone seed CLI"
+  - id: seed-target
+    resource: "apps/api/scripts/seed-target.mjs"
+    title: "Seed env-file loading and target guards"
+  - id: seed-accounts
+    resource: "apps/api/src/fixtures/seed-accounts.mjs"
+    title: "Accounts profile catalog"
 ---
 # Environments and fixture commands
 
@@ -24,31 +30,33 @@ sources:
 
 ## Environment identity
 
-Local startup generates ignored `.local-dev/api.env` and `.local-dev/docker.env`
-for the checkout's Supabase database. It applies migrations and preserves data;
-seeding remains separate. Ports vary by worktree.
+Local startup generates the checkout's database environment and applies
+migrations, preserving data; seeding remains separate. Generated files, ports,
+and per-worktree isolation are described in the
+[local development runbook](docker-dev-testing.md#one-database-url).
 
 Staging/UAT is a hosted test environment whose database and portal project IDs
-must be verified from deployment configuration. **Talga** names the historical
-UAT seed target; its exact provider project ID, host, and relationship to staging
-are **unverified in this repository**. Do not use the name as a database selector.
-Matching usernames do not establish password scope. Production is never seeded.
+must be verified from deployment configuration. **Talga** is an informal name
+for a UAT seed target; its provider project ID, host, and relationship to
+staging are **unverified in this repository**. Do not use the name as a database
+selector. Matching usernames do not establish password scope. Production is
+never seeded.
 
 Use one `DATABASE_URL`; `DIRECT_URL` is migration-only. Port-5432 session poolers
 are supported. Port-6543 transaction poolers are refused for transactional seeding.
 
+## Disposable browser and mail testing
+
+`npm run test:browser` (after `npx playwright install chromium`) creates and
+removes its own disposable database, API/portal processes and Mailpit inbox;
+normal development data is preserved. `PRISM_LOCAL_MAILPIT=1` before the
+ordinary startup wrapper captures local mail in Mailpit instead of the API log.
+Ports, focused commands, artifacts, and coverage are in the
+[browser acceptance guide](../../scripts/e2e/browser/README.md).
+
 ## Select a private env file
 
-For browser acceptance, run `npm run test:browser` after `npx playwright install chromium`.
-The runner creates and removes its own disposable database, API/portal processes and Mailpit inbox;
-normal development data is preserved. See the [browser acceptance guide](../../scripts/e2e/browser/README.md)
-for ports, focused commands, artifact handling and the bounded journey coverage.
-
-For manual email testing, set `PRISM_LOCAL_MAILPIT=1` before the ordinary local startup wrapper.
-It prints the local inbox URL and generates the Mailpit transport settings without a Resend key.
-Mail is captured locally with no external relay. Without the opt-in, mail stays in the API log.
-
-The new CLI loads only the selected file for database/seed settings. Inherited
+The seed CLI loads only the selected file for database/seed settings. Inherited
 URLs cannot redirect it; no implicit `.env` is loaded. Use absolute paths because
 workspace npm commands run in `apps/api`. `PRISM_ENV_FILE` is also accepted.
 
@@ -61,7 +69,7 @@ For hosted UAT set `PRISM_SEED_ENV=uat`, inspect the target without connecting,
 and pin the printed fingerprint as `PRISM_SEED_TARGET` in the same private file:
 
 ```powershell
-npm --workspace prism-api run db:seed -- --env-file C:\secure\uat-api.env --show-target
+npm --workspace prism-api run db:seed -- --env-file <absolute-private-file> --show-target
 ```
 
 Check the sanitized host/database against the intended project first. The
@@ -89,12 +97,12 @@ and portal paths are in [portal accounts](portal-accounts.md). The old local
 passwords apply only to the legacy local seed, not this command or hosted users.
 
 ```powershell
-npm --workspace prism-api run db:seed -- --profile accounts --env-file C:\secure\uat-api.env --dry-run
-npm --workspace prism-api run db:seed -- --profile accounts --env-file C:\secure\uat-api.env
-npm --workspace prism-api run db:seed:verify -- --profile accounts --env-file C:\secure\uat-api.env
-npm --workspace prism-api run db:seed -- --profile portal-uat --scenario-date 2026-10-24 --env-file C:\secure\uat-api.env --dry-run
-npm --workspace prism-api run db:seed -- --profile portal-uat --scenario-date 2026-10-24 --env-file C:\secure\uat-api.env
-npm --workspace prism-api run db:seed:verify -- --profile portal-uat --scenario-date 2026-10-24 --env-file C:\secure\uat-api.env
+npm --workspace prism-api run db:seed -- --profile accounts --env-file <absolute-private-file> --dry-run
+npm --workspace prism-api run db:seed -- --profile accounts --env-file <absolute-private-file>
+npm --workspace prism-api run db:seed:verify -- --profile accounts --env-file <absolute-private-file>
+npm --workspace prism-api run db:seed -- --profile portal-uat --scenario-date 2026-10-24 --env-file <absolute-private-file> --dry-run
+npm --workspace prism-api run db:seed -- --profile portal-uat --scenario-date 2026-10-24 --env-file <absolute-private-file>
+npm --workspace prism-api run db:seed:verify -- --profile portal-uat --scenario-date 2026-10-24 --env-file <absolute-private-file>
 ```
 
 The explicit scenario date anchors the live event at midnight **Asia/Manila**.
@@ -116,7 +124,7 @@ behavior separately through the selected API/portals.
 ## Read-only migration comparison
 
 ```powershell
-$env:PRISM_ENV_FILE = 'C:\secure\uat-api.env'
+$env:PRISM_ENV_FILE = '<absolute-private-file>'
 npm --workspace prism-api run db:doctor -- --mode=runtime --migration-history
 ```
 
@@ -129,8 +137,10 @@ they do not indicate changed SQL and do not block seeding across Windows/Linux.
 It never repairs records and does not detect every live-schema drift condition.
 The seed refuses inconsistent history; apply schema migrations separately first.
 
-Keep the six published October 21 UAT migrations immutable. Maintain scenarios in
-the CLI catalog. New seeding never enables `prism.uat_seed_enabled` or needs
-`ALTER DATABASE`. The reported hosted checksum mismatch is unverified until this
-comparison runs against the identified database. Follow [migration recovery](database-migrations.md)
+The six published `20261021…_uat_*` migrations are gated on the
+`prism.uat_seed_enabled` database setting; keep them immutable and maintain
+scenarios in the CLI catalog instead. The CLI never enables that setting or
+needs `ALTER DATABASE`. For a reported checksum mismatch, run this comparison
+against the identified database and follow
+[migration recovery](database-migrations.md#drift-and-failed-migration-recovery)
 from exact evidence; do not rewrite applied SQL or ledger checksums to silence it.

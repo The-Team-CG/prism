@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Documentation cleanup: removed six completed or superseded documents (plus the legacy column register CSV) and brought the remaining architecture, product and runbook docs in line with the current code; see `docs/log.md`.
+
 - Added desktop/mobile browser acceptance journeys (including a full inquiry-to-archive lifecycle that clears every close gate without an override) and an opt-in local Mailpit inbox for testing activation, reset and notification emails without email-provider credits.
 - Inquiry review drawers now show refreshed status after PMCM accepts or pends a request.
 - Supplier quote emails now use the configured supplier portal origin. PMCM can start event day from the event overview once the existing lifecycle prerequisites are met, and creates billing sources from the Billing tab instead of Closure.

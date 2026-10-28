@@ -4,6 +4,12 @@ This log tracks changes to documentation structure and durable contracts. Releas
 notes are in [`../CHANGELOG.md`](../CHANGELOG.md); Git history retains detailed
 implementation and verification history.
 
+## 2026-10-29
+
+- Retired completed or superseded documents: the legacy column-authority register and CSV, the before/after domain schema map, the pre-production baseline adoption and quote-request integrity runbooks (their migrations are now part of the owner baselines), the redesign inventory, and the readiness foundation. Readiness gates now live in evolution governance; current schema owners and counts live in persistence ownership. Git history retains the originals.
+
+- Re-verified the remaining living documents against the code: bounded contexts and kernel modules, Zod-only request validation, owner-schema table counts, CI and scheduled workflow behavior, and fixture and migration commands. Navigation, AGENTS.md, and roadmap references were updated to match.
+
 ## 2026-10-28
 
 - Added the local-only Mailpit transport and browser acceptance command contract to the environment runbook, with disposable target isolation and bounded browser coverage.

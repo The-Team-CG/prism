@@ -4,11 +4,11 @@ title: "P.R.I.S.M current architecture"
 description: "Current runtime topology, role-app ownership, shared packages, backend bounded contexts, technical kernel, persistence, and lifecycle boundaries."
 tags: [architecture, current-state, modular-monolith, roles]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-10-29"
 authority: normative
 audience: [agents, engineers, reviewers]
 scope: "all Prism portals, API, packages, and runtime boundaries"
-last_verified: "2026-10-06; runtime/context ownership and the seven-schema baseline reconciled with source and owner manifest"
+last_verified: "2026-10-29; module/kernel tree, AppModule composition, seam tokens, inbox query, Prisma schemas and owner manifest checked against source"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
@@ -44,25 +44,8 @@ target direction. Accepted architecture decisions are indexed in
 - **Change when:** A runtime boundary, bounded-context owner, package contract, or compatibility rule changes.
 - **Verify with:** Repository boundary checks, touched package checks, and API/portal verification.
 
-The closeout command reads unresolved issues through the explicit pure public
-`@prism/contexts/read-models/closeout` subpath, using its transaction client.
-This avoids importing the read-model controller/module barrel back into lifecycle
-commands. The exact subpath is registered in the boundary checker and
-[context contracts](context-contracts.md); it does not permit arbitrary private
-cross-context imports. Session-guarded controllers import the session and access
-modules through their owning Nest composition roots. Built API HTTP acceptance
-checks verify this runtime dependency graph as well as the route guards.
-File-matrix and official snapshot reads use the similarly focused
-`@prism/contexts/read-models/event-scope` seam for trusted inquiry and assignment
-identity. Empty identities and inactive coordinator assignments/profiles confer
-no event scope.
-Communication participant resolution uses the focused
-`@prism/contexts/read-models/participant-facts` contract, whose Nest submodule
-imports DatabaseModule only. It returns serializable event/inquiry and supplier
-or coordinator membership facts; Identity retains approved-account lookup,
-role/email matching, actor stamping, and EventAccessPolicy decisions. The full
-ReadModelsModule is not imported by IdentityAccess, avoiding a cycle through
-Commercial's communication service.
+Individual cross-context seams, including the registered public subpath seams,
+are listed in [context contracts](context-contracts.md).
 
 ## Architecture principles
 
@@ -104,9 +87,9 @@ flowchart LR
 | App | Port | Primary actors | Owns | Must not own |
 | --- | ---: | --- | --- | --- |
 | `apps/client` | 3001 | Public visitors and signed-in clients | Landing, inquiry, sign-in/sign-up, conforme-gated dashboard, client action center, client-visible billing/docs/floorplan status, layout preferences. | PMCM command center, official floorplan editing, supplier private reviews, PMCM costs, audit/privacy operations. |
-| `apps/event` | 3004 | PMCM, admin, coordinator role views | Sign-in, command inbox, selected event workspace, official floorplans, supplier review/selection, billing, compliance, live ops, closure, privacy/audit review. | Public marketing, supplier self-service, guest public access, client-only dashboard ownership. |
+| `apps/event` | 3004 | PMCM, admin, coordinator role views | Sign-in, command inbox, selected event workspace, official floorplans, supplier review/selection, billing, compliance, live ops, event game hosting, closure, privacy/audit review. | Public marketing, supplier self-service, guest public access, client-only dashboard ownership. |
 | `apps/supplier` | 3002 | Suppliers and supplier applicants | Sign-in, assigned quotes, quote submission/revision, assignment confirmation, readiness, contract metadata, event-day status. | Other bids, PMCM private reviews, client data, internal PMCM costs. |
-| `apps/guest` | 3003 | Guests and walk-ins | Access-code entry, event pass, consented check-in, walk-in flagging, moderated feedback. | Planning, client/supplier dashboards, PMCM internals, cross-event reads. |
+| `apps/guest` | 3003 | Guests and walk-ins | Access-code entry, event pass, consented check-in, walk-in flagging, moderated feedback, event game participation. | Planning, client/supplier dashboards, PMCM internals, cross-event reads. |
 | `apps/api` | 4000 | All apps through HTTP | Workflows, role scoping, built-in auth/RBAC, Prisma access, audit, notification outbox, and AI governance. | UI rendering, app-local session ownership, role-specific visual decisions. |
 
 ## Shared packages
@@ -137,7 +120,7 @@ derived from the verified session token; callers do not supply actor names or
 role query parameters as identity evidence.
 
 The initial PMCM home reads a compact summary and the paged command inbox. The
-inbox queries seven actionable source streams with stable ordering, a page size
+inbox queries nine actionable source streams with stable ordering, a page size
 of ten per stream, and one extra row per stream to determine `hasMore`; exact
 summary counts use aggregate queries. The selected-event workspace is fetched
 when an event is selected. The broad PMCM dashboard read remains available to
@@ -148,8 +131,7 @@ a measured latency improvement.
 ## Backend modular monolith
 
 The backend is one NestJS modular monolith with one Prisma client. Its source tree
-now follows the AlphaCI Enterprise composition pattern without copying AlphaCI's
-business vocabulary:
+is:
 
 ```text
 apps/api/src/
@@ -162,26 +144,33 @@ apps/api/src/
     <context>.module.ts
     index.ts
   kernel/<cross-cutting-concern>/
+  composition/          # root-level adapters/controllers that combine several context ports
+  common/               # HTTP interceptor, Prisma exception filter, proxy setting
   fixtures/             # explicit development-only seed module and data
 ```
 
-There is one API project in `apps/api/nest-cli.json`. The former collection of
-small Nest library roots and per-library `tsconfig.lib.json` projects is no longer
-the source layout. Public context aliases resolve `index.ts`; private folders are
-not a supported cross-context API.
+There is one API project in `apps/api/nest-cli.json`. Public context aliases
+(`@prism/contexts/<context>`, `@prism/kernel/<concern>` in
+`apps/api/tsconfig.json`) resolve `index.ts`; private folders are not a
+supported cross-context API.
 
 ### Business contexts
 
 | Context | Owns | Internal sub-areas |
 | --- | --- | --- |
-| `modules/event-lifecycle` | Inquiry/onboarding, compliance, closure, file requirements | `api/{onboarding,compliance,closure,files}`, matching `application/*` |
-| `modules/commercial` | Supplier sourcing, quotes, billing | `api/{quotes,suppliers,billing}`, matching `application/*` |
+| `modules/event-lifecycle` | Inquiry/onboarding, change requests, event decisions, ocular visits, client visibility, compliance, closure, file requirements | `api/{onboarding,change,decisions,ocular-visit,client-visibility,compliance,closure,files}`, matching `application/*`, `domain` |
+| `modules/commercial` | Supplier sourcing, quotes, billing | `api/{quotes,suppliers,billing}`, matching `application/*`, `domain` |
 | `modules/operations` | Staffing and guest workflows | `api/{staffing,guest}`, matching `application/*` |
-| `modules/live-ops` | Event-day tasks, urgent issues, escalation, attendance/replacement, live status | `api`, `application`, `domain` |
+| `modules/live-ops` | Event-day tasks, urgent issues, escalation, attendance/replacement, live status | `api`, `application`, `contracts`, `domain` |
 | `modules/floorplan` | Official live floorplans and venue-template authoring/publishing | `api/{live,authoring}`, matching `application/*` |
-| `modules/identity-access` | Authentication and account approval | `api/auth`, `application/auth` |
-| `modules/platform-ops` | Trust/audit, notifications, AI governance | `api/*`, `application/*`, `contracts`, `infrastructure/*` |
-| `modules/read-models` | Role-scoped cross-context read composition | `api`, `application/{mappers,queries,services}`, `contracts/ports`; no writes |
+| `modules/event-games` | Event game catalog, sessions, PIN join, participants, submissions, scoring, awards, moderation, public lobbies | `api`, `application`, `contracts`, `domain`, `infrastructure` |
+| `modules/identity-access` | Authentication, account invitations, and account approval | `api/auth`, `application/{auth,participants}`, `infrastructure/auth` |
+| `modules/platform-ops` | Trust/audit, notifications, AI governance, stored objects, retention, privacy | `api/{trust,notifications,ai-governance,storage}`, `application/*` (adds `retention`), `contracts`, `infrastructure/*` |
+| `modules/read-models` | Role-scoped cross-context read composition | `api`, `application/{mappers,queries,services}`, `contracts/ports`, focused subpath readers; no writes |
+
+PMCM hosts event games from `apps/event`; guests join from `apps/guest`.
+`event-games` checks event scope through the `read-models/event-scope` seam and
+stores game media through the platform-ops storage capability.
 
 The merge decisions are ownership-based. `live-ops` stays separate from
 `operations` because merging it creates a circular dependency through read
@@ -190,22 +179,25 @@ persistence are product-facing; it may be split later only after an explicit
 ownership/deployment decision.
 
 `AppModule` is also the API composition root for routes that require multiple
-context ports. Event insight generation reads coordinator facts through the
-operations reader port and delegates persistence to the event-lifecycle
-closure command; `modules/read-models` remains read-only.
+context ports: it registers the event closure controller and the
+`src/composition` event-insight controller. Event insight generation reads
+coordinator facts through the operations `COORDINATOR_INSIGHT_FACTS_READER`
+port and delegates persistence to the event-lifecycle `CLOSURE_COMMANDS`
+port; `modules/read-models` remains read-only. `PlatformReferenceReadersModule`
+in `src/composition` binds platform-ops reference reads to read-models.
 
 ### Kernel and local fixtures
 
 ```text
 apps/api/src/kernel/
   access-control  database  event-core  event-session
-  health          shared    shared-kernel
-
+  health          mail      shared    shared-kernel
 ```
 
 The kernel owns technical primitives: database access, event-core invariants and
 command execution, verified session/auth primitives, access policy, health,
-shared validation, and transaction helpers. `src/fixtures` contains the legacy
+the `MAIL_TRANSPORT` port and its transports, shared validation, and transaction
+helpers. `src/fixtures` contains the legacy
 local seed module and the standalone CLI account/scenario catalogs. The legacy
 module composes the database and audit append path; the repeatable CLI uses pg
 directly. Neither is registered as an HTTP module or application runtime path.
@@ -243,57 +235,54 @@ forbidden-access evidence through the kernel-owned `AUDIT_WRITER` port; the
 composition root binds that port to the platform-ops `AuditWriterAdapter` in
 `PlatformOpsAuditWriterModule`. Identity authentication, document storage,
 notifications, and read-model composition use the same principle through
-focused `AUTH_AUDIT`, `DOCUMENT_VAULT`, notification-writer, finance-command,
-staffing-reader, floorplan-reader, and guest-reader seams. These are in-process
+focused `AUTH_AUDIT`, `DOCUMENT_VAULT`, `NOTIFICATION_OUTBOX_WRITER`,
+`SUPPLIER_WORKSPACE_READER`, `STAFFING_READER`, `FLOORPLAN_READER`, and
+`GUEST_READER` seams. These are in-process
 contracts today; they make extraction boundaries explicit without claiming
 separate services or databases.
 
 ### Domain depth
 
-`live-ops/domain` contains urgent-issue status and escalation policies;
-`commercial/domain` contains quote-request lifecycle policies. They are pure and
+`live-ops/domain` contains urgent-issue status, escalation, and SLA policies;
+`commercial/domain` contains quote-request, payment-terms, and proposal
+client-review policies; `event-lifecycle/domain` contains inquiry-triage,
+archive-search, file-requirement-matrix, and client change-request rules;
+`event-games/domain` contains anonymous participant aliasing. They are pure and
 unit-testable. Other contexts use progressive depth: add a domain policy only when
 an invariant must hold independently of HTTP and Prisma.
 
 ## Data domains and persistence target
 
-Prism has seven write domains. Each owns one PostgreSQL schema in the approved
-target. The current database remains one Postgres instance, one Prisma client,
-and one API deployment; this is a namespace and write-ownership rule, not a
-microservice or authorization boundary.
+Prism has eight write domains. Each owns one PostgreSQL schema. The database
+remains one Postgres instance, one Prisma client, and one API deployment; this
+is a namespace and write-ownership rule, not a microservice or authorization
+boundary.
 
-| Write domain | Target schema | Model/column inventory | Ownership |
-| --- | --- | ---: | --- |
-| event-lifecycle | event_lifecycle | 19 tables / 290 columns | Inquiry, event lifecycle, document metadata, briefing, compliance, decisions, freeze/addenda, closure, client floorplan grants |
-| commercial | commercial | 28 tables / 319 columns | Supplier network, quotes, communications, estimates, proposals, billing, payments |
-| operations | operations | 12 tables / 142 columns | Coordinator pool, assignments, acknowledgments, reliability history, guest operations |
-| live-ops | live_ops | 10 tables / 122 columns | Event-day tasks, schedules, operators, handoffs, end-of-day, issues and logs |
-| floorplan | floorplan | 7 tables / 75 columns | Official plans, drafts, projection clock, templates, published copies, review state |
-| identity-access | identity_access | 4 tables / 42 columns | Accounts, approvals, password recovery, authentication state |
-| platform-ops | platform_ops | 14 tables / 201 columns | Privacy requests and legal holds, security, login history, audit, notifications, AI, storage, command receipts |
-| **Total** | **7 schemas** | **94 tables / 1,191 columns** | One write owner per table |
+| Write domain | Schema | Ownership |
+| --- | --- | --- |
+| event-lifecycle | event_lifecycle | Inquiry, event lifecycle, document metadata, briefing, compliance, decisions, freeze/addenda, closure, client floorplan grants |
+| commercial | commercial | Supplier network, quotes, communications, estimates, proposals, billing, payments |
+| operations | operations | Coordinator pool, assignments, acknowledgments, reliability history, guest operations |
+| live-ops | live_ops | Event-day tasks, schedules, operators, handoffs, end-of-day, issues and logs |
+| floorplan | floorplan | Official plans, drafts, projection clock, templates, published copies, review state |
+| identity-access | identity_access | Accounts, invitations, approvals, password recovery, authentication state |
+| platform-ops | platform_ops | Privacy requests and legal holds, retention, security, login history, audit, notifications, AI, storage, command receipts |
+| event-games | event_games | Game definitions, sessions, PINs, participant credentials, submissions, scores, awards, moderation |
 
-The full assignment is in `apps/api/prisma/domain-ownership.json`. It records
-the 94 tables in the current Prisma model, their owner schemas, and column
-counts. The replacement migration history contains seven schema baselines,
-one per write domain. A fresh database reaches this model through those
-baselines; the history replacement does not alter an existing database.
-ADR-0008 and the persistence ownership register define the policy and
-pre-production adoption path.
+The per-table assignment and column counts are in
+`apps/api/prisma/domain-ownership.json`; per-domain totals and model boundary
+rules are in the [persistence ownership register](persistence-ownership.md).
+Migrations start from seven owner-schema baselines; `event-games` was added by
+later owner migrations.
 
 A PostgreSQL foreign key may connect records owned by the same domain.
 Cross-domain references remain scalar IDs and use an owner's public capability
 for writes that need current eligibility. The read-models module composes
-explicitly scoped, read-only projections. Do not introduce a Prisma relation or FK between
-different domains.
-The database remains one shared Postgres/Prisma boundary. The reviewed
-pre-rebaseline staging snapshot had ten physical schemas and 45 cross-domain
-foreign keys. The replacement clean-database baseline maps 94 tables to seven
-owner schemas, with 76 same-domain foreign keys and no cross-domain relations.
-Changing the migration source does not change an existing database. Adopt it
-only through the backed-up pre-production rebuild in the
-[domain schema runbook](../runbooks/domain-schema-cutover.md); schema names do
-not provide database or authorization isolation.
+explicitly scoped, read-only projections. Do not introduce a Prisma relation or
+FK between different domains; schema names do not provide database or
+authorization isolation. A database still on the retired pre-baseline ledger is
+adopted only through the backed-up rebuild in the
+[domain schema runbook](../runbooks/database-migrations.md#databases-with-the-retired-ledger).
 
 Supplier withdrawal is a durable asynchronous boundary: `commercial` writes the
 withdrawal and audit, then uses the public platform-ops dispatch-writer contract
@@ -302,8 +291,8 @@ inside the same `WorkflowCommandService` transaction to enqueue
 reloads the supplier request by ID, executes PARE without a database transaction
 around the call, and settles success, bounded retry, or terminal failure. A
 dispatch ID is stored on `OpsAiApprovalRecord` so a crash after approval creation
-is safe to redeliver. The dispatch keeps an event FK for event-scoped cleanup but
-does not own a commercial request FK; a missing or no-longer-withdrawn request is
+is safe to redeliver. The dispatch stores event and request IDs as scalar
+references with no cross-domain FK; a missing or no-longer-withdrawn request is
 a terminal worker outcome. Execution is bounded below the lease duration, aborts
 provider calls on timeout, and tracks active executions through shutdown. Approval
 recovery validates the sanitized request ID and dispatch ownership, while the
@@ -349,9 +338,9 @@ worker restores the idempotent `pare_triggered` activity audit.
 | Integration | Current status |
 | --- | --- |
 | Database | Prisma-backed Postgres exists; schema separation and audit scripts are maintained. Live audits require the migrated target and credentials. |
-| File storage | Metadata and file requirements exist; real storage, signed URLs, progress, retry, and adapter tests remain gated. |
-| Notifications | Outbox, retry, and acknowledgement model exists; production providers remain gated. |
-| AI | Sanitization, audit, approval, and PARE governance foundation exists; live calls/autonomous actions remain gated. |
+| File storage | Platform-ops verifies and stores object bytes through `STORAGE_ADAPTER` (local filesystem or Supabase Storage; unconfigured by default). Hosted provider activation is an operational step in the [portal storage runbook](../runbooks/portal-storage.md). |
+| Notifications | Outbox, retry, and acknowledgement model exists. Email goes through the kernel `MAIL_TRANSPORT` port, selected by `PRISM_MAIL_TRANSPORT`: Resend, or log/local Mailpit outside production. Other channels remain gated. |
+| AI | Sanitization, audit, approval, PARE governance, and an AI gateway with provider adapters exist; local routes are synthetic-only and staging/production live calls and autonomous actions remain gated ([AI provider routing](../runbooks/ai-provider-routing.md)). |
 | QR/camera | Guest access-code path exists; QR/camera scanning remains gated by HTTPS/device/masterlist constraints. |
 
 ## Architecture verification
