@@ -49,8 +49,11 @@ jobs:
 
       # Repository-wide gates. They always run in full: migrations, persistence ownership, invariants and boundaries.
       - name: Repository checks
+        env:
+          # Migrations already on the base branch must not change: a database that applied them would fail its ledger check.
+          MIGRATION_BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
         run: >-
-          npm run check:migrations && npm run check:domain-persistence && npm run check:invariants &&
+          npm run check:migrations && npm run check:migration-immutability && npm run check:domain-persistence && npm run check:invariants &&
           npm run check:test-clocks && npm run check:complexity && npm run check:boundaries
 
       - name: Lint and typecheck
