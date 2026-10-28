@@ -9,6 +9,12 @@ import { isPrimaryClientContact } from '@prism/contexts/commercial';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { FLOORPLAN_EVENT_REFERENCE_READER, type FloorplanEventReferenceReader } from '@prism/contexts/event-lifecycle/floorplan-reference';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
+import { FloorPlanWorkflowService } from './floor-plan-workflow.service';
+
+const decisionEffects = {
+  approve: { audit: 'Client approved submitted floorplan snapshot', action: AuditActionType.Approve, notification: 'Client approved floorplan' },
+  request_revision: { audit: 'Client requested floorplan revision', action: AuditActionType.Update, notification: 'Client requested a floorplan revision' },
+};
 
 @Injectable()
 export class FloorPlanClientReviewService {
@@ -18,7 +24,14 @@ export class FloorPlanClientReviewService {
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     @Inject(FLOORPLAN_EVENT_REFERENCE_READER) private readonly lifecycleEventReferences: FloorplanEventReferenceReader,
+    private readonly floorPlanWorkflowService: FloorPlanWorkflowService,
   ) {}
+
+  private requireRevisionAllowed(input: DecideClientFloorPlanInput, freezeStatus: string, draftStatus: string) {
+    if (input.action !== 'request_revision') return;
+    if (freezeStatus === 'frozen') throw new BadRequestException('Frozen events cannot receive floorplan revision requests');
+    if (draftStatus !== 'in_review') throw new BadRequestException('Only a floorplan in review can receive a revision request');
+  }
 
   async getReview(eventId: string, draftId: string, actor: ResolvedEventOpsActor) {
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Client, OpsUserRole.PmcmAdmin], 'client floorplan review', eventId);
@@ -46,6 +59,11 @@ export class FloorPlanClientReviewService {
     };
   }
 
+  /**
+   * One command per client decision. A revision request records the decision, returns the draft to PMCM
+   * (`revision_requested`) and projects the event state in the same transaction. An approval is recorded
+   * against the exact snapshot; the official approval stays with PMCM.
+   */
   async decide(eventId: string, draftId: string, input: DecideClientFloorPlanInput, actor: ResolvedEventOpsActor) {
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Client], 'client floorplan decision', eventId);
     this.requireActorId(actor);
@@ -53,18 +71,20 @@ export class FloorPlanClientReviewService {
     const payloadHash = this.hash({ eventId, draftId, snapshotHash: input.snapshotHash, action: input.action, comment: input.comment });
     try {
       return await this.prisma.$transaction(async (tx) => {
+        // A retry of a revision request arrives after the draft left review, so the replay is answered before the snapshot is required.
+        const recorded = await tx.opsFloorPlanClientDecision.findUnique({ where: { idempotencyKey: key } });
+        if (recorded) {
+          if (recorded.eventId !== eventId || recorded.actorId !== actor.id || recorded.payloadHash !== payloadHash) throw new BadRequestException('Idempotency key was reused for another floorplan decision');
+          return this.mapDecision(recorded);
+        }
         const { event, draft, snapshotHash } = await this.loadSnapshot(tx, eventId, draftId, { prisma: tx, correlationId: `floorplan-client-decision:${key}` });
         await this.eventAccessPolicyService.requireCanReadEvent(actor, event, 'client floorplan decision');
         this.requirePrimaryContact(actor, event.inquiry.email);
         this.requireMutableReview(event);
         if (input.snapshotHash !== snapshotHash) throw new BadRequestException('The floorplan changed after this review was opened; reload the latest snapshot');
-        const replay = await tx.opsFloorPlanClientDecision.findUnique({ where: { idempotencyKey: key } });
-        if (replay) {
-          if (replay.eventId !== eventId || replay.actorId !== actor.id || replay.payloadHash !== payloadHash) throw new BadRequestException('Idempotency key was reused for another floorplan decision');
-          return this.mapDecision(replay);
-        }
         const prior = await tx.opsFloorPlanClientDecision.findFirst({ where: { draftId, snapshotHash, actorId: actor.id } });
         if (prior) throw new BadRequestException('This floorplan version already has your decision; PMCM must submit a new snapshot for another decision');
+        this.requireRevisionAllowed(input, event.freezeStatus, draft.status);
         const decision = await tx.opsFloorPlanClientDecision.create({
           data: {
             id: `floorplan_client_decision_${randomUUID()}`,
@@ -79,17 +99,28 @@ export class FloorPlanClientReviewService {
             payloadHash,
           },
         });
-        await writeAudit(this.auditWriter, eventId, actor.name, input.action === 'approve' ? 'Client approved submitted floorplan snapshot' : 'Client requested floorplan revision', {
+        if (input.action === 'request_revision') {
+          const moved = await tx.opsFloorPlanDraft.updateMany({
+            where: { id: draftId, eventId, status: 'in_review' },
+            data: { status: 'revision_requested', revisionComment: input.comment, reviewedAt: new Date() },
+          });
+          if (moved.count === 0) throw new BadRequestException('Floorplan draft is no longer in review');
+          await this.floorPlanWorkflowService.projectLifecycleState(tx, eventId, {
+            floorPlanStatus: 'revision_requested',
+            readiness: 'Floorplan revision requested by client',
+          });
+        }
+        await writeAudit(this.auditWriter, eventId, actor.name, decisionEffects[input.action].audit, {
           actorRole: actor.role,
           actorEmail: actor.email,
-          actionType: input.action === 'approve' ? AuditActionType.Approve : AuditActionType.Update,
+          actionType: decisionEffects[input.action].action,
           category: AuditCategory.Events,
           affectedType: 'floorplan_client_decision',
           affectedId: decision.id,
           affectedLabel: draft.name,
           metadata: { draftId, snapshotHash, action: input.action, comment: input.comment },
         }, { prisma: tx, correlationId: key, actorId: actor.id });
-        await writeNotification(this.notificationOutboxWriter, eventId, 'PMCM Admin', input.action === 'approve' ? `Client approved floorplan: ${draft.name}` : `Client requested a floorplan revision: ${draft.name}`, undefined, { idempotencyKey: key }, { prisma: tx, correlationId: key, actorId: actor.id });
+        await writeNotification(this.notificationOutboxWriter, eventId, 'PMCM Admin', `${decisionEffects[input.action].notification}: ${draft.name}`, undefined, { idempotencyKey: key }, { prisma: tx, correlationId: key, actorId: actor.id });
         return this.mapDecision(decision);
       });
     } catch (error) {
@@ -152,7 +183,7 @@ export class FloorPlanClientReviewService {
   private async loadSnapshot(prisma: Prisma.TransactionClient | PrismaService, eventId: string, draftId: string, transaction?: PrismTransactionContext) {
     const reference = await this.lifecycleEventReferences.findFloorplanEvent(eventId, transaction);
     const event = reference ? {
-      id: reference.eventId, archived: reference.archived, clientName: reference.clientName,
+      id: reference.eventId, archived: reference.archived, clientName: reference.clientName, freezeStatus: reference.freezeStatus,
       clientPortalStatus: reference.clientPortalStatus, inquiry: { email: reference.primaryClientEmail ?? '' },
     } : null;
     if (!event) throw new NotFoundException('Event not found');

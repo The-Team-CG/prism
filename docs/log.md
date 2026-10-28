@@ -6,6 +6,8 @@ implementation and verification history.
 
 ## 2026-10-28
 
+- Consolidated client floorplan decisions onto the snapshot-bound endpoint, retired the legacy review contract, and recorded statement publication, source-cap approval and supplier correction boundaries.
+
 - Registered the Commercial confirmed-fee source writer and Platform stored-requirement upload reader, retaining caller transactions, PMCM financial approval and bounded-context ownership.
 
 - Removed developer assignment metadata and team-based task allocation from the documentation contract. System goals, product roles, bounded-context ownership, independent review evidence and activation gates remain explicit. Acceptance reconciliation now records both literal conformity and product judgment.
