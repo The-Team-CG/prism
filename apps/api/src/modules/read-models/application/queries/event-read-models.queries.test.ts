@@ -30,6 +30,17 @@ describe('EventReadModelQueries collection limits', () => {
     vi.useRealTimers();
   });
 
+  it('limits client notification reads to Client recipients and already scoped event ids', async () => {
+    const notifications = model();
+    const queries = new EventReadModelQueries({ opsNotificationLog: notifications } as unknown as PrismaService);
+    await queries.clientNotificationsForEvents(['evt_1', 'evt_2']);
+    expect(notifications.findMany).toHaveBeenCalledWith({
+      where: { eventId: { in: ['evt_1', 'evt_2'] }, recipient: 'Client' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: expect.any(Number),
+    });
+  });
+
   it('loads recent coordinator reliability history by coordinator with event and role context', async () => {
     const note = { id: 'note_1', eventId: 'evt_1', assignment: { role: 'lead' } };
     const reliabilityNotes = model<typeof note>();

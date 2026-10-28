@@ -22,6 +22,8 @@ export type FileRequirementDocumentFact = {
   status: string;
   validationStatus: string;
   uploadedAt: Date;
+  /** Stored bytes may be removed independently of the document metadata. */
+  available?: boolean;
 };
 
 const SATISFIED_STATUSES: ReadonlySet<PrismFileRequirementStatus> = new Set(['submitted', 'generated', 'approved', 'complete']);
@@ -38,7 +40,7 @@ export function isFileRequirementOverdue(item: Pick<PrismFileRequirementItem, 'r
 
 function latestDocument(documents: FileRequirementDocumentFact[], key: string) {
   return documents
-    .filter((document) => document.type === key)
+    .filter((document) => document.type === key && document.available !== false)
     .sort((left, right) => right.uploadedAt.getTime() - left.uploadedAt.getTime() || left.id.localeCompare(right.id))[0];
 }
 
@@ -51,7 +53,7 @@ function customItem(row: PersistedFileRequirement, documents: FileRequirementDoc
   const latest = latestDocument(documents, row.key);
   const rejected = latest?.validationStatus === 'rejected';
   const status: PrismFileRequirementStatus = !latest || rejected ? 'missing' : latest.status === 'approved' ? 'approved' : 'submitted';
-  const count = documents.filter((document) => document.type === row.key).length;
+  const count = documents.filter((document) => document.type === row.key && document.available !== false).length;
   return {
     key: row.key,
     label: row.label,

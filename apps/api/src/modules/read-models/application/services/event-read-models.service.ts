@@ -199,6 +199,7 @@ export type ClientWorkspaceMappers = {
   mapPaymentMilestone: (payment: OpsPaymentMilestone, history: OpsPaymentRecord[]) => unknown;
   mapFloorPlanDraft: (draft: OpsFloorPlanDraft) => unknown;
   mapAuditLog: (log: OpsAuditLog) => unknown;
+  mapNotificationLog: (log: OpsNotificationLog) => unknown;
 };
 
 export type SupplierWorkspaceMappers = {
@@ -441,9 +442,11 @@ export class EventReadModelsService {
     const [
       [documents, briefings, floorPlanDrafts, billingStatements, paymentMilestones, paymentRecords, auditLogs, ocularVisits, billingDisputes],
       timelineSources,
+      notificationLogs,
     ] = await Promise.all([
       this.queries.clientWorkspaceForEvents(eventIds),
       this.queries.clientEventTimelineForEvents(eventIds),
+      this.queries.clientNotificationsForEvents(eventIds),
     ]);
     const timelineSourceByEventId = new Map(timelineSources.map((source) => [source.id, source]));
     const clientEventTimelines = visibleEvents.map((event) =>
@@ -484,7 +487,7 @@ export class EventReadModelsService {
       postEventDocuments: [],
       floorPlanDrafts: floorPlanDrafts.filter(isClientVisibleFloorPlanDraft).map((draft) => mappers.mapFloorPlanDraft(draft)),
       auditLogs: auditLogs.map((log) => mappers.mapAuditLog(log)),
-      notificationLogs: [],
+      notificationLogs: notificationLogs.map(mappers.mapNotificationLog),
       ocularVisits: ocularVisits.map(mapClientOcularVisit),
       pagination: eventPage.pagination,
     };

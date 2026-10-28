@@ -9,6 +9,7 @@ import type {
 
 export const STORAGE_ADAPTER = Symbol('STORAGE_ADAPTER');
 export const STORED_SUPPLIER_UPLOAD_READER = Symbol('STORED_SUPPLIER_UPLOAD_READER');
+export const STORED_REQUIREMENT_UPLOAD_READER = Symbol('STORED_REQUIREMENT_UPLOAD_READER');
 
 export type StoredSupplierUploadReference = {
   id: string;
@@ -29,6 +30,25 @@ export type StoredSupplierUploadLookup = {
 /** Narrow storage-owner capability for commercial supplier workflow attachments. */
 export interface StoredSupplierUploadReader {
   findConfirmedSupplierUpload(input: StoredSupplierUploadLookup): Promise<StoredSupplierUploadReference | null>;
+}
+
+export type StoredRequirementUploadReference = {
+  id: string;
+  eventId: string;
+  ownerRecordType: string;
+  ownerRecordId: string;
+  usage: StorageUsage;
+  lifecycleState: StorageLifecycleState;
+  originalFileName: string;
+  contentType: string;
+  declaredByteSize: number;
+  uploaderActorId: string;
+  uploaderActorRole: string;
+};
+
+/** Lifecycle may bind only verified stored bytes from the same event to an event requirement. */
+export interface StoredRequirementUploadReader {
+  findStoredRequirementUpload(input: { eventId: string; objectId: string; context?: PrismTransactionContext }): Promise<StoredRequirementUploadReference | null>;
 }
 
 export type StorageLifecycleState = PrismStoredObject['lifecycleState'];

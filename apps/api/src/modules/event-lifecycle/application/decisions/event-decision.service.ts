@@ -12,7 +12,7 @@ import {
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import type { EventDecisionInput } from '@prism/types';
 import { STAFFING_COMMANDS, type StaffingCommands } from '@prism/contexts/operations';
-import { EVENT_DECISION_SUPPLIER_OWNER, type EventDecisionSupplierOwner } from '@prism/contexts/commercial';
+import { CONFIRMED_CANCELLATION_FEE_WRITER, type ConfirmedCancellationFeeWriter, EVENT_DECISION_SUPPLIER_OWNER, type EventDecisionSupplierOwner } from '@prism/contexts/commercial';
 
 @Injectable()
 export class EventDecisionService {
@@ -23,6 +23,7 @@ export class EventDecisionService {
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationWriter: NotificationOutboxWriter,
     @Inject(STAFFING_COMMANDS) private readonly staffingCommands: StaffingCommands,
     @Inject(EVENT_DECISION_SUPPLIER_OWNER) private readonly supplierDecisionOwner: EventDecisionSupplierOwner,
+    @Inject(CONFIRMED_CANCELLATION_FEE_WRITER) private readonly cancellationFeeWriter: ConfirmedCancellationFeeWriter,
   ) {}
 
   async list(eventId: string, actor: ResolvedEventOpsActor) {
@@ -47,9 +48,19 @@ export class EventDecisionService {
         const freezeExceptionId = await this.consumeFreezeExceptionForDecision(tx, eventId, event.freezeStatus, input, decisionId);
         const priorState = this.validateEventState(event.status, event.eventDate, input);
         const impacts = await this.loadImpacts(tx, eventId, input, event.eventDate, priorState.nextDate, actor);
-        const decision = await this.createDecision(tx, decisionId, eventId, input, actor, priorState, impacts.assignmentImpact, freezeExceptionId);
+        const fee = input.cancellationFeeAmount > 0 ? await this.cancellationFeeWriter.createConfirmedCancellationFeeSource(eventId, {
+          amount: input.cancellationFeeAmount, reason: input.reason, idempotencyKey: `event-decision-fee:${decisionId}`,
+        }, { id: actor.id ?? '', name: actor.name, role: actor.role, email: actor.email }, { prisma: tx, actorId: actor.id, correlationId: decisionId }) : null;
+        const decision = await this.createDecision(tx, decisionId, eventId, input, actor, priorState, impacts.assignmentImpact, freezeExceptionId, fee?.id ?? null);
         await this.applyTransition(tx, eventId, input, impacts, priorState.nextDate);
         await this.queueNotification(tx, event, eventId, input, decision.id);
+        if (input.decision === 'cancelled' || input.supplierImpact === 'release_obligations') {
+          // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: each affected supplier receives a durable decision-scoped notice.
+          for (const supplier of impacts.supplierRows) {
+            const recipient = supplier.supplierEmail?.trim().toLowerCase();
+            if (recipient) await writeNotification(this.notificationWriter, eventId, recipient, `PMCM released your supplier assignment for ${event.eventName} following ${input.decision}. Contact PMCM about contract and payment obligations.`, 'email', { idempotencyKey: `supplier-release:${decision.id}:${supplier.id}` }, { prisma: tx, correlationId: decision.id });
+          }
+        }
         await this.recordAudit(tx, eventId, input, actor, decision.id, priorState, impacts);
         return decision;
       }, { isolationLevel: 'Serializable' });
@@ -182,11 +193,11 @@ export class EventDecisionService {
     return input.freezeExceptionId;
   }
 
-  private createDecision(tx: Prisma.TransactionClient, decisionId: string, eventId: string, input: EventDecisionInput, actor: ResolvedEventOpsActor, priorState: { status: string; eventDate: string }, assignmentImpact: unknown, freezeExceptionId: string | null) {
+  private createDecision(tx: Prisma.TransactionClient, decisionId: string, eventId: string, input: EventDecisionInput, actor: ResolvedEventOpsActor, priorState: { status: string; eventDate: string }, assignmentImpact: unknown, freezeExceptionId: string | null, billingSourceId: string | null) {
     return tx.opsEventDecision.create({ data: {
       id: decisionId, eventId, decision: input.decision, reason: input.reason,
       actorId: actor.id ?? actor.name, actorRole: actor.role, actorName: actor.name, actorEmail: actor.email ?? null,
-      priorState: toPrismaJson(priorState), financialImpact: toPrismaJson({ cancellationFeeAmount: input.cancellationFeeAmount, depositTreatment: input.depositTreatment, newEventDate: input.newEventDate ?? null, freezeExceptionId, status: 'recorded_for_review' }),
+      priorState: toPrismaJson(priorState), financialImpact: toPrismaJson({ cancellationFeeAmount: input.cancellationFeeAmount, depositTreatment: input.depositTreatment, newEventDate: input.newEventDate ?? null, freezeExceptionId, billingSourceId, status: billingSourceId ? 'approved_for_billing' : 'recorded_for_review' }),
       assignmentImpact: toPrismaJson(assignmentImpact), supplierImpact: input.supplierImpact, idempotencyKey: input.idempotencyKey ?? null,
     } });
   }

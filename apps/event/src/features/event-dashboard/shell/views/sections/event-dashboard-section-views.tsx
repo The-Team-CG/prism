@@ -166,6 +166,7 @@ export function EventDashboardTeamSectionView() {
     saveCoordinatorCoverage,
     sendCoordinatorAcknowledgementReminders,
     designateEventDayOperator,
+    revokeEventDayOperator,
     loadEventDayOperator,
     loadCoordinatorAvailability,
     loadCoordinatorReliabilityHistory,
@@ -186,6 +187,7 @@ export function EventDashboardTeamSectionView() {
               onSaveCoverage={saveCoordinatorCoverage}
               onSendReminders={sendCoordinatorAcknowledgementReminders}
               onDesignateOperator={designateEventDayOperator}
+              onRevokeOperator={revokeEventDayOperator}
               onLoadOperator={loadEventDayOperator}
               onLoadAvailability={loadCoordinatorAvailability}
               onLoadReliabilityHistory={loadCoordinatorReliabilityHistory}
@@ -287,6 +289,7 @@ export function EventDashboardFinanceSectionView() {
     busy,
     recordPayment,
     sendBillingStatement,
+    markPayment,
   } = useEventDashboardLoadedRouteViewModel();
   return (
 
@@ -300,6 +303,7 @@ export function EventDashboardFinanceSectionView() {
               busy={Boolean(busy)}
               onRecordPayment={recordPayment}
               onSendBilling={sendBillingStatement}
+              onMarkPayment={markPayment}
             />
           ) : (
             <EmptyState icon={ReceiptText} title="Select an event" description="Finance opens inside a confirmed event so billing can stay tied to proposal and conforme records." />

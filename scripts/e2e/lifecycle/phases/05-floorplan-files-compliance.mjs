@@ -1,6 +1,7 @@
 // Phase 5: floorplans, file requirements and uploads, compliance, change control, notifications.
+import { readFileSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
-import { cfg, http, msg, step, startPhase, blocked, gap, review, expect, expectStatus, mailsTo } from "../lib.mjs";
+import { cfg, http, msg, step, startPhase, blocked, gap, review, expect, expectStatus, mailsTo, waitForMail } from "../lib.mjs";
 
 export const name = "Floorplans, files, compliance, change control";
 
@@ -313,8 +314,15 @@ export async function run(ctx) {
     ["coordinator lists layout events", "GET", `/layout-events`, s.coord],
     ["PMCM lists layout events", "GET", `/layout-events`, s.admin, undefined, 200],
   ]));
-  await step("floorplan snapshot history and layout publishing have a portal screen", async () => {
-    gap("API only, no UI: /layout-events and /publish/* are not called by apps/event, apps/client or @prism/floorplan-canvas; and only the latest submitted snapshot per draft is kept (no version list or diff between revision rounds)");
+  await step("floorplan history retains prior rounds and hides unapproved history from external roles", async () => {
+    const history = expectStatus(await http("GET", `${base()}/floorplans/${s.d1.id}/history`, { token: s.admin }), 200);
+    const submitted = history.filter((item) => item.snapshotType === "submitted");
+    expect(submitted.length >= 2 && new Set(submitted.map((item) => item.round)).size >= 2, "resubmission did not retain both historical rounds");
+    expect(submitted.some((item) => !item.snapshot.objects.some((object) => object.id === "reg-desk")) && submitted.some((item) => item.snapshot.objects.some((object) => object.id === "reg-desk")), "old and revised layout snapshots are not both retained");
+    const client = expectStatus(await http("GET", `${base()}/floorplans/${s.d1.id}/history`, { token: s.client }), 200);
+    expect(client.every((item) => item.snapshotType === "approved"), "client history exposes an unapproved historical version");
+    expectStatus(await http("GET", `${base()}/floorplans/${s.d1.id}/history`, { token: s.otherClient }), 403);
+    return `${history.length} immutable submitted/approved snapshots retained`;
   });
 
   // ---------------------------------------------------------------- file requirements
@@ -338,7 +346,18 @@ export async function run(ctx) {
     ["supplier", "GET", `${base()}/file-requirements`, s.supplier],
   ]));
   await step("requirements differ by event type", async () => {
-    gap("the matrix is the same fixed workflow-derived list (conforme, post-event documents, billing, floorplan, supplier reviews, feedback, logistics, issues) for every event type; only custom per-event rows exist, there is no per-event-type requirement template");
+    const requirement = (key) => ({ key, label: key.replaceAll("_", " "), ownerRole: "client", visibleToRoles: ["pmcm-admin", "client"], required: true, dueOffsetDays: 7 });
+    expectStatus(await http("POST", "/file-requirement-templates", { token: s.admin, body: { eventType: "Conference", requirements: [requirement("conference_permit")] } }), 200, 201);
+    expectStatus(await http("POST", "/file-requirement-templates", { token: s.client, body: { eventType: "Conference", requirements: [] } }), 403);
+    const first = expectStatus(await http("POST", `${base()}/file-requirements/apply-template`, { token: s.admin }), 200, 201);
+    expect(first.createdKeys.includes("conference_permit"), "conference template was not applied");
+    const second = expectStatus(await http("POST", `${base()}/file-requirements/apply-template`, { token: s.admin }), 200, 201);
+    expect(second.createdKeys.length === 0, "reapplying a template duplicated requirements");
+    const other = await ctx.newEvent({ label: "Template variation", eventType: "Exhibition" });
+    expectStatus(await http("POST", "/file-requirement-templates", { token: s.admin, body: { eventType: "Exhibition", requirements: [requirement("exhibition_safety")] } }), 200, 201);
+    expectStatus(await http("POST", `/events/${other.eventId}/file-requirements/apply-template`, { token: s.admin }), 200, 201);
+    const matrix = expectStatus(await http("GET", `/events/${other.eventId}/file-requirements`, { token: s.admin }), 200);
+    expect(matrix.items.some((item) => item.key === "exhibition_safety") && !matrix.items.some((item) => item.key === "conference_permit"), "event-type templates leaked into the other event type");
   });
   const due = new Date(Date.now() + 14 * 86400_000).toISOString();
   await step("PMCM adds a client-owned custom requirement with a due date", async () => {
@@ -391,7 +410,13 @@ export async function run(ctx) {
     return "overdue visible to the client";
   });
   await step("PMCM can send a reminder for an overdue requirement", async () => {
-    gap("reminders exist only as a background sweep every 10 minutes (no HTTP route to trigger or preview one); PMCM cannot nudge a client from the file matrix");
+    const path = `${base()}/file-requirements/reminders`;
+    const first = expectStatus(await http("POST", path, { token: s.admin }), 200, 201);
+    expect(first.reminders.some((item) => item.key === "venue_permit" && item.reason === "overdue"), "manual reminder omitted the overdue requirement");
+    const again = expectStatus(await http("POST", path, { token: s.admin }), 200, 201);
+    const key = first.reminders.find((item) => item.key === "venue_permit").idempotencyKey;
+    expect(again.reminders.some((item) => item.idempotencyKey === key), "repeating reminder changed its deduplication key");
+    expectStatus(await http("POST", path, { token: s.client }), 403);
   });
 
   // ---------------------------------------------------------------- uploads
@@ -486,9 +511,13 @@ export async function run(ctx) {
     expect(up.status === 400, `fake PDF bytes returned ${up.status} ${up.text}`);
   });
   await step("a client upload satisfies the custom requirement it was meant for", async () => {
-    const item = expectStatus(await http("GET", `${base()}/file-requirements`, { token: s.client }), 200).items.find((i) => i.key === "venue_permit");
-    if (item?.status !== "missing") return `requirement is ${item?.status}`;
-    gap(`the upload flow has no field that names a requirement key, so the stored "venue-permit.pdf" never satisfies requirement "venue_permit" (still "${item.status}"); custom requirements are fed only by legacy document rows no HTTP route creates`);
+    expect(s.slot, "no confirmed upload fixture");
+    const path = `${base()}/file-requirements/venue_permit/upload`;
+    expectStatus(await http("POST", path, { token: s.otherClient, body: { objectId: s.slot.object.id } }), 403);
+    const bound = expectStatus(await http("POST", path, { token: s.client, body: { objectId: s.slot.object.id } }), 200, 201);
+    expect(bound.status !== "missing" && bound.uploadedAssetId, "binding the verified upload left the custom requirement missing");
+    const item = expectStatus(await http("GET", `${base()}/file-requirements`, { token: s.client }), 200).items.find((entry) => entry.key === "venue_permit");
+    expect(item.uploadedAssetId === bound.uploadedAssetId && item.status !== "missing", "matrix does not retain the requirement-bound upload");
   });
   await step("PMCM can delete a stored file; clients and others cannot", async () => {
     if (!s.slot) blocked("no stored file");
@@ -668,10 +697,11 @@ export async function run(ctx) {
     expect(clientRegister.status === 403, `client reading the exception register returned ${clientRegister.status}`);
     return `${register.length} exception(s) in the PMCM register`;
   });
-  await step("a client can ask for a freeze exception directly", async () => {
+  await step("client requests a frozen scope change while PMCM retains exception approval", async () => {
     const r = await http("POST", `${cc()}/freeze-exceptions`, { token: s.ccClient, body: { requestedChange: "x", reason: "y" } });
-    if (r.status === 403) gap("freeze exceptions can only be requested by PMCM; a client's route is a scope-change request, which is then blocked until PMCM files the exception");
-    expectStatus(r, 200, 201);
+    expectStatus(r, 403);
+    const request = expectStatus(await http("POST", `${cc()}/scope-changes`, { token: s.ccClient, body: { title: "Review frozen scope", description: "Please consider this late change", category: "other" } }), 201);
+    expect(request.status === "submitted" || request.status === "under_review", "client request did not enter PMCM review");
   });
   await step("an addendum can be issued for an approved scope change", async () => {
     const bad = await http("POST", `${cc()}/addenda`, { token: s.admin, body: { title: "Addendum 1", documentId: "doc_does_not_exist", contractSnapshot: [], quoteSnapshot: [], financialDelta: 5000, freezeExceptionId: "x" } });
@@ -681,10 +711,12 @@ export async function run(ctx) {
     await refused([["client issues", "POST", `${cc()}/addenda`, s.ccClient, { title: "x", documentId: "d", contractSnapshot: [], quoteSnapshot: [] }],
       ["client conforme request", "POST", `${cc()}/addenda/add_nope/conforme-execution`, s.ccClient, {}],
       ["client countersigns", "POST", `${cc()}/addenda/add_nope/conforme-execution/countersign`, s.ccClient, { executionId: "execution_missing", versionNumber: 1, documentSha256: "a".repeat(64), consentAccepted: true }]]);
-    const pm = expectStatus(await http("GET", `/pmcm/events/${s.cc.eventId}/workspace`, { token: s.admin }), 200);
-    if (!pm.documents.length) blocked("this isolated change-control event has no source document; addendum signing needs the commercial document prerequisite");
-    const doc = pm.documents[0];
-    const added = expectStatus(await http("POST", `${cc()}/addenda`, { token: s.admin, body: { title: "Addendum 1", documentId: doc.id, contractSnapshot: [], quoteSnapshot: [], financialDelta: 5000 } }), 200, 201);
+    const { document: doc } = await ctx.issueMinimalProposal(s.cc.eventId);
+    const billingSource = expectStatus(await http("POST", `${cc()}/billing-source`, { token: s.admin, body: { sourceLabel: "Approved original scope", lineItems: [{ label: "Original package", amount: 100000 }] } }), 201);
+    expectStatus(await http("PATCH", `${cc()}/billing-source/${billingSource.id}/approve`, { token: s.admin, body: {} }), 200);
+    const exception = expectStatus(await http("POST", `${cc()}/freeze-exceptions`, { token: s.admin, body: { requestedChange: "Issue signed scope addendum", reason: "Approved change request" } }), 201);
+    expectStatus(await http("PATCH", `${cc()}/freeze-exceptions/${exception.id}`, { token: s.admin, body: { decision: "approve", decisionNote: "PMCM reviewed impacts" } }), 200);
+    const added = expectStatus(await http("POST", `${cc()}/addenda`, { token: s.admin, body: { title: "Addendum 1", documentId: doc.id, contractSnapshot: [], quoteSnapshot: [], financialDelta: 5000, freezeExceptionId: exception.id } }), 200, 201);
     return added.id;
   });
   await step("client toggles are PMCM-controlled: event-day view for clients", async () => {
@@ -737,12 +769,17 @@ export async function run(ctx) {
     expect(ev.status === "cancelled", `client sees status "${ev.status}"`);
     const fee = d.financialImpact?.cancellationFeeAmount;
     expect(fee === 25000, `cancellation fee recorded as ${fee}`);
-    const bills = expectStatus(await http("GET", `/billing`, { token: s.admin }), 200);
-    const hasFeeItem = JSON.stringify(bills).includes(s.dc.eventId);
-    return `client status "${ev.status}"; fee recorded on the decision; billing ${hasFeeItem ? "references" : "has no record of"} the cancellation fee`;
+    const sourceId = d.financialImpact?.billingSourceId;
+    expect(sourceId, "confirmed fee has no approved billing source");
+    const statement = expectStatus(await http("POST", `${dc()}/billing-statements/generate`, { token: s.admin, body: { sourceId, idempotencyKey: `decision-fee-statement:${d.id}` } }), 201);
+    expect(statement.totalAmount === 25000, "cancellation invoice does not match the confirmed fee");
+    const ws = expectStatus(await http("GET", `/pmcm/events/${s.dc.eventId}/workspace`, { token: s.admin }), 200);
+    expect(ws.paymentMilestones.some((m) => m.amount === 25000 && m.label === "Cancellation fee"), "fee payment milestone is missing");
+    return "PMCM confirmation creates the approved fee source; PMCM issues its statement through the billing workflow.";
   });
   await step("cancelling or postponing is also reachable from a portal screen", async () => {
-    gap("API and PMCM screens exist (event-decisions), but a decision records only a fee amount: it creates no billing statement or milestone for the cancellation fee and no supplier release notices were verifiable from the API; PMCM must do those by hand");
+    const source = readFileSync(new URL("../../../../apps/event/src/features/change-management/register/views/record-decision-form.tsx", import.meta.url), "utf8");
+    expect(source.includes("cancellationFeeAmount"), "PMCM decision screen does not expose fee confirmation");
   });
 
   // ---------------------------------------------------------------- notifications
@@ -766,12 +803,8 @@ export async function run(ctx) {
     if (mine.length > 0 && !(ws.notificationLogs ?? []).length) gap(`PMCM has ${mine.length} client-addressed messages, but the client workspace has no notification feed; this in-app path is unavailable`);
   });
   await step("the client is emailed when PMCM submits a floorplan for review", async () => {
-    let found = false;
-    for (let i = 0; i < 6 && !found; i++) {
-      found = mailsTo(s.ev.clientEmail).some((m) => /floorplan|layout|ocular/i.test(m));
-      if (!found) await sleep(2000);
-    }
-    if (!found) gap("floorplan email delivery was not observed locally; notifications remain queued and provider delivery is outside this environment's coverage");
+    const mail = await waitForMail(s.ev.clientEmail, (m) => /floorplan|layout|ocular/i.test(m));
+    expect(mail, "floorplan notification was not accepted by the local log transport within 45 seconds");
   });
   await step("notification acknowledgement is scoped to the recipient", async () => {
     const queued = (s.logs ?? []).find((l) => l.recipient === "Client");

@@ -49,6 +49,7 @@ export function CoordinatorAssignmentDesk({
   onSaveCoverage,
   onSendReminders,
   onDesignateOperator,
+  onRevokeOperator,
   onLoadOperator,
   onLoadAvailability,
   onLoadReliabilityHistory,
@@ -65,6 +66,7 @@ export function CoordinatorAssignmentDesk({
   onSaveCoverage: (input: CreateCoordinatorCoverageRequirementInput) => Promise<boolean>;
   onSendReminders: () => Promise<PrismAcknowledgementReminderResult | null>;
   onDesignateOperator: (coordinatorId: string) => Promise<boolean>;
+  onRevokeOperator?: () => Promise<boolean>;
   onLoadOperator: () => Promise<PrismEventOperatorDesignation["operator"]>;
   onLoadAvailability: (coordinatorId: string) => Promise<PrismCoordinatorAvailability[]>;
   onLoadReliabilityHistory: (coordinatorId: string) => Promise<PrismCoordinatorReliabilityHistoryEntry[]>;
@@ -190,6 +192,7 @@ export function CoordinatorAssignmentDesk({
           busy={busy}
           onLoadOperator={onLoadOperator}
           onDesignate={onDesignateOperator}
+          onRevoke={onRevokeOperator}
         />
         <CoordinatorAvailabilityCard
           eventId={event.id}

@@ -21,18 +21,7 @@ export function PmcmProposalIssuerPanel({ eventId }: { eventId: string }) {
         Build the cost estimate, then issue it as a numbered version. The client reviews the issued version and sees its title, summary and total, not the estimate lines. A new version replaces the previous one and keeps its history.
       </p>
 
-      {vm.latest ? (
-        <article className="mt-4 rounded-md border border-border p-3">
-          <p className="text-xs font-semibold text-muted-foreground">
-            Issued · version {vm.latest.versionNumber} · client {vm.latest.clientStatus.replaceAll("_", " ")}
-          </p>
-          <h3 className="mt-1 font-semibold">{vm.latest.title}</h3>
-          {vm.latest.summary ? <p className="mt-1 whitespace-pre-wrap text-sm">{vm.latest.summary}</p> : null}
-          <p className="mt-2 text-sm font-semibold tabular-nums">{formatPeso(vm.latest.totalAmount)}</p>
-        </article>
-      ) : (
-        <p className="mt-4 text-sm text-muted-foreground">No proposal has been issued for this event yet.</p>
-      )}
+      <IssuedProposal proposal={vm.latest} />
 
       {vm.error ? <p role="alert" className="mt-3 text-sm text-destructive">{vm.error}</p> : null}
       {vm.notice ? <p role="status" className="mt-3 text-sm font-medium text-success">{vm.notice}</p> : null}
@@ -107,4 +96,22 @@ export function PmcmProposalIssuerPanel({ eventId }: { eventId: string }) {
       )}
     </section>
   );
+}
+
+function IssuedProposal({ proposal }: { proposal: ReturnType<typeof useProposalIssuerViewModel>["latest"] }) {
+  return <>
+      {proposal ? (
+        <article className="mt-4 rounded-md border border-border p-3">
+          <p className="text-xs font-semibold text-muted-foreground">
+            Issued · version {proposal.versionNumber} · client {proposal.clientStatus.replaceAll("_", " ")}
+          </p>
+          <h3 className="mt-1 font-semibold">{proposal.title}</h3>
+          {proposal.summary ? <p className="mt-1 whitespace-pre-wrap text-sm">{proposal.summary}</p> : null}
+          <p className="mt-2 text-sm font-semibold tabular-nums">{formatPeso(proposal.totalAmount)}</p>
+        </article>
+      ) : (
+        <p className="mt-4 text-sm text-muted-foreground">No proposal has been issued for this event yet.</p>
+      )}
+
+  </>;
 }

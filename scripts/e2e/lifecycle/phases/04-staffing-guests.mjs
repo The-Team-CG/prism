@@ -1,5 +1,9 @@
 // Phase 4: coordinator staffing and guest operations (roster, access code, check-in, walk-ins, privacy, feedback rules).
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
 import { http, msg, step, startPhase, blocked, gap, expect, expectStatus } from "../lib.mjs";
 
@@ -40,6 +44,7 @@ export async function run(ctx) {
   await step("PMCM reads the coordinator directory (roster with roles)", async () => {
     if (!s.admin) blocked("no admin");
     const r = list(expectStatus(await call("GET", "/coordinators", s.admin), 200));
+    s.coordinatorProfiles = r;
     s.marcoProfile = r.find((c) => c.id === "coord_marco" || /marco/i.test(c.name ?? ""));
     s.biancaProfile = r.find((c) => c.id === "coord_bianca" || /bianca/i.test(c.name ?? ""));
     expect(s.marcoProfile && s.biancaProfile, `seeded coordinators missing from directory (${r.length} rows)`);
@@ -324,6 +329,11 @@ export async function run(ctx) {
     const r = await call("DELETE", `/events/${A}/operator-designation`, s.admin);
     if ([404, 405].includes(r.status)) gap("no route revokes an operator designation; it ends only when PMCM designates someone else or the assignment is withdrawn");
     status(r, 200, 204);
+    const read = expectStatus(await call("GET", `/events/${A}/operator-designation`, s.admin), 200);
+    expect(read.operator === null, "designation remains after explicit revoke");
+    if (s.asgBianca) status(await call("PATCH", `/events/${A}/coordinators/${s.asgBianca.id}/status`, s.marco, { status: "present" }), 403);
+    status(await call("DELETE", `/events/${A}/operator-designation`, s.marco), 403);
+    status(await call("DELETE", `/events/${A}/operator-designation`, s.admin), 200);
   });
   await step("revocation ends the operator's authority at once (designation moved to Bianca)", async () => {
     if (!s.designationId) blocked("no designation");
@@ -539,11 +549,15 @@ export async function run(ctx) {
     expect(r.accepted === true, "not accepted");
   });
   await step("registration desk (Registration Staff) can search and check in the roster", async () => {
-    // Marco is a General Coordinator; the only Registration Staff in the seed (Bianca) has no sign-in, so this cannot be driven end to end.
-    const search = await call("GET", `/guest/events/${A}/roster/search?query=Ana`, s.marco);
-    status(search, 200, 403);
-    if (search.status === 403) blocked("the seeded Registration Staff has no login, so the registration desk cannot be driven as that role (a General Coordinator is correctly refused)");
-    return "General Coordinator was allowed to search the roster";
+    const profile = s.coordinatorProfiles.find((c) => (c.roleTags ?? []).includes("Registration Staff") && c.id !== "coord_marco");
+    expect(profile, "fixture directory has no registration-qualified coordinator");
+    const token = await ctx.ensureCoordinator(profile);
+    const assignment = expectStatus(await call("POST", `/events/${A}/coordinators`, s.admin, { coordinatorId: profile.id, role: "Registration Staff" }), 200, 201);
+    expectStatus(await call("PATCH", `/events/${A}/coordinators/${assignment.id}/acknowledge`, token, { decision: "acknowledged" }), 200);
+    status(await call("GET", `/guest/events/${A}/roster/search?query=Ana`, s.marco), 403);
+    const rows = list(expectStatus(await call("GET", `/guest/events/${A}/roster/search?query=Ana`, token), 200));
+    expect(rows.some((row) => row.guestName === "Ana Cruz"), "registration staff cannot find the imported guest");
+    return `verified registration actor ${profile.id}; unrelated coordinator refused`;
   });
 
   // ---------------------------------------------------------------- guest privacy classification
@@ -647,19 +661,30 @@ export async function run(ctx) {
     expect(missing.status === 404, `moderating a missing feedback id -> ${missing.status}: ${msg(missing)}`);
     status(await call("POST", `/guest/events/${A}/feedback/gfb_missing/moderate`, s.marco, { action: "approve" }), 403);
   });
-  await step("consent withdrawal is gated until the actual event end is recorded", async () => {
+  await step("consent withdrawal requires a valid saved feedback receipt", async () => {
     const p = `/guest/events/${encodeURIComponent(code)}/feedback/gfb_missing/consent-withdrawal`;
     status(await call("POST", p, undefined, {}), 400);
     const r = await call("POST", p, undefined, { withdrawPrivacyConsent: true });
-    expect(r.status === 400 && /actual event end/i.test(msg(r)), `${r.status}: ${msg(r)}`);
+    expect(r.status === 404, `unknown feedback receipt returned ${r.status}: ${msg(r)}`);
   });
-  await step("feedback happy path, 7-day window edges, moderation outcome and media attachments", async () => {
-    blocked("this staffing fixture stays in briefing; recorded-end feedback and its seven-day window are exercised in the event-day/closure phase");
+  await step("feedback submits for moderation after recorded end and closes after seven days", async () => {
+    await ctx.prepareEventDay(D);
+    expectStatus(await call("POST", `/events/${D}/start-event-day`, s.admin, {}), 200);
+    expectStatus(await call("POST", `/events/${D}/actual-end`, s.admin, { actualEndedAt: new Date(Date.now() - 3600000).toISOString() }), 200, 201);
+    const code = expectStatus(await call("GET", `/events/${D}`, s.admin), 200).guestAccessCode;
+    const receipt = expectStatus(await call("POST", `/guest/events/${encodeURIComponent(code)}/feedback`, undefined, { guestName: "Fixture feedback guest", rating: 5, comment: "Enjoyed the event", privacyConsentAccepted: true, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION }), 201);
+    expect(receipt.id && !('guestName' in receipt), "feedback receipt exposes identity or lacks its id");
+    expectStatus(await call("POST", `/guest/events/${encodeURIComponent(code)}/feedback/${receipt.id}/consent-withdrawal`, undefined, { withdrawPrivacyConsent: true }), 200, 201);
+    expectStatus(await call("POST", `/events/${D}/actual-end`, s.admin, { actualEndedAt: new Date(Date.now() - 8 * 86400000).toISOString(), correctionReason: "Exercise feedback window" }), 200, 201);
+    status(await call("POST", `/guest/events/${encodeURIComponent(code)}/feedback`, undefined, { guestName: "Late feedback", rating: 5, privacyConsentAccepted: true, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION }), 400);
+
   });
 
   // ---------------------------------------------------------------- portal wiring
   await step("portal wiring: API-only endpoints with no portal caller", async () => {
-    gap("guest portal has a feedback form call but no consent-withdrawal screen; `POST /guest/events/:code/feedback/:id/consent-withdrawal` is API only, no UI. Also `DELETE .../operator-designation` does not exist, so the event portal cannot revoke an operator, only re-designate");
+    const guestSource = readFileSync(join(repoRoot, "apps/guest/src/features/guest-checkin/dashboard/data/guest-dashboard-repository.ts"), "utf8");
+    const eventSource = readFileSync(join(repoRoot, "apps/event/src/features/event-dashboard/shell/data/commands/operations-commands.ts"), "utf8");
+    expect(guestSource.includes("consent-withdrawal") && eventSource.includes('method: "DELETE"'), "consent withdrawal or operator revoke has no portal data caller");
   });
 
   // ---------------------------------------------------------------- event games smoke

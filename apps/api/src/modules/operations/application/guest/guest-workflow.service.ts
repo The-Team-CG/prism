@@ -665,11 +665,9 @@ export class GuestWorkflowService implements GuestCommands {
 
   async withdrawFeedbackConsentByAccessCode(accessCode: string, feedbackId: string, input: WithdrawGuestFeedbackConsentInput): Promise<PrismGuestFeedbackReceipt> {
     const event = await this.resolveGuestEventByAccessCode(accessCode, true);
-    this.assertFeedbackWindow(event);
     return this.prisma.$transaction(async (tx) => {
       const currentEvent = await this.eventReferences.findOperationsEvent(event.id, { prisma: tx, correlationId: `feedback_consent_${feedbackId}` });
       if (!currentEvent) throw new NotFoundException('Guest event code was not found');
-      this.assertFeedbackWindow(currentEvent);
       const feedback = await tx.opsGuestFeedback.findFirst({ where: { id: feedbackId, eventId: event.id } });
       if (!feedback) throw new NotFoundException('Feedback record was not found');
       const now = new Date();

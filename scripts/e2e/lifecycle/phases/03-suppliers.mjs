@@ -4,7 +4,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
-import { cfg, http, login, msg, step, startPhase, blocked, gap, review, expect, mailsTo } from "../lib.mjs";
+import { cfg, http, login, msg, step, startPhase, blocked, gap, review, expect, mailsTo, waitForMail } from "../lib.mjs";
 
 export const name = "Suppliers";
 
@@ -100,8 +100,8 @@ export async function run(ctx) {
   }
   await step("applicant receives a confirmation email naming the application id", async () => {
     need(apps.A);
-    const mail = mailsTo(apps.A.email).find((m) => m.includes(apps.A.id));
-    if (!mail) gap("submission confirmation was not delivered to the local mail log; notification-outbox delivery is gated in this environment");
+    const mail = await waitForMail(apps.A.email, (m) => m.includes(apps.A.id));
+    expect(mail, "application confirmation was not accepted by the local log mail transport within 45 seconds");
     expect(/status|track|check/i.test(mail), "confirmation does not tell the applicant how to check status");
   });
   await step("a second application from the same email within 14 days is refused", async () => {
@@ -272,8 +272,10 @@ export async function run(ctx) {
   });
   await step("each supplier receives an emailed quote link that matches its own request", async () => {
     need(s.reqA, s.reqB);
+    await waitForMail(apps.A.email, (m) => m.includes(s.reqA.accessToken));
+    await waitForMail(apps.B.email, (m) => m.includes(s.reqB.accessToken));
     const a = quoteLinkOf(apps.A.email), b = quoteLinkOf(apps.B.email);
-    if (!a.token || !b.token) gap("quote-link delivery was not observed locally; the suite uses the API-returned tokens to test quoting independently");
+    expect(a.token && b.token, "supplier quote links were not accepted by the local log transport within 45 seconds");
     expect(a.token === s.reqA.accessToken, `A's emailed token ${a.token ? "differs from" : "is missing for"} its request`);
     expect(b.token === s.reqB.accessToken, "B's emailed token differs from its request");
     expect(a.token !== b.token, "both suppliers got the same token");
@@ -364,9 +366,10 @@ export async function run(ctx) {
   });
   await step("PMCM event workspace lists both bids and exposes the quote round", async () => {
     need(admin, s.quoteA, s.quoteB);
-    const body = text(is(await call("GET", `/pmcm/events/${E()}/workspace`, admin), 200));
+    const workspace = is(await call("GET", `/pmcm/events/${E()}/workspace`, admin), 200);
+    const body = text(workspace);
     expect(body.includes(s.quoteA.id) && body.includes(s.quoteB.id), "PMCM workspace does not list both submitted bids");
-    s.roundId = body.match(/round_[0-9a-f-]{36}/)?.[0];
+    s.roundId = (workspace.supplierQuoteRequests ?? []).find((request) => request.id === s.reqA.id)?.roundId;
     if (!s.roundId) gap("no PMCM read model returns the quote round id, so the comparison route (GET /events/:id/quote-rounds/:roundId/comparison) cannot be reached from the UI");
   });
   await step("PMCM compares the round: both bids with amounts; others cannot", async () => {
@@ -420,13 +423,12 @@ export async function run(ctx) {
   });
   await step("the unsuccessful supplier is told it was not selected", async () => {
     need(s.reqB, s.quoteB, s.selected);
-    const mails = mailsTo(apps.B.email);
-    const told = mails.some((m) => /not selected|unsuccessful|released|closed|regret/i.test(m) && !/Quote request link/.test(m));
-    if (!told) gap("no notification reaches the unsuccessful supplier when another bid is selected (only the winner is notified)");
+    const told = await waitForMail(apps.B.email, (m) => /not selected|selected another supplier|unsuccessful|released|closed|regret/i.test(m) && !/Quote request link/.test(m));
+    expect(told, "unselected supplier notification was not accepted by the local log transport");
   });
   await step("the selected supplier is notified of its selection", async () => {
     need(s.reqA, s.selected);
-    if (!mailsTo(apps.A.email).some((m) => /selected/i.test(m))) gap("selection email was not delivered locally; outbox/provider delivery needs separate verification");
+    expect(await waitForMail(apps.A.email, (m) => /selected/i.test(m)), "selected supplier notification was not accepted by the local log transport");
   });
 
   // ------------------------------------------------------------------ 3. assignment, contract, schedule, readiness
@@ -962,20 +964,22 @@ export async function run(ctx) {
     ["PMCM manual quote entry (POST /events/:id/supplier-quotes)", () => wiredIn(eventSrc, /supplier-quotes[`"']/)],
     ["resend supplier account invitation (POST /supplier-applications/:id/account-invitation/resend)", () => wiredIn(eventSrc, /account-invitation\/resend|resendAccountInvitation/)],
     ["supplier availability (POST /suppliers/:id/availability)", () => wiredIn(eventSrc, /suppliers\/\$\{[^}]+\}\/availability|supplierPath\([^)]*["']\/?availability["']/)],
-    ["list supplier schedules (GET /events/:id/supplier-schedules)", () => wiredIn(eventSrc, /listSupplierSchedules|supplierWorkflows\.listSchedules/)],
-    ["metadata-only contract upload (POST /supplier/quote-requests/:id/contract)", () => wiredIn(supplierSrc, /supplierWorkspace\.uploadContract|quote-requests\/\$\{[^}]+\}\/contract[`"']/)],
+    ["supplier schedule workspace and acknowledgement", () => wiredIn(supplierSrc, /supplierWorkflows\.detail/) && wiredIn(supplierSrc, /supplierWorkflows\.acknowledgeSchedule/)],
+    ["verified stored-object contract submission", () => wiredIn(supplierSrc, /uploadStorageObject/) && wiredIn(supplierSrc, /supplierWorkflows\.bindContract/)],
     ["supplier reads request by token (GET /quote-requests/:token)", () => routeFilesOf("apps/supplier/src/app").some((p) => /quote/i.test(p.replace(ROOT, ""))) || wiredIn(supplierSrc, /quote-requests\/\$\{[^}]+\}[`"']/)],
   ];
   const wiredNames = [];
   for (const [label, check] of wiring) {
-    const ok = check();
-    if (ok) { wiredNames.push(label.split(" (")[0]); continue; }
-    await step(`portal screen calls ${label.split(" (")[0]}`, async () => gap(`API only, no UI: ${label}; no call found under apps/supplier/src or apps/event/src`));
+    await step(`portal screen calls ${label.split(" (")[0]}`, async () => {
+      if (!check()) gap(`API only, no UI: ${label}; no call found under apps/supplier/src or apps/event/src`);
+      wiredNames.push(label.split(" (")[0]);
+      return "verified portal source caller; HTTP behavior is exercised in this phase";
+    });
   }
   const must = [
     ["supplier", /supplierWorkspace\.confirmAssignment/, "assignment confirm"], ["supplier", /supplierWorkspace\.confirmReadiness/, "readiness confirm"],
     ["supplier", /supplierWorkspace\.updateEventStatus/, "event-day status"], ["supplier", /supplierWorkflows\.(bindContract|acknowledgeSchedule|requestScheduleChange|updateCreativeProgress|submitCreativeTask)/, "contract, schedule and creative actions"],
-    ["supplier", /quote-requests\/\$\{token\}\/quote/, "quote submit/revise"], ["supplier", /supplier-applications/, "public application and status"],
+    ["supplier", /quote-requests\/\$\{encodeURIComponent\(token\)\}\/quote/, "quote submit/revise"], ["supplier", /supplier-applications/, "public application and status"],
     ["event", /supplierWorkflows\.(reviewContract|createCreativeTask|reviewCreativeTask|createPayable|releasePayout|reversePayout|createSchedule)/, "PMCM contract/creative/payable/schedule actions"],
     ["event", /supplierApplications\.review|supplierApplications\.listInbox/, "application inbox review"], ["event", /quote-requests`/, "request quotes"],
     ["event", /supplier-quotes\/\$\{quoteId\}\/select/, "select quote"], ["event", /\/withdraw/, "withdraw supplier"],
