@@ -62,6 +62,8 @@ import { ClientCloseoutController } from './api/closure/client-closeout.controll
 import { ClientCloseoutService } from './application/closure/client-closeout.service';
 import { ConformeSigningController } from './api/onboarding/conforme-signing.controller';
 import { ConformeSigningService } from './application/onboarding/conforme-signing.service';
+import { EventDayStartController } from './api/onboarding/event-day-start.controller';
+import { EventDayStartService } from './application/onboarding/event-day-start.service';
 
 /**
  * Bounded-context composition root for event-lifecycle: the event record's
@@ -123,9 +125,11 @@ import { ConformeSigningService } from './application/onboarding/conforme-signin
     EventClientFloorplanAccessController,
     ClientCloseoutController,
     ConformeSigningController,
+    EventDayStartController,
   ],
   providers: [
     InquiriesService,
+    EventDayStartService,
     InquiryWorkflowService,
     ClientOnboardingWorkflowService,
     InquiryConformeReminderScheduler,

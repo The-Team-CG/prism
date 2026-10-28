@@ -8,6 +8,7 @@ export type InquiryForm = {
   clientType: string;
   eventName: string;
   eventType: string;
+  eventTypeOther: string;
   eventDate: string;
   dateFlexibility: string;
   expectedGuests: string;
@@ -17,6 +18,7 @@ export type InquiryForm = {
   inquiryPriority: string;
   message: string;
   source: string;
+  sourceOther: string;
   channel: string;
   privacyConsentAccepted: boolean;
   privacyNoticeVersion: string;
@@ -43,6 +45,25 @@ export const INQUIRY_DATE_OPTIONS = [
   "Flexible by a few days",
   "Flexible by a few weeks",
   "Still deciding",
+] as const;
+export const INQUIRY_OTHER_OPTION = "Other";
+// Suggestions only; clients can still type a venue name or any other city.
+export const INQUIRY_CITY_SUGGESTIONS = [
+  "Makati",
+  "Taguig (BGC)",
+  "Pasay",
+  "Manila",
+  "Quezon City",
+  "Pasig (Ortigas)",
+  "Mandaluyong",
+  "Parañaque",
+  "Muntinlupa (Alabang)",
+  "Tagaytay",
+  "Clark, Pampanga",
+  "Baguio",
+  "Cebu City",
+  "Iloilo City",
+  "Davao City",
 ] as const;
 export const INQUIRY_VENUE_OPTIONS = ["Confirmed", "Shortlisted", "Still looking", "Not applicable yet"] as const;
 export const INQUIRY_BUDGET_RANGES = [
@@ -71,6 +92,7 @@ export const INITIAL_INQUIRY_FORM: InquiryForm = {
   clientType: "",
   eventName: "",
   eventType: "",
+  eventTypeOther: "",
   eventDate: "",
   dateFlexibility: "",
   expectedGuests: "",
@@ -80,6 +102,7 @@ export const INITIAL_INQUIRY_FORM: InquiryForm = {
   inquiryPriority: "",
   message: "",
   source: "",
+  sourceOther: "",
   channel: "",
   privacyConsentAccepted: false,
   privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,

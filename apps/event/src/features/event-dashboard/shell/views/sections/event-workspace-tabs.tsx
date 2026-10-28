@@ -31,6 +31,7 @@ import { Card, CardBody, CardHeader } from "./shell-ui";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
 import type { PrismFloorPlanDraft } from "@prism/types";
 import { PmcmClientReviewPanel } from "@/features/commercial/client-review/views/pmcm-client-review-panel";
+import { PmcmProposalIssuerPanel } from "@/features/commercial/proposal-issuer/views/pmcm-proposal-issuer-panel";
 import { canReopenClientPreference, canViewClientPreference } from "@/features/floorplan/workspace/model/floorplan-workspace-rules";
 
 export function EventWorkspaceOverviewTab() {
@@ -222,6 +223,12 @@ export function EventWorkspaceBriefingTab() {
         {isPmcmAdmin(vm.session.role) ? <Button size="sm" variant="outline" className="ml-2 mt-4" onClick={() => vm.navigateEventTab("decisions")}>Decision log</Button> : null}
       </CardBody>
     </Card>
+    {isPmcmAdmin(vm.session.role) ? (
+      <details className="rounded-lg border border-border bg-card">
+        <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Commercial proposal</summary>
+        <PmcmProposalIssuerPanel eventId={selectedEvent.id} />
+      </details>
+    ) : null}
     <details className="rounded-lg border border-border bg-card">
       <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Client proposals and reviews</summary>
       <PmcmClientReviewPanel eventId={selectedEvent.id} />

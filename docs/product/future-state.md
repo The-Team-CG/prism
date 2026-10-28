@@ -4,9 +4,8 @@ title: "P.R.I.S.M future state"
 description: "Target maturity for a role-safe, evidence-backed PMCM event operating system and its incremental migration path."
 tags: [product, target-state, maturity]
 status: canonical
-updated: "2026-09-29"
+updated: "2026-10-28"
 authority: informative
-owner: "B (Francis)"
 audience: [product, engineering, design, reviewers]
 scope: "Prism target product outcomes, maturity, and migration direction"
 last_verified: "581e676"
@@ -24,7 +23,6 @@ sources:
 
 - **Purpose:** Describe the durable target outcomes for a trusted, role-safe PMCM event operating system.
 - **Authority:** Informative target model; the feature ledger records active work and ADRs govern architecture.
-- **Owner:** B (Francis).
 - **Scope:** Product maturity, role outcomes, evidence, governance, and incremental migration direction.
 - **Use when:** Choosing whether proposed work advances the product target.
 - **Change when:** Target outcomes, maturity gates, or migration direction changes.
@@ -91,14 +89,14 @@ flowchart TD
   Api --> Closure
 ```
 
-## Future State By Owner
+## Future State By Area
 
-| Owner | Future outcome |
+| Area | Future outcome |
 | --- | --- |
-| Maxine | The whole system feels coherent across PMCM, client, supplier, and guest routes without violating role boundaries. Each touched surface has responsive state language, dense operational layout, and no banned visual treatments. |
-| Francis | PMCM and coordinator operations are usable: command inbox, selected event workspace, supplier/quote/floorplan/billing/compliance/live-ops/closure evidence, and exactly one chosen staffing/live-ops depth slice when scoped. |
-| Ethan | External portals are safe and useful: client action center, supplier readiness board, guest access/check-in/feedback, with no PMCM data leakage or hidden broad sample dependency. |
-| Anthony | Platform trust is explicit: scoped contracts, file matrix, session keys, privacy/audit, auth/runtime decisions, dependency gates, route evidence, source-ID traceability, and completion matrix. |
+| UX | The whole system feels coherent across PMCM, client, supplier, and guest routes without violating role boundaries. Each touched surface has responsive state language, dense operational layout, and no banned visual treatments. |
+| PMCM operations | PMCM and coordinator operations are usable: command inbox, selected event workspace, supplier/quote/floorplan/billing/compliance/live-ops/closure evidence, and exactly one chosen staffing/live-ops depth slice when scoped. |
+| External portals | External portals are safe and useful: client action center, supplier readiness board, guest access/check-in/feedback, with no PMCM data leakage or hidden broad sample dependency. |
+| Platform trust | Platform trust is explicit: scoped contracts, file matrix, session keys, privacy/audit, auth/runtime decisions, dependency gates, route evidence, source-ID traceability, and completion matrix. |
 
 ## Future State By Feature Outcome
 
@@ -108,7 +106,7 @@ flowchart TD
 | Thin delivered | A bounded working slice is complete and honest about remaining maturity. | File Requirements Matrix metadata, supplier readiness board, guest access-code/check-in, close gates. |
 | Gated | Work is blocked until a prerequisite is approved or implemented. | Storage, production notifications, external auth, QR/camera, live AI, broader risk/change if not selected. |
 | Deferred | Valid but not in the current delivery slice. | Deeper billing disputes, archive comparison, testimonial library, supplier application status center if not needed for demo. |
-| Later maturity | Explicitly outside current build capacity with a named future owner. | Workflow Template Builder, health formula editor, storage adapter readiness console if not approved. |
+| Later maturity | Explicitly outside current build capacity with an explicit future scope and revisit condition. | Workflow Template Builder, health formula editor, storage adapter readiness console if not approved. |
 
 ## Later Maturity Target State
 
@@ -129,16 +127,16 @@ flowchart TD
 
 ## Migration From Current To Future
 
-| Step | Action | DRI |
-| --- | --- | --- |
-| 1 | Preserve the app split and reject any all-role `apps/client` shell direction. | Anthony |
-| 2 | Finish final FL-001 through FL-028 outcome matrix. | Anthony |
-| 3 | Build route evidence packet for the lifecycle story. | Anthony |
-| 4 | Decompose one more selected-event PMCM surface and gate non-selected PMCM depth slices. | Francis |
-| 5 | Confirm supplier and guest route evidence before expanding client polish. | Ethan |
-| 6 | Apply route-review log to touched real surfaces. | Maxine |
-| 7 | Keep storage, notifications, auth, QR, and AI gated unless approved with tests and fallback behavior. | Anthony |
-| 8 | Maintain a deferred/later queue grouped by PMCM, client, supplier, guest, platform, and UX. | Anthony |
+| Step | Action |
+| --- | --- |
+| 1 | Preserve the app split and reject any all-role `apps/client` shell direction. |
+| 2 | Finish final FL-001 through FL-028 outcome matrix. |
+| 3 | Build route evidence packet for the lifecycle story. |
+| 4 | Decompose one more selected-event PMCM surface and gate non-selected PMCM depth slices. |
+| 5 | Confirm supplier and guest route evidence before expanding client polish. |
+| 6 | Apply route-review log to touched real surfaces. |
+| 7 | Keep storage, notifications, auth, QR, and AI gated unless approved with tests and fallback behavior. |
+| 8 | Maintain a deferred/later queue grouped by PMCM, client, supplier, guest, platform, and UX. |
 
 ## Future Dependency Decisions
 
@@ -163,7 +161,7 @@ Long-term backend completion requires these conditions:
 4. `event-core` remains narrow: event identity, lifecycle invariants, status transitions, and command history only.
 5. `closure-ops` assembles closure/archive readiness from public reader ports rather than pulling private services into a new hub.
 6. Sample demo routes stay in `sample-compatibility` only; do not recreate a god hub.
-7. Every capability change has Owner D evidence: feature-ledger row, route/app/actor, contract touched, fallback state, forbidden-role test, query budget or command side-effect mode, route-smoke evidence, and docs updated.
+7. Every capability change has implementation evidence: feature-ledger row, route/app/actor, contract touched, fallback state, forbidden-role test, query budget or command side-effect mode, route-smoke evidence, and docs updated.
 ## Future Evidence Packet
 
 A completion claim should include:

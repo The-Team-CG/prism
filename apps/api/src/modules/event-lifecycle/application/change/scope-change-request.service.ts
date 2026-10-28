@@ -177,6 +177,16 @@ export class ScopeChangeRequestService {
    */
   async review(eventId: string, requestId: string, input: ReviewScopeChangeRequestInput, actor: ResolvedEventOpsActor): Promise<PrismScopeChangeRequest> {
     await this.requireOperator(actor, eventId, 'scope change review');
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await this.reviewInTransaction(eventId, requestId, input, actor);
+      } catch (error) {
+        if (attempt >= 2 || typeof error !== 'object' || error === null || !('code' in error) || error.code !== 'P2034') throw error;
+      }
+    }
+  }
+
+  private reviewInTransaction(eventId: string, requestId: string, input: ReviewScopeChangeRequestInput, actor: ResolvedEventOpsActor) {
     return this.prisma.$transaction(async (tx) => {
       const event = await this.requireEvent(eventId, tx);
       if (event.archived) throw new BadRequestException('Archived events cannot accept scope change decisions');

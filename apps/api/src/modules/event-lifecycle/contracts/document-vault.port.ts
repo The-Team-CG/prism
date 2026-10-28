@@ -24,6 +24,17 @@ export interface DocumentVault {
     context?: PrismTransactionContext,
   ): Promise<PrismDocumentReference>;
 
+  /** Attaches the stored file to an issued proposal document once, after the document exists. */
+  attachStoredFile(input: {
+    eventId: string;
+    documentId: string;
+    storageBucket: string;
+    storageKey: string;
+    mimeType: string;
+    sizeBytes: number;
+    generatedFileName: string;
+  }, context?: PrismTransactionContext): Promise<void>;
+
   findEligibleReference(
     input: DocumentReferenceLookup,
     context?: PrismTransactionContext,

@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import type { ReviewEventProposalInput } from "@prism/types";
+import { useEffect, useRef, useState } from "react";
+import type { PrismIssuedProposalSummary, ReviewEventProposalInput } from "@prism/types";
 import { useClientWorkspace } from "../../workspace/shared";
 import { proposalReviewRepository } from "../data/proposal-review-repository";
 import {
@@ -18,6 +18,20 @@ export function useClientProposalTabViewModel() {
   const { selectedEvent, briefing, billing, payments, documents, officialDraft, refresh, setNotice, setError, setBusy, busy } =
     useClientWorkspace();
   const [revisionNote, setRevisionNote] = useState("");
+  const [proposal, setProposal] = useState<PrismIssuedProposalSummary | null>(null);
+  const eventId = selectedEvent?.id;
+  const issuedDocumentId = latestIssuedProposal(documents)?.id;
+  // Reload when the event changes or PMCM issues a newer version (a new issued document appears).
+  useEffect(() => {
+    if (!eventId) return;
+    let current = true;
+    setProposal(null);
+    proposalReviewRepository.latest(eventId).then(
+      (result) => { if (current) setProposal(result.proposal); },
+      () => { if (current) setProposal(null); },
+    );
+    return () => { current = false; };
+  }, [eventId, issuedDocumentId]);
   const pendingDecision = useRef<ReturnType<typeof retainProposalDecisionKey> | null>(null);
   const issuedProposal = latestIssuedProposal(documents);
   const packageReady = proposalPackageReady({ briefing, billing, proposalIssued: Boolean(issuedProposal) });
@@ -56,6 +70,7 @@ export function useClientProposalTabViewModel() {
     billing,
     payments,
     officialDraft,
+    proposal,
     packageReady,
     headline: event ? proposalReviewHeadline(event, packageReady) : "Proposal",
     revisionNote,

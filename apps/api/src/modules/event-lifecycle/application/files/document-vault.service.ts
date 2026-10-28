@@ -82,6 +82,17 @@ export class DocumentVaultService implements DocumentVault {
     };
   }
 
+  async attachStoredFile(input: Parameters<DocumentVault['attachStoredFile']>[0], context?: PrismTransactionContext): Promise<void> {
+    if (!this.prisma) throw new Error('Document metadata persistence requires the Prisma service');
+    const { documentId, eventId, ...file } = input;
+    // Only a proposal document that has no file yet; an attached file is never replaced.
+    const updated = await (context?.prisma ?? this.prisma).opsDocument.updateMany({
+      where: { id: documentId, eventId, type: { in: [...PROPOSAL_KINDS] }, storageKey: null },
+      data: file,
+    });
+    if (updated.count !== 1) throw new NotFoundException('Proposal document is unavailable for a stored file');
+  }
+
   private assertActorMayRegister(
     command: { eventId: string; documentKind: string },
     verifiedActor: { eventId?: string | null; actorRole: string; supplierId?: string | null },
@@ -96,6 +107,10 @@ export class DocumentVaultService implements DocumentVault {
     } else if (command.documentKind === 'billing_statement') {
       if (!['pmcm-admin', 'system'].includes(verifiedActor.actorRole)) {
         throw new ForbiddenException('A verified billing actor is required to register a billing statement');
+      }
+    } else if (command.documentKind === 'proposal') {
+      if (!['pmcm-admin', 'system'].includes(verifiedActor.actorRole)) {
+        throw new ForbiddenException('A verified PMCM actor is required to register an issued proposal');
       }
     }
   }

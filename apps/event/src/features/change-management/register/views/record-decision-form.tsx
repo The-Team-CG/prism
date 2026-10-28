@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import type { RecordEventDecisionInput, PrismEventFreezeException } from "@prism/types";
+import { DatePicker } from "@prism/ui/components/date-picker";
 import { depositTreatmentOptions, decisionOptions, supplierImpactOptions } from "../model/change-register-rules";
 
 type DecisionValue = RecordEventDecisionInput["decision"];
@@ -80,10 +81,10 @@ export function RecordDecisionForm({
       </label>
 
       {needsDate ? (
-        <label className="block text-sm">
+        <div className="block text-sm">
           <span className="text-muted-foreground">New event date</span>
-          <input type="date" required value={newEventDate} onChange={(event) => setNewEventDate(event.target.value)} className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm" />
-        </label>
+          <DatePicker aria-label="New event date" required value={newEventDate} onValueChange={setNewEventDate} className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm" />
+        </div>
       ) : null}
 
       {needsException ? (

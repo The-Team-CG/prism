@@ -4,9 +4,8 @@ title: "Pre-production domain-schema baseline adoption"
 description: "Safely replay the owner-scoped Prisma baseline and prepare a backed-up pre-production database rebuild."
 tags: [runbook, database, ddd, migrations, recovery]
 status: canonical
-updated: "2026-10-06"
+updated: "2026-10-28"
 authority: operational
-owner: "D (Anthony)"
 audience: [developers, reviewers, QA, operators, agents]
 scope: "Local disposable replay and approved pre-production adoption of the seven-schema Prisma baseline"
 last_verified: "2026-10-06; seven baselines applied on disposable PostgreSQL 16; status and live schema diff clean"
@@ -30,7 +29,6 @@ sources:
 
 - **Purpose:** Replay the final seven-domain schema from a clean database and safely prepare a pre-production database rebuild.
 - **Authority:** Operational instructions; this document does not authorize a shared-database reset.
-- **Owner:** D (Anthony).
 - **Scope:** Seven schema baselines, disposable PostgreSQL replay, and legacy staging ledger handling.
 - **Use when:** Reviewing or running the migration-history replacement.
 - **Verify with:** A fresh-database replay, Prisma migration status, and live schema equivalence.

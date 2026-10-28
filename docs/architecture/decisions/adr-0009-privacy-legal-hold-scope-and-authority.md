@@ -4,9 +4,8 @@ title: "Privacy legal-hold scope and authority"
 description: "Define who can place or release a privacy hold, what it protects, and how it coordinates with owner-controlled redaction."
 tags: [architecture, decision, privacy, retention, ddd, postgres]
 status: canonical
-updated: "2026-10-05"
+updated: "2026-10-28"
 authority: normative
-owner: "D (Anthony)"
 audience: [agents, engineers, reviewers, operators]
 scope: "Platform privacy legal holds and owner-driven privacy redaction"
 last_verified: "Prisma validation, migration guard, focused API tests, and API/event typechecks passed; PostgreSQL lock-race test remains gated"

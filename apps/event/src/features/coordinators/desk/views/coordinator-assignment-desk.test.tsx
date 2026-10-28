@@ -149,8 +149,8 @@ describe("CoordinatorAssignmentDesk availability", () => {
     fireEvent.change(screen.getByLabelText("Coordinator availability"), { target: { value: "coord_1" } });
     await waitFor(() => expect(props.onLoadAvailability).toHaveBeenCalledTimes(1));
 
-    fireEvent.change(screen.getByLabelText("First unavailable day"), { target: { value: "2026-12-10" } });
-    fireEvent.change(screen.getByLabelText("Last unavailable day"), { target: { value: "2026-12-11" } });
+    fireEvent.change(screen.getByLabelText("First unavailable day"), { target: { value: "12/10/2026" } });
+    fireEvent.change(screen.getByLabelText("Last unavailable day"), { target: { value: "12/11/2026" } });
     fireEvent.click(screen.getByRole("button", { name: "Add unavailable dates" }));
 
     await waitFor(() => expect(props.onCreateAvailability).toHaveBeenCalledWith("coord_1", expect.objectContaining({
@@ -166,12 +166,12 @@ describe("CoordinatorAssignmentDesk availability", () => {
     fireEvent.change(screen.getByLabelText("Coordinator availability"), { target: { value: "coord_1" } });
     await waitFor(() => expect(props.onLoadAvailability).toHaveBeenCalledTimes(1));
 
-    fireEvent.change(screen.getByLabelText("First unavailable day"), { target: { value: "2026-12-10" } });
-    fireEvent.change(screen.getByLabelText("Last unavailable day"), { target: { value: "2026-12-10" } });
+    fireEvent.change(screen.getByLabelText("First unavailable day"), { target: { value: "12/10/2026" } });
+    fireEvent.change(screen.getByLabelText("Last unavailable day"), { target: { value: "12/10/2026" } });
     fireEvent.click(screen.getByRole("button", { name: "Add unavailable dates" }));
 
     await waitFor(() => expect(props.onCreateAvailability).toHaveBeenCalledTimes(1));
-    expect((screen.getByLabelText("First unavailable day") as HTMLInputElement).value).toBe("2026-12-10");
+    expect((screen.getByLabelText("First unavailable day") as HTMLInputElement).value).toBe("12/10/2026");
     expect(props.onLoadAvailability).toHaveBeenCalledTimes(1);
   });
 

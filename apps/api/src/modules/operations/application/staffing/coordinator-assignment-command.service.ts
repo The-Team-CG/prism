@@ -177,6 +177,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'coordinator assignment');
 
     let plan: Awaited<ReturnType<CoordinatorAssignmentCommandService['resolveAssignmentPlan']>> | null = null;
+    let replayed = false;
     const commandContext: PrismCommandContext = {
       actorId: actor.id ?? actor.name,
       actorRole: actor.role,
@@ -200,13 +201,18 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
         await this.lockCoordinatorDate(transactionContext.prisma, input, eventId, transactionContext);
         plan = await this.resolveAssignmentPlan(eventId, input, transactionContext.prisma, transactionContext);
       },
-      write: (transactionContext) => {
+      write: async (transactionContext) => {
         if (!plan) throw new NotFoundException('Coordinator not found');
         const prisma = transactionContext?.prisma ?? this.prisma;
+        const existing = await prisma.opsCoordinatorAssignment.findFirst({
+          where: { eventId, coordinatorId: plan.coordinator.id, role: plan.role, status: { notIn: [...INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES] } },
+          orderBy: { createdAt: 'asc' },
+        });
+        if (existing) { replayed = true; return existing; }
         return prisma.opsCoordinatorAssignment.create({ data: this.buildAssignmentCreateData(eventId, plan) });
       },
       sideEffects: async (assignment, transactionContext) => {
-        if (!plan) return;
+        if (!plan || replayed) return;
         await Promise.all([
           this.auditWriter.write({
             eventId,

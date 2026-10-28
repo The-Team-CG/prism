@@ -4,9 +4,8 @@ title: "P.R.I.S.M redesign readiness foundation"
 description: "Durable gates for development fixtures, sessions, app ownership, shared contracts, external dependencies, and safe redesign work."
 tags: [readiness, contracts, roles, compatibility, governance]
 status: canonical
-updated: "2026-10-16"
+updated: "2026-10-28"
 authority: normative
-owner: "D (Anthony)"
 audience: [agents, engineers, QA, reviewers]
 scope: "contracts, fixture seeding, sessions, database runtime, external dependencies, and readiness gates"
 last_verified: "2026-10-16; selected portal storage and workflow implementation; provider activation remains separate"
@@ -30,7 +29,6 @@ sources:
 
 - **Purpose:** Define the gates that must be satisfied before a feature can claim reliable readiness.
 - **Authority:** Normative cross-cutting readiness contract for product and architecture work.
-- **Owner:** D (Anthony).
 - **Scope:** Shared contracts, local fixture seeding, session keys, database runtime, dependencies, and evidence.
 - **Use when:** Starting a redesign slice, enabling an external integration, or deciding whether a demo path is safe to extend.
 - **Change when:** A readiness gate, dependency policy, authentication/runtime assumption, or evidence requirement changes.
@@ -44,7 +42,7 @@ undocumented context.
 
 ## Correctness gates
 
-- Do not fabricate approved commercial evidence during onboarding. Proposal review requires an issued version; missing production issuance remains an explicit W12 blocker.
+- Do not fabricate approved commercial evidence during onboarding. Proposal review requires an issued version; PMCM issues one from the event workspace (W12), which creates the issued proposal document the client reviews.
 - Closeout must read authoritative deliverable, payment, issue and client-feedback evidence. Missing logistics completion cannot pass through an unrelated approved layout; PMCM must record an override reason.
 - Privacy execution may mark only a supported, successfully committed operation complete. Full native-account/file erasure, access and correction workflows remain gated.
 - Sensitive HTTP routes derive identity from signed sessions. Display names, body/query roles and expired tokens grant no authority. Native password/TOTP behavior remains in place.
@@ -78,14 +76,14 @@ Redesign and new surfaces should not start from ambiguous product truth, broad d
 | Boundaries | `npm run check:boundaries` is the architectural guard before merge. | Catches cross-app imports, broad aggregate reads, and new magic storage keys. |
 | Stale docs | App-local event audit docs are removed from active guidance. | Current truth lives in the semantic documentation bundle, not old snapshots. |
 
-## Owner Boundary Rules
+## System Boundary Rules
 
-| Owner | Person | System goal | Must use | Must not do |
-| --- | --- | --- | --- | --- |
-| Owner A | Maxine | Make all role surfaces feel like one coherent PMCM operating system while preserving role-specific workflows. | `packages/ui`, design tokens, route inventory, status language, shared shell patterns. | Put workflow logic into `packages/ui` or create visual patterns that contradict app boundaries. |
-| Owner B | Francis | Make PMCM/coordinator work executable from inquiry through event day and archive. | `apps/event`, PMCM/coordinator scoped API calls, event workspace route inventory. | Move PMCM-only command behavior into `apps/client` or expose internal state externally. |
-| Owner C | Ethan | Make external portals narrow, safe, mobile-ready action surfaces. | `apps/client`, `apps/supplier`, `apps/guest`, public and external portal contracts. | Let external portals read PMCM-only state, mutate official floorplans directly, or depend on a broad aggregate. |
-| Owner D | Anthony | Make platform behavior trustworthy through contracts, permissions, audit, notifications, file/lifecycle services, tests, and docs. | `apps/api`, `packages/types`, `packages/api-client`, bounded-context/kernel boundaries, scoped controllers. | Reintroduce whole-system aggregate routes or recreate a centralized backend/portal god facade as the default path for new surfaces. |
+| Area | System goal | Must use | Must not do |
+| --- | --- | --- | --- |
+| UX | Make all role surfaces feel like one coherent PMCM operating system while preserving role-specific workflows. | `packages/ui`, design tokens, route inventory, status language, shared shell patterns. | Put workflow logic into `packages/ui` or create visual patterns that contradict app boundaries. |
+| PMCM operations | Make PMCM/coordinator work executable from inquiry through event day and archive. | `apps/event`, PMCM/coordinator scoped API calls, event workspace route inventory. | Move PMCM-only command behavior into `apps/client` or expose internal state externally. |
+| External portals | Make external portals narrow, safe, mobile-ready action surfaces. | `apps/client`, `apps/supplier`, `apps/guest`, public and external portal contracts. | Let external portals read PMCM-only state, mutate official floorplans directly, or depend on a broad aggregate. |
+| Platform trust | Make platform behavior trustworthy through contracts, permissions, audit, notifications, file/lifecycle services, tests, and docs. | `apps/api`, `packages/types`, `packages/api-client`, bounded-context/kernel boundaries, scoped controllers. | Reintroduce whole-system aggregate routes or recreate a centralized backend/portal god facade as the default path for new surfaces. |
 
 ## Development Fixture Rule
 
@@ -140,16 +138,16 @@ Blocked result rule: record the exact failing environment variable, connection t
 
 These contracts should be completed or hardened before heavy redesign branches depend on them:
 
-| Contract | Owner | Needed for |
-| --- | --- | --- |
-| Client Action Center read model | C/D | Available through `PrismClientActionCenter` and `/api/client/action-center`; dashboard action cards consume it with derived-action fallback. Next work is richer approval/file-matrix actions. |
-| PMCM Command Inbox read model | B/D | Available through `PrismPmcmCommandInbox` and `/api/pmcm/command-inbox`; event shell command actions now consume it. Next work is health-score enrichment and deeper selected-event adoption. |
-| Selected Event Workspace read model | B/D | Available through `PrismPmcmEventWorkspace` and `/api/pmcm/events/:eventId/workspace`; selected-event sections now load it through `use-pmcm-selected-event-workspace.ts` and prefer it through `event-dashboard.selectors.ts` with broad-state fallback. Live-ops/readiness refreshes now live in `use-pmcm-event-readiness.ts`, and event messages now render through `EventMessagesWorkspace`. Next work is file matrix enrichment and route decomposition. |
-| Supplier Readiness Board read model | C/D | Available through `PrismSupplierReadinessBoard` and `/api/supplier/readiness-board`; supplier dashboard now displays it. Next work is PMCM-side readiness board parity and application/status depth. |
-| Guest Event Pass read model | C/D | Available through `PrismGuestEventPass`, `/api/guest/events/:accessCode`, and `eventOpsClient.guest.eventPass`; next work is moderation/masterlist enrichment and QR gating only after HTTPS/device/masterlist constraints are solved. |
-| File Requirements Matrix | A/C/D | Role-visible document requirements, missing/received/approved states. Requirements retain owner, visibility, due date, generated source, and validation state. Configured storage now verifies actual bytes before an attachment satisfies a requirement. See [client and supplier workflows](client-supplier-workflows.md). Production bucket activation, malware scanning, retention, multipart, and bulk uploads require separate evidence. |
-| Notification delivery state | B/C/D | Communication queues, channel status, retry/error visibility. |
-| Privacy Operations state | B/D | Consent, retention, privacy requests, redaction and legal hold. |
+| Contract | Needed for |
+| --- | --- |
+| Client Action Center read model | Available through `PrismClientActionCenter` and `/api/client/action-center`; dashboard action cards consume it with derived-action fallback. Next work is richer approval/file-matrix actions. |
+| PMCM Command Inbox read model | Available through `PrismPmcmCommandInbox` and `/api/pmcm/command-inbox`; event shell command actions now consume it. Next work is health-score enrichment and deeper selected-event adoption. |
+| Selected Event Workspace read model | Available through `PrismPmcmEventWorkspace` and `/api/pmcm/events/:eventId/workspace`; selected-event sections now load it through `use-pmcm-selected-event-workspace.ts` and prefer it through `event-dashboard.selectors.ts` with broad-state fallback. Live-ops/readiness refreshes now live in `use-pmcm-event-readiness.ts`, and event messages now render through `EventMessagesWorkspace`. Next work is file matrix enrichment and route decomposition. |
+| Supplier Readiness Board read model | Available through `PrismSupplierReadinessBoard` and `/api/supplier/readiness-board`; supplier dashboard now displays it. Next work is PMCM-side readiness board parity and application/status depth. |
+| Guest Event Pass read model | Available through `PrismGuestEventPass`, `/api/guest/events/:accessCode`, and `eventOpsClient.guest.eventPass`; next work is moderation/masterlist enrichment and QR gating only after HTTPS/device/masterlist constraints are solved. |
+| File Requirements Matrix | Role-visible document requirements, missing/received/approved states. Requirements retain owner, visibility, due date, generated source, and validation state. Configured storage now verifies actual bytes before an attachment satisfies a requirement. See [client and supplier workflows](client-supplier-workflows.md). Production bucket activation, malware scanning, retention, multipart, and bulk uploads require separate evidence. |
+| Notification delivery state | Communication queues, channel status, retry/error visibility. |
+| Privacy Operations state | Consent, retention, privacy requests, redaction and legal hold. |
 
 ## Platform Contract Cutline
 
@@ -265,14 +263,14 @@ Every PMCM-to-portal or portal-to-PMCM data flow must name these fields before a
 
 These gates decide whether a task can start, merge, or move to a later queue.
 
-| Gate | Applies to | DRI | Rule | Evidence |
-| --- | --- | --- | --- | --- |
-| Owner clarity gate | Every task and ledger overlay row | Maxine for UX, Francis for PMCM, Ethan for portals, Anthony for platform/docs | Every executable row has one DRI. Support owners can review or provide dependencies but cannot be listed as co-DRIs for completion. | Task or ledger row names one DRI and one evidence line. |
-| Contract dependency gate | New response fields, filters, pagination, upload states, errors, or action results | Anthony | UI cannot depend on a field or behavior until it exists in `@prism/types`, `@prism/api-client`, and focused tests, or the task is explicitly bounded/local. | Typecheck/API-client tests or a documented gate in this file. |
-| App-boundary gate | PMCM, client, supplier, guest, coordinator surfaces | Anthony | Role apps do not import across app boundaries, do not reintroduce a broad aggregate path, and do not expose forbidden role data. | `npm run check:boundaries`, focused forbidden-role tests, route checks. |
-| Verified file gate | FL-006 and FL-024 file/document UI | Anthony | An attachment counts only after provider bytes pass size, hash, content, role, and event checks. Production provider activation, scanning, retention, multipart, and bulk behavior require their own evidence. | File-matrix and storage tests, role-path checks, and [storage runbook](../runbooks/portal-storage.md). |
-| External dependency gate | AI, QR/camera, production notifications, external auth, paid direct DB/network behavior, real storage | Anthony | External dependencies remain gated unless credentials, environment, adapter, tests, and fallback behavior are explicitly approved. | Ledger row lists gate/deferred or approved implementation evidence. |
-| Demo evidence gate | Release readiness for demo routes | Anthony | A demo route is not ready unless its owner records command output, route/screenshot evidence, and known gates. | PR or release notes plus screenshot list. |
+| Gate | Applies to | Rule | Evidence |
+| --- | --- | --- | --- |
+| Scope and evidence gate | Every task and ledger overlay row | State the system goal, affected actor/context and completion condition. | Task or ledger row records the observed outcome and evidence. |
+| Contract dependency gate | New response fields, filters, pagination, upload states, errors, or action results | UI cannot depend on a field or behavior until it exists in `@prism/types`, `@prism/api-client`, and focused tests, or the task is explicitly bounded/local. | Typecheck/API-client tests or a documented gate in this file. |
+| App-boundary gate | PMCM, client, supplier, guest, coordinator surfaces | Role apps do not import across app boundaries, do not reintroduce a broad aggregate path, and do not expose forbidden role data. | `npm run check:boundaries`, focused forbidden-role tests, route checks. |
+| Verified file gate | FL-006 and FL-024 file/document UI | An attachment counts only after provider bytes pass size, hash, content, role, and event checks. Production provider activation, scanning, retention, multipart, and bulk behavior require their own evidence. | File-matrix and storage tests, role-path checks, and [storage runbook](../runbooks/portal-storage.md). |
+| External dependency gate | AI, QR/camera, production notifications, external auth, paid direct DB/network behavior, real storage | External dependencies remain gated unless credentials, environment, adapter, tests, and fallback behavior are explicitly approved. | Ledger row lists gate/deferred or approved implementation evidence. |
+| Demo evidence gate | Release readiness for demo routes | A demo route is not ready unless the maintainer records command output, route/screenshot evidence, and known gates. | PR or release notes plus screenshot list. |
 
 Docs-only changes may update [`feature-ledger.md`](feature-ledger.md),
 [`redesign-inventory.md`](redesign-inventory.md), and this readiness foundation.

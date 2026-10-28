@@ -4,9 +4,8 @@ title: "AI provider interchangeability completion"
 description: "Complete the governed AI gateway and make provider/model switching configuration-only across supported adapters, while separately qualifying staging and real-data routes."
 tags: [ai, ai-governance, pare, platform-ops, provider-routing, zdr]
 status: active
-updated: "2026-10-06"
+updated: "2026-10-28"
 authority: informative
-owner: "D (Anthony)"
 audience: [engineers, agents, reviewers]
 scope: "Completion work after the AI gateway PR 0-7 stack: provider-neutral PARE, route configuration, synthetic and live provider interchangeability, staging evidence, governance closeout, and separately approved real-data activation"
 last_verified: "2026-09-28; local Task 3 migration rehearsal and Task 5 PMCM walkthrough recorded; provider/model environment selection implemented but untested; staging and live-provider gates remain open"
@@ -16,7 +15,7 @@ sources:
     title: "Current provider routing rules and activation gates"
   - id: governance
     resource: "docs/product/evolution-governance.md"
-    title: "Owner goals and AI feature review gates"
+    title: "System goals and AI feature review gates"
   - id: architecture
     resource: "docs/architecture/context-contracts.md"
     title: "Platform-ops and event-lifecycle ownership seams"
@@ -37,9 +36,6 @@ sources:
 - **Authority:** Informative execution plan. The product ledger, readiness
   foundation, architecture decisions, and provider approval record govern
   actual behavior and activation. This plan does not authorize real-data AI.
-- **Owner:** D (Anthony) owns routing, provider evidence, privacy, and the live
-  gate. B (Francis) owns PARE and communication rules. A (Maxine) owns PMCM
-  draft usability and review evidence.
 - **Scope:** Repair the current PR 0-7 stack, add one second external provider
   route after qualification, prove synthetic switching and full PARE execution,
   finish staged evaluation and governance, then qualify and separately approve
@@ -49,7 +45,7 @@ sources:
   plan's approval as permission to enable real-data AI.
 - **Verify with:** The per-task checks below, a restored database and staging
   deployment for runtime gates, route conformance on fixed synthetic fixtures,
-  PMCM review, and an explicit Owner D activation record.
+  PMCM review, and an explicit maintainer activation record.
 
 ## Goal and completion boundary
 
@@ -108,9 +104,9 @@ call the goal complete.
 | 3 — PARE provenance | The fail-closed budget/risk/draft DAG, durable provenance checks, approval rechecks, migration checks, and synthetic PGlite restore rehearsal are recorded. | Full-chain execution on a qualified external synthetic route and staging measurement remain open. Do not claim a runtime speedup before staging measurement. |
 | 4 — second synthetic provider | The OpenRouter adapter and composition wiring are implemented. GLM 5.3 Flash is the default OpenRouter model, pinned to Fireworks with ZDR and data-collection denial. Anthropic and OpenRouter can be selected by configuration; mock remains the default without local provider configuration. | Endpoint-level ZDR eligibility, account privacy/processor evidence, provider conformance, and same-fixture route-switch evidence remain open. No provider inference was run for the environment-selector change. |
 | 5 — PMCM draft semantics | The local PMCM walkthrough passed with the mock gateway; the draft remained pending and the outbox stayed empty. | Representative staging review is tracked under Task 6. |
-| 6 — staging pilot | The synthetic migration rehearsal, frozen thresholds, and fixed fixtures are recorded. | Staging restore/evaluation, quote foreign-key/index/default drift reconciliation, deployment hook, 20 calls per route/use case, PMCM and D/B/A reviews, and sign-off remain open. |
+| 6 — staging pilot | The synthetic migration rehearsal, frozen thresholds, and fixed fixtures are recorded. | Staging restore/evaluation, quote foreign-key/index/default drift reconciliation, deployment hook, 20 calls per route/use case, PMCM, technical and UX reviews, and sign-off remain open. |
 | 7 — governance closeout | Deferred pending staging and review evidence. | Route/privacy records and governance promotion remain open; PARE_MODE has not been retired. |
-| 8 — real-data decision | Owner D recorded a no-go for real-data activation in this plan; production AI_LIVE_USE_CASES stays empty. | Real-data use remains unapproved. Reopen only through a separate decision after the required provider, privacy, staging, and review evidence. |
+| 8 — real-data decision | The activation decision records a no-go for real-data activation in this plan; production AI_LIVE_USE_CASES stays empty. | Real-data use remains unapproved. Reopen only through a separate decision after the required provider, privacy, staging, and review evidence. |
 | 9 — live provider choice | No second live-eligible provider is qualified. | Requires a separate real-data approval and a second independent live-eligible provider. |
 
 The plan remains active. Code availability and previously recorded local
@@ -118,19 +114,19 @@ evidence do not satisfy the outstanding staging, privacy, review, or live-route
 gates. Per the user's direction, no tests or provider calls were run for the
 provider/model environment-selector change.
 
-## Work sequence and ownership
+## Work sequence
 
-| Sequence | Reviewable deliverable | Owner | Dependency |
-| --- | --- | --- | --- |
-| 1 | Current stack corrections and truthful PR 6 status | D, B, A | Exact heads of PR 0-7 |
-| 2 | Provider-neutral route/evidence contract and configuration | D | Shared contracts from PR 1 |
-| 3 | Full PARE synthetic provenance and approval proof | D, B | 2 |
-| 4 | Second provider qualification and adapter | D, B | 2-3, authenticated route evidence |
-| 5 | PMCM draft semantics and data policy | B, A, D | Current PR 5 |
-| 6 | Staging database, deployment, and measured pilot | D, B, A | 1-5 merged and reviewed |
-| 7 | Durable governance and `PARE_MODE` cutover | D, B, A | 6 |
-| 8 | Separate real-data activation decision and PR | D | 4, 6-7, privacy approval |
-| 9 | Second live-eligible provider and live switch proof | D, B, A | 8, independent provider qualification |
+| Sequence | Reviewable deliverable | Dependency |
+| --- | --- | --- |
+| 1 | Current stack corrections and truthful PR 6 status | Exact heads of PR 0-7 |
+| 2 | Provider-neutral route/evidence contract and configuration | Shared contracts from PR 1 |
+| 3 | Full PARE synthetic provenance and approval proof | 2 |
+| 4 | Second provider qualification and adapter | 2-3, authenticated route evidence |
+| 5 | PMCM draft semantics and data policy | Current PR 5 |
+| 6 | Staging database, deployment, and measured pilot | 1-5 merged and reviewed |
+| 7 | Durable governance and `PARE_MODE` cutover | 6 |
+| 8 | Separate real-data activation decision and PR | 4, 6-7, privacy approval |
+| 9 | Second live-eligible provider and live switch proof | 8, independent provider qualification |
 
 Tasks 2-5 may be developed in isolated branches after the shared contract is
 reviewed. Merge serially against the actual dependency heads and rerun the
@@ -148,7 +144,7 @@ PRs; do not push or force-push `main`, and do not amend published commits.
 | P1 | High | Qualify a second provider on the same use cases | Claiming interchangeability from one external adapter and mocks | Two-route conformance and configuration-only switch pass |
 | P1 | High | Resolve PMCM draft cancellation and buffered delivery wording | Users believing cancelled reminders can be retried or content is live tokens | Role-path review and workflow tests pass |
 | P1 | High | Publish route/privacy records and remove `PARE_MODE` | Conflicting activation controls or stale provider assumptions | ADR, ledger, env, and runbook agree |
-| P2 | Critical on activation | Authorize and monitor real-data use separately | Synthetic test approval being treated as privacy approval | D approves exact route and data scope in a separate PR |
+| P2 | Critical on activation | Authorize and monitor real-data use separately | Synthetic test approval being treated as privacy approval | The maintainer approves the exact route and data scope in a separate PR |
 | P2 | High | Qualify a second live-eligible provider and switch the limited rollout | Calling the system live-interchangeable with only one data-approved provider | Two independent approved live routes pass the same scope and rollback test |
 
 Priority orders the work; risk describes the consequence if the gate is
@@ -351,7 +347,7 @@ Add one row per route and use case. This blank row is a template, not evidence.
   fixtures. Include full PARE orchestration, not just three independent stage
   calls. Record schema pass rate, tool-loop completion, p50/p95 latency, token
   usage, direct-cost estimate, failures, and endpoint/model returned.
-- [ ] Have B review every PARE recommendation and A/B review at least 20
+- [ ] Review every PARE recommendation for operational suitability and review at least 20
   communication drafts per route for factual claims, usability, and edits.
   Record the edit classification without storing raw prompts or private
   client data in the evaluation report.
@@ -360,7 +356,7 @@ Add one row per route and use case. This blank row is a template, not evidence.
 
 **Exit:** The results table contains measured staging evidence for both
 external routes. The deployment, migration, PMCM review, and evaluation gates
-are reproducible and signed by D/B/A for their areas.
+are reproducible and signed off for technical, operational and UX acceptance.
 
 ## Task 7: Promote governance and retire compatibility controls
 
@@ -382,7 +378,7 @@ are reproducible and signed by D/B/A for their areas.
   Remove completed execution plans after their durable decisions are
   promoted; Git history retains them.
 - [ ] Run documentation frontmatter and relative-link audits, stale-path
-  search, `git diff --check`, boundary checks/tests, and a second-owner review.
+  search, `git diff --check`, boundary checks/tests, and a independent review.
 
 **Exit:** A maintainer can onboard or change an approved route using durable
 architecture and operational records without consulting a chat or old PR.
@@ -393,14 +389,14 @@ architecture and operational records without consulting a chat or old PR.
 change, deployment configuration, targeted tests, and release note. Do not
 reuse approval of this plan or the synthetic pilot as the activation record.
 
-- [ ] D reviews authenticated provider privacy evidence, account controls,
+- [ ] Review authenticated provider privacy evidence, account controls,
   processor locations, Philippine privacy review outcome, migration and
-  staging evidence, cost cap, and B/A product sign-off for the proposed
+  staging evidence, cost cap, and product sign-off for the proposed
   exact route revision and use cases.
 - [ ] If D declines, record the route as synthetic-only and keep production
   `AI_LIVE_USE_CASES` empty. This closes the synthetic interchangeability
   outcome but leaves real-data activation incomplete.
-- [ ] If D approves, create a separate PR that enables only the named
+- [ ] After explicit maintainer approval, create a separate PR that enables only the named
   provider/model/endpoint, environment, use cases, and data classes. Prove
   blocked routes make no provider call, PMCM approval remains required, and
   rollback disables the allowlist without changing feature code.

@@ -1,12 +1,11 @@
 ---
 type: "Activation Decision"
 title: "Real-data AI activation: declined for the current plan"
-description: "Record Owner D's decision to keep production AI synthetic-only until provider privacy and staging gates are satisfied."
+description: "Record the decision to keep production AI synthetic-only until provider privacy and staging gates are satisfied."
 tags: [ai, ai-governance, activation, privacy, zdr]
 status: declined
-updated: "2026-10-06"
+updated: "2026-10-28"
 authority: normative
-owner: "D (Anthony)"
 audience: [engineers, reviewers, operators]
 scope: "Production AI use of non-synthetic Prism event data"
 last_verified: "2026-09-28; production AI_LIVE_USE_CASES remains empty in the reviewed plan and no OpenRouter profile is active"
@@ -24,13 +23,12 @@ sources:
 
 - **Decision:** Do not activate AI on real event data in the current plan.
   Keep production `AI_LIVE_USE_CASES` empty and mock as the default route.
-- **Decision owner:** Owner D (Anthony) adopts the recommendation to preserve
-  the synthetic-only boundary until the required privacy and staging evidence
-  exists.
+- **Activation boundary:** Preserve synthetic-only use until the required
+  privacy and staging evidence exists.
 - **Scope:** This is a decision to defer real-data activation. It does not
   approve a provider, model, endpoint, data class, spend cap, or deployment.
 - **Revisit:** Record a new decision after Tasks 4, 6, and 7 have the required
-  provider, privacy, staging, and owner-review evidence.
+  provider, privacy, staging, and review evidence.
 
 ## Context
 
@@ -53,7 +51,7 @@ Decline real-data activation for the current plan. Continue using mock by
 default, keep external AI limited to explicitly enabled synthetic test cases,
 and do not add a production route or non-synthetic data class.
 
-The user reports that reviewers have authorized Owner D's decision as final.
+The recorded decision is final for this activation proposal.
 That authority does not represent a review of staging results or approval of
 any provider route; those evidence gates remain open.
 

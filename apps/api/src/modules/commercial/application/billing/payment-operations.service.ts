@@ -56,8 +56,7 @@ function paymentStatus(amountPaid: number, amount: number) {
 async function lockPaymentMilestone(tx: Prisma.TransactionClient, milestoneId: string) {
   if (tx.$queryRaw) {
     // QUERY_AUDIT_RAW_SQL: lock the milestone row before applying a payment mutation.
-    const rows = await tx.$queryRaw<OpsPaymentMilestone[]>`SELECT * FROM "commercial"."payment_milestones" WHERE "id" = ${milestoneId} FOR UPDATE`;
-    if (rows.length > 0) return rows[0];
+    await tx.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "commercial"."payment_milestones" WHERE "id" = ${milestoneId} FOR UPDATE`;
   }
   return tx.opsPaymentMilestone.findUnique({ where: { id: milestoneId } });
 }

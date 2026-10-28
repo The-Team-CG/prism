@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createSupplierReliabilityNoteSchema, createSupplierReviewSchema, type PrismPmcmSupplierEngagement, type PrismPmcmSupplierProfile, type PrismSupplierCategory } from "@prism/types";
+import { DatePicker } from "@prism/ui/components/date-picker";
 import { Button } from "@/app/components/ui/button";
 import type { SupplierActionDraft } from "../use-cases/submit-supplier-action";
 import type { SupplierActionResult } from "../use-cases/save-supplier-action";
@@ -222,7 +223,7 @@ function CertificationForm({ form, actionSaving, onChange, onSave }: {
         <label className="grid gap-1 text-xs text-muted-foreground">File name<input value={form.fileName} onChange={(event) => onChange({ ...form, fileName: event.target.value })} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground" /></label>
         <label className="grid gap-1 text-xs text-muted-foreground">Document type<input value={form.documentType} onChange={(event) => onChange({ ...form, documentType: event.target.value })} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground" /></label>
         <label className="grid gap-1 text-xs text-muted-foreground">Issuer<input value={form.issuer} onChange={(event) => onChange({ ...form, issuer: event.target.value })} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground" /></label>
-        <label className="grid gap-1 text-xs text-muted-foreground">Expiry date<input type="date" value={form.expiresAt} onChange={(event) => onChange({ ...form, expiresAt: event.target.value })} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground" /></label>
+        <div className="grid gap-1 text-xs text-muted-foreground"><span>Expiry date</span><DatePicker aria-label="Expiry date" value={form.expiresAt} onValueChange={(value) => onChange({ ...form, expiresAt: value })} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground" /></div>
         <label className="grid gap-1 text-xs text-muted-foreground">Status<select value={form.status} onChange={(event) => onChange({ ...form, status: event.target.value })} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground"><option value="submitted">Submitted</option><option value="verified">Verified</option><option value="expired">Expired</option><option value="rejected">Rejected</option></select></label>
         <label className="grid gap-1 text-xs text-muted-foreground">Notes<textarea value={form.notes} onChange={(event) => onChange({ ...form, notes: event.target.value })} className="min-h-16 rounded-md border border-input bg-background p-2 text-sm text-foreground" /></label>
         <Button type="button" size="sm" disabled={actionSaving || !form.fileName.trim() || !form.documentType.trim()} onClick={() => void onSave()}>Save certification</Button>

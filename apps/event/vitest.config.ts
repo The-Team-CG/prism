@@ -6,6 +6,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@prism/types': path.resolve(__dirname, '../../packages/types/src'),
+      '@prism/ui/components': path.resolve(__dirname, '../../packages/ui/src/components/ui'),
       '@prism/ui': path.resolve(__dirname, '../../packages/ui/src'),
       '@prism/api-client': path.resolve(__dirname, '../../packages/api-client/src'),
     },

@@ -48,6 +48,11 @@ export function mapBillingSource(source: OpsBillingSource) {
   };
 }
 
+export function mapClientBillingStatement(statement: OpsBillingStatement) {
+  const { storageKey: _key, ...visible } = mapBillingStatement(statement);
+  return visible;
+}
+
 export function mapBillingStatement(statement: OpsBillingStatement) {
   return {
     id: statement.id,
