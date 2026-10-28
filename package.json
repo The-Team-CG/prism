@@ -58,9 +58,12 @@
     "check:complexity": "node scripts/check-cyclomatic-complexity.mjs",
     "postinstall": "npm --workspace @prism/types run build",
     "db:seed": "npm --workspace prism-api run db:seed --",
-    "db:seed:verify": "npm --workspace prism-api run db:seed:verify --"
+    "db:seed:verify": "npm --workspace prism-api run db:seed:verify --",
+    "test:browser": "node scripts/e2e/browser/run.mjs",
+    "test:browser:guards": "node --test scripts/e2e/browser/run.test.mjs"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "concurrently": "^9.1.2",
     "eslint": "^9.39.5",
     "eslint-plugin-react-hooks": "^7.1.1",

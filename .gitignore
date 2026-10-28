@@ -90,3 +90,6 @@ handoffs_archive/
 
 # Isolated lifecycle API compilation
 /apps/api/.e2e-dist/
+
+# Isolated browser acceptance compilation
+.next-acceptance/

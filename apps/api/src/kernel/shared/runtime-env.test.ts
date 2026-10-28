@@ -61,6 +61,15 @@ describe('validateRuntimeEnv', () => {
     expect(validateRuntimeEnv(deployment)).toBe(deployment);
   });
 
+  it('accepts local Mailpit without provider credentials and refuses production or remote inboxes', () => {
+    const local = { ...without(deployment, 'RESEND_API_KEY'), NODE_ENV: 'development', PRISM_MAIL_TRANSPORT: 'mailpit', PRISM_MAILPIT_URL: 'http://127.0.0.1:54324' };
+    expect(validateRuntimeEnv(local)).toBe(local);
+    for (const url of ['https://remote.example.test', 'http://user:secret@localhost:54324', 'http://localhost:54324/path', 'http://localhost:54324?relay=1']) {
+      expect(() => validateRuntimeEnv({ ...local, PRISM_MAILPIT_URL: url })).toThrow('PRISM_MAILPIT_URL');
+    }
+    expect(() => validateRuntimeEnv({ ...local, NODE_ENV: 'production' })).toThrow('PRISM_MAIL_TRANSPORT');
+  });
+
   it.each([
     ['development', {}, ['PRISM_SESSION_SECRET', 'PRISM_SESSION_TTL_SECONDS', 'DATABASE_URL']],
     ['production', { DATABASE_URL: hostedDatabaseUrl, PRISM_SESSION_SECRET: 'short', PRISM_SESSION_TTL_SECONDS: '28800' }, ['PRISM_SESSION_SECRET']],
