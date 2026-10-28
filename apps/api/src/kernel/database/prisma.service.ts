@@ -4,11 +4,15 @@ import type { Prisma } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import connectionConfig = require('./db-connection-config.cjs');
+import { retryOnSerializationConflict } from './serialization-retry';
 
 export const toPrismaJson = (value: unknown): Prisma.InputJsonValue => value as Prisma.InputJsonValue;
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  /** `$transaction` without the serialization retry, for callers and tests that must see the conflict itself. */
+  readonly transactionOnce: PrismaClient['$transaction'];
+
   constructor() {
     const database = connectionConfig.selectDatabaseConnection({ purpose: 'runtime' });
     console.log(`Prisma connecting to ${database.target} via ${database.source}.`);
@@ -32,6 +36,14 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
     const adapter = new PrismaPg(pool);
     super({ adapter });
+
+    // Interactive transactions run again when Postgres aborts them with a serialization conflict. The batch form
+    // holds promises that already started, so it is passed through unchanged.
+    const transaction = this.$transaction.bind(this);
+    this.transactionOnce = transaction;
+    const withRetry = ((...args: Parameters<typeof transaction>) =>
+      typeof args[0] === 'function' ? retryOnSerializationConflict(() => transaction(...args)) : transaction(...args)) as typeof transaction;
+    Object.defineProperty(this, '$transaction', { value: withRetry });
   }
 
   async onModuleInit() {
