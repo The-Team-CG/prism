@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isEventStatusStepAllowed,
   buildBookingSteps,
   buildSupplierContractRequirements,
   buildCalendarEvents,
@@ -304,6 +305,21 @@ describe("supplier-workspace-rules", () => {
     expect(quoteRequestsNavDesc(0, 3)).toBe("3 open request(s)");
     expect(bookingsNavDesc(1, 2)).toBe("1 handoff item(s) pending");
     expect(bookingsNavDesc(0, 1)).toBe("All steps complete");
+  });
+});
+
+describe("isEventStatusStepAllowed", () => {
+  it.each([
+    [undefined, "arrived", true],
+    ["not_started", "arrived", true],
+    ["late", "arrived", true],
+    ["not_started", "done_leaving", false],
+    ["arrived", "set_up_ready", true],
+    ["arrived", "done_leaving", false],
+    ["arrived", "arrived", true],
+    ["done_leaving", "arrived", false],
+  ])("from %s to %s -> %s", (current, next, allowed) => {
+    expect(isEventStatusStepAllowed(current, next)).toBe(allowed);
   });
 });
 

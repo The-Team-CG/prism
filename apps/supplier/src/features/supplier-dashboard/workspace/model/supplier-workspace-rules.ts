@@ -13,6 +13,13 @@ export const EVENT_STATUS_ACTIONS = [
   { status: "done_leaving", label: "Done and leaving", helper: "Egress started" },
 ] as const;
 
+/** Mirrors the API's forward-only rule: the next step or a repeat of the current status; anything unreported counts as before "arrived". */
+export function isEventStatusStepAllowed(current: string | undefined, next: string) {
+  const order = EVENT_STATUS_ACTIONS.map((action) => action.status) as readonly string[];
+  const nextIndex = order.indexOf(next);
+  return nextIndex === order.indexOf(current ?? "") + 1 || current === next;
+}
+
 const money = new Intl.NumberFormat("en-PH", {
   style: "currency",
   currency: "PHP",

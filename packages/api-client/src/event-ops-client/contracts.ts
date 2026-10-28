@@ -24,7 +24,6 @@ export type {
   CreateEventTaskReassignmentInput,
   DecideEventTaskReassignmentInput,
   CreateFloorPlanPreferenceInput,
-  CreateFloorPlanRevisionCommentInput,
   CreateGuestCheckInInput,
   CreateGuestFeedbackInput,
   ModerateGuestFeedbackInput,

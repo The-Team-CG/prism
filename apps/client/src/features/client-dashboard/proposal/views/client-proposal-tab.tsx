@@ -165,7 +165,7 @@ function ProposalPlanningFacts({ briefing, billing, officialDraft, nextPayment }
         />
         <DataRow
           label="Billing statement"
-          value={billing ? `${billing.number} — ${formatLabel(billing.status)}` : "Not issued"}
+          value={billing ? `${billing.number} — ${formatLabel(billing.status)}` : "PMCM has not sent it yet"}
         />
         <DataRow
           label="Official layout"
@@ -206,7 +206,7 @@ function proposalChecklistItems(input: {
     },
     {
       label: "Billing milestones",
-      value: input.billing ? formatLabel(input.billing.status) : "Not issued",
+      value: input.billing ? formatLabel(input.billing.status) : "Not sent yet",
       status: input.billing?.status ?? "pending",
       action: () => input.setTab("billing"),
     },

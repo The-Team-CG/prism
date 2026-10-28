@@ -1,4 +1,5 @@
 import {
+  correctSupplierEventStatusSchema,
   createSupplierCreativeTaskSchema,
   createSupplierPayableMilestoneSchema,
   createSupplierScheduleSchema,
@@ -7,6 +8,7 @@ import {
   reviewSupplierContractSchema,
   reverseSupplierPayoutSchema,
   updateSupplierCreativeTaskSchema,
+  type CorrectSupplierEventStatusInput,
   type CreateSupplierCreativeTaskInput,
   type CreateSupplierPayableMilestoneInput,
   type CreateSupplierScheduleInput,
@@ -43,6 +45,10 @@ export function createSupplierPayable(eventId: string, input: CreateSupplierPaya
 
 export function recordSupplierPayout(milestoneId: string, input: ReleaseSupplierPayoutInput) {
   return pmcmSupplierWorkflowRepository.releasePayout(milestoneId, parseContract(releaseSupplierPayoutSchema, input, "Supplier payment release"));
+}
+
+export function correctSupplierEventStatus(eventId: string, requestId: string, input: CorrectSupplierEventStatusInput) {
+  return pmcmSupplierWorkflowRepository.correctEventStatus(eventId, requestId, parseContract(correctSupplierEventStatusSchema, input, "Supplier status correction"));
 }
 
 export function reverseSupplierPayout(recordId: string, input: ReverseSupplierPayoutInput) {

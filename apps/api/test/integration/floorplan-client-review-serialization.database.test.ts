@@ -41,7 +41,7 @@ describe.skipIf(!live)('official floorplan and client review serialization again
       prisma, audit, notifications, new WorkflowCommandService(),
       new FloorplanProjectionService(), new FloorplanEventReferenceService(prisma),
     );
-    const review = new FloorPlanClientReviewService(prisma, access as never, audit, notifications, new FloorplanEventReferenceService(prisma));
+    const review = new FloorPlanClientReviewService(prisma, access as never, audit, notifications, new FloorplanEventReferenceService(prisma), workflow);
     const client = { id: `client_${suffix}`, role: OpsUserRole.Client, email: `${suffix}@example.test`, name: 'Portal Test Client' } as never;
 
     try {

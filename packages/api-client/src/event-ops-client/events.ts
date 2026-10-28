@@ -1,6 +1,5 @@
 import type {
   PrismArchivedEventSearchHit,
-  PrismFloorPlanDraft,
   PrismEvent,
   PrismEventPage,
   PrismFileRequirementItem,
@@ -111,11 +110,6 @@ export function createEventsClient(
       reviewProposal: (eventId, input, actor = {}) =>
         prismRequest<PrismEvent>(
           actorPath(`/events/${eventId}/proposal/review`, actor),
-          withBase(options, { method: "PATCH", body: input }),
-        ),
-      reviewFloorPlanDraft: (eventId, draftId, input, actor = {}) =>
-        prismRequest<PrismFloorPlanDraft>(
-          actorPath(`/events/${eventId}/floorplans/${draftId}/review`, actor),
           withBase(options, { method: "PATCH", body: input }),
         ),
       searchArchive: (filters = {}, actor = {}) => {

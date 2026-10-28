@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole, SupplierVerificationStatus, WorkflowCommandService } from '@prism/kernel/event-core';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
@@ -40,6 +40,7 @@ function createService(overrides: {
   };
   let schedule: Record<string, unknown> | null = null;
   const audit = vi.fn();
+  const notify = vi.fn(async () => ({}));
   const suppliers = {
     listSuppliers: vi.fn(async () => [
       { id: 'sup_sonicline', name: 'Sonic Line Events', email: 'supplier@example.com' },
@@ -48,12 +49,14 @@ function createService(overrides: {
   const eventAccessPolicyService = new EventAccessPolicyService({ write: vi.fn() } as any);
   const prisma = {
     $queryRaw: vi.fn(async () => []),
+    opsSupplier: { findUnique: vi.fn(async () => ({ email: 'supplier@example.com' })) },
     opsEvent: {
       findUnique: vi.fn(async ({ where }: { where: { id: string } }) => (where.id === 'evt_sample' ? { id: 'evt_sample', archived: false } : null)),
     },
     opsSupplierQuoteRequest: {
       findUnique: vi.fn(async ({ where }: { where: { id: string } }) => (where.id === request.id ? request : null)),
       update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => Object.assign(request, data)),
+      findUniqueOrThrow: vi.fn(async () => request),
       updateMany: vi.fn(async ({ where, data }: { where: { id: string; status?: string; assignmentStatus?: string | null; eventDayStatus?: string }; data: Record<string, unknown> }) => {
         if (where.status && request.status !== where.status) return { count: 0 };
         if (Object.prototype.hasOwnProperty.call(where, 'assignmentStatus') && request.assignmentStatus !== where.assignmentStatus) return { count: 0 };
@@ -86,8 +89,9 @@ function createService(overrides: {
     { queue: vi.fn(async () => ({})) } as any,
     documentVault as any,
     { findOperationsEvent: vi.fn(async (eventId: string) => ({ id: eventId, archived: false })) } as any,
+    { write: notify } as any,
   );
-  return { service, prisma, audit, request, suppliers, documentVault, getSchedule: () => schedule };
+  return { service, prisma, audit, notify, request, suppliers, documentVault, getSchedule: () => schedule };
 }
 
 function createCommandReceiptStore() {
@@ -240,6 +244,128 @@ describe('SupplierNetworkWorkflowService', () => {
     // Supplier-authored readiness notes and the supplier's own status stay visible to the supplier.
     expect(ready.readinessNotes).toBe('Supplier-authored readiness note.');
     expect(eventStatus.eventDayStatus).toBe('arrived');
+  });
+
+  it('accepts supplier event-day status only in order, replays the current status, and rejects skips and backward steps', async () => {
+    const { service, request, prisma, audit } = createService();
+    Object.assign(request, { status: 'selected', assignmentStatus: 'confirmed', readinessStatus: 'confirmed' });
+    const supplier = {
+      name: 'Sonic Line Events', role: OpsUserRole.Supplier, supplierId: 'sup_sonicline',
+      email: 'supplier@example.com', explicit: true, verified: true,
+    };
+    const report = (status: 'arrived' | 'set_up_ready' | 'done_leaving') =>
+      service.updateSupplierEventStatus('qr_sonic', { status }, supplier);
+
+    await expect(report('done_leaving')).rejects.toThrow(/cannot skip ahead to "done leaving"\. Report "arrived" next/);
+    await expect(report('set_up_ready')).rejects.toThrow(BadRequestException);
+    expect(request.eventDayStatus).toBe('not_started');
+
+    expect((await report('arrived')).eventDayStatus).toBe('arrived');
+    await expect(report('done_leaving')).rejects.toThrow(/Report "set-up ready" next/);
+
+    const writesBeforeReplay = prisma.opsSupplierQuoteRequest.updateMany.mock.calls.length;
+    const auditsBeforeReplay = audit.mock.calls.length;
+    expect((await report('arrived')).eventDayStatus).toBe('arrived');
+    expect(prisma.opsSupplierQuoteRequest.updateMany.mock.calls).toHaveLength(writesBeforeReplay);
+    expect(audit.mock.calls).toHaveLength(auditsBeforeReplay);
+
+    expect((await report('set_up_ready')).eventDayStatus).toBe('set_up_ready');
+    await expect(report('arrived')).rejects.toThrow(/cannot move backward to "arrived"/);
+    expect((await report('done_leaving')).eventDayStatus).toBe('done_leaving');
+    await expect(report('set_up_ready')).rejects.toThrow(/already complete and cannot move back/);
+  });
+
+
+  it.each(['supplier', 'pmcm'])('refuses a stale %s status write without overwriting a concurrent correction or auditing it', async (kind) => {
+    const { service, request, prisma, audit } = createService();
+    Object.assign(request, { status: 'selected', assignmentStatus: 'confirmed', readinessStatus: 'confirmed', eventDayStatus: 'arrived' });
+    const update = prisma.opsSupplierQuoteRequest.updateMany.getMockImplementation();
+    if (!update) throw new Error('Missing fixture update behavior');
+    prisma.opsSupplierQuoteRequest.updateMany.mockImplementationOnce(async (input) => {
+      request.eventDayStatus = 'done_leaving';
+      return update(input);
+    });
+    const supplier = { name: 'Sonic Line Events', role: OpsUserRole.Supplier, supplierId: 'sup_sonicline', email: 'supplier@example.com', explicit: true, verified: true };
+    const pmcm = { id: 'pmcm_1', name: 'PMCM Admin', role: OpsUserRole.PmcmAdmin, explicit: true, verified: true };
+    const command = kind === 'supplier'
+      ? service.updateSupplierEventStatus('qr_sonic', { status: 'set_up_ready' }, supplier)
+      : service.correctSupplierEventStatus('evt_sample', 'qr_sonic', { status: 'not_started', reason: 'Correct mistaken arrival' }, pmcm);
+    await expect(command).rejects.toBeInstanceOf(ConflictException);
+    expect(request.eventDayStatus).toBe('done_leaving');
+    expect(audit).not.toHaveBeenCalled();
+  });
+
+  it('lets PMCM correct a supplier status in either direction with a reason, and the supplier continues from it', async () => {
+    const { service, request, prisma, audit, notify } = createService();
+    Object.assign(request, { status: 'selected', assignmentStatus: 'confirmed', readinessStatus: 'confirmed', eventDayStatus: 'done_leaving' });
+    const supplier = {
+      name: 'Sonic Line Events', role: OpsUserRole.Supplier, supplierId: 'sup_sonicline',
+      email: 'supplier@example.com', explicit: true, verified: true,
+    };
+    const pmcm = { id: 'pmcm_1', name: 'PMCM Admin', email: 'admin@pmcm.test', role: OpsUserRole.PmcmAdmin, explicit: true, verified: true };
+    const correct = (status: 'not_started' | 'arrived' | 'set_up_ready' | 'done_leaving', reason = 'Reported by mistake') =>
+      service.correctSupplierEventStatus('evt_sample', 'qr_sonic', { status, reason }, pmcm);
+
+    const back = await correct('arrived');
+    expect(back.eventDayStatus).toBe('arrived');
+    expect(audit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: 'PMCM Admin',
+        metadata: expect.objectContaining({ previousStatus: 'done_leaving', status: 'arrived', reason: 'Reported by mistake' }),
+      }),
+      undefined,
+    );
+    expect(notify).toHaveBeenCalledWith(
+      expect.objectContaining({ recipient: 'supplier@example.com', message: expect.stringContaining('Reported by mistake') }),
+      undefined,
+    );
+
+    // The supplier's own rule still applies, continuing from the corrected status.
+    await expect(service.updateSupplierEventStatus('qr_sonic', { status: 'done_leaving' }, supplier)).rejects.toThrow(/Report "set-up ready" next/);
+    expect((await service.updateSupplierEventStatus('qr_sonic', { status: 'set_up_ready' }, supplier)).eventDayStatus).toBe('set_up_ready');
+
+    // PMCM may also move forward, past the supplier's order, or reset to not started.
+    expect((await correct('done_leaving')).eventDayStatus).toBe('done_leaving');
+    expect((await correct('not_started')).eventDayStatus).toBe('not_started');
+    await expect(service.updateSupplierEventStatus('qr_sonic', { status: 'set_up_ready' }, supplier)).rejects.toThrow(/Report "arrived" next/);
+
+    const writes = prisma.opsSupplierQuoteRequest.update.mock.calls.length;
+    const audits = audit.mock.calls.length;
+    const notifications = notify.mock.calls.length;
+    expect((await correct('not_started', 'Same again')).eventDayStatus).toBe('not_started');
+    expect(prisma.opsSupplierQuoteRequest.update.mock.calls).toHaveLength(writes);
+    expect(audit.mock.calls).toHaveLength(audits);
+    expect(notify.mock.calls).toHaveLength(notifications);
+  });
+
+  it('refuses a status correction without a reason, from non-PMCM roles, or for another event', async () => {
+    const { service, request, prisma, notify } = createService();
+    Object.assign(request, { status: 'selected', assignmentStatus: 'confirmed', readinessStatus: 'confirmed', eventDayStatus: 'arrived' });
+    const pmcm = { id: 'pmcm_1', name: 'PMCM Admin', email: 'admin@pmcm.test', role: OpsUserRole.PmcmAdmin, explicit: true, verified: true };
+
+    await expect(service.correctSupplierEventStatus('evt_sample', 'qr_sonic', { status: 'not_started', reason: '   ' }, pmcm)).rejects.toThrow(/reason is required/);
+    await expect(service.correctSupplierEventStatus('evt_other', 'qr_sonic', { status: 'not_started', reason: 'Wrong event' }, pmcm)).rejects.toThrow('Supplier quote request not found');
+    for (const role of [OpsUserRole.Supplier, OpsUserRole.Client, OpsUserRole.Guest, OpsUserRole.Coordinator]) {
+      await expect(
+        service.correctSupplierEventStatus('evt_sample', 'qr_sonic', { status: 'not_started', reason: 'Nope' }, { name: 'Someone', role, explicit: true, verified: true }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    }
+    expect(request.eventDayStatus).toBe('arrived');
+    expect(prisma.opsSupplierQuoteRequest.update).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  it('lets a supplier report arrival after the automatic late flag', async () => {
+    const { service, request } = createService();
+    Object.assign(request, { status: 'selected', assignmentStatus: 'confirmed', readinessStatus: 'confirmed', eventDayStatus: 'late' });
+    const supplier = {
+      name: 'Sonic Line Events', role: OpsUserRole.Supplier, supplierId: 'sup_sonicline',
+      email: 'supplier@example.com', explicit: true, verified: true,
+    };
+
+    const updated = await service.updateSupplierEventStatus('qr_sonic', { status: 'arrived' }, supplier);
+
+    expect(updated.eventDayStatus).toBe('arrived');
   });
 
   it('uses the same command transaction for document registration and commercial linking', async () => {

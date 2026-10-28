@@ -1,7 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, writeFileSync, unlinkSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import {
+  loadPrivateWriteSources,
   applyWriteExceptions,
   validateDomainPersistence,
   validatePrivateWrites,
@@ -334,4 +339,18 @@ model OpsEventClientFloorplanAccessGrant {
       /expiry milestone/,
     );
   });
+});
+
+it('checks new untracked source files and ignores tracked files removed from the working tree', () => {
+  const root = mkdtempSync(join(tmpdir(), 'prism-write-scan-'));
+  try {
+    execFileSync('git', ['init', '--quiet', root]);
+    const modules = join(root, 'apps/api/src/modules');
+    mkdirSync(modules, { recursive: true });
+    writeFileSync(join(modules, 'removed.ts'), 'export const removed = true;');
+    execFileSync('git', ['add', '.'], { cwd: root });
+    unlinkSync(join(modules, 'removed.ts'));
+    writeFileSync(join(modules, 'added.ts'), 'export const added = true;');
+    assert.deepEqual(loadPrivateWriteSources(root), { 'apps/api/src/modules/added.ts': 'export const added = true;' });
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
