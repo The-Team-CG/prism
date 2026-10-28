@@ -1,6 +1,6 @@
 // Shared helpers for the lifecycle e2e runner. Talks only to the public HTTP API, so the same
 // journey runs only against the isolated local API/database accepted by the runner guard.
-import { createHmac } from "node:crypto";
+import { createHmac, randomInt } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 export const cfg = {
@@ -18,7 +18,7 @@ export const cfg = {
 // Public routes are rate limited per client address. With PRISM_TRUST_PROXY=true the API reads X-Forwarded-For, so
 // each request presents its own address (as real users behind the proxy do) and parallel runners do not throttle
 // each other. Pass { sameIp: true } to test the limiter itself. Ignored by APIs that do not trust the proxy.
-const randomIp = () => `10.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}`;
+const randomIp = () => `10.${randomInt(1, 251)}.${randomInt(1, 251)}.${randomInt(1, 251)}`;
 
 /** Requests the API aborted with a database error and that the harness retried. Reported, never hidden. */
 export const conflicts = [];
