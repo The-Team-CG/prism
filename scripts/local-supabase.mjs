@@ -8,6 +8,13 @@ import { resolveDatabaseUrl } from '../apps/api/src/kernel/database/database-tar
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const excludedServices = 'gotrue,realtime,storage-api,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor';
+export const LOCAL_STORAGE_BUCKET = 'prism-documents';
+
+/** With PRISM_LOCAL_SUPABASE_STORAGE=1 the Supabase Storage service runs, so the API uses the same storage adapter as production. */
+export function excludedServicesFor({ storage = false } = {}) {
+  const skipped = excludedServices.split(',');
+  return (storage ? skipped.filter((service) => service !== 'storage-api') : skipped).join(',');
+}
 
 export function localProject({ worktreeRoot, ports, migrationBase = '' }) {
   const offset = ports.api - 4000;
@@ -17,14 +24,15 @@ export function localProject({ worktreeRoot, ports, migrationBase = '' }) {
   return { id, dbPort: 54322 + offset, apiPort: 54321 + offset, studioPort: 54323 + offset, shadowPort: 54320 + offset, smtpPort: 54324 + offset, poolerPort: 54329 + offset };
 }
 
-export function renderConfig(template, project) {
-  return template.replace('project_id = "prism-local"', `project_id = "${project.id}"`)
+export function renderConfig(template, project, { storage = false } = {}) {
+  const rendered = template.replace('project_id = "prism-local"', `project_id = "${project.id}"`)
     .replace('port = 54321', `port = ${project.apiPort}`)
     .replace('port = 54322', `port = ${project.dbPort}`)
     .replace('shadow_port = 54320', `shadow_port = ${project.shadowPort}`)
     .replace('port = 54323', `port = ${project.studioPort}`)
     .replace('port = 54324', `port = ${project.smtpPort}`)
     .replace('port = 54329', `port = ${project.poolerPort}`);
+  return storage ? rendered.replace(/(\[storage\]\r?\nenabled = )false/, '$1true') : rendered;
 }
 
 function cli(args, capture = false) {
@@ -35,7 +43,7 @@ function cli(args, capture = false) {
   return result.stdout;
 }
 
-export function developmentEnv(url, project, ports, sessionSecret) {
+export function developmentEnv(url, project, ports, sessionSecret, { storage } = {}) {
   const parsed = new URL(url);
   const env = {
     DATABASE_URL: parsed.href,
@@ -55,9 +63,27 @@ export function developmentEnv(url, project, ports, sessionSecret) {
     ...Object.fromEntries(['client', 'supplier', 'event'].map((app) => [`PRISM_${app.toUpperCase()}_PORTAL_URL`, `http://localhost:${ports[app]}`])),
     PRISM_SESSION_SECRET: sessionSecret, PRISM_SESSION_TTL_SECONDS: '28800', PRISM_TRUST_PROXY: 'false', AI_ROUTE_PROFILE: 'mock', AI_PROVIDER: 'mock', PARE_MODE: 'mock',
     PRISM_DISABLE_CONFORME_REMINDER_JOB: '1',
+    ...(storage ? {
+      PRISM_STORAGE_PROVIDER: 'supabase',
+      PRISM_STORAGE_SUPABASE_URL: storage.url,
+      PRISM_STORAGE_SUPABASE_SERVICE_ROLE_KEY: storage.serviceRoleKey,
+      PRISM_STORAGE_SUPABASE_BUCKET: LOCAL_STORAGE_BUCKET,
+    } : {}),
   };
   resolveDatabaseUrl(env, 'migration');
   return env;
+}
+
+/** Creates the private bucket the storage adapter writes to; an existing bucket is fine. */
+async function ensureStorageBucket({ url, serviceRoleKey }) {
+  const response = await fetch(`${url}/storage/v1/bucket`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${serviceRoleKey}`, apikey: serviceRoleKey },
+    body: JSON.stringify({ id: LOCAL_STORAGE_BUCKET, name: LOCAL_STORAGE_BUCKET, public: false }),
+  });
+  if (!response.ok && response.status !== 409 && !(await response.text()).includes('already exists')) {
+    throw new Error(`Local Supabase Storage rejected the ${LOCAL_STORAGE_BUCKET} bucket (${response.status}).`);
+  }
 }
 
 function writeEnv(path, env) {
@@ -92,18 +118,24 @@ export async function runLocalSupabase(command = 'start') {
     cli(['stop', '--workdir', workdir]);
   }
   mkdirSync(dirname(configPath), { recursive: true });
-  writeFileSync(configPath, renderConfig(readFileSync(join(root, 'supabase/config.toml'), 'utf8'), project));
-  if (command === 'start') cli(['start', '--workdir', workdir, '--exclude', excludedServices]);
+  const storageRequested = process.env.PRISM_LOCAL_SUPABASE_STORAGE === '1';
+  writeFileSync(configPath, renderConfig(readFileSync(join(root, 'supabase/config.toml'), 'utf8'), project, { storage: storageRequested }));
+  if (command === 'start') cli(['start', '--workdir', workdir, '--exclude', excludedServicesFor({ storage: storageRequested })]);
   const status = JSON.parse(cli(['status', '--workdir', workdir, '--output', 'json'], true));
   const databaseUrl = status.DB_URL;
   const secretFile = join(localRoot, `session-secret-${project.id}`);
   if (!existsSync(secretFile)) writeFileSync(secretFile, randomBytes(32).toString('hex'), { mode: 0o600 });
-  const env = developmentEnv(databaseUrl, project, appPorts, readFileSync(secretFile, 'utf8').trim());
+  const serviceRoleKey = status.SERVICE_ROLE_KEY || process.env.PRISM_LOCAL_SUPABASE_SERVICE_ROLE_KEY;
+  const storage = storageRequested && status.API_URL && serviceRoleKey ? { url: status.API_URL, serviceRoleKey } : undefined;
+  if (storageRequested && !storage) throw new Error('PRISM_LOCAL_SUPABASE_STORAGE=1 needs the local Supabase API URL and a service role key. Run db:local:start with Docker running, or set PRISM_LOCAL_SUPABASE_SERVICE_ROLE_KEY.');
+  if (storage && command === 'start') await ensureStorageBucket(storage);
+  const env = developmentEnv(databaseUrl, project, appPorts, readFileSync(secretFile, 'utf8').trim(), { storage });
   const hostEnvFile = join(localRoot, 'api.env');
   writeEnv(hostEnvFile, env);
   const dockerUrl = new URL(databaseUrl);
   dockerUrl.hostname = 'host.docker.internal';
-  writeEnv(join(localRoot, 'docker.env'), developmentEnv(dockerUrl.href, project, appPorts, env.PRISM_SESSION_SECRET));
+  const dockerStorage = storage && { ...storage, url: storage.url.replace(/\/\/(?:127\.0\.0\.1|localhost)/, '//host.docker.internal') };
+  writeEnv(join(localRoot, 'docker.env'), developmentEnv(dockerUrl.href, project, appPorts, env.PRISM_SESSION_SECRET, { storage: dockerStorage }));
   writeFileSync(join(localRoot, 'database.json'), JSON.stringify({ projectId: project.id, dbPort: project.dbPort, studioUrl: `http://127.0.0.1:${project.studioPort}`, hostEnvFile }, null, 2));
   if (command === 'start') {
     const childEnv = { ...process.env, ...env, PRISM_ENV_FILE: hostEnvFile };
