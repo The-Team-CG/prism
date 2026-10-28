@@ -55,8 +55,8 @@ inquiry → conforme → briefing/proposal → planning → event day → closur
 | --- | ---: | --- | --- | --- |
 | `client` | 3001 | public, clients | landing, inquiry, client dashboard, prefs, client-visible status | PMCM command, official floorplan edit, supplier/audit internals |
 | `supplier` | 3002 | suppliers | quotes, readiness, contracts meta, event-day status | other bids, PMCM/client private data |
-| `guest` | 3003 | guests | access code, pass, check-in, feedback | planning / other portals / PMCM |
-| `event` | 3004 | PMCM, coordinators | command inbox, workspace, floorplans, suppliers, billing, compliance, live ops, closure, trust | public marketing as home; supplier/guest self-service ownership |
+| `guest` | 3003 | guests | access code, pass, check-in, feedback, event games | planning / other portals / PMCM |
+| `event` | 3004 | PMCM, coordinators | command inbox, workspace, floorplans, suppliers, billing, compliance, live ops, event games, closure, trust | public marketing as home; supplier/guest self-service ownership |
 | `api` | 4000 | all via HTTP | workflows, RBAC, Prisma, audit, notify, AI gov | UI, app session storage ownership, local fixture seeding |
 
 **Visual:** no nav underlines; no eyebrow/outline/uppercase badge pills; no sidebar avatar if top-bar account menu exists.
@@ -67,9 +67,10 @@ inquiry → conforme → briefing/proposal → planning → event day → closur
 
 ```text
 apps/api/          Nest modular monolith + Prisma (port 4000)
-  apps/api/src/    bootstrap (prefix `api`, ValidationPipe legacy, Prisma filter)
+  apps/api/src/    bootstrap (prefix `api`, ValidationPipe legacy, Prisma filter in `common/`)
     modules/       bounded contexts (api, application, contracts, domain, infrastructure as needed)
-    kernel/        database, shared helpers, session/auth primitives, access control, health
+    kernel/        database, shared helpers, session/auth primitives, access control, mail, health
+    composition/   cross-context composition roots (e.g. event insight generation)
     fixtures/      local seed module + standalone CLI catalogs; never imported by AppModule
   prisma/          schema + migrations
 apps/{client,supplier,guest,event}/   Next portals 3001–3004
@@ -81,8 +82,8 @@ packages/tokens      theme + typography CSS (+ token object)
 docs/                OKF product, architecture, runbook, and reference bundle (see docs/index.md)
 ```
 
-**Bounded-context map (writes):** `event-lifecycle` (`onboarding`, `compliance`, `closure`, `files`), `commercial` (`quotes`, `suppliers`, `billing`), `operations` (`staffing`, `guest`), `floorplan` (`live`, `authoring`), `live-ops`, `identity-access`, and `platform-ops` (`trust`, `notifications`, `ai-governance`).
-**Read-only composition:** `read-models`. **Kernel:** `event-core`, `access-control`, `event-session`, `database`, `shared`, `shared-kernel`, and `health`. **Fixture tooling:** `apps/api/src/fixtures`, invoked only by explicit local/UAT CLI commands and never registered as an HTTP module. Full ownership: `docs/architecture/current-architecture.md`.
+**Bounded-context map (writes):** `event-lifecycle` (`onboarding`, `change`, `decisions`, `ocular-visit`, `client-visibility`, `compliance`, `closure`, `files`), `commercial` (`quotes`, `suppliers`, `billing`), `operations` (`staffing`, `guest`), `floorplan` (`live`, `authoring`), `live-ops`, `event-games`, `identity-access`, and `platform-ops` (`trust`, `notifications`, `ai-governance`, `storage`, `retention`).
+**Read-only composition:** `read-models`. **Kernel:** `event-core`, `access-control`, `event-session`, `database`, `mail`, `shared`, `shared-kernel`, and `health`. **Fixture tooling:** `apps/api/src/fixtures`, invoked only by explicit local/UAT CLI commands and never registered as an HTTP module. Full ownership: `docs/architecture/current-architecture.md`.
 
 **FE (new screens):** `page → View → ViewModel → use-case → data → @prism/api-client` (or thin portal adapter). No HTTP/rules in `page.tsx`. Prefer single-screen forms/lists over wizards unless requested.
 
@@ -104,7 +105,7 @@ docs/                OKF product, architecture, runbook, and reference bundle (s
 Domain type / Zod schema / session key  →  @prism/types
 Parse untrusted form/API body           →  parseContract / schema.safeParse (@prism/types)
 HTTP                                    →  @prism/api-client in data/
-Shell / brand / public blocks           →  @prism/ui  (prefer subpaths: @prism/ui/dashboard-shell)
+Shell / brand / public blocks           →  @prism/ui  (prefer subpaths: @prism/ui/auth-shell)
 Floorplan editor mechanics              →  @prism/floorplan-canvas from role wrappers; role apps own storage and read-only policy
 Global CSS                              →  @prism/tokens/typography.css (+ theme.css)
 Local development fixtures             →  `apps/api/src/fixtures`, invoked only by the guarded seed CLI; never runtime API or browser state
@@ -130,7 +131,7 @@ Local development fixtures             →  `apps/api/src/fixtures`, invoked onl
 npm install
 npm run build && npm run typecheck # full monorepo; milestone/final verification
 npm run test:api                  # full API suite; use focused workspace tests while iterating
-npm run lint && npm run test:ci    # what CI runs: lint all portals; every workspace suite through turbo (cached)
+npm run lint && npm run test:ci    # CI core: portal lint; every workspace suite via turbo (PRs: --affected)
 npm run check:boundaries          # static boundary scan
 npm run test:boundaries           # guard/tooling tests; not a substitute for check:boundaries
 npm run smoke:ui                  # stack must be up
@@ -207,8 +208,7 @@ export type CreatePrismInquiryInput = z.infer<typeof createPrismInquirySchema>;
 | **Nest boundary** | `@Body(zodBody(schema))` from `@prism/kernel/shared` (`ZodValidationPipe`). Prefer over new `class-validator` DTOs. |
 | **Errors** | `safeParse` → 400 problem details / user-safe message; no raw `ZodError` to clients. |
 
-**Migrated Nest write surfaces (Zod):** inquiry create/status/conforme, guest check-in/feedback, supplier quote submit/revise, live-ops task/issue/attendance, supplier event-status.  
-**Still class-validator:** remaining DTOs — **when you touch a module**, migrate that body/query to Zod in `@prism/types` + `zodBody`; do not add new class-validator DTOs for shared writes.
+**Nest bodies/queries use Zod** (`zodBody` / `zodQuery`). **Only class-validator left:** `floorplan/api/live/floorplan.dto.ts` (snapshot query); migrate it when touched and add no new class-validator DTOs.
 
 **Do not** invent a second DTO type in the app or api-client. api-client may re-export inferred types for convenience; **schemas live only in `@prism/types`**.
 
@@ -222,7 +222,7 @@ No OpenAPI/Kubb codegen today.
 4. Cross-domain **reads** via `read-models` readers only; writers expose focused contracts/ports from their public index.
 5. Portal HTTP via `@prism/api-client` (data layer).
 6. Co-located tests; **forbidden-role** cases on sensitive mutations.
-7. Docs/ledger updates only when governance requires (`10-…`, `11-feature-ledger.md`).
+7. Docs/ledger updates only when governance requires (`docs/product/feature-ledger.md`, ADRs).
 
 ### FE surface
 
@@ -245,8 +245,7 @@ artifacts from Git history if forensic context is needed.
 | Architecture and context ownership | `docs/architecture/current-architecture.md` |
 | Architecture decisions and seams | `docs/architecture/decisions/` and `docs/architecture/context-contracts.md` |
 | Product decisions and implementation reality | `docs/product/feature-ledger.md`, `docs/product/actual-system.md` |
-| Governance and readiness | `docs/product/evolution-governance.md`, `docs/product/readiness-foundation.md` |
-| Redesign inventory | `docs/product/redesign-inventory.md` |
+| Governance and readiness gates | `docs/product/evolution-governance.md` |
 | Runbooks and demo accounts | `docs/runbooks/` |
 | Target system state | `docs/product/future-state.md` |
 | V4 baseline catalog | `docs/reference/prism-v4/complete-feature-catalog.md` (traceability; not a hard ceiling) |
@@ -267,5 +266,5 @@ navigation only, and completed plans are not current sources of truth.
 | Zod 400s | shared schema in `@prism/types`; Nest uses `zodBody`; FE uses `parseContract` |
 | Migrate vs pooler | `DATABASE_URL` is shared; optional `DIRECT_URL` overrides migrations only |
 | Boundary fail | no cross-app imports; share via `packages/*` or API |
-| Auth oddities | test actor/role headers + `access-control` event scope |
+| Auth oddities | bearer / `x-prism-session` token role + `access-control` event scope |
 | New screen wants whole-system demo state | stop → scoped read model / capability route |

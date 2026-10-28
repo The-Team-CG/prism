@@ -1,14 +1,15 @@
 ---
-type: "Architecture Decision Record"
+type: "Decision"
 title: "Focused ports and composition-root adapters"
 description: "Invert real cross-context dependencies with focused ports while keeping the current modular monolith as one deployable system."
 tags: [architecture, decision, ddd, modular-monolith, ports, extraction]
-status: accepted
-updated: "2026-10-28"
+status: canonical
+updated: "2026-10-29"
 authority: normative
 audience: [agents, backend-engineers, reviewers]
 scope: "apps/api/src/kernel and bounded-context composition seams"
-last_verified: "codex/architecture-alignment-fe-be"
+last_verified: "2026-10-29; port tokens and adapter bindings in the implementation table checked against apps/api/src"
+decision_date: "2026-09-01"
 sources:
   - id: context-contracts
     resource: "docs/architecture/context-contracts.md"
@@ -67,7 +68,8 @@ The current implementations are:
 | Identity login and lockout audit | `identity-access` `AUTH_AUDIT` | `AuthAuditAdapter` is the only identity adapter that knows the platform audit implementation; authentication telemetry and lockout/forbidden alert paths record a known, hash-validated two-chain historical tail as an incident without denying normal responses, while broken hash links, audit-storage failures, and incident-write failures remain fail-closed |
 | Lifecycle document storage | `event-lifecycle` `DOCUMENT_VAULT` | metadata-only document adapter is bound in the lifecycle module |
 | Notification outbox writes | `platform-ops` `NOTIFICATION_OUTBOX_WRITER` | notification adapter binds the outbox implementation |
-| Cross-context dashboard reads | `FINANCE_COMMANDS`, `STAFFING_READER`, `FLOORPLAN_READER`, `GUEST_READER` | owning contexts bind readers/commands; `read-models` maps and never writes |
+| Cross-context dashboard reads | `SUPPLIER_WORKSPACE_READER`, `STAFFING_READER`, `FLOORPLAN_READER`, `GUEST_READER` | owning contexts bind readers; `read-models` maps and never writes |
+| Platform reference reads | `PLATFORM_REFERENCE_READ_MODEL` | `PlatformReferenceReadersModule` in `src/composition` binds the read-models implementation |
 
 The table is an implementation inventory, not permission to add a new broad
 facade. New seams require an owner, a reason, a contract, and verification.

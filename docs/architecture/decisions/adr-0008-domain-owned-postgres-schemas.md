@@ -4,11 +4,11 @@ title: "One PostgreSQL schema per owning domain"
 description: "Assign every business table to exactly one write domain and keep foreign keys within that domain."
 tags: [architecture, decision, persistence, ddd, postgres]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-10-29"
 authority: normative
 audience: [agents, engineers, reviewers, operators]
 scope: "apps/api Prisma models, PostgreSQL namespaces, relations, and cross-context persistence contracts"
-last_verified: "2026-10-06; seven baselines replayed on disposable PostgreSQL 16 and matched the Prisma schema"
+last_verified: "2026-10-06 baseline replay on disposable PostgreSQL 16; 2026-10-29 offline db:check:domain-persistence --final (132 models, 8 schemas, 0 cross-domain relations)"
 decision_date: "2026-10-03"
 sources:
   - id: approved-ownership
@@ -51,7 +51,9 @@ The target schemas are:
 | identity-access | identity_access | Accounts, approval requests, password recovery and account-authentication state |
 | platform-ops | platform_ops | Audit, security, privacy orchestration, notifications, AI governance, storage metadata and command-receipt persistence |
 
-The complete assignment of all 94 current Prisma models, owner schemas, and column counts is maintained in apps/api/prisma/domain-ownership.json. Each model is assigned exactly once. A model move or reassignment updates that manifest and the canonical persistence register in the same review.
+`event-games` / `event_games` (game definitions, sessions, participation, scoring, moderation) was added later as an eighth write domain under this decision.
+
+The complete assignment of every current Prisma model (94 at decision time), owner schemas, and column counts is maintained in apps/api/prisma/domain-ownership.json. Each model is assigned exactly once. A model move or reassignment updates that manifest and the canonical persistence register in the same review.
 
 A foreign key may target a table owned by the same domain. A foreign key may not target another domain, even when both tables are in the same current physical schema. Cross-domain identifiers remain scalar values. The writing owner validates them through a focused public capability or transaction-aware contract when the operation requires live eligibility. Read-only cross-domain composition remains in read-models with explicit scope and public projections.
 
@@ -101,4 +103,4 @@ The legacy staging snapshot recorded 112 FKs: 67 classified local and 45 cross-d
 
 ## Verification
 
-The seven baselines were applied to a fresh disposable PostgreSQL 16 database; migration status was current, the Prisma/catalog diff was empty, and the catalog showed 94 tables, 76 same-domain FKs, and zero cross-domain FKs. Existing staging adoption remains a separate backup-and-rebuild operation.
+At adoption, the seven baselines were applied to a fresh disposable PostgreSQL 16 database; migration status was current, the Prisma/catalog diff was empty, and the catalog showed 94 tables, 76 same-domain FKs, and zero cross-domain FKs. Existing staging adoption remains a separate backup-and-rebuild operation ([cutover runbook](../../runbooks/database-migrations.md#databases-with-the-retired-ledger)). For later changes, run `npm --workspace prism-api run db:check:domain-persistence` and `db:check:references`; they verify the current manifest has no cross-domain relation or private cross-owner write.
