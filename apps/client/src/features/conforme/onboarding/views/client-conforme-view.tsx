@@ -37,7 +37,7 @@ function ExecutionSelector({ executions, selectedId, onSelect }: { executions: P
 
 function ExecutionSummary({ execution }: { execution: PrismConformeExecution }) {
   const status = execution.status === "completed" ? "Complete" : execution.status === "awaiting_pmcm" ? "Awaiting PMCM countersignature" : execution.status === "superseded" ? "Replaced by a newer version" : "Awaiting your review";
-  return <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4"><div><h2 className="text-lg font-semibold text-foreground">Conforme version {execution.templateVersion}</h2><p className="mt-1 text-xs text-muted-foreground">Document SHA-256: {execution.documentSha256}</p></div><span className="text-xs font-semibold text-muted-foreground">{status}</span></div>;
+  return <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4"><div className="min-w-0"><h2 className="text-lg font-semibold text-foreground">Conforme version {execution.templateVersion}</h2><p className="mt-1 break-all text-xs text-muted-foreground">Document SHA-256: {execution.documentSha256}</p></div><span className="text-xs font-semibold text-muted-foreground">{status}</span></div>;
 }
 
 function ExecutionSignatures({ execution }: { execution: PrismConformeExecution }) {

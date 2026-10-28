@@ -280,7 +280,7 @@ export function CoordinatorAssignmentDesk({
                             (a) => a.coordinatorId === coord.id && canonicalCoordinatorRole(a.role) === role,
                           );
                           return (
-                            <div key={`${role}-${coord.id}`} className="rounded-2xl border border-border bg-muted/30 p-4">
+                            <div key={`${role}-${coord.id}`} role="group" aria-label={`${role}: ${coord.name}`} className="rounded-2xl border border-border bg-muted/30 p-4">
                               <div className="flex items-start gap-3">
                                 <Avatar className="size-10 border border-border">
                                   <AvatarFallback className="bg-card text-xs font-bold text-foreground">

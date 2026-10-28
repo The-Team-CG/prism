@@ -387,6 +387,7 @@ export function useEventDashboardShellViewModel({
     setBusy,
     setFloorPlanTemplates,
     acceptInquiry: (inquiry: PrismInquiry) => run("accept inquiry", () => commands.acceptInquiry(inquiry.id)),
+    startEventDay: () => selectedEvent ? run("start event day", () => commands.startEventDay(selectedEvent.id)) : Promise.resolve(false),
     pendInquiry: (inquiry: PrismInquiry) => run("pend inquiry", () => commands.pendInquiry(inquiry.id)),
     declineInquiry: (inquiry: PrismInquiry, reason: string) => run("decline inquiry", () => commands.declineInquiry(inquiry.id, reason)),
     mergeInquiry: (primary: PrismInquiry, input: { sourceInquiryId: string; reason: string }) =>

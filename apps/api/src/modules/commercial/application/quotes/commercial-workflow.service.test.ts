@@ -52,7 +52,7 @@ function createService() {
     {} as any,
     {} as any,
     new WorkflowCommandService(),
-    {} as any,
+    {} as any, { client: 'https://client.example.test', supplier: 'https://supplier.example.test', event: 'https://event.example.test' },
   );
   return { service, prisma, request, event, quote };
 }
@@ -114,7 +114,7 @@ describe('CommercialWorkflowService', () => {
       auditWriter as never,
       notificationOutboxWriter as never,
       new WorkflowCommandService(),
-      {} as never,
+      {} as never, { client: 'https://client.example.test', supplier: 'https://supplier.example.test', event: 'https://event.example.test' },
     );
 
     const actor = verifiedAdminActor();
@@ -130,7 +130,7 @@ describe('CommercialWorkflowService', () => {
     expect(notificationOutboxWriter.write).toHaveBeenCalledWith(
       expect.objectContaining({
         recipient: expect.any(String),
-        message: expect.stringMatching(/^Quote request link: http:\/\/localhost:3002\/quote-requests\/[A-Za-z0-9_-]+$/),
+        message: expect.stringMatching(/^Quote request link: https:\/\/supplier\.example\.test\/quote-requests\/[A-Za-z0-9_-]+$/),
         idempotencyKey: expect.stringMatching(/^supplier-quote-request:qr_[^:]+:email$/),
       }),
       undefined,
@@ -179,7 +179,7 @@ describe('CommercialWorkflowService', () => {
       auditWriter as never,
       notificationOutboxWriter as never,
       new WorkflowCommandService(),
-      { resolveQuoteSupplier: vi.fn(async () => ({ id: 'sup_1', name: quote.supplierName, categoryId: null, category: { name: 'Technicals' } })) } as never,
+      { resolveQuoteSupplier: vi.fn(async () => ({ id: 'sup_1', name: quote.supplierName, categoryId: null, category: { name: 'Technicals' } })) } as never, { client: 'https://client.example.test', supplier: 'https://supplier.example.test', event: 'https://event.example.test' },
     );
 
     await service.addSupplierQuote('evt_1', { supplierId: 'sup_1', amount: 1200 }, actor);
@@ -272,7 +272,7 @@ describe('CommercialWorkflowService', () => {
       auditWriter as any,
       notificationOutboxWriter as any,
       new WorkflowCommandService(),
-      { resolveQuoteSupplier: vi.fn() } as any,
+      { resolveQuoteSupplier: vi.fn() } as any, { client: 'https://client.example.test', supplier: 'https://supplier.example.test', event: 'https://event.example.test' },
     );
 
     const actor = verifiedAdminActor();
@@ -328,7 +328,7 @@ describe('CommercialWorkflowService', () => {
       $transaction: vi.fn(),
     };
     const service = new CommercialWorkflowService(
-      prisma as any, { write: vi.fn() } as any, { write: vi.fn() } as any, new WorkflowCommandService(), {} as any,
+      prisma as any, { write: vi.fn() } as any, { write: vi.fn() } as any, new WorkflowCommandService(), {} as any, { client: 'https://client.example.test', supplier: 'https://supplier.example.test', event: 'https://event.example.test' },
     );
 
     await expect(service.selectSupplierQuote('evt_sample', 'quote_released', verifiedAdminActor())).rejects.toMatchObject({
@@ -348,7 +348,7 @@ describe('CommercialWorkflowService', () => {
       $transaction: vi.fn(),
     };
     const service = new CommercialWorkflowService(
-      prisma as any, { write: vi.fn() } as any, { write: vi.fn() } as any, new WorkflowCommandService(), {} as any,
+      prisma as any, { write: vi.fn() } as any, { write: vi.fn() } as any, new WorkflowCommandService(), {} as any, { client: 'https://client.example.test', supplier: 'https://supplier.example.test', event: 'https://event.example.test' },
     );
 
     await expect(
@@ -378,7 +378,7 @@ describe('CommercialWorkflowService', () => {
       {} as never,
       {} as never,
       new WorkflowCommandService(),
-      {} as never,
+      {} as never, { client: 'https://client.example.test', supplier: 'https://supplier.example.test', event: 'https://event.example.test' },
     );
 
     await expect(service.requestSupplierQuotes('evt_1', { categoryId: 'cat_tech' }, actor as never)).rejects.toBeInstanceOf(ForbiddenException);
@@ -406,7 +406,7 @@ describe('CommercialWorkflowService', () => {
       auditWriter as never,
       {} as never,
       new WorkflowCommandService(),
-      {} as never,
+      {} as never, { client: 'https://client.example.test', supplier: 'https://supplier.example.test', event: 'https://event.example.test' },
     );
 
     await service.setSupplierAvailability('sup_1', { availableOn: '2026-10-01', capacity: 2 }, actor);
@@ -429,7 +429,7 @@ describe('CommercialWorkflowService', () => {
       auditWriter as never,
       {} as never,
       new WorkflowCommandService(),
-      {} as never,
+      {} as never, { client: 'https://client.example.test', supplier: 'https://supplier.example.test', event: 'https://event.example.test' },
     );
 
     await service.setSupplierAvailability('sup_1', { availableOn: '2026-10-01', capacity: 2 }, actor);
@@ -552,7 +552,7 @@ function createRevisionCapScenario(revisionNumber: number | null) {
     auditWriter as any,
     notificationOutboxWriter as any,
     new WorkflowCommandService(),
-    {} as any,
+    {} as any, { client: 'https://client.example.test', supplier: 'https://supplier.example.test', event: 'https://event.example.test' },
   );
   return { service, prisma, request, quote, created };
 }
