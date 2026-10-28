@@ -28,7 +28,7 @@ export async function http(method, path, options = {}) {
   let result = await httpOnce(method, path, options);
   for (let attempt = 1; attempt <= 8 && options.retryDatabaseErrors === true && result.status === 500 && /database request failed/i.test(JSON.stringify(result.body ?? "")) && !options.raw; attempt++) {
     conflicts.push(`${method} ${path.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/g, ":id")} (attempt ${attempt})`);
-    await sleep(100 + Math.random() * 300 * attempt);
+    await sleep(100 + randomInt(0, 300 * attempt));
     result = await httpOnce(method, path, options);
   }
   return result;
