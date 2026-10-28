@@ -1,7 +1,8 @@
 import { AlertTriangle, Archive, BadgeCheck, CheckCircle2, Lightbulb, Plus, ShieldCheck, XCircle } from "lucide-react";
 import { useState } from "react";
 
-import type {
+import type {
+
   PrismCloseGates,
   PrismComplianceCheck,
   PrismComplianceRule,
@@ -190,8 +191,14 @@ function Phase4ComplianceCheckCard({
   );
 }
 
+/** datetime-local holds wall-clock time; submit reads it back as local, so prefill in local time too. */
+function toLocalDateTimeInput(iso: string) {
+  const date = new Date(iso);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
 export function ActualEventEndSection({ event, busy, onRecord }: { event: PrismEvent; busy: boolean; onRecord: (input: { actualEndedAt: string; correctionReason?: string }) => Promise<void> }) {
-  const [endedAt, setEndedAt] = useState(event.actualEndedAt ? event.actualEndedAt.slice(0, 16) : "");
+  const [endedAt, setEndedAt] = useState(event.actualEndedAt ? toLocalDateTimeInput(event.actualEndedAt) : "");
   const [reason, setReason] = useState("");
   const hasRecorded = Boolean(event.actualEndedAt);
   async function submit() {

@@ -22,9 +22,11 @@ const event = {
 };
 
 describe('PMCM mapEvent', () => {
-  it('exposes the recorded actual end so PMCM closure can correct it instead of recording again', () => {
-    expect(mapEvent({ ...event, actualEndedAt: new Date('2026-09-08T22:00:00.000Z'), actualEndedBy: 'usr_pmcm' } as never, dependencies))
-      .toMatchObject({ actualEndedAt: '2026-09-08T22:00:00.000Z', actualEndedBy: 'usr_pmcm' });
+  it('exposes the recorded actual end so PMCM closure can correct it, without the recording staff id', () => {
+    const mapped = mapEvent({ ...event, actualEndedAt: new Date('2026-09-08T22:00:00.000Z'), actualEndedBy: 'usr_pmcm' } as never, dependencies);
+    expect(mapped).toMatchObject({ actualEndedAt: '2026-09-08T22:00:00.000Z' });
+    // This mapper serves every actor, including clients; the PMCM user id stays internal.
+    expect(mapped).not.toHaveProperty('actualEndedBy');
     expect(mapEvent({ ...event, actualEndedAt: null, actualEndedBy: null } as never, dependencies)).toMatchObject({ actualEndedAt: null });
   });
 });

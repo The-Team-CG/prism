@@ -414,7 +414,7 @@ export function useEventDashboardShellViewModel({
     runComplianceChecks: (phase: string) => selectedEvent ? run("run compliance", () => commands.runCompliance(selectedEvent.id, phase)) : Promise.resolve(),
     resolveComplianceCheck: (checkId: string) => selectedEvent ? run("resolve compliance", () => commands.resolveCompliance(selectedEvent.id, checkId, { action: "resolve", note: "Resolved during PMCM review." })) : Promise.resolve(),
     overrideComplianceCheck: (checkId: string, reason: string) => selectedEvent ? run("override compliance", () => commands.resolveCompliance(selectedEvent.id, checkId, { action: "override", overrideReason: reason,  })) : Promise.resolve(),
-    createBillingSource: (input: Parameters<typeof commands.createBillingSource>[1]) => selectedEvent ? run("create billing source", () => commands.createBillingSource(selectedEvent.id, input)) : Promise.resolve(),
+    createBillingSource: (input: Parameters<typeof commands.createBillingSource>[1]) => selectedEvent ? runAsBoolean("create billing source", () => commands.createBillingSource(selectedEvent.id, input)) : Promise.resolve(false),
     approveBillingSource: (sourceId: string) => selectedEvent ? run("approve billing source", () => commands.approveBillingSource(selectedEvent.id, sourceId, "Approved by PMCM.")) : Promise.resolve(),
     generateBillingStatement: (sourceId: string) => selectedEvent ? run("generate billing statement", () => commands.generateBillingStatement(selectedEvent.id, sourceId)) : Promise.resolve(),
     loadCloseGates: () => selectedEvent ? commands.closeGates(selectedEvent.id) : Promise.reject(new Error("No event selected")),

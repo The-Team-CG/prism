@@ -170,16 +170,14 @@ export function Phase4Workspace({
         onOverrideCompliance={onOverrideCompliance}
       />
       <ComplianceReviewPanel eventId={event.id} />
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <Phase4CloseGatesSection
-          closeGates={closeGates}
-          overrideReason={overrideReason}
-          busy={busy}
-          onOverrideReason={setOverrideReason}
-          onRefresh={refreshCloseGates}
-          onArchive={archiveEvent}
-        />
-      </section>
+      <Phase4CloseGatesSection
+        closeGates={closeGates}
+        overrideReason={overrideReason}
+        busy={busy}
+        onOverrideReason={setOverrideReason}
+        onRefresh={refreshCloseGates}
+        onArchive={archiveEvent}
+      />
       {canReviewSuppliers ? (
         <SupplierReviewPromptList
           event={event}
