@@ -45,7 +45,8 @@ export function InquiryIntakeLog({
   const [source, setSource] = useListFilter("inquirySource", "all");
   const [clientType, setClientType] = useListFilter("clientType", "all");
   const [dateRange, setDateRange] = useListFilter("dateRange", "all");
-  const [opened, setOpened] = useState<PrismInquiry | null>(null);
+  const [openedId, setOpenedId] = useState<string | null>(null);
+  const opened = inquiries.find((inquiry) => inquiry.id === openedId);
   const [declining, setDeclining] = useState<PrismInquiry | null>(null);
   const [declineReason, setDeclineReason] = useState(declineReasons[0]);
   const [loggingOnBehalf, setLoggingOnBehalf] = useState(false);
@@ -120,19 +121,19 @@ export function InquiryIntakeLog({
         onClientType={setClientType}
         onDateRange={setDateRange}
       />
-      <InquiryIntakeList inquiries={filtered} onOpen={setOpened} />
+      <InquiryIntakeList inquiries={filtered} onOpen={(inquiry) => setOpenedId(inquiry.id)} />
       {opened && (
         <InquiryDetailDrawer
           inquiry={opened}
           busy={busy}
-          onClose={() => setOpened(null)}
+          onClose={() => setOpenedId(null)}
           onAccept={() => onAccept(opened)}
           onPend={() => onPend(opened)}
           onDecline={() => setDeclining(opened)}
           allInquiries={inquiries}
           onMerge={async (primary, reason) => {
             await onMerge(primary, { sourceInquiryId: opened.id, reason });
-            setOpened(null);
+            setOpenedId(null);
           }}
         />
       )}

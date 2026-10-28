@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsSupplier, OpsSupplierCategory, OpsSupplierQuote, OpsSupplierQuoteRequest, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
+import { PRISM_PORTAL_URLS, type PrismPortalUrls } from '@prism/kernel/shared';
 import { toPrismaJson } from '@prism/kernel/database';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole, SupplierQuoteRequestStatus, SupplierQuoteStatus, WorkflowCommandService, isOpsConstantValue } from '@prism/kernel/event-core';
@@ -47,8 +48,7 @@ function parseDate(value: string) {
   return parsed;
 }
 
-function supplierQuoteLink(token: string) {
-  const portal = (process.env.SUPPLIER_PORTAL_URL || 'http://localhost:3002').replace(/\/+$/, '');
+function supplierQuoteLink(portal: string, token: string) {
   return `${portal}/quote-requests/${encodeURIComponent(token)}`;
 }
 
@@ -140,6 +140,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     private readonly workflowCommandService: WorkflowCommandService,
     @Inject(QUOTE_SUPPLIER_RESOLVER) private readonly quoteSupplierResolver: QuoteSupplierResolver,
+    @Inject(PRISM_PORTAL_URLS) private readonly portals: PrismPortalUrls,
   ) {}
 
   /** The supplier's email when on file; otherwise the name, which the outbox records as a failed row with its reason. */
@@ -263,14 +264,14 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
             writeNotification(this.notificationOutboxWriter,
               eventId,
               supplier?.email || request.supplierName,
-              `Quote request link: ${supplierQuoteLink(request.accessToken)}`,
+              `Quote request link: ${supplierQuoteLink(this.portals.supplier, request.accessToken)}`,
               'email',
               { idempotencyKey: `supplier-quote-request:${request.id}:email` },
             ),
             writeNotification(this.notificationOutboxWriter,
               eventId,
               supplier?.phone || request.supplierName,
-              `Quote request link: ${supplierQuoteLink(request.accessToken)}`,
+              `Quote request link: ${supplierQuoteLink(this.portals.supplier, request.accessToken)}`,
               'viber',
               { idempotencyKey: `supplier-quote-request:${request.id}:viber` },
             ),
