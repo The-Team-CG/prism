@@ -39,6 +39,15 @@ are supported. Port-6543 transaction poolers are refused for transactional seedi
 
 ## Select a private env file
 
+For browser acceptance, run `npm run test:browser` after `npx playwright install chromium`.
+The runner creates and removes its own disposable database, API/portal processes and Mailpit inbox;
+normal development data is preserved. See the [browser acceptance guide](../../scripts/e2e/browser/README.md)
+for ports, focused commands, artifact handling and the bounded journey coverage.
+
+For manual email testing, set `PRISM_LOCAL_MAILPIT=1` before the ordinary local startup wrapper.
+It prints the local inbox URL and generates the Mailpit transport settings without a Resend key.
+Mail is captured locally with no external relay. Without the opt-in, mail stays in the API log.
+
 The new CLI loads only the selected file for database/seed settings. Inherited
 URLs cannot redirect it; no implicit `.env` is loaded. Use absolute paths because
 workspace npm commands run in `apps/api`. `PRISM_ENV_FILE` is also accepted.
