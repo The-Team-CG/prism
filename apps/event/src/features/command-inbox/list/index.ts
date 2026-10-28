@@ -16,6 +16,8 @@ export {
   selectCommandInboxGroupedBySeverity,
   selectCommandInboxItemsBySeverity,
   selectCriticalCommandInboxCount,
+  selectCommandInboxTriage,
+  type CommandInboxTriage,
 } from "./model/command-inbox-selectors";
 export { loadCommandInbox, getCachedCommandInbox } from "./use-cases/load-command-inbox";
 export { commandInboxRepository } from "./data/command-inbox-repository";

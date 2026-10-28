@@ -79,7 +79,7 @@ function CompactRecordRow({ item }: { item: CompactRecordItem }) {
           ) : null}
         </span>
         {item.description ? <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-muted-foreground">{item.description}</span> : null}
-        {item.meta ? <span className="mt-0.5 block text-3xs font-bold uppercase tracking-widest text-muted-foreground">{item.meta}</span> : null}
+        {item.meta ? <span className="mt-0.5 block text-xs font-medium text-muted-foreground">{item.meta}</span> : null}
       </span>
     </span>
   );

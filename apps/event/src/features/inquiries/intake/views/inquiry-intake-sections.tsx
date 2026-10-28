@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { useEffect, useId, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { formatPortalDate } from "@prism/ui/format-date";
 import { DatePicker } from "@prism/ui/components/date-picker";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@prism/ui/components/sheet";
@@ -37,7 +37,7 @@ import {
 function DetailField({ label: fieldLabel, value }: { label: string; value?: string | null }) {
   return (
     <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
-      <p className="text-3xs font-bold uppercase tracking-wider text-muted-foreground">{fieldLabel}</p>
+      <p className="text-xs font-medium text-muted-foreground">{fieldLabel}</p>
       <p className="mt-1 text-sm font-semibold text-foreground">{value || "-"}</p>
     </div>
   );
@@ -55,18 +55,16 @@ export function InquiryIntakeHeader({
   copyLinkState: "idle" | "copied" | "error";
 }) {
   return (
-    <div className="border-b border-border px-6 py-4">
+    <div className="border-b border-border px-4 py-4 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <ClipboardList className="size-4 text-primary" />
-          <h2 className="text-sm font-bold text-foreground">Inquiry intake</h2>
-        </div>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <ClipboardList className="size-4 shrink-0 text-primary" />
+          <h2 className="text-lg font-semibold text-foreground">Inquiry intake</h2>
           {unreviewedCount > 0 && (
-            <span className="rounded-full bg-attention/10 px-2.5 py-1 text-xs font-bold text-attention">
-              {unreviewedCount} unreviewed
-            </span>
+            <span className="text-sm text-attention">{unreviewedCount} unreviewed</span>
           )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" onClick={onCopyInquiryLink} className="rounded-lg font-bold">
             {copyLinkState === "copied" ? "Link copied" : "Copy inquiry link"}
           </Button>
@@ -107,49 +105,60 @@ export function InquiryIntakeFilters({
   onClientType: (value: string) => void;
   onDateRange: (value: string) => void;
 }) {
+  const idPrefix = useId();
+  const searchId = `${idPrefix}-search`;
   const selects = [
     {
-      value: status, onChange: onStatus,
+      key: "status", label: "Status", value: status, onChange: onStatus,
       options: [["all", "All status"], ["new", "New"], ["accepted", "Accepted"], ["pending", "Pending"], ["declined", "Declined"]],
     },
     {
-      value: source, onChange: onSource,
+      key: "source", label: "Source", value: source, onChange: onSource,
       options: [["all", "All sources"], ...logFormReferralSources.map((item) => [item, item])],
     },
     {
-      value: clientType, onChange: onClientType,
+      key: "client-type", label: "Client type", value: clientType, onChange: onClientType,
       options: [["all", "All client types"], ...clientTypes.map((item) => [item, item])],
     },
     {
-      value: dateRange, onChange: onDateRange,
+      key: "date-range", label: "Event date", value: dateRange, onChange: onDateRange,
       options: [["all", "All dates"], ["next_30", "Next 30 days"], ["next_90", "Next 90 days"], ["past_30", "Past 30 days"]],
     },
   ];
 
   return (
-    <div className="border-b border-border px-6 py-3">
-      <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_140px_160px_140px_140px]">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+    <div className="border-b border-border px-4 py-3 sm:px-6">
+      <div role="search" aria-label="Filter inquiries" className="grid min-w-0 grid-cols-2 gap-2 xl:grid-cols-[minmax(0,1fr)_repeat(4,minmax(0,10rem))]">
+        <div className="relative col-span-2 min-w-0 xl:col-span-1">
+          <label htmlFor={searchId} className="sr-only">Search inquiries</label>
+          <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
+            id={searchId}
+            type="search"
             value={query}
             onChange={(event) => onQuery(event.target.value)}
-            className="h-9 pl-9 text-sm"
+            className="h-11 w-full min-w-0 pl-9 text-sm sm:h-9"
             placeholder="Search client, email, or event..."
           />
         </div>
-        {selects.map((sel, index) => (
-          <select
-            key={index}
-            value={sel.value}
-            onChange={(event) => sel.onChange(event.target.value)}
-            className="h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
-          >
-            {sel.options.map(([val, optionLabel]) => (
-              <option key={val} value={val}>{optionLabel}</option>
-            ))}
-          </select>
-        ))}
+        {selects.map((sel) => {
+          const selectId = `${idPrefix}-${sel.key}`;
+          return (
+            <div key={sel.key} className="min-w-0">
+              <label htmlFor={selectId} className="sr-only">{sel.label}</label>
+              <select
+                id={selectId}
+                value={sel.value}
+                onChange={(event) => sel.onChange(event.target.value)}
+                className="h-11 w-full min-w-0 truncate rounded-lg border border-border bg-background px-3 text-sm text-foreground sm:h-9"
+              >
+                {sel.options.map(([val, optionLabel]) => (
+                  <option key={val} value={val}>{optionLabel}</option>
+                ))}
+              </select>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -171,6 +180,7 @@ export function InquiryIntakeList({
   }
 
   return (
+    <div className="min-w-0 overflow-x-auto">
     <table className="w-full text-sm">
       <thead className="hidden border-b border-border text-left text-xs text-muted-foreground md:table-header-group">
         <tr>
@@ -188,6 +198,7 @@ export function InquiryIntakeList({
         ))}
       </tbody>
     </table>
+    </div>
   );
 }
 
@@ -207,9 +218,9 @@ function InquiryIntakeRow({
   const next = inquiryNextStep(inquiry);
   return (
     <tr className="grid gap-1 px-6 py-3 hover:bg-surface-raised md:table-row md:p-0">
-      <td className="md:px-6 md:py-3">
-        <p className="font-semibold text-foreground">{inquiry.eventName}</p>
-        <p className="text-xs text-muted-foreground">
+      <td className="min-w-0 md:px-6 md:py-3">
+        <p className="break-words font-semibold text-foreground" title={inquiry.eventName}>{inquiry.eventName}</p>
+        <p className="break-all text-xs text-muted-foreground">
           {inquiry.clientName} · {inquiry.email}
         </p>
         {inquiry.previouslyDeclined ? <p className="mt-0.5 text-xs font-semibold text-destructive">Previously declined</p> : null}
@@ -291,7 +302,7 @@ function InquiryDetailHeader({ inquiry, onClose }: { inquiry: PrismInquiry; onCl
     <div className="border-b border-border px-6 py-4">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Inquiry</p>
+          <p className="text-xs font-medium text-muted-foreground">Inquiry</p>
           <h3 className="mt-1 truncate text-xl font-black text-foreground">{inquiry.eventName}</h3>
           <p className="mt-1 text-sm text-muted-foreground">{inquiry.clientName} - {inquiry.companyName || inquiry.clientType}</p>
         </div>
@@ -505,10 +516,12 @@ export function InquiryDeclineDialog({
         <p className="mt-1 text-sm text-muted-foreground">
           Select the permanent decline reason for {clientName}.
         </p>
+        <label htmlFor="inquiry-decline-reason" className="mt-4 block text-sm font-medium text-foreground">Decline reason</label>
         <select
+          id="inquiry-decline-reason"
           value={declineReason}
           onChange={(event) => onReason(event.target.value)}
-          className="mt-4 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm"
+          className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
         >
           {declineReasons.map((reason) => <option key={reason} value={reason}>{reason}</option>)}
         </select>
@@ -636,7 +649,7 @@ function InquiryLogFormFields({
   return (
     <div className="mt-4 grid gap-3 sm:grid-cols-2">
       <label className="text-sm">
-        <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">
           Client name
         </span>
         <Input
@@ -647,7 +660,7 @@ function InquiryLogFormFields({
         />
       </label>
       <label className="text-sm">
-        <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">
           Company (optional)
         </span>
         <Input
@@ -657,7 +670,7 @@ function InquiryLogFormFields({
         />
       </label>
       <label className="text-sm">
-        <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">
           Email
         </span>
         <Input
@@ -668,7 +681,7 @@ function InquiryLogFormFields({
         />
       </label>
       <label className="text-sm">
-        <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">
           Channel
         </span>
         <select
@@ -684,7 +697,7 @@ function InquiryLogFormFields({
         </select>
       </label>
       <label className="text-sm">
-        <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">
           Referral Source
         </span>
         <select
@@ -701,7 +714,7 @@ function InquiryLogFormFields({
         </select>
       </label>
       <label className="text-sm">
-        <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">
           Event name
         </span>
         <Input
@@ -711,7 +724,7 @@ function InquiryLogFormFields({
         />
       </label>
       <label className="text-sm">
-        <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">
           Event type
         </span>
         <select
@@ -730,7 +743,7 @@ function InquiryLogFormFields({
         </select>
       </label>
       <div className="text-sm">
-        <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">
           Event date
         </span>
         <DatePicker
@@ -741,7 +754,7 @@ function InquiryLogFormFields({
         />
       </div>
       <label className="text-sm">
-        <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">
           Client type
         </span>
         <select
@@ -760,7 +773,7 @@ function InquiryLogFormFields({
         </select>
       </label>
       <label className="text-sm sm:col-span-2">
-        <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">
           Referral details (optional)
         </span>
         <Input
@@ -770,7 +783,7 @@ function InquiryLogFormFields({
         />
       </label>
       <label className="text-sm sm:col-span-2">
-        <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">
           Message
         </span>
         <textarea

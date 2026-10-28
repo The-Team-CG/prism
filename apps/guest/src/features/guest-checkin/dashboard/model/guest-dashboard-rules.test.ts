@@ -7,6 +7,7 @@ import {
   checkInButtonLabel,
   checkInSuccessNotice,
   guestApiPath,
+  guestPassDetails,
   isFileWithinSizeLimit,
   isGuestAccessEndedError,
   isVideoDurationAllowed,
@@ -26,6 +27,17 @@ const session = {
 } as GuestSession;
 
 describe("guest-dashboard-rules", () => {
+  it("shows where and when to arrive on the pass only when PMCM has recorded it", () => {
+    const withArrival = Object.fromEntries(guestPassDetails({ ...session, venue: "Grand Ballroom, Makati", startTime: "18:30" }));
+    expect(withArrival.Venue).toBe("Grand Ballroom, Makati");
+    expect(withArrival.Date).toBe("Aug 1, 2026 · starts 6:30 PM");
+
+    const bare = Object.fromEntries(guestPassDetails(session));
+    expect(bare).not.toHaveProperty("Venue");
+    expect(bare.Date).toBe("Aug 1, 2026");
+    expect(Object.fromEntries(guestPassDetails({ ...session, startTime: "00:05" })).Date).toContain("12:05 AM");
+  });
+
   it("builds guest API paths from access code", () => {
     expect(guestApiPath(session)).toBe("/api/guest/events/AYALA-TECH-YALA");
     expect(guestApiPath(session, "/check-ins")).toBe(

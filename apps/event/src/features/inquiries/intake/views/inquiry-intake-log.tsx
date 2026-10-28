@@ -101,7 +101,7 @@ export function InquiryIntakeLog({
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card shadow-sm">
+    <div className="min-w-0 rounded-2xl border border-border bg-card">
       <InquiryIntakeHeader
         unreviewedCount={unreviewedCount}
         onLog={() => setLoggingOnBehalf(true)}

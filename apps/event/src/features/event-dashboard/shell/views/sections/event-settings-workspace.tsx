@@ -60,7 +60,7 @@ export function EventSettingsWorkspace({
       ].map((item) => (
         <Card key={item.label}>
           <CardBody>
-            <p className="text-3xs font-black uppercase tracking-[0.16em] text-muted-foreground">{item.label}</p>
+            <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
             <p className="mt-2 text-lg font-black text-foreground">{item.value}</p>
             <p className="mt-1 text-sm text-muted-foreground">{item.detail}</p>
           </CardBody>

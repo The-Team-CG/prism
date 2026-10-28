@@ -91,7 +91,7 @@ function AuditTrailHeader({
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-attention">New-SEC4</p>
+        <p className="text-xs font-medium text-attention">New-SEC4</p>
         <h2 className="mt-2 text-2xl font-black text-foreground">Comprehensive Audit Trail & Activity Log</h2>
         <p className="mt-1 text-sm text-muted-foreground">Full history of user, system, access, supplier, finance, and document actions visible only to PMCM command users.</p>
       </div>
@@ -128,7 +128,7 @@ function AuditIntegrityCards({
         integrity.valid ? "border-success/25 bg-success-soft text-success" : "border-danger/25 bg-danger-soft text-danger",
       )}>
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-black uppercase tracking-[0.16em]">Audit integrity</p>
+          <p className="text-xs font-medium">Audit integrity</p>
           <ShieldCheck className="size-4" />
         </div>
         <p className="mt-2 text-2xl font-black">{integrity.headline}</p>
@@ -136,7 +136,7 @@ function AuditIntegrityCards({
       </div>
       <div className="rounded-lg border border-border bg-white p-4">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">Privacy records</p>
+          <p className="text-xs font-medium text-muted-foreground">Privacy records</p>
           <Database className="size-4 text-attention" />
         </div>
         <p className="mt-2 text-2xl font-black text-foreground">{privacyRecordCount}</p>
@@ -147,7 +147,7 @@ function AuditIntegrityCards({
         missingConsentCount > 0 ? "border-attention/25 bg-attention-soft text-attention" : "border-border bg-white text-foreground",
       )}>
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-black uppercase tracking-[0.16em]">Consent gaps</p>
+          <p className="text-xs font-medium">Consent gaps</p>
           <AlertTriangle className="size-4" />
         </div>
         <p className="mt-2 text-2xl font-black">{missingConsentCount}</p>
@@ -203,14 +203,14 @@ function AuditAdvancedFilters({
 }) {
   return (
     <div className="mt-4 grid gap-3 rounded-lg border border-border bg-muted p-4 md:grid-cols-4">
-      <label className="text-xs font-black uppercase tracking-wide text-muted-foreground">
+      <label className="text-xs font-medium text-muted-foreground">
         Event
         <select value={vm.eventId} onChange={(event) => vm.setEventId(event.target.value)} className="mt-2 h-10 w-full rounded-md border border-border bg-white px-3 text-sm normal-case text-foreground">
           <option value="all">All events</option>
           {events.map((event) => <option key={event.id} value={event.id}>{event.eventName}</option>)}
         </select>
       </label>
-      <label className="text-xs font-black uppercase tracking-wide text-muted-foreground">
+      <label className="text-xs font-medium text-muted-foreground">
         User
         <select value={vm.actor} onChange={(event) => vm.setActor(event.target.value)} className="mt-2 h-10 w-full rounded-md border border-border bg-white px-3 text-sm normal-case text-foreground">
           <option value="all">All users</option>
@@ -218,19 +218,19 @@ function AuditAdvancedFilters({
           <option value="System">System</option>
         </select>
       </label>
-      <label className="text-xs font-black uppercase tracking-wide text-muted-foreground">
+      <label className="text-xs font-medium text-muted-foreground">
         Action Type
         <select value={vm.actionType} onChange={(event) => vm.setActionType(event.target.value)} className="mt-2 h-10 w-full rounded-md border border-border bg-white px-3 text-sm normal-case text-foreground">
           {vm.auditActionTypes.map((item) => <option key={item} value={item}>{label(item)}</option>)}
         </select>
       </label>
-      <label className="text-xs font-black uppercase tracking-wide text-muted-foreground">
+      <label className="text-xs font-medium text-muted-foreground">
         Date Range
         <select value={vm.dateRange} onChange={(event) => vm.setDateRange(event.target.value)} className="mt-2 h-10 w-full rounded-md border border-border bg-white px-3 text-sm normal-case text-foreground">
           {vm.auditDateRanges.map(([value, text]) => <option key={value} value={value}>{text}</option>)}
         </select>
       </label>
-      <label className="text-xs font-black uppercase tracking-wide text-muted-foreground md:col-span-2">
+      <label className="text-xs font-medium text-muted-foreground md:col-span-2">
         Severity
         <select value={vm.severity} onChange={(event) => vm.setSeverity(event.target.value)} className="mt-2 h-10 w-full rounded-md border border-border bg-white px-3 text-sm normal-case text-foreground">
           <option value="all">All severities</option>
@@ -280,7 +280,7 @@ function AuditLogRow({ log }: { log: PrismAuditLog }) {
       <div className="text-left text-xs text-muted-foreground md:text-right">
         <p className="font-semibold text-foreground">{compactTimestamp(log.createdAt)}</p>
         <p>{log.ipAddress}</p>
-        <p className="font-mono text-3xs uppercase tracking-wide">{log.id}</p>
+        <p className="font-mono text-xs">{log.id}</p>
       </div>
     </article>
   );

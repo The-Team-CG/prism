@@ -8,7 +8,7 @@ export function ClientGuestsView() {
 
   return (
   <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-    <p className="text-xs font-bold uppercase tracking-widest text-primary">Guests / attendees</p>
+    <p className="text-xs font-medium text-primary">Guests / attendees</p>
     <h2 className="mt-1 text-xl font-black text-foreground">{briefing?.guestCount ? `${briefing.guestCount} expected guests` : "Guest count pending"}</h2>
     <p className="mt-2 text-sm leading-6 text-muted-foreground">
       Guest registration details remain PMCM-managed. Client-visible attendee summaries will appear here once the event team publishes them.

@@ -39,7 +39,7 @@ export function FloorPlanCardHeader({
   return (
     <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-6 py-5">
       <div>
-        <p className="text-xs font-bold uppercase tracking-widest text-primary">Floor plan workspace</p>
+        <p className="text-xs font-medium text-primary">Floor plan workspace</p>
         <h2 className="mt-1 text-xl font-black text-foreground">{title}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>
       </div>
@@ -105,7 +105,7 @@ export function FloorPlanRevisionCommentCard({ draft, event }: { draft?: PrismFl
             <div className="flex gap-3 rounded-xl bg-muted/40 p-4">
               <MessageSquareText className="size-5 shrink-0 text-primary" />
               <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Your revision comment</p>
+                <p className="text-xs font-medium text-muted-foreground">Your revision comment</p>
                 <p className="mt-1 text-sm text-foreground">{submittedComment}</p>
               </div>
             </div>
@@ -134,7 +134,7 @@ export function FloorPlanTemplates({
 
   return (
     <div className="mt-5">
-      <p className="mb-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">Saved layout templates</p>
+      <p className="mb-3 text-xs font-medium text-muted-foreground">Saved layout templates</p>
       {templates.length ? (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {templates.slice(0, 4).map((template) => (

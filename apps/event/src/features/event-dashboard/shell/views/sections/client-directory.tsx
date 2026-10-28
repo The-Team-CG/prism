@@ -6,6 +6,8 @@ import { EmptyState } from "@/app/components/ui/empty-state";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { label, useListFilter } from "@/features/pmcm-kit";
 import type { EventClientRecord } from "../../model/event-dashboard-selectors";
+import type { DetailTab } from "../../model/event-dashboard-routing";
+import { portalHref } from "@prism/ui/portal-path";
 
 function clientStatus(client: EventClientRecord) {
   return client.events.some((event) => !["completed", "cancelled", "closed"].includes(event.status)) ? "active" : client.events.length ? "past client" : "prospect";
@@ -71,17 +73,30 @@ export function ClientDirectory({ clients, onOpenClient }: { clients: EventClien
 }
 
 /** One client: who they are, their events and their inquiries, each opening the work it belongs to. */
+/** Each dossier route shows its own content; records that live per event link into that event's section. */
+const DOSSIER_EVENT_SECTIONS: Record<string, { title: string; tab: DetailTab; note: string }> = {
+  files: { title: "Files", tab: "files", note: "Files are kept in each event's workspace." },
+  contracts: { title: "Contracts", tab: "files", note: "Conforme and contract files are kept in each event's files." },
+  invoices: { title: "Invoices", tab: "billing", note: "Statements and payments are kept in each event's billing." },
+  messages: { title: "Messages", tab: "activity", note: "Client conversations are kept in each event's activity." },
+};
+
 export function ClientDossier({
   client,
   balance,
+  view = "overview",
   onBack,
   onOpenEvent,
 }: {
   client: EventClientRecord;
   balance: string;
+  view?: string;
   onBack: () => void;
-  onOpenEvent: (id: string) => void;
+  onOpenEvent: (id: string, tab?: DetailTab) => void;
 }) {
+  const eventSection = DOSSIER_EVENT_SECTIONS[view];
+  const showEvents = view === "overview" || view === "events";
+  const showInquiries = view === "overview";
   const facts = [
     { label: "Contact", value: client.contact ?? "Not recorded" },
     { label: "Company", value: client.company ?? client.name },
@@ -109,6 +124,19 @@ export function ClientDossier({
         </dl>
       </section>
 
+      {eventSection ? <DossierEventLinks client={client} section={eventSection} onOpenEvent={onOpenEvent} /> : null}
+      {view === "contacts" ? <DossierContacts client={client} /> : null}
+      {view === "notes" ? (
+        <DossierNotice title="Notes">Client notes aren&apos;t recorded in P.R.I.S.M yet. Decisions about this client&apos;s events are in each event&apos;s decision log.</DossierNotice>
+      ) : null}
+      {view === "activity-log" ? (
+        <DossierNotice title="Activity log">
+          Actions on this client&apos;s records are in the{" "}
+          <a href={portalHref("/dashboard/audit")} className="font-medium text-primary hover:text-primary/80">audit trail</a>.
+        </DossierNotice>
+      ) : null}
+
+      {showEvents ? (
       <section aria-labelledby="client-events-title" className="grid gap-3">
         <h3 id="client-events-title" className="text-base font-semibold text-foreground">Events</h3>
         <div className="overflow-hidden rounded-lg border border-border bg-card">
@@ -135,6 +163,9 @@ export function ClientDossier({
         </div>
       </section>
 
+      ) : null}
+
+      {showInquiries ? (
       <section aria-labelledby="client-inquiries-title" className="grid gap-3">
         <h3 id="client-inquiries-title" className="text-base font-semibold text-foreground">Inquiries</h3>
         <div className="overflow-hidden rounded-lg border border-border bg-card">
@@ -157,6 +188,80 @@ export function ClientDossier({
           )}
         </div>
       </section>
+      ) : null}
     </div>
   );
 }
+
+function DossierNotice({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="grid gap-3">
+      <h3 className="text-base font-semibold text-foreground">{title}</h3>
+      <p className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">{children}</p>
+    </section>
+  );
+}
+
+function DossierEventLinks({
+  client,
+  section,
+  onOpenEvent,
+}: {
+  client: EventClientRecord;
+  section: { title: string; tab: DetailTab; note: string };
+  onOpenEvent: (id: string, tab?: DetailTab) => void;
+}) {
+  return (
+    <section aria-labelledby="client-dossier-section-title" className="grid gap-3">
+      <div>
+        <h3 id="client-dossier-section-title" className="text-base font-semibold text-foreground">{section.title}</h3>
+        <p className="text-sm text-muted-foreground">{section.note}</p>
+      </div>
+      {client.events.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">This client has no events yet, so there are no {section.title.toLowerCase()} on record.</p>
+      ) : (
+        <ul className="divide-y divide-border rounded-lg border border-border bg-card">
+          {client.events.map((event) => (
+            <li key={event.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+              <span className="min-w-0">
+                <span className="block break-words font-semibold text-foreground">{event.eventName}</span>
+                <span className="block text-xs text-muted-foreground">{formatPortalDate(event.eventDate)}</span>
+              </span>
+              <button type="button" onClick={() => onOpenEvent(event.id, section.tab)} className="min-h-11 text-sm font-semibold text-primary hover:text-primary-strong">
+                Open {section.title.toLowerCase()}<span className="sr-only"> for {event.eventName}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function DossierContacts({ client }: { client: EventClientRecord }) {
+  const contacts = Array.from(
+    new Map(
+      client.inquiries
+        .filter((inquiry) => inquiry.email)
+        .map((inquiry) => [inquiry.email.toLowerCase(), { name: inquiry.clientName || client.contact || client.name, email: inquiry.email }]),
+    ).values(),
+  );
+  return (
+    <section className="grid gap-3">
+      <h3 className="text-base font-semibold text-foreground">Contacts</h3>
+      {contacts.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">No contact details on record. Contacts come from this client&apos;s inquiries.</p>
+      ) : (
+        <ul className="divide-y divide-border rounded-lg border border-border bg-card">
+          {contacts.map((contact) => (
+            <li key={contact.email} className="px-4 py-3 text-sm">
+              <span className="block font-semibold text-foreground">{contact.name}</span>
+              <a href={`mailto:${contact.email}`} className="break-all text-primary hover:text-primary/80">{contact.email}</a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+

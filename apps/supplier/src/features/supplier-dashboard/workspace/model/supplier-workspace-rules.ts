@@ -457,7 +457,19 @@ export function groupReadinessItemsByEvent(items: PrismSupplierReadinessItem[]):
     group.items.push(item);
     groups.set(item.eventId, group);
   }
-  return [...groups.values()];
+  // Soonest deadline first, inside each event and across events; undated work keeps its order at the end.
+  const sorted = [...groups.values()].map((group) => ({
+    ...group,
+    items: [...group.items].sort((left, right) => readinessDeadline(left) - readinessDeadline(right)),
+  }));
+  return sorted.sort((left, right) => readinessDeadline(left.items[0]) - readinessDeadline(right.items[0]));
+}
+
+/** The next time a supplier must act: the quote deadline before selection, then the ingress time. */
+export function readinessDeadline(item?: PrismSupplierReadinessItem): number {
+  const value = item?.quoteStatus === "selected" ? item.schedule?.ingressAt ?? item.dueAt : item?.dueAt ?? item?.schedule?.ingressAt;
+  const time = value ? Date.parse(value) : Number.NaN;
+  return Number.isFinite(time) ? time : Number.POSITIVE_INFINITY;
 }
 
 const READINESS_SETUP_LABELS: Record<PrismSupplierReadinessSetupStatus, string> = {

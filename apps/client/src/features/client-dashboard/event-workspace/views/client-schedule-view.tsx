@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDate } from "@prism/ui/format-date";
 
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { formatStatusLabel } from "../../workspace/shared";
@@ -20,7 +21,7 @@ export function ClientScheduleView() {
           <p className="mt-1 text-xs text-muted-foreground">Payment due date</p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold text-foreground">{payment.dueDate}</span>
+          <span className="text-sm font-semibold text-foreground">{formatPortalDate(payment.dueDate)}</span>
           <StatusBadge status={payment.status} label={formatStatusLabel(payment.status)} />
         </div>
       </div>

@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { PrismHandoffBrief } from "@prism/types";
 import { HandoffBriefPanel } from "./handoff-brief-panel";
 
@@ -66,5 +66,20 @@ describe("HandoffBriefPanel", () => {
 
     await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("not assigned"));
     expect(screen.queryByText("Ayala Summit")).toBeNull();
+  });
+
+  it("starts collapsed on the live desk with a counted summary and expands on request", async () => {
+    repository.get.mockResolvedValue(briefFixture());
+
+    render(<HandoffBriefPanel eventId="evt_1" />);
+
+    expect(await screen.findByText("1 open issues · 0 files outstanding · 1 items from the latest handoff")).toBeTruthy();
+    const toggle = screen.getByRole("button", { name: "Show brief" });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect((document.getElementById("handoff-brief-body") as HTMLElement).hidden).toBe(true);
+
+    fireEvent.click(toggle);
+    expect(screen.getByRole("button", { name: "Hide brief" }).getAttribute("aria-expanded")).toBe("true");
+    expect((document.getElementById("handoff-brief-body") as HTMLElement).hidden).toBe(false);
   });
 });

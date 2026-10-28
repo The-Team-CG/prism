@@ -1,5 +1,6 @@
 "use client";
 
+import { PrismAccountHelp } from "@prism/ui/account-help";
 import { portalHref } from "@prism/ui/portal-path";
 import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, PrismWrongPortalLinks, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
 import { FormEvent, useState } from "react";
@@ -85,6 +86,7 @@ export function EventSignInView() {
         <>
           <p>Authorized PMCM team access only.</p>
           <p>Admin and coordinator accounts only. Other roles have separate portals.</p>
+          <PrismAccountHelp topic="PMCM team access" />
           <PrismWrongPortalLinks links={otherPortals} />
         </>
       }

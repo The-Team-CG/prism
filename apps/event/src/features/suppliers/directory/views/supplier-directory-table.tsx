@@ -41,12 +41,12 @@ function certificationLabel(attention: string, counts: { rejected: number; expir
 
 function certificationDotClass(attention: string) {
   const classes: Record<string, string> = {
-    none: "bg-slate-500",
+    none: "bg-muted-foreground",
     verified: "bg-success",
     expired: "bg-danger",
     rejected: "bg-danger",
   };
-  return classes[attention] ?? "bg-amber-300";
+  return classes[attention] ?? "bg-attention";
 }
 
 export function SupplierDirectoryTable(props: SupplierDirectoryTableProps) {

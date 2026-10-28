@@ -1,5 +1,6 @@
 "use client";
 
+import { PrismAccountHelp } from "@prism/ui/account-help";
 import { FormEvent } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, PrismWrongPortalLinks, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
@@ -30,7 +31,7 @@ export function SignInView() {
       footer={
         <>
           <p>Approved clients only. Access requires a signed conforme.</p>
-          <p>Contact PMCM for account issues or access requests.</p>
+          <PrismAccountHelp topic="client portal access" />
           <PrismWrongPortalLinks links={otherPortals} />
         </>
       }

@@ -2,10 +2,9 @@
 
 import { CheckCircle2, ClipboardCheck, MessageCircleHeart, Star, TicketCheck, Users } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
-import { formatPortalDate } from "@prism/ui/format-date";
 import { Input } from "@/app/components/ui/input";
 import { PrismSectionPanel, PrismTextarea } from "@prism/ui";
-import { checkInModeButtonClass } from "../../model/guest-dashboard-rules";
+import { checkInModeButtonClass, guestPassDetails } from "../../model/guest-dashboard-rules";
 import type { useGuestDashboardViewModel } from "../../view-models/use-guest-dashboard-view-model";
 import type { GuestSession } from "../../model/guest-dashboard-types";
 
@@ -42,23 +41,31 @@ export function GuestCheckInPanel({ vm }: { vm: GuestDashboardVm }) {
   return (
     <PrismSectionPanel title="Check in" icon={ClipboardCheck} description="Choose how to record your attendance. Ask the registration team if you need help.">
       <div className="flex flex-col gap-4">
-        <div className="flex gap-1 rounded-lg border border-border bg-secondary/40 p-1" aria-label="Check-in method">
-          <button type="button" aria-pressed={vm.checkInMode === "name_search"} disabled={vm.checkedIn} onClick={() => vm.setCheckInMode("name_search")} className={`flex-1 rounded-md px-3 py-2 text-sm font-semibold ${checkInModeButtonClass(vm.checkInMode === "name_search")}`}>
-            <ClipboardCheck className="mr-1.5 inline size-3.5" /> Use my name
-          </button>
-          <button type="button" aria-pressed={vm.checkInMode === "headcount"} disabled={vm.checkedIn} onClick={() => vm.setCheckInMode("headcount")} className={`flex-1 rounded-md px-3 py-2 text-sm font-semibold ${checkInModeButtonClass(vm.checkInMode === "headcount")}`}>
-            <Users className="mr-1.5 inline size-3.5" /> Count only
-          </button>
-        </div>
+        {/* A two-way choice is a radio group, so the only check-in button on the page is the one that submits. */}
+        <fieldset disabled={vm.checkedIn} className="flex flex-col gap-1 rounded-lg border border-border bg-secondary/40 p-1 sm:flex-row">
+          <legend className="sr-only">Check-in method</legend>
+          {([
+            ["name_search", "Check in with my name", ClipboardCheck],
+            ["headcount", "Check in without my name", Users],
+          ] as const).map(([mode, text, Icon]) => (
+            <label
+              key={mode}
+              className={`flex min-h-11 flex-1 cursor-pointer items-center justify-center rounded-md px-3 py-2 text-sm font-semibold has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary ${checkInModeButtonClass(vm.checkInMode === mode)}`}
+            >
+              <input type="radio" name="guest-check-in-mode" value={mode} checked={vm.checkInMode === mode} onChange={() => vm.setCheckInMode(mode)} className="sr-only" />
+              <Icon className="mr-1.5 inline size-3.5" aria-hidden="true" /> {text}
+            </label>
+          ))}
+        </fieldset>
         <p className="text-sm leading-6 text-muted-foreground">
           {vm.checkInMode === "name_search"
             ? "Enter the name on the event list. The registration team may need to review a match."
-            : "Record one attendance count without providing a name. Availability depends on the event's check-in rules."}
+            : "Counts you as one attendee without recording your name. It is not a group headcount and does not confirm admission."}
         </p>
         {vm.checkInMode === "name_search" ? (
-          <label className="grid gap-1.5 text-sm font-semibold">
+          <label htmlFor="guest-check-in-name" className="grid gap-1.5 text-sm font-semibold">
             Guest name
-            <Input value={vm.checkInGuestName} onChange={(event) => vm.setCheckInGuestName(event.target.value)} autoComplete="name" placeholder="Name at registration" />
+            <Input id="guest-check-in-name" className="h-11" value={vm.checkInGuestName} onChange={(event) => vm.setCheckInGuestName(event.target.value)} autoComplete="name" placeholder="Name at registration" />
           </label>
         ) : null}
         <label className="flex items-start gap-3 text-sm leading-6 text-muted-foreground">
@@ -74,18 +81,16 @@ export function GuestCheckInPanel({ vm }: { vm: GuestDashboardVm }) {
 }
 
 export function GuestEventDetailsPanel({ session }: { session: GuestSession }) {
+  const description = session.venue
+    ? "Show this to the registration team when you arrive."
+    : "Show this to the registration team when you arrive. They can give you venue and arrival directions.";
   return (
-    <PrismSectionPanel title="Your event" icon={ClipboardCheck} description="Check these details before registering. Ask the registration team for venue and arrival instructions.">
+    <PrismSectionPanel title="Your event" icon={ClipboardCheck} description={description}>
       <dl className="grid gap-4 sm:grid-cols-2">
-        {([
-          ["Event", session.eventName],
-          ["Date", formatPortalDate(session.eventDate)],
-          ["Host", session.clientName],
-          ["Access code", session.guestAccessCode],
-        ] as const).map(([title, value]) => (
+        {guestPassDetails(session).map(([title, value]) => (
           <div key={title}>
             <dt className="text-sm text-muted-foreground">{title}</dt>
-            <dd className="mt-1 text-sm font-semibold text-foreground">{value}</dd>
+            <dd className={`mt-1 break-words text-sm font-semibold text-foreground ${title === "Access code" ? "font-mono" : ""}`}>{value || "—"}</dd>
           </div>
         ))}
       </dl>

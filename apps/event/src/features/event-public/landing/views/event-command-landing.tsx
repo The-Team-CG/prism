@@ -53,9 +53,9 @@ function MiniFloorplan({ compact = false }: { compact?: boolean }) {
   return (
     <div className={cx("grid gap-2 rounded-md border border-border bg-secondary/35 p-4", compact ? "aspect-[1.65]" : "aspect-[1.72]")}>
       <div className="grid grid-cols-[0.45fr_1.05fr_0.45fr] gap-2">
-        <div className="rounded-md border border-primary/15 bg-card p-2 text-center text-3xs font-black uppercase text-muted-foreground">BAR</div>
-        <div className="rounded-md bg-ink p-2 text-center text-xs font-black uppercase text-sidebar-foreground">Stage</div>
-        <div className="rounded-md border border-primary/15 bg-card p-2 text-center text-3xs font-black uppercase text-muted-foreground">AV</div>
+        <div className="rounded-md border border-primary/15 bg-card p-2 text-center text-xs font-medium text-muted-foreground">BAR</div>
+        <div className="rounded-md bg-ink p-2 text-center text-xs font-medium text-sidebar-foreground">Stage</div>
+        <div className="rounded-md border border-primary/15 bg-card p-2 text-center text-xs font-medium text-muted-foreground">AV</div>
       </div>
       <div className="grid grid-cols-5 gap-2 px-7">
         {Array.from({ length: 15 }).map((_, index) => (
@@ -63,9 +63,9 @@ function MiniFloorplan({ compact = false }: { compact?: boolean }) {
         ))}
       </div>
       <div className="grid grid-cols-[0.7fr_1fr_0.7fr] gap-2">
-        <div className="rounded-md border border-primary/15 bg-card p-2 text-3xs font-black uppercase text-muted-foreground">Guest flow</div>
-        <div className="rounded-md border border-primary/20 bg-card p-2 text-center text-3xs font-black uppercase text-primary">Registration</div>
-        <div className="rounded-md border border-brand-orange/25 bg-brand-orange/10 p-2 text-3xs font-black uppercase text-brand-orange">Service access</div>
+        <div className="rounded-md border border-primary/15 bg-card p-2 text-xs font-medium text-muted-foreground">Guest flow</div>
+        <div className="rounded-md border border-primary/20 bg-card p-2 text-center text-xs font-medium text-primary">Registration</div>
+        <div className="rounded-md border border-brand-orange/25 bg-brand-orange/10 p-2 text-xs font-medium text-brand-orange">Service access</div>
       </div>
     </div>
   );
@@ -96,7 +96,7 @@ function EventCommandMock() {
 
       <div className="grid gap-4 lg:grid-cols-[0.32fr_1fr_0.4fr]">
         <div className="grid gap-3">
-          <p className="px-1 text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Event queue</p>
+          <p className="px-1 text-xs font-medium text-muted-foreground">Event queue</p>
           {[
             ["New inquiries", "12", "bg-primary/10 text-primary"],
             ["Conforme pending", "6", "bg-brand-orange/10 text-brand-orange"],
@@ -346,7 +346,7 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             <div className="rounded-lg border border-border bg-background p-5">
-              <p className="mb-4 text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Supplier assignments</p>
+              <p className="mb-4 text-xs font-medium text-muted-foreground">Supplier assignments</p>
               {["Lighting package", "Registration support", "Branding installation"].map((item, index) => (
                 <div key={item} className="mb-3 rounded-md border border-border bg-card p-3 text-sm">
                   <p className="font-black text-foreground">{item}</p>
@@ -355,7 +355,7 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
               ))}
             </div>
             <div className="rounded-lg border border-border bg-background p-5">
-              <p className="mb-4 text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Coordinator coverage</p>
+              <p className="mb-4 text-xs font-medium text-muted-foreground">Coordinator coverage</p>
               {["Onsite lead", "Registration desk", "Guest experience", "Logistics", "Floorplan manager"].map((item, index) => (
                 <div key={item} className="flex items-center justify-between py-2 text-sm">
                   <span className="text-muted-foreground">{item}</span>
@@ -364,7 +364,7 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
               ))}
             </div>
             <div className="rounded-lg border border-border bg-background p-5">
-              <p className="mb-4 text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Mobile actions</p>
+              <p className="mb-4 text-xs font-medium text-muted-foreground">Mobile actions</p>
               {["Check-in summary", "Open issues", "Update note"].map((item) => (
                 <button key={item} className="mb-3 flex h-12 w-full items-center justify-between rounded-md border border-border bg-card px-3 text-sm font-black text-foreground">
                   {item}<ArrowRight className="size-4 text-muted-foreground" />
@@ -432,7 +432,7 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
             ["Company", "About PMCM", "Careers", "Contact"],
           ].map(([title, ...items]) => (
             <div key={title}>
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">{title}</p>
+              <p className="text-xs font-medium text-muted-foreground">{title}</p>
               <div className="mt-3 grid gap-2 text-sm text-muted-foreground">{items.map((item) => <span key={item}>{item}</span>)}</div>
             </div>
           ))}

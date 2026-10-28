@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import {
   Activity,
@@ -73,7 +74,7 @@ export function ClientActivityTab({ audit }: { audit: PrismAuditLog[] }) {
             <div key={day}>
               <div className="mb-3 flex items-center gap-3">
                 <span className="h-px flex-1 bg-border" />
-                <span className="text-3xs font-bold uppercase tracking-widest text-muted-foreground">
+                <span className="text-xs font-medium text-muted-foreground">
                   {formatDayLabel(day)}
                 </span>
                 <span className="h-px flex-1 bg-border" />
@@ -89,7 +90,7 @@ export function ClientActivityTab({ audit }: { audit: PrismAuditLog[] }) {
                         {clientActivityTitle(item.action)}
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        {clientActivityActor(item.actor)} — {item.createdAt}
+                        {clientActivityActor(item.actor)} — {formatPortalDateTime(item.createdAt)}
                       </p>
                     </div>
                   </div>

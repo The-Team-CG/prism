@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDate } from "@prism/ui/format-date";
 
 import {
   MessageSquareText,
@@ -173,7 +174,7 @@ function ProposalPlanningFacts({ briefing, billing, officialDraft, nextPayment }
         />
         <DataRow
           label="Next payment"
-          value={nextPayment ? `${nextPayment.label} on ${nextPayment.dueDate}` : "No open milestone"}
+          value={nextPayment ? `${nextPayment.label} on ${formatPortalDate(nextPayment.dueDate)}` : "No open milestone"}
         />
   </>;
 }

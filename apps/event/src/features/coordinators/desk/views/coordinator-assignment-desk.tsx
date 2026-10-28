@@ -219,7 +219,7 @@ export function CoordinatorAssignmentDesk({
             {/* Filters */}
             <div className="space-y-4 rounded-2xl border border-border bg-muted/30 p-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-primary">Role</p>
+                <p className="text-xs font-medium text-primary">Role</p>
                 <select
                   aria-label="Coordinator role filter"
                   value={roleFilter}
@@ -270,7 +270,7 @@ export function CoordinatorAssignmentDesk({
                   return (
                     <div key={role}>
                       <div className="mb-3 flex items-center justify-between gap-2">
-                        <p className="text-xs font-bold uppercase tracking-widest text-primary">{role}</p>
+                        <p className="text-xs font-medium text-primary">{role}</p>
                         <span className="text-xs text-muted-foreground">{roleCoords.length} match{roleCoords.length === 1 ? "" : "es"}</span>
                       </div>
                       <div className="grid gap-3 lg:grid-cols-2">

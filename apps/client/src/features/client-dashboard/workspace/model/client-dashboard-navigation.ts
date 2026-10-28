@@ -108,12 +108,26 @@ const EVENT_NAV_ICONS: Record<string, LucideIcon> = {
  * Inside one event the sidebar is that event's workspace, with My Events and Home as the way back,
  * instead of the portal sidebar plus a second row of tabs.
  */
-export function clientEventSidebarItems(eventName: string) {
+export function clientEventSidebarItems(eventName: string, eventId?: string) {
   return [
-    ...EVENT_WORKSPACE_NAV_ITEMS.map((item) => ({ id: item.id, label: item.label, icon: EVENT_NAV_ICONS[item.id] ?? LayoutGrid, section: eventName })),
-    { id: "my-events", label: "My Events", icon: CalendarDays, section: "Client portal" },
-    { id: "client-dashboard", label: "Home", icon: Home, section: "Client portal" },
+    ...EVENT_WORKSPACE_NAV_ITEMS.map((item) => ({
+      id: item.id,
+      label: item.label,
+      icon: EVENT_NAV_ICONS[item.id] ?? LayoutGrid,
+      section: eventName,
+      href: eventId ? dashboardHref(item.route, eventId) : undefined,
+    })),
+    { id: "my-events", label: "My Events", icon: CalendarDays, section: "Client portal", href: clientSidebarLinkHref("my-events") },
+    { id: "client-dashboard", label: "Home", icon: Home, section: "Client portal", href: clientSidebarLinkHref("client-dashboard") },
   ];
+}
+
+/** The route a portal sidebar entry opens, so the shell can render it as a real link. */
+export function clientSidebarLinkHref(id: string, selectedEventId?: string): string | undefined {
+  const item = findClientSidebarLink(id);
+  if (!item?.route) return undefined;
+  if (item.eventScoped && !selectedEventId) return undefined;
+  return dashboardHref(item.route, item.eventScoped ? selectedEventId : undefined, portalViewFromLink(item));
 }
 
 export function findClientEventNavItem(id: string) {

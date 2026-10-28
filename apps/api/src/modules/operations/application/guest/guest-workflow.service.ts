@@ -44,6 +44,16 @@ import {
 } from '@prism/contexts/read-models/guest-events';
 
 type EventWithDrafts = GuestEventProjection;
+
+/** Only the attendee-facing arrival facts leave the briefing; empty values are omitted, never sent as blanks. */
+function guestArrivalDetails(briefing?: { venue: string; confirmedStartTime: string | null }): Pick<PrismGuestEventPass, 'venue' | 'startTime'> {
+  const venue = briefing?.venue.trim();
+  const startTime = briefing?.confirmedStartTime?.trim();
+  return {
+    ...(venue ? { venue } : {}),
+    ...(startTime ? { startTime } : {}),
+  };
+}
 type GuestFeedbackWithMedia = Prisma.OpsGuestFeedbackGetPayload<{ include: { mediaAttachments: true } }>;
 
 type WithOptionalPrivacyConsent<T> = T extends unknown
@@ -809,6 +819,7 @@ export class GuestWorkflowService implements GuestCommands {
       guestAccessCode: this.guestAccessCode(event),
       watermark: this.guestEventWatermark(event.updatedAt),
       feedbackAvailability: guestFeedbackAvailability(event.actualEndedAt),
+      ...guestArrivalDetails(event.briefings?.[0]),
     };
   }
 

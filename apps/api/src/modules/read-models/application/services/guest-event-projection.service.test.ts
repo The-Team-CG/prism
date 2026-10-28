@@ -37,6 +37,12 @@ describe('GuestEventProjectionService', () => {
         floorPlanStatus: true,
         floorPlanId: true,
         updatedAt: true,
+        // Guests may see where and when to arrive, from the latest briefing only; no budget or notes.
+        briefings: {
+          orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
+          take: 1,
+          select: { venue: true, confirmedStartTime: true },
+        },
       },
     });
   });

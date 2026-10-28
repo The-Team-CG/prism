@@ -221,7 +221,7 @@ function MarketingStats({ stats, dark }: { stats: PrismMarketingStat[]; dark: bo
     <div className="mt-8 grid max-w-3xl gap-3 sm:grid-cols-3">
       {stats.map((stat) => (
         <div key={stat.label} className={cn("rounded-lg border p-4", marketingStatCardClass(dark))}>
-          <p className={cn("text-3xs font-black uppercase tracking-[0.16em]", dark ? "text-attention" : "text-attention")}>{stat.label}</p>
+          <p className={cn("text-xs font-medium", dark ? "text-attention" : "text-attention")}>{stat.label}</p>
           <p className={cn("mt-2 text-3xl font-black", dark ? "text-sidebar-foreground" : "text-foreground")}>{stat.value}</p>
           <p className={cn("mt-1 text-sm leading-5", dark ? "text-sidebar-foreground/66" : "text-muted-foreground")}>{stat.detail}</p>
         </div>

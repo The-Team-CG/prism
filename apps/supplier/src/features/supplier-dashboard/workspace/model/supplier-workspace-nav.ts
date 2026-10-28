@@ -13,14 +13,14 @@ import {
   Warehouse,
   type LucideIcon,
 } from "lucide-react";
-import type { SupplierDashboardSection } from "../model/supplier-workspace-types";
+import { supplierSectionHref, type SupplierDashboardSection } from "../model/supplier-workspace-types";
 
 export function supplierNavItems(input: {
   needsActionCount: number;
   openRequestCount: number;
   handoffPending: number;
 }) {
-  return [
+  const items = [
     { id: "dashboard", label: "Today", icon: Warehouse, badge: input.needsActionCount || undefined },
     { id: "requests", label: "Requests & quotes", icon: ClipboardList, badge: input.openRequestCount || undefined },
     { id: "bookings", label: "Bookings", icon: BadgeCheck, badge: input.handoffPending || undefined },
@@ -30,6 +30,7 @@ export function supplierNavItems(input: {
     { id: "payments", label: "Payments", icon: Wallet },
     { id: "profile", label: "Services & profile", icon: User },
   ] as Array<{ id: SupplierDashboardSection; label: string; icon: LucideIcon; badge?: number }>;
+  return items.map((item) => ({ ...item, href: supplierSectionHref(item.id) }));
 }
 
 /** Quotations are a view of Requests & quotes, so that sidebar item stays active on either. */

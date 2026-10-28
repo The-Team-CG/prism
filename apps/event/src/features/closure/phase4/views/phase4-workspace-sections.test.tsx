@@ -1,7 +1,10 @@
 /** @vitest-environment jsdom */
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Phase4InsightsSection } from "./phase4-workspace-sections";
+import type { PrismComplianceCheck } from "@prism/types";
+import { normalizeComplianceChecks } from "../model/phase4-workspace-rules";
+import { Phase4SectionBoundary } from "./phase4-section-boundary";
+import { Phase4ComplianceSection, Phase4InsightsSection } from "./phase4-workspace-sections";
 
 afterEach(cleanup);
 
@@ -64,5 +67,77 @@ describe("Phase4InsightsSection coordinator staffing", () => {
     );
 
     expect(screen.getByText(/This insight predates coordinator staffing data/)).toBeTruthy();
+  });
+});
+
+describe("Phase4ComplianceSection incomplete records", () => {
+  function renderSection(checks: PrismComplianceCheck[], onRunCompliance = vi.fn()) {
+    render(
+      <Phase4ComplianceSection
+        phase="planning"
+        ruleTitle=""
+        ruleKey=""
+        ruleSeverity="must_fix"
+        ruleNote=""
+        checks={checks}
+        rules={[]}
+        openChecks={checks.filter((check) => check.status === "open")}
+        busy={false}
+        onPhase={vi.fn()}
+        onRuleTitle={vi.fn()}
+        onRuleKey={vi.fn()}
+        onRuleSeverity={vi.fn()}
+        onRuleNote={vi.fn()}
+        onCreateRule={vi.fn()}
+        onRunCompliance={onRunCompliance}
+        onResolveCompliance={vi.fn()}
+        onOverrideCompliance={vi.fn()}
+      />,
+    );
+    return onRunCompliance;
+  }
+
+  it("renders a check whose API record omits evidence and offers to collect it", () => {
+    // Shape captured from the fixture event: older runs return no evidence/remediation fields.
+    const incomplete = { id: "chk_1", eventId: "evt_1", layer: "Must-Fix", title: "Venue permit", status: "open" } as unknown as PrismComplianceCheck;
+    const onRun = renderSection(normalizeComplianceChecks([incomplete]));
+
+    expect(screen.getByText("Venue permit")).toBeTruthy();
+    expect(screen.getByText(/No evidence recorded for this check yet/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Collect evidence" }));
+    expect(onRun).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Resolve" })).toBeTruthy();
+  });
+
+  it("lists recorded evidence and drops blank entries", () => {
+    const [check] = normalizeComplianceChecks([
+      { id: "chk_2", eventId: "evt_1", layer: "Advisory", title: "Insurance", status: "resolved", note: "", evaluationStatus: "satisfied", evidence: ["policy.pdf", " "], definitionStatus: "DERIVED", remediation: "" },
+    ]);
+    renderSection([check]);
+
+    expect(screen.getByRole("list", { name: "Evidence" }).textContent).toBe("policy.pdf");
+    expect(screen.queryByRole("button", { name: "Collect evidence" })).toBeNull();
+  });
+
+  it("keeps a failing section inside its frame with a Retry while siblings render", () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    let shouldThrow = true;
+    function Flaky() {
+      if (shouldThrow) throw new Error("boom");
+      return <p>Recovered section</p>;
+    }
+    render(
+      <>
+        <Phase4SectionBoundary title="Compliance checks"><Flaky /></Phase4SectionBoundary>
+        <p>Close gates still here</p>
+      </>,
+    );
+
+    expect(screen.getByRole("alert").textContent).toContain("Compliance checks");
+    expect(screen.getByText("Close gates still here")).toBeTruthy();
+    shouldThrow = false;
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(screen.getByText("Recovered section")).toBeTruthy();
+    consoleError.mockRestore();
   });
 });

@@ -1,4 +1,5 @@
 "use client";
+import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import { MessageSquareText, Send } from "lucide-react";
 import { Input } from "@/app/components/ui/input";
@@ -47,7 +48,7 @@ function Conversation({ vm }: { vm: MessagesVm }) {
               <span className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-2xs font-bold text-muted-foreground">{fromClient ? clientInitials : formatStatusLabel(message.senderRole).slice(0, 2).toUpperCase()}</span>
               <div className={cn("flex max-w-[80%] flex-col gap-1", fromClient && "items-end")}>
                 <p className={cn("whitespace-pre-wrap break-words rounded-xl px-4 py-2.5 text-sm", fromClient ? "bg-primary text-white" : "bg-muted text-foreground")}>{message.body}</p>
-                <span className="text-xs text-muted-foreground">{formatStatusLabel(message.senderRole)} · {message.createdAt}</span>
+                <span className="text-xs text-muted-foreground">{formatStatusLabel(message.senderRole)} · {formatPortalDateTime(message.createdAt)}</span>
               </div>
             </div>
           );

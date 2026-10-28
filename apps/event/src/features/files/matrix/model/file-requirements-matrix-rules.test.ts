@@ -5,6 +5,7 @@ import {
   dueDateToIso,
   draftFromFileRequirementItem,
   fileRequirementCounts,
+  fileRequirementMetadataLine,
   sortFileRequirementItems,
 } from "./file-requirements-matrix-rules";
 import type { PrismFileRequirementItem } from "@prism/types";
@@ -64,5 +65,10 @@ describe("file-requirements-matrix-rules", () => {
     expect(input).toMatchObject({ key: "venue_permit", label: "Venue permit", sourceWorkflow: "custom", required: true, notes: undefined });
     expect(input.dueAt).toBe(dueDateToIso("2026-10-25"));
     expect(new Date(input.dueAt as string).getDate()).toBe(new Date("2026-10-25T12:00:00").getDate());
+  });
+
+  it("describes owner, audience, and workflow with product role names", () => {
+    expect(fileRequirementMetadataLine({ ownerRole: "pmcm-admin", visibleToRoles: ["pmcm-admin", "client", "client"], sourceWorkflow: "client_onboarding" }))
+      .toBe("Owner: PMCM administrator · Visible to PMCM administrator, Client · Client onboarding");
   });
 });

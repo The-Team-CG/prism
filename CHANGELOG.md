@@ -6,6 +6,17 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Portal UI and UX pass from the October 2026 screen audit, with design tokens unchanged.
+  - Fixed: the supplier application scrolls normally on phones and uses the shared sign-in layout. PMCM Closure no longer crashes on checks without evidence; each closure section now fails and retries on its own. The PMCM calendar builds real month grids with Previous/Next/Today and a phone agenda. PMCM Finance, Files and Messages show their own titles and an inline event chooser. Calendar, Inquiries and supplier Messages no longer widen the page on phones, and client and PMCM search fields and filters now have labels.
+  - Navigation: sidebar destinations in every portal are real links, so they can be opened in a new tab.
+  - Shared conventions: dates are human-readable in Philippine time, internal role and status values show readable labels, and tracked uppercase eyebrows, gradients, glass panels and off-token colours were removed from app screens.
+  - Client: a single-event account opens that event directly. The event overview leads with the current stage and the next action, with the change form collapsed. Billing leads with the next payment, and file routes filter to their own records.
+  - Supplier: Today is ordered by deadline. Request summaries show quote amount, revision and state, and the quote form says what a revision replaces. Messages has a compact event selector.
+  - Guest: game labels read "Play solo" and "Join the host's game"; a failed lobby shows one recovery panel; unnamed check-in reads "Check in without my name". The pass now shows the venue and start time from the event's latest briefing when they are recorded.
+  - Client documents are one checklist: each requirement shows its linked upload, review state and due date, with an Upload or Replace action that links the file automatically. Requirement items now include `uploadedObjectId` so portals can show the stored file that fulfils them.
+  - Sign-in, expired-invitation and supplier help screens link to the PMCM account-help channel when `NEXT_PUBLIC_PMCM_SUPPORT_EMAIL` or `NEXT_PUBLIC_PMCM_SUPPORT_PHONE` is set; otherwise they keep the plain instruction.
+  - PMCM: the command inbox uses compact triage rows. The live desk keeps forms behind actions. Roster import accepts CSV with a preview. The floorplan workspace leads with the official plan, and the editor opens fitted to the plan's contents with a "Fit plan" control. Client dossier and team subviews show their own content or an honest empty state. Client closeout actions now name the record they need.
+
 - Added desktop/mobile browser acceptance journeys (including a full inquiry-to-archive lifecycle that clears every close gate without an override) and an opt-in local Mailpit inbox for testing activation, reset and notification emails without email-provider credits.
 - Inquiry review drawers now show refreshed status after PMCM accepts or pends a request.
 - Supplier quote emails now use the configured supplier portal origin. PMCM can start event day from the event overview once the existing lifecycle prerequisites are met, and creates billing sources from the Billing tab instead of Closure.

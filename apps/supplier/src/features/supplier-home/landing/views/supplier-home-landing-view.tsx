@@ -214,7 +214,7 @@ export function SupplierHomeLandingView() {
       <section id="quotes" className="px-5 py-16 sm:px-8 lg:px-10">
         <div className="mx-auto grid max-w-[1320px] gap-8 rounded-lg border border-primary/10 bg-card p-8 lg:grid-cols-[0.3fr_0.7fr] lg:items-start">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Quote clarity</p>
+            <p className="text-xs font-medium text-primary">Quote clarity</p>
             <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-ink sm:text-5xl">Quote deadlines you can trust</h2>
             <p className="mt-4 text-lg leading-8 text-muted-foreground">See what is due, what is open for revision, and what has been locked at a glance.</p>
           </div>
@@ -225,7 +225,7 @@ export function SupplierHomeLandingView() {
               ["Quote locked", "AV & Staging", "Locked May 6, 2026", "Confirmed", "View details"],
             ].map(([label, title, date, status, action]) => (
               <div key={label} className="rounded-lg border border-primary/12 bg-background p-6">
-                <p className="text-2xs font-black uppercase tracking-[0.18em] text-primary">{label}</p>
+                <p className="text-xs font-medium text-primary">{label}</p>
                 <p className="mt-4 text-lg font-black text-foreground">{title}</p>
                 <p className="mt-1 text-sm text-muted-foreground">{date}</p>
                 <p className="mt-4 text-sm font-black text-brand-orange">{status}</p>
@@ -240,7 +240,7 @@ export function SupplierHomeLandingView() {
       <section id="assignments" className="px-5 py-16 sm:px-8 lg:px-10">
         <div className="mx-auto grid max-w-[1320px] gap-8 rounded-lg border border-primary/10 bg-card p-8 lg:grid-cols-[0.3fr_0.7fr] lg:items-center">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-attention">Assignment handoff</p>
+            <p className="text-xs font-medium text-attention">Assignment handoff</p>
             <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-ink sm:text-5xl">Assignments and handoffs, all in one place</h2>
             <p className="mt-4 text-lg leading-8 text-muted-foreground">Access contracts, confirm readiness, and see ingress details so your team arrives prepared and on time.</p>
           </div>
@@ -266,7 +266,7 @@ export function SupplierHomeLandingView() {
       <section id="event-day" className="px-5 py-16 sm:px-8 lg:px-10">
         <div className="mx-auto grid max-w-[1320px] gap-8 rounded-lg border border-primary/10 bg-primary/5 p-8 lg:grid-cols-[0.32fr_0.34fr_0.34fr] lg:items-center">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Mobile event day</p>
+            <p className="text-xs font-medium text-primary">Mobile event day</p>
             <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-ink sm:text-5xl">Mobile-ready on event day</h2>
             <p className="mt-4 text-lg leading-8 text-muted-foreground">Arrival, setup, and completion states are sized for phone use when teams are already onsite.</p>
           </div>
@@ -291,7 +291,7 @@ export function SupplierHomeLandingView() {
             </div>
           </div>
           <div className="rounded-lg border border-primary/12 bg-card p-6">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">Status timeline</p>
+            <p className="text-xs font-medium text-muted-foreground">Status timeline</p>
             {[
               ["Arrived onsite", "May 14, 7:25 AM"],
               ["Setup in progress", "May 14, 8:10 AM"],
@@ -352,7 +352,7 @@ export function SupplierHomeLandingView() {
             ["Support", "Help center", "Contact coordinator", "Resources"],
             ["Company", "About PMCM", "Careers", "Privacy"],
           ].map(([title, ...items]) => (
-            <div key={title}><p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">{title}</p><div className="mt-3 grid gap-2 text-sm text-muted-foreground">{items.map((item) => <span key={item}>{item}</span>)}</div></div>
+            <div key={title}><p className="text-xs font-medium text-muted-foreground">{title}</p><div className="mt-3 grid gap-2 text-sm text-muted-foreground">{items.map((item) => <span key={item}>{item}</span>)}</div></div>
           ))}
         </div>
       </footer>

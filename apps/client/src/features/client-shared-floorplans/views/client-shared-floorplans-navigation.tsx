@@ -3,7 +3,7 @@ import Link from "next/link";
 export function ClientSharedFloorplansNavigation() {
   return (
     <aside className="hidden w-60 shrink-0 border-r border-border bg-card p-4 md:block">
-      <p className="px-3 py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">Client Portal</p>
+      <p className="px-3 py-2 text-xs font-medium text-muted-foreground">Client Portal</p>
       <nav aria-label="Client portal navigation" className="mt-2 space-y-1">
         <Link
           href="/dashboard"

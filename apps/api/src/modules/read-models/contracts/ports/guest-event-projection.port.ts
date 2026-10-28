@@ -8,6 +8,8 @@ export type GuestEventProjection = Pick<OpsEvent,
   'floorPlanId' | 'updatedAt'
 > & {
   floorPlanDrafts: Array<Pick<OpsFloorPlanDraft, 'id' | 'floorPlanId' | 'isActive'>>;
+  /** Latest briefing only: the attendee-safe venue and confirmed start time shown on the guest pass. */
+  briefings?: Array<{ venue: string; confirmedStartTime: string | null }>;
 };
 
 export type CoordinatorWorkspaceEventProjection = Pick<OpsEvent,

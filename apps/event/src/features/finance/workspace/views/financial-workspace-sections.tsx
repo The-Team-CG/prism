@@ -18,7 +18,7 @@ function CardBody({ children, className = "" }: { children: React.ReactNode; cla
   return <div className={`px-6 py-5 ${className}`}>{children}</div>;
 }
 function SectionAccent({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs font-bold uppercase tracking-widest text-primary">{children}</p>;
+  return <p className="text-xs font-medium text-primary">{children}</p>;
 }
 function StatCell({ label: lbl, value, sub }: { label: string; value: string; sub?: string }) {
   return (

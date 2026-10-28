@@ -59,19 +59,19 @@ export function LiveOperationsWorkspace({
   const vm = useLiveOperationsWorkspaceViewModel({ liveOps, busy, onCreateTask, onCreateIssue });
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <LiveOpsOverview
         event={event}
         liveOps={liveOps}
-        statusFeed={statusFeed}
         metrics={vm.metrics}
         busy={busy}
         onReload={onReload}
       />
       {liveOps ? (
-          <LiveOpsDesk
-            eventId={event.id}
+        <LiveOpsDesk
+          eventId={event.id}
           liveOps={liveOps}
+          statusFeed={statusFeed}
           coordinators={coordinators}
           busy={busy}
           vm={vm}
@@ -86,7 +86,7 @@ export function LiveOperationsWorkspace({
           onDecideTaskReassignment={onDecideTaskReassignment}
         />
       ) : (
-        <section className="rounded-lg border border-dashed border-border bg-muted p-8 text-center text-sm text-muted-foreground">
+        <section className="rounded-lg border border-border bg-card p-5 text-sm text-muted-foreground">
           Event-day live operations have not been loaded yet.
         </section>
       )}

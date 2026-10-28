@@ -47,7 +47,7 @@ export function EventProgressView() {
                         : "border-border bg-muted/30 text-muted-foreground"
                   }`}
                 >
-                  <p className="text-3xs font-bold uppercase tracking-widest opacity-60">
+                  <p className="text-xs font-medium opacity-60">
                     Step {i + 1}
                   </p>
                   <p className="mt-1 font-bold capitalize">

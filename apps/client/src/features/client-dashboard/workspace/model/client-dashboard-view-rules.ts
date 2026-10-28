@@ -37,8 +37,11 @@ export function objectBox(object: VenueObject, project: Project) {
   };
 }
 
+/** Enum values read as sentence case: "in_planning" → "In planning". */
 export function formatStatusLabel(status?: string) {
-  return status ? status.replaceAll("_", " ") : "Pending";
+  if (!status) return "Pending";
+  const words = status.replaceAll(/[_-]+/g, " ").trim().toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 export function clientFloorplanDashboardActionLabel(status?: PrismEvent["floorPlanStatus"]) {

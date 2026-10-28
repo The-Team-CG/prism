@@ -237,6 +237,10 @@ export interface PrismGuestEventPass {
   guestAccessCode: string;
   watermark: string;
   feedbackAvailability: PrismGuestFeedbackAvailability;
+  /** Venue from the event's latest briefing; omitted when none is recorded. */
+  venue?: string;
+  /** Confirmed start time (HH:mm, Philippine time) from the latest briefing; omitted when not confirmed. */
+  startTime?: string;
 }
 
 export interface PrismGuestEventWatermark {

@@ -36,6 +36,11 @@ export class GuestEventProjectionService implements GuestEventProjectionReader {
         floorPlanStatus: true,
         floorPlanId: true,
         updatedAt: true,
+        briefings: {
+          orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
+          take: 1,
+          select: { venue: true, confirmedStartTime: true },
+        },
       },
     });
     if (!event) return null;

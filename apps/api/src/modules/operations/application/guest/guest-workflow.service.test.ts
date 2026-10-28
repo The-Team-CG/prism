@@ -957,6 +957,14 @@ describe('GuestWorkflowService', () => {
       }),
     );
     expect(service.mapGuestEvent(state.events[0] as any)).not.toHaveProperty('attendanceCount');
+    // Arrival facts come from the latest briefing only; blanks are omitted and other briefing fields never leak.
+    const withBriefing = service.mapGuestEvent({
+      ...state.events[0],
+      briefings: [{ venue: ' Grand Ballroom, Makati ', confirmedStartTime: '18:30', notes: 'internal', budgetRange: 'PHP 1M' }],
+    } as any);
+    expect(withBriefing).toMatchObject({ venue: 'Grand Ballroom, Makati', startTime: '18:30' });
+    expect(JSON.stringify(withBriefing)).not.toMatch(/internal|PHP 1M/);
+    expect(service.mapGuestEvent({ ...state.events[0], briefings: [{ venue: '  ', confirmedStartTime: null }] } as any)).not.toHaveProperty('venue');
     const guestCheckInPayload = service.mapGuestCheckIn(state.guestCheckIns[0] as any);
     expect(guestCheckInPayload).toMatchObject({ guestName: 'Existing Guest' });
     expect(guestCheckInPayload).not.toHaveProperty('privacyConsentAccepted');

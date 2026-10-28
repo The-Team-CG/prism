@@ -24,7 +24,7 @@ export function Metric({ label, value, icon: Icon }: { label: string; value: str
         </div>
         <p className="text-right text-2xl font-black text-foreground">{value}</p>
       </div>
-      <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
+      <p className="mt-3 text-xs font-medium text-muted-foreground">{label}</p>
     </Card>
   );
 }

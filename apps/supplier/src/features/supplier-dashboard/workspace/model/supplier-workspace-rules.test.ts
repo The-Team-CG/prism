@@ -201,6 +201,22 @@ describe("supplier-workspace-rules", () => {
     ]);
   });
 
+  it("orders Today by the soonest action, within and across events", () => {
+    const item = (id: string, eventId: string, quoteStatus: string, dueAt: string | null, ingressAt?: string) =>
+      ({ id, eventId, eventName: eventId, quoteStatus, dueAt, schedule: ingressAt ? { ingressAt } : null }) as PrismSupplierReadinessItem;
+    const items = [
+      item("undated", "late-event", "open", null),
+      item("quote-later", "late-event", "open", "2026-11-20T00:00:00Z"),
+      item("booked", "soon-event", "selected", "2026-10-01T00:00:00Z", "2026-11-02T08:00:00Z"),
+      item("quote-sooner", "soon-event", "open", "2026-11-01T00:00:00Z"),
+    ];
+
+    expect(groupReadinessItemsByEvent(items).map((group) => [group.eventId, group.items.map((entry) => entry.id)])).toEqual([
+      ["soon-event", ["quote-sooner", "booked"]],
+      ["late-event", ["quote-later", "undated"]],
+    ]);
+  });
+
   it("counts readiness needs and events this month", () => {
     expect(
       countReadinessNeedsAction(

@@ -123,7 +123,7 @@ export function PrismPublicFeatureBand({
                   <Icon className="size-5" />
                 </div>
                 {feature.eyebrow ? (
-                  <p className={cn("text-3xs font-black uppercase tracking-[0.14em]", dark ? "text-sidebar-foreground/48" : "text-muted-foreground")}>{feature.eyebrow}</p>
+                  <p className={cn("text-xs font-medium", dark ? "text-sidebar-foreground/48" : "text-muted-foreground")}>{feature.eyebrow}</p>
                 ) : null}
                 <h3 className={cn("mt-1 text-base font-black", dark ? "text-sidebar-foreground" : "text-foreground")}>{feature.title}</h3>
                 <p className={cn("mt-2 text-sm leading-6", dark ? "text-sidebar-foreground/66" : "text-muted-foreground")}>{feature.description}</p>
