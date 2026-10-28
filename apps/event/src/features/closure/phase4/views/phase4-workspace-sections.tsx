@@ -1,15 +1,12 @@
-import { AlertTriangle, Archive, BadgeCheck, CheckCircle2, Lightbulb, Plus, ReceiptText, ShieldCheck, XCircle } from "lucide-react";
+import { AlertTriangle, Archive, BadgeCheck, CheckCircle2, Lightbulb, Plus, ShieldCheck, XCircle } from "lucide-react";
 import { useState } from "react";
 
-import type {
-  PrismBillingSource,
-  PrismBillingStatement,
+import type {
   PrismCloseGates,
   PrismComplianceCheck,
   PrismComplianceRule,
   PrismEvent,
   PrismEventInsight,
-  PrismDocument,
 } from "@prism/types";
 import { cx, label } from "@/features/pmcm-kit";
 import { phase4ArchiveStatus, phase4StatusTone } from "../model/phase4-workspace-rules";
@@ -189,127 +186,6 @@ function Phase4ComplianceCheckCard({
           <button disabled={busy} onClick={() => onOverride(check.id, "PMCM accepted documented operational risk.")} className="h-8 rounded-md bg-attention-soft px-3 text-xs font-black text-attention disabled:opacity-60">Override</button>
         </div>
       )}
-    </div>
-  );
-}
-
-export function Phase4BillingSection({
-  billingLabel,
-  lineLabel,
-  lineAmount,
-  billingSources,
-  billingStatements,
-  proposalDocuments,
-  sourceDocumentId,
-  approvedSource,
-  busy,
-  onBillingLabel,
-  onLineLabel,
-  onLineAmount,
-  onSourceDocumentId,
-  onCreate,
-  onApprove,
-  onGenerate,
-}: {
-  billingLabel: string;
-  lineLabel: string;
-  lineAmount: string;
-  billingSources: PrismBillingSource[];
-  billingStatements: PrismBillingStatement[];
-  proposalDocuments: PrismDocument[];
-  sourceDocumentId: string;
-  approvedSource: PrismBillingSource | undefined;
-  busy: boolean;
-  onBillingLabel: (value: string) => void;
-  onLineLabel: (value: string) => void;
-  onLineAmount: (value: string) => void;
-  onSourceDocumentId: (value: string) => void;
-  onCreate: () => void;
-  onApprove: (sourceId: string) => void;
-  onGenerate: (sourceId: string) => void;
-}) {
-  return (
-    <div className="rounded-lg border border-border bg-card p-5">
-      <div className="flex items-start gap-3">
-        <ReceiptText className="mt-1 size-5 text-attention" />
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-attention">Billing Source</p>
-          <h3 className="mt-1 text-xl font-black">Approved CE/proposal total</h3>
-        </div>
-      </div>
-      <div className="mt-4 grid gap-3">
-        <input value={billingLabel} onChange={(event) => onBillingLabel(event.target.value)} className="h-10 rounded-md border border-border bg-white px-3 text-sm" />
-        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_160px]">
-          <input value={lineLabel} onChange={(event) => onLineLabel(event.target.value)} className="h-10 rounded-md border border-border bg-white px-3 text-sm" />
-          <input value={lineAmount} onChange={(event) => onLineAmount(event.target.value)} type="number" className="h-10 rounded-md border border-border bg-white px-3 text-sm" />
-        </div>
-        <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
-          Proposal evidence
-          <select value={sourceDocumentId} onChange={(event) => onSourceDocumentId(event.target.value)} className="h-10 rounded-md border border-border bg-white px-3 text-sm font-normal text-foreground">
-            <option value="">Select a proposal document</option>
-            {proposalDocuments.map((document) => <option key={document.id} value={document.id}>{document.fileName}</option>)}
-          </select>
-        </label>
-        <button disabled={busy || !billingLabel || Number(lineAmount) <= 0} onClick={onCreate} className="h-10 rounded-md bg-ink px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">Create billing source</button>
-      </div>
-      <div className="mt-4 space-y-3">
-        {billingSources.length === 0 && (
-          <div className="rounded-md border border-dashed border-border bg-muted p-5 text-sm text-muted-foreground">
-            No billing source yet. Add the approved CE/proposal amount before generating a billing statement.
-          </div>
-        )}
-        {billingSources.map((source) => (
-          <Phase4BillingSourceCard
-            key={source.id}
-            source={source}
-            busy={busy}
-            onApprove={onApprove}
-            onGenerate={onGenerate}
-          />
-        ))}
-        {billingStatements.length > 0 && (
-          <div className="rounded-md border border-border bg-background p-3">
-            <p className="text-xs font-black uppercase tracking-wide text-muted-foreground">Generated statements</p>
-            <div className="mt-2 grid gap-2">
-              {billingStatements.map((statement) => (
-                <div key={statement.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                  <span className="font-black text-foreground">{statement.number}</span>
-                  <span className={cx("rounded-full px-2.5 py-1 text-xs font-black capitalize ring-1", phase4StatusTone(statement.status))}>{label(statement.status)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {!approvedSource && billingSources.length > 0 && <p className="text-xs text-attention">Approve a source before generating a billing statement.</p>}
-      </div>
-    </div>
-  );
-}
-
-function Phase4BillingSourceCard({
-  source,
-  busy,
-  onApprove,
-  onGenerate,
-}: {
-  source: PrismBillingSource;
-  busy: boolean;
-  onApprove: (sourceId: string) => void;
-  onGenerate: (sourceId: string) => void;
-}) {
-  return (
-    <div className="rounded-md border border-border bg-background p-4 text-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="font-black">{source.sourceLabel}</p>
-          <p className="mt-1 text-muted-foreground">{money.format(source.totalAmount)} - {source.lineItems.length} line item(s)</p>
-        </div>
-        <span className={cx("rounded-full px-2.5 py-1 text-xs font-black capitalize ring-1", phase4StatusTone(source.status))}>{label(source.status)}</span>
-      </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {source.status !== "approved" && <button disabled={busy} onClick={() => onApprove(source.id)} className="h-8 rounded-md bg-success-soft px-3 text-xs font-black text-success disabled:opacity-60">Approve</button>}
-        {source.status === "approved" && <button disabled={busy} onClick={() => onGenerate(source.id)} className="h-8 rounded-md border border-border bg-white px-3 text-xs font-black disabled:opacity-60">Generate billing</button>}
-      </div>
     </div>
   );
 }

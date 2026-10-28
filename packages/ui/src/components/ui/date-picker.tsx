@@ -78,6 +78,8 @@ export function DatePicker({
   );
   const [calendarMonth, setCalendarMonth] = React.useState(selectedDate ?? new Date());
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const openedFromInput = React.useRef(false);
+  const contentRef = React.useRef<HTMLDivElement>(null);
   const parsedInputDate = parseInputDate(inputText);
   const inputInvalid = inputText.length > 0 && (
     !parsedInputDate || !isWithinBounds(parsedInputDate, min, max)
@@ -114,6 +116,7 @@ export function DatePicker({
       if (date && isWithinBounds(date, min, max)) {
         onValueChange(format(date, DATE_VALUE_FORMAT));
         setCalendarMonth(date);
+        setOpen(false);
       }
       return;
     }
@@ -155,6 +158,7 @@ export function DatePicker({
         aria-invalid={inputInvalid || inputProps["aria-invalid"]}
         onChange={handleInputChange}
         onFocus={(event) => {
+          openedFromInput.current = true;
           setOpen(true);
           onFocus?.(event);
         }}
@@ -162,7 +166,13 @@ export function DatePicker({
         className={cn("pr-10", className)}
       />
       {name ? <input type="hidden" name={name} value={value} /> : null}
-      <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Root
+        open={open}
+        onOpenChange={(nextOpen) => {
+          openedFromInput.current = false;
+          setOpen(nextOpen);
+        }}
+      >
         <Popover.Trigger asChild>
           <Button
             type="button"
@@ -170,6 +180,13 @@ export function DatePicker({
             size="icon-sm"
             disabled={disabled}
             aria-label={calendarButtonAriaLabel}
+            onClick={(event) => {
+              if (!open || !openedFromInput.current) return;
+              // Already open from typing: move into the calendar instead of toggling it closed.
+              event.preventDefault();
+              openedFromInput.current = false;
+              contentRef.current?.querySelector<HTMLButtonElement>('[role="grid"] button[tabindex="0"]')?.focus();
+            }}
             className="absolute right-1.5 top-1/2 size-8 -translate-y-1/2 rounded-md text-primary hover:bg-primary-soft hover:text-primary-strong"
           >
             <CalendarDays aria-hidden="true" className="size-4" />
@@ -177,8 +194,16 @@ export function DatePicker({
         </Popover.Trigger>
         <Popover.Portal>
           <Popover.Content
+            ref={contentRef}
             align="start"
             sideOffset={4}
+            onOpenAutoFocus={(event) => {
+              // Typing into the field must keep focus there; only the calendar button moves focus into the grid.
+              if (openedFromInput.current) event.preventDefault();
+            }}
+            onInteractOutside={(event) => {
+              if (event.target === inputRef.current) event.preventDefault();
+            }}
             className="z-50 w-auto rounded-xl border border-primary/15 bg-popover p-1 text-popover-foreground shadow-[0_12px_32px_-12px_rgb(192_24_103/0.35)] outline-none"
           >
             <Calendar

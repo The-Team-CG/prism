@@ -6,7 +6,7 @@ function service() {
   const prisma = {
     opsSupplierQuoteRound: { findFirst: vi.fn(async () => ({ id: 'round_1', eventId: 'evt_1', roundNumber: 1, status: 'open', category: { name: 'Technicals' }, requests: [{ quotes: [{ id: 'q_1', supplierId: 's_1', supplierName: 'Supplier One', amount: 1000, inclusions: [], paymentTerms: '', notes: '', outsideAcceptableRange: false, status: 'received' }] }] })) },
   };
-  return { service: new CommercialWorkflowService(prisma as any, {} as any, {} as any, {} as any, {} as any), prisma };
+  return { service: new CommercialWorkflowService(prisma as any, {} as any, {} as any, {} as any, {} as any, { client: 'https://client.example.test', supplier: 'https://supplier.example.test', event: 'https://event.example.test' }), prisma };
 }
 
 describe('W16 supplier selection visibility', () => {

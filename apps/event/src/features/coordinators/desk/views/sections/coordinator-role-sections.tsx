@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
+import { useId } from "react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
@@ -241,7 +242,7 @@ function CoordinatorAssignedBadge({
       {acknowledged ? (
         <p className="mt-2 text-sm text-success">Assignment confirmed with PMCM.</p>
       ) : (
-        <Button disabled={busy} onClick={onAcknowledge} className="mt-3 min-h-11 font-semibold">
+        <Button disabled={busy} onClick={() => onAcknowledge()} className="mt-3 min-h-11 font-semibold">
           <CheckCircle2 className="size-4" /> Confirm assignment
         </Button>
       )}
@@ -290,6 +291,7 @@ export type CoordinatorIssueFormModel = {
 
 function CoordinatorTaskForm({ taskForm }: { taskForm: CoordinatorTaskFormModel }) {
   const copy = coordinatorTaskFormCopy(taskForm.busy, taskForm.routesAway);
+  const fieldId = useId();
   return (
     <CCard>
       <CCardHeader>
@@ -310,9 +312,10 @@ function CoordinatorTaskForm({ taskForm }: { taskForm: CoordinatorTaskFormModel 
           />
         </label>
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="grid gap-1.5">
-            <span className={FIELD_LABEL}>Assigned role (required)</span>
+          <div className="grid gap-1.5">
+            <label htmlFor={`${fieldId}-role`} className={FIELD_LABEL}>Assigned role (required)</label>
             <select
+              id={`${fieldId}-role`}
               value={taskForm.role}
               onChange={(e) => taskForm.setRole(e.target.value)}
               required
@@ -324,10 +327,11 @@ function CoordinatorTaskForm({ taskForm }: { taskForm: CoordinatorTaskFormModel 
                 </option>
               ))}
             </select>
-          </label>
-          <label className="grid gap-1.5">
-            <span className={FIELD_LABEL}>Priority</span>
+          </div>
+          <div className="grid gap-1.5">
+            <label htmlFor={`${fieldId}-priority`} className={FIELD_LABEL}>Priority</label>
             <select
+              id={`${fieldId}-priority`}
               value={taskForm.priority}
               onChange={(e) => taskForm.setPriority(e.target.value)}
               className={FIELD_INPUT}
@@ -336,7 +340,7 @@ function CoordinatorTaskForm({ taskForm }: { taskForm: CoordinatorTaskFormModel 
               <option value="high">High</option>
               <option value="critical">Critical</option>
             </select>
-          </label>
+          </div>
         </div>
         <label className="grid gap-1.5">
           <span className={FIELD_LABEL}>Notes</span>
@@ -396,6 +400,7 @@ function CoordinatorTaskForm({ taskForm }: { taskForm: CoordinatorTaskFormModel 
 
 function CoordinatorIssueForm({ issueForm }: { issueForm: CoordinatorIssueFormModel }) {
   const copy = coordinatorIssueFormCopy(issueForm.busy);
+  const fieldId = useId();
   return (
     <CCard>
       <CCardHeader>
@@ -416,9 +421,10 @@ function CoordinatorIssueForm({ issueForm }: { issueForm: CoordinatorIssueFormMo
           />
         </label>
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="grid gap-1.5">
-            <span className={FIELD_LABEL}>Severity</span>
+          <div className="grid gap-1.5">
+            <label htmlFor={`${fieldId}-severity`} className={FIELD_LABEL}>Severity</label>
             <select
+              id={`${fieldId}-severity`}
               value={issueForm.severity}
               onChange={(e) => issueForm.setSeverity(e.target.value)}
               className={FIELD_INPUT}
@@ -428,7 +434,7 @@ function CoordinatorIssueForm({ issueForm }: { issueForm: CoordinatorIssueFormMo
               <option value="high">High</option>
               <option value="critical">Critical</option>
             </select>
-          </label>
+          </div>
           <label className="grid gap-1.5">
             <span className={FIELD_LABEL}>Affected area</span>
             <input

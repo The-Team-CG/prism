@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CoordinatorRoleData } from "./coordinator-role-sections";
+import { CoordinatorRoleBadgeCard, CoordinatorRoleData } from "./coordinator-role-sections";
 
 afterEach(cleanup);
 
@@ -180,5 +180,22 @@ describe("supplier setup checks", () => {
     renderRoleData(roleView({ supplierStatuses: [supplier({ id: "req_ok", supplierName: "Harvest Table" })] }));
 
     expect(screen.queryByText(/Supplier setup checks/)).toBeNull();
+  });
+});
+
+describe("CoordinatorRoleBadgeCard", () => {
+  it("confirms a pending assignment without passing the click event as the decision", () => {
+    const onAcknowledge = vi.fn();
+    const attendanceForm = {
+      status: "pending", choices: [], canMark: false, hasAssignment: true, replaced: false, isDisabled: () => true,
+      pendingChoice: null, pendingChoiceLabel: null, busy: false, error: null, mark: vi.fn(), confirm: vi.fn(), cancel: vi.fn(),
+    };
+    render(<CoordinatorRoleBadgeCard assignment={{ status: "assigned" }} busy={false} roleName="General Coordinator" attendanceStatus="pending" onAcknowledge={onAcknowledge} attendanceForm={attendanceForm} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm assignment" }));
+
+    // The view-model defaults its decision to "acknowledged"; a click event in its place failed contract validation.
+    expect(onAcknowledge).toHaveBeenCalledTimes(1);
+    expect(onAcknowledge).toHaveBeenCalledWith();
   });
 });
