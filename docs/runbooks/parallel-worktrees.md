@@ -4,11 +4,11 @@ title: "Parallel worktrees"
 description: "Run Prism checkouts concurrently with isolated ports and safe linked-worktree setup and removal."
 tags: [runbook, git, worktrees, local-development]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-10-29"
 authority: operational
 audience: [developers, agents]
 scope: "Prism linked worktree ports, environment setup, and safe removal"
-last_verified: "2026-10-06; referenced scripts and package commands reviewed; runtime behavior not rerun"
+last_verified: "2026-10-29; prism-worktree, prism-ports, and local-supabase scripts and package commands reviewed; runtime behavior not rerun"
 sources:
   - id: ports
     resource: "scripts/prism-ports.mjs"
@@ -31,10 +31,9 @@ sources:
 - **Change when:** Worktree or launcher scripts change.
 - **Verify with:** The referenced scripts and focused worktree safety tests.
 
-Two linked worktrees could not run the stack at the same time. Port assignments
-are now persisted in shared Git metadata, and the port guard uses a durable
-checkout lease with the process PID and creation identity. An unproven process is
-preserved for manual cleanup.
+Port assignments are persisted in shared Git metadata, and the port guard uses a
+durable checkout lease with the process PID and creation identity. An unproven
+process is preserved for manual cleanup.
 
 ## Ports follow the checkout
 
@@ -56,17 +55,25 @@ fallback when evidence is missing.
 ## Creating and removing a worktree
 
 ```bash
-npm run worktree:create -- <name> [base]   # add .worktrees/<name> on codex/<name>
-npm run worktree:setup                     # prepare the worktree you are standing in
-npm run worktree:remove -- <name>          # junction-safe teardown
+npm run worktree:create -- <name> [base]   # git worktree add .worktrees/<name> -b codex/<name> (base defaults to staging)
+npm run worktree:setup                     # prepare the worktree you are standing in (any linked worktree)
+npm run worktree:remove -- <name>          # junction-safe teardown of .worktrees/<name>
 ```
 
+`create` and `remove` take a bare name and only manage direct children of the
+primary checkout's `.worktrees/` directory; they refuse any other path,
+including a `.worktrees` root that is itself a junction or symlink. A worktree
+created elsewhere (for example by another tool or a plain `git worktree add`)
+is not removed by this script; tear it down with that tool, unlinking
+dependency junctions first.
+
 Setup seeds `apps/api/.env` and each portal `.env.local` from the committed
-examples, then writes that worktree's `PORT`, `CORS_ORIGIN`, and
-`NEXT_PUBLIC_API_URL`. To intentionally copy the primary checkout's local
-database credentials, pass `--copy-local-env`; setup prints an explicit warning
-when it does so. Dependencies are not installed for you; run the install yourself
-in the new worktree.
+examples when they are missing, then writes that worktree's API `PORT` and
+`CORS_ORIGIN` and each portal's `NEXT_PUBLIC_API_URL`, client origin, and portal
+URLs. To intentionally copy the primary checkout's local env files instead, pass
+`--copy-local-env` (or run `npm run worktree:setup:copy-local-env`); setup warns
+when it copies the API file's local credentials. Dependencies are not installed
+for you; run the install yourself in the new worktree.
 
 Linked worktrees use local Node processes. Docker Compose exposes the canonical
 primary-checkout ports, so `start-prism.ps1 -Docker` fails clearly from a linked
@@ -84,8 +91,10 @@ Removing a checkout does not automatically delete its retained Supabase data.
 
 ## Why removal is not a recursive delete
 
-A worktree's `node_modules` is a tree of junctions pointing into the primary
+A worktree's `node_modules` may be a tree of junctions pointing into the primary
 checkout's real dependencies. Recursively deleting the worktree can follow those
 junctions and destroy the shared tree. Removal unlinks every reparse point first,
-deletes only what remains, and refuses any path that is not inside `.worktrees`.
+deletes only what remains, then runs `git worktree remove --force` (falling back
+to `git worktree prune`). It refuses any path that is not a direct child of
+`.worktrees`.
 `scripts/prism-worktree.test.mjs` proves a linked dependency file survives.

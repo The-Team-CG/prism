@@ -6,7 +6,7 @@ bundle: "P.R.I.S.M"
 
 This is the canonical documentation entrypoint. The bundle follows the Open
 Knowledge Format (OKF) pattern:
-directory `index.md` files are navigation, `log.md` records bundle changes, and
+directory `index.md` files are navigation, `log.md` records structural bundle changes, and
 concept documents use YAML frontmatter with identity, authority,
 scope, verification, and source/provenance entries.
 
@@ -20,8 +20,8 @@ scope, verification, and source/provenance entries.
    decisions, readiness, and redesign evidence.
 4. [Roadmap](roadmap/index.md) — active plans and explicit product/activation
    decisions.
-5. [Runbooks](runbooks/index.md) — local operation, database migrations, Docker,
-   and demo accounts.
+5. [Runbooks](runbooks/index.md) — local operation, environments and fixtures,
+   database migrations, Docker, deployment, storage, and portal accounts.
 6. [Reference](reference/index.md) — source-preserving V4 catalog material.
 
 ## Metadata at a glance
