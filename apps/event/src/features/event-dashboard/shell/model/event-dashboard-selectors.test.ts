@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PrismEvent, PrismInquiry } from "@prism/types";
 import {
+  canStartEventDay,
   selectClientRecords,
   selectClientRecordsForView,
   selectEventsForView,
@@ -114,5 +115,20 @@ describe("event-dashboard-selectors", () => {
     expect(selectEventsForView(events, "draft").map((e) => e.id)).toEqual(["d"]);
     expect(selectEventsForView(events, "ongoing").map((e) => e.id)).toEqual(["u"]);
     expect(selectEventsForView(events, "all")).toEqual(events);
+  });
+});
+
+describe("canStartEventDay", () => {
+  const ready = event({ id: "evt_ready", clientName: "Client", status: "briefing", clientPortalStatus: "unlocked", floorPlanStatus: "approved" });
+  it.each([
+    ["an unlocked event with an approved floorplan, whatever its planning status", ready, true],
+    ["a locked portal (conforme not signed)", { ...ready, clientPortalStatus: "locked" as const }, false],
+    ["an unapproved floorplan", { ...ready, floorPlanStatus: "draft" }, false],
+    ["an event already on event day", { ...ready, status: "event_day" }, false],
+    ["an event with a recorded actual end", { ...ready, actualEndedAt: "2026-09-08T22:00:00.000Z" }, false],
+    ["an archived event", { ...ready, archived: true }, false],
+    ["a cancelled event", { ...ready, status: "cancelled" }, false],
+  ])("%s -> %s", (_label, candidate, expected) => {
+    expect(canStartEventDay(candidate)).toBe(expected);
   });
 });

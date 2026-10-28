@@ -1,7 +1,9 @@
 import { eventApi as eventOpsClient, eventApiRequest as request } from "@/lib/prism-api";
 import type { PrismBriefing, PrismDocument, PrismEvent, PrismInquiry, PrismInquiryMergeRecord,PrismPmcmOcularVisit, RecordActualEventEndInput, ScheduleOcularVisitInput, SetClientEventDayViewInput, WaiveOcularVisitInput } from "@prism/types";
+import { liveOpsScheduleRepository } from "@/features/live-ops/schedule/data/live-ops-schedule-repository";
 
 export const lifecycleCommands = {
+startEventDay: (eventId: string) => liveOpsScheduleRepository.startEventDay(eventId),
 scheduleOcularVisit: (eventId: string, input: ScheduleOcularVisitInput) =>
     request<PrismPmcmOcularVisit>(`/api/events/${eventId}/ocular-visit/schedule`, {
       method: "PATCH",

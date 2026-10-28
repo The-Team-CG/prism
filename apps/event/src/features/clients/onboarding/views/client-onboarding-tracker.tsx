@@ -67,7 +67,7 @@ export function ClientOnboardingTracker({
             const steps = onboardingTimelineSteps(inq, compactTimestamp);
 
             return (
-              <div key={inq.id} className="px-6 py-4">
+              <article key={inq.id} aria-label={`Onboarding ${inq.eventName}`} className="px-6 py-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-foreground">{inq.eventName}</p>
@@ -133,7 +133,7 @@ export function ClientOnboardingTracker({
                     </div>
                   </div>
                 )}
-              </div>
+              </article>
             );
           })}
         </div>

@@ -8,7 +8,6 @@ import type {
   PrismComplianceRule,
   PrismEvent,
   PrismEventInsight,
-  PrismDocument,
   PrismSupplier,
   PrismSupplierCategory,
   PrismSupplierQuoteRequest,
@@ -25,7 +24,6 @@ import {
 } from "../model/phase4-workspace-rules";
 import {
   money,
-  Phase4BillingSection,
   Phase4CloseGatesSection,
   Phase4ClosureBoard,
   Phase4ComplianceSection,
@@ -42,7 +40,6 @@ export function Phase4Workspace({
   checks,
   billingSources,
   billingStatements,
-  proposalDocuments = [],
   insights,
   supplierCategories,
   suppliers,
@@ -53,9 +50,6 @@ export function Phase4Workspace({
   onRunCompliance,
   onResolveCompliance,
   onOverrideCompliance,
-  onCreateBillingSource,
-  onApproveBillingSource,
-  onGenerateBillingStatement,
   onLoadCloseGates,
   onArchive,
   onRecordActualEventEnd,
@@ -68,7 +62,6 @@ export function Phase4Workspace({
   checks: PrismComplianceCheck[];
   billingSources: PrismBillingSource[];
   billingStatements: PrismBillingStatement[];
-  proposalDocuments?: PrismDocument[];
   insights: PrismEventInsight[];
   supplierCategories: PrismSupplierCategory[];
   suppliers: PrismSupplier[];
@@ -86,14 +79,6 @@ export function Phase4Workspace({
   onRunCompliance: (phase: string) => Promise<void>;
   onResolveCompliance: (checkId: string) => Promise<void>;
   onOverrideCompliance: (checkId: string, reason: string) => Promise<void>;
-  onCreateBillingSource: (input: {
-    sourceLabel: string;
-    lineItems: Array<{ label: string; amount: number }>;
-    paymentSchedule: Array<{ label: string; percentage: number }>;
-    sourceDocumentId?: string;
-  }) => Promise<void>;
-  onApproveBillingSource: (sourceId: string) => Promise<void>;
-  onGenerateBillingStatement: (sourceId: string) => Promise<void>;
   onLoadCloseGates: () => Promise<PrismCloseGates>;
   onArchive: (overrideReason?: string) => Promise<void>;
   onRecordActualEventEnd: (input: { actualEndedAt: string; correctionReason?: string }) => Promise<void>;
@@ -106,16 +91,11 @@ export function Phase4Workspace({
   const [ruleKey, setRuleKey] = useState("");
   const [ruleSeverity, setRuleSeverity] = useState("must_fix");
   const [ruleNote, setRuleNote] = useState("");
-  const [billingLabel, setBillingLabel] = useState(`${event.eventName} approved CE`);
-  const [lineLabel, setLineLabel] = useState("Approved event package");
-  const [lineAmount, setLineAmount] = useState("520000");
-  const [sourceDocumentId, setSourceDocumentId] = useState("");
   const [closeGates, setCloseGates] = useState<PrismCloseGates | null>(null);
   const [overrideReason, setOverrideReason] = useState("");
   const [localInsights, setLocalInsights] = useState<PrismEventInsight[]>(insights);
 
   useEffect(() => {
-    setBillingLabel(`${event.eventName} approved CE`);
     void onLoadCloseGates().then(setCloseGates).catch(() => setCloseGates(null));
     void onLoadInsights().then(setLocalInsights).catch(() => setLocalInsights(insights));
   }, [event.id]);
@@ -146,18 +126,6 @@ export function Phase4Workspace({
     setRuleTitle("");
     setRuleKey("");
     setRuleNote("");
-  }
-
-  async function createBillingSource() {
-    await onCreateBillingSource({
-      sourceLabel: billingLabel,
-      lineItems: [{ label: lineLabel, amount: Number(lineAmount) }],
-      paymentSchedule: [
-        { label: "Downpayment", percentage: 50 },
-        { label: "Balance", percentage: 50 },
-      ],
-      sourceDocumentId: sourceDocumentId || undefined,
-    });
   }
 
   async function refreshCloseGates() {
@@ -202,34 +170,14 @@ export function Phase4Workspace({
         onOverrideCompliance={onOverrideCompliance}
       />
       <ComplianceReviewPanel eventId={event.id} />
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <Phase4BillingSection
-          billingLabel={billingLabel}
-          lineLabel={lineLabel}
-          lineAmount={lineAmount}
-          billingSources={billingSources}
-          billingStatements={billingStatements}
-          proposalDocuments={proposalDocuments}
-          sourceDocumentId={sourceDocumentId}
-          approvedSource={approvedSource}
-          busy={busy}
-          onBillingLabel={setBillingLabel}
-          onLineLabel={setLineLabel}
-          onLineAmount={setLineAmount}
-          onSourceDocumentId={setSourceDocumentId}
-          onCreate={createBillingSource}
-          onApprove={onApproveBillingSource}
-          onGenerate={onGenerateBillingStatement}
-        />
-        <Phase4CloseGatesSection
-          closeGates={closeGates}
-          overrideReason={overrideReason}
-          busy={busy}
-          onOverrideReason={setOverrideReason}
-          onRefresh={refreshCloseGates}
-          onArchive={archiveEvent}
-        />
-      </section>
+      <Phase4CloseGatesSection
+        closeGates={closeGates}
+        overrideReason={overrideReason}
+        busy={busy}
+        onOverrideReason={setOverrideReason}
+        onRefresh={refreshCloseGates}
+        onArchive={archiveEvent}
+      />
       {canReviewSuppliers ? (
         <SupplierReviewPromptList
           event={event}
