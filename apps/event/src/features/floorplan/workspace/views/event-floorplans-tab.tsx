@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { LayoutGrid, MapPinned } from "lucide-react";
 
 import type { PrismEvent, PrismFloorPlanDraft } from "@prism/types";
@@ -11,6 +12,7 @@ import {
   canApproveFloorPlanDraft,
   canSubmitFloorPlanDraft,
 } from "../model/floorplan-workspace-rules";
+import { useFloorplanSnapshotHistoryViewModel } from "../view-models/use-floorplan-snapshot-history-view-model";
 
 export function EventFloorplansTab({
   event,
@@ -115,6 +117,8 @@ export function EventFloorplansTab({
                     </Button>
                   )}
                 </div>
+                <FloorplanPublicationHistory draft={draft} />
+                <FloorplanSnapshotHistory eventId={event.id} draftId={draft.id} />
               </div>
             ))}
           </div>
@@ -122,4 +126,36 @@ export function EventFloorplansTab({
       </Panel>
     </div>
   );
+}
+
+function FloorplanSnapshotHistory({ eventId, draftId }: { eventId: string; draftId: string }) {
+  const [open, setOpen] = useState(false);
+  const vm = useFloorplanSnapshotHistoryViewModel(eventId, draftId);
+
+  return (
+    <div className="mt-3 border-t border-border pt-3">
+      <button type="button" aria-expanded={open} onClick={() => { const next = !open; setOpen(next); if (next) void vm.load(); }} className="text-xs font-semibold text-primary">{open ? "Hide snapshot history" : "View snapshot history"}</button>
+      {open ? <div className="mt-2 space-y-2" aria-live="polite">
+        {vm.loading ? <p className="text-xs text-muted-foreground">Loading snapshots…</p> : null}
+        {vm.error ? <p role="alert" className="text-xs text-destructive">{vm.error}</p> : null}
+        {!vm.loading && !vm.error && vm.history.length === 0 ? <p className="text-xs text-muted-foreground">No historical snapshots have been recorded yet.</p> : null}
+        {vm.history.map((version) => <div key={version.id} className="rounded-md bg-background px-3 py-2 text-xs">
+          <p className="font-semibold text-foreground">Round {version.round} · {version.snapshotType === "approved" ? "Official layout approved" : "Submitted for review"}</p>
+          <p className="mt-1 text-muted-foreground">{new Date(version.createdAt).toLocaleString()} · {version.snapshot.name} · {version.snapshot.venue || "Venue not set"} · {version.snapshot.pax} guests · {version.snapshot.objects?.length ?? 0} layout objects</p>
+        </div>)}
+      </div> : null}
+    </div>
+  );
+}
+
+function FloorplanPublicationHistory({ draft }: { draft: PrismFloorPlanDraft }) {
+  return <>
+                {(draft.submittedSnapshotAt || draft.approvedSnapshotAt || draft.reviewedAt) ? (
+                  <ol aria-label={`${draft.name} publication history`} className="mt-4 space-y-1 border-l border-border pl-3 text-2xs text-muted-foreground">
+                    {draft.submittedSnapshotAt ? <li>Submitted snapshot · {new Date(draft.submittedSnapshotAt).toLocaleString()}</li> : null}
+                    {draft.reviewedAt ? <li>PMCM review · {new Date(draft.reviewedAt).toLocaleString()}</li> : null}
+                    {draft.approvedSnapshotAt ? <li className="font-semibold text-success">Official layout approved · {new Date(draft.approvedSnapshotAt).toLocaleString()}</li> : null}
+                  </ol>
+                ) : null}
+  </>;
 }

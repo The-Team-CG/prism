@@ -182,6 +182,8 @@ export class EventScheduleService {
   async designateOperator(eventId: string, input: CreateEventOperatorDesignationInput, actor: ResolvedEventOpsActor) {
     await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'event day system operator designation', eventId);
     return this.prisma.$transaction(async (tx) => {
+      // QUERY_AUDIT_RAW_SQL: serialize designation and revocation for the same event.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${"live-ops-operator:" + eventId}, 0))`;
       await this.requireCoordinatorWritableEvent(eventId, actor, tx);
       const assignment = await this.operationsReferences.findEligibleOperatorAssignment(
         eventId,
@@ -213,6 +215,23 @@ export class EventScheduleService {
       );
       return created;
     });
+  }
+
+  async revokeOperator(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismEventOperatorDesignation> {
+    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'event day system operator designation', eventId);
+    await this.prisma.$transaction(async (tx) => {
+      // QUERY_AUDIT_RAW_SQL: serialize designation and revocation for the same event.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${"live-ops-operator:" + eventId}, 0))`;
+      await this.requireCoordinatorWritableEvent(eventId, actor, tx);
+      const revoked = await tx.opsEventOperatorDesignation.updateMany({
+        where: { eventId, revokedAt: null },
+        data: { revokedAt: this.clock.now(), revokedBy: actor.id ?? actor.name },
+      });
+      if (revoked.count) await writeAudit(this.auditWriter, eventId, actor.name, 'Revoked event day system operator', {
+        actorRole: actor.role, actorEmail: actor.email, actionType: 'update', category: 'live_ops', affectedType: 'event_operator_designation', affectedId: eventId,
+      }, { prisma: tx, actorId: actor.id, correlationId: 'operator-revoke:' + eventId });
+    });
+    return this.getOperatorDesignation(eventId, actor);
   }
 
   async getOperatorDesignation(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismEventOperatorDesignation> {

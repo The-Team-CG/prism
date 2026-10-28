@@ -96,7 +96,7 @@ export function GuestEventDetailsPanel({ session }: { session: GuestSession }) {
 export function GuestFeedbackPanel({ vm }: { vm: GuestDashboardVm }) {
   return (
     <PrismSectionPanel title="Share feedback" icon={MessageCircleHeart} description="PMCM reviews your feedback before it can be shared.">
-      <form onSubmit={(event) => void vm.submitFeedback(event)} className="flex flex-col gap-4">
+      {vm.session?.feedbackAvailability === "open" ? <form onSubmit={(event) => void vm.submitFeedback(event)} className="flex flex-col gap-4">
         <label className="grid gap-1.5 text-sm font-semibold">
           Your name
           <Input value={vm.feedbackGuestName} onChange={(event) => vm.setFeedbackGuestName(event.target.value)} autoComplete="name" placeholder="Your name" />
@@ -122,7 +122,8 @@ export function GuestFeedbackPanel({ vm }: { vm: GuestDashboardVm }) {
         </label>
         <Button disabled={!vm.canSubmitFeedback} className="h-12 sm:w-fit" type="submit"><MessageCircleHeart className="size-4" /> Send feedback</Button>
         {vm.feedbackSubmitted ? <p role="status" className="flex items-start gap-2 text-sm text-success"><CheckCircle2 className="mt-0.5 size-4 shrink-0" /> Feedback sent. PMCM will review it before sharing.</p> : null}
-      </form>
+      </form> : <p className="text-sm text-muted-foreground">The feedback submission window has closed.</p>}
+      {vm.canWithdrawFeedbackConsent ? <div className="mt-4 border-t border-border pt-4"><p className="mb-2 text-sm text-muted-foreground">You can withdraw consent for the feedback submitted from this device.</p><Button type="button" variant="outline" disabled={Boolean(vm.busy)} onClick={() => void vm.withdrawFeedbackConsent()}>Withdraw feedback consent</Button></div> : null}
     </PrismSectionPanel>
   );
 }

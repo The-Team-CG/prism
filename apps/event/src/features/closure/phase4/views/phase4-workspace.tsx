@@ -8,6 +8,7 @@ import type {
   PrismComplianceRule,
   PrismEvent,
   PrismEventInsight,
+  PrismDocument,
   PrismSupplier,
   PrismSupplierCategory,
   PrismSupplierQuoteRequest,
@@ -41,6 +42,7 @@ export function Phase4Workspace({
   checks,
   billingSources,
   billingStatements,
+  proposalDocuments = [],
   insights,
   supplierCategories,
   suppliers,
@@ -66,6 +68,7 @@ export function Phase4Workspace({
   checks: PrismComplianceCheck[];
   billingSources: PrismBillingSource[];
   billingStatements: PrismBillingStatement[];
+  proposalDocuments?: PrismDocument[];
   insights: PrismEventInsight[];
   supplierCategories: PrismSupplierCategory[];
   suppliers: PrismSupplier[];
@@ -87,6 +90,7 @@ export function Phase4Workspace({
     sourceLabel: string;
     lineItems: Array<{ label: string; amount: number }>;
     paymentSchedule: Array<{ label: string; percentage: number }>;
+    sourceDocumentId?: string;
   }) => Promise<void>;
   onApproveBillingSource: (sourceId: string) => Promise<void>;
   onGenerateBillingStatement: (sourceId: string) => Promise<void>;
@@ -105,6 +109,7 @@ export function Phase4Workspace({
   const [billingLabel, setBillingLabel] = useState(`${event.eventName} approved CE`);
   const [lineLabel, setLineLabel] = useState("Approved event package");
   const [lineAmount, setLineAmount] = useState("520000");
+  const [sourceDocumentId, setSourceDocumentId] = useState("");
   const [closeGates, setCloseGates] = useState<PrismCloseGates | null>(null);
   const [overrideReason, setOverrideReason] = useState("");
   const [localInsights, setLocalInsights] = useState<PrismEventInsight[]>(insights);
@@ -151,6 +156,7 @@ export function Phase4Workspace({
         { label: "Downpayment", percentage: 50 },
         { label: "Balance", percentage: 50 },
       ],
+      sourceDocumentId: sourceDocumentId || undefined,
     });
   }
 
@@ -203,11 +209,14 @@ export function Phase4Workspace({
           lineAmount={lineAmount}
           billingSources={billingSources}
           billingStatements={billingStatements}
+          proposalDocuments={proposalDocuments}
+          sourceDocumentId={sourceDocumentId}
           approvedSource={approvedSource}
           busy={busy}
           onBillingLabel={setBillingLabel}
           onLineLabel={setLineLabel}
           onLineAmount={setLineAmount}
+          onSourceDocumentId={setSourceDocumentId}
           onCreate={createBillingSource}
           onApprove={onApproveBillingSource}
           onGenerate={onGenerateBillingStatement}

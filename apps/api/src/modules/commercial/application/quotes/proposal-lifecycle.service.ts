@@ -3,7 +3,7 @@ import { PrismaService } from '@prism/kernel/database';
 import type { Prisma } from '@prisma/client';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor, writeAudit } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
-import { DOCUMENT_VAULT, type DocumentVault } from '@prism/contexts/event-lifecycle';
+import { DOCUMENT_VAULT, PROPOSAL_REVIEW_OWNER, type DocumentVault, type ProposalReviewOwner } from '@prism/contexts/event-lifecycle';
 import type { CreateCostEstimateInput, IssueProposalVersionInput, PrismCostEstimate, PrismEventProposalResponse, PrismProposalVersion, PrismVerifiedEventActor } from '@prism/types';
 import { StorageObjectService } from '@prism/contexts/platform-ops';
 import { createHash, randomUUID } from 'node:crypto';
@@ -26,6 +26,7 @@ export class ProposalLifecycleService {
     private readonly access: EventAccessPolicyService,
     @Inject(AUDIT_WRITER) private readonly audit: AuditWriter,
     @Inject(DOCUMENT_VAULT) private readonly documentVault: DocumentVault,
+    @Inject(PROPOSAL_REVIEW_OWNER) private readonly proposalReviewOwner: ProposalReviewOwner,
     @Optional() @Inject(forwardRef(() => StorageObjectService)) private readonly storageObjectService?: StorageObjectService,
   ) {}
 
@@ -75,7 +76,15 @@ export class ProposalLifecycleService {
       if (previous) await tx.opsProposalVersion.update({ where: { id: previous.id }, data: { status: 'superseded' } });
       const issuedAt = new Date();
       const version = await tx.opsProposalVersion.create({ data: { id: `proposal_${randomUUID()}`, eventId, costEstimateId: estimate.id, versionNumber, title: input.title, summary: input.summary, totalAmount: estimate.totalAmount, revisionNote: input.revisionNote, status: 'issued', issuedAt } });
-      await tx.opsEvent.update({ where: { id: eventId }, data: { proposalClientStatus: 'pending', proposalReviewedAt: null } });
+      const reviewStateUpdated = await this.proposalReviewOwner.updateProposalReview({
+        eventId,
+        expectedRevisionCount: event.proposalRevisionCount,
+        nextStatus: 'pending',
+        nextRevisionCount: event.proposalRevisionCount,
+        reviewedAt: null,
+        reviewedBy: null,
+      }, { prisma: tx, correlationId: `proposal:${eventId}`, actorId: actor.id });
+      if (reviewStateUpdated !== 1) throw new BadRequestException('Proposal review state changed while issuing this version');
       // The client reviews an issued proposal document, so the version and its document are issued together or not at all.
       const document = await this.documentVault.registerDocument({
         eventId,

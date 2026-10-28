@@ -36,6 +36,9 @@ function createPaymentService() {
     percentage: 50,
     amount: 100000,
     amountPaid: 25000,
+    creditApplied: 0,
+    supersededAt: null,
+    statementId: null,
     remainingBalance: 75000,
     dueDate: new Date('2026-07-01T00:00:00.000Z'),
     status: 'partially_paid',
@@ -176,6 +179,20 @@ function createBillingStatementService(priorNumbers: string[], conflictingSequen
 }
 
 describe('BillingOperationsService', () => {
+  it('keeps a superseded statement closed and treats sending an already sent statement as a replay', async () => {
+    const { service, prisma } = createBillingStatementService([]);
+    const statement = await service.generateBillingStatement('evt_billing_sequence', 'bsrc_billing_sequence', billingActor, verifiedBillingActor);
+    const row = { ...statement, generatedAt: new Date('2026-08-01T00:00:00Z'), eventDate: new Date('2026-08-01T00:00:00Z'), sentAt: new Date('2026-08-02T00:00:00Z'), status: 'superseded' };
+    prisma.opsBillingStatement.findUnique.mockResolvedValue(row);
+    prisma.opsBillingStatement.update = vi.fn();
+    await expect(service.sendBillingStatement('evt_billing_sequence', row.id, billingActor)).rejects.toThrow('superseded');
+    expect(prisma.opsBillingStatement.update).not.toHaveBeenCalled();
+    row.status = 'sent';
+    const replay = await service.sendBillingStatement('evt_billing_sequence', row.id, billingActor);
+    expect(replay.sentAt).toBe('2026-08-02T00:00:00.000Z');
+    expect(prisma.opsBillingStatement.update).not.toHaveBeenCalled();
+  });
+
   it('rejects cross-event or ineligible billing evidence before creating a source', async () => {
     const { service, prisma, documentVault } = createPaymentService();
     documentVault.findEligibleReference.mockRejectedValueOnce(new Error('Eligible document not found for this event'));

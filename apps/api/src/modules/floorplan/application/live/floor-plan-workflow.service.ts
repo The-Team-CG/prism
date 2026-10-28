@@ -541,6 +541,11 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
           }
           submittedName = currentDraft.name;
           const snapshot = await this.floorPlanSnapshot(currentDraft.floorPlanId, tx);
+          const round = (await tx.opsFloorPlanSnapshotVersion.count({ where: { draftId: currentDraft.id, snapshotType: 'submitted' } })) + 1;
+          await tx.opsFloorPlanSnapshotVersion.create({ data: {
+            id: `fpsv_${randomUUID()}`, eventId, draftId: currentDraft.id, round, snapshotType: 'submitted',
+            snapshot: toPrismaJson(snapshot), createdByRole: actor.role, createdAt: now,
+          } });
           const updated = await tx.opsFloorPlanDraft.updateMany({
             where: {
               id: currentDraft.id,
@@ -602,10 +607,18 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
           if (currentDraft.status !== 'in_review') throw new BadRequestException('Floorplan draft changed before approval');
           approvedName = currentDraft.name;
           const snapshot = await this.floorPlanSnapshot(currentDraft.floorPlanId, tx);
+          const latestSubmission = await tx.opsFloorPlanSnapshotVersion.findFirst({
+            where: { eventId, draftId: currentDraft.id, snapshotType: 'submitted' }, orderBy: { round: 'desc' }, select: { round: true },
+          });
+          const round = latestSubmission?.round ?? 1;
           await tx.opsFloorPlanDraft.updateMany({
             where: { eventId, isActive: true },
             data: { isActive: false },
           });
+          await tx.opsFloorPlanSnapshotVersion.create({ data: {
+            id: `fpsv_${randomUUID()}`, eventId, draftId: currentDraft.id, round, snapshotType: 'approved',
+            snapshot: toPrismaJson(snapshot), createdByRole: actor.role, createdAt: now,
+          } });
 
           const updated = await tx.opsFloorPlanDraft.updateMany({
             where: {
@@ -705,6 +718,19 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
     }
 
     throw new NotFoundException('Floorplan snapshot not found');
+  }
+
+  async listFloorPlanSnapshotHistory(eventId: string, draftId: string, visibleTypes?: Array<'submitted' | 'approved'>) {
+    const draft = await this.prisma.opsFloorPlanDraft.findFirst({ where: { id: draftId, eventId, sourceType: { not: 'client_preference' } }, select: { id: true } });
+    if (!draft) throw new NotFoundException('Official floorplan draft not found');
+    const rows = await this.prisma.opsFloorPlanSnapshotVersion.findMany({
+      where: { eventId, draftId, ...(visibleTypes ? { snapshotType: { in: visibleTypes } } : {}) },
+      orderBy: [{ round: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }], take: 100,
+    });
+    return rows.flatMap((row) => {
+      const snapshot = prismFloorPlanSnapshotSchema.safeParse(row.snapshot);
+      return snapshot.success ? [{ ...row, snapshot: snapshot.data }] : [];
+    });
   }
 
   mapFloorPlanDraft(draft: FloorPlanDraftProjection): PrismFloorPlanDraft {

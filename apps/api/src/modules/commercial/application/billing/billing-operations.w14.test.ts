@@ -11,13 +11,19 @@ import { nextPaymentMilestoneStatus, validatePaymentTerms } from '../../domain/p
 const actor = { id: 'actor_francis', name: 'Francis', role: OpsUserRole.PmcmAdmin, email: 'francis@pmcm.test' };
 const approver = { id: 'actor_mys', name: 'Ms. Mys', role: OpsUserRole.PmcmAdmin, email: 'mys@pmcm.test' };
 
-function createW14Service(withReceipts = false) {
+function createW14Service(withReceipts = false, withPaidHistory = false) {
   const event = { id: 'evt_w14', inquiryId: 'inq_w14', eventName: 'W14 Event', clientName: 'Client', eventDate: new Date('2026-08-01T00:00:00.000Z'), actualEndedAt: new Date('2026-08-02T00:00:00.000Z') };
-  const statement = { id: 'stmt_w14', eventId: event.id, number: 'BS-2026-0001', totalAmount: 100000, status: 'issued' };
+  const statement = { id: 'stmt_w14', eventId: event.id, sourceId: 'bsrc_w14', number: 'BS-2026-0001', totalAmount: 100000, status: 'issued', paymentSchedule: [{ label: 'Deposit', percentage: 50, amount: 50000, dueDate: '2026-07-01' }, { label: 'Balance', percentage: 50, amount: 50000, dueDate: '2026-07-15' }], paymentMethods: [], lineItems: [] };
   const correction = { id: 'corr_w14', eventId: event.id, statementId: statement.id, reason: 'Tax line is incorrect', correctedTotalAmount: 95000, status: 'pending', requestedBy: actor.name, resolvedBy: null, resolutionNotes: null, createdAt: new Date('2026-08-03T00:00:00.000Z'), resolvedAt: null };
+  const oldMilestones = withPaidHistory ? [{ id: 'pay_original', eventId: event.id, statementId: statement.id, label: 'Deposit', amount: 50000, amountPaid: 20000, creditApplied: 0, remainingBalance: 30000, percentage: 50, dueDate: new Date('2026-07-01T00:00:00.000Z'), status: 'partially_paid', createdAt: new Date('2026-06-01T00:00:00.000Z'), supersededAt: null }] : [];
+  const newMilestones = withPaidHistory ? [
+    { id: 'pay_replacement_deposit', eventId: event.id, statementId: 'bill_replacement', label: 'Deposit', amount: 47500, amountPaid: 0, creditApplied: 0, remainingBalance: 47500, percentage: 50, dueDate: new Date('2026-07-01T00:00:00.000Z'), status: 'pending', createdAt: new Date('2026-08-04T00:00:00.000Z'), supersededAt: null },
+    { id: 'pay_replacement_balance', eventId: event.id, statementId: 'bill_replacement', label: 'Balance', amount: 47500, amountPaid: 0, creditApplied: 0, remainingBalance: 47500, percentage: 50, dueDate: new Date('2026-07-15T00:00:00.000Z'), status: 'pending', createdAt: new Date('2026-08-04T00:00:00.000Z'), supersededAt: null },
+  ] : [];
+  const paymentRecords = withPaidHistory ? [{ id: 'payrec_original', eventId: event.id, milestoneId: 'pay_original', amountReceived: 20000, paymentDate: new Date('2026-06-20T00:00:00.000Z'), paymentMethod: 'Bank Transfer', referenceNumber: 'BNK-123', recordedAt: new Date('2026-06-20T01:00:00.000Z') }] : [];
   const dispute = { id: 'dispute_w14', eventId: event.id, statementId: statement.id, milestoneId: null, amount: 20000, reason: 'Unapproved charge', status: 'open', raisedBy: actor.name, resolvedBy: null, resolutionNotes: null, createdAt: new Date('2026-08-03T00:00:00.000Z'), resolvedAt: null };
   const billingSources = new Map([
-    ['bsrc_w14', { id: 'bsrc_w14', eventId: event.id, status: 'approved' }],
+    ['bsrc_w14', { id: 'bsrc_w14', eventId: event.id, status: 'approved', sourceDocumentId: null }],
     ['bsrc_pending_w14', { id: 'bsrc_pending_w14', eventId: event.id, status: 'pending' }],
     ['bsrc_foreign_w14', { id: 'bsrc_foreign_w14', eventId: 'evt_other', status: 'approved' }],
   ]);
@@ -28,7 +34,7 @@ function createW14Service(withReceipts = false) {
   const prisma: any = {
     opsEvent: { findUnique: vi.fn(async () => event) },
     opsInquiry: { findUnique: vi.fn(async () => ({ clientName: event.clientName, email: 'client@example.test' })) },
-    opsBillingStatement: { findUnique: vi.fn(async () => statement) },
+    opsBillingStatement: { findUnique: vi.fn(async () => statement), count: vi.fn(async () => 1), update: vi.fn(async ({ data }: any) => Object.assign(statement, data)) },
     opsBillingCorrection: {
       findUnique: vi.fn(async ({ where }: any) => where.idempotencyKey ? (correctionCreated ? correction : null) : correction),
       create: vi.fn(async ({ data }: any) => { correctionCreated = true; return Object.assign(correction, data); }),
@@ -43,6 +49,14 @@ function createW14Service(withReceipts = false) {
     opsBillingSource: {
       findUnique: vi.fn(async ({ where }: any) => billingSources.get(where.id) ?? null),
     },
+    opsPaymentMilestone: {
+      findMany: vi.fn(async ({ where }: any = {}) => where?.statementId === 'bill_replacement' ? newMilestones : where?.statementId === statement.id ? oldMilestones : where?.statementId === null ? oldMilestones : []),
+      updateMany: vi.fn(async ({ where, data }: any) => { const rows = oldMilestones.filter((row) => where.id.in.includes(row.id)); rows.forEach((row) => Object.assign(row, data)); return { count: rows.length }; }),
+      update: vi.fn(async ({ where, data }: any) => { const row = newMilestones.find((item) => item.id === where.id); if (row) Object.assign(row, data); return row; }),
+    },
+    opsPaymentRecord: { findMany: vi.fn(async ({ where }: any) => paymentRecords.filter((record) => where.milestoneId.in.includes(record.milestoneId))) },
+    $queryRaw: vi.fn(async () => []),
+    $transaction: vi.fn(async (work: (tx: unknown) => Promise<unknown>) => work(prisma)),
     opsAdditionalBilling: {
       findUnique: vi.fn(async ({ where }: any) => where.idempotencyKey ? (additionalCreated ? additional : null) : additional),
       create: vi.fn(async ({ data }: any) => { additionalCreated = true; return Object.assign(additional, data); }),
@@ -86,9 +100,16 @@ function createW14Service(withReceipts = false) {
   const workflow = withReceipts
     ? new WorkflowCommandService(transactionRunner as never, receiptStore)
     : new WorkflowCommandService();
-  const service = new BillingAdjustmentService(prisma, audit as any, workflow, postEventStateReader as never, urgentIssueReferenceReader as never);
-  return { service, prisma, audit, statement, correction, dispute, additional, receiptStore, transactionRunner, transactionContext, postEventStateReader, urgentIssueReferenceReader };
+  const billingOperationsService = {
+    createBillingSource: vi.fn(async () => ({ id: 'bsrc_replacement', eventId: event.id, status: 'approved' })),
+    approveBillingSource: vi.fn(async () => ({ id: 'bsrc_replacement', eventId: event.id, status: 'approved' })),
+    generateBillingStatement: vi.fn(async () => ({ id: 'bill_replacement', eventId: event.id })),
+  };
+  const service = new BillingAdjustmentService(prisma, audit as never, workflow, postEventStateReader as never, urgentIssueReferenceReader as never, billingOperationsService as never);
+  return { service, prisma, audit, statement, correction, dispute, additional, receiptStore, transactionRunner, transactionContext, postEventStateReader, urgentIssueReferenceReader, billingOperationsService, oldMilestones, newMilestones, paymentRecords, billingSources };
 }
+
+const verifiedApprover = { id: approver.id, actorId: approver.id, actorRole: OpsUserRole.PmcmAdmin, actorName: approver.name, actorEmail: approver.email, name: approver.name, email: approver.email, role: OpsUserRole.PmcmAdmin, eventId: 'evt_w14', expiresAt: '2026-10-04T12:00:00.000Z' } as never;
 
 describe('W14 billing operations', () => {
   it('requires a reasoned policy override and preserves line item totals', async () => {
@@ -104,13 +125,44 @@ describe('W14 billing operations', () => {
     const replay = await service.requestBillingCorrection('evt_w14', input, actor);
     expect(first.id).toBe(replay.id);
     expect(prisma.opsBillingCorrection.create).toHaveBeenCalledTimes(1);
-    await service.resolveBillingCorrection('evt_w14', correction.id, { action: 'approve' }, approver);
+    await service.resolveBillingCorrection('evt_w14', correction.id, { action: 'approve' }, approver, verifiedApprover);
     await expect(service.resolveBillingCorrection('evt_w14', correction.id, { action: 'reject', resolutionNotes: 'Already approved' }, approver)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('retains original payment records and carries paid credit into corrected active milestones', async () => {
+    const { service, statement, correction, oldMilestones, newMilestones, paymentRecords } = createW14Service(false, true);
+    await service.requestBillingCorrection('evt_w14', requestBillingCorrectionSchema.parse({ statementId: statement.id, reason: 'Corrected package total', correctedTotalAmount: 95000, idempotencyKey: 'corr-reconcile-key' }), actor);
+
+    const resolved = await service.resolveBillingCorrection('evt_w14', correction.id, { action: 'approve' }, approver, verifiedApprover);
+
+    expect(resolved.replacementStatementId).toBe('bill_replacement');
+    expect(statement.status).toBe('superseded');
+    expect(oldMilestones[0]).toMatchObject({ status: 'superseded', amountPaid: 20000, supersededAt: expect.any(Date) });
+    expect(paymentRecords).toHaveLength(1);
+    expect(newMilestones.map((milestone) => milestone.creditApplied)).toEqual([20000, 0]);
+    expect(newMilestones.filter((milestone) => !milestone.supersededAt).reduce((sum, milestone) => sum + milestone.amount, 0)).toBe(95000);
+    expect(newMilestones.reduce((sum, milestone) => sum + milestone.amountPaid, 0)).toBe(20000);
+  });
+
+  it('refuses an overpayment correction or missing actor before approving, and preserves approved repeat-client terms', async () => {
+    const { service, correction, statement, billingSources, billingOperationsService } = createW14Service(false, true);
+    correction.correctedTotalAmount = 10000;
+    await expect(service.resolveBillingCorrection('evt_w14', correction.id, { action: 'approve' }, approver, verifiedApprover)).rejects.toThrow('below the amount already received');
+    expect(correction.status).toBe('pending');
+    expect(billingOperationsService.generateBillingStatement).not.toHaveBeenCalled();
+    correction.correctedTotalAmount = 95000;
+    await expect(service.resolveBillingCorrection('evt_w14', correction.id, { action: 'approve' }, approver)).rejects.toThrow('Verified actor context');
+    expect(correction.status).toBe('pending');
+    Object.assign(billingSources.get('bsrc_w14')!, { paymentTermsPolicyState: 'repeat_client_override', paymentTermsOverrideReason: 'Approved repeat client' });
+    statement.paymentSchedule = [{ label: 'Deposit', percentage: 30, amount: 30000, dueDate: '2026-07-01' }, { label: 'Balance', percentage: 70, amount: 70000, dueDate: '2026-07-15' }];
+    await service.resolveBillingCorrection('evt_w14', correction.id, { action: 'approve' }, approver, verifiedApprover);
+    expect(billingOperationsService.createBillingSource).toHaveBeenCalledWith('evt_w14', expect.objectContaining({ paymentTermsPolicy: 'repeat_client_override', paymentTermsOverrideReason: 'Approved repeat client' }), approver, expect.anything());
+    expect(correction.status).toBe('approved');
   });
 
   it('refuses self-approval with nothing written, then lets a different PMCM user approve', async () => {
     const { service, prisma, audit, correction } = createW14Service();
-    const input = requestBillingCorrectionSchema.parse({ statementId: 'stmt_w14', reason: 'Tax line is incorrect', idempotencyKey: 'corr-self-approve-key' });
+    const input = requestBillingCorrectionSchema.parse({ statementId: 'stmt_w14', reason: 'Tax line is incorrect', correctedTotalAmount: 95000, idempotencyKey: 'corr-self-approve-key' });
     const requested = await service.requestBillingCorrection('evt_w14', input, actor);
     expect(requested.requestedById).toBe(actor.id);
     const auditWritesBefore = audit.write.mock.calls.length;
@@ -120,8 +172,8 @@ describe('W14 billing operations', () => {
     expect(audit.write).toHaveBeenCalledTimes(auditWritesBefore);
     expect(correction.status).toBe('pending');
 
-    await expect(service.resolveBillingCorrection('evt_w14', correction.id, { action: 'approve' }, approver))
-      .resolves.toMatchObject({ status: 'approved', resolvedBy: approver.name });
+    await expect(service.resolveBillingCorrection('evt_w14', correction.id, { action: 'approve' }, approver, verifiedApprover))
+      .resolves.toMatchObject({ status: 'approved', resolvedBy: approver.name, replacementStatementId: 'bill_replacement' });
   });
 
   it('lets the requester withdraw their own pending correction by rejecting it', async () => {
@@ -138,7 +190,8 @@ describe('W14 billing operations', () => {
     Object.assign(correction, { requestedBy: actor.name, requestedById: null });
 
     await expect(service.resolveBillingCorrection('evt_w14', correction.id, { action: 'approve' }, actor)).rejects.toBeInstanceOf(ForbiddenException);
-    await expect(service.resolveBillingCorrection('evt_w14', correction.id, { action: 'approve' }, approver)).resolves.toMatchObject({ status: 'approved' });
+    correction.correctedTotalAmount = 95000;
+    await expect(service.resolveBillingCorrection('evt_w14', correction.id, { action: 'approve' }, approver, verifiedApprover)).resolves.toMatchObject({ status: 'approved', replacementStatementId: 'bill_replacement' });
   });
 
   it('replays a billing command from the central receipt before its table lookup', async () => {

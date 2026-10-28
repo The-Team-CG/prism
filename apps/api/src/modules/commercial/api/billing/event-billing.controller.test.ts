@@ -33,8 +33,11 @@ function createController() {
       role: verified?.actorRole ?? input.actorRole ?? OpsUserRole.PmcmAdmin,
       name: verified?.actorName ?? input.actorName ?? 'PMCM Admin',
       email: verified?.actorEmail ?? input.actorEmail,
+      eventId: verified?.eventId,
     })),
-    requireActorRole: vi.fn(async () => undefined),
+    requireActorRole: vi.fn(async (actor: { role: string; eventId?: string }, roles: readonly string[], _resource: string, eventId: string) => {
+      if (!roles.includes(actor.role) || (actor.eventId && actor.eventId !== eventId)) throw new ForbiddenException('Actor is not authorized for this event');
+    }),
   };
   const controller = new OpsEventBillingController(
     billingOperationsService as any,
@@ -96,7 +99,7 @@ describe('OpsEventBillingController', () => {
 
     expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledTimes(12);
     expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledWith(
-      { id: 'user_maxine', role: OpsUserRole.PmcmAdmin, name: 'Maxine', email: 'maxine@pmcm.test' },
+      { id: 'user_maxine', role: OpsUserRole.PmcmAdmin, name: 'Maxine', email: 'maxine@pmcm.test', eventId: 'evt_sample' },
       [OpsUserRole.PmcmAdmin, OpsUserRole.System],
       'billing source',
       'evt_sample',
@@ -124,7 +127,7 @@ describe('OpsEventBillingController', () => {
       { statementId: 'bill_new', reason: 'Tax line is incorrect', idempotencyKey: 'corr-controller-1' },
       { id: 'user_maxine', name: 'Maxine', role: OpsUserRole.PmcmAdmin, email: 'maxine@pmcm.test' },
     );
-    expect(billingAdjustmentService.resolveBillingCorrection).toHaveBeenCalledWith('evt_sample', 'corr_new', { action: 'approve' }, expect.objectContaining({ id: 'user_maxine' }));
+    expect(billingAdjustmentService.resolveBillingCorrection).toHaveBeenCalledWith('evt_sample', 'corr_new', { action: 'approve' }, expect.objectContaining({ id: 'user_maxine' }), actor);
     expect(billingAdjustmentService.createBillingDispute).toHaveBeenCalledWith('evt_sample', { statementId: 'bill_new', amount: 500, reason: 'Duplicate charge', idempotencyKey: 'dispute-controller-1' }, expect.objectContaining({ id: 'user_maxine' }));
     expect(billingAdjustmentService.resolveBillingDispute).toHaveBeenCalledWith('evt_sample', 'dispute_new', { action: 'resolve', resolutionNotes: 'Reviewed' }, expect.objectContaining({ id: 'user_maxine' }));
     expect(billingAdjustmentService.createAdditionalBilling).toHaveBeenCalledWith('evt_sample', { urgentIssueId: 'issue_new', billingSourceId: 'bsrc_approved', description: 'Overtime', amount: 500, idempotencyKey: 'additional-controller-1' }, expect.objectContaining({ id: 'user_maxine' }));
@@ -135,6 +138,7 @@ describe('OpsEventBillingController', () => {
     const { controller, paymentOperationsService, eventAccessPolicyService } = createController();
     eventAccessPolicyService.resolveActor.mockReturnValueOnce({
       id: undefined,
+      eventId: 'evt_sample',
       role: OpsUserRole.PmcmAdmin,
       name: 'Maxine',
       email: 'maxine@pmcm.test',
@@ -174,6 +178,43 @@ describe('OpsEventBillingController', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(billingOperationsService.createBillingSource).not.toHaveBeenCalled();
+    expect(billingAdjustmentService.createBillingDispute).not.toHaveBeenCalled();
+  });
+
+  it('allows an event-scoped client to open a dispute while requiring PMCM to resolve it', async () => {
+    const { controller, billingAdjustmentService, eventAccessPolicyService } = createController();
+    const clientActor = {
+      id: 'client_1', actorId: 'client_1', actorRole: OpsUserRole.Client,
+      actorName: 'Event Client', actorEmail: 'client@example.test', expiresAt: '2026-10-04T12:00:00.000Z', eventId: 'evt_sample',
+    };
+    await expect(controller.createBillingDispute(
+      'evt_sample',
+      { statementId: 'bill_1', amount: 500, reason: 'Incorrect charge', idempotencyKey: 'dispute-client-1' },
+      clientActor as never,
+    )).resolves.toEqual({ id: 'dispute_new' });
+    expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'client_1', role: OpsUserRole.Client }),
+      [OpsUserRole.PmcmAdmin, OpsUserRole.Client],
+      'billing dispute',
+      'evt_sample',
+    );
+    await expect(controller.resolveBillingDispute(
+      'evt_sample', 'dispute_new', { action: 'resolve', resolutionNotes: 'Reviewed' }, clientActor as never,
+    )).rejects.toThrow(ForbiddenException);
+    expect(billingAdjustmentService.resolveBillingDispute).not.toHaveBeenCalled();
+  });
+
+  it('does not forward a client dispute when event access policy rejects the requested event', async () => {
+    const { controller, billingAdjustmentService, eventAccessPolicyService } = createController();
+    const clientActor = {
+      id: 'client_1', actorId: 'client_1', actorRole: OpsUserRole.Client,
+      actorName: 'Event Client', actorEmail: 'client@example.test', expiresAt: '2026-10-04T12:00:00.000Z', eventId: 'evt_sample',
+    };
+    await expect(controller.createBillingDispute(
+      'evt_other',
+      { statementId: 'bill_1', amount: 500, reason: 'Incorrect charge', idempotencyKey: 'dispute-client-other-event' },
+      clientActor as never,
+    )).rejects.toThrow(ForbiddenException);
     expect(billingAdjustmentService.createBillingDispute).not.toHaveBeenCalled();
   });
 });

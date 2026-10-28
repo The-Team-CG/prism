@@ -175,6 +175,41 @@ export class OpsEventFloorplansController {
     return this.floorPlanWorkflowService.getFloorPlanSnapshot(eventId, draftId, type);
   }
 
+  @Get(':eventId/floorplans/:draftId/history')
+  @UseGuards(EventSessionGuard)
+  async getFloorPlanHistory(
+    @Param('eventId') eventId: string,
+    @Param('draftId') draftId: string,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    const event = await this.requireEvent(eventId);
+    const scoped = scopeActorToEvent(actor, event);
+    if (scoped.actor.role === OpsUserRole.Client) {
+      const primaryContactCanRead = this.eventAccessPolicyService.canReadEvent(scoped.actor, event, scoped.scope);
+      const hasSecondaryGrant = !primaryContactCanRead && scoped.actor.id
+        ? await this.clientFloorplanAccessReader.hasActiveGrant(eventId, scoped.actor.id)
+        : false;
+      if (!primaryContactCanRead && !hasSecondaryGrant) {
+        await this.eventAccessPolicyService.requireCanReadEvent(scoped.actor, event, 'official floorplan history', scoped.scope);
+        throw new ForbiddenException('Client cannot access official floorplan history');
+      }
+    } else {
+      await this.eventAccessPolicyService.requireCanReadEvent(scoped.actor, event, 'official floorplan history', scoped.scope);
+    }
+    await this.eventAccessPolicyService.requireActorRole(
+      scoped.actor,
+      [OpsUserRole.Client, OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator],
+      'official floorplan history',
+      eventId,
+    );
+    return this.floorPlanWorkflowService.listFloorPlanSnapshotHistory(
+      eventId,
+      draftId,
+      scoped.actor.role === OpsUserRole.PmcmAdmin || scoped.actor.role === OpsUserRole.System ? undefined : ['approved'],
+    );
+  }
+
   private requireEvent(eventId: string) {
     return this.floorPlanWorkflowService.requireEvent(eventId);
   }

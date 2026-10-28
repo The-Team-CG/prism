@@ -3,16 +3,22 @@ import type { OpsFileRequirement, Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '@prism/kernel/database';
 import { AUDIT_WRITER, EventAccessPolicyService, writeAudit, type AuditWriter, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
-import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
+import { AuditActionType, AuditCategory, OpsUserRole, type OpsUserRole as OpsUserRoleValue } from '@prism/kernel/event-core';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
+import { STORED_REQUIREMENT_UPLOAD_READER, type StoredRequirementUploadReader, type StoredRequirementUploadReference } from '@prism/contexts/platform-ops';
 import {
   DERIVED_FILE_REQUIREMENT_KEYS,
   type CreateFileRequirementInput,
+  type FileRequirementTemplateItemInput,
   type PrismFileRequirementItem,
+  type PrismFileRequirementTemplate,
+  type UpsertFileRequirementTemplateInput,
   type UpdateFileRequirementInput,
+  type BindFileRequirementUploadInput,
 } from '@prism/types';
 import type { FileRequirementCommands, FileRequirementReminder, FileRequirementReminderReason } from '../../contracts/file-requirement-commands.port';
 import { FileRequirementsMatrixService } from './file-requirements-matrix.service';
+import { readEventAccessScope, scopeActorToEvent } from '@prism/contexts/read-models/event-scope';
 
 const MANAGEMENT_RESOURCE = 'file requirement management';
 const SWEEP_EVENT_LIMIT = 100;
@@ -27,6 +33,10 @@ const ROLE_RECIPIENT: Record<string, string> = {
 
 function sameRoles(left: string[], right: string[]) {
   return left.length === right.length && [...left].sort().join(',') === [...right].sort().join(',');
+}
+
+function normalizeEventType(value: string) {
+  return value.trim().toLocaleLowerCase('en-US');
 }
 
 function isUniqueViolation(error: unknown) {
@@ -68,6 +78,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
     private readonly accessPolicy: EventAccessPolicyService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
+    @Inject(STORED_REQUIREMENT_UPLOAD_READER) private readonly storedRequirementUploads: StoredRequirementUploadReader,
   ) {}
 
   async createRequirement(eventId: string, input: CreateFileRequirementInput, actor: ResolvedEventOpsActor): Promise<PrismFileRequirementItem> {
@@ -76,7 +87,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
       throw new ConflictException('Workflow-derived requirements already exist; edit them instead of creating a duplicate');
     }
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      return await this.writeRequirement(async (tx) => {
         await this.requireWritableEvent(eventId, tx);
         if (await tx.opsFileRequirement.findUnique({ where: { eventId_key: { eventId, key: input.key } } })) {
           throw new ConflictException('A file requirement with this key already exists for the event');
@@ -93,7 +104,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
           dueAt: row.dueAt?.toISOString() ?? null, sourceWorkflow: row.sourceWorkflow,
         });
         return this.itemFor(eventId, row.key, tx);
-      }, { isolationLevel: 'Serializable' });
+      });
     } catch (error) {
       if (isUniqueViolation(error)) throw new ConflictException('A file requirement with this key already exists for the event');
       throw error;
@@ -103,10 +114,138 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
   async updateRequirement(eventId: string, key: string, input: UpdateFileRequirementInput, actor: ResolvedEventOpsActor): Promise<PrismFileRequirementItem> {
     await this.accessPolicy.requireActorRole(actor, [OpsUserRole.PmcmAdmin], MANAGEMENT_RESOURCE, eventId);
     try {
-      return await this.prisma.$transaction((tx) => this.applyUpdate(tx, eventId, key, input, actor), { isolationLevel: 'Serializable' });
+      return await this.writeRequirement((tx) => this.applyUpdate(tx, eventId, key, input, actor));
     } catch (error) {
       if (isUniqueViolation(error)) throw new ConflictException('File requirement changed; refresh before saving');
       throw error;
+    }
+  }
+
+  async listRequirementTemplates(actor: ResolvedEventOpsActor): Promise<PrismFileRequirementTemplate[]> {
+    await this.accessPolicy.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'file requirement template management');
+    const rows = await this.prisma.opsFileRequirementTemplate.findMany({ orderBy: { eventType: 'asc' }, take: 200 });
+    return rows.map((row) => this.mapRequirementTemplate(row));
+  }
+
+  async upsertRequirementTemplate(input: UpsertFileRequirementTemplateInput, actor: ResolvedEventOpsActor): Promise<PrismFileRequirementTemplate> {
+    await this.accessPolicy.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'file requirement template management');
+    const eventType = normalizeEventType(input.eventType);
+    const row = await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.opsFileRequirementTemplate.findUnique({ where: { eventType } });
+      const saved = await tx.opsFileRequirementTemplate.upsert({
+        where: { eventType },
+        create: { id: `frt_${randomUUID()}`, eventType, requirements: input.requirements as unknown as Prisma.InputJsonValue, updatedBy: actor.id ?? actor.name },
+        update: { requirements: input.requirements as unknown as Prisma.InputJsonValue, updatedBy: actor.id ?? actor.name, revision: { increment: 1 } },
+      });
+      await writeAudit(this.auditWriter, undefined, actor.name, existing ? 'Updated event file requirement template' : 'Created event file requirement template', {
+        actorRole: actor.role, actorEmail: actor.email, actionType: existing ? AuditActionType.Update : AuditActionType.Create,
+        category: AuditCategory.Documents, affectedType: 'file_requirement_template', affectedId: saved.id, affectedLabel: eventType,
+        metadata: { eventType, requirementCount: input.requirements.length, revision: saved.revision },
+      }, { prisma: tx, correlationId: `file-requirement-template:${eventType}:r${saved.revision}` });
+      return saved;
+    });
+    return this.mapRequirementTemplate(row);
+  }
+
+  async applyRequirementTemplate(eventId: string, actor: ResolvedEventOpsActor) {
+    await this.accessPolicy.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'apply file requirement template', eventId);
+    return this.writeRequirement(async (tx) => {
+      const event = await tx.opsEvent.findUnique({ where: { id: eventId }, include: { inquiry: { select: { eventType: true } } } });
+      if (!event) throw new NotFoundException('Event not found');
+      if (event.archived) throw new BadRequestException('Archived event file requirements are read-only');
+      const eventType = normalizeEventType(event.inquiry.eventType);
+      const template = await tx.opsFileRequirementTemplate.findUnique({ where: { eventType } });
+      if (!template) throw new NotFoundException(`No file requirement template is configured for ${event.inquiry.eventType}`);
+      const requirements = template.requirements as unknown as FileRequirementTemplateItemInput[];
+      const existing = await tx.opsFileRequirement.findMany({ where: { eventId }, select: { key: true } });
+      const existingKeys = new Set(existing.map(({ key }) => key));
+      const created: string[] = [];
+      for (const requirement of requirements) {
+        if (existingKeys.has(requirement.key)) continue;
+        const dueAt = requirement.dueOffsetDays === undefined ? null : new Date(event.eventDate);
+        if (dueAt && requirement.dueOffsetDays !== undefined) dueAt.setUTCDate(dueAt.getUTCDate() - requirement.dueOffsetDays);
+        const row = await tx.opsFileRequirement.create({ data: {
+          id: `freq_${randomUUID()}`, eventId, key: requirement.key, label: requirement.label, ownerRole: requirement.ownerRole,
+          visibleToRoles: requirement.visibleToRoles, required: requirement.required, dueAt, sourceWorkflow: 'custom', isCustom: true,
+          notes: requirement.notes ?? null, updatedBy: actor.id ?? actor.name,
+        } });
+        await this.audit(tx, actor, row, 'Applied event file requirement template', AuditActionType.Create, { eventType, templateId: template.id });
+        created.push(row.key);
+      }
+      return { eventId, eventType, templateId: template.id, createdKeys: created, skippedExistingCount: requirements.length - created.length };
+    });
+  }
+
+  async bindRequirementUpload(eventId: string, key: string, input: BindFileRequirementUploadInput, actor: ResolvedEventOpsActor): Promise<PrismFileRequirementItem> {
+    await this.writeRequirement(async (tx) => {
+      const eventScope = await readEventAccessScope(tx, eventId);
+      if (!eventScope) throw new NotFoundException('Event not found');
+      const scoped = scopeActorToEvent(actor, eventScope);
+      await this.accessPolicy.requireCanReadEvent(scoped.actor, eventScope, 'fulfil file requirement', scoped.scope);
+      const scopedActor = scoped.actor;
+      const requirement = await tx.opsFileRequirement.findUnique({ where: { eventId_key: { eventId, key } } });
+      if (!requirement || !requirement.isCustom) throw new NotFoundException('Custom file requirement not found');
+      await this.accessPolicy.requireActorRole(scopedActor, [requirement.ownerRole as OpsUserRoleValue, OpsUserRole.PmcmAdmin], 'fulfil file requirement', eventId);
+      if (!requirement.visibleToRoles.includes(scopedActor.role) && scopedActor.role !== OpsUserRole.PmcmAdmin) {
+        throw new BadRequestException('This role cannot fulfil the file requirement');
+      }
+      const object = await this.requireBindingUpload(tx, eventId, key, input.objectId, scopedActor, requirement);
+      const currentBinding = await tx.opsDocument.findFirst({ where: { eventId, storageKey: object.id } });
+      if (currentBinding) {
+        if (currentBinding.type !== key) throw new ConflictException('This upload already fulfils another file requirement');
+        return;
+      }
+      await this.requireWritableEvent(eventId, tx);
+      await tx.opsDocument.create({ data: {
+        id: `doc_${randomUUID()}`, eventId, type: key, fileName: object.originalFileName, status: 'submitted',
+        mimeType: object.contentType, sizeBytes: object.declaredByteSize, validationStatus: 'accepted',
+        storageBucket: 'prism-storage', storageKey: object.id, uploadedByRole: scopedActor.role, uploadedAt: new Date(),
+      } });
+      await writeAudit(this.auditWriter, eventId, scopedActor.name, 'Bound stored upload to file requirement', {
+        actorRole: scopedActor.role, actorEmail: scopedActor.email, actionType: AuditActionType.Create, category: AuditCategory.Documents,
+        affectedType: 'file_requirement', affectedId: requirement.id, affectedLabel: key,
+        metadata: { objectId: object.id, originalFileName: object.originalFileName, uploaderActorRole: object.uploaderActorRole },
+      }, { prisma: tx, correlationId: `file-requirement-upload:${eventId}:${key}:${object.id}` });
+    });
+    const item = await this.itemFor(eventId, key, this.prisma as unknown as Prisma.TransactionClient);
+    if (actor.role === OpsUserRole.PmcmAdmin) return item;
+    const visible = { ...item };
+    delete visible.notes;
+    return visible;
+  }
+
+  private isRequirementUploadOwner(object: StoredRequirementUploadReference, eventId: string, actor: ResolvedEventOpsActor) {
+    return ((object.usage === 'client_document' || object.usage === 'signed_conforme') && object.ownerRecordType === 'event' && object.ownerRecordId === eventId)
+        || (object.usage === 'supplier_document' && object.ownerRecordType === 'supplier' && object.ownerRecordId === actor.supplierId)
+        || (object.usage === 'event_deliverable' && ['billing_statement', 'proposal_version'].includes(object.ownerRecordType));
+  }
+
+  private async requireBindingUpload(tx: Prisma.TransactionClient, eventId: string, key: string, objectId: string, scopedActor: ResolvedEventOpsActor, requirement: OpsFileRequirement) {
+    const object = await this.storedRequirementUploads.findStoredRequirementUpload({ eventId, objectId, context: { prisma: tx, correlationId: `file-requirement-upload:${eventId}:${key}:${objectId}` } });
+    if (!object || object.lifecycleState !== 'stored' || object.eventId !== eventId) throw new BadRequestException('Upload must be stored for this event before it can fulfil a requirement');
+    if (!this.isRequirementUploadOwner(object, eventId, scopedActor)) throw new BadRequestException('Upload owner does not match an allowed event requirement source');
+    if (scopedActor.role !== OpsUserRole.PmcmAdmin && (object.uploaderActorRole !== requirement.ownerRole || object.uploaderActorId !== scopedActor.id)) {
+      await this.accessPolicy.recordForbiddenAccess(scopedActor, 'fulfil file requirement with another uploader file', eventId);
+      throw new BadRequestException('Only the requirement owner can bind their uploaded file');
+    }
+    return object;
+  }
+
+  private mapRequirementTemplate(row: { id: string; eventType: string; requirements: unknown; revision: number; updatedAt: Date }): PrismFileRequirementTemplate {
+    return {
+      id: row.id, eventType: row.eventType, requirements: row.requirements as FileRequirementTemplateItemInput[],
+      revision: row.revision, updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  private async writeRequirement<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await this.prisma.$transaction(work, { isolationLevel: 'Serializable' });
+      } catch (error) {
+        if (typeof error !== 'object' || error === null || !('code' in error) || error.code !== 'P2034') throw error;
+        if (attempt >= 2) throw new ConflictException('File requirements changed while saving; refresh and try again');
+      }
     }
   }
 
@@ -174,7 +313,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
         }),
       ]);
       const rejectedByType = new Map<string, string>();
-      for (const document of rejectedDocuments) if (!rejectedByType.has(document.type)) rejectedByType.set(document.type, document.id);
+      rejectedDocuments.forEach((document) => { if (!rejectedByType.has(document.type)) rejectedByType.set(document.type, document.id); });
       for (const item of matrix.items.filter((candidate) => candidate.required)) {
         const reasons: Array<[FileRequirementReminderReason, string]> = [];
         if (item.overdue && item.dueDate) reasons.push(['overdue', item.dueDate]);
@@ -182,6 +321,32 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
         if (rejectedId) reasons.push(['rejected', rejectedId]);
         for (const [reason, anchor] of reasons) reminders.push(...await this.queueReminder(event.id, item, reason, anchor));
       }
+    }
+    return { reminders };
+  }
+
+  async sendReminders(eventId: string, actor: ResolvedEventOpsActor, now = new Date()): Promise<{ reminders: FileRequirementReminder[] }> {
+    await this.accessPolicy.requireActorRole(actor, [OpsUserRole.PmcmAdmin], MANAGEMENT_RESOURCE, eventId);
+    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { id: true, archived: true } });
+    if (!event) throw new NotFoundException('Event not found');
+    if (event.archived) throw new BadRequestException('Archived event file requirements are read-only');
+    const [matrix, rejectedDocuments] = await Promise.all([
+      this.matrix.buildForEvent(eventId, this.prisma, now),
+      this.prisma.opsDocument.findMany({
+        where: { eventId, validationStatus: 'rejected' },
+        orderBy: [{ uploadedAt: 'desc' }, { id: 'asc' }],
+        select: { id: true, type: true }, take: 200,
+      }),
+    ]);
+    const rejectedByType = new Map<string, string>();
+    rejectedDocuments.forEach((document) => { if (!rejectedByType.has(document.type)) rejectedByType.set(document.type, document.id); });
+    const reminders: FileRequirementReminder[] = [];
+    for (const item of matrix.items.filter((candidate) => candidate.required)) {
+      const reasons: Array<[FileRequirementReminderReason, string]> = [];
+      if (item.overdue && item.dueDate) reasons.push(['overdue', item.dueDate]);
+      const rejectedId = item.validationStatus === 'rejected' ? rejectedByType.get(item.key) : undefined;
+      if (rejectedId) reasons.push(['rejected', rejectedId]);
+      for (const [reason, anchor] of reasons) reminders.push(...await this.queueReminder(eventId, item, reason, anchor));
     }
     return { reminders };
   }

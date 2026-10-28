@@ -16,7 +16,7 @@ describe('domain persistence catalog', () => {
 
     assert.equal(current.tables.length, 95);
     assert.equal(current.schemas.length, 10);
-    assert.equal(target.tables.length, 130);
+    assert.equal(target.tables.length, 132);
     assert.equal(target.tables.find(({ table }) => table === 'account_invitations').schema, 'identity_access');
     assert.equal(target.tables.find(({ table }) => table === 'inquiry_merges').schema, 'event_lifecycle');
     assert.equal(current.tables.some(({ table }) => table === 'client_floorplan_access_grants'), false);
@@ -24,6 +24,8 @@ describe('domain persistence catalog', () => {
     assert.equal(target.tables.find(({ table }) => table === 'supplier_payout_records').schema, 'commercial');
     assert.equal(target.tables.find(({ table }) => table === 'conforme_executions').schema, 'event_lifecycle');
     assert.equal(target.tables.find(({ table }) => table === 'client_decisions').schema, 'floorplan');
+    assert.equal(target.tables.find(({ table }) => table === 'floor_plan_snapshot_versions').schema, 'floorplan');
+    assert.equal(target.tables.find(({ table }) => table === 'file_requirement_templates').schema, 'event_lifecycle');
     assert.equal(current.tables.find(({ table }) => table === 'privacy_legal_holds').schema, 'platform_ops');
     assert.equal(target.tables.find(({ table }) => table === 'privacy_legal_holds').schema, 'platform_ops');
     assert.equal(target.schemas.length, 8);

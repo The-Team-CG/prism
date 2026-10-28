@@ -21,7 +21,7 @@ import { ComplianceReevaluationScheduler } from './application/compliance/compli
 import { CLOSURE_COMMANDS, CLOSURE_READINESS_READER } from './contracts/closure-ops.tokens';
 import { EventClosureService } from './application/closure/event-closure.service';
 import { EventWrapUpReminderScheduler } from './application/closure/event-wrap-up-reminder.scheduler';
-import { OpsEventFileRequirementsController } from './api/files/event-file-requirements.controller';
+import { FileRequirementTemplatesController, OpsEventFileRequirementsController } from './api/files/event-file-requirements.controller';
 import { FILE_REQUIREMENT_COMMANDS, FILE_REQUIREMENT_READER } from './contracts/file-ops.tokens';
 import { DocumentVaultService } from './application/files/document-vault.service';
 import { DOCUMENT_VAULT } from './contracts/document-vault.port';
@@ -49,7 +49,7 @@ import { LIFECYCLE_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 import { EventLifecycleReferenceModule } from './event-lifecycle-reference.module';
 import { OperationsEventReferenceModule } from './operations-reference.module';
 import { CommercialAddendumImpactModule } from '@prism/contexts/commercial';
-import { EventDecisionSupplierOwnerModule } from '@prism/contexts/commercial';
+import { ConfirmedCancellationFeeModule, EventDecisionSupplierOwnerModule } from '@prism/contexts/commercial';
 import { EventLifecycleProjectionModule } from './event-lifecycle-projection.module';
 import { FloorplanReferenceModule } from './floorplan-reference.module';
 import { ClientFloorplanAccessModule } from './client-floorplan-access.module';
@@ -98,6 +98,7 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     OperationsEventReferenceModule,
     CommercialAddendumImpactModule,
     EventDecisionSupplierOwnerModule,
+    ConfirmedCancellationFeeModule,
     EventLifecycleProjectionModule,
     FloorplanReferenceModule,
     ClientFloorplanAccessModule,
@@ -114,6 +115,7 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     OpsComplianceController,
     OpsEventComplianceController,
     OpsEventFileRequirementsController,
+    FileRequirementTemplatesController,
     EventDocumentJourneyController,
     EventDecisionController,
     ChangeManagementController,

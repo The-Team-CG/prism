@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Completed lifecycle portal paths for supplier quote links and bid rounds, PMCM operator revocation and deliverable completion, guest consent withdrawal, client disputes and payment receipts. Billing corrections retain original invoices and payment evidence, transfer paid credit once, and preserve approved payment terms; confirmed cancellation fees create an approved billing source for PMCM issuance. PMCM can configure event-type file requirements, bind verified uploads, send reminders, and inspect floorplan revision history.
+
 - Fixed payment recording and supplier registration database errors, hid unsubmitted PMCM floorplan drafts and internal storage fields from clients, made billing approval and staffing retries safe, and rejected invalid commercial amounts and quote tokens. PMCM can explicitly start event day after signed conforme and floorplan approval. New proposal versions reset client review and only issue with a stored PDF.
 
 - Added repeatable lifecycle API checks for client, PMCM, supplier, coordinator and guest work, with separate reports for failures, unavailable paths, blocked prerequisites and business rules needing review. Runs target an isolated local database and preserve the normal development data.

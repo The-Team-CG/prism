@@ -10,6 +10,7 @@ import { PLATFORM_REFERENCE_READ_MODEL, type PlatformReferenceReadModel, type Pl
 import {
   STORAGE_ADAPTER,
   type StorageAdapter,
+  type StorageLifecycleState,
   type StorageAdapterRequest,
   type StorageRequestResult,
   type StorageServiceConfirmation,
@@ -22,6 +23,9 @@ import {
   type StoredSupplierUploadLookup,
   type StoredSupplierUploadReader,
   type StoredSupplierUploadReference,
+  STORED_REQUIREMENT_UPLOAD_READER,
+  type StoredRequirementUploadReader,
+  type StoredRequirementUploadReference,
 } from '../../contracts/storage/storage.port';
 import { StorageValidationService } from './storage-validation.service';
 
@@ -98,7 +102,7 @@ function sameUploadContent(object: OpsStoredObject, input: StorageServiceRequest
 }
 
 @Injectable()
-export class StorageObjectService implements StoredSupplierUploadReader {
+export class StorageObjectService implements StoredSupplierUploadReader, StoredRequirementUploadReader {
   constructor(
     private readonly prisma: PrismaService,
     private readonly accessPolicy: EventAccessPolicyService,
@@ -117,6 +121,17 @@ export class StorageObjectService implements StoredSupplierUploadReader {
       contentType: object.contentType,
       declaredByteSize: object.declaredByteSize,
       checksumSha256: object.checksumSha256,
+    };
+  }
+
+  async findStoredRequirementUpload(input: { eventId: string; objectId: string; context?: PrismTransactionContext }): Promise<StoredRequirementUploadReference | null> {
+    const object = await this.database(input.context).opsStoredObject.findFirst({ where: { id: input.objectId, eventId: input.eventId, lifecycleState: 'stored', deletedAt: null } });
+    if (!object) return null;
+    return {
+      id: object.id, eventId: object.eventId, ownerRecordType: object.ownerRecordType, ownerRecordId: object.ownerRecordId,
+      usage: object.usage as StorageUsage, lifecycleState: object.lifecycleState as StorageLifecycleState,
+      originalFileName: object.originalFileName, contentType: object.contentType, declaredByteSize: object.declaredByteSize,
+      uploaderActorId: object.uploaderActorId, uploaderActorRole: object.uploaderActorRole,
     };
   }
 

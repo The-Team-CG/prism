@@ -3,7 +3,7 @@ import { Prisma, type OpsBillingStatement, type OpsBillingSource } from '@prisma
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
 import { createHash, randomUUID } from 'node:crypto';
-import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
+import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService, type WorkflowCommandDefinition } from '@prism/kernel/event-core';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, StorageObjectService, writeNotification } from '@prism/contexts/platform-ops';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
@@ -88,7 +88,7 @@ export class BillingOperationsService {
     @Optional() @Inject(forwardRef(() => StorageObjectService)) private readonly storageObjectService?: StorageObjectService,
   ) {}
 
-  async createBillingSource(eventId: string, input: CreateBillingSourceInput, actor: BillingActor) {
+  async createBillingSource(eventId: string, input: CreateBillingSourceInput, actor: BillingActor, transaction?: PrismTransactionContext) {
     actor = requireBillingActor(actor);
     let lineItems: BillingLineItemInput[] = [];
     let totalAmount = 0;
@@ -99,14 +99,14 @@ export class BillingOperationsService {
     let replayed = false;
     const payloadHash = createHash('sha256').update(JSON.stringify(input)).digest('hex');
 
-    return this.workflowCommandService.execute<OpsBillingSource, ReturnType<typeof mapBillingSource>>({
+    return this.executeBillingCommand<OpsBillingSource, ReturnType<typeof mapBillingSource>>({
       name: 'create_billing_source',
       eventId,
       context: billingCommandContext(eventId, 'create_billing_source', input.idempotencyKey, actor),
       sideEffectMode: 'same_tx',
       idempotencyPayloadHash: payloadHash,
       validateState: async () => {
-        await this.requireEvent(eventId);
+        await this.requireEvent(eventId, transaction?.prisma);
         if (input.sourceDocumentId) {
           await this.documentVault.findEligibleReference({
             eventId,
@@ -161,8 +161,9 @@ export class BillingOperationsService {
           replayed = result.replayed;
           return result.value;
         })(),
-      sideEffects: async (source) => {
-        if (replayed) return;
+      sideEffects: async (source, context) => {
+        // An enclosing correction records source approval with the replacement invoice after storage succeeds.
+        if (replayed || transaction) return;
         await writeAudit(this.auditWriter, eventId, actor.name, `Created billing source: ${source.sourceLabel}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
@@ -172,10 +173,10 @@ export class BillingOperationsService {
           affectedId: source.id,
           affectedLabel: source.sourceLabel,
           metadata: auditMetadata(actor, { totalAmount }),
-        });
+        }, context);
       },
       project: (source) => mapBillingSource(source),
-    });
+    }, transaction);
   }
 
   async approveBillingSource(
@@ -183,21 +184,22 @@ export class BillingOperationsService {
     sourceId: string,
     input: ApproveBillingSourceInput = {},
     actor: BillingActor,
+    transaction?: PrismTransactionContext,
   ) {
     actor = requireBillingActor(actor);
     const approvedBy = actor.name;
     let source: OpsBillingSource | null = null;
 
-    return this.workflowCommandService.execute<OpsBillingSource, ReturnType<typeof mapBillingSource>>({
+    return this.executeBillingCommand<OpsBillingSource, ReturnType<typeof mapBillingSource>>({
       name: 'approve_billing_source',
       eventId,
       validateState: async () => {
-        await this.requireEvent(eventId);
-        source = await this.prisma.opsBillingSource.findUnique({ where: { id: sourceId } });
+        await this.requireEvent(eventId, transaction?.prisma);
+        source = await (transaction?.prisma ?? this.prisma).opsBillingSource.findUnique({ where: { id: sourceId } });
         if (!source || source.eventId !== eventId) throw new NotFoundException('Billing source not found');
       },
       write: async () => {
-        const approved = await this.prisma.opsBillingSource.updateMany({
+        const approved = await (transaction?.prisma ?? this.prisma).opsBillingSource.updateMany({
           where: { id: sourceId, eventId, status: { not: 'approved' } },
           data: {
             status: 'approved',
@@ -208,11 +210,12 @@ export class BillingOperationsService {
           },
         });
         if (approved.count !== 1) throw new ConflictException('Billing source is already approved');
-        const saved = await this.prisma.opsBillingSource.findUnique({ where: { id: sourceId } });
+        const saved = await (transaction?.prisma ?? this.prisma).opsBillingSource.findUnique({ where: { id: sourceId } });
         if (!saved) throw new NotFoundException('Billing source not found');
         return saved;
       },
-      sideEffects: async (approvedSource) => {
+      sideEffects: async (approvedSource, context) => {
+        if (transaction) return;
         await writeAudit(this.auditWriter, eventId, approvedBy, `Approved billing source: ${approvedSource.sourceLabel}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
@@ -222,10 +225,10 @@ export class BillingOperationsService {
           affectedId: approvedSource.id,
           affectedLabel: approvedSource.sourceLabel,
           metadata: auditMetadata(actor, { totalAmount: approvedSource.totalAmount, approvalNotes: input.approvalNotes ?? '' }),
-        });
+        }, context);
       },
       project: (approvedSource) => mapBillingSource(approvedSource),
-    });
+    }, transaction);
   }
 
   async generateBillingStatement(
@@ -234,6 +237,8 @@ export class BillingOperationsService {
     actor: BillingActor,
     verifiedActor: PrismVerifiedEventActor,
     idempotencyKey?: string,
+    supersedesStatementId?: string,
+    transaction?: PrismTransactionContext,
   ) {
     actor = requireBillingActor(actor);
     if (
@@ -260,18 +265,18 @@ export class BillingOperationsService {
     const statementId = `bill_${randomUUID()}`;
     const payloadHash = createHash('sha256').update(JSON.stringify({ eventId, sourceId: sourceId ?? null })).digest('hex');
 
-    return this.workflowCommandService.execute<OpsBillingStatement, ReturnType<typeof mapBillingStatement>>({
+    return this.executeBillingCommand<OpsBillingStatement, ReturnType<typeof mapBillingStatement>>({
       name: 'generate_billing_statement',
       eventId,
       context: billingCommandContext(eventId, 'generate_billing_statement', idempotencyKey, actor),
       sideEffectMode: 'same_tx',
       idempotencyPayloadHash: payloadHash,
       validateState: async () => {
-        event = await this.requireEvent(eventId);
-        inquiry = await this.prisma.opsInquiry.findUnique({ where: { id: event.inquiryId } });
+        event = await this.requireEvent(eventId, transaction?.prisma);
+        inquiry = await (transaction?.prisma ?? this.prisma).opsInquiry.findUnique({ where: { id: event.inquiryId } });
         source = sourceId
-          ? await this.prisma.opsBillingSource.findUnique({ where: { id: sourceId } })
-          : await this.prisma.opsBillingSource.findFirst({ where: { eventId, status: 'approved' } });
+          ? await (transaction?.prisma ?? this.prisma).opsBillingSource.findUnique({ where: { id: sourceId } })
+          : await (transaction?.prisma ?? this.prisma).opsBillingSource.findFirst({ where: { eventId, status: 'approved' } });
 
         if (!source || source.eventId !== eventId) throw new NotFoundException('Billing source not found');
         if (source.status !== 'approved') {
@@ -358,6 +363,7 @@ export class BillingOperationsService {
             idempotencyKey: idempotencyKey ?? null,
             payloadHash,
             status: 'issued',
+            supersedesStatementId: supersedesStatementId ?? null,
           },
         });
 
@@ -366,6 +372,7 @@ export class BillingOperationsService {
           data: paymentSchedule.map((item) => ({
             id: `pay_${randomUUID()}`,
             eventId,
+            statementId: statement.id,
             label: item.label,
             percentage: item.percentage,
             amount: item.amount,
@@ -401,45 +408,44 @@ export class BillingOperationsService {
           )));
       },
       project: (statement) => mapBillingStatement(statement),
-    });
+    }, transaction);
   }
 
   async sendBillingStatement(eventId: string, billingId: string, actor: BillingActor) {
     actor = requireBillingActor(actor);
-    return this.workflowCommandService.execute<OpsBillingStatement, ReturnType<typeof mapBillingStatement>>({
-      name: 'send_billing_statement',
-      eventId,
-      validateState: async () => {
-        await this.requireEvent(eventId);
-        const existing = await this.prisma.opsBillingStatement.findUnique({ where: { id: billingId } });
-        if (!existing || existing.eventId !== eventId) throw new NotFoundException('Billing statement not found');
-      },
-      write: () =>
-        this.prisma.opsBillingStatement.update({
-          where: { id: billingId },
-          data: { status: 'sent', sentAt: new Date() },
-        }),
-      sideEffects: async (billing) => {
-        const recipient = billing.clientContact?.trim();
-        await Promise.all([
-          writeAudit(this.auditWriter, eventId, actor.name, `Sent billing statement ${billing.number}`, {
-            actorRole: actor.role,
-            actorEmail: actor.email,
-            category: AuditCategory.Finance,
-            actionType: AuditActionType.Update,
-            affectedType: 'billing_statement',
-            affectedId: billing.id,
-            affectedLabel: billing.number,
-            metadata: auditMetadata(actor, { notificationStatus: recipient ? 'queued' : 'not_queued', notificationReason: recipient ? undefined : 'No verified client email address is configured' }),
-          }),
-          ...(recipient ? [
-            writeNotification(this.notificationOutboxWriter, eventId, recipient, `Billing statement ${billing.number} sent`, 'email'),
-            writeNotification(this.notificationOutboxWriter, eventId, recipient, `Billing statement ${billing.number} sent`, 'viber'),
-          ] : []),
-        ]);
-      },
-      project: (billing) => mapBillingStatement(billing),
+    return this.prisma.$transaction(async (tx) => {
+      // QUERY_AUDIT_RAW_SQL: share the invoice lock with corrections so an obsolete invoice cannot be resent.
+      await tx.$queryRaw`SELECT "id" FROM "commercial"."billing_statements" WHERE "id" = ${billingId} AND "event_id" = ${eventId} FOR UPDATE`;
+      const existing = await tx.opsBillingStatement.findUnique({ where: { id: billingId } });
+      if (!existing || existing.eventId !== eventId) throw new NotFoundException('Billing statement not found');
+      if (existing.status === 'superseded') throw new BadRequestException('A superseded billing statement cannot be sent');
+      if (existing.status === 'sent') return mapBillingStatement(existing);
+      const billing = await tx.opsBillingStatement.update({ where: { id: billingId }, data: { status: 'sent', sentAt: new Date() } });
+      const context: PrismTransactionContext = { prisma: tx, actorId: actor.id, correlationId: `billing-send:${billing.id}` };
+      const recipient = billing.clientContact?.trim();
+      await writeAudit(this.auditWriter, eventId, actor.name, `Sent billing statement ${billing.number}`, {
+        actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance,
+        actionType: AuditActionType.Update, affectedType: 'billing_statement', affectedId: billing.id,
+        affectedLabel: billing.number,
+        metadata: auditMetadata(actor, { notificationStatus: recipient ? 'queued' : 'not_queued', notificationReason: recipient ? undefined : 'No verified client email address is configured' }),
+      }, context);
+      if (recipient) for (const channel of ['email', 'viber'] as const) await writeNotification(this.notificationOutboxWriter, eventId, recipient, `Billing statement ${billing.number} sent`, channel, { idempotencyKey: `billing-send:${billing.id}:${channel}` }, context);
+      return mapBillingStatement(billing);
     });
+  }
+
+  private async executeBillingCommand<TWrite, TResult>(
+    definition: WorkflowCommandDefinition<TWrite, TResult>,
+    transaction?: PrismTransactionContext,
+  ): Promise<TResult> {
+    if (!transaction) return this.workflowCommandService.execute(definition);
+    await definition.validatePermission?.();
+    await definition.validateState?.();
+    await definition.validateStateInTransaction?.(transaction);
+    const result = await definition.write(transaction);
+    await definition.sideEffects?.(result, transaction);
+    if (!definition.project) throw new Error('Billing commands require a projection');
+    return definition.project(result);
   }
 
   private async prepareBillingStatementStorage(
@@ -541,8 +547,8 @@ export class BillingOperationsService {
     return Array.isArray(value) ? (value as Array<{ label: string; details: string }>) : this.normalizeBillingMethods(undefined);
   }
 
-  private async requireEvent(eventId: string) {
-    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
+  private async requireEvent(eventId: string, db: Prisma.TransactionClient | PrismaService = this.prisma) {
+    const event = await db.opsEvent.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
     return event;
   }

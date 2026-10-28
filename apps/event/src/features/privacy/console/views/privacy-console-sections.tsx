@@ -186,6 +186,7 @@ export function PrivacyLogRequestForm({ vm }: { vm: PrivacyConsoleViewModel }) {
         <option value="client">Client</option>
         <option value="supplier">Supplier</option>
         <option value="guest">Guest</option>
+        <option value="account">Native account</option>
       </select>
       <select
         aria-label="Request type for new request"
@@ -236,6 +237,7 @@ export function PrivacyLegalHoldControls({ vm }: { vm: PrivacyConsoleViewModel }
           <option value="client">Client</option>
           <option value="supplier">Supplier</option>
           <option value="guest">Guest</option>
+        <option value="account">Native account</option>
         </select>
         <select
           aria-label="Legal hold event scope"

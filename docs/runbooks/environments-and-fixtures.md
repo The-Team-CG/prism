@@ -63,7 +63,7 @@ is non-production. `NODE_ENV=production` is always refused. URLs/passwords are n
 ## Accounts then scenarios
 
 `accounts` creates six missing users, two supplier categories, two suppliers,
-and two coordinators. Existing passwords, 2FA, approval/lockout state, and edits
+and three coordinators (including a second general coordinator for handoff coverage). Existing passwords, 2FA, approval/lockout state, and edits
 are preserved. New accounts are approved synthetic test actors. Missing users
 need these private file values, at least 12 characters each:
 

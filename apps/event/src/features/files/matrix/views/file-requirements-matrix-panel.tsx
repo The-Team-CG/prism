@@ -1,6 +1,7 @@
 "use client";
 
 import { FileCheck2 } from "lucide-react";
+import { useState } from "react";
 import type { PrismFileRequirementItem } from "@prism/types";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -14,37 +15,18 @@ import {
   sortFileRequirementItems,
 } from "../model/file-requirements-matrix-rules";
 import { FileRequirementEditorForm } from "./file-requirement-editor-form";
+import { FileRequirementTemplateManager } from "./file-requirement-template-manager";
 
 export function FileRequirementsMatrixPanel({ eventId }: { eventId?: string }) {
-  const { matrix, status, error, reload } = useFileRequirementsMatrixViewModel(eventId);
+  const { matrix, status, error, reload, remindersBusy, reminderMessage, sendReminders } = useFileRequirementsMatrixViewModel(eventId);
   const editor = useFileRequirementEditorViewModel(eventId, reload);
   const counts = fileRequirementCounts(matrix);
   const items = sortFileRequirementItems(matrix?.items ?? []);
   const editable = status === "success" && Boolean(eventId);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
 
-  return (
-    <section className="rounded-2xl border border-border bg-card shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-6 py-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <FileCheck2 className="size-4 text-primary" />
-            <h2 className="text-sm font-bold text-foreground">File requirements matrix</h2>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">{FILE_HUB_HELP_COPY}</p>
-          <FileRequirementCountLine counts={counts} />
-        </div>
-        {editable && editor.target?.mode !== "create" ? (
-          <button type="button" onClick={editor.startCreate} className="rounded-md border border-border px-3 py-2 text-xs font-semibold">
-            Add requirement
-          </button>
-        ) : null}
-      </div>
-      {editor.target?.mode === "create" ? (
-        <div className="px-6 py-4">
-          <FileRequirementEditorForm mode="create" busy={editor.busy} error={editor.saveError} onSave={editor.save} onCancel={editor.cancel} />
-        </div>
-      ) : null}
-      {status === "error" ? (
+  function renderRequirements() {
+    return <>      {status === "error" ? (
         <div className="px-6 py-6">
           <EmptyState icon={FileCheck2} title="Unable to load file requirements" description={error ?? "Try again after selecting an event."} />
         </div>
@@ -61,6 +43,40 @@ export function FileRequirementsMatrixPanel({ eventId }: { eventId?: string }) {
           ))}
         </div>
       )}
+</>;
+  }
+
+  return (
+    <section className="rounded-2xl border border-border bg-card shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-6 py-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <FileCheck2 className="size-4 text-primary" />
+            <h2 className="text-sm font-bold text-foreground">File requirements matrix</h2>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">{FILE_HUB_HELP_COPY}</p>
+          <FileRequirementCountLine counts={counts} />
+        </div>
+        {editable && editor.target?.mode !== "create" ? (
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => void sendReminders()} disabled={remindersBusy} className="rounded-md border border-border px-3 py-2 text-xs font-semibold disabled:opacity-60">
+              {remindersBusy ? "Queueing…" : "Send reminders"}
+            </button>
+            <button type="button" onClick={() => setTemplatesOpen((open) => !open)} className="rounded-md border border-border px-3 py-2 text-xs font-semibold">Templates</button>
+            <button type="button" onClick={editor.startCreate} className="rounded-md border border-border px-3 py-2 text-xs font-semibold">
+              Add requirement
+            </button>
+          </div>
+        ) : null}
+      </div>
+      {reminderMessage ? <p role="status" className="border-b border-border px-6 py-2 text-xs text-muted-foreground">{reminderMessage}</p> : null}
+      {templatesOpen && eventId ? <FileRequirementTemplateManager eventId={eventId} onClose={() => setTemplatesOpen(false)} onApplied={reload} /> : null}
+      {editor.target?.mode === "create" ? (
+        <div className="px-6 py-4">
+          <FileRequirementEditorForm mode="create" busy={editor.busy} error={editor.saveError} onSave={editor.save} onCancel={editor.cancel} />
+        </div>
+      ) : null}
+      {renderRequirements()}
     </section>
   );
 }

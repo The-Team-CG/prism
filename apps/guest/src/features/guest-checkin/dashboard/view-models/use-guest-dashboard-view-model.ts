@@ -15,6 +15,8 @@ import {
   refreshGuestEventIfChanged,
   submitGuestCheckIn,
   submitGuestFeedback,
+  withdrawGuestFeedbackConsent,
+  saveGuestFeedbackReceipt,
 } from "../use-cases/guest-dashboard-actions";
 
 export function useGuestDashboardViewModel() {
@@ -22,6 +24,7 @@ export function useGuestDashboardViewModel() {
   const [session, setSession] = useState<GuestSession | null>(null);
   const [status, setStatus] = useState<GuestDashboardStatus>("loading");
   const [checkedIn, setCheckedIn] = useState(false);
+  const [accessEnded, setAccessEnded] = useState(false);
   const [checkInGuestName, setCheckInGuestName] = useState("");
   const [checkInConsentAccepted, setCheckInConsentAccepted] = useState(false);
   const [checkInMode, setCheckInMode] = useState<CheckInMode>("name_search");
@@ -50,9 +53,16 @@ export function useGuestDashboardViewModel() {
     try {
       const next = await refreshGuestEventIfChanged(current);
       setSession(next);
+      setAccessEnded(false);
       setRefreshFailed(false);
     } catch (err) {
       if (isGuestAccessEndedError(err)) {
+        if (current.feedbackReceiptId) {
+          setAccessEnded(true);
+          if (current.feedbackAvailability !== "closed") setSession({ ...current, feedbackAvailability: "closed" });
+          setNotice("Event access has ended. You can still withdraw consent for your saved feedback.");
+          return;
+        }
         leaveGuestEvent();
         router.replace("/open");
         return;
@@ -103,13 +113,14 @@ export function useGuestDashboardViewModel() {
     setNotice(null);
 
     try {
-      await submitGuestFeedback({
+      const receipt = await submitGuestFeedback({
         session,
         guestName: feedbackGuestName,
         rating: feedbackRating,
         comment: feedbackComment,
         consentAccepted: feedbackConsentAccepted,
       });
+      setSession(saveGuestFeedbackReceipt(session, receipt));
       setFeedbackSubmitted(true);
       setNotice("Feedback sent to PMCM for review. It will not be published automatically.");
       setFeedbackGuestName("");
@@ -121,6 +132,20 @@ export function useGuestDashboardViewModel() {
     } finally {
       setBusy(null);
     }
+  }
+
+  async function withdrawFeedbackConsent() {
+    if (!session || busy) return;
+    setBusy("feedback");
+    setError(null);
+    try {
+      setSession(await withdrawGuestFeedbackConsent(session));
+      setFeedbackSubmitted(false);
+      setFeedbackConsentAccepted(false);
+      setNotice("Feedback consent withdrawn. Your feedback will no longer be shared.");
+    } catch (cause) {
+      setError(mapGuestDashboardError(cause));
+    } finally { setBusy(null); }
   }
 
   function leave() {
@@ -159,15 +184,17 @@ export function useGuestDashboardViewModel() {
     feedbackConsentAccepted,
     setFeedbackConsentAccepted,
     feedbackSubmitted,
+    canWithdrawFeedbackConsent: Boolean(session?.feedbackReceiptId),
+    withdrawFeedbackConsent,
     error,
     notice,
     busy,
     refreshFailed,
-    canCheckIn: !checkedIn
+    canCheckIn: !accessEnded && !checkedIn
       && !busy
       && checkInConsentAccepted
       && (checkInMode === "headcount" || checkInGuestName.trim().length > 0),
-    canSubmitFeedback: session?.feedbackAvailability === "open"
+    canSubmitFeedback: !accessEnded && session?.feedbackAvailability === "open"
       && !busy
       && feedbackConsentAccepted
       && feedbackGuestName.trim().length > 0,

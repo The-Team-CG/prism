@@ -5,8 +5,8 @@ export type ProposalReviewOwnerUpdate = {
   expectedRevisionCount: number;
   nextStatus: string;
   nextRevisionCount: number;
-  reviewedAt: Date;
-  reviewedBy: string;
+  reviewedAt: Date | null;
+  reviewedBy: string | null;
 };
 
 /** Lifecycle-owned compare-and-set update for proposal review state stored on OpsEvent. */

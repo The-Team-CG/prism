@@ -403,7 +403,7 @@ databaseSuite('CoordinatorsService PostgreSQL concurrency invariants', () => {
           eventDate: new Date('2031-03-17T09:00:00.000Z'),
         },
       });
-      const eventDecisions = new EventDecisionService(prisma, new EventAccessPolicyService(auditWriter), auditWriter, notificationWriter, coordinators, new EventDecisionSupplierOwnerService());
+      const eventDecisions = new EventDecisionService(prisma, new EventAccessPolicyService(auditWriter), auditWriter, notificationWriter, coordinators, new EventDecisionSupplierOwnerService(), { createConfirmedCancellationFeeSource: async () => null });
       const input = {
         decision: 'cancelled',
         reason: 'Idempotent cancellation test',
@@ -429,7 +429,7 @@ databaseSuite('CoordinatorsService PostgreSQL concurrency invariants', () => {
   it('replays one cancellation when same-key decision requests race', async () => {
     const fixture = await createFixture(prisma, 1, 1);
     try {
-      const eventDecisions = new EventDecisionService(prisma, new EventAccessPolicyService(auditWriter), auditWriter, notificationWriter, coordinators, new EventDecisionSupplierOwnerService());
+      const eventDecisions = new EventDecisionService(prisma, new EventAccessPolicyService(auditWriter), auditWriter, notificationWriter, coordinators, new EventDecisionSupplierOwnerService(), { createConfirmedCancellationFeeSource: async () => null });
       const input = {
         decision: 'cancelled',
         reason: 'Concurrent idempotent cancellation test',

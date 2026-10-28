@@ -5,6 +5,7 @@ import type {
   CreateSupplierCertificationInput,
   CreateSupplierInput,
   CreateSupplierReviewInput,
+  MarkPaymentInput,
   PromoteSupplierInput,
   PrismBillingSource,
   PrismBillingStatement,
@@ -12,8 +13,10 @@ import type {
   PrismSupplier,
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
+  PrismSupplierQuoteRoundComparison,
   RecordPaymentInput,
   RequestSupplierQuotesInput,
+  SupplierAvailabilityInput,
   UpdateSupplierInput,
 } from "@prism/types";
 
@@ -58,11 +61,17 @@ recordPayment: (eventId: string, milestoneId: string, input: RecordPaymentInput)
       method: "POST",
       body: input,
     }),
+markPayment: (eventId: string, milestoneId: string, input: MarkPaymentInput) =>
+    request<PrismPaymentMilestone>(`/api/events/${eventId}/payments/${milestoneId}`, { method: "PATCH", body: input }),
 requestSupplierQuotes: (eventId: string, input: RequestSupplierQuotesInput) =>
     request<PrismSupplierQuoteRequest[]>(`/api/events/${eventId}/quote-requests`, {
       method: "POST",
       body: input,
     }),
+compareSupplierQuoteRound: (eventId: string, roundId: string) =>
+  request<PrismSupplierQuoteRoundComparison>(`/api/events/${eventId}/quote-rounds/${encodeURIComponent(roundId)}/comparison`),
+setSupplierAvailability: (supplierId: string, input: SupplierAvailabilityInput) =>
+  request<{ id: string }>(`/api/suppliers/${encodeURIComponent(supplierId)}/availability`, { method: "POST", body: input }),
 selectSupplierQuote: (eventId: string, quoteId: string) =>
     request<PrismSupplierQuote>(`/api/events/${eventId}/supplier-quotes/${quoteId}/select`, { method: "PATCH" }),
 sendBillingStatement: (eventId: string, billingId: string) =>

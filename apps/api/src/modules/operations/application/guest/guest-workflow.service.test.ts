@@ -1032,11 +1032,13 @@ describe('GuestWorkflowService', () => {
     vi.useRealTimers();
   });
 
-  it('withdraws consent during the open window and prevents publishable consent assumptions', async () => {
+  it('allows consent withdrawal after feedback closes and archive without reopening feedback submission', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
     const { service, state } = createGuestWorkflowFixture();
     const feedback = await service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'Consent Guest', rating: 5, privacyConsentAccepted: true, marketingConsentAccepted: true, privacyNoticeVersion: '2026-09-01' });
+    vi.setSystemTime(new Date('2026-09-17T12:00:00.000Z'));
+    state.events[0].archived = true;
     const withdrawn = await service.withdrawFeedbackConsentByAccessCode('AYALA-TECH-MPLE', feedback.id, { withdrawPrivacyConsent: true, withdrawMarketingConsent: true });
     expect(withdrawn).toMatchObject({ id: feedback.id, eventId: 'evt_sample', submittedAt: expect.any(String) });
     expect(state.guestFeedback[0].privacyConsentWithdrawnAt).toBeInstanceOf(Date);

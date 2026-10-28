@@ -122,6 +122,7 @@ export interface PrismBillingStatement {
   id: string;
   eventId: string;
   sourceId?: string | null;
+  supersedesStatementId?: string | null;
   number: string;
   clientName: string;
   clientContact: string;
@@ -150,6 +151,7 @@ export interface PrismBillingCorrection {
   id: string;
   eventId: string;
   statementId: string;
+  replacementStatementId?: string | null;
   reason: string;
   correctedTotalAmount?: number | null;
   status: string;
@@ -216,6 +218,8 @@ export interface PrismPaymentRecord {
 }
 
 export interface PrismPaymentMilestone {
+  overdue?: boolean;
+  supersededAt?: string | null;
   id: string;
   eventId: string;
   label: string;

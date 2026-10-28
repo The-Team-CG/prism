@@ -7,12 +7,15 @@ import type {
   PrismEvent,
   PrismEventPage,
   PrismFileRequirementsMatrix,
+  PrismFileRequirementReminder,
+  PrismFileRequirementTemplate,
   PrismStoredObject,
   PrismAddendum,
   PrismAddendumConformeExecution,
   SignAddendumConformeExecutionInput,
   PrismEventFreezeException,
   RequestStorageUploadInput,
+  UpsertFileRequirementTemplateInput,
   ConfirmStorageUploadInput,
   PrismEventDecision,
   PrismClientChangeRequest,
@@ -66,6 +69,11 @@ export interface EventOpsEventsContract {
       input: import("@prism/types").UpdateFileRequirementInput,
       actor?: EventOpsActorQuery,
     ): Promise<import("@prism/types").PrismFileRequirementItem>;
+    sendFileRequirementReminders(eventId: string, actor?: EventOpsActorQuery): Promise<{ reminders: PrismFileRequirementReminder[] }>;
+    listFileRequirementTemplates(actor?: EventOpsActorQuery): Promise<PrismFileRequirementTemplate[]>;
+    upsertFileRequirementTemplate(input: UpsertFileRequirementTemplateInput, actor?: EventOpsActorQuery): Promise<PrismFileRequirementTemplate>;
+    applyFileRequirementTemplate(eventId: string, actor?: EventOpsActorQuery): Promise<{ eventId: string; eventType: string; templateId: string; createdKeys: string[]; skippedExistingCount: number }>;
+    bindFileRequirementUpload(eventId: string, key: string, input: import("@prism/types").BindFileRequirementUploadInput, actor?: EventOpsActorQuery): Promise<import("@prism/types").PrismFileRequirementItem>;
     reviewProposal(
       eventId: string,
       input: ReviewEventProposalInput,

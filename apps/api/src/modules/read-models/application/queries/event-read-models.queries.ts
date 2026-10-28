@@ -507,7 +507,7 @@ export class EventReadModelQueries {
       this.prisma.opsEventDayTask.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_READINESS_ROWS }),
       this.prisma.opsUrgentIssue.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_READINESS_ROWS }),
       this.prisma.opsBillingStatement.findMany({ where: { eventId }, orderBy: [{ generatedAt: 'desc' }, { id: 'desc' }], take: MAX_READINESS_ROWS }),
-      this.prisma.opsPaymentMilestone.findMany({ where: { eventId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: MAX_READINESS_ROWS }),
+      this.prisma.opsPaymentMilestone.findMany({ where: { eventId, supersededAt: null }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: MAX_READINESS_ROWS }),
       this.defenseReadinessCounts(eventId),
     ]);
   }
@@ -678,6 +678,16 @@ export class EventReadModelQueries {
       ocularVisits,
       sortByDate(billingDisputes, (row) => row.createdAt, 'desc'),
     ] as const;
+  }
+
+  /** Client feed is limited to client-addressed notifications for events already scoped by the caller. */
+  clientNotificationsForEvents(eventIds: string[]) {
+    if (eventIds.length === 0) return Promise.resolve([]);
+    return this.prisma.opsNotificationLog.findMany({
+      where: { eventId: { in: eventIds }, recipient: 'Client' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: MAX_NOTIFICATION_LOGS,
+    });
   }
   // Every action source is fetched in bounded keyset pages for the visible event set.
   async clientActionCenterForEvents(eventIds: string[], changeDecisionsSince = new Date(0)) {
@@ -972,7 +982,7 @@ export class EventReadModelQueries {
     return Promise.all([
       this.prisma.opsDocument.findMany({ where: { eventId }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }], take: MAX_PMCM_EVENT_WORKSPACE_ROWS }),
       this.prisma.opsBriefing.findMany({ where: { eventId }, orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }], take: MAX_PMCM_EVENT_WORKSPACE_ROWS }),
-      this.prisma.opsSupplierQuoteRequest.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_PMCM_EVENT_WORKSPACE_ROWS }),
+      this.prisma.opsSupplierQuoteRequest.findMany({ where: { eventId }, include: { round: { select: { roundNumber: true } } }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_PMCM_EVENT_WORKSPACE_ROWS }),
       this.prisma.opsSupplierQuote.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_PMCM_EVENT_WORKSPACE_ROWS }),
       this.prisma.opsComplianceCheck.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_PMCM_EVENT_WORKSPACE_ROWS }),
       this.prisma.opsBillingSource.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_PMCM_EVENT_WORKSPACE_ROWS }),
@@ -1014,7 +1024,7 @@ export class EventReadModelQueries {
       }),
       this.prisma.opsDocument.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }] }),
       this.prisma.opsBriefing.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }] }),
-      this.prisma.opsSupplierQuoteRequest.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
+      this.prisma.opsSupplierQuoteRequest.findMany({ include: { round: { select: { roundNumber: true } } }, take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
       this.prisma.opsSupplierQuote.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
       this.prisma.opsComplianceRule.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
       this.prisma.opsComplianceCheck.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),

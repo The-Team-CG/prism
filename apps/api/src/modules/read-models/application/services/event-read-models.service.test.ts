@@ -399,6 +399,7 @@ describe('EventReadModelsService', () => {
         [],
       ]),
       clientEventTimelineForEvents: vi.fn(async () => []),
+      clientNotificationsForEvents: vi.fn(async () => [{ id: 'notif_client', eventId: event.id, recipient: 'Client', message: 'Layout approved', channel: 'email', status: 'queued', createdAt: new Date('2026-10-20T00:00:00.000Z'), acknowledgedAt: null }]),
       archivedClientEvents: vi.fn(async () => [{ ...event, id: 'evt_archived_history', archived: true }]),
     };
     const policy = new EventAccessPolicyService({ write: vi.fn() } as never);
@@ -420,6 +421,7 @@ describe('EventReadModelsService', () => {
       mapPaymentMilestone: (value: unknown) => value,
       mapFloorPlanDraft: (value: unknown) => value,
       mapAuditLog: (value: unknown) => value,
+      mapNotificationLog: (value: unknown) => value,
     };
 
     const workspace = await service.clientWorkspace(actor, mappers as never);
@@ -431,6 +433,8 @@ describe('EventReadModelsService', () => {
     );
     expect(workspace.archivedEvents).toEqual([expect.objectContaining({ id: 'evt_archived_history', archived: true })]);
     expect(queries.clientWorkspaceForEvents).toHaveBeenCalledWith([event.id]);
+    expect(queries.clientNotificationsForEvents).toHaveBeenCalledWith([event.id]);
+    expect(workspace.notificationLogs).toEqual([expect.objectContaining({ recipient: 'Client', message: 'Layout approved' })]);
 
     expect(workspace.ocularVisits).toEqual([{
       eventId: event.id,
@@ -1025,6 +1029,7 @@ describe('EventReadModelsService', () => {
         mapPaymentMilestone: (payment) => payment,
         mapFloorPlanDraft: (draft) => draft,
         mapAuditLog: (log) => log,
+        mapNotificationLog: (log) => log,
       }),
     ).rejects.toThrow('supplier cannot access client workspace');
   });
@@ -1306,6 +1311,7 @@ describe('EventReadModelsService', () => {
         expect(eventIds).toEqual(['evt_ready', 'evt_pending', 'evt_completed']);
         return milestoneRows;
       }),
+      clientNotificationsForEvents: vi.fn(async () => []),
       archivedClientEvents: vi.fn(async () => []),
     };
     const policy = new EventAccessPolicyService(
@@ -1329,6 +1335,7 @@ describe('EventReadModelsService', () => {
       mapPaymentMilestone: (payment: unknown) => payment,
       mapFloorPlanDraft: (draft: unknown) => draft,
       mapAuditLog: (log: unknown) => log,
+      mapNotificationLog: (log: unknown) => log,
     };
 
     const workspace = await service.clientWorkspace(

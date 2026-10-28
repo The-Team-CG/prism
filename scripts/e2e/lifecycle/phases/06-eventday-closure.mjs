@@ -146,16 +146,26 @@ export async function run(ctx) {
     expect(sheet.day?.segments?.length >= 1 || sheet.authored, `run sheet shows no segments: ${JSON.stringify(sheet).slice(0, 160)}`);
     return `scope=${sheet.scope}`;
   });
-  await step("a run-sheet segment cannot be started on an event that is not in event day", async () => {
+  await step("a run-sheet segment starts after PMCM has activated event day", async () => {
     if (!s.segment) blocked("no segment");
     const r = await http("PATCH", `/events/${E()}/schedule/segments/${s.segment}/status`, { token: admin, body: { action: "start" } });
-    if (r.status < 400) review(`future segment started while event status is "${s.stage ?? "briefing"}"; clarify rehearsal support versus event-day stage gating`);
+    expect(s.eventDay, "event-day prerequisite was not satisfied");
+    expectStatus(r, 200);
   });
   await step("coordinator (designated operator) files an end-of-day report and PMCM replies", async () => {
     if (!s.day || !s.assignment) blocked("no schedule day or coordinator assignment");
     const rep = await http("POST", `/events/${E()}/eod-reports`, { token: coordinator, body: { dayId: s.day, progress: ["Doors opened on time"], issues: ["Generator tripped"] } });
     const report = expectStatus(rep, 201);
     expectStatus(await http("POST", `/events/${E()}/eod-reports/${report.id}/replies`, { token: admin, body: { body: "Noted, thanks." } }), 201);
+  });
+  await step("coordinators record a same-role handoff before the outgoing assignment is replaced", async () => {
+    const roster = expectStatus(await http("GET", "/coordinators", { token: admin }), 200);
+    const incoming = roster.find((c) => c.id !== "coord_marco" && (c.roleTags ?? []).includes("General Coordinator"));
+    expect(incoming, "fixture directory has no second general coordinator");
+    const assignment = expectStatus(await http("POST", `/events/${E()}/coordinators`, { token: admin, body: { coordinatorId: incoming.id, role: "General Coordinator" } }), 201);
+    const handoff = expectStatus(await http("POST", `/events/${E()}/handoffs`, { token: coordinator, body: { dayId: s.day, role: "General Coordinator", fromAssignmentId: s.assignment, toAssignmentId: assignment.id, outstandingItems: ["Watch north entrance"] } }), 201);
+    const listed = expectStatus(await http("GET", `/events/${E()}/handoffs`, { token: admin }), 200);
+    expect(listed.some((item) => item.id === handoff.id && item.outstandingItems.includes("Watch north entrance")), "handoff did not persist");
   });
   await step("coordinator replacement requires a reason and a role the replacement is qualified for", async () => {
     if (!s.assignment) blocked("no assignment");
@@ -165,13 +175,18 @@ export async function run(ctx) {
     s.replacement = r.replacementAssignment?.id;
     expect(s.replacement && r.replacedAssignment?.status === "replaced", `replacement result: ${JSON.stringify(r).slice(0, 200)}`);
   });
-  await step("outgoing coordinator hands off to the replacement", async () => {
-    if (!s.replacement || !s.day) blocked("no replacement or schedule day");
-    blocked("the seeded replacement has a different role; a same-role pair is required for the positive handoff path");
-  });
+
   await step("supplier event-day status update reaches PMCM verification", async () => {
     if (!s.A) blocked("no event");
-    gap("a supplier's event-day status needs an accepted quote request on this event (commercial phase output); this phase has no supplier assignment to act on");
+    const requests = expectStatus(await http("POST", `/events/${E()}/quote-requests`, { token: admin, body: { categoryId: "supcat_digital_registration", supplierIds: ["sup_xperto"], deadline: eventDate } }), 201);
+    const request = requests[0];
+    const quote = expectStatus(await http("POST", `/quote-requests/${request.accessToken}/quote`, { body: { amount: 50000, notes: "Lifecycle assignment" } }), 201);
+    expectStatus(await http("PATCH", `/events/${E()}/supplier-quotes/${quote.id}/select`, { token: admin }), 200);
+    expectStatus(await http("PATCH", `/supplier/quote-requests/${request.id}/assignment/confirm`, { token: supplier }), 200);
+    expectStatus(await http("PATCH", `/supplier/quote-requests/${request.id}/readiness/confirm`, { token: supplier, body: { notes: "Ready for event day" } }), 200);
+    expectStatus(await http("PATCH", `/supplier/quote-requests/${request.id}/event-status`, { token: supplier, body: { status: "arrived" } }), 200);
+    const board = expectStatus(await http("GET", `/events/${E()}/live-ops`, { token: admin }), 200);
+    expect(JSON.stringify(board).includes(request.id), "PMCM live ops does not show the supplier assignment");
   });
   await step("PMCM turns on the client's event-day view; the client cannot", async () => {
     if (!s.A) blocked("no event");
@@ -188,8 +203,10 @@ export async function run(ctx) {
   await step("guest checks in by access code and PMCM sees the count on live ops", async () => {
     const code = expectStatus(await http("GET", `/events/${E()}`, { token: admin }), 200).guestAccessCode;
     expect(code, "event has no guest access code");
-    const r = await http("POST", `/guest/events/${encodeURIComponent(code)}/check-ins`, { body: { checkInMode: "headcount", idempotencyKey: randomUUID(), privacyConsentAccepted: true, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION } });
-    if (r.status >= 400) gap(`guest headcount check-in answered ${r.status} (${msg(r)}); walk-in policy is "closed" on a fresh event and the roster comes from the staffing/guests phase`);
+    s.guestName = `Lifecycle Guest ${E()}`;
+    expectStatus(await http("POST", `/guest/events/${E()}/roster/import`, { token: admin, body: { source: "csv", rows: [{ sourceKey: "lifecycle-guest", guestName: s.guestName, email: `guest-${E()}@example.test` }] } }), 200, 201);
+    const r = await http("POST", `/guest/events/${encodeURIComponent(code)}/check-ins`, { body: { guestName: s.guestName, checkInMode: "name_search", idempotencyKey: randomUUID(), privacyConsentAccepted: true, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION } });
+    expectStatus(r, 201);
     const board = expectStatus(await http("GET", `/events/${E()}/live-ops`, { token: admin }), 200);
     expect(board.guestAttendanceCount >= 1, `live ops shows ${board.guestAttendanceCount} guests after a check-in`);
     return `count=${board.guestAttendanceCount}`;
@@ -351,7 +368,13 @@ export async function run(ctx) {
     expect(missing.status === 404, `unknown event returned ${missing.status}: ${msg(missing)}`);
   });
   await step("archive cannot be triggered by elapsed time alone", async () => {
-    gap("not testable through the API: an event dated in the past cannot be created (conforme/proposal rules need a future date) so this fixture cannot observe time-driven behavior without a controlled clock");
+    s.C = await ctx.newEvent({ label: "Archive comparison", eventDate: await ctx.reserveDate() });
+    await ctx.prepareEventDay(s.C.eventId);
+    expectStatus(await http("POST", `/events/${s.C.eventId}/start-event-day`, { token: admin, body: {} }), 200);
+    expectStatus(await http("POST", `/events/${s.C.eventId}/actual-end`, { token: admin, body: { actualEndedAt: hoursAgo(24 * 8) } }), 200, 201);
+    const event = expectStatus(await http("GET", `/events/${s.C.eventId}`, { token: admin }), 200);
+    expect(event.archived === false, "recording an end older than the wrap-up window silently archived the event");
+    return "elapsed wrap-up alone leaves archive requiring explicit PMCM action";
   });
   await step("archived event: client closeout, deliverables and wrap-up are read-only", async () => {
     if (!s.archived) blocked("nothing archived");
@@ -399,7 +422,10 @@ export async function run(ctx) {
     denied(await http("GET", p([E(), s.B.eventId]), { token: s.clientA }), "client compare");
   });
   await step("PMCM compares two archived events side by side", async () => {
-    blocked("comparison needs two archived events; this phase prepares only event A for archive");
+    expect(s.C && s.archived, "comparison fixtures were not prepared");
+    expectStatus(await http("POST", `/events/${s.C.eventId}/archive`, { token: admin, body: { overrideReason: "Isolated archive comparison fixture" } }), 200);
+    const comparison = expectStatus(await http("GET", `/events/archive/compare?eventIds=${E()},${s.C.eventId}`, { token: admin }), 200);
+    expect(JSON.stringify(comparison).includes(E()) && JSON.stringify(comparison).includes(s.C.eventId), "archive comparison omits an event");
   });
   await step("event insights: PMCM reads the learning loop, client and supplier are refused", async () => {
     const r = expectStatus(await http("GET", `/events/${E()}/insights`, { token: admin }), 200);
@@ -496,11 +522,15 @@ export async function run(ctx) {
   });
   await step("portal wiring: account correction and erasure requests can be created", async () => {
     const source = readFileSync(join(repoRoot, "apps/event/src/features/privacy/console/views/privacy-console-sections.tsx"), "utf8");
-    const options = source.split("const form = vm.privacyForm;")[1]?.split("</select>")[0] ?? "";
+    const options = source.split("export function PrivacyRequestCreateSection")[1] ?? source;
     if (!options.includes('value="account"')) gap("the API requires account subject requests for native-account correction/erasure, but the PMCM request-creation selector offers only client, supplier and guest");
   });
   await step("guest privacy request (access/export) on a closed event's guest", async () => {
-    blocked("needs guest data on the archived event; the guest roster belongs to a different phase fixture");
+    expect(s.guestName && s.archived, "guest archive fixture was not prepared");
+    const request = expectStatus(await priv({ subjectType: "guest", subjectName: s.guestName, eventId: E(), requestType: "export" }), 201);
+    expectStatus(await http("PATCH", `/privacy/requests/${request.id}/review`, { token: admin, body: { status: "approved" } }), 200);
+    const result = expectStatus(await http("POST", `/privacy/requests/${request.id}/execute`, { token: admin, body: {} }), 200, 201);
+    expect(JSON.stringify(result).includes(s.guestName), "guest export lacks the event-scoped guest identity");
   });
 
   // ---------------------------------------------------------------- portal wiring
@@ -512,10 +542,10 @@ export async function run(ctx) {
     ["client event-day view toggle", /client-event-day-view/, "event"], ["run sheet", /run-sheet/, "event"], ["handoff brief", /handoff-brief/, "event"],
     ["decision log", /decision-log/, "event"], ["event-day tasks", /event-day\/tasks/, "event"], ["urgent issues", /urgent-issues/, "event"],
     ["coordinator attendance", /coordinators\/[^`]*\/status/, "event"], ["coordinator replacement", /\/replace/, "event"],
-    ["end-of-day reports", /eod-reports/, "event"], ["handoffs", /\/handoffs/, "event"], ["operator designation", /operator-designation/, "event"],
+    ["end-of-day reports", /eod-reports|submitEodReport|listEodReports/, "event"], ["handoffs", /\/handoffs|createHandoff|listHandoffs/, "event"], ["operator designation", /operator-designation/, "event"],
     ["supplier event-day status", /event-status|updateEventStatus/, "supplier"], ["guest feedback", /\/feedback|submitFeedback/, "guest"],
     ["audit logs", /audit\/logs/, "event"], ["audit integrity", /audit\/integrity/, "event"], ["privacy requests", /privacy\/requests/, "event"],
-    ["legal holds", /legal-holds/, "event"], ["retention review", /retention-review-items/, "event"], ["guest privacy classification", /guest-privacy/, "event"],
+    ["legal holds", /legal-holds/, "event"], ["retention review", /retention-review-items/, "event"], ["guest privacy classification", /guest-privacy|guestPrivacyClassification/, "event"],
   ];
   for (const [label, re, app] of wired) {
     await step(`portal wiring: ${label} is reachable from the ${app} portal`, async () => {

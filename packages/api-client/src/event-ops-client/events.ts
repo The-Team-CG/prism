@@ -94,6 +94,20 @@ export function createEventsClient(
           actorPath(`/events/${eventId}/file-requirements/${encodeURIComponent(key)}`, actor),
           withBase(options, { method: "PATCH", body: input }),
         ),
+      sendFileRequirementReminders: (eventId, actor = {}) =>
+        prismRequest<{ reminders: import("@prism/types").PrismFileRequirementReminder[] }>(
+          actorPath(`/events/${eventId}/file-requirements/reminders`, actor),
+          withBase(options, { method: "POST" }),
+        ),
+      listFileRequirementTemplates: (actor = {}) =>
+        prismRequest<import("@prism/types").PrismFileRequirementTemplate[]>(actorPath("/file-requirement-templates", actor), withBase(options)),
+      upsertFileRequirementTemplate: (input, actor = {}) =>
+        prismRequest<import("@prism/types").PrismFileRequirementTemplate>(actorPath("/file-requirement-templates", actor), withBase(options, { method: "POST", body: input })),
+      applyFileRequirementTemplate: (eventId, actor = {}) =>
+        prismRequest<{ eventId: string; eventType: string; templateId: string; createdKeys: string[]; skippedExistingCount: number }>(
+          actorPath(`/events/${eventId}/file-requirements/apply-template`, actor), withBase(options, { method: "POST" })),
+      bindFileRequirementUpload: (eventId, key, input, actor = {}) =>
+        prismRequest<PrismFileRequirementItem>(actorPath(`/events/${eventId}/file-requirements/${encodeURIComponent(key)}/upload`, actor), withBase(options, { method: "POST", body: input })),
       reviewProposal: (eventId, input, actor = {}) =>
         prismRequest<PrismEvent>(
           actorPath(`/events/${eventId}/proposal/review`, actor),

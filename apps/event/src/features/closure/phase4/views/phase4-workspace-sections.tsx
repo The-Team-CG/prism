@@ -9,6 +9,7 @@ import type {
   PrismComplianceRule,
   PrismEvent,
   PrismEventInsight,
+  PrismDocument,
 } from "@prism/types";
 import { cx, label } from "@/features/pmcm-kit";
 import { phase4ArchiveStatus, phase4StatusTone } from "../model/phase4-workspace-rules";
@@ -198,11 +199,14 @@ export function Phase4BillingSection({
   lineAmount,
   billingSources,
   billingStatements,
+  proposalDocuments,
+  sourceDocumentId,
   approvedSource,
   busy,
   onBillingLabel,
   onLineLabel,
   onLineAmount,
+  onSourceDocumentId,
   onCreate,
   onApprove,
   onGenerate,
@@ -212,11 +216,14 @@ export function Phase4BillingSection({
   lineAmount: string;
   billingSources: PrismBillingSource[];
   billingStatements: PrismBillingStatement[];
+  proposalDocuments: PrismDocument[];
+  sourceDocumentId: string;
   approvedSource: PrismBillingSource | undefined;
   busy: boolean;
   onBillingLabel: (value: string) => void;
   onLineLabel: (value: string) => void;
   onLineAmount: (value: string) => void;
+  onSourceDocumentId: (value: string) => void;
   onCreate: () => void;
   onApprove: (sourceId: string) => void;
   onGenerate: (sourceId: string) => void;
@@ -236,6 +243,13 @@ export function Phase4BillingSection({
           <input value={lineLabel} onChange={(event) => onLineLabel(event.target.value)} className="h-10 rounded-md border border-border bg-white px-3 text-sm" />
           <input value={lineAmount} onChange={(event) => onLineAmount(event.target.value)} type="number" className="h-10 rounded-md border border-border bg-white px-3 text-sm" />
         </div>
+        <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+          Proposal evidence
+          <select value={sourceDocumentId} onChange={(event) => onSourceDocumentId(event.target.value)} className="h-10 rounded-md border border-border bg-white px-3 text-sm font-normal text-foreground">
+            <option value="">Select a proposal document</option>
+            {proposalDocuments.map((document) => <option key={document.id} value={document.id}>{document.fileName}</option>)}
+          </select>
+        </label>
         <button disabled={busy || !billingLabel || Number(lineAmount) <= 0} onClick={onCreate} className="h-10 rounded-md bg-ink px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">Create billing source</button>
       </div>
       <div className="mt-4 space-y-3">

@@ -332,6 +332,7 @@ export async function run(ctx) {
     for (const [label, method, path, body] of calls) {
       for (const [role, token] of [["client", T.client], ["supplier", T.supplier], ["coordinator", T.coordinator]]) {
         const r = await http(method, path, { token, body });
+        if (role === "client" && label === "POST dispute") { expect(r.status === 404, "client dispute must validate statement membership"); continue; }
         if (r.status !== 403) bad.push(`${role} ${label} -> ${r.status}`);
       }
       const anon = await http(method, path, { body });
@@ -560,11 +561,14 @@ export async function run(ctx) {
     expect(mine.flatMap((m) => m.history).length === 2, `client sees ${mine.flatMap((m) => m.history).length} payment records (expected 2)`);
     return `paid ${paid}, remaining ${remaining}`;
   });
-  await step("client can obtain a payment receipt for a recorded payment", async () => {
-    need("down");
-    const objects = asList(expectStatus(await clientCall("GET", `/storage/objects/events/${E()}`), 200));
-    const receipt = objects.find((o) => /receipt/i.test(`${o.ownerRecordType} ${o.originalFileName} ${o.usage}`));
-    if (!receipt) gap("no payment receipt is generated or stored after a payment is recorded; the client only sees payment records (amount, method, reference)");
+  await step("portal wiring: client can download a receipt for a recorded payment", async () => {
+    need("down", "paymentWorks");
+    const billing = await clientWorkspace();
+    const milestone = billing.paymentMilestones.find((m) => m.id === s.down.id);
+    expect(milestone?.history?.length > 0, "client has no payment evidence for a receipt");
+    const source = readFileSync(join(repoRoot, "apps/client/src/features/client-dashboard/billing/views/client-billing-tab.tsx"), "utf8");
+    expect(source.includes("createPaymentReceiptPdf") && source.includes("downloadReceipt(record, payment.label)"), "client receipt download is not wired to recorded payment history");
+    return "Payment history exercised over HTTP; receipt PDF generation is covered by the client payment-receipt unit test; download wiring is a source check.";
   });
   await step("a past-due milestone is flagged overdue to PMCM and the client", async () => {
     need("ev");
@@ -575,7 +579,7 @@ export async function run(ctx) {
     const ws = expectStatus(await pmcm("GET", `/pmcm/events/${od.eventId}/workspace`), 200);
     const late = ws.paymentMilestones.find((m) => m.label === "Downpayment");
     expect(late, "no downpayment milestone");
-    const flagged = late.status === "overdue" || "overdue" in late || "isOverdue" in late;
+    const flagged = late.status === "overdue" || late.overdue === true || late.isOverdue === true;
     if (!flagged) gap(`milestone due ${late.dueDate} is past due but stays "${late.status}" with no overdue status or flag in the API; only a queued reminder exists (no overdue indicator for PMCM or the client)`);
   });
 
@@ -610,20 +614,40 @@ export async function run(ctx) {
     expect(noReason.status === 400, `reject without reason -> ${noReason.status}`);
     return msg(self);
   });
+  await step("a correction below received payments is refused without approving it", async () => {
+    need("statement");
+    const correction = expectStatus(await pmcm("POST", `/events/${E()}/billing-corrections`, { statementId: s.statement.id, reason: "Would exceed the received total", correctedTotalAmount: 1, idempotencyKey: idem("underpayment-correction") }), 201);
+    const result = await pmcm("PATCH", `/events/${E()}/billing-corrections/${correction.id}`, { action: "approve" }, T.admin2);
+    expect(result.status === 400, `invalid correction returned ${result.status}: ${msg(result)}`);
+    const ws = expectStatus(await pmcm("GET", "/billing"), 200);
+    expect(ws.billingCorrections.find((item) => item.id === correction.id)?.status === "pending", "refused correction was approved");
+  });
   await step("a different admin approves the correction; resolving it twice is refused", async () => {
     need("correction");
-    const approved = expectStatus(await pmcm("PATCH", `/events/${E()}/billing-corrections/${s.correction.id}`, { action: "approve", resolutionNotes: "Confirmed with finance" }, T.admin2), 200);
+    const approvals = await Promise.all([1, 2].map(() => pmcm("PATCH", `/events/${E()}/billing-corrections/${s.correction.id}`, { action: "approve", resolutionNotes: "Confirmed with finance" }, T.admin2)));
+    const approved = expectStatus(approvals[0], 200);
+    const replay = expectStatus(approvals[1], 200);
+    expect(approved.replacementStatementId === replay.replacementStatementId, "concurrent approval produced different replacements");
     expect(approved.status === "approved", `status ${approved.status}`);
     const again = await pmcm("PATCH", `/events/${E()}/billing-corrections/${s.correction.id}`, { action: "reject", resolutionNotes: "no" }, T.admin2);
     expect(again.status === 400 && /already/i.test(msg(again)), `second resolution -> ${again.status}: ${msg(again)}`);
     s.correctionApproved = true;
   });
-  await step("an approved correction changes the billed total or milestones", async () => {
+  await step("an approved correction preserves the original invoice and credits existing payments", async () => {
     need("correctionApproved");
     const ws = await workspace();
-    const statement = ws.billingStatements.find((b) => b.id === s.statement.id);
-    const total = ws.paymentMilestones.reduce((sum, m) => sum + m.amount, 0);
-    if (statement.totalAmount !== 450000 && total !== 450000) gap(`approving a correction (corrected total 450000) records the decision only: statement total stays ${statement.totalAmount} and milestones still total ${total}; there is no route to issue a corrected statement`);
+    const original = ws.billingStatements.find((b) => b.id === s.statement.id);
+    const replacement = ws.billingStatements.find((b) => b.supersedesStatementId === s.statement.id);
+    expect(original?.totalAmount === 500000 && original.status === "superseded", "original invoice was changed or not superseded");
+    expect(replacement?.totalAmount === 450000, `replacement total ${replacement?.totalAmount}`);
+    const current = ws.paymentMilestones.filter((m) => !m.supersededAt);
+    expect(current.reduce((sum, m) => sum + m.amount, 0) === 450000, "active milestones do not match corrected total");
+    expect(current.reduce((sum, m) => sum + m.amountPaid, 0) === s.down.amount, "prior payments were not credited to the replacement");
+    const history = (await clientWorkspace()).paymentMilestones.flatMap((m) => m.history);
+    expect(history.length === 2, "original payment evidence was lost or duplicated");
+    const resend = await pmcm("POST", `/events/${E()}/billing-statements/${s.statement.id}/send`);
+    expect(resend.status === 400, `superseded invoice resend returned ${resend.status}`);
+    expect(ws.billingStatements.filter((b) => b.supersedesStatementId === s.statement.id).length === 1, "duplicate replacement invoice");
   });
   await step("dispute input is validated and PMCM can raise one against a statement milestone", async () => {
     need("statement", "balance");
@@ -701,7 +725,7 @@ export async function run(ctx) {
     ["PMCM requests and resolves billing corrections", "event", /billing-corrections/, "POST/PATCH .../billing-corrections"],
     ["PMCM opens and resolves billing disputes", "event", /billing-disputes/, "POST/PATCH .../billing-disputes"],
     ["PMCM issues and waives additional billing", "event", /additional-billing/, "POST .../additional-billing, PATCH .../waive"],
-    ["client downloads proposal and statement PDFs", "client", /download-authorization|downloadAuthorization|downloadContent|storage\/objects\/\$\{[^}]+\}\/content/, "GET /storage/objects/:id/content or download-authorization"],
+    ["client downloads proposal and statement PDFs", "client", /getStorageObjectDownload|download-authorization|downloadAuthorization|downloadContent|storage\/objects\/\$\{[^}]+\}\/content/, "GET /storage/objects/:id/content or download-authorization"],
     ["client raises a billing dispute", "client", /billing-disputes/, "POST .../billing-disputes (client)"],
   ];
   for (const [label, app, pattern, endpoint] of wiring) {

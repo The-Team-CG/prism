@@ -80,3 +80,6 @@ export const updateFileRequirementSchema = z
     "Change at least one requirement field",
   );
 export type UpdateFileRequirementInput = z.infer<typeof updateFileRequirementSchema>;
+
+export const bindFileRequirementUploadSchema = z.object({ objectId: z.string().trim().min(1).max(200) }).strict();
+export type BindFileRequirementUploadInput = z.infer<typeof bindFileRequirementUploadSchema>;
