@@ -8,14 +8,12 @@ import { ClientFloorplanAccessModule, EventLifecycleProjectionModule } from '@pr
 import { FloorplanReferenceModule } from '@prism/contexts/event-lifecycle/floorplan-reference';
 import { PlatformOpsModule } from '../platform-ops/platform-ops.module';
 import { OpsEventFloorplansController } from './api/live/event-floorplans.controller';
-import { EventFloorPlanReviewController } from './api/live/event-floorplan-review.controller';
 import { LayoutEventsController } from './api/authoring/layout-events.controller';
 import { PlansController } from './api/authoring/plans.controller';
 import { PublishController } from './api/authoring/publish.controller';
 import { TemplatesController } from './api/authoring/templates.controller';
 import { FLOORPLAN_COMMANDS, FLOORPLAN_READER } from './contracts/floorplan.tokens';
 import { FloorPlanWorkflowService } from './application/live/floor-plan-workflow.service';
-import { FloorPlanReviewService } from './application/live/floor-plan-review.service';
 import { FloorplanClientReviewController } from './api/live/floorplan-client-review.controller';
 import { FloorPlanClientReviewService } from './application/live/floorplan-client-review.service';
 import { LayoutEventsService } from './application/authoring/layout-events.service';
@@ -40,10 +38,9 @@ import { TemplatesService } from './application/authoring/templates.service';
  */
 @Module({
   imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, forwardRef(() => IdentityAccessModule), EventSessionModule, EventLifecycleProjectionModule, FloorplanReferenceModule, ClientFloorplanAccessModule],
-  controllers: [OpsEventFloorplansController, EventFloorPlanReviewController, FloorplanClientReviewController, LayoutEventsController, PlansController, PublishController, TemplatesController],
+  controllers: [OpsEventFloorplansController, FloorplanClientReviewController, LayoutEventsController, PlansController, PublishController, TemplatesController],
   providers: [
     FloorPlanWorkflowService,
-    FloorPlanReviewService,
     FloorPlanClientReviewService,
     LayoutEventsService,
     PlansService,

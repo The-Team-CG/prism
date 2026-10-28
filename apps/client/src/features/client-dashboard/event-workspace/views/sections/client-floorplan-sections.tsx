@@ -89,21 +89,8 @@ export function FloorPlanDraftPanel({
   );
 }
 
-export function FloorPlanRevisionCommentCard({
-  draft,
-  event,
-  value,
-  setValue,
-  busy,
-  onSubmit,
-}: {
-  draft?: PrismFloorPlanDraft;
-  event?: PrismEvent;
-  value: string;
-  setValue: (v: string) => void;
-  busy: boolean;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-}) {
+/** Read-only status of the client's revision request; the request itself is sent from the official floorplan review panel. */
+export function FloorPlanRevisionCommentCard({ draft, event }: { draft?: PrismFloorPlanDraft; event?: PrismEvent }) {
   const editable = canRequestFloorPlanRevision(draft, event);
   const submittedComment = floorPlanRevisionComment(draft);
   if (draft?.status === "revision_requested" || (draft?.status === "in_review" && !editable && !submittedComment)) {
@@ -129,32 +116,7 @@ export function FloorPlanRevisionCommentCard({
       </div>
     );
   }
-  if (!editable) return null;
-
-  return (
-    <div className="rounded-2xl border border-border bg-card shadow-sm">
-      <header className="border-b border-border px-6 py-4">
-        <p className="text-sm font-bold text-foreground">Review the official floorplan</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Open the plan above to inspect the submitted layout, then tell PMCM what to change.
-        </p>
-      </header>
-      <form onSubmit={onSubmit} className="space-y-4 p-6">
-        <FieldGroup label="Revision comment">
-          <textarea
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            rows={4}
-            placeholder="Describe the change you want, e.g. move the mingle space next to the bar."
-            className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none transition placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
-          />
-        </FieldGroup>
-        <Button disabled={busy} className="w-full rounded-lg font-bold" type="submit">
-          <MessageSquareText className="size-4" /> Send revision comment
-        </Button>
-      </form>
-    </div>
-  );
+  return null;
 }
 
 export function FloorPlanTemplates({
