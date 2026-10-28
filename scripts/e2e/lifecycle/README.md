@@ -30,6 +30,14 @@ Reports are written to `.local-dev/e2e-report/latest.json` and `latest.md`. Set 
 
 ## Read results
 
+### Automated runs
+
+`Lifecycle E2E` runs on demand and at 02:30 Asia/Manila daily. GitHub activates scheduled workflows only after the workflow reaches the default branch; merging into staging alone does not activate the schedule. Scheduled runs check out staging. Pull requests changing the workflow or its CI configuration also exercise the job.
+
+The job provisions its own disposable PostgreSQL 16 database, migrates and seeds accounts, generates private actor credentials, and starts an isolated API on port 4100 with log mail and filesystem storage. It needs no hosted database or provider secrets. Only the structured lifecycle reports are uploaded; environment files, API logs and MFA secrets remain on the ephemeral runner. `E2E_STRICT=1` fails on FAIL, HARNESS_ERROR, GAP, BLOCKED or REVIEW; exploratory local runs retain their existing exit policy.
+
+Maintain the scenario dates as they age; the current fixtures use future 2027 event dates. A failing fixture or unresolved business rule must be repaired explicitly, rather than weakening the CI result policy.
+
 | Result | Meaning |
 | --- | --- |
 | PASS | The assertion succeeded. A labelled portal-wiring check only establishes a source caller exists. |
