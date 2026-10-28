@@ -3,6 +3,7 @@ import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 export type EventDecisionSupplierImpact = {
   id: string;
   supplierName: string;
+  supplierEmail: string | null;
   assignmentStatus: string;
 };
 

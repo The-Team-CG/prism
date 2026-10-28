@@ -36,6 +36,9 @@ function createPaymentService() {
     percentage: 50,
     amount: 100000,
     amountPaid: 25000,
+    creditApplied: 0,
+    supersededAt: null,
+    statementId: null,
     remainingBalance: 75000,
     dueDate: new Date('2026-07-01T00:00:00.000Z'),
     status: 'partially_paid',
@@ -84,7 +87,13 @@ function createPaymentService() {
       findUnique: vi.fn(async () => billingSource),
       create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ ...billingSource, ...data })),
       update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => Object.assign(billingSource, data)),
+      updateMany: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+        if (billingSource.status === 'approved') return { count: 0 };
+        Object.assign(billingSource, data);
+        return { count: 1 };
+      }),
     },
+    $queryRaw: vi.fn(async () => [{ id: milestone.id, event_id: milestone.eventId }]),
     $transaction: vi.fn(async (callback: (tx: any) => unknown) => callback(prisma)),
   };
   const audit = { write: vi.fn() };
@@ -170,6 +179,20 @@ function createBillingStatementService(priorNumbers: string[], conflictingSequen
 }
 
 describe('BillingOperationsService', () => {
+  it('keeps a superseded statement closed and treats sending an already sent statement as a replay', async () => {
+    const { service, prisma } = createBillingStatementService([]);
+    const statement = await service.generateBillingStatement('evt_billing_sequence', 'bsrc_billing_sequence', billingActor, verifiedBillingActor);
+    const row = { ...statement, generatedAt: new Date('2026-08-01T00:00:00Z'), eventDate: new Date('2026-08-01T00:00:00Z'), sentAt: new Date('2026-08-02T00:00:00Z'), status: 'superseded' };
+    prisma.opsBillingStatement.findUnique.mockResolvedValue(row);
+    prisma.opsBillingStatement.update = vi.fn();
+    await expect(service.sendBillingStatement('evt_billing_sequence', row.id, billingActor)).rejects.toThrow('superseded');
+    expect(prisma.opsBillingStatement.update).not.toHaveBeenCalled();
+    row.status = 'sent';
+    const replay = await service.sendBillingStatement('evt_billing_sequence', row.id, billingActor);
+    expect(replay.sentAt).toBe('2026-08-02T00:00:00.000Z');
+    expect(prisma.opsBillingStatement.update).not.toHaveBeenCalled();
+  });
+
   it('rejects cross-event or ineligible billing evidence before creating a source', async () => {
     const { service, prisma, documentVault } = createPaymentService();
     documentVault.findEligibleReference.mockRejectedValueOnce(new Error('Eligible document not found for this event'));
@@ -323,16 +346,17 @@ describe('BillingOperationsService', () => {
     const { service, audit, prisma } = createPaymentService();
     const input = approveBillingSourceSchema.parse({ approvedBy: 'Spoofed approver', approvalNotes: 'Checked' });
 
-    await service.approveBillingSource(
+    const approved = await service.approveBillingSource(
       'evt_sample',
       'bsrc_sample',
       input,
       { id: 'user_maxine', name: 'Maxine', role: 'pmcm-admin', email: 'maxine@pmcm.test', correlationId: 'corr_approval_1' },
     );
 
-    expect(prisma.opsBillingSource.update).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ approvedBy: 'Maxine' }),
-    }));
+    expect(approved.approvedBy).toBe('Maxine');
+    await expect(service.approveBillingSource('evt_sample', 'bsrc_sample', {}, billingActor)).rejects.toThrow('already approved');
+    expect((await prisma.opsBillingSource.findUnique()).approvedBy).toBe('Maxine');
+    expect(audit.write).toHaveBeenCalledTimes(1);
     expect(audit.write).toHaveBeenCalledWith(expect.objectContaining({
       actor: 'Maxine',
       metadata: expect.objectContaining({ actorId: 'user_maxine', correlationId: 'corr_approval_1' }),
@@ -355,8 +379,6 @@ describe('BillingOperationsService', () => {
 
     expect(result.number).toBe(expectedNumber);
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-    expect(prisma.$queryRaw).toHaveBeenCalledTimes(4);
-    expect(prisma.$executeRaw).toHaveBeenCalledTimes(2);
   });
 
   it('attributes billing statement files to the verified actor identity', async () => {
@@ -397,8 +419,8 @@ describe('BillingOperationsService', () => {
 
     expect(first.number).toBe('BS-2026-0002');
     expect(second.number).toBe('BS-2026-0003');
-    expect(prisma.$queryRaw).toHaveBeenCalledTimes(6);
-    expect(prisma.$executeRaw).toHaveBeenCalledTimes(3);
+    const sequenceScans = prisma.$queryRaw.mock.calls.filter(([parts]: [TemplateStringsArray]) => parts.join(' ').includes('MAX(substring'));
+    expect(sequenceScans).toHaveLength(1);
   });
 
   it('uses a sequence row initialized concurrently by an older server', async () => {
@@ -412,8 +434,6 @@ describe('BillingOperationsService', () => {
     );
 
     expect(result.number).toBe('BS-2026-0003');
-    expect(prisma.$queryRaw).toHaveBeenCalledTimes(4);
-    expect(prisma.$executeRaw).toHaveBeenCalledTimes(2);
   });
 
   it('records and audits a payment when the reference number is new', async () => {

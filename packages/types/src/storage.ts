@@ -12,11 +12,11 @@ export interface PrismStoredObject {
   contentType: string;
   declaredByteSize: number;
   checksumSha256: string;
-  uploaderActorId: string;
+  uploaderActorId?: string;
   uploaderActorRole: string;
   lifecycleState: "requested" | "stored" | "failed" | "deleted";
-  providerName: string | null;
-  providerObjectKey: string | null;
+  providerName?: string | null;
+  providerObjectKey?: string | null;
   failureReason: string | null;
   requestedAt: string;
   storedAt: string | null;

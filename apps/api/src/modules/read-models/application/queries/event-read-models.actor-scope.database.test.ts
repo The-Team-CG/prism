@@ -266,6 +266,7 @@ databaseSuite("actor-scoped event reads PostgreSQL behavior", () => {
         mapPaymentMilestone: (row) => row,
         mapFloorPlanDraft: (row) => row,
         mapAuditLog: (row) => row,
+        mapNotificationLog: (row) => row,
       });
       const actionCenter = await service.clientActionCenter(clientActor);
       const supplierPage = await queries.visibleEvents({

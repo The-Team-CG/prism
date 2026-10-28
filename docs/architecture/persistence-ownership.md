@@ -4,9 +4,8 @@ title: "P.R.I.S.M persistence ownership and intentional joins"
 description: "At-a-glance ownership of Prisma models, physical database schemas, allowed cross-context reads, and documented transitional writes."
 tags: [architecture, persistence, prisma, ddd, modular-monolith, data-ownership]
 status: canonical
-updated: "2026-10-18"
+updated: "2026-10-28"
 authority: normative
-owner: "D (Anthony)"
 audience: [agents, engineers, reviewers]
 scope: "apps/api/prisma/schema.prisma and apps/api/src/modules"
 last_verified: "2026-10-18; portal integration with current owner schemas"
@@ -37,7 +36,6 @@ sources:
 - **Purpose:** Make database ownership and cross-context joins visible without
   pretending that one Prisma client is already several services.
 - **Authority:** Normative for new writes and new cross-context queries.
-- **Owner:** D (Anthony).
 - **Use when:** Adding a Prisma read/write, changing a model, or designing a
   context extraction seam.
 - **Rule:** The owning context controls invariants and writes. Other contexts

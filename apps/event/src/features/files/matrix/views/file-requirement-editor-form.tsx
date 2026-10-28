@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import type { PrismFileRequirementItem } from "@prism/types";
+import { DatePicker } from "@prism/ui/components/date-picker";
 import {
   draftFromFileRequirementItem,
   emptyFileRequirementDraft,
@@ -68,10 +69,10 @@ export function FileRequirementEditorForm({
           ))}
         </select>
       </label>
-      <label className="text-sm">
-        Due date
-        <input type="date" value={draft.dueDate} onChange={(event) => update("dueDate", event.target.value)} className={FIELD_CLASS} />
-      </label>
+      <div className="text-sm">
+        <label className="text-sm" htmlFor="file-requirement-due-date">Due date</label>
+        <DatePicker id="file-requirement-due-date" value={draft.dueDate} onValueChange={(value) => update("dueDate", value)} aria-label="Due date" className={FIELD_CLASS} />
+      </div>
       <fieldset className="text-sm md:col-span-2">
         <legend>Visible to</legend>
         <div className="mt-1 flex flex-wrap gap-4">

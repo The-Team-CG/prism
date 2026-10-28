@@ -4,9 +4,8 @@ title: "Portal file storage"
 description: "Configure private file storage and verify portal attachment behavior."
 tags: [runbook, storage, portals, files]
 status: canonical
-updated: "2026-10-18"
+updated: "2026-10-28"
 authority: operational
-owner: "D (Anthony)"
 audience: [engineering, operators, QA]
 scope: "Platform storage adapters and client, supplier, and PMCM file workflows"
 last_verified: "2026-10-16; local implementation verification; hosted provider activation unverified"
@@ -25,7 +24,6 @@ sources:
 
 ## At a glance
 
-- **Owner:** D owns provider configuration, authorization, and operational checks.
 - **Default:** Storage is unconfigured. Configure a provider explicitly.
 - **Evidence:** A pending upload or metadata record never proves file receipt.
 - **Production state:** This delivery does not configure a hosted bucket or credentials.

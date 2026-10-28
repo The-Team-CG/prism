@@ -2,6 +2,7 @@ import { eventApi as eventOpsClient, eventApiRequest as request } from "@/lib/pr
 import type { PrismCoordinatorAssignment, PrismCoordinatorAvailability, PrismCoordinatorReliabilityHistoryEntry, PrismCoordinatorSuggestion, PrismEventDayTask, PrismSupplierQuoteRequest, PrismUrgentIssue, CreateEventDayTaskInput, DecideEventTaskReassignmentInput, PrismEventTaskReassignmentRequest, EscalateLiveOpsInput, EscalateEventDayTaskInput, UpdateCoordinatorAttendanceInput, UpdateEventDayTaskInput, UpdateUrgentIssueInput, CreateUrgentIssueInput, VerifySupplierStatusInput, CreateCoordinatorAvailabilityInput, CreateCoordinatorCoverageRequirementInput, CreateEventOperatorDesignationInput, PrismAcknowledgementReminderResult, PrismEventOperatorDesignation, ReplaceCoordinatorAssignmentInput, CreateCoordinatorAssignmentInput, CoordinatorSuggestionsQueryInput } from "@prism/types";
 
 export const operationsCommands = {
+revokeEventDayOperator: (eventId: string) => request<PrismEventOperatorDesignation>(`/api/events/${eventId}/operator-designation`, { method: "DELETE" }),
 loadCoordinatorReliabilityHistory: (coordinatorId: string) => request<PrismCoordinatorReliabilityHistoryEntry[]>(
   `/api/pmcm/coordinators/${encodeURIComponent(coordinatorId)}/reliability-history`,
 ),

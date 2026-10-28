@@ -14,7 +14,6 @@ function verifiedAdminActor(): ResolvedEventOpsActor {
     verified: true,
   };
 }
-
 function createService() {
   const request = {
     id: 'qr_sample',
@@ -128,6 +127,14 @@ describe('CommercialWorkflowService', () => {
     });
     expect(created.map(({ supplierId }) => supplierId)).toEqual(['sup_a', 'sup_b']);
     expect(notificationOutboxWriter.write).toHaveBeenCalledTimes(4);
+    expect(notificationOutboxWriter.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipient: expect.any(String),
+        message: expect.stringMatching(/^Quote request link: http:\/\/localhost:3002\/quote-requests\/[A-Za-z0-9_-]+$/),
+        idempotencyKey: expect.stringMatching(/^supplier-quote-request:qr_[^:]+:email$/),
+      }),
+      undefined,
+    );
     expect(auditWriter.write).toHaveBeenCalledWith(expect.objectContaining({
       eventId: 'evt_1',
       actor: actor.name,
@@ -192,6 +199,7 @@ describe('CommercialWorkflowService', () => {
         id: 'quote_selected',
         eventId: 'evt_sample',
         requestId: 'qr_selected',
+        supplierId: null,
         supplierName: 'Sonic Line Events',
         category: 'Technicals',
         categoryId: 'cat_tech',
@@ -203,6 +211,7 @@ describe('CommercialWorkflowService', () => {
         id: 'quote_other',
         eventId: 'evt_sample',
         requestId: 'qr_other',
+        supplierId: null,
         supplierName: 'Backup AV',
         category: 'Technicals',
         categoryId: 'cat_tech',
@@ -219,6 +228,9 @@ describe('CommercialWorkflowService', () => {
       opsEvent: { findUnique: vi.fn(async () => ({ id: 'evt_sample' })) },
       opsSupplierQuote: {
         findUnique: vi.fn(async ({ where }) => quotes.find((quote) => quote.id === where.id) ?? null),
+        findMany: vi.fn(async ({ where }) => quotes
+          .filter((quote) => quote.eventId === where.eventId && quote.category === 'Technicals' && quote.id !== where.id.not)
+          .map((quote) => ({ id: quote.id, supplierId: quote.supplierId, supplierName: quote.supplierName }))),
         updateMany: vi.fn(async ({ where, data }) => {
           for (const quote of quotes) {
             if (quote.eventId === where.eventId && quote.category === where.category && quote.id !== where.id.not) {
@@ -287,6 +299,16 @@ describe('CommercialWorkflowService', () => {
         eventId: 'evt_sample',
         recipient: 'Sonic Line Events',
         message: 'Your supplier quote was selected',
+        idempotencyKey: 'supplier-quote-result:quote_selected:selected',
+      }),
+      undefined,
+    );
+    expect(notificationOutboxWriter.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: 'evt_sample',
+        recipient: 'Backup AV',
+        message: 'PMCM selected another supplier for this event. Thank you for submitting a quote.',
+        idempotencyKey: 'supplier-quote-result:quote_selected:quote_other:not-selected',
       }),
       undefined,
     );

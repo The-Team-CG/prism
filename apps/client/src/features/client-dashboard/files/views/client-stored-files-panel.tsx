@@ -2,6 +2,7 @@
 
 import { Download, FileText, LoaderCircle, Upload } from "lucide-react";
 import type { PrismStoredObject } from "@prism/types";
+import { useState } from "react";
 import { useClientStoredFilesViewModel } from "../view-models/use-client-stored-files-view-model";
 
 const ACCEPTED_FILES = ".pdf,.docx,.xlsx,.jpg,.jpeg,.png";
@@ -18,6 +19,7 @@ function displayUsage(object: PrismStoredObject) {
 
 export function ClientStoredFilesPanel({ eventId }: { eventId?: string }) {
   const model = useClientStoredFilesViewModel(eventId);
+  const [requirementKey, setRequirementKey] = useState("");
   if (!eventId) return null;
 
   return (
@@ -27,14 +29,22 @@ export function ClientStoredFilesPanel({ eventId }: { eventId?: string }) {
           <h2 className="text-base font-semibold text-foreground">Uploads and shared files</h2>
           <p className="mt-1 text-sm text-muted-foreground">Send a file to PMCM or download a file shared with you. Uploading a file does not approve it.</p>
         </div>
-        <div>
+        <div className="flex flex-wrap items-end gap-2">
+          {model.requirements.length > 0 ? (
+            <label className="grid gap-1 text-xs font-semibold text-muted-foreground">Fulfil a requirement
+              <select aria-label="Requirement to fulfil" value={requirementKey} onChange={(event) => setRequirementKey(event.target.value)} className="max-w-64 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground">
+                <option value="">Upload without binding</option>
+                {model.requirements.map((requirement) => <option key={requirement.key} value={requirement.key}>{requirement.label}</option>)}
+              </select>
+            </label>
+          ) : null}
           <input
             ref={model.inputRef}
             className="sr-only"
             type="file"
             aria-label="Choose a document to upload for this event"
             accept={ACCEPTED_FILES}
-            onChange={(event) => void model.uploadSelectedFile(event.currentTarget.files?.[0])}
+            onChange={(event) => void model.uploadSelectedFile(event.currentTarget.files?.[0], requirementKey || undefined)}
             disabled={model.busy}
           />
           <button

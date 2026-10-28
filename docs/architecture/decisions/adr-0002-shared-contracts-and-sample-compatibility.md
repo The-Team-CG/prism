@@ -4,9 +4,8 @@ title: "Shared contracts and former sample compatibility"
 description: "Keep shared write contracts in @prism/types; the former sample-runtime policy is superseded."
 tags: [architecture, decision, contracts, zod, compatibility]
 status: canonical
-updated: "2026-09-30"
+updated: "2026-10-28"
 authority: normative
-owner: "D (Anthony)"
 audience: [agents, engineers, frontend-engineers, backend-engineers]
 scope: "@prism/types and @prism/api-client; former /sample runtime policy"
 last_verified: "2026-09-30; shared-contract guidance and ADR-0007 aligned"
@@ -31,7 +30,6 @@ sources:
 
 - **Decision:** Shared-contract rules remain current; the sample-runtime policy is superseded by ADR-0007.
 - **Applies to:** Zod contracts, read models, HTTP transport, and session keys. Sample routes below are historical context.
-- **Owner:** D (Anthony).
 - **Use when:** Adding a request body, shared type, API client call, or browser storage key.
 - **Change when:** A contract boundary or compatibility policy changes; record the successor ADR.
 - **Verify with:** Types build, touched API/portal checks, fixture-seed guard tests, and boundary checks.

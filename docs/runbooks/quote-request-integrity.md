@@ -4,9 +4,8 @@ title: "Commercial quote-request integrity"
 description: "Preflight quote references and safely validate their Commercial foreign key before migration deployment."
 tags: [runbook, database, commercial, foreign-keys, preflight]
 status: canonical
-updated: "2026-10-06"
+updated: "2026-10-28"
 authority: operational
-owner: "B (Francis)"
 audience: [developers, reviewers, operators, agents]
 scope: "Commercial quotes.request_id references and migration 20261003100000_commercial_quote_request_integrity"
 last_verified: "2026-10-06; preflight command, target schema, Prisma relation, and migration SQL reviewed"
@@ -27,7 +26,6 @@ sources:
 
 - **Purpose:** Find orphan quote references before installing the Commercial quote-request foreign key.
 - **Authority:** Operational migration guidance for this one integrity constraint.
-- **Owner:** B (Francis).
 - **Scope:** `quotes.request_id` to `quote_requests.id` and its preflight/migration recovery.
 - **Use when:** Preparing or diagnosing migration `20261003100000_commercial_quote_request_integrity`.
 - **Change when:** Its preflight, Prisma relation, or migration behavior changes.

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards, Optional } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards, Optional } from '@nestjs/common';
 import { zodBody } from '@prism/kernel/shared';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
@@ -84,6 +84,12 @@ export class EventLiveOpsController {
   @UseGuards(EventSessionGuard)
   operatorDesignation(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     return this.scheduleService!.getOperatorDesignation(eventId, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
+  }
+
+  @Delete(':eventId/operator-designation')
+  @UseGuards(EventSessionGuard)
+  revokeOperator(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    return this.scheduleService!.revokeOperator(eventId, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
   }
 
   @Post(':eventId/operator-designation')

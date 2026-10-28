@@ -5,13 +5,14 @@ const repository = vi.hoisted(() => ({
   fetchWatermark: vi.fn(),
   fetchEvent: vi.fn(),
   saveSession: vi.fn(),
+  withdrawFeedbackConsent: vi.fn(),
 }));
 
 vi.mock("../data/guest-dashboard-repository", () => ({
   guestDashboardRepository: repository,
 }));
 
-import { refreshGuestEventIfChanged } from "./guest-dashboard-actions";
+import { refreshGuestEventIfChanged, withdrawGuestFeedbackConsent } from "./guest-dashboard-actions";
 
 const session = {
   id: "evt_sample",
@@ -54,5 +55,18 @@ describe("refreshGuestEventIfChanged", () => {
     await expect(refreshGuestEventIfChanged(session)).resolves.toMatchObject({ watermark: "2026-06-02T00:00:00.000Z" });
     expect(repository.fetchEvent).toHaveBeenCalledWith(session);
     expect(repository.saveSession).toHaveBeenCalledWith(expect.objectContaining({ watermark: "2026-06-02T00:00:00.000Z" }));
+  });
+});
+
+describe("withdrawGuestFeedbackConsent", () => {
+  it("withdraws only the saved receipt and removes it after the server confirms", async () => {
+    repository.withdrawFeedbackConsent.mockResolvedValue({});
+    const saved = { ...session, feedbackReceiptId: "feedback_own" };
+    await expect(withdrawGuestFeedbackConsent(saved)).resolves.toMatchObject({ feedbackReceiptId: undefined });
+    expect(repository.withdrawFeedbackConsent).toHaveBeenCalledWith(saved, "feedback_own", { withdrawPrivacyConsent: true, withdrawMarketingConsent: true });
+    repository.withdrawFeedbackConsent.mockRejectedValueOnce(new Error("Offline"));
+    repository.saveSession.mockClear();
+    await expect(withdrawGuestFeedbackConsent(saved)).rejects.toThrow("Offline");
+    expect(repository.saveSession).not.toHaveBeenCalled();
   });
 });

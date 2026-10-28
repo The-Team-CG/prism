@@ -59,7 +59,7 @@ export const createBillingSourceSchema = z.object({
   sourceType: optionalTrimmedStringSchema,
   sourceLabel: nonEmptyStringSchema,
   sourceDocumentId: optionalTrimmedStringSchema,
-  lineItems: z.array(z.object({ label: nonEmptyStringSchema, amount: z.number() })),
+  lineItems: z.array(z.object({ label: nonEmptyStringSchema, amount: z.number().int().positive().max(2147483647) })).min(1),
   paymentSchedule: z.array(z.object({ label: nonEmptyStringSchema, percentage: z.number(), dueDate: optionalTrimmedStringSchema })).optional(),
   paymentMethods: z.array(z.object({ label: nonEmptyStringSchema, details: z.string().default("") })).optional(),
   paymentTermsPolicy: z.enum(["standard", "repeat_client_override"]).optional(),

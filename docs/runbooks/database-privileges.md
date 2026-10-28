@@ -4,9 +4,8 @@ title: "Prism database roles and audit privileges"
 description: "Which database roles may write which Prism schemas, how audit evidence stays append-only, and how to verify the real grants."
 tags: [runbook, platform-ops, database, privileges, audit]
 status: canonical
-updated: "2026-10-06"
+updated: "2026-10-28"
 authority: operational
-owner: "D (Anthony)"
 audience: [developers, reviewers, operators, agents]
 scope: "PostgreSQL role and privilege model for the seven Prism schemas and the platform_ops audit tables"
 last_verified: "codex/pr30-audit-retention-privileges; role statements and verification queries reviewed, no live database inspected"

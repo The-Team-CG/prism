@@ -49,6 +49,24 @@ export interface PrismProposalVersion {
   issuedAt?: string | null;
 }
 
+/** What the client sees of an issued proposal: no cost estimate lines or internal estimate ids. */
+export interface PrismIssuedProposalSummary {
+  id: string;
+  eventId: string;
+  versionNumber: number;
+  title: string;
+  summary: string;
+  totalAmount: number;
+  revisionNote: string;
+  issuedAt: string;
+  /** The client's decision on the current event proposal: approved means a new version can no longer be issued. */
+  clientStatus: "pending" | "approved" | "revision_requested";
+}
+
+export interface PrismEventProposalResponse {
+  proposal: PrismIssuedProposalSummary | null;
+}
+
 export type PrismAddendumStatus = "issued";
 
 export interface PrismAddendum {

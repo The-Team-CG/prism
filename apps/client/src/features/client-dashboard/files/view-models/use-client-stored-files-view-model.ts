@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { PrismStoredObject } from "@prism/types";
-import { clientStoredFilesRepository } from "../data/client-stored-files-repository";
+import type { PrismFileRequirementItem, PrismStoredObject } from "@prism/types";
+import { downloadClientStoredFile, loadClientStoredFiles, uploadClientStoredFile } from "../use-cases/client-stored-file-actions";
 
 function saveDownload(file: { blob: Blob; fileName: string }) {
   const url = URL.createObjectURL(file.blob);
@@ -19,27 +19,24 @@ export function useClientStoredFilesViewModel(eventId?: string) {
   const uploadAttempts = useRef(new Map<string, string>());
   activeEventIdRef.current = eventId;
   const [files, setFiles] = useState<PrismStoredObject[]>([]);
+  const [requirements, setRequirements] = useState<PrismFileRequirementItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [activeDownload, setActiveDownload] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(eventId));
 
-  async function refresh(forEventId: string) {
-    const result = await clientStoredFilesRepository.list(forEventId);
-    if (activeEventIdRef.current === forEventId) setFiles(result.filter((file) => file.lifecycleState !== "deleted"));
-  }
-
   useEffect(() => {
     let active = true;
     setFiles([]);
+    setRequirements([]);
     setError(null);
     setNotice(null);
     setLoading(Boolean(eventId));
     setActiveDownload(null);
     if (!eventId) return () => { active = false; };
-    clientStoredFilesRepository.list(eventId)
-      .then((result) => { if (active) { setFiles(result.filter((file) => file.lifecycleState !== "deleted")); setError(null); } })
+    loadClientStoredFiles(eventId)
+      .then(([result, matrix]) => { if (active) { setFiles(result.filter((file) => file.lifecycleState !== "deleted")); setRequirements(clientOwnedOpenRequirements(matrix.items)); setError(null); } })
       .catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : "Unable to load files."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -47,13 +44,15 @@ export function useClientStoredFilesViewModel(eventId?: string) {
 
   async function refreshAfterUpload(uploadEventId: string) {
     try {
-      await refresh(uploadEventId);
+      const [files, matrix] = await loadClientStoredFiles(uploadEventId);
+      if (activeEventIdRef.current === uploadEventId) setFiles(files.filter((file) => file.lifecycleState !== "deleted"));
+      if (activeEventIdRef.current === uploadEventId) setRequirements(clientOwnedOpenRequirements(matrix.items));
     } catch {
       if (activeEventIdRef.current === uploadEventId) setError("Your file was uploaded, but the list could not refresh. Reload this page to see the updated files.");
     }
   }
 
-  async function uploadSelectedFile(file?: File) {
+  async function uploadSelectedFile(file?: File, requirementKey?: string) {
     if (!file || !eventId) return;
     const uploadEventId = eventId;
     const fileKey = `${uploadEventId}:${file.name}:${file.size}:${file.lastModified}`;
@@ -63,8 +62,8 @@ export function useClientStoredFilesViewModel(eventId?: string) {
     setError(null);
     setNotice(null);
     try {
-      await clientStoredFilesRepository.upload(file, uploadEventId, "client_document", attemptId);
-      if (activeEventIdRef.current === uploadEventId) setNotice(`${file.name} uploaded. PMCM can review it for this event.`);
+      await uploadClientStoredFile(file, uploadEventId, attemptId, requirementKey);
+      if (activeEventIdRef.current === uploadEventId) setNotice(uploadSuccessMessage(file.name, requirementKey, requirements));
       uploadAttempts.current.delete(fileKey);
       await refreshAfterUpload(uploadEventId);
     } catch (reason) {
@@ -80,7 +79,7 @@ export function useClientStoredFilesViewModel(eventId?: string) {
     setActiveDownload(objectId);
     setError(null);
     try {
-      const file = await clientStoredFilesRepository.download(objectId);
+      const file = await downloadClientStoredFile(objectId);
       if (activeEventIdRef.current === downloadEventId) saveDownload(file);
     } catch (reason) {
       if (activeEventIdRef.current === downloadEventId) setError(reason instanceof Error ? reason.message : "Unable to download this file.");
@@ -89,5 +88,15 @@ export function useClientStoredFilesViewModel(eventId?: string) {
     }
   }
 
-  return { inputRef, files, busy, activeDownload, error, notice, loading, uploadSelectedFile, downloadFile };
+  return { inputRef, files, requirements, busy, activeDownload, error, notice, loading, uploadSelectedFile, downloadFile };
+}
+
+function clientOwnedOpenRequirements(items: PrismFileRequirementItem[]) {
+  return items.filter((item) => item.origin === "custom" && item.ownerRole === "client" && !["submitted", "approved", "complete"].includes(item.status));
+}
+
+function uploadSuccessMessage(fileName: string, requirementKey: string | undefined, requirements: PrismFileRequirementItem[]) {
+  if (!requirementKey) return `${fileName} uploaded. PMCM can review it for this event.`;
+  const label = requirements.find((item) => item.key === requirementKey)?.label ?? requirementKey;
+  return `${fileName} uploaded for ${label}.`;
 }

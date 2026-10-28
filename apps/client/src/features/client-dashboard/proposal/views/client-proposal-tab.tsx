@@ -5,7 +5,7 @@ import {
   Presentation,
   ThumbsUp,
 } from "lucide-react";
-import type { PrismBillingStatement, PrismBriefing, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone } from "@prism/types";
+import type { PrismBillingStatement, PrismBriefing, PrismEvent, PrismFloorPlanDraft, PrismIssuedProposalSummary, PrismPaymentMilestone } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import {
@@ -15,6 +15,7 @@ import {
   DataRow,
   SectionLabel,
   formatLabel,
+  money,
 } from "../../shared/tab-ui";
 import type { DetailTab } from "../../workspace/shared";
 import { proposalClientStatus } from "../model/proposal-review-rules";
@@ -111,7 +112,9 @@ function ProposalPackageCard({
   officialDraft,
   nextPayment,
   proposalReady,
+  proposal,
 }: {
+  proposal: PrismIssuedProposalSummary | null;
   selectedEvent: PrismEvent;
   briefing?: PrismBriefing;
   billing?: PrismBillingStatement;
@@ -136,8 +139,26 @@ function ProposalPackageCard({
       </CardHeader>
       <CardBody className="py-2">
         <DataRow label="Event" value={selectedEvent.eventName} />
+        {proposal ? (
+          <>
+            <DataRow label="Proposal" value={`${proposal.title} (version ${proposal.versionNumber})`} />
+            <DataRow label="Proposal total" value={money.format(proposal.totalAmount)} />
+          </>
+        ) : null}
         <DataRow label="Client review" value={formatLabel(clientStatus)} />
         <DataRow label="Stage" value={proposalReady ? "Client review" : "PMCM preparation"} />
+        <ProposalPlanningFacts briefing={briefing} billing={billing} officialDraft={officialDraft} nextPayment={nextPayment} />
+        {proposal?.summary ? <p className="whitespace-pre-wrap pt-3 text-sm leading-6 text-foreground">{proposal.summary}</p> : null}
+        {proposal?.revisionNote ? (
+          <p className="pt-2 text-sm leading-6 text-muted-foreground">Changed in version {proposal.versionNumber}: {proposal.revisionNote}</p>
+        ) : null}
+      </CardBody>
+    </Card>
+  );
+}
+
+function ProposalPlanningFacts({ briefing, billing, officialDraft, nextPayment }: Pick<Parameters<typeof ProposalPackageCard>[0], "briefing" | "billing" | "officialDraft" | "nextPayment">) {
+  return <>
         <DataRow
           label="Briefing basis"
           value={briefing ? `${briefing.guestCount} guests at ${briefing.venue}` : "Waiting for briefing"}
@@ -154,9 +175,7 @@ function ProposalPackageCard({
           label="Next payment"
           value={nextPayment ? `${nextPayment.label} on ${nextPayment.dueDate}` : "No open milestone"}
         />
-      </CardBody>
-    </Card>
-  );
+  </>;
 }
 
 function proposalChecklistItems(input: {
@@ -263,6 +282,7 @@ export function ClientProposalTab({ setTab }: { setTab: (tab: DetailTab) => void
           officialDraft={vm.officialDraft}
           nextPayment={nextPayment}
           proposalReady={vm.packageReady}
+          proposal={vm.proposal}
         />
         <ProposalReviewChecklist
           briefing={vm.briefing}

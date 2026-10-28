@@ -4,8 +4,11 @@ import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-sessi
 import { zodBody } from '@prism/kernel/shared';
 import {
   createFileRequirementSchema,
+  bindFileRequirementUploadSchema,
   fileRequirementKeySchema,
   updateFileRequirementSchema,
+  type UpsertFileRequirementTemplateInput,
+  upsertFileRequirementTemplateSchema,
   type CreateFileRequirementInput,
   type PrismVerifiedEventActor,
   type UpdateFileRequirementInput,
@@ -59,5 +62,52 @@ export class OpsEventFileRequirementsController {
     const parsedKey = fileRequirementKeySchema.safeParse(key);
     if (!parsedKey.success) throw new NotFoundException('File requirement not found');
     return this.fileRequirementCommands.updateRequirement(eventId, parsedKey.data, input, actor);
+  }
+
+  @Post(':eventId/file-requirements/reminders')
+  @UseGuards(EventSessionGuard)
+  sendFileRequirementReminders(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.fileRequirementCommands.sendReminders(eventId, actor);
+  }
+
+  @Post(':eventId/file-requirements/apply-template')
+  @UseGuards(EventSessionGuard)
+  applyFileRequirementTemplate(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.fileRequirementCommands.applyRequirementTemplate(eventId, actor);
+  }
+
+  @Post(':eventId/file-requirements/:key/upload')
+  @UseGuards(EventSessionGuard)
+  bindFileRequirementUpload(
+    @Param('eventId') eventId: string,
+    @Param('key') key: string,
+    @Body(zodBody(bindFileRequirementUploadSchema)) input: import('@prism/types').BindFileRequirementUploadInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    const parsedKey = fileRequirementKeySchema.safeParse(key);
+    if (!parsedKey.success) throw new NotFoundException('File requirement not found');
+    return this.fileRequirementCommands.bindRequirementUpload(eventId, parsedKey.data, input, actor);
+  }
+}
+
+@Controller('file-requirement-templates')
+export class FileRequirementTemplatesController {
+  constructor(@Inject(FILE_REQUIREMENT_COMMANDS) private readonly fileRequirementCommands: FileRequirementCommands,
+    private readonly eventAccessPolicyService: EventAccessPolicyService) {}
+
+  @Get()
+  @UseGuards(EventSessionGuard)
+  list(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    return this.fileRequirementCommands.listRequirementTemplates(this.eventAccessPolicyService.resolveActor({}, verifiedActor));
+  }
+
+  @Post()
+  @UseGuards(EventSessionGuard)
+  upsert(@Body(zodBody(upsertFileRequirementTemplateSchema)) input: UpsertFileRequirementTemplateInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    return this.fileRequirementCommands.upsertRequirementTemplate(input, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
   }
 }

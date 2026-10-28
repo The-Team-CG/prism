@@ -9,6 +9,7 @@ import {
   type PrismCoordinatorAvailability,
 } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
+import { DatePicker } from "@prism/ui/components/date-picker";
 import { availabilityRangeFromDates, formatAvailabilityRange, isCoordinatorAssignmentActive } from "../model/coordinators-desk-rules";
 import { Card, CardBody, CardHeader } from "./coordinator-desk-primitives";
 
@@ -123,14 +124,14 @@ export function CoordinatorAvailabilityCard({ eventId, eventDate, coordinators, 
         )}
         <AvailabilityEntryList entries={entries} showEmptyState={Boolean(coordinatorId) && !loading} busy={busy} onRemove={(item) => void remove(item)} />
         <form className="space-y-2" onSubmit={(event) => void save(event)}>
-          <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
-            First unavailable day
-            <input type="date" required value={firstDay} onChange={(event) => setFirstDay(event.target.value)} className={FIELD_CLASS} />
-          </label>
-          <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
-            Last unavailable day
-            <input type="date" required min={firstDay || undefined} value={lastDay} onChange={(event) => setLastDay(event.target.value)} className={FIELD_CLASS} />
-          </label>
+          <div className="grid gap-1 text-xs font-semibold text-muted-foreground">
+            <span>First unavailable day</span>
+            <DatePicker aria-label="First unavailable day" required value={firstDay} onValueChange={setFirstDay} className={FIELD_CLASS} />
+          </div>
+          <div className="grid gap-1 text-xs font-semibold text-muted-foreground">
+            <span>Last unavailable day</span>
+            <DatePicker aria-label="Last unavailable day" required min={firstDay || undefined} value={lastDay} onValueChange={setLastDay} className={FIELD_CLASS} />
+          </div>
           <input aria-label="Availability note" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Optional note" className={FIELD_CLASS} />
           <Button type="submit" size="sm" disabled={busy || loading || !coordinatorId}>Add unavailable dates</Button>
         </form>
