@@ -73,6 +73,8 @@ export interface PrismClientCloseoutDeliverable {
   status: string;
   required: boolean;
   acknowledgedAt: string | null;
+  /** An acknowledgement exists, including one recorded separately by PMCM. */
+  acknowledgementRecorded?: boolean;
   acknowledgementNote: string;
 }
 
@@ -82,6 +84,7 @@ export interface PrismClientCloseoutWorkspace {
   wrapUp: {
     status: "pending" | "complete";
     clientAcknowledgedAt: string | null;
+    acknowledgementRecorded?: boolean;
     acknowledgementNote: string;
   } | null;
   deliverables: PrismClientCloseoutDeliverable[];

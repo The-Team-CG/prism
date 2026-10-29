@@ -28,6 +28,7 @@ export class ClientCloseoutService {
       actualEndedAt: event.actualEndedAt?.toISOString() ?? null,
       wrapUp: wrapUp ? {
         status: wrapUp.status,
+        acknowledgementRecorded: Boolean(wrapUp.clientAcknowledgedAt),
         clientAcknowledgedAt: wrapUp.acknowledgementSource === 'client' ? wrapUp.clientAcknowledgedAt?.toISOString() ?? null : null,
         acknowledgementNote: wrapUp.acknowledgementSource === 'client' ? wrapUp.clientAcknowledgementNote : '',
       } : null,
@@ -36,6 +37,7 @@ export class ClientCloseoutService {
         title: item.title,
         status: item.status,
         required: item.required,
+        acknowledgementRecorded: Boolean(item.clientAcknowledgedAt),
         acknowledgedAt: item.acknowledgementSource === 'client' ? item.clientAcknowledgedAt?.toISOString() ?? null : null,
         acknowledgementNote: item.acknowledgementSource === 'client' ? item.clientAcknowledgementNote : '',
       })),

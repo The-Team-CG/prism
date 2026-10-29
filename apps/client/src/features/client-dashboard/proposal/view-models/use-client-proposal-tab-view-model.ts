@@ -28,13 +28,19 @@ export function useClientProposalTabViewModel() {
     setProposal(null);
     proposalReviewRepository.latest(eventId).then(
       (result) => { if (current) setProposal(result.proposal); },
-      () => { if (current) setProposal(null); },
+      (caught: unknown) => {
+        if (current) {
+          setProposal(null);
+          setError(caught instanceof Error ? caught.message : "Could not load the issued proposal. Refresh the page to try again.");
+        }
+      },
     );
     return () => { current = false; };
-  }, [eventId, issuedDocumentId]);
+  }, [eventId, issuedDocumentId, setError]);
   const pendingDecision = useRef<ReturnType<typeof retainProposalDecisionKey> | null>(null);
   const issuedProposal = latestIssuedProposal(documents);
-  const packageReady = proposalPackageReady({ briefing, billing, proposalIssued: Boolean(issuedProposal) });
+  const currentProposal = proposal?.eventId === eventId ? proposal : null;
+  const packageReady = proposalPackageReady({ proposalIssued: Boolean(issuedProposal && currentProposal) });
   const event = selectedEvent;
 
   async function submit(action: ReviewEventProposalInput["action"]) {
@@ -70,7 +76,7 @@ export function useClientProposalTabViewModel() {
     billing,
     payments,
     officialDraft,
-    proposal,
+    proposal: currentProposal,
     packageReady,
     headline: event ? proposalReviewHeadline(event, packageReady) : "Proposal",
     revisionNote,

@@ -3,6 +3,7 @@
 import { LogOut } from "lucide-react";
 import { formatPortalDate } from "@prism/ui/format-date";
 import { PrismGuestShell, PrismNoticeBanner } from "@prism/ui";
+import { portalHref } from "@prism/ui/portal-path";
 import { useGuestDashboardViewModel } from "../view-models/use-guest-dashboard-view-model";
 import {
   GuestCheckInPanel,
@@ -50,6 +51,7 @@ export function GuestDashboardView() {
           <nav aria-label="Guest pass sections" className="flex flex-wrap gap-4 text-sm font-semibold text-primary">
             <a className="inline-flex min-h-11 items-center rounded-md px-2 focus-visible:ring-2 focus-visible:ring-primary" href="#check-in">Check in</a>
             <a className="inline-flex min-h-11 items-center rounded-md px-2 focus-visible:ring-2 focus-visible:ring-primary" href="#event-details">Event details</a>
+            <a className="inline-flex min-h-11 items-center rounded-md px-2 focus-visible:ring-2 focus-visible:ring-primary" href={portalHref("/games/join")}>Join a game</a>
             {feedbackOpen ? <a className="inline-flex min-h-11 items-center rounded-md px-2 focus-visible:ring-2 focus-visible:ring-primary" href="#feedback">Feedback</a> : null}
           </nav>
           <div id="check-in"><GuestCheckInPanel vm={vm} /></div>
