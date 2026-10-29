@@ -6,6 +6,12 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Clients can review an issued proposal before a billing statement exists, see it in their action list, and wait for a newer issued version after requesting revision. Proposal loading failures are reported instead of appearing as an unprepared proposal.
+- Client closeout links lead to delivered items awaiting acknowledgement, rather than Messages or unfinished PMCM records. Wrap-up acknowledgement no longer waits on a completion state that itself needs acknowledgement; separately recorded PMCM acknowledgements are shown without offering a rejected duplicate action. Change requests under review are identified as PMCM's next action.
+- Supplier readiness and contract controls explain and enforce the existing assignment-confirmation prerequisite. Creative deliverables can use a saved progress note after returning to the booking.
+
+- Client event menus link directly to briefing and guest access, and keep Closeout & feedback available after the actual event end, including after feedback is submitted. Archived event menus offer the read-only closeout instead of planning links that cannot load the archived event. Guest landing and pass screens now link to game PIN entry, which also offers a way back to the guest portal.
+
 - The ocular (site) visit now appears on the event Overview in both portals until it is completed or waived: PMCM schedules, completes or waives it there, and clients request it there. Before, PMCM could only reach it from a Tasks page missing from the sidebar, and clients from a page no menu linked to.
 - The client's event lifecycle moves to Planning once the client approves the proposal, instead of staying on "Briefing & proposal" until an official floorplan is approved. Step names read normally ("Briefing & proposal" rather than "briefing proposal").
 - PMCM can start an official floorplan from a **Blank layout** in the event's Floorplans tab, using the briefing's venue and guest count. Before, a plan could only start from a saved template, so a new system with no templates had no way to create one.

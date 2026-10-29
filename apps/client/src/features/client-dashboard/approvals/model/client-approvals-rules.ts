@@ -30,7 +30,7 @@ export function buildApprovalItems(
           ? "The primary client contact approved this proposal."
           : selectedEvent.proposalClientStatus === "revision_requested"
             ? "A revision was requested. PMCM will update the package."
-            : "Review the proposal package when briefing and billing are ready.",
+            : "Review the proposal once PMCM has issued it. Billing is handled separately.",
       status: selectedEvent.proposalClientStatus ?? "pending",
       route: "proposal",
     },

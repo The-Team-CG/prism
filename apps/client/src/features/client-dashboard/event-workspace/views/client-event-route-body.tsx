@@ -19,6 +19,7 @@ import { ClientFinalSummaryView } from "./client-final-summary-view";
 import { ClientMessagesView } from "../../messages";
 import { ClientApprovalsView } from "../../approvals";
 import { ClientCloseoutView } from "../../closeout/views/client-closeout-view";
+import { ClientChangeRequestsPanel } from "../../change-requests";
 import type { ClientDashboardRoute } from "../../workspace/shared";
 
 const OCULAR_VISIT_DONE = new Set(["completed", "waived"]);
@@ -96,12 +97,7 @@ function renderChanges(ctx: ClientWorkspaceValue) {
           onSubmit={ctx.submitOcularVisit}
         />
       ) : null}
-      <ClientActionGroup
-        title="Change requests"
-        description="Client-visible revision and change items for this event."
-        actions={ctx.clientActions}
-        onAction={ctx.runClientAction}
-      />
+      {ctx.selectedEvent ? <ClientChangeRequestsPanel key={ctx.selectedEvent.id} eventId={ctx.selectedEvent.id} /> : null}
     </div>
   );
 }

@@ -28,7 +28,7 @@ export function retainProposalDecisionKey(
 }
 
 export function proposalPackageReady(input: { briefing?: unknown; billing?: unknown; proposalIssued?: boolean }) {
-  return Boolean(input.briefing && input.billing && input.proposalIssued);
+  return Boolean(input.proposalIssued);
 }
 
 export function proposalClientStatus(event: PrismEvent) {
@@ -40,7 +40,7 @@ export function remainingProposalRevisions(event: PrismEvent) {
 }
 
 export function canApproveProposal(event: PrismEvent, packageReady: boolean) {
-  return packageReady && !event.archived && event.clientPortalStatus === "unlocked" && proposalClientStatus(event) !== "approved";
+  return packageReady && !event.archived && event.clientPortalStatus === "unlocked" && proposalClientStatus(event) === "pending";
 }
 
 export function canRequestProposalRevision(event: PrismEvent, packageReady: boolean) {

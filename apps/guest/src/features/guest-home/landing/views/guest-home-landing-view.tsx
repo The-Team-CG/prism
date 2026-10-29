@@ -135,6 +135,12 @@ export function GuestHomeLandingView() {
                   See how it works
                 </a>
               </div>
+              <p className="mt-4 text-sm text-muted-foreground">
+                Have a PIN from the game host?{" "}
+                <a href={portalHref("/games/join")} className="inline-flex min-h-11 items-center rounded-md px-1 font-semibold text-primary focus-visible:ring-2 focus-visible:ring-primary">
+                  Join a game
+                </a>
+              </p>
               <div className="mt-10 grid grid-cols-2 gap-5 sm:grid-cols-4">
                 {[
                   [TicketCheck, "Access code"],

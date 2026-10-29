@@ -7,11 +7,14 @@ import {
   LayoutGrid,
   MapPinned,
   MessageSquareText,
+  PackageCheck,
+  TicketCheck,
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
 
 import type { ClientDashboardRoute, ClientPortalView, ClientSidebarLink, ClientSidebarNavItem, ClientSidebarSubItem, DetailTab } from "./client-dashboard-types";
+import type { PrismEvent } from "@prism/types";
 
 export const CLIENT_CONFORME_REVIEW_HREF = "/conforme";
 
@@ -87,30 +90,40 @@ export const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
 export const EVENT_WORKSPACE_NAV_ITEMS: ClientSidebarSubItem[] = [
   { id: "event-overview", label: "Overview", route: "overview", requiresEvent: true, eventScoped: true },
   { id: "event-progress", label: "Planning", route: "progress", requiresEvent: true, eventScoped: true },
+  { id: "event-briefing", label: "Event briefing", route: "briefing", requiresEvent: true, eventScoped: true },
+  { id: "event-guests", label: "Guest access", route: "guests", requiresEvent: true, eventScoped: true },
   { id: "event-floorplan", label: "Floor plan", route: "floorplan", requiresEvent: true, eventScoped: true },
   { id: "event-approvals", label: "Approvals", route: "approvals", requiresEvent: true, eventScoped: true },
   { id: "event-billing", label: "Billing", route: "billing", requiresEvent: true, eventScoped: true },
   { id: "event-files", label: "Documents", route: "documents", requiresEvent: true, eventScoped: true },
   { id: "event-messages", label: "Messages", route: "messages", requiresEvent: true, eventScoped: true },
+  { id: "event-closeout", label: "Closeout & feedback", route: "summary", requiresEvent: true, eventScoped: true },
 ];
 
 const EVENT_NAV_ICONS: Record<string, LucideIcon> = {
   "event-overview": LayoutGrid,
   "event-progress": ClipboardList,
+  "event-briefing": FileText,
+  "event-guests": TicketCheck,
   "event-floorplan": MapPinned,
   "event-approvals": BadgeCheck,
   "event-billing": WalletCards,
   "event-files": FileText,
   "event-messages": MessageSquareText,
+  "event-closeout": PackageCheck,
 };
 
 /**
  * Inside one event the sidebar is that event's workspace, with My Events and Home as the way back,
  * instead of the portal sidebar plus a second row of tabs.
  */
-export function clientEventSidebarItems(eventName: string, eventId?: string) {
+export function clientEventSidebarItems(eventName: string, eventId?: string, event?: Pick<PrismEvent, "actualEndedAt" | "archived">) {
+  const closeoutAvailable = Boolean(event?.actualEndedAt || event?.archived);
+  const eventItems = EVENT_WORKSPACE_NAV_ITEMS.filter((item) =>
+    event?.archived ? item.route === "summary" : item.route !== "summary" || closeoutAvailable,
+  );
   return [
-    ...EVENT_WORKSPACE_NAV_ITEMS.map((item) => ({
+    ...eventItems.map((item) => ({
       id: item.id,
       label: item.label,
       icon: EVENT_NAV_ICONS[item.id] ?? LayoutGrid,
@@ -152,9 +165,9 @@ export const EVENT_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, strin
   details: "event-overview",
   progress: "event-progress",
   schedule: "event-progress",
-  guests: "event-progress",
+  guests: "event-guests",
   preferences: "event-progress",
-  briefing: "event-progress",
+  briefing: "event-briefing",
   floorplan: "event-floorplan",
   proposal: "event-approvals",
   documents: "event-files",
@@ -164,7 +177,7 @@ export const EVENT_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, strin
   approvals: "event-approvals",
   files: "event-files",
   changes: "event-progress",
-  summary: "event-overview",
+  summary: "event-closeout",
 };
 
 export const ROUTE_TO_DETAIL_TAB: Partial<Record<ClientDashboardRoute, DetailTab>> = {

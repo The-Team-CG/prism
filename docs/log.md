@@ -6,6 +6,8 @@ implementation and verification history.
 
 ## 2026-10-29
 
+- Clarified issued-proposal review prerequisites and version handoff, and documented the closeout read model's acknowledgement-presence flag without changing acknowledgement authorship or private-note visibility.
+
 - Documented the development-only authenticator rescan contract: a password-verified active challenge is required, production refuses QR disclosure, and rescanning preserves enrollment and the code-verification requirement.
 
 - Documented the six provenance-verified historical UAT seed variants accepted by database doctor, exact startup compatibility, and schema cutover preflight, while preserving original ledger rows and rejecting unrecognized SQL changes.
