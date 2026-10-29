@@ -76,6 +76,19 @@ function daysBetween(left: Date, right: Date) {
   return Math.abs(left.getTime() - right.getTime()) / 86_400_000;
 }
 
+/**
+ * The client's acceptance email names the next step for how their account invitation went: a new
+ * account gets pointed at the separate setup email, an existing one is told to sign in.
+ */
+export function inquiryAcceptedMessage(eventName: string, invitation: PrismAccountInvitationOutcome['outcome'] | null) {
+  const accepted = `PMCM accepted your inquiry for ${eventName}. The next step is to review and sign your conforme in the P.R.I.S.M client portal.`;
+  if (invitation === 'invited') {
+    return `${accepted} We sent you a separate email, "Set up your P.R.I.S.M account", with a link to set your password. If it isn't in your inbox, check Spam or Promotions.`;
+  }
+  if (invitation === 'existing_account') return `${accepted} Sign in with your existing P.R.I.S.M account to continue.`;
+  return `${accepted} PMCM will send you a link to set up your account shortly.`;
+}
+
 @Injectable()
 export class InquiriesService {
   private readonly logger = new Logger(InquiriesService.name);
@@ -191,11 +204,12 @@ export class InquiriesService {
             actorEmail: verifiedActor.email,
             metadata: { actorId: verifiedActor.id },
           }),
-            this.notify(undefined, inquiry.email, 'Inquiry accepted; signed conforme required'),
             this.notify(undefined, inquiry.clientName, 'Conforme sent by PMCM', 'viber'),
           ]);
           // The client needs the account to read and sign the conforme, so the invitation goes out with the acceptance.
-          await this.sendClientPortalInvitationAfterCommit(inquiry.id, this.invitationActorFor(verifiedActor));
+          const invitation = await this.sendClientPortalInvitationAfterCommit(inquiry.id, this.invitationActorFor(verifiedActor));
+          // Sent after the invitation so it can point the client at the right next step for that outcome.
+          await this.notify(undefined, inquiry.email, inquiryAcceptedMessage(inquiry.eventName, invitation));
         }
         if (input.status === 'pending') {
           await this.audit(undefined, verifiedActor.name, `Marked inquiry pending for ${inquiry.clientName}`, {
@@ -270,9 +284,10 @@ export class InquiriesService {
    * Called after PMCM's acceptance commits. Failures are recorded on the inquiry and in the audit trail
    * instead of reaching the signer, because the signature itself has already been stored.
    */
-  async sendClientPortalInvitationAfterCommit(inquiryId: string, actor: AccountInvitationActor) {
+  async sendClientPortalInvitationAfterCommit(inquiryId: string, actor: AccountInvitationActor): Promise<PrismAccountInvitationOutcome['outcome'] | null> {
     try {
-      await this.issueClientPortalInvitation(inquiryId, actor);
+      const { outcome } = await this.issueClientPortalInvitation(inquiryId, actor);
+      return outcome.outcome;
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       this.logger.error(`Client portal invitation was not issued for inquiry ${inquiryId}: ${reason}`);
@@ -288,6 +303,7 @@ export class InquiriesService {
         affectedId: inquiryId,
         severity: 'warning',
       });
+      return null;
     }
   }
 
@@ -527,7 +543,7 @@ export class InquiriesService {
               actorId: actor?.id ?? null,
             },
           }),
-          this.notify(undefined, inquiry.email, 'Inquiry received'),
+          this.notify(undefined, inquiry.email, `We received your inquiry for ${inquiry.eventName}. PMCM will review it and reply by email.`),
           ...(duplicate
             ? [this.notifyPmcmTriage(inquiry.id, 'duplicate', `Possible duplicate inquiry from ${inquiry.clientName} for ${inquiry.eventName}; matches ${duplicate.id}`)]
             : []),

@@ -54,7 +54,7 @@ function MiniFloorplan({ compact = false }: { compact?: boolean }) {
     <div className={cx("grid gap-2 rounded-md border border-border bg-secondary/35 p-4", compact ? "aspect-[1.65]" : "aspect-[1.72]")}>
       <div className="grid grid-cols-[0.45fr_1.05fr_0.45fr] gap-2">
         <div className="rounded-md border border-primary/15 bg-card p-2 text-center text-xs font-medium text-muted-foreground">BAR</div>
-        <div className="rounded-md bg-ink p-2 text-center text-xs font-medium text-sidebar-foreground">Stage</div>
+        <div className="rounded-md bg-ink p-2 text-center text-xs font-medium text-ink-foreground">Stage</div>
         <div className="rounded-md border border-primary/15 bg-card p-2 text-center text-xs font-medium text-muted-foreground">AV</div>
       </div>
       <div className="grid grid-cols-5 gap-2 px-7">

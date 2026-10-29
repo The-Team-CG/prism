@@ -28,3 +28,25 @@ export function formatPortalTime(value?: string | null, fallback = "Time not set
   if (!Number.isFinite(date.getTime())) return fallback;
   return new Intl.DateTimeFormat("en-PH", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Manila" }).format(date);
 }
+
+/** The Philippine calendar date of a value: calendar dates keep their day, timestamps resolve in Manila. */
+export function manilaCalendarKey(value: string): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : manilaDateKey(new Date(value));
+}
+
+/** Whole days between two Philippine calendar dates (YYYY-MM-DD): negative when the due date has passed. */
+export function daysUntil(dueKey: string, todayKey: string): number | null {
+  const due = Date.parse(`${dueKey}T00:00:00Z`);
+  const today = Date.parse(`${todayKey}T00:00:00Z`);
+  if (!Number.isFinite(due) || !Number.isFinite(today)) return null;
+  return Math.round((due - today) / 86_400_000);
+}
+
+/** Short due phrase for a list row: "Overdue 3 days", "Due today", "Due in 2 days". */
+export function dueLabel(days: number): string {
+  if (days < -1) return `Overdue ${-days} days`;
+  if (days === -1) return "Overdue 1 day";
+  if (days === 0) return "Due today";
+  if (days === 1) return "Due tomorrow";
+  return `Due in ${days} days`;
+}

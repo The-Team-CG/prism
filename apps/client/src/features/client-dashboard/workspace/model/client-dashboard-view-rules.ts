@@ -106,6 +106,9 @@ export type ClientDashboardAction = {
   nextActor?: "you" | "pmcm" | "update";
   /** Urgent or overdue now, rather than a requirement for a later stage. */
   blocking?: boolean;
+  /** Server priority and raw due date, for list colour and due phrases. */
+  priority?: PrismClientActionItem["priority"];
+  dueAt?: string | null;
 };
 
 export const money = new Intl.NumberFormat("en-PH", {
@@ -159,6 +162,8 @@ export function actionCenterItemToDashboardAction(
     tone: clientActionTone(item.priority),
     nextActor: clientActionNextActor(item),
     blocking: item.priority === "critical" || item.priority === "warning",
+    priority: item.priority,
+    dueAt: item.dueAt ?? null,
   };
 }
 

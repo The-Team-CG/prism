@@ -2,21 +2,45 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
-import { formatPortalDate } from "@prism/ui/format-date";
+import { BadgeCheck, FileText, MessageSquareText, WalletCards, type LucideIcon } from "lucide-react";
+import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
+import type { PrismClientWorkspace, PrismEvent } from "@prism/types";
 import { useClientWorkspace } from "../../client-workspace-context";
 import { dashboardHref } from "../../model/client-dashboard-navigation";
 import type { ClientDashboardRoute } from "../../model/client-dashboard-types";
-import { formatStatusLabel } from "../../model/client-dashboard-view-rules";
+import { formatStatusLabel, money } from "../../model/client-dashboard-view-rules";
+import { ClientListRow, ClientListSection, type ClientRowTone } from "../../../shared/client-list-ui";
+import { clientMilestoneRemaining } from "../../../billing/model/client-billing-rules";
+import { eventCountdown, orderClientEvents } from "../../../home/model/client-home-summary";
 
 type EventDestination = Extract<ClientDashboardRoute, "approvals" | "billing" | "documents" | "messages">;
+
+const DESTINATION: Record<EventDestination, { icon: LucideIcon; action: string }> = {
+  approvals: { icon: BadgeCheck, action: "Open approvals" },
+  billing: { icon: WalletCards, action: "Open billing" },
+  documents: { icon: FileText, action: "Open files" },
+  messages: { icon: MessageSquareText, action: "Open messages" },
+};
+
+/** The one fact that helps pick an event for this destination: what's owed, how many files, or when it is. */
+function eventSummary(destination: EventDestination, event: PrismEvent, state: PrismClientWorkspace | null, today: string): { label: string; tone: ClientRowTone } {
+  if (destination === "billing" && state) {
+    const owed = state.paymentMilestones.filter((payment) => payment.eventId === event.id && payment.status !== "paid").reduce((sum, payment) => sum + clientMilestoneRemaining(payment), 0);
+    return owed > 0 ? { label: `${money.format(owed)} due`, tone: "attention" } : { label: "Nothing due", tone: "done" };
+  }
+  if (destination === "documents" && state) {
+    const count = state.documents.filter((document) => document.eventId === event.id).length;
+    return { label: count === 1 ? "1 file" : `${count} files`, tone: "neutral" };
+  }
+  return { label: eventCountdown(event.eventDate, today) ?? formatStatusLabel(event.status), tone: "neutral" };
+}
 
 /**
  * Account-level pages belong to an event. One event opens directly (the link stays as a fallback);
  * several events get a compact list that lands on the same section of the chosen event.
  */
 export function ClientAccountEventPicker({ purpose, destination }: { purpose: string; destination: EventDestination }) {
-  const { events, router } = useClientWorkspace();
+  const { events, router, state } = useClientWorkspace();
   const onlyEventHref = events.length === 1 ? dashboardHref(destination, events[0].id) : null;
 
   useEffect(() => {
@@ -32,29 +56,25 @@ export function ClientAccountEventPicker({ purpose, destination }: { purpose: st
       </p>
     );
   }
+  const today = manilaDateKey();
+  const { icon, action } = DESTINATION[destination];
   return (
-    <section aria-labelledby="client-account-event-picker" className="rounded-lg border border-border bg-card">
-      <h2 id="client-account-event-picker" className="border-b border-border px-4 py-3 text-sm font-semibold text-foreground">
-        Choose an event to see its {purpose}
-      </h2>
-      <ul className="divide-y divide-border">
-        {events.map((event) => (
-          <li key={event.id}>
-            <Link
-              href={dashboardHref(destination, event.id)}
-              className="flex min-h-14 items-center gap-3 px-4 py-3 text-sm hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-primary"
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block break-words font-medium text-foreground">{event.eventName}</span>
-                <span className="block text-muted-foreground">
-                  {formatPortalDate(event.eventDate)} · {formatStatusLabel(event.status)}{event.venue ? ` · ${event.venue}` : ""}
-                </span>
-              </span>
-              <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <ClientListSection id="client-account-event-picker" title={`Choose an event to see its ${purpose}`} count={events.length}>
+      {orderClientEvents(events).map((event) => {
+        const summary = eventSummary(destination, event, state, today);
+        return (
+          <ClientListRow
+            key={event.id}
+            icon={icon}
+            tone={summary.tone}
+            title={event.eventName}
+            meta={[formatPortalDate(event.eventDate), event.venue || "Venue to be confirmed", formatStatusLabel(event.status)].join(" · ")}
+            status={summary.label}
+            action={action}
+            href={dashboardHref(destination, event.id)}
+          />
+        );
+      })}
+    </ClientListSection>
   );
 }

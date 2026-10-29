@@ -40,6 +40,10 @@ export async function beginEventTwoFactorSetup(token: string) {
   return eventAuthRepository.setupTwoFactor(token);
 }
 
+export async function getDevelopmentEventTwoFactorQr(token: string) {
+  return eventAuthRepository.developmentTwoFactorQr(token);
+}
+
 export async function verifyEventTwoFactor(input: { token: string; code: string; nextPath?: string | null }) {
   const session = await eventAuthRepository.verifyTwoFactor(input.token, input.code);
   if (!isEventPortalRole(session.role)) return { error: eventRoleRejectionMessage(session.role) } as const;

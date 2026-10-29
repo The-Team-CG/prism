@@ -13,6 +13,8 @@ import { CommandHomeSelectedEvent } from "./command-home-selected-event";
 import { EventRegister } from "./event-register";
 import { InquiryViews } from "./inquiry-views";
 import { ClientDirectory, ClientDossier } from "./client-directory";
+import { CoordinatorRoster } from "./coordinator-roster";
+import { WorkspaceSubTabs } from "./workspace-sub-tabs";
 import { humanizeToken } from "@/features/pmcm-kit/model/formatters";
 import { ShieldCheck } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -146,7 +148,14 @@ export function EventDashboardClientsSectionView() {
       />
     );
   }
-  return <ClientDirectory clients={clientRecordsForView} onOpenClient={navigateClient} />;
+  const balances = new Map(
+    clientRecordsForView.map((client) => {
+      const eventIds = new Set(client.events.map((event) => event.id));
+      const balance = state.paymentMilestones.filter((payment) => eventIds.has(payment.eventId)).reduce((sum, payment) => sum + payment.remainingBalance, 0);
+      return [client.id, balance] as const;
+    }),
+  );
+  return <ClientDirectory clients={clientRecordsForView} balances={balances} onOpenClient={navigateClient} />;
 }
 
 /** Team routes whose data isn't modelled separately yet say so, instead of silently repeating the roster. */
@@ -176,6 +185,7 @@ export function EventDashboardTeamSectionView() {
     loadCoordinatorReliabilityHistory,
     createCoordinatorAvailability,
     deleteCoordinatorAvailability,
+    navigateEvent,
     routeState,
   } = useEventDashboardLoadedRouteViewModel();
   const teamView = routeState.view ?? "all";
@@ -203,32 +213,14 @@ export function EventDashboardTeamSectionView() {
               onDeleteAvailability={deleteCoordinatorAvailability}
             />
           ) : (
-            <Card>
-              <CardHeader>
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h2 className="text-sm font-semibold text-foreground">{teamView === "archived" ? "Archived coordinators" : "Coordinator roster"}</h2>
-                  <span className="text-sm tabular-nums text-muted-foreground">{roster.length}</span>
-                </div>
-                {unbackedViewNote ? <p className="mt-1 text-sm text-muted-foreground">{unbackedViewNote}</p> : null}
-              </CardHeader>
-              <div className="divide-y divide-border">
-                {roster.length === 0 ? (
-                  <p className="px-6 py-4 text-sm text-muted-foreground">{teamView === "archived" ? "No archived coordinators." : "No coordinators yet."}</p>
-                ) : null}
-                {roster.map((coordinator) => (
-                  <div key={coordinator.id} className="flex items-start justify-between gap-4 px-6 py-4">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-foreground">{coordinator.name}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{coordinator.roleTags.join(", ") || "General coordinator"}</p>
-                      {coordinator.skillsTags.length > 0 && (
-                        <p className="mt-0.5 text-xs text-muted-foreground/70">{coordinator.skillsTags.join(", ")}</p>
-                      )}
-                    </div>
-                    <StatusBadge status={coordinator.active ? "active" : "inactive"} />
-                  </div>
-                ))}
-              </div>
-            </Card>
+            <CoordinatorRoster
+              title={teamView === "archived" ? "Archived coordinators" : "Coordinator roster"}
+              note={unbackedViewNote}
+              coordinators={roster}
+              assignments={state.coordinatorAssignments}
+              events={state.events}
+              onOpenEvent={(eventId) => navigateEvent(eventId, "coordinators")}
+            />
           )
   );
 }
@@ -250,25 +242,34 @@ export function EventDashboardFilesSectionView() {
   return (
 
           selectedEvent ? (
-            <div className="space-y-5">
-              <FileRequirementsMatrixPanel eventId={selectedEvent.id} />
-              <PmcmDocumentHubView eventId={selectedEvent.id} />
-              <EventFileHub
-                event={selectedEvent}
-                documents={documents}
-                drafts={drafts}
-                billingStatements={billingStatements}
-                quoteRequests={quoteRequests}
-                briefing={briefing}
-                checks={checks}
-                postEventDocuments={postEventDocuments}
-                onOpenFloorplans={() => navigateEventTab("floorplans")}
-                onOpenBriefing={() => navigateEventTab("briefing")}
-                onOpenSuppliers={() => navigateEventTab("suppliers")}
-                onOpenBilling={() => navigateEventTab("billing")}
-                onOpenClosure={() => navigateEventTab("closure")}
-              />
-            </div>
+            <WorkspaceSubTabs
+              label="File sections"
+              tabs={[
+                { id: "stored", label: "Stored files", render: () => <PmcmDocumentHubView eventId={selectedEvent.id} /> },
+                { id: "required", label: "Required files", render: () => <FileRequirementsMatrixPanel eventId={selectedEvent.id} /> },
+                {
+                  id: "records",
+                  label: "Records by area",
+                  render: () => (
+                    <EventFileHub
+                      event={selectedEvent}
+                      documents={documents}
+                      drafts={drafts}
+                      billingStatements={billingStatements}
+                      quoteRequests={quoteRequests}
+                      briefing={briefing}
+                      checks={checks}
+                      postEventDocuments={postEventDocuments}
+                      onOpenFloorplans={() => navigateEventTab("floorplans")}
+                      onOpenBriefing={() => navigateEventTab("briefing")}
+                      onOpenSuppliers={() => navigateEventTab("suppliers")}
+                      onOpenBilling={() => navigateEventTab("billing")}
+                      onOpenClosure={() => navigateEventTab("closure")}
+                    />
+                  ),
+                },
+              ]}
+            />
           ) : (
             <EventDestinationPicker
               events={events}

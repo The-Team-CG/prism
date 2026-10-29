@@ -10,10 +10,12 @@ import { ClientFilesView } from "../../../files";
 import { ClientMessagesView } from "../../../messages";
 import { ClientPortalBillingView } from "../../../billing";
 import { ClientEventWorkspaceView } from "../../../event-workspace";
+import { ClientSharedFloorplansView } from "@/features/client-shared-floorplans/views/client-shared-floorplans-view";
 import type { ClientDashboardRoute } from "../../model/client-dashboard-types";
 
 const PORTAL_ROUTE_VIEWS: Partial<Record<ClientDashboardRoute, () => ReactElement>> = {
   home: () => <ClientHomeView />,
+  "shared-floorplans": () => <ClientSharedFloorplansView />,
   request: () => <ClientRequestView />,
   events: () => <ClientEventsView />,
   calendar: () => <ClientCalendarView />,

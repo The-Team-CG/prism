@@ -1,127 +1,79 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { BadgeCheck, CheckCircle2, Clock } from "lucide-react";
+import Link from "next/link";
+import { BadgeCheck, CalendarCheck, FileSignature, MapPinned, ReceiptText, type LucideIcon } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
-import { StatusBadge } from "@/app/components/ui/status-badge";
-import { formatStatusLabel } from "../../workspace/shared";
-import { useClientWorkspace } from "../../workspace/shared";
+import { dashboardHref, formatStatusLabel, useClientWorkspace } from "../../workspace/shared";
 import { ClientAccountEventPicker } from "../../workspace/views/sections/client-account-event-picker";
-import {
-  approvalStatusKind,
-  buildApprovalItems,
-  filterApprovalItems,
-  type ApprovalItem,
-} from "../model/client-approvals-rules";
+import { ClientFigureStrip, ClientListEmpty, ClientListRow, ClientListSection, type ClientRowTone } from "../../shared/client-list-ui";
+import { approvalStatusKind, buildApprovalItems, filterApprovalItems, type ApprovalItem } from "../model/client-approvals-rules";
 
-function statusIcon(status: string) {
-  const kind = approvalStatusKind(status);
-  if (kind === "success") return <CheckCircle2 className="size-4 text-success" />;
-  if (kind === "pending") return <Clock className="size-4 text-attention" />;
-  return <BadgeCheck className="size-4 text-muted-foreground" />;
-}
+const ICONS: Record<string, LucideIcon> = {
+  Proposal: FileSignature,
+  Contracts: FileSignature,
+  Quotations: ReceiptText,
+  "Layouts / Designs": MapPinned,
+  "Final Confirmation": CalendarCheck,
+};
 
-function ApprovalsEmpty({
-  title,
-  description,
-  action,
-  compact = false,
-}: {
-  title: string;
-  description: string;
-  action?: ReactNode;
-  compact?: boolean;
-}) {
-  return (
-    <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-8 py-12 text-center">
-      <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-muted">
-        <BadgeCheck className="size-6 text-muted-foreground" />
-      </span>
-      <h3 className="mt-4 text-base font-black text-foreground">{title}</h3>
-      <p className={compact ? "mt-2 text-sm text-muted-foreground" : "mt-2 max-w-sm mx-auto text-sm leading-6 text-muted-foreground"}>{description}</p>
-      {action}
-    </div>
-  );
-}
-
-function ApprovalItemRow({ item }: { item: ApprovalItem }) {
-  return (
-    <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border bg-card px-5 py-4 shadow-sm hover:border-primary/20 transition-colors">
-      <div className="flex items-start gap-3 min-w-0">
-        <span className="mt-0.5 shrink-0">{statusIcon(item.status)}</span>
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-foreground">{item.title}</p>
-          <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{item.detail}</p>
-        </div>
-      </div>
-      <StatusBadge status={item.status} label={formatStatusLabel(item.status)} />
-    </div>
-  );
-}
-
-function ApprovalsBody({
-  choiceRequired,
-  showNoEvent,
-  items,
-  onGoToEvents,
-}: {
-  choiceRequired: boolean;
-  showNoEvent: boolean;
-  items: ReturnType<typeof filterApprovalItems>;
-  onGoToEvents: () => void;
-}) {
-  if (choiceRequired) return null;
-  if (showNoEvent) {
-    return (
-      <ApprovalsEmpty
-        title="No active event"
-        description="Select an event from My Events to view approval items."
-        action={
-          <Button variant="outline" className="mt-5 rounded-lg font-semibold" onClick={onGoToEvents}>
-            Go to My Events
-          </Button>
-        }
-      />
-    );
-  }
-  return (
-    <div className="grid gap-3">
-      {items.length ? (
-        items.map((item) => <ApprovalItemRow key={item.title} item={item} />)
-      ) : (
-        <ApprovalsEmpty title="All clear" description="No approval items in this view." compact />
-      )}
-    </div>
-  );
+function approvalTone(item: ApprovalItem): ClientRowTone {
+  if (/revision|changes/i.test(item.status)) return "attention";
+  return approvalStatusKind(item.status) === "success" ? "done" : "neutral";
 }
 
 export function ClientApprovalsView() {
-  const {
-    router,
-    portalView,
-    selectedEvent,
-    officialDraft,
-    billing,
-    documents,
-    events,
-    isEventScopedView,
-  } = useClientWorkspace();
-  const visibleApprovalItems = filterApprovalItems(
-    buildApprovalItems(selectedEvent, documents, billing, officialDraft),
-    portalView,
-  );
-  const choiceRequired = !isEventScopedView && events.length > 0;
-  const showNoEvent = !isEventScopedView && events.length === 0;
+  const { selectedEvent, officialDraft, billing, documents, events, isEventScopedView, portalView } = useClientWorkspace();
+
+  if (!isEventScopedView) {
+    if (events.length === 0) {
+      return (
+        <ClientListEmpty
+          icon={BadgeCheck}
+          title="No active event"
+          description="Approvals appear once your event workspace is open."
+          action={<Button asChild variant="outline" size="sm"><Link href="/dashboard/events">Go to My events</Link></Button>}
+        />
+      );
+    }
+    return <ClientAccountEventPicker purpose="approvals" destination="approvals" />;
+  }
+
+  const all = buildApprovalItems(selectedEvent, documents, billing, officialDraft);
+  const visible = filterApprovalItems(all, portalView);
+  const approved = all.filter((item) => approvalStatusKind(item.status) === "success").length;
+  const revisions = all.filter((item) => /revision|changes/i.test(item.status)).length;
 
   return (
-    <div className="space-y-5">
-      {!isEventScopedView ? <ClientAccountEventPicker purpose="approvals" destination="approvals" /> : null}
-      <ApprovalsBody
-        choiceRequired={choiceRequired}
-        showNoEvent={showNoEvent}
-        items={visibleApprovalItems}
-        onGoToEvents={() => router.push("/dashboard/events")}
+    <div className="space-y-4">
+      <ClientFigureStrip
+        label="Approval progress"
+        figures={[
+          { label: "Approved", value: `${approved} of ${all.length}`, tone: approved === all.length && all.length ? "done" : undefined },
+          { label: "Still open", value: all.length - approved },
+          { label: "Changes requested", value: revisions, tone: revisions ? "attention" : undefined },
+        ]}
       />
+      {visible.length ? (
+        <ClientListSection id="client-approvals-list" title="Approvals" count={visible.length}>
+          {visible.map((item) => {
+            const tone = approvalTone(item);
+            return (
+              <ClientListRow
+                key={item.title}
+                icon={ICONS[item.title] ?? BadgeCheck}
+                tone={tone}
+                title={item.title}
+                meta={item.detail}
+                status={formatStatusLabel(item.status)}
+                action="Review"
+                href={selectedEvent ? dashboardHref(item.route, selectedEvent.id) : undefined}
+              />
+            );
+          })}
+        </ClientListSection>
+      ) : (
+        <ClientListEmpty icon={BadgeCheck} title="Nothing in this view" description="No approvals match this filter right now." />
+      )}
     </div>
   );
 }

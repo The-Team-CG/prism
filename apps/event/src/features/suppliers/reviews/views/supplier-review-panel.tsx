@@ -75,7 +75,7 @@ export function SupplierReviewPanel({
         type="button"
         disabled={busy || !canSubmit}
         onClick={onSubmitReview}
-        className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-ink px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60"
+        className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-ink px-3 text-xs font-black text-ink-foreground disabled:opacity-60"
       >
         <Star className="size-4" /> Add review
       </button>

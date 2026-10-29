@@ -647,6 +647,19 @@ describe("createEventOpsClient", () => {
     });
   });
 
+  it("requests a development authenticator QR without caching the credential", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ otpauthUri: "otpauth://totp/test" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+
+    await expect(client.auth.developmentTwoFactorQr("challenge-token")).resolves.toEqual({ otpauthUri: "otpauth://totp/test" });
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/auth/2fa/development-qr", expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ token: "challenge-token" }),
+      cache: "no-store",
+    }));
+  });
+
   it("posts account activation, staff invites and invitation resends to their routes", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ outcome: "invited" }), { status: 201 }));
     vi.stubGlobal("fetch", fetchMock);

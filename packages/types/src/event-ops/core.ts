@@ -181,6 +181,10 @@ export interface PrismTwoFactorSetup {
   otpauthUri: string;
 }
 
+export interface PrismTwoFactorQr {
+  otpauthUri: string;
+}
+
 export type PrismAuthResponse =
   | PrismSignInSession
   | PrismTwoFactorSetupRequired

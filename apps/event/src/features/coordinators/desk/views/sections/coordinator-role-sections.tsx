@@ -1,4 +1,5 @@
 "use client";
+import { DateTimePicker } from "@prism/ui/components/date-time-picker";
 import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import {
@@ -354,12 +355,7 @@ function CoordinatorTaskForm({ taskForm }: { taskForm: CoordinatorTaskFormModel 
         </label>
         <label className="grid gap-1.5">
           <span className={FIELD_LABEL}>Due time</span>
-          <input
-            type="datetime-local"
-            value={taskForm.dueAt}
-            onChange={(e) => taskForm.setDueAt(e.target.value)}
-            className={FIELD_INPUT}
-          />
+          <DateTimePicker value={taskForm.dueAt} onValueChange={(next) => taskForm.setDueAt(next)} />
         </label>
         <label className="flex items-center gap-2">
           <input
@@ -457,12 +453,7 @@ function CoordinatorIssueForm({ issueForm }: { issueForm: CoordinatorIssueFormMo
         </label>
         <label className="grid gap-1.5">
           <span className={FIELD_LABEL}>SLA due time</span>
-          <input
-            type="datetime-local"
-            value={issueForm.slaDueAt}
-            onChange={(e) => issueForm.setSlaDueAt(e.target.value)}
-            className={FIELD_INPUT}
-          />
+          <DateTimePicker value={issueForm.slaDueAt} onValueChange={(next) => issueForm.setSlaDueAt(next)} />
         </label>
         <label className="flex items-center gap-2">
           <input

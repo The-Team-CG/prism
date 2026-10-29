@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
+import { formatPortalDateTime, formatPortalTime } from "@prism/ui/format-date";
 
 import {
   AlertTriangle,
@@ -24,9 +26,11 @@ import type { PrismAuditLog, PrismEvent, PrismUser, PrismLoginHistory, PrismSecu
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
-import { auditTone, compactTimestamp, cx, label, severityTone } from "@/features/pmcm-kit";
+import { compactTimestamp, cx, label, roleLabel, severityTone } from "@/features/pmcm-kit";
 import { Metric, Panel } from "@/features/pmcm-kit";
-import { auditIconKind, auditIntegrityCopy } from "../model/audit-trail-rules";
+import { auditIconKind, auditIntegrityCopy, groupRepeatedAuditLogs, type AuditLogGroup } from "../model/audit-trail-rules";
+import { usePagedItems } from "../view-models/use-paged-items";
+import { ListPager } from "./list-pager";
 import type { useAuditTrailViewModel } from "../view-models/use-audit-trail-view-model";
 
 type AuditVm = ReturnType<typeof useAuditTrailViewModel>;
@@ -91,16 +95,15 @@ function AuditTrailHeader({
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <p className="text-xs font-medium text-attention">New-SEC4</p>
-        <h2 className="mt-2 text-2xl font-black text-foreground">Comprehensive Audit Trail & Activity Log</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Full history of user, system, access, supplier, finance, and document actions visible only to PMCM command users.</p>
+        <h2 className="text-xl font-bold text-foreground">Audit trail</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Every user, system, access, supplier, finance and document action. Visible to PMCM only.</p>
       </div>
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="outline" disabled={busy} onClick={onExport} className="h-10 rounded-md font-black">
-          <Download className="size-4" /> Export Log
+          <Download className="size-4" /> Export log
         </Button>
         <Button type="button" variant="outline" onClick={onToggleFilters} className="h-10 rounded-md font-black">
-          <Filter className="size-4" /> Advanced Filter
+          <Filter className="size-4" /> More filters
         </Button>
       </div>
     </div>
@@ -246,43 +249,77 @@ function AuditAdvancedFilters({
   );
 }
 
+const AUDIT_PAGE_SIZE = 15;
+
 function AuditLogList({ logs, busy }: { logs: PrismAuditLog[]; busy: boolean }) {
+  const groups = useMemo(() => groupRepeatedAuditLogs(logs), [logs]);
+  const paged = usePagedItems(groups, AUDIT_PAGE_SIZE);
   return (
     <div className="mt-4 overflow-hidden rounded-lg border border-border bg-white">
-      {busy && logs.length === 0 ? <div className="p-6 text-sm text-muted-foreground">Loading audit events...</div> : null}
+      {busy && logs.length === 0 ? <div className="p-6 text-sm text-muted-foreground">Loading audit events…</div> : null}
       {!busy && logs.length === 0 ? <div className="p-6 text-sm text-muted-foreground">No audit logs match the active filters.</div> : null}
-      {logs.map((log) => (
-        <AuditLogRow key={log.id} log={log} />
-      ))}
+      {groups.length > 0 ? (
+        <div aria-hidden="true" className={cx("hidden border-b border-border px-4 py-2 text-xs text-muted-foreground", AUDIT_ROW_GRID)}>
+          <span>When</span>
+          <span>Who</span>
+          <span>What happened</span>
+          <span className="text-right">Area</span>
+        </div>
+      ) : null}
+      <ul className="divide-y divide-border">
+        {paged.pageItems.map((group) => (
+          <AuditLogRow key={group.log.id} group={group} />
+        ))}
+      </ul>
+      <ListPager
+        label="Audit log pages"
+        rangeLabel={`${paged.rangeLabel} entries`}
+        page={paged.page}
+        pageCount={paged.pageCount}
+        onPrevious={paged.previous}
+        onNext={paged.next}
+      />
     </div>
   );
 }
 
-function AuditLogRow({ log }: { log: PrismAuditLog }) {
+const AUDIT_ROW_GRID = "md:grid md:grid-cols-[9.5rem_minmax(0,13rem)_minmax(0,1fr)_7rem] md:items-center md:gap-4";
+
+const SEVERITY_TEXT: Record<string, string> = { critical: "text-danger", warning: "text-attention" };
+
+/** Audit ID, plus IP and device when they were recorded: kept in the row's tooltip, not the visible line. */
+function auditTrace(log: AuditLogGroup["log"]) {
+  const known = (value?: string | null) => (value && value !== "unknown" ? value : null);
+  const ip = known(log.ipAddress);
+  return [`Audit ID ${log.id}`, ip ? `IP ${ip}` : null, known(log.device)].filter(Boolean).join(" · ");
+}
+
+function AuditLogRow({ group }: { group: AuditLogGroup }) {
+  const { log, count, oldestAt } = group;
   const Icon = AUDIT_ICONS[auditIconKind(log.category, log.severity)];
+  const severityText = SEVERITY_TEXT[log.severity];
   return (
-    <article className="grid gap-3 border-b border-border p-4 last:border-b-0 md:grid-cols-[minmax(0,1fr)_220px] md:items-center">
-      <div className="flex min-w-0 gap-3">
-        <span className={cx("grid size-9 shrink-0 place-items-center rounded-md ring-1", severityTone(log.severity))}>
-          <Icon className="size-4" />
-        </span>
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="font-black text-foreground">{log.actor}</p>
-            <span className="text-xs text-muted-foreground">({label(log.actorRole)})</span>
-            <span className={cx("rounded-full px-2 py-0.5 text-2xs font-black capitalize ring-1", auditTone(log.category))}>{label(log.category)}</span>
-            {log.severity !== "info" ? <span className={cx("rounded-full px-2 py-0.5 text-2xs font-black capitalize ring-1", severityTone(log.severity))}>{log.severity}</span> : null}
-          </div>
-          <p className="mt-1 text-sm text-foreground">{log.action}</p>
-          {log.affectedLabel ? <p className="mt-1 text-xs text-muted-foreground">Affected: {log.affectedLabel}</p> : null}
-        </div>
-      </div>
-      <div className="text-left text-xs text-muted-foreground md:text-right">
-        <p className="font-semibold text-foreground">{compactTimestamp(log.createdAt)}</p>
-        <p>{log.ipAddress}</p>
-        <p className="font-mono text-xs">{log.id}</p>
-      </div>
-    </article>
+    <li title={auditTrace(log)} className={cx("grid gap-1 px-4 py-2.5 text-sm hover:bg-surface-raised", AUDIT_ROW_GRID)}>
+      <span className="text-xs tabular-nums text-muted-foreground">{formatPortalDateTime(log.createdAt)}</span>
+      <span className="min-w-0 truncate">
+        <span className="font-medium text-foreground">{log.actor}</span>
+        <span className="text-xs text-muted-foreground"> · {roleLabel(log.actorRole)}</span>
+      </span>
+      <span className="min-w-0">
+        <span className="text-foreground">{log.action}</span>
+        {log.affectedLabel ? <span className="text-muted-foreground"> · {log.affectedLabel}</span> : null}
+        {count > 1 ? (
+          <span className="ml-2 whitespace-nowrap rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+            {count}× since {formatPortalTime(oldestAt)}
+          </span>
+        ) : null}
+        {severityText ? <span className={cx("ml-2 text-xs font-semibold", severityText)}>{label(log.severity)}</span> : null}
+      </span>
+      <span className="flex items-center gap-1.5 text-xs text-muted-foreground md:justify-end">
+        <Icon aria-hidden="true" className={cx("size-3.5", severityText ?? "text-muted-foreground")} />
+        {label(log.category)}
+      </span>
+    </li>
   );
 }
 

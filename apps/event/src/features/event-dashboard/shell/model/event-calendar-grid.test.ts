@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCalendarMonthGrid, eventDateKey, shiftMonth } from "./event-calendar-grid";
+import { buildCalendarMonthGrid, eventDateKey, shiftMonth } from "@prism/ui/calendar-grid";
 
 const october2026 = { year: 2026, month: 9 };
 

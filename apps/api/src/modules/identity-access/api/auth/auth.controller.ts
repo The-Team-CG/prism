@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, InternalServerErrorException, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, HttpStatus, InternalServerErrorException, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { AllowPendingPrivacyNotice, EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
@@ -91,6 +91,14 @@ export class OpsAuthController {
   @HttpCode(HttpStatus.OK)
   verifyTwoFactor(@Body(zodBody(verifyTwoFactorSchema)) dto: VerifyTwoFactorInput) {
     return this.authOperationsService.verifyTwoFactor(dto.token, dto.code);
+  }
+
+  @Post('2fa/development-qr')
+  @PublicRateLimit('authentication')
+  @HttpCode(HttpStatus.OK)
+  @Header('Cache-Control', 'no-store')
+  developmentTwoFactorQr(@Body(zodBody(twoFactorTokenSchema)) dto: TwoFactorTokenInput) {
+    return this.authOperationsService.getDevelopmentTwoFactorQr(dto.token);
   }
 
   @Post('approval-requests')

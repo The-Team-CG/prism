@@ -147,7 +147,7 @@ export function quoteCardAccentClass(quote: { status: string; outsideAcceptableR
 
 export function quoteSelectButtonClass(status: string) {
   if (status === "selected" || status === "locked") return "bg-success-soft text-success";
-  return "bg-ink text-sidebar-foreground";
+  return "bg-ink text-ink-foreground";
 }
 
 export function quoteSelectLabel(status: string) {

@@ -1,4 +1,5 @@
 "use client";
+import { DateTimePicker } from "@prism/ui/components/date-time-picker";
 
 import { useEffect, useState, type FormEvent } from "react";
 import { AlertCircle, Gamepad2 } from "lucide-react";
@@ -298,7 +299,7 @@ function GameScheduleAction({
   if (game.entryMode !== "active" || game.status !== "published") return null;
   return <>
     <label className="sr-only" htmlFor={"session-start-" + game.id}>Scheduled session start</label>
-    <input id={"session-start-" + game.id} type="datetime-local" value={scheduleAt} onChange={(event) => setScheduleAt(event.target.value)} className="min-h-9 rounded-lg border border-border bg-card px-2 text-xs" />
+    <DateTimePicker value={scheduleAt} onValueChange={(next) => setScheduleAt(next)} id={"session-start-" + game.id} />
     <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void onSchedule(game.id, isoDateTime(scheduleAt))}>
       {scheduleAt ? "Schedule session" : "Create host session"}
     </Button>

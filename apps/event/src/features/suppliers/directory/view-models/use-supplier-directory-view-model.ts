@@ -181,8 +181,11 @@ export function useSupplierDirectoryViewModel({ view, session }: { view: string;
     if (!categoriesLoaded) return;
     queryRef.current = route.query;
     setQuery((current) => Object.keys(route.query).every((key) => current[key as keyof PmcmSupplierDirectoryQuery] === route.query[key as keyof PmcmSupplierDirectoryQuery]) ? current : route.query);
-    setSearchDraft(route.query.q);
   }, [categoriesLoaded, route.query, searchKey]);
+
+  useEffect(() => {
+    if (categoriesLoaded) setSearchDraft(route.query.q);
+  }, [categoriesLoaded, route.query.q]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {

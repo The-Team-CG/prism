@@ -42,7 +42,7 @@ function SupplierActionBoard() {
   return (
     <section className="overflow-hidden rounded-lg border border-primary/12 bg-card shadow-[0_30px_110px_rgba(23,18,22,0.12)]">
       <div className="grid lg:grid-cols-[76px_1fr]">
-        <aside className="hidden bg-ink p-4 text-sidebar-foreground lg:grid lg:content-start lg:gap-6">
+        <aside className="hidden bg-ink p-4 text-ink-foreground lg:grid lg:content-start lg:gap-6">
           {[Target, FileCheck2, ClipboardCheck, UserRound, MessageSquareText, Bell, ShieldCheck].map((Icon, index) => (
             <span key={index} className="grid size-10 place-items-center rounded-md text-sidebar-foreground/80">
               <Icon className="size-5" />
@@ -333,7 +333,7 @@ export function SupplierHomeLandingView() {
       </section>
 
       <section className="px-5 pb-20 sm:px-8 lg:px-10">
-        <div className="mx-auto max-w-[1320px] rounded-lg border border-primary/12 bg-ink p-8 text-sidebar-foreground shadow-[0_24px_80px_rgba(23,18,22,0.08)] sm:p-10 lg:flex lg:items-center lg:justify-between">
+        <div className="mx-auto max-w-[1320px] rounded-lg border border-primary/12 bg-ink p-8 text-ink-foreground shadow-[0_24px_80px_rgba(23,18,22,0.08)] sm:p-10 lg:flex lg:items-center lg:justify-between">
           <div>
             <h2 className="max-w-2xl prism-serif text-4xl font-black leading-tight">Return to your supplier workspace</h2>
             <p className="mt-3 text-sidebar-foreground/70">Sign in to view assignments, deadlines, contracts, and event-day updates.</p>

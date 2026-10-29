@@ -45,7 +45,7 @@ export class SchemaCompatibilityService implements OnApplicationBootstrap {
     }));
 
     const head = migrationLedger.assertExactMigrationCompatibility({ localMigrations, appliedMigrations, requiredHead });
-    this.logger.log(`Database migration history exactly matches required head ${head}.`);
+    this.logger.log(`Database migration history is compatible with required head ${head}.`);
   }
 
   private async readLocalMigrations(): Promise<LocalMigration[]> {
@@ -75,7 +75,7 @@ export class SchemaCompatibilityService implements OnApplicationBootstrap {
     const migrations: LocalMigration[] = [];
     for (const name of migrationDirectories) {
       const sql = await readFile(join(migrationDirectory, name, 'migration.sql'));
-      const checksumVariants = migrationLedger.migrationChecksumVariants(sql);
+      const checksumVariants = migrationLedger.migrationChecksumVariants(sql, name);
       migrations.push({ name, checksum: checksumVariants[0], checksumVariants });
     }
     return migrations;

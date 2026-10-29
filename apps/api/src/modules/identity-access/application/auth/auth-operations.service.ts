@@ -15,6 +15,7 @@ import {
   type PrismCurrentUser,
   type PrismIdentityAccountSummary,
   type PrismSignInSession,
+  type PrismTwoFactorQr,
   type PrismUser,
   type PrismVerifiedEventActor,
   type RequestApprovalInput,
@@ -233,6 +234,21 @@ export class AuthOperationsService {
       secret,
       otpauthUri: this.totpService.otpauthUri(secret, user.email),
     };
+  }
+
+  async getDevelopmentTwoFactorQr(token: string): Promise<PrismTwoFactorQr> {
+    if (process.env.NODE_ENV !== 'development') throw new NotFoundException();
+    const verifiedToken = this.authSessionService.verifyTwoFactorToken(token);
+    if (verifiedToken.purpose !== 'challenge') throw new ForbiddenException('Authenticator rescan requires a sign-in challenge');
+    const user = await this.findTwoFactorUser(verifiedToken);
+    if (!user.twoFactorSecret) throw new ForbiddenException('Two-factor setup is required before rescanning');
+    let secret: string;
+    try {
+      secret = this.totpService.decryptSecret(user.twoFactorSecret);
+    } catch {
+      throw new UnauthorizedException('Two-factor authentication is unavailable for this account');
+    }
+    return { otpauthUri: this.totpService.otpauthUri(secret, user.email) };
   }
 
   async verifyTwoFactor(token: string, code: string) {
