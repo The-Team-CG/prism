@@ -29,11 +29,14 @@ type DraftHandlers = {
 export function EventFloorplansTab({
   floorPlanTemplates,
   onCreateTemplateDraft,
+  onCreateBlankDraft,
   accessPanel,
   ...handlers
 }: DraftHandlers & {
   floorPlanTemplates: FloorPlanTemplate[];
   onCreateTemplateDraft: (template: FloorPlanTemplate) => void | Promise<void>;
+  /** Starts an empty official draft; always available, so a first plan never depends on a saved template. */
+  onCreateBlankDraft?: () => void | Promise<void>;
   /** Optional slot for the client floorplan access controls owned by the dashboard shell. */
   accessPanel?: ReactNode;
 }) {
@@ -72,9 +75,18 @@ export function EventFloorplansTab({
       ) : null}
 
       <WorkspaceSection id="floorplan-start-draft" title="Start a PMCM draft">
-        {floorPlanTemplates.length ? (
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            {floorPlanTemplates.slice(0, 4).map((template) => (
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {onCreateBlankDraft ? (
+              <button
+                type="button"
+                onClick={() => void onCreateBlankDraft()}
+                className="min-h-11 rounded-md border border-dashed border-primary/40 bg-background p-3 text-left hover:bg-primary-soft"
+              >
+                <span className="block text-sm font-semibold text-foreground">Blank layout</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">Empty room using the briefing's venue and guest count</span>
+              </button>
+            ) : null}
+            {floorPlanTemplates.slice(0, onCreateBlankDraft ? 3 : 4).map((template) => (
               <button
                 key={template.id}
                 type="button"
@@ -86,9 +98,9 @@ export function EventFloorplansTab({
               </button>
             ))}
           </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">No saved templates yet. Save a reusable layout from the editor to start a template-based draft.</p>
-        )}
+          {floorPlanTemplates.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">No saved templates yet. In the editor, "Save current as template" makes a layout reusable for later events.</p>
+          ) : null}
       </WorkspaceSection>
 
       {accessPanel}

@@ -1,11 +1,25 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, rmSync, rmdirSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync, rmdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseSeedOptions } from './seed.mjs';
 import { assertSeedTarget, describeSeedTarget, loadSeedEnvironment, scenarioAnchor } from './seed-target.mjs';
 import { compareMigrationHistory, migrationChecksums } from './db-migration-history.mjs';
+
+test('migration doctor reports proven historical fixtures separately and rejects edited or unrelated SQL', () => {
+  const name = '20261021104500_event-lifecycle_uat_portal_data';
+  const sql = readFileSync(new URL(`../prisma/migrations/${name}/migration.sql`, import.meta.url));
+  const applied = [{ migration_name: name, checksum: 'b2007aec777f5189d66486d3dd3437dbdf902da49a536387c74ac825237803c2', finished_at: new Date(), rolled_back_at: null }];
+  const report = compareMigrationHistory(new Map([[name, migrationChecksums(sql)]]), applied);
+  assert.deepEqual(report.issues, []);
+  assert.deepEqual(report.historicalVariants, [name]);
+  assert.deepEqual(report.lineEndingOnly, []);
+  const edited = compareMigrationHistory(new Map([[name, migrationChecksums(`${sql}\n-- edited`)]]), applied);
+  assert.equal(edited.issues[0].issue, 'checksum-mismatch');
+  const unrelated = compareMigrationHistory(new Map([['unrelated', migrationChecksums(sql)]]), [{ ...applied[0], migration_name: 'unrelated' }]);
+  assert.equal(unrelated.issues[0].issue, 'checksum-mismatch');
+});
 
 test('target checks reject production, remote local labels, transaction poolers, and a different project on a shared pooler', () => {
   const base = { DATABASE_URL: 'postgresql://postgres.project_a:secret@aws-0-test.pooler.supabase.com:5432/postgres', PRISM_SEED_ENV: 'uat' };

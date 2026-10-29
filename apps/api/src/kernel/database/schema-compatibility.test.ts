@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import migrationLedger = require('./migration-ledger-compatibility.cjs');
 import type { AppliedMigration, LocalMigration } from './migration-ledger-compatibility.cjs';
 
@@ -16,6 +18,25 @@ const appliedMigrations: AppliedMigration[] = localMigrations.map((migration) =>
 }));
 
 describe('assertExactMigrationCompatibility', () => {
+  it('accepts the proven historical UAT version only for its pinned name and current SQL', () => {
+    const name = '20261021104500_event-lifecycle_uat_portal_data';
+    const sql = readFileSync(resolve(__dirname, '../../../prisma/migrations', name, 'migration.sql'));
+    const applied = [{ ...appliedMigrations[0], name, checksum: 'b2007aec777f5189d66486d3dd3437dbdf902da49a536387c74ac825237803c2' }];
+    const check = (bytes: Uint8Array, localName = name) => migrationLedger.assertExactMigrationCompatibility({
+      localMigrations: [{ name: localName, checksum: migrationLedger.migrationChecksumVariants(bytes)[0], checksumVariants: migrationLedger.migrationChecksumVariants(bytes, localName) }],
+      appliedMigrations: applied.map(row => ({ ...row, name: localName })),
+      requiredHead: localName,
+    });
+    expect(check(sql)).toBe(name);
+    expect(() => check(Buffer.from(`${sql}\n-- edited`))).toThrow('checksum mismatch');
+    expect(() => check(sql, 'unrelated')).toThrow('checksum mismatch');
+    expect(() => migrationLedger.assertExactMigrationCompatibility({
+      localMigrations: [{ name, checksum: migrationLedger.migrationChecksumVariants(sql)[0], checksumVariants: migrationLedger.migrationChecksumVariants(sql, name) }],
+      appliedMigrations: [{ ...applied[0], checksum: 'f'.repeat(64) }],
+      requiredHead: name,
+    })).toThrow('checksum mismatch');
+  });
+
   it('accepts an exact, fully applied migration history at the required head', () => {
     expect(
       migrationLedger.assertExactMigrationCompatibility({

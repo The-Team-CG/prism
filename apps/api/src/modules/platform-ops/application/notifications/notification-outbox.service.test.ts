@@ -45,8 +45,10 @@ describe('MailNotificationDeliveryAdapter', () => {
     const { mail, adapter: delivery } = adapter();
     await expect(delivery.deliver({ idempotencyKey: 'not_1', channel: 'email', eventId: 'evt_1', recipient: 'PMCM Admin', message: 'A <b>note</b>' }))
       .resolves.toEqual({ status: 'accepted', receipt: 'msg_1,msg_1' });
-    expect(mail.send).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: 'not_1:admin-a@example.test', subject: 'P.R.I.S.M update - Gala' }));
-    expect(mail.send).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: 'not_1:admin-b@example.test', text: 'A <b>note</b>', html: '<p>A &lt;b&gt;note&lt;/b&gt;</p>' }));
+    // The subject says what happened and names the event; the HTML body escapes the message.
+    expect(mail.send).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: 'not_1:admin-a@example.test', subject: 'P.R.I.S.M: A <b>note</b> (Gala)' }));
+    expect(mail.send).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: 'not_1:admin-b@example.test', text: 'A <b>note</b>', html: expect.stringContaining('A &lt;b&gt;note&lt;/b&gt;') }));
+    expect(mail.send.mock.calls.every(([message]) => !String(message.html).includes('<b>'))).toBe(true);
   });
 });
 

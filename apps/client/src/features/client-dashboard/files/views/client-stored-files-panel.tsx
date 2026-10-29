@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRef } from "react";
-import { Download, FileText, LoaderCircle, Upload } from "lucide-react";
+import { CheckCircle2, Download, FileText, LoaderCircle, Upload } from "lucide-react";
+import { cn } from "@/app/components/ui/utils";
 import type { PrismStoredObject } from "@prism/types";
 import { useClientStoredFilesViewModel } from "../view-models/use-client-stored-files-view-model";
 import {
@@ -32,6 +33,18 @@ function reviewTone(row: ClientDocumentChecklistRow) {
   if (row.requirement.status === "approved" || row.requirement.status === "complete") return "text-success";
   return "text-muted-foreground";
 }
+
+type RowTone = "urgent" | "attention" | "done" | "neutral";
+
+function rowTone(row: ClientDocumentChecklistRow): RowTone {
+  if (row.requirement.validationStatus === "rejected" || (row.needsClient && row.requirement.overdue)) return "urgent";
+  if (row.needsClient) return "attention";
+  if (row.requirement.status === "approved" || row.requirement.status === "complete") return "done";
+  return "neutral";
+}
+
+const BAR: Record<RowTone, string> = { urgent: "border-l-danger", attention: "border-l-attention", done: "border-l-transparent", neutral: "border-l-transparent" };
+const TILE: Record<RowTone, string> = { urgent: "bg-danger-soft text-danger", attention: "bg-attention-soft text-attention", done: "bg-success-soft text-success", neutral: "bg-muted text-muted-foreground" };
 
 function DownloadButton({ file, vm }: { file: PrismStoredObject; vm: FilesVm }) {
   if (file.lifecycleState !== "stored") return null;
@@ -77,9 +90,13 @@ function RequirementAction({ row, eventId, vm, onUpload }: { row: ClientDocument
 
 function RequirementRow({ row, eventId, vm, onUpload }: { row: ClientDocumentChecklistRow; eventId: string; vm: FilesVm; onUpload: (key: string) => void }) {
   const { requirement, file } = row;
+  const tone = rowTone(row);
   return (
-    <li className="flex flex-col gap-3 py-4 sm:flex-row sm:items-start sm:justify-between">
-      <div className="min-w-0 flex-1">
+    <li className={cn("grid grid-cols-[2rem_minmax(0,1fr)] gap-x-3 gap-y-2 border-l-[3px] py-3 pl-3 pr-4 sm:grid-cols-[2rem_minmax(0,1fr)_auto] sm:items-center", BAR[tone])}>
+      <span aria-hidden className={cn("grid size-8 place-items-center rounded-md", TILE[tone])}>
+        {tone === "done" ? <CheckCircle2 className="size-4" /> : <FileText className="size-4" />}
+      </span>
+      <div className="min-w-0">
         <p className="text-sm font-semibold text-foreground">{requirement.key === "client_feedback" ? "Event feedback" : requirement.label}</p>
         <p className={`mt-0.5 text-sm ${reviewTone(row)}`}>
           {clientRequirementReviewLabel(row)}
@@ -95,7 +112,7 @@ function RequirementRow({ row, eventId, vm, onUpload }: { row: ClientDocumentChe
         ) : null}
         {!row.uploadable && requirement.ownerRole !== "client" ? <p className="mt-1 text-xs text-muted-foreground">Provided by PMCM</p> : null}
       </div>
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="col-start-2 flex shrink-0 items-center gap-1 sm:col-start-auto">
         {file ? <DownloadButton file={file} vm={vm} /> : null}
         <RequirementAction row={row} eventId={eventId} vm={vm} onUpload={onUpload} />
       </div>
@@ -105,7 +122,7 @@ function RequirementRow({ row, eventId, vm, onUpload }: { row: ClientDocumentChe
 
 function OtherFiles({ files, vm, onUpload }: { files: PrismStoredObject[]; vm: FilesVm; onUpload: (key?: string) => void }) {
   return (
-    <section aria-labelledby="client-other-files-title" className="mt-6 border-t border-border pt-5">
+    <section aria-labelledby="client-other-files-title" className="border-t border-border px-4 py-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 id="client-other-files-title" className="text-sm font-semibold text-foreground">Other files</h3>
@@ -159,16 +176,18 @@ export function ClientStoredFilesPanel({ eventId }: { eventId?: string }) {
   };
 
   return (
-    <section id="event-files" aria-labelledby="client-documents-title" className="scroll-mt-6 rounded-lg border border-border bg-card p-4 sm:p-5">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="client-documents-title" className="text-base font-semibold text-foreground">Documents for this event</h2>
-        {checklist.rows.length > 0 ? (
-          <p className={`text-sm tabular-nums ${outstanding > 0 ? "font-medium text-foreground" : "text-muted-foreground"}`}>
-            {outstanding > 0 ? `${outstanding} still needed from you` : "Nothing needed from you"}
-          </p>
-        ) : null}
-      </div>
-      <p className="mt-1 text-sm text-muted-foreground">PDF, Word, Excel, JPG or PNG, up to 25 MB. Uploading a file sends it to PMCM for review; it does not approve it.</p>
+    <section id="event-files" aria-labelledby="client-documents-title" className="scroll-mt-6 overflow-hidden rounded-lg border border-border bg-card">
+      <header className="border-b border-border px-4 py-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="client-documents-title" className="text-sm font-semibold text-foreground">Documents for this event</h2>
+          {checklist.rows.length > 0 ? (
+            <p className={`text-sm tabular-nums ${outstanding > 0 ? "font-medium text-attention" : "text-success"}`}>
+              {outstanding > 0 ? `${outstanding} still needed from you` : "Nothing needed from you"}
+            </p>
+          ) : null}
+        </div>
+        <p className="text-xs text-muted-foreground">PDF, Word, Excel, JPG or PNG, up to 25 MB. Uploading sends a file to PMCM for review; it doesn't approve it.</p>
+      </header>
       <input
         ref={vm.inputRef}
         className="sr-only"
@@ -179,18 +198,18 @@ export function ClientStoredFilesPanel({ eventId }: { eventId?: string }) {
         onChange={(event) => void vm.uploadSelectedFile(event.currentTarget.files?.[0], pendingKey.current)}
         disabled={vm.busy}
       />
-      {vm.busy ? <p role="status" className="mt-3 inline-flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> Uploading…</p> : null}
-      {vm.error ? <p role="alert" className="mt-3 rounded-md bg-danger-soft px-3 py-2 text-sm text-danger">{vm.error}</p> : null}
-      {vm.notice ? <p role="status" className="mt-3 text-sm text-success">{vm.notice}</p> : null}
+      {vm.busy ? <p role="status" className="mx-4 mt-3 inline-flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> Uploading…</p> : null}
+      {vm.error ? <p role="alert" className="mx-4 mt-3 rounded-md bg-danger-soft px-3 py-2 text-sm text-danger">{vm.error}</p> : null}
+      {vm.notice ? <p role="status" className="mx-4 mt-3 text-sm text-success">{vm.notice}</p> : null}
 
       {vm.loading ? (
-        <p role="status" className="mt-4 text-sm text-muted-foreground">Loading documents…</p>
+        <p role="status" className="px-4 py-4 text-sm text-muted-foreground">Loading documents…</p>
       ) : (
         <>
           {checklist.rows.length === 0 ? (
-            <p className="mt-4 rounded-md border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">PMCM hasn&apos;t requested any documents for this event yet.</p>
+            <p className="px-4 py-4 text-sm text-muted-foreground">PMCM hasn&apos;t requested any documents for this event yet.</p>
           ) : (
-            <ul className="mt-2 divide-y divide-border">
+            <ul className="divide-y divide-border">
               {checklist.rows.map((row) => <RequirementRow key={row.requirement.key} row={row} eventId={eventId} vm={vm} onUpload={startUpload} />)}
             </ul>
           )}

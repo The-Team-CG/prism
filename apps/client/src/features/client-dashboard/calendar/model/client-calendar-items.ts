@@ -1,3 +1,4 @@
+import { manilaCalendarKey } from "@prism/ui/format-date";
 import type { PrismClientWorkspace, PrismEvent } from "@prism/types";
 
 export type ClientCalendarItemKind = "event" | "payment" | "visit" | "approval";
@@ -9,6 +10,7 @@ export interface ClientCalendarItem {
   detail: string;
   status: string;
   kind: ClientCalendarItemKind;
+  eventId: string;
 }
 
 export type ClientCalendarView =
@@ -26,22 +28,23 @@ const VIEW_KINDS: Record<ClientCalendarView, ClientCalendarItemKind[]> = {
   "calendar-approval-deadlines": ["approval"],
 };
 
+/** Calendar dates keep their day; timestamps land on their Philippine date. */
 function isoDay(value: string) {
-  return value.slice(0, 10);
+  return manilaCalendarKey(value);
 }
 
 type CalendarState = Pick<PrismClientWorkspace, "paymentMilestones" | "ocularVisits" | "clientEventTimelines">;
 type CalendarEvent = Pick<PrismEvent, "id" | "eventName" | "eventDate" | "status">;
 
 function eventDates(events: CalendarEvent[]): ClientCalendarItem[] {
-  return events.map((event) => ({ id: `event-${event.id}`, date: isoDay(event.eventDate), title: event.eventName, detail: "Event date", status: event.status, kind: "event" }));
+  return events.map((event) => ({ id: `event-${event.id}`, date: isoDay(event.eventDate), title: event.eventName, detail: "Event date", status: event.status, kind: "event", eventId: event.id }));
 }
 
 function paymentDates(state: CalendarState, byId: Map<string, CalendarEvent>): ClientCalendarItem[] {
   return state.paymentMilestones.flatMap((payment) => {
     const event = byId.get(payment.eventId);
     if (!event || !payment.dueDate) return [];
-    return [{ id: `payment-${payment.id}`, date: isoDay(payment.dueDate), title: payment.label, detail: `${event.eventName} payment due`, status: payment.status, kind: "payment" as const }];
+    return [{ id: `payment-${payment.id}`, date: isoDay(payment.dueDate), title: payment.label, detail: `${event.eventName} payment due`, status: payment.status, kind: "payment" as const, eventId: event.id }];
   });
 }
 
@@ -49,7 +52,7 @@ function siteVisits(state: CalendarState, byId: Map<string, CalendarEvent>): Cli
   return (state.ocularVisits ?? []).flatMap((visit) => {
     const event = byId.get(visit.eventId);
     if (!event || !visit.scheduledAt) return [];
-    return [{ id: `visit-${visit.eventId}`, date: isoDay(visit.scheduledAt), title: "Site visit", detail: event.eventName, status: visit.status, kind: "visit" as const }];
+    return [{ id: `visit-${visit.eventId}`, date: isoDay(visit.scheduledAt), title: "Site visit", detail: event.eventName, status: visit.status, kind: "visit" as const, eventId: event.id }];
   });
 }
 
@@ -58,7 +61,7 @@ function layoutApprovals(state: CalendarState, byId: Map<string, CalendarEvent>)
     const event = byId.get(timeline.eventId);
     const layout = timeline.milestones.find((milestone) => milestone.key === "floor_plan_approved");
     if (!event || !layout?.date || layout.status !== "completed") return [];
-    return [{ id: `layout-${timeline.eventId}`, date: isoDay(layout.date), title: "Layout approved", detail: event.eventName, status: "approved", kind: "approval" as const }];
+    return [{ id: `layout-${timeline.eventId}`, date: isoDay(layout.date), title: "Layout approved", detail: event.eventName, status: "approved", kind: "approval" as const, eventId: event.id }];
   });
 }
 

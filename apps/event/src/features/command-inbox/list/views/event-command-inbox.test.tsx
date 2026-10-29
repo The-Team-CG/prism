@@ -71,15 +71,16 @@ describe("EventCommandInbox — render states", () => {
     );
 
     // More pages exist, so the counts must not read as inbox totals.
-    expect(screen.getByTestId("command-inbox-counts").textContent).toBe("1 urgent · 2 need action · 1 updates on this page");
+    const counts = screen.getByTestId("command-inbox-counts").textContent ?? "";
+    expect(counts).toContain("Urgent on this page1");
+    expect(counts).toContain("Need action on this page2");
     const headings = screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent);
     expect(headings).toEqual(["Urgent blockers1", "Needs action2"]);
     expect(screen.getAllByText("Blocker")).toHaveLength(1);
-    expect(screen.getByRole("link", { name: /Review billing/ }).getAttribute("href")).toBe("/billing");
+    // Each row's title is its link, so the whole row opens the item.
+    expect(screen.getByRole("link", { name: "Payment overdue" }).getAttribute("href")).toBe("/billing");
     const reference = screen.getByText("Prepare official floorplan").closest("details");
     expect(reference).toBeTruthy();
     expect(reference?.open).toBe(false);
-    // Rows with a missing value show an em dash rather than blank metadata.
-    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
 });

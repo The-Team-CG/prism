@@ -2,7 +2,7 @@
 
 import { PrismAccountHelp } from "@prism/ui/account-help";
 import { portalHref } from "@prism/ui/portal-path";
-import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, PrismWrongPortalLinks, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
+import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
 import { ArrowRight, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
@@ -10,7 +10,7 @@ import { Field } from "@/app/components/ui/field";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { SUPPLIER_PORTAL_POINTS, SUPPLIER_PORTAL_STATEMENT } from "../model/supplier-portal-copy";
-import { pmcmSupportContactFromEnvironment, portalUrlsFromEnvironment, wrongPortalLinks } from "@/lib/portal-urls";
+import { pmcmSupportContactFromEnvironment } from "@/lib/portal-urls";
 import { useSupplierSignInViewModel } from "../view-models/use-supplier-sign-in-view-model";
 
 function ExistingSessionBanner({ name, organization }: { name: string; organization: string }) {
@@ -85,7 +85,6 @@ function ApprovalRequestPanel({
 
 export function SupplierSignInView() {
   const vm = useSupplierSignInViewModel();
-  const otherPortals = wrongPortalLinks("supplier", portalUrlsFromEnvironment());
 
   return (
     <PrismAuthShell
@@ -99,7 +98,6 @@ export function SupplierSignInView() {
         <>
           <p>Approved supplier accounts only.</p>
           <PrismAccountHelp contact={pmcmSupportContactFromEnvironment()} topic="supplier portal access" />
-          <PrismWrongPortalLinks links={otherPortals} />
         </>
       }
     >

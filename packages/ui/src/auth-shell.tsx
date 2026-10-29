@@ -108,24 +108,3 @@ export function PrismAuthShell({
     </main>
   );
 }
-
-export interface PrismWrongPortalLink {
-  label: string;
-  href: string;
-}
-
-export function PrismWrongPortalLinks({ links }: { links: readonly PrismWrongPortalLink[] }) {
-  return (
-    <p>
-      Wrong portal?{" "}
-      {links.map((link, index) => (
-        <span key={link.href}>
-          {index > 0 ? ", " : null}
-          <a href={link.href} className="text-primary transition-colors hover:text-primary/80">
-            {link.label}
-          </a>
-        </span>
-      ))}
-    </p>
-  );
-}

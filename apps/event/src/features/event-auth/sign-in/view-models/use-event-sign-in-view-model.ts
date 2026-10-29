@@ -7,7 +7,7 @@ import {
   mapSignInError,
 } from "../model/event-sign-in-rules";
 import { nextPathFromSearch } from "../model/event-sign-in-copy";
-import { beginEventTwoFactorSetup, signInToEventPortal, verifyEventTwoFactor } from "../use-cases/event-sign-in";
+import { beginEventTwoFactorSetup, getDevelopmentEventTwoFactorQr, signInToEventPortal, verifyEventTwoFactor } from "../use-cases/event-sign-in";
 
 function readNextPath() {
   if (typeof window === "undefined") return null;
@@ -27,6 +27,24 @@ export function useEventSignInViewModel() {
   const [otpauthUri, setOtpauthUri] = useState<string | null>(null);
   const [code, setCode] = useState("");
 
+  async function toggleDevelopmentQr() {
+    if (process.env.NODE_ENV !== "development" || phase !== "verify" || !twoFactorToken || status === "loading") return;
+    if (otpauthUri) {
+      setOtpauthUri(null);
+      return;
+    }
+    setStatus("loading");
+    setError(null);
+    try {
+      const qr = await getDevelopmentEventTwoFactorQr(twoFactorToken);
+      setOtpauthUri(qr.otpauthUri);
+      setStatus("idle");
+    } catch (err) {
+      setError(mapSignInError(err));
+      setStatus("error");
+    }
+  }
+
   async function submitTwoFactor(next: string | null) {
     if (!twoFactorToken || !/^\d{6}$/.test(code)) {
       setStatus("error");
@@ -41,16 +59,6 @@ export function useEventSignInViewModel() {
     }
     setStatus("ready");
     router.replace(verified.redirectTo);
-  }
-
-  function startOver() {
-    setPhase("password");
-    setTwoFactorToken(null);
-    setSetupSecret(null);
-    setOtpauthUri(null);
-    setCode("");
-    setError(null);
-    setStatus("idle");
   }
 
   async function beginTwoFactor(result: { token: string; setupRequired?: boolean }) {
@@ -117,7 +125,7 @@ export function useEventSignInViewModel() {
     setPassword,
     setShowPassword,
     setCode,
-    startOver,
+    toggleDevelopmentQr,
     submit,
   };
 }

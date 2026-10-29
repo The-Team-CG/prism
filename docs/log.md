@@ -6,6 +6,10 @@ implementation and verification history.
 
 ## 2026-10-29
 
+- Documented the development-only authenticator rescan contract: a password-verified active challenge is required, production refuses QR disclosure, and rescanning preserves enrollment and the code-verification requirement.
+
+- Documented the six provenance-verified historical UAT seed variants accepted by database doctor, exact startup compatibility, and schema cutover preflight, while preserving original ledger rows and rejecting unrecognized SQL changes.
+
 - Retired completed or superseded documents: the legacy column-authority register and CSV, the before/after domain schema map, the pre-production baseline adoption and quote-request integrity runbooks (their migrations are now part of the owner baselines), the redesign inventory, and the readiness foundation. Readiness gates now live in evolution governance; current schema owners and counts live in persistence ownership. Git history retains the originals.
 
 - Re-verified the remaining living documents against the code: bounded contexts and kernel modules, Zod-only request validation, owner-schema table counts, CI and scheduled workflow behavior, and fixture and migration commands. Navigation, AGENTS.md, and roadmap references were updated to match.

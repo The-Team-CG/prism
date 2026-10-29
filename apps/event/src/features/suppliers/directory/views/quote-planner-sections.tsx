@@ -46,7 +46,7 @@ export function QuotePlannerToolbar({
           <button
             disabled={busy || !canRequest}
             onClick={onRequest}
-            className="inline-flex h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60"
+            className="inline-flex h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-black text-ink-foreground disabled:opacity-60"
           >
             <Send className="size-4" /> Request Quotes
           </button>
@@ -263,8 +263,8 @@ export function QuoteRequestModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
-      <div className="w-full max-w-2xl rounded-lg border border-border bg-card shadow-xl">
-        <div className="flex items-start justify-between gap-4 border-b border-border p-5">
+      <div className="flex max-h-[calc(100dvh-2rem)] w-full min-w-0 max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-card shadow-xl">
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border p-5">
           <div>
             <p className="text-xs font-medium text-attention">Request Quotes</p>
             <h3 className="mt-1 text-xl font-black">{categoryName}</h3>
@@ -273,7 +273,7 @@ export function QuoteRequestModal({
             <X className="size-4" />
           </button>
         </div>
-        <div className="space-y-5 p-5">
+        <div className="min-h-0 space-y-5 overflow-y-auto p-5">
           <div className="space-y-2">
             {groups.map((group) => (
               <QuoteRequestGroup
@@ -300,12 +300,12 @@ export function QuoteRequestModal({
             </label>
           </div>
         </div>
-        <div className="flex flex-wrap justify-end gap-2 border-t border-border p-5">
+        <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-border p-5">
           <button onClick={onClose} className="h-10 rounded-md border border-border bg-white px-3 text-sm font-black">Cancel</button>
           <button
             disabled={busy || !canSubmit}
             onClick={onSubmit}
-            className="inline-flex h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60"
+            className="inline-flex h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-black text-ink-foreground disabled:opacity-60"
           >
             <Send className="size-4" /> Send Requests
           </button>

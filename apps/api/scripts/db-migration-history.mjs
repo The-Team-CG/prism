@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
+import migrationLedger from '../src/kernel/database/migration-ledger-compatibility.cjs';
 
 export function migrationChecksums(sql) {
   const lf = sql.toString().replaceAll('\r\n', '\n');
@@ -16,6 +17,7 @@ export function localMigrationChecksums(directory = new URL('../prisma/migration
 export function compareMigrationHistory(local, applied) {
   const issues = [];
   const lineEndingOnly = [];
+  const historicalVariants = [];
   const finished = new Map();
   for (const row of applied.filter(item => !item.rolled_back_at)) {
     if (!row.finished_at) issues.push({ migration: row.migration_name, issue: 'unfinished' });
@@ -24,13 +26,14 @@ export function compareMigrationHistory(local, applied) {
   for (const [name, checksum] of local) {
     const candidates = Array.isArray(checksum) ? checksum : [checksum];
     if (!finished.has(name)) issues.push({ migration: name, issue: 'pending' });
+    else if (migrationLedger.historicalMigrationChecksums(name, candidates).includes(finished.get(name))) historicalVariants.push(name);
     else if (!candidates.includes(finished.get(name))) issues.push({ migration: name, issue: 'checksum-mismatch' });
     else if (finished.get(name) !== candidates[0]) lineEndingOnly.push(name);
   }
   for (const name of finished.keys()) {
     if (!local.has(name)) issues.push({ migration: name, issue: 'missing-local-file' });
   }
-  return { local: local.size, applied: finished.size, lineEndingOnly, issues };
+  return { local: local.size, applied: finished.size, lineEndingOnly, historicalVariants, issues };
 }
 
 export async function inspectMigrationHistory(client) {

@@ -1,4 +1,5 @@
 "use client";
+import { DateTimePicker } from "@prism/ui/components/date-time-picker";
 import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import { useState, type FormEvent } from "react";
@@ -94,15 +95,7 @@ function OcularVisitActions({
             <label htmlFor="ocular-visit-scheduled-at" className="mb-1 block text-sm font-medium text-foreground">
               Scheduled date and time
             </label>
-            <input
-              id="ocular-visit-scheduled-at"
-              type="datetime-local"
-              value={scheduledAtLocal}
-              onChange={(event) => setScheduledAtLocal(event.target.value)}
-              required
-              disabled={busy}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-            />
+            <DateTimePicker value={scheduledAtLocal} onValueChange={(next) => setScheduledAtLocal(next)} id="ocular-visit-scheduled-at" required disabled={busy} />
           </div>
           <button
             type="submit"

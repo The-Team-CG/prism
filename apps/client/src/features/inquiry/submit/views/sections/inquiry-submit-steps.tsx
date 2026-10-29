@@ -27,7 +27,6 @@ import { cn } from "@/app/components/ui/utils";
 import type { InquiryForm } from "../../model/inquiry-submit-types";
 import {
   INQUIRY_BUDGET_RANGES,
-  INQUIRY_CITY_SUGGESTIONS,
   INQUIRY_CLIENT_TYPES,
   INQUIRY_DATE_OPTIONS,
   INQUIRY_EVENT_TYPES,
@@ -38,6 +37,7 @@ import {
   INQUIRY_WIZARD_STEPS,
 } from "../../model/inquiry-submit-types";
 import { InquiryChoiceGroup } from "./inquiry-choice-group";
+import { InquiryVenueField } from "./inquiry-venue-field";
 
 const controlClass = "h-11 rounded-lg border-border-strong bg-white px-3.5 text-base md:text-base";
 
@@ -80,7 +80,6 @@ function TextField({
   min,
   inputMode,
   autoComplete,
-  list,
   autoFocus,
 }: {
   id: keyof InquiryForm;
@@ -94,7 +93,6 @@ function TextField({
   min?: string;
   inputMode?: "numeric" | "tel" | "email" | "text";
   autoComplete?: string;
-  list?: string;
   autoFocus?: boolean;
 }) {
   return (
@@ -110,7 +108,6 @@ function TextField({
         min={min}
         inputMode={inputMode}
         autoComplete={autoComplete}
-        list={list}
         autoFocus={autoFocus}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
@@ -154,12 +151,7 @@ function EventStep({ form, update, minDate }: InquiryStepProps & { minDate: stri
 function VenueBudgetStep({ form, update }: InquiryStepProps) {
   return (
     <div className="grid gap-7">
-      <TextField id="venueCity" label="Venue or city" value={form.venueCity} onChange={(value) => update("venueCity", value)} placeholder="For example, Makati" hint="Pick a city or type the venue name. A city is enough if the venue is not final." list="inquiry-city-suggestions" />
-      <datalist id="inquiry-city-suggestions">
-        {INQUIRY_CITY_SUGGESTIONS.map((city) => (
-          <option key={city} value={city} />
-        ))}
-      </datalist>
+      <InquiryVenueField value={form.venueCity} onChange={(value) => update("venueCity", value)} />
       <InquiryChoiceGroup label="Venue status" options={INQUIRY_VENUE_OPTIONS} value={form.venueStatus} onChange={(value) => update("venueStatus", value)} />
       <InquiryChoiceGroup label="Budget range" options={INQUIRY_BUDGET_RANGES} value={form.budgetRange} onChange={(value) => update("budgetRange", value)} required />
       <InquiryChoiceGroup label="How soon do you need a reply?" options={INQUIRY_PRIORITY_OPTIONS} value={form.inquiryPriority} onChange={(value) => update("inquiryPriority", value)} required />
@@ -185,7 +177,7 @@ function VenueBudgetStep({ form, update }: InquiryStepProps) {
 function DetailsStep({ form, update }: InquiryStepProps) {
   return (
     <div className="grid gap-7">
-      <div className="grid gap-7 md:grid-cols-2">
+      <div className="grid gap-7 md:grid-cols-2 md:[&>div]:grid-rows-[1fr_auto]">
         <TextField id="clientName" label="Full name" value={form.clientName} onChange={(value) => update("clientName", value)} autoComplete="name" required />
         <TextField id="companyName" label="Company or organisation" value={form.companyName} onChange={(value) => update("companyName", value)} autoComplete="organization" />
         <TextField id="email" label="Email" type="email" inputMode="email" value={form.email} onChange={(value) => update("email", value)} autoComplete="email" required />
@@ -206,7 +198,8 @@ function ReviewStep({
   update,
   error,
   onEdit,
-}: InquiryStepProps & { error: string | null; onEdit: (step: number) => void }) {
+  consentInvalid,
+}: InquiryStepProps & { error: string | null; onEdit: (step: number) => void; consentInvalid: boolean }) {
   const groups = [
     { step: 0, title: "Event", rows: [["Name", form.eventName], ["Type", inquiryEventTypeLabel(form)], ["Date", formatInquiryDate(form.eventDate)], ["Date flexibility", form.dateFlexibility], ["Guests", form.expectedGuests]] },
     { step: 1, title: "Venue and budget", rows: [["Venue or city", form.venueCity], ["Venue status", form.venueStatus], ["Budget", form.budgetRange], ["Reply needed", form.inquiryPriority], ["Notes", form.message]] },
@@ -241,6 +234,8 @@ function ReviewStep({
           checked={form.privacyConsentAccepted}
           onChange={(event) => update("privacyConsentAccepted", event.target.checked)}
           required
+          aria-invalid={consentInvalid}
+          aria-describedby={consentInvalid ? "inquiry-validation-error" : undefined}
           className="mt-1 size-5 shrink-0 accent-primary"
         />
         <span>
@@ -268,7 +263,8 @@ export function InquiryStepBody({
   minDate,
   error,
   onEdit,
-}: InquiryStepProps & { currentStep: number; minDate: string; error: string | null; onEdit: (step: number) => void }) {
+  consentInvalid = false,
+}: InquiryStepProps & { currentStep: number; minDate: string; error: string | null; onEdit: (step: number) => void; consentInvalid?: boolean }) {
   return (
     <section aria-labelledby="inquiry-step-title">
       <h2 id="inquiry-step-title" className="font-heading text-xl font-bold text-foreground">
@@ -279,7 +275,7 @@ export function InquiryStepBody({
         {currentStep === 0 ? <EventStep form={form} update={update} minDate={minDate} /> : null}
         {currentStep === 1 ? <VenueBudgetStep form={form} update={update} /> : null}
         {currentStep === 2 ? <DetailsStep form={form} update={update} /> : null}
-        {currentStep === 3 ? <ReviewStep form={form} update={update} error={error} onEdit={onEdit} /> : null}
+        {currentStep === 3 ? <ReviewStep form={form} update={update} error={error} onEdit={onEdit} consentInvalid={consentInvalid} /> : null}
       </div>
     </section>
   );
@@ -307,8 +303,8 @@ export function InquiryWizardFooter({
   return (
     <div className="mt-8">
       {missing.length ? (
-        <p role="alert" className="mb-4 rounded-lg bg-attention-soft px-4 py-3 text-sm font-medium text-attention">
-          To continue, add {listInWords(missing)}.
+        <p id="inquiry-validation-error" role="alert" className="mb-4 rounded-lg bg-attention-soft px-4 py-3 text-sm font-medium text-attention">
+          {isLast ? "Please confirm that PMCM may use your details before sending your inquiry." : `To continue, add ${listInWords(missing)}.`}
         </p>
       ) : null}
       <div className="flex items-center justify-between gap-3">

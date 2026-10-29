@@ -3,23 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import type { PrismClientActionCenter } from '@prism/types';
 import { selectClientAccountActions, selectClientDashboardActions } from '../../../workspace/model/client-dashboard-selectors';
-import { ClientHomeActionCenter, ClientHomeGreeting } from './client-home-sections';
-
-describe('ClientHomeGreeting', () => {
-  it('keeps the conforme review entry visible when the client already has events', () => {
-    const markup = renderToStaticMarkup(createElement(ClientHomeGreeting, {
-      sessionName: 'Client',
-      eventCount: 2,
-      daysToEvent: null,
-      onRequest: vi.fn(),
-      onEvents: vi.fn(),
-      onReviewConforme: vi.fn(),
-    }));
-
-    expect(markup).toContain('My events');
-    expect(markup).toContain('Review conforme');
-  });
-});
+import { ClientHomeActionCenter } from './client-home-sections';
 
 describe('ClientHomeActionCenter', () => {
   const loaded: PrismClientActionCenter = {
@@ -38,7 +22,7 @@ describe('ClientHomeActionCenter', () => {
     };
     const actions = selectClientAccountActions(center);
     const markup = renderToStaticMarkup(createElement(ClientHomeActionCenter, {
-      actionCenter: center, clientActions: actions, runClientAction: vi.fn(),
+      actionCenter: center, clientActions: actions, runClientAction: vi.fn(), todayKey: '2026-10-19',
     }));
     expect(markup).toContain('First event');
     expect(markup).toContain('Second event');
@@ -58,10 +42,10 @@ describe('ClientHomeActionCenter', () => {
       ],
     };
     const markup = renderToStaticMarkup(createElement(ClientHomeActionCenter, {
-      actionCenter: center, clientActions: selectClientAccountActions(center), runClientAction: vi.fn(),
+      actionCenter: center, clientActions: selectClientAccountActions(center), runClientAction: vi.fn(), todayKey: '2026-10-19',
     }));
-    const headings = [...markup.matchAll(/<h2[^>]*>(Needs your action[^<]*)<\/h2>/g)].map((match) => match[1]);
-    expect(headings).toEqual(['Needs your action now · First event', 'Needs your action later · First event', 'Needs your action later · Second event']);
+    const headings = [...markup.matchAll(/<h2[^>]*>(Needs your action[^<]*)</g)].map((match) => match[1]);
+    expect(headings).toEqual(['Needs your action · First event', 'Needs your action · Second event']);
     expect(markup.indexOf('Pay the deposit')).toBeLessThan(markup.indexOf('Upload signed venue permit'));
   });
 
@@ -69,11 +53,10 @@ describe('ClientHomeActionCenter', () => {
     const markup = renderToStaticMarkup(createElement(ClientHomeActionCenter, {
       actionCenter: loaded,
       clientActions: selectClientDashboardActions(loaded, 'evt_selected'),
-      runClientAction: vi.fn(),
+      runClientAction: vi.fn(), todayKey: '2026-10-19',
     }));
 
-    expect(markup).toContain('Action center');
-    expect(markup).toContain('No pending actions');
+    expect(markup).toContain('all caught up');
     expect(markup).not.toContain('Needs your action');
   });
 
@@ -81,13 +64,13 @@ describe('ClientHomeActionCenter', () => {
     const markup = renderToStaticMarkup(createElement(ClientHomeActionCenter, {
       actionCenter: loaded,
       clientActions: selectClientDashboardActions(loaded, 'evt_other'),
-      runClientAction: vi.fn(),
+      runClientAction: vi.fn(), todayKey: '2026-10-19',
     }));
 
     expect(markup).toContain('Complete event briefing');
     expect(markup).toContain('Needs your action');
     expect(markup).not.toContain('Waiting for PMCM');
-    expect(markup).not.toContain('Available to review');
-    expect(markup).not.toContain('No pending actions');
+    expect(markup).not.toContain('New to review');
+    expect(markup).not.toContain('all caught up');
   });
 });

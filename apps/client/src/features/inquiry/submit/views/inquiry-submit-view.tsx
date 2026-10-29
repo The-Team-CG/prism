@@ -119,8 +119,8 @@ export function InquirySubmitView() {
           <div className="mt-8">
             <InquiryProgress currentStep={currentStep} onGoTo={goToStep} />
           </div>
-          <form onSubmit={onSubmit} className="mt-6 rounded-xl border border-border bg-card p-5 sm:p-8">
-            <InquiryStepBody currentStep={currentStep} form={form} update={update} minDate={minDate} error={error} onEdit={goToStep} />
+          <form noValidate onSubmit={onSubmit} className="mt-6 rounded-xl border border-border bg-card p-5 sm:p-8">
+            <InquiryStepBody currentStep={currentStep} form={form} update={update} minDate={minDate} error={error} onEdit={goToStep} consentInvalid={missing.includes("your consent")} />
             <InquiryWizardFooter currentStep={currentStep} busy={busy} missing={missing} onBack={previousStep} onContinue={nextStep} />
           </form>
         </div>

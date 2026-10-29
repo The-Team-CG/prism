@@ -67,7 +67,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await client.getByRole('button', { name: 'Submit briefing', exact: true }).click();
       await expect(client.getByRole('button', { name: 'Submit updated briefing', exact: true })).toBeVisible();
       await pmcm.page.goto(path('briefing'));
-      await pmcm.page.getByText('Commercial proposal', { exact: true }).first().click();
+      await pmcm.page.getByRole('tab', { name: 'Proposal', exact: true }).click();
       const proposal = pmcm.page.locator('section').filter({ has: pmcm.page.getByRole('heading', { name: 'Commercial proposal', exact: true }) });
       await proposal.getByLabel('Client budget (PHP)', { exact: true }).fill('150000');
       await proposal.getByLabel('Line 1 category', { exact: true }).fill('Venue');
@@ -94,7 +94,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
 
     await test.step('PMCM requests a supplier quote; supplier follows its own email; PMCM selects the quote', async () => {
       await pmcm.page.goto(path('suppliers'));
-      await pmcm.page.getByText('Requests and quotes', { exact: true }).click();
+      await pmcm.page.getByRole('tab', { name: /^Requests & quotes/ }).click();
       await pmcm.page.getByRole('button', { name: 'Request Quotes', exact: true }).click();
       await pmcm.page.getByRole('checkbox', { name: /XPERTO Registration/ }).check();
       await pmcm.page.getByLabel('Quote deadline', { exact: true }).fill('12/01/2030');
@@ -112,7 +112,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await supplier.getByRole('button', { name: 'Send quote to PMCM', exact: true }).click();
       await expect(supplier.getByRole('status')).toContainText('Your quote has been sent');
       await pmcm.page.reload();
-      await pmcm.page.getByText('Requests and quotes', { exact: true }).click();
+      await pmcm.page.getByRole('tab', { name: /^Requests & quotes/ }).click();
       await pmcm.page.getByRole('button', { name: 'Select supplier', exact: true }).click();
       await expect(pmcm.page.getByRole('button', { name: 'Selected', exact: true })).toBeVisible();
     });

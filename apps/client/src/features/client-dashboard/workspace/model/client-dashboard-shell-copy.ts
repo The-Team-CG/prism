@@ -7,6 +7,7 @@ import type { ClientDashboardRoute, ClientPortalView } from "./client-dashboard-
 
 const PORTAL_TITLES: Partial<Record<ClientDashboardRoute, string>> = {
   request: "New event request",
+  "shared-floorplans": "Shared floorplans",
   events: "My events",
   calendar: "Calendar",
   approvals: "Approvals",
@@ -24,6 +25,7 @@ const PORTAL_EYEBROWS: Partial<Record<ClientDashboardRoute, string>> = {
 const PORTAL_DESCRIPTIONS: Partial<Record<ClientDashboardRoute, string>> = {
   request: "Start another event request using your client account details.",
   events: "Your confirmed PMCM events.",
+  "shared-floorplans": "Official layouts PMCM has shared with you, read-only.",
   calendar: "Event dates, payment due dates, site visits and layout approvals.",
   approvals: "Client approvals grouped by status and document type.",
   messages: "PMCM updates, event conversations, announcements, and archived notes.",

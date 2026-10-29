@@ -1,4 +1,4 @@
-import { manilaDateKey } from "@prism/ui/format-date";
+import { manilaDateKey } from "./format-date";
 
 /** A calendar month addressed by year and 0-based month index (0 = January). */
 export type CalendarMonth = { year: number; month: number };

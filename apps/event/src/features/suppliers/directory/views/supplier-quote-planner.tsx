@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { DatePicker } from "@prism/ui/components/date-picker";
 
 import type { PrismSupplier, PrismSupplierCategory, PrismSupplierQuoteRoundComparison, SupplierAvailabilityInput } from "@prism/types";
 import { money } from "@/features/pmcm-kit";
@@ -146,7 +147,7 @@ export function SupplierQuotePlanner({
           </select>
         </label>
         <div className="grid grid-cols-2 gap-2">
-          <label className="grid gap-1 text-xs font-semibold">Available on<input aria-label="Availability date" type="date" value={availabilityDate} onChange={(event) => setAvailabilityDate(event.target.value)} className="h-10 rounded-md border border-border bg-background px-3 text-sm" /></label>
+          <label className="grid gap-1 text-xs font-semibold">Available on<DatePicker aria-label="Availability date" value={availabilityDate} onValueChange={setAvailabilityDate} className="h-10 bg-white" /></label>
           <label className="grid gap-1 text-xs font-semibold">Capacity<input aria-label="Availability capacity" type="number" min="0" max="1000" step="1" value={availabilityCapacity} onChange={(event) => setAvailabilityCapacity(event.target.value)} className="h-10 rounded-md border border-border bg-background px-3 text-sm" /></label>
         </div>
         <div className="flex items-center gap-3">

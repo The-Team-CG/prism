@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createHash, randomBytes, scryptSync } from 'node:crypto';
@@ -548,6 +548,55 @@ describe('AuthOperationsService', () => {
 
     await expect(service.setupTwoFactor('challenge-token')).rejects.toThrow(/not available/i);
     expect(totpService.generateSecret).not.toHaveBeenCalled();
+  });
+
+  describe('development authenticator QR rescan', () => {
+    afterEach(() => vi.unstubAllEnvs());
+
+    it.each(['production', 'test', undefined])('refuses a rescan under NODE_ENV=%s before inspecting the challenge', async (environment) => {
+      vi.stubEnv('NODE_ENV', environment);
+      const { service, authSessionService, totpService } = createTwoFactorService();
+      await expect(service.getDevelopmentTwoFactorQr('challenge-token')).rejects.toBeInstanceOf(NotFoundException);
+      expect(authSessionService.verifyTwoFactorToken).not.toHaveBeenCalled();
+      expect(totpService.decryptSecret).not.toHaveBeenCalled();
+    });
+
+    it('reveals the enrolled QR in development without rotating its secret or completing sign-in', async () => {
+      vi.stubEnv('NODE_ENV', 'development');
+      const { service, user, totpService, authSessionService } = createTwoFactorService();
+      await expect(service.getDevelopmentTwoFactorQr('challenge-token')).resolves.toEqual({ otpauthUri: 'otpauth://totp/test' });
+      expect(totpService.otpauthUri).toHaveBeenCalledWith('totp-secret', 'mys@pmcm.test');
+      expect(user.twoFactorSecret).toBe('encrypted-secret');
+      expect(user.twoFactorChallengeConsumedAt).toBeNull();
+      expect(authSessionService.issueSession).not.toHaveBeenCalled();
+      await expect(service.verifyTwoFactor('challenge-token', '123456')).resolves.toMatchObject({ accessToken: 'pmcm-session' });
+    });
+
+    it.each([
+      ['expired', (user: Record<string, unknown>) => { user.twoFactorChallengeExpiresAt = new Date(0); }],
+      ['consumed', (user: Record<string, unknown>) => { user.twoFactorChallengeConsumedAt = new Date(0); }],
+      ['wrong role', (user: Record<string, unknown>) => { user.role = 'client'; }],
+      ['revoked', (user: Record<string, unknown>) => { user.sessionVersion = 1; }],
+      ['locked', (user: Record<string, unknown>) => { user.permanentLockout = true; }],
+      ['unapproved', (user: Record<string, unknown>) => { user.approvalStatus = 'pending'; }],
+      ['missing secret', (user: Record<string, unknown>) => { user.twoFactorSecret = null; }],
+    ])('refuses a %s account or challenge without decrypting the secret', async (_name, changeUser) => {
+      vi.stubEnv('NODE_ENV', 'development');
+      const { service, user, totpService } = createTwoFactorService();
+      changeUser(user);
+      await expect(service.getDevelopmentTwoFactorQr('challenge-token')).rejects.toThrow();
+      expect(totpService.decryptSecret).not.toHaveBeenCalled();
+    });
+
+    it('refuses setup-purpose tokens and invalid signatures', async () => {
+      vi.stubEnv('NODE_ENV', 'development');
+      const { service, token, authSessionService, totpService } = createTwoFactorService({ purpose: 'setup' });
+      await expect(service.getDevelopmentTwoFactorQr('setup-token')).rejects.toBeInstanceOf(ForbiddenException);
+      token.purpose = 'challenge';
+      authSessionService.verifyTwoFactorToken.mockImplementation(() => { throw new UnauthorizedException('Invalid token'); });
+      await expect(service.getDevelopmentTwoFactorQr('invalid-token')).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(totpService.decryptSecret).not.toHaveBeenCalled();
+    });
   });
 
   it('does not issue a session when the authentication integrity incident cannot be recorded', async () => {

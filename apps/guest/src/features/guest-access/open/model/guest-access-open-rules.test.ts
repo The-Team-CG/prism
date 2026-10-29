@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { wrongPortalLinks } from "@/lib/portal-urls";
 import {
   buildGuestSession,
   encodeAccessCodePath,
@@ -53,25 +52,5 @@ describe("guest-access-open-rules", () => {
       expect(resolvePostOpenPath(unsafe)).toBe("/dashboard");
     }
     expect(resolvePostOpenPath(null)).toBe("/dashboard");
-  });
-});
-
-describe("wrongPortalLinks", () => {
-  const env = {
-    NEXT_PUBLIC_CLIENT_PORTAL_URL: "https://c.example/",
-    NEXT_PUBLIC_SUPPLIER_PORTAL_URL: "https://s.example",
-    NEXT_PUBLIC_GUEST_PORTAL_URL: "https://g.example",
-    NEXT_PUBLIC_EVENT_PORTAL_URL: "https://e.example",
-  };
-
-  it("links to the other portals' sign-in pages and names a missing portal URL", () => {
-    expect(wrongPortalLinks("guest", env)).toEqual([
-      { label: "Client portal", href: "https://c.example/sign-in" },
-      { label: "Supplier portal", href: "https://s.example/sign-in" },
-      { label: "Event portal", href: "https://e.example/sign-in" },
-    ]);
-    expect(() => wrongPortalLinks("guest", { ...env, NEXT_PUBLIC_SUPPLIER_PORTAL_URL: "  " })).toThrow(
-      "NEXT_PUBLIC_SUPPLIER_PORTAL_URL is required",
-    );
   });
 });

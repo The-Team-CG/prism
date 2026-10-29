@@ -1,5 +1,6 @@
 import type { PmcmDetailTab } from "@/features/command-inbox/list";
 import type { PrismEvent } from "@prism/types";
+import { formatPortalDate } from "@prism/ui/format-date";
 export type DetailTab = PmcmDetailTab;
 export type DashboardSection =
   | "dashboard"
@@ -248,6 +249,7 @@ export const SIDEBAR_STATIC_ROUTES: Record<string, string> = {
   suppliers: "/dashboard/suppliers",
   finance: "/dashboard/finance",
   audit: "/dashboard/audit",
+  privacy: "/dashboard/privacy",
   settings: "/dashboard/settings",
   "dashboard-overview": "/dashboard",
   "dashboard-upcoming": "/dashboard/upcoming-events",
@@ -531,7 +533,7 @@ export function routeShellCopy(
       eyebrow: loadingCopy.eyebrow,
       title: options.selectedEvent?.eventName ?? "Event Manager",
       description: options.selectedEvent
-        ? `${options.selectedEvent.clientName} — ${options.selectedEvent.eventDate}`
+        ? `${options.selectedEvent.clientName} · ${formatPortalDate(options.selectedEvent.eventDate)}`
         : "Select an event or accept an inquiry to begin.",
     };
   }

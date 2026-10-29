@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { wrongPortalLinks } from "@/lib/portal-urls";
 import {
   isClientRole,
   isSignInDraftValid,
@@ -46,25 +45,5 @@ describe("sign-in-rules", () => {
 
   it("maps invalid credentials without identifying a seeded account", () => {
     expect(mapSignInFailure({ message: "Invalid credentials" })).toContain("approved client account");
-  });
-});
-
-describe("wrongPortalLinks", () => {
-  const env = {
-    NEXT_PUBLIC_CLIENT_PORTAL_URL: "https://c.example/",
-    NEXT_PUBLIC_SUPPLIER_PORTAL_URL: "https://s.example",
-    NEXT_PUBLIC_GUEST_PORTAL_URL: "https://g.example",
-    NEXT_PUBLIC_EVENT_PORTAL_URL: "https://e.example",
-  };
-
-  it("links to the other portals' sign-in pages and names a missing portal URL", () => {
-    expect(wrongPortalLinks("client", env)).toEqual([
-      { label: "Supplier portal", href: "https://s.example/sign-in" },
-      { label: "Guest portal", href: "https://g.example/sign-in" },
-      { label: "Event portal", href: "https://e.example/sign-in" },
-    ]);
-    expect(() => wrongPortalLinks("client", { ...env, NEXT_PUBLIC_GUEST_PORTAL_URL: "  " })).toThrow(
-      "NEXT_PUBLIC_GUEST_PORTAL_URL is required",
-    );
   });
 });

@@ -48,7 +48,9 @@ export function EventDashboardShellView({ viewModel, children }: EventDashboardS
       />
     );
   }
-  if (!viewModel.state && sectionNeedsPmcmWorkspaceState(viewModel.section)) {
+  // Gate on the section this page renders, not the in-flight sidebar selection: the sidebar updates
+  // `section` before the router swaps pages, and the outgoing page's content still needs its data.
+  if (!viewModel.state && sectionNeedsPmcmWorkspaceState(viewModel.routeState.section)) {
     return <EventPmcmLoadingShell viewModel={{ ...viewModel, session }} />;
   }
   return (

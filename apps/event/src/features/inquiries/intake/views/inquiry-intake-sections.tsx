@@ -6,10 +6,12 @@ import { DatePicker } from "@prism/ui/components/date-picker";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@prism/ui/components/sheet";
 import {
   AlertCircle,
+  ChevronRight,
   ClipboardList,
   MessageSquareText,
   Plus,
   Search,
+  SlidersHorizontal,
   X,
 } from "lucide-react";
 
@@ -55,27 +57,24 @@ export function InquiryIntakeHeader({
   copyLinkState: "idle" | "copied" | "error";
 }) {
   return (
-    <div className="border-b border-border px-4 py-4 sm:px-6">
+    <div className="px-4 pb-4 pt-5 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <ClipboardList className="size-4 shrink-0 text-primary" />
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
           <h2 className="text-lg font-semibold text-foreground">Inquiry intake</h2>
           {unreviewedCount > 0 && (
-            <span className="text-sm text-attention">{unreviewedCount} unreviewed</span>
+            <span className="text-xs text-muted-foreground">{unreviewedCount} awaiting review</span>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="outline" onClick={onCopyInquiryLink} className="rounded-lg font-bold">
+          <Button size="sm" variant="ghost" onClick={onCopyInquiryLink} className="h-11 rounded-lg px-2 font-semibold text-muted-foreground shadow-none sm:h-9">
             {copyLinkState === "copied" ? "Link copied" : "Copy inquiry link"}
           </Button>
-          <Button size="sm" onClick={onLog} className="rounded-lg font-bold">
-            <Plus className="size-3.5" />
+          <Button size="sm" onClick={onLog} className="h-11 rounded-lg font-semibold sm:h-9">
+            <Plus aria-hidden className="size-3.5" />
             Log inquiry
           </Button>
         </div>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">
-        Share the public inquiry link, or log walk-in and phone inquiries here.</p>
     </div>
   );
 }
@@ -107,11 +106,11 @@ export function InquiryIntakeFilters({
 }) {
   const idPrefix = useId();
   const searchId = `${idPrefix}-search`;
+  const statusId = `${idPrefix}-status`;
+  const moreFiltersId = `${idPrefix}-more-filters`;
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+  const activeSecondaryCount = [source, clientType, dateRange].filter((value) => value !== "all").length;
   const selects = [
-    {
-      key: "status", label: "Status", value: status, onChange: onStatus,
-      options: [["all", "All status"], ["new", "New"], ["accepted", "Accepted"], ["pending", "Pending"], ["declined", "Declined"]],
-    },
     {
       key: "source", label: "Source", value: source, onChange: onSource,
       options: [["all", "All sources"], ...logFormReferralSources.map((item) => [item, item])],
@@ -127,9 +126,9 @@ export function InquiryIntakeFilters({
   ];
 
   return (
-    <div className="border-b border-border px-4 py-3 sm:px-6">
-      <div role="search" aria-label="Filter inquiries" className="grid min-w-0 grid-cols-2 gap-2 xl:grid-cols-[minmax(0,1fr)_repeat(4,minmax(0,10rem))]">
-        <div className="relative col-span-2 min-w-0 xl:col-span-1">
+    <div role="search" aria-label="Filter inquiries" className="border-b border-border px-4 pb-4 sm:px-6">
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2 lg:grid-cols-[minmax(0,1fr)_9rem_auto]">
+        <div className="relative col-span-2 min-w-0 lg:col-span-1">
           <label htmlFor={searchId} className="sr-only">Search inquiries</label>
           <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -138,19 +137,52 @@ export function InquiryIntakeFilters({
             value={query}
             onChange={(event) => onQuery(event.target.value)}
             className="h-11 w-full min-w-0 pl-9 text-sm sm:h-9"
-            placeholder="Search client, email, or event..."
+            placeholder="Search event, client or email…"
           />
         </div>
+        <div className="min-w-0">
+          <label htmlFor={statusId} className="sr-only">Status</label>
+          <select
+            id={statusId}
+            value={status}
+            onChange={(event) => onStatus(event.target.value)}
+            className="h-11 w-full min-w-0 truncate rounded-lg border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:h-9"
+          >
+            <option value="all">All statuses</option>
+            <option value="new">New</option>
+            <option value="accepted">Accepted</option>
+            <option value="pending">Pending</option>
+            <option value="declined">Declined</option>
+          </select>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          aria-expanded={moreFiltersOpen}
+          aria-controls={moreFiltersId}
+          onClick={() => setMoreFiltersOpen((open) => !open)}
+          className="h-11 rounded-lg font-medium shadow-none sm:h-9"
+        >
+          <SlidersHorizontal aria-hidden className="size-3.5" />
+          More filters{activeSecondaryCount > 0 ? ` (${activeSecondaryCount})` : ""}
+        </Button>
+      </div>
+      <div
+        id={moreFiltersId}
+        hidden={!moreFiltersOpen}
+        className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3"
+      >
         {selects.map((sel) => {
           const selectId = `${idPrefix}-${sel.key}`;
           return (
             <div key={sel.key} className="min-w-0">
-              <label htmlFor={selectId} className="sr-only">{sel.label}</label>
+              <label htmlFor={selectId} className="mb-1.5 block text-xs font-medium text-muted-foreground">{sel.label}</label>
               <select
                 id={selectId}
                 value={sel.value}
                 onChange={(event) => sel.onChange(event.target.value)}
-                className="h-11 w-full min-w-0 truncate rounded-lg border border-border bg-background px-3 text-sm text-foreground sm:h-9"
+                className="h-11 w-full min-w-0 truncate rounded-lg border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:h-9"
               >
                 {sel.options.map(([val, optionLabel]) => (
                   <option key={val} value={val}>{optionLabel}</option>
@@ -180,30 +212,34 @@ export function InquiryIntakeList({
   }
 
   return (
-    <div className="min-w-0 overflow-x-auto">
-    <table className="w-full text-sm">
-      <thead className="hidden border-b border-border text-left text-xs text-muted-foreground md:table-header-group">
-        <tr>
-          <th scope="col" className="px-6 py-2.5 font-medium">Event and contact</th>
-          <th scope="col" className="px-4 py-2.5 font-medium">Event date</th>
-          <th scope="col" className="hidden px-4 py-2.5 font-medium lg:table-cell">Source</th>
-          <th scope="col" className="px-4 py-2.5 font-medium">Status</th>
-          <th scope="col" className="px-4 py-2.5 font-medium">Next step</th>
-          <th scope="col" className="px-6 py-2.5"><span className="sr-only">Open</span></th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-border">
-        {inquiries.map((inquiry) => (
-          <InquiryIntakeRow key={inquiry.id} inquiry={inquiry} onOpen={onOpen} />
-        ))}
-      </tbody>
-    </table>
+    <div className="min-w-0">
+      <table className="w-full table-fixed text-sm">
+        <colgroup className="hidden lg:table-column-group">
+          <col />
+          <col className="w-32" />
+          <col className="w-40 xl:w-48" />
+          <col className="w-28" />
+        </colgroup>
+        <thead className="hidden border-b border-border bg-muted/25 text-left text-xs text-muted-foreground lg:table-header-group">
+          <tr>
+            <th scope="col" className="px-6 py-3 font-medium">Event and contact</th>
+            <th scope="col" className="px-3 py-3 font-medium">Event date</th>
+            <th scope="col" className="px-3 py-3 font-medium">Status</th>
+            <th scope="col" className="px-6 py-3"><span className="sr-only">Action</span></th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {inquiries.map((inquiry) => (
+            <InquiryIntakeRow key={inquiry.id} inquiry={inquiry} onOpen={onOpen} />
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 
 const NEXT_STEP_TONE = {
-  action: "font-semibold text-primary",
+  action: "font-medium text-foreground",
   waiting: "text-attention",
   done: "text-muted-foreground",
 } as const;
@@ -217,24 +253,32 @@ function InquiryIntakeRow({
 }) {
   const next = inquiryNextStep(inquiry);
   return (
-    <tr className="grid gap-1 px-6 py-3 hover:bg-surface-raised md:table-row md:p-0">
-      <td className="min-w-0 md:px-6 md:py-3">
+    <tr className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 px-4 py-4 hover:bg-surface-raised sm:px-6 lg:table-row lg:p-0">
+      <td className="col-span-2 min-w-0 align-top lg:px-6 lg:py-4">
         <p className="break-words font-semibold text-foreground" title={inquiry.eventName}>{inquiry.eventName}</p>
-        <p className="break-all text-xs text-muted-foreground">
+        <p className="mt-1 truncate text-xs text-muted-foreground" title={`${inquiry.clientName} · ${inquiry.email}`}>
           {inquiry.clientName} · {inquiry.email}
+        </p>
+        <p className="mt-2 text-xs leading-5 text-muted-foreground">
+          Received {compactTimestamp(inquiry.createdAt)}
+          {inquiry.source ? <> · {inquiry.source}</> : null}
         </p>
         {inquiry.previouslyDeclined ? <p className="mt-0.5 text-xs font-semibold text-destructive">Previously declined</p> : null}
       </td>
-      <td className="whitespace-nowrap text-foreground md:px-4 md:py-3">{formatPortalDate(inquiry.eventDate)}</td>
-      <td className="hidden md:px-4 md:py-3 lg:table-cell">
-        <p className="text-foreground">{inquiry.source || "–"}</p>
-        <p className="text-xs text-muted-foreground">Received {compactTimestamp(inquiry.createdAt)}</p>
+      <td className="col-start-1 row-start-2 whitespace-nowrap align-top text-foreground lg:px-3 lg:py-4">
+        <span className="block text-xs text-muted-foreground lg:hidden">Event date</span>
+        {formatPortalDate(inquiry.eventDate)}
       </td>
-      <td className="md:px-4 md:py-3"><StatusBadge status={inquiry.status} label={label(inquiry.status)} /></td>
-      <td className={`md:px-4 md:py-3 ${NEXT_STEP_TONE[next.tone]}`}>{next.label}</td>
-      <td className="md:px-6 md:py-3 md:text-right">
-        <button type="button" onClick={() => onOpen(inquiry)} className="min-h-11 rounded-md px-2 text-sm font-semibold text-primary hover:text-primary-strong focus-visible:ring-2 focus-visible:ring-primary">
-          Review inquiry<span className="sr-only"> {inquiry.eventName}</span>
+      <td className="col-start-1 row-start-3 min-w-0 align-top lg:px-3 lg:py-4">
+        <StatusBadge status={inquiry.status} label={label(inquiry.status)} />
+        {inquiry.status === "accepted" ? (
+          <p className={`mt-1 text-xs leading-5 ${NEXT_STEP_TONE[next.tone]}`}>{next.label}</p>
+        ) : null}
+      </td>
+      <td className="col-start-2 row-span-2 row-start-2 self-center align-top lg:py-2 lg:pl-0 lg:pr-6 lg:text-right">
+        <button type="button" onClick={() => onOpen(inquiry)} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg border border-border px-3 text-sm font-semibold text-primary hover:bg-primary/5 hover:text-primary-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:border-transparent lg:px-2">
+          Review<span className="sr-only"> inquiry {inquiry.eventName}</span>
+          <ChevronRight aria-hidden className="size-3.5" />
         </button>
       </td>
     </tr>

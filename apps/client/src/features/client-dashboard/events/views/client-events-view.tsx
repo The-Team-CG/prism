@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Send } from "lucide-react";
-import { formatPortalDate } from "@prism/ui/format-date";
+import { CalendarCheck, CalendarDays, Search, Send } from "lucide-react";
+import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 import type { PrismEvent } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -15,10 +15,11 @@ import {
 } from "../../workspace/shared";
 import { formatStatusLabel } from "../../workspace/model/client-dashboard-view-rules";
 import { useClientWorkspace } from "../../workspace/shared";
+import { ClientListEmpty, ClientListRow, ClientListSection } from "../../shared/client-list-ui";
+import { eventCountdown, isPastClientEvent, orderClientEvents } from "../../home/model/client-home-summary";
 
 export function ClientEventsView() {
   const {
-    router,
     portalView,
     state,
     session,
@@ -77,15 +78,10 @@ export function ClientEventsView() {
       return `${ev.eventName} ${ev.eventDate} ${ev.status}`.toLowerCase().includes(query);
     });
   
+    const todayKey = manilaDateKey();
+    const searching = Boolean(eventSearch.trim());
     return (
-      <div className="space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground">{historyEvents.length} event{historyEvents.length === 1 ? "" : "s"}</p>
-          <Button className="rounded-lg font-bold" onClick={() => router.push("/dashboard/request")}>
-            <Send className="size-4" /> New request
-          </Button>
-        </div>
-  
+      <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-3">
           {/* Filters change the route, so they are links: they open in new tabs and keep the active state readable. */}
           <nav className="-mx-1 flex gap-1 overflow-x-auto px-1" aria-label="Event status filters">
@@ -107,48 +103,50 @@ export function ClientEventsView() {
               );
             })}
           </nav>
-          <label htmlFor="client-event-search" className="sr-only">Search events</label>
-          <Input
-            id="client-event-search"
-            type="search"
-            value={eventSearch}
-            onChange={(ev) => setEventSearch(ev.target.value)}
-            placeholder="Search by name, date or status"
-            className="h-10 w-full rounded-md sm:ml-auto sm:max-w-sm"
-          />
+          <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
+            <label htmlFor="client-event-search" className="sr-only">Search events</label>
+            <div className="relative min-w-0 flex-1 sm:w-72">
+              <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="client-event-search"
+                type="search"
+                value={eventSearch}
+                onChange={(ev) => setEventSearch(ev.target.value)}
+                placeholder="Search events"
+                className="h-9 w-full rounded-md pl-9"
+              />
+            </div>
+            <Button asChild size="sm" className="shrink-0"><Link href="/dashboard/request"><Send className="size-4" /> New request</Link></Button>
+          </div>
         </div>
-  
+
         {visibleEvents.length ? (
-          <div className="divide-y divide-border rounded-lg border border-border bg-card">
-            {visibleEvents.map((ev) => {
+          <ClientListSection id="client-events-list" title={activeEventFilter.label === "All" ? "All events" : activeEventFilter.label} count={visibleEvents.length}>
+            {orderClientEvents(visibleEvents).map((ev) => {
               const nextAction = actionCenter?.items.find((item) => item.eventId === ev.id && item.priority !== "info");
+              const past = isPastClientEvent(ev);
               return (
-                <div key={ev.id} className="flex flex-wrap items-center justify-between gap-4 px-4 py-4">
-                  <div className="min-w-0 flex-1">
-                    <h2 className="break-words font-semibold text-foreground">{ev.eventName}</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">{formatPortalDate(ev.eventDate)} · {ev.venue || "Venue to be confirmed"} · {formatStatusLabel(ev.status)}</p>
-                    {nextAction ? <p className="mt-1 text-sm text-foreground">{nextAction.label}</p> : null}
-                  </div>
-                  <Button variant="outline" onClick={() => {
-                    setSelectedEventId(ev.id);
-                    router.push(dashboardHref(clientEventCardOpenRoute(ev), ev.id));
-                  }}>Open event</Button>
-                </div>
+                <ClientListRow
+                  key={ev.id}
+                  icon={past ? CalendarCheck : CalendarDays}
+                  tone={nextAction?.priority === "critical" ? "urgent" : nextAction ? "attention" : "neutral"}
+                  title={ev.eventName}
+                  meta={[formatPortalDate(ev.eventDate), ev.venue || "Venue to be confirmed", nextAction ? `Next: ${nextAction.label}` : formatStatusLabel(ev.status)].join(" · ")}
+                  status={past ? formatStatusLabel(ev.status) : eventCountdown(ev.eventDate, todayKey) ?? "Date pending"}
+                  action={past ? "View summary" : "Open event"}
+                  href={dashboardHref(clientEventCardOpenRoute(ev), ev.id)}
+                  onOpen={() => setSelectedEventId(ev.id)}
+                />
               );
             })}
-          </div>
+          </ClientListSection>
         ) : (
-          <div className="rounded-lg border border-dashed border-border px-6 py-10 text-center">
-            <h3 className="text-base font-semibold text-foreground">No events found</h3>
-            <p className="mt-2 max-w-sm mx-auto text-sm text-muted-foreground">
-              {eventSearch ? "Try a different search term." : "Submit a new event request to get started."}
-            </p>
-            {!eventSearch && (
-              <Button className="mt-5 rounded-lg font-bold" onClick={() => router.push("/dashboard/request")}>
-                <Send className="size-4" /> New event request
-              </Button>
-            )}
-          </div>
+          <ClientListEmpty
+            icon={CalendarDays}
+            title={searching ? "No events match" : "No events here yet"}
+            description={searching ? "Try a different name, date or status." : "Events appear here once PMCM accepts your inquiry and the conforme is signed."}
+            action={searching ? undefined : <Button asChild size="sm"><Link href="/dashboard/request"><Send className="size-4" /> New event request</Link></Button>}
+          />
         )}
       </div>
     );

@@ -109,3 +109,28 @@ export function auditIntegrityCopy(integrity: { valid: boolean; checkedCount: nu
     detail: `${integrity.checkedCount} rows checked${breakNote}`,
   };
 }
+
+/** A run of back-to-back audit rows with the same actor, action and affected record, shown as one row. */
+export type AuditLogGroup = { log: PrismAuditLog; count: number; oldestAt: string };
+
+/** Collapses consecutive repeats (e.g. scheduled compliance runs) so the log reads as distinct activity. */
+export function groupRepeatedAuditLogs(logs: PrismAuditLog[]): AuditLogGroup[] {
+  const groups: AuditLogGroup[] = [];
+  for (const log of logs) {
+    const previous = groups.at(-1);
+    if (
+      previous &&
+      previous.log.actor === log.actor &&
+      previous.log.action === log.action &&
+      previous.log.category === log.category &&
+      previous.log.severity === log.severity &&
+      (previous.log.affectedLabel ?? "") === (log.affectedLabel ?? "")
+    ) {
+      previous.count += 1;
+      previous.oldestAt = log.createdAt;
+      continue;
+    }
+    groups.push({ log, count: 1, oldestAt: log.createdAt });
+  }
+  return groups;
+}

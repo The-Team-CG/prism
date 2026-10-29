@@ -1,3 +1,4 @@
+import { DatePicker } from "@prism/ui/components/date-picker";
 import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Download, MailCheck, ReceiptText, Send, WalletCards, X } from "lucide-react";
 
 import type { MarkPaymentInput, PrismBillingStatement, PrismEvent, PrismInquiry, PrismNotificationLog, PrismPaymentMilestone } from "@prism/types";
@@ -384,20 +385,21 @@ export function RecordPaymentModal({
           </button>
         </div>
         <div className="grid gap-4 px-6 py-5">
-          {[
-            { label: "Amount received", type: "number", value: amountReceived, onChange: onAmount },
-            { label: "Payment date", type: "date", value: paymentDate, onChange: onDate },
-          ].map((field) => (
-            <label key={field.label} className="block text-sm font-bold text-foreground">
-              {field.label}
-              <input
-                type={field.type}
-                value={field.value}
-                onChange={(e) => field.onChange(e.target.value)}
-                className="mt-1.5 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm font-normal"
-              />
-            </label>
-          ))}
+          <label className="block text-sm font-bold text-foreground">
+            Amount received
+            <input
+              type="number"
+              value={amountReceived}
+              onChange={(e) => onAmount(e.target.value)}
+              className="mt-1.5 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm font-normal"
+            />
+          </label>
+          <label className="block text-sm font-bold text-foreground">
+            Payment date
+            <span className="mt-1.5 block font-normal">
+              <DatePicker value={paymentDate} onValueChange={onDate} aria-label="Payment date" className="h-10" />
+            </span>
+          </label>
           <label className="block text-sm font-bold text-foreground">
             Payment method
             <select

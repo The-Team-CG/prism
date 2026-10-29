@@ -47,6 +47,11 @@ export function createAuthClient(
           "/auth/2fa/verify",
           withBase(authOptions, { method: "POST", body: input }),
         ),
+      developmentTwoFactorQr: (token) =>
+        prismRequest(
+          "/auth/2fa/development-qr",
+          withBase(authOptions, { method: "POST", body: { token }, cache: "no-store" }),
+        ),
       requestPasswordReset: (email) =>
         prismRequest(
           "/auth/password-reset/request",

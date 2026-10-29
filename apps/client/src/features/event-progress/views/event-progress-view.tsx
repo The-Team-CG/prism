@@ -8,6 +8,7 @@ import { Card, CardHeader, CardBody, SectionLabel } from "@/features/client-dash
 import { ClientActionGroup } from "@/features/client-dashboard/shared/client-action-group";
 import { useEventProgressView } from "../view-models/use-event-progress-view";
 import { PRISM_LIFECYCLE_STAGES } from "@prism/types";
+import { LIFECYCLE_STAGE_LABELS } from "../model/event-progress-rules";
 
 export function EventProgressView() {
   const progress = useEventProgressView();
@@ -50,8 +51,8 @@ export function EventProgressView() {
                   <p className="text-xs font-medium opacity-60">
                     Step {i + 1}
                   </p>
-                  <p className="mt-1 font-bold capitalize">
-                    {stage.replaceAll("_", " ")}
+                  <p className="mt-1 font-bold">
+                    {LIFECYCLE_STAGE_LABELS[stage] ?? stage}
                   </p>
                 </div>
               );

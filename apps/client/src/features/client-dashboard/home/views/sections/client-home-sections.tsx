@@ -1,155 +1,31 @@
 "use client";
 
-import {
-  ArrowRight,
-  CalendarDays,
-  CheckCircle2,
-  FileCheck2,
-  FileText,
-  MapPinned,
-  Send,
-  Sparkles,
-  WalletCards,
-} from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/app/components/ui/button";
+import { CalendarDays, CheckCircle2, Send } from "lucide-react";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
-import { StatusBadge } from "@/app/components/ui/status-badge";
-import { ClientActionGroup } from "../../../shared/client-action-group";
+import type { PrismClientActionCenter, PrismEvent } from "@prism/types";
+import { Button } from "@/app/components/ui/button";
+import { formatStatusLabel, type ClientDashboardAction } from "../../../workspace/shared";
+import { ClientListEmpty, ClientListRow, ClientListSection } from "../../../shared/client-list-ui";
 import { groupClientActionsByEvent } from "../../model/client-home-action-groups";
-import {
-  greetingByTime,
-  type ClientDashboardAction,
-} from "../../../workspace/shared";
-import type { PrismClientActionCenter, PrismDocument, PrismEvent, PrismNotificationLog, PrismPaymentMilestone } from "@prism/types";
+import { clientActionRowTone, dueState, eventCountdown, isPastClientEvent, orderClientEvents } from "../../model/client-home-summary";
 
-export function daysUntilEvent(eventDate?: string | null, now = Date.now()): number | null {
-  if (!eventDate) return null;
-  try {
-    const diff = Math.ceil((new Date(eventDate).getTime() - now) / (1000 * 60 * 60 * 24));
-    return diff > 0 ? diff : 0;
-  } catch {
-    return null;
-  }
-}
-
-export function ClientHomeGreeting({
-  sessionName,
-  eventCount,
-  daysToEvent,
-  onRequest,
-  onEvents,
-  onReviewConforme,
-}: {
-  sessionName: string;
-  eventCount: number;
-  daysToEvent: number | null;
-  onRequest: () => void;
-  onEvents: () => void;
-  onReviewConforme: () => void;
-}) {
+function ActionRow({ action, todayKey, onAction, showEvent }: { action: ClientDashboardAction; todayKey: string; onAction: (action: ClientDashboardAction) => void; showEvent: boolean }) {
+  const due = dueState(action.dueAt, todayKey);
+  const tone = clientActionRowTone(action);
+  const meta = [showEvent ? action.eventName : null, action.description].filter(Boolean).join(" · ");
   return (
-    <header className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
-      <div className="min-w-0">
-        <h1 className="text-2xl font-semibold leading-tight text-foreground">{greetingByTime(sessionName)}</h1>
-        <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-          {eventCount > 0
-            ? `You have ${eventCount} active event${eventCount === 1 ? "" : "s"} with PMCM. Open an event to review approvals, documents, billing and planning updates.`
-            : "Your event workspace opens after PMCM accepts your inquiry and both you and PMCM acknowledge the conforme. Review it here when PMCM has prepared it."}
-        </p>
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-          <Button className="h-10 rounded-md font-semibold" onClick={onRequest}>
-            <Send className="size-4" aria-hidden="true" /> New event request
-          </Button>
-          {eventCount > 0 ? (
-            <button type="button" className="inline-flex min-h-10 items-center gap-1 text-sm font-medium text-primary hover:text-primary/80" onClick={onEvents}>
-              My events <ArrowRight className="size-4" aria-hidden="true" />
-            </button>
-          ) : null}
-          <button type="button" className="inline-flex min-h-10 items-center gap-1 text-sm font-medium text-primary hover:text-primary/80" onClick={onReviewConforme}>
-            Review conforme <ArrowRight className="size-4" aria-hidden="true" />
-          </button>
-        </div>
-      </div>
-      {daysToEvent !== null ? (
-        <p className="shrink-0 text-sm text-muted-foreground sm:text-right">
-          <span className="block text-3xl font-semibold tabular-nums text-foreground">{daysToEvent}</span>
-          days to your next event
-        </p>
-      ) : null}
-    </header>
-  );
-}
-
-function selectNextSnapshot(nextAction: ClientDashboardAction | undefined, run: (action: ClientDashboardAction) => void, navigate: (tab: "overview") => void) {
-  if (nextAction) {
-    run(nextAction);
-    return;
-  }
-  navigate("overview");
-}
-
-export function ClientHomeSnapshots({
-  nextAction,
-  layoutStatus,
-  nextOpenPayment,
-  documentsNeedingReview,
-  runClientAction,
-  navigateToEventRoute,
-}: {
-  nextAction?: ClientDashboardAction;
-  layoutStatus: string;
-  nextOpenPayment?: PrismPaymentMilestone;
-  documentsNeedingReview: PrismDocument[];
-  runClientAction: (action: ClientDashboardAction) => void;
-  navigateToEventRoute: (route: "overview" | "floorplan" | "billing" | "documents") => void;
-}) {
-  const items = [
-    {
-      label: "Next action",
-      value: nextAction?.title ?? "No client action pending",
-      icon: FileCheck2,
-      accent: "text-primary",
-      onSelect: () => selectNextSnapshot(nextAction, runClientAction, navigateToEventRoute),
-    },
-    {
-      label: "Layout review",
-      value: layoutStatus,
-      icon: MapPinned,
-      accent: "text-attention",
-      onSelect: () => navigateToEventRoute("floorplan"),
-    },
-    {
-      label: nextOpenPayment ? "Next payment" : "Documents",
-      value: nextOpenPayment?.dueDate ?? `${documentsNeedingReview.length} needing review`,
-      icon: nextOpenPayment ? WalletCards : FileText,
-      accent: "text-success",
-      onSelect: () => navigateToEventRoute(nextOpenPayment ? "billing" : "documents"),
-    },
-  ];
-
-  return (
-    <div className="grid gap-3 sm:grid-cols-3">
-      {items.map((item) => {
-        const Icon = item.icon;
-        return (
-          <button
-            key={item.label}
-            type="button"
-            onClick={item.onSelect}
-            className="flex min-w-0 items-center gap-4 rounded-xl border border-border bg-card px-4 py-4 text-left shadow-sm transition-colors hover:border-primary/30 hover:bg-primary-soft"
-          >
-            <span className={`grid size-10 shrink-0 place-items-center rounded-full bg-muted ${item.accent}`}>
-              <Icon className="size-4" />
-            </span>
-            <span className="min-w-0">
-              <span className="block truncate text-base font-bold leading-tight text-foreground">{item.value}</span>
-              <span className="mt-0.5 block text-xs text-muted-foreground">{item.label}</span>
-            </span>
-          </button>
-        );
-      })}
-    </div>
+    <ClientListRow
+      icon={action.icon}
+      tone={tone}
+      title={action.title}
+      meta={meta || undefined}
+      tag={action.priority === "critical" ? "Blocking" : undefined}
+      status={due?.label ?? formatStatusLabel(action.status)}
+      statusTitle={action.dueAt ? formatPortalDateTime(action.dueAt) : undefined}
+      action={action.ctaLabel}
+      onOpen={() => onAction(action)}
+    />
   );
 }
 
@@ -158,65 +34,52 @@ export function ClientHomeActionCenter({
   clientActions,
   runClientAction,
   loadFailed = false,
+  todayKey,
 }: {
   actionCenter: PrismClientActionCenter | null;
   clientActions: ClientDashboardAction[];
   runClientAction: (action: ClientDashboardAction) => void;
   loadFailed?: boolean;
+  todayKey: string;
 }) {
   if (loadFailed && !actionCenter) {
-    return (
-      <section aria-labelledby="client-action-center-heading" className="space-y-4">
-        <h2 id="client-action-center-heading" className="text-base font-black text-foreground">Action center</h2>
-        <div role="status" className="rounded-2xl border border-attention/20 bg-attention/8 px-5 py-6 text-sm text-muted-foreground">
-          We could not load your event updates. Refresh the page to try again.
-        </div>
-      </section>
-    );
+    return <p role="status" className="rounded-lg bg-attention-soft px-4 py-3 text-sm text-attention">We could not load your event updates. Refresh the page to try again.</p>;
   }
   if (!actionCenter) return null;
+  const own = clientActions.filter((action) => (action.nextActor ?? "you") === "you");
+  const withPmcm = clientActions.filter((action) => action.nextActor === "pmcm");
+  const updates = clientActions.filter((action) => action.nextActor === "update");
   if (clientActions.length === 0) {
-    return (
-      <section aria-labelledby="client-action-center-heading" className="space-y-4">
-        <h2 id="client-action-center-heading" className="text-base font-black text-foreground">Action center</h2>
-        <div role="status" className="rounded-2xl border border-dashed border-border bg-muted/20 px-8 py-10 text-center">
-          <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-success/10">
-            <CheckCircle2 className="size-5 text-success" />
-          </span>
-          <h3 className="mt-4 text-sm font-bold text-foreground">No pending actions</h3>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">No pending items were returned in this update. You can still open an event to review its progress.</p>
-        </div>
-      </section>
-    );
+    return <ClientListEmpty icon={CheckCircle2} title="You're all caught up" description="Nothing needs you right now. PMCM will let you know when something is ready for you." />;
   }
+  const groups = groupClientActionsByEvent(own);
+  const several = groups.length > 1;
   return (
-    <section aria-labelledby="client-action-center-heading" className="space-y-4">
-      <h2 id="client-action-center-heading" className="text-base font-black text-foreground">Action center</h2>
+    <div className="space-y-4">
+      {groups.map((group) => (
+        <ClientListSection
+          key={group.eventId}
+          id={`client-actions-${group.eventId || "account"}`}
+          title={several ? `Needs your action · ${group.eventName}` : "Needs your action"}
+          count={group.now.length + group.later.length}
+          description={group.later.length && group.now.length ? "Current blockers first; later-stage requirements can wait." : undefined}
+        >
+          {[...group.now, ...group.later].map((action) => <ActionRow key={action.id} action={action} todayKey={todayKey} onAction={runClientAction} showEvent={false} />)}
+        </ClientListSection>
+      ))}
+      {withPmcm.length ? (
+        <ClientListSection id="client-actions-pmcm" title="Waiting for PMCM" count={withPmcm.length} description="These are with PMCM. Open one to see where it stands.">
+          {withPmcm.map((action) => <ActionRow key={action.id} action={{ ...action, priority: "info", blocking: false }} todayKey={todayKey} onAction={runClientAction} showEvent={several} />)}
+        </ClientListSection>
+      ) : null}
+      {updates.length ? (
+        <ClientListSection id="client-actions-updates" title="New to review" count={updates.length}>
+          {updates.map((action) => <ActionRow key={action.id} action={{ ...action, priority: "info", blocking: false }} todayKey={todayKey} onAction={runClientAction} showEvent={several} />)}
+        </ClientListSection>
+      ) : null}
       <p className="text-xs text-muted-foreground">Updated {formatPortalDateTime(actionCenter.generatedAt)} · Philippine time</p>
-      <ClientOwnActions actions={clientActions.filter((action) => (action.nextActor ?? "you") === "you")} onAction={runClientAction} />
-      {([
-        { actor: "pmcm", title: "Waiting for PMCM", description: "Your item is with PMCM. Open it to review the current status." },
-        { actor: "update", title: "Available to review", description: "New records and information for your events." },
-      ] as const).map((group) => {
-        const actions = clientActions.filter((action) => (action.nextActor ?? "you") === group.actor);
-        return actions.length ? <ClientActionGroup key={group.actor} title={group.title} description={group.description} actions={actions} onAction={runClientAction} showDetailsAndCta /> : null;
-      })}
-    </section>
-  );
-}
-
-/** What the client must provide, per event: current blockers first, later-stage requirements apart. */
-function ClientOwnActions({ actions, onAction }: { actions: ClientDashboardAction[]; onAction: (action: ClientDashboardAction) => void }) {
-  return groupClientActionsByEvent(actions).map((group) => (
-    <div key={group.eventId} className="space-y-3">
-      {group.now.length ? (
-        <ClientActionGroup title={`Needs your action now · ${group.eventName}`} description="These hold your event back. Review them first." actions={group.now} onAction={onAction} showDetailsAndCta />
-      ) : null}
-      {group.later.length ? (
-        <ClientActionGroup title={`Needs your action later · ${group.eventName}`} description="Requirements for a later stage. They can wait until the current items are done." actions={group.later} onAction={onAction} showDetailsAndCta />
-      ) : null}
     </div>
-  ));
+  );
 }
 
 export function ClientHomeEvents({
@@ -225,6 +88,7 @@ export function ClientHomeEvents({
   requestHref,
   eventHref,
   onOpen,
+  todayKey,
 }: {
   events: PrismEvent[];
   viewAllHref: string;
@@ -232,80 +96,41 @@ export function ClientHomeEvents({
   eventHref: (eventId: string) => string;
   /** Records the chosen event before its link navigates. */
   onOpen: (eventId: string) => void;
+  todayKey: string;
 }) {
-  const isPastEvent = (event: PrismEvent) => ["completed", "cancelled", "closed"].includes(event.status);
-  const upcomingEvents = events.filter((event) => !isPastEvent(event)).sort((left, right) => left.eventDate.localeCompare(right.eventDate));
-  const pastEvents = events.filter(isPastEvent).sort((left, right) => right.eventDate.localeCompare(left.eventDate));
-  const previewEvents = [...upcomingEvents, ...pastEvents].slice(0, 3);
   if (events.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-8 py-12 text-center">
-        <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-primary-soft">
-          <CalendarDays className="size-6 text-primary" />
-        </span>
-        <h3 className="mt-4 text-base font-black text-foreground">No events yet.</h3>
-        <p className="mt-2 max-w-sm mx-auto text-sm leading-6 text-muted-foreground">
-          Your event workspace opens after PMCM accepts your inquiry and both you and PMCM acknowledge the conforme. If PMCM has prepared one, review it here; otherwise, submit a request to get started.
-        </p>
-        <Button asChild className="mt-5 rounded-lg font-bold">
-          <Link href={requestHref}><Send className="size-4" /> Submit an event request</Link>
-        </Button>
-      </div>
+      <ClientListEmpty
+        icon={CalendarDays}
+        title="No events yet"
+        description="Your event workspace opens after PMCM accepts your inquiry and you both sign the conforme."
+        action={<Button asChild className="rounded-lg font-semibold"><Link href={requestHref}><Send className="size-4" /> Submit an event request</Link></Button>}
+      />
     );
   }
-
+  const preview = orderClientEvents(events).slice(0, 4);
   return (
-    <div>
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-base font-black text-foreground">Your events</h2>
-        <Link
-          href={viewAllHref}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-        >
-          View all <ArrowRight className="size-3" />
-        </Link>
-      </div>
-      <div className="divide-y divide-border rounded-lg border border-border bg-card">
-        {previewEvents.map((ev) => (
-          <div key={ev.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
-            <div className="min-w-0">
-              <p className="font-semibold text-foreground">{ev.eventName}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{formatPortalDate(ev.eventDate)} · {ev.status.replaceAll("_", " ")}</p>
-              {ev.venue ? <p className="mt-1 text-xs text-muted-foreground">{ev.venue}</p> : null}
-            </div>
-            <Button asChild variant="outline"><Link href={eventHref(ev.id)} onClick={() => onOpen(ev.id)}>Open event</Link></Button>
-          </div>
-        ))}
-      </div>
-    </div>
+    <ClientListSection
+      id="client-home-events"
+      title="Your events"
+      count={events.length}
+      action={<Link href={viewAllHref} className="text-sm font-medium text-primary hover:text-primary/80">View all</Link>}
+    >
+      {preview.map((event) => {
+        const past = isPastClientEvent(event);
+        return (
+          <ClientListRow
+            key={event.id}
+            icon={CalendarDays}
+            title={event.eventName}
+            meta={[formatPortalDate(event.eventDate), event.venue || "Venue to be confirmed", formatStatusLabel(event.status)].join(" · ")}
+            status={past ? formatStatusLabel(event.status) : eventCountdown(event.eventDate, todayKey) ?? "Date pending"}
+            action="Open event"
+            href={eventHref(event.id)}
+            onOpen={() => onOpen(event.id)}
+          />
+        );
+      })}
+    </ClientListSection>
   );
 }
-
-export function ClientHomeUpdates({ notifications }: { notifications: PrismNotificationLog[] }) {
-  if (notifications.length === 0) return null;
-  return (
-    <div className="rounded-xl border border-border bg-card shadow-sm">
-      <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
-        <div className="flex items-center gap-2">
-          <Sparkles className="size-4 text-primary" />
-          <p className="text-sm font-bold text-foreground">Recent updates from PMCM</p>
-        </div>
-      </div>
-      <div className="divide-y divide-border">
-        {notifications.map((n) => (
-          <div key={n.id} className="flex items-start gap-3 px-5 py-3.5">
-            <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-primary/10 text-3xs font-black text-primary">
-              PM
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-foreground">{n.channel.toUpperCase()} update</p>
-              <p className="mt-0.5 text-xs leading-5 text-muted-foreground line-clamp-2">{n.message}</p>
-            </div>
-            <StatusBadge status={n.status} />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
