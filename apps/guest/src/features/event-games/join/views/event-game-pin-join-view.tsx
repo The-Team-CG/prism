@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { ArrowRight, LogOut } from "lucide-react";
+import { portalHref } from "@prism/ui/portal-path";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -83,6 +84,9 @@ export function EventGamePinJoinView({ expectedEventSlug }: { expectedEventSlug?
           ) : null}
 
           <GameIdentityHelp />
+          <a href={portalHref("/")} className="mt-4 inline-flex min-h-11 items-center rounded-md px-1 text-sm font-semibold text-primary focus-visible:ring-2 focus-visible:ring-primary">
+            Back to guest portal
+          </a>
         </section>
       </div>
     </main>

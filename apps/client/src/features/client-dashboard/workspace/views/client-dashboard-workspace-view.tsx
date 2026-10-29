@@ -137,7 +137,9 @@ function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, 
     activeShellItemId: inEventWorkspace
       ? EVENT_ROUTE_TO_NAV_ITEM[route] ?? "event-overview"
       : sidebarActiveItemId(route, isEventScopedView, portalView),
-    sidebarNavItems: inEventWorkspace && selectedEvent ? clientEventSidebarItems(selectedEvent.eventName, selectedEvent.id) : shellNavItems,
+    sidebarNavItems: inEventWorkspace && selectedEvent
+      ? clientEventSidebarItems(selectedEvent.eventName, selectedEvent.id, selectedEvent)
+      : shellNavItems,
   };
 }
 

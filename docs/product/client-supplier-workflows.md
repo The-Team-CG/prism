@@ -113,6 +113,10 @@ Clients approve or request revision against the current issued version.
 These decisions do not approve a budget, create a payable, or replace the
 commercial proposal approval workflow.
 
+An issued commercial proposal is reviewable without a billing statement. Client
+approval and revision requests refer to the issued version; after requesting a
+revision, the client waits for a newer issued version before deciding again.
+
 ## Conforme and closeout
 
 The conforme template preserves its original text and hash. Prefill creates a
@@ -129,6 +133,12 @@ Testimonial publication requires explicit consent, defaulting to false, and
 PMCM moderation. Moderation never automatically publishes a testimonial.
 Clients may withdraw their own testimonial consent after archive. Other
 archived workflow records remain read-only.
+The closeout read model exposes an `acknowledgementRecorded` flag for wrap-up
+and deliverables so portals can distinguish a PMCM-recorded acknowledgement
+from a missing one. This flag does not identify a PMCM record as a verified
+client submission or disclose its private acknowledgement note. A client may
+acknowledge an opened wrap-up before all PMCM completion checks are finished;
+completion itself includes acknowledgement among its prerequisites.
 The client workspace lists archived events separately as read-only history;
 active workspace data and the client action center exclude them.
 
