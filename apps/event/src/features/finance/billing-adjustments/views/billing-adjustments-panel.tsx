@@ -5,7 +5,7 @@ import { money } from "@/features/pmcm-kit";
 import { useBillingAdjustmentsPanel } from "../view-models/use-billing-adjustments-panel";
 
 const fieldClass = "mt-1 block w-full rounded-md border border-border bg-white px-3 py-2 text-sm";
-const buttonClass = "h-9 rounded-md bg-ink px-4 text-xs font-black text-sidebar-foreground disabled:opacity-50";
+const buttonClass = "h-9 rounded-md bg-ink px-4 text-xs font-black text-ink-foreground disabled:opacity-50";
 
 type BillingAdjustmentsVm = ReturnType<typeof useBillingAdjustmentsPanel>;
 

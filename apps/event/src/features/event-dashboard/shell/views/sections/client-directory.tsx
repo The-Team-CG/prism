@@ -1,7 +1,7 @@
 "use client";
 
 import { formatPortalDate } from "@prism/ui/format-date";
-import { ArrowLeft, CircleUserRound, Search } from "lucide-react";
+import { ArrowLeft, ChevronRight, CircleUserRound, Search } from "lucide-react";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { RouteLink, label, useListFilter } from "@/features/pmcm-kit";
@@ -9,66 +9,161 @@ import type { EventClientRecord } from "../../model/event-dashboard-selectors";
 import { clientDossierHref, eventWorkspaceHref, type DetailTab } from "../../model/event-dashboard-routing";
 import { portalHref } from "@prism/ui/portal-path";
 
-function clientStatus(client: EventClientRecord) {
-  return client.events.some((event) => !["completed", "cancelled", "closed"].includes(event.status)) ? "active" : client.events.length ? "past client" : "prospect";
+const CLOSED_EVENT_STATUSES = ["completed", "cancelled", "closed"];
+const STATUS_ORDER: Record<string, number> = { active: 0, prospect: 1, "past client": 2 };
+const php = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
+
+function isOpenEvent(event: EventClientRecord["events"][number]) {
+  return !event.archived && !CLOSED_EVENT_STATUSES.includes(event.status);
 }
 
+function clientStatus(client: EventClientRecord) {
+  return client.events.some(isOpenEvent) ? "active" : client.events.length ? "past client" : "prospect";
+}
+
+function initials(name: string) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]?.toUpperCase()).join("") || "?";
+}
+
+/** The soonest open event, or the most recent one when every event is finished. */
+function nextEvent(client: EventClientRecord) {
+  const byDate = [...client.events].sort((left, right) => String(left.eventDate).localeCompare(String(right.eventDate)));
+  const open = byDate.find(isOpenEvent);
+  if (open) return { event: open, upcoming: true };
+  const last = byDate.at(-1);
+  return last ? { event: last, upcoming: false } : null;
+}
+
+function toReview(client: EventClientRecord) {
+  return client.inquiries.filter((inquiry) => inquiry.status === "new").length;
+}
+
+/** Clients waiting on PMCM first, then active clients by their next event date, then prospects and past clients. */
+function directoryOrder(left: EventClientRecord, right: EventClientRecord) {
+  const review = Number(toReview(right) > 0) - Number(toReview(left) > 0);
+  if (review) return review;
+  const status = STATUS_ORDER[clientStatus(left)] - STATUS_ORDER[clientStatus(right)];
+  if (status) return status;
+  const dates = String(nextEvent(left)?.event.eventDate ?? "").localeCompare(String(nextEvent(right)?.event.eventDate ?? ""));
+  return dates || left.name.localeCompare(right.name);
+}
+
+const ROW_GRID = "sm:grid sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_7.5rem_8rem_6.5rem_1rem] sm:items-center sm:gap-4";
+
 /** Every client contact PMCM works with, one row each. */
-export function ClientDirectory({ clients, onOpenClient }: { clients: EventClientRecord[]; onOpenClient: (id: string) => void }) {
+export function ClientDirectory({
+  clients,
+  balances,
+  onOpenClient,
+}: {
+  clients: EventClientRecord[];
+  balances: ReadonlyMap<string, number>;
+  onOpenClient: (id: string) => void;
+}) {
   const [query, setQuery] = useListFilter("q");
   const needle = query.trim().toLowerCase();
-  const rows = clients.filter((client) => `${client.name} ${client.contact ?? ""}`.toLowerCase().includes(needle));
+  const rows = clients
+    .filter((client) => `${client.name} ${client.contact ?? ""} ${client.inquiries.map((inquiry) => inquiry.email).join(" ")}`.toLowerCase().includes(needle))
+    .sort(directoryOrder);
   return (
     <div className="grid gap-4">
-      <p className="max-w-3xl text-sm leading-6 text-muted-foreground">Open a client to see their contact details, inquiries, events and recorded balance. A prospect has not yet had an event workspace.</p>
-      <label className="relative w-full max-w-72">
-        <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Find a client or contact"
-          aria-label="Find a client or contact"
-          className="h-9 w-full rounded-md border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
-        />
-      </label>
-      <p role="status" className="text-xs text-muted-foreground">{rows.length} client{rows.length === 1 ? "" : "s"} shown</p>
-      <div className="overflow-x-auto rounded-lg border border-border bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <label className="relative w-full sm:max-w-80">
+          <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search by client, contact or email"
+            aria-label="Search by client, contact or email"
+            className="h-10 w-full rounded-md border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+          />
+        </label>
+        <p role="status" className="text-sm text-muted-foreground">
+          {rows.length} {rows.length === 1 ? "client" : "clients"}
+        </p>
+      </div>
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
         {rows.length === 0 ? (
           <div className="p-6">
-            <EmptyState icon={CircleUserRound} title={needle ? "No client matches" : "No clients yet"} description={needle ? "Try a company or a contact's name." : "Clients appear here once PMCM logs or receives an inquiry."} />
+            <EmptyState icon={CircleUserRound} title={needle ? "No client matches" : "No clients yet"} description={needle ? "Try a company, a contact's name or an email address." : "Clients appear here once PMCM logs or receives an inquiry."} />
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="border-b border-border text-left text-xs text-muted-foreground">
-              <tr>
-                <th scope="col" className="px-4 py-2.5 font-medium">Client</th>
-                <th scope="col" className="hidden px-4 py-2.5 font-medium sm:table-cell">Contact</th>
-                <th scope="col" className="px-4 py-2.5 text-right font-medium">Events</th>
-                <th scope="col" className="hidden px-4 py-2.5 text-right font-medium sm:table-cell">Inquiries</th>
-                <th scope="col" className="px-4 py-2.5 font-medium">Status</th>
-                <th scope="col" className="px-4 py-2.5"><span className="sr-only">Open</span></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
+          <>
+            <div aria-hidden="true" className={`hidden border-b border-border px-4 py-2.5 text-xs text-muted-foreground ${ROW_GRID}`}>
+              <span>Client</span>
+              <span>Next event</span>
+              <span>Inquiries</span>
+              <span className="text-right">Balance due</span>
+              <span>Status</span>
+              <span />
+            </div>
+            <ul className="divide-y divide-border">
               {rows.map((client) => (
-                <tr key={client.id} className="hover:bg-surface-raised">
-                  <td className="px-4 py-3"><p className="font-semibold text-foreground">{client.name}</p>{client.contact ? <p className="mt-1 text-xs text-muted-foreground sm:hidden">{client.contact}</p> : null}<p className="mt-1 text-xs text-muted-foreground sm:hidden">{client.inquiries.length} inquiries</p></td>
-                  <td className="hidden px-4 py-3 text-muted-foreground sm:table-cell">{client.contact ?? "–"}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{client.events.length}</td>
-                  <td className="hidden px-4 py-3 text-right tabular-nums sm:table-cell">{client.inquiries.length}</td>
-                  <td className="px-4 py-3"><StatusBadge status={clientStatus(client)} /></td>
-                  <td className="px-4 py-3 text-right">
-                    <RouteLink href={clientDossierHref(client.id)} onNavigate={() => onOpenClient(client.id)} className="text-sm font-semibold text-primary hover:text-primary-strong">
-                      Open<span className="sr-only"> {client.name}</span>
-                    </RouteLink>
-                  </td>
-                </tr>
+                <ClientDirectoryRow key={client.id} client={client} balance={balances.get(client.id) ?? 0} onOpenClient={onOpenClient} />
               ))}
-            </tbody>
-          </table>
+            </ul>
+          </>
         )}
       </div>
     </div>
+  );
+}
+
+function ClientDirectoryRow({ client, balance, onOpenClient }: { client: EventClientRecord; balance: number; onOpenClient: (id: string) => void }) {
+  const email = client.inquiries.find((inquiry) => inquiry.email)?.email;
+  const contact = client.contact !== client.name ? client.contact : undefined;
+  const next = nextEvent(client);
+  const reviewCount = toReview(client);
+  const status = clientStatus(client);
+  return (
+    <li className={`relative grid gap-2 px-4 py-3.5 transition-colors hover:bg-surface-raised has-[a:focus-visible]:bg-surface-raised has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-inset has-[a:focus-visible]:ring-ring ${ROW_GRID}`}>
+      <div className="flex min-w-0 items-center gap-3">
+        <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+          {initials(client.name)}
+        </span>
+        <div className="min-w-0">
+          <RouteLink
+            href={clientDossierHref(client.id)}
+            onNavigate={() => onOpenClient(client.id)}
+            className="block truncate font-semibold text-foreground outline-none after:absolute after:inset-0"
+          >
+            {client.name}
+          </RouteLink>
+          <p className="truncate text-xs text-muted-foreground">{[contact, email].filter(Boolean).join(" · ") || "No contact details"}</p>
+        </div>
+      </div>
+      <ClientNextEvent next={next} />
+      <ClientInquiryCount reviewCount={reviewCount} total={client.inquiries.length} />
+      <ClientBalance balance={balance} />
+      <div className="pl-12 sm:pl-0">
+        <StatusBadge status={status} label={label(status)} />
+      </div>
+      <ChevronRight aria-hidden="true" className="hidden size-4 text-muted-foreground sm:block" />
+    </li>
+  );
+}
+
+function ClientNextEvent({ next }: { next: ReturnType<typeof nextEvent> }) {
+  if (!next) return <p className="min-w-0 pl-12 text-sm text-muted-foreground sm:pl-0">No event yet</p>;
+  return (
+    <div className="min-w-0 pl-12 text-sm sm:pl-0">
+      <p className={`truncate ${next.upcoming ? "text-foreground" : "text-muted-foreground"}`}>{next.upcoming ? next.event.eventName : `Last: ${next.event.eventName}`}</p>
+      <p className="text-xs text-muted-foreground">{formatPortalDate(next.event.eventDate)}</p>
+    </div>
+  );
+}
+
+function ClientInquiryCount({ reviewCount, total }: { reviewCount: number; total: number }) {
+  if (reviewCount > 0) return <p className="pl-12 text-sm font-medium text-attention sm:pl-0">{reviewCount} to review</p>;
+  return <p className="pl-12 text-sm text-muted-foreground sm:pl-0">{total} {total === 1 ? "inquiry" : "inquiries"}</p>;
+}
+
+function ClientBalance({ balance }: { balance: number }) {
+  return (
+    <p className={`pl-12 text-sm tabular-nums sm:pl-0 sm:text-right ${balance > 0 ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+      <span className="sm:hidden">Balance due </span>
+      {balance > 0 ? php.format(balance) : "—"}
+    </p>
   );
 }
 

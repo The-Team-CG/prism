@@ -104,7 +104,7 @@ export function SupplierDirectoryList({
         <button
           type="button"
           onClick={onToggleCreate}
-          className="inline-flex h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-black text-sidebar-foreground"
+          className="inline-flex h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-black text-ink-foreground"
         >
           <Plus className="size-4" /> Add supplier
         </button>
@@ -215,7 +215,7 @@ function SupplierCreateFormFields({
         <textarea value={createForm.serviceInclusions} onChange={(event) => onCreateForm({ serviceInclusions: event.target.value })} className="min-h-20 rounded-md border border-border bg-white px-3 py-2 text-sm" placeholder="Service inclusions" />
         <textarea value={createForm.performanceNotes} onChange={(event) => onCreateForm({ performanceNotes: event.target.value })} className="min-h-20 rounded-md border border-border bg-white px-3 py-2 text-sm" placeholder="Private performance notes" />
       </div>
-      <button type="button" disabled={busy || !createForm.name.trim()} onClick={onSubmitCreate} className="mt-3 inline-flex h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">
+      <button type="button" disabled={busy || !createForm.name.trim()} onClick={onSubmitCreate} className="mt-3 inline-flex h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-black text-ink-foreground disabled:opacity-60">
         <Check className="size-4" /> Save supplier
       </button>
     </div>
@@ -390,7 +390,7 @@ function SupplierBniPanel({
           onClick={onToggleBni}
           className={cx(
             "h-9 rounded-full px-4 text-xs font-black",
-            supplier.bniMember ? "bg-ink text-sidebar-foreground" : "border border-border bg-white text-foreground",
+            supplier.bniMember ? "bg-ink text-ink-foreground" : "border border-border bg-white text-foreground",
           )}
         >
           {supplier.bniMember ? "BNI On" : "BNI Off"}
@@ -424,7 +424,7 @@ function SupplierEditProfileForm({
         <textarea value={editForm.serviceInclusions} onChange={(event) => onEditForm({ serviceInclusions: event.target.value })} className="min-h-20 rounded-md border border-border bg-white px-3 py-2 text-sm" placeholder="Service inclusions" />
         <textarea value={editForm.performanceNotes} onChange={(event) => onEditForm({ performanceNotes: event.target.value })} className="min-h-20 rounded-md border border-border bg-white px-3 py-2 text-sm" placeholder="Private PMCM performance notes" />
       </div>
-      <button type="button" disabled={busy || !editForm.name.trim()} onClick={onSaveProfile} className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-ink px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60">
+      <button type="button" disabled={busy || !editForm.name.trim()} onClick={onSaveProfile} className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-ink px-3 text-xs font-black text-ink-foreground disabled:opacity-60">
         <Check className="size-4" /> Save profile
       </button>
     </div>
@@ -453,7 +453,7 @@ function SupplierTierChangeForm({
         </select>
         <textarea value={tierForm.reason} onChange={(event) => onTierForm({ reason: event.target.value })} className="min-h-16 rounded-md border border-border bg-white px-3 py-2 text-sm" placeholder="Required reason for audit trail" />
       </div>
-      <button type="button" disabled={busy || !tierForm.reason.trim()} onClick={onSubmitTier} className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-ink px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60">
+      <button type="button" disabled={busy || !tierForm.reason.trim()} onClick={onSubmitTier} className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-ink px-3 text-xs font-black text-ink-foreground disabled:opacity-60">
         <Check className="size-4" /> Change tier
       </button>
     </div>
@@ -489,7 +489,7 @@ function SupplierCertificationForm({
         </select>
         <textarea value={certForm.notes} onChange={(event) => onCertForm({ notes: event.target.value })} className="min-h-16 rounded-md border border-border bg-white px-3 py-2 text-sm" placeholder="Metadata notes" />
       </div>
-      <button type="button" disabled={busy || !certForm.fileName.trim() || !certForm.documentType.trim()} onClick={onSubmitCertification} className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-ink px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60">
+      <button type="button" disabled={busy || !certForm.fileName.trim() || !certForm.documentType.trim()} onClick={onSubmitCertification} className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-ink px-3 text-xs font-black text-ink-foreground disabled:opacity-60">
         <FilePlus2 className="size-4" /> Add certification
       </button>
     </div>

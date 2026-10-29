@@ -28,6 +28,8 @@ test('client activates and resets a password using locally captured email links'
   await page.getByRole('button', { name: 'Set password', exact: true }).click();
   await expect(page.getByRole('heading', { name: "You're all set" })).toBeVisible();
   await page.getByRole('link', { name: 'Sign in', exact: true }).click();
+  await expect(page).toHaveURL(/\/sign-in$/);
+  await page.waitForLoadState('networkidle');
   await fillStable(page.getByLabel('Email address'), client.inquiry.email);
   await fillStable(page.getByLabel('Password', { exact: true }), password);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
@@ -44,6 +46,8 @@ test('client activates and resets a password using locally captured email links'
   await page.locator('button[type=submit]').click();
   await expect(page.getByRole('heading', { name: 'Password updated' })).toBeVisible();
   await page.getByRole('link', { name: 'Sign in', exact: true }).click();
+  await expect(page).toHaveURL(/\/sign-in$/);
+  await page.waitForLoadState('networkidle');
   await fillStable(page.getByLabel('Email address'), client.inquiry.email);
   await fillStable(page.getByLabel('Password', { exact: true }), replacement);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();

@@ -13,6 +13,8 @@
     "./public-blocks": "./src/public-blocks.tsx",
     "./status-badge": "./src/status-badge.tsx",
     "./format-date": "./src/format-date.ts",
+    "./calendar-grid": "./src/calendar-grid.ts",
+    "./chat": "./src/chat/index.ts",
     "./components/*": "./src/components/ui/*.tsx"
   },
   "scripts": {

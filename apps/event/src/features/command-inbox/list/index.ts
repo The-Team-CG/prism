@@ -2,7 +2,6 @@ export { EventCommandInbox } from "./views/event-command-inbox";
 export {
   buildEventWorkflowTabs,
   DefenseControlPanel,
-  EventOverviewPanels,
   EventQueuePanel,
   EventWorkflowTabs,
   SelectedEventCockpit,

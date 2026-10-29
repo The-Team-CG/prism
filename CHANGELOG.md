@@ -6,6 +6,50 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- The client's event lifecycle moves to Planning once the client approves the proposal, instead of staying on "Briefing & proposal" until an official floorplan is approved. Step names read normally ("Briefing & proposal" rather than "briefing proposal").
+- PMCM can start an official floorplan from a **Blank layout** in the event's Floorplans tab, using the briefing's venue and guest count. Before, a plan could only start from a saved template, so a new system with no templates had no way to create one.
+- Issuing a proposal no longer fails with an unexpected API error on hosted Supabase Storage. Files the API generates itself, such as proposal PDFs, are now uploaded to the private bucket before being verified; before, the adapter only read back an object that was never written.
+- The client briefing's start and end times use a branded time picker matching the date pickers (15-minute steps, "6:30 PM" labels); end times can't be earlier than the start time.
+- The client portal tabs share the PMCM inbox's list style: a row of key figures, then aligned rows with a colour bar only on what needs the client, a due phrase in Philippine time and one action. Home shows what needs you, what's with PMCM, the next event and the next payment. The calendar has month navigation and links each date to its event. Shared floorplans now opens inside the portal, and the billing schedule shows receipts on each payment.
+- The PMCM Clients directory lists clients with new inquiries first. Each row shows the next event, inquiries to review and the balance due, and the whole row opens the client.
+- The PMCM Team roster is searchable by name, role or skill. Each coordinator shows role tags, their email and their next booking, and the booking links to that event's coordinators. Inactive coordinators are marked; active ones no longer repeat an "Active" badge.
+- The PMCM audit trail shows compact one-line entries, 15 per page. Back-to-back repeats such as scheduled compliance runs fold into one row with a count. Audit IDs and IP addresses move into the row tooltip.
+- Client emails explain the next step. The acceptance email now goes out after the account invitation and points to the separate "Set up your P.R.I.S.M account" email (with a Spam or Promotions hint), or says to sign in if the client already has an account. "Inquiry received" names the event. Notification subjects use the message headline instead of "P.R.I.S.M update", with a simple layout and footer.
+- Dark ink buttons and badges in the signed-in portals are readable again, for example Record actual end, Run compliance, Replace coordinator, the supplier directory actions and BNI tags. They use a new `text-ink-foreground` token instead of the sidebar text colour, which turned dark when the sidebar became light.
+- Client and supplier Messages now use the same chat layout as PMCM: a conversation list with search, previews, unread counts and the latest conversation open first, chat bubbles, and an auto-growing composer. The shared `ChatWorkspace` lives in `@prism/ui/chat`; each portal still loads and sends its own messages, and only PMCM starts conversations. An unused PMCM "Event Threads" panel was removed.
+- PMCM Registration: the guest roster loads straight away and filters as you type, with attendance chips, walk-in verification tags, "Checked in 2:14 PM" times and a proper empty state. Guest import opens from an Import guests button, with a drag-and-drop file area. Event privacy and walk-in rules are now one "Guest admission" card of labelled choices with a single Save.
+- PMCM date-and-time fields use a branded picker matching the date picker, with a calendar beside a scrollable list of times, instead of the browser's native control. These cover task and issue due times, event-day schedules, game windows, supplier ingress and egress, ocular visits and the actual event end. Supplier availability and recorded payment dates use the shared date picker. `DateTimePicker` in `@prism/ui` keeps the `datetime-local` value format.
+- PMCM event workspace redesign:
+  - Messages works like a chat app: a conversation list with previews, unread counts and search; chat bubbles grouped by sender with day separators; an auto-growing composer (Enter to send); and a "New conversation" flow that picks people from the event.
+  - Overview leads with the event-day banner, a single row of event facts, next steps from the readiness check, a readiness meter, and a linked card for each work area. It replaces the stat boxes and the column of eight buttons.
+  - Planning, Files, Suppliers, Team, Live operations, Billing, Closure, and Registration & games each show one section at a time through a segmented switcher kept in the URL (`?part=`), instead of a stack of collapsible panels. Registration and Games share one page.
+- The PMCM Inbox opens with a summary of urgent items, items needing action, inquiries to review, approvals and active events. Items show in one list grouped by priority or by event, each with an area icon, a colour bar for priority, the event and client, and a due phrase such as "Overdue 2 days". The whole row opens the item.
+- Moving from a PMCM page such as Events to Home, Suppliers or the command inbox no longer briefly crashes with "Loaded event dashboard content requires an authenticated workspace".
+- The PMCM sidebar's Privacy item opens the privacy console; before, it did nothing and left the current page, usually Audit, on screen.
+- Account administration filters by role, searches accounts and pages 8 at a time. Each account shows its sign-in, pending or locked state, and staff invitations open from an Invite staff button.
+
+- PMCM inquiry intake uses one Review action per row, groups contact and source details together, and keeps secondary filters under More filters with an active-filter count; accepted inquiries retain their conforme and invitation follow-up beside the status.
+
+- Supplier directory searches keep text entered while a next-page navigation finishes, then reset to the first page of the matching results.
+
+- The supplier quote-request dialog scrolls long supplier lists within the viewport, keeping Cancel and Send Requests reachable on phones.
+
+- Browser acceptance now discovers every portal page and exercises registered desktop/mobile routes with real API fixtures, reports browser and data-loading failures, and checks supplier pagination across a 25-row boundary.
+
+- PMCM sign-in offers an on-demand authenticator QR rescan in development; production rejects rescans, and a valid six-digit code is still required.
+
+- Removed the "Wrong portal?" link row from client, supplier, PMCM and guest access screens.
+
+- PMCM authenticator codes use six focused digit boxes inspired by AlphaCI, with keyboard editing, full-code paste and mobile autofill; verification shows one visible prompt and a single clear action without the extra "Start over" button.
+
+- Client inquiry validation uses styled inline messages instead of browser popups, with an accessible consent prompt before submission.
+
+- Client inquiry contact fields stay aligned across columns when an optional label wraps onto a second line.
+
+- Client inquiry city suggestions stay aligned below the venue field in a styled, scrollable dropdown, with keyboard selection and custom venue entry.
+
+- Hosted database checks recognize six proven historical UAT seed versions without rewriting migration SQL or database ledger rows; unknown changes still block startup and cutover checks.
+
 - Portal UI and UX pass from the October 2026 screen audit (design tokens unchanged): the supplier application works on phones, PMCM Closure no longer crashes on checks without evidence (the read model now returns full compliance records), the PMCM calendar uses real month grids, and every portal shows dates in Philippine time with readable role and status names.
 - Navigation and event choosers are real links that open in a new tab. Client Home groups actions by event and separates current blockers from later requirements; the client floorplan page and PMCM floorplan tab lead with the official plan, and the editor opens fitted to the plan with "Fit plan" and "Find selected" controls.
 - Client documents are one checklist linking each requirement to its upload (requirements now include `uploadedObjectId`). PMCM roster import takes a spreadsheet with readable headers, adjustable column matching and a preview. The guest pass shows the venue and start time once the client has approved PMCM's proposal.

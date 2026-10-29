@@ -101,7 +101,10 @@ export async function signInPmcm(page, email = 'approver@pmcm.test') {
     writeFileSync(file, JSON.stringify({ ...secrets, [email]: secret }), { mode: 0o600 });
   } else if (existsSync(file)) secret = JSON.parse(readFileSync(file, 'utf8'))[email];
   if (!secret) throw new Error('Browser MFA setup key is unavailable.');
-  await code.fill(totp(secret));
+    await code.fill('123');
+    await expect(page.getByRole('button', { name: 'Verify code', exact: true })).toBeDisabled();
+    await code.fill(totp(secret));
+    await expect(page.getByRole('button', { name: 'Verify code', exact: true })).toBeEnabled();
   await page.locator('button[type=submit]').click();
   await privacyIfNeeded(page);
   await page.context().storageState({ path: sessionFile });

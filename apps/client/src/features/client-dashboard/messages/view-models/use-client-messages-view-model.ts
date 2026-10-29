@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { threadPreview, toChatThreads } from "@prism/ui/chat";
 import type { PrismCommunicationThread } from "@prism/types";
 import { useClientWorkspace } from "../../workspace/shared";
 import { clientMessagesRepository } from "../data/client-messages-repository";
@@ -21,6 +22,7 @@ export function useClientMessagesViewModel(enabled = true) {
   const [actionError, setActionError] = useState<{ eventId: string; threadId: string; message: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [reload, setReload] = useState(0);
+  const [query, setQuery] = useState("");
   const attempts = useRef(new Map<string, { text: string; key: string }>());
   const sending = useRef(false);
 
@@ -38,12 +40,18 @@ export function useClientMessagesViewModel(enabled = true) {
 
   const current = eventThreads?.eventId === eventId ? eventThreads : null;
   const threads = current?.threads ?? [];
+  const chatThreads = useMemo(() => toChatThreads(threads, session?.id), [threads, session?.id]);
+  const needle = query.trim().toLowerCase();
+  const visibleThreads = needle ? chatThreads.filter((thread) => `${thread.subject} ${threadPreview(thread, new Map())}`.toLowerCase().includes(needle)) : chatThreads;
   const selectedThread = eventId ? threads.find((thread) => thread.id === selectedThreads[eventId]) : undefined;
-  const activeThread = selectedThread ?? (threads.length === 1 ? threads[0] : undefined);
+  // Like a phone's chat list, the most recent conversation opens first.
+  const activeThread = selectedThread ?? threads.find((thread) => thread.id === chatThreads[0]?.id);
   const draft = activeThread ? drafts[activeThread.id] ?? "" : "";
 
   useEffect(() => {
-    if (activeThread) void clientMessagesRepository.markRead(activeThread.id).catch(() => undefined);
+    if (!activeThread || !eventId) return;
+    void clientMessagesRepository.markRead(activeThread.id).catch(() => undefined);
+    if (activeThread.unreadCount) updateThreads(eventId, (thread) => (thread.id === activeThread.id ? { ...thread, unreadCount: 0 } : thread));
   }, [activeThread?.id]);
 
   function updateDraft(value: string) {
@@ -94,6 +102,10 @@ export function useClientMessagesViewModel(enabled = true) {
     selectedEvent,
     session,
     threads,
+    chatThreads,
+    visibleThreads,
+    query,
+    setQuery,
     activeThread,
     selectThread: (threadId: string) => { if (eventId) setSelectedThreads((currentSelections) => ({ ...currentSelections, [eventId]: threadId })); },
     status: eventId ? current?.status ?? "loading" : "idle",

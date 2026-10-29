@@ -14,14 +14,14 @@ const mocks = vi.hoisted(() => ({
     selectedEvent: undefined as { id: string; eventName: string } | undefined,
     selectedEventId: null as string | null,
     setSelectedEventId: vi.fn(),
-    state: { documents: [{ id: "doc-b", eventId: "event-b", fileName: "agreement.pdf", type: "contract", status: "approved", uploadedAt: "2026-10-20" }] },
+    state: { documents: [{ id: "doc-b", eventId: "event-b", fileName: "agreement.pdf", type: "contract", status: "approved", uploadedAt: "2026-10-20" }], paymentMilestones: [] },
     router: { push: vi.fn(), replace: vi.fn() },
     session: { name: "Client", email: "client@example.test" },
     payments: [], billing: undefined, disputes: [], portalView: "files-all",
   },
 }));
 vi.mock("../client-workspace-context", () => ({ useClientWorkspace: () => mocks.workspace }));
-vi.mock("../shared", () => ({ useClientWorkspace: () => mocks.workspace, formatStatusLabel: (value: string) => value }));
+vi.mock("../shared", async (importOriginal) => ({ ...(await importOriginal<typeof import("../shared")>()), useClientWorkspace: () => mocks.workspace }));
 
 afterEach(() => {
   mocks.workspace.selectedEvent = undefined;
@@ -43,7 +43,7 @@ describe("account pages with multiple events", () => {
     mocks.workspace.selectedEvent = mocks.workspace.events[1];
     mocks.workspace.selectedEventId = "event-b";
     const markup = renderToStaticMarkup(createElement(ClientFilesView));
-    expect(markup).toContain("Choose an event to see its event files and requirements");
+    expect(markup).toContain("Choose an event to see its files and requirements");
     expect(markup).toContain("Event B");
     expect(markup).toContain("agreement.pdf");
     expect(markup).toContain('href="/dashboard/events/event-b/documents"');

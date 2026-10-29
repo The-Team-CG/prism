@@ -158,7 +158,7 @@ function ProductPanel() {
     <div className="relative min-h-[650px] overflow-hidden rounded-lg border border-primary/15 bg-card shadow-[0_34px_120px_rgba(23,18,22,0.16)]">
       <div className="absolute inset-0 opacity-70 [background-image:linear-gradient(#CCECF4_1px,transparent_1px),linear-gradient(90deg,#CCECF4_1px,transparent_1px)] [background-size:34px_34px]" />
       <div className="absolute inset-0 bg-[linear-gradient(145deg,rgba(255,248,242,0.68),transparent_44%),radial-gradient(circle_at_82%_6%,rgba(192,24,103,0.12),transparent_34%)]" />
-      <div className="absolute inset-y-0 left-0 hidden w-16 flex-col items-center gap-6 rounded-l-lg bg-ink py-8 text-sidebar-foreground lg:flex">
+      <div className="absolute inset-y-0 left-0 hidden w-16 flex-col items-center gap-6 rounded-l-lg bg-ink py-8 text-ink-foreground lg:flex">
         {[MapPinned, ReceiptText, FileCheck2, UserCheck, MessageSquareText, Gauge].map((Icon, index) => (
           <span key={index} className={index === 0 ? "grid size-9 place-items-center rounded-md bg-white/14 text-white" : "grid size-9 place-items-center rounded-md text-white/72"}>
             <Icon className="size-5" />
@@ -194,7 +194,7 @@ function ProductPanel() {
           <div className="mt-4 grid aspect-[1.58] gap-2 rounded-lg border border-border bg-secondary/45 p-4">
             <div className="grid grid-cols-[0.5fr_1.05fr_0.5fr] gap-2">
               <div className="rounded-md border border-primary/15 bg-card p-2 text-center text-xs font-medium text-muted-foreground">BAR</div>
-              <div className="rounded-md bg-ink p-2 text-center text-xs font-medium text-sidebar-foreground">Stage</div>
+              <div className="rounded-md bg-ink p-2 text-center text-xs font-medium text-ink-foreground">Stage</div>
               <div className="rounded-md border border-primary/15 bg-card p-2 text-center text-xs font-medium text-muted-foreground">AV</div>
             </div>
             <div className="grid grid-cols-5 gap-2 px-5">
@@ -277,7 +277,7 @@ function FeatureCard({ icon: Icon, title, text }: { icon: typeof ShieldCheck; ti
   return (
     <Card className="group gap-0 rounded-lg border-primary/12 bg-card/80 shadow-none transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(23,18,22,0.12)]">
       <CardHeader className="gap-4">
-        <div className="grid size-11 place-items-center rounded-lg bg-ink text-sidebar-foreground transition duration-300 group-hover:bg-brand-orange">
+        <div className="grid size-11 place-items-center rounded-lg bg-ink text-ink-foreground transition duration-300 group-hover:bg-brand-orange">
           <Icon className="size-5" />
         </div>
         <div>
@@ -291,7 +291,7 @@ function FeatureCard({ icon: Icon, title, text }: { icon: typeof ShieldCheck; ti
 
 function DarkBand({ children }: { children: ReactNode }) {
   return (
-    <section className="relative overflow-hidden bg-ink px-5 py-20 text-sidebar-foreground sm:px-8 lg:px-10">
+    <section className="relative overflow-hidden bg-ink px-5 py-20 text-ink-foreground sm:px-8 lg:px-10">
       <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_1px_1px,#FFFFFF_1px,transparent_0)] [background-size:28px_28px]" />
       <div className="absolute -right-40 -top-40 size-[34rem] rounded-full border border-attention/25" />
       <div className="relative mx-auto max-w-[1480px]">{children}</div>
@@ -416,7 +416,7 @@ export function ClientHomeLandingView() {
               <div className="grid aspect-[1.5] gap-2 rounded-lg border border-border bg-secondary/45 p-4">
                 <div className="grid grid-cols-[0.52fr_1.08fr_0.52fr] gap-2">
                   <span className="rounded-md border border-primary/15 bg-card p-2 text-center text-xs font-medium text-muted-foreground">Bar</span>
-                  <span className="rounded-md bg-ink p-2 text-center text-xs font-medium text-sidebar-foreground">Stage</span>
+                  <span className="rounded-md bg-ink p-2 text-center text-xs font-medium text-ink-foreground">Stage</span>
                   <span className="rounded-md border border-primary/15 bg-card p-2 text-center text-xs font-medium text-muted-foreground">AV</span>
                 </div>
                 <div className="grid grid-cols-5 gap-2 px-5">
@@ -503,7 +503,7 @@ export function ClientHomeLandingView() {
                   <Badge variant="outline" className={index === 2 ? "rounded-full border-brand-orange/25 bg-brand-orange/10 text-brand-orange" : "rounded-full border-success/25 bg-success/10 text-success"}>{index === 2 ? "In review" : "Approved"}</Badge>
                 </div>
                 <div className="grid aspect-[0.86] gap-2 rounded-md border border-border bg-secondary/45 p-3">
-                  <span className="rounded bg-ink p-1 text-center text-xs font-medium text-sidebar-foreground">Stage</span>
+                  <span className="rounded bg-ink p-1 text-center text-xs font-medium text-ink-foreground">Stage</span>
                   <div className="grid grid-cols-3 gap-2">
                     {Array.from({ length: index === 1 ? 12 : 9 }).map((_, tableIndex) => <span key={tableIndex} className="aspect-square rounded-full border border-primary/20 bg-card" />)}
                   </div>

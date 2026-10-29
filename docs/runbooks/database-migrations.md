@@ -308,6 +308,17 @@ just because its ledger row is absent. `prisma migrate resolve` is an operator
 command for a precisely verified ledger fact and requires an approved target,
 exact migration-effect evidence, and an audit record.
 
+The six `20261021104500` through `20261021105000` UAT data seeds have one
+recognized historical version each. Those versions were applied before their
+gates and fixture dates were revised in `ee4d671a`; their exact SQL is recoverable
+from Git checkpoint `e19f7da2f38b6375a060a3a2274e775215e86960`. They change fixture
+data only, not schema. Doctor reports these as `historicalVariants`, not as
+line-ending equivalents. Runtime and cutover checks accept each historical hash
+only when both the migration name and current SQL hash match the pinned pair in
+`migration-ledger-compatibility.cjs`. No fixture SQL is replayed and no ledger
+row is rewritten. Every other SQL change remains an error. Keep any restored
+database's original fixture dates; use explicit fixture tooling for new scenarios.
+
 ### Live-schema drift
 
 Use `db:diff:live` to produce a read-only comparison. Separate harmless

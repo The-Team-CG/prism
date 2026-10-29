@@ -11,6 +11,25 @@ function escapeHtml(text: string) {
   return text.replace(/[&<>"']/g, (character) => HTML_ESCAPES[character]!);
 }
 
+const SUBJECT_MAX = 72;
+
+/** The first sentence says what happened, so it becomes the subject instead of a generic "update". */
+export function notificationSubject(message: string, eventName?: string) {
+  const headline = message.split(/(?<=[.;!?])\s/)[0]!.replace(/[.;]$/, "").trim();
+  const short = headline.length > SUBJECT_MAX ? `${headline.slice(0, SUBJECT_MAX - 1).trimEnd()}…` : headline;
+  const subject = short ? `P.R.I.S.M: ${short}` : "P.R.I.S.M update";
+  return eventName && !headline.includes(eventName) ? `${subject} (${eventName})` : subject;
+}
+
+export function notificationHtml(message: string) {
+  return [
+    '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#171216;max-width:560px">',
+    `<p style="margin:0 0 16px">${escapeHtml(message)}</p>`,
+    '<p style="margin:24px 0 0;font-size:12px;color:#62535c">P.R.I.S.M by PMCM. This is an automated update about your event.</p>',
+    '</div>',
+  ].join('');
+}
+
 /** Sends email outbox rows through the kernel mail transport. Other channels have no provider yet and fail permanently. */
 @Injectable()
 export class MailNotificationDeliveryAdapter implements NotificationDeliveryPort {
@@ -27,8 +46,8 @@ export class MailNotificationDeliveryAdapter implements NotificationDeliveryPort
     if (resolved.status === 'failed') return { status: 'permanent_failure', reason: resolved.reason };
 
     const eventName = input.eventId ? (await this.contacts.findEventNotificationContact(input.eventId))?.eventName : undefined;
-    const subject = eventName ? `P.R.I.S.M update - ${eventName}` : 'P.R.I.S.M update';
-    const html = `<p>${escapeHtml(input.message)}</p>`;
+    const subject = notificationSubject(input.message, eventName);
+    const html = notificationHtml(input.message);
     // One send per address; the per-address key lets a retry of a partly accepted row skip the addresses already sent.
     const sends = await Promise.all(resolved.addresses.map((to) => this.mail.send({
       idempotencyKey: `${input.idempotencyKey}:${to}`,

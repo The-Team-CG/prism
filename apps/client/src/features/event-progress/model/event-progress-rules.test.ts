@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismClientEventTimeline, PrismClientWorkspace, PrismEvent } from "@prism/types";
-import { computeEventProgress, deriveCheckpoints, deriveTimeline } from "./event-progress-rules";
+import { computeEventProgress, deriveCheckpoints, deriveLifecycleIndex, deriveTimeline } from "./event-progress-rules";
 
 const event: PrismEvent = {
   id: "evt_1",
@@ -32,6 +32,13 @@ function workspace(overrides: Partial<PrismClientWorkspace> = {}): PrismClientWo
 }
 
 describe("event-progress-rules", () => {
+  it("moves to Planning when the client approves the proposal, not only once a floorplan is approved", () => {
+    const briefed = workspace({ briefings: [{ eventId: "evt_1" }] as PrismClientWorkspace["briefings"] });
+    expect(deriveLifecycleIndex(event, briefed)).toBe(2);
+    expect(deriveLifecycleIndex({ ...event, proposalClientStatus: "approved" }, briefed)).toBe(3);
+    expect(deriveLifecycleIndex(event, workspace({ floorPlanDrafts: [{ eventId: "evt_1", status: "approved" }] as PrismClientWorkspace["floorPlanDrafts"] }))).toBe(3);
+  });
+
   it("keeps documents detail independent of completion", () => {
     const incomplete = deriveCheckpoints(
       event,
