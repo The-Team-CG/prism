@@ -13,6 +13,7 @@ import { PostponementImpactPanel } from "@/features/event-decisions/postponement
 import { ChangeRegisterPanel } from "@/features/change-management/register";
 import { isScopeFrozen } from "@/features/change-management/register/model/change-register-rules";
 import { EventWorkspaceOverview } from "./event-overview";
+import { EventOcularVisitTask } from "./event-ocular-visit-task";
 import { FinancialWorkspace } from "@/features/finance/workspace";
 import { BillingSourcePanel } from "@/features/finance/billing-source/views/billing-source-panel";
 import { canStartEventDay } from "../../model/event-dashboard-selectors";
@@ -38,25 +39,43 @@ import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-
 import { PmcmClientReviewPanel } from "@/features/commercial/client-review/views/pmcm-client-review-panel";
 import { PmcmProposalIssuerPanel } from "@/features/commercial/proposal-issuer/views/pmcm-proposal-issuer-panel";
 
+const OCULAR_VISIT_DONE = new Set(["completed", "waived"]);
+
 export function EventWorkspaceOverviewTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
+  const visit = vm.selectedEventWorkspace?.event.id === vm.selectedEvent.id ? vm.selectedEventWorkspace?.ocularVisit ?? null : null;
+  // The official floorplan waits on the ocular visit, so it stays on the overview until it is completed or waived.
+  const visitOpen = !visit || !OCULAR_VISIT_DONE.has(visit.status);
   return (
-    <EventWorkspaceOverview
-      event={vm.selectedEvent}
-      readiness={vm.defenseReadiness}
-      drafts={vm.drafts}
-      activeDraft={vm.activeDraft}
-      quoteRequestCount={vm.quoteRequests.length}
-      quoteCount={vm.quotes.length}
-      openCheckCount={vm.openCheckCount}
-      canStartEventDay={isPmcmAdmin(vm.session.role) && canStartEventDay(vm.selectedEvent)}
-      busy={Boolean(vm.busy)}
-      onStartEventDay={() => void vm.startEventDay()}
-      onSubmitBriefing={() => void vm.submitBriefing()}
-      onRunCompliance={() => void vm.runPlanningCompliance()}
-      onOpenTab={(tab) => vm.navigateEventTab(tab)}
-    />
+    <div className="space-y-5">
+      {visitOpen ? (
+        <EventOcularVisitTask
+          eventName={vm.selectedEvent.eventName}
+          visit={visit}
+          isAdmin={isPmcmAdmin(vm.session.role)}
+          busy={vm.busy !== null}
+          onSchedule={vm.scheduleOcularVisit}
+          onComplete={vm.completeOcularVisit}
+          onWaive={vm.waiveOcularVisit}
+        />
+      ) : null}
+      <EventWorkspaceOverview
+        event={vm.selectedEvent}
+        readiness={vm.defenseReadiness}
+        drafts={vm.drafts}
+        activeDraft={vm.activeDraft}
+        quoteRequestCount={vm.quoteRequests.length}
+        quoteCount={vm.quotes.length}
+        openCheckCount={vm.openCheckCount}
+        canStartEventDay={isPmcmAdmin(vm.session.role) && canStartEventDay(vm.selectedEvent)}
+        busy={Boolean(vm.busy)}
+        onStartEventDay={() => void vm.startEventDay()}
+        onSubmitBriefing={() => void vm.submitBriefing()}
+        onRunCompliance={() => void vm.runPlanningCompliance()}
+        onOpenTab={(tab) => vm.navigateEventTab(tab)}
+      />
+    </div>
   );
 }
 

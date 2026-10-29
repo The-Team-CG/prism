@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- The ocular (site) visit now appears on the event Overview in both portals until it is completed or waived: PMCM schedules, completes or waives it there, and clients request it there. Before, PMCM could only reach it from a Tasks page missing from the sidebar, and clients from a page no menu linked to.
 - The client's event lifecycle moves to Planning once the client approves the proposal, instead of staying on "Briefing & proposal" until an official floorplan is approved. Step names read normally ("Briefing & proposal" rather than "briefing proposal").
 - PMCM can start an official floorplan from a **Blank layout** in the event's Floorplans tab, using the briefing's venue and guest count. Before, a plan could only start from a saved template, so a new system with no templates had no way to create one.
 - Issuing a proposal no longer fails with an unexpected API error on hosted Supabase Storage. Files the API generates itself, such as proposal PDFs, are now uploaded to the private bucket before being verified; before, the adapter only read back an object that was never written.
