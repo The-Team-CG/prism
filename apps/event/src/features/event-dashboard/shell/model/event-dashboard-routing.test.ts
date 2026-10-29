@@ -214,7 +214,7 @@ describe("event-dashboard-routing", () => {
     ).toEqual({
       eyebrow: "Event workspace",
       title: "Launch",
-      description: "Acme — 2026-09-01",
+      description: "Acme · Sep 1, 2026",
     });
     expect(routeShellCopy({ section: "events", tab: "overview" })).toEqual({
       eyebrow: "Command home",

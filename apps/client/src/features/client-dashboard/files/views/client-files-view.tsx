@@ -1,59 +1,74 @@
 "use client";
-import { formatPortalDateTime } from "@prism/ui/format-date";
 
+import Link from "next/link";
 import { FileText } from "lucide-react";
-import { EmptyState } from "@/app/components/ui/empty-state";
-import { StatusBadge } from "@/app/components/ui/status-badge";
-import { formatStatusLabel, useClientWorkspace } from "../../workspace/shared";
+import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
+import { cn } from "@/app/components/ui/utils";
+import { CLIENT_PORTAL_VIEW_META, dashboardHref, formatStatusLabel, useClientWorkspace } from "../../workspace/shared";
+import { CLIENT_PORTAL_VIEW_HREFS } from "../../workspace/model/client-dashboard-navigation";
+import type { ClientPortalView } from "../../workspace/model/client-dashboard-types";
 import { ClientAccountEventPicker } from "../../workspace/views/sections/client-account-event-picker";
-import { CLIENT_PORTAL_VIEW_META } from "../../workspace/shared";
+import { ClientListEmpty, ClientListRow, ClientListSection, type ClientRowTone } from "../../shared/client-list-ui";
 import { filterClientFiles } from "../model/client-file-category";
+
+const FILTERS: ClientPortalView[] = ["files-all", "files-contracts", "files-quotations", "files-invoices-receipts", "files-event-layouts"];
+
+function fileTone(status: string): ClientRowTone {
+  if (/reject|needs_update/i.test(status)) return "attention";
+  if (/approved|confirmed|verified/i.test(status)) return "done";
+  return "neutral";
+}
 
 export function ClientFilesView() {
   const { state, events, portalView } = useClientWorkspace();
   if (!state) return null;
+  if (events.length === 0) {
+    return <ClientListEmpty icon={FileText} title="No active event" description="Event files appear once your event workspace is open." />;
+  }
 
   const eventNames = new Map(events.map((event) => [event.id, event.eventName]));
-  const scoped = filterClientFiles(state.documents.filter((document) => eventNames.has(document.eventId)), portalView);
-  const files = scoped.documents;
-  const viewTitle = portalView && portalView !== "files-all" ? CLIENT_PORTAL_VIEW_META[portalView]?.title : undefined;
+  const eventFiles = state.documents.filter((document) => eventNames.has(document.eventId));
+  const active = FILTERS.includes(portalView as ClientPortalView) ? (portalView as ClientPortalView) : "files-all";
+  const files = [...filterClientFiles(eventFiles, active).documents].sort((a, b) => String(b.uploadedAt ?? "").localeCompare(String(a.uploadedAt ?? "")));
+  const title = CLIENT_PORTAL_VIEW_META[active]?.title ?? "Files";
 
   return (
-    <div className="space-y-5">
-      <ClientAccountEventPicker purpose="event files and requirements" destination="documents" />
-      {events.length === 0 ? (
-        <EmptyState icon={FileText} title="No active event" description="Event files will appear when your event workspace is available." />
-      ) : null}
+    <div className="space-y-4">
+      <nav className="-mx-1 flex gap-1 overflow-x-auto px-1" aria-label="File filters">
+        {FILTERS.map((view) => (
+          <Link
+            key={view}
+            href={CLIENT_PORTAL_VIEW_HREFS[view]}
+            aria-current={view === active ? "page" : undefined}
+            className={cn("inline-flex h-9 shrink-0 items-center gap-2 rounded-md px-3 text-sm transition-colors", view === active ? "bg-muted font-semibold text-foreground" : "text-muted-foreground hover:text-foreground")}
+          >
+            {view === "files-all" ? "All" : CLIENT_PORTAL_VIEW_META[view].title}
+            <span className="tabular-nums text-muted-foreground">{filterClientFiles(eventFiles, view).documents.length}</span>
+          </Link>
+        ))}
+      </nav>
 
-      <section className="rounded-lg border border-border bg-card p-5">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-base font-semibold text-foreground">{viewTitle ?? "Document records"}</h2>
-          <p className="text-sm tabular-nums text-muted-foreground">{files.length} {files.length === 1 ? "record" : "records"}</p>
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {scoped.filtered
-            ? "Open an event to upload or download files."
-            : "These records don't yet say who shared them, so every file is listed. Open an event to upload or download files."}
-        </p>
-        {files.length ? (
-          <div className="mt-4 divide-y divide-border">
-            {files.map((file) => (
-              <div key={file.id} className="flex flex-wrap items-center gap-3 py-3">
-                <FileText aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-                <div className="min-w-0 flex-1 basis-48">
-                  <p className="break-words text-sm font-semibold text-foreground">{file.fileName}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{eventNames.get(file.eventId)} · {formatStatusLabel(file.type)} · {formatPortalDateTime(file.uploadedAt)}</p>
-                </div>
-                <StatusBadge status={file.status} label={formatStatusLabel(file.status)} />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="mt-4 rounded-md border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
-            {viewTitle ? `No ${viewTitle.toLowerCase()} on record yet.` : "No document records yet. Records shared with you will appear here."}
-          </p>
-        )}
-      </section>
+      {files.length ? (
+        <ClientListSection id="client-files-list" title={active === "files-all" ? "All files" : title} count={files.length} description="Open a file's event to download it or upload a replacement.">
+          {files.map((file) => (
+            <ClientListRow
+              key={file.id}
+              icon={FileText}
+              tone={fileTone(file.status)}
+              title={file.fileName}
+              meta={[eventNames.get(file.eventId), formatStatusLabel(file.type)].filter(Boolean).join(" · ")}
+              status={file.uploadedAt ? formatPortalDate(file.uploadedAt) : formatStatusLabel(file.status)}
+              statusTitle={file.uploadedAt ? `${formatStatusLabel(file.status)} · ${formatPortalDateTime(file.uploadedAt)}` : undefined}
+              action="Open event files"
+              href={dashboardHref("documents", file.eventId)}
+            />
+          ))}
+        </ClientListSection>
+      ) : (
+        <ClientListEmpty icon={FileText} title={active === "files-all" ? "No files yet" : `No ${title.toLowerCase()} yet`} description="Files you or PMCM share for your events appear here." />
+      )}
+
+      <ClientAccountEventPicker purpose="files and requirements" destination="documents" />
     </div>
   );
 }

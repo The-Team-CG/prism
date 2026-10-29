@@ -1,4 +1,5 @@
 "use client";
+import { DateTimePicker } from "@prism/ui/components/date-time-picker";
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { RefreshCw, Trophy } from "lucide-react";
@@ -131,11 +132,11 @@ export function EventGameDraftCard({
           </label>
           <label className="grid gap-1.5 text-sm font-semibold text-foreground">
             Available from
-            <input aria-label="Available from" type="datetime-local" value={availableFrom} onChange={(event) => setAvailableFrom(event.target.value)} className="min-h-10 rounded-lg border border-border bg-background px-3" />
+            <DateTimePicker value={availableFrom} onValueChange={(next) => setAvailableFrom(next)} aria-label="Available from" />
           </label>
           <label className="grid gap-1.5 text-sm font-semibold text-foreground">
             Available until
-            <input aria-label="Available until" type="datetime-local" value={availableUntil} onChange={(event) => setAvailableUntil(event.target.value)} className="min-h-10 rounded-lg border border-border bg-background px-3" />
+            <DateTimePicker value={availableUntil} onValueChange={(next) => setAvailableUntil(next)} aria-label="Available until" />
           </label>
           <div className="md:col-span-2">
             <Button type="submit" disabled={!title.trim() || busy}>Create game</Button>

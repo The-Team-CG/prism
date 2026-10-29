@@ -6,6 +6,7 @@ import type {
   PrismSignInSession,
   PrismAuthResponse,
   PrismTwoFactorSetup,
+  PrismTwoFactorQr,
 } from "@prism/types";
 
 export const eventAuthRepository = {
@@ -15,6 +16,10 @@ export const eventAuthRepository = {
 
   setupTwoFactor(token: string): Promise<PrismTwoFactorSetup> {
     return eventApi.auth.setupTwoFactor(token);
+  },
+
+  developmentTwoFactorQr(token: string): Promise<PrismTwoFactorQr> {
+    return eventApi.auth.developmentTwoFactorQr(token);
   },
 
   verifyTwoFactor(token: string, code: string): Promise<PrismSignInSession> {

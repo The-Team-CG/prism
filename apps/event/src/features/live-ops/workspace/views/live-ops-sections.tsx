@@ -1,3 +1,4 @@
+import { DateTimePicker } from "@prism/ui/components/date-time-picker";
 import { BellRing, ChevronRight, Plus, RefreshCw, UserPlus, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
@@ -397,12 +398,7 @@ function LiveOpsIssuesPanel({
         </div>
         <label className="grid gap-1.5">
           <span className="text-xs font-medium text-muted-foreground">SLA due time</span>
-          <input
-            type="datetime-local"
-            value={vm.issueSlaDueAt}
-            onChange={(event) => vm.setIssueSlaDueAt(event.target.value)}
-            className="h-11 rounded-md border border-border bg-white px-3 text-sm"
-          />
+          <DateTimePicker value={vm.issueSlaDueAt} onValueChange={(next) => vm.setIssueSlaDueAt(next)} />
         </label>
         <p className="text-xs leading-5 text-muted-foreground">
           Urgent issues are operational blockers. Escalation notifies PMCM/operator context; it does not expose finance, audit, or private supplier review data.
@@ -477,12 +473,7 @@ function LiveOpsTasksPanel({
         </div>
         <label className="grid gap-1.5">
           <span className="text-xs font-medium text-muted-foreground">SLA due time</span>
-          <input
-            type="datetime-local"
-            value={vm.taskSlaDueAt}
-            onChange={(event) => vm.setTaskSlaDueAt(event.target.value)}
-            className="h-11 rounded-md border border-border bg-white px-3 text-sm"
-          />
+          <DateTimePicker value={vm.taskSlaDueAt} onValueChange={(next) => vm.setTaskSlaDueAt(next)} />
         </label>
         <button type="button" disabled={busy || !vm.taskTitle.trim()} onClick={() => void vm.createTask()} className="h-11 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-60">
           Add task
@@ -599,7 +590,7 @@ function CoordinatorRow({
             placeholder="Replacement reason required for live log"
             className="h-10 rounded-md border border-border bg-white px-2 text-xs"
           />
-          <button disabled={busy || !vm.canReplace} onClick={vm.replace} className="h-10 rounded-md bg-ink px-3 text-xs font-semibold text-sidebar-foreground disabled:opacity-60">
+          <button disabled={busy || !vm.canReplace} onClick={vm.replace} className="h-10 rounded-md bg-ink px-3 text-xs font-semibold text-ink-foreground disabled:opacity-60">
             Replace coordinator
           </button>
         </div>

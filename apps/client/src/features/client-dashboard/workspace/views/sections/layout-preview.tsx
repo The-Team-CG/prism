@@ -22,7 +22,7 @@ export function LayoutPreview({ project }: { project: Project | null }) {
           project.objects.map((object) => (
             <div
               key={object.id}
-              className="absolute rounded-md border border-primary/35 bg-ink/85 px-2 py-1 text-3xs font-bold text-sidebar-foreground shadow-sm"
+              className="absolute rounded-md border border-primary/35 bg-ink/85 px-2 py-1 text-3xs font-bold text-ink-foreground shadow-sm"
               style={objectBox(object, project)}
             >
               <span className="line-clamp-2">{object.label || object.name || object.kind}</span>

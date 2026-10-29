@@ -86,6 +86,22 @@ beforeEach(() => {
   repository.replyEodReport.mockResolvedValue({ id: "reply_1" });
 });
 
+/** Opening the calendar pop-up is slow in jsdom when the whole suite runs in parallel. */
+const PICKER_TEST_TIMEOUT_MS = 20_000;
+
+/** Picks a day and time in the shared date-and-time picker; the clock is pinned so it opens on October 2026. */
+function pickDateTime(trigger: HTMLElement, day: number, time: string) {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-01T12:00:00"));
+  try {
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(`October ${day}(st|nd|rd|th)?, 2026`) }));
+    fireEvent.click(screen.getByRole("option", { name: time }));
+  } finally {
+    vi.useRealTimers();
+  }
+}
+
 describe("LiveOpsScheduleDesk", () => {
   it("lets PMCM start event day and reflects the saved event status", async () => {
     repository.getEvent.mockResolvedValueOnce({ status: "planning" }).mockResolvedValue({ status: "event_day" });
@@ -112,8 +128,10 @@ describe("LiveOpsScheduleDesk", () => {
     await waitFor(() => expect(repository.createDay).toHaveBeenCalledWith("evt_1", { dayDate: "2026-10-03", label: "Strike" }));
 
     fireEvent.change(screen.getByLabelText("Segment title"), { target: { value: "Vendor load-out" } });
-    fireEvent.change(screen.getByLabelText("Starts"), { target: { value: "2026-10-02T20:00" } });
-    fireEvent.change(screen.getByLabelText("Ends"), { target: { value: "2026-10-02T21:00" } });
+    // The field label wraps the picker, so open it from the picker's own button.
+    const pickerButton = (text: string) => screen.getByText(text, { selector: "span" }).closest("label")!.querySelector("button")!;
+    pickDateTime(pickerButton("Starts"), 2, "8:00 PM");
+    pickDateTime(pickerButton("Ends"), 2, "9:00 PM");
     fireEvent.change(screen.getByLabelText("Owner role"), { target: { value: "General Coordinator" } });
     fireEvent.click(screen.getByRole("button", { name: /^Add$/ }));
     await waitFor(() => expect(repository.createSegment).toHaveBeenCalledWith("evt_1", "day_1", expect.objectContaining({
@@ -123,7 +141,7 @@ describe("LiveOpsScheduleDesk", () => {
     })));
     const [, , input] = repository.createSegment.mock.calls[0] as unknown as [string, string, { plannedStartAt: string; plannedEndAt: string }];
     expect(new Date(input.plannedEndAt).getTime()).toBeGreaterThan(new Date(input.plannedStartAt).getTime());
-  });
+  }, PICKER_TEST_TIMEOUT_MS);
 
   it("lets PMCM update a schedule segment and reply to an end-of-day report", async () => {
     repository.listEodReports.mockResolvedValue([report]);

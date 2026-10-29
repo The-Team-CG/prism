@@ -46,14 +46,15 @@ describe("client messages", () => {
     expect(result.current.threads.map((item) => item.eventId)).toEqual(["event-b"]);
   });
 
-  it("requires a conversation choice, keeps each draft, and retries a failed send with the same key", async () => {
+  it("opens the latest conversation, keeps each draft, and retries a failed send with the same key", async () => {
     mocks.list.mockResolvedValue([thread("one", "event-a"), thread("two", "event-a")]);
     mocks.markRead.mockResolvedValue(undefined);
     const sent: PrismCommunicationMessage = { id: "message", threadId: "one", senderId: "client", senderRole: "client", body: "Hello", createdAt: "" };
     mocks.send.mockRejectedValueOnce(new Error("Try again")).mockResolvedValueOnce(sent);
     const { result } = renderHook(() => useClientMessagesViewModel());
     await waitFor(() => expect(result.current.status).toBe("ready"));
-    expect(result.current.activeThread).toBeUndefined();
+    // Like a messenger app, a conversation is open straight away instead of an empty pane.
+    expect(["one", "two"]).toContain(result.current.activeThread?.id);
 
     act(() => result.current.selectThread("one"));
     act(() => result.current.updateDraft("Hello"));

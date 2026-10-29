@@ -1,168 +1,154 @@
 "use client";
 
-import { CalendarDays } from "lucide-react";
-import { StatusBadge } from "@/app/components/ui/status-badge";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { BadgeCheck, CalendarDays, ChevronLeft, ChevronRight, MapPinned, WalletCards, type LucideIcon } from "lucide-react";
+import { buildCalendarMonthGrid, isDateKeyInMonth, monthLabel, monthOfDateKey, shiftMonth, type CalendarMonth } from "@prism/ui/calendar-grid";
+import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 import { cn } from "@/app/components/ui/utils";
-import { formatStatusLabel } from "../../workspace/shared";
-import { CLIENT_PORTAL_VIEW_META } from "../../workspace/shared";
-import { useClientWorkspace } from "../../workspace/shared";
-import { buildClientCalendarItems, type ClientCalendarItem } from "../model/client-calendar-items";
+import { CLIENT_PORTAL_VIEW_META, dashboardHref, formatStatusLabel, useClientWorkspace } from "../../workspace/shared";
+import type { ClientDashboardRoute } from "../../workspace/model/client-dashboard-types";
+import { ClientListEmpty, ClientListSection, type ClientRowTone } from "../../shared/client-list-ui";
+import { dueState, eventCountdown } from "../../home/model/client-home-summary";
+import { buildClientCalendarItems, type ClientCalendarItem, type ClientCalendarItemKind } from "../model/client-calendar-items";
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MAX_PER_CELL = 3;
+
+const KIND: Record<ClientCalendarItemKind, { label: string; icon: LucideIcon; chip: string; dot: string; route: ClientDashboardRoute }> = {
+  event: { label: "Event", icon: CalendarDays, chip: "bg-primary/10 text-primary hover:bg-primary/15", dot: "bg-primary", route: "overview" },
+  payment: { label: "Payment due", icon: WalletCards, chip: "bg-attention-soft text-attention hover:bg-attention/15", dot: "bg-attention", route: "billing" },
+  visit: { label: "Site visit", icon: MapPinned, chip: "bg-info-soft text-info hover:bg-info/15", dot: "bg-info", route: "overview" },
+  approval: { label: "Layout approved", icon: BadgeCheck, chip: "bg-success-soft text-success hover:bg-success/15", dot: "bg-success", route: "floorplan" },
+};
+
+const controlClass =
+  "inline-flex h-9 min-w-9 items-center justify-center gap-1 rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground transition hover:bg-muted";
+
+function itemHref(item: ClientCalendarItem) {
+  return dashboardHref(KIND[item.kind].route, item.eventId);
+}
+
+function itemStatus(item: ClientCalendarItem, today: string): { label: string; tone: ClientRowTone } {
+  if (item.kind === "payment") {
+    if (item.status === "paid") return { label: "Paid", tone: "done" };
+    return dueState(item.date, today) ?? { label: formatStatusLabel(item.status), tone: "neutral" };
+  }
+  if (item.kind === "approval") return { label: "Approved", tone: "done" };
+  return { label: eventCountdown(item.date, today) ?? formatPortalDate(item.date), tone: "neutral" };
+}
 
 export function ClientCalendarView() {
-  const {
-    portalView,
-    state,
-    events,
-    selectedEvent,
-  } = useClientWorkspace();
+  const { portalView, state, events } = useClientWorkspace();
+  const today = manilaDateKey();
+  const items = useMemo(() => (state ? buildClientCalendarItems(state, events, portalView) : []), [events, portalView, state]);
+  const firstUpcoming = items.find((item) => item.date >= today)?.date;
+  const [visibleMonth, setVisibleMonth] = useState<CalendarMonth>(() => monthOfDateKey(firstUpcoming ?? today));
   if (!state) return null;
-  const portalViewMeta = portalView ? CLIENT_PORTAL_VIEW_META[portalView] : undefined;
 
-    const toIsoDate = (date: Date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      return `${year}-${month}-${day}`;
-    };
-    const dateFromIso = (date: string) => new Date(`${date}T00:00:00`);
-    const formatCalendarDate = (date: string) =>
-      dateFromIso(date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    const calendarItemClass = (item: ClientCalendarItem) => {
-      if (item.kind === "event") return "border-primary/20 bg-primary/10 text-primary";
-      if (item.kind === "payment" && item.status === "paid") return "border-success/25 bg-success/10 text-success";
-      if (item.kind === "payment") return "border-attention/25 bg-attention/10 text-attention";
-      if (item.kind === "approval") return "border-success/25 bg-success-soft text-foreground";
-      return "border-info/25 bg-info-soft text-foreground";
-    };
-  
-    const calendarItems = buildClientCalendarItems(state, events, portalView);
-    const monthSource = selectedEvent?.eventDate ?? calendarItems.find((item) => item.kind === "event")?.date ?? calendarItems[0]?.date ?? toIsoDate(new Date());
-    const monthDate = dateFromIso(monthSource);
-    const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
-    const gridStart = new Date(monthStart);
-    gridStart.setDate(monthStart.getDate() - monthStart.getDay());
-    const monthLabel = monthStart.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-    const todayIso = toIsoDate(new Date());
-    const itemsByDate = calendarItems.reduce<Map<string, ClientCalendarItem[]>>((map, item) => {
-      const group = map.get(item.date) ?? [];
-      group.push(item);
-      map.set(item.date, group);
-      return map;
-    }, new Map());
-    const monthCells = Array.from({ length: 42 }, (_, index) => {
-      const date = new Date(gridStart);
-      date.setDate(gridStart.getDate() + index);
-      const iso = toIsoDate(date);
-      return {
-        date,
-        iso,
-        isCurrentMonth: date.getMonth() === monthStart.getMonth(),
-        isToday: iso === todayIso,
-        items: itemsByDate.get(iso) ?? [],
-      };
-    });
-    const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const legend = (
-      [
-        { kind: "event", label: "Event", className: "bg-primary" },
-        { kind: "payment", label: "Payment", className: "bg-attention" },
-        { kind: "visit", label: "Site visit", className: "bg-info" },
-        { kind: "approval", label: "Layout approved", className: "bg-success" },
-      ] as const
-    ).filter((entry) => calendarItems.some((item) => item.kind === entry.kind));
-  
-    return (
-      <div className="space-y-5">
-        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
-            <h1 className="text-2xl font-black text-foreground">{monthLabel}</h1>
-            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-              {legend.map((item) => (
-                <span key={item.label} className="inline-flex items-center gap-1.5">
-                  <span className={cn("size-2 rounded-full", item.className)} />
-                  {item.label}
-                </span>
-              ))}
-            </div>
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const cells = buildCalendarMonthGrid(visibleMonth, items.map((item) => ({ id: item.id, eventDate: item.date })), today);
+  const monthItems = items.filter((item) => isDateKeyInMonth(item.date, visibleMonth));
+  const upcoming = items.filter((item) => item.date >= today);
+  const label = monthLabel(visibleMonth);
+  const legend = (Object.keys(KIND) as ClientCalendarItemKind[]).filter((kind) => items.some((item) => item.kind === kind));
+  const viewTitle = portalView ? CLIENT_PORTAL_VIEW_META[portalView]?.title : undefined;
+
+  if (items.length === 0) {
+    return <ClientListEmpty icon={CalendarDays} title="Nothing scheduled yet" description="Event dates, payment due dates, site visits and layout approvals appear here once they're set." />;
+  }
+
+  return (
+    <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <section aria-labelledby="client-calendar-month" className="min-w-0 overflow-hidden rounded-lg border border-border bg-card">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <div className="min-w-0">
+            <h2 id="client-calendar-month" className="text-base font-semibold text-foreground" aria-live="polite">{label}</h2>
+            <p className="text-xs text-muted-foreground">{monthItems.length === 1 ? "1 date this month" : `${monthItems.length} dates this month`}</p>
           </div>
-          <div className="overflow-x-auto">
-            <div className="min-w-[760px]">
-              <div className="grid grid-cols-7 border-b border-border bg-muted/30">
-                {weekdayLabels.map((day) => (
-                  <div key={day} className="border-r border-border px-3 py-2 text-xs font-bold text-muted-foreground last:border-r-0">
-                    {day}
-                  </div>
-                ))}
-              </div>
-              <div className="grid grid-cols-7">
-                {monthCells.map((cell, index) => (
-                  <div
-                    key={cell.iso}
-                    className={cn(
-                      "min-h-[116px] border-b border-r border-border p-2",
-                      (index + 1) % 7 === 0 && "border-r-0",
-                      !cell.isCurrentMonth && "bg-muted/20 text-muted-foreground",
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span
-                        className={cn(
-                          "grid size-7 place-items-center rounded-lg text-xs font-bold",
-                          cell.isToday ? "bg-primary text-primary-foreground" : "text-foreground",
-                          !cell.isCurrentMonth && !cell.isToday && "text-muted-foreground",
-                        )}
-                      >
-                        {cell.date.getDate()}
-                      </span>
-                    </div>
-                    <div className="mt-2 space-y-1">
-                      {cell.items.slice(0, 3).map((item) => (
-                        <div
-                          key={item.id}
-                          className={cn("truncate rounded-md border px-2 py-1 text-2xs font-semibold", calendarItemClass(item))}
-                          title={`${item.title} - ${item.detail}`}
-                        >
-                          {item.title}
-                        </div>
-                      ))}
-                      {cell.items.length > 3 ? (
-                        <p className="px-2 text-2xs font-semibold text-muted-foreground">+{cell.items.length - 3} more</p>
-                      ) : null}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          <div className="flex items-center gap-2" role="group" aria-label="Change month">
+            <button type="button" className={controlClass} onClick={() => setVisibleMonth((current) => shiftMonth(current, -1))} aria-label="Previous month"><ChevronLeft className="size-4" aria-hidden /></button>
+            <button type="button" className={controlClass} onClick={() => setVisibleMonth(monthOfDateKey(today))}>Today</button>
+            <button type="button" className={controlClass} onClick={() => setVisibleMonth((current) => shiftMonth(current, 1))} aria-label="Next month"><ChevronRight className="size-4" aria-hidden /></button>
           </div>
-        </section>
-  
-        <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-base font-black text-foreground">{portalViewMeta?.title ?? "Schedule"}</h2>
-            <span className="text-xs font-semibold text-muted-foreground">
-              {calendarItems.length} item{calendarItems.length === 1 ? "" : "s"}
-            </span>
-          </div>
-          {calendarItems.length ? (
-            <div className="mt-4 divide-y divide-border">
-              {calendarItems.map((item) => (
-                <div key={item.id} className="grid gap-3 py-3 sm:grid-cols-[72px_minmax(0,1fr)_auto] sm:items-center">
-                  <span className="text-sm font-bold text-foreground">{formatCalendarDate(item.date)}</span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-foreground">{item.title}</p>
-                    <p className="mt-1 truncate text-xs text-muted-foreground">{item.detail}</p>
-                  </div>
-                  <StatusBadge status={item.status} label={formatStatusLabel(item.status)} />
-                </div>
-              ))}
-            </div>
+        </header>
+
+        {/* Phone: agenda for the visible month. */}
+        <div className="sm:hidden">
+          {monthItems.length === 0 ? (
+            <p className="px-4 py-5 text-sm text-muted-foreground">Nothing scheduled in {label}.</p>
           ) : (
-            <div className="mt-4 rounded-xl border border-dashed border-border px-6 py-8">
-              <EmptyState icon={CalendarDays} title="No calendar items yet" description="Event dates, payment due dates and site visits appear here once PMCM schedules them." />
-            </div>
+            <ul className="divide-y divide-border">
+              {monthItems.map((item) => (
+                <li key={item.id}>
+                  <Link href={itemHref(item)} className="flex min-h-11 items-start gap-3 px-4 py-3">
+                    <span aria-hidden className={cn("mt-1.5 size-2 shrink-0 rounded-full", KIND[item.kind].dot)} />
+                    <span className="min-w-0">
+                      <span className="block text-xs text-muted-foreground">{formatPortalDate(item.date)} · {KIND[item.kind].label}</span>
+                      <span className="block break-words text-sm font-semibold text-foreground">{item.title}</span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           )}
-        </section>
-      </div>
-    );
+        </div>
+
+        {/* Tablet and desktop: month grid. */}
+        <div className="hidden p-3 sm:block">
+          <div className="grid grid-cols-7 gap-1 text-xs text-muted-foreground" aria-hidden>
+            {WEEKDAYS.map((day) => <span key={day} className="px-2">{day}</span>)}
+          </div>
+          <div className="mt-2 grid grid-cols-7 gap-1" role="grid" aria-label={label}>
+            {cells.map((cell) => {
+              if (cell.kind === "blank") return <div key={cell.key} role="gridcell" aria-hidden className="min-h-24 rounded-md bg-muted/40" />;
+              const cellItems = cell.eventIds.map((id) => byId.get(id)).filter((item): item is ClientCalendarItem => Boolean(item));
+              return (
+                <div key={cell.key} role="gridcell" aria-label={`${formatPortalDate(cell.dateKey)}${cellItems.length ? `, ${cellItems.length} scheduled` : ""}`} className="flex min-h-24 min-w-0 flex-col gap-1 rounded-md border border-border bg-background p-1.5">
+                  <span className={cell.isToday ? "grid size-6 place-items-center rounded-full bg-primary text-xs font-semibold text-primary-foreground" : "px-0.5 text-xs font-semibold text-foreground"}>{cell.day}</span>
+                  {cellItems.slice(0, MAX_PER_CELL).map((item) => (
+                    <Link key={item.id} href={itemHref(item)} title={`${item.title} · ${item.detail}`} className={cn("block min-w-0 truncate rounded px-1.5 py-0.5 text-xs font-medium", KIND[item.kind].chip)}>
+                      {item.title}
+                    </Link>
+                  ))}
+                  {cellItems.length > MAX_PER_CELL ? <span className="px-0.5 text-xs text-muted-foreground">+{cellItems.length - MAX_PER_CELL} more</span> : null}
+                </div>
+              );
+            })}
+          </div>
+          {legend.length > 1 ? (
+            <div className="mt-3 flex flex-wrap gap-4 px-1 text-xs text-muted-foreground">
+              {legend.map((kind) => (
+                <span key={kind} className="inline-flex items-center gap-1.5"><span aria-hidden className={cn("size-2 rounded-full", KIND[kind].dot)} />{KIND[kind].label}</span>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      <ClientListSection id="client-calendar-upcoming" title={viewTitle ?? (upcoming.length ? "Coming up" : "Recent")} count={(upcoming.length ? upcoming : items).length}>
+        {(upcoming.length ? upcoming : [...items].reverse()).slice(0, 8).map((item) => {
+          const status = itemStatus(item, today);
+          return (
+            <ClientCalendarRow key={item.id} item={item} status={status} />
+          );
+        })}
+      </ClientListSection>
+    </div>
+  );
+}
+
+/** Narrow side list: the four-column row would not fit, so date and status share the second line. */
+function ClientCalendarRow({ item, status }: { item: ClientCalendarItem; status: { label: string; tone: ClientRowTone } }) {
+  const Icon = KIND[item.kind].icon;
+  return (
+    <li className="relative flex items-start gap-3 px-4 py-3 transition-colors hover:bg-surface-raised has-[a:focus-visible]:bg-surface-raised">
+      <span aria-hidden className={cn("mt-0.5 grid size-8 shrink-0 place-items-center rounded-md", KIND[item.kind].chip)}><Icon className="size-4" /></span>
+      <span className="min-w-0 flex-1">
+        <Link href={itemHref(item)} className="block truncate text-sm font-semibold text-foreground outline-none after:absolute after:inset-0">{item.title}</Link>
+        <span className="block truncate text-xs text-muted-foreground">{formatPortalDate(item.date)} · {item.detail}</span>
+      </span>
+      <span className={cn("shrink-0 whitespace-nowrap text-xs tabular-nums", status.tone === "urgent" ? "font-semibold text-danger" : status.tone === "attention" ? "font-medium text-attention" : status.tone === "done" ? "text-success" : "text-muted-foreground")}>{status.label}</span>
+    </li>
+  );
 }

@@ -45,9 +45,10 @@ describe("ClientSharedFloorplansView", () => {
 
     expect(screen.getByText("Summit")).toBeTruthy();
     expect(screen.getByText(/Main Hall/)).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Open Submitted snapshot" }).getAttribute("href"))
+    // Only the submitted version is shared, so the row opens it; nothing links to an approved snapshot.
+    expect(screen.getByRole("link", { name: "Summit" }).getAttribute("href"))
       .toBe("/dashboard/shared-floorplans/evt_1/draft_1/submitted");
-    expect(screen.queryByRole("link", { name: "Open Approved snapshot" })).toBeNull();
+    expect(screen.queryAllByRole("link").some((link) => link.getAttribute("href")?.endsWith("/approved"))).toBe(false);
     expect(screen.queryByText(/Billing|Documents|Timeline|Comment/)).toBeNull();
   });
 });

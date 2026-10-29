@@ -12,6 +12,16 @@ import type {
   ProgressCheckpoint,
 } from "./event-progress-types";
 
+/** Stage names for the lifecycle strip, as the client reads them. */
+export const LIFECYCLE_STAGE_LABELS: Record<string, string> = {
+  inquiry: "Inquiry",
+  conforme: "Conforme",
+  briefing_proposal: "Briefing & proposal",
+  planning: "Planning",
+  event_day: "Event day",
+  closure_archive: "Closure",
+};
+
 const STATUS_LABELS: Record<string, string> = {
   inquiry: "Inquiry accepted",
   conforme: "Conforme signed",
@@ -35,7 +45,8 @@ export function deriveLifecycleIndex(
 
   if (event.archived) return 5;
   if (event.status === "event_day" || event.status === "completed") return 4;
-  if (floorPlanApproved) return 3;
+  // Planning starts once the client approves the proposal; an approved floorplan is planning work too.
+  if (floorPlanApproved || event.proposalClientStatus === "approved") return 3;
   if (hasBriefing) return 2;
   if (event.clientPortalStatus === "unlocked") return 1;
   return 0;

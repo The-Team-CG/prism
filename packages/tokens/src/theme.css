@@ -149,6 +149,8 @@
   --color-sidebar-ring: var(--sidebar-ring);
 
   --color-ink: var(--prism-ink);
+  /* Text on ink surfaces; independent of the sidebar, which may be light. */
+  --color-ink-foreground: var(--prism-surface);
   --color-ink-soft: var(--prism-ink-soft);
   --color-page: var(--prism-page);
   --color-surface: var(--prism-surface);

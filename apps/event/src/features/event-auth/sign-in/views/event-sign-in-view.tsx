@@ -2,7 +2,7 @@
 
 import { PrismAccountHelp } from "@prism/ui/account-help";
 import { portalHref } from "@prism/ui/portal-path";
-import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, PrismWrongPortalLinks, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
+import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
 import { FormEvent, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
@@ -14,10 +14,24 @@ import { Label } from "@/app/components/ui/label";
 import { EVENT_PORTAL_POINTS, EVENT_PORTAL_STATEMENT } from "../model/event-portal-copy";
 import { signInSubmitLabel, twoFactorCopy } from "../model/event-sign-in-copy";
 import { eventSignInProgress } from "../model/event-sign-in-steps";
-import { pmcmSupportContactFromEnvironment, portalUrlsFromEnvironment, wrongPortalLinks } from "@/lib/portal-urls";
+import { pmcmSupportContactFromEnvironment } from "@/lib/portal-urls";
 import { useEventSignInViewModel } from "../view-models/use-event-sign-in-view-model";
+import { AuthenticatorCodeInput } from "./authenticator-code-input";
 
 const COPY_FAILED_MESSAGE = "Couldn't copy. Select the key and copy it.";
+
+function AuthenticatorQrCode({ otpauthUri }: { otpauthUri: string }) {
+  return (
+    <div className="flex flex-col items-start gap-3">
+      <div role="img" aria-label="QR code for your authenticator app" className="rounded-md bg-white p-2">
+        <QRCodeSVG value={otpauthUri} size={168} />
+      </div>
+      <a href={otpauthUri} className="text-sm text-primary transition-colors hover:text-primary/80">
+        Open in authenticator app
+      </a>
+    </div>
+  );
+}
 
 function SetupSecretBox({ secret, otpauthUri }: { secret: string; otpauthUri: string | null }) {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
@@ -34,14 +48,7 @@ function SetupSecretBox({ secret, otpauthUri }: { secret: string; otpauthUri: st
   return (
     <div className="flex flex-col gap-4 rounded-lg bg-muted p-4">
       {otpauthUri ? (
-        <div className="flex flex-col items-start gap-3">
-          <div role="img" aria-label="QR code for your authenticator app" className="rounded-md bg-white p-2">
-            <QRCodeSVG value={otpauthUri} size={168} />
-          </div>
-          <a href={otpauthUri} className="text-sm text-primary transition-colors hover:text-primary/80">
-            Open in authenticator app
-          </a>
-        </div>
+        <AuthenticatorQrCode otpauthUri={otpauthUri} />
       ) : null}
       <div>
         <p className="text-sm text-muted-foreground">Or enter this setup key</p>
@@ -61,11 +68,89 @@ function SetupSecretBox({ secret, otpauthUri }: { secret: string; otpauthUri: st
   );
 }
 
+type SignInVm = ReturnType<typeof useEventSignInViewModel>;
+
+function PasswordFields({ vm, active }: { vm: SignInVm; active: boolean }) {
+  return (
+    <div hidden={!active} className="flex flex-col gap-5">
+      <Field>
+        <Label htmlFor="email">Email address</Label>
+        <Input
+          id="email"
+          type="email"
+          autoComplete="username"
+          required={active}
+          value={vm.email}
+          onChange={(e) => vm.setEmail(e.target.value)}
+          placeholder="name@company.com"
+          className={`h-12 rounded-lg bg-card text-base ${PRISM_AUTH_INPUT_CLASS_NAME}`}
+        />
+      </Field>
+
+      <Field>
+        <Label htmlFor="password">Password</Label>
+        <div className="relative">
+          <Input
+            id="password"
+            type={vm.showPassword ? "text" : "password"}
+            autoComplete="current-password"
+            required={active}
+            value={vm.password}
+            onChange={(e) => vm.setPassword(e.target.value)}
+            placeholder="Enter your password"
+            className={`h-12 rounded-lg bg-card pr-12 text-base ${PRISM_AUTH_INPUT_CLASS_NAME}`}
+          />
+          <button
+            type="button"
+            onClick={() => vm.setShowPassword(!vm.showPassword)}
+            className="absolute right-1 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            aria-label={vm.showPassword ? "Hide password" : "Show password"}
+          >
+            {vm.showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+          </button>
+        </div>
+        <a href={portalHref("/password-reset")} className="self-end text-sm text-primary transition-colors hover:text-primary/80">
+          Forgot password?
+        </a>
+      </Field>
+    </div>
+  );
+}
+
+function TwoFactorStep({ vm, title }: { vm: SignInVm; title: string }) {
+  return (
+    <div className="flex flex-col gap-5">
+      <p className="text-base font-semibold text-foreground">{title}</p>
+      {vm.setupSecret ? <SetupSecretBox secret={vm.setupSecret} otpauthUri={vm.otpauthUri} /> : null}
+      {process.env.NODE_ENV === "development" && vm.phase === "verify" ? (
+        <div className="flex flex-col items-start gap-3">
+          <Button type="button" variant="outline" onClick={() => void vm.toggleDevelopmentQr()} disabled={vm.busy} aria-expanded={Boolean(vm.otpauthUri)} aria-controls="development-authenticator-qr">
+            {vm.otpauthUri ? "Hide authenticator QR" : "Show authenticator QR"}
+          </Button>
+          {vm.otpauthUri ? (
+            <div id="development-authenticator-qr" className="rounded-lg bg-muted p-4">
+              <AuthenticatorQrCode otpauthUri={vm.otpauthUri} />
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      <Field>
+        <Label htmlFor="two-factor-code" className="sr-only">Authenticator code</Label>
+        <AuthenticatorCodeInput
+          value={vm.code}
+          onChange={vm.setCode}
+          disabled={vm.busy}
+          invalid={Boolean(vm.error)}
+        />
+      </Field>
+    </div>
+  );
+}
+
 export function EventSignInView() {
   const vm = useEventSignInViewModel();
   const passwordPhase = vm.phase === "password";
   const copy = twoFactorCopy(vm.phase);
-  const otherPortals = wrongPortalLinks("event", portalUrlsFromEnvironment());
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -87,91 +172,23 @@ export function EventSignInView() {
           <p>Authorized PMCM team access only.</p>
           <p>Admin and coordinator accounts only. Other roles have separate portals.</p>
           <PrismAccountHelp contact={pmcmSupportContactFromEnvironment()} topic="PMCM team access" />
-          <PrismWrongPortalLinks links={otherPortals} />
         </>
       }
     >
-      <form className="flex flex-col gap-5" onSubmit={onSubmit}>
-        <div hidden={!passwordPhase} className="flex flex-col gap-5">
-          <Field>
-            <Label htmlFor="email">Email address</Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="username"
-              required={passwordPhase}
-              value={vm.email}
-              onChange={(e) => vm.setEmail(e.target.value)}
-              placeholder="name@company.com"
-              className={`h-12 rounded-lg bg-card text-base ${PRISM_AUTH_INPUT_CLASS_NAME}`}
-            />
-          </Field>
+      <form className="flex flex-col gap-5" onSubmit={onSubmit} noValidate={!passwordPhase}>
+        <PasswordFields vm={vm} active={passwordPhase} />
 
-          <Field>
-            <Label htmlFor="password">Password</Label>
-            <div className="relative">
-              <Input
-                id="password"
-                type={vm.showPassword ? "text" : "password"}
-                autoComplete="current-password"
-                required={passwordPhase}
-                value={vm.password}
-                onChange={(e) => vm.setPassword(e.target.value)}
-                placeholder="Enter your password"
-                className={`h-12 rounded-lg bg-card pr-12 text-base ${PRISM_AUTH_INPUT_CLASS_NAME}`}
-              />
-              <button
-                type="button"
-                onClick={() => vm.setShowPassword(!vm.showPassword)}
-                className="absolute right-1 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                aria-label={vm.showPassword ? "Hide password" : "Show password"}
-              >
-                {vm.showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
-              </button>
-            </div>
-            <a href={portalHref("/password-reset")} className="self-end text-sm text-primary transition-colors hover:text-primary/80">
-              Forgot password?
-            </a>
-          </Field>
-        </div>
-
-        {passwordPhase ? null : (
-          <div className="flex flex-col gap-5">
-            <p className="text-base font-semibold text-foreground">{copy.title}</p>
-            {vm.setupSecret ? <SetupSecretBox secret={vm.setupSecret} otpauthUri={vm.otpauthUri} /> : null}
-            <Field>
-              <Label htmlFor="two-factor-code">Authenticator code</Label>
-              <Input
-                id="two-factor-code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                pattern="[0-9]{6}"
-                maxLength={6}
-                required
-                value={vm.code}
-                onChange={(e) => vm.setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                placeholder="000000"
-                className={`h-12 rounded-lg bg-card text-base tracking-[0.3em] ${PRISM_AUTH_INPUT_CLASS_NAME}`}
-              />
-            </Field>
-          </div>
-        )}
+        {passwordPhase ? null : <TwoFactorStep vm={vm} title={copy.title} />}
 
         {vm.error ? (
-          <Alert variant="destructive" role="alert">
+          <Alert id="event-sign-in-error" variant="destructive" role="alert">
             <AlertDescription>{vm.error}</AlertDescription>
           </Alert>
         ) : null}
 
-        <Button type="submit" disabled={vm.busy} className={prismAuthSubmitClassName("event")}>
+        <Button type="submit" disabled={vm.busy || (!passwordPhase && vm.code.length !== 6)} className={prismAuthSubmitClassName("event")}>
           {signInSubmitLabel(vm.busy, vm.phase)}
         </Button>
-
-        {passwordPhase ? null : (
-          <Button type="button" variant="ghost" onClick={vm.startOver} className="self-start px-0 text-primary">
-            Start over
-          </Button>
-        )}
       </form>
     </PrismAuthShell>
   );

@@ -32,6 +32,7 @@ const SECTION_ROUTES: Partial<Record<DashboardSection, string>> = {
   messages: "/dashboard/messages",
   finance: "/dashboard/finance",
   audit: "/dashboard/audit",
+  privacy: "/dashboard/privacy",
   settings: "/dashboard/settings",
   inquiries: "/dashboard/inquiries",
   "events-list": "/dashboard/events",

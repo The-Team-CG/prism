@@ -34,7 +34,7 @@ describe('OpsAuthController', () => {
     expect(controllerPath(OpsAuthController)).toBe('auth');
   });
 
-  it.each(['login', 'requestPasswordReset', 'consumePasswordReset', 'activateAccount', 'setupTwoFactor', 'verifyTwoFactor', 'requestApproval'] as const)(
+  it.each(['login', 'requestPasswordReset', 'consumePasswordReset', 'activateAccount', 'setupTwoFactor', 'verifyTwoFactor', 'developmentTwoFactorQr', 'requestApproval'] as const)(
     'rate-limits the unauthenticated %s route',
     (handler) => {
       expect(Reflect.getMetadata('__guards__', OpsAuthController.prototype[handler])).toContain(ThrottlerGuard);
@@ -178,12 +178,13 @@ describe('OpsAuthController', () => {
 
 const login = vi.fn(async () => ({ id: 'user_pmcm' }));
 const requestApproval = vi.fn(async () => ({ message: 'If an account exists for this email, PMCM will review the request.' }));
+const getDevelopmentTwoFactorQr = vi.fn(async (_token: string) => ({ otpauthUri: 'otpauth://totp/test' }));
 
 @Module({
   imports: [PublicRateLimitModule],
   controllers: [OpsAuthController],
   providers: [
-    { provide: AuthOperationsService, useValue: { login, requestApproval } },
+    { provide: AuthOperationsService, useValue: { login, requestApproval, getDevelopmentTwoFactorQr } },
     { provide: PasswordResetService, useValue: {} },
     { provide: AccountActivationService, useValue: {} },
     { provide: AccountInvitationService, useValue: {} },
@@ -241,4 +242,19 @@ describe('OpsAuthController public rate limits over HTTP', () => {
       message: 'If an account exists for this email, PMCM will review the request.',
     });
   }, 30_000);
+
+  it('validates the QR challenge body and prevents caching of a successful QR response', async () => {
+    const request = (body: unknown) => fetch(`${baseUrl}/auth/2fa/development-qr`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    expect((await request({})).status).toBe(400);
+    expect(getDevelopmentTwoFactorQr).not.toHaveBeenCalled();
+    const response = await request({ token: 'challenge-token' });
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    await expect(response.json()).resolves.toEqual({ otpauthUri: 'otpauth://totp/test' });
+    expect(getDevelopmentTwoFactorQr).toHaveBeenCalledWith('challenge-token');
+  });
 });

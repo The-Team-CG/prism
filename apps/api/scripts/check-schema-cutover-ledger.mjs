@@ -31,7 +31,7 @@ async function loadLocalMigrations() {
   const migrations = [];
   for (const name of names) {
     const sql = await readFile(join(migrationDirectory, name, 'migration.sql'));
-    const checksumVariants = migrationChecksumVariants(sql);
+    const checksumVariants = migrationChecksumVariants(sql, name);
     migrations.push({ name, checksum: checksumVariants[0], checksumVariants });
   }
   return migrations;

@@ -12,6 +12,7 @@ import type {
   PrismIdentityAccountSummary,
   PrismSignInSession,
   PrismTwoFactorSetup,
+  PrismTwoFactorQr,
   RequestApprovalInput,
   VerifyTwoFactorInput,
 } from "@prism/types";
@@ -26,6 +27,7 @@ export interface EventOpsAuthContract {
     unlockUser(userId: string): Promise<PrismIdentityAccountSummary>;
     resetUserTwoFactor(userId: string): Promise<PrismIdentityAccountSummary>;
     setupTwoFactor(token: string): Promise<PrismTwoFactorSetup>;
+    developmentTwoFactorQr(token: string): Promise<PrismTwoFactorQr>;
     verifyTwoFactor(input: VerifyTwoFactorInput): Promise<PrismSignInSession>;
     requestPasswordReset(
       email: string,

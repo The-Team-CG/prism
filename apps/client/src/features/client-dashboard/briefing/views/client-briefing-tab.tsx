@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import type { PrismAuditLog, PrismBillingStatement, PrismBriefing, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone } from "@prism/types";
 import { DatePicker } from "@prism/ui/components/date-picker";
+import { TimePicker } from "@prism/ui/components/time-picker";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -140,8 +141,14 @@ function BriefingSubmissionForm({ briefing, busy, onSubmit, values, setters }: {
         <label htmlFor="confirmed-date">Confirmed date</label>
         <DatePicker id="confirmed-date" aria-label="Confirmed date" value={values.confirmedDate} onValueChange={setters.setConfirmedDate} className="w-full rounded-xl border-border bg-background px-3 py-2 text-sm font-normal text-foreground" />
       </div>
-      <BriefingField label="Start time" type="time" value={values.confirmedStartTime} onChange={setters.setConfirmedStartTime} />
-      <BriefingField label="End time" type="time" value={values.confirmedEndTime} onChange={setters.setConfirmedEndTime} />
+      <div className="block space-y-1.5 text-xs font-semibold text-muted-foreground">
+        <label htmlFor="confirmed-start-time">Start time</label>
+        <TimePicker id="confirmed-start-time" aria-label="Start time" value={values.confirmedStartTime} onValueChange={setters.setConfirmedStartTime} scrollTo="18:00" className="font-normal" />
+      </div>
+      <div className="block space-y-1.5 text-xs font-semibold text-muted-foreground">
+        <label htmlFor="confirmed-end-time">End time</label>
+        <TimePicker id="confirmed-end-time" aria-label="End time" value={values.confirmedEndTime} onValueChange={setters.setConfirmedEndTime} min={values.confirmedStartTime || undefined} scrollTo={values.confirmedStartTime || "22:00"} className="font-normal" />
+      </div>
       <BriefingField label="Styling budget" type="number" min={0} value={values.stylingBudget} onChange={setters.setStylingBudget} />
     </div>
     <label className="block space-y-1.5 text-xs font-semibold text-muted-foreground">Service requirements <span aria-hidden="true">*</span><textarea required value={values.serviceRequirements} onChange={(event) => setters.setServiceRequirements(event.target.value)} placeholder="One requirement per line" className="min-h-20 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-normal text-foreground" /></label>

@@ -1,6 +1,6 @@
-import { formatPortalDate } from "@prism/ui/format-date";
+import { formatPortalDate, formatPortalTime } from "@prism/ui/format-date";
 import { FormEvent, useEffect, useState } from "react";
-import { QrCode, ShieldCheck, Upload, Users, UserRoundCheck } from "lucide-react";
+import { CheckCircle2, QrCode, Search, ShieldCheck, Upload, Users, UserRoundCheck } from "lucide-react";
 
 import type {
   PrismRegistrationPlatform,
@@ -19,6 +19,8 @@ import type {
 import { GUEST_VERIFICATION_REQUIRED_ROSTER_SOURCES, createRegistrationPlatformSchema, importHeadcountSchema } from "@prism/types";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { Panel } from "@/features/pmcm-kit/primitives";
+import { cx, label } from "@/features/pmcm-kit";
+import { Button } from "@/app/components/ui/button";
 import { RosterImportPanel } from "@/features/registration/roster-import";
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -475,88 +477,378 @@ function HeadcountSection({
   );
 }
 
+type AttendanceFilter = "all" | "no" | "yes";
+
+const ATTENDANCE_FILTERS: ReadonlyArray<{ value: AttendanceFilter; label: string }> = [
+  { value: "all", label: "Everyone" },
+  { value: "no", label: "Not checked in" },
+  { value: "yes", label: "Checked in" },
+];
+
+const VERIFICATION_TONE: Record<string, string> = {
+  pending: "bg-attention-soft text-attention",
+  verified: "bg-success-soft text-success",
+  rejected: "bg-danger-soft text-danger",
+};
+
+function rosterDetails(row: PrismGuestRosterEntry) {
+  return [row.category, row.table ? `Table ${row.table}` : null, row.sourceKey ? `ID ${row.sourceKey}` : null].filter(Boolean).join(" · ") || row.email || row.phone || "No details";
+}
+
 function GuestRosterSection({ eventId, busy, onSearch, onImport, onCheckIn, onVerify }: { eventId: string; busy: boolean; onSearch: (filters?: GuestRosterSearchInput) => Promise<PrismGuestRosterEntry[]>; onImport: (input: ImportGuestRosterInput) => Promise<PrismGuestRosterEntry[]>; onCheckIn: (id: string) => Promise<unknown>; onVerify: (id: string, status: UpdateGuestVerificationInput["status"]) => Promise<unknown> }) {
   const [query, setQuery] = useState("");
   const [eligibility, setEligibility] = useState<"eligible" | "ineligible" | "">("");
-  const [checkedIn, setCheckedIn] = useState<"all" | "yes" | "no">("all");
+  const [checkedIn, setCheckedIn] = useState<AttendanceFilter>("all");
   const [rows, setRows] = useState<PrismGuestRosterEntry[]>([]);
-  async function search() { setRows(await onSearch({ namePrefix: query, eligibility: eligibility || undefined, checkedIn: checkedIn === "all" ? undefined : checkedIn === "yes" })); }
+  const [loading, setLoading] = useState(true);
+  const [importOpen, setImportOpen] = useState(false);
+  const filtered = Boolean(query.trim() || eligibility || checkedIn !== "all");
+
+  async function search() {
+    setLoading(true);
+    try {
+      setRows(await onSearch({ namePrefix: query.trim(), eligibility: eligibility || undefined, checkedIn: checkedIn === "all" ? undefined : checkedIn === "yes" }));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Filters apply as you type; the short delay keeps typing from firing a request per keystroke.
+  useEffect(() => {
+    const timer = window.setTimeout(() => void search(), 250);
+    return () => window.clearTimeout(timer);
+  }, [eventId, query, eligibility, checkedIn]);
+
   async function updateVerification(id: string, status: UpdateGuestVerificationInput["status"]) { await onVerify(id, status); await search(); }
   async function checkIn(id: string) { await onCheckIn(id); await search(); }
-  return <Panel title="Guest roster and registration desk" icon={UserRoundCheck}><div className="flex flex-col gap-3"><p className="text-sm text-muted-foreground">PMCM imports authoritative guest rows. Coordinators add walk-ins to this roster pending verification; verified walk-ins can then be checked in by registration staff.</p><RosterImportPanel busy={busy} onImport={onImport} onImported={setRows} /><div className="flex flex-wrap gap-2"><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void search(); }} aria-label="Search guests by name" className="h-10 min-w-48 flex-1 rounded-md border border-border bg-background px-3 text-sm" placeholder="Name prefix"/><select value={eligibility} onChange={(e) => setEligibility(e.target.value as typeof eligibility)} className="h-10 rounded-md border border-border bg-background px-3 text-sm"><option value="">All eligibility</option><option value="eligible">Eligible</option><option value="ineligible">Ineligible</option></select><select value={checkedIn} onChange={(e) => setCheckedIn(e.target.value as typeof checkedIn)} className="h-10 rounded-md border border-border bg-background px-3 text-sm"><option value="all">All attendance</option><option value="yes">Checked in</option><option value="no">Not checked in</option></select><button type="button" onClick={() => void search()} className="rounded-lg border border-border px-4 py-2 text-sm font-bold">Search</button></div><div className="divide-y divide-border border-y border-border">{rows.map((row) => <div key={`${eventId}-${row.id}`} className="flex items-center justify-between gap-2 py-2 text-sm"><span><strong>{row.guestName}</strong><span className="ml-2 text-muted-foreground">{row.category || row.table || row.email || row.phone || row.sourceKey}</span></span><div className="flex items-center gap-2"><select aria-label={`Verification for ${row.guestName}`} value={row.verificationStatus} disabled={busy || Boolean(row.checkedInAt)} onChange={(event) => void updateVerification(row.id, event.target.value as UpdateGuestVerificationInput["status"])} className="h-8 rounded-md border border-border bg-background px-2 text-xs"><option value="pending">Pending</option><option value="verified">Verified</option><option value="rejected">Rejected</option></select><button type="button" disabled={busy || !canCheckInRosterRow(row)} onClick={() => void checkIn(row.id)} className="rounded-md border border-border px-3 py-1.5 text-xs font-bold">Check in</button></div></div>)}{rows.length === 0 ? <p className="py-3 text-sm text-muted-foreground">No roster rows match.</p> : null}</div></div></Panel>;
+
+  return (
+    <Panel title="Guest roster" icon={UserRoundCheck}>
+      <div className="flex flex-col gap-4">
+        <RosterToolbar
+          query={query}
+          onQuery={setQuery}
+          checkedIn={checkedIn}
+          onCheckedIn={setCheckedIn}
+          eligibility={eligibility}
+          onEligibility={setEligibility}
+          importOpen={importOpen}
+          onToggleImport={() => setImportOpen((open) => !open)}
+        />
+
+        {importOpen ? (
+          <RosterImportPanel
+            busy={busy}
+            onImport={onImport}
+            onImported={(imported) => {
+              setRows(imported);
+              setImportOpen(false);
+            }}
+          />
+        ) : null}
+
+        <div className="overflow-hidden rounded-lg border border-border bg-white">
+          <div className="flex items-center justify-between border-b border-border px-4 py-2 text-xs text-muted-foreground">
+            <span role="status">{loading ? "Loading guests…" : `${rows.length} ${rows.length === 1 ? "guest" : "guests"}${filtered ? " match" : ""}`}</span>
+            <span className="hidden sm:inline">Walk-ins need verification before check-in</span>
+          </div>
+          {rows.length === 0 && !loading ? (
+            <RosterEmpty filtered={filtered} onImport={() => setImportOpen(true)} />
+          ) : (
+            <ul className="divide-y divide-border">
+              {rows.map((row) => (
+                <RosterRow key={`${eventId}-${row.id}`} row={row} busy={busy} onVerify={updateVerification} onCheckIn={checkIn} />
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </Panel>
+  );
 }
 
-function WalkInPolicySection({ policy, threshold, busy, onUpdate }: { policy: "closed" | "open" | "threshold"; threshold: number; busy: boolean; onUpdate: (input: UpdateWalkInPolicyInput) => void }) {
-  const [selectedPolicy, setSelectedPolicy] = useState(policy);
-  const [selectedThreshold, setSelectedThreshold] = useState(String(threshold));
-  return <Panel title="Walk-in policy" icon={Users}><div className="flex flex-col gap-3"><p className="text-sm text-muted-foreground">PMCM owns this event setting. Threshold walk-ins are admitted only while checked-in attendance is below the limit; the API enforces the limit during check-in.</p><div className="flex flex-wrap items-end gap-3"><label className="flex min-w-44 flex-col gap-1 text-xs font-semibold text-muted-foreground">Policy<select value={selectedPolicy} onChange={(event) => setSelectedPolicy(event.target.value as typeof selectedPolicy)} className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground"><option value="closed">Closed</option><option value="open">Open</option><option value="threshold">Threshold</option></select></label>{selectedPolicy === "threshold" ? <label className="flex w-32 flex-col gap-1 text-xs font-semibold text-muted-foreground">Limit<input type="number" min={1} value={selectedThreshold} onChange={(event) => setSelectedThreshold(event.target.value)} className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground" /></label> : null}<button type="button" disabled={busy} onClick={() => onUpdate({ policy: selectedPolicy, ...(selectedPolicy === "threshold" || selectedThreshold !== String(threshold) ? { threshold: Number(selectedThreshold) } : {}) })} className="h-10 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground">Save policy</button></div></div></Panel>;
+type EligibilityFilter = "eligible" | "ineligible" | "";
+
+function RosterToolbar({
+  query,
+  onQuery,
+  checkedIn,
+  onCheckedIn,
+  eligibility,
+  onEligibility,
+  importOpen,
+  onToggleImport,
+}: {
+  query: string;
+  onQuery: (value: string) => void;
+  checkedIn: AttendanceFilter;
+  onCheckedIn: (value: AttendanceFilter) => void;
+  eligibility: EligibilityFilter;
+  onEligibility: (value: EligibilityFilter) => void;
+  importOpen: boolean;
+  onToggleImport: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <label className="relative min-w-52 flex-1">
+        <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={query}
+          onChange={(e) => onQuery(e.target.value)}
+          aria-label="Search guests by name"
+          placeholder="Search guests by name"
+          className="h-10 w-full rounded-md border border-border bg-white pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+        />
+      </label>
+      <div role="group" aria-label="Attendance" className="flex gap-1 rounded-md bg-muted p-1">
+        {ATTENDANCE_FILTERS.map((filter) => (
+          <button
+            key={filter.value}
+            type="button"
+            aria-pressed={checkedIn === filter.value}
+            onClick={() => onCheckedIn(filter.value)}
+            className={cx("rounded px-2.5 py-1 text-xs font-medium transition-colors", checkedIn === filter.value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+          >
+            {filter.label}
+          </button>
+        ))}
+      </div>
+      <select
+        value={eligibility}
+        onChange={(e) => onEligibility(e.target.value as EligibilityFilter)}
+        aria-label="Eligibility"
+        className="h-10 rounded-md border border-border bg-white px-3 text-sm text-foreground"
+      >
+        <option value="">Any eligibility</option>
+        <option value="eligible">Eligible</option>
+        <option value="ineligible">Not eligible</option>
+      </select>
+      <Button type="button" variant={importOpen ? "outline" : "default"} size="sm" className="h-10" onClick={onToggleImport} aria-expanded={importOpen}>
+        <Upload className="size-4" aria-hidden /> {importOpen ? "Close import" : "Import guests"}
+      </Button>
+    </div>
+  );
 }
 
-function GuestPrivacyClassificationSection({
-  classification,
+function RosterEmpty({ filtered, onImport }: { filtered: boolean; onImport: () => void }) {
+  return (
+    <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
+      <span className="grid size-10 place-items-center rounded-full bg-muted text-muted-foreground"><UserRoundCheck className="size-5" aria-hidden /></span>
+      <p className="text-sm font-semibold text-foreground">{filtered ? "No guest matches these filters" : "No guests on the roster yet"}</p>
+      <p className="max-w-sm text-sm text-muted-foreground">
+        {filtered ? "Try another name or clear the filters." : "Import the guest list from a spreadsheet. Coordinators can add walk-ins on the day."}
+      </p>
+      {filtered ? null : (
+        <Button type="button" size="sm" className="mt-1" onClick={onImport}>
+          <Upload className="size-4" aria-hidden /> Import guests
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function RosterRow({
+  row,
   busy,
-  onUpdate,
+  onVerify,
+  onCheckIn,
+}: {
+  row: PrismGuestRosterEntry;
+  busy: boolean;
+  onVerify: (id: string, status: UpdateGuestVerificationInput["status"]) => Promise<void>;
+  onCheckIn: (id: string) => Promise<void>;
+}) {
+  const needsVerification = GUEST_VERIFICATION_REQUIRED_ROSTER_SOURCES.includes(row.source);
+  return (
+    <li className={cx("grid gap-2 px-4 py-2.5 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center", row.withdrawnAt ? "opacity-60" : "")}>
+      <div className="min-w-0">
+        <p className="flex flex-wrap items-center gap-2">
+          <span className="truncate font-semibold text-foreground">{row.guestName}</span>
+          {needsVerification ? (
+            <span className={cx("rounded px-1.5 py-0.5 text-xs font-medium", VERIFICATION_TONE[row.verificationStatus] ?? "bg-muted text-muted-foreground")}>
+              Walk-in · {label(row.verificationStatus)}
+            </span>
+          ) : null}
+          {row.withdrawnAt ? <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">Withdrawn</span> : null}
+        </p>
+        <p className="truncate text-xs text-muted-foreground">{rosterDetails(row)}</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+        {needsVerification && !row.checkedInAt ? (
+          <select
+            aria-label={`Verification for ${row.guestName}`}
+            value={row.verificationStatus}
+            disabled={busy}
+            onChange={(event) => void onVerify(row.id, event.target.value as UpdateGuestVerificationInput["status"])}
+            className="h-8 rounded-md border border-border bg-white px-2 text-xs"
+          >
+            <option value="pending">Pending check</option>
+            <option value="verified">Verified</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        ) : null}
+        {row.checkedInAt ? (
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-success">
+            <CheckCircle2 className="size-3.5" aria-hidden /> Checked in {formatPortalTime(row.checkedInAt)}
+          </span>
+        ) : (
+          <Button type="button" size="sm" variant="outline" disabled={busy || !canCheckInRosterRow(row)} onClick={() => void onCheckIn(row.id)}>
+            Check in
+          </Button>
+        )}
+      </div>
+    </li>
+  );
+}
+
+const PRIVACY_OPTIONS: ReadonlyArray<{ value: GuestPrivacyClassification; label: string; detail: string }> = [
+  { value: "public", label: "Public", detail: "Anyone with the guest code can register." },
+  { value: "private", label: "Private", detail: "Guests not on the roster need staff verification." },
+  { value: "unclassified", label: "Not set", detail: "Decide later. Verification follows the briefing guest count." },
+];
+
+const WALK_IN_OPTIONS: ReadonlyArray<{ value: "closed" | "open" | "threshold"; label: string; detail: string }> = [
+  { value: "closed", label: "Closed", detail: "Only rostered guests can check in." },
+  { value: "open", label: "Open", detail: "Walk-ins are admitted after verification." },
+  { value: "threshold", label: "Up to a limit", detail: "Walk-ins stop once attendance reaches the limit." },
+];
+
+function ChoiceCards<T extends string>({ name, legend, options, value, onChange, disabled }: { name: string; legend: string; options: ReadonlyArray<{ value: T; label: string; detail: string }>; value: T; onChange: (value: T) => void; disabled: boolean }) {
+  return (
+    <fieldset>
+      <legend className="text-sm font-semibold text-foreground">{legend}</legend>
+      <div className="mt-2 grid gap-2 sm:grid-cols-3">
+        {options.map((option) => {
+          const checked = option.value === value;
+          return (
+            <label
+              key={option.value}
+              className={cx(
+                "relative flex cursor-pointer flex-col gap-0.5 rounded-lg border px-3 py-2.5 transition-colors has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-ring/40",
+                checked ? "border-primary bg-primary/5" : "border-border bg-white hover:border-primary/40",
+                disabled ? "cursor-not-allowed opacity-60" : "",
+              )}
+            >
+              <input type="radio" name={name} value={option.value} checked={checked} disabled={disabled} onChange={() => onChange(option.value)} className="sr-only" />
+              <span className="flex items-center justify-between gap-2 text-sm font-semibold text-foreground">
+                {option.label}
+                <span aria-hidden className={cx("grid size-4 place-items-center rounded-full border", checked ? "border-primary" : "border-border")}>
+                  {checked ? <span className="size-2 rounded-full bg-primary" /> : null}
+                </span>
+              </span>
+              <span className="text-xs text-muted-foreground">{option.detail}</span>
+            </label>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
+/** Who may get in on the day: the event's privacy and its walk-in rule, saved together. */
+type WalkInPolicy = "closed" | "open" | "threshold";
+type AdmissionMessage = { tone: "success" | "error"; text: string } | null;
+
+/** What the admission form would change, and whether the walk-in limit can be saved. */
+function admissionChanges(saved: { classification: GuestPrivacyClassification; policy: WalkInPolicy; threshold: number }, draft: { privacy: GuestPrivacyClassification; walkIn: WalkInPolicy; limit: string }) {
+  const limited = draft.walkIn === "threshold";
+  return {
+    privacyChanged: draft.privacy !== saved.classification,
+    walkInChanged: draft.walkIn !== saved.policy || (limited && draft.limit !== String(saved.threshold)),
+    limitInvalid: limited && !(Number(draft.limit) >= 1),
+  };
+}
+
+function WalkInLimitField({ limit, invalid, onChange }: { limit: string; invalid: boolean; onChange: (value: string) => void }) {
+  return (
+    <label className="mt-3 flex w-fit items-center gap-2 text-sm text-foreground">
+      Stop walk-ins at
+      <input
+        type="number"
+        min={1}
+        value={limit}
+        onChange={(event) => onChange(event.target.value)}
+        aria-invalid={invalid}
+        className="h-9 w-24 rounded-md border border-border bg-white px-3 text-sm tabular-nums"
+      />
+      checked-in guests
+    </label>
+  );
+}
+
+function AdmissionSaveBar({ disabled, saving, dirty, message, onSave }: { disabled: boolean; saving: boolean; dirty: boolean; message: AdmissionMessage; onSave: () => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+      <Button type="button" disabled={disabled} onClick={onSave}>{saving ? "Saving…" : "Save changes"}</Button>
+      {message ? (
+        <span role={message.tone === "error" ? "alert" : "status"} className={cx("text-sm", message.tone === "error" ? "text-danger" : "text-success")}>{message.text}</span>
+      ) : dirty ? (
+        <span className="text-sm text-muted-foreground">Unsaved changes</span>
+      ) : null}
+    </div>
+  );
+}
+
+function GuestAdmissionSection({
+  classification,
+  policy,
+  threshold,
+  busy,
+  onUpdateClassification,
+  onUpdatePolicy,
 }: {
   classification: GuestPrivacyClassification;
+  policy: WalkInPolicy;
+  threshold: number;
   busy: boolean;
-  onUpdate: (input: UpdateGuestPrivacyClassificationInput) => Promise<boolean>;
+  onUpdateClassification: (input: UpdateGuestPrivacyClassificationInput) => Promise<boolean>;
+  onUpdatePolicy: (input: UpdateWalkInPolicyInput) => void;
 }) {
-  const [selected, setSelected] = useState(classification);
+  const [privacy, setPrivacy] = useState(classification);
+  const [walkIn, setWalkIn] = useState(policy);
+  const [limit, setLimit] = useState(String(threshold));
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<AdmissionMessage>(null);
 
-  useEffect(() => {
-    setSelected(classification);
-    setMessage(null);
-  }, [classification]);
+  useEffect(() => setPrivacy(classification), [classification]);
+  useEffect(() => setWalkIn(policy), [policy]);
+  useEffect(() => setLimit(String(threshold)), [threshold]);
+
+  const { privacyChanged, walkInChanged, limitInvalid } = admissionChanges({ classification, policy, threshold }, { privacy, walkIn, limit });
+  const locked = busy || saving;
 
   async function save() {
     setSaving(true);
     setMessage(null);
     try {
-      const saved = await onUpdate({ classification: selected });
-      setMessage(saved ? "Privacy classification saved." : "Unable to save privacy classification.");
+      if (privacyChanged && !(await onUpdateClassification({ classification: privacy }))) {
+        setMessage({ tone: "error", text: "Couldn't save the privacy setting. Try again." });
+        return;
+      }
+      if (walkInChanged) onUpdatePolicy({ policy: walkIn, ...(walkIn === "threshold" ? { threshold: Number(limit) } : {}) });
+      setMessage({ tone: "success", text: "Admission settings saved." });
     } catch {
-      setMessage("Unable to save privacy classification.");
+      setMessage({ tone: "error", text: "Couldn't save admission settings. Try again." });
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <Panel title="Event privacy classification" icon={ShieldCheck}>
-      <div className="flex flex-col gap-3">
-        <p className="text-sm text-muted-foreground">
-          Set the event privacy status used with the confirmed briefing guest count to determine
-          whether unregistered guest submissions need staff verification.
-        </p>
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="flex min-w-44 flex-col gap-1 text-xs font-semibold text-muted-foreground">
-            Event privacy
-            <select
-              value={selected}
-              onChange={(event) => setSelected(event.target.value as GuestPrivacyClassification)}
-              className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground"
-            >
-              <option value="unclassified">Unclassified</option>
-              <option value="private">Private</option>
-              <option value="public">Public</option>
-            </select>
-          </label>
-          <button
-            type="button"
-            disabled={busy || saving}
-            onClick={() => void save()}
-            className="h-10 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground"
-          >
-            {saving ? "Saving…" : "Save privacy classification"}
-          </button>
-          {message ? (
-            <span role={message.startsWith("Unable") ? "alert" : "status"} className="self-center text-sm text-muted-foreground">
-              {message}
-            </span>
-          ) : null}
+    <Panel title="Guest admission" icon={ShieldCheck}>
+      <div className="flex flex-col gap-5">
+        <ChoiceCards name="guest-privacy" legend="Event privacy" options={PRIVACY_OPTIONS} value={privacy} onChange={setPrivacy} disabled={locked} />
+        <div>
+          <ChoiceCards name="walk-in-policy" legend="Walk-ins" options={WALK_IN_OPTIONS} value={walkIn} onChange={setWalkIn} disabled={locked} />
+          {walkIn === "threshold" ? <WalkInLimitField limit={limit} invalid={limitInvalid} onChange={setLimit} /> : null}
         </div>
+        <AdmissionSaveBar
+          disabled={locked || limitInvalid || !(privacyChanged || walkInChanged)}
+          saving={saving}
+          dirty={privacyChanged || walkInChanged}
+          message={message}
+          onSave={() => void save()}
+        />
       </div>
     </Panel>
   );
@@ -614,14 +906,16 @@ export function EventRegistrationTab({
         onUpsert={onUpsert}
         onUpdate={onUpdate}
       />
-      <GuestPrivacyClassificationSection
-        classification={guestPrivacyClassification}
-        busy={busy}
-        onUpdate={onUpdateGuestPrivacyClassification}
-      />
-      <WalkInPolicySection policy={walkInPolicy} threshold={walkInThreshold} busy={busy} onUpdate={onUpdateWalkInPolicy} />
-      {platform ? <HeadcountSection platform={platform} busy={busy} onImportHeadcount={onImportHeadcount} /> : null}
       <GuestRosterSection eventId={eventId} busy={busy} onSearch={onSearchRoster} onImport={onImportRoster} onCheckIn={onCheckInRoster} onVerify={onVerifyRoster} />
+      <GuestAdmissionSection
+        classification={guestPrivacyClassification}
+        policy={walkInPolicy}
+        threshold={walkInThreshold}
+        busy={busy}
+        onUpdateClassification={onUpdateGuestPrivacyClassification}
+        onUpdatePolicy={onUpdateWalkInPolicy}
+      />
+      {platform ? <HeadcountSection platform={platform} busy={busy} onImportHeadcount={onImportHeadcount} /> : null}
     </div>
   );
 }

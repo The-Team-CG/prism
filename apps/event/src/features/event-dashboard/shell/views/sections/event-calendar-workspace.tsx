@@ -13,7 +13,7 @@ import {
   monthOfDateKey,
   shiftMonth,
   type CalendarMonth,
-} from "../../model/event-calendar-grid";
+} from "@prism/ui/calendar-grid";
 import { Card, CardBody, CardHeader } from "./shell-ui";
 
 const WEEKDAYS = [

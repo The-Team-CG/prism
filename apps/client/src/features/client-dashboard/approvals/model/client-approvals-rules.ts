@@ -1,11 +1,13 @@
 import type { PrismBillingStatement, PrismDocument, PrismEvent, PrismFloorPlanDraft } from "@prism/types";
-import type { ClientPortalView } from "../../workspace/model/client-dashboard-types";
+import type { ClientDashboardRoute, ClientPortalView } from "../../workspace/model/client-dashboard-types";
 import { formatStatusLabel } from "../../workspace/model/client-dashboard-view-rules";
 
 export type ApprovalItem = {
   title: string;
   detail: string;
   status: string;
+  /** Where in the event workspace this approval is reviewed. */
+  route: ClientDashboardRoute;
 };
 
 function contractDocuments(documents: PrismDocument[]) {
@@ -30,6 +32,7 @@ export function buildApprovalItems(
             ? "A revision was requested. PMCM will update the package."
             : "Review the proposal package when briefing and billing are ready.",
       status: selectedEvent.proposalClientStatus ?? "pending",
+      route: "proposal",
     },
     {
       title: "Contracts",
@@ -37,21 +40,25 @@ export function buildApprovalItems(
         ? "Contract files are available for this event."
         : "Contracts will appear after PMCM uploads them.",
       status: contracts.length ? "approved" : "pending",
+      route: "documents",
     },
     {
       title: "Quotations",
       detail: billing ? `${billing.number} is linked to the approved proposal package.` : "Quotation and billing details are being prepared.",
       status: billing?.status ?? "pending",
+      route: "billing",
     },
     {
       title: "Layouts / Designs",
       detail: officialDraft ? `Official layout is ${formatStatusLabel(officialDraft.status)}.` : "PMCM has not published an official layout yet.",
       status: officialDraft?.status ?? "pending",
+      route: "floorplan",
     },
     {
       title: "Final Confirmation",
       detail: selectedEvent.readiness ? `Readiness is ${formatStatusLabel(selectedEvent.readiness)}.` : "Final confirmation is pending.",
       status: selectedEvent.readiness ?? selectedEvent.status,
+      route: "overview",
     },
   ];
 }

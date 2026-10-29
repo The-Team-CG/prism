@@ -223,6 +223,27 @@ export function useEventDashboardShellViewModel({
     }
   }
 
+  /**
+   * An empty official draft for events with no saved template yet. The room starts at 40 m × 30 m and the
+   * briefing's venue and guest count carry over; PMCM resizes the room in the editor.
+   */
+  async function createBlankDraft() {
+    if (!selectedEvent) return;
+    const draft = await commands.createFloorPlanDraft(selectedEvent.id, {
+      name: `${selectedEvent.eventName} official layout`,
+      sourceType: "blank",
+      venue: briefing?.venue || selectedEvent.venue || selectedEvent.eventName,
+      width: 40,
+      height: 30,
+      gridSize: 1,
+      pax: briefing?.guestCount,
+      objects: [],
+      guests: [],
+      suppliers: [],
+    });
+    await openEditor(selectedEvent, draft);
+  }
+
   async function createTemplateDraft(template: FloorPlanTemplate) {
     if (!selectedEvent) return;
     const draft = await commands.createFloorPlanDraft(selectedEvent.id, {
@@ -364,6 +385,7 @@ export function useEventDashboardShellViewModel({
     run,
     runLiveOps,
     createTemplateDraft,
+    createBlankDraft,
     openEditor,
     navigateEvent,
     navigateClient,

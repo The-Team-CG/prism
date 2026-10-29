@@ -153,10 +153,8 @@ export function useEventDashboardWorkspaceViewModel({
 
   useEffect(() => {
     if (!session || session.role !== "pmcm-admin") return;
-    if (!sectionNeedsPmcmWorkspaceState(section)) {
-      setState(null);
-      return;
-    }
+    // Scoped sections don't read the broad workspace; keep any loaded copy so the outgoing page can finish rendering.
+    if (!sectionNeedsPmcmWorkspaceState(section)) return;
     const cached = getCachedPmcmState();
     if (cached) setState(cached.value);
     if (cached && isDashboardCacheFresh(cached.loadedAt)) return;

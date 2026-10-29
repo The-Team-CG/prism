@@ -1,5 +1,6 @@
-import { useId } from "react";
-import { ChevronRight, Download } from "lucide-react";
+import { useId, useState } from "react";
+import { ChevronRight, Download, FileUp } from "lucide-react";
+import { cx } from "@/features/pmcm-kit";
 import type { ImportGuestRosterInput, PrismGuestRosterEntry } from "@prism/types";
 import { ROSTER_COLUMN_LABELS, ROSTER_TEMPLATE_COLUMNS, buildRosterTemplateCsv, type RosterColumn } from "../model/roster-spreadsheet";
 import { useRosterImportViewModel } from "../view-models/use-roster-import-view-model";
@@ -19,6 +20,59 @@ function pickRosterFile(input: HTMLInputElement, loadFile: (file: File) => Promi
   input.value = "";
 }
 
+/** Drop or choose a CSV; the dashed area highlights while a file is dragged over it. */
+function RosterDropZone({ disabled, onFile }: { disabled: boolean; onFile: (file: File) => void }) {
+  const [dragging, setDragging] = useState(false);
+  return (
+  <label
+    onDragOver={(event) => {
+      event.preventDefault();
+      setDragging(true);
+    }}
+    onDragLeave={() => setDragging(false)}
+    onDrop={(event) => {
+      event.preventDefault();
+      setDragging(false);
+      const file = event.dataTransfer.files?.[0];
+      if (file && !disabled) onFile(file);
+    }}
+    className={cx(
+      "mt-3 flex cursor-pointer flex-col items-center gap-1 rounded-lg border-2 border-dashed px-4 py-5 text-center transition-colors has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-ring/40",
+      dragging ? "border-primary bg-primary/5" : "border-border bg-white hover:border-primary/40",
+      disabled ? "cursor-not-allowed opacity-60" : "",
+    )}
+  >
+    <FileUp className="size-5 text-primary" aria-hidden />
+    <span className="text-sm font-medium text-foreground">Drop a CSV here, or <span className="text-primary">choose a file</span></span>
+    <span className="text-xs text-muted-foreground">CSV or TSV exported from Excel or Google Sheets</span>
+    <input
+      type="file"
+      accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values"
+      disabled={disabled}
+      onChange={(event) => pickRosterFile(event.target, onFile)}
+      className="sr-only"
+    />
+  </label>
+  );
+}
+
+function RosterImportActions({ disabled, payloadRows, errorCount, onImport }: { disabled: boolean; payloadRows: number; errorCount: number; onImport: () => void }) {
+  return (
+  <div className="mt-3 flex flex-wrap items-center gap-3">
+    <button
+      type="button"
+      disabled={disabled || payloadRows === 0}
+      onClick={onImport}
+      className="h-10 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      {payloadRows ? `Import ${payloadRows} ${payloadRows === 1 ? "guest" : "guests"}` : "Import guests"}
+    </button>
+    {payloadRows ? null : <span className="text-xs text-muted-foreground">Add a file or paste rows to see a preview.</span>}
+    {errorCount > 0 ? <span className="text-xs text-muted-foreground">Fix every flagged row before importing.</span> : null}
+  </div>
+  );
+}
+
 export function RosterImportPanel({
   busy,
   onImport,
@@ -34,49 +88,43 @@ export function RosterImportPanel({
   const disabled = busy || vm.submitting;
 
   return (
-    <section aria-labelledby={`${ids}-title`} className="rounded-md border border-border p-3 sm:p-4">
+    <section aria-labelledby={`${ids}-title`} className="rounded-lg border border-border bg-surface-raised/60 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 id={`${ids}-title`} className="text-base font-semibold text-foreground">Import guest roster</h3>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Paste rows from a spreadsheet with a header row. Required columns: guest name and guest ID. Category and table are optional. If a header is not recognised, match it below.
-          </p>
+          <h3 id={`${ids}-title`} className="text-sm font-semibold text-foreground">Import guests</h3>
+          <p className="mt-0.5 text-sm text-muted-foreground">Needs a guest name and guest ID for each row. Category and table are optional.</p>
         </div>
-        <a href={TEMPLATE_HREF} download="guest-roster-template.csv" className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-border px-3 text-sm font-semibold text-foreground no-underline">
-          <Download className="size-4" aria-hidden /> Download template
+        <a href={TEMPLATE_HREF} download="guest-roster-template.csv" className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-primary no-underline hover:bg-primary/10">
+          <Download className="size-4" aria-hidden /> Template
         </a>
       </div>
 
-      <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
-        <label className="grid gap-1 text-sm">
-          <span className="text-xs font-medium text-muted-foreground">Source</span>
-          <input value={vm.source} onChange={(event) => vm.setSource(event.target.value)} aria-invalid={Boolean(vm.sourceError)} aria-describedby={`${ids}-source-help`} className="h-11 rounded-md border border-border bg-background px-3 text-sm" />
-          <span id={`${ids}-source-help`} className={vm.sourceError ? "text-xs text-danger" : "text-xs text-muted-foreground"}>
-            {vm.sourceError ?? "Re-importing the same source replaces it: guests missing from the new file are withdrawn."}
-          </span>
-        </label>
-        <label className="grid gap-1 text-sm">
-          <span className="text-xs font-medium text-muted-foreground">CSV file (optional)</span>
-          <input
-            type="file"
-            accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values"
-            disabled={disabled}
-            onChange={(event) => pickRosterFile(event.target, vm.loadFile)}
-            className="min-h-11 text-sm file:mr-3 file:min-h-11 file:rounded-md file:border file:border-border file:bg-background file:px-3 file:text-sm file:font-semibold"
-          />
-        </label>
-      </div>
+      <RosterDropZone disabled={disabled} onFile={(file) => void vm.loadFile(file)} />
 
-      <label className="mt-3 grid gap-1 text-sm">
-        <span className="text-xs font-medium text-muted-foreground">Spreadsheet rows</span>
+      <label className="mt-3 grid gap-1.5 text-sm">
+        <span className="text-xs font-medium text-muted-foreground">Or paste rows, header first</span>
         <textarea
           value={vm.sheet}
           onChange={(event) => vm.setSheet(event.target.value)}
-          rows={5}
+          rows={4}
           spellCheck={false}
-          className="rounded-md border border-border bg-background px-3 py-2 font-mono text-xs"
+          className="rounded-md border border-border bg-white px-3 py-2 font-mono text-xs outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
           placeholder={`${ROSTER_TEMPLATE_COLUMNS.slice(0, 4).map((column) => ROSTER_COLUMN_LABELS[column]).join(",")}\nAda Lovelace,VIP,T1,A-001`}
         />
+      </label>
+
+      <label className="mt-3 grid max-w-sm gap-1.5 text-sm">
+        <span className="text-xs font-medium text-muted-foreground">List name</span>
+        <input
+          value={vm.source}
+          onChange={(event) => vm.setSource(event.target.value)}
+          aria-invalid={Boolean(vm.sourceError)}
+          aria-describedby={`${ids}-source-help`}
+          className="h-9 rounded-md border border-border bg-white px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+        />
+        <span id={`${ids}-source-help`} className={vm.sourceError ? "text-xs text-danger" : "text-xs text-muted-foreground"}>
+          {vm.sourceError ?? "Importing again under the same name replaces that list. Guests missing from the new file are withdrawn."}
+        </span>
       </label>
 
       <RosterColumnMatching preview={preview} onMatch={vm.matchColumn} disabled={disabled} />
@@ -87,24 +135,14 @@ export function RosterImportPanel({
 
       <RosterPreview preview={preview} />
 
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          disabled={disabled || !vm.payload}
-          onClick={() => void vm.importSheet()}
-          className="min-h-11 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-        >
-          {vm.payload ? `Import ${vm.payload.rows.length} guests` : "Import roster"}
-        </button>
-        {preview.errorCount > 0 ? <span className="text-xs text-muted-foreground">Fix every flagged row before importing.</span> : null}
-      </div>
+      <RosterImportActions disabled={disabled} payloadRows={vm.payload?.rows.length ?? 0} errorCount={preview.errorCount} onImport={() => void vm.importSheet()} />
 
       <RosterImportMessage message={vm.message} />
 
       <details className="group mt-3 border-t border-border pt-2">
         <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-semibold text-foreground">
           <ChevronRight className="size-4 transition-transform group-open:rotate-90" aria-hidden />
-          Advanced: import raw JSON
+          Advanced: paste JSON
         </summary>
         <label className="grid gap-1 text-sm">
           <span className="text-xs font-medium text-muted-foreground">JSON payload</span>
@@ -113,11 +151,11 @@ export function RosterImportPanel({
             onChange={(event) => vm.setJson(event.target.value)}
             rows={4}
             spellCheck={false}
-            className="rounded-md border border-border bg-background px-3 py-2 font-mono text-xs"
+            className="rounded-md border border-border bg-white px-3 py-2 font-mono text-xs"
             placeholder={'{"source":"xperto","rows":[{"sourceKey":"A-1","guestName":"Ada Lovelace","category":"VIP","table":"T1"}]}'}
           />
         </label>
-        <button type="button" disabled={disabled || !vm.json.trim()} onClick={() => void vm.importJson()} className="mt-2 min-h-11 rounded-md border border-border px-4 text-sm font-semibold disabled:opacity-60">
+        <button type="button" disabled={disabled || !vm.json.trim()} onClick={() => void vm.importJson()} className="mt-2 h-9 rounded-md border border-border bg-white px-4 text-sm font-semibold disabled:opacity-40">
           Import JSON
         </button>
       </details>
@@ -141,7 +179,7 @@ function RosterColumnMatching({ preview, onMatch, disabled }: { preview: RosterP
               value={preview.mapping[index] ?? ""}
               disabled={disabled}
               onChange={(event) => onMatch(index, (event.target.value || null) as RosterColumn | null)}
-              className="h-11 rounded-md border border-border bg-background px-3 text-sm"
+              className="h-9 rounded-md border border-border bg-white px-3 text-sm"
             >
               <option value="">Ignore this column</option>
               {ROSTER_TEMPLATE_COLUMNS.map((column) => <option key={column} value={column}>{ROSTER_COLUMN_LABELS[column]}</option>)}

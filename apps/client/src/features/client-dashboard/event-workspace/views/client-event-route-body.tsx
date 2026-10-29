@@ -21,26 +21,33 @@ import { ClientApprovalsView } from "../../approvals";
 import { ClientCloseoutView } from "../../closeout/views/client-closeout-view";
 import type { ClientDashboardRoute } from "../../workspace/shared";
 
+const OCULAR_VISIT_DONE = new Set(["completed", "waived"]);
+
 function renderOverview(ctx: ClientWorkspaceValue) {
   const { selectedEvent, officialDraft } = ctx;
   if (!selectedEvent) return null;
+  // The site visit comes before the official floorplan, so the request stays on the overview until it is done.
+  const visitOpen = !ctx.ocularVisit || !OCULAR_VISIT_DONE.has(ctx.ocularVisit.status);
   return (
-    <ClientOverviewTab
-      selectedEvent={selectedEvent}
-      briefing={ctx.briefing}
-      payments={ctx.payments}
-      billing={ctx.billing}
-      documents={ctx.documents}
-      audit={ctx.audit}
-      officialDraft={officialDraft}
-      preferenceDraftCount={ctx.preferenceDrafts.length}
-      onOpenOfficialFloorplan={
-        officialDraft
-          ? () => ctx.openFloorplanEditor(officialDraft, officialDraft.status === "approved")
-          : undefined
-      }
-      setTab={(next) => ctx.navigateToEventRoute(next)}
-    />
+    <div className="space-y-4">
+      {visitOpen ? <ClientOcularVisitPanel visit={ctx.ocularVisit} busy={ctx.busy === "ocular-visit"} onSubmit={ctx.submitOcularVisit} /> : null}
+      <ClientOverviewTab
+        selectedEvent={selectedEvent}
+        briefing={ctx.briefing}
+        payments={ctx.payments}
+        billing={ctx.billing}
+        documents={ctx.documents}
+        audit={ctx.audit}
+        officialDraft={officialDraft}
+        preferenceDraftCount={ctx.preferenceDrafts.length}
+        onOpenOfficialFloorplan={
+          officialDraft
+            ? () => ctx.openFloorplanEditor(officialDraft, officialDraft.status === "approved")
+            : undefined
+        }
+        setTab={(next) => ctx.navigateToEventRoute(next)}
+      />
+    </div>
   );
 }
 

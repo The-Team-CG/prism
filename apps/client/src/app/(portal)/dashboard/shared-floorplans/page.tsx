@@ -1,5 +1,5 @@
-import { ClientSharedFloorplansView } from "@/features/client-shared-floorplans/views/client-shared-floorplans-view";
+import { ClientDashboardWorkspaceView } from "@/features/client-dashboard/workspace";
 
 export default function SharedFloorplansPage() {
-  return <ClientSharedFloorplansView />;
+  return <ClientDashboardWorkspaceView route="shared-floorplans" />;
 }

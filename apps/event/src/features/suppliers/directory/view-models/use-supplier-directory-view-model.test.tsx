@@ -148,6 +148,26 @@ describe("useSupplierDirectoryViewModel", () => {
     expect(replacedUrl.searchParams.get("page")).toBe("2");
   });
 
+  it("keeps a search typed while the next-page URL is committing and resets the page", async () => {
+    routeSearchMock.value = "q=harbor&page=0";
+    const sessionValue = session("actor-a");
+    const { result, rerender } = renderHook(() => useSupplierDirectoryViewModel({ view: "all", session: sessionValue }));
+    await waitFor(() => expect(result.current.searchDraft).toBe("harbor"));
+
+    act(() => result.current.updateQuery({ page: 1 }));
+    act(() => result.current.setSearchDraft("harbor new"));
+    routeSearchMock.value = "q=harbor&page=1";
+    rerender();
+
+    expect(result.current.searchDraft).toBe("harbor new");
+    await waitFor(() => expect(result.current.query).toMatchObject({ q: "harbor new", page: 0 }));
+    expect(new URL(routerMock.replace.mock.lastCall?.[0] ?? "", "http://localhost").searchParams.get("q")).toBe("harbor new");
+
+    routeSearchMock.value = "q=other&page=0";
+    rerender();
+    expect(result.current.searchDraft).toBe("other");
+  });
+
   it("refreshes on a visible-tab return only after the 30-second freshness window", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-07T00:00:00.000Z"));

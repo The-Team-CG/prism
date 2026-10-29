@@ -29,4 +29,5 @@ export function assertExactMigrationCompatibility(input: {
   requiredHead: string;
 }): string;
 
-export function migrationChecksumVariants(sql: string | Uint8Array): [string, ...string[]];
+export function migrationChecksumVariants(sql: string | Uint8Array, name?: string): [string, ...string[]];
+export function historicalMigrationChecksums(name: string, currentChecksums: readonly string[]): string[];

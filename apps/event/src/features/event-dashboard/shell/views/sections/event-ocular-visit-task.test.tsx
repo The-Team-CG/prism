@@ -49,10 +49,16 @@ describe("EventOcularVisitTask", () => {
     const onSchedule = vi.fn(async () => undefined);
     renderTask(requestedVisit, { onSchedule });
     const localDateTime = "2026-10-17T10:30";
-
-    fireEvent.change(screen.getByLabelText("Scheduled date and time"), {
-      target: { value: localDateTime },
-    });
+    // Pin the clock so the picker opens on October 2026.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-05T12:00:00"));
+    try {
+      fireEvent.click(screen.getByLabelText("Scheduled date and time"));
+      fireEvent.click(screen.getByRole("button", { name: /October 17(th)?, 2026/ }));
+      fireEvent.click(screen.getByRole("option", { name: "10:30 AM" }));
+    } finally {
+      vi.useRealTimers();
+    }
     fireEvent.click(screen.getByRole("button", { name: "Schedule visit" }));
 
     await waitFor(() =>

@@ -51,7 +51,17 @@ export class SupabaseStorageAdapter implements StorageAdapter {
   }
 
   async confirmUpload(input: StorageAdapterConfirmRequest): Promise<StorageConfirmation> {
-    const response = await this.request(`/object/authenticated/${this.encodedBucket()}/${this.objectPath(input.providerObjectKey)}`, { method: 'GET' });
+    const path = this.objectPath(input.providerObjectKey);
+    // Server-generated files (proposal PDFs, receipts) arrive as bytes with no browser upload, so write them
+    // first. No upsert: each object key is new, and an existing object must never be silently replaced.
+    if (input.bytes) {
+      await this.request(`/object/${this.encodedBucket()}/${path}`, {
+        method: 'POST',
+        body: new Blob([input.bytes as Uint8Array<ArrayBuffer>], { type: input.contentType }),
+        headers: { 'Content-Type': input.contentType },
+      });
+    }
+    const response = await this.request(`/object/authenticated/${this.encodedBucket()}/${path}`, { method: 'GET' });
     const observedBytes = new Uint8Array(await response.arrayBuffer());
     const checksumSha256 = createHash('sha256').update(observedBytes).digest('hex');
     return {

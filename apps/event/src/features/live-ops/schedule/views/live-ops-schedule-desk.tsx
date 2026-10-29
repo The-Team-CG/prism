@@ -1,4 +1,5 @@
 "use client";
+import { DateTimePicker } from "@prism/ui/components/date-time-picker";
 
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import {
@@ -218,8 +219,8 @@ function ScheduleSegmentForm({ day, busy, onCreate }: {
   return (
     <form onSubmit={submit} className="grid gap-3 border-t border-border pt-3 sm:grid-cols-2 xl:grid-cols-5">
       <Field label="Segment title"><input required value={title} onChange={(event) => setTitle(event.target.value)} className={inputClass} /></Field>
-      <Field label="Starts"><input type="datetime-local" required value={start} onChange={(event) => setStart(event.target.value)} className={inputClass} /></Field>
-      <Field label="Ends"><input type="datetime-local" required value={end} onChange={(event) => setEnd(event.target.value)} className={inputClass} /></Field>
+      <Field label="Starts"><DateTimePicker value={start} onValueChange={(next) => setStart(next)} required /></Field>
+      <Field label="Ends"><DateTimePicker value={end} onValueChange={(next) => setEnd(next)} required /></Field>
       <Field label="Owner role">
         <select value={ownerRole} onChange={(event) => setOwnerRole(event.target.value as CoordinatorRole)} className={inputClass}>
           {COORDINATOR_ROLES.map((role) => <option key={role} value={role}>{role}</option>)}

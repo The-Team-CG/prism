@@ -16,6 +16,9 @@ sources:
   - id: current-architecture
     resource: "docs/architecture/current-architecture.md"
     title: "Current application boundaries"
+  - id: authenticator-rescan
+    resource: "apps/api/src/modules/identity-access/application/auth/auth-operations.service.ts"
+    title: "Development authenticator rescan authorization"
 ---
 # P.R.I.S.M portal accounts
 
@@ -44,6 +47,20 @@ Accounts exist after the explicit fixture seed runs against an empty local dispo
 
 These are the primary checkout's ports; a linked worktree prints its own with
 `npm run ports` (see [parallel worktrees](parallel-worktrees.md)).
+
+## Development authenticator rescan
+
+After password verification, an already enrolled PMCM administrator can select
+**Show authenticator QR** on the code-entry screen when both the event portal
+and API run with `NODE_ENV=development`. Scan it with the authenticator app,
+then enter its current six-digit code. **Hide authenticator QR** removes it
+from the screen.
+
+The QR uses the existing enrollment; it does not reset the secret, consume the
+challenge or complete sign-in. `POST /api/auth/2fa/development-qr` requires the
+active signed sign-in challenge and returns a non-cacheable response. Production,
+test and unspecified API environments return 404. Production portal builds omit
+the rescan control. First-time authenticator enrollment retains its normal QR.
 
 ## Local fixture accounts
 
