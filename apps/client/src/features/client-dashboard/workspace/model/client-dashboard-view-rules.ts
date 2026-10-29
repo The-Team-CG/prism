@@ -170,8 +170,8 @@ export function actionCenterItemToDashboardAction(
 function clientActionNextActor(item: PrismClientActionItem): "you" | "pmcm" | "update" {
   if (item.id.startsWith("floorplan:preference:") && ["submitted", "in_review"].includes(item.status)) return "pmcm";
   if (item.kind === "document" && !["rejected", "needs_update"].includes(item.status)) return "update";
-  if (item.kind === "change_request" && ["submitted", "pending", "in_review"].includes(item.status)) return "pmcm";
-  if (item.kind === "approval" && item.status === "issued") return "update";
+  if (item.kind === "change_request" && ["submitted", "pending", "in_review", "under_review"].includes(item.status)) return "pmcm";
+  if (item.kind === "approval" && item.status === "issued" && !item.id.startsWith("approval:proposal:")) return "update";
   return "you";
 }
 
@@ -180,7 +180,9 @@ function clientActionLabel(item: PrismClientActionItem): string {
   if (item.kind === "briefing") return "Complete briefing";
   if (item.kind === "feedback") return "Share feedback";
   if (item.kind === "floorplan") return item.id.startsWith("floorplan:preferences:") ? "Add preferences" : "View layout";
-  if (item.kind === "document" || item.kind === "closure") return "Review documents";
+  if (item.kind === "closure") return "Review closeout";
+  if (item.kind === "document") return "Review documents";
+  if (item.id.startsWith("approval:proposal:")) return "Review proposal";
   if (item.kind === "change_request") return "View request";
   return "View details";
 }

@@ -7,6 +7,7 @@ import { useClientCloseout } from "../view-models/use-client-closeout";
 export function ClientCloseoutView({ eventId, archived }: { eventId: string; archived: boolean }) {
   const vm = useClientCloseout(eventId);
   const workspace = vm.workspace?.eventId === eventId ? vm.workspace : null;
+  const readOnly = archived || !workspace?.actualEndedAt;
   const response = workspace?.response ?? null;
   const [rating, setRating] = useState(response?.rating ?? 5);
   const [feedback, setFeedback] = useState(response?.feedback ?? "");
@@ -29,7 +30,7 @@ export function ClientCloseoutView({ eventId, archived }: { eventId: string; arc
   }, [eventId, response]);
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (archived) return;
+    if (readOnly) return;
     void vm.submitResponse({ rating, feedback, testimonial, testimonialConsent: consent });
   };
   if (!workspace) return <section className="rounded-xl border border-border bg-card p-5">{vm.error ?? "Loading closeout…"}</section>;
@@ -37,10 +38,11 @@ export function ClientCloseoutView({ eventId, archived }: { eventId: string; arc
     <div><p className="text-xs font-semibold text-muted-foreground">Event closeout</p><h2 className="mt-1 text-xl font-bold">Deliverables and feedback</h2><p className="mt-1 text-sm text-muted-foreground">Confirm receipt of the event documents and share feedback with the event team.</p></div>
     {vm.error && <p role="alert" className="text-sm text-danger">{vm.error}</p>}{vm.notice && <p role="status" className="text-sm text-success">{vm.notice}</p>}
     {archived && <p className="rounded-lg border border-border p-3 text-sm text-muted-foreground">This event is archived. Acknowledgements and feedback are read-only.</p>}
-    <label className="block text-sm">Acknowledgement note (optional)<input disabled={archived} value={note} onChange={(event) => setNote(event.target.value)} maxLength={2000} className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2" /></label>
-    <WrapUpAcknowledgement wrapUp={workspace.wrapUp} busy={vm.busy} archived={archived} note={note} onAcknowledge={vm.acknowledgeWrapUp} />
-    <DeliverablesAcknowledgement deliverables={workspace.deliverables} busy={vm.busy} archived={archived} note={note} onAcknowledge={vm.acknowledgeDeliverable} />
-    <FeedbackForm response={response} rating={rating} feedback={feedback} testimonial={testimonial} consent={consent} busy={vm.busy} archived={archived} onRating={setRating} onFeedback={setFeedback} onTestimonial={setTestimonial} onConsent={setConsent} onSubmit={submit} />
+    {!workspace.actualEndedAt && <p role="status" className="text-sm text-muted-foreground">Acknowledgements and feedback open after PMCM records the actual event end.</p>}
+    <label className="block text-sm">Acknowledgement note (optional)<input disabled={readOnly} value={note} onChange={(event) => setNote(event.target.value)} maxLength={2000} className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2" /></label>
+    <WrapUpAcknowledgement wrapUp={workspace.wrapUp} busy={vm.busy} archived={readOnly} note={note} onAcknowledge={vm.acknowledgeWrapUp} />
+    <DeliverablesAcknowledgement deliverables={workspace.deliverables} busy={vm.busy} archived={readOnly} note={note} onAcknowledge={vm.acknowledgeDeliverable} />
+    <FeedbackForm response={response} rating={rating} feedback={feedback} testimonial={testimonial} consent={consent} busy={vm.busy} archived={readOnly} onRating={setRating} onFeedback={setFeedback} onTestimonial={setTestimonial} onConsent={setConsent} onSubmit={submit} />
     <TestimonialConsentStatus response={response} busy={vm.busy} onRevoke={vm.revokeConsent} />
   </section>;
 }
@@ -48,11 +50,11 @@ export function ClientCloseoutView({ eventId, archived }: { eventId: string; arc
 type CloseoutWorkspace = NonNullable<ReturnType<typeof useClientCloseout>["workspace"]>;
 function WrapUpAcknowledgement({ wrapUp, busy, archived, note, onAcknowledge }: { wrapUp: CloseoutWorkspace["wrapUp"]; busy: boolean; archived: boolean; note: string; onAcknowledge: (note: string) => Promise<void> }) {
   if (!wrapUp) return null;
-  return <div className="rounded-lg border border-border p-4"><h3 className="font-semibold">Event team wrap-up</h3><p className="mt-1 text-sm text-muted-foreground">{wrapUp.status === "complete" ? "The team has completed its wrap-up." : "The team is preparing its wrap-up."}</p>{wrapUp.clientAcknowledgedAt ? <p className="mt-2 text-sm">Acknowledged {formatPortalDate(wrapUp.clientAcknowledgedAt)}</p> : <button type="button" disabled={archived || busy || wrapUp.status !== "complete"} onClick={() => void onAcknowledge(note)} className="mt-3 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground">Acknowledge wrap-up</button>}</div>;
+  return <div className="rounded-lg border border-border p-4"><h3 className="font-semibold">Event team wrap-up</h3><p className="mt-1 text-sm text-muted-foreground">{wrapUp.status === "complete" ? "The team has completed its wrap-up." : "The team is preparing its wrap-up. You can acknowledge this handoff while the remaining team checks are being completed."}</p>{wrapUp.clientAcknowledgedAt ? <p className="mt-2 text-sm">Acknowledged {formatPortalDate(wrapUp.clientAcknowledgedAt)}</p> : wrapUp.acknowledgementRecorded ? <p className="mt-2 text-sm text-muted-foreground">PMCM has already recorded an acknowledgement for this handoff.</p> : <button type="button" disabled={archived || busy} onClick={() => void onAcknowledge(note)} className="mt-3 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground">Acknowledge wrap-up</button>}</div>;
 }
 
 function DeliverablesAcknowledgement({ deliverables, busy, archived, note, onAcknowledge }: { deliverables: CloseoutWorkspace["deliverables"]; busy: boolean; archived: boolean; note: string; onAcknowledge: (id: string, note: string) => Promise<void> }) {
-  return <div className="space-y-2"><h3 className="font-semibold">Event deliverables</h3>{deliverables.length ? deliverables.map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3"><div><p className="text-sm font-medium">{item.title}</p><p className="text-xs text-muted-foreground">{item.status}{item.required ? " · required" : ""}</p></div>{item.acknowledgedAt ? <span className="text-xs text-muted-foreground">Acknowledged {formatPortalDate(item.acknowledgedAt)}</span> : <button type="button" disabled={archived || busy || item.status !== "submitted"} onClick={() => void onAcknowledge(item.id, note)} className="rounded-md border border-border px-3 py-2 text-xs font-semibold">Acknowledge receipt</button>}</div>) : <p className="text-sm text-muted-foreground">No deliverables have been issued yet.</p>}</div>;
+  return <div className="space-y-2"><h3 className="font-semibold">Event deliverables</h3>{deliverables.length ? deliverables.map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3"><div><p className="text-sm font-medium">{item.title}</p><p className="text-xs text-muted-foreground">{item.status}{item.required ? " · required" : ""}</p></div>{item.acknowledgedAt ? <span className="text-xs text-muted-foreground">Acknowledged {formatPortalDate(item.acknowledgedAt)}</span> : item.acknowledgementRecorded ? <span className="text-xs text-muted-foreground">Acknowledgement recorded by PMCM</span> : <button type="button" disabled={archived || busy || item.status !== "submitted"} onClick={() => void onAcknowledge(item.id, note)} className="rounded-md border border-border px-3 py-2 text-xs font-semibold">Acknowledge receipt</button>}</div>) : <p className="text-sm text-muted-foreground">No deliverables have been issued yet.</p>}</div>;
 }
 
 function FeedbackForm({ response, rating, feedback, testimonial, consent, busy, archived, onRating, onFeedback, onTestimonial, onConsent, onSubmit }: { response: CloseoutWorkspace["response"]; rating: number; feedback: string; testimonial: string; consent: boolean; busy: boolean; archived: boolean; onRating: (value: number) => void; onFeedback: (value: string) => void; onTestimonial: (value: string) => void; onConsent: (value: boolean) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {

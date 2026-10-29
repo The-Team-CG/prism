@@ -164,6 +164,9 @@ export function BookingsPage({
               <div className="rounded-xl border border-border bg-muted/30 p-4">
                 <p className="text-sm font-bold text-foreground">2. Readiness &amp; contract</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">Confirm readiness and upload the signed contract for PMCM review.</p>
+                <p hidden={req.assignmentStatus === "confirmed"} className="mt-2 text-xs text-attention">Confirm the assignment above to unlock readiness and contract submission.</p>
+                <fieldset disabled={req.assignmentStatus !== "confirmed"}>
+                <legend className="sr-only">Readiness and contract submission</legend>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <label className="grid gap-1.5 text-sm font-bold text-foreground">
                     Readiness notes
@@ -184,6 +187,7 @@ export function BookingsPage({
                     <FileText className="size-4" /> Upload contract
                   </Button>
                 </div>
+                </fieldset>
                 {workflowWorkspace?.contracts.filter((contract) => contract.requestId === req.id).map((contract) => (
                   <div key={contract.id} className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs">
                     <span className="truncate font-semibold">v{contract.version} · {contract.fileName}</span>
@@ -209,20 +213,23 @@ export function BookingsPage({
                 </div>
               ))}
 
-              {workflowWorkspace?.creativeTasks.filter((task) => task.requestId === req.id).map((task) => (
+              {workflowWorkspace?.creativeTasks.filter((task) => task.requestId === req.id).map((task) => {
+                const note = taskNotes[task.id] ?? task.supplierProgressNote;
+                return (
                 <div key={task.id} className="rounded-xl border border-border bg-muted/30 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-sm font-bold">{task.title}</p><p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{task.brief}</p></div><StatusBadge status={task.status} /></div>
                   {task.dueAt ? <p className="mt-2 text-xs text-muted-foreground">Due {formatPortalDateTime(task.dueAt)}</p> : null}
                   {["open", "in_progress", "changes_requested"].includes(task.status) ? <>
-                    <Input className="mt-3 h-9 rounded-lg" value={taskNotes[task.id] ?? task.supplierProgressNote} disabled={busy === `creative:${task.id}`} onChange={(e) => setTaskNotes((current) => ({ ...current, [task.id]: e.target.value }))} placeholder="Progress note for PMCM" />
-                    <div className="mt-2 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" disabled={busy === `creative:${task.id}`} onClick={() => onUpdateProgress(task.id, taskNotes[task.id] ?? task.supplierProgressNote)} className="rounded-lg">Save progress</Button>
+                    <Input className="mt-3 h-9 rounded-lg" value={note} disabled={busy === `creative:${task.id}`} onChange={(e) => setTaskNotes((current) => ({ ...current, [task.id]: e.target.value }))} placeholder="Progress note for PMCM" />
+                    <div className="mt-2 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" disabled={busy === `creative:${task.id}`} onClick={() => onUpdateProgress(task.id, note)} className="rounded-lg">Save progress</Button>
                     <Input type="file" disabled={busy === `creative:${task.id}`} onChange={(e) => setTaskFiles((current) => ({ ...current, [task.id]: e.target.files?.[0] ?? null }))} className="h-9 max-w-xs rounded-lg pt-1.5" />
-                    <Button type="button" size="sm" disabled={busy === `creative:${task.id}` || (!taskNotes[task.id]?.trim() && !taskFiles[task.id])} onClick={() => onSubmitCreativeTask(req.id, task.id, taskNotes[task.id] ?? "", taskFiles[task.id] ?? undefined)} className="rounded-lg">Submit deliverable</Button></div>
+                    <Button type="button" size="sm" disabled={busy === `creative:${task.id}` || (!note.trim() && !taskFiles[task.id])} onClick={() => onSubmitCreativeTask(req.id, task.id, note, taskFiles[task.id] ?? undefined)} className="rounded-lg">Submit deliverable</Button></div>
                   </> : null}
                   {task.reviewNote ? <p className="mt-2 text-xs text-muted-foreground">PMCM review: {task.reviewNote}</p> : null}
                   {task.submissions.map((submission) => <div key={submission.id} className="mt-2 flex items-center justify-between gap-2 text-xs"><span>Submission v{submission.version} · {submission.note}</span>{submission.storedObjectId ? <Button type="button" size="sm" variant="ghost" onClick={() => onDownloadObject(submission.storedObjectId!)}>Download</Button> : null}</div>)}
                 </div>
-              ))}
+                );
+              })}
 
               {/* Step 3 — event day */}
               <div className="rounded-xl border border-border bg-muted/30 p-4">

@@ -21,7 +21,7 @@ import type {
 } from '../queries/pmcm-command-inbox.types';
 
 type EventRef = PmcmInboxEvent;
-type ClientEventRef = EventRef & Partial<Pick<OpsEvent, 'actualEndedAt' | 'archived'>>;
+type ClientEventRef = EventRef & Partial<Pick<OpsEvent, 'actualEndedAt' | 'archived' | 'proposalClientStatus'>>;
 type BriefingRef = { eventId: string };
 type BillingStatementRef = { id: string; eventId: string; status: string; number: string };
 type CloseoutResponseRef = { eventId: string };
@@ -111,6 +111,7 @@ export function collectClientActionItems(input: {
     ...collectClientEventActionItems(input.visibleEvents, new Set(input.briefings.map((briefing) => briefing.eventId))),
     ...collectClientBillingActionItems(input.paymentMilestones, input.visibleEvents, input.paymentRecords),
     ...collectClientDocumentActionItems(input.documents, input.visibleEvents),
+    ...collectClientProposalActionItems(input.documents, input.visibleEvents),
     ...collectClientFloorplanDraftActionItems(input.floorPlanDrafts, input.visibleEvents),
     ...collectClientBillingStatementActionItems(input.billingStatements, input.visibleEvents),
     ...collectClientClosureActionItems(input.postEventDocuments, input.visibleEvents),
@@ -303,7 +304,28 @@ function clientBillingStatementActionItem(
   };
 }
 
-function collectClientClosureActionItems(documents: OpsPostEventDocument[], events: EventRef[]) {
+function collectClientProposalActionItems(documents: OpsDocument[], events: ClientEventRef[]): PrismClientActionItem[] {
+  const latest = new Map<string, OpsDocument>();
+  for (const document of documents) {
+    if (document.status !== 'issued' || !['proposal', 'ce_proposal', 'briefing_proposal'].includes(document.type)) continue;
+    const previous = latest.get(document.eventId);
+    if (!previous || document.uploadedAt > previous.uploadedAt ||
+      (document.uploadedAt.getTime() === previous.uploadedAt.getTime() && document.id > previous.id)) latest.set(document.eventId, document);
+  }
+  return events.flatMap((event) => {
+    const proposal = latest.get(event.id);
+    if (!proposal || event.archived || event.actualEndedAt || ['completed', 'closed', 'cancelled'].includes(event.status) ||
+      (event.proposalClientStatus ?? 'pending') !== 'pending') return [];
+    return [{
+      id: `approval:proposal:${proposal.id}`, kind: 'approval', priority: 'attention',
+      label: 'Review issued proposal', description: `PMCM issued the proposal for ${event.eventName}. Review it to approve or request a revision.`,
+      status: 'issued', eventId: event.id, eventName: event.eventName,
+      href: `/dashboard/events/${event.id}/proposal`,
+    }];
+  });
+}
+
+function collectClientClosureActionItems(documents: OpsPostEventDocument[], events: ClientEventRef[]) {
   const items: PrismClientActionItem[] = [];
   for (const document of documents) {
     const item = clientClosureActionItem(document, events);
@@ -312,20 +334,20 @@ function collectClientClosureActionItems(documents: OpsPostEventDocument[], even
   return items;
 }
 
-function clientClosureActionItem(document: OpsPostEventDocument, events: EventRef[]): PrismClientActionItem | null {
-  if (document.status === 'complete') return null;
+function clientClosureActionItem(document: OpsPostEventDocument, events: ClientEventRef[]): PrismClientActionItem | null {
+  if (document.status !== 'submitted' || document.clientAcknowledgedAt) return null;
   const event = eventById(events, document.eventId);
-  if (!event) return null;
+  if (!event || !event.actualEndedAt || event.archived) return null;
   return {
     id: `closure:${document.id}`,
     kind: 'closure',
-    priority: event.status === 'completed' ? 'warning' : 'info',
-    label: `Closeout: ${document.title}`,
-    description: `PMCM still needs this closeout record; it is ${document.status.replaceAll('_', ' ')}.`,
+    priority: 'attention',
+    label: `Acknowledge deliverable: ${document.title}`,
+    description: `PMCM marked ${document.title} as delivered. Review the handoff and acknowledge receipt.`,
     status: document.status,
     eventId: event.id,
     eventName: event.eventName,
-    href: `/dashboard/events/${event.id}/messages`,
+    href: `/dashboard/events/${event.id}/summary`,
   };
 }
 
