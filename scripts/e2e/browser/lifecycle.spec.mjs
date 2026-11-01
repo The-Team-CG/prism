@@ -186,10 +186,12 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
     await test.step('PMCM clears every close gate, the client submits closeout feedback, and PMCM archives without an override', async () => {
       const workspace = `/pmcm/events/${eventId}/workspace`;
       await pmcm.page.goto(path('closure'));
-      const ended = new Date(Date.now() - 60_000);
-      const local = new Date(ended.getTime() - ended.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
-      await pmcm.page.getByLabel('Actual ended at', { exact: true }).fill(local);
-      await pmcm.page.getByRole('button', { name: 'Record actual end', exact: true }).click();
+      // The end is picked like a user would: today in the calendar, then the earliest time, which is never in the future.
+      const actualEnd = pmcm.page.locator('section', { has: pmcm.page.getByRole('heading', { name: 'Record actual end', exact: true }) });
+      await actualEnd.getByRole('button', { name: /Pick a date and time/ }).click();
+      await pmcm.page.getByRole('button', { name: /^Today, / }).click();
+      await pmcm.page.getByRole('option', { name: '12:00 AM', exact: true }).click();
+      await actualEnd.getByRole('button', { name: 'Record actual end', exact: true }).click();
       await expect(pmcm.page.getByRole('button', { name: 'Correct actual end', exact: true })).toBeVisible();
       await pmcm.page.getByRole('button', { name: 'Start quick wrap-up', exact: true }).click();
       await expect(pmcm.page.getByRole('button', { name: 'Save wrap-up evidence', exact: true })).toBeVisible();
