@@ -1002,58 +1002,19 @@ export class EventReadModelQueries {
     ]);
   }
 
-  // Query budget: sixteen bounded PMCM dashboard queries plus supplier directory/category reads; staffing display cards use a reader port.
-  // Audit and notification logs are not here: each event's workspace and the Audit section read their own, scoped.
-  pmcmDashboard() {
-    return Promise.all([
-      this.prisma.opsUser.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }),
-      this.prisma.opsInquiry.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
-      this.prisma.opsEvent.findMany({
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        take: MAX_VISIBLE_EVENTS,
-      }).then(async (events) => {
-        const drafts = events.length
-          ? await this.prisma.opsFloorPlanDraft.findMany({
-              where: { eventId: { in: events.map((event) => event.id) } },
-              orderBy: [{ eventId: 'asc' }, { updatedAt: 'desc' }, { id: 'desc' }],
-              take: events.length * MAX_EVENT_FLOORPLAN_DRAFTS,
-            })
-          : [];
-        const draftsByEvent = new Map<string, typeof drafts>();
-        for (const draft of drafts) {
-          const eventDrafts = draftsByEvent.get(draft.eventId) ?? [];
-          if (eventDrafts.length < MAX_EVENT_FLOORPLAN_DRAFTS) eventDrafts.push(draft);
-          draftsByEvent.set(draft.eventId, eventDrafts);
-        }
-        return events.map((event) => ({ ...event, floorPlanDrafts: draftsByEvent.get(event.id) ?? [] }));
-      }),
-      this.prisma.opsDocument.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }] }),
-      this.prisma.opsBriefing.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }] }),
-      this.prisma.opsSupplierQuoteRequest.findMany({ include: { round: { select: { roundNumber: true } } }, take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
-      this.prisma.opsSupplierQuote.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
-      this.prisma.opsComplianceRule.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
-      this.prisma.opsComplianceCheck.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
-      this.prisma.opsBillingSource.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
-      this.prisma.opsBillingStatement.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ generatedAt: 'desc' }, { id: 'desc' }] }),
-      this.prisma.opsPaymentMilestone.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }),
-      this.prisma.opsPaymentRecord.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ recordedAt: 'desc' }, { id: 'desc' }] }),
-      this.prisma.opsPostEventDocument.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ title: 'asc' }, { id: 'asc' }] }),
-      this.prisma.opsEventInsight.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ generatedAt: 'desc' }, { id: 'desc' }] }),
-      this.prisma.opsFloorPlanDraft.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }] }),
-      this.supplierCategories(),
-      this.activeSuppliers(),
-    ]);
-  }
-
-  // Query budget: five bounded reference queries in one wave (events without drafts, inquiries, compliance rules,
-  // supplier categories, active suppliers); coordinators and assignments are read alongside by the service.
+  // Query budget: seven bounded reference queries in one wave (events without drafts, inquiries, users, compliance
+  // rules, supplier categories, active suppliers, one grouped balance sum); coordinators and assignments are read
+  // alongside by the service.
   pmcmReference() {
     return Promise.all([
       this.prisma.opsEvent.findMany({ orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_VISIBLE_EVENTS }),
       this.prisma.opsInquiry.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
+      this.prisma.opsUser.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }),
       this.prisma.opsComplianceRule.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
       this.supplierCategories(),
       this.activeSuppliers(),
+      // Current (not superseded) milestones only, so a revised schedule is not counted twice.
+      this.prisma.opsPaymentMilestone.groupBy({ by: ['eventId'], where: { supersededAt: null }, _sum: { remainingBalance: true } }),
     ]);
   }
 

@@ -21,34 +21,16 @@ export function useEventDashboardRouteViewModel() {
   return viewModel;
 }
 
-export type EventDashboardLoadedViewModel = Omit<EventDashboardShellViewModel, "session" | "state"> & {
-  session: NonNullable<EventDashboardShellViewModel["session"]>;
-  state: NonNullable<EventDashboardShellViewModel["state"]>;
-};
-
-export function useEventDashboardLoadedRouteViewModel(): EventDashboardLoadedViewModel {
-  const viewModel = useEventDashboardRouteViewModel();
-  if (!viewModel.session || !viewModel.state) {
-    throw new Error("Loaded event dashboard content requires an authenticated workspace");
-  }
-
-  return {
-    ...viewModel,
-    session: viewModel.session,
-    state: viewModel.state,
-  };
-}
-
-export type EventDashboardEventViewModel = Omit<EventDashboardShellViewModel, "session" | "reference"> & {
+export type EventDashboardLoadedViewModel = Omit<EventDashboardShellViewModel, "session" | "reference"> & {
   session: NonNullable<EventDashboardShellViewModel["session"]>;
   reference: NonNullable<EventDashboardShellViewModel["reference"]>;
 };
 
-/** For event pages: they render from the event's workspace plus the PMCM reference, never the whole dashboard. */
-export function useEventDashboardEventRouteViewModel(): EventDashboardEventViewModel {
+/** For sections that render from the PMCM reference (event switcher, inquiries, people, directories, rules, balances). */
+export function useEventDashboardLoadedRouteViewModel(): EventDashboardLoadedViewModel {
   const viewModel = useEventDashboardRouteViewModel();
   if (!viewModel.session || !viewModel.reference) {
-    throw new Error("Event pages require an authenticated session and the PMCM reference");
+    throw new Error("Loaded event dashboard content requires an authenticated session and the PMCM reference");
   }
   return { ...viewModel, session: viewModel.session, reference: viewModel.reference };
 }

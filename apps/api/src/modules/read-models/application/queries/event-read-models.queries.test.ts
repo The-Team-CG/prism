@@ -17,6 +17,7 @@ function model<T = never>() {
     findUnique: vi.fn(async () => null),
     findFirst: vi.fn(async () => null),
     count: vi.fn(async () => 0),
+    groupBy: vi.fn(async () => []),
   };
 }
 
@@ -361,11 +362,12 @@ describe('EventReadModelQueries collection limits', () => {
     expect(milestoneFilters).toHaveLength(4);
   });
 
-  it('bounds PMCM dashboard collections and nested floorplan history', async () => {
+  it('bounds the PMCM reference and reads no floor-plan drafts or row lists it does not return', async () => {
     const opsEvent = model();
     const opsFloorPlanDraft = model();
+    const opsPaymentMilestone = model();
     const prisma = new Proxy(
-      { opsEvent, opsFloorPlanDraft },
+      { opsEvent, opsFloorPlanDraft, opsPaymentMilestone },
       {
         get(target, property: string) {
           if (property in target) return target[property as keyof typeof target];
@@ -375,17 +377,16 @@ describe('EventReadModelQueries collection limits', () => {
     );
     const queries = new EventReadModelQueries(prisma as unknown as PrismaService);
 
-    await queries.pmcmDashboard();
+    await queries.pmcmReference();
 
     expect(opsEvent.findMany).toHaveBeenCalledWith(expect.objectContaining({
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: MAX_VISIBLE_EVENTS,
     }));
-    expect(opsFloorPlanDraft.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
-      take: MAX_PMCM_DASHBOARD_ROWS,
-    }));
-    expect((prisma as typeof prisma).opsEvent).toBe(opsEvent);
+    expect(opsFloorPlanDraft.findMany).not.toHaveBeenCalled();
+    // Balances are one grouped sum over current milestones, not a list of milestone rows.
+    expect(opsPaymentMilestone.findMany).not.toHaveBeenCalled();
+    expect(opsPaymentMilestone.groupBy).toHaveBeenCalledWith({ by: ['eventId'], where: { supersededAt: null }, _sum: { remainingBalance: true } });
     expect(MAX_PMCM_DASHBOARD_ROWS).toBe(500);
   });
 

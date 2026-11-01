@@ -1,9 +1,9 @@
-import type { PrismApprovalRequest, PrismEvent, PrismPmcmDashboardWorkspace, PrismPmcmEventWorkspace } from "@prism/types";
+import type { PrismApprovalRequest, PrismEvent, PrismPmcmEventWorkspace, PrismPmcmReference } from "@prism/types";
 
 export function selectActiveEvents(
-  state: Pick<PrismPmcmDashboardWorkspace, "events"> | null | undefined,
+  reference: Pick<PrismPmcmReference, "events"> | null | undefined,
 ): PrismEvent[] {
-  return (state?.events ?? []).filter((event) => !event.archived);
+  return (reference?.events ?? []).filter((event) => !event.archived);
 }
 
 export function selectSelectedEvent(
@@ -18,81 +18,35 @@ export function selectPendingApprovals(approvalRequests: PrismApprovalRequest[])
   return approvalRequests.filter((request) => request.status === "pending");
 }
 
+/** The selected event's records, all from its own workspace; until that loads, every list is empty. */
 export function selectEventWorkspaceResources(
-  state: Pick<
-    PrismPmcmDashboardWorkspace,
-    | "billingSources"
-    | "billingStatements"
-    | "briefings"
-    | "complianceChecks"
-    | "coordinatorAssignments"
-    | "documents"
-    | "eventInsights"
-    | "floorPlanDrafts"
-    | "paymentMilestones"
-    | "paymentRecords"
-    | "postEventDocuments"
-    | "supplierQuoteRequests"
-    | "supplierQuotes"
-  > | null | undefined,
   selectedEvent?: Pick<PrismEvent, "id">,
   eventWorkspace?: PrismPmcmEventWorkspace | null,
 ) {
-  const selectedEventId = selectedEvent?.id;
-  const scopedWorkspace = eventWorkspace?.event.id === selectedEventId ? eventWorkspace : null;
-  const drafts =
-    scopedWorkspace?.floorPlanDrafts ??
-    (selectedEventId
-      ? (state?.floorPlanDrafts ?? []).filter((draft) => draft.eventId === selectedEventId)
-      : []);
-
+  const workspace = selectedEvent && eventWorkspace?.event.id === selectedEvent.id ? eventWorkspace : null;
+  const drafts = workspace?.floorPlanDrafts ?? [];
   return {
     activeDraft: drafts.find((draft) => draft.isActive),
-    assignments:
-      scopedWorkspace?.coordinatorAssignments ??
-      (state?.coordinatorAssignments ?? []).filter((item) => item.eventId === selectedEventId),
-    coordinatorCoverage: scopedWorkspace?.coordinatorCoverage ?? [],
-    // Logs come only from the event's own workspace; the PMCM dashboard no longer carries system-wide logs.
-    audit: (scopedWorkspace?.auditLogs ?? []).slice(0, 14),
-    billingSources:
-      scopedWorkspace?.billingSources ??
-      (state?.billingSources ?? []).filter((item) => item.eventId === selectedEventId),
-    billingStatements:
-      scopedWorkspace?.billingStatements ??
-      (state?.billingStatements ?? []).filter((item) => item.eventId === selectedEventId),
-    briefing:
-      scopedWorkspace?.briefings[0] ?? state?.briefings.find((item) => item.eventId === selectedEventId),
-    checks:
-      scopedWorkspace?.complianceChecks ??
-      (state?.complianceChecks ?? []).filter((item) => item.eventId === selectedEventId),
-    documents:
-      scopedWorkspace?.documents ??
-      (state?.documents ?? []).filter((item) => item.eventId === selectedEventId),
+    assignments: workspace?.coordinatorAssignments ?? [],
+    coordinatorCoverage: workspace?.coordinatorCoverage ?? [],
+    audit: (workspace?.auditLogs ?? []).slice(0, 14),
+    billingSources: workspace?.billingSources ?? [],
+    billingStatements: workspace?.billingStatements ?? [],
+    briefing: workspace?.briefings[0],
+    checks: workspace?.complianceChecks ?? [],
+    documents: workspace?.documents ?? [],
     drafts,
-    eventInsights:
-      scopedWorkspace?.eventInsights ??
-      (state?.eventInsights ?? []).filter((item) => item.eventId === selectedEventId),
-    notificationLogs: (scopedWorkspace?.notificationLogs ?? []).slice(0, 8),
-    payments:
-      scopedWorkspace?.paymentMilestones ??
-      (state?.paymentMilestones ?? []).filter((item) => item.eventId === selectedEventId),
-    paymentRecords:
-      scopedWorkspace?.paymentRecords ??
-      (state?.paymentRecords ?? []).filter((item) => item.eventId === selectedEventId),
-    postEventDocuments:
-      scopedWorkspace?.postEventDocuments ??
-      (state?.postEventDocuments ?? []).filter((item) => item.eventId === selectedEventId),
-    quoteRequests:
-      scopedWorkspace?.supplierQuoteRequests ??
-      (state?.supplierQuoteRequests ?? []).filter((item) => item.eventId === selectedEventId),
-    quotes:
-      scopedWorkspace?.supplierQuotes ??
-      (state?.supplierQuotes ?? []).filter((item) => item.eventId === selectedEventId),
+    eventInsights: workspace?.eventInsights ?? [],
+    notificationLogs: (workspace?.notificationLogs ?? []).slice(0, 8),
+    payments: workspace?.paymentMilestones ?? [],
+    paymentRecords: workspace?.paymentRecords ?? [],
+    postEventDocuments: workspace?.postEventDocuments ?? [],
+    quoteRequests: workspace?.supplierQuoteRequests ?? [],
+    quotes: workspace?.supplierQuotes ?? [],
   };
 }
 
 export function selectSelectedEventWorkspaceResources(
-  state: PrismPmcmDashboardWorkspace,
   events: PrismEvent[],
   selectedEventId?: string | null,
   eventWorkspace?: PrismPmcmEventWorkspace | null,
@@ -101,6 +55,6 @@ export function selectSelectedEventWorkspaceResources(
   const selectedEvent = workspace?.event ?? selectSelectedEvent(events, selectedEventId);
   return {
     selectedEvent,
-    ...selectEventWorkspaceResources(state, selectedEvent, workspace),
+    ...selectEventWorkspaceResources(selectedEvent, workspace),
   };
 }

@@ -1055,52 +1055,19 @@ describe('EventReadModelsService', () => {
     );
   });
 
-  it('builds PMCM dashboard payloads with operational fields from bounded read models', async () => {
-    const { service, policy, prisma } = createPmcmReadModelService();
-    const actor = policy.resolveActor({ actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
-
-    const dashboard = await service.pmcmDashboard(actor, createPassthroughPmcmMappers());
-
-    expect((dashboard as any).users).toEqual([expect.objectContaining({ id: 'usr_pmcm', role: OpsUserRole.PmcmAdmin })]);
-    expect((dashboard as any).events).toEqual([expect.objectContaining({ id: 'evt_visible', eventName: 'Ayala Summit' })]);
-    expect((dashboard as any).documents).toEqual([{ id: 'doc_1', eventId: 'evt_visible' }]);
-    expect((dashboard as any).paymentMilestones).toEqual([expect.objectContaining({ id: 'pay_overdue' })]);
-    expect((dashboard as any).coordinators).toEqual([expect.objectContaining({ id: 'coord_lead' })]);
-    expect((dashboard as any).coordinatorAssignments).toEqual([]);
-    expect((dashboard as any).supplierCategories).toEqual([
-      expect.objectContaining({ id: 'supcat_technicals', acceptableMin: 120000, acceptableMax: 180000 }),
-    ]);
-    expect((dashboard as any).suppliers).toEqual([expect.objectContaining({ id: 'sup_sonicline', categoryName: 'Technicals' })]);
-    expect(prisma.opsUser.findMany).toHaveBeenCalledWith({ take: 500, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] });
-    expect(prisma.opsSupplierCategory.findMany).toHaveBeenCalledWith({ where: { active: true }, orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }], take: 500 });
-  });
-
-  it('uses one bounded query-builder pass for high-volume PMCM dashboard records', async () => {
+  it('builds the PMCM reference with people, directories and per-event balances in one wave', async () => {
     const policy = new EventAccessPolicyService({ write: vi.fn() } as any);
     const queries = {
-      pmcmDashboard: vi.fn(async () => [
+      pmcmReference: vi.fn(async () => [
+        [{ id: 'evt_visible', eventName: 'Ayala Summit' }],
+        [{ id: 'inq_1' }],
+        [{ id: 'usr_pmcm', role: OpsUserRole.PmcmAdmin }],
         [],
-        [],
-        [],
-        [],
-        [],
-        [],
-        [],
-        [],
-        [],
-        [],
-        [],
-        [],
-        [],
-        [],
-        [],
-        [],
-        [],
-        [],
-        [],
-        [],
+        [{ id: 'supcat_technicals' }],
+        [{ id: 'sup_sonicline' }],
+        [{ eventId: 'evt_visible', _sum: { remainingBalance: 5000 } }, { eventId: 'evt_paid', _sum: { remainingBalance: null } }],
       ]),
-      activeCoordinators: vi.fn(async () => []),
+      activeCoordinators: vi.fn(async () => [{ id: 'coord_lead' }]),
       boundedCoordinatorAssignments: vi.fn(async () => []),
     };
     const service = new EventReadModelsService(
@@ -1113,9 +1080,13 @@ describe('EventReadModelsService', () => {
     );
     const actor = policy.resolveActor({ actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
 
-    await service.pmcmDashboard(actor, createPassthroughPmcmMappers());
+    const reference = await service.pmcmReference(actor, createPassthroughPmcmMappers());
 
-    expect(queries.pmcmDashboard).toHaveBeenCalledTimes(1);
+    expect(reference.users).toEqual([expect.objectContaining({ id: 'usr_pmcm' })]);
+    expect(reference.events).toEqual([expect.objectContaining({ id: 'evt_visible' })]);
+    expect(reference.coordinators).toEqual([expect.objectContaining({ id: 'coord_lead' })]);
+    expect(reference.outstandingBalanceByEvent).toEqual({ evt_visible: 5000, evt_paid: 0 });
+    expect(queries.pmcmReference).toHaveBeenCalledTimes(1);
     expect(queries.activeCoordinators).toHaveBeenCalledTimes(1);
     expect(queries.boundedCoordinatorAssignments).toHaveBeenCalledTimes(1);
   });

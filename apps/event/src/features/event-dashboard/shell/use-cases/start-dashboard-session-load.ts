@@ -22,7 +22,7 @@ export type DashboardSessionLoadSetters = {
   setStatus: (status: WorkspaceStatus) => void;
   setSession: (session: EventSession) => void;
   setError: (error: string | null) => void;
-  setState: (state: null) => void;
+  setReference: (reference: null) => void;
   setCoordinatorState: (state: PrismCoordinatorWorkspace | null) => void;
   setApprovalRequests: (requests: PrismApprovalRequest[]) => void;
   setCommandInbox: (inbox: PrismPmcmCommandInbox) => void;
@@ -62,7 +62,7 @@ function loadCoordinatorDashboard(
   const cached = getCachedCoordinatorWorkspace(current);
   if (cached) {
     setters.setCoordinatorState(cached.value);
-    setters.setState(null);
+    setters.setReference(null);
     if (isDashboardCacheFresh(cached.loadedAt)) {
       setters.setStatus("ready");
       return;
@@ -73,7 +73,7 @@ function loadCoordinatorDashboard(
     .then((next) => {
       if (isCancelled()) return;
       setters.setCoordinatorState(next);
-      setters.setState(null);
+      setters.setReference(null);
       setters.setStatus("ready");
       setters.setError(null);
     })
@@ -88,7 +88,7 @@ function loadPmcmDashboard(isCancelled: () => boolean, setters: DashboardSession
   const cachedApprovals = getCachedApprovalRequests();
   const cachedInbox = getCachedCommandInbox();
 
-  setters.setState(null);
+  setters.setReference(null);
   setters.setCoordinatorState(null);
   if (cachedApprovals) setters.setApprovalRequests(cachedApprovals.value);
   if (cachedInbox) setters.setCommandInbox(cachedInbox.value);

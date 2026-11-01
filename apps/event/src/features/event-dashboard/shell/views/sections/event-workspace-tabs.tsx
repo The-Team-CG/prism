@@ -35,14 +35,14 @@ import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { WorkspaceSubTabs, type WorkspaceSubTab } from "./workspace-sub-tabs";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import type { PrismBriefing } from "@prism/types";
-import { useEventDashboardEventRouteViewModel } from "../event-dashboard-route-context";
+import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
 import { PmcmClientReviewPanel } from "@/features/commercial/client-review/views/pmcm-client-review-panel";
 import { PmcmProposalIssuerPanel } from "@/features/commercial/proposal-issuer/views/pmcm-proposal-issuer-panel";
 
 const OCULAR_VISIT_DONE = new Set(["completed", "waived"]);
 
 export function EventWorkspaceOverviewTab() {
-  const vm = useEventDashboardEventRouteViewModel();
+  const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   const visit = vm.selectedEventWorkspace?.event.id === vm.selectedEvent.id ? vm.selectedEventWorkspace?.ocularVisit ?? null : null;
   // The official floorplan waits on the ocular visit, so it stays on the overview until it is completed or waived.
@@ -80,7 +80,7 @@ export function EventWorkspaceOverviewTab() {
 }
 
 export function EventWorkspaceFloorplansTab() {
-  const vm = useEventDashboardEventRouteViewModel();
+  const vm = useEventDashboardLoadedRouteViewModel();
   const { selectedEvent, run } = vm;
   if (!selectedEvent) return null;
   // The workspace leads with the approved official plan; creation controls come last (UX-13).
@@ -182,7 +182,7 @@ function BriefingSummary({ briefing, canSubmit, busy, onSubmit }: { briefing?: P
 }
 
 export function EventWorkspaceBriefingTab() {
-  const vm = useEventDashboardEventRouteViewModel();
+  const vm = useEventDashboardLoadedRouteViewModel();
   const { briefing, selectedEvent } = vm;
   if (!selectedEvent) return null;
   const admin = isPmcmAdmin(vm.session.role);
@@ -202,7 +202,7 @@ export function EventWorkspaceBriefingTab() {
 }
 
 export function EventWorkspaceSuppliersTab() {
-  const vm = useEventDashboardEventRouteViewModel();
+  const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   const event = vm.selectedEvent;
   const confirmed = vm.quoteRequests.filter((request) => request.assignmentStatus === "confirmed");
@@ -248,7 +248,7 @@ export function EventWorkspaceSuppliersTab() {
 }
 
 export function EventWorkspaceCoordinatorsTab() {
-  const vm = useEventDashboardEventRouteViewModel();
+  const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   const event = vm.selectedEvent;
   const tabs: WorkspaceSubTab[] = [
@@ -284,7 +284,7 @@ export function EventWorkspaceCoordinatorsTab() {
 }
 
 export function EventWorkspaceLiveOpsTab() {
-  const vm = useEventDashboardEventRouteViewModel();
+  const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   const event = vm.selectedEvent;
   const tabs: WorkspaceSubTab[] = [
@@ -319,7 +319,7 @@ export function EventWorkspaceLiveOpsTab() {
 }
 
 export function EventWorkspaceBillingTab() {
-  const vm = useEventDashboardEventRouteViewModel();
+  const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   const event = vm.selectedEvent;
   const outstanding = vm.payments.filter((payment) => payment.status !== "paid" && !payment.supersededAt).length;
@@ -370,7 +370,7 @@ export function EventWorkspaceBillingTab() {
 }
 
 export function EventWorkspaceClosureTab() {
-  const vm = useEventDashboardEventRouteViewModel();
+  const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   const event = vm.selectedEvent;
   const closureStep = (step: ClosureStep) => (
@@ -425,7 +425,7 @@ export function EventWorkspaceClosureTab() {
 
 /** PMCM-only (FL-019). Other roles get no panel here, and the API refuses them independently. */
 export function EventWorkspaceDecisionsTab() {
-  const vm = useEventDashboardEventRouteViewModel();
+  const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   if (!isPmcmAdmin(vm.session.role)) {
     return <EmptyState icon={Gavel} title="Decision log is PMCM-only" description="Overrides, approvals, and scope decisions are visible to PMCM administrators." />;
@@ -434,7 +434,7 @@ export function EventWorkspaceDecisionsTab() {
 }
 
 export function EventWorkspaceActivityTab() {
-  const vm = useEventDashboardEventRouteViewModel();
+  const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   return (
     <EventMessagesWorkspace
@@ -445,7 +445,7 @@ export function EventWorkspaceActivityTab() {
 }
 
 function RegistrationAndGames({ initial }: { initial: "registration" | "games" }) {
-  const vm = useEventDashboardEventRouteViewModel();
+  const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   const event = vm.selectedEvent;
   const tabs: WorkspaceSubTab[] = [

@@ -8,7 +8,6 @@ import type {
   PrismDecisionLogQueryInput,
   PrismPmcmCommandInbox,
   PrismPmcmCommandInboxQueryInput,
-  PrismPmcmDashboardWorkspace,
   PrismPmcmEventWorkspace,
   PrismPmcmReference,
   PrismPmcmSupplierReadinessBoard,
@@ -31,10 +30,6 @@ export interface EventOpsWorkspacesContract {
 
   billing: {
     list(actor?: EventOpsActorQuery): Promise<PrismBillingWorkspace>;
-  };
-
-  pmcmDashboard: {
-    detail(actor?: EventOpsActorQuery): Promise<PrismPmcmDashboardWorkspace>;
   };
 
   pmcm: {

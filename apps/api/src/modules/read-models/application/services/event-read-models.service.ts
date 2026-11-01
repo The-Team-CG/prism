@@ -763,7 +763,7 @@ export class EventReadModelsService {
   /** The event switcher, inquiries, directories and rules PMCM event pages use, in one parallel wave. */
   async pmcmReference(actor: ResolvedEventOpsActor, mappers: PmcmDashboardMappers) {
     await this.policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'PMCM reference');
-    const [[events, inquiries, complianceRules, supplierCategories, suppliers], coordinators, coordinatorAssignments] = await Promise.all([
+    const [[events, inquiries, users, complianceRules, supplierCategories, suppliers, balances], coordinators, coordinatorAssignments] = await Promise.all([
       this.queries.pmcmReference(),
       this.queries.activeCoordinators(),
       this.queries.boundedCoordinatorAssignments(),
@@ -776,64 +776,8 @@ export class EventReadModelsService {
       coordinators: coordinators.map(mappers.mapCoordinator),
       coordinatorAssignments: coordinatorAssignments.map(mappers.mapCoordinatorAssignment),
       complianceRules: complianceRules.map(mappers.mapComplianceRule),
-    };
-  }
-
-  async pmcmDashboard(actor: ResolvedEventOpsActor, mappers: PmcmDashboardMappers) {
-    await this.policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'PMCM dashboard');
-
-    const [
-      users,
-      inquiries,
-      events,
-      documents,
-      briefings,
-      supplierQuoteRequests,
-      supplierQuotes,
-      complianceRules,
-      complianceChecks,
-      billingSources,
-      billingStatements,
-      paymentMilestones,
-      paymentRecords,
-      postEventDocuments,
-      eventInsights,
-      floorPlanDrafts,
-      supplierCategories,
-      suppliers,
-    ] = await this.queries.pmcmDashboard();
-    const [coordinators, coordinatorAssignments] = await Promise.all([
-      this.queries.activeCoordinators(),
-      this.queries.boundedCoordinatorAssignments(),
-    ]);
-
-    return {
       users: users.map(mappers.mapUser),
-      inquiries: inquiries.map(mappers.mapInquiry),
-      events: events.map(mappers.mapEvent),
-      documents: documents.map(mappers.mapDocument),
-      briefings: briefings.map(mappers.mapBriefing),
-      supplierQuoteRequests: supplierQuoteRequests.map(mappers.mapSupplierQuoteRequest),
-      supplierQuotes: supplierQuotes.map(mappers.mapSupplierQuote),
-      coordinators: coordinators.map(mappers.mapCoordinator),
-      coordinatorRoleRequirements: mappers.coordinatorRoleRequirements,
-      coordinatorAssignments: coordinatorAssignments.map(mappers.mapCoordinatorAssignment),
-      complianceRules: complianceRules.map(mappers.mapComplianceRule),
-      complianceChecks: complianceChecks.map(mappers.mapComplianceCheck),
-      billingSources: billingSources.map(mappers.mapBillingSource),
-      billingStatements: billingStatements.map(mappers.mapBillingStatement),
-      paymentMilestones: paymentMilestones.map((payment) =>
-        mappers.mapPaymentMilestone(
-          payment,
-          paymentRecords.filter((record) => record.milestoneId === payment.id),
-        ),
-      ),
-      paymentRecords: paymentRecords.map(mappers.mapPaymentRecord),
-      postEventDocuments: postEventDocuments.map(mappers.mapPostEventDocument),
-      eventInsights: eventInsights.map(mappers.mapEventInsight),
-      floorPlanDrafts: floorPlanDrafts.map(mappers.mapFloorPlanDraft),
-      supplierCategories,
-      suppliers,
+      outstandingBalanceByEvent: Object.fromEntries(balances.map((row) => [row.eventId, row._sum.remainingBalance ?? 0])),
     };
   }
 

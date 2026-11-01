@@ -25,13 +25,6 @@ export class OpsPmcmDashboardController {
     @Inject(REGISTRATION_PLATFORM_READER) private readonly registrationPlatformReader: RegistrationPlatformReader,
   ) {}
 
-  @Get('dashboard')
-  @UseGuards(EventSessionGuard)
-  dashboard(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
-    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
-    return this.eventReadModelsService.pmcmDashboard(actor, this.mappers());
-  }
-
   @Get('reference')
   @UseGuards(EventSessionGuard)
   reference(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {

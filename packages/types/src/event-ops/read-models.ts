@@ -79,38 +79,21 @@ export interface PrismEventPage {
 }
 
 /**
- * What PMCM event pages need besides the event's own workspace: the event switcher, the inquiry behind each
- * event, and the directories and rules the tabs choose from. Events carry no floor-plan drafts here; each
- * event's drafts come from its workspace.
+ * What every PMCM screen needs besides its own scoped read: the event switcher, the inquiry behind each event,
+ * the people, directories and rules screens choose from, and each event's outstanding balance. Events carry no
+ * floor-plan drafts here; each event's drafts come from its workspace. Replaces the whole-system dashboard.
  */
 export interface PrismPmcmReference {
   events: PrismEvent[];
   inquiries: PrismInquiry[];
+  users: PrismUser[];
   suppliers: PrismSupplier[];
   supplierCategories: PrismSupplierCategory[];
   coordinators: PrismCoordinator[];
   coordinatorAssignments: PrismCoordinatorAssignment[];
   complianceRules: PrismComplianceRule[];
-}
-
-export interface PrismPmcmDashboardWorkspace extends PrismPmcmReference {
-  users: PrismUser[];
-  documents: PrismDocument[];
-  briefings: PrismBriefing[];
-  supplierQuoteRequests: PrismSupplierQuoteRequest[];
-  supplierQuotes: PrismSupplierQuote[];
-  coordinatorRoleRequirements: PrismCoordinatorRoleRequirement[];
-  complianceChecks: PrismComplianceCheck[];
-  billingSources: PrismBillingSource[];
-  billingStatements: PrismBillingStatement[];
-  paymentMilestones: PrismPaymentMilestone[];
-  paymentRecords: PrismPaymentRecord[];
-  billingCorrections?: PrismBillingCorrection[];
-  billingDisputes?: PrismBillingDispute[];
-  additionalBillings?: PrismAdditionalBilling[];
-  postEventDocuments: PrismPostEventDocument[];
-  eventInsights: PrismEventInsight[];
-  floorPlanDrafts: PrismFloorPlanDraft[];
+  /** Remaining balance across each event's current payment milestones, keyed by event id. */
+  outstandingBalanceByEvent: Record<string, number>;
 }
 
 export type PrismClientTimelineMilestoneKey =
@@ -160,21 +143,19 @@ export interface PrismPmcmOcularVisit extends PrismClientOcularVisit {
   waivedBy: string | null;
 }
 
-export type PrismClientWorkspace = Pick<
-  PrismPmcmDashboardWorkspace,
-  | "users"
-  | "inquiries"
-  | "events"
-  | "documents"
-  | "briefings"
-  | "supplierQuotes"
-  | "coordinatorAssignments"
-  | "complianceChecks"
-  | "billingStatements"
-  | "paymentMilestones"
-  | "postEventDocuments"
-  | "floorPlanDrafts"
-> & {
+export type PrismClientWorkspace = {
+  users: PrismUser[];
+  inquiries: PrismInquiry[];
+  events: PrismEvent[];
+  documents: PrismDocument[];
+  briefings: PrismBriefing[];
+  supplierQuotes: PrismSupplierQuote[];
+  coordinatorAssignments: PrismCoordinatorAssignment[];
+  complianceChecks: PrismComplianceCheck[];
+  billingStatements: PrismBillingStatement[];
+  paymentMilestones: PrismPaymentMilestone[];
+  postEventDocuments: PrismPostEventDocument[];
+  floorPlanDrafts: PrismFloorPlanDraft[];
   /** The client's own event activity and notifications. */
   auditLogs: PrismAuditLog[];
   notificationLogs: PrismNotificationLog[];
