@@ -79,12 +79,14 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await expect(proposal.getByRole('status')).toContainText('Version 1 is issued');
       // The client's proposal package includes billing, and a client only sees a statement once PMCM sends it.
       await pmcm.page.goto(path('billing'));
+      await pmcm.page.getByRole('tab', { name: /^Billing sources/ }).click();
       const billing = pmcm.page.getByRole('region', { name: 'Billing source', exact: true });
       await billing.getByLabel('Amount (PHP)', { exact: true }).fill('100000');
       await billing.getByLabel('Proposal evidence', { exact: true }).selectOption({ index: 1 });
       await billing.getByRole('button', { name: 'Create billing source', exact: true }).click();
       await billing.getByRole('button', { name: 'Approve source', exact: true }).click();
       await billing.getByRole('button', { name: 'Generate statement', exact: true }).click();
+      await pmcm.page.getByRole('tab', { name: /^Statements & payments/ }).click();
       await pmcm.page.getByRole('button', { name: 'Send to client', exact: true }).first().click();
       await expect.poll(async () => (await api('GET', `/pmcm/events/${eventId}/workspace`)).billingStatements.some(statement => Boolean(statement.sentAt))).toBe(true);
       await client.goto(`${origins.client}/dashboard/events/${eventId}/proposal`);
@@ -194,6 +196,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await logistics.getByRole('button', { name: 'Record logistics completion', exact: true }).click();
       await expect(logistics.getByText(/revision 1/)).toBeVisible();
 
+      await pmcm.page.getByRole('tab', { name: /^Deliverables/ }).click();
       const deliverables = pmcm.page.getByRole('region', { name: 'Post-event deliverables', exact: true });
       const markComplete = deliverables.getByRole('button', { name: 'Mark complete', exact: true });
       await expect(markComplete).toHaveCount(2);
@@ -225,6 +228,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
 
       await expect.poll(async () => (await api('GET', `/events/${eventId}/close-gates`)).missingKeys).toEqual([]);
       await pmcm.page.goto(path('closure'));
+      await pmcm.page.getByRole('tab', { name: /^4\. Archive/ }).click();
       await expect(pmcm.page.getByText('All close gates passed', { exact: true })).toBeVisible();
       await expect(pmcm.page.getByPlaceholder('Required PMCM override reason if gates are not complete')).toHaveCount(0);
       await pmcm.page.getByRole('button', { name: 'Archive event', exact: true }).click();
