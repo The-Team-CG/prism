@@ -171,8 +171,10 @@ export function useEventDashboardWorkspaceViewModel({
     };
   }, [session, section]);
 
+  // Only the event Floorplans tab offers templates; every other page skipped rendering them but still paid the request.
+  const needsFloorPlanTemplates = section === "events" && tab === "floorplans";
   useEffect(() => {
-    if (section === "suppliers") return;
+    if (!needsFloorPlanTemplates) return;
     let cancelled = false;
     loadTemplates()
       .then((templates) => {
@@ -185,7 +187,7 @@ export function useEventDashboardWorkspaceViewModel({
     return () => {
       cancelled = true;
     };
-  }, [section]);
+  }, [needsFloorPlanTemplates]);
 
   const isEventDayLiveOpsView = isLiveOpsWorkspaceVisible(screenName, section, tab, selectedEventId);
   const isActivePmcmLiveOpsView = Boolean(session && isPmcmAdmin(session.role) && isEventDayLiveOpsView);
