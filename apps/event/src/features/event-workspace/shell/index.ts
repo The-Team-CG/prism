@@ -8,10 +8,12 @@ export {
   loadApprovalRequests,
   loadDefenseReadiness,
   loadEventCommandData,
+  eventCommandPartsFor,
   loadEventWorkspace,
   loadLiveOps,
   loadStatusFeed,
   type EventCommandData,
   type EventCommandDataErrors,
+  type EventCommandPart,
 } from "./use-cases/load-event-workspace";
 export { eventWorkspaceRepository } from "./data/event-workspace-repository";

@@ -21,7 +21,6 @@ export function selectPendingApprovals(approvalRequests: PrismApprovalRequest[])
 export function selectEventWorkspaceResources(
   state: Pick<
     PrismPmcmDashboardWorkspace,
-    | "auditLogs"
     | "billingSources"
     | "billingStatements"
     | "briefings"
@@ -30,7 +29,6 @@ export function selectEventWorkspaceResources(
     | "documents"
     | "eventInsights"
     | "floorPlanDrafts"
-    | "notificationLogs"
     | "paymentMilestones"
     | "paymentRecords"
     | "postEventDocuments"
@@ -54,10 +52,8 @@ export function selectEventWorkspaceResources(
       scopedWorkspace?.coordinatorAssignments ??
       (state?.coordinatorAssignments ?? []).filter((item) => item.eventId === selectedEventId),
     coordinatorCoverage: scopedWorkspace?.coordinatorCoverage ?? [],
-    audit: (
-      scopedWorkspace?.auditLogs ??
-      (state?.auditLogs ?? []).filter((item) => item.eventId === selectedEventId || !item.eventId)
-    ).slice(0, 14),
+    // Logs come only from the event's own workspace; the PMCM dashboard no longer carries system-wide logs.
+    audit: (scopedWorkspace?.auditLogs ?? []).slice(0, 14),
     billingSources:
       scopedWorkspace?.billingSources ??
       (state?.billingSources ?? []).filter((item) => item.eventId === selectedEventId),
@@ -76,12 +72,7 @@ export function selectEventWorkspaceResources(
     eventInsights:
       scopedWorkspace?.eventInsights ??
       (state?.eventInsights ?? []).filter((item) => item.eventId === selectedEventId),
-    notificationLogs: (
-      scopedWorkspace?.notificationLogs ??
-      (state?.notificationLogs ?? []).filter(
-        (item) => !item.eventId || item.eventId === selectedEventId,
-      )
-    ).slice(0, 8),
+    notificationLogs: (scopedWorkspace?.notificationLogs ?? []).slice(0, 8),
     payments:
       scopedWorkspace?.paymentMilestones ??
       (state?.paymentMilestones ?? []).filter((item) => item.eventId === selectedEventId),
