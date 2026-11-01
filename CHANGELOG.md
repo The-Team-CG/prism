@@ -7,11 +7,11 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 - Portal pages load faster against the hosted database. Measured in production builds against an ~81 ms database round trip:
-  - PMCM event overview: 10 requests and 3.7 s → 5 requests and 2.5 s.
-  - Client event overview: 2.4 s → 1.9 s.
-  - Coordinator home: 2.5 s → 2.2 s.
-  - Client home: 2.0 s → 1.8 s.
-  - `/pmcm/dashboard`: 959 KB → 43 KB over the wire.
+  - PMCM event overview: 10 requests and 3.7 s → 5 requests and 2.4 s.
+  - PMCM events list: 2.0 s → 1.6 s. Inquiries: 1.7 s → 1.3 s.
+  - Coordinator home: 3 requests and 2.5 s → 2 requests and 1.6 s.
+  - Client event overview: 2.4 s → 1.9 s. Client home: 2.0 s → 1.8 s.
+  - The whole-system `/pmcm/dashboard` (959 KB over the wire) is replaced by `/pmcm/reference` (19 KB).
 
   What changed:
   - API responses are compressed, and CORS preflights are cached for 2 hours.
