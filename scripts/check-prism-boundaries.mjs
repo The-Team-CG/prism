@@ -107,6 +107,11 @@ export const boundaryRules = [
     importPattern: /from\s+["'](?:react|@\/|apps\/|@prism\/ui)/,
   },
   {
+    name: "portal query must stay transport- and role-neutral (fetchers are passed in by each portal's data layer)",
+    filePattern: /^packages\/portal-query\//,
+    importPattern: /\b(?:from\s*|import\s*\(\s*|require\s*\(\s*)["'](?:@\/|apps\/|@prism\/(?:api-client|client|event|guest|supplier|ui|types)(?:\/|["']))/,
+  },
+  {
     name: "api client must not import role app modules",
     filePattern: /^packages\/api-client\//,
     importPattern: /from\s+["'](?:@\/|apps\/)/,

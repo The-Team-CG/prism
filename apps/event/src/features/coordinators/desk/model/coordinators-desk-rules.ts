@@ -1,9 +1,11 @@
+import { isActiveCoordinatorAssignmentStatus } from "@prism/types";
 import type {
   CoordinatorRole,
   CreateEventDayTaskInput,
   CreateUrgentIssueInput,
   PrismAcknowledgementReminderResult,
   PrismCoordinator,
+  PrismCoordinatorRoleView,
   UpdateCoordinatorAttendanceInput,
 } from "@prism/types";
 import { COORDINATOR_ROLES, canonicalCoordinatorRole } from "@prism/types";
@@ -14,7 +16,28 @@ export function sameCoordinatorName(a: string, b: string): boolean {
 }
 
 export function isCoordinatorAssignmentActive(assignment: { status?: string }): boolean {
-  return assignment.status !== "cancelled" && assignment.status !== "replaced" && assignment.status !== "declined";
+  return isActiveCoordinatorAssignmentStatus(assignment.status);
+}
+
+export type CoordinatorRoleViewSource =
+  | { kind: "event" }
+  | { kind: "wait" }
+  | { kind: "focus"; view: PrismCoordinatorRoleView }
+  | { kind: "error"; message: string };
+
+/**
+ * Where the open event's role view comes from. On the home's default event, the focus read the shell started with the
+ * workspace covers it; an event the coordinator picked, or a focus that names another event, gets its own read.
+ */
+export function coordinatorRoleViewSource(
+  focus: { status: "pending" | "ready" | "error"; data: PrismCoordinatorRoleView | null | undefined; error: Error | null } | null,
+  eventId: string | undefined,
+): CoordinatorRoleViewSource {
+  if (!focus) return { kind: "event" };
+  if (focus.data && focus.data.event.id === eventId) return { kind: "focus", view: focus.data };
+  if (focus.status === "pending") return { kind: "wait" };
+  if (focus.error) return { kind: "error", message: focus.error.message };
+  return { kind: "event" };
 }
 
 export function coordinatorSkillFilterOptions(
@@ -376,10 +399,4 @@ export function coordinatorRoleDataStatus(status: string, hasRoleView: boolean) 
   if (status === "loading") return "loading";
   if (status === "error") return "unavailable";
   return hasRoleView ? "ready" : "pending";
-}
-
-/** The soonest event on or after today; if every event is past, the most recent one. */
-export function defaultCoordinatorEventId(events: Array<{ id: string; eventDate: string }>, todayKey: string): string | undefined {
-  const byDate = [...events].sort((a, b) => a.eventDate.localeCompare(b.eventDate));
-  return (byDate.find((event) => event.eventDate.slice(0, 10) >= todayKey) ?? byDate.at(-1))?.id;
 }

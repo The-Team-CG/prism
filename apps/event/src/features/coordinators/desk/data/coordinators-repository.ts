@@ -1,3 +1,4 @@
+import { defineResource } from "@prism/portal-query";
 import type { EventSession } from "@/app/lib/session";
 import { eventApiRequest } from "@/lib/prism-api";
 import type {
@@ -17,6 +18,13 @@ import type {
   VerifySupplierStatusInput,
   WithdrawCoordinatorAssignmentInput,
 } from "@prism/types";
+
+/** The signed-in coordinator's focus role view; the API resolves the focus event so it loads with the workspace. */
+export const coordinatorFocusRoleView = defineResource({
+  name: "coordinator.focus-role-view",
+  fetch: (_actor: "signed-in", signal) =>
+    eventApiRequest<PrismCoordinatorRoleView | null>("/api/coordinator/focus-role-view", { signal }),
+});
 
 export const coordinatorsRepository = {
   loadRoleView(session: EventSession, eventId: string) {

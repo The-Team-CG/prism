@@ -7,6 +7,8 @@ import {
   canClientAccessPortal,
   canCreateEventWorkspace,
   derivePrismLifecycleStage,
+  prismCalendarDateKey,
+  selectCoordinatorFocusEventId,
   isBeforePrismEventDay,
   nextPrismLifecycleStages,
   normalizePrismPageLimit,
@@ -52,6 +54,15 @@ describe("P.R.I.S.M lifecycle contract", () => {
     expect(derivePrismLifecycleStage({ ...signed, archived: true })).toBe("closure_archive");
     expect(isBeforePrismEventDay("planning")).toBe(true);
     expect(isBeforePrismEventDay("event_day")).toBe(false);
+  });
+
+  it("opens a coordinator on their next upcoming event, or the latest past one, by Philippine date", () => {
+    const events = [{ id: "past", eventDate: "2026-10-01" }, { id: "later", eventDate: "2027-01-09" }, { id: "next", eventDate: "2026-11-02" }];
+    expect(selectCoordinatorFocusEventId(events, "2026-11-01")).toBe("next");
+    expect(selectCoordinatorFocusEventId(events, "2027-02-01")).toBe("later");
+    expect(selectCoordinatorFocusEventId([], "2026-11-01")).toBeUndefined();
+    // 2026-11-01 17:00 UTC is already 2 November in Manila.
+    expect(prismCalendarDateKey(new Date("2026-11-01T17:00:00Z"))).toBe("2026-11-02");
   });
 
   it("allows client portal access only after inquiry acceptance and signed conforme", () => {

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CoordinatorRole, PrismConformeExecution, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismSupplier } from "@prism/types";
 import { derivePrismLifecycleStage } from "@prism/types";
-import { type FloorPlanTemplate, type Project, cloneTemplateObjects } from "@/features/floorplan/editor";
+import { type FloorPlanTemplate, type Project, cloneTemplateObjects } from "@prism/floorplan-canvas";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { eventPortalNavItems, loadingShellNavItems } from "./use-event-dashboard-nav";
 import { useEventDashboardNavigationViewModel } from "./use-event-dashboard-navigation-view-model";
@@ -31,7 +31,7 @@ import {
 } from "../model/event-dashboard-routing";
 import { useEventDashboardWorkspaceViewModel } from "./use-event-dashboard-workspace-view-model";
 import { eventDashboardCommands } from "../data/event-dashboard-commands";
-import { runDashboardActionWithSuccess } from "./dashboard-action-runner";
+import { refreshAfterDashboardCommand, runDashboardActionWithSuccess, type DashboardActionRefreshers } from "./dashboard-action-runner";
 import { countersignConformeExecution, prepareConformeExecution, refreshConformeExecution } from "@/features/conforme/signing/use-cases/conforme-signing";
 
 export type { EventDashboardClientProps };
@@ -73,7 +73,6 @@ export function useEventDashboardShellViewModel({
   });
   const {
     session,
-    state,
     coordinatorState,
     error,
     setError,
@@ -96,7 +95,8 @@ export function useEventDashboardShellViewModel({
     loadLiveOps,
     refreshSelectedEventWorkspace,
     selectedEventWorkspace,
-    setState,
+    setReference,
+    reference,
     setCoordinatorState,
     setLiveOps,
     setStatusFeed,
@@ -113,20 +113,20 @@ export function useEventDashboardShellViewModel({
   }, [routeState.clientId, routeState.eventId, routeState.section, routeState.tab, routeState.view]);
 
   useEffect(() => {
-    if (!state) return;
+    if (!reference) return;
     setSelectedEventId((prev) => routeState.eventId ?? prev);
-  }, [routeState.eventId, state]);
+  }, [routeState.eventId, reference]);
 
-  const events = useMemo(() => selectActiveEvents(state), [state]);
+  const events = useMemo(() => selectActiveEvents(reference), [reference]);
   const selectedEvent = selectedEventWorkspace?.event.id === selectedEventId
     ? selectedEventWorkspace.event
     : selectSelectedEvent(events, selectedEventId);
-  const supplierCategories = state?.supplierCategories ?? [];
-  const suppliers = state?.suppliers ?? [];
-  const coordinators = state?.coordinators ?? [];
-  const inquiries = state?.inquiries ?? [];
+  const supplierCategories = reference?.supplierCategories ?? [];
+  const suppliers = reference?.suppliers ?? [];
+  const coordinators = reference?.coordinators ?? [];
+  const inquiries = reference?.inquiries ?? [];
   const unreviewedInquiries = selectUnreviewedInquiryCount(inquiries);
-  const complianceRules = state?.complianceRules ?? [];
+  const complianceRules = reference?.complianceRules ?? [];
   const {
     activeDraft,
     assignments,
@@ -144,7 +144,7 @@ export function useEventDashboardShellViewModel({
     postEventDocuments,
     quoteRequests,
     quotes,
-  } = selectEventWorkspaceResources(state, selectedEvent, selectedEventWorkspace);
+  } = selectEventWorkspaceResources(selectedEvent, selectedEventWorkspace);
   const coordinatorRoleRequirements = coordinatorCoverage;
   const selectedInquiry = inquiries.find((item) => item.id === selectedEvent?.inquiryId);
   const pendingApprovals = selectPendingApprovals(approvalRequests);
@@ -155,17 +155,20 @@ export function useEventDashboardShellViewModel({
   const eventListView = routeState.view ?? "all";
   const eventsForView = useMemo(() => selectEventsForView(events, eventListView), [eventListView, events]);
 
+  function commandRefreshers(): DashboardActionRefreshers {
+    return {
+      refresh,
+      refreshSelectedEventWorkspace,
+      loadLiveOps: selectedEvent?.id ? () => loadLiveOps(true) : undefined,
+    };
+  }
+
   async function run(actionLabel: string, action: () => Promise<unknown>) {
     setBusy(actionLabel);
     setError(null);
     try {
       await action();
-      await refresh();
-      await refreshSelectedEventWorkspace();
-      await refreshApprovals();
-      if (selectedEvent?.id) {
-        await loadLiveOps(true).catch(() => undefined);
-      }
+      await refreshAfterDashboardCommand(commandRefreshers());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed");
     } finally {
@@ -196,12 +199,7 @@ export function useEventDashboardShellViewModel({
     try {
       return await runDashboardActionWithSuccess(
         action,
-        {
-          refresh,
-          refreshSelectedEventWorkspace,
-          refreshApprovals,
-          loadLiveOps: selectedEvent?.id ? () => loadLiveOps(true) : undefined,
-        },
+        commandRefreshers(),
         (message) => setError(message),
       );
     } finally {
@@ -214,9 +212,7 @@ export function useEventDashboardShellViewModel({
     setError(null);
     try {
       await action();
-      await refresh();
-      await loadLiveOps(true);
-      await refreshApprovals();
+      await Promise.all([refresh(), loadLiveOps(true)]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed");
     } finally {
@@ -315,7 +311,7 @@ export function useEventDashboardShellViewModel({
   return {
     routeState,
     session,
-    state,
+    reference,
     coordinatorState,
     screen,
     error,
@@ -403,7 +399,7 @@ export function useEventDashboardShellViewModel({
     setSection,
     setSelectedClientId,
     setError,
-    setState,
+    setReference,
     setCoordinatorState,
     setLiveOps,
     setStatusFeed,

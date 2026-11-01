@@ -5,7 +5,7 @@ import type {
   PrismDecisionLog,
   PrismPmcmCommandInbox,
   PrismPmcmCommandInboxQueryInput,
-  PrismPmcmDashboardWorkspace,
+  PrismPmcmReference,
   PrismPmcmEventWorkspace,
   PrismPmcmSupplierReadinessBoard,
   PrismRegistrationPlatform,
@@ -21,7 +21,7 @@ export function createWorkspacesClient(
   options: EventOpsClientOptions,
 ): Pick<
   EventOpsClient,
-  "clientWorkspace" | "supplierWorkspace" | "billing" | "pmcmDashboard" | "pmcm"
+  "clientWorkspace" | "supplierWorkspace" | "billing" | "pmcm"
 > {
   return {
     clientWorkspace: {
@@ -86,14 +86,8 @@ export function createWorkspacesClient(
           withBase(options),
         ),
     },
-    pmcmDashboard: {
-      detail: (actor = {}) =>
-        prismRequest<PrismPmcmDashboardWorkspace>(
-          actorPath("/pmcm/dashboard", actor),
-          withBase(options),
-        ),
-    },
     pmcm: {
+      reference: () => prismRequest<PrismPmcmReference>("/pmcm/reference", withBase(options)),
       commandInbox: (query: PrismPmcmCommandInboxQueryInput = { page: 0 }) => {
         const params = toQueryString(query);
         return prismRequest<PrismPmcmCommandInbox>(

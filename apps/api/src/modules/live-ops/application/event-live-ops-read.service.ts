@@ -30,4 +30,8 @@ export class EventLiveOpsReadService {
   getCoordinatorRoleView(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismCoordinatorRoleView> {
     return this.readModel.getCoordinatorRoleView(eventId, actor);
   }
+
+  getCoordinatorFocusRoleView(actor: ResolvedEventOpsActor): Promise<PrismCoordinatorRoleView | null> {
+    return this.readModel.getCoordinatorFocusRoleView(actor);
+  }
 }
