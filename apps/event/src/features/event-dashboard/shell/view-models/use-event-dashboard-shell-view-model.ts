@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CoordinatorRole, PrismConformeExecution, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismSupplier } from "@prism/types";
 import { derivePrismLifecycleStage } from "@prism/types";
-import { type FloorPlanTemplate, type Project, cloneTemplateObjects } from "@/features/floorplan/editor";
+import { type FloorPlanTemplate, type Project, cloneTemplateObjects } from "@prism/floorplan-canvas";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { eventPortalNavItems, loadingShellNavItems } from "./use-event-dashboard-nav";
 import { useEventDashboardNavigationViewModel } from "./use-event-dashboard-navigation-view-model";

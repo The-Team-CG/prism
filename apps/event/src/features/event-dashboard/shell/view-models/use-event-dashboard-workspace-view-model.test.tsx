@@ -14,16 +14,20 @@ const logoutEventSessionMock = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({ useRouter: () => routerMock }));
 vi.mock("../data/session-commands", () => ({ logoutEventSession: logoutEventSessionMock }));
 vi.mock("@/app/lib/role-guards", () => ({ isPmcmAdmin: (role: string) => role === "pmcm-admin" }));
-vi.mock("@/features/floorplan/editor", () => ({ loadTemplates: loadTemplatesMock }));
-vi.mock("@/features/event-workspace/shell", async () => ({
-  eventCommandPartsFor: (await import("@/features/event-workspace/shell/use-cases/load-event-workspace")).eventCommandPartsFor,
+vi.mock("@/features/floorplan/editor/data/templates-repository", () => ({ loadTemplates: loadTemplatesMock }));
+vi.mock("@/features/event-workspace/shell/use-cases/load-event-workspace", async (importOriginal) => ({
+  eventCommandPartsFor: (await importOriginal<typeof import("@/features/event-workspace/shell/use-cases/load-event-workspace")>()).eventCommandPartsFor,
   getCachedEventCommandData: vi.fn(() => null),
   loadApprovalRequests: loadApprovalRequestsMock,
   loadEventCommandData: loadEventCommandDataMock,
+}));
+vi.mock("@/features/event-workspace/shell/data/event-workspace-repository", () => ({
   eventWorkspaceRepository: { loadWorkspace: eventWorkspaceLoadMock },
+}));
+vi.mock("@/features/event-workspace/shell/view-models/use-pmcm-selected-event-workspace", () => ({
   usePmcmSelectedEventWorkspace: selectedEventWorkspaceHookMock,
 }));
-vi.mock("@/features/command-inbox/list", () => ({ loadCommandInbox: loadCommandInboxMock }));
+vi.mock("@/features/command-inbox/list/use-cases/load-command-inbox", () => ({ loadCommandInbox: loadCommandInboxMock }));
 const loadPmcmReferenceMock = vi.hoisted(() => vi.fn(async () => null));
 vi.mock("../use-cases/load-dashboard-workspace", () => ({
   getCachedPmcmReference: vi.fn(() => null),
@@ -38,9 +42,11 @@ vi.mock("../use-cases/start-dashboard-session-load", () => ({
   },
 }));
 
-import { eventWorkspaceRepository, loadApprovalRequests, loadEventCommandData, usePmcmSelectedEventWorkspace } from "@/features/event-workspace/shell";
-import { loadTemplates } from "@/features/floorplan/editor";
-import { loadCommandInbox } from "@/features/command-inbox/list";
+import { loadApprovalRequests, loadEventCommandData } from "@/features/event-workspace/shell/use-cases/load-event-workspace";
+import { eventWorkspaceRepository } from "@/features/event-workspace/shell/data/event-workspace-repository";
+import { usePmcmSelectedEventWorkspace } from "@/features/event-workspace/shell/view-models/use-pmcm-selected-event-workspace";
+import { loadTemplates } from "@/features/floorplan/editor/data/templates-repository";
+import { loadCommandInbox } from "@/features/command-inbox/list/use-cases/load-command-inbox";
 import type { DashboardSection, DetailTab } from "../model/event-dashboard-routing";
 import { useEventDashboardWorkspaceViewModel } from "./use-event-dashboard-workspace-view-model";
 import { useEventDashboardNavigationViewModel } from "./use-event-dashboard-navigation-view-model";

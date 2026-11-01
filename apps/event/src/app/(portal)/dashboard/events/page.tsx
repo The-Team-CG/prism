@@ -1,4 +1,5 @@
-import { EventDashboardEventsListSectionView, EventDashboardRouteView } from "@/features/event-dashboard/shell";
+import { EventDashboardEventsListSectionView } from "@/features/event-dashboard/shell/views/sections/events-list-section-view";
+import { EventDashboardRouteView } from "@/features/event-dashboard/shell/views/event-dashboard-route-view";
 
 export default function EventDashboardRoutePage() {
   return (

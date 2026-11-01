@@ -1,15 +1,20 @@
 "use client";
 
 import type { ReactNode } from "react";
+import dynamic from "next/dynamic";
 import { EventWorkspaceSwitcher } from "./event-workspace-switcher";
 import { PrismDashboardShell } from "@prism/ui";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
-import { ConformeUploadModal } from "@/features/conforme/upload";
 import { roleLabel } from "@/features/pmcm-kit/model/display-labels";
 import { supplierWorkspaceStyles } from "@/features/suppliers/directory";
 import { EventDashboardSkeleton, eventDashboardSkeletonVariant } from "@/app/(portal)/dashboard/components/event-dashboard-skeleton";
 import type { EventSession } from "@/app/lib/session";
 import type { EventDashboardShellViewModel } from "../../view-models/use-event-dashboard-shell-view-model";
+
+// Opened only when PMCM attaches a conforme, so it loads on demand rather than with every page.
+const ConformeUploadModal = dynamic(() =>
+  import("@/features/conforme/upload/views/conforme-upload-modal").then((mod) => mod.ConformeUploadModal),
+);
 
 type LoadedShell = EventDashboardShellViewModel & {
   session: EventSession;
