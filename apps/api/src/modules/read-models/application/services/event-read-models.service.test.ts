@@ -659,13 +659,6 @@ describe('EventReadModelsService', () => {
     const queries = {
       defenseReadiness: vi.fn(async () => [
         event,
-        [{ id: 'briefing_1' }],
-        [{ id: 'qr_1' }],
-        [{ id: 'quote_1', status: 'selected' }],
-        [],
-        [],
-         [],
-         [{ id: 'pay_1', status: 'pending', remainingBalance: 5000 }],
          {
            briefings: 501,
            floorPlanDrafts: 501,
@@ -745,9 +738,10 @@ describe('EventReadModelsService', () => {
       'closure',
     ]);
     expect(queries.defenseReadiness).toHaveBeenCalledWith('evt_sample');
-    expect(staffingReader.listAssignmentsForEvent).toHaveBeenCalledWith('evt_sample');
-    expect(guestReader.listCheckInsForEvent).toHaveBeenCalledWith('evt_sample');
-    expect(guestReader.listFeedbackForEvent).toHaveBeenCalledWith('evt_sample');
+    // Readiness reads counts only; it never lists assignments, check-ins or feedback.
+    expect(staffingReader.listAssignmentsForEvent).not.toHaveBeenCalled();
+    expect(guestReader.listCheckInsForEvent).not.toHaveBeenCalled();
+    expect(guestReader.listFeedbackForEvent).not.toHaveBeenCalled();
     expect(closureReadinessReader.closeGates).toHaveBeenCalledWith('evt_sample');
   });
 

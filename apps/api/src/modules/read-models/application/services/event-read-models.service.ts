@@ -60,7 +60,6 @@ import {
 import { EventReadModelQueries, MAX_PMCM_COMMAND_INBOX_PAGE_SIZE } from '../queries/event-read-models.queries';
 import {
   buildDefenseActions,
-  countMatching,
   defenseSummary,
   overallDefenseStatus,
 } from './event-read-models.defense';
@@ -258,66 +257,40 @@ export class EventReadModelsService {
     await this.policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'defense readiness', eventId);
     if (!this.closureReadinessReader) throw new Error('Closure readiness reader is not configured');
 
+    // One wave: every count and the close gates start together. A missing event is reported after the wave;
+    // only counts are read, and nothing is returned before the event is confirmed to exist.
     const [
-      event,
-      briefings,
-      quoteRequests,
-      supplierQuotes,
-      eventDayTasks,
-      urgentIssues,
-      billingStatements,
-      paymentMilestones,
-      counts,
-    ] = await this.queries.defenseReadiness(eventId);
-    if (!event) throw new NotFoundException('Event not found');
-
-    const [
-      coordinatorAssignments,
-      guestCheckIns,
-      guestFeedback,
+      [event, counts],
       closeGatesResult,
-      staffingAssignmentCount,
-      pendingStaffingAssignmentCount,
-      guestAttendanceCount,
+      coordinatorAssignmentsCount,
+      pendingCoordinatorCount,
+      guestCheckInsCount,
       pendingFeedbackCount,
     ] = await Promise.all([
-      this.staffingReader.listAssignmentsForEvent(eventId),
-      this.guestReader.listCheckInsForEvent(eventId),
-      this.guestReader.listFeedbackForEvent(eventId),
+      this.queries.defenseReadiness(eventId),
       this.closureReadinessReader.closeGates(eventId),
       this.staffingReader.countAssignmentsForEvent(eventId),
       this.staffingReader.countPendingAssignmentsForEvent(eventId),
       this.guestReader.countCheckInsForEvent(eventId),
       this.guestReader.countPendingFeedbackForEvent(eventId),
     ]);
+    if (!event) throw new NotFoundException('Event not found');
     const closeGates = closeGatesResult as { ready: boolean; missingKeys: string[] };
-    const floorPlanDrafts = event.floorPlanDrafts ?? [];
     const input = {
       eventName: event.eventName,
       archived: event.archived,
-      briefingsCount: counts?.briefings ?? briefings.length,
-      floorPlanDraftsCount: counts?.floorPlanDrafts ?? floorPlanDrafts.length,
-      approvedFloorplan: counts ? counts.approvedFloorplan > 0 : Boolean(floorPlanDrafts.find((draft: { status: string }) => draft.status === 'approved')),
-      quoteRequestsCount: counts?.quoteRequests ?? quoteRequests.length,
-      selectedSupplierCount:
-        counts?.selectedSupplierQuotes ??
-        countMatching(supplierQuotes, (quote: { status: string }) => ['selected', 'locked'].includes(quote.status)),
-      coordinatorAssignmentsCount: staffingAssignmentCount ?? coordinatorAssignments.length,
-      pendingCoordinatorCount:
-        pendingStaffingAssignmentCount ??
-        countMatching(coordinatorAssignments, (assignment: { status: string }) => ['pending', 'pending_acknowledgement'].includes(assignment.status)),
-      billingStatementsCount: counts?.billingStatements ?? billingStatements.length,
-      unpaidMilestoneCount:
-        counts?.unpaidPaymentMilestones ??
-        countMatching(
-          paymentMilestones,
-          (milestone: { status: string; remainingBalance: number }) => milestone.status !== 'paid' || milestone.remainingBalance > 0,
-        ),
-      openTaskCount:
-        counts?.eventDayTasks ?? countMatching(eventDayTasks, (task: { status: string }) => !['done', 'cancelled'].includes(task.status)),
-      openIssueCount:
-        counts?.urgentIssues ?? countMatching(urgentIssues, (issue: { status: string }) => !['resolved', 'closed'].includes(issue.status)),
-      guestCheckInsCount: guestAttendanceCount,
+      briefingsCount: counts.briefings,
+      floorPlanDraftsCount: counts.floorPlanDrafts,
+      approvedFloorplan: counts.approvedFloorplan > 0,
+      quoteRequestsCount: counts.quoteRequests,
+      selectedSupplierCount: counts.selectedSupplierQuotes,
+      coordinatorAssignmentsCount,
+      pendingCoordinatorCount,
+      billingStatementsCount: counts.billingStatements,
+      unpaidMilestoneCount: counts.unpaidPaymentMilestones,
+      openTaskCount: counts.eventDayTasks,
+      openIssueCount: counts.urgentIssues,
+      guestCheckInsCount,
       pendingFeedbackCount,
       closeGates,
     };
