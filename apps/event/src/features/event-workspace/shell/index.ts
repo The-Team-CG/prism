@@ -1,6 +1,5 @@
 export { usePmcmSelectedEventWorkspace } from "./view-models/use-pmcm-selected-event-workspace";
 export { usePmcmEventReadiness } from "./view-models/use-pmcm-event-readiness";
-export { usePmcmActionRunner } from "./view-models/use-pmcm-action-runner";
 export { usePmcmApprovalRequests } from "./view-models/use-pmcm-approval-requests";
 export {
   getCachedApprovalRequests,

@@ -31,7 +31,7 @@ import {
 } from "../model/event-dashboard-routing";
 import { useEventDashboardWorkspaceViewModel } from "./use-event-dashboard-workspace-view-model";
 import { eventDashboardCommands } from "../data/event-dashboard-commands";
-import { runDashboardActionWithSuccess } from "./dashboard-action-runner";
+import { refreshAfterDashboardCommand, runDashboardActionWithSuccess, type DashboardActionRefreshers } from "./dashboard-action-runner";
 import { countersignConformeExecution, prepareConformeExecution, refreshConformeExecution } from "@/features/conforme/signing/use-cases/conforme-signing";
 
 export type { EventDashboardClientProps };
@@ -155,17 +155,20 @@ export function useEventDashboardShellViewModel({
   const eventListView = routeState.view ?? "all";
   const eventsForView = useMemo(() => selectEventsForView(events, eventListView), [eventListView, events]);
 
+  function commandRefreshers(): DashboardActionRefreshers {
+    return {
+      refresh,
+      refreshSelectedEventWorkspace,
+      loadLiveOps: selectedEvent?.id ? () => loadLiveOps(true) : undefined,
+    };
+  }
+
   async function run(actionLabel: string, action: () => Promise<unknown>) {
     setBusy(actionLabel);
     setError(null);
     try {
       await action();
-      await refresh();
-      await refreshSelectedEventWorkspace();
-      await refreshApprovals();
-      if (selectedEvent?.id) {
-        await loadLiveOps(true).catch(() => undefined);
-      }
+      await refreshAfterDashboardCommand(commandRefreshers());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed");
     } finally {
@@ -196,12 +199,7 @@ export function useEventDashboardShellViewModel({
     try {
       return await runDashboardActionWithSuccess(
         action,
-        {
-          refresh,
-          refreshSelectedEventWorkspace,
-          refreshApprovals,
-          loadLiveOps: selectedEvent?.id ? () => loadLiveOps(true) : undefined,
-        },
+        commandRefreshers(),
         (message) => setError(message),
       );
     } finally {
@@ -214,9 +212,7 @@ export function useEventDashboardShellViewModel({
     setError(null);
     try {
       await action();
-      await refresh();
-      await loadLiveOps(true);
-      await refreshApprovals();
+      await Promise.all([refresh(), loadLiveOps(true)]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed");
     } finally {
