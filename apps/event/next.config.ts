@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
   } } : {}),
   ...(process.env.PRISM_DOCKER_STANDALONE === "1" ? { output: "standalone" as const } : {}),
   outputFileTracingRoot: path.join(__dirname, "../.."),
-  transpilePackages: ["@prism/ui", "@prism/tokens", "@prism/api-client", "@prism/types"],
+  transpilePackages: ["@prism/ui", "@prism/tokens", "@prism/api-client", "@prism/types", "@prism/portal-query"],
 };
 
 export default nextConfig;

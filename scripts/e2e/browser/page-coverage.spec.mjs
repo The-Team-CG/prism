@@ -29,7 +29,7 @@ test('all registered pages render across the four portals', async ({ browser }, 
   fixture.draftId = draft.id;
   const quoteRequests = await api('POST', `/events/${fixture.eventId}/quote-requests`, { categoryId: 'supcat_digital_registration', supplierIds: ['sup_xperto'], deadline: fixture.eventDate });
   fixture.quoteToken = quoteRequests[0].accessToken;
-  const workspace = await api('GET', '/pmcm/dashboard');
+  const workspace = await api('GET', '/pmcm/reference');
   fixture.clientId = selectClientRecords(workspace.events, workspace.inquiries).find(client => client.inquiries.some(inquiry => inquiry.id === fixture.id))?.id;
   expect(fixture.clientId, 'Page coverage requires an existing client dossier').toBeTruthy();
 

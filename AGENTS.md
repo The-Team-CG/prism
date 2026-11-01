@@ -77,6 +77,7 @@ apps/{client,supplier,guest,event}/   Next portals 3001–3004
 packages/types       @prism/types     Zod write schemas + domain types + session keys
 packages/api-client  @prism/api-client  prismRequest/prismJson, createEventOpsClient, PrismApiError
 packages/floorplan-canvas  @prism/floorplan-canvas  shared role-neutral floorplan editor mechanics
+packages/portal-query  @prism/portal-query  one data cache per portal (resources, prefetch, invalidation)
 packages/ui          shells/brand/public blocks only — no workflows / role data rules
 packages/tokens      theme + typography CSS (+ token object)
 docs/                OKF product, architecture, runbook, and reference bundle (see docs/index.md)
@@ -96,6 +97,7 @@ docs/                OKF product, architecture, runbook, and reference bundle (s
 | **`@prism/types`** | Zod **write** schemas + `z.infer` types; domain **read** interfaces; session/storage keys; `parseContract` | Any shared contract, FE model, API body, repository typing | App-local copy of the same shape |
 | **`@prism/api-client`** | HTTP transport + `createEventOpsClient` | **`features/**/data/*` only** (and thin `lib/prism-api` adapters) | Views, pages, view-models calling HTTP |
 | **`@prism/floorplan-canvas`** | Shared canvas editor mechanics, panels, and editor-only types | Floorplan editor role wrappers | Portal APIs, session/auth, workflow ownership, persistence, role decisions |
+| **`@prism/portal-query`** | Portal data cache: `defineResource`, `useResource`, `usePrefetch`, `useInvalidate`, `PortalQueryProvider` (dedupe, abort, per-actor cache) | Declaring a read in `features/**/data`; reading it in view-models | HTTP or role logic inside the package; new hand-written module caches |
 | **`@prism/ui`** | Shells, brand, public marketing blocks, shared empty/status chrome | Cross-portal chrome | Role workflows, business rules |
 | **`@prism/tokens`** | `theme.css`, `typography.css`, `prismTokens` | Portal global CSS / design tokens | Per-app one-off color systems for shared brand |
 

@@ -260,7 +260,7 @@ export function EventWorkspaceCoordinatorsTab() {
           <CoordinatorAssignmentDesk
             event={event}
             coordinators={vm.coordinators}
-            assignments={vm.state.coordinatorAssignments}
+            assignments={vm.reference.coordinatorAssignments}
             roleRequirements={vm.coordinatorRoleRequirements}
             busy={Boolean(vm.busy)}
             onAssign={vm.assignCoordinator}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PrismApprovalRequest, PrismEvent, PrismPmcmDashboardWorkspace, PrismPmcmEventWorkspace } from "@prism/types";
+import type { PrismApprovalRequest, PrismEvent, PrismPmcmEventWorkspace } from "@prism/types";
 import {
   selectActiveEvents,
   selectEventWorkspaceResources,
@@ -43,28 +43,7 @@ describe("event-workspace-selectors", () => {
     expect(selectPendingApprovals(requests).map((entry) => entry.id)).toEqual(["a1"]);
   });
 
-  it("prefers scoped event workspace resources over dashboard state", () => {
-    const state = {
-      floorPlanDrafts: [
-        { id: "d-state", eventId: "e1", isActive: true },
-        { id: "d-other", eventId: "e2", isActive: true },
-      ],
-      coordinatorAssignments: [{ id: "as-state", eventId: "e1" }],
-      auditLogs: [],
-      billingSources: [],
-      billingStatements: [],
-      briefings: [],
-      complianceChecks: [],
-      documents: [],
-      eventInsights: [],
-      notificationLogs: [],
-      paymentMilestones: [],
-      paymentRecords: [],
-      postEventDocuments: [],
-      supplierQuoteRequests: [],
-      supplierQuotes: [],
-    } as unknown as PrismPmcmDashboardWorkspace;
-
+  it("reads event resources only from that event's own workspace", () => {
     const workspace = {
       event: event({ id: "e1" }),
       floorPlanDrafts: [{ id: "d-ws", eventId: "e1", isActive: true }],
@@ -84,12 +63,15 @@ describe("event-workspace-selectors", () => {
       supplierQuotes: [],
     } as unknown as PrismPmcmEventWorkspace;
 
-    const scoped = selectEventWorkspaceResources(state, { id: "e1" }, workspace);
+    const scoped = selectEventWorkspaceResources({ id: "e1" }, workspace);
     expect(scoped.activeDraft?.id).toBe("d-ws");
     expect(scoped.assignments.map((entry) => entry.id)).toEqual(["as-ws"]);
+    // Another event's workspace never leaks in; until the right one loads, every list is empty.
+    const other = selectEventWorkspaceResources({ id: "e2" }, workspace);
+    expect(other.drafts).toEqual([]);
+    expect(other.assignments).toEqual([]);
 
     const selected = selectSelectedEventWorkspaceResources(
-      state,
       [event({ id: "e1" }), event({ id: "e2" })],
       "e1",
       workspace,

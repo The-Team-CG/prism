@@ -34,10 +34,6 @@ function statusWhen(done: boolean, attention: boolean, blocked = false): Defense
   return "blocked";
 }
 
-export function countMatching<T>(items: T[], predicate: (item: T) => boolean) {
-  return items.filter(predicate).length;
-}
-
 export function buildDefenseActions(input: DefenseInputs): DefenseAction[] {
   return [
     briefingAction(input),

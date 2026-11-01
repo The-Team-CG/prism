@@ -60,9 +60,7 @@ export {
 } from "./model/event-dashboard-selectors";
 export {
   getCachedCoordinatorWorkspace,
-  getCachedPmcmState,
   isDashboardCacheFresh,
   loadCoordinatorWorkspace,
-  loadPmcmState,
 } from "./use-cases/load-dashboard-workspace";
 export { pmcmDashboardRepository } from "./data/pmcm-dashboard-repository";
