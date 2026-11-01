@@ -18,7 +18,7 @@ import {
   EventWorkspaceRegistrationTab,
   EventWorkspaceSuppliersTab,
 } from "./event-workspace-tabs";
-import { EventDashboardFilesSectionView } from "./event-dashboard-section-views";
+import { EventDashboardFilesSectionView } from "./files-section-view";
 import { LiveOpsRunSheet } from "@/features/live-ops/schedule";
 
 const EVENT_TAB_VIEWS: Record<DetailTab, () => ReactElement> = {

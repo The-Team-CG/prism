@@ -15,17 +15,11 @@ import type {
 } from "@prism/types";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { type EventSession } from "@/app/lib/session";
-import { loadTemplates, type FloorPlanTemplate } from "@/features/floorplan/editor";
-import {
-  getCachedEventCommandData,
-  loadApprovalRequests,
-  loadEventCommandData,
-  eventCommandPartsFor,
-  type EventCommandDataErrors,
-  type EventCommandPart,
-} from "@/features/event-workspace/shell";
-import { loadCommandInbox } from "@/features/command-inbox/list";
-import { eventWorkspaceRepository } from "@/features/event-workspace/shell";
+import { loadTemplates } from "@/features/floorplan/editor/data/templates-repository";
+import { type FloorPlanTemplate } from "@prism/floorplan-canvas";
+import { getCachedEventCommandData, loadApprovalRequests, loadEventCommandData, eventCommandPartsFor, type EventCommandDataErrors, type EventCommandPart } from "@/features/event-workspace/shell/use-cases/load-event-workspace";
+import { loadCommandInbox } from "@/features/command-inbox/list/use-cases/load-command-inbox";
+import { eventWorkspaceRepository } from "@/features/event-workspace/shell/data/event-workspace-repository";
 import {
   isDashboardCacheFresh,
   loadCoordinatorWorkspace,
@@ -33,8 +27,8 @@ import {
   getCachedPmcmReference,
 } from "../use-cases/load-dashboard-workspace";
 import { startDashboardSessionLoad } from "../use-cases/start-dashboard-session-load";
-import { usePmcmSelectedEventWorkspace } from "@/features/event-workspace/shell";
-import { useEventDayLiveUpdates } from "@/features/live-ops/workspace";
+import { usePmcmSelectedEventWorkspace } from "@/features/event-workspace/shell/view-models/use-pmcm-selected-event-workspace";
+import { useEventDayLiveUpdates } from "@/features/live-ops/workspace/view-models/use-event-day-live-updates";
 import { sectionNeedsPmcmReference, type DashboardSection, type DetailTab } from "../model/event-dashboard-routing";
 
 type ScreenName = "portal" | "editor";

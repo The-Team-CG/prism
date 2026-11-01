@@ -1,4 +1,4 @@
-import type { PmcmDetailTab } from "@/features/command-inbox/list";
+import { type PmcmDetailTab } from "@/features/command-inbox/list/views/event-command-cockpit";
 import type { PrismEvent } from "@prism/types";
 import { formatPortalDate } from "@prism/ui/format-date";
 export type DetailTab = PmcmDetailTab;

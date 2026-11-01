@@ -5,8 +5,8 @@ import type {
 } from "@prism/types";
 import type { EventSession } from "@/app/lib/session";
 import { readStoredEventSession } from "@/app/lib/session";
-import { getCachedApprovalRequests, loadApprovalRequests } from "@/features/event-workspace/shell";
-import { getCachedCommandInbox, loadCommandInbox } from "@/features/command-inbox/list";
+import { getCachedApprovalRequests, loadApprovalRequests } from "@/features/event-workspace/shell/use-cases/load-event-workspace";
+import { getCachedCommandInbox, loadCommandInbox } from "@/features/command-inbox/list/use-cases/load-command-inbox";
 import {
   getCachedCoordinatorWorkspace,
   isDashboardCacheFresh,

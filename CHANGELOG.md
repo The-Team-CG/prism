@@ -20,6 +20,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   - PMCM event tabs request only the data they show.
   - Event pages use a new `GET /pmcm/reference` (event switcher, inquiries, directories, rules) instead of the whole-system dashboard. The dashboard no longer carries system-wide audit and notification logs.
   - The coordinator role view looks up the assignment once. The coordinator home loads its role view alongside the workspace from `GET /coordinator/focus-role-view`, which picks the next upcoming assigned event with the same shared rule as the portal (`selectCoordinatorFocusEventId`, Philippine calendar date).
+  - Each PMCM page downloads only its own section: list pages ship about 260 KB of gzipped JavaScript instead of 417 KB. Pages import their section and route view directly (a shell test guards this), the coordinator desk and conforme upload load on demand, and the shell imports feature modules instead of whole feature barrels.
   - After a PMCM command, the portal reads, the selected event workspace and live ops refresh at once instead of one after another, and the duplicate approvals reload is gone.
   - New `@prism/portal-query` gives each portal one data cache (`defineResource`, `useResource`, `usePrefetch`, `useInvalidate`). The client event overview uses it to start its change requests and addenda alongside the workspace, and the event portal's dashboard layout now holds its cache across navigation. Supplier dashboard sections share one workspace read, so moving between them no longer reloads it.
 
