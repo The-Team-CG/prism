@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { manilaDateKey } from "@prism/ui/format-date";
+import { prismCalendarDateKey, selectCoordinatorFocusEventId } from "@prism/types";
 import type { EventSession } from "@/app/lib/session";
 import { useEventDayLiveUpdates } from "@/features/live-ops/workspace";
 import {
@@ -33,6 +33,7 @@ import {
   updateDelegatedAttendanceAndRefreshRoleView,
   verifySupplierStatusAndRefreshRoleView,
 } from "../use-cases/coordinator-desk-actions";
+import { useCoordinatorRoleViewSource } from "./use-coordinator-role-view-source";
 import {
   coordinatorRoleDataStatus,
   resolveCoordinatorTaskRole,
@@ -48,7 +49,6 @@ import {
   isIngressOrEgressRole,
   isReplacedAssignment,
   isTaskOutsideOwnQueue,
-  defaultCoordinatorEventId,
   pickActiveAssignment,
   requiresAttendanceConfirmation,
   resolveOwnAttendanceStatus,
@@ -78,7 +78,7 @@ export function useCoordinatorViewModel({
     .filter((item) => state.events.some((event) => event.id === item.eventId && !event.archived))
     .map((item) => item.eventId));
   // Open on the next upcoming assigned event instead of asking the coordinator to pick one.
-  const defaultEventId = defaultCoordinatorEventId(state.events.filter((event) => activeEventIds.has(event.id)), manilaDateKey());
+  const defaultEventId = selectCoordinatorFocusEventId(state.events.filter((event) => activeEventIds.has(event.id)), prismCalendarDateKey());
   const defaultAssignment = defaultEventId
     ? pickActiveAssignment(activeAssignments.filter((item) => item.eventId === defaultEventId))
     : undefined;
@@ -129,6 +129,8 @@ export function useCoordinatorViewModel({
     activeEventIdRef.current = event?.id ?? null;
   }, [event?.id]);
 
+  const roleViewSource = useCoordinatorRoleViewSource(selectedEventId === null, event?.id);
+
   useEffect(() => {
     if (!event?.id) {
       setRoleView(null);
@@ -136,11 +138,24 @@ export function useCoordinatorViewModel({
       setRoleViewError(null);
       return;
     }
+    if (roleViewSource.kind === "focus") {
+      setRoleView(roleViewSource.view);
+      setRoleViewStatus("success");
+      setRoleViewError(null);
+      return;
+    }
+    if (roleViewSource.kind === "error") {
+      setRoleView(null);
+      setRoleViewStatus("error");
+      setRoleViewError(roleViewSource.message);
+      return;
+    }
 
     let alive = true;
     setRoleView(null);
     setRoleViewStatus("loading");
     setRoleViewError(null);
+    if (roleViewSource.kind === "wait") return;
     loadCoordinatorRoleView(session, event.id)
       .then((next) => {
         if (!alive) return;
@@ -157,7 +172,7 @@ export function useCoordinatorViewModel({
     return () => {
       alive = false;
     };
-  }, [event?.id, session.email, session.name]);
+  }, [event?.id, roleViewSource, session.email, session.name]);
 
   const refreshRoleView = useCallback(async () => {
     const eventId = event?.id;

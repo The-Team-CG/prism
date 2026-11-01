@@ -1,5 +1,7 @@
 /** @vitest-environment jsdom */
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { createElement, type ReactNode } from "react";
+import { act, renderHook as renderTestHook, waitFor } from "@testing-library/react";
+import { PortalQueryProvider } from "@prism/portal-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EVENT_DAY_LIVE_UPDATE_INTERVAL_MS } from "@/features/live-ops/workspace/view-models/use-event-day-live-updates";
 
@@ -14,6 +16,16 @@ vi.mock("../use-cases/coordinator-desk-actions", () => ({
   requestTaskReassignmentAndRefreshRoleView: vi.fn(async () => null),
   markAttendanceAndRefreshRoleView: vi.fn(async () => null),
 }));
+
+// The focus read the shell starts with the workspace; by default it names no event, so each test's own read runs.
+const focusFetch = vi.hoisted(() => vi.fn(async (): Promise<unknown> => null));
+vi.mock("../data/coordinators-repository", () => ({
+  coordinatorFocusRoleView: { name: "coordinator.focus-role-view", staleMs: 30_000, fetch: focusFetch },
+}));
+
+// Each render gets its own portal cache, as each signed-in coordinator does.
+const wrapper = ({ children }: { children: ReactNode }) => createElement(PortalQueryProvider, { actorKey: "marco@pmcm.test", children });
+const renderHook: typeof renderTestHook = (callback, options) => renderTestHook(callback, { wrapper, ...options });
 
 import {
   acknowledgeAndRefreshRoleView,
@@ -113,6 +125,27 @@ describe("legacy coordinator task creation", () => {
 });
 
 describe("coordinator event selection", () => {
+  it("opens the default event from the focus read started with the workspace, without its own role-view request", async () => {
+    vi.mocked(loadCoordinatorRoleView).mockClear();
+    focusFetch.mockResolvedValueOnce({ role: "Floor Director", event: EVENT, tasks: [{ id: "task_focus" }] });
+
+    const { result } = renderVm(LIVE);
+
+    await waitFor(() => expect(result.current.roleView?.tasks).toEqual([{ id: "task_focus" }]));
+    expect(result.current.event?.id).toBe("evt_1");
+    expect(loadCoordinatorRoleView).not.toHaveBeenCalled();
+  });
+
+  it("shows the focus read's failure instead of loading the event again", async () => {
+    vi.mocked(loadCoordinatorRoleView).mockClear();
+    focusFetch.mockRejectedValueOnce(new Error("Role view unavailable"));
+
+    const { result } = renderVm(LIVE);
+
+    await waitFor(() => expect(result.current.roleViewError).toBe("Role view unavailable"));
+    expect(loadCoordinatorRoleView).not.toHaveBeenCalled();
+  });
+
   it("switches to another assigned event and reloads only that event's role view", async () => {
     vi.mocked(loadCoordinatorRoleView).mockClear();
     const secondEvent = { ...EVENT, id: "evt_2", eventName: "Leadership Forum", eventDate: "2026-10-12", venue: "Harbor Hall" };
@@ -156,8 +189,7 @@ describe("coordinator event selection", () => {
     }));
 
     await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(0);
     });
     expect(result.current.roleView?.tasks).toHaveLength(1);
     expect(result.current.roleView?.guestAttendanceCount).toBe(2);

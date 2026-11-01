@@ -28,7 +28,8 @@ describe("event dashboard shell architecture", () => {
     );
 
     expect(source).not.toContain("EventDashboardShellView");
-    expect(source).toContain("return children");
+    // The layout holds only the portal's data cache, so it persists across dashboard navigation.
+    expect(source).toContain("<EventPortalQueryProvider>{children}</EventPortalQueryProvider>");
     expect(pageSource).toContain("EventDashboardHomeSectionView");
     expect(eventPageSource).toContain("EventDashboardEventsListSectionView");
   });
