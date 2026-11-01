@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Refresh compatible portal, API and development dependencies, including Next.js 16.4, React 19.3, Prisma 7.10 and Zod 4.6, while retaining existing major-version compatibility.
+
 - Planning starts when the client approves the proposal, and the API's archive, event-day and readiness checks use the same shared stage rule as the portals. Workspace-wide compliance rules are managed in PMCM Settings instead of one event's Closure tab. The Compliance step lists open checks as compact rows grouped by phase, with evidence behind Details and settled checks collapsed, and its history is a one-line run summary plus a risks list. Date-and-time pickers with nothing chosen open on the current month.
 - Every portal shows the same lifecycle stage for an event, from `derivePrismLifecycleStage` in `@prism/types`: PMCM Overview, the PMCM events list, and the client Overview and Planning tabs no longer disagree (for example "Ready for event day" next to "briefing" and "Stage 4: Planning"). The separate client progress percentage is replaced by "2 of 5 checkpoints done". PMCM's "Event day is here" banner appears only from the day before the event.
 - Event tabs follow the event's stage. PMCM's event menu is grouped into Prepare, Event day & after, and Back to; the Closure count stays hidden until the event day. The guest pass leads with event details and says when check-in opens, and shows check-in only on the event day.
