@@ -23,7 +23,6 @@ export function useEventProgressView(): EventProgressViewModel {
         checkpoints: [],
         timeline: [],
         paymentMilestones: [],
-        score: 0,
         clientEventDayStatus: null,
         clientActions,
         runClientAction,

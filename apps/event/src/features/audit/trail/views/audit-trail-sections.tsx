@@ -350,7 +350,7 @@ export function SecurityAlertsPanel({ alerts }: { alerts: PrismSecurityAlert[] }
                 <p className="font-black">{alert.title}</p>
                 <p className="mt-1 text-muted-foreground">{alert.description}</p>
               </div>
-              <span className={cx("rounded-full px-2 py-1 text-2xs font-black capitalize ring-1", severityTone(alert.severity))}>{alert.severity}</span>
+              <span className={cx("rounded-full px-2 py-1 text-2xs font-semibold capitalize", severityTone(alert.severity))}>{alert.severity}</span>
             </div>
             <p className="mt-2 text-xs text-muted-foreground">{compactTimestamp(alert.createdAt)} - {alert.triggeredBy}</p>
           </div>
@@ -369,7 +369,7 @@ export function LoginHistoryPanel({ loginHistory }: { loginHistory: PrismLoginHi
           <div key={entry.id} className="rounded-md bg-background p-3 text-sm">
             <div className="flex items-center justify-between gap-3">
               <p className="font-black capitalize">{label(entry.status)}</p>
-              <span className={cx("rounded-full px-2 py-1 text-2xs font-black capitalize ring-1", entry.status === "success" ? severityTone("info") : severityTone("warning"))}>
+              <span className={cx("rounded-full px-2 py-1 text-2xs font-semibold capitalize", entry.status === "success" ? severityTone("info") : severityTone("warning"))}>
                 {label(entry.userRole)}
               </span>
             </div>

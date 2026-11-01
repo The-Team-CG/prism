@@ -9,6 +9,7 @@ import {
   canConfirmPendingAttendance,
   canMarkOwnAttendance,
   confirmedSupplierChecks,
+  defaultCoordinatorEventId,
   delegatedAttendanceTargets,
   describeReminderResult,
   formatAvailabilityRange,
@@ -543,5 +544,12 @@ describe("describeReminderResult", () => {
     expect(describeReminderResult({ leadTimeDays: 7, reminders: [queued, { ...queued, assignmentId: "a2" }] })).toBe("2 pending coordinators reminded.");
     expect(describeReminderResult({ leadTimeDays: 7, reminders: [queued, { assignmentId: "a2", status: "failed", reason: "no email" }] }))
       .toBe("1 pending coordinator reminded. 1 could not be sent; check the PMCM status message.");
+  });
+
+  it("opens the coordinator's next upcoming event, or the latest past one", () => {
+    const events = [{ id: "past", eventDate: "2026-10-01" }, { id: "later", eventDate: "2027-01-09" }, { id: "next", eventDate: "2026-11-02" }];
+    expect(defaultCoordinatorEventId(events, "2026-11-01")).toBe("next");
+    expect(defaultCoordinatorEventId(events, "2027-02-01")).toBe("later");
+    expect(defaultCoordinatorEventId([], "2026-11-01")).toBeUndefined();
   });
 });

@@ -19,6 +19,6 @@ export function CardBody({ children, className = "" }: { children: React.ReactNo
 
 export function SectionAccent({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-xs font-medium text-primary">{children}</p>
+    <p className="text-sm text-muted-foreground">{children}</p>
   );
 }

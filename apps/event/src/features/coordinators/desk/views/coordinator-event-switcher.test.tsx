@@ -5,7 +5,7 @@ import type { PrismCoordinatorAssignment, PrismEvent } from "@prism/types";
 import { CoordinatorEventSwitcher } from "./coordinator-event-switcher";
 import { CoordinatorView } from "./coordinator-view";
 
-vi.mock("@prism/ui", () => ({ PrismDashboardShell: ({ children, navItems, onNavSelect }: { children: import("react").ReactNode; navItems: Array<{ id: string; label: string }>; onNavSelect: (id: string) => void }) => <main><nav>{navItems.map((item) => <button key={item.id} onClick={() => onNavSelect(item.id)}>{item.label}</button>)}</nav>{children}</main> }));
+vi.mock("@prism/ui", () => ({ PrismDashboardShell: ({ children, navItems, onNavSelect, sidebarContext }: { children: import("react").ReactNode; navItems: Array<{ id: string; label: string }>; onNavSelect: (id: string) => void; sidebarContext?: import("react").ReactNode }) => <main><aside>{sidebarContext}</aside><nav>{navItems.map((item) => <button key={item.id} onClick={() => onNavSelect(item.id)}>{item.label}</button>)}</nav>{children}</main> }));
 vi.mock("../use-cases/coordinator-desk-actions", () => ({ loadCoordinatorRoleView: vi.fn(async () => null) }));
 
 afterEach(() => { cleanup(); window.history.replaceState(null, "", "/"); });

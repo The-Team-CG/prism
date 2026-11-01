@@ -65,12 +65,12 @@
   "devDependencies": {
     "@playwright/test": "1.64.1",
     "concurrently": "^9.1.2",
-    "eslint": "^9.39.5",
+    "eslint": "^10.14.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "supabase": "2.115.0",
     "turbo": "^2.6.1",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.65.0"
+    "typescript-eslint": "^8.72.1"
   },
   "overrides": {
     "deepmerge-ts": "^8.0.2",
@@ -86,6 +86,7 @@
     "shell-quote": "^1.11.0",
     "@nestjs/platform-express": {
       "multer": "2.5.0"
-    }
+    },
+    "minimatch": "^11.0.3"
   }
 }

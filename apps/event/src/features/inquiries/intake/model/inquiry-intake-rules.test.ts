@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { PrismInquiry } from "@prism/types";
 import {
+  AWAITING_REVIEW,
   canMergeInquiry,
+  compareIntakeInquiries,
   inquiryExtraDetailFields,
   inquiryHistoryCues,
   inquiryMatchesIntakeFilters,
@@ -57,6 +59,17 @@ describe("inquiry-intake-rules", () => {
       clientType: "all",
       dateRange: "all",
     })).toBe(false);
+    const awaiting = { query: "", status: AWAITING_REVIEW, source: "all", clientType: "all", dateRange: "all" };
+    expect(inquiryMatchesIntakeFilters(inquiry, awaiting)).toBe(true);
+    expect(inquiryMatchesIntakeFilters({ ...inquiry, status: "accepted" }, awaiting)).toBe(false);
+  });
+
+  it("lists undecided inquiries before older decided ones", () => {
+    const rows = [
+      inquiryRow({ id: "accepted_new", status: "accepted", createdAt: "2026-06-01T00:00:00.000Z" }),
+      inquiryRow({ id: "awaiting_old", status: "new", createdAt: "2026-05-01T00:00:00.000Z" }),
+    ];
+    expect(rows.sort(compareIntakeInquiries).map((row) => row.id)).toEqual(["awaiting_old", "accepted_new"]);
   });
 
   it("collects extra detail fields", () => {

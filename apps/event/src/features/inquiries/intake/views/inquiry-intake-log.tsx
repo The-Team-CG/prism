@@ -6,6 +6,8 @@ import { useListFilter } from "@/features/pmcm-kit";
 import { buildPublicInquiryLink, portalUrlFor, type PrismInquiry } from "@prism/types";
 import { portalUrlsFromEnvironment } from "@/lib/portal-urls";
 import {
+  AWAITING_REVIEW,
+  compareIntakeInquiries,
   declineReasons,
   initialLogForm,
   inquiryMatchesIntakeFilters,
@@ -41,7 +43,9 @@ export function InquiryIntakeLog({
   busy: boolean;
 }) {
   const [query, setQuery] = useListFilter("q");
-  const [status, setStatus] = useListFilter("inquiryStatus", "all");
+  const unreviewedCount = inquiries.filter((inquiry) => inquiry.status === "new").length;
+  // Open on the decisions waiting for PMCM; accepted history is one filter change away.
+  const [status, setStatus] = useListFilter("inquiryStatus", unreviewedCount > 0 ? AWAITING_REVIEW : "all");
   const [source, setSource] = useListFilter("inquirySource", "all");
   const [clientType, setClientType] = useListFilter("clientType", "all");
   const [dateRange, setDateRange] = useListFilter("dateRange", "all");
@@ -57,11 +61,10 @@ export function InquiryIntakeLog({
   const todayIso = new Date().toISOString().slice(0, 10);
   const logFormFirstFieldRef = useRef<HTMLInputElement>(null);
 
-  const unreviewedCount = inquiries.filter((inquiry) => inquiry.status === "new").length;
   const clientTypes = Array.from(new Set(inquiries.map((inquiry) => inquiry.clientType).filter(Boolean))).sort();
   const filtered = inquiries
     .filter((inquiry) => inquiryMatchesIntakeFilters(inquiry, { query, status, source, clientType, dateRange }))
-    .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
+    .sort(compareIntakeInquiries);
 
   async function copyInquiryLink() {
     const origin = portalUrlFor("client", portalUrlsFromEnvironment());

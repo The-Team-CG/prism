@@ -1,6 +1,6 @@
 import { DateTimePicker } from "@prism/ui/components/date-time-picker";
 import { formatPortalDateTime } from "@prism/ui/format-date";
-import { AlertTriangle, Archive, BadgeCheck, CheckCircle2, Lightbulb, Plus, ShieldCheck, XCircle } from "lucide-react";
+import { AlertTriangle, Archive, BadgeCheck, CheckCircle2, Lightbulb, ShieldCheck, XCircle } from "lucide-react";
 import { useState } from "react";
 
 import type {
@@ -22,6 +22,15 @@ const money = new Intl.NumberFormat("en-PH", {
 
 export { money };
 
+function Phase4Status({ value, label: text }: { value: string; label: string }) {
+  return (
+    <span className={cx("inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold capitalize", phase4StatusTone(value))}>
+      <span aria-hidden className="size-1.5 rounded-full bg-current" />
+      {text}
+    </span>
+  );
+}
+
 export function Phase4ClosureBoard({
   event,
   closeGates,
@@ -36,15 +45,12 @@ export function Phase4ClosureBoard({
     <section className="rounded-lg border border-primary/15 bg-card p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-medium text-attention">Closure board</p>
-          <h3 className="mt-1 text-xl font-black text-foreground">{event.eventName}</h3>
+          <h2 className="text-lg font-semibold text-foreground">Close out this event</h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-            Archive readiness is local to PMCM: compliance checks, approved billing source, generated statements, and post-event insights stay visible before close.
+            Work through the steps below. The event can be archived once every close gate passes.
           </p>
         </div>
-        <span className={cx("rounded-full px-3 py-1 text-xs font-black capitalize ring-1", phase4StatusTone(archive.toneKey))}>
-          {archive.label}
-        </span>
+        <Phase4Status value={archive.toneKey} label={archive.label} />
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
@@ -61,39 +67,21 @@ export function Phase4ClosureBoard({
 
 export function Phase4ComplianceSection({
   phase,
-  ruleTitle,
-  ruleKey,
-  ruleSeverity,
-  ruleNote,
   checks,
   rules,
   openChecks,
   busy,
   onPhase,
-  onRuleTitle,
-  onRuleKey,
-  onRuleSeverity,
-  onRuleNote,
-  onCreateRule,
   onRunCompliance,
   onResolveCompliance,
   onOverrideCompliance,
 }: {
   phase: string;
-  ruleTitle: string;
-  ruleKey: string;
-  ruleSeverity: string;
-  ruleNote: string;
   checks: PrismComplianceCheck[];
   rules: PrismComplianceRule[];
   openChecks: PrismComplianceCheck[];
   busy: boolean;
   onPhase: (value: string) => void;
-  onRuleTitle: (value: string) => void;
-  onRuleKey: (value: string) => void;
-  onRuleSeverity: (value: string) => void;
-  onRuleNote: (value: string) => void;
-  onCreateRule: () => void;
   onRunCompliance: () => void;
   onResolveCompliance: (checkId: string) => void;
   onOverrideCompliance: (checkId: string, reason: string) => void;
@@ -107,63 +95,81 @@ export function Phase4ComplianceSection({
             <h3 className="text-xl font-black">Compliance checks</h3>
           </div>
         </div>
-        <button disabled={busy} onClick={onRunCompliance} className="h-10 rounded-md bg-ink px-3 text-sm font-black text-ink-foreground disabled:opacity-60">
-          Run checks
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor="phase4-run-phase" className="text-sm text-muted-foreground">Phase</label>
+          <select id="phase4-run-phase" value={phase} onChange={(event) => onPhase(event.target.value)} className="h-10 rounded-md border border-border bg-white px-3 text-sm">
+            <option value="planning">Planning</option>
+            <option value="pre_event">Pre-event</option>
+            <option value="event_day">Event day</option>
+          </select>
+          <button disabled={busy} onClick={onRunCompliance} className="h-10 rounded-md bg-ink px-3 text-sm font-black text-ink-foreground disabled:opacity-60">
+            Run checks
+          </button>
+        </div>
       </div>
 
-      <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <div className="rounded-md border border-border bg-background p-4">
-          <p className="text-sm font-black">Add PMCM rule</p>
-          <div className="mt-3 grid gap-3">
-            <label htmlFor="phase4-rule-title" className="sr-only">Rule title</label>
-            <input id="phase4-rule-title" value={ruleTitle} onChange={(event) => onRuleTitle(event.target.value)} placeholder="Rule title" className="h-10 rounded-md border border-border bg-white px-3 text-sm" />
-            <label htmlFor="phase4-rule-key" className="sr-only">Condition key</label>
-            <input id="phase4-rule-key" value={ruleKey} onChange={(event) => onRuleKey(event.target.value)} placeholder="condition_key" className="h-10 rounded-md border border-border bg-white px-3 text-sm" />
-            <div className="grid gap-3 sm:grid-cols-2">
-              <select aria-label="Rule phase" value={phase} onChange={(event) => onPhase(event.target.value)} className="h-10 rounded-md border border-border bg-white px-3 text-sm">
-                <option value="planning">Planning</option>
-                <option value="pre_event">Pre-event</option>
-                <option value="event_day">Event day</option>
-              </select>
-              <select aria-label="Rule severity" value={ruleSeverity} onChange={(event) => onRuleSeverity(event.target.value)} className="h-10 rounded-md border border-border bg-white px-3 text-sm">
-                <option value="must_fix">Must-Fix</option>
-                <option value="watch_out">Watch Out</option>
-                <option value="advisory">Advisory</option>
-              </select>
-            </div>
-            <label htmlFor="phase4-rule-note" className="sr-only">PMCM note</label>
-            <textarea id="phase4-rule-note" value={ruleNote} onChange={(event) => onRuleNote(event.target.value)} placeholder="PMCM note" className="min-h-20 rounded-md border border-border bg-white p-3 text-sm" />
-            <button disabled={busy || !ruleTitle || !ruleKey} onClick={onCreateRule} className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-primary/20 bg-white px-3 text-sm font-black text-foreground disabled:opacity-60">
-              <Plus className="size-4" /> Add rule
-            </button>
+      <div className="mt-5 grid gap-4">
+        {checks.length === 0 ? (
+          <div className="rounded-md border border-dashed border-border bg-muted p-5 text-sm text-muted-foreground">
+            No compliance checks generated yet. Pick the phase and run checks for the event record.
           </div>
-        </div>
+        ) : (
+          <>
+            {/* Open checks need a decision, grouped by phase; settled ones stay one click away. */}
+            {groupChecksByPhase(checks.filter((check) => check.status === "open")).map((group) => (
+              <section key={group.phase} aria-label={`${group.label} checks`} className="overflow-hidden rounded-md border border-border bg-background">
+                <h4 className="flex items-baseline gap-2 border-b border-border bg-muted/40 px-4 py-2 text-sm font-semibold text-foreground">
+                  {group.label}
+                  <span className="text-xs font-normal tabular-nums text-muted-foreground">{group.checks.length} open</span>
+                </h4>
+                <ul className="divide-y divide-border">
+                  {group.checks.map((check) => (
+                    <Phase4ComplianceCheckRow key={check.id} check={check} busy={busy} onResolve={onResolveCompliance} onOverride={onOverrideCompliance} onRunCompliance={onRunCompliance} />
+                  ))}
+                </ul>
+              </section>
+            ))}
+            {checks.some((check) => check.status !== "open") ? (
+              <details className="overflow-hidden rounded-md border border-border bg-background">
+                <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">
+                  {checks.filter((check) => check.status !== "open").length} resolved or overridden
+                </summary>
+                <ul className="divide-y divide-border border-t border-border">
+                  {checks.filter((check) => check.status !== "open").map((check) => (
+                    <Phase4ComplianceCheckRow key={check.id} check={check} busy={busy} onResolve={onResolveCompliance} onOverride={onOverrideCompliance} onRunCompliance={onRunCompliance} />
+                  ))}
+                </ul>
+              </details>
+            ) : null}
+          </>
+        )}
 
-        <div className="grid gap-3">
-          {checks.length === 0 && (
-            <div className="rounded-md border border-dashed border-border bg-muted p-5 text-sm text-muted-foreground">
-              No compliance checks generated yet. Pick the phase and run checks for the event record.
-            </div>
-          )}
-          {checks.map((check) => (
-            <Phase4ComplianceCheckCard
-              key={check.id}
-              check={check}
-              busy={busy}
-              onResolve={onResolveCompliance}
-              onOverride={onOverrideCompliance}
-              onRunCompliance={onRunCompliance}
-            />
-          ))}
-          <p className="text-xs text-muted-foreground">{rules.filter((rule) => rule.active).length} active rule(s), {openChecks.length} open check(s).</p>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          {rules.filter((rule) => rule.active).length} active rule(s) apply.{" "}
+          <a href="/dashboard/settings#compliance-rules" className="font-semibold text-primary hover:text-primary-strong">Manage workspace rules in Settings</a>
+        </p>
       </div>
     </section>
   );
 }
 
-function Phase4ComplianceCheckCard({
+const PHASE_LABELS: Record<string, string> = { planning: "Planning", pre_event: "Pre-event", event_day: "Event day", closure: "Closure" };
+const PHASE_ORDER = ["planning", "pre_event", "event_day", "closure"];
+
+/** Checks for the same rule can exist once per phase; grouping by phase shows why a title repeats. */
+function groupChecksByPhase(checks: PrismComplianceCheck[]) {
+  const groups = new Map<string, PrismComplianceCheck[]>();
+  for (const check of checks) {
+    const phase = check.phase || "other";
+    groups.set(phase, [...(groups.get(phase) ?? []), check]);
+  }
+  const rank = (phase: string) => (PHASE_ORDER.includes(phase) ? PHASE_ORDER.indexOf(phase) : PHASE_ORDER.length);
+  return [...groups.entries()]
+    .sort(([left], [right]) => rank(left) - rank(right))
+    .map(([phase, items]) => ({ phase, label: PHASE_LABELS[phase] ?? "Other checks", checks: items }));
+}
+
+function Phase4ComplianceCheckRow({
   check,
   busy,
   onResolve,
@@ -177,31 +183,40 @@ function Phase4ComplianceCheckCard({
   onOverride: (checkId: string, reason: string) => void;
 }) {
   return (
-    <div className="rounded-md border border-border bg-background p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="font-black">{check.title}</p>
-          {check.note ? <p className="mt-1 text-sm text-muted-foreground">{check.note}</p> : null}
-          <p className="mt-1 text-xs text-muted-foreground">Evaluation: {check.evaluationStatus} · {check.definitionStatus}</p>
+    <li className="px-4 py-2.5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <div className="min-w-0 flex-1">
+          <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
+            {check.title}
+            <Phase4Status value={check.status} label={label(check.status)} />
+          </p>
+          {check.note ? <p className="truncate text-xs text-muted-foreground" title={check.note}>{check.note}</p> : null}
         </div>
-        <span className={cx("rounded-full px-2.5 py-1 text-xs font-black capitalize ring-1", phase4StatusTone(check.status))}>{label(check.status)}</span>
+        {check.status === "open" ? (
+          <div className="flex shrink-0 gap-1.5">
+            <button disabled={busy} onClick={() => onResolve(check.id)} className="h-7 rounded-md bg-success-soft px-2.5 text-xs font-semibold text-success disabled:opacity-60">Resolve</button>
+            <button disabled={busy} onClick={() => onOverride(check.id, "PMCM accepted documented operational risk.")} className="h-7 rounded-md bg-attention-soft px-2.5 text-xs font-semibold text-attention disabled:opacity-60">Override</button>
+          </div>
+        ) : null}
       </div>
-      {check.overrideReason && <p className="mt-3 rounded-md bg-attention-soft p-3 text-xs text-attention">Override: {check.overrideReason}</p>}
-      {check.evidence.length > 0 ? (
-        <ul aria-label="Evidence" className="mt-3 list-disc pl-5 text-xs text-muted-foreground">{check.evidence.map((item) => <li key={item}>{item}</li>)}</ul>
-      ) : (
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted px-3 py-2">
-          <p className="text-xs text-muted-foreground">No evidence recorded for this check yet. Run checks again to collect it{check.status === "open" ? ", or resolve it with a note" : ""}.</p>
-          <button type="button" disabled={busy} onClick={onRunCompliance} className="h-8 rounded-md border border-border bg-background px-3 text-xs font-semibold text-foreground disabled:opacity-60">Collect evidence</button>
+      <details className="group mt-1">
+        <summary className="w-fit cursor-pointer list-none text-xs font-medium text-primary hover:text-primary-strong">
+          <span className="group-open:hidden">Details</span>
+          <span className="hidden group-open:inline">Hide details</span>
+        </summary>
+        <div className="mt-2 space-y-2 text-xs text-muted-foreground">
+          {check.overrideReason ? <p className="rounded-md bg-attention-soft px-3 py-2 text-attention">Override: {check.overrideReason}</p> : null}
+          {check.evidence.length > 0 ? (
+            <ul aria-label="Evidence" className="list-disc pl-5">{check.evidence.map((item) => <li key={item}>{item}</li>)}</ul>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted px-3 py-2">
+              <p>No evidence recorded for this check yet. Run checks again to collect it{check.status === "open" ? ", or resolve it with a note" : ""}.</p>
+              <button type="button" disabled={busy} onClick={onRunCompliance} className="h-7 rounded-md border border-border bg-background px-2.5 font-semibold text-foreground disabled:opacity-60">Collect evidence</button>
+            </div>
+          )}
         </div>
-      )}
-      {check.status === "open" && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button disabled={busy} onClick={() => onResolve(check.id)} className="h-8 rounded-md bg-success-soft px-3 text-xs font-black text-success disabled:opacity-60">Resolve</button>
-          <button disabled={busy} onClick={() => onOverride(check.id, "PMCM accepted documented operational risk.")} className="h-8 rounded-md bg-attention-soft px-3 text-xs font-black text-attention disabled:opacity-60">Override</button>
-        </div>
-      )}
-    </div>
+      </details>
+    </li>
   );
 }
 
@@ -221,7 +236,7 @@ export function ActualEventEndSection({ event, busy, onRecord }: { event: PrismE
     setReason("");
   }
   return <section className="rounded-lg border border-border bg-card p-5">
-    <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-medium text-attention">Event end</p><h3 className="mt-1 text-xl font-black">Record actual end</h3></div><span className="text-xs text-muted-foreground">{event.actualEndedAt ? formatPortalDateTime(event.actualEndedAt) : "Not recorded"}</span></div>
+    <div className="flex items-start justify-between gap-3"><h3 className="text-lg font-semibold">Record actual end</h3><span className="text-xs text-muted-foreground">{event.actualEndedAt ? formatPortalDateTime(event.actualEndedAt) : "Not recorded"}</span></div>
     <p className="mt-2 text-sm text-muted-foreground">This timestamp opens the seven-day guest feedback window and supports final registration imports.</p>
     <div className="mt-4 flex flex-wrap items-end gap-3"><label className="text-sm font-semibold">Actual ended at<DateTimePicker value={endedAt} onValueChange={(next) => setEndedAt(next)} className="mt-1 w-64" /></label>{hasRecorded && <label className="text-sm font-semibold">Correction reason<input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why is the end changing?" className="mt-1 block h-10 rounded-md border border-border bg-white px-3" /></label>}<button disabled={busy || !endedAt || (hasRecorded && !reason.trim())} onClick={() => void submit()} className="h-10 rounded-md bg-ink px-4 text-sm font-black text-ink-foreground disabled:opacity-60">{hasRecorded ? "Correct actual end" : "Record actual end"}</button></div>
   </section>;
@@ -248,8 +263,8 @@ export function Phase4CloseGatesSection({
         <div className="flex items-start gap-3">
           <Archive className="mt-1 size-5 text-attention" />
           <div>
-            <p className="text-xs font-medium text-attention">Close Gates</p>
-            <h3 className="mt-1 text-xl font-black">One-screen close</h3>
+            <h3 className="text-lg font-semibold">Close gates</h3>
+            <p className="mt-0.5 text-sm text-muted-foreground">Every gate must pass, or be overridden with a reason, before archiving.</p>
           </div>
         </div>
         <button disabled={busy} onClick={onRefresh} className="h-9 rounded-md border border-border bg-white px-3 text-xs font-black disabled:opacity-60">Refresh</button>
@@ -310,8 +325,8 @@ export function Phase4InsightsSection({
         <div className="flex items-start gap-3">
           <Lightbulb className="mt-1 size-5 text-attention" />
           <div>
-            <p className="text-xs font-medium text-attention">Event Insights</p>
-            <h3 className="mt-1 text-xl font-black">Deterministic PMCM knowledge capture</h3>
+            <h3 className="text-lg font-semibold">Post-event insights</h3>
+            <p className="mt-0.5 text-sm text-muted-foreground">A summary of what happened, kept for planning future events.</p>
           </div>
         </div>
         <button disabled={busy} onClick={onGenerate} className="h-10 rounded-md bg-ink px-3 text-sm font-black text-ink-foreground disabled:opacity-60">
@@ -353,7 +368,7 @@ export function Phase4InsightsSection({
         </div>
       ) : (
         <div className="mt-5 rounded-md border border-dashed border-border bg-muted p-6 text-sm text-muted-foreground">
-          Generate the first Event Insights Card after close data is ready.
+          Generate the first insights summary after close data is ready.
         </div>
       )}
     </section>

@@ -1,16 +1,17 @@
 const PASSED_TONES = ["approved", "resolved", "overridden", "generated", "sent"];
 const OPEN_TONES = ["draft", "issued", "open"];
 
+/** Text and dot colour for a closure status, shown as a dot plus label rather than an outlined pill. */
 export function phase4StatusTone(value: string, passed?: boolean) {
-  if (passed || PASSED_TONES.includes(value)) return "bg-success-soft text-success ring-success/20";
-  if (OPEN_TONES.includes(value)) return "bg-attention-soft text-attention ring-attention/20";
-  return "bg-danger-soft text-danger ring-danger/20";
+  if (passed || PASSED_TONES.includes(value)) return "text-success";
+  if (OPEN_TONES.includes(value)) return "text-attention";
+  return "text-danger";
 }
 
 export function phase4ArchiveStatus(archived: boolean, ready?: boolean) {
   if (archived) return { label: "Archived", toneKey: "approved" };
   if (ready) return { label: "Ready for archive", toneKey: "approved" };
-  return { label: "Archive gated", toneKey: "open" };
+  return { label: "Not ready to archive", toneKey: "open" };
 }
 
 export function phase4CloseGatesCard(closeGates: { ready: boolean; gates: Array<{ passed: boolean }> } | null) {
@@ -65,6 +66,3 @@ export function phase4StatementsCard(statementCount: number, insightReady: boole
   };
 }
 
-export function phase4RuleLayer(severity: string) {
-  return severity === "watch_out" ? "Should-Fix" : "Must-Fix";
-}

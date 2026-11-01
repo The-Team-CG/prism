@@ -83,4 +83,23 @@ describe("EventCommandInbox — render states", () => {
     expect(reference).toBeTruthy();
     expect(reference?.open).toBe(false);
   });
+
+  it("collapses repeated items of the same kind into one expandable row", () => {
+    const overdue = (id: string, eventName: string) => ({
+      id, kind: "billing" as const, severity: "critical" as const, label: "Payment milestone overdue", eventName,
+      description: "", status: "pending", createdAt: "2026-01-01T00:00:00.000Z", href: `/billing/${id}`,
+    });
+    render(
+      <EventCommandInbox
+        inbox={{ ...EMPTY_INBOX, counts: { critical: 3, warning: 0, attention: 0, info: 0 }, items: [overdue("b1", "Gala"), overdue("b2", "Gala"), overdue("b3", "Summit")] }}
+        onRefresh={() => {}}
+        onPageChange={() => {}}
+        loadFailed={false}
+      />,
+    );
+    expect(screen.getByTestId("command-inbox-cluster").textContent).toContain("3 × Payment milestone overdue");
+    expect(screen.getByTestId("command-inbox-cluster").textContent).toContain("across 2 events");
+    // Each item stays reachable inside the group.
+    expect(screen.getAllByRole("link", { name: "Payment milestone overdue" })).toHaveLength(3);
+  });
 });

@@ -196,9 +196,9 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
       user={{ name: session.name, detail: roleLabel(session.role), initials: session.name.slice(0, 2).toUpperCase() }}
       onSignOut={onSignOut}
       searchPlaceholder="Search tasks and issues..."
+      sidebarContext={<CoordinatorEventSwitcher events={state.events} assignments={vm.assignments} selectedEventId={vm.event?.id} onSelect={handleEvent} />}
     >
       <div className="space-y-5">
-        <CoordinatorEventSwitcher events={state.events} assignments={vm.assignments} selectedEventId={vm.event?.id} onSelect={handleEvent} />
         {vm.readOnly ? <p role="status" className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">Archived event: operational records are read-only.</p> : null}
         <fieldset disabled={vm.readOnly && activeSection !== "coord-timeline"} className="min-w-0">
           <CoordinatorSectionView vm={vm} section={activeSection} sessionName={session.name} roleName={roleName} onNavigate={handleNav} />

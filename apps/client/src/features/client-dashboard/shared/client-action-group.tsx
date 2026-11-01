@@ -44,7 +44,10 @@ export function ClientActionGroup({
                   <span className="mt-1 block max-w-3xl text-sm leading-6 text-muted-foreground">
                     {action.description}
                   </span>
-                  {action.eventName ? <span className="mt-1 block break-words text-sm text-muted-foreground">{action.eventName}</span> : null}
+                  {/* Most descriptions already name the event; only add it when they do not. */}
+                  {action.eventName && !action.description?.includes(action.eventName) ? (
+                    <span className="mt-1 block break-words text-sm text-muted-foreground">{action.eventName}</span>
+                  ) : null}
                   {showDetailsAndCta ? (
                     <span className="mt-2 flex flex-wrap items-center justify-between gap-3 text-sm">
                       <span className="text-muted-foreground">{action.detail}</span>
