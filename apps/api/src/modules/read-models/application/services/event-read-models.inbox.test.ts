@@ -1,9 +1,18 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { collectClientActionItems } from './event-read-models.inbox';
 
 type Input = Parameters<typeof collectClientActionItems>[0];
 
 describe('client action center', () => {
+  // The closeout rule depends on the event having ended; pin "now" after the fixture's end time.
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-22T00:00:00Z'));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('asks the client to acknowledge each delivered deliverable by name once the event has ended', () => {
     const items = collectClientActionItems({
       visibleEvents: [{ id: 'evt_gala', eventName: 'Founders gala', status: 'completed', actualEndedAt: new Date('2026-10-20T14:00:00Z'), archived: false }] as unknown as Input['visibleEvents'],
