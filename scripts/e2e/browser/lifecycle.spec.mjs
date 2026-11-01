@@ -187,8 +187,9 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       const workspace = `/pmcm/events/${eventId}/workspace`;
       await pmcm.page.goto(path('closure'));
       // The end is picked like a user would: today in the calendar, then the earliest time, which is never in the future.
-      const actualEnd = pmcm.page.locator('section', { has: pmcm.page.getByRole('heading', { name: 'Record actual end', exact: true }) });
-      await actualEnd.getByRole('button', { name: /Pick a date and time/ }).click();
+      const actualEnd = pmcm.page.locator('section', { has: pmcm.page.getByRole('heading', { name: 'Record actual end', exact: true }) }).last();
+      // The label wraps the picker, so its accessible name is the label; find it by its visible prompt.
+      await actualEnd.locator('button', { hasText: 'Pick a date and time' }).click();
       await pmcm.page.getByRole('button', { name: /^Today, / }).click();
       await pmcm.page.getByRole('option', { name: '12:00 AM', exact: true }).click();
       await actualEnd.getByRole('button', { name: 'Record actual end', exact: true }).click();
