@@ -134,7 +134,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await expect.poll(async () => (await api('GET', `/pmcm/events/${eventId}/workspace`)).coordinatorAssignments.some(item => item.coordinatorId === 'coord_marco' && item.status === 'acknowledged')).toBe(true);
     });
 
-    await test.step('PMCM approves the official plan and starts event day from the event overview', async () => {
+    await test.step('PMCM approves the official plan and starts event day from the live desk', async () => {
       await api('POST', `/events/${eventId}/ocular-visit/waive`, { reason: 'Synthetic browser acceptance venue fixture' });
       await api('POST', '/templates', { name: 'Browser acceptance layout', venue: 'Browser acceptance venue', width: 1200, height: 800, gridSize: 20, pax: 120, objects: [{ id: 'table-1', kind: 'table', position: { x: 100, y: 100 }, size: { width: 80, height: 80 }, rotation: 0, zIndex: 1 }] });
       await pmcm.page.goto(path('floorplans'));
@@ -145,7 +145,9 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await pmcm.page.getByRole('button', { name: 'Submit', exact: true }).click();
       await pmcm.page.getByRole('button', { name: 'Approve', exact: true }).click();
       await expect.poll(async () => (await api('GET', `/pmcm/events/${eventId}/workspace`)).floorPlanDrafts.some(draft => draft.status === 'approved')).toBe(true);
-      await pmcm.page.goto(path('overview'));
+      // The overview offers this only from the day before the event; the live desk's schedule offers it any time.
+      await pmcm.page.goto(path('live-ops'));
+      await pmcm.page.locator('summary', { hasText: 'Schedule and reports' }).click();
       await pmcm.page.getByRole('button', { name: 'Start event day', exact: true }).click();
       await expect.poll(async () => (await api('GET', `/events/${eventId}`)).status).toBe('event_day');
     });
