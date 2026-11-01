@@ -7,7 +7,7 @@ import { PortalQueryProvider } from "@prism/portal-query";
 import { useClientChangeRequestsViewModel } from "./use-client-change-requests-view-model";
 
 // Each test gets its own portal cache, as each signed-in session does.
-const wrapper = ({ children }: { children: ReactNode }) => createElement(PortalQueryProvider, { actorKey: "client@example.test" }, children);
+const wrapper = ({ children }: { children: ReactNode }) => createElement(PortalQueryProvider, { actorKey: "client@example.test", children });
 const render = () => renderHook(() => useClientChangeRequestsViewModel("evt_1"), { wrapper });
 
 const { list, submitScopeChange, withdrawScopeChange } = vi.hoisted(() => ({
