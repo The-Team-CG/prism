@@ -1002,6 +1002,13 @@ describe('EventReadModelsService', () => {
     await expect(service.pmcmCommandInbox(actor)).rejects.toThrow('client cannot access PMCM command inbox');
   });
 
+  it('denies non-PMCM actors from the PMCM reference directories', async () => {
+    const { service, policy } = createPmcmReadModelService();
+    const mappers = {} as Parameters<typeof service.pmcmReference>[1];
+    await expect(service.pmcmReference(policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' }), mappers)).rejects.toThrow('client cannot access PMCM reference');
+    await expect(service.pmcmReference(policy.resolveActor({ actorRole: OpsUserRole.Supplier, supplierId: 'sup_1', actorEmail: 's@example.com' }), mappers)).rejects.toThrow('supplier cannot access PMCM reference');
+  });
+
   it('denies PMCM actors from the client action center contract', async () => {
     const { service, policy } = createPmcmReadModelService();
     const actor = policy.resolveActor({ actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });

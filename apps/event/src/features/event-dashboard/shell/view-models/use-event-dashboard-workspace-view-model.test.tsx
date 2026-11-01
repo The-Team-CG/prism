@@ -25,7 +25,10 @@ vi.mock("@/features/event-workspace/shell", async () => ({
   usePmcmSelectedEventWorkspace: selectedEventWorkspaceHookMock,
 }));
 vi.mock("@/features/command-inbox/list", () => ({ loadCommandInbox: loadCommandInboxMock }));
+const loadPmcmReferenceMock = vi.hoisted(() => vi.fn(async () => null));
 vi.mock("../use-cases/load-dashboard-workspace", () => ({
+  getCachedPmcmReference: vi.fn(() => null),
+  loadPmcmReference: loadPmcmReferenceMock,
   getCachedPmcmState: vi.fn(() => null),
   isDashboardCacheFresh: vi.fn(() => false),
   loadCoordinatorWorkspace: vi.fn(async () => null),
@@ -164,7 +167,9 @@ describe("PMCM event-day live updates", () => {
 
     await waitFor(() => expect(loadEventCommandData).toHaveBeenCalledWith("evt_1", ["readiness"], true));
     expect(eventWorkspaceRepository.loadWorkspace).toHaveBeenCalledWith("evt_1");
-    expect(loadPmcmState).toHaveBeenCalled();
+    // Event pages load the small PMCM reference, never the whole-system dashboard.
+    expect(loadPmcmReferenceMock).toHaveBeenCalled();
+    expect(loadPmcmState).not.toHaveBeenCalled();
     expect(loadTemplates).not.toHaveBeenCalled();
 
     rerender({ selectedEventId: "evt_1", routeSection: "events", routeTab: "floorplans" });

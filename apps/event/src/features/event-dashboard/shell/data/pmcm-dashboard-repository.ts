@@ -1,4 +1,4 @@
-import type { PrismCoordinatorWorkspace, PrismPmcmDashboardWorkspace } from "@prism/types";
+import type { PrismCoordinatorWorkspace, PrismPmcmDashboardWorkspace, PrismPmcmReference } from "@prism/types";
 import type { EventSession } from "@/app/lib/session";
 import { eventApi } from "@/lib/prism-api";
 
@@ -8,6 +8,8 @@ const EVENT_DASHBOARD_CACHE_MS = 30_000;
 
 let pmcmStateCache: TimedCache<PrismPmcmDashboardWorkspace> | null = null;
 let pmcmStateRequest: Promise<PrismPmcmDashboardWorkspace> | null = null;
+let pmcmReferenceCache: TimedCache<PrismPmcmReference> | null = null;
+let pmcmReferenceRequest: Promise<PrismPmcmReference> | null = null;
 const coordinatorWorkspaceCache = new Map<string, TimedCache<PrismCoordinatorWorkspace>>();
 const coordinatorWorkspaceRequests = new Map<string, Promise<PrismCoordinatorWorkspace>>();
 
@@ -43,6 +45,30 @@ export const pmcmDashboardRepository = {
       });
 
     return pmcmStateRequest;
+  },
+
+  getCachedPmcmReference() {
+    return pmcmReferenceCache;
+  },
+
+  /** The event switcher, inquiries, directories and rules event pages need, without the whole-system dashboard. */
+  loadPmcmReference(force = false): Promise<PrismPmcmReference> {
+    if (!force && pmcmReferenceCache && isFresh(pmcmReferenceCache.loadedAt)) {
+      return Promise.resolve(pmcmReferenceCache.value);
+    }
+    if (!force && pmcmReferenceRequest) return pmcmReferenceRequest;
+
+    pmcmReferenceRequest = eventApi.pmcm
+      .reference()
+      .then((next) => {
+        pmcmReferenceCache = { value: next, loadedAt: Date.now() };
+        return next;
+      })
+      .finally(() => {
+        pmcmReferenceRequest = null;
+      });
+
+    return pmcmReferenceRequest;
   },
 
   getCachedCoordinatorWorkspace(session: EventSession) {

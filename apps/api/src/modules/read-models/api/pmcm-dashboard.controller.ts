@@ -32,6 +32,13 @@ export class OpsPmcmDashboardController {
     return this.eventReadModelsService.pmcmDashboard(actor, this.mappers());
   }
 
+  @Get('reference')
+  @UseGuards(EventSessionGuard)
+  reference(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.eventReadModelsService.pmcmReference(actor, this.mappers());
+  }
+
   @Get('events/:eventId/workspace')
   @UseGuards(EventSessionGuard)
   eventWorkspace(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {

@@ -10,6 +10,7 @@ import type {
   PrismPmcmCommandInboxQueryInput,
   PrismPmcmDashboardWorkspace,
   PrismPmcmEventWorkspace,
+  PrismPmcmReference,
   PrismPmcmSupplierReadinessBoard,
   PrismRegistrationPlatform,
   PrismSupplierQuoteRequest,
@@ -37,6 +38,8 @@ export interface EventOpsWorkspacesContract {
   };
 
   pmcm: {
+    /** Event switcher, inquiries, directories and rules for PMCM event pages; identity comes from the session token. */
+    reference(): Promise<PrismPmcmReference>;
     commandInbox(query?: PrismPmcmCommandInboxQueryInput): Promise<PrismPmcmCommandInbox>;
     /** PMCM-only decision log for one event (FL-019); identity comes from the session token. */
     decisionLog(eventId: string, query?: PrismDecisionLogQueryInput): Promise<PrismDecisionLog>;

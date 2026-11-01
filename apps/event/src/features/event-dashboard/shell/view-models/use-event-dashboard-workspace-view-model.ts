@@ -11,6 +11,7 @@ import type {
   PrismLiveOps,
   PrismPmcmCommandInbox,
   PrismPmcmDashboardWorkspace,
+  PrismPmcmReference,
   PrismRegistrationPlatform,
 } from "@prism/types";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
@@ -31,11 +32,13 @@ import {
   isDashboardCacheFresh,
   loadCoordinatorWorkspace,
   loadPmcmState,
+  loadPmcmReference,
+  getCachedPmcmReference,
 } from "../use-cases/load-dashboard-workspace";
 import { startDashboardSessionLoad } from "../use-cases/start-dashboard-session-load";
 import { usePmcmSelectedEventWorkspace } from "@/features/event-workspace/shell";
 import { useEventDayLiveUpdates } from "@/features/live-ops/workspace";
-import { sectionNeedsPmcmWorkspaceState, type DashboardSection, type DetailTab } from "../model/event-dashboard-routing";
+import { sectionNeedsPmcmReference, sectionNeedsPmcmWorkspaceState, type DashboardSection, type DetailTab } from "../model/event-dashboard-routing";
 
 type ScreenName = "portal" | "editor";
 type WorkspaceStatus = "idle" | "loading" | "ready" | "error";
@@ -62,6 +65,7 @@ export function useEventDashboardWorkspaceViewModel({
   const [session, setSession] = useState<EventSession | null>(null);
   const [status, setStatus] = useState<WorkspaceStatus>("idle");
   const [state, setState] = useState<PrismPmcmDashboardWorkspace | null>(null);
+  const [reference, setReference] = useState<PrismPmcmReference | null>(null);
   const [coordinatorState, setCoordinatorState] = useState<PrismCoordinatorWorkspace | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [approvalRequests, setApprovalRequests] = useState<PrismApprovalRequest[]>([]);
@@ -123,12 +127,15 @@ export function useEventDashboardWorkspaceViewModel({
         return;
       }
       const shouldLoadBroadState = sectionNeedsPmcmWorkspaceState(section);
-      const [next, requests, inboxResult] = await Promise.all([
+      const shouldLoadReference = sectionNeedsPmcmReference(section);
+      const [next, nextReference, requests, inboxResult] = await Promise.all([
         shouldLoadBroadState ? loadPmcmState(true) : Promise.resolve(state),
+        shouldLoadReference ? loadPmcmReference(true) : Promise.resolve(reference),
         loadApprovalRequests(true),
         loadCommandInbox(true, commandInbox?.page.index ?? 0),
       ]);
       if (shouldLoadBroadState) setState(next);
+      if (shouldLoadReference) setReference(nextReference);
       setApprovalRequests(requests);
       setCommandInbox(inboxResult);
       setCoordinatorState(null);
@@ -152,6 +159,25 @@ export function useEventDashboardWorkspaceViewModel({
       setCommandInboxLoadFailed,
     });
   }, [router]);
+
+  // Event pages read the PMCM reference (event switcher, inquiries, directories, rules) instead of the whole dashboard.
+  useEffect(() => {
+    if (!session || session.role !== "pmcm-admin" || !sectionNeedsPmcmReference(section)) return;
+    const cached = getCachedPmcmReference();
+    if (cached) setReference(cached.value);
+    if (cached && isDashboardCacheFresh(cached.loadedAt)) return;
+    let cancelled = false;
+    loadPmcmReference(Boolean(cached))
+      .then((next) => {
+        if (!cancelled) setReference(next);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Unable to load PMCM workspace");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session, section]);
 
   useEffect(() => {
     if (!session || session.role !== "pmcm-admin") return;
@@ -330,6 +356,8 @@ export function useEventDashboardWorkspaceViewModel({
     status,
     session,
     state,
+    // Event pages load the reference; list sections load the dashboard, which carries the same fields.
+    reference: state ?? reference,
     coordinatorState,
     error,
     setError,

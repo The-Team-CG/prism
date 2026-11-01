@@ -1045,6 +1045,18 @@ export class EventReadModelQueries {
     ]);
   }
 
+  // Query budget: five bounded reference queries in one wave (events without drafts, inquiries, compliance rules,
+  // supplier categories, active suppliers); coordinators and assignments are read alongside by the service.
+  pmcmReference() {
+    return Promise.all([
+      this.prisma.opsEvent.findMany({ orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_VISIBLE_EVENTS }),
+      this.prisma.opsInquiry.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
+      this.prisma.opsComplianceRule.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
+      this.supplierCategories(),
+      this.activeSuppliers(),
+    ]);
+  }
+
   // Query budget: one active coordinator dashboard query, no per-row Prisma loop.
   activeCoordinators() {
     return this.prisma.opsCoordinator.findMany({ where: { active: true }, orderBy: [{ name: 'asc' }, { id: 'asc' }], take: MAX_ACTIVE_COORDINATORS });
