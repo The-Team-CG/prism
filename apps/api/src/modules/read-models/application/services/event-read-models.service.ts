@@ -798,8 +798,6 @@ export class EventReadModelsService {
       postEventDocuments,
       eventInsights,
       floorPlanDrafts,
-      auditLogs,
-      notificationLogs,
       supplierCategories,
       suppliers,
     ] = await this.queries.pmcmDashboard();
@@ -835,8 +833,6 @@ export class EventReadModelsService {
       floorPlanDrafts: floorPlanDrafts.map(mappers.mapFloorPlanDraft),
       supplierCategories,
       suppliers,
-      auditLogs: auditLogs.map(mappers.mapAuditLog),
-      notificationLogs: notificationLogs.map(mappers.mapNotificationLog),
     };
   }
 

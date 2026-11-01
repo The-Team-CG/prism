@@ -103,8 +103,6 @@ export interface PrismPmcmDashboardWorkspace {
   floorPlanDrafts: PrismFloorPlanDraft[];
   supplierCategories: PrismSupplierCategory[];
   suppliers: PrismSupplier[];
-  auditLogs: PrismAuditLog[];
-  notificationLogs: PrismNotificationLog[];
 }
 
 export type PrismClientTimelineMilestoneKey =
@@ -168,9 +166,10 @@ export type PrismClientWorkspace = Pick<
   | "paymentMilestones"
   | "postEventDocuments"
   | "floorPlanDrafts"
-  | "auditLogs"
-  | "notificationLogs"
 > & {
+  /** The client's own event activity and notifications. */
+  auditLogs: PrismAuditLog[];
+  notificationLogs: PrismNotificationLog[];
   pagination: PrismCursorPageInfo;
   clientEventTimelines: PrismClientEventTimeline[];
   ocularVisits?: PrismClientOcularVisit[];

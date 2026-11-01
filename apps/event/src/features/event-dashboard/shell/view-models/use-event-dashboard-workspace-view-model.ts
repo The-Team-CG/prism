@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type {
   PrismApprovalRequest,
@@ -20,7 +20,9 @@ import {
   getCachedEventCommandData,
   loadApprovalRequests,
   loadEventCommandData,
+  eventCommandPartsFor,
   type EventCommandDataErrors,
+  type EventCommandPart,
 } from "@/features/event-workspace/shell";
 import { loadCommandInbox } from "@/features/command-inbox/list";
 import { eventWorkspaceRepository } from "@/features/event-workspace/shell";
@@ -224,6 +226,10 @@ export function useEventDashboardWorkspaceViewModel({
     }
   }
 
+  // Only the parts this screen renders are fetched; the key keeps effect dependencies stable across renders.
+  const commandPartsKey = eventCommandPartsFor(section, tab).join(",");
+  const commandParts = useMemo(() => commandPartsKey.split(",") as EventCommandPart[], [commandPartsKey]);
+
   const applyEventCommandData = useCallback((result: Awaited<ReturnType<typeof loadEventCommandData>>) => {
     setLiveOps(result.data.liveOps);
     setStatusFeed(result.data.statusFeed);
@@ -245,13 +251,13 @@ export function useEventDashboardWorkspaceViewModel({
     }
     const eventId = selectedEventId;
     const requestId = ++eventCommandDataRequestIdRef.current;
-    const result = await loadEventCommandData(eventId, force);
+    const result = await loadEventCommandData(eventId, commandParts, force);
     if (
       activeEventCommandDataIdRef.current !== eventId ||
       eventCommandDataRequestIdRef.current !== requestId
     ) return;
     applyEventCommandData(result);
-  }, [applyEventCommandData, selectedEventId]);
+  }, [applyEventCommandData, commandParts, selectedEventId]);
 
   const refreshLiveOps = useCallback(() => loadLiveOps(true), [loadLiveOps]);
   useEventDayLiveUpdates({
@@ -283,7 +289,7 @@ export function useEventDashboardWorkspaceViewModel({
       return;
     }
 
-    const cached = getCachedEventCommandData(selectedEventId);
+    const cached = getCachedEventCommandData(selectedEventId, commandParts);
     if (cached) {
       applyEventCommandData({ data: cached.value, errors: {} });
       if (isFresh(cached.loadedAt, EVENT_WORKSPACE_CACHE_MS)) {
@@ -305,7 +311,7 @@ export function useEventDashboardWorkspaceViewModel({
       !cancelled &&
       activeEventCommandDataIdRef.current === selectedEventId &&
       eventCommandDataRequestIdRef.current === requestId;
-    loadEventCommandData(selectedEventId, !cached)
+    loadEventCommandData(selectedEventId, commandParts, !cached)
       .then((result) => {
         if (isCurrentRequest()) applyEventCommandData(result);
       })
@@ -318,7 +324,7 @@ export function useEventDashboardWorkspaceViewModel({
     return () => {
       cancelled = true;
     };
-  }, [applyEventCommandData, isEventDayLiveOpsView, section, selectedEventId]);
+  }, [applyEventCommandData, commandParts, isEventDayLiveOpsView, section, selectedEventId]);
 
   return {
     status,
