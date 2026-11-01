@@ -5,6 +5,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseEnv } from 'node:util';
 import { spawn, spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { Pool } from 'pg';
 import { startMailpit, stopMailpit } from '../../local-mailpit.mjs';
 
@@ -119,7 +120,7 @@ export async function main(args = process.argv.slice(2)) {
     const apiDir = join(root, 'apps/api');
     await run(join(root, 'node_modules/prisma/build/index.js'), ['migrate', 'deploy'], apiDir, env, 'migrate');
     for (const profile of ['accounts', 'portal-uat']) await run(join(apiDir, 'scripts/seed.mjs'), ['--profile', profile, '--scenario-date', new Date().toISOString().slice(0, 10), '--env-file', envFile], apiDir, env, `seed-${profile}`);
-    if (!args.includes('--skip-build')) await run(join(root, 'node_modules/@nestjs/cli/bin/nest.js'), ['build', 'api', '--path', 'tsconfig.e2e.json'], apiDir, env, 'build-api');
+    if (!args.includes('--skip-build')) await run(createRequire(join(apiDir, 'package.json')).resolve('@nestjs/cli/bin/nest.js'), ['build', 'api', '--path', 'tsconfig.e2e.json'], apiDir, env, 'build-api');
     for (const asset of ['kernel/database/db-connection-config.cjs', 'kernel/database/migration-ledger-compatibility.cjs', 'modules/identity-access/application/auth/password-hash.cjs']) {
       const destination = join(apiDir, '.e2e-dist/apps/api/src', asset);
       mkdirSync(dirname(destination), { recursive: true });
