@@ -92,7 +92,7 @@ const noCrossPortalImports = {
     schema: [],
   },
   create(context) {
-    const filename = context.getFilename();
+    const filename = context.filename;
     const role = roleFromPath(filename);
     if (!role) return {};
 
@@ -112,7 +112,7 @@ const noPrivateContextImports = {
     schema: [],
   },
   create(context) {
-    const normalized = normalizedRelative(context.getFilename());
+    const normalized = normalizedRelative(context.filename);
     if (!normalized.startsWith("apps/api/src/modules/")) return {};
 
     const owner = normalized.match(/^apps\/api\/src\/modules\/([^/]+)\//)?.[1];
@@ -132,7 +132,7 @@ const noPrivateContextImports = {
         return;
       }
 
-      const resolved = resolveRelativeSource(context.getFilename(), source);
+      const resolved = resolveRelativeSource(context.filename, source);
       if (resolved?.startsWith("apps/api/src/modules/")) {
         if (normalized.endsWith(".module.ts") || normalized.endsWith(".module.tsx") || resolved.includes("/contracts/") || resolved.includes("/read-models/")) {
           return;
@@ -156,8 +156,8 @@ const noLocalContractDefinitions = {
     schema: [],
   },
   create(context) {
-    const normalized = normalizedRelative(context.getFilename());
-    const role = roleFromPath(context.getFilename());
+    const normalized = normalizedRelative(context.filename);
+    const role = roleFromPath(context.filename);
     if (!role || !normalized.includes("/src/lib/") || normalized.endsWith("/src/lib/prism-api.ts")) return {};
 
     function checkDeclaration(node) {
@@ -184,7 +184,7 @@ const noInlineZod = {
     schema: [],
   },
   create(context) {
-    const normalized = normalizedRelative(context.getFilename());
+    const normalized = normalizedRelative(context.filename);
     const canonical = normalized.startsWith("packages/types/src/schemas/");
     const zodValidationPipe = normalized === "apps/api/src/kernel/shared/zod-validation.pipe.ts";
     // The API process env schema is app-internal runtime config, not a shared contract.
@@ -206,7 +206,7 @@ const noProductionAny = {
     schema: [],
   },
   create(context) {
-    const normalized = normalizedRelative(context.getFilename());
+    const normalized = normalizedRelative(context.filename);
     if (
       !normalized.startsWith("apps/api/src/") ||
       normalized.startsWith("apps/api/src/fixtures/") ||

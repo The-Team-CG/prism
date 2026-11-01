@@ -118,6 +118,59 @@ function InboxRow({ item, todayKey }: { item: PrismCommandInboxItem; todayKey: s
   );
 }
 
+/** Three or more items of the same kind and title collapse into one expandable row. */
+const CLUSTER_MIN = 3;
+
+export function clusterInboxItems(items: PrismCommandInboxItem[]) {
+  const clusters: PrismCommandInboxItem[][] = [];
+  const byKey = new Map<string, PrismCommandInboxItem[]>();
+  for (const item of items) {
+    const key = `${item.kind}:${item.label}`;
+    const cluster = byKey.get(key);
+    if (cluster) cluster.push(item);
+    else {
+      const next = [item];
+      byKey.set(key, next);
+      clusters.push(next);
+    }
+  }
+  return clusters.flatMap((cluster) => (cluster.length >= CLUSTER_MIN ? [cluster] : cluster.map((item) => [item])));
+}
+
+function InboxCluster({ items, todayKey }: { items: PrismCommandInboxItem[]; todayKey: string }) {
+  const [first] = items;
+  const Icon = KIND_ICON[first.kind] ?? Inbox;
+  const events = new Set(items.map((item) => item.eventName).filter(Boolean)).size;
+  return (
+    <li data-testid="command-inbox-cluster" className={cx("border-l-[3px]", SEVERITY_BAR[first.severity])}>
+      <details className="group">
+        <summary className="grid cursor-pointer list-none grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-x-3 py-3 pl-3 pr-4 hover:bg-surface-raised">
+          <span aria-hidden className={cx("grid size-8 place-items-center rounded-md", SEVERITY_TILE[first.severity])}>
+            <Icon className="size-4" />
+          </span>
+          <span className="min-w-0">
+            <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              {items.length} × {first.label}
+              {first.severity === "critical" ? <span className="shrink-0 rounded bg-danger-soft px-1.5 py-0.5 text-xs font-medium text-danger">Blocker</span> : null}
+            </span>
+            <span className="block truncate text-xs text-muted-foreground">
+              {COMMAND_INBOX_AREA_LABEL[first.kind]}{events > 0 ? ` · across ${events} event${events === 1 ? "" : "s"}` : ""}
+            </span>
+          </span>
+          <span className="flex items-center gap-1 text-sm font-medium text-primary">
+            <span className="group-open:hidden">Show all</span>
+            <span className="hidden group-open:inline">Hide</span>
+            <ChevronRight className="size-4 transition-transform group-open:rotate-90" aria-hidden />
+          </span>
+        </summary>
+        <ul className="divide-y divide-border border-t border-border bg-muted/20">
+          {items.map((item) => <InboxRow key={item.id} item={item} todayKey={todayKey} />)}
+        </ul>
+      </details>
+    </li>
+  );
+}
+
 function InboxGroup({
   id,
   title,
@@ -144,7 +197,11 @@ function InboxGroup({
   );
   const rows = (
     <ul aria-labelledby={id} className="divide-y divide-border">
-      {items.map((item) => <InboxRow key={item.id} item={item} todayKey={todayKey} />)}
+      {clusterInboxItems(items).map((cluster) =>
+        cluster.length === 1
+          ? <InboxRow key={cluster[0].id} item={cluster[0]} todayKey={todayKey} />
+          : <InboxCluster key={cluster[0].id} items={cluster} todayKey={todayKey} />,
+      )}
     </ul>
   );
   if (collapsible) {

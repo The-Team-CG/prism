@@ -30,7 +30,7 @@ export function SupplierReviewPanel({
 }: SupplierReviewPanelProps) {
   return (
     <div className="rounded-lg border border-border bg-muted p-4">
-      <p className="text-xs font-medium text-attention">Private PMCM Review</p>
+      <p className="text-sm text-muted-foreground">Private PMCM Review</p>
       <div className="mt-3 grid gap-2">
         <select
           aria-label="Overall supplier rating"

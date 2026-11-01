@@ -4,7 +4,6 @@ import {
   phase4BillingSourceCard,
   phase4CloseGatesCard,
   phase4ComplianceCard,
-  phase4RuleLayer,
   phase4StatusTone,
 } from "./phase4-workspace-rules";
 
@@ -12,7 +11,7 @@ describe("phase4-workspace-rules", () => {
   it("maps archive status copy", () => {
     expect(phase4ArchiveStatus(true, false)).toEqual({ label: "Archived", toneKey: "approved" });
     expect(phase4ArchiveStatus(false, true)).toEqual({ label: "Ready for archive", toneKey: "approved" });
-    expect(phase4ArchiveStatus(false, false)).toEqual({ label: "Archive gated", toneKey: "open" });
+    expect(phase4ArchiveStatus(false, false)).toEqual({ label: "Not ready to archive", toneKey: "open" });
   });
 
   it("builds closure cards", () => {
@@ -28,7 +27,5 @@ describe("phase4-workspace-rules", () => {
   it("maps status tones and rule layers", () => {
     expect(phase4StatusTone("approved")).toContain("success");
     expect(phase4StatusTone("open")).toContain("attention");
-    expect(phase4RuleLayer("watch_out")).toBe("Should-Fix");
-    expect(phase4RuleLayer("must_fix")).toBe("Must-Fix");
   });
 });

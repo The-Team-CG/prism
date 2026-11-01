@@ -377,3 +377,9 @@ export function coordinatorRoleDataStatus(status: string, hasRoleView: boolean) 
   if (status === "error") return "unavailable";
   return hasRoleView ? "ready" : "pending";
 }
+
+/** The soonest event on or after today; if every event is past, the most recent one. */
+export function defaultCoordinatorEventId(events: Array<{ id: string; eventDate: string }>, todayKey: string): string | undefined {
+  const byDate = [...events].sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+  return (byDate.find((event) => event.eventDate.slice(0, 10) >= todayKey) ?? byDate.at(-1))?.id;
+}

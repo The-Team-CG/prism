@@ -30,6 +30,7 @@ import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
 import { SupplierDirectory, SupplierQuotePlanner } from "@/features/suppliers/directory";
 import { SupplierApplicationsInboxView } from "@/features/suppliers/applications";
 import { AuditTrailPanel } from "@/features/audit/trail";
+import { ComplianceRulesSettings } from "@/features/compliance/rules";
 import { PrivacyConsoleView } from "@/features/privacy/console";
 import { EventMessagesWorkspace } from "@/features/event-dashboard/messages/views/event-messages-workspace";
 import { useEventDashboardLoadedRouteViewModel, useEventDashboardRouteViewModel, useEventDashboardScopedRouteViewModel } from "../event-dashboard-route-context";
@@ -120,13 +121,21 @@ export function EventDashboardSettingsSectionView() {
     session,
     selectedEvent,
     toggleClientEventDayView,
+    complianceRules,
+    createComplianceRule,
+    busy,
   } = useEventDashboardLoadedRouteViewModel();
   return (
-    <EventSettingsWorkspace
-      session={session}
-      selectedEvent={selectedEvent}
-      onToggleClientEventDayView={toggleClientEventDayView}
-    />
+    <div className="space-y-5">
+      <EventSettingsWorkspace
+        session={session}
+        selectedEvent={selectedEvent}
+        onToggleClientEventDayView={toggleClientEventDayView}
+      />
+      {isPmcmAdmin(session.role) ? (
+        <ComplianceRulesSettings rules={complianceRules} busy={Boolean(busy)} onCreateRule={createComplianceRule} />
+      ) : null}
+    </div>
   );
 }
 

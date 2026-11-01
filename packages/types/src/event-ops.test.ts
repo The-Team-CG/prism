@@ -6,6 +6,8 @@ import {
   PRISM_MAX_PAGE_LIMIT,
   canClientAccessPortal,
   canCreateEventWorkspace,
+  derivePrismLifecycleStage,
+  isBeforePrismEventDay,
   nextPrismLifecycleStages,
   normalizePrismPageLimit,
   type PrismActionResult,
@@ -35,6 +37,21 @@ describe("P.R.I.S.M lifecycle contract", () => {
     expect(PRISM_LIFECYCLE_TRANSITIONS.inquiry).toEqual(["conforme"]);
     expect(PRISM_LIFECYCLE_TRANSITIONS.event_day).toEqual(["closure_archive"]);
     expect(nextPrismLifecycleStages("closure_archive")).toEqual([]);
+  });
+
+  it("derives one display stage from event facts so every portal agrees", () => {
+    const signed = { status: "briefing", clientPortalStatus: "unlocked" };
+    expect(derivePrismLifecycleStage({ status: "briefing", clientPortalStatus: "locked" })).toBe("conforme");
+    // An approved floorplan alone does not skip briefing: this was the PMCM/client disagreement.
+    expect(derivePrismLifecycleStage({ ...signed, proposalClientStatus: "pending" })).toBe("briefing_proposal");
+    expect(derivePrismLifecycleStage({ ...signed, proposalClientStatus: "approved" })).toBe("planning");
+    // Submitting the briefing sets the operational status to planning; the stage waits for proposal approval.
+    expect(derivePrismLifecycleStage({ ...signed, status: "planning", proposalClientStatus: "pending" })).toBe("briefing_proposal");
+    expect(derivePrismLifecycleStage({ ...signed, status: "event_day" })).toBe("event_day");
+    expect(derivePrismLifecycleStage({ ...signed, actualEndedAt: "2027-06-15T12:00:00Z" })).toBe("closure_archive");
+    expect(derivePrismLifecycleStage({ ...signed, archived: true })).toBe("closure_archive");
+    expect(isBeforePrismEventDay("planning")).toBe(true);
+    expect(isBeforePrismEventDay("event_day")).toBe(false);
   });
 
   it("allows client portal access only after inquiry acceptance and signed conforme", () => {

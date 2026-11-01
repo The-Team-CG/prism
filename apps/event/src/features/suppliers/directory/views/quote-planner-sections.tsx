@@ -34,7 +34,7 @@ export function QuotePlannerToolbar({
     <div className="rounded-lg border border-border bg-muted p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-medium text-attention">Supplier Quotes</p>
+          <p className="text-sm text-muted-foreground">Supplier Quotes</p>
           <p className="mt-1 text-sm text-muted-foreground">{rangeCopy.summary}</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -77,7 +77,7 @@ export function QuoteComparisonSection({
     <section className="rounded-xl border border-primary/15 bg-card p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-medium text-primary">Quote comparison</p>
+          <p className="text-sm text-muted-foreground">Quote comparison</p>
           <h3 className="mt-1 text-lg font-black text-foreground">{categoryName}</h3>
           <p className="mt-1 text-sm text-muted-foreground">{submittedBidCopy(quotes.length)}</p>
         </div>
@@ -217,7 +217,7 @@ export function SupplierTierColumns({
         </div>
       </section>
       <section className="rounded-lg border border-border bg-card p-4">
-        <p className="text-xs font-medium text-attention">First Event Manual Select</p>
+        <p className="text-sm text-muted-foreground">First Event Manual Select</p>
         <div className="mt-3 space-y-2">
           {pending.map((supplier) => (
             <div key={supplier.id} className="w-full rounded-md border border-brand-orange/25 bg-accent p-3 text-left text-sm">
@@ -266,7 +266,7 @@ export function QuoteRequestModal({
       <div className="flex max-h-[calc(100dvh-2rem)] w-full min-w-0 max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-card shadow-xl">
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border p-5">
           <div>
-            <p className="text-xs font-medium text-attention">Request Quotes</p>
+            <p className="text-sm text-muted-foreground">Request Quotes</p>
             <h3 className="mt-1 text-xl font-black">{categoryName}</h3>
           </div>
           <button onClick={onClose} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted">

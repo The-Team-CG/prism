@@ -1,1 +1,1 @@
-export { Phase4Workspace } from "./views/phase4-workspace";
+export { Phase4Workspace, type ClosureStep } from "./views/phase4-workspace";

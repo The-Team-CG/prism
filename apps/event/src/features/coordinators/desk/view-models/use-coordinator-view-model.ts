@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { manilaDateKey } from "@prism/ui/format-date";
 import type { EventSession } from "@/app/lib/session";
 import { useEventDayLiveUpdates } from "@/features/live-ops/workspace";
 import {
@@ -47,6 +48,7 @@ import {
   isIngressOrEgressRole,
   isReplacedAssignment,
   isTaskOutsideOwnQueue,
+  defaultCoordinatorEventId,
   pickActiveAssignment,
   requiresAttendanceConfirmation,
   resolveOwnAttendanceStatus,
@@ -75,8 +77,10 @@ export function useCoordinatorViewModel({
   const activeEventIds = new Set(activeAssignments
     .filter((item) => state.events.some((event) => event.id === item.eventId && !event.archived))
     .map((item) => item.eventId));
-  const defaultAssignment = activeEventIds.size === 1
-    ? pickActiveAssignment(activeAssignments.filter((item) => activeEventIds.has(item.eventId)))
+  // Open on the next upcoming assigned event instead of asking the coordinator to pick one.
+  const defaultEventId = defaultCoordinatorEventId(state.events.filter((event) => activeEventIds.has(event.id)), manilaDateKey());
+  const defaultAssignment = defaultEventId
+    ? pickActiveAssignment(activeAssignments.filter((item) => item.eventId === defaultEventId))
     : undefined;
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const eventId = selectedEventId ?? defaultAssignment?.eventId;
