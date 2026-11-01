@@ -16,14 +16,15 @@ describe('EventLifecycleService', () => {
   it('blocks archive before the event-day lifecycle stage even when close gates are ready', () => {
     expect(() =>
       service.assertCanArchive(
-        {
-          status: 'planning',
-          archived: false,
-          clientPortalStatus: 'unlocked',
-          floorPlanStatus: 'approved',
-        },
+        { status: 'planning', archived: false, clientPortalStatus: 'unlocked', proposalClientStatus: 'approved', actualEndedAt: null },
         { ready: true, missingKeys: [] },
       ),
     ).toThrow(BadRequestException);
+  });
+
+  it('places events in planning only after the client approves the proposal', () => {
+    const signed = { status: 'planning', archived: false, clientPortalStatus: 'unlocked', actualEndedAt: null };
+    expect(service.stageForEvent({ ...signed, proposalClientStatus: 'pending' })).toBe(EventLifecycleStage.BriefingProposal);
+    expect(service.stageForEvent({ ...signed, proposalClientStatus: 'approved' })).toBe(EventLifecycleStage.Planning);
   });
 });

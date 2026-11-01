@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { CoordinatorRole, PrismConformeExecution, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismSupplier } from "@prism/types";
+import { derivePrismLifecycleStage } from "@prism/types";
 import { type FloorPlanTemplate, type Project, cloneTemplateObjects } from "@/features/floorplan/editor";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { eventPortalNavItems, loadingShellNavItems } from "./use-event-dashboard-nav";
@@ -296,7 +297,7 @@ export function useEventDashboardShellViewModel({
   const inEventWorkspace = Boolean(routeState.eventId) && !eventWorkspaceDisabled;
   const shellNavItems = eventPortalNavItems({
     inEventWorkspace,
-    eventName: selectedEvent?.eventName,
+    eventStage: selectedEvent ? derivePrismLifecycleStage(selectedEvent) : undefined,
     inquiryCount: unreviewedInquiries + pendingApprovals.length,
     commandInboxCount: commandInboxLoadFailed
       ? "!"

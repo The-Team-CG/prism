@@ -7,7 +7,7 @@ import { FileCheck2, Gavel } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { PAREPanel } from "@/features/pare/panel";
-import { Phase4Workspace } from "@/features/closure/phase4";
+import { Phase4Workspace, type ClosureStep } from "@/features/closure/phase4";
 import { CoordinatorAssignmentDesk } from "@/features/coordinators/desk";
 import { PostponementImpactPanel } from "@/features/event-decisions/postponement-impact";
 import { ChangeRegisterPanel } from "@/features/change-management/register";
@@ -373,47 +373,54 @@ export function EventWorkspaceClosureTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   const event = vm.selectedEvent;
+  const closureStep = (step: ClosureStep) => (
+    <Phase4Workspace
+      step={step}
+      event={event}
+      rules={vm.complianceRules}
+      checks={vm.checks}
+      billingSources={vm.billingSources}
+      billingStatements={vm.billingStatements}
+      insights={vm.eventInsights}
+      supplierCategories={vm.supplierCategories}
+      suppliers={vm.suppliers}
+      quoteRequests={vm.quoteRequests}
+      canReviewSuppliers={isPmcmAdmin(vm.session.role)}
+      busy={Boolean(vm.busy)}
+      onRunCompliance={vm.runComplianceChecks}
+      onResolveCompliance={vm.resolveComplianceCheck}
+      onOverrideCompliance={vm.overrideComplianceCheck}
+      onLoadCloseGates={vm.loadCloseGates}
+      onArchive={vm.archiveSelectedEvent}
+      onRecordActualEventEnd={vm.recordActualEventEnd}
+      onLoadInsights={vm.loadEventInsights}
+      onGenerateInsights={vm.generateEventInsights}
+      onAddReview={vm.addSupplierReview}
+    />
+  );
+  // Closure in the order it happens; each step is one screen instead of one very long page.
   const tabs: WorkspaceSubTab[] = [
+    { id: "wrap-up", label: "1. Wrap up", render: () => closureStep("wrap-up") },
     {
-      id: "checklist",
-      label: "Close checklist",
-      count: vm.openCheckCount,
-      attention: vm.openCheckCount > 0,
+      id: "feedback",
+      label: "2. Feedback & reviews",
       render: () => (
-        <Phase4Workspace
-          event={event}
-          rules={vm.complianceRules}
-          checks={vm.checks}
-          billingSources={vm.billingSources}
-          billingStatements={vm.billingStatements}
-          insights={vm.eventInsights}
-          supplierCategories={vm.supplierCategories}
-          suppliers={vm.suppliers}
-          quoteRequests={vm.quoteRequests}
-          canReviewSuppliers={isPmcmAdmin(vm.session.role)}
-          busy={Boolean(vm.busy)}
-          onCreateRule={vm.createComplianceRule}
-          onRunCompliance={vm.runComplianceChecks}
-          onResolveCompliance={vm.resolveComplianceCheck}
-          onOverrideCompliance={vm.overrideComplianceCheck}
-          onLoadCloseGates={vm.loadCloseGates}
-          onArchive={vm.archiveSelectedEvent}
-          onRecordActualEventEnd={vm.recordActualEventEnd}
-          onLoadInsights={vm.loadEventInsights}
-          onGenerateInsights={vm.generateEventInsights}
-          onAddReview={vm.addSupplierReview}
-        />
+        <div className="space-y-5">
+          {closureStep("feedback")}
+          <FeedbackModerationPanel eventId={event.id} />
+        </div>
       ),
     },
+    { id: "compliance", label: "3. Compliance", count: vm.openCheckCount, attention: vm.openCheckCount > 0, render: () => closureStep("compliance") },
+    { id: "archive", label: "4. Archive", render: () => closureStep("archive") },
     {
       id: "deliverables",
       label: "Deliverables",
       count: vm.postEventDocuments.length,
       render: () => <PostEventDeliverablesPanel eventId={event.id} documents={vm.postEventDocuments} archived={event.archived} />,
     },
-    { id: "feedback", label: "Guest feedback", render: () => <FeedbackModerationPanel eventId={event.id} /> },
   ];
-  return <WorkspaceSubTabs label="Closure sections" tabs={tabs} />;
+  return <WorkspaceSubTabs label="Closure steps" tabs={tabs} />;
 }
 
 /** PMCM-only (FL-019). Other roles get no panel here, and the API refuses them independently. */

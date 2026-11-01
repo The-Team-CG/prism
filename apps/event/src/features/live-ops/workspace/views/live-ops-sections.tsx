@@ -36,7 +36,7 @@ type LiveOpsVm = ReturnType<typeof useLiveOperationsWorkspaceViewModel>;
 
 function Pill({ value }: { value: string }) {
   return (
-    <span className={cx("rounded-full px-2.5 py-1 text-xs font-semibold capitalize ring-1", liveOpsPillClass(value))}>
+    <span className={cx("rounded-full px-2.5 py-1 text-xs font-semibold capitalize", liveOpsPillClass(value))}>
       {label(value)}
     </span>
   );

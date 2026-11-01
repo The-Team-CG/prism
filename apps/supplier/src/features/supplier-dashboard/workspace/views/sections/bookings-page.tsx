@@ -7,6 +7,7 @@ import {
   CalendarClock,
   CalendarDays,
   CheckCircle2,
+  ChevronRight,
   Circle,
   ClipboardList,
   Clock3,
@@ -27,7 +28,6 @@ import {
   Warehouse,
   type LucideIcon,
 } from "lucide-react";
-import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { StatusBadge } from "@/app/components/ui/status-badge";
@@ -58,14 +58,33 @@ import { useSupplierWorkTarget } from "../../view-models/use-supplier-work-targe
 import { supplierNextStep } from "../../model/supplier-next-step";
 
 
-import { Card, CardBody, CardHeader, SectionAccent, StatCell } from "./shell-ui";
+import { Card, CardBody, CardHeader, StatCell } from "./shell-ui";
 
+/** One scannable row per booking: the next step, which event, when, and how far preparation has got. */
 function BookingSummary({ request, readiness }: { request: PrismSupplierQuoteRequest; readiness?: PrismSupplierReadinessItem }) {
   const title = readiness ? supplierNextStep(readiness, true).title : "Review booking preparation";
+  const steps = buildBookingSteps(request);
+  const done = steps.filter((step) => step.done).length;
+  const when = readiness?.schedule?.ingressAt
+    ? `Ingress ${formatPortalDateTime(readiness.schedule.ingressAt)}`
+    : readiness?.dueAt
+      ? `Due ${formatPortalDateTime(readiness.dueAt)}`
+      : "Schedule not set yet";
   return (
-    <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-      {request.category} · {readiness?.eventName || "Event details pending"}
-      <span className="mt-1 block text-sm font-normal text-muted-foreground">{title}</span>
+    <summary className="flex cursor-pointer list-none items-start gap-3 px-4 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-5 [&::-webkit-details-marker]:hidden">
+      <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" aria-hidden="true" />
+      <span className="grid min-w-0 flex-1 gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-6">
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-foreground">{title}</span>
+          <span className="block break-words text-sm text-muted-foreground">
+            {request.category} · {readiness?.eventName || "Event details pending"}
+          </span>
+        </span>
+        <span className="flex flex-wrap gap-x-4 gap-y-1 text-sm sm:justify-end sm:text-right">
+          <span className="text-muted-foreground">{when}</span>
+          <span className={done === steps.length ? "font-medium text-success" : "text-foreground"}>{done} of {steps.length} steps done</span>
+        </span>
+      </span>
     </summary>
   );
 }
@@ -116,19 +135,18 @@ export function BookingsPage({
         const readiness = readinessBoard?.items.find((item) => item.requestId === req.id);
 
         return (
-          <details key={req.id} id={`supplier-work-${encodeURIComponent(req.id)}`} className="scroll-mt-6 rounded-lg border border-border bg-card" open={selectedRequests.length === 1 ? true : undefined}>
+          <details key={req.id} id={`supplier-work-${encodeURIComponent(req.id)}`} className="group scroll-mt-6 rounded-lg border border-border bg-card" open={selectedRequests.length === 1 ? true : undefined}>
             <BookingSummary request={req} readiness={readiness} />
           <Card>
             <CardHeader>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <SectionAccent>Selected booking</SectionAccent>
-                  <h3 className="mt-1 text-sm font-bold text-foreground">{req.category}</h3>
+                  <h3 className="text-sm font-bold text-foreground">{req.category}</h3>
                   <p className="mt-0.5 text-xs text-muted-foreground">{req.message}</p>
                 </div>
-                <Badge variant="outline" className="rounded-full border-success/25 bg-success/8 text-success">
-                  <BadgeCheck className="size-3" /> Selected
-                </Badge>
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-success">
+                  <BadgeCheck className="size-3.5" aria-hidden /> Selected by PMCM
+                </span>
               </div>
             </CardHeader>
 

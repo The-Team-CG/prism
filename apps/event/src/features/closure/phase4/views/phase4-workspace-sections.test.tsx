@@ -78,20 +78,11 @@ describe("Phase4ComplianceSection evidence", () => {
     render(
       <Phase4ComplianceSection
         phase="planning"
-        ruleTitle=""
-        ruleKey=""
-        ruleSeverity="must_fix"
-        ruleNote=""
         checks={checks}
         rules={[]}
         openChecks={checks.filter((check) => check.status === "open")}
         busy={false}
         onPhase={vi.fn()}
-        onRuleTitle={vi.fn()}
-        onRuleKey={vi.fn()}
-        onRuleSeverity={vi.fn()}
-        onRuleNote={vi.fn()}
-        onCreateRule={vi.fn()}
         onRunCompliance={onRunCompliance}
         onResolveCompliance={vi.fn()}
         onOverrideCompliance={vi.fn()}

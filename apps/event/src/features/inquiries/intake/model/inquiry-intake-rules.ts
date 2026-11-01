@@ -55,6 +55,22 @@ export function matchesAllOrValue(selected: string, value?: string | null) {
   return selected === "all" || selected === value;
 }
 
+/** Status filter value for the inquiries PMCM still has to decide on. */
+export const AWAITING_REVIEW = "awaiting_review";
+
+function matchesStatusFilter(selected: string, status: string) {
+  return selected === AWAITING_REVIEW ? status === "new" : matchesAllOrValue(selected, status);
+}
+
+/** Undecided inquiries first, then newest received. */
+export function compareIntakeInquiries(
+  left: Pick<PrismInquiry, "status" | "createdAt">,
+  right: Pick<PrismInquiry, "status" | "createdAt">,
+) {
+  const awaiting = Number(right.status === "new") - Number(left.status === "new");
+  return awaiting || new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+}
+
 export function dateRangeMatches(value: string, range: string, now = new Date()) {
   if (range === "all") return true;
   const date = new Date(value);
@@ -76,7 +92,7 @@ export function inquiryMatchesIntakeFilters(
   const haystack = `${inquiry.clientName} ${inquiry.companyName ?? ""} ${inquiry.email} ${inquiry.eventName}`.toLowerCase();
   const query = filters.query.trim().toLowerCase();
   if (query && !haystack.includes(query)) return false;
-  if (!matchesAllOrValue(filters.status, inquiry.status)) return false;
+  if (!matchesStatusFilter(filters.status, inquiry.status)) return false;
   if (!matchesAllOrValue(filters.source, inquiry.source)) return false;
   if (!matchesAllOrValue(filters.clientType, inquiry.clientType)) return false;
   return dateRangeMatches(inquiry.eventDate, filters.dateRange, now);

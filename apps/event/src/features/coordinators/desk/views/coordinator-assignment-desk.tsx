@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { UserCheck } from "lucide-react";
+import { ChevronDown, UserCheck } from "lucide-react";
 
 import type {
   CoordinatorRole,
@@ -16,7 +16,6 @@ import type {
 } from "@prism/types";
 import { COORDINATOR_ROLES, canonicalCoordinatorRole } from "@prism/types";
 import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
-import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { dateKey } from "@/features/pmcm-kit";
@@ -171,41 +170,6 @@ export function CoordinatorAssignmentDesk({
 
       <StaffingSummary roleRequirements={roleRequirements} assignmentCounts={assignmentCounts} onEdit={setEditingTarget} />
 
-      <CoordinatorReliabilityHistory
-        coordinators={coordinators}
-        assignments={assignments}
-        onLoad={onLoadReliabilityHistory}
-      />
-
-      <div className="grid gap-5 xl:grid-cols-3">
-        <CoverageTargetCard
-          key={editingTarget?.role ?? "new-target"}
-          busy={busy}
-          roleOptions={roleOptions}
-          editing={editingTarget}
-          onSave={onSaveCoverage}
-          onClearEdit={() => setEditingTarget(null)}
-        />
-        <OperatorDesignationCard
-          eventId={event.id}
-          candidates={operatorCandidates}
-          busy={busy}
-          onLoadOperator={onLoadOperator}
-          onDesignate={onDesignateOperator}
-          onRevoke={onRevokeOperator}
-        />
-        <CoordinatorAvailabilityCard
-          eventId={event.id}
-          eventDate={eventDate}
-          coordinators={coordinators}
-          assignments={eventAssignments}
-          busy={busy}
-          onLoad={onLoadAvailability}
-          onCreate={onCreateAvailability}
-          onDelete={onDeleteAvailability}
-        />
-      </div>
-
       {/* Coordinator assignment */}
       <Card>
         <CardHeader>
@@ -219,7 +183,7 @@ export function CoordinatorAssignmentDesk({
             {/* Filters */}
             <div className="space-y-4 rounded-2xl border border-border bg-muted/30 p-4">
               <div>
-                <p className="text-xs font-medium text-primary">Role</p>
+                <p className="text-sm font-medium text-foreground">Role</p>
                 <select
                   aria-label="Coordinator role filter"
                   value={roleFilter}
@@ -270,7 +234,7 @@ export function CoordinatorAssignmentDesk({
                   return (
                     <div key={role}>
                       <div className="mb-3 flex items-center justify-between gap-2">
-                        <p className="text-xs font-medium text-primary">{role}</p>
+                        <h3 className="text-sm font-semibold text-foreground">{role}</h3>
                         <span className="text-xs text-muted-foreground">{roleCoords.length} match{roleCoords.length === 1 ? "" : "es"}</span>
                       </div>
                       <div className="grid gap-3 lg:grid-cols-2">
@@ -290,25 +254,15 @@ export function CoordinatorAssignmentDesk({
                                 <div className="min-w-0 flex-1">
                                   <div className="flex flex-wrap items-center justify-between gap-2">
                                     <p className="text-sm font-bold text-foreground">{coord.name}</p>
-                                    <Badge
-                                      variant="outline"
-                                      className={`rounded-full text-3xs font-bold ${conflict ? "border-attention/25 bg-attention/8 text-attention" : "border-success/25 bg-success/8 text-success"}`}
-                                    >
+                                    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${conflict ? "text-attention" : "text-success"}`}>
+                                      <span aria-hidden className="size-1.5 rounded-full bg-current" />
                                       {conflict ? "Has conflict" : "Available"}
-                                    </Badge>
+                                    </span>
                                   </div>
                                   <p className="mt-0.5 text-xs text-muted-foreground">{coord.email}</p>
-                                  <div className="mt-2 flex flex-wrap gap-1.5">
-                                    {coordinatorRoleTags(coord).map((tag) => (
-                                      <span key={tag} className="rounded-full border border-border bg-card px-2 py-0.5 text-3xs font-bold text-foreground">{tag}</span>
-                                    ))}
-                                  </div>
+                                  <p className="mt-2 text-xs text-foreground">{coordinatorRoleTags(coord).join(" · ")}</p>
                                   {coord.skillsTags.length > 0 && (
-                                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                      {coord.skillsTags.map((tag) => (
-                                        <span key={tag} className="rounded-full border border-border bg-card px-2 py-0.5 text-3xs font-bold text-muted-foreground">{tag}</span>
-                                      ))}
-                                    </div>
+                                    <p className="mt-0.5 text-xs text-muted-foreground">Skills: {coord.skillsTags.join(", ")}</p>
                                   )}
                                   {conflict && (
                                     <p className="mt-2 text-xs font-semibold text-attention">
@@ -330,12 +284,10 @@ export function CoordinatorAssignmentDesk({
                                     if (!asg || (asg.status !== "pending_acknowledgement" && asg.status !== "acknowledged")) return null;
                                     const isPending = asg.status === "pending_acknowledgement";
                                     return (
-                                      <Badge
-                                        variant="outline"
-                                        className={`mt-2 rounded-full text-3xs font-bold ${isPending ? "border-attention/25 bg-attention/8 text-attention" : "border-success/25 bg-success/8 text-success"}`}
-                                      >
-                                        {isPending ? "Pending Acknowledgment" : "Acknowledged"}
-                                      </Badge>
+                                      <p className={`mt-2 inline-flex items-center gap-1.5 text-xs font-semibold ${isPending ? "text-attention" : "text-success"}`}>
+                                        <span aria-hidden className="size-1.5 rounded-full bg-current" />
+                                        {isPending ? "Awaiting acknowledgement" : "Acknowledged"}
+                                      </p>
                                     );
                                   })()}
                                 </div>
@@ -353,14 +305,58 @@ export function CoordinatorAssignmentDesk({
         </CardBody>
       </Card>
 
+      {/* Planning tools are used occasionally; assigning people is the main job of this tab. */}
+      <details open={editingTarget ? true : undefined} className="group rounded-xl border border-border bg-card">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
+          <span>
+            <span className="block text-sm font-semibold text-foreground">Staffing tools</span>
+            <span className="block text-xs text-muted-foreground">Coverage targets, event-day operator, unavailability and reliability history</span>
+          </span>
+          <ChevronDown aria-hidden className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="space-y-5 border-t border-border p-5">
+        <CoordinatorReliabilityHistory
+          coordinators={coordinators}
+          assignments={assignments}
+          onLoad={onLoadReliabilityHistory}
+        />
+
+        <div className="grid gap-5 xl:grid-cols-3">
+          <CoverageTargetCard
+            key={editingTarget?.role ?? "new-target"}
+            busy={busy}
+            roleOptions={roleOptions}
+            editing={editingTarget}
+            onSave={onSaveCoverage}
+            onClearEdit={() => setEditingTarget(null)}
+          />
+          <OperatorDesignationCard
+            eventId={event.id}
+            candidates={operatorCandidates}
+            busy={busy}
+            onLoadOperator={onLoadOperator}
+            onDesignate={onDesignateOperator}
+            onRevoke={onRevokeOperator}
+          />
+          <CoordinatorAvailabilityCard
+            eventId={event.id}
+            eventDate={eventDate}
+            coordinators={coordinators}
+            assignments={eventAssignments}
+            busy={busy}
+            onLoad={onLoadAvailability}
+            onCreate={onCreateAvailability}
+            onDelete={onDeleteAvailability}
+          />
+        </div>
+        </div>
+      </details>
+
       {/* Conflict modal */}
       {pendingConflict && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4">
           <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
-            <Badge variant="outline" className="rounded-full border-attention/25 bg-attention/8 text-attention">
-              Double-booking blocked
-            </Badge>
-            <h3 className="mt-4 text-base font-bold text-foreground">Choose another coordinator</h3>
+            <h3 className="text-base font-bold text-foreground">Double booking: choose another coordinator</h3>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
               {pendingConflict.coordinator.name} is already assigned to{" "}
               {pendingConflict.conflict.conflictEventName ?? "another event"} on this date. Assign a free

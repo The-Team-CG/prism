@@ -135,7 +135,7 @@ function EventDayActionButton({ action }: { action: EventDayAction }) {
 }
 
 function SectionAccent({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs font-medium text-primary">{children}</p>;
+  return <p className="text-sm text-muted-foreground">{children}</p>;
 }
 
 export type CoordinatorWorkspaceModel = {
