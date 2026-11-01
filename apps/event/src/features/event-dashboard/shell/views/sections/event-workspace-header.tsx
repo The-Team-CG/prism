@@ -7,10 +7,10 @@ import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { humanizeToken } from "@/features/pmcm-kit/model/formatters";
 import { Card, CardBody } from "./shell-ui";
-import { useEventDashboardEventRouteViewModel } from "../event-dashboard-route-context";
+import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
 
 export function EventWorkspaceHeader() {
-  const { selectedEvent, submitBriefing, navigateEventTab } = useEventDashboardEventRouteViewModel();
+  const { selectedEvent, submitBriefing, navigateEventTab } = useEventDashboardLoadedRouteViewModel();
   if (!selectedEvent) return null;
   return (
     <div className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-border bg-card px-6 py-5 shadow-sm">

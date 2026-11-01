@@ -12,7 +12,6 @@ import {
   routeStateFromPath,
   routeLoadingShellCopy,
   sectionNeedsPmcmReference,
-  sectionNeedsPmcmWorkspaceState,
   routeShellCopy,
 } from "./event-dashboard-routing";
 
@@ -302,10 +301,8 @@ describe("event-dashboard-routing", () => {
 describe("section readiness", () => {
   it("renders scoped-read sections without waiting for the broad PMCM workspace state", () => {
     // Dashboard and Command Inbox load only approvals and the inbox; gating them on the broad state left them loading forever.
-    for (const section of ["dashboard", "command-inbox", "suppliers", "events"] as const) expect(sectionNeedsPmcmWorkspaceState(section)).toBe(false);
-    for (const section of ["clients", "inquiries", "finance"] as const) expect(sectionNeedsPmcmWorkspaceState(section)).toBe(true);
-    // Event pages wait for the small PMCM reference instead of the whole-system dashboard.
-    expect(sectionNeedsPmcmReference("events")).toBe(true);
-    expect(sectionNeedsPmcmReference("clients")).toBe(false);
+    for (const section of ["dashboard", "command-inbox", "suppliers"] as const) expect(sectionNeedsPmcmReference(section)).toBe(false);
+    // Every other section waits only for the small PMCM reference; there is no whole-system dashboard.
+    for (const section of ["clients", "inquiries", "events", "finance", "audit"] as const) expect(sectionNeedsPmcmReference(section)).toBe(true);
   });
 });

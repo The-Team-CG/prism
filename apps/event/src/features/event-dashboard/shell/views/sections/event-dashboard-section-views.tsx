@@ -140,13 +140,12 @@ export function EventDashboardSettingsSectionView() {
 }
 
 export function EventDashboardClientsSectionView() {
-  const { selectedClient, state, clientRecordsForView, navigateClient, navigateSection, navigateEvent, routeState } =
+  const { selectedClient, reference, clientRecordsForView, navigateClient, navigateSection, navigateEvent, routeState } =
     useEventDashboardLoadedRouteViewModel();
+  const balanceOf = (events: Array<{ id: string }>) =>
+    events.reduce((sum, event) => sum + (reference.outstandingBalanceByEvent[event.id] ?? 0), 0);
   if (selectedClient) {
-    const eventIds = new Set(selectedClient.events.map((event) => event.id));
-    const balance = state.paymentMilestones
-      .filter((payment) => eventIds.has(payment.eventId))
-      .reduce((sum, payment) => sum + payment.remainingBalance, 0);
+    const balance = balanceOf(selectedClient.events);
     return (
       <ClientDossier
         client={selectedClient}
@@ -157,13 +156,7 @@ export function EventDashboardClientsSectionView() {
       />
     );
   }
-  const balances = new Map(
-    clientRecordsForView.map((client) => {
-      const eventIds = new Set(client.events.map((event) => event.id));
-      const balance = state.paymentMilestones.filter((payment) => eventIds.has(payment.eventId)).reduce((sum, payment) => sum + payment.remainingBalance, 0);
-      return [client.id, balance] as const;
-    }),
-  );
+  const balances = new Map(clientRecordsForView.map((client) => [client.id, balanceOf(client.events)] as const));
   return <ClientDirectory clients={clientRecordsForView} balances={balances} onOpenClient={navigateClient} />;
 }
 
@@ -180,7 +173,7 @@ export function EventDashboardTeamSectionView() {
   const {
     selectedEvent,
     coordinators,
-    state,
+    reference,
     coordinatorRoleRequirements,
     busy,
     assignCoordinator,
@@ -206,7 +199,7 @@ export function EventDashboardTeamSectionView() {
             <CoordinatorAssignmentDesk
               event={selectedEvent}
               coordinators={coordinators}
-              assignments={state.coordinatorAssignments}
+              assignments={reference.coordinatorAssignments}
               roleRequirements={coordinatorRoleRequirements}
               busy={Boolean(busy)}
               onAssign={assignCoordinator}
@@ -226,8 +219,8 @@ export function EventDashboardTeamSectionView() {
               title={teamView === "archived" ? "Archived coordinators" : "Coordinator roster"}
               note={unbackedViewNote}
               coordinators={roster}
-              assignments={state.coordinatorAssignments}
-              events={state.events}
+              assignments={reference.coordinatorAssignments}
+              events={reference.events}
               onOpenEvent={(eventId) => navigateEvent(eventId, "coordinators")}
             />
           )
@@ -381,7 +374,7 @@ export function EventDashboardPrivacySectionView() {
 
 export function EventDashboardInquiriesSectionView() {
   const {
-    state,
+    reference,
     acceptInquiry,
     pendInquiry,
     declineInquiry,
@@ -395,7 +388,7 @@ export function EventDashboardInquiriesSectionView() {
     <InquiryViews
       intake={
         <InquiryIntakeLog
-          inquiries={state.inquiries}
+          inquiries={reference.inquiries}
           onAccept={acceptInquiry}
           onPend={pendInquiry}
           onDecline={declineInquiry}
@@ -406,13 +399,13 @@ export function EventDashboardInquiriesSectionView() {
       }
       onboarding={
         <ClientOnboardingTracker
-          inquiries={state.inquiries}
+          inquiries={reference.inquiries}
           onUploadConforme={openConformeUpload}
           onSendReminder={sendConformeReminder}
           busy={Boolean(busy)}
         />
       }
-      followUp={<ConformeDraftReviewView inquiries={state.inquiries} />}
+      followUp={<ConformeDraftReviewView inquiries={reference.inquiries} />}
     />
   );
 }

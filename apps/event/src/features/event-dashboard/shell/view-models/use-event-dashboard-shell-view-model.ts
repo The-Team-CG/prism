@@ -73,7 +73,6 @@ export function useEventDashboardShellViewModel({
   });
   const {
     session,
-    state,
     coordinatorState,
     error,
     setError,
@@ -96,7 +95,7 @@ export function useEventDashboardShellViewModel({
     loadLiveOps,
     refreshSelectedEventWorkspace,
     selectedEventWorkspace,
-    setState,
+    setReference,
     reference,
     setCoordinatorState,
     setLiveOps,
@@ -145,7 +144,7 @@ export function useEventDashboardShellViewModel({
     postEventDocuments,
     quoteRequests,
     quotes,
-  } = selectEventWorkspaceResources(state, selectedEvent, selectedEventWorkspace);
+  } = selectEventWorkspaceResources(selectedEvent, selectedEventWorkspace);
   const coordinatorRoleRequirements = coordinatorCoverage;
   const selectedInquiry = inquiries.find((item) => item.id === selectedEvent?.inquiryId);
   const pendingApprovals = selectPendingApprovals(approvalRequests);
@@ -316,7 +315,6 @@ export function useEventDashboardShellViewModel({
   return {
     routeState,
     session,
-    state,
     reference,
     coordinatorState,
     screen,
@@ -405,7 +403,7 @@ export function useEventDashboardShellViewModel({
     setSection,
     setSelectedClientId,
     setError,
-    setState,
+    setReference,
     setCoordinatorState,
     setLiveOps,
     setStatusFeed,

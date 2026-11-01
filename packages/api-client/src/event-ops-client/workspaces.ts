@@ -5,7 +5,6 @@ import type {
   PrismDecisionLog,
   PrismPmcmCommandInbox,
   PrismPmcmCommandInboxQueryInput,
-  PrismPmcmDashboardWorkspace,
   PrismPmcmReference,
   PrismPmcmEventWorkspace,
   PrismPmcmSupplierReadinessBoard,
@@ -22,7 +21,7 @@ export function createWorkspacesClient(
   options: EventOpsClientOptions,
 ): Pick<
   EventOpsClient,
-  "clientWorkspace" | "supplierWorkspace" | "billing" | "pmcmDashboard" | "pmcm"
+  "clientWorkspace" | "supplierWorkspace" | "billing" | "pmcm"
 > {
   return {
     clientWorkspace: {
@@ -84,13 +83,6 @@ export function createWorkspacesClient(
       list: (actor = {}) =>
         prismRequest<PrismBillingWorkspace>(
           actorPath("/billing", actor),
-          withBase(options),
-        ),
-    },
-    pmcmDashboard: {
-      detail: (actor = {}) =>
-        prismRequest<PrismPmcmDashboardWorkspace>(
-          actorPath("/pmcm/dashboard", actor),
           withBase(options),
         ),
     },

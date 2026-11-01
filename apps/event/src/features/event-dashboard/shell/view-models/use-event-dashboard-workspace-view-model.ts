@@ -10,7 +10,6 @@ import type {
   PrismGuestPrivacyClassification,
   PrismLiveOps,
   PrismPmcmCommandInbox,
-  PrismPmcmDashboardWorkspace,
   PrismPmcmReference,
   PrismRegistrationPlatform,
 } from "@prism/types";
@@ -28,17 +27,15 @@ import {
 import { loadCommandInbox } from "@/features/command-inbox/list";
 import { eventWorkspaceRepository } from "@/features/event-workspace/shell";
 import {
-  getCachedPmcmState,
   isDashboardCacheFresh,
   loadCoordinatorWorkspace,
-  loadPmcmState,
   loadPmcmReference,
   getCachedPmcmReference,
 } from "../use-cases/load-dashboard-workspace";
 import { startDashboardSessionLoad } from "../use-cases/start-dashboard-session-load";
 import { usePmcmSelectedEventWorkspace } from "@/features/event-workspace/shell";
 import { useEventDayLiveUpdates } from "@/features/live-ops/workspace";
-import { sectionNeedsPmcmReference, sectionNeedsPmcmWorkspaceState, type DashboardSection, type DetailTab } from "../model/event-dashboard-routing";
+import { sectionNeedsPmcmReference, type DashboardSection, type DetailTab } from "../model/event-dashboard-routing";
 
 type ScreenName = "portal" | "editor";
 type WorkspaceStatus = "idle" | "loading" | "ready" | "error";
@@ -64,7 +61,6 @@ export function useEventDashboardWorkspaceViewModel({
   const router = useRouter();
   const [session, setSession] = useState<EventSession | null>(null);
   const [status, setStatus] = useState<WorkspaceStatus>("idle");
-  const [state, setState] = useState<PrismPmcmDashboardWorkspace | null>(null);
   const [reference, setReference] = useState<PrismPmcmReference | null>(null);
   const [coordinatorState, setCoordinatorState] = useState<PrismCoordinatorWorkspace | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +72,7 @@ export function useEventDashboardWorkspaceViewModel({
   const [guestPrivacyClassification, setGuestPrivacyClassification] = useState<PrismGuestPrivacyClassification | null>(null);
   const [floorPlanTemplates, setFloorPlanTemplates] = useState<FloorPlanTemplate[]>([]);
   const [commandInbox, setCommandInbox] = useState<PrismPmcmCommandInbox | null>(null);
-  const [conformeUploadTarget, setConformeUploadTarget] = useState<PrismPmcmDashboardWorkspace["inquiries"][number] | null>(null);
+  const [conformeUploadTarget, setConformeUploadTarget] = useState<PrismPmcmReference["inquiries"][number] | null>(null);
   const [commandInboxLoadFailed, setCommandInboxLoadFailed] = useState(false);
   const [commandDataErrors, setCommandDataErrors] = useState<EventCommandDataErrors>({});
   const activeEventCommandDataIdRef = useRef<string | null>(selectedEventId);
@@ -105,7 +101,7 @@ export function useEventDashboardWorkspaceViewModel({
       if (current.role === "coordinator") {
         const next = await loadCoordinatorWorkspace(current, true);
         setCoordinatorState(next);
-        setState(null);
+        setReference(null);
         setStatus("ready");
         return;
       }
@@ -118,7 +114,6 @@ export function useEventDashboardWorkspaceViewModel({
           loadApprovalRequests(true),
           loadCommandInbox(true, commandInbox?.page.index ?? 0),
         ]);
-        setState(null);
         setApprovalRequests(requests);
         setCommandInbox(inboxResult);
         setCommandInboxLoadFailed(false);
@@ -126,15 +121,12 @@ export function useEventDashboardWorkspaceViewModel({
         setStatus("ready");
         return;
       }
-      const shouldLoadBroadState = sectionNeedsPmcmWorkspaceState(section);
       const shouldLoadReference = sectionNeedsPmcmReference(section);
-      const [next, nextReference, requests, inboxResult] = await Promise.all([
-        shouldLoadBroadState ? loadPmcmState(true) : Promise.resolve(state),
+      const [nextReference, requests, inboxResult] = await Promise.all([
         shouldLoadReference ? loadPmcmReference(true) : Promise.resolve(reference),
         loadApprovalRequests(true),
         loadCommandInbox(true, commandInbox?.page.index ?? 0),
       ]);
-      if (shouldLoadBroadState) setState(next);
       if (shouldLoadReference) setReference(nextReference);
       setApprovalRequests(requests);
       setCommandInbox(inboxResult);
@@ -152,7 +144,7 @@ export function useEventDashboardWorkspaceViewModel({
       setStatus,
       setSession,
       setError,
-      setState,
+      setReference,
       setCoordinatorState,
       setApprovalRequests,
       setCommandInbox,
@@ -160,7 +152,8 @@ export function useEventDashboardWorkspaceViewModel({
     });
   }, [router]);
 
-  // Event pages read the PMCM reference (event switcher, inquiries, directories, rules) instead of the whole dashboard.
+  // Every PMCM section except the scoped ones reads the PMCM reference (event switcher, inquiries, people, directories,
+  // rules, balances); there is no whole-system dashboard state.
   useEffect(() => {
     if (!session || session.role !== "pmcm-admin" || !sectionNeedsPmcmReference(section)) return;
     const cached = getCachedPmcmReference();
@@ -179,25 +172,6 @@ export function useEventDashboardWorkspaceViewModel({
     };
   }, [session, section]);
 
-  useEffect(() => {
-    if (!session || session.role !== "pmcm-admin") return;
-    // Scoped sections don't read the broad workspace; keep any loaded copy so the outgoing page can finish rendering.
-    if (!sectionNeedsPmcmWorkspaceState(section)) return;
-    const cached = getCachedPmcmState();
-    if (cached) setState(cached.value);
-    if (cached && isDashboardCacheFresh(cached.loadedAt)) return;
-    let cancelled = false;
-    loadPmcmState(Boolean(cached))
-      .then((next) => {
-        if (!cancelled) setState(next);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Unable to load PMCM workspace");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [session, section]);
 
   // Only the event Floorplans tab offers templates; every other page skipped rendering them but still paid the request.
   const needsFloorPlanTemplates = section === "events" && tab === "floorplans";
@@ -355,9 +329,7 @@ export function useEventDashboardWorkspaceViewModel({
   return {
     status,
     session,
-    state,
-    // Event pages load the reference; list sections load the dashboard, which carries the same fields.
-    reference: state ?? reference,
+    reference,
     coordinatorState,
     error,
     setError,
@@ -382,7 +354,7 @@ export function useEventDashboardWorkspaceViewModel({
     loadLiveOps,
     refreshSelectedEventWorkspace,
     selectedEventWorkspace,
-    setState,
+    setReference,
     setCoordinatorState,
     setLiveOps,
     setStatusFeed,

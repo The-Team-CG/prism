@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const loadEventCommandDataMock = vi.hoisted(() => vi.fn());
 const loadTemplatesMock = vi.hoisted(() => vi.fn());
-const loadPmcmStateMock = vi.hoisted(() => vi.fn());
 const loadApprovalRequestsMock = vi.hoisted(() => vi.fn());
 const loadCommandInboxMock = vi.hoisted(() => vi.fn());
 const eventWorkspaceLoadMock = vi.hoisted(() => vi.fn());
@@ -29,10 +28,8 @@ const loadPmcmReferenceMock = vi.hoisted(() => vi.fn(async () => null));
 vi.mock("../use-cases/load-dashboard-workspace", () => ({
   getCachedPmcmReference: vi.fn(() => null),
   loadPmcmReference: loadPmcmReferenceMock,
-  getCachedPmcmState: vi.fn(() => null),
   isDashboardCacheFresh: vi.fn(() => false),
   loadCoordinatorWorkspace: vi.fn(async () => null),
-  loadPmcmState: loadPmcmStateMock,
 }));
 vi.mock("../use-cases/start-dashboard-session-load", () => ({
   startDashboardSessionLoad: ({ setSession }: { setSession: (session: unknown) => void }) => {
@@ -44,7 +41,6 @@ vi.mock("../use-cases/start-dashboard-session-load", () => ({
 import { eventWorkspaceRepository, loadApprovalRequests, loadEventCommandData, usePmcmSelectedEventWorkspace } from "@/features/event-workspace/shell";
 import { loadTemplates } from "@/features/floorplan/editor";
 import { loadCommandInbox } from "@/features/command-inbox/list";
-import { loadPmcmState } from "../use-cases/load-dashboard-workspace";
 import type { DashboardSection, DetailTab } from "../model/event-dashboard-routing";
 import { useEventDashboardWorkspaceViewModel } from "./use-event-dashboard-workspace-view-model";
 import { useEventDashboardNavigationViewModel } from "./use-event-dashboard-navigation-view-model";
@@ -82,7 +78,7 @@ describe("PMCM event-day live updates", () => {
     vi.mocked(loadEventCommandData).mockReset();
     vi.mocked(loadEventCommandData).mockImplementation(async (eventId) => eventData(eventId) as never);
     vi.mocked(loadTemplates).mockReset().mockResolvedValue([]);
-    vi.mocked(loadPmcmState).mockReset().mockResolvedValue(null as never);
+    loadPmcmReferenceMock.mockClear();
     vi.mocked(loadApprovalRequests).mockReset().mockResolvedValue([]);
     vi.mocked(loadCommandInbox).mockReset().mockResolvedValue(null as never);
     vi.mocked(eventWorkspaceRepository.loadWorkspace).mockReset().mockImplementation(async () => null as never);
@@ -137,7 +133,7 @@ describe("PMCM event-day live updates", () => {
     const { rerender, unmount } = renderWorkspace("evt_retained", "suppliers", "overview");
 
     await act(async () => { await Promise.resolve(); });
-    expect(loadPmcmState).not.toHaveBeenCalled();
+    expect(loadPmcmReferenceMock).not.toHaveBeenCalled();
     expect(loadTemplates).not.toHaveBeenCalled();
     expect(loadEventCommandData).not.toHaveBeenCalled();
     expect(eventWorkspaceRepository.loadWorkspace).not.toHaveBeenCalled();
@@ -153,7 +149,6 @@ describe("PMCM event-day live updates", () => {
     await act(async () => { await Promise.resolve(); });
     await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
 
-    expect(loadPmcmState).not.toHaveBeenCalled();
     expect(loadTemplates).toHaveBeenCalledTimes(templateLoadsBeforeSupplierReturn);
     expect(loadEventCommandData).toHaveBeenCalledTimes(eventCommandLoadsBeforeSupplierReturn);
     expect(eventWorkspaceRepository.loadWorkspace).toHaveBeenCalledTimes(eventWorkspaceLoadsBeforeSupplierReturn);
@@ -167,9 +162,8 @@ describe("PMCM event-day live updates", () => {
 
     await waitFor(() => expect(loadEventCommandData).toHaveBeenCalledWith("evt_1", ["readiness"], true));
     expect(eventWorkspaceRepository.loadWorkspace).toHaveBeenCalledWith("evt_1");
-    // Event pages load the small PMCM reference, never the whole-system dashboard.
+    // Event pages render from the small PMCM reference plus their own workspace.
     expect(loadPmcmReferenceMock).toHaveBeenCalled();
-    expect(loadPmcmState).not.toHaveBeenCalled();
     expect(loadTemplates).not.toHaveBeenCalled();
 
     rerender({ selectedEventId: "evt_1", routeSection: "events", routeTab: "floorplans" });

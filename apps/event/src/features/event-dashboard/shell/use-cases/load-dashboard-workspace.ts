@@ -1,14 +1,6 @@
 import type { EventSession } from "@/app/lib/session";
-import type { PrismCoordinatorWorkspace, PrismPmcmDashboardWorkspace, PrismPmcmReference } from "@prism/types";
+import type { PrismCoordinatorWorkspace, PrismPmcmReference } from "@prism/types";
 import { pmcmDashboardRepository } from "../data/pmcm-dashboard-repository";
-
-export function loadPmcmState(force = false): Promise<PrismPmcmDashboardWorkspace> {
-  return pmcmDashboardRepository.loadPmcmState(force);
-}
-
-export function getCachedPmcmState() {
-  return pmcmDashboardRepository.getCachedPmcmState();
-}
 
 export function loadPmcmReference(force = false): Promise<PrismPmcmReference> {
   return pmcmDashboardRepository.loadPmcmReference(force);

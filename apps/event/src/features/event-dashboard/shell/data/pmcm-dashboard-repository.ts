@@ -1,4 +1,4 @@
-import type { PrismCoordinatorWorkspace, PrismPmcmDashboardWorkspace, PrismPmcmReference } from "@prism/types";
+import type { PrismCoordinatorWorkspace, PrismPmcmReference } from "@prism/types";
 import type { EventSession } from "@/app/lib/session";
 import { eventApi } from "@/lib/prism-api";
 
@@ -6,8 +6,6 @@ type TimedCache<T> = { value: T; loadedAt: number };
 
 const EVENT_DASHBOARD_CACHE_MS = 30_000;
 
-let pmcmStateCache: TimedCache<PrismPmcmDashboardWorkspace> | null = null;
-let pmcmStateRequest: Promise<PrismPmcmDashboardWorkspace> | null = null;
 let pmcmReferenceCache: TimedCache<PrismPmcmReference> | null = null;
 let pmcmReferenceRequest: Promise<PrismPmcmReference> | null = null;
 const coordinatorWorkspaceCache = new Map<string, TimedCache<PrismCoordinatorWorkspace>>();
@@ -23,29 +21,6 @@ function sessionCacheKey(session: Pick<EventSession, "email" | "role">) {
 
 export const pmcmDashboardRepository = {
   isFresh,
-
-  getCachedPmcmState() {
-    return pmcmStateCache;
-  },
-
-  loadPmcmState(force = false): Promise<PrismPmcmDashboardWorkspace> {
-    if (!force && pmcmStateCache && isFresh(pmcmStateCache.loadedAt)) {
-      return Promise.resolve(pmcmStateCache.value);
-    }
-    if (!force && pmcmStateRequest) return pmcmStateRequest;
-
-    pmcmStateRequest = eventApi.pmcmDashboard
-      .detail()
-      .then((next) => {
-        pmcmStateCache = { value: next, loadedAt: Date.now() };
-        return next;
-      })
-      .finally(() => {
-        pmcmStateRequest = null;
-      });
-
-    return pmcmStateRequest;
-  },
 
   getCachedPmcmReference() {
     return pmcmReferenceCache;
