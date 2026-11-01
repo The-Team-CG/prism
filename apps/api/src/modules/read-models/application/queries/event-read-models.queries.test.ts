@@ -476,7 +476,7 @@ describe('EventReadModelQueries collection limits', () => {
     expect(page.hasMore).toBe(false);
   });
 
-  it('returns exact aggregate counts alongside capped defense rows', async () => {
+  it('reads the event and exact aggregate counts, without row lists', async () => {
     const opsEvent = model();
     const prisma = new Proxy(
       { opsEvent },
@@ -491,7 +491,8 @@ describe('EventReadModelQueries collection limits', () => {
 
     const result = await queries.defenseReadiness('evt_high_volume');
 
-    expect(result[8]).toEqual({
+    expect(result).toHaveLength(2);
+    expect(result[1]).toEqual({
       briefings: 0,
       floorPlanDrafts: 0,
       approvedFloorplan: 0,

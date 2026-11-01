@@ -68,7 +68,6 @@ export const DECISION_LOG_AUDIT_AFFECTED_TYPES = [
   'event_task_reassignment',
 ] as const;
 export const MAX_RUN_SHEET_SUPPLIER_SCHEDULES = 500;
-export const MAX_READINESS_ROWS = 500;
 export const MAX_BILLING_ROWS = 500;
 
 /** A billing statement, its milestones and payments reach the client only after PMCM sends the statement. */
@@ -504,16 +503,10 @@ export class EventReadModelQueries {
   }
 
   // Query budget: one selected event query plus seven event-scoped readiness queries, no per-row Prisma loop.
+  // Query budget: the event row and ten counts in one parallel wave. Readiness needs counts, never rows.
   defenseReadiness(eventId: string) {
     return Promise.all([
-      this.eventWithDrafts(eventId),
-      this.prisma.opsBriefing.findMany({ where: { eventId }, orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }], take: MAX_READINESS_ROWS }),
-      this.prisma.opsSupplierQuoteRequest.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_READINESS_ROWS }),
-      this.prisma.opsSupplierQuote.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_READINESS_ROWS }),
-      this.prisma.opsEventDayTask.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_READINESS_ROWS }),
-      this.prisma.opsUrgentIssue.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_READINESS_ROWS }),
-      this.prisma.opsBillingStatement.findMany({ where: { eventId }, orderBy: [{ generatedAt: 'desc' }, { id: 'desc' }], take: MAX_READINESS_ROWS }),
-      this.prisma.opsPaymentMilestone.findMany({ where: { eventId, supersededAt: null }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: MAX_READINESS_ROWS }),
+      this.prisma.opsEvent.findUnique({ where: { id: eventId } }),
       this.defenseReadinessCounts(eventId),
     ]);
   }
