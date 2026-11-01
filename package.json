@@ -5,7 +5,7 @@
   "description": "P.R.I.S.M local-only event operations monorepo.",
   "packageManager": "npm@11.6.2",
   "engines": {
-    "node": ">=24"
+    "node": "^24.15.0 || >=26.0.0"
   },
   "workspaces": [
     "apps/*",
