@@ -611,10 +611,16 @@ export function routeStateFromPath(pathname: string): RouteState {
  * Sections that render from their own scoped reads (approval requests, the command inbox, the supplier
  * workspace) instead of the broad PMCM workspace state. They must not wait for that state to load.
  */
-const SCOPED_READ_SECTIONS: ReadonlySet<DashboardSection> = new Set(["dashboard", "command-inbox", "suppliers"]);
+// Sections that read only their own scoped endpoints; event pages read the event workspace plus the PMCM reference.
+const SCOPED_READ_SECTIONS: ReadonlySet<DashboardSection> = new Set(["dashboard", "command-inbox", "suppliers", "events"]);
 
 export function sectionNeedsPmcmWorkspaceState(section: DashboardSection): boolean {
   return !SCOPED_READ_SECTIONS.has(section);
+}
+
+/** Event pages need the event switcher, inquiries, directories and rules, not the whole-system dashboard. */
+export function sectionNeedsPmcmReference(section: DashboardSection): boolean {
+  return section === "events";
 }
 
 /**

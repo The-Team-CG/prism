@@ -78,18 +78,28 @@ export interface PrismEventPage {
   pagination: PrismCursorPageInfo;
 }
 
-export interface PrismPmcmDashboardWorkspace {
-  users: PrismUser[];
-  inquiries: PrismInquiry[];
+/**
+ * What PMCM event pages need besides the event's own workspace: the event switcher, the inquiry behind each
+ * event, and the directories and rules the tabs choose from. Events carry no floor-plan drafts here; each
+ * event's drafts come from its workspace.
+ */
+export interface PrismPmcmReference {
   events: PrismEvent[];
+  inquiries: PrismInquiry[];
+  suppliers: PrismSupplier[];
+  supplierCategories: PrismSupplierCategory[];
+  coordinators: PrismCoordinator[];
+  coordinatorAssignments: PrismCoordinatorAssignment[];
+  complianceRules: PrismComplianceRule[];
+}
+
+export interface PrismPmcmDashboardWorkspace extends PrismPmcmReference {
+  users: PrismUser[];
   documents: PrismDocument[];
   briefings: PrismBriefing[];
   supplierQuoteRequests: PrismSupplierQuoteRequest[];
   supplierQuotes: PrismSupplierQuote[];
-  coordinators: PrismCoordinator[];
   coordinatorRoleRequirements: PrismCoordinatorRoleRequirement[];
-  coordinatorAssignments: PrismCoordinatorAssignment[];
-  complianceRules: PrismComplianceRule[];
   complianceChecks: PrismComplianceCheck[];
   billingSources: PrismBillingSource[];
   billingStatements: PrismBillingStatement[];
@@ -101,8 +111,6 @@ export interface PrismPmcmDashboardWorkspace {
   postEventDocuments: PrismPostEventDocument[];
   eventInsights: PrismEventInsight[];
   floorPlanDrafts: PrismFloorPlanDraft[];
-  supplierCategories: PrismSupplierCategory[];
-  suppliers: PrismSupplier[];
 }
 
 export type PrismClientTimelineMilestoneKey =

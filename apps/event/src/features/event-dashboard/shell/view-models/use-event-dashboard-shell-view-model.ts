@@ -97,6 +97,7 @@ export function useEventDashboardShellViewModel({
     refreshSelectedEventWorkspace,
     selectedEventWorkspace,
     setState,
+    reference,
     setCoordinatorState,
     setLiveOps,
     setStatusFeed,
@@ -113,20 +114,20 @@ export function useEventDashboardShellViewModel({
   }, [routeState.clientId, routeState.eventId, routeState.section, routeState.tab, routeState.view]);
 
   useEffect(() => {
-    if (!state) return;
+    if (!reference) return;
     setSelectedEventId((prev) => routeState.eventId ?? prev);
-  }, [routeState.eventId, state]);
+  }, [routeState.eventId, reference]);
 
-  const events = useMemo(() => selectActiveEvents(state), [state]);
+  const events = useMemo(() => selectActiveEvents(reference), [reference]);
   const selectedEvent = selectedEventWorkspace?.event.id === selectedEventId
     ? selectedEventWorkspace.event
     : selectSelectedEvent(events, selectedEventId);
-  const supplierCategories = state?.supplierCategories ?? [];
-  const suppliers = state?.suppliers ?? [];
-  const coordinators = state?.coordinators ?? [];
-  const inquiries = state?.inquiries ?? [];
+  const supplierCategories = reference?.supplierCategories ?? [];
+  const suppliers = reference?.suppliers ?? [];
+  const coordinators = reference?.coordinators ?? [];
+  const inquiries = reference?.inquiries ?? [];
   const unreviewedInquiries = selectUnreviewedInquiryCount(inquiries);
-  const complianceRules = state?.complianceRules ?? [];
+  const complianceRules = reference?.complianceRules ?? [];
   const {
     activeDraft,
     assignments,
@@ -316,6 +317,7 @@ export function useEventDashboardShellViewModel({
     routeState,
     session,
     state,
+    reference,
     coordinatorState,
     screen,
     error,

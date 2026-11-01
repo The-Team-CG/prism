@@ -6,6 +6,7 @@ import type {
   PrismPmcmCommandInbox,
   PrismPmcmCommandInboxQueryInput,
   PrismPmcmDashboardWorkspace,
+  PrismPmcmReference,
   PrismPmcmEventWorkspace,
   PrismPmcmSupplierReadinessBoard,
   PrismRegistrationPlatform,
@@ -94,6 +95,7 @@ export function createWorkspacesClient(
         ),
     },
     pmcm: {
+      reference: () => prismRequest<PrismPmcmReference>("/pmcm/reference", withBase(options)),
       commandInbox: (query: PrismPmcmCommandInboxQueryInput = { page: 0 }) => {
         const params = toQueryString(query);
         return prismRequest<PrismPmcmCommandInbox>(

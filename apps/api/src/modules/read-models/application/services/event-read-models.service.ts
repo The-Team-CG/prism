@@ -760,6 +760,25 @@ export class EventReadModelsService {
     }));
   }
 
+  /** The event switcher, inquiries, directories and rules PMCM event pages use, in one parallel wave. */
+  async pmcmReference(actor: ResolvedEventOpsActor, mappers: PmcmDashboardMappers) {
+    await this.policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'PMCM reference');
+    const [[events, inquiries, complianceRules, supplierCategories, suppliers], coordinators, coordinatorAssignments] = await Promise.all([
+      this.queries.pmcmReference(),
+      this.queries.activeCoordinators(),
+      this.queries.boundedCoordinatorAssignments(),
+    ]);
+    return {
+      events: events.map(mappers.mapEvent),
+      inquiries: inquiries.map(mappers.mapInquiry),
+      suppliers,
+      supplierCategories,
+      coordinators: coordinators.map(mappers.mapCoordinator),
+      coordinatorAssignments: coordinatorAssignments.map(mappers.mapCoordinatorAssignment),
+      complianceRules: complianceRules.map(mappers.mapComplianceRule),
+    };
+  }
+
   async pmcmDashboard(actor: ResolvedEventOpsActor, mappers: PmcmDashboardMappers) {
     await this.policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'PMCM dashboard');
 

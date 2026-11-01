@@ -5,7 +5,7 @@ import { isUnsupportedEventPortalRole } from "../model/event-dashboard-shell-cop
 import {
   EventDashboardSessionSkeleton,
 } from "@/app/(portal)/dashboard/components/event-dashboard-skeleton";
-import { sectionNeedsPmcmWorkspaceState, type EventDashboardClientProps } from "../model/event-dashboard-routing";
+import { sectionNeedsPmcmReference, sectionNeedsPmcmWorkspaceState, type EventDashboardClientProps } from "../model/event-dashboard-routing";
 import type { EventDashboardShellViewModel } from "../view-models/use-event-dashboard-shell-view-model";
 import { EventWrongPortalView } from "./sections/event-wrong-portal-view";
 import { EventDashboardEditorScreen } from "./sections/event-dashboard-editor-screen";
@@ -50,7 +50,8 @@ export function EventDashboardShellView({ viewModel, children }: EventDashboardS
   }
   // Gate on the section this page renders, not the in-flight sidebar selection: the sidebar updates
   // `section` before the router swaps pages, and the outgoing page's content still needs its data.
-  if (!viewModel.state && sectionNeedsPmcmWorkspaceState(viewModel.routeState.section)) {
+  const section = viewModel.routeState.section;
+  if ((!viewModel.state && sectionNeedsPmcmWorkspaceState(section)) || (!viewModel.reference && sectionNeedsPmcmReference(section))) {
     return <EventPmcmLoadingShell viewModel={{ ...viewModel, session }} />;
   }
   return (

@@ -2,7 +2,7 @@
 
 import type { ReactElement } from "react";
 import type { DetailTab } from "../../model/event-dashboard-routing";
-import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
+import { useEventDashboardEventRouteViewModel } from "../event-dashboard-route-context";
 import { EmptyEventWorkspace, EventWorkspaceHeader } from "./event-workspace-header";
 import {
   EventWorkspaceActivityTab,
@@ -39,7 +39,7 @@ const EVENT_TAB_VIEWS: Record<DetailTab, () => ReactElement> = {
 
 /** PMCM print-friendly run sheet for the selected event (FL-026). */
 export function EventDashboardRunSheetView() {
-  const { selectedEvent } = useEventDashboardLoadedRouteViewModel();
+  const { selectedEvent } = useEventDashboardEventRouteViewModel();
   if (!selectedEvent) return <EmptyEventWorkspace />;
   return (
     <div className="space-y-5">
@@ -52,7 +52,7 @@ export function EventDashboardRunSheetView() {
 }
 
 export function EventDashboardEventWorkspaceView() {
-  const { selectedEvent, tab } = useEventDashboardLoadedRouteViewModel();
+  const { selectedEvent, tab } = useEventDashboardEventRouteViewModel();
   if (!selectedEvent) return <EmptyEventWorkspace />;
   const renderTab = EVENT_TAB_VIEWS[tab];
   return (

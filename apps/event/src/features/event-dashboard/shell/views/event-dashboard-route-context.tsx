@@ -39,6 +39,20 @@ export function useEventDashboardLoadedRouteViewModel(): EventDashboardLoadedVie
   };
 }
 
+export type EventDashboardEventViewModel = Omit<EventDashboardShellViewModel, "session" | "reference"> & {
+  session: NonNullable<EventDashboardShellViewModel["session"]>;
+  reference: NonNullable<EventDashboardShellViewModel["reference"]>;
+};
+
+/** For event pages: they render from the event's workspace plus the PMCM reference, never the whole dashboard. */
+export function useEventDashboardEventRouteViewModel(): EventDashboardEventViewModel {
+  const viewModel = useEventDashboardRouteViewModel();
+  if (!viewModel.session || !viewModel.reference) {
+    throw new Error("Event pages require an authenticated session and the PMCM reference");
+  }
+  return { ...viewModel, session: viewModel.session, reference: viewModel.reference };
+}
+
 export type EventDashboardScopedViewModel = Omit<EventDashboardShellViewModel, "session"> & {
   session: NonNullable<EventDashboardShellViewModel["session"]>;
 };
