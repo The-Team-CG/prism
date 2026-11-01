@@ -23,19 +23,6 @@ export async function signOutSupplier(): Promise<void> {
   }
 }
 
-export async function loadSupplierWorkspace(session: PrismAuthenticatedSession): Promise<{
-  workspace: SupplierWorkspace;
-  readinessBoard: PrismSupplierReadinessBoard | null;
-  workflows: PrismSupplierWorkflowWorkspace;
-}> {
-  const [workspace, readinessBoard, workflows] = await Promise.all([
-    supplierWorkspaceRepository.fetchWorkspace(session),
-    supplierWorkspaceRepository.fetchReadinessBoard(session).catch(() => null),
-    supplierWorkflowRepository.fetch(session),
-  ]);
-  return { workspace, readinessBoard, workflows };
-}
-
 export async function submitOrReviseQuote(input: {
   request: PrismSupplierQuoteRequest;
   form: QuoteFormState;
