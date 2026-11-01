@@ -297,6 +297,11 @@ export class EventReadModelQueries {
     return [];
   }
 
+  // Query budget: one query for the dates of a coordinator's open (not archived) assigned events.
+  coordinatorFocusCandidates(eventIds: string[]) {
+    return this.prisma.opsEvent.findMany({ where: { id: { in: eventIds }, archived: false }, select: { id: true, eventDate: true } });
+  }
+
   // Query budget: one selected-event query, for reads that load the event's drafts in their own batch.
   eventRow(eventId: string) {
     return this.prisma.opsEvent.findUnique({ where: { id: eventId }, include: { inquiry: { select: { email: true } } } });

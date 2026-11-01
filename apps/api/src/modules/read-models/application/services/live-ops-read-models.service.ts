@@ -8,6 +8,7 @@ import type {
   PrismBriefing,
   PrismLiveOps,
 } from '@prism/types';
+import { isActiveCoordinatorAssignmentStatus, prismCalendarDateKey, selectCoordinatorFocusEventId } from '@prism/types';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import {
   isOpsConstantValue,
@@ -265,6 +266,33 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
   async getCoordinatorRoleView(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismCoordinatorRoleView> {
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Coordinator], 'coordinator role view', eventId);
     const assignment = await this.requireCoordinatorAssignmentForEvent(eventId, actor);
+    return this.buildCoordinatorRoleView(eventId, assignment);
+  }
+
+  /**
+   * Resolves the coordinator's focus event server-side (the rule the portal's selector uses), so the coordinator
+   * home loads its role view alongside the workspace instead of after it.
+   */
+  async getCoordinatorFocusRoleView(actor: ResolvedEventOpsActor): Promise<PrismCoordinatorRoleView | null> {
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Coordinator], 'coordinator role view');
+    const coordinator = await this.staffingReader.resolveCoordinatorForActor(actor);
+    const assignments = (await this.staffingReader.listAssignmentsForCoordinator(coordinator.id))
+      .filter((assignment) => isActiveCoordinatorAssignmentStatus(assignment.status));
+    if (assignments.length === 0) return null;
+    const events = await this.queries.coordinatorFocusCandidates([...new Set(assignments.map((assignment) => assignment.eventId))]);
+    const focusEventId = selectCoordinatorFocusEventId(
+      events.map((event) => ({ id: event.id, eventDate: event.eventDate.toISOString().slice(0, 10) })),
+      prismCalendarDateKey(),
+    );
+    const assignment = assignments.find((item) => item.eventId === focusEventId);
+    if (!focusEventId || !assignment) return null;
+    return this.buildCoordinatorRoleView(focusEventId, assignment);
+  }
+
+  private async buildCoordinatorRoleView(
+    eventId: string,
+    assignment: Awaited<ReturnType<LiveOpsReadModelsService['requireCoordinatorAssignmentForEvent']>>,
+  ): Promise<PrismCoordinatorRoleView> {
     const liveOps = await this.loadEventLiveOps(eventId, assignment);
     const { eventDayLogs: _eventDayLogs, ...coordinatorLiveOps } = liveOps;
     void _eventDayLogs;

@@ -6,7 +6,7 @@ import {
   SkeletonCard,
   SkeletonLine,
 } from "@/app/(portal)/dashboard/components/event-dashboard-skeleton";
-import { CoordinatorView } from "@/features/coordinators/desk";
+import { CoordinatorView, useCoordinatorHomePrefetch } from "@/features/coordinators/desk";
 import type { EventSession } from "@/app/lib/session";
 import type { EventDashboardShellViewModel } from "../../view-models/use-event-dashboard-shell-view-model";
 
@@ -23,6 +23,7 @@ export function EventCoordinatorShell({
   refresh: EventDashboardShellViewModel["refresh"];
   signOut: EventDashboardShellViewModel["signOut"];
 }) {
+  useCoordinatorHomePrefetch();
   if (!coordinatorState) {
     return (
       <main className="grid min-h-screen place-items-center bg-background px-6">
