@@ -11,6 +11,9 @@ async function openBooking(page, eventName) {
 
 test('client, PMCM, supplier, coordinator and guest complete an event lifecycle', async ({ browser, page: client }, info) => {
   test.setTimeout(12 * 60_000);
+  const calendarDate = date => new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', month: '2-digit', day: '2-digit', year: 'numeric' }).format(date);
+  const eventDate = calendarDate(new Date(Date.now() + 24 * 60 * 60_000));
+  const quoteDeadline = eventDate;
   const device = info.project.name === 'mobile' ? devices['Pixel 7'] : devices['Desktop Chrome'];
   const pmcm = await persona(browser, 'pmcm', device);
   const contexts = [pmcm.context];
@@ -19,9 +22,9 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
   const path = tab => `${origins.event}/dashboard/events/${eventId}/${tab}`;
   try {
     await test.step('Public client submits; PMCM accepts; client activates from the local inbox', async () => {
-      inquiry = await submitPublicInquiry(client, 'Full browser lifecycle', info.project.name === 'mobile' ? '12/16/2030' : '12/15/2030');
+      inquiry = await submitPublicInquiry(client, 'Full browser lifecycle', eventDate);
       await pmcm.page.goto(`${origins.event}/dashboard/inquiries`);
-      await pmcm.page.getByPlaceholder('Search client, email, or event...').fill(inquiry.eventName);
+      await pmcm.page.getByRole('searchbox', { name: 'Search inquiries', exact: true }).fill(inquiry.eventName);
       await pmcm.page.getByRole('button', { name: `Review inquiry ${inquiry.eventName}`, exact: true }).click();
       await pmcm.page.getByRole('button', { name: 'Accept', exact: true }).click();
       await expect(pmcm.page.getByText('Inquiry accepted', { exact: true })).toBeVisible();
@@ -79,12 +82,14 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await expect(proposal.getByRole('status')).toContainText('Version 1 is issued');
       // The client's proposal package includes billing, and a client only sees a statement once PMCM sends it.
       await pmcm.page.goto(path('billing'));
+      await pmcm.page.getByRole('tab', { name: /^Billing sources/ }).click();
       const billing = pmcm.page.getByRole('region', { name: 'Billing source', exact: true });
       await billing.getByLabel('Amount (PHP)', { exact: true }).fill('100000');
       await billing.getByLabel('Proposal evidence', { exact: true }).selectOption({ index: 1 });
       await billing.getByRole('button', { name: 'Create billing source', exact: true }).click();
       await billing.getByRole('button', { name: 'Approve source', exact: true }).click();
       await billing.getByRole('button', { name: 'Generate statement', exact: true }).click();
+      await pmcm.page.getByRole('tab', { name: /^Statements & payments/ }).click();
       await pmcm.page.getByRole('button', { name: 'Send to client', exact: true }).first().click();
       await expect.poll(async () => (await api('GET', `/pmcm/events/${eventId}/workspace`)).billingStatements.some(statement => Boolean(statement.sentAt))).toBe(true);
       await client.goto(`${origins.client}/dashboard/events/${eventId}/proposal`);
@@ -97,8 +102,8 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await pmcm.page.getByRole('tab', { name: /^Requests & quotes/ }).click();
       await pmcm.page.getByRole('button', { name: 'Request Quotes', exact: true }).click();
       await pmcm.page.getByRole('checkbox', { name: /XPERTO Registration/ }).check();
-      await pmcm.page.getByLabel('Quote deadline', { exact: true }).fill('12/01/2030');
-      await expect(pmcm.page.getByLabel('Quote deadline', { exact: true })).toHaveValue('12/01/2030');
+      await pmcm.page.getByLabel('Quote deadline', { exact: true }).fill(quoteDeadline);
+      await expect(pmcm.page.getByLabel('Quote deadline', { exact: true })).toHaveValue(quoteDeadline);
       const request = pmcm.page.waitForResponse(response => response.url().endsWith(`/events/${eventId}/quote-requests`) && response.request().method() === 'POST');
       await pmcm.page.getByRole('button', { name: 'Send Requests', exact: true }).click();
       const requests = await (await request).json();
@@ -125,14 +130,21 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await booking.getByRole('button', { name: 'Confirm readiness', exact: true }).click();
       await expect(booking.getByRole('button', { name: 'Readiness confirmed', exact: true })).toBeVisible();
       await pmcm.page.goto(path('coordinators'));
-      await pmcm.page.getByRole('group', { name: 'General Coordinator: Marco Santos', exact: true }).getByRole('button', { name: 'Quick assign', exact: true }).click();
+      const coordinatorCard = pmcm.page.getByRole('group', { name: 'General Coordinator: Marco Santos', exact: true });
+      await expect(coordinatorCard).toBeVisible();
+      if (await coordinatorCard.getByRole('button', { name: 'Review conflict', exact: true }).count()) {
+        await coordinatorCard.getByRole('button', { name: 'Review conflict', exact: true }).click();
+        await pmcm.page.getByRole('button', { name: 'Override and assign anyway', exact: true }).click();
+      } else {
+        await coordinatorCard.getByRole('button', { name: 'Quick assign', exact: true }).click();
+      }
       coordinator = await persona(browser, 'coordinator', device); contexts.push(coordinator.context);
       await coordinator.page.goto(`${origins.event}/dashboard?event=${eventId}`);
       await coordinator.page.getByRole('button', { name: /Acknowledge role|Confirm assignment/ }).first().click();
       await expect.poll(async () => (await api('GET', `/pmcm/events/${eventId}/workspace`)).coordinatorAssignments.some(item => item.coordinatorId === 'coord_marco' && item.status === 'acknowledged')).toBe(true);
     });
 
-    await test.step('PMCM approves the official plan and starts event day from the event overview', async () => {
+    await test.step('PMCM approves the official plan and starts event day when its overview action opens', async () => {
       await api('POST', `/events/${eventId}/ocular-visit/waive`, { reason: 'Synthetic browser acceptance venue fixture' });
       await api('POST', '/templates', { name: 'Browser acceptance layout', venue: 'Browser acceptance venue', width: 1200, height: 800, gridSize: 20, pax: 120, objects: [{ id: 'table-1', kind: 'table', position: { x: 100, y: 100 }, size: { width: 80, height: 80 }, rotation: 0, zIndex: 1 }] });
       await pmcm.page.goto(path('floorplans'));
@@ -170,6 +182,10 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await guest.getByLabel('Event code', { exact: true }).fill(detail.guestAccessCode);
       await guest.getByRole('button', { name: 'Preview event' }).click();
       await guest.getByRole('button', { name: 'Continue', exact: true }).click();
+      await expect(guest.getByRole('status')).toContainText('Check-in opens on');
+      await expect(guest.getByLabel('Guest name', { exact: true })).toHaveCount(0);
+      await guest.clock.setFixedTime(new Date(`${inquiry.eventDate.slice(0, 10)}T12:00:00+08:00`));
+      await guest.reload();
       await guest.getByLabel('Guest name', { exact: true }).fill(guestName);
       await guest.getByRole('checkbox', { name: /I consent to PMCM recording/ }).check();
       await guest.getByRole('button', { name: /check.in/i }).click();
@@ -180,9 +196,15 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
     await test.step('PMCM clears every close gate, the client submits closeout feedback, and PMCM archives without an override', async () => {
       const workspace = `/pmcm/events/${eventId}/workspace`;
       await pmcm.page.goto(path('closure'));
-      const ended = new Date(Date.now() - 60_000);
-      const local = new Date(ended.getTime() - ended.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
-      await pmcm.page.getByLabel('Actual ended at', { exact: true }).fill(local);
+      const ended = new Date();
+      ended.setMinutes(0, 0, 0);
+      const actualEnd = pmcm.page.locator('section').filter({ has: pmcm.page.getByRole('heading', { name: 'Record actual end', exact: true }) });
+      await actualEnd.getByRole('button', { name: /Pick a date and time/ }).click();
+      const month = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(ended);
+      const dayName = new RegExp(`${month} ${ended.getDate()}(?:st|nd|rd|th)?, ${ended.getFullYear()}`);
+      await pmcm.page.getByRole('grid').getByRole('button', { name: dayName }).click();
+      const time = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(ended);
+      await pmcm.page.getByRole('listbox', { name: 'Time', exact: true }).getByRole('option', { name: time, exact: true }).click();
       await pmcm.page.getByRole('button', { name: 'Record actual end', exact: true }).click();
       await expect(pmcm.page.getByRole('button', { name: 'Correct actual end', exact: true })).toBeVisible();
       await pmcm.page.getByRole('button', { name: 'Start quick wrap-up', exact: true }).click();
@@ -194,6 +216,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await logistics.getByRole('button', { name: 'Record logistics completion', exact: true }).click();
       await expect(logistics.getByText(/revision 1/)).toBeVisible();
 
+      await pmcm.page.getByRole('tab', { name: /^Deliverables/ }).click();
       const deliverables = pmcm.page.getByRole('region', { name: 'Post-event deliverables', exact: true });
       const markComplete = deliverables.getByRole('button', { name: 'Mark complete', exact: true });
       await expect(markComplete).toHaveCount(2);
@@ -225,6 +248,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
 
       await expect.poll(async () => (await api('GET', `/events/${eventId}/close-gates`)).missingKeys).toEqual([]);
       await pmcm.page.goto(path('closure'));
+      await pmcm.page.getByRole('tab', { name: '4. Archive', exact: true }).click();
       await expect(pmcm.page.getByText('All close gates passed', { exact: true })).toBeVisible();
       await expect(pmcm.page.getByPlaceholder('Required PMCM override reason if gates are not complete')).toHaveCount(0);
       await pmcm.page.getByRole('button', { name: 'Archive event', exact: true }).click();
