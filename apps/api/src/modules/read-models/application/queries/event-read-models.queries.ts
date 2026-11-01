@@ -297,6 +297,11 @@ export class EventReadModelQueries {
     return [];
   }
 
+  // Query budget: one selected-event query, for reads that load the event's drafts in their own batch.
+  eventRow(eventId: string) {
+    return this.prisma.opsEvent.findUnique({ where: { id: eventId }, include: { inquiry: { select: { email: true } } } });
+  }
+
   // Query budget: one selected-event query plus one bounded Floorplan-owner draft query.
   async eventWithDrafts(eventId: string) {
     const event = await this.prisma.opsEvent.findUnique({
