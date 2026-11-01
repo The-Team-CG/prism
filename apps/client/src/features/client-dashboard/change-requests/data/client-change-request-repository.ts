@@ -1,4 +1,5 @@
 import type { PrismClientChangeRequest, SubmitScopeChangeRequestInput } from "@prism/types";
+import { defineResource } from "@prism/portal-query";
 import { clientApi } from "@/lib/prism-api";
 
 export const clientChangeRequestRepository = {
@@ -12,3 +13,9 @@ export const clientChangeRequestRepository = {
     return clientApi.events.withdrawScopeChangeRequest(eventId, requestId);
   },
 };
+
+/** The event's client-safe change requests, shared by the overview panel and prefetched when an event page opens. */
+export const clientEventChangeRequestsResource = defineResource({
+  name: "client.event-change-requests",
+  fetch: (eventId: string) => clientChangeRequestRepository.list(eventId),
+});

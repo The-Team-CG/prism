@@ -17,6 +17,7 @@
     "@prism/api-client": "*",
     "@prism/floorplan-canvas": "*",
     "@prism/tokens": "*",
+    "@prism/portal-query": "*",
     "@prism/types": "*",
     "@prism/ui": "*",
     "@radix-ui/react-accordion": "1.2.3",
