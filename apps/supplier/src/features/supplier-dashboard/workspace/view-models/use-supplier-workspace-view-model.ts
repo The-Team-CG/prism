@@ -1,9 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useInvalidate, useResource } from "@prism/portal-query";
 import { useRouter } from "next/navigation";
 import type { PrismAuthenticatedSession } from "@prism/types";
-import type { PrismSupplierWorkflowWorkspace } from "@prism/types";
 import {
   deriveWorkspace,
   initialForm,
@@ -13,10 +13,8 @@ import {
 } from "../model/supplier-workspace-rules";
 import type {
   PrismSupplierQuoteRequest,
-  PrismSupplierReadinessBoard,
   QuoteFormState,
   SupplierDashboardSection,
-  SupplierWorkspace,
   SupplierWorkspaceStatus,
 } from "../model/supplier-workspace-types";
 import { supplierSectionHref } from "../model/supplier-workspace-types";
@@ -25,7 +23,6 @@ import {
   confirmSupplierReadiness,
   acknowledgeSupplierSchedule,
   loadSupplierDashboardSession,
-  loadSupplierWorkspace,
   requestSupplierScheduleChange,
   saveSupplierContract,
   submitSupplierCreativeTask,
@@ -35,15 +32,11 @@ import {
   updateSupplierCreativeProgress,
 } from "../use-cases/supplier-workspace-actions";
 import { supplierWorkflowRepository } from "../data/supplier-workflow-repository";
+import { supplierWorkspaceResource } from "../data/supplier-workspace-resource";
 
 export function useSupplierWorkspaceViewModel(section: SupplierDashboardSection) {
   const router = useRouter();
   const [session, setSession] = useState<PrismAuthenticatedSession | null>(null);
-  const [workspace, setWorkspace] = useState<SupplierWorkspace | null>(null);
-  const [readinessBoard, setReadinessBoard] = useState<PrismSupplierReadinessBoard | null>(
-    null,
-  );
-  const [workflowWorkspace, setWorkflowWorkspace] = useState<PrismSupplierWorkflowWorkspace | null>(null);
   const setSection = (next: SupplierDashboardSection) => router.push(supplierSectionHref(next));
   const [forms, setForms] = useState<Record<string, QuoteFormState>>({});
   const [readinessNotes, setReadinessNotes] = useState<Record<string, string>>({});
@@ -62,24 +55,22 @@ export function useSupplierWorkspaceViewModel(section: SupplierDashboardSection)
     setSession(current);
   }, [router]);
 
-  async function refresh(current = session) {
-    if (!current) return;
-    setError(null);
-    try {
-      const next = await loadSupplierWorkspace(current);
-      setWorkspace(next.workspace);
-      setReadinessBoard(next.readinessBoard);
-      setWorkflowWorkspace(next.workflows);
-      setForms((existing) => mergeQuoteForms(existing, next.workspace));
-    } catch (err) {
-      setError(mapSupplierWorkspaceError(err));
-    }
-  }
+  // One shared read for every section: switching sections reuses it; commands refresh it.
+  const bundle = useResource(supplierWorkspaceResource, session);
+  const workspace = bundle.data?.workspace ?? null;
+  const readinessBoard = bundle.data?.readinessBoard ?? null;
+  const workflowWorkspace = bundle.data?.workflows ?? null;
+  const loadError = bundle.status === "error" ? mapSupplierWorkspaceError(bundle.error) : null;
+  const invalidate = useInvalidate();
 
   useEffect(() => {
-    if (session) void refresh(session);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- match original: refresh when session email changes
-  }, [session?.email]);
+    if (workspace) setForms((existing) => mergeQuoteForms(existing, workspace));
+  }, [workspace]);
+
+  async function refresh() {
+    setError(null);
+    await invalidate(supplierWorkspaceResource);
+  }
 
   const derived = useMemo(
     () => deriveWorkspace(workspace, readinessBoard),
@@ -144,7 +135,8 @@ export function useSupplierWorkspaceViewModel(section: SupplierDashboardSection)
 
   const meta =
     session != null ? sectionMeta(section, session, workspace) : null;
-  const status: SupplierWorkspaceStatus = error ? "error" : workspace ? "success" : session ? "loading" : "idle";
+  const shownError = error ?? loadError;
+  const status: SupplierWorkspaceStatus = shownError ? "error" : workspace ? "success" : session ? "loading" : "idle";
 
   return {
     session,
@@ -156,7 +148,7 @@ export function useSupplierWorkspaceViewModel(section: SupplierDashboardSection)
     forms,
     readinessNotes,
     statusNotes,
-    error,
+    error: shownError,
     notice,
     busy,
     status,

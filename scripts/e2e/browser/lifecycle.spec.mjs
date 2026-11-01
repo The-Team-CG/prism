@@ -34,8 +34,11 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await client.getByLabel('Confirm new password', { exact: true }).fill(password);
       await client.getByRole('button', { name: 'Set password', exact: true }).click();
       await client.getByRole('link', { name: 'Sign in', exact: true }).click();
-      await fillStable(client.getByLabel('Email address'), inquiry.email);
-      await fillStable(client.getByLabel('Password', { exact: true }), password);
+      await expect(async () => {
+        await fillStable(client.getByLabel('Email address'), inquiry.email);
+        await fillStable(client.getByLabel('Password', { exact: true }), password);
+        await expect(client.getByLabel('Email address')).toHaveValue(inquiry.email, { timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
       await client.getByRole('button', { name: 'Sign in', exact: true }).click();
       await privacyIfNeeded(client);
     });

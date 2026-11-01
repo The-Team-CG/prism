@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const loadEventCommandDataMock = vi.hoisted(() => vi.fn());
 const loadTemplatesMock = vi.hoisted(() => vi.fn());
-const loadPmcmStateMock = vi.hoisted(() => vi.fn());
 const loadApprovalRequestsMock = vi.hoisted(() => vi.fn());
 const loadCommandInboxMock = vi.hoisted(() => vi.fn());
 const eventWorkspaceLoadMock = vi.hoisted(() => vi.fn());
@@ -15,20 +14,26 @@ const logoutEventSessionMock = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({ useRouter: () => routerMock }));
 vi.mock("../data/session-commands", () => ({ logoutEventSession: logoutEventSessionMock }));
 vi.mock("@/app/lib/role-guards", () => ({ isPmcmAdmin: (role: string) => role === "pmcm-admin" }));
-vi.mock("@/features/floorplan/editor", () => ({ loadTemplates: loadTemplatesMock }));
-vi.mock("@/features/event-workspace/shell", () => ({
+vi.mock("@/features/floorplan/editor/data/templates-repository", () => ({ loadTemplates: loadTemplatesMock }));
+vi.mock("@/features/event-workspace/shell/use-cases/load-event-workspace", async (importOriginal) => ({
+  eventCommandPartsFor: (await importOriginal<typeof import("@/features/event-workspace/shell/use-cases/load-event-workspace")>()).eventCommandPartsFor,
   getCachedEventCommandData: vi.fn(() => null),
   loadApprovalRequests: loadApprovalRequestsMock,
   loadEventCommandData: loadEventCommandDataMock,
+}));
+vi.mock("@/features/event-workspace/shell/data/event-workspace-repository", () => ({
   eventWorkspaceRepository: { loadWorkspace: eventWorkspaceLoadMock },
+}));
+vi.mock("@/features/event-workspace/shell/view-models/use-pmcm-selected-event-workspace", () => ({
   usePmcmSelectedEventWorkspace: selectedEventWorkspaceHookMock,
 }));
-vi.mock("@/features/command-inbox/list", () => ({ loadCommandInbox: loadCommandInboxMock }));
+vi.mock("@/features/command-inbox/list/use-cases/load-command-inbox", () => ({ loadCommandInbox: loadCommandInboxMock }));
+const loadPmcmReferenceMock = vi.hoisted(() => vi.fn(async () => null));
 vi.mock("../use-cases/load-dashboard-workspace", () => ({
-  getCachedPmcmState: vi.fn(() => null),
+  getCachedPmcmReference: vi.fn(() => null),
+  loadPmcmReference: loadPmcmReferenceMock,
   isDashboardCacheFresh: vi.fn(() => false),
   loadCoordinatorWorkspace: vi.fn(async () => null),
-  loadPmcmState: loadPmcmStateMock,
 }));
 vi.mock("../use-cases/start-dashboard-session-load", () => ({
   startDashboardSessionLoad: ({ setSession }: { setSession: (session: unknown) => void }) => {
@@ -37,10 +42,11 @@ vi.mock("../use-cases/start-dashboard-session-load", () => ({
   },
 }));
 
-import { eventWorkspaceRepository, loadApprovalRequests, loadEventCommandData, usePmcmSelectedEventWorkspace } from "@/features/event-workspace/shell";
-import { loadTemplates } from "@/features/floorplan/editor";
-import { loadCommandInbox } from "@/features/command-inbox/list";
-import { loadPmcmState } from "../use-cases/load-dashboard-workspace";
+import { loadApprovalRequests, loadEventCommandData } from "@/features/event-workspace/shell/use-cases/load-event-workspace";
+import { eventWorkspaceRepository } from "@/features/event-workspace/shell/data/event-workspace-repository";
+import { usePmcmSelectedEventWorkspace } from "@/features/event-workspace/shell/view-models/use-pmcm-selected-event-workspace";
+import { loadTemplates } from "@/features/floorplan/editor/data/templates-repository";
+import { loadCommandInbox } from "@/features/command-inbox/list/use-cases/load-command-inbox";
 import type { DashboardSection, DetailTab } from "../model/event-dashboard-routing";
 import { useEventDashboardWorkspaceViewModel } from "./use-event-dashboard-workspace-view-model";
 import { useEventDashboardNavigationViewModel } from "./use-event-dashboard-navigation-view-model";
@@ -78,7 +84,7 @@ describe("PMCM event-day live updates", () => {
     vi.mocked(loadEventCommandData).mockReset();
     vi.mocked(loadEventCommandData).mockImplementation(async (eventId) => eventData(eventId) as never);
     vi.mocked(loadTemplates).mockReset().mockResolvedValue([]);
-    vi.mocked(loadPmcmState).mockReset().mockResolvedValue(null as never);
+    loadPmcmReferenceMock.mockClear();
     vi.mocked(loadApprovalRequests).mockReset().mockResolvedValue([]);
     vi.mocked(loadCommandInbox).mockReset().mockResolvedValue(null as never);
     vi.mocked(eventWorkspaceRepository.loadWorkspace).mockReset().mockImplementation(async () => null as never);
@@ -91,7 +97,7 @@ describe("PMCM event-day live updates", () => {
   it("loads live-ops data once when opening the active desk", async () => {
     renderWorkspace("evt_1");
 
-    await waitFor(() => expect(loadEventCommandData).toHaveBeenCalledWith("evt_1", true));
+    await waitFor(() => expect(loadEventCommandData).toHaveBeenCalledWith("evt_1", ["liveOps"], true));
     expect(loadEventCommandData).toHaveBeenCalledTimes(1);
   });
 
@@ -106,10 +112,10 @@ describe("PMCM event-day live updates", () => {
     });
 
     const { result, rerender, unmount } = renderWorkspace("evt_1");
-    await waitFor(() => expect(loadEventCommandData).toHaveBeenCalledWith("evt_1", true));
+    await waitFor(() => expect(loadEventCommandData).toHaveBeenCalledWith("evt_1", ["liveOps"], true));
 
     rerender({ selectedEventId: "evt_2", routeSection: "events", routeTab: "live-ops" });
-    await waitFor(() => expect(loadEventCommandData).toHaveBeenCalledWith("evt_2", true));
+    await waitFor(() => expect(loadEventCommandData).toHaveBeenCalledWith("evt_2", ["liveOps"], true));
     await waitFor(() => expect(result.current.liveOps?.event.id).toBe("evt_2"));
 
     await act(async () => {
@@ -122,7 +128,7 @@ describe("PMCM event-day live updates", () => {
   it("loads event guest privacy classification with registration command data", async () => {
     const { result } = renderWorkspace("evt_1", "events", "registration");
 
-    await waitFor(() => expect(loadEventCommandData).toHaveBeenCalledWith("evt_1", true));
+    await waitFor(() => expect(loadEventCommandData).toHaveBeenCalledWith("evt_1", ["registration"], true));
     await waitFor(() => expect(result.current.guestPrivacyClassification).toEqual({
       eventId: "evt_1",
       classification: "unclassified",
@@ -133,7 +139,7 @@ describe("PMCM event-day live updates", () => {
     const { rerender, unmount } = renderWorkspace("evt_retained", "suppliers", "overview");
 
     await act(async () => { await Promise.resolve(); });
-    expect(loadPmcmState).not.toHaveBeenCalled();
+    expect(loadPmcmReferenceMock).not.toHaveBeenCalled();
     expect(loadTemplates).not.toHaveBeenCalled();
     expect(loadEventCommandData).not.toHaveBeenCalled();
     expect(eventWorkspaceRepository.loadWorkspace).not.toHaveBeenCalled();
@@ -149,7 +155,6 @@ describe("PMCM event-day live updates", () => {
     await act(async () => { await Promise.resolve(); });
     await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
 
-    expect(loadPmcmState).not.toHaveBeenCalled();
     expect(loadTemplates).toHaveBeenCalledTimes(templateLoadsBeforeSupplierReturn);
     expect(loadEventCommandData).toHaveBeenCalledTimes(eventCommandLoadsBeforeSupplierReturn);
     expect(eventWorkspaceRepository.loadWorkspace).toHaveBeenCalledTimes(eventWorkspaceLoadsBeforeSupplierReturn);
@@ -158,13 +163,17 @@ describe("PMCM event-day live updates", () => {
     unmount();
   });
 
-  it("keeps selected event routes loading their event workspace and commands", async () => {
-    renderWorkspace("evt_1", "events", "overview");
+  it("loads only what an event tab renders: readiness on the overview, templates on floorplans", async () => {
+    const { rerender } = renderWorkspace("evt_1", "events", "overview");
 
-    await waitFor(() => expect(loadEventCommandData).toHaveBeenCalledWith("evt_1", true));
+    await waitFor(() => expect(loadEventCommandData).toHaveBeenCalledWith("evt_1", ["readiness"], true));
     expect(eventWorkspaceRepository.loadWorkspace).toHaveBeenCalledWith("evt_1");
-    expect(loadPmcmState).toHaveBeenCalled();
-    expect(loadTemplates).toHaveBeenCalled();
+    // Event pages render from the small PMCM reference plus their own workspace.
+    expect(loadPmcmReferenceMock).toHaveBeenCalled();
+    expect(loadTemplates).not.toHaveBeenCalled();
+
+    rerender({ selectedEventId: "evt_1", routeSection: "events", routeTab: "floorplans" });
+    await waitFor(() => expect(loadTemplates).toHaveBeenCalledTimes(1));
   });
 });
 

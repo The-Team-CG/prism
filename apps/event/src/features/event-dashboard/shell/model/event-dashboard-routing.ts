@@ -1,4 +1,4 @@
-import type { PmcmDetailTab } from "@/features/command-inbox/list";
+import { type PmcmDetailTab } from "@/features/command-inbox/list/views/event-command-cockpit";
 import type { PrismEvent } from "@prism/types";
 import { formatPortalDate } from "@prism/ui/format-date";
 export type DetailTab = PmcmDetailTab;
@@ -607,13 +607,12 @@ export function routeStateFromPath(pathname: string): RouteState {
 }
 
 
-/**
- * Sections that render from their own scoped reads (approval requests, the command inbox, the supplier
- * workspace) instead of the broad PMCM workspace state. They must not wait for that state to load.
- */
+// Sections that render from their own scoped reads (approval requests, the command inbox, the supplier
+// workspace) and must not wait for the PMCM reference.
 const SCOPED_READ_SECTIONS: ReadonlySet<DashboardSection> = new Set(["dashboard", "command-inbox", "suppliers"]);
 
-export function sectionNeedsPmcmWorkspaceState(section: DashboardSection): boolean {
+/** Every other section renders from the PMCM reference (plus its own scoped reads); none reads whole-system state. */
+export function sectionNeedsPmcmReference(section: DashboardSection): boolean {
   return !SCOPED_READ_SECTIONS.has(section);
 }
 

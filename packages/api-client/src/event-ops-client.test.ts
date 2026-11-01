@@ -1005,9 +1005,9 @@ describe("createEventOpsClient", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api", getAuthToken: () => "signed-token" });
-    await client.pmcmDashboard.detail();
+    await client.pmcm.reference();
 
-    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/pmcm/dashboard", {
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/pmcm/reference", {
       headers: { "Content-Type": "application/json", Authorization: "Bearer signed-token" },
     });
   });
@@ -1024,7 +1024,7 @@ describe("createEventOpsClient", () => {
       onUnauthorized,
     });
 
-    await expect(client.pmcmDashboard.detail()).rejects.toMatchObject({ status: 401 });
+    await expect(client.pmcm.reference()).rejects.toMatchObject({ status: 401 });
     expect(onUnauthorized).toHaveBeenCalledTimes(1);
 
     await expect(
@@ -1033,7 +1033,7 @@ describe("createEventOpsClient", () => {
     expect(onUnauthorized).toHaveBeenCalledTimes(1);
 
     const anonymous = createEventOpsClient({ baseUrl: "http://localhost:4000/api", onUnauthorized });
-    await expect(anonymous.pmcmDashboard.detail()).rejects.toMatchObject({ status: 401 });
+    await expect(anonymous.pmcm.reference()).rejects.toMatchObject({ status: 401 });
     expect(onUnauthorized).toHaveBeenCalledTimes(1);
   });
 
@@ -1051,7 +1051,7 @@ describe("createEventOpsClient", () => {
       onUnauthorized,
     });
 
-    await expect(client.pmcmDashboard.detail()).rejects.toMatchObject({
+    await expect(client.pmcm.reference()).rejects.toMatchObject({
       status: 403,
       problem: { code: "privacy_notice_required" },
     });
@@ -1059,23 +1059,20 @@ describe("createEventOpsClient", () => {
     expect(onUnauthorized).not.toHaveBeenCalled();
 
     const anonymous = createEventOpsClient({ baseUrl: "http://localhost:4000/api", onPrivacyNoticeRequired });
-    await expect(anonymous.pmcmDashboard.detail()).rejects.toMatchObject({ status: 403 });
+    await expect(anonymous.pmcm.reference()).rejects.toMatchObject({ status: 403 });
     expect(onPrivacyNoticeRequired).toHaveBeenCalledTimes(1);
   });
 
-  it("loads the PMCM dashboard as a scoped read model", async () => {
+  it("loads the PMCM reference with identity from the session, not query parameters", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ events: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
     const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
-    await client.pmcmDashboard.detail({ actorName: "Ms. Mys", actorRole: "pmcm-admin" });
+    await client.pmcm.reference();
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:4000/api/pmcm/dashboard?actorName=Ms.+Mys&actorRole=pmcm-admin",
-      {
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/pmcm/reference", {
+      headers: { "Content-Type": "application/json" },
+    });
   });
 
   it("reviews a client proposal through the shared event contract", async () => {

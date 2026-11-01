@@ -12,7 +12,7 @@ const { routeModel } = vi.hoisted(() => ({
 vi.mock("../event-dashboard-route-context", () => ({
   useEventDashboardLoadedRouteViewModel: () => routeModel,
 }));
-vi.mock("./event-dashboard-section-views", () => ({
+vi.mock("./files-section-view", () => ({
   EventDashboardFilesSectionView: () => createElement("section", { "data-testid": "event-file-hub" }, routeModel.selectedEvent.id),
 }));
 vi.mock("./event-workspace-header", () => ({

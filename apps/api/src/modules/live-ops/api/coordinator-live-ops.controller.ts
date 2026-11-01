@@ -11,6 +11,14 @@ export class CoordinatorLiveOpsController {
     private readonly eventAccessPolicyService: EventAccessPolicyService,
   ) {}
 
+  /** The role view for the coordinator's next upcoming (else latest) assigned event; null when nothing is assigned. */
+  @Get('focus-role-view')
+  @UseGuards(EventSessionGuard)
+  focusRoleView(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.readService.getCoordinatorFocusRoleView(actor);
+  }
+
   @Get('events/:eventId/role-view')
   @UseGuards(EventSessionGuard)
   roleView(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
