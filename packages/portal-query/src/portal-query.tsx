@@ -20,7 +20,7 @@
  * request), stale-while-revalidate, abort on unmount, polling only while the tab is visible, and a cache
  * cleared whenever the signed-in actor changes, so one account never sees another's data.
  */
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export type Resource<Params, Data> = {
@@ -70,19 +70,26 @@ export function useResource<Params, Data>(resource: Resource<Params, Data>, para
 /** Starts loading a resource before the component that reads it mounts; a no-op when fresh data is cached. */
 export function usePrefetch() {
   const client = useQueryClient();
-  return <Params, Data>(resource: Resource<Params, Data>, params: Params) =>
-    void client.prefetchQuery({
-      queryKey: resourceKey(resource, params),
-      queryFn: ({ signal }) => resource.fetch(params, signal),
-      staleTime: resource.staleMs,
-    });
+  // Stable across renders, so effects that prefetch run only when their own inputs change.
+  return useCallback(
+    <Params, Data>(resource: Resource<Params, Data>, params: Params) =>
+      void client.prefetchQuery({
+        queryKey: resourceKey(resource, params),
+        queryFn: ({ signal }) => resource.fetch(params, signal),
+        staleTime: resource.staleMs,
+      }),
+    [client],
+  );
 }
 
 /** Marks a resource stale after a command; mounted readers refetch in parallel and the promise settles after. */
 export function useInvalidate() {
   const client = useQueryClient();
-  return <Params, Data>(resource: Resource<Params, Data>, params?: Params) =>
-    client.invalidateQueries({ queryKey: resourceKey(resource, params) });
+  return useCallback(
+    <Params, Data>(resource: Resource<Params, Data>, params?: Params) =>
+      client.invalidateQueries({ queryKey: resourceKey(resource, params) }),
+    [client],
+  );
 }
 
 /**

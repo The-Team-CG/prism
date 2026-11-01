@@ -95,6 +95,14 @@ export function useClientDashboardViewModel({
 }) {
   const router = useRouter();
   const prefetch = usePrefetch();
+
+  // The overview's change requests and addenda only need the route's event id: start them with the
+  // workspace instead of after it, when their panels would otherwise mount.
+  useEffect(() => {
+    if (route !== "overview" || !eventId || readClientSession()?.role !== "client") return;
+    prefetch(clientEventChangeRequestsResource, eventId);
+    prefetch(clientEventAddendaResource, eventId);
+  }, [eventId, prefetch, route]);
   const [session, setSession] = useState<ClientSession | null>(null);
   const [actionCenter, setActionCenter] = useState<PrismClientActionCenter | null>(null);
   const [actionCenterLoadFailed, setActionCenterLoadFailed] = useState(false);
@@ -115,12 +123,6 @@ export function useClientDashboardViewModel({
     if (current.role !== "client") {
       setActionCenter(null);
       return;
-    }
-    // The overview's change requests and addenda only need the route's event id: start them with the
-    // workspace instead of after it, when their panels would otherwise mount.
-    if (route === "overview" && eventId) {
-      prefetch(clientEventChangeRequestsResource, eventId);
-      prefetch(clientEventAddendaResource, eventId);
     }
 
     const applyState = (next: PrismClientWorkspace) => {
