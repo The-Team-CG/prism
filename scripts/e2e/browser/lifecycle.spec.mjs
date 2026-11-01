@@ -199,7 +199,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       const ended = new Date();
       ended.setMinutes(0, 0, 0);
       const actualEnd = pmcm.page.locator('section').filter({ has: pmcm.page.getByRole('heading', { name: 'Record actual end', exact: true }) });
-      await actualEnd.getByRole('button', { name: /Pick a date and time/ }).click();
+      await actualEnd.getByRole('button').filter({ hasText: 'Pick a date and time' }).click();
       const month = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(ended);
       const dayName = new RegExp(`${month} ${ended.getDate()}(?:st|nd|rd|th)?, ${ended.getFullYear()}`);
       await pmcm.page.getByRole('grid').getByRole('button', { name: dayName }).click();
