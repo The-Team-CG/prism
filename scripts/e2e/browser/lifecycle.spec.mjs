@@ -130,6 +130,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await booking.getByRole('button', { name: 'Confirm readiness', exact: true }).click();
       await expect(booking.getByRole('button', { name: 'Readiness confirmed', exact: true })).toBeVisible();
       await pmcm.page.goto(path('coordinators'));
+      await pmcm.page.getByRole('checkbox', { name: 'Available only', exact: true }).uncheck();
       const coordinatorCard = pmcm.page.getByRole('group', { name: 'General Coordinator: Marco Santos', exact: true });
       await expect(coordinatorCard).toBeVisible();
       if (await coordinatorCard.getByRole('button', { name: 'Review conflict', exact: true }).count()) {
