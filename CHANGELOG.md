@@ -6,6 +6,24 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Portal pages load faster against the hosted database. Measured in production builds against an ~81 ms database round trip:
+  - PMCM event overview: 10 requests and 3.7 s → 5 requests and 2.4 s.
+  - PMCM events list: 2.0 s → 1.6 s. Inquiries: 1.7 s → 1.3 s.
+  - Coordinator home: 3 requests and 2.5 s → 2 requests and 1.6 s.
+  - Client event overview: 2.4 s → 1.9 s. Client home: 2.0 s → 1.8 s.
+  - The whole-system `/pmcm/dashboard` (959 KB over the wire) is replaced by `/pmcm/reference` (19 KB).
+
+  What changed:
+  - API responses are compressed, and CORS preflights are cached for 2 hours.
+  - Idle database connections stay open for 5 minutes, so the next click no longer pays a ~1.7 s reconnect.
+  - Event readiness and the PMCM event workspace each read in one parallel wave. Readiness drops from 44 queries to 17.
+  - PMCM event tabs request only the data they show.
+  - Event pages use a new `GET /pmcm/reference` (event switcher, inquiries, directories, rules) instead of the whole-system dashboard. The dashboard no longer carries system-wide audit and notification logs.
+  - The coordinator role view looks up the assignment once. The coordinator home loads its role view alongside the workspace from `GET /coordinator/focus-role-view`, which picks the next upcoming assigned event with the same shared rule as the portal (`selectCoordinatorFocusEventId`, Philippine calendar date).
+  - Each PMCM page downloads only its own section: list pages ship about 260 KB of gzipped JavaScript instead of 417 KB. Pages import their section and route view directly (a shell test guards this), the coordinator desk and conforme upload load on demand, and the shell imports feature modules instead of whole feature barrels.
+  - After a PMCM command, the portal reads, the selected event workspace and live ops refresh at once instead of one after another, and the duplicate approvals reload is gone.
+  - New `@prism/portal-query` gives each portal one data cache (`defineResource`, `useResource`, `usePrefetch`, `useInvalidate`). The client event overview uses it to start its change requests and addenda alongside the workspace, and the event portal's dashboard layout now holds its cache across navigation. Supplier dashboard sections share one workspace read, so moving between them no longer reloads it.
+
 - Planning starts when the client approves the proposal, and the API's archive, event-day and readiness checks use the same shared stage rule as the portals. Workspace-wide compliance rules are managed in PMCM Settings instead of one event's Closure tab. The Compliance step lists open checks as compact rows grouped by phase, with evidence behind Details and settled checks collapsed, and its history is a one-line run summary plus a risks list. Date-and-time pickers with nothing chosen open on the current month.
 - Every portal shows the same lifecycle stage for an event, from `derivePrismLifecycleStage` in `@prism/types`: PMCM Overview, the PMCM events list, and the client Overview and Planning tabs no longer disagree (for example "Ready for event day" next to "briefing" and "Stage 4: Planning"). The separate client progress percentage is replaced by "2 of 5 checkpoints done". PMCM's "Event day is here" banner appears only from the day before the event.
 - Event tabs follow the event's stage. PMCM's event menu is grouped into Prepare, Event day & after, and Back to; the Closure count stays hidden until the event day. The guest pass leads with event details and says when check-in opens, and shows check-in only on the event day.

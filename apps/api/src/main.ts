@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { CORS_PREFLIGHT_MAX_AGE_SECONDS, responseCompression } from './common/http-transport';
 import { PrismaExceptionFilter } from './common/prisma-exception.filter';
 import { parseTrustProxySetting, TRUST_PROXY_ENV } from './common/trust-proxy-setting';
 
@@ -37,6 +38,7 @@ async function bootstrap() {
   // Portals on other localhost ports are same-site, so they can still load API
   // responses; cross-site embedding stays blocked.
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'same-site' } }));
+  app.use(responseCompression());
 
   app.setGlobalPrefix('api', {
     exclude: ['health'],
@@ -63,6 +65,7 @@ async function bootstrap() {
       callback(new Error(`Origin ${origin} is not allowed by CORS`));
     },
     credentials: true,
+    maxAge: CORS_PREFLIGHT_MAX_AGE_SECONDS,
   });
 
   const port = Number(process.env.PORT ?? 4000);

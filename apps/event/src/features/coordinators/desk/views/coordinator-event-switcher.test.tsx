@@ -1,5 +1,7 @@
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { createElement, type ReactNode } from "react";
+import { cleanup, fireEvent, render as renderTest, screen, waitFor } from "@testing-library/react";
+import { PortalQueryProvider } from "@prism/portal-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrismCoordinatorAssignment, PrismEvent } from "@prism/types";
 import { CoordinatorEventSwitcher } from "./coordinator-event-switcher";
@@ -7,6 +9,12 @@ import { CoordinatorView } from "./coordinator-view";
 
 vi.mock("@prism/ui", () => ({ PrismDashboardShell: ({ children, navItems, onNavSelect, sidebarContext }: { children: import("react").ReactNode; navItems: Array<{ id: string; label: string }>; onNavSelect: (id: string) => void; sidebarContext?: import("react").ReactNode }) => <main><aside>{sidebarContext}</aside><nav>{navItems.map((item) => <button key={item.id} onClick={() => onNavSelect(item.id)}>{item.label}</button>)}</nav>{children}</main> }));
 vi.mock("../use-cases/coordinator-desk-actions", () => ({ loadCoordinatorRoleView: vi.fn(async () => null) }));
+vi.mock("../data/coordinators-repository", () => ({
+  coordinatorFocusRoleView: { name: "coordinator.focus-role-view", staleMs: 30_000, fetch: vi.fn(async () => null) },
+}));
+
+const wrapper = ({ children }: { children: ReactNode }) => createElement(PortalQueryProvider, { actorKey: "marco@pmcm.test", children });
+const render: typeof renderTest = ((ui: Parameters<typeof renderTest>[0]) => renderTest(ui, { wrapper })) as typeof renderTest;
 
 afterEach(() => { cleanup(); window.history.replaceState(null, "", "/"); });
 
