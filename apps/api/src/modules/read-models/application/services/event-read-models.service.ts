@@ -36,6 +36,7 @@ import { FLOORPLAN_READER, type FloorplanReader } from '@prism/contexts/floorpla
 import { isClientVisibleFloorPlanDraft } from '@prism/contexts/floorplan/event-drafts';
 import { mapClientBillingStatement } from '@prism/contexts/commercial';
 import { OpsUserRole, SupplierQuoteRequestStatus, isOpsConstantValue } from '@prism/kernel/event-core';
+import { derivePrismLifecycleStage } from '@prism/types';
 import type {
   PrismClientEventTimeline,
   PrismClientSharedFloorplanEntry,
@@ -60,7 +61,6 @@ import { EventReadModelQueries, MAX_PMCM_COMMAND_INBOX_PAGE_SIZE } from '../quer
 import {
   buildDefenseActions,
   countMatching,
-  defenseLifecycleStage,
   defenseSummary,
   overallDefenseStatus,
 } from './event-read-models.defense';
@@ -328,7 +328,7 @@ export class EventReadModelsService {
       eventId,
       eventName: event.eventName,
       overallStatus: overallDefenseStatus(nextActions),
-      lifecycleStage: defenseLifecycleStage(input),
+      lifecycleStage: derivePrismLifecycleStage(event),
       score: Math.round((doneCount / nextActions.length) * 100),
       summary: defenseSummary(input),
       nextActions,

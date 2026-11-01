@@ -123,7 +123,8 @@ describe("coordinator event selection", () => {
       onRefresh: async () => {},
     }));
 
-    expect(result.current.event).toBeUndefined();
+    // With several assigned events, one opens by default instead of an empty "choose an event" screen.
+    expect(result.current.event).toBeDefined();
     act(() => result.current.selectEvent("evt_1"));
     await waitFor(() => expect(result.current.event?.id).toBe("evt_1"));
     act(() => result.current.selectEvent("evt_2"));

@@ -153,16 +153,6 @@ export function overallDefenseStatus(actions: DefenseAction[]) {
   return "ready";
 }
 
-export function defenseLifecycleStage(input: DefenseInputs) {
-  if (input.archived) return "archive";
-  if (!input.briefingsCount) return "briefing";
-  if (!input.approvedFloorplan) return "planning";
-  if (input.selectedSupplierCount === 0 || input.pendingCoordinatorCount > 0) return "supplier-coordinator-setup";
-  if (input.openTaskCount + input.openIssueCount > 0) return "event-day";
-  if (input.closeGates.ready) return "closure-ready";
-  return "closure";
-}
-
 export function defenseSummary(input: DefenseInputs) {
   return {
     briefingSubmitted: input.briefingsCount > 0,

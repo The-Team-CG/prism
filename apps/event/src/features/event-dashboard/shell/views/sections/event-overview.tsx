@@ -14,8 +14,9 @@ import {
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
+import { PRISM_LIFECYCLE_STAGE_LABELS, derivePrismLifecycleStage, isBeforePrismEventDay } from "@prism/types";
 import type { PrismDefenseReadiness, PrismDefenseReadinessAction, PrismEvent, PrismFloorPlanDraft } from "@prism/types";
-import { formatPortalDate } from "@prism/ui/format-date";
+import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { RouteLink, cx, label } from "@/features/pmcm-kit";
@@ -71,7 +72,8 @@ function billingArea(summary: Summary): AreaState {
   return { status: "All payments settled", tone: "done" };
 }
 
-function closureArea(summary: Summary, openCheckCount: number): AreaState {
+function closureArea(summary: Summary, openCheckCount: number, preEvent: boolean): AreaState {
+  if (preEvent) return { status: "Opens after the event", tone: "idle" };
   if (summary?.closureReady) return { status: "Ready to close", tone: "done" };
   if (openCheckCount) return { status: plural(openCheckCount, "open check"), tone: "attention" };
   return { status: "Closes after the event", tone: "idle" };
@@ -84,6 +86,7 @@ function areaCards({
   quoteCount,
   quoteRequestCount,
   openCheckCount,
+  preEvent,
 }: {
   readiness: PrismDefenseReadiness | null;
   activeDraft?: PrismFloorPlanDraft;
@@ -91,6 +94,7 @@ function areaCards({
   quoteCount: number;
   quoteRequestCount: number;
   openCheckCount: number;
+  preEvent: boolean;
 }): AreaCard[] {
   const summary = readiness?.summary;
   return [
@@ -100,7 +104,7 @@ function areaCards({
     { tab: "coordinators", title: "Team & roles", icon: UsersRound, ...teamArea(summary) },
     { tab: "live-ops", title: "Live operations", icon: Radio, ...liveOpsArea(summary) },
     { tab: "billing", title: "Billing", icon: ReceiptText, ...billingArea(summary) },
-    { tab: "closure", title: "Closure", icon: CalendarCheck, ...closureArea(summary, openCheckCount) },
+    { tab: "closure", title: "Closure", icon: CalendarCheck, ...closureArea(summary, openCheckCount, preEvent) },
   ];
 }
 
@@ -169,6 +173,14 @@ function ReadinessSection({ readiness, busy, onRunCompliance, onSubmitBriefing }
   );
 }
 
+/** Event day starts tomorrow or has arrived, in Philippine calendar days. */
+export function isEventDayClose(eventDate: string, now = new Date()): boolean {
+  const day = eventDate.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
+  const tomorrow = manilaDateKey(new Date(now.getTime() + 24 * 60 * 60 * 1000));
+  return day <= tomorrow;
+}
+
 function GuestCode({ code }: { code?: string | null }) {
   const [copied, setCopied] = useState(false);
   if (!code) return <span className="text-muted-foreground">Generated after setup</span>;
@@ -220,22 +232,26 @@ export function EventWorkspaceOverview({
   onOpenTab: (tab: DetailTab) => void;
 }) {
   const pending = (readiness?.nextActions ?? []).filter((action) => action.status !== "done");
-  const cards = areaCards({ readiness, activeDraft, draftCount: drafts.length, quoteCount, quoteRequestCount, openCheckCount });
+  const stage = derivePrismLifecycleStage(event);
+  const cards = areaCards({ readiness, activeDraft, draftCount: drafts.length, quoteCount, quoteRequestCount, openCheckCount, preEvent: isBeforePrismEventDay(stage) });
+  const showEventDayBanner = canStartEventDay && isEventDayClose(event.eventDate);
   const facts = [
     { label: "Event date", value: formatPortalDate(event.eventDate) },
     { label: "Client", value: event.clientName },
-    { label: "Stage", value: readiness ? label(readiness.lifecycleStage) : label(event.status) },
+    { label: "Stage", value: PRISM_LIFECYCLE_STAGE_LABELS[stage] },
     { label: "Client portal", value: <StatusBadge status={event.clientPortalStatus} /> },
     { label: "Guest code", value: <GuestCode code={event.guestAccessCode} /> },
   ];
 
   return (
     <div className="space-y-5">
-      {canStartEventDay ? (
+      {showEventDayBanner ? (
         <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-primary/25 bg-primary/5 px-5 py-4">
           <div>
-            <h2 className="font-semibold text-foreground">Ready for event day</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">The conforme is signed and the official floorplan is approved. Start live operations when the team is on site.</p>
+            <h2 className="font-semibold text-foreground">Event day is here</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {pending.length ? `${plural(pending.length, "item")} still open below. ` : ""}Start live operations when the team is on site.
+            </p>
           </div>
           <Button disabled={busy} onClick={onStartEventDay}>Start event day</Button>
         </section>

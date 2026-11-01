@@ -32,6 +32,9 @@ export class EventDayStartService {
       if (event.floorPlanStatus !== 'approved') {
         throw new BadRequestException('Approve the official floorplan before starting event day');
       }
+      if (event.proposalClientStatus !== 'approved') {
+        throw new BadRequestException('The client must approve the proposal before event day starts');
+      }
       this.lifecycle.assertCanTransition(this.lifecycle.stageForEvent(event), EventLifecycleStage.EventDay);
       await tx.opsEvent.update({ where: { id: eventId }, data: { status: 'event_day', readiness: 'Event day in progress' } });
       await writeAudit(this.audit, eventId, actor.name, 'Started event day', {

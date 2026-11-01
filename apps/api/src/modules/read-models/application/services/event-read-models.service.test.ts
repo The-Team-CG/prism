@@ -650,6 +650,10 @@ describe('EventReadModelsService', () => {
       id: 'evt_sample',
       eventName: 'Ayala Summit',
       archived: false,
+      status: 'planning',
+      clientPortalStatus: 'unlocked',
+      proposalClientStatus: 'approved',
+      actualEndedAt: null,
       floorPlanDrafts: [{ id: 'fpd_approved', status: 'approved' }],
     };
     const queries = {
@@ -709,7 +713,7 @@ describe('EventReadModelsService', () => {
       eventId: 'evt_sample',
       eventName: 'Ayala Summit',
       overallStatus: 'attention',
-      lifecycleStage: 'supplier-coordinator-setup',
+      lifecycleStage: 'planning',
       liveAiBlocked: true,
       summary: expect.objectContaining({
         briefingSubmitted: true,

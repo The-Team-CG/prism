@@ -22,6 +22,7 @@ import { EmptyState } from "@/app/components/ui/empty-state";
 import type { PrismInquiry } from "@prism/types";
 import { compactTimestamp, label } from "@/features/pmcm-kit";
 import {
+  AWAITING_REVIEW,
   canMergeInquiry,
   declineReasons,
   inquiryExtraDetailFields,
@@ -148,6 +149,7 @@ export function InquiryIntakeFilters({
             onChange={(event) => onStatus(event.target.value)}
             className="h-11 w-full min-w-0 truncate rounded-lg border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:h-9"
           >
+            <option value={AWAITING_REVIEW}>Awaiting review</option>
             <option value="all">All statuses</option>
             <option value="new">New</option>
             <option value="accepted">Accepted</option>
@@ -253,23 +255,20 @@ function InquiryIntakeRow({
 }) {
   const next = inquiryNextStep(inquiry);
   return (
-    <tr className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 px-4 py-4 hover:bg-surface-raised sm:px-6 lg:table-row lg:p-0">
-      <td className="col-span-2 min-w-0 align-top lg:px-6 lg:py-4">
+    <tr className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 px-4 py-3 hover:bg-surface-raised sm:px-6 lg:table-row lg:p-0">
+      <td className="col-span-2 min-w-0 align-top lg:px-6 lg:py-2.5">
         <p className="break-words font-semibold text-foreground" title={inquiry.eventName}>{inquiry.eventName}</p>
-        <p className="mt-1 truncate text-xs text-muted-foreground" title={`${inquiry.clientName} · ${inquiry.email}`}>
-          {inquiry.clientName} · {inquiry.email}
-        </p>
-        <p className="mt-2 text-xs leading-5 text-muted-foreground">
-          Received {compactTimestamp(inquiry.createdAt)}
+        <p className="mt-0.5 truncate text-xs text-muted-foreground" title={`${inquiry.clientName} · ${inquiry.email}`}>
+          {inquiry.clientName} · {inquiry.email} · Received {compactTimestamp(inquiry.createdAt)}
           {inquiry.source ? <> · {inquiry.source}</> : null}
         </p>
         {inquiry.previouslyDeclined ? <p className="mt-0.5 text-xs font-semibold text-destructive">Previously declined</p> : null}
       </td>
-      <td className="col-start-1 row-start-2 whitespace-nowrap align-top text-foreground lg:px-3 lg:py-4">
+      <td className="col-start-1 row-start-2 whitespace-nowrap align-top text-foreground lg:px-3 lg:py-2.5">
         <span className="block text-xs text-muted-foreground lg:hidden">Event date</span>
         {formatPortalDate(inquiry.eventDate)}
       </td>
-      <td className="col-start-1 row-start-3 min-w-0 align-top lg:px-3 lg:py-4">
+      <td className="col-start-1 row-start-3 min-w-0 align-top lg:px-3 lg:py-2.5">
         <StatusBadge status={inquiry.status} label={label(inquiry.status)} />
         {inquiry.status === "accepted" ? (
           <p className={`mt-1 text-xs leading-5 ${NEXT_STEP_TONE[next.tone]}`}>{next.label}</p>
