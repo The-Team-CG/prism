@@ -57,7 +57,7 @@ import {
   STAFFING_READER,
   type StaffingReader,
 } from '@prism/contexts/operations';
-import { EventReadModelQueries, MAX_PMCM_COMMAND_INBOX_PAGE_SIZE } from '../queries/event-read-models.queries';
+import { EventReadModelQueries, MAX_EVENT_FLOORPLAN_DRAFTS, MAX_PMCM_COMMAND_INBOX_PAGE_SIZE } from '../queries/event-read-models.queries';
 import {
   buildDefenseActions,
   defenseSummary,
@@ -674,11 +674,11 @@ export class EventReadModelsService {
   async pmcmEventWorkspace(actor: ResolvedEventOpsActor, eventId: string, mappers: PmcmDashboardMappers) {
     await this.policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'PMCM event workspace', eventId);
 
-    const event = await this.queries.eventWithDrafts(eventId);
-    if (!event) throw new NotFoundException('Event not found');
-    await this.policy.requireCanReadEvent(actor, event, 'PMCM event workspace');
-
+    // One wave: the event row, the event-scoped batch and the context readers start together. The access check
+    // needs only the event row and makes no database call, so nothing is returned before it passes.
     const [
+      eventRow,
+      [
       documents,
       briefings,
       supplierQuoteRequests,
@@ -694,15 +694,24 @@ export class EventReadModelsService {
       auditLogs,
       notificationLogs,
       ocularVisit,
-    ] = await this.queries.pmcmEventWorkspace(eventId);
-    const [coordinatorAssignments, coordinatorCoverage, guestCheckIns, guestFeedback, registrationPlatform, guestAttendanceCount] = await Promise.all([
-      this.staffingReader.listAssignmentsForEvent(eventId),
-      this.staffingReader.listCoverageForEvent?.(eventId) ?? Promise.resolve([]),
-      this.guestReader.listCheckInsForEvent(eventId),
-      this.guestReader.listFeedbackForEvent(eventId),
-      this.registrationPlatformReader?.getByEventId(eventId) ?? Promise.resolve(null),
-      this.guestReader.countCheckInsForEvent(eventId),
+      ],
+      [coordinatorAssignments, coordinatorCoverage, guestCheckIns, guestFeedback, registrationPlatform, guestAttendanceCount],
+    ] = await Promise.all([
+      this.queries.eventRow(eventId),
+      this.queries.pmcmEventWorkspace(eventId),
+      Promise.all([
+        this.staffingReader.listAssignmentsForEvent(eventId),
+        this.staffingReader.listCoverageForEvent?.(eventId) ?? Promise.resolve([]),
+        this.guestReader.listCheckInsForEvent(eventId),
+        this.guestReader.listFeedbackForEvent(eventId),
+        this.registrationPlatformReader?.getByEventId(eventId) ?? Promise.resolve(null),
+        this.guestReader.countCheckInsForEvent(eventId),
+      ]),
     ]);
+    if (!eventRow) throw new NotFoundException('Event not found');
+    // The batch already read this event's drafts (same order), so the event carries them without a second query.
+    const event = { ...eventRow, floorPlanDrafts: floorPlanDrafts.slice(0, MAX_EVENT_FLOORPLAN_DRAFTS) };
+    await this.policy.requireCanReadEvent(actor, event, 'PMCM event workspace');
 
     return {
       event: mappers.mapEvent(event),
