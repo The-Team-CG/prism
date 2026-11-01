@@ -170,6 +170,8 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       const detail = await api('GET', `/events/${eventId}`);
       const guestContext = await browser.newContext(device); contexts.push(guestContext);
       const guest = await guestContext.newPage();
+      // The pass opens check-in on the event's Philippine calendar day, and this journey's event is years out.
+      await guest.clock.setFixedTime(new Date(`${detail.eventDate.slice(0, 10)}T10:00:00+08:00`));
       await guest.goto(`${origins.guest}/open`);
       await guest.getByLabel('Event code', { exact: true }).fill(detail.guestAccessCode);
       await guest.getByRole('button', { name: 'Preview event' }).click();
