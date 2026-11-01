@@ -6,6 +6,10 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Refresh compatible portal, API and development dependencies, including Next.js 16.4, React 19.3, Prisma 7.10 and Zod 4.6, while retaining existing major-version compatibility. Development tooling requires Node 24.15+ on the Node 24 line, or Node 26+.
+- PMCM event and billing read models retain client proposal approval status, keeping the lifecycle stage and event-day start action consistent after approval.
+- Browser acceptance follows accessible inquiry search, coordinator availability filters, billing and closure tabs, and event-day date gates, keeping the intake-to-archive checks aligned with the portal.
+
 - Portal pages load faster against the hosted database. Measured in production builds against an ~81 ms database round trip:
   - PMCM event overview: 10 requests and 3.7 s → 5 requests and 2.4 s.
   - PMCM events list: 2.0 s → 1.6 s. Inquiries: 1.7 s → 1.3 s.
