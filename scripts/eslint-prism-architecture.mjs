@@ -1,3 +1,4 @@
+import { publicContextSeams } from "./prism-public-context-seams.mjs";
 import { readFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,13 +15,6 @@ const contexts = [
   "platform-ops",
   "read-models",
 ];
-const publicContextSubpaths = new Set([
-  "read-models/closeout",
-  "read-models/event-scope",
-  "read-models/file-evidence",
-  "event-lifecycle/conforme-reminder-window",
-]);
-
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const canonicalSchemaTypes = new Set();
 const schemaDirectory = resolve(repoRoot, "packages/types/src/schemas");
@@ -121,7 +115,7 @@ const noPrivateContextImports = {
       if (typeof source !== "string") return;
 
       const contextAlias = source.match(/^@prism\/contexts\/([^/]+)(?:\/(.*))?$/);
-      if (contextAlias?.[2] && !publicContextSubpaths.has(`${contextAlias[1]}/${contextAlias[2]}`)) {
+      if (contextAlias?.[2] && !publicContextSeams.has(source)) {
         reportImport(currentContext, node, "Import bounded-context capabilities through its public entrypoint, not a private implementation.");
         return;
       }

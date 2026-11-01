@@ -60,22 +60,30 @@
     "db:seed": "npm --workspace prism-api run db:seed --",
     "db:seed:verify": "npm --workspace prism-api run db:seed:verify --",
     "test:browser": "node scripts/e2e/browser/run.mjs",
-    "test:browser:guards": "node --test scripts/e2e/browser/run.test.mjs"
+    "test:browser:guards": "node --test scripts/e2e/browser/run.test.mjs",
+    "check:push": "node scripts/ci/pre-push.mjs",
+    "hooks:install": "node scripts/ci/install-hooks.mjs",
+    "test:ci:guards": "node --test scripts/ci/*.test.mjs scripts/typescript.test.mjs scripts/verify-vitest-projects.test.mjs",
+    "prepare": "node scripts/ci/install-hooks.mjs",
+    "benchmark:typecheck": "node scripts/benchmark-typecheck.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",
-    "concurrently": "^9.2.5",
+    "concurrently": "^10.0.6",
     "eslint": "^10.14.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "supabase": "2.122.0",
     "turbo": "^2.11.10",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.72.1"
+    "typescript-eslint": "^8.72.1",
+    "@typescript/native": "npm:typescript@7.0.2",
+    "oxlint": "1.90.0",
+    "oxlint-tsgolint": "7.0.2005",
+    "bun": "1.4.4"
   },
   "overrides": {
     "deepmerge-ts": "^8.0.2",
     "fast-uri": "3.1.9",
-    "js-yaml": "^4.3.2",
     "prisma": {
       "mysql2": "3.24.6"
     },
@@ -87,6 +95,13 @@
     "@nestjs/platform-express": {
       "multer": "2.5.0"
     },
-    "minimatch": "^11.0.3"
+    "minimatch": "^11.0.3",
+    "@nestjs/common": "^12.3.2",
+    "@nestjs/core": "^12.3.2"
+  },
+  "allowScripts": {
+    "@prisma/engines@7.10.1": true,
+    "prisma@7.10.1": true,
+    "bun@1.4.4": true
   }
 }

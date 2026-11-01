@@ -2,6 +2,7 @@ import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { DASHBOARD_ROUTE_ITEMS, CLIENT_DETAIL_ROUTE_ITEMS, EVENT_WORKSPACE_ROUTE_TABS, SECTION_ROUTE_ITEMS } from '../../../apps/event/src/features/event-dashboard/shell/model/event-dashboard-routing.ts';
 import { CLIENT_PORTAL_VIEW_HREFS, ROUTE_TO_DETAIL_TAB, dashboardHref } from '../../../apps/client/src/features/client-dashboard/workspace/model/client-dashboard-navigation.ts';
+import { validatedPageCoverageCases } from './page-coverage-report.mjs';
 
 export function routeTemplates(app) {
   const root = join('apps', app, 'src/app');
@@ -12,9 +13,10 @@ export function routeTemplates(app) {
 }
 
 export function pageCoverageCases(app, fixture) {
+  const templates = routeTemplates(app);
   const cases = [];
   const add = (template, path, state = 'ready') => cases.push({ template, path, state });
-  for (const template of routeTemplates(app)) {
+  for (const template of templates) {
     if (!template.includes('[')) {
       add(template, template, /activate|conforme/.test(template) ? 'link-or-access-state' : 'ready');
       continue;
@@ -56,7 +58,5 @@ export function pageCoverageCases(app, fixture) {
     if (path.includes('[')) throw new Error(`Unresolved route ${template}`);
     add(template, path);
   }
-  const missing = routeTemplates(app).filter(template => !cases.some(item => item.template === template));
-  if (missing.length) throw new Error(`Uncovered page templates: ${missing.join(', ')}`);
-  return cases.filter((item, index) => cases.findIndex(other => other.path === item.path) === index);
+  return validatedPageCoverageCases(templates, cases);
 }

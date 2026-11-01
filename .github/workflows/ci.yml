@@ -12,20 +12,23 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
-  monorepo:
-    name: Node CI
+  validation:
+    name: Node ${{ matrix.task }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [checks, quality, tests, build]
     env:
       NEXT_TELEMETRY_DISABLED: "1"
-      # Pull requests run turbo tasks only for the workspaces they change and their dependents.
-      # Pushes to staging, prod and main run every task. Unchanged tasks replay from the turbo cache either way.
-      TURBO_AFFECTED: ${{ github.event_name == 'pull_request' && '--affected' || '' }}
+      PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          # turbo --affected diffs against the pull request base, which needs the history.
+          # Keep ancestry for task selection and immutable-migration comparisons.
           fetch-depth: 0
+          filter: blob:none
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -35,20 +38,23 @@ jobs:
           cache: npm
 
       - name: Turbo cache
+        if: matrix.task != 'checks'
         uses: actions/cache@v6
         with:
           path: .turbo/cache
-          key: turbo-${{ runner.os }}-${{ github.sha }}
-          restore-keys: turbo-${{ runner.os }}-
+          key: turbo-v2-${{ runner.os }}-${{ runner.arch }}-node24-${{ matrix.task }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: turbo-v2-${{ runner.os }}-${{ runner.arch }}-node24-${{ matrix.task }}-${{ hashFiles('package-lock.json') }}-
 
       - name: Install dependencies
         run: npm ci
 
       - name: Dependency audit
+        if: matrix.task == 'checks'
         run: node scripts/npm-audit-ci.mjs
 
       # Repository-wide gates. They always run in full: migrations, persistence ownership, invariants and boundaries.
       - name: Repository checks
+        if: matrix.task == 'checks'
         env:
           # Migrations already on the base branch must not change: a database that applied them would fail its ledger check.
           MIGRATION_BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
@@ -57,23 +63,30 @@ jobs:
           npm run check:test-clocks && npm run check:complexity && npm run check:boundaries
 
       - name: Lint and typecheck
-        run: npx turbo run lint typecheck $TURBO_AFFECTED
+        if: matrix.task == 'quality'
+        run: node scripts/ci/run-tasks.mjs lint typecheck
 
       - name: Script and database guard tests
+        if: matrix.task == 'checks'
         run: >-
           npm --workspace prism-api run test:fixtures:seed && npm run test:migrations && npm run test:domain-persistence && npm run test:invariants &&
           npm run test:test-clocks && npm --workspace prism-api run test:db:connection &&
           npm --workspace prism-api run test:db:preflight:quote-request-fk &&
           npm --workspace prism-api run test:db:schema-equivalence && npm run test:boundaries
 
+      - name: CI selection and required-check behavior
+        if: matrix.task == 'checks'
+        run: npm run test:ci:guards
+
       # One suite at a time: the API and portal suites each start their own vitest workers and time out when run together.
       - name: Workspace tests with coverage
+        if: matrix.task == 'tests'
         env:
           CI: "true"
-        run: npx turbo run test:ci --concurrency=1 $TURBO_AFFECTED
+        run: node scripts/ci/run-tasks.mjs test:ci --concurrency=1
 
       - name: Upload coverage
-        if: always()
+        if: always() && matrix.task == 'tests'
         uses: actions/upload-artifact@v7
         continue-on-error: true
         with:
@@ -85,7 +98,25 @@ jobs:
           retention-days: 7
 
       - name: Build
-        run: PRISM_VERCEL_SERVICES=1 npx turbo run build
+        if: matrix.task == 'build'
+        env:
+          PRISM_VERCEL_SERVICES: "1"
+        run: node scripts/ci/run-tasks.mjs build
+  monorepo:
+    name: Node CI
+    if: always()
+    needs: [validation, gitleaks, codeql]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - name: Require every validation and security job
+        env:
+          REQUIRED_JOB_RESULTS: ${{ toJSON(needs) }}
+        run: node scripts/ci/check-results.mjs validation gitleaks codeql
   gitleaks:
     uses: The-Team-CG/.github/.github/workflows/security-gitleaks.yml@v2
     secrets: inherit

@@ -18,10 +18,11 @@
     "./components/*": "./src/components/ui/*.tsx"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "node ../../scripts/typescript.mjs -p tsconfig.json --noEmit",
+    "lint": "node ../../scripts/lint.mjs"
   },
   "peerDependencies": {
-    "lucide-react": "^0.487.0",
+    "lucide-react": "^1.66.0",
     "react": "^19.3.1"
   },
   "dependencies": {

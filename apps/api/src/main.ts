@@ -1,6 +1,7 @@
+import 'reflect-metadata';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import type { NestExpressApplication } from '@nestjs/platform-express';
+import { ExpressAdapter, type NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { CORS_PREFLIGHT_MAX_AGE_SECONDS, responseCompression } from './common/http-transport';
@@ -29,7 +30,7 @@ function getAllowedOrigins() {
 async function bootstrap() {
   // Parsed before the app starts so a missing or invalid value fails the boot with a clear message.
   const trustProxy = parseTrustProxySetting(process.env[TRUST_PROXY_ENV]);
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, new ExpressAdapter());
   app.set('trust proxy', trustProxy);
 
   // Worker `onApplicationShutdown` hooks and Prisma disconnect run on SIGTERM/SIGINT.
