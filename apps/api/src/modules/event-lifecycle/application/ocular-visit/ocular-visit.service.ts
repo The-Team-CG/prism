@@ -28,7 +28,22 @@ import type {
   SubmitClientOcularVisitInput,
   WaiveOcularVisitInput,
 } from '@prism/types';
+import { PRISM_BUSINESS_TIME_ZONE } from '@prism/types';
 import { randomUUID } from 'node:crypto';
+
+/** The visit time as the client reads it in the email: PMCM's business time zone, never a raw ISO timestamp. */
+export function formatOcularVisitTime(at: Date): string {
+  const formatted = new Intl.DateTimeFormat('en-PH', {
+    timeZone: PRISM_BUSINESS_TIME_ZONE,
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(at);
+  return `${formatted} (Manila time)`;
+}
 
 type OcularVisitEvent = Prisma.OpsEventGetPayload<{ include: { inquiry: true } }>;
 
@@ -178,7 +193,7 @@ export class OcularVisitService {
         this.notificationOutboxWriter,
         eventId,
         event.inquiry.email,
-        event.eventName + (kind.rescheduled ? ' ocular visit moved to ' : ' ocular visit scheduled for ') + input.scheduledAt,
+        event.eventName + (kind.rescheduled ? ' ocular visit moved to ' : ' ocular visit scheduled for ') + formatOcularVisitTime(scheduledAt) + '.',
         'email',
         // A reschedule is a new notice per new time; the first booking keeps its original key.
         { idempotencyKey: kind.rescheduled ? `ocular-visit-rescheduled:${saved.id}:${scheduledAt.toISOString()}` : 'ocular-visit-scheduled:' + saved.id },
