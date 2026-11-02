@@ -17,7 +17,6 @@ vi.mock("./files-section-view", () => ({
 }));
 vi.mock("./event-workspace-header", () => ({
   EmptyEventWorkspace: () => null,
-  EventWorkspaceHeader: () => null,
 }));
 vi.mock("./event-workspace-tabs", () => ({
   EventWorkspaceActivityTab: () => null,

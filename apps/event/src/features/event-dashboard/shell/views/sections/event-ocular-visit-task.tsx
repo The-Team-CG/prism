@@ -3,12 +3,13 @@ import { DateTimePicker } from "@prism/ui/components/date-time-picker";
 import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import { useState, type FormEvent } from "react";
+import { ChevronRight } from "lucide-react";
 import type {
   PrismPmcmOcularVisit,
   ScheduleOcularVisitInput,
   WaiveOcularVisitInput,
 } from "@prism/types";
-import { Card, CardBody, CardHeader } from "./shell-ui";
+import { Card, CardBody } from "./shell-ui";
 
 function formatScheduledAt(scheduledAt: string | null) {
   return formatPortalDateTime(scheduledAt, "Date pending");
@@ -145,6 +146,22 @@ function OcularVisitActions({
   );
 }
 
+/** The status row's one control: it opens the schedule, completion and waiver controls only when PMCM can act. */
+function OcularVisitToggle({ expanded, canAct, onToggle }: { expanded: boolean; canAct: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-expanded={expanded}
+      aria-controls="ocular-visit-details"
+      onClick={onToggle}
+      className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-border px-3 text-sm font-semibold text-foreground"
+    >
+      {expanded ? "Hide" : canAct ? "Manage visit" : "View details"}
+      <ChevronRight className={"size-4 transition-transform " + (expanded ? "rotate-90" : "")} aria-hidden />
+    </button>
+  );
+}
+
 export function EventOcularVisitTask({
   eventName,
   visit,
@@ -165,10 +182,12 @@ export function EventOcularVisitTask({
   const [scheduledAtLocal, setScheduledAtLocal] = useState("");
   const [waiverReason, setWaiverReason] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
   const terminal = visit?.status === "completed" || visit?.status === "waived";
   const canSchedule = isAdmin && visit?.status === "requested";
   const canComplete = isAdmin && visit?.status === "scheduled";
   const canWaive = isAdmin && !terminal;
+  const canAct = canSchedule || canComplete || canWaive;
 
   async function schedule(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -194,33 +213,35 @@ export function EventOcularVisitTask({
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-black text-foreground">Ocular visit task</h2>
-            <p className="mt-1 text-xs text-muted-foreground">{eventName}</p>
-          </div>
-          <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-foreground" aria-label="Ocular visit status">
-            {statusLabel(visit)}
-          </span>
-        </div>
-      </CardHeader>
       <CardBody className="space-y-4">
-        <OcularVisitDetails visit={visit} />
-        <OcularVisitActions
-          busy={busy}
-          canSchedule={canSchedule}
-          canComplete={canComplete}
-          canWaive={canWaive}
-          formError={formError}
-          scheduledAtLocal={scheduledAtLocal}
-          setScheduledAtLocal={setScheduledAtLocal}
-          waiverReason={waiverReason}
-          setWaiverReason={setWaiverReason}
-          onSchedule={schedule}
-          onComplete={onComplete}
-          onWaive={waive}
-        />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-foreground">
+            <span className="font-semibold">Ocular visit</span>
+            <span className="mx-2 text-muted-foreground" aria-hidden>·</span>
+            <span aria-label="Ocular visit status" className="font-semibold">{statusLabel(visit)}</span>
+          </p>
+          <OcularVisitToggle expanded={expanded} canAct={canAct} onToggle={() => setExpanded((open) => !open)} />
+        </div>
+        {expanded ? (
+          <div id="ocular-visit-details" className="space-y-4 border-t border-border pt-4">
+            <p className="text-xs text-muted-foreground">{eventName}</p>
+            <OcularVisitDetails visit={visit} />
+            <OcularVisitActions
+              busy={busy}
+              canSchedule={canSchedule}
+              canComplete={canComplete}
+              canWaive={canWaive}
+              formError={formError}
+              scheduledAtLocal={scheduledAtLocal}
+              setScheduledAtLocal={setScheduledAtLocal}
+              waiverReason={waiverReason}
+              setWaiverReason={setWaiverReason}
+              onSchedule={schedule}
+              onComplete={onComplete}
+              onWaive={waive}
+            />
+          </div>
+        ) : null}
       </CardBody>
     </Card>
   );

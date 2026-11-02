@@ -13,14 +13,17 @@ import type {
   PrismSupplierQuoteRequest,
   CreateSupplierReviewInput,
 } from "@prism/types";
+import { derivePrismLifecycleStage } from "@prism/types";
 import { SupplierReviewPromptList } from "@/features/suppliers/reviews";
 import { ComplianceReviewPanel } from "@/features/compliance/review";
 import {
+  compliancePhaseForStage,
   phase4BillingSourceCard,
   phase4CloseGatesCard,
   phase4ComplianceCard,
   phase4StatementsCard,
   type CloseGateDestination,
+  type CompliancePhase,
 } from "../model/phase4-workspace-rules";
 import {
   money,
@@ -85,7 +88,7 @@ export function Phase4Workspace({
   /** Moves the reviewer to the tab, or event tab, that resolves an unpassed archive gate. */
   onOpenDestination: (destination: CloseGateDestination) => void;
 }) {
-  const [phase, setPhase] = useState("planning");
+  const [phase, setPhase] = useState<CompliancePhase>(() => compliancePhaseForStage(derivePrismLifecycleStage(event)));
   const [closeGates, setCloseGates] = useState<PrismCloseGates | null>(null);
   const [overrideReason, setOverrideReason] = useState("");
   const [localInsights, setLocalInsights] = useState<PrismEventInsight[]>(insights);

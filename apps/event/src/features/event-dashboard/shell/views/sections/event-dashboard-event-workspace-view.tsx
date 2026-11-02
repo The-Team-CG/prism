@@ -1,9 +1,9 @@
 "use client";
 
 import type { ReactElement } from "react";
-import type { DetailTab } from "../../model/event-dashboard-routing";
+import { eventWorkspaceHref, type DetailTab } from "../../model/event-dashboard-routing";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
-import { EmptyEventWorkspace, EventWorkspaceHeader } from "./event-workspace-header";
+import { EmptyEventWorkspace } from "./event-workspace-header";
 import {
   EventWorkspaceActivityTab,
   EventWorkspaceBillingTab,
@@ -41,14 +41,8 @@ const EVENT_TAB_VIEWS: Record<DetailTab, () => ReactElement> = {
 export function EventDashboardRunSheetView() {
   const { selectedEvent } = useEventDashboardLoadedRouteViewModel();
   if (!selectedEvent) return <EmptyEventWorkspace />;
-  return (
-    <div className="space-y-5">
-      <div className="print:hidden">
-        <EventWorkspaceHeader />
-      </div>
-      <LiveOpsRunSheet eventId={selectedEvent.id} printable />
-    </div>
-  );
+  // The run sheet is its own page: the event name is already the page title, so no second header card.
+  return <LiveOpsRunSheet eventId={selectedEvent.id} printable scheduleHref={eventWorkspaceHref(selectedEvent.id, "live-ops")} />;
 }
 
 export function EventDashboardEventWorkspaceView() {

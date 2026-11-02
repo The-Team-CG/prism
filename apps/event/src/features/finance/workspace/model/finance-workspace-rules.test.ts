@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isMilestoneSettled,
   isPaymentOverdue,
   paymentOverdueDays,
   parseRecordPaymentAmount,
@@ -8,6 +9,13 @@ import {
 } from "./finance-workspace-rules";
 
 describe("finance-workspace-rules", () => {
+  it("treats a milestone as settled once its status or remaining balance says nothing is left to collect", () => {
+    expect(isMilestoneSettled({ status: "paid", remainingBalance: 0 })).toBe(true);
+    expect(isMilestoneSettled({ status: "pending", remainingBalance: 0 })).toBe(true);
+    expect(isMilestoneSettled({ status: "waived", remainingBalance: 120 })).toBe(true);
+    expect(isMilestoneSettled({ status: "pending", remainingBalance: 260000 })).toBe(false);
+  });
+
   it("detects overdue open payments", () => {
     const now = new Date("2026-07-17T00:00:00.000Z");
     expect(isPaymentOverdue("pending", "2026-07-01", now)).toBe(true);

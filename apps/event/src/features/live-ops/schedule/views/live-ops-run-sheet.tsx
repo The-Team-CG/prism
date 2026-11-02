@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { PrismEventRunSheet } from "@prism/types";
 import { useRunSheetViewModel } from "../view-models/use-run-sheet-view-model";
 import {
@@ -21,13 +22,15 @@ export type LiveOpsRunSheetViewProps = {
   now: Date;
   selectedDayId?: string;
   printable?: boolean;
+  /** Where the schedule is authored; offered when no run sheet exists yet. */
+  scheduleHref?: string;
   onSelectDay(dayId: string): void;
   onReload(): void;
   onPrint?(): void;
 };
 
 /** Event-scoped, role-projected run sheet. The API decides which entries this actor may see. */
-export function LiveOpsRunSheet({ eventId, printable = false }: { eventId: string; printable?: boolean }) {
+export function LiveOpsRunSheet({ eventId, printable = false, scheduleHref }: { eventId: string; printable?: boolean; scheduleHref?: string }) {
   const vm = useRunSheetViewModel(eventId);
   return (
     <LiveOpsRunSheetView
@@ -39,6 +42,7 @@ export function LiveOpsRunSheet({ eventId, printable = false }: { eventId: strin
       now={vm.now}
       selectedDayId={vm.selectedDayId}
       printable={printable}
+      scheduleHref={scheduleHref}
       onSelectDay={vm.selectDay}
       onReload={() => void vm.reload()}
       onPrint={printable ? () => window.print() : undefined}
@@ -91,11 +95,13 @@ function RunSheetControls({ props }: { props: LiveOpsRunSheetViewProps }) {
           </select>
         </label>
       ) : null}
-      <button type="button" onClick={props.onReload} disabled={props.loading} className="rounded-md border border-border px-3 py-1.5 text-sm font-semibold">
-        Refresh
-      </button>
-      {props.onPrint ? (
-        <button type="button" onClick={props.onPrint} disabled={!runSheet} className="rounded-md bg-foreground px-3 py-1.5 text-sm font-semibold text-background">
+      {runSheet || props.error ? (
+        <button type="button" onClick={props.onReload} disabled={props.loading} className="rounded-md border border-border px-3 py-1.5 text-sm font-semibold">
+          Refresh
+        </button>
+      ) : null}
+      {props.onPrint && runSheet ? (
+        <button type="button" onClick={props.onPrint} className="rounded-md bg-foreground px-3 py-1.5 text-sm font-semibold text-background">
           Print run sheet
         </button>
       ) : null}
@@ -108,7 +114,16 @@ function RunSheetMessages({ props }: { props: LiveOpsRunSheetViewProps }) {
     <>
       {props.loading && !props.runSheet && !props.unavailable ? <p role="status" className="text-sm text-muted-foreground">Loading run sheet…</p> : null}
       {props.error ? <p role="alert" className="text-sm text-destructive">{props.error}</p> : null}
-      {props.unavailable ? <p className="text-sm text-muted-foreground">No run sheet is available until the event schedule is authored.</p> : null}
+      {props.unavailable ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-border p-4">
+          <p className="text-sm text-muted-foreground">No run sheet is available until the event schedule is authored.</p>
+          {props.scheduleHref ? (
+            <Link href={props.scheduleHref} className="inline-flex min-h-10 items-center rounded-md border border-border px-3 text-sm font-semibold text-foreground no-underline">
+              Author the schedule in live operations
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
     </>
   );
 }

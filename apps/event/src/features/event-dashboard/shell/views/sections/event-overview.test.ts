@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { eventPortalNavItems } from "../../view-models/use-event-dashboard-nav";
-import { isEventDayClose } from "./event-overview";
+import type { PrismDefenseReadinessAction } from "@prism/types";
+import { isEventDayClose, needsCloseOut, overviewNextActions } from "./event-overview";
 
 describe("event workspace stage signals", () => {
   it("offers the event-day start only from the day before the event", () => {
@@ -20,5 +21,25 @@ describe("event workspace stage signals", () => {
 
     const live = eventPortalNavItems({ ...counts, eventStage: "event_day" });
     expect(live.find((item) => item.id === "event-report")?.badge).toBe(11);
+  });
+
+  it("leads a past, unarchived event with its close-out and drops the briefing to-do", () => {
+    const pending: PrismDefenseReadinessAction[] = [
+      { key: "briefing", label: "Client briefing", detail: "Submit the venue.", status: "blocked", targetTab: "briefing" },
+      { key: "floorplan", label: "Official floorplan", detail: "Approve the layout.", status: "attention", targetTab: "floorplans" },
+    ];
+    const next = overviewNextActions(pending, needsCloseOut({ eventDate: "2026-06-18", archived: false }, "2026-11-02"));
+
+    expect(next.map((action) => action.key)).toEqual(["close-out", "floorplan"]);
+    expect(next[0]).toMatchObject({ label: "This event has ended — close it out", targetTab: "closure" });
+  });
+
+  it("keeps the planning to-dos for upcoming events and does not re-open archived ones", () => {
+    const pending: PrismDefenseReadinessAction[] = [
+      { key: "briefing", label: "Client briefing", detail: "Submit the venue.", status: "blocked", targetTab: "briefing" },
+    ];
+    expect(needsCloseOut({ eventDate: "2026-11-02", archived: false }, "2026-11-02")).toBe(false);
+    expect(overviewNextActions(pending, false)).toBe(pending);
+    expect(needsCloseOut({ eventDate: "2026-06-18", archived: true }, "2026-11-02")).toBe(false);
   });
 });

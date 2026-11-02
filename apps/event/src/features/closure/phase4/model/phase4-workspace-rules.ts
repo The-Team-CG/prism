@@ -1,5 +1,21 @@
-const PASSED_TONES = ["approved", "resolved", "overridden", "generated", "sent"];
+import type { PrismLifecycleStage } from "@prism/types";
+
+const PASSED_TONES =["approved", "resolved", "overridden", "generated", "sent"];
 const OPEN_TONES = ["draft", "issued", "open"];
+
+export const COMPLIANCE_PHASES = ["planning", "pre_event", "event_day", "closure"] as const;
+export type CompliancePhase = (typeof COMPLIANCE_PHASES)[number];
+
+export function isCompliancePhase(value: string): value is CompliancePhase {
+  return (COMPLIANCE_PHASES as readonly string[]).includes(value);
+}
+
+/** The compliance phase the event is in now, so a run defaults to it instead of always starting at Planning. */
+export function compliancePhaseForStage(stage: PrismLifecycleStage): CompliancePhase {
+  if (stage === "event_day") return "event_day";
+  if (stage === "closure_archive") return "closure";
+  return "planning";
+}
 
 /** Closure runs in this order; Archive comes last because it is the step that needs the others done. */
 export const CLOSURE_TABS = [
