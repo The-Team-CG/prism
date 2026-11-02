@@ -7,6 +7,7 @@ import { BellRing, CalendarClock, ClipboardCheck, ClipboardList, Home, Radio, Us
 import type { PrismAuthenticatedSession, PrismCoordinatorWorkspace } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
 import { Button } from "@/app/components/ui/button";
+import { useDocumentTitle } from "@/app/components/document-title";
 import { roleLabel } from "@/features/pmcm-kit";
 import { CoordinatorRegistrationDesk } from "@/features/coordinators/registration";
 import { optionalNavBadge } from "../model/coordinator-view-copy";
@@ -200,9 +201,7 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
     vm.selectEvent(eventId);
     navigateTo(activeView, eventId);
   }
-  useEffect(() => {
-    document.title = `${COORDINATOR_VIEW_LABELS[activeView]} · P.R.I.S.M`;
-  }, [activeView]);
+  useDocumentTitle(`${COORDINATOR_VIEW_LABELS[activeView]} · P.R.I.S.M`);
 
   function dismissOutsideNotice() {
     setOutsideNotice(false);

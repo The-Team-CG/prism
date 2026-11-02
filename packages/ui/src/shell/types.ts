@@ -107,6 +107,10 @@ export interface PrismAppShellProps {
   commandGroups?: PrismCommandGroup[];
   /** Shown when nothing in the palette matches the typed text. */
   commandEmptyLabel?: string;
+  /** True while the records behind commandGroups are still loading; the palette shows a loading row for them. */
+  commandGroupsLoading?: boolean;
+  /** Called each time the palette opens, so a page can load its palette records on demand. */
+  onCommandPaletteOpen?: () => void;
   headerActions?: React.ReactNode;
   /** Keep headerActions in the top bar on small screens too. Off by default, so they stay out of the way on mobile. */
   alwaysShowHeaderActions?: boolean;
