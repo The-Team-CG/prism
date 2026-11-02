@@ -1,4 +1,15 @@
-import type { PrismAddendum, PrismEventFreezeException } from "@prism/types";
+import type { PrismAddendum, PrismEventFreezeException, RecordEventDecisionInput } from "@prism/types";
+
+/** The decision form works in pesos; the API stores the cancellation fee in minor units (centavos). */
+export type RecordDecisionDraft = Omit<RecordEventDecisionInput, "cancellationFeeAmount"> & { cancellationFeePesos: string };
+
+/** "₱12,500.50" becomes 1250050. Blank means no fee. Returns NaN for text that is not a non-negative amount. */
+export function pesosToMinorUnits(value: string): number {
+  const digits = value.replace(/[₱,\s]/g, "");
+  if (digits === "") return 0;
+  const amount = Number(digits);
+  return Number.isFinite(amount) && amount >= 0 ? Math.round(amount * 100) : Number.NaN;
+}
 
 export type AddendumConformeAction = "request" | "countersign" | "awaiting_client" | "none";
 

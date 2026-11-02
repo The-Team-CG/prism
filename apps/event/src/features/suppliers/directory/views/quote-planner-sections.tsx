@@ -2,6 +2,7 @@ import { CalendarDays, Check, ChevronDown, Flag, Send, X } from "lucide-react";
 
 import type { PrismSupplier, PrismSupplierCategory } from "@prism/types";
 import { DatePicker } from "@prism/ui/components/date-picker";
+import { Button } from "@/app/components/ui/button";
 import { cx, label, money, RatingStars, tierLabel } from "@/features/pmcm-kit";
 import type { SupplierQuoteRow } from "@/features/pmcm-kit";
 import {
@@ -34,7 +35,7 @@ export function QuotePlannerToolbar({
     <div className="rounded-lg border border-border bg-muted p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm text-muted-foreground">Supplier Quotes</p>
+          <p className="text-sm text-muted-foreground">Supplier quotes</p>
           <p className="mt-1 text-sm text-muted-foreground">{rangeCopy.summary}</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -43,13 +44,9 @@ export function QuotePlannerToolbar({
               <option key={category.id} value={category.id}>{category.name}</option>
             ))}
           </select>
-          <button
-            disabled={busy || !canRequest}
-            onClick={onRequest}
-            className="inline-flex h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-black text-ink-foreground disabled:opacity-60"
-          >
-            <Send className="size-4" /> Request Quotes
-          </button>
+          <Button type="button" disabled={busy || !canRequest} onClick={onRequest} className="h-10 gap-2 rounded-md px-3 text-sm font-bold">
+            <Send className="size-4" /> Request quotes
+          </Button>
         </div>
       </div>
     </div>
@@ -193,7 +190,7 @@ export function SupplierTierColumns({
   return (
     <div className="grid gap-4 xl:grid-cols-3">
       <section className="rounded-lg border border-border bg-card p-4">
-        <p className="text-xs font-medium text-success">Auto-Suggested Tier 1</p>
+        <p className="text-xs font-medium text-success">Auto-suggested Tier 1</p>
         <div className="mt-3 space-y-2">
           {tierOne.map((supplier) => (
             <div key={supplier.id} className="w-full rounded-md border border-success/25 bg-success-soft p-3 text-left text-sm">
@@ -205,19 +202,19 @@ export function SupplierTierColumns({
         </div>
       </section>
       <section className="rounded-lg border border-border bg-card p-4">
-        <p className="text-xs font-medium text-brand-blue">Backup Suppliers</p>
+        <p className="text-xs font-medium text-brand-blue">Backup suppliers</p>
         <div className="mt-3 space-y-2">
           {tierTwo.map((supplier) => (
             <div key={supplier.id} className="w-full rounded-md border border-border bg-secondary p-3 text-left text-sm">
               <span className="block font-black">{supplier.name}</span>
-              <span className="mt-1 text-xs text-muted-foreground">{supplier.bniMember ? "BNI Auto-Trust" : "Manual backup"}</span>
+              <span className="mt-1 text-xs text-muted-foreground">{supplier.bniMember ? "BNI member · auto-trust" : "Manual backup"}</span>
             </div>
           ))}
           {tierTwo.length === 0 && <p className="text-sm text-muted-foreground">No Tier 2 backup in this category.</p>}
         </div>
       </section>
       <section className="rounded-lg border border-border bg-card p-4">
-        <p className="text-sm text-muted-foreground">First Event Manual Select</p>
+        <p className="text-sm text-muted-foreground">First event, manual select</p>
         <div className="mt-3 space-y-2">
           {pending.map((supplier) => (
             <div key={supplier.id} className="w-full rounded-md border border-brand-orange/25 bg-accent p-3 text-left text-sm">
@@ -266,7 +263,7 @@ export function QuoteRequestModal({
       <div className="flex max-h-[calc(100dvh-2rem)] w-full min-w-0 max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-card shadow-xl">
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border p-5">
           <div>
-            <p className="text-sm text-muted-foreground">Request Quotes</p>
+            <p className="text-sm text-muted-foreground">Request quotes</p>
             <h3 className="mt-1 text-xl font-black">{categoryName}</h3>
           </div>
           <button onClick={onClose} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted">

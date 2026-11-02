@@ -229,7 +229,7 @@ function PlatformForm({
             </select>
           </label>
           <label className="grid gap-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Min pax</span>
+            <span className="text-xs font-medium text-muted-foreground">Min guests</span>
             <input
               type="number"
               value={paxMin}
@@ -239,7 +239,7 @@ function PlatformForm({
             />
           </label>
           <label className="grid gap-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Max pax</span>
+            <span className="text-xs font-medium text-muted-foreground">Max guests</span>
             <input
               type="number"
               value={paxMax}

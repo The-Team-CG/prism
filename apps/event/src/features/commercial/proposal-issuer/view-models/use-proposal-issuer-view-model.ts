@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PrismIssuedProposalSummary } from "@prism/types";
 import { proposalIssuerRepository } from "../data/proposal-issuer-repository";
 import {
@@ -69,8 +69,7 @@ export function useProposalIssuerViewModel(eventId: string) {
   const addLine = () => editEstimate(setLines)([...lines, newLine()]);
   const removeLine = (key: string) => editEstimate(setLines)(lines.length > 1 ? lines.filter((line) => line.key !== key) : lines);
 
-  async function issue(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function issue() {
     if (busy) return;
     const requestedEventId = eventId;
     setBusy(true);

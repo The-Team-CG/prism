@@ -9,6 +9,7 @@ import {
   inquiryMatchesIntakeFilters,
   inquiryMergeCandidates,
   inquiryNextStep,
+  inquiryLogMissingFields,
   isInquiryLogFormReady,
   toLogInquiryInput,
   initialLogForm,
@@ -91,6 +92,11 @@ describe("inquiry-intake-rules", () => {
 
   it("requires a complete log form and trims optional fields", () => {
     expect(isInquiryLogFormReady(initialLogForm)).toBe(false);
+    // Channel and referral source are not guessed: the operator picks them before Save is enabled.
+    expect(initialLogForm).toMatchObject({ channel: "", source: "" });
+    expect(inquiryLogMissingFields(initialLogForm)).toEqual([
+      "Client name", "Email", "Event name", "Event type", "Event date", "Client type", "Channel", "Referral source", "Message",
+    ]);
     const ready = {
       ...initialLogForm,
       clientName: "Ada",

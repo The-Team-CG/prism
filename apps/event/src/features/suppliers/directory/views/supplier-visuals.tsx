@@ -1,6 +1,9 @@
 import { Star } from "lucide-react";
 import styles from "./supplier-workspace.module.css";
 
+/** What the BNI badge means, for the tooltip and screen readers. */
+export const BNI_TITLE = "BNI: Business Network International member";
+
 export function supplierTierLabel(tier: string) {
   if (tier === "tier_1") return "Tier 1";
   if (tier === "tier_2") return "Tier 2";
