@@ -301,6 +301,7 @@ export function PAREPanel({
     handleApprove,
     handleReject,
   } = useParePanelViewModel({ eventId, onWithdraw });
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   return (
     <div className="space-y-6">
@@ -353,13 +354,42 @@ export function PAREPanel({
                 </div>
                 <button
                   type="button"
-                  disabled={parentBusy || withdrawingId === req.id}
-                  onClick={() => handleWithdraw(req.id)}
+                  disabled={parentBusy || withdrawingId === req.id || confirmingId === req.id}
+                  onClick={() => setConfirmingId(req.id)}
                   className="flex shrink-0 items-center gap-1.5 rounded-lg border border-danger/25 bg-danger-soft px-3 py-1.5 text-xs font-bold text-danger transition hover:bg-danger-soft disabled:opacity-50"
                 >
                   <UserX className="size-3.5" />
-                  {withdrawingId === req.id ? "Triggering PARE…" : "Withdraw · Trigger PARE"}
+                  {withdrawingId === req.id ? "Finding a replacement…" : "Withdraw and find a replacement"}
                 </button>
+                {confirmingId === req.id ? (
+                  <div role="alert" className="w-full rounded-lg border border-danger/25 bg-danger-soft p-3 text-xs text-danger">
+                    <p className="font-bold">Withdraw {req.supplierName ?? "this supplier"} from the event?</p>
+                    <p className="mt-1">
+                      Their assignment is withdrawn and their supplier portal access is revoked. PARE then drafts a replacement for PMCM approval.
+                      Nothing is confirmed until you approve it below.
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={parentBusy}
+                        onClick={() => {
+                          setConfirmingId(null);
+                          void handleWithdraw(req.id);
+                        }}
+                        className="rounded-lg bg-danger px-3 py-1.5 font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+                      >
+                        Withdraw and find a replacement
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingId(null)}
+                        className="rounded-lg border border-border bg-card px-3 py-1.5 font-semibold text-foreground transition hover:bg-muted"
+                      >
+                        Keep assigned
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
               );
             })}
@@ -402,7 +432,7 @@ export function PAREPanel({
           <Bot className="mx-auto size-8 text-muted-foreground" />
           <p className="mt-3 text-sm font-bold text-foreground">No PARE results yet</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Click "Withdraw · Trigger PARE" on a supplier above to start.
+            Choose "Withdraw and find a replacement" on an assigned supplier above to start.
           </p>
         </div>
       )}

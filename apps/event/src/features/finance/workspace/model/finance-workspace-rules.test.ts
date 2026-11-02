@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   isPaymentOverdue,
+  paymentOverdueDays,
   parseRecordPaymentAmount,
+  sortPaymentsByDueDate,
   sumPaymentAmounts,
 } from "./finance-workspace-rules";
 
@@ -10,6 +12,23 @@ describe("finance-workspace-rules", () => {
     const now = new Date("2026-07-17T00:00:00.000Z");
     expect(isPaymentOverdue("pending", "2026-07-01", now)).toBe(true);
     expect(isPaymentOverdue("paid", "2026-07-01", now)).toBe(false);
+  });
+
+  it("counts whole days past due on the Philippine calendar, matching the Inbox", () => {
+    const now = new Date("2026-11-02T04:00:00.000Z");
+    expect(paymentOverdueDays("pending", "2026-06-11", now)).toBe(144);
+    expect(paymentOverdueDays("at_risk", "2026-11-03", now)).toBe(0);
+    expect(paymentOverdueDays("paid", "2026-06-11", now)).toBe(0);
+    expect(paymentOverdueDays("waived", "2026-06-11", now)).toBe(0);
+  });
+
+  it("orders milestones by due date with undated ones last", () => {
+    const ordered = sortPaymentsByDueDate([
+      { label: "Balance", dueDate: "2026-06-11" },
+      { label: "Undated", dueDate: "" },
+      { label: "Downpayment", dueDate: "2026-04-29" },
+    ]);
+    expect(ordered.map((payment) => payment.label)).toEqual(["Downpayment", "Balance", "Undated"]);
   });
 
   it("sums payment totals", () => {
