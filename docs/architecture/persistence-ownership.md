@@ -66,7 +66,7 @@ not create microservices or a database authorization boundary.
 
 | Write domain | Schema | Tables | Columns | Owns |
 | --- | --- | ---: | ---: | --- |
-| event-lifecycle | event_lifecycle | 31 | 438 | Inquiry, events, lifecycle documents, briefing, compliance, risk, ocular visits, decisions, change requests, freeze/addenda, closure, client floorplan grants, conforme signing, client closeout |
+| event-lifecycle | event_lifecycle | 31 | 439 | Inquiry, events, lifecycle documents, briefing, compliance, risk, ocular visits, decisions, change requests, freeze/addenda, closure, client floorplan grants, conforme signing, client closeout |
 | commercial | commercial | 35 | 433 | Suppliers, quotes, communications, estimates, proposals, billing, receipts, supplier evidence and payables, client option reviews |
 | operations | operations | 12 | 149 | Coordinator pool, availability, coverage, assignments, acknowledgment/reliability, guest operations, registration platforms |
 | live-ops | live_ops | 10 | 122 | Event-day tasks, schedule, operators, handoffs, end-of-day, urgent issues/logs |

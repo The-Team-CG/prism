@@ -136,9 +136,9 @@ describe('OcularVisitService', () => {
     await service.scheduleOcularVisit(eventId, { scheduledAt: '2026-10-05T09:00:00+08:00', note: 'Gate 2 access' }, admin as never);
 
     expect(prisma.opsOcularVisitRequest.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ eventId, status: 'scheduled', requestedAt: null, clientNote: null, scheduledAt }),
+      data: expect.objectContaining({ eventId, status: 'scheduled', requestedAt: null, clientNote: null, scheduleNote: 'Gate 2 access', scheduledAt }),
     });
-    expect(state.record).toMatchObject({ status: 'scheduled', scheduledAt, requestedAt: null });
+    expect(state.record).toMatchObject({ status: 'scheduled', scheduledAt, requestedAt: null, scheduleNote: 'Gate 2 access' });
     expect(notifications.write).toHaveBeenCalledWith(
       expect.objectContaining({ recipient: 'client@example.test', idempotencyKey: `ocular-visit-scheduled:${state.record?.id}` }),
       expect.objectContaining({ prisma }),
@@ -150,6 +150,49 @@ describe('OcularVisitService', () => {
         metadata: expect.objectContaining({ initiatedBy: 'pmcm', note: 'Gate 2 access' }),
       }),
       expect.objectContaining({ prisma }),
+    );
+  });
+
+  it.each([
+    { name: 'stores the schedule note', note: 'Gate 2 access', stored: 'Gate 2 access' },
+    { name: 'stores no schedule note when the note is empty', note: '', stored: null },
+  ])('$name on a requested visit', async ({ note, stored }) => {
+    const { service, state, audit } = createService({
+      record: { id: 'ovr_1', eventId, status: 'requested', clientNote: 'Morning only', scheduleNote: 'Earlier note', requestedAt },
+    });
+
+    await service.scheduleOcularVisit(eventId, { scheduledAt: '2026-10-05T09:00:00+08:00', note }, admin as never);
+
+    expect(state.record).toMatchObject({ status: 'scheduled', scheduleNote: stored, clientNote: 'Morning only' });
+    expect(audit.write).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: expect.objectContaining({ note: stored }) }),
+      expect.anything(),
+    );
+  });
+
+  it('reschedules a PMCM-booked visit: new time and note replace the old ones and the client gets a new notice', async () => {
+    const movedTo = new Date('2026-10-07T02:00:00.000Z');
+    const { service, state, notifications, audit } = createService({
+      record: { id: 'ovr_1', eventId, status: 'scheduled', clientNote: null, scheduleNote: 'Gate 2 access', requestedAt: null, scheduledAt },
+    });
+
+    await service.scheduleOcularVisit(eventId, { scheduledAt: '2026-10-07T10:00:00+08:00', note: 'Use the loading dock' }, admin as never);
+
+    expect(state.record).toMatchObject({ status: 'scheduled', scheduledAt: movedTo, scheduleNote: 'Use the loading dock' });
+    expect(notifications.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        idempotencyKey: `ocular-visit-rescheduled:ovr_1:${movedTo.toISOString()}`,
+        message: expect.stringContaining('moved to Wed, Oct 7, 2026'),
+      }),
+      expect.anything(),
+    );
+    const [{ message }] = notifications.write.mock.calls[0] as unknown as [{ message: string }];
+    expect(message).toContain('10:00');
+    expect(message).toContain('(Manila time)');
+    expect(message).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
+    expect(audit.write).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'Rescheduled ocular visit', metadata: expect.objectContaining({ initiatedBy: 'pmcm' }) }),
+      expect.anything(),
     );
   });
 

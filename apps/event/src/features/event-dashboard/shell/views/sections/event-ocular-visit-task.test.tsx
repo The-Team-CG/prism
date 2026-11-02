@@ -10,6 +10,7 @@ const requestedVisit: PrismPmcmOcularVisit = {
   eventId: "evt_1",
   status: "requested",
   clientNote: "Please coordinate with venue security.",
+  scheduleNote: null,
   requestedAt: "2026-10-01T00:00:00.000Z",
   scheduledAt: null,
   completedAt: null,
@@ -69,7 +70,7 @@ describe("EventOcularVisitTask", () => {
     fireEvent.click(screen.getByRole("button", { name: "Manage visit" }));
     fireEvent.click(screen.getByRole("button", { name: "Schedule visit" }));
     pickScheduleDateTime();
-    fireEvent.change(screen.getByLabelText(/^Notes/), { target: { value: "  Gate 2 access  " } });
+    fireEvent.change(screen.getByLabelText("Note for the client (optional)"), { target: { value: "  Gate 2 access  " } });
     fireEvent.click(screen.getByRole("button", { name: "Save schedule" }));
 
     await waitFor(() =>
@@ -95,7 +96,7 @@ describe("EventOcularVisitTask", () => {
 
     rerender(<EventOcularVisitTask
       eventName="Summit"
-      visit={{ ...requestedVisit, status: "scheduled", clientNote: null, requestedAt: null, scheduledAt: new Date("2026-10-17T10:30").toISOString() }}
+      visit={{ ...requestedVisit, status: "scheduled", clientNote: null, scheduleNote: "Gate 2 access", requestedAt: null, scheduledAt: new Date("2026-10-17T10:30").toISOString() }}
       isAdmin
       busy={false}
       onSchedule={onSchedule}
@@ -104,7 +105,10 @@ describe("EventOcularVisitTask", () => {
     />);
     expect(screen.getByLabelText("Ocular visit status").textContent).toBe("Scheduled");
     expect(screen.queryByRole("button", { name: "Schedule visit" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Reschedule visit" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Mark ocular visit complete" })).toBeTruthy();
+    expect(screen.getByText("Note for the client")).toBeTruthy();
+    expect(screen.getByText("Gate 2 access")).toBeTruthy();
   });
 
   it("closes the schedule form without saving when PMCM cancels", () => {

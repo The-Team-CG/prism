@@ -382,6 +382,7 @@ model OpsOcularVisitRequest {
   eventId      String    @unique(map: "ocular_visit_requests_event_id_key") @map("event_id")
   status       String    @default("requested")
   clientNote   String?   @map("client_note")
+  scheduleNote String?   @map("schedule_note")
   requestedAt  DateTime? @map("requested_at")
   scheduledAt  DateTime? @map("scheduled_at")
   completedAt  DateTime? @map("completed_at")
