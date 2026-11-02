@@ -169,7 +169,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       const booking = await openBooking(supplierActor.page, inquiry.eventName);
       await booking.getByRole('button', { name: /^Arrived/ }).click();
       await booking.getByRole('button', { name: /^Set up and ready/ }).click();
-      await coordinator.page.goto(`${origins.event}/dashboard?event=${eventId}&section=coord-queue`);
+      await coordinator.page.goto(`${origins.event}/dashboard?event=${eventId}&view=tasks`);
       const logTask = coordinator.page.locator('details', { has: coordinator.page.locator('summary', { hasText: 'Log a task' }) });
       if ((await logTask.getAttribute('open')) === null) await logTask.locator('summary').click();
       await coordinator.page.getByLabel('Task title (required)', { exact: true }).fill('Browser lifecycle venue sweep');
@@ -259,7 +259,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await expect.poll(async () => { const detail = await api('GET', `/events/${eventId}`); return detail.archived === true || Boolean(detail.archivedAt); }).toBe(true);
       await client.goto(`${origins.client}/dashboard/events/${eventId}/summary`);
       await expect(client.getByText(inquiry.eventName, { exact: true }).first()).toBeVisible();
-      await coordinator.page.goto(`${origins.event}/dashboard?event=${eventId}&section=coord-queue`);
+      await coordinator.page.goto(`${origins.event}/dashboard?event=${eventId}&view=tasks`);
       await expect(coordinator.page.getByText('Archived event: operational records are read-only.', { exact: true })).toBeVisible();
     });
   } catch (error) {

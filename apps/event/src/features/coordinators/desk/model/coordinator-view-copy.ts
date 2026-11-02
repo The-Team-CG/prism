@@ -1,21 +1,23 @@
+import { formatPortalDate, formatPortalTime } from "@prism/ui/format-date";
+
 export function optionalNavBadge(count?: number) {
   return count || undefined;
 }
 
 export function coordinatorTaskActionCopy(loading: boolean, error: string | null, count: number) {
-  if (loading) return { description: "Loading assigned role tasks.", status: "loading" };
-  if (error) return { description: "Role task data is unavailable.", status: "unavailable" };
+  if (loading) return { description: "Loading tasks assigned to you.", status: "loading" };
+  if (error) return { description: "Task data is unavailable.", status: "unavailable" };
   return {
-    description: count ? `${count} ${count === 1 ? "task" : "tasks"} in your role’s queue. Open it to see owners, deadlines and next steps.` : "No tasks were returned for your role.",
+    description: count ? `${count} ${count === 1 ? "task" : "tasks"} assigned to you. Open it to see owners, deadlines and next steps.` : "No tasks assigned to you yet.",
     status: count > 0 ? "open" : "clear",
   };
 }
 
 export function coordinatorIssueActionCopy(loading: boolean, error: string | null, count: number) {
-  if (loading) return { description: "Loading visible urgent issues.", status: "loading" };
-  if (error) return { description: "Urgent issue data is unavailable.", status: "unavailable" };
+  if (loading) return { description: "Loading open issues.", status: "loading" };
+  if (error) return { description: "Issue data is unavailable.", status: "unavailable" };
   return {
-    description: count ? `${count} issues to review. PMCM receives escalations.` : "No urgent issues were returned. You can still report a new problem.",
+    description: count ? `${count} open ${count === 1 ? "issue" : "issues"}. PMCM receives escalations.` : "No open issues. You can still report a new problem.",
     status: count > 0 ? "open" : "clear",
   };
 }
@@ -50,18 +52,20 @@ export function coordinatorGreetingCopy(event: { eventName: string; clientName: 
   }
   return {
     title: event.eventName,
-    description: `${event.clientName} — ${event.eventDate}. Your view is limited to role-safe tasks, issues, and attendance signals.`,
+    description: `Client: ${event.clientName} · ${formatPortalDate(event.eventDate)}. Your view is limited to your tasks, issues, and attendance.`,
   };
 }
 
-export function coordinatorAttendanceDetail(assignment: { status: string } | undefined, labelStatus: (status: string) => string) {
-  if (!assignment) return "No assignment state available.";
-  return `Current attendance is ${labelStatus(assignment.status)}.`;
+/** Attendance as the coordinator reads it: "Not yet marked" until a mark is recorded, then the chosen status. */
+export function coordinatorAttendanceSummary(attendanceStatus: string, statusLabel: string) {
+  if (attendanceStatus === "pending") return "Attendance: Not yet marked";
+  return `Attendance: ${statusLabel}`;
 }
 
-export function coordinatorAssignmentDetail(assignment: { status: string } | undefined, labelStatus: (status: string) => string) {
-  if (!assignment) return "No active assignment.";
-  return labelStatus(assignment.status);
+/** The line under the attendance buttons once a mark is recorded, e.g. "Marked Present at 8:42 AM". */
+export function coordinatorAttendanceRecordLine(choiceLabel: string, markedAt: string | null) {
+  const time = markedAt ? formatPortalTime(markedAt, "") : "";
+  return time ? `Marked ${choiceLabel} at ${time}` : `Marked ${choiceLabel}`;
 }
 
 export function coordinatorTaskFormCopy(busy: boolean, routesAway: boolean) {
@@ -75,7 +79,7 @@ export function coordinatorTaskFormCopy(busy: boolean, routesAway: boolean) {
 
 export function coordinatorIssueFormCopy(busy: boolean) {
   return {
-    submitLabel: busy ? "Logging issue..." : "Log urgent issue",
+    submitLabel: busy ? "Reporting issue..." : "Report issue",
   };
 }
 
@@ -84,10 +88,15 @@ export function coordinatorIssueFormCopy(busy: boolean) {
 export function coordinatorAttendanceControlCopy({
   hasAssignment,
   replaced,
+  windowOpen,
+  recordedLabel,
   pendingChoiceLabel,
 }: {
   hasAssignment: boolean;
   replaced: boolean;
+  windowOpen: boolean;
+  /** The status PMCM or the coordinator already recorded, or null when nothing is recorded yet. */
+  recordedLabel: string | null;
   pendingChoiceLabel: string | null;
 }) {
   return {
@@ -100,6 +109,13 @@ export function coordinatorAttendanceControlCopy({
       : hasAssignment
         ? null
         : "No active assignment to mark attendance against.",
+    // The API rejects coordinator marks outside the window, so the choices are
+    // replaced by the recorded status, or by a PMCM pointer when nothing exists.
+    closedReason: windowOpen
+      ? null
+      : recordedLabel
+        ? `Marked ${recordedLabel}.`
+        : "Attendance wasn't recorded. Contact PMCM to correct it.",
     // Absent writes a permanent critical reliability note with no retraction
     // path, so the coordinator confirms before the request fires.
     confirmPrompt: pendingChoiceLabel
@@ -109,11 +125,3 @@ export function coordinatorAttendanceControlCopy({
     cancelLabel: "Cancel",
   };
 }
-
-export const COORDINATOR_NAV_SCROLL: Record<string, string> = {
-  "coord-queue": "coordinator-role-queue",
-  "coord-issues": "coordinator-live-data",
-  "coord-attendance": "coordinator-attendance",
-  "coord-timeline": "coordinator-timeline",
-  "coord-registration": "coordinator-registration-desk",
-};

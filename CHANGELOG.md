@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Coordinators get a clearer event-day portal: readable view links (old section links still open), PMCM paths redirect home, self-attendance marks only from the day before through the day after the event, and "Report an issue" is one tap away on every view.
 - The API starts and builds again after the NestJS 12 upgrade: its runtime `.cjs` helpers are copied to the right `dist` path. Local fixture seeding works on freshly migrated databases again.
 - Run workspace coverage suites on independent CI runners, reuse exact dependency and browser caches with bounded retention, and validate complete browser journeys against production builds with repeatable timing comparisons.
 - Validate independent CI jobs and desktop/mobile browser journeys in parallel on GitHub-hosted runners, with complete required-check aggregation and dependency-aware task selection. Local pushes check affected projects using native typechecks and shared architecture lint.

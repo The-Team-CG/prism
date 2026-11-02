@@ -36,6 +36,16 @@ export function CoordinatorEventSwitcher({
   if (!cards.length) {
     return <p className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">No events are assigned to you yet.</p>;
   }
+  // One assignment has nothing to switch between, so it is shown as text rather than a dropdown.
+  if (cards.length === 1) {
+    const [only] = cards;
+    return (
+      <div className="grid gap-1 rounded-lg border border-border bg-card px-3 py-2">
+        <p className="text-sm font-semibold leading-5 text-foreground">{only.event.eventName}</p>
+        <p className="text-xs text-muted-foreground">{formatPortalDate(only.event.eventDate)} · {only.assignment.role}</p>
+      </div>
+    );
+  }
   return (
     <div className="grid gap-1 rounded-lg border border-border bg-card px-3 py-2">
       <label htmlFor="coordinator-assigned-event" className="text-xs text-muted-foreground">Assigned event</label>
@@ -48,7 +58,7 @@ export function CoordinatorEventSwitcher({
         <option value="" disabled>Choose an event</option>
         {cards.map(({ event }) => <option key={event.id} value={event.id}>{event.eventName} — {formatPortalDate(event.eventDate)}</option>)}
       </select>
-      {selected ? <p className="truncate text-xs text-muted-foreground">{selected.event.venue || "Venue to be confirmed"} · {selected.assignment.role}</p> : null}
+      {selected ? <p className="text-xs text-muted-foreground">{formatPortalDate(selected.event.eventDate)} · {selected.assignment.role}</p> : null}
     </div>
   );
 }
