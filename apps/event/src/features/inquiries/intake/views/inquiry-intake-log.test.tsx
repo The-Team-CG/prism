@@ -50,6 +50,7 @@ describe("InquiryIntakeLog decisions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Decline" }));
 
     const dialog = screen.getByRole("dialog", { name: "Decline inquiry from Ana Cruz?" });
+    expect(within(dialog).getByText("We'll email ana@acme.test to let them know.")).toBeTruthy();
     const confirm = within(dialog).getByRole("button", { name: "Decline inquiry" });
     const reason = within(dialog).getByLabelText(/^Decline reason/) as HTMLSelectElement;
     expect(reason.value).toBe("");
