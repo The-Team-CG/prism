@@ -49,11 +49,8 @@ describe("EventOcularVisitTask", () => {
     expect(screen.getByText("Please coordinate with venue security.")).toBeTruthy();
   });
 
-  it("schedules a requested visit", async () => {
-    const onSchedule = vi.fn(async () => undefined);
-    renderTask(requestedVisit, { onSchedule });
-    fireEvent.click(screen.getByRole("button", { name: "Manage visit" }));
-    const localDateTime = "2026-10-17T10:30";
+  /** Opens the schedule form and picks 17 Oct 2026 at 10:30, the same way PMCM does in the picker. */
+  function pickScheduleDateTime() {
     // Pin the clock so the picker opens on October 2026.
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-10-05T12:00:00"));
@@ -64,13 +61,62 @@ describe("EventOcularVisitTask", () => {
     } finally {
       vi.useRealTimers();
     }
+  }
+
+  it("schedules a requested visit with an optional note", async () => {
+    const onSchedule = vi.fn(async () => undefined);
+    renderTask(requestedVisit, { onSchedule });
+    fireEvent.click(screen.getByRole("button", { name: "Manage visit" }));
     fireEvent.click(screen.getByRole("button", { name: "Schedule visit" }));
+    pickScheduleDateTime();
+    fireEvent.change(screen.getByLabelText(/^Notes/), { target: { value: "  Gate 2 access  " } });
+    fireEvent.click(screen.getByRole("button", { name: "Save schedule" }));
 
     await waitFor(() =>
       expect(onSchedule).toHaveBeenCalledWith({
-        scheduledAt: new Date(localDateTime).toISOString(),
+        scheduledAt: new Date("2026-10-17T10:30").toISOString(),
+        note: "Gate 2 access",
       }),
     );
+  });
+
+  it("lets PMCM schedule a visit when no client request is on file, then shows it as scheduled", async () => {
+    const onSchedule = vi.fn(async () => undefined);
+    const { rerender } = render(<EventOcularVisitTask eventName="Summit" visit={null} isAdmin busy={false} onSchedule={onSchedule} onComplete={vi.fn(async () => undefined)} onWaive={vi.fn(async () => undefined)} />);
+    fireEvent.click(screen.getByRole("button", { name: "Manage visit" }));
+    fireEvent.click(screen.getByRole("button", { name: "Schedule visit" }));
+    pickScheduleDateTime();
+    fireEvent.click(screen.getByRole("button", { name: "Save schedule" }));
+
+    await waitFor(() =>
+      expect(onSchedule).toHaveBeenCalledWith({ scheduledAt: new Date("2026-10-17T10:30").toISOString() }),
+    );
+    expect(screen.queryByRole("button", { name: "Save schedule" })).toBeNull();
+
+    rerender(<EventOcularVisitTask
+      eventName="Summit"
+      visit={{ ...requestedVisit, status: "scheduled", clientNote: null, requestedAt: null, scheduledAt: new Date("2026-10-17T10:30").toISOString() }}
+      isAdmin
+      busy={false}
+      onSchedule={onSchedule}
+      onComplete={vi.fn(async () => undefined)}
+      onWaive={vi.fn(async () => undefined)}
+    />);
+    expect(screen.getByLabelText("Ocular visit status").textContent).toBe("Scheduled");
+    expect(screen.queryByRole("button", { name: "Schedule visit" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Mark ocular visit complete" })).toBeTruthy();
+  });
+
+  it("closes the schedule form without saving when PMCM cancels", () => {
+    const onSchedule = vi.fn(async () => undefined);
+    renderTask(null, { onSchedule });
+    fireEvent.click(screen.getByRole("button", { name: "Manage visit" }));
+    fireEvent.click(screen.getByRole("button", { name: "Schedule visit" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("button", { name: "Save schedule" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Schedule visit" })).toBeTruthy();
+    expect(onSchedule).not.toHaveBeenCalled();
   });
 
   it("completes a scheduled visit", async () => {
