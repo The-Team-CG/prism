@@ -96,12 +96,14 @@ export function LiveOpsOverview({
   liveOps,
   metrics,
   busy,
+  ended,
   onReload,
 }: {
   event: PrismEvent;
   liveOps: PrismLiveOps | null;
   metrics: LiveOpsVm["metrics"];
   busy: boolean;
+  ended: boolean;
   onReload: () => Promise<void>;
 }) {
   const stats: Array<[string, number]> = [
@@ -117,6 +119,7 @@ export function LiveOpsOverview({
         <div className="min-w-0">
           <h2 id="live-desk-title" className="text-xl font-semibold text-foreground">Live desk</h2>
           <p className="mt-0.5 truncate text-sm text-muted-foreground">{event.clientName} · {formatPortalDate(event.eventDate)}</p>
+          {ended ? <EndedNotice eventDate={event.eventDate} /> : null}
         </div>
         <button type="button" disabled={busy} onClick={onReload} className="inline-flex h-11 items-center gap-2 rounded-md border border-border bg-background px-4 text-sm font-semibold text-foreground disabled:opacity-60">
           <RefreshCw className="size-4" aria-hidden /> Refresh
@@ -131,6 +134,15 @@ export function LiveOpsOverview({
         ))}
       </dl>
     </section>
+  );
+}
+
+/** After the event date, live entry is closed; the desk keeps its history for the closure record. */
+function EndedNotice({ eventDate }: { eventDate: string }) {
+  return (
+    <p role="status" className="mt-2 rounded-md bg-muted px-3 py-2 text-sm text-foreground">
+      Event ended on {formatPortalDate(eventDate)}. Live entry is closed; the record below is kept for closure.
+    </p>
   );
 }
 
@@ -165,6 +177,7 @@ export function LiveOpsDesk({
   statusFeed,
   coordinators,
   busy,
+  readOnly,
   vm,
   onUpdateTask,
   onEscalateTask,
@@ -181,6 +194,8 @@ export function LiveOpsDesk({
   statusFeed: PrismEventDayStatusFeed | null;
   coordinators: PrismCoordinator[];
   busy: boolean;
+  /** The event date has passed: entry tools are hidden and the desk keeps its history. */
+  readOnly: boolean;
   vm: LiveOpsVm;
   onUpdateTask: (taskId: string, input: UpdateEventDayTaskInput) => Promise<void>;
   onEscalateTask: (taskId: string, input: EscalateEventDayTaskInput) => Promise<void>;
@@ -194,64 +209,29 @@ export function LiveOpsDesk({
 }) {
   return (
     <>
-      {liveOps.schedule ? (
-        <div className="space-y-3 rounded-lg border border-border bg-card p-4 sm:p-5">
-          <LiveOpsControlSurface eventId={eventId} schedule={liveOps.schedule} timer={liveOps.timer} />
-          {liveOps.schedule.authored ? (
-            <Link href={eventRunSheetHref(eventId)} className="inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm font-semibold no-underline">
-              Open printable run sheet
-            </Link>
-          ) : null}
-        </div>
-      ) : null}
+      <LiveOpsScheduleBlock eventId={eventId} liveOps={liveOps} readOnly={readOnly} />
 
-      <LiveOpsIssuesPanel liveOps={liveOps} busy={busy} vm={vm} onUpdateIssue={onUpdateIssue} onEscalateIssue={onEscalateIssue} />
-      <LiveOpsTasksPanel liveOps={liveOps} busy={busy} vm={vm} onUpdateTask={onUpdateTask} onEscalateTask={onEscalateTask} />
+      <LiveOpsIssuesPanel liveOps={liveOps} busy={busy} readOnly={readOnly} vm={vm} onUpdateIssue={onUpdateIssue} onEscalateIssue={onEscalateIssue} />
+      <LiveOpsTasksPanel liveOps={liveOps} busy={busy} readOnly={readOnly} vm={vm} onUpdateTask={onUpdateTask} onEscalateTask={onEscalateTask} />
 
-      <ReassignmentReviewPanel liveOps={liveOps} busy={busy} onDecide={onDecideTaskReassignment} />
+      {readOnly ? null : <ReassignmentReviewPanel liveOps={liveOps} busy={busy} onDecide={onDecideTaskReassignment} />}
 
-      <Disclosure title="Attendance and supplier setup" summary={`${liveOps.coordinatorAssignments.length} coordinators · ${liveOps.supplierStatuses.length} suppliers`}>
-        <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <div>
-            <h3 className="text-base font-semibold">Supplier setup</h3>
-            <p className="text-xs text-muted-foreground">Self-reported status and PMCM verification.</p>
-            <div className="mt-3 space-y-3">
-              {liveOps.supplierStatuses.length === 0 ? <Empty label="No supplier event-day statuses yet." /> : null}
-              {liveOps.supplierStatuses.map((request) => (
-                <SupplierRow
-                  key={request.id}
-                  request={request}
-                  busy={busy}
-                  onVerify={() => onVerifySupplierStatus(request.id, { verificationStatus: "verified", notes: "PMCM/coordinator verified setup on site." })}
-                  onDispute={() => onVerifySupplierStatus(request.id, { verificationStatus: "disputed", notes: "Setup needs PMCM follow-up." })}
-                />
-              ))}
-            </div>
-          </div>
-          <div>
-            <h3 className="text-base font-semibold">Coordinator attendance</h3>
-            <p className="text-xs text-muted-foreground">Present, late, absent, or replaced.</p>
-            <div className="mt-3 space-y-3">
-              {liveOps.coordinatorAssignments.length === 0 ? <Empty label="No coordinator assignments yet." /> : null}
-              {liveOps.coordinatorAssignments.map((assignment) => (
-                <CoordinatorRow
-                  key={assignment.id}
-                  assignment={assignment}
-                  coordinators={coordinators}
-                  busy={busy}
-                  onLoadSuggestions={onLoadCoordinatorSuggestions}
-                  onStatus={(status) => onUpdateCoordinatorAttendance(assignment.id, { status, notes: status === "late" ? "Marked late from live desk." : "" })}
-                  onReplace={(input) => onReplaceCoordinator(assignment.id, input)}
-                />
-              ))}
-            </div>
-          </div>
-        </section>
-      </Disclosure>
+      <LiveOpsSetupDisclosure
+        liveOps={liveOps}
+        coordinators={coordinators}
+        busy={busy}
+        readOnly={readOnly}
+        onVerifySupplierStatus={onVerifySupplierStatus}
+        onUpdateCoordinatorAttendance={onUpdateCoordinatorAttendance}
+        onReplaceCoordinator={onReplaceCoordinator}
+        onLoadCoordinatorSuggestions={onLoadCoordinatorSuggestions}
+      />
 
-      <Disclosure title="Schedule and reports">
-        <LiveOpsScheduleDesk eventId={eventId} assignments={liveOps.coordinatorAssignments} canStartEventDay canManageSchedule canReplyToReports canSubmitReports={false} />
-      </Disclosure>
+      {readOnly ? null : (
+        <Disclosure title="Schedule and reports">
+          <LiveOpsScheduleDesk eventId={eventId} assignments={liveOps.coordinatorAssignments} canStartEventDay canManageSchedule canReplyToReports canSubmitReports={false} />
+        </Disclosure>
+      )}
 
       {statusFeed ? (
         <Disclosure title="Live signals" summary={`${statusFeed.items.length} signals`}>
@@ -274,6 +254,84 @@ export function LiveOpsDesk({
         </div>
       </Disclosure>
     </>
+  );
+}
+
+function LiveOpsScheduleBlock({ eventId, liveOps, readOnly }: { eventId: string; liveOps: PrismLiveOps; readOnly: boolean }) {
+  const schedule = liveOps.schedule;
+  if (!schedule) return null;
+  return (
+    <div className="space-y-3 rounded-lg border border-border bg-card p-4 sm:p-5">
+      {readOnly ? null : <LiveOpsControlSurface eventId={eventId} schedule={schedule} timer={liveOps.timer} />}
+      {schedule.authored ? (
+        <Link href={eventRunSheetHref(eventId)} className="inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm font-semibold no-underline">
+          Open printable run sheet
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
+function LiveOpsSetupDisclosure({
+  liveOps,
+  coordinators,
+  busy,
+  readOnly,
+  onVerifySupplierStatus,
+  onUpdateCoordinatorAttendance,
+  onReplaceCoordinator,
+  onLoadCoordinatorSuggestions,
+}: {
+  liveOps: PrismLiveOps;
+  coordinators: PrismCoordinator[];
+  busy: boolean;
+  readOnly: boolean;
+  onVerifySupplierStatus: (requestId: string, input: VerifySupplierStatusInput) => Promise<void>;
+  onUpdateCoordinatorAttendance: (assignmentId: string, input: UpdateCoordinatorAttendanceInput) => Promise<void>;
+  onReplaceCoordinator: (assignmentId: string, input: ReplaceCoordinatorAssignmentInput) => Promise<void>;
+  onLoadCoordinatorSuggestions: (role: CoordinatorRole, skills: string[]) => Promise<PrismCoordinatorSuggestion[]>;
+}) {
+  return (
+    <Disclosure title="Attendance and supplier setup" summary={`${liveOps.coordinatorAssignments.length} coordinators · ${liveOps.supplierStatuses.length} suppliers`}>
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div>
+          <h3 className="text-base font-semibold">Supplier setup</h3>
+          <p className="text-xs text-muted-foreground">Self-reported status and PMCM verification.</p>
+          <div className="mt-3 space-y-3">
+            {liveOps.supplierStatuses.length === 0 ? <Empty label="No supplier event-day statuses yet." /> : null}
+            {liveOps.supplierStatuses.map((request) => (
+              <SupplierRow
+                key={request.id}
+                request={request}
+                busy={busy}
+                readOnly={readOnly}
+                onVerify={() => onVerifySupplierStatus(request.id, { verificationStatus: "verified", notes: "PMCM/coordinator verified setup on site." })}
+                onDispute={() => onVerifySupplierStatus(request.id, { verificationStatus: "disputed", notes: "Setup needs PMCM follow-up." })}
+              />
+            ))}
+          </div>
+        </div>
+        <div>
+          <h3 className="text-base font-semibold">Coordinator attendance</h3>
+          <p className="text-xs text-muted-foreground">Present, late, absent, or replaced.</p>
+          <div className="mt-3 space-y-3">
+            {liveOps.coordinatorAssignments.length === 0 ? <Empty label="No coordinator assignments yet." /> : null}
+            {liveOps.coordinatorAssignments.map((assignment) => (
+              <CoordinatorRow
+                key={assignment.id}
+                assignment={assignment}
+                coordinators={coordinators}
+                busy={busy}
+                readOnly={readOnly}
+                onLoadSuggestions={onLoadCoordinatorSuggestions}
+                onStatus={(status) => onUpdateCoordinatorAttendance(assignment.id, { status, notes: status === "late" ? "Marked late from live desk." : "" })}
+                onReplace={(input) => onReplaceCoordinator(assignment.id, input)}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+    </Disclosure>
   );
 }
 
@@ -329,12 +387,14 @@ export function ReassignmentReviewPanel({
 function LiveOpsIssuesPanel({
   liveOps,
   busy,
+  readOnly,
   vm,
   onUpdateIssue,
   onEscalateIssue,
 }: {
   liveOps: PrismLiveOps;
   busy: boolean;
+  readOnly: boolean;
   vm: LiveOpsVm;
   onUpdateIssue: (issueId: string, input: UpdateUrgentIssueInput) => Promise<void>;
   onEscalateIssue: (issueId: string, input: EscalateLiveOpsInput) => Promise<void>;
@@ -346,7 +406,7 @@ function LiveOpsIssuesPanel({
       <Header
         title="Urgent issues"
         count={openCount}
-        action={<FormToggle open={vm.issueFormOpen} controls="live-ops-issue-form" label="Log issue" onToggle={vm.toggleIssueForm} />}
+        action={readOnly ? null : <FormToggle open={vm.issueFormOpen} controls="live-ops-issue-form" label="Log issue" onToggle={vm.toggleIssueForm} />}
       />
       <div className="mt-3 space-y-3">
         {issues.length === 0 ? <Empty label="No urgent issues open." /> : null}
@@ -355,6 +415,7 @@ function LiveOpsIssuesPanel({
             key={issue.id}
             issue={issue}
             busy={busy}
+            readOnly={readOnly}
             onResolve={() => onUpdateIssue(issue.id, { status: "resolved", resolution: "Resolved from live desk." })}
             onEscalate={() =>
               onEscalateIssue(issue.id, {
@@ -366,7 +427,7 @@ function LiveOpsIssuesPanel({
           />
         ))}
       </div>
-      <div id="live-ops-issue-form" hidden={!vm.issueFormOpen} className="mt-4 grid gap-3 rounded-md border border-border bg-background p-3">
+      <div id="live-ops-issue-form" hidden={readOnly || !vm.issueFormOpen} className="mt-4 grid gap-3 rounded-md border border-border bg-background p-3">
         <label className="grid gap-1.5">
           <span className="text-xs font-medium text-muted-foreground">Issue title</span>
           <input value={vm.issueTitle} onChange={(event) => vm.setIssueTitle(event.target.value)} placeholder="Supplier late, walk-in queue, program blocker" className="h-11 rounded-md border border-border bg-white px-3 text-sm" />
@@ -414,12 +475,14 @@ function LiveOpsIssuesPanel({
 function LiveOpsTasksPanel({
   liveOps,
   busy,
+  readOnly,
   vm,
   onUpdateTask,
   onEscalateTask,
 }: {
   liveOps: PrismLiveOps;
   busy: boolean;
+  readOnly: boolean;
   vm: LiveOpsVm;
   onUpdateTask: (taskId: string, input: UpdateEventDayTaskInput) => Promise<void>;
   onEscalateTask: (taskId: string, input: EscalateEventDayTaskInput) => Promise<void>;
@@ -429,7 +492,7 @@ function LiveOpsTasksPanel({
       <Header
         title="Event-day tasks"
         count={liveOps.tasks.filter((task) => task.status !== "done").length}
-        action={<FormToggle open={vm.taskFormOpen} controls="live-ops-task-form" label="Add task" onToggle={vm.toggleTaskForm} />}
+        action={readOnly ? null : <FormToggle open={vm.taskFormOpen} controls="live-ops-task-form" label="Add task" onToggle={vm.toggleTaskForm} />}
       />
       <div className="mt-3 space-y-3">
         {liveOps.tasks.length === 0 ? <Empty label="No event-day tasks yet." /> : null}
@@ -438,6 +501,7 @@ function LiveOpsTasksPanel({
             key={task.id}
             task={task}
             busy={busy}
+            readOnly={readOnly}
             onProgress={() => onUpdateTask(task.id, { status: "in_progress" })}
             onDone={() => onUpdateTask(task.id, { status: "done", notes: "Completed from live desk." })}
             onEscalate={() =>
@@ -450,7 +514,7 @@ function LiveOpsTasksPanel({
           />
         ))}
       </div>
-      <div id="live-ops-task-form" hidden={!vm.taskFormOpen} className="mt-4 grid gap-3 rounded-md border border-border bg-background p-3">
+      <div id="live-ops-task-form" hidden={readOnly || !vm.taskFormOpen} className="mt-4 grid gap-3 rounded-md border border-border bg-background p-3">
         <label className="grid gap-1.5">
           <span className="text-xs font-medium text-muted-foreground">Task title</span>
           <input value={vm.taskTitle} onChange={(event) => vm.setTaskTitle(event.target.value)} placeholder="Registration dry run, stage cue check, ingress sweep" className="h-11 rounded-md border border-border bg-white px-3 text-sm" />
@@ -483,7 +547,7 @@ function LiveOpsTasksPanel({
   );
 }
 
-function SupplierRow({ request, busy, onVerify, onDispute }: { request: PrismSupplierQuoteRequest; busy: boolean; onVerify: () => Promise<void>; onDispute: () => Promise<void> }) {
+function SupplierRow({ request, busy, readOnly, onVerify, onDispute }: { request: PrismSupplierQuoteRequest; busy: boolean; readOnly: boolean; onVerify: () => Promise<void>; onDispute: () => Promise<void> }) {
   const verification = request.eventDayVerificationStatus ?? request.verificationStatus ?? "self_reported";
   return (
     <div className="rounded-md border border-border bg-background p-3">
@@ -494,47 +558,24 @@ function SupplierRow({ request, busy, onVerify, onDispute }: { request: PrismSup
         </div>
         <Pill value={verification} />
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button disabled={busy || verification === "verified"} onClick={onVerify} className="h-10 rounded-md bg-success-soft px-3 text-xs font-semibold text-success disabled:opacity-60">
-          Verify on site
-        </button>
-        <button disabled={busy || verification === "disputed"} onClick={onDispute} className="h-10 rounded-md bg-danger-soft px-3 text-xs font-semibold text-danger disabled:opacity-60">
-          Dispute setup
-        </button>
-      </div>
+      {readOnly ? null : (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button disabled={busy || verification === "verified"} onClick={onVerify} className="h-10 rounded-md bg-success-soft px-3 text-xs font-semibold text-success disabled:opacity-60">
+            Verify on site
+          </button>
+          <button disabled={busy || verification === "disputed"} onClick={onDispute} className="h-10 rounded-md bg-danger-soft px-3 text-xs font-semibold text-danger disabled:opacity-60">
+            Dispute setup
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-function CoordinatorRow({
-  assignment,
-  coordinators,
-  busy,
-  onStatus,
-  onReplace,
-  onLoadSuggestions,
-}: {
-  assignment: PrismCoordinatorAssignment;
-  coordinators: PrismCoordinator[];
-  busy: boolean;
-  onStatus: (status: "present" | "late" | "absent" | "replaced") => Promise<void>;
-  onReplace: (input: ReplaceCoordinatorAssignmentInput) => Promise<void>;
-  onLoadSuggestions: (role: CoordinatorRole, skills: string[]) => Promise<PrismCoordinatorSuggestion[]>;
-}) {
-  const vm = useCoordinatorRowViewModel({ assignment, coordinators, busy, onReplace, onLoadSuggestions });
+type CoordinatorRowVm = ReturnType<typeof useCoordinatorRowViewModel>;
 
-  return (
-    <div className="rounded-md border border-border bg-background p-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="font-semibold">{assignment.coordinatorName}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{assignment.role} - {label(assignment.status)}</p>
-          {assignment.replacementReason ? <p className="mt-1 text-xs text-muted-foreground">Replacement: {assignment.replacementReason}</p> : null}
-        </div>
-        <Pill value={vm.attendanceStatus} />
-      </div>
-      <CoordinatorAttendanceButtons status={vm.attendanceStatus} busy={busy} onStatus={onStatus} />
-      {vm.attendanceStatus !== "replaced" ? (
+function CoordinatorReplacement({ vm, busy }: { vm: CoordinatorRowVm; busy: boolean }) {
+  return vm.attendanceStatus !== "replaced" ? (
         <div className="mt-3 grid gap-2 rounded-md border border-dashed border-border bg-white p-3">
           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <UserPlus className="size-4 text-attention" />
@@ -598,7 +639,40 @@ function CoordinatorRow({
         <div className="mt-3 rounded-md border border-border bg-white p-3 text-xs leading-5 text-muted-foreground">
           Replacement recorded. This row is retained as operational context; the replacement coordinator receives a pending assignment.
         </div>
-      )}
+      );
+}
+
+function CoordinatorRow({
+  assignment,
+  coordinators,
+  busy,
+  readOnly,
+  onStatus,
+  onReplace,
+  onLoadSuggestions,
+}: {
+  assignment: PrismCoordinatorAssignment;
+  coordinators: PrismCoordinator[];
+  busy: boolean;
+  readOnly: boolean;
+  onStatus: (status: "present" | "late" | "absent" | "replaced") => Promise<void>;
+  onReplace: (input: ReplaceCoordinatorAssignmentInput) => Promise<void>;
+  onLoadSuggestions: (role: CoordinatorRole, skills: string[]) => Promise<PrismCoordinatorSuggestion[]>;
+}) {
+  const vm = useCoordinatorRowViewModel({ assignment, coordinators, busy, onReplace, onLoadSuggestions });
+
+  return (
+    <div className="rounded-md border border-border bg-background p-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="font-semibold">{assignment.coordinatorName}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{assignment.role} - {label(assignment.status)}</p>
+          {assignment.replacementReason ? <p className="mt-1 text-xs text-muted-foreground">Replacement: {assignment.replacementReason}</p> : null}
+        </div>
+        <Pill value={vm.attendanceStatus} />
+      </div>
+      {readOnly ? null : <CoordinatorAttendanceButtons status={vm.attendanceStatus} busy={busy} onStatus={onStatus} />}
+      {readOnly ? null : <CoordinatorReplacement vm={vm} busy={busy} />}
     </div>
   );
 }
@@ -606,11 +680,13 @@ function CoordinatorRow({
 function IssueRow({
   issue,
   busy,
+  readOnly,
   onResolve,
   onEscalate,
 }: {
   issue: PrismUrgentIssue;
   busy: boolean;
+  readOnly: boolean;
   onResolve: () => Promise<void>;
   onEscalate: () => Promise<void>;
 }) {
@@ -628,7 +704,7 @@ function IssueRow({
           <Pill value={issue.status} />
         </div>
       </div>
-      {issue.status !== "resolved" ? (
+      {issue.status !== "resolved" && !readOnly ? (
         <div className="mt-3 flex flex-wrap gap-2">
           <button disabled={busy} onClick={onResolve} className="h-10 rounded-md bg-success-soft px-3 text-xs font-semibold text-success disabled:opacity-60">
             Mark resolved
@@ -645,12 +721,14 @@ function IssueRow({
 function TaskRow({
   task,
   busy,
+  readOnly,
   onProgress,
   onDone,
   onEscalate,
 }: {
   task: PrismEventDayTask;
   busy: boolean;
+  readOnly: boolean;
   onProgress: () => Promise<void>;
   onDone: () => Promise<void>;
   onEscalate: () => Promise<void>;
@@ -665,17 +743,19 @@ function TaskRow({
         </div>
         <Pill value={task.status} />
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button disabled={busy || task.status === "in_progress" || task.status === "done"} onClick={onProgress} className="h-10 rounded-md bg-attention-soft px-3 text-xs font-semibold text-attention disabled:opacity-60">
-          In progress
-        </button>
-        <button disabled={busy || task.status === "done"} onClick={onDone} className="h-10 rounded-md bg-success-soft px-3 text-xs font-semibold text-success disabled:opacity-60">
-          Done
-        </button>
-        <button disabled={busy || task.status === "done"} onClick={onEscalate} className="inline-flex h-10 items-center gap-1 rounded-md bg-danger-soft px-3 text-xs font-semibold text-danger disabled:opacity-60">
-          <BellRing className="size-3.5" /> Escalate task
-        </button>
-      </div>
+      {readOnly ? null : (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button disabled={busy || task.status === "in_progress" || task.status === "done"} onClick={onProgress} className="h-10 rounded-md bg-attention-soft px-3 text-xs font-semibold text-attention disabled:opacity-60">
+            In progress
+          </button>
+          <button disabled={busy || task.status === "done"} onClick={onDone} className="h-10 rounded-md bg-success-soft px-3 text-xs font-semibold text-success disabled:opacity-60">
+            Done
+          </button>
+          <button disabled={busy || task.status === "done"} onClick={onEscalate} className="inline-flex h-10 items-center gap-1 rounded-md bg-danger-soft px-3 text-xs font-semibold text-danger disabled:opacity-60">
+            <BellRing className="size-3.5" /> Escalate task
+          </button>
+        </div>
+      )}
     </div>
   );
 }

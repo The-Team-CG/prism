@@ -52,8 +52,21 @@ export function EventWorkspaceOverviewTab() {
   // The official floorplan waits on the ocular visit, so it stays on the overview until it is completed or waived.
   const visitOpen = !isOcularVisitCleared(visit?.status);
   return (
-    <div className="space-y-5">
-      {visitOpen ? (
+    <EventWorkspaceOverview
+      event={vm.selectedEvent}
+      readiness={vm.defenseReadiness}
+      drafts={vm.drafts}
+      activeDraft={vm.activeDraft}
+      quoteRequestCount={vm.quoteRequests.length}
+      quoteCount={vm.quotes.length}
+      openCheckCount={vm.openCheckCount}
+      canStartEventDay={isPmcmAdmin(vm.session.role) && canStartEventDay(vm.selectedEvent)}
+      busy={Boolean(vm.busy)}
+      onStartEventDay={() => void vm.startEventDay()}
+      onSubmitBriefing={() => void vm.submitBriefing()}
+      onRunCompliance={() => void vm.runPlanningCompliance()}
+      onOpenTab={(tab) => vm.navigateEventTab(tab)}
+      ocularVisit={visitOpen ? (
         <EventOcularVisitTask
           eventName={vm.selectedEvent.eventName}
           visit={visit}
@@ -64,22 +77,7 @@ export function EventWorkspaceOverviewTab() {
           onWaive={vm.waiveOcularVisit}
         />
       ) : null}
-      <EventWorkspaceOverview
-        event={vm.selectedEvent}
-        readiness={vm.defenseReadiness}
-        drafts={vm.drafts}
-        activeDraft={vm.activeDraft}
-        quoteRequestCount={vm.quoteRequests.length}
-        quoteCount={vm.quotes.length}
-        openCheckCount={vm.openCheckCount}
-        canStartEventDay={isPmcmAdmin(vm.session.role) && canStartEventDay(vm.selectedEvent)}
-        busy={Boolean(vm.busy)}
-        onStartEventDay={() => void vm.startEventDay()}
-        onSubmitBriefing={() => void vm.submitBriefing()}
-        onRunCompliance={() => void vm.runPlanningCompliance()}
-        onOpenTab={(tab) => vm.navigateEventTab(tab)}
-      />
-    </div>
+    />
   );
 }
 
@@ -372,7 +370,7 @@ export function EventWorkspaceBillingTab() {
     {
       id: "adjustments",
       label: "Adjustments & disputes",
-      render: () => <BillingAdjustmentsPanel eventId={event.id} statements={vm.billingStatements} billingSources={vm.billingSources} payments={vm.payments} />,
+      render: () => <BillingAdjustmentsPanel eventId={event.id} statements={vm.billingStatements} billingSources={vm.billingSources} payments={vm.payments} urgentIssues={vm.liveOps?.urgentIssues ?? []} />,
     },
   ];
   return <WorkspaceSubTabs label="Billing sections" tabs={tabs} />;
