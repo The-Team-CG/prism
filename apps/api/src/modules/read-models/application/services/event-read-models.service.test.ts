@@ -690,7 +690,7 @@ describe('EventReadModelsService', () => {
            floorPlanDrafts: 501,
            approvedFloorplan: 1,
            quoteRequests: 501,
-           selectedSupplierQuotes: 500,
+           selectedSupplierRequests: 500,
            eventDayTasks: 501,
            urgentIssues: 501,
            billingStatements: 501,
