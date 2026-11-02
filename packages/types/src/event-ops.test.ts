@@ -8,6 +8,7 @@ import {
   canCreateEventWorkspace,
   derivePrismLifecycleStage,
   prismCalendarDateKey,
+  isWithinCoordinatorAttendanceWindow,
   selectCoordinatorFocusEventId,
   isBeforePrismEventDay,
   nextPrismLifecycleStages,
@@ -63,6 +64,17 @@ describe("P.R.I.S.M lifecycle contract", () => {
     expect(selectCoordinatorFocusEventId([], "2026-11-01")).toBeUndefined();
     // 2026-11-01 17:00 UTC is already 2 November in Manila.
     expect(prismCalendarDateKey(new Date("2026-11-01T17:00:00Z"))).toBe("2026-11-02");
+  });
+
+  it("lets coordinators mark attendance from the day before through the day after the event only", () => {
+    expect(isWithinCoordinatorAttendanceWindow("2026-06-18", "2026-06-17")).toBe(true);
+    expect(isWithinCoordinatorAttendanceWindow("2026-06-18", "2026-06-18")).toBe(true);
+    expect(isWithinCoordinatorAttendanceWindow("2026-06-18", "2026-06-19")).toBe(true);
+    expect(isWithinCoordinatorAttendanceWindow("2026-06-18", "2026-06-16")).toBe(false);
+    expect(isWithinCoordinatorAttendanceWindow("2026-06-18", "2026-06-20")).toBe(false);
+    // Event dates may arrive as ISO timestamps; only the calendar day counts.
+    expect(isWithinCoordinatorAttendanceWindow("2026-06-18T00:00:00.000Z", "2026-06-19")).toBe(true);
+    expect(isWithinCoordinatorAttendanceWindow("2026-06-18", "not-a-date")).toBe(false);
   });
 
   it("allows client portal access only after inquiry acceptance and signed conforme", () => {

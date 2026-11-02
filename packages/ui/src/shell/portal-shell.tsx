@@ -371,6 +371,7 @@ export function PrismPortalShell({
   commandActions = [],
   commandSectionLabel,
   headerActions,
+  alwaysShowHeaderActions = false,
   sidebarContext,
   accountMenuItems,
   onSignOut,
@@ -428,7 +429,7 @@ export function PrismPortalShell({
               {showTopBarSearch ? (
                 <PageSearch navItems={navItems} actions={commandActions} actionsLabel={commandSectionLabel} placeholder={searchPlaceholder} onSelect={select} />
               ) : null}
-              {headerActions ? <div className="hidden shrink-0 items-center gap-2 md:flex">{headerActions}</div> : null}
+              {headerActions ? <div className={cn("shrink-0 items-center gap-2", alwaysShowHeaderActions ? "flex" : "hidden md:flex")}>{headerActions}</div> : null}
             </div>
           </header>
           <div className={cn("mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 sm:px-6 lg:px-8", contentClassName)}>

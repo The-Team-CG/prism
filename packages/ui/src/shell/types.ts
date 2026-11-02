@@ -93,6 +93,8 @@ export interface PrismAppShellProps {
   commandActions?: PrismPageAction[];
   commandSectionLabel?: string;
   headerActions?: React.ReactNode;
+  /** Keep headerActions in the top bar on small screens too. Off by default, so they stay out of the way on mobile. */
+  alwaysShowHeaderActions?: boolean;
   /** Sits under the brand in the sidebar, for a scope control such as the open event. Hidden when collapsed. */
   sidebarContext?: React.ReactNode;
   accountMenuItems?: PrismAccountMenuItem[];
