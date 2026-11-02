@@ -18,7 +18,6 @@ export function EventDashboardHomeSectionView() {
     openCheckCount,
     pendingApprovals,
     navigateEvent,
-    navigateSection,
     busy,
     approveApprovalRequest,
     declineApprovalRequest,
@@ -35,7 +34,6 @@ export function EventDashboardHomeSectionView() {
               quoteCount={quotes.length}
               openCheckCount={openCheckCount}
               onOpenEvent={(eventId) => navigateEvent(eventId, "overview")}
-              onBrowseEvents={() => navigateSection("events-list")}
             />
 
             {/* Pending account approvals */}

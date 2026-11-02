@@ -498,7 +498,7 @@ describe('EventReadModelQueries collection limits', () => {
       floorPlanDrafts: 0,
       approvedFloorplan: 0,
       quoteRequests: 0,
-      selectedSupplierQuotes: 0,
+      selectedSupplierRequests: 0,
       eventDayTasks: 0,
       urgentIssues: 0,
       billingStatements: 0,
@@ -506,5 +506,27 @@ describe('EventReadModelQueries collection limits', () => {
       unpaidPaymentMilestones: 0,
     });
     expect((prisma as typeof prisma).opsEvent).toBe(opsEvent);
+  });
+
+  it('counts selected suppliers as selected quote requests, the same rows the PMCM Bookings tab shows', async () => {
+    const requests = {
+      ...model(),
+      count: vi.fn(async (args?: { where?: { status?: string } }) => (args?.where?.status === 'selected' ? 2 : 5)),
+    };
+    const prisma = new Proxy(
+      { opsEvent: model(), opsSupplierQuoteRequest: requests },
+      {
+        get(target, property: string) {
+          if (property in target) return target[property as keyof typeof target];
+          return model();
+        },
+      },
+    );
+    const queries = new EventReadModelQueries(prisma as unknown as PrismaService);
+
+    const result = await queries.defenseReadiness('evt_suppliers');
+
+    expect(result[1].quoteRequests).toBe(5);
+    expect(result[1].selectedSupplierRequests).toBe(2);
   });
 });

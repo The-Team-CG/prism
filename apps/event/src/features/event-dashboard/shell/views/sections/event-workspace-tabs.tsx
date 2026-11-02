@@ -7,7 +7,8 @@ import { FileCheck2, Gavel } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { PAREPanel } from "@/features/pare/panel";
-import { Phase4Workspace, type ClosureStep } from "@/features/closure/phase4";
+import { Phase4Workspace, numberedClosureTabs, type CloseGateDestination, type ClosureStep, type ClosureTabId } from "@/features/closure/phase4";
+import { useListFilter } from "@/features/pmcm-kit";
 import { CoordinatorAssignmentDesk } from "@/features/coordinators/desk";
 import { PostponementImpactPanel } from "@/features/event-decisions/postponement-impact";
 import { ChangeRegisterPanel } from "@/features/change-management/register";
@@ -22,11 +23,11 @@ import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
 import { HandoffBriefPanel } from "@/features/live-ops/handoff-brief";
 import { DecisionLogPanel } from "@/features/decision-log";
 import { SupplierQuotePlanner } from "@/features/suppliers/directory";
-import { PmcmSupplierReadinessBoard, supplierReadinessRefreshKey } from "@/features/suppliers/readiness";
+import { PmcmSupplierReadinessBoard, assignedSupplierRequests, supplierReadinessRefreshKey } from "@/features/suppliers/readiness";
 import { PmcmSupplierWorkflowsPanel } from "@/features/suppliers/workflows/views/pmcm-supplier-workflows-panel";
 import { EventRegistrationTab } from "@/app/components/pmcm/event-registration-tab";
 import { EventGamesHostView } from "@/features/event-games/host";
-import { EventFloorplansTab } from "@/features/floorplan/workspace";
+import { EventFloorplansTab, isOcularVisitCleared } from "@/features/floorplan/workspace";
 import { EventMessagesWorkspace } from "@/features/event-dashboard/messages/views/event-messages-workspace";
 import { FeedbackModerationPanel } from "@/features/feedback/moderation";
 import { EventClientFloorplanAccessPanel } from "@/features/event-dashboard/client-floorplan-access/views/event-client-floorplan-access-panel";
@@ -39,14 +40,17 @@ import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-
 import { PmcmClientReviewPanel } from "@/features/commercial/client-review/views/pmcm-client-review-panel";
 import { PmcmProposalIssuerPanel } from "@/features/commercial/proposal-issuer/views/pmcm-proposal-issuer-panel";
 
-const OCULAR_VISIT_DONE = new Set(["completed", "waived"]);
+function selectedOcularVisit(vm: ReturnType<typeof useEventDashboardLoadedRouteViewModel>) {
+  if (!vm.selectedEvent) return null;
+  return vm.selectedEventWorkspace?.event.id === vm.selectedEvent.id ? vm.selectedEventWorkspace?.ocularVisit ?? null : null;
+}
 
 export function EventWorkspaceOverviewTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
-  const visit = vm.selectedEventWorkspace?.event.id === vm.selectedEvent.id ? vm.selectedEventWorkspace?.ocularVisit ?? null : null;
+  const visit = selectedOcularVisit(vm);
   // The official floorplan waits on the ocular visit, so it stays on the overview until it is completed or waived.
-  const visitOpen = !visit || !OCULAR_VISIT_DONE.has(visit.status);
+  const visitOpen = !isOcularVisitCleared(visit?.status);
   return (
     <div className="space-y-5">
       {visitOpen ? (
@@ -91,6 +95,10 @@ export function EventWorkspaceFloorplansTab() {
       floorPlanTemplates={vm.floorPlanTemplates}
       onCreateTemplateDraft={(template) => run("create floorplan", () => vm.createTemplateDraft(template))}
       onCreateBlankDraft={() => run("create floorplan", () => vm.createBlankDraft())}
+      ocularVisit={{
+        cleared: isOcularVisitCleared(selectedOcularVisit(vm)?.status),
+        onOpenOverview: () => vm.navigateEventTab("overview"),
+      }}
       onOpenDraft={(event, draft, readOnly) => run(readOnly ? "view preference layout" : "open draft", () => vm.openEditor(event, draft, readOnly))}
       onSubmitDraft={(draft) => vm.submitFloorPlanDraft(draft)}
       onApproveDraft={(draft) => vm.approveFloorPlanDraft(draft)}
@@ -205,7 +213,7 @@ export function EventWorkspaceSuppliersTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   const event = vm.selectedEvent;
-  const confirmed = vm.quoteRequests.filter((request) => request.assignmentStatus === "confirmed");
+  const assigned = assignedSupplierRequests(vm.quoteRequests);
   const awaitingQuotes = vm.quoteRequests.filter((request) => !vm.quotes.some((quote) => quote.requestId === request.id)).length;
   const tabs: WorkspaceSubTab[] = [
     {
@@ -229,16 +237,16 @@ export function EventWorkspaceSuppliersTab() {
       ),
     },
     { id: "readiness", label: "Readiness", render: () => <PmcmSupplierReadinessBoard eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /> },
-    { id: "bookings", label: "Bookings & contracts", count: confirmed.length, render: () => <PmcmSupplierWorkflowsPanel eventId={event.id} requests={vm.quoteRequests} quotes={vm.quotes} /> },
+    { id: "bookings", label: "Bookings & contracts", count: assigned.length, render: () => <PmcmSupplierWorkflowsPanel eventId={event.id} requests={vm.quoteRequests} quotes={vm.quotes} /> },
     {
       id: "emergency",
       label: "Replace a supplier",
       render: () => (
         <section className="rounded-xl border border-border bg-card p-5">
           <h2 className="font-semibold text-foreground">Replace a supplier</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">If a confirmed supplier drops out, withdraw them here and review suggested replacements.</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">If an assigned supplier drops out, withdraw them here and review suggested replacements.</p>
           <div className="mt-4">
-            <PAREPanel eventId={event.id} assignedRequests={confirmed} suppliers={vm.suppliers} onWithdraw={vm.withdrawSupplier} busy={Boolean(vm.busy)} />
+            <PAREPanel eventId={event.id} assignedRequests={assigned} suppliers={vm.suppliers} onWithdraw={vm.withdrawSupplier} busy={Boolean(vm.busy)} />
           </div>
         </section>
       ),
@@ -352,6 +360,7 @@ export function EventWorkspaceBillingTab() {
           key={event.id}
           eventName={event.eventName}
           billingSources={vm.billingSources}
+          statements={vm.billingStatements}
           proposalDocuments={vm.documents.filter((document) => document.eventId === event.id && /proposal/i.test(document.type))}
           busy={Boolean(vm.busy)}
           onCreate={vm.createBillingSource}
@@ -371,11 +380,16 @@ export function EventWorkspaceBillingTab() {
 
 export function EventWorkspaceClosureTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
+  const [closurePart, setClosurePart] = useListFilter("part", "wrap-up");
   if (!vm.selectedEvent) return null;
   const event = vm.selectedEvent;
   const closureStep = (step: ClosureStep) => (
     <Phase4Workspace
       step={step}
+      onOpenDestination={(destination: CloseGateDestination) => {
+        if (destination.kind === "closure-tab") setClosurePart(destination.tabId);
+        else vm.navigateEventTab(destination.tab);
+      }}
       event={event}
       rules={vm.complianceRules}
       checks={vm.checks}
@@ -398,12 +412,10 @@ export function EventWorkspaceClosureTab() {
       onAddReview={vm.addSupplierReview}
     />
   );
-  // Closure in the order it happens; each step is one screen instead of one very long page.
-  const tabs: WorkspaceSubTab[] = [
-    { id: "wrap-up", label: "1. Wrap up", render: () => closureStep("wrap-up") },
-    {
-      id: "feedback",
-      label: "2. Feedback & reviews",
+  // Closure in the order it happens; each step is one screen. Deliverables gate Archive, so it sits before it.
+  const panels: Record<ClosureTabId, Omit<WorkspaceSubTab, "id" | "label">> = {
+    "wrap-up": { render: () => closureStep("wrap-up") },
+    feedback: {
       render: () => (
         <div className="space-y-5">
           {closureStep("feedback")}
@@ -411,16 +423,15 @@ export function EventWorkspaceClosureTab() {
         </div>
       ),
     },
-    { id: "compliance", label: "3. Compliance", count: vm.openCheckCount, attention: vm.openCheckCount > 0, render: () => closureStep("compliance") },
-    { id: "archive", label: "4. Archive", render: () => closureStep("archive") },
-    {
-      id: "deliverables",
-      label: "Deliverables",
+    compliance: { count: vm.openCheckCount, attention: vm.openCheckCount > 0, render: () => closureStep("compliance") },
+    deliverables: {
       count: vm.postEventDocuments.length,
       render: () => <PostEventDeliverablesPanel eventId={event.id} documents={vm.postEventDocuments} archived={event.archived} />,
     },
-  ];
-  return <WorkspaceSubTabs label="Closure steps" tabs={tabs} />;
+    archive: { render: () => closureStep("archive") },
+  };
+  const tabs: WorkspaceSubTab[] = numberedClosureTabs().map((tab) => ({ ...tab, ...panels[tab.id] }));
+  return <WorkspaceSubTabs label="Closure steps" tabs={tabs} selectedId={closurePart} onSelect={setClosurePart} />;
 }
 
 /** PMCM-only (FL-019). Other roles get no panel here, and the API refuses them independently. */

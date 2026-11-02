@@ -14,8 +14,10 @@ import {
   formatAvailabilityRange,
   isAttendanceChoiceDisabled,
   isIngressOrEgressRole,
+  activeAssignmentForRole,
   isOperatorEligibleAssignment,
   isReplacedAssignment,
+  otherActiveRoleAssignment,
   isTaskOutsideOwnQueue,
   requiresAttendanceConfirmation,
   resolveOwnAttendanceStatus,
@@ -568,4 +570,24 @@ describe("describeReminderResult", () => {
       .toBe("1 pending coordinator reminded. 1 could not be sent; check the PMCM status message.");
   });
 
+});
+
+describe("per-role assignment status", () => {
+  const assignments = [
+    { id: "a1", coordinatorId: "c_marco", role: "Floor Director", status: "acknowledged" },
+    { id: "a2", coordinatorId: "c_bianca", role: "Stage Director", status: "pending_acknowledgement" },
+    { id: "a3", coordinatorId: "c_old", role: "Usher", status: "replaced" },
+  ];
+
+  it("returns an acknowledgement only for the role the person holds", () => {
+    expect(activeAssignmentForRole(assignments, "c_marco", "Floor Director")?.status).toBe("acknowledged");
+    expect(activeAssignmentForRole(assignments, "c_marco", "General Coordinator")).toBeUndefined();
+    expect(otherActiveRoleAssignment(assignments, "c_marco", "General Coordinator")?.role).toBe("Floor Director");
+    expect(otherActiveRoleAssignment(assignments, "c_marco", "Floor Director")).toBeUndefined();
+  });
+
+  it("ignores replaced assignments for both lookups", () => {
+    expect(activeAssignmentForRole(assignments, "c_old", "Usher")).toBeUndefined();
+    expect(otherActiveRoleAssignment(assignments, "c_old", "General Coordinator")).toBeUndefined();
+  });
 });

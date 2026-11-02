@@ -1,13 +1,40 @@
 import { describe, expect, it } from "vitest";
 import {
+  closeGateDestination,
+  numberedClosureTabs,
   phase4ArchiveStatus,
   phase4BillingSourceCard,
   phase4CloseGatesCard,
   phase4ComplianceCard,
+  phase4StatusLabel,
   phase4StatusTone,
 } from "./phase4-workspace-rules";
 
 describe("phase4-workspace-rules", () => {
+  it("numbers closure tabs 1–5 in run order, with Deliverables gating Archive last", () => {
+    expect(numberedClosureTabs().map((tab) => [tab.id, tab.label])).toEqual([
+      ["wrap-up", "1. Wrap up"],
+      ["feedback", "2. Feedback & reviews"],
+      ["compliance", "3. Compliance"],
+      ["deliverables", "4. Deliverables"],
+      ["archive", "5. Archive"],
+    ]);
+  });
+
+  it("sends each unpassed archive gate to the place that resolves it", () => {
+    expect(closeGateDestination("documents")).toEqual({ kind: "closure-tab", tabId: "deliverables", label: "Open Deliverables" });
+    expect(closeGateDestination("billing")).toEqual({ kind: "event-tab", tab: "billing", label: "Open Billing" });
+    expect(closeGateDestination("logistics")).toEqual({ kind: "closure-tab", tabId: "wrap-up", label: "Open Wrap up" });
+    expect(closeGateDestination("issues")).toEqual({ kind: "event-tab", tab: "live-ops", label: "Open Live ops" });
+    expect(closeGateDestination("feedback")).toMatchObject({ kind: "closure-tab", tabId: "feedback" });
+    expect(closeGateDestination("unknown_gate")).toBeNull();
+  });
+
+  it("writes status words in sentence case", () => {
+    expect(phase4StatusLabel("open")).toBe("Open");
+    expect(phase4StatusLabel("not_applicable")).toBe("Not applicable");
+  });
+
   it("maps archive status copy", () => {
     expect(phase4ArchiveStatus(true, false)).toEqual({ label: "Archived", toneKey: "approved" });
     expect(phase4ArchiveStatus(false, true)).toEqual({ label: "Ready for archive", toneKey: "approved" });

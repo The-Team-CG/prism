@@ -31,6 +31,7 @@ describe("EventFloorplansTab", () => {
         onOpenDraft={onOpenDraft}
         onSubmitDraft={vi.fn()}
         onApproveDraft={vi.fn()}
+        ocularVisit={{ cleared: true, onOpenOverview: vi.fn() }}
       />,
     );
 
@@ -65,9 +66,46 @@ describe("EventFloorplansTab", () => {
         onOpenDraft={vi.fn()}
         onSubmitDraft={vi.fn()}
         onApproveDraft={vi.fn()}
+        ocularVisit={{ cleared: true, onOpenOverview: vi.fn() }}
       />,
     );
     expect(screen.getByRole("region", { name: "Official floorplan" }).textContent).toContain("No official floorplan has been approved yet. 1 PMCM draft is in progress below.");
     expect(screen.getByRole("button", { name: "Submit" })).toBeTruthy();
+  });
+
+  it("disables every draft-creation tile with the reason until the ocular visit is completed or waived", () => {
+    const onCreateBlankDraft = vi.fn();
+    const onCreateTemplateDraft = vi.fn();
+    const onOpenOverview = vi.fn();
+    const template = { id: "tpl_gala", name: "Gala room", description: "Round tables", venue: "Hall A" } as never;
+    const renderTab = (cleared: boolean) => (
+      <EventFloorplansTab
+        event={{ id: "evt_1" } as never}
+        drafts={[]}
+        floorPlanTemplates={[template]}
+        onCreateTemplateDraft={onCreateTemplateDraft}
+        onCreateBlankDraft={onCreateBlankDraft}
+        onOpenDraft={vi.fn()}
+        onSubmitDraft={vi.fn()}
+        onApproveDraft={vi.fn()}
+        ocularVisit={{ cleared, onOpenOverview }}
+      />
+    );
+
+    const { rerender } = render(renderTab(false));
+    const blank = screen.getByRole("button", { name: /Blank layout/ }) as HTMLButtonElement;
+    const gala = screen.getByRole("button", { name: /Gala room/ }) as HTMLButtonElement;
+    expect(blank.disabled).toBe(true);
+    expect(gala.disabled).toBe(true);
+    expect(screen.getByText("A PMCM draft can start once the ocular visit is completed or waived.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Open Overview" }));
+    expect(onOpenOverview).toHaveBeenCalledTimes(1);
+
+    rerender(renderTab(true));
+    expect((screen.getByRole("button", { name: /Blank layout/ }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.queryByText("A PMCM draft can start once the ocular visit is completed or waived.")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Blank layout/ }));
+    expect(onCreateBlankDraft).toHaveBeenCalledTimes(1);
+    expect(onCreateTemplateDraft).not.toHaveBeenCalled();
   });
 });

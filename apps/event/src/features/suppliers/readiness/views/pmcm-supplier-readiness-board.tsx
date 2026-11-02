@@ -74,13 +74,19 @@ function ReadinessRow({ item }: { item: PrismPmcmSupplierReadinessItem }) {
   );
 }
 
+function sentenceCase(value: string) {
+  const text = humanizeToken(value);
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** Each chip names its stage, so the state never depends on dot colour alone. */
 function ReadinessBadges({ item }: { item: PrismPmcmSupplierReadinessItem }) {
   return (
     <div className="flex flex-wrap gap-2">
-      <StatusBadge status={item.quoteStatus} label={item.quoteLocked ? "Quote locked" : humanizeToken(item.quoteStatus)} />
-      <StatusBadge status={item.assignmentStatus ?? "pending"} label={humanizeToken(item.assignmentStatus ?? "pending")} />
-      <StatusBadge status={item.readinessStatus ?? "pending"} label={humanizeToken(item.readinessStatus ?? "not confirmed")} />
-      <StatusBadge status={item.contractStatus === "accepted" ? "approved" : item.contractStatus} label={`Contract ${humanizeToken(item.contractStatus)}`} />
+      <StatusBadge status={item.quoteStatus} label={`Quote: ${item.quoteLocked ? "Locked" : sentenceCase(item.quoteStatus)}`} />
+      <StatusBadge status={item.assignmentStatus ?? "pending"} label={`Assignment: ${sentenceCase(item.assignmentStatus ?? "pending")}`} />
+      <StatusBadge status={item.readinessStatus ?? "pending"} label={`Readiness: ${sentenceCase(item.readinessStatus ?? "not confirmed")}`} />
+      <StatusBadge status={item.contractStatus === "accepted" ? "approved" : item.contractStatus} label={`Contract: ${sentenceCase(item.contractStatus)}`} />
       <StatusBadge status={item.ingressLate ? "overdue" : item.setupStatus === "ready" || item.setupStatus === "complete" ? "completed" : "pending"} label={setupStatusLabel(item.setupStatus)} />
     </div>
   );

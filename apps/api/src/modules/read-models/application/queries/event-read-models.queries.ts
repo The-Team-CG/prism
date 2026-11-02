@@ -154,7 +154,7 @@ type DefenseReadModelCounts = {
   floorPlanDrafts: number;
   approvedFloorplan: number;
   quoteRequests: number;
-  selectedSupplierQuotes: number;
+  selectedSupplierRequests: number;
   eventDayTasks: number;
   urgentIssues: number;
   billingStatements: number;
@@ -527,18 +527,18 @@ export class EventReadModelQueries {
       this.prisma.opsFloorPlanDraft.count({ where: { eventId } }),
       this.prisma.opsFloorPlanDraft.count({ where: { eventId, status: 'approved' } }),
       this.prisma.opsSupplierQuoteRequest.count({ where: { eventId } }),
-      this.prisma.opsSupplierQuote.count({ where: { eventId, status: { in: ['selected', 'locked'] } } }),
+      this.prisma.opsSupplierQuoteRequest.count({ where: { eventId, status: 'selected' } }),
       this.prisma.opsEventDayTask.count({ where: { eventId, status: { notIn: ['done', 'cancelled'] } } }),
       this.prisma.opsUrgentIssue.count({ where: { eventId, status: { notIn: ['resolved', 'closed'] } } }),
       this.prisma.opsBillingStatement.count({ where: { eventId } }),
       this.prisma.opsPaymentMilestone.count({ where: { eventId } }),
       this.prisma.opsPaymentMilestone.count({ where: { eventId, OR: [{ status: { not: 'paid' } }, { remainingBalance: { gt: 0 } }] } }),
-    ]).then(([briefings, floorPlanDrafts, approvedFloorplan, quoteRequests, selectedSupplierQuotes, eventDayTasks, urgentIssues, billingStatements, paymentMilestones, unpaidPaymentMilestones]) => ({
+    ]).then(([briefings, floorPlanDrafts, approvedFloorplan, quoteRequests, selectedSupplierRequests, eventDayTasks, urgentIssues, billingStatements, paymentMilestones, unpaidPaymentMilestones]) => ({
       briefings,
       floorPlanDrafts,
       approvedFloorplan,
       quoteRequests,
-      selectedSupplierQuotes,
+      selectedSupplierRequests,
       eventDayTasks,
       urgentIssues,
       billingStatements,

@@ -362,7 +362,8 @@ export function PrismPortalShell({
   roleLabel,
   title,
   description,
-  activeItemId,
+  activeItemId = "",
+  breadcrumb,
   navItems,
   onNavSelect,
   user,
@@ -381,7 +382,7 @@ export function PrismPortalShell({
   homeHref = "/dashboard",
 }: PrismPortalShellProps) {
   const select = React.useCallback((id: string) => onNavSelect?.(id), [onNavSelect]);
-  const trail = findTrail(navItems, activeItemId);
+  const trail = breadcrumb ?? findTrail(navItems, activeItemId);
   return (
     <TooltipProvider delayDuration={300}>
       <SidebarProvider className={cn("prism-shell", className)} data-portal={portal}>

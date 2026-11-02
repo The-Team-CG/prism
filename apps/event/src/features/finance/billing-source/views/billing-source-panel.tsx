@@ -2,13 +2,21 @@
 
 import { useId, useState } from "react";
 import { ReceiptText } from "lucide-react";
-import { createBillingSourceSchema, type CreateBillingSourceInput, type PrismBillingSource, type PrismDocument } from "@prism/types";
+import { createBillingSourceSchema, type CreateBillingSourceInput, type PrismBillingSource, type PrismBillingStatement, type PrismDocument } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { label, money } from "@/features/pmcm-kit";
 
 const fieldClass = "h-10 rounded-md border border-border bg-white px-3 text-sm font-normal text-foreground";
 const labelClass = "grid gap-1 text-xs font-semibold text-muted-foreground";
+
+/** With no source, say whether statements were already issued without one rather than asking PMCM to create one. */
+function NoBillingSource({ statements }: { statements: PrismBillingStatement[] }) {
+  const message = statements.length === 0
+    ? "No billing source yet. Create one from the issued proposal before generating a statement."
+    : `${statements.map((statement) => statement.number).join(", ")} ${statements.length === 1 ? "was" : "were"} issued without a linked billing source. The statement amounts stand as issued. Create and approve a source for any future statement.`;
+  return <li className="rounded-md border border-dashed border-border bg-muted p-4 text-sm text-muted-foreground">{message}</li>;
+}
 
 /**
  * PMCM turns an issued proposal into billing: create the source, approve it, then generate the statement.
@@ -17,6 +25,7 @@ const labelClass = "grid gap-1 text-xs font-semibold text-muted-foreground";
 export function BillingSourcePanel({
   eventName,
   billingSources,
+  statements = [],
   proposalDocuments,
   busy,
   onCreate,
@@ -25,6 +34,8 @@ export function BillingSourcePanel({
 }: {
   eventName: string;
   billingSources: PrismBillingSource[];
+  /** Issued statements; a statement with no source is reported as such instead of telling PMCM to create one. */
+  statements?: PrismBillingStatement[];
   proposalDocuments: PrismDocument[];
   busy: boolean;
   /** Resolves true when the source was created; on failure the entered values stay for correction. */
@@ -116,11 +127,7 @@ export function BillingSourcePanel({
       </div>
 
       <ul className="mt-4 grid gap-3" aria-label="Billing sources">
-        {billingSources.length === 0 ? (
-          <li className="rounded-md border border-dashed border-border bg-muted p-4 text-sm text-muted-foreground">
-            No billing source yet. Create one from the issued proposal before generating a statement.
-          </li>
-        ) : null}
+        {billingSources.length === 0 ? <NoBillingSource statements={statements} /> : null}
         {billingSources.map((source) => (
           <li key={source.id} aria-label={`Billing source ${source.sourceLabel}`} className="rounded-md border border-border bg-background p-4 text-sm">
             <div className="flex flex-wrap items-start justify-between gap-3">
