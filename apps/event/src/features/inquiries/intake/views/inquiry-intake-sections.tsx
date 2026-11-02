@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useId, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
-import { formatPortalDate } from "@prism/ui/format-date";
+import { useEffect, useId, useState, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
+import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import { DatePicker } from "@prism/ui/components/date-picker";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@prism/ui/components/sheet";
 import {
@@ -27,8 +27,8 @@ import {
   declineReasons,
   inquiryExtraDetailFields,
   inquiryHistoryCues,
+  inquiryLogMissingFields,
   inquiryMergeCandidates,
-  isInquiryLogFormReady,
   logFormChannels,
   logFormClientTypes,
   logFormEventTypes,
@@ -128,7 +128,7 @@ export function InquiryIntakeFilters({
 
   return (
     <div role="search" aria-label="Filter inquiries" className="border-b border-border px-4 pb-4 sm:px-6">
-      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2 lg:grid-cols-[minmax(0,1fr)_9rem_auto]">
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2 lg:grid-cols-[minmax(0,1fr)_13rem_auto]">
         <div className="relative col-span-2 min-w-0 lg:col-span-1">
           <label htmlFor={searchId} className="sr-only">Search inquiries</label>
           <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -147,7 +147,7 @@ export function InquiryIntakeFilters({
             id={statusId}
             value={status}
             onChange={(event) => onStatus(event.target.value)}
-            className="h-11 w-full min-w-0 truncate rounded-lg border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:h-9"
+            className="h-11 w-full min-w-0 rounded-lg border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:h-9"
           >
             <option value={AWAITING_REVIEW}>Awaiting review</option>
             <option value="all">All statuses</option>
@@ -184,7 +184,7 @@ export function InquiryIntakeFilters({
                 id={selectId}
                 value={sel.value}
                 onChange={(event) => sel.onChange(event.target.value)}
-                className="h-11 w-full min-w-0 truncate rounded-lg border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:h-9"
+                className="h-11 w-full min-w-0 rounded-lg border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:h-9"
               >
                 {sel.options.map(([val, optionLabel]) => (
                   <option key={val} value={val}>{optionLabel}</option>
@@ -307,7 +307,7 @@ export function InquiryDetailDrawer({
     <Sheet open onOpenChange={(open) => { if (!open) onClose(); }}>
       <SheetContent side="right" showCloseButton={false} className="flex h-full w-full flex-col gap-0 p-0 sm:max-w-xl">
         <SheetTitle className="sr-only">Review inquiry: {inquiry.eventName}</SheetTitle>
-        <SheetDescription className="sr-only">Review the client’s request and history before accepting, requesting follow-up or declining.</SheetDescription>
+        <SheetDescription className="sr-only">Review the client’s request and history before accepting, putting it on hold, or declining.</SheetDescription>
         <InquiryDetailHeader inquiry={inquiry} onClose={onClose} />
         <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
           <InquiryDetailFlags inquiry={inquiry} />
@@ -376,16 +376,18 @@ function InquiryDetailFlags({ inquiry }: { inquiry: PrismInquiry }) {
 }
 
 function InquiryDetailFields({ inquiry }: { inquiry: PrismInquiry }) {
+  // Shown only once PMCM has actually changed the status; an untouched inquiry has no update to report.
+  const statusUpdatedAt = inquiry.acceptedAt || inquiry.pendingAt || inquiry.declinedAt;
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <DetailField label="Client" value={inquiry.clientName} />
       <DetailField label="Email" value={inquiry.email} />
       <DetailField label="Company" value={inquiry.companyName || inquiry.clientType} />
       <DetailField label="Event type" value={inquiry.eventType || inquiry.clientType} />
-      <DetailField label="Event date" value={inquiry.eventDate} />
+      <DetailField label="Event date" value={formatPortalDate(inquiry.eventDate)} />
       <DetailField label="Source" value={inquiry.source} />
       <DetailField label="Received" value={compactTimestamp(inquiry.createdAt)} />
-      <DetailField label="Status updated" value={compactTimestamp(inquiry.acceptedAt || inquiry.pendingAt || inquiry.declinedAt)} />
+      {statusUpdatedAt ? <DetailField label="Status updated" value={formatPortalDateTime(statusUpdatedAt)} /> : null}
     </div>
   );
 }
@@ -521,7 +523,7 @@ function InquiryDetailActions({
       </Button>
       {status !== "pending" && (
         <Button size="sm" variant="outline" disabled={busy} onClick={onPend} className="rounded-lg font-bold">
-          Pend
+          Put on hold
         </Button>
       )}
       <Button
@@ -537,6 +539,10 @@ function InquiryDetailActions({
   );
 }
 
+/**
+ * Confirms a permanent decline. The API records one of the listed reasons, so the reason is chosen here
+ * before the decline can be confirmed; nothing is sent until the PMCM user confirms.
+ */
 export function InquiryDeclineDialog({
   clientName,
   declineReason,
@@ -552,37 +558,47 @@ export function InquiryDeclineDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const titleId = useId();
+  const reasonId = useId();
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
-        <h3 className="text-base font-bold text-foreground">Decline inquiry</h3>
+      <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
+        <h3 id={titleId} className="text-base font-bold text-foreground">Decline inquiry from {clientName}?</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Select the permanent decline reason for {clientName}.
+          A declined inquiry can&apos;t be reopened. Choose the reason to record.
         </p>
-        <label htmlFor="inquiry-decline-reason" className="mt-4 block text-sm font-medium text-foreground">Decline reason</label>
+        <label htmlFor={reasonId} className="mt-4 block text-sm font-medium text-foreground">
+          Decline reason<RequiredMark />
+        </label>
         <select
-          id="inquiry-decline-reason"
+          id={reasonId}
+          aria-required="true"
           value={declineReason}
           onChange={(event) => onReason(event.target.value)}
           className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
         >
+          <option value="" disabled>Select a reason</option>
           {declineReasons.map((reason) => <option key={reason} value={reason}>{reason}</option>)}
         </select>
         <div className="mt-5 flex justify-end gap-2">
-          <Button variant="outline" className="rounded-lg font-bold" onClick={onCancel}>
-            Cancel
+          <Button variant="outline" className="rounded-lg font-bold" onClick={onCancel} disabled={busy}>
+            Keep inquiry
           </Button>
           <Button
-            disabled={busy}
+            disabled={busy || !declineReason}
             onClick={onConfirm}
             className="rounded-lg border-destructive/25 bg-destructive font-bold text-white hover:bg-destructive/90"
           >
-            Save decline
+            Decline inquiry
           </Button>
         </div>
       </div>
     </div>
   );
+}
+
+function RequiredMark() {
+  return <span aria-hidden="true" className="ml-0.5 text-destructive">*</span>;
 }
 
 export function InquiryLogOnBehalfForm({
@@ -616,6 +632,8 @@ export function InquiryLogOnBehalfForm({
     firstFieldRef.current?.focus();
   }, [firstFieldRef]);
 
+  const missingFields = inquiryLogMissingFields(logForm);
+
   return (
     <div
       className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4"
@@ -628,7 +646,7 @@ export function InquiryLogOnBehalfForm({
           <div>
             <h3 className="text-base font-bold text-foreground">Log inquiry on behalf</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Record an inquiry a client gave you by phone or in person. This does not send email; it creates a PMCM-owned intake row with log-on-behalf metadata.
+              Record an inquiry a client gave you by phone or in person. Nothing is emailed to the client.
             </p>
           </div>
           <button
@@ -656,7 +674,10 @@ export function InquiryLogOnBehalfForm({
           </div>
         )}
 
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
+          {missingFields.length > 0 && logPhase !== "submitting" ? (
+            <p className="mr-auto text-xs text-muted-foreground">Fill in {missingFields.join(", ")} to save.</p>
+          ) : null}
           <Button
             variant="outline"
             className="rounded-lg font-bold"
@@ -667,7 +688,7 @@ export function InquiryLogOnBehalfForm({
           </Button>
           <Button
             className="rounded-lg font-bold"
-            disabled={!isInquiryLogFormReady(logForm) || logPhase === "submitting"}
+            disabled={missingFields.length > 0 || logPhase === "submitting"}
             onClick={onSubmit}
           >
             {logPhase === "submitting" ? "Saving…" : "Save inquiry"}
@@ -677,6 +698,36 @@ export function InquiryLogOnBehalfForm({
     </div>
   );
 }
+
+/** A visible label tied to its control by id, with a required marker the screen reader skips. */
+function LogField({
+  id,
+  label: fieldLabel,
+  required = false,
+  optional = false,
+  className = "",
+  children,
+}: {
+  id: string;
+  label: string;
+  required?: boolean;
+  optional?: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={`text-sm ${className}`}>
+      <label htmlFor={id} className="mb-1 block text-xs font-medium text-muted-foreground">
+        {fieldLabel}
+        {required ? <RequiredMark /> : null}
+        {optional ? <span className="font-normal"> (optional)</span> : null}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+const SELECT_CLASS = "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground";
 
 function InquiryLogFormFields({
   logForm,
@@ -689,154 +740,107 @@ function InquiryLogFormFields({
   todayIso: string;
   firstFieldRef: RefObject<HTMLInputElement | null>;
 }) {
+  const update = (patch: Partial<InquiryLogForm>) => setLogForm((form) => ({ ...form, ...patch }));
   return (
     <div className="mt-4 grid gap-3 sm:grid-cols-2">
-      <label className="text-sm">
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">
-          Client name
-        </span>
+      <LogField id="log-client-name" label="Client name" required>
         <Input
+          id="log-client-name"
           ref={firstFieldRef}
+          aria-required="true"
           value={logForm.clientName}
-          onChange={(event) => setLogForm((form) => ({ ...form, clientName: event.target.value }))}
+          onChange={(event) => update({ clientName: event.target.value })}
           placeholder="Full name"
         />
-      </label>
-      <label className="text-sm">
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">
-          Company (optional)
-        </span>
+      </LogField>
+      <LogField id="log-company" label="Company" optional>
         <Input
+          id="log-company"
           value={logForm.companyName}
-          onChange={(event) => setLogForm((form) => ({ ...form, companyName: event.target.value }))}
+          onChange={(event) => update({ companyName: event.target.value })}
           placeholder="Company / organization"
         />
-      </label>
-      <label className="text-sm">
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">
-          Email
-        </span>
+      </LogField>
+      <LogField id="log-email" label="Email" required>
         <Input
+          id="log-email"
           type="email"
+          aria-required="true"
           value={logForm.email}
-          onChange={(event) => setLogForm((form) => ({ ...form, email: event.target.value }))}
+          onChange={(event) => update({ email: event.target.value })}
           placeholder="client@example.com"
         />
-      </label>
-      <label className="text-sm">
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">
-          Channel
-        </span>
-        <select
-          value={logForm.channel}
-          onChange={(event) => setLogForm((form) => ({ ...form, channel: event.target.value }))}
-          className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground"
-        >
+      </LogField>
+      <LogField id="log-channel" label="Channel" required>
+        <select id="log-channel" aria-required="true" value={logForm.channel} onChange={(event) => update({ channel: event.target.value })} className={SELECT_CLASS}>
+          <option value="" disabled>Select…</option>
           {logFormChannels.map((channelOption) => (
-            <option key={channelOption} value={channelOption}>
-              {channelOption}
-            </option>
+            <option key={channelOption} value={channelOption}>{channelOption}</option>
           ))}
         </select>
-      </label>
-      <label className="text-sm">
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">
-          Referral Source
-        </span>
-        <select
-          value={logForm.source}
-          onChange={(event) => setLogForm((form) => ({ ...form, source: event.target.value }))}
-          className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground"
-          aria-label="How did you hear about us?"
-        >
+      </LogField>
+      <LogField id="log-referral-source" label="Referral source" required>
+        <select id="log-referral-source" aria-required="true" value={logForm.source} onChange={(event) => update({ source: event.target.value })} className={SELECT_CLASS}>
+          <option value="" disabled>Select…</option>
           {logFormReferralSources.map((sourceOption) => (
-            <option key={sourceOption} value={sourceOption}>
-              {sourceOption}
-            </option>
+            <option key={sourceOption} value={sourceOption}>{sourceOption}</option>
           ))}
         </select>
-      </label>
-      <label className="text-sm">
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">
-          Event name
-        </span>
+      </LogField>
+      <LogField id="log-event-name" label="Event name" required>
         <Input
+          id="log-event-name"
+          aria-required="true"
           value={logForm.eventName}
-          onChange={(event) => setLogForm((form) => ({ ...form, eventName: event.target.value }))}
+          onChange={(event) => update({ eventName: event.target.value })}
           placeholder="Event name"
         />
-      </label>
-      <label className="text-sm">
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">
-          Event type
-        </span>
-        <select
-          value={logForm.eventType}
-          onChange={(event) => setLogForm((form) => ({ ...form, eventType: event.target.value }))}
-          className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground"
-        >
-          <option value="" disabled>
-            Select event type
-          </option>
+      </LogField>
+      <LogField id="log-event-type" label="Event type" required>
+        <select id="log-event-type" aria-required="true" value={logForm.eventType} onChange={(event) => update({ eventType: event.target.value })} className={SELECT_CLASS}>
+          <option value="" disabled>Select event type</option>
           {logFormEventTypes.map((eventTypeOption) => (
-            <option key={eventTypeOption} value={eventTypeOption}>
-              {eventTypeOption}
-            </option>
+            <option key={eventTypeOption} value={eventTypeOption}>{eventTypeOption}</option>
           ))}
         </select>
-      </label>
-      <div className="text-sm">
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">
-          Event date
-        </span>
+      </LogField>
+      <LogField id="log-event-date" label="Event date" required>
         <DatePicker
+          id="log-event-date"
           aria-label="Event date"
+          aria-required="true"
           min={todayIso}
           value={logForm.eventDate}
-          onValueChange={(value) => setLogForm((form) => ({ ...form, eventDate: value }))}
+          onValueChange={(value) => update({ eventDate: value })}
         />
-      </div>
-      <label className="text-sm">
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">
-          Client type
-        </span>
-        <select
-          value={logForm.clientType}
-          onChange={(event) => setLogForm((form) => ({ ...form, clientType: event.target.value }))}
-          className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground"
-        >
-          <option value="" disabled>
-            Select client type
-          </option>
+      </LogField>
+      <LogField id="log-client-type" label="Client type" required>
+        <select id="log-client-type" aria-required="true" value={logForm.clientType} onChange={(event) => update({ clientType: event.target.value })} className={SELECT_CLASS}>
+          <option value="" disabled>Select client type</option>
           {logFormClientTypes.map((clientTypeOption) => (
-            <option key={clientTypeOption} value={clientTypeOption}>
-              {clientTypeOption}
-            </option>
+            <option key={clientTypeOption} value={clientTypeOption}>{clientTypeOption}</option>
           ))}
         </select>
-      </label>
-      <label className="text-sm sm:col-span-2">
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">
-          Referral details (optional)
-        </span>
+      </LogField>
+      <LogField id="log-referral-details" label="Referral details" optional className="sm:col-span-2">
         <Input
+          id="log-referral-details"
           value={logForm.referralDetails}
-          onChange={(event) => setLogForm((form) => ({ ...form, referralDetails: event.target.value }))}
+          onChange={(event) => update({ referralDetails: event.target.value })}
           placeholder="How did they hear about PMCM?"
         />
-      </label>
-      <label className="text-sm sm:col-span-2">
-        <span className="mb-1 block text-xs font-medium text-muted-foreground">
-          Message
-        </span>
+      </LogField>
+      <LogField id="log-message" label="Message" required className="sm:col-span-2">
         <textarea
+          id="log-message"
+          aria-required="true"
           value={logForm.message}
-          onChange={(event) => setLogForm((form) => ({ ...form, message: event.target.value }))}
+          onChange={(event) => update({ message: event.target.value })}
           rows={3}
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
           placeholder="What the client told you about the event"
         />
-      </label>
+      </LogField>
     </div>
   );
 }

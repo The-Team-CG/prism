@@ -6,6 +6,7 @@ import {
   ClipboardCheck,
 } from "lucide-react";
 import { EmptyState } from "@/app/components/ui/empty-state";
+import { pluralize } from "@/features/pmcm-kit";
 import type { PrismApprovalRequest, PrismDefenseReadiness, PrismEvent, PrismPmcmCommandInbox, PrismPmcmOcularVisit, ScheduleOcularVisitInput, WaiveOcularVisitInput } from "@prism/types";
 import { selectEventActionCenter } from "@/features/command-inbox/list/model/event-action-center";
 import type { DashboardSection, DetailTab } from "../../model/event-dashboard-routing";
@@ -86,14 +87,14 @@ export function EventTasksWorkspace({
         {
           id: "billing",
           label: "Check billing milestones",
-          detail: `${paymentCount} payment milestone(s) to monitor.`,
+          detail: `${pluralize(paymentCount, "payment milestone")} to monitor.`,
           count: paymentCount,
           action: () => onNavigateEventTab("billing"),
         },
         {
           id: "closure",
           label: "Resolve closeout gates",
-          detail: `${openCheckCount} open closeout check(s).`,
+          detail: `${pluralize(openCheckCount, "open closeout check")}.`,
           count: openCheckCount,
           action: () => onNavigateEventTab("closure"),
         },

@@ -30,7 +30,8 @@ import { PRISM_LIFECYCLE_STAGE_LABELS } from "@prism/types";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
-import { label } from "@/features/pmcm-kit";
+import { formatPortalDate } from "@prism/ui/format-date";
+import { label, pluralize } from "@/features/pmcm-kit";
 
 /* ── Inline primitives (replacing @prism/ui blocks) ────────────── */
 
@@ -268,7 +269,7 @@ export function EventQueuePanel({
           id: event.id,
           title: event.eventName,
           description: `${event.clientName} - portal ${label(event.clientPortalStatus)}`,
-          meta: event.eventDate,
+          meta: formatPortalDate(event.eventDate),
           status: event.status,
           icon: CalendarClock,
           active: event.id === selectedEventId,
@@ -318,7 +319,7 @@ export function SelectedEventCockpit({
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
           { label: "Client", value: event.clientName, detail: event.clientPortalStatus === "unlocked" ? "Client portal unlocked" : "Client portal locked" },
-          { label: "Event date", value: event.eventDate, detail: event.readiness ?? "Readiness pending" },
+          { label: "Event date", value: formatPortalDate(event.eventDate), detail: event.readiness ?? "Readiness pending" },
           { label: "Event readiness", value: readinessLabel, detail: defenseReadiness ? `Stage: ${PRISM_LIFECYCLE_STAGE_LABELS[defenseReadiness.lifecycleStage]}` : "Loading readiness check" },
           { label: "Guest access", value: event.guestAccessCode ?? "Pending", detail: event.guestAccessCode ? "Ready for guest portal access" : "Generated after event setup" },
         ].map((item) => (
@@ -372,7 +373,7 @@ export function DefenseControlPanel({
     {
       key: "finance",
       label: "Finance",
-      detail: `${defenseReadiness.summary.billingStatements} billing statement(s), ${defenseReadiness.summary.unpaidMilestones} unpaid milestone(s).`,
+      detail: `${pluralize(defenseReadiness.summary.billingStatements, "billing statement")}, ${pluralize(defenseReadiness.summary.unpaidMilestones, "unpaid milestone")}.`,
       ready: defenseReadiness.summary.billingStatements > 0 && defenseReadiness.summary.unpaidMilestones === 0,
       tab: "billing" as PmcmDetailTab,
     },

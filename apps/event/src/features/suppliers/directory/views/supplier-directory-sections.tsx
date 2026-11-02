@@ -1,4 +1,5 @@
 import { ArrowLeft, Check, FilePlus2, Plus, Search } from "lucide-react";
+import { BNI_TITLE } from "./supplier-visuals";
 
 import type { PrismSupplier, PrismSupplierCategory } from "@prism/types";
 import { DatePicker } from "@prism/ui/components/date-picker";
@@ -156,7 +157,7 @@ export function SupplierDirectoryList({
             <span>Name</span>
             <span>Category</span>
             <span>Tier</span>
-            <span>BNI</span>
+            <span title={BNI_TITLE}>BNI</span>
             <span>Aggregate Rating</span>
             <span>Last Event</span>
           </div>
@@ -249,7 +250,7 @@ function SupplierDirectoryRow({
       </span>
       <span>
         {supplier.bniMember ? (
-          <Badge variant="outline" className="rounded-full border-brand-orange/30 bg-accent px-2.5 py-1 text-2xs font-black text-attention">BNI</Badge>
+          <Badge variant="outline" title={BNI_TITLE} className="rounded-full border-brand-orange/30 bg-accent px-2.5 py-1 text-2xs font-black text-attention">BNI</Badge>
         ) : (
           <span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-2xs font-black text-muted-foreground">No BNI</span>
         )}

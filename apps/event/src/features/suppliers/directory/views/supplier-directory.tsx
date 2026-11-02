@@ -5,6 +5,7 @@ import type { FormEvent } from "react";
 import { ChevronDown, Plus, Users } from "lucide-react";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
+import { SegmentedControl } from "@/features/pmcm-kit";
 import type { CreateSupplierInput, PrismSupplierCategory } from "@prism/types";
 import type { EventSession } from "@/app/lib/session";
 import { SupplierApplicationsInboxView } from "@/features/suppliers/applications";
@@ -60,7 +61,6 @@ export function SupplierDirectory({
 
   return (
     <div className={styles.workspace}>
-      <h1 id="supplier-directory-heading" tabIndex={-1} className="sr-only">Suppliers</h1>
       <SupplierDirectoryToolbar
         tier={directory.query.tier}
         applicationsOpen={applicationsOpen}
@@ -147,13 +147,16 @@ function SupplierDirectoryToolbar({ tier, applicationsOpen, createOpen, createDi
     ["pending_first_event", "First event pending"],
   ];
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
-      <div role="group" aria-label="Supplier tier views" className="flex gap-1 overflow-x-auto">
-        {tiers.map(([value, label]) => <button key={label} type="button" aria-pressed={tier === value} onClick={() => onTierChange(value)} className={`whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${tier === value ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>{label}</button>)}
-      </div>
+    <div id="supplier-directory-heading" tabIndex={-1} className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3 focus:outline-none">
+      <SegmentedControl
+        label="Supplier tier views"
+        options={tiers.map(([value, text]) => ({ value: value ?? "all", label: text }))}
+        value={tier ?? "all"}
+        onChange={(next) => onTierChange(next === "all" ? undefined : (next as CreateSupplierInput["tier"]))}
+      />
       <div className="flex items-center gap-2">
         <Button type="button" variant="ghost" size="sm" aria-expanded={applicationsOpen} aria-controls="supplier-applications-panel" onClick={onToggleApplications}><Users className="size-3.5" />Applications<ChevronDown className={`size-3.5 ${applicationsOpen ? "rotate-180" : ""}`} /></Button>
-        <Button type="button" size="sm" disabled={createDisabled} onClick={onToggleCreate}>{createOpen ? "Cancel" : <><Plus className="size-3.5" />New supplier</>}</Button>
+        <Button type="button" size="sm" variant={createOpen ? "outline" : "default"} disabled={createDisabled} onClick={onToggleCreate}>{createOpen ? "Cancel" : <><Plus className="size-3.5" />New supplier</>}</Button>
       </div>
     </div>
   );
@@ -169,12 +172,12 @@ function SupplierCreateForm({ form, categories, actionSaving, actionResult, onCh
 }) {
   return (
     <form onSubmit={onSubmit} className="grid gap-3 border-b border-border bg-card p-5 md:grid-cols-2">
-      <label className="grid gap-1 text-xs text-muted-foreground">Supplier name<input required value={form.name} onChange={(event) => onChange({ name: event.target.value })} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground" /></label>
-      <label className="grid gap-1 text-xs text-muted-foreground">Category<select required value={form.categoryId} onChange={(event) => onChange({ categoryId: event.target.value })} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground"><option value="">Choose category</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
-      <label className="grid gap-1 text-xs text-muted-foreground">Contact name<input value={form.contactName ?? ""} onChange={(event) => onChange({ contactName: event.target.value })} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground" /></label>
-      <label className="grid gap-1 text-xs text-muted-foreground">Email<input type="email" value={form.email ?? ""} onChange={(event) => onChange({ email: event.target.value || undefined })} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground" /></label>
-      <label className="grid gap-1 text-xs text-muted-foreground">Phone<input value={form.phone ?? ""} onChange={(event) => onChange({ phone: event.target.value || undefined })} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground" /></label>
-      <label className="grid gap-1 text-xs text-muted-foreground">Initial tier<select value={form.tier ?? "pending_first_event"} onChange={(event) => onChange({ tier: event.target.value as CreateSupplierInput["tier"] })} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground"><option value="pending_first_event">Pending first event</option><option value="tier_1">Tier 1</option><option value="tier_2">Tier 2</option></select></label>
+      <label className="grid gap-1 text-xs text-muted-foreground">Supplier name<input required value={form.name} onChange={(event) => onChange({ name: event.target.value })} className="h-9 rounded-md border border-border bg-input px-2 text-sm text-foreground" /></label>
+      <label className="grid gap-1 text-xs text-muted-foreground">Category<select required value={form.categoryId} onChange={(event) => onChange({ categoryId: event.target.value })} className="h-9 rounded-md border border-border bg-input px-2 text-sm text-foreground"><option value="">Choose category</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+      <label className="grid gap-1 text-xs text-muted-foreground">Contact name<input value={form.contactName ?? ""} onChange={(event) => onChange({ contactName: event.target.value })} className="h-9 rounded-md border border-border bg-input px-2 text-sm text-foreground" /></label>
+      <label className="grid gap-1 text-xs text-muted-foreground">Email<input type="email" value={form.email ?? ""} onChange={(event) => onChange({ email: event.target.value || undefined })} className="h-9 rounded-md border border-border bg-input px-2 text-sm text-foreground" /></label>
+      <label className="grid gap-1 text-xs text-muted-foreground">Phone<input value={form.phone ?? ""} onChange={(event) => onChange({ phone: event.target.value || undefined })} className="h-9 rounded-md border border-border bg-input px-2 text-sm text-foreground" /></label>
+      <label className="grid gap-1 text-xs text-muted-foreground">Initial tier<select value={form.tier ?? "pending_first_event"} onChange={(event) => onChange({ tier: event.target.value as CreateSupplierInput["tier"] })} className="h-9 rounded-md border border-border bg-input px-2 text-sm text-foreground"><option value="pending_first_event">Pending first event</option><option value="tier_1">Tier 1</option><option value="tier_2">Tier 2</option></select></label>
       <div className="flex flex-wrap items-center gap-3 md:col-span-2"><Button type="submit" disabled={actionSaving || Boolean(actionResult?.saved && actionResult.refreshFailed) || !form.name.trim() || !form.categoryId}>Create supplier</Button>{actionResult && !actionResult.saved ? <span role="alert" className="text-xs text-destructive">{actionResult.message}</span> : null}</div>
     </form>
   );

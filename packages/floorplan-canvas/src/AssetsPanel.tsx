@@ -112,7 +112,7 @@ export function AssetsPanel() {
           <div key={cat} className="border-b border-neutral-100 last:border-b-0">
             <button
               onClick={() => setOpen((s) => ({ ...s, [cat]: !s[cat] }))}
-              className="flex w-full items-center justify-between px-3 py-2 text-[10px] uppercase tracking-wider text-neutral-500 hover:bg-neutral-50"
+              className="flex w-full items-center justify-between px-3 py-2 text-xs font-medium text-neutral-500 hover:bg-neutral-50"
             >
               <span>{CATEGORY_LABELS[cat]}</span>
               <div className="flex items-center gap-1.5">

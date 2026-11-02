@@ -82,6 +82,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await proposal.getByLabel('Line 1 unit amount in PHP', { exact: true }).fill('100000');
       await proposal.getByLabel('Proposal title', { exact: true }).fill('Browser lifecycle proposal');
       await proposal.getByRole('button', { name: 'Issue to client', exact: true }).click();
+      await proposal.getByRole('button', { name: 'Confirm and issue', exact: true }).click();
       await expect(proposal.getByRole('status')).toContainText('Version 1 is issued');
       // The client's proposal package includes billing, and a client only sees a statement once PMCM sends it.
       await pmcm.page.goto(path('billing'));
@@ -103,7 +104,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
     await test.step('PMCM requests a supplier quote; supplier follows its own email; PMCM selects the quote', async () => {
       await pmcm.page.goto(path('suppliers'));
       await pmcm.page.getByRole('tab', { name: /^Requests & quotes/ }).click();
-      await pmcm.page.getByRole('button', { name: 'Request Quotes', exact: true }).click();
+      await pmcm.page.getByRole('button', { name: 'Request quotes', exact: true }).click();
       await pmcm.page.getByRole('checkbox', { name: /XPERTO Registration/ }).check();
       await pmcm.page.getByLabel('Quote deadline', { exact: true }).fill(quoteDeadline);
       await expect(pmcm.page.getByLabel('Quote deadline', { exact: true })).toHaveValue(quoteDeadline);

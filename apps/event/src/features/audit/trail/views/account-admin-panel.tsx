@@ -16,7 +16,7 @@ type AccountAdminVm = ReturnType<typeof useAccountAdminViewModel>;
 
 const ROLE_FILTERS: ReadonlyArray<{ value: "all" | PrismUserRole; label: string }> = [
   { value: "all", label: "All" },
-  { value: "pmcm-admin", label: "PMCM" },
+  { value: "pmcm-admin", label: "PMCM administrators" },
   { value: "coordinator", label: "Coordinators" },
   { value: "client", label: "Clients" },
   { value: "supplier", label: "Suppliers" },
