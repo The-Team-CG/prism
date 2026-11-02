@@ -203,7 +203,7 @@ export function buildCoordinatorIssueInput({
  */
 export const COORDINATOR_ATTENDANCE_CHOICES = [
   { value: "present", label: "Present" },
-  { value: "late", label: "Late Arrival" },
+  { value: "late", label: "Late arrival" },
   { value: "absent", label: "Absent" },
 ] as const;
 
@@ -252,13 +252,21 @@ export function canMarkOwnAttendance({
   assignment,
   busy,
   attendanceBusy = false,
+  windowOpen,
 }: {
   assignment?: AssignmentLifecycle | null;
   busy: boolean;
   attendanceBusy?: boolean;
+  /** From isWithinCoordinatorAttendanceWindow. Outside the window the API rejects coordinator marks. */
+  windowOpen: boolean;
 }): boolean {
-  if (!assignment || busy || attendanceBusy) return false;
+  if (!assignment || busy || attendanceBusy || !windowOpen) return false;
   return !isReplacedAssignment(assignment);
+}
+
+/** Recorded attendance, shown as text once the window has closed. Null when PMCM has no record to show. */
+export function recordedAttendanceLabel(attendanceStatus: string): string | null {
+  return COORDINATOR_ATTENDANCE_CHOICES.find((item) => item.value === attendanceStatus)?.label ?? null;
 }
 
 /** Disables the status already set (a no-op), and everything when marking is off. */
@@ -289,13 +297,15 @@ export function canConfirmPendingAttendance({
   assignment,
   pendingChoice,
   busy,
+  windowOpen,
 }: {
   assignment?: AssignmentLifecycle | null;
   pendingChoice: CoordinatorAttendanceChoice | null;
   busy: boolean;
+  windowOpen: boolean;
 }): boolean {
   if (!pendingChoice) return false;
-  return canMarkOwnAttendance({ assignment, busy });
+  return canMarkOwnAttendance({ assignment, busy, windowOpen });
 }
 
 /**

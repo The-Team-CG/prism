@@ -2,7 +2,8 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CoordinatorRoleBadgeCard, CoordinatorRoleData } from "./coordinator-role-sections";
+import { CoordinatorRoleBadgeCard, CoordinatorRoleData, type CoordinatorAttendanceFormModel } from "./coordinator-role-sections";
+import { COORDINATOR_ATTENDANCE_CHOICES } from "../../model/coordinators-desk-rules";
 
 afterEach(cleanup);
 
@@ -33,7 +34,7 @@ function roleView(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function renderRoleData(view: Record<string, unknown>, actions: { operator?: Record<string, unknown> } = {}) {
+function renderRoleData(view: Record<string, unknown>, actions: { operator?: Record<string, unknown> } = {}, section: "tasks" | "issues" = "tasks") {
   const models = {
     taskForm: { title: "", setTitle: vi.fn(), role: "Floor Director", setRole: vi.fn(), priority: "normal", setPriority: vi.fn(), notes: "", setNotes: vi.fn(), dueAt: "", setDueAt: vi.fn(), assignToMe: false, setAssignToMe: vi.fn(), roleOptions: ["Floor Director"], routesAway: false, busy: false, error: null, submit: vi.fn() },
     issueForm: { title: "", setTitle: vi.fn(), severity: "high", setSeverity: vi.fn(), affectedArea: "", setAffectedArea: vi.fn(), description: "", setDescription: vi.fn(), slaDueAt: "", setSlaDueAt: vi.fn(), assignToMe: false, setAssignToMe: vi.fn(), busy: false, error: null, submit: vi.fn() },
@@ -41,9 +42,9 @@ function renderRoleData(view: Record<string, unknown>, actions: { operator?: Rec
     taskActions: { busy: false, error: null, updateStatus: vi.fn() },
     operatorActions: { busy: false, error: null, supplierBusy: false, supplierError: null, updateAttendance: vi.fn(), verifySupplier: vi.fn(), ...actions.operator },
   };
-  const props = { roleViewLoading: false, roleViewError: null, roleView: view, registrationRole: false, ...models };
+  const props = { section, roleViewLoading: false, roleViewError: null, roleView: view, registrationRole: false, ...models };
   render(<CoordinatorRoleData {...(props as unknown as ComponentProps<typeof CoordinatorRoleData>)} />);
-  fireEvent.click(screen.getByText("On-site controls"));
+  if (section === "tasks") fireEvent.click(screen.getByText("Team and supplier checks"));
   return models;
 }
 
@@ -98,7 +99,7 @@ describe("Event Day System Operator controls", () => {
     const models = renderRoleData(operatorView());
     const row = within(samRow());
 
-    fireEvent.click(row.getByRole("button", { name: "Late Arrival" }));
+    fireEvent.click(row.getByRole("button", { name: "Late arrival" }));
     expect(models.operatorActions.updateAttendance).toHaveBeenCalledWith("asg_sam", "late");
 
     fireEvent.click(row.getByRole("button", { name: "Absent" }));
@@ -187,7 +188,7 @@ describe("CoordinatorRoleBadgeCard", () => {
   it("confirms a pending assignment without passing the click event as the decision", () => {
     const onAcknowledge = vi.fn();
     const attendanceForm = {
-      status: "pending", choices: [], canMark: false, hasAssignment: true, replaced: false, isDisabled: () => true,
+      status: "pending", choices: [], canMark: false, windowOpen: true, markedAt: null, hasAssignment: true, replaced: false, isDisabled: () => true,
       pendingChoice: null, pendingChoiceLabel: null, busy: false, error: null, mark: vi.fn(), confirm: vi.fn(), cancel: vi.fn(),
     };
     render(<CoordinatorRoleBadgeCard assignment={{ status: "assigned" }} busy={false} roleName="General Coordinator" attendanceStatus="pending" onAcknowledge={onAcknowledge} attendanceForm={attendanceForm} />);
@@ -197,5 +198,84 @@ describe("CoordinatorRoleBadgeCard", () => {
     // The view-model defaults its decision to "acknowledged"; a click event in its place failed contract validation.
     expect(onAcknowledge).toHaveBeenCalledTimes(1);
     expect(onAcknowledge).toHaveBeenCalledWith();
+  });
+});
+
+function attendanceModel(overrides: Partial<CoordinatorAttendanceFormModel> = {}): CoordinatorAttendanceFormModel {
+  const status = overrides.status ?? "pending";
+  const canMark = overrides.canMark ?? true;
+  return {
+    status,
+    choices: COORDINATOR_ATTENDANCE_CHOICES,
+    canMark,
+    windowOpen: true,
+    markedAt: null,
+    hasAssignment: true,
+    replaced: false,
+    isDisabled: (choice) => !canMark || choice === status,
+    pendingChoice: null,
+    pendingChoiceLabel: null,
+    busy: false,
+    error: null,
+    mark: vi.fn(),
+    confirm: vi.fn(),
+    cancel: vi.fn(),
+    ...overrides,
+  };
+}
+
+function renderAttendance(attendanceForm: CoordinatorAttendanceFormModel) {
+  render(<CoordinatorRoleBadgeCard assignment={{ status: "acknowledged" }} busy={false} roleName="Floor Director" attendanceStatus={attendanceForm.status} onAcknowledge={vi.fn()} attendanceForm={attendanceForm} />);
+}
+
+describe("coordinator self-attendance window", () => {
+  it("offers the marks while the event window is open and shows the pressed state with the mark time", () => {
+    const mark = vi.fn();
+    // 10:42 UTC is 6:42 PM in Manila; the time shown must be the Philippine time.
+    renderAttendance(attendanceModel({ status: "late", markedAt: "2026-06-18T10:42:00Z", mark }));
+
+    expect(screen.getByRole("button", { name: "Late arrival" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "Present" }).getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByText("Marked Late arrival at 6:42 PM")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Change" }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Present" }));
+  });
+
+  it("replaces the marks with the recorded status as text once the window has closed", () => {
+    renderAttendance(attendanceModel({ status: "present", windowOpen: false, canMark: false, markedAt: "2026-06-18T10:42:00Z" }));
+
+    expect(screen.getByText("Marked Present.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Absent" })).toBeNull();
+  });
+
+  it("tells the coordinator to contact PMCM when a closed window never recorded attendance", () => {
+    renderAttendance(attendanceModel({ windowOpen: false, canMark: false }));
+
+    expect(screen.getByText("Attendance wasn't recorded. Contact PMCM to correct it.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Present" })).toBeNull();
+  });
+});
+
+describe("coordinator queues", () => {
+  it("opens the issue form on Issues ahead of the open issues and the secondary check-in count", () => {
+    renderRoleData(roleView({ guestAttendanceCount: 0, urgentIssues: [] }), {}, "issues");
+
+    // The form is open without an extra step: the submit control is in the document, not behind a disclosure.
+    expect(screen.getByRole("button", { name: "Report issue" })).toBeTruthy();
+    const formHeading = screen.getByText("Report an issue");
+    const issuesHeading = screen.getByText("Open issues");
+    const checkIns = screen.getByText("No check-ins recorded.");
+    expect(formHeading.compareDocumentPosition(issuesHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(issuesHeading.compareDocumentPosition(checkIns) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText("No open issues.")).toBeTruthy();
+  });
+
+  it("opens Log a task when nothing is assigned yet, so the way forward is one step away", () => {
+    renderRoleData(roleView({ tasks: [] }));
+
+    expect(screen.getByText("Assigned to you")).toBeTruthy();
+    expect(screen.getByText("No tasks assigned to you yet.")).toBeTruthy();
+    expect(screen.getByText("Log a task").closest("details")?.open).toBe(true);
   });
 });
