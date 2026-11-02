@@ -25,4 +25,12 @@ export class CoordinatorLiveOpsController {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.readService.getCoordinatorRoleView(eventId, actor);
   }
+
+  /** Published run sheet schedule and event status for an event the coordinator is assigned to. */
+  @Get('events/:eventId/schedule')
+  @UseGuards(EventSessionGuard)
+  eventSchedule(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.readService.getCoordinatorEventSchedule(eventId, actor);
+  }
 }

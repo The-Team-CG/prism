@@ -784,6 +784,18 @@ describe("createEventOpsClient", () => {
     ]);
   });
 
+  it("loads the coordinator event schedule through the coordinator route, not the PMCM events route", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ eventId: "evt_1" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.coordinator.eventSchedule("evt_1");
+
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "http://localhost:4000/api/coordinator/events/evt_1/schedule",
+    ]);
+  });
+
   it("loads a redacted public supplier application status without caching", async () => {
     const fetchMock = vi.fn(async () =>
       new Response(
