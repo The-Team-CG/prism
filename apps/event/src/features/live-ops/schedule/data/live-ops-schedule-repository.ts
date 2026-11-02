@@ -1,4 +1,4 @@
-import type { CreateEventEodReplyInput, CreateEventEodReportInput, CreateEventHandoffInput, CreateEventScheduleDayInput, CreateEventScheduleSegmentInput, PrismEventEodReport, PrismEventHandoff, PrismEventRunSheetResult, PrismEventSchedule, PrismEventScheduleSegment, UpdateEventScheduleSegmentStatusInput } from '@prism/types';
+import type { CreateEventEodReplyInput, CreateEventEodReportInput, CreateEventHandoffInput, CreateEventScheduleDayInput, CreateEventScheduleSegmentInput, PrismCoordinatorEventSchedule, PrismEventEodReport, PrismEventHandoff, PrismEventRunSheetResult, PrismEventSchedule, PrismEventScheduleSegment, UpdateEventScheduleSegmentStatusInput } from '@prism/types';
 import { eventApi, eventApiRequest } from '@/lib/prism-api';
 import { startEventDaySchema, type PrismEvent, type StartEventDayResult } from '@prism/types';
 
@@ -6,6 +6,8 @@ export const liveOpsScheduleRepository = {
   getEvent(eventId: string) { return eventApiRequest<PrismEvent>(`/api/events/${eventId}`); },
   startEventDay(eventId: string) { return eventApiRequest<StartEventDayResult>(`/api/events/${eventId}/start-event-day`, { method: 'POST', body: startEventDaySchema.parse({}) }); },
   getSchedule(eventId: string): Promise<PrismEventSchedule> { return eventApi.liveOps.schedule(eventId); },
+  /** The published schedule and event status for a coordinator assigned to the event (the PMCM event read is refused to them). */
+  getCoordinatorSchedule(eventId: string): Promise<PrismCoordinatorEventSchedule> { return eventApi.coordinator.eventSchedule(eventId); },
   createDay(eventId: string, input: CreateEventScheduleDayInput) { return eventApi.liveOps.createScheduleDay(eventId, input); },
   createSegment(eventId: string, dayId: string, input: CreateEventScheduleSegmentInput): Promise<PrismEventScheduleSegment> { return eventApi.liveOps.createScheduleSegment(eventId, dayId, input); },
   updateSegmentStatus(eventId: string, segmentId: string, input: UpdateEventScheduleSegmentStatusInput) { return eventApi.liveOps.updateScheduleSegmentStatus(eventId, segmentId, input); },
