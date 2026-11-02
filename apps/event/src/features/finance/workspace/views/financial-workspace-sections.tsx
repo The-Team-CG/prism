@@ -1,4 +1,5 @@
 import { DatePicker } from "@prism/ui/components/date-picker";
+import { formatPortalDate } from "@prism/ui/format-date";
 import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Download, MailCheck, ReceiptText, Send, WalletCards, X } from "lucide-react";
 
 import type { MarkPaymentInput, PrismBillingStatement, PrismEvent, PrismInquiry, PrismNotificationLog, PrismPaymentMilestone } from "@prism/types";
@@ -6,7 +7,7 @@ import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { label, money } from "@/features/pmcm-kit";
-import { countNoun, isPaymentOverdue, paymentHistoryLabel } from "../model/finance-workspace-rules";
+import { countNoun, paymentHistoryLabel, paymentOverdueDays, sortPaymentsByDueDate } from "../model/finance-workspace-rules";
 import type { RecordPaymentInput } from "../model/finance-workspace-types";
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -134,7 +135,7 @@ export function BillingStatementCard({
           {statement?.number ?? "Awaiting billing source"}
         </h3>
         {statement ? <StatusBadge status={statement.status} label={label(statement.status)} className="mt-2" /> : null}
-        {statement && statement.storageState !== "stored" ? <p className="mt-2 text-xs text-attention">PDF storage is pending W10 provider configuration; the statement metadata remains available.</p> : null}
+        {statement && !statementPdfReady(statement, billingStatementHref) ? <p className="mt-2 text-xs text-muted-foreground">The PDF isn&apos;t ready yet. The details below are on record.</p> : null}
       </CardHeader>
       {statement ? (
         <BillingStatementBody
@@ -158,6 +159,10 @@ export function BillingStatementCard({
   );
 }
 
+function statementPdfReady(statement: PrismBillingStatement, billingStatementHref: string | undefined) {
+  return statement.storageState === "stored" && Boolean(billingStatementHref);
+}
+
 function BillingStatementBody({
   event,
   inquiry,
@@ -177,7 +182,7 @@ function BillingStatementBody({
     { label: "Client", value: statement.clientName || event.clientName },
     { label: "Contact", value: statement.clientContact || inquiry?.email || "—" },
     { label: "Event", value: statement.eventName || event.eventName },
-    { label: "Date", value: statement.eventDate || event.eventDate },
+    { label: "Date", value: formatPortalDate(statement.eventDate || event.eventDate) },
   ];
   return (
     <CardBody className="space-y-4">
@@ -216,15 +221,19 @@ function BillingStatementBody({
         </div>
       </div>
       <div className="flex flex-wrap gap-2 pt-1">
-        <a
-          href={billingStatementHref}
-          aria-disabled={!billingStatementHref}
-          tabIndex={billingStatementHref ? 0 : -1}
-          target="_blank"
-          className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-bold text-foreground transition hover:bg-muted"
-        >
-          <Download className="size-4" /> Download PDF
-        </a>
+        {statementPdfReady(statement, billingStatementHref) ? (
+          <a
+            href={billingStatementHref}
+            target="_blank"
+            className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-bold text-foreground transition hover:bg-muted"
+          >
+            <Download className="size-4" /> Download PDF
+          </a>
+        ) : (
+          <Button variant="outline" disabled className="rounded-xl font-bold" title="The PDF is not available yet">
+            <Download className="size-4" /> Download PDF
+          </Button>
+        )}
         <Button
           disabled={busy}
           onClick={() => onSendBilling(statement.id)}
@@ -258,7 +267,7 @@ export function PaymentTracker({
         {payments.length === 0 ? (
           <EmptyState icon={WalletCards} title="No milestones yet" description="Milestones appear after the billing statement is posted." />
         ) : (
-          payments.map((payment) => (
+          sortPaymentsByDueDate(payments).map((payment) => (
             <PaymentMilestoneCard key={payment.id} payment={payment} busy={busy} onRecord={onRecord} onMarkPayment={onMarkPayment} />
           ))
         )}
@@ -278,20 +287,24 @@ function PaymentMilestoneCard({
   onRecord: (payment: PrismPaymentMilestone) => void;
   onMarkPayment: (milestoneId: string, input: MarkPaymentInput) => Promise<void>;
 }) {
-  const overdue = isPaymentOverdue(payment.status, payment.dueDate);
+  const overdueDays = paymentOverdueDays(payment.status, payment.dueDate);
+  const overdue = overdueDays > 0;
   return (
-    <div className="rounded-xl border border-border bg-muted/30 p-4">
+    <div className={`rounded-xl border p-4 ${overdue ? "border-destructive/30 bg-destructive/5" : "border-border bg-muted/30"}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-bold text-foreground">{payment.label} ({payment.percentage}%)</p>
           <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <CalendarDays className="size-3" /> Due {payment.dueDate}
+            <CalendarDays className="size-3" /> Due {formatPortalDate(payment.dueDate)}
           </div>
         </div>
-        <StatusBadge
-          status={overdue ? "open" : payment.status}
-          label={overdue ? "Overdue" : label(payment.status)}
-        />
+        {overdue ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-bold text-destructive">
+            <AlertTriangle className="size-3" /> Overdue by {countNoun(overdueDays, "day")}
+          </span>
+        ) : (
+          <StatusBadge status={payment.status} label={label(payment.status)} />
+        )}
       </div>
       <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
         {[
@@ -311,7 +324,7 @@ function PaymentMilestoneCard({
             <div key={rec.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
               <span className="font-bold text-foreground">{money.format(rec.amountReceived)}</span>
               <span className="flex items-center gap-1 text-muted-foreground">
-                <Clock3 className="size-3" /> {rec.paymentDate} — {rec.paymentMethod}
+                <Clock3 className="size-3" /> {formatPortalDate(rec.paymentDate)} — {rec.paymentMethod}
                 {rec.referenceNumber ? ` — ${rec.referenceNumber}` : ""}
               </span>
             </div>
@@ -324,7 +337,7 @@ function PaymentMilestoneCard({
           size="sm"
           disabled={busy || payment.status === "paid"}
           onClick={() => onRecord(payment)}
-          variant="outline"
+          variant={overdue ? "default" : "outline"}
           className="rounded-lg font-bold"
         >
           <WalletCards className="size-3" /> Record payment

@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { PrismBillingStatement } from "@prism/types";
 import { BillingSourcePanel } from "./billing-source-panel";
 
 afterEach(cleanup);
@@ -46,5 +47,29 @@ describe("BillingSourcePanel", () => {
       lineItems: [{ label: "Approved event package", amount: 100000 }],
     })));
     expect(amount.value).toBe("100000");
+  });
+
+  it("tells PMCM a statement was issued without a source instead of asking them to create one first", () => {
+    const issued: PrismBillingStatement = {
+      id: "bill_1", eventId: "evt_1", number: "BS-2026-0001", clientName: "Ana", clientContact: "ana@example.test",
+      eventName: "Gala", lineItems: [], paymentSchedule: [], paymentMethods: [], totalAmount: 520000,
+      pdfUrl: "", status: "issued", generatedAt: "2026-05-01T00:00:00.000Z",
+    };
+    render(
+      <BillingSourcePanel
+        eventName="Gala"
+        billingSources={[]}
+        statements={[issued]}
+        proposalDocuments={[]}
+        busy={false}
+        onCreate={vi.fn()}
+        onApprove={vi.fn()}
+        onGenerate={vi.fn()}
+      />,
+    );
+
+    const sources = screen.getByRole("list", { name: "Billing sources" }).textContent ?? "";
+    expect(sources).toContain("BS-2026-0001 was issued without a linked billing source");
+    expect(sources).not.toContain("Create one from the issued proposal");
   });
 });

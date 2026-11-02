@@ -19,7 +19,13 @@ import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { dateKey } from "@/features/pmcm-kit";
-import { coordinatorSkillFilterOptions, isCoordinatorAssignmentActive, isOperatorEligibleAssignment } from "../model/coordinators-desk-rules";
+import {
+  activeAssignmentForRole,
+  coordinatorSkillFilterOptions,
+  isCoordinatorAssignmentActive,
+  isOperatorEligibleAssignment,
+  otherActiveRoleAssignment,
+} from "../model/coordinators-desk-rules";
 import { PendingAcknowledgmentsPanel } from "./coordinator-acknowledgment-panel";
 import { CoordinatorAvailabilityCard } from "./coordinator-availability-card";
 import { CoordinatorReliabilityHistory } from "./coordinator-reliability-history";
@@ -240,9 +246,7 @@ export function CoordinatorAssignmentDesk({
                       <div className="grid gap-3 lg:grid-cols-2">
                         {roleCoords.map((coord) => {
                           const conflict = conflictFor(coord.id);
-                          const assignedHere = eventAssignments.some(
-                            (a) => a.coordinatorId === coord.id && canonicalCoordinatorRole(a.role) === role,
-                          );
+                          const assignedHere = Boolean(activeAssignmentForRole(eventAssignments, coord.id, role));
                           return (
                             <div key={`${role}-${coord.id}`} role="group" aria-label={`${role}: ${coord.name}`} className="rounded-2xl border border-border bg-muted/30 p-4">
                               <div className="flex items-start gap-3">
@@ -280,9 +284,13 @@ export function CoordinatorAssignmentDesk({
                                     {assignedHere ? "Assigned" : conflict ? "Review conflict" : "Quick assign"}
                                   </Button>
                                   {(() => {
-                                    const asg = eventAssignments.find((a) => a.coordinatorId === coord.id);
-                                    if (!asg || (asg.status !== "pending_acknowledgement" && asg.status !== "acknowledged")) return null;
-                                    const isPending = asg.status === "pending_acknowledgement";
+                                    const holding = activeAssignmentForRole(eventAssignments, coord.id, role);
+                                    if (!holding) {
+                                      const other = otherActiveRoleAssignment(eventAssignments, coord.id, role);
+                                      return other ? <p className="mt-2 text-xs text-muted-foreground">Assigned as {canonicalCoordinatorRole(other.role) ?? other.role}</p> : null;
+                                    }
+                                    if (holding.status !== "pending_acknowledgement" && holding.status !== "acknowledged") return null;
+                                    const isPending = holding.status === "pending_acknowledgement";
                                     return (
                                       <p className={`mt-2 inline-flex items-center gap-1.5 text-xs font-semibold ${isPending ? "text-attention" : "text-success"}`}>
                                         <span aria-hidden className="size-1.5 rounded-full bg-current" />

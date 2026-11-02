@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CalendarDays,
   CheckCircle2,
   ClipboardCheck,
 } from "lucide-react";
@@ -49,7 +50,7 @@ export function EventTasksWorkspace({
   onNavigateSection: (section: DashboardSection) => void;
   onNavigateEventTab: (tab: DetailTab) => void;
 }) {
-  const tasks = [
+  const globalTasks = [
     {
       id: "inquiries",
       label: "Review client inquiries",
@@ -64,35 +65,41 @@ export function EventTasksWorkspace({
       count: pendingApprovals.length,
       action: () => onNavigateSection("clients"),
     },
-    {
-      id: "floorplans",
-      label: "Check floorplan drafts",
-      detail: selectedEvent ? `${draftsCount} draft(s) for ${selectedEvent.eventName}.` : "Select an event workspace.",
-      count: draftsCount,
-      action: () => onNavigateEventTab("floorplans"),
-    },
-    {
-      id: "suppliers",
-      label: "Review supplier coverage",
-      detail: selectedEvent ? `${quoteCount} supplier quote(s) linked to the event.` : "Select an event workspace.",
-      count: quoteCount,
-      action: () => onNavigateEventTab("suppliers"),
-    },
-    {
-      id: "billing",
-      label: "Check billing milestones",
-      detail: selectedEvent ? `${paymentCount} payment milestone(s) to monitor.` : "Select an event workspace.",
-      count: paymentCount,
-      action: () => onNavigateEventTab("billing"),
-    },
-    {
-      id: "closure",
-      label: "Resolve closeout gates",
-      detail: selectedEvent ? `${openCheckCount} open closeout check(s).` : "Select an event workspace.",
-      count: openCheckCount,
-      action: () => onNavigateEventTab("closure"),
-    },
   ];
+  // Event work only exists for a selected event, so its rows are left out until one is chosen.
+  const eventTasks = selectedEvent
+    ? [
+        {
+          id: "floorplans",
+          label: "Check floorplan drafts",
+          detail: `${draftsCount} draft(s) for ${selectedEvent.eventName}.`,
+          count: draftsCount,
+          action: () => onNavigateEventTab("floorplans"),
+        },
+        {
+          id: "suppliers",
+          label: "Review supplier coverage",
+          detail: `${quoteCount} supplier quote(s) linked to the event.`,
+          count: quoteCount,
+          action: () => onNavigateEventTab("suppliers"),
+        },
+        {
+          id: "billing",
+          label: "Check billing milestones",
+          detail: `${paymentCount} payment milestone(s) to monitor.`,
+          count: paymentCount,
+          action: () => onNavigateEventTab("billing"),
+        },
+        {
+          id: "closure",
+          label: "Resolve closeout gates",
+          detail: `${openCheckCount} open closeout check(s).`,
+          count: openCheckCount,
+          action: () => onNavigateEventTab("closure"),
+        },
+      ]
+    : [];
+  const tasks = [...globalTasks, ...eventTasks];
   const nextActions = defenseReadiness?.nextActions ?? [];
   const actionCenter = selectEventActionCenter(commandInbox, defenseReadiness);
 
@@ -135,7 +142,9 @@ export function EventTasksWorkspace({
             <h2 className="text-sm font-black text-foreground">Event next actions</h2>
           </CardHeader>
           <CardBody className="space-y-3">
-            {nextActions.length ? nextActions.slice(0, 5).map((action) => (
+            {!selectedEvent ? (
+              <EmptyState icon={CalendarDays} title="Select an event" description="Open an event to see its readiness actions here." />
+            ) : nextActions.length ? nextActions.slice(0, 5).map((action) => (
               <div key={action.key} className="rounded-md border border-border bg-muted/20 px-3 py-2">
                 <p className="text-xs font-black text-foreground">{action.label}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{action.detail}</p>

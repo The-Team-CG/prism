@@ -248,7 +248,7 @@ function createPmcmReadModelService() {
       ]),
     },
     opsComplianceRule: { findMany: vi.fn(async () => []) },
-    opsComplianceCheck: { findMany: vi.fn(async () => []) },
+    opsComplianceCheck: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
     opsBillingSource: { findMany: vi.fn(async () => [] as Array<{ id: string; eventId: string }>) },
     opsBillingStatement: { findMany: vi.fn(async () => [] as Array<{ id: string; eventId: string }>) },
     opsBillingCorrection: { findMany: vi.fn(async () => [] as Array<{ id: string; eventId: string }>) },
@@ -477,6 +477,32 @@ describe('EventReadModelsService', () => {
     });
     expect(prisma.opsOcularVisitRequest.findUnique).toHaveBeenCalledWith({ where: { eventId: 'evt_visible' } });
   });
+
+  it('pmcmEventWorkspaceShowsOnlyTheNewestCheckPerComplianceRule', async () => {
+    const { service, policy, prisma } = createPmcmReadModelService();
+    const check = (id: string, conditionKey: string, status: string, createdAt: string) => ({
+      id, eventId: 'evt_visible', runId: `run_${createdAt}`, ruleId: null, conditionKey, title: conditionKey,
+      layer: 'Must-Fix', severity: 'must_fix', phase: 'planning', status, note: '', evaluationStatus: 'not_satisfied',
+      evidence: [], definitionStatus: 'DERIVED', remediation: '', createdAt: new Date(createdAt),
+    });
+    // Three runs re-evaluated the same two rules. The query returns the newest rows first.
+    prisma.opsComplianceCheck.findMany.mockResolvedValue([
+      check('chk_r3_permit', 'permit', 'open', '2026-10-30T10:00:00.000Z'),
+      check('chk_r3_insurance', 'insurance', 'resolved', '2026-10-30T10:00:00.000Z'),
+      check('chk_r2_permit', 'permit', 'open', '2026-10-29T10:00:00.000Z'),
+      check('chk_r1_permit', 'permit', 'open', '2026-10-28T10:00:00.000Z'),
+      check('chk_r1_insurance', 'insurance', 'open', '2026-10-28T10:00:00.000Z'),
+    ]);
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
+
+    const workspace = await service.pmcmEventWorkspace(actor, 'evt_visible', createPassthroughPmcmMappers() as never);
+
+    expect(workspace.complianceChecks).toEqual([
+      expect.objectContaining({ id: 'chk_r3_permit', status: 'open' }),
+      expect.objectContaining({ id: 'chk_r3_insurance', status: 'resolved' }),
+    ]);
+  });
+
   it('filters supplier workspace records through event visibility policy', async () => {
     const { service, policy, prisma } = createSupplierWorkspaceService();
     const actor = policy.resolveActor({
@@ -664,7 +690,7 @@ describe('EventReadModelsService', () => {
            floorPlanDrafts: 501,
            approvedFloorplan: 1,
            quoteRequests: 501,
-           selectedSupplierQuotes: 500,
+           selectedSupplierRequests: 500,
            eventDayTasks: 501,
            urgentIssues: 501,
            billingStatements: 501,

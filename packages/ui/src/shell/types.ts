@@ -80,7 +80,10 @@ export interface PrismAppShellProps {
   eyebrow?: string;
   title: string;
   description?: string;
-  activeItemId: string;
+  /** The sidebar item that owns the page. Omit it when no sidebar item does; nothing is highlighted then. */
+  activeItemId?: string;
+  /** Breadcrumb labels after the role. Defaults to the trail of the active sidebar item. */
+  breadcrumb?: string[];
   navItems: PrismNavItem[];
   onNavSelect?: (id: string) => void;
   primaryNavItems?: PrismPrimaryNavItem[];
