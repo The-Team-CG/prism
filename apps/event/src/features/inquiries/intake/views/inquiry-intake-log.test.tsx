@@ -41,20 +41,24 @@ function renderLog(onDecline = vi.fn(async () => {})) {
 }
 
 describe("InquiryIntakeLog decisions", () => {
-  it("confirms a decline only after a reason is chosen, and then sends it", async () => {
+  it.each([
+    { label: "with no reason given", chosen: null, sent: undefined },
+    { label: "with a chosen reason", chosen: "Budget Too Low", sent: "Budget Too Low" },
+  ])("confirms a decline $label", async ({ chosen, sent }) => {
     const onDecline = renderLog();
     fireEvent.click(screen.getByRole("button", { name: /Ayala Summit/ }));
     fireEvent.click(screen.getByRole("button", { name: "Decline" }));
 
     const dialog = screen.getByRole("dialog", { name: "Decline inquiry from Ana Cruz?" });
     const confirm = within(dialog).getByRole("button", { name: "Decline inquiry" });
-    expect((confirm as HTMLButtonElement).disabled).toBe(true);
-
-    fireEvent.change(within(dialog).getByLabelText(/^Decline reason/), { target: { value: "Budget Too Low" } });
+    const reason = within(dialog).getByLabelText(/^Decline reason/) as HTMLSelectElement;
+    expect(reason.value).toBe("");
     expect((confirm as HTMLButtonElement).disabled).toBe(false);
+
+    if (chosen) fireEvent.change(reason, { target: { value: chosen } });
     fireEvent.click(confirm);
 
-    await waitFor(() => expect(onDecline).toHaveBeenCalledWith(expect.objectContaining({ id: "inq_1" }), "Budget Too Low"));
+    await waitFor(() => expect(onDecline).toHaveBeenCalledWith(expect.objectContaining({ id: "inq_1" }), sent));
   });
 
   it("names the event date as a calendar date and shows a status update only when one exists", () => {

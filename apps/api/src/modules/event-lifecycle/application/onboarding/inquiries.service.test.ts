@@ -294,6 +294,19 @@ describe('InquiriesService', () => {
     });
   });
 
+  it.each([
+    { label: 'without a reason', declineReason: undefined, auditAction: 'Declined inquiry for Ana Reyes with no reason given' },
+    { label: 'with a reason', declineReason: 'Budget Too Low', auditAction: 'Declined inquiry for Ana Reyes: Budget Too Low' },
+  ])('declines an inquiry $label and audits the outcome', async ({ declineReason, auditAction }) => {
+    const { service, records, audits } = createService();
+
+    await expect(service.updateInquiryStatus('inq_existing', { status: 'declined', declineReason }, pmcmActor))
+      .resolves.toMatchObject({ status: 'declined' });
+
+    expect(records[0]).toMatchObject({ status: 'declined', declineReason: declineReason ?? null });
+    expect(audits.map(([input]) => input)).toContainEqual(expect.objectContaining({ action: auditAction }));
+  });
+
   it('records the verified actor for manual conforme reminders', async () => {
     const { service, audits } = createService([inquiry({
       status: 'accepted',

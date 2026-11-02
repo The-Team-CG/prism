@@ -415,7 +415,7 @@ export function useEventDashboardShellViewModel({
     acceptInquiry: (inquiry: PrismInquiry) => run("accept inquiry", () => commands.acceptInquiry(inquiry.id)),
     startEventDay: () => selectedEvent ? run("start event day", () => commands.startEventDay(selectedEvent.id)) : Promise.resolve(false),
     pendInquiry: (inquiry: PrismInquiry) => run("pend inquiry", () => commands.pendInquiry(inquiry.id)),
-    declineInquiry: (inquiry: PrismInquiry, reason: string) => run("decline inquiry", () => commands.declineInquiry(inquiry.id, reason)),
+    declineInquiry: (inquiry: PrismInquiry, reason?: string) => run("decline inquiry", () => commands.declineInquiry(inquiry.id, reason)),
     mergeInquiry: (primary: PrismInquiry, input: { sourceInquiryId: string; reason: string }) =>
       run("merge inquiry", () => commands.mergeInquiry(primary.id, input)),
     logInquiryOnBehalf: (input: Parameters<typeof commands.logInquiryOnBehalf>[0]) => session ? run("log inquiry on behalf", () => commands.logInquiryOnBehalf(input, session)) : Promise.resolve(),
