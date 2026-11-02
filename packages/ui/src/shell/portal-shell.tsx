@@ -6,6 +6,7 @@ import type { PrismAppShellProps, PrismCommandGroup, PrismNavItem, PrismPageActi
 import { PrismBrandLogo } from "../brand";
 import { cn } from "../utils";
 import { portalHref } from "../portal-path";
+import { substringCommandFilter } from "./command-filter";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -287,22 +288,33 @@ function PageSearch({
   actions,
   actionsLabel,
   groups = [],
+  groupsLoading = false,
   emptyLabel = "Nothing matches.",
   placeholder,
+  onOpen,
   onSelect,
 }: {
   navItems: PrismNavItem[];
   actions: NonNullable<PrismAppShellProps["commandActions"]>;
   actionsLabel?: string;
   groups?: PrismCommandGroup[];
+  groupsLoading?: boolean;
   emptyLabel?: string;
   placeholder: string;
+  onOpen?: () => void;
   onSelect: (id: string) => void;
 }) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const searching = query.trim().length > 0;
   const visibleGroups = groups.filter((group) => searching || !group.whenSearching);
+  const onOpenRef = React.useRef(onOpen);
+  React.useEffect(() => {
+    onOpenRef.current = onOpen;
+  });
+  React.useEffect(() => {
+    if (open) onOpenRef.current?.();
+  }, [open]);
   React.useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
@@ -341,10 +353,11 @@ function PageSearch({
         }}
         title="Go to"
         description="Search events, clients, inquiries, pages and actions"
+        filter={substringCommandFilter}
       >
         <CommandInput placeholder={placeholder} value={query} onValueChange={setQuery} />
         <CommandList>
-          <CommandEmpty>{emptyLabel}</CommandEmpty>
+          {groupsLoading ? <p role="status" className="px-2 py-6 text-center text-sm text-muted-foreground">Loading events and clients…</p> : <CommandEmpty>{emptyLabel}</CommandEmpty>}
           {groupNav(navItems).map((group) => (
             <CommandGroup key={group.label} heading={group.label}>
               {group.items.flatMap((item) => [
@@ -403,6 +416,8 @@ export function PrismPortalShell({
   commandSectionLabel,
   commandGroups,
   commandEmptyLabel,
+  commandGroupsLoading,
+  onCommandPaletteOpen,
   headerActions,
   alwaysShowHeaderActions = false,
   sidebarContext,
@@ -465,8 +480,10 @@ export function PrismPortalShell({
                   actions={commandActions}
                   actionsLabel={commandSectionLabel}
                   groups={commandGroups}
+                  groupsLoading={commandGroupsLoading}
                   emptyLabel={commandEmptyLabel}
                   placeholder={searchPlaceholder}
+                  onOpen={onCommandPaletteOpen}
                   onSelect={select}
                 />
               ) : null}
