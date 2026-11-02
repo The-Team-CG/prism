@@ -10,6 +10,7 @@ import { Button } from "@/app/components/ui/button";
 import { roleLabel } from "@/features/pmcm-kit";
 import { CoordinatorRegistrationDesk } from "@/features/coordinators/registration";
 import { optionalNavBadge } from "../model/coordinator-view-copy";
+import { buildCoordinatorCommandActions, buildCoordinatorRecordGroups } from "../model/coordinator-command-index";
 import {
   COORDINATOR_HOME_PATH,
   COORDINATOR_VIEW_LABELS,
@@ -220,6 +221,12 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
       user={{ name: session.name, detail: roleLabel(session.role), initials: session.name.slice(0, 2).toUpperCase() }}
       onSignOut={onSignOut}
       searchPlaceholder="Search tasks and issues..."
+      commandSectionLabel="Actions"
+      commandActions={buildCoordinatorCommandActions(
+        { canMark: vm.attendanceForm.canMark, hasAssignment: vm.attendanceForm.hasAssignment, windowOpen: vm.attendanceForm.windowOpen },
+        navigateTo,
+      )}
+      commandGroups={buildCoordinatorRecordGroups({ tasks: vm.roleView?.tasks ?? [], issues: vm.roleView?.urgentIssues ?? [] }, navigateTo)}
       sidebarContext={<CoordinatorEventSwitcher events={state.events} assignments={vm.assignments} selectedEventId={vm.event?.id} onSelect={handleEvent} />}
     >
       <div className="space-y-5">

@@ -42,7 +42,15 @@ export interface PrismPageAction {
   description?: string;
   icon?: LucideIcon;
   status?: string;
+  disabled?: boolean;
   onSelect?: () => void;
+}
+
+/** A labelled section of the Ctrl K palette. `whenSearching` groups only appear once the person has typed. */
+export interface PrismCommandGroup {
+  heading: string;
+  actions: PrismPageAction[];
+  whenSearching?: boolean;
 }
 
 export interface PrismMobileAction {
@@ -95,6 +103,10 @@ export interface PrismAppShellProps {
   showTopBarSearch?: boolean;
   commandActions?: PrismPageAction[];
   commandSectionLabel?: string;
+  /** Extra palette sections, such as records found by name. Rendered after the page navigation. */
+  commandGroups?: PrismCommandGroup[];
+  /** Shown when nothing in the palette matches the typed text. */
+  commandEmptyLabel?: string;
   headerActions?: React.ReactNode;
   /** Keep headerActions in the top bar on small screens too. Off by default, so they stay out of the way on mobile. */
   alwaysShowHeaderActions?: boolean;
