@@ -11,8 +11,14 @@ import type {
   PrismEvent,
   PrismEventInsight,
 } from "@prism/types";
-import { cx, label } from "@/features/pmcm-kit";
-import { phase4ArchiveStatus, phase4StatusTone } from "../model/phase4-workspace-rules";
+import { cx } from "@/features/pmcm-kit";
+import {
+  closeGateDestination,
+  phase4ArchiveStatus,
+  phase4StatusLabel,
+  phase4StatusTone,
+  type CloseGateDestination,
+} from "../model/phase4-workspace-rules";
 
 const money = new Intl.NumberFormat("en-PH", {
   style: "currency",
@@ -24,7 +30,7 @@ export { money };
 
 function Phase4Status({ value, label: text }: { value: string; label: string }) {
   return (
-    <span className={cx("inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold capitalize", phase4StatusTone(value))}>
+    <span className={cx("inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold", phase4StatusTone(value))}>
       <span aria-hidden className="size-1.5 rounded-full bg-current" />
       {text}
     </span>
@@ -188,7 +194,7 @@ function Phase4ComplianceCheckRow({
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
             {check.title}
-            <Phase4Status value={check.status} label={label(check.status)} />
+            <Phase4Status value={check.status} label={phase4StatusLabel(check.status)} />
           </p>
           {check.note ? <p className="truncate text-xs text-muted-foreground" title={check.note}>{check.note}</p> : null}
         </div>
@@ -249,6 +255,7 @@ export function Phase4CloseGatesSection({
   onOverrideReason,
   onRefresh,
   onArchive,
+  onOpenDestination,
 }: {
   closeGates: PrismCloseGates | null;
   overrideReason: string;
@@ -256,6 +263,7 @@ export function Phase4CloseGatesSection({
   onOverrideReason: (value: string) => void;
   onRefresh: () => void;
   onArchive: () => void;
+  onOpenDestination: (destination: CloseGateDestination) => void;
 }) {
   return (
     <div className="rounded-lg border border-border bg-card p-5">
@@ -270,15 +278,25 @@ export function Phase4CloseGatesSection({
         <button disabled={busy} onClick={onRefresh} className="h-9 rounded-md border border-border bg-white px-3 text-xs font-black disabled:opacity-60">Refresh</button>
       </div>
       <div className="mt-4 space-y-2">
-        {closeGates?.gates.map((gate) => (
-          <div key={gate.key} className="flex items-start gap-3 rounded-md border border-border bg-background p-3 text-sm">
-            {gate.passed ? <BadgeCheck className="mt-0.5 size-4 text-success" /> : <XCircle className="mt-0.5 size-4 text-danger" />}
-            <div>
-              <p className="font-black">{gate.label}</p>
-              <p className="mt-1 text-muted-foreground">{gate.detail}</p>
+        {closeGates?.gates.map((gate) => {
+          const destination = closeGateDestination(gate.key);
+          return (
+            <div key={gate.key} className="flex flex-wrap items-start justify-between gap-3 rounded-md border border-border bg-background p-3 text-sm">
+              <div className="flex min-w-0 items-start gap-3">
+                {gate.passed ? <BadgeCheck className="mt-0.5 size-4 text-success" /> : <XCircle className="mt-0.5 size-4 text-danger" />}
+                <div>
+                  <p className="font-black">{gate.label}</p>
+                  <p className="mt-1 text-muted-foreground">{gate.detail}</p>
+                </div>
+              </div>
+              {!gate.passed && destination ? (
+                <button type="button" onClick={() => onOpenDestination(destination)} className="h-8 shrink-0 rounded-md border border-border bg-white px-3 text-xs font-semibold text-foreground">
+                  {destination.label}
+                </button>
+              ) : null}
             </div>
-          </div>
-        ))}
+          );
+        })}
         {!closeGates && (
           <div className="rounded-md border border-dashed border-border bg-muted p-5 text-sm text-muted-foreground">
             Loading close-gate status for this selected event.

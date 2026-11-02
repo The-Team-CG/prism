@@ -6,6 +6,7 @@ import {
   canViewClientPreference,
   floorplanDraftActions,
   groupFloorplanDrafts,
+  isOcularVisitCleared,
   selectActiveDraft,
 } from "./floorplan-workspace-rules";
 
@@ -97,5 +98,13 @@ describe("floorplan-workspace-rules", () => {
     expect(floorplanDraftActions({ sourceType: "client_preference", status: "in_review", createdByRole: "client" }, null, [])).toMatchObject({ canEdit: false, canSubmit: false, canApprove: false });
     expect(floorplanDraftActions({ sourceType: "template", status: "revision_requested" }, null, [])).toMatchObject({ canEdit: true, canSubmit: true, canApprove: false });
     expect(floorplanDraftActions({ sourceType: "template", status: "in_review" }, null, [])).toMatchObject({ canSubmit: false, canApprove: true });
+  });
+
+  it("treats only a completed or waived ocular visit as clearing the official floor plan", () => {
+    expect(isOcularVisitCleared("completed")).toBe(true);
+    expect(isOcularVisitCleared("waived")).toBe(true);
+    for (const status of ["requested", "scheduled", null, undefined]) {
+      expect(isOcularVisitCleared(status)).toBe(false);
+    }
   });
 });

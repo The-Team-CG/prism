@@ -56,12 +56,17 @@ function problemFromRecord(status: number, body: unknown): PrismApiProblem | nul
   };
 }
 
+/** A framework or proxy error page (for example Nest's "Cannot GET ...") is markup, never a message for a person. */
+function isMarkupBody(text: string): boolean {
+  return /^\s*<(!doctype|html|head|body|\w)/i.test(text);
+}
+
 function fallbackProblemMessage(status: number, body: unknown): string {
   if (isRecord(body)) {
     const message = readOptionalString(body, "message");
     if (message) return message;
   }
-  if (typeof body === "string") return body;
+  if (typeof body === "string" && body.trim() && !isMarkupBody(body)) return body;
   return `P.R.I.S.M API request failed: ${status}`;
 }
 
