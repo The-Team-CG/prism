@@ -200,6 +200,10 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
     vm.selectEvent(eventId);
     navigateTo(activeView, eventId);
   }
+  useEffect(() => {
+    document.title = `${COORDINATOR_VIEW_LABELS[activeView]} · P.R.I.S.M`;
+  }, [activeView]);
+
   function dismissOutsideNotice() {
     setOutsideNotice(false);
     window.history.replaceState(null, "", `${window.location.pathname}${coordinatorViewSearch(activeView, vm.event?.id)}`);

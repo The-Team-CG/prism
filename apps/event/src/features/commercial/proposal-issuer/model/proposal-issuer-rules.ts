@@ -26,6 +26,12 @@ export function formatPeso(amount: number) {
   return new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(amount);
 }
 
+/** Reads a peso amount typed with or without the ₱ sign and thousands separators. Empty or non-numeric input is NaN. */
+export function parsePesoAmount(value: string): number {
+  const digits = value.replace(/[₱,s]/g, "");
+  return digits === "" ? Number.NaN : Number(digits);
+}
+
 type ProposalDraft = {
   budgetAmount: string;
   notes: string;
@@ -39,7 +45,7 @@ export function buildCostEstimateInput(draft: ProposalDraft) {
   return parseContract(
     createCostEstimateSchema,
     {
-      budgetAmount: Number(draft.budgetAmount),
+      budgetAmount: parsePesoAmount(draft.budgetAmount),
       notes: draft.notes,
       lines: draft.lines.map((line) => ({
         category: line.category,

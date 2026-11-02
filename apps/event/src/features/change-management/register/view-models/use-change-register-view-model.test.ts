@@ -1,7 +1,8 @@
 /** @vitest-environment jsdom */
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { PrismAddendum, RecordEventDecisionInput, PrismEventFreezeException } from "@prism/types";
+import type { PrismAddendum, PrismEventFreezeException } from "@prism/types";
+import type { RecordDecisionDraft } from "../model/change-register-rules";
 import { useChangeRegisterViewModel } from "./use-change-register-view-model";
 
 const { load, recordDecision, requestAddendumConforme, countersignAddendumConforme } = vi.hoisted(() => ({
@@ -33,10 +34,10 @@ function exception(overrides: Partial<PrismEventFreezeException>): PrismEventFre
   };
 }
 
-const cancellation: RecordEventDecisionInput = {
+const cancellation: RecordDecisionDraft = {
   decision: "cancelled",
   reason: "Client confirmed cancellation",
-  cancellationFeeAmount: 0,
+  cancellationFeePesos: "",
   depositTreatment: "retain",
   supplierImpact: "release_obligations",
   impactReviewAcknowledged: true,
@@ -85,11 +86,35 @@ describe("useChangeRegisterViewModel recordDecision", () => {
     expect(load.mock.calls.length).toBeGreaterThan(loadsBefore);
   });
 
+  it("sends the cancellation fee in centavos, from the peso amount typed", async () => {
+    recordDecision.mockResolvedValue({ id: "decision_2" });
+    const { result } = renderRegister(false, []);
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+
+    let saved = false;
+    await act(async () => { saved = await result.current.recordDecision({ ...cancellation, cancellationFeePesos: "₱12,500.50" }); });
+
+    expect(saved).toBe(true);
+    expect(recordDecision).toHaveBeenCalledWith("evt_1", expect.objectContaining({ cancellationFeeAmount: 1250050 }));
+  });
+
+  it("refuses a cancellation fee that is not an amount and sends nothing", async () => {
+    const { result } = renderRegister(false, []);
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+
+    let saved = true;
+    await act(async () => { saved = await result.current.recordDecision({ ...cancellation, cancellationFeePesos: "twelve" }); });
+
+    expect(saved).toBe(false);
+    expect(recordDecision).not.toHaveBeenCalled();
+    expect(result.current.error).toContain("cancellation fee");
+  });
+
   it("does not send a decision whose impact review was not confirmed", async () => {
     const { result } = renderRegister(false, []);
     await waitFor(() => expect(result.current.status).toBe("ready"));
     // A stale client can still send an unconfirmed review; the shared schema must stop it before the request.
-    const unconfirmed = { ...cancellation, impactReviewAcknowledged: false } as unknown as RecordEventDecisionInput;
+    const unconfirmed = { ...cancellation, impactReviewAcknowledged: false } as unknown as RecordDecisionDraft;
 
     let saved = true;
     await act(async () => { saved = await result.current.recordDecision(unconfirmed); });

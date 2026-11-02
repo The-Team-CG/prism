@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "P.R.I.S.M - Event-Day Command",
+  title: "Inbox · P.R.I.S.M",
   description:
     "Coordinator-facing event-day command portal for assignments, readiness, supplier status, and urgent issue handling.",
 };

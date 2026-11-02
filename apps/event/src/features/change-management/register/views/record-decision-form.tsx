@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import type { RecordEventDecisionInput, PrismEventFreezeException } from "@prism/types";
 import { DatePicker } from "@prism/ui/components/date-picker";
-import { canRecordDecision, depositTreatmentOptions, decisionOptions, supplierImpactOptions } from "../model/change-register-rules";
+import { canRecordDecision, depositTreatmentOptions, decisionOptions, supplierImpactOptions, type RecordDecisionDraft } from "../model/change-register-rules";
 
 type DecisionValue = RecordEventDecisionInput["decision"];
 
@@ -20,13 +20,13 @@ export function RecordDecisionForm({
   frozen: boolean;
   approvedExceptions: readonly PrismEventFreezeException[];
   busy: boolean;
-  onSubmit: (draft: RecordEventDecisionInput) => Promise<boolean>;
+  onSubmit: (draft: RecordDecisionDraft) => Promise<boolean>;
 }) {
   // No decision is preselected: a cancellation must be an explicit choice, never the default.
   const [decision, setDecision] = useState<DecisionValue | "">("");
   const [reason, setReason] = useState("");
   const [newEventDate, setNewEventDate] = useState("");
-  const [cancellationFeeAmount, setCancellationFeeAmount] = useState(0);
+  const [cancellationFeePesos, setCancellationFeePesos] = useState("");
   const [depositTreatment, setDepositTreatment] = useState<"retain" | "credit" | "waive">("retain");
   const [supplierImpact, setSupplierImpact] = useState<"release_obligations" | "preserve_obligations">("release_obligations");
   const [freezeExceptionId, setFreezeExceptionId] = useState("");
@@ -45,7 +45,7 @@ export function RecordDecisionForm({
       decision,
       reason,
       newEventDate: needsDate ? newEventDate : undefined,
-      cancellationFeeAmount,
+      cancellationFeePesos,
       depositTreatment,
       supplierImpact,
       freezeExceptionId: needsException ? freezeExceptionId : undefined,
@@ -55,7 +55,7 @@ export function RecordDecisionForm({
     if (saved) {
       setReason("");
       setNewEventDate("");
-      setCancellationFeeAmount(0);
+      setCancellationFeePesos("");
       setFreezeExceptionId("");
       setImpactReviewed(false);
       setIdempotencyKey(crypto.randomUUID());
@@ -109,8 +109,9 @@ export function RecordDecisionForm({
             </select>
           </label>
           <label className="block text-sm">
-            <span className="text-muted-foreground">Cancellation fee (minor units)</span>
-            <input type="number" min={0} step={1} value={cancellationFeeAmount} onChange={(event) => setCancellationFeeAmount(Number(event.target.value) || 0)} className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm" />
+            <span className="text-muted-foreground">Cancellation fee (PHP)</span>
+            <input inputMode="decimal" value={cancellationFeePesos} onChange={(event) => setCancellationFeePesos(event.target.value)} placeholder="0" className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
+            <span className="mt-1 block text-xs text-muted-foreground">Leave blank when no fee applies.</span>
           </label>
           <label className="block text-sm">
             <span className="text-muted-foreground">Deposit treatment</span>

@@ -35,6 +35,7 @@ export const logFormReferralSources = [
   "Other",
 ];
 
+// Channel and referral source start unset: a default would record a guess about how the client reached PMCM.
 export const initialLogForm = {
   clientName: "",
   companyName: "",
@@ -43,8 +44,8 @@ export const initialLogForm = {
   eventType: "",
   eventDate: "",
   clientType: "",
-  source: logFormReferralSources[0],
-  channel: logFormChannels[0],
+  source: "",
+  channel: "",
   referralDetails: "",
   message: "",
 };
@@ -98,18 +99,24 @@ export function inquiryMatchesIntakeFilters(
   return dateRangeMatches(inquiry.eventDate, filters.dateRange, now);
 }
 
+/** Labels of the required log-form fields that are still empty, in form order. Empty means Save is enabled. */
+export function inquiryLogMissingFields(form: InquiryLogForm): string[] {
+  const missing: Array<[string, boolean]> = [
+    ["Client name", !form.clientName.trim()],
+    ["Email", !form.email.trim()],
+    ["Event name", !form.eventName.trim()],
+    ["Event type", !form.eventType],
+    ["Event date", !form.eventDate],
+    ["Client type", !form.clientType],
+    ["Channel", !form.channel],
+    ["Referral source", !form.source],
+    ["Message", !form.message.trim()],
+  ];
+  return missing.filter(([, isMissing]) => isMissing).map(([name]) => name);
+}
+
 export function isInquiryLogFormReady(form: InquiryLogForm) {
-  return Boolean(
-    form.clientName.trim() &&
-      form.email.trim() &&
-      form.eventName.trim() &&
-      form.eventType &&
-      form.eventDate &&
-      form.clientType &&
-      form.source &&
-      form.channel &&
-      form.message.trim(),
-  );
+  return inquiryLogMissingFields(form).length === 0;
 }
 
 export function inquiryExtraDetailFields(inquiry: PrismInquiry) {

@@ -8,7 +8,6 @@ import { portalUrlsFromEnvironment } from "@/lib/portal-urls";
 import {
   AWAITING_REVIEW,
   compareIntakeInquiries,
-  declineReasons,
   initialLogForm,
   inquiryMatchesIntakeFilters,
   toLogInquiryInput,
@@ -52,7 +51,7 @@ export function InquiryIntakeLog({
   const [openedId, setOpenedId] = useState<string | null>(null);
   const opened = inquiries.find((inquiry) => inquiry.id === openedId);
   const [declining, setDeclining] = useState<PrismInquiry | null>(null);
-  const [declineReason, setDeclineReason] = useState(declineReasons[0]);
+  const [declineReason, setDeclineReason] = useState("");
   const [loggingOnBehalf, setLoggingOnBehalf] = useState(false);
   const [logForm, setLogForm] = useState(initialLogForm);
   const [logPhase, setLogPhase] = useState<"idle" | "submitting" | "error">("idle");
@@ -78,10 +77,10 @@ export function InquiryIntakeLog({
   }
 
   async function confirmDecline() {
-    if (!declining) return;
+    if (!declining || !declineReason) return;
     await onDecline(declining, declineReason);
     setDeclining(null);
-    setDeclineReason(declineReasons[0]);
+    setDeclineReason("");
   }
 
   function closeLogForm() {
@@ -132,7 +131,11 @@ export function InquiryIntakeLog({
           onClose={() => setOpenedId(null)}
           onAccept={() => onAccept(opened)}
           onPend={() => onPend(opened)}
-          onDecline={() => setDeclining(opened)}
+          onDecline={() => {
+            // The confirm dialog must not sit under the open drawer, where it would be inert to keyboard and screen readers.
+            setDeclining(opened);
+            setOpenedId(null);
+          }}
           allInquiries={inquiries}
           onMerge={async (primary, reason) => {
             await onMerge(primary, { sourceInquiryId: opened.id, reason });
@@ -146,7 +149,10 @@ export function InquiryIntakeLog({
           declineReason={declineReason}
           busy={busy}
           onReason={setDeclineReason}
-          onCancel={() => setDeclining(null)}
+          onCancel={() => {
+            setDeclining(null);
+            setDeclineReason("");
+          }}
           onConfirm={confirmDecline}
         />
       )}

@@ -58,7 +58,7 @@ function DecisionLogStatus({ vm }: { vm: DecisionLogViewModel }) {
 function DecisionKindFilter({ vm }: { vm: DecisionLogViewModel }) {
   return (
     <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">
-      Filter by kind
+      Type
       <select
         value={vm.kind ?? "all"}
         onChange={(event) => vm.setKind(event.target.value as PrismDecisionLogKind | "all")}

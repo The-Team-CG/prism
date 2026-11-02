@@ -56,7 +56,7 @@ export function EventSettingsWorkspace({
       {[
         { label: "Signed in as", value: session.name, detail: humanizeToken(session.role) },
         { label: "Default workspace", value: selectedEvent?.eventName ?? "No event selected", detail: selectedEvent?.clientName ?? "Pick an event from Events." },
-        { label: "Notifications", value: "Email + Viber", detail: "Production adapters are still gated by notification infrastructure." },
+        { label: "Notifications", value: "Email + Viber", detail: "Live sending isn't connected yet." },
       ].map((item) => (
         <Card key={item.label}>
           <CardBody>

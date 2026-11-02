@@ -110,6 +110,41 @@ describe("LiveOperationsWorkspace desk order", () => {
     expect(screen.getByRole("button", { name: "Close form" }).getAttribute("aria-expanded")).toBe("true");
     expect(taskForm.hidden).toBe(true);
   });
+
+  it("gives every visible form control in the live desk an accessible name", () => {
+    const noop = vi.fn(async () => {});
+    render(
+      <LiveOperationsWorkspace
+        event={{ id: "evt_1", eventName: "Gala", clientName: "Ana", eventDate: "2026-10-02" } as never}
+        liveOps={{
+          tasks: [], supplierStatuses: [], coordinatorAssignments: [], guestAttendanceCount: 0, guestCheckIns: [], eventDayLogs: [], urgentIssues: [],
+          schedule: { eventId: "evt_1", authored: true, days: [], serverTime: "2026-10-02T00:00:00.000Z" },
+        } as never}
+        statusFeed={null}
+        coordinators={[]}
+        busy={false}
+        onReload={noop}
+        onCreateTask={noop}
+        onUpdateTask={noop}
+        onEscalateTask={noop}
+        onCreateIssue={noop}
+        onUpdateIssue={noop}
+        onEscalateIssue={noop}
+        onUpdateCoordinatorAttendance={noop}
+        onReplaceCoordinator={noop}
+        onLoadCoordinatorSuggestions={vi.fn(async () => [])}
+        onVerifySupplierStatus={noop}
+        onDecideTaskReassignment={noop}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Log issue" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add task" }));
+
+    const visibleControls = Array.from(document.querySelectorAll("input, select, textarea")).filter((el) => !el.closest("[hidden]"));
+    expect(visibleControls.length).toBeGreaterThan(0);
+    const unnamed = visibleControls.filter((el) => !el.getAttribute("aria-label") && !el.getAttribute("aria-labelledby") && !(el as HTMLInputElement).labels?.length);
+    expect(unnamed.map((el) => el.outerHTML.slice(0, 120))).toEqual([]);
+  });
 });
 
 describe("LiveOperationsWorkspace after the event date", () => {
