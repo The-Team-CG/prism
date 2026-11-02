@@ -540,8 +540,8 @@ function InquiryDetailActions({
 }
 
 /**
- * Confirms a permanent decline. The API records one of the listed reasons, so the reason is chosen here
- * before the decline can be confirmed; nothing is sent until the PMCM user confirms.
+ * Confirms a permanent decline. The reason is optional: an empty choice sends the decline with no reason.
+ * Nothing is sent until the PMCM user confirms.
  */
 export function InquiryDeclineDialog({
   clientName,
@@ -565,19 +565,18 @@ export function InquiryDeclineDialog({
       <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
         <h3 id={titleId} className="text-base font-bold text-foreground">Decline inquiry from {clientName}?</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          A declined inquiry can&apos;t be reopened. Choose the reason to record.
+          A declined inquiry can&apos;t be reopened. The reason is optional and is kept on the inquiry and in the audit log.
         </p>
         <label htmlFor={reasonId} className="mt-4 block text-sm font-medium text-foreground">
-          Decline reason<RequiredMark />
+          Decline reason <span className="font-normal text-muted-foreground">(optional)</span>
         </label>
         <select
           id={reasonId}
-          aria-required="true"
           value={declineReason}
           onChange={(event) => onReason(event.target.value)}
           className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
         >
-          <option value="" disabled>Select a reason</option>
+          <option value="">No reason given</option>
           {declineReasons.map((reason) => <option key={reason} value={reason}>{reason}</option>)}
         </select>
         <div className="mt-5 flex justify-end gap-2">
@@ -585,7 +584,7 @@ export function InquiryDeclineDialog({
             Keep inquiry
           </Button>
           <Button
-            disabled={busy || !declineReason}
+            disabled={busy}
             onClick={onConfirm}
             className="rounded-lg border-destructive/25 bg-destructive font-bold text-white hover:bg-destructive/90"
           >
