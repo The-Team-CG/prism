@@ -52,10 +52,118 @@ function OcularVisitDetails({
       ) : null}
       {!visit ? (
         <p className="text-sm text-muted-foreground">
-          No client request is on file. An Admin may record a waiver if the venue does not require a visit.
+          No client request is on file. Schedule a visit directly, or record a waiver if the venue does not require one.
         </p>
       ) : null}
     </>
+  );
+}
+
+function OcularVisitScheduleForm({
+  busy,
+  scheduledAtLocal,
+  setScheduledAtLocal,
+  note,
+  setNote,
+  onSubmit,
+  onCancel,
+}: {
+  busy: boolean;
+  scheduledAtLocal: string;
+  setScheduledAtLocal: (value: string) => void;
+  note: string;
+  setNote: (value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+  onCancel: () => void;
+}) {
+  return (
+    <form className="space-y-3" onSubmit={onSubmit}>
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="min-w-56 flex-1">
+          <label htmlFor="ocular-visit-scheduled-at" className="mb-1 block text-sm font-medium text-foreground">
+            Scheduled date and time
+          </label>
+          <DateTimePicker value={scheduledAtLocal} onValueChange={(next) => setScheduledAtLocal(next)} id="ocular-visit-scheduled-at" required disabled={busy} />
+        </div>
+      </div>
+      <div className="space-y-1">
+        <label htmlFor="ocular-visit-schedule-note" className="block text-sm font-medium text-foreground">
+          Notes <span className="font-normal text-muted-foreground">(optional)</span>
+        </label>
+        <textarea
+          id="ocular-visit-schedule-note"
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          rows={2}
+          disabled={busy}
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+        />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="submit"
+          disabled={busy || !scheduledAtLocal}
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {busy ? "Saving…" : "Save schedule"}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={busy}
+          className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/** "Schedule visit" opens the date, time and notes form; the form closes again once the visit is saved or cancelled. */
+function OcularVisitScheduleControl({
+  busy,
+  scheduling,
+  scheduledAtLocal,
+  setScheduledAtLocal,
+  note,
+  setNote,
+  onOpen,
+  onCancel,
+  onSubmit,
+}: {
+  busy: boolean;
+  scheduling: boolean;
+  scheduledAtLocal: string;
+  setScheduledAtLocal: (value: string) => void;
+  note: string;
+  setNote: (value: string) => void;
+  onOpen: () => void;
+  onCancel: () => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+}) {
+  if (!scheduling) {
+    return (
+      <button
+        type="button"
+        onClick={onOpen}
+        disabled={busy}
+        className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        Schedule visit
+      </button>
+    );
+  }
+  return (
+    <OcularVisitScheduleForm
+      busy={busy}
+      scheduledAtLocal={scheduledAtLocal}
+      setScheduledAtLocal={setScheduledAtLocal}
+      note={note}
+      setNote={setNote}
+      onSubmit={onSubmit}
+      onCancel={onCancel}
+    />
   );
 }
 
@@ -65,10 +173,15 @@ function OcularVisitActions({
   canComplete,
   canWaive,
   formError,
+  scheduling,
   scheduledAtLocal,
   setScheduledAtLocal,
+  scheduleNote,
+  setScheduleNote,
   waiverReason,
   setWaiverReason,
+  onOpenSchedule,
+  onCancelSchedule,
   onSchedule,
   onComplete,
   onWaive,
@@ -78,10 +191,15 @@ function OcularVisitActions({
   canComplete: boolean;
   canWaive: boolean;
   formError: string | null;
+  scheduling: boolean;
   scheduledAtLocal: string;
   setScheduledAtLocal: (value: string) => void;
+  scheduleNote: string;
+  setScheduleNote: (value: string) => void;
   waiverReason: string;
   setWaiverReason: (value: string) => void;
+  onOpenSchedule: () => void;
+  onCancelSchedule: () => void;
   onSchedule: (event: FormEvent<HTMLFormElement>) => Promise<void>;
   onComplete: () => Promise<void>;
   onWaive: (event: FormEvent<HTMLFormElement>) => Promise<void>;
@@ -91,21 +209,17 @@ function OcularVisitActions({
       {formError ? <p role="alert" className="text-sm text-destructive">{formError}</p> : null}
 
       {canSchedule ? (
-        <form className="flex flex-wrap items-end gap-3" onSubmit={onSchedule}>
-          <div className="min-w-56 flex-1">
-            <label htmlFor="ocular-visit-scheduled-at" className="mb-1 block text-sm font-medium text-foreground">
-              Scheduled date and time
-            </label>
-            <DateTimePicker value={scheduledAtLocal} onValueChange={(next) => setScheduledAtLocal(next)} id="ocular-visit-scheduled-at" required disabled={busy} />
-          </div>
-          <button
-            type="submit"
-            disabled={busy || !scheduledAtLocal}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {busy ? "Saving…" : "Schedule visit"}
-          </button>
-        </form>
+        <OcularVisitScheduleControl
+          busy={busy}
+          scheduling={scheduling}
+          scheduledAtLocal={scheduledAtLocal}
+          setScheduledAtLocal={setScheduledAtLocal}
+          note={scheduleNote}
+          setNote={setScheduleNote}
+          onOpen={onOpenSchedule}
+          onCancel={onCancelSchedule}
+          onSubmit={onSchedule}
+        />
       ) : null}
 
       {canComplete ? (
@@ -180,11 +294,14 @@ export function EventOcularVisitTask({
   onWaive: (input: WaiveOcularVisitInput) => Promise<void>;
 }) {
   const [scheduledAtLocal, setScheduledAtLocal] = useState("");
+  const [scheduleNote, setScheduleNote] = useState("");
+  const [scheduling, setScheduling] = useState(false);
   const [waiverReason, setWaiverReason] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const terminal = visit?.status === "completed" || visit?.status === "waived";
-  const canSchedule = isAdmin && visit?.status === "requested";
+  // PMCM can book a visit with no client request on file, or act on a client's requested visit.
+  const canSchedule = isAdmin && (!visit || visit.status === "requested");
   const canComplete = isAdmin && visit?.status === "scheduled";
   const canWaive = isAdmin && !terminal;
   const canAct = canSchedule || canComplete || canWaive;
@@ -197,7 +314,10 @@ export function EventOcularVisitTask({
       return;
     }
     setFormError(null);
-    await onSchedule({ scheduledAt: date.toISOString() });
+    const note = scheduleNote.trim();
+    await onSchedule({ scheduledAt: date.toISOString(), ...(note ? { note } : {}) });
+    setScheduling(false);
+    setScheduleNote("");
   }
 
   async function waive(event: FormEvent<HTMLFormElement>) {
@@ -232,10 +352,19 @@ export function EventOcularVisitTask({
               canComplete={canComplete}
               canWaive={canWaive}
               formError={formError}
+              scheduling={scheduling}
               scheduledAtLocal={scheduledAtLocal}
               setScheduledAtLocal={setScheduledAtLocal}
+              scheduleNote={scheduleNote}
+              setScheduleNote={setScheduleNote}
               waiverReason={waiverReason}
               setWaiverReason={setWaiverReason}
+              onOpenSchedule={() => setScheduling(true)}
+              onCancelSchedule={() => {
+                setScheduling(false);
+                setScheduleNote("");
+                setFormError(null);
+              }}
               onSchedule={schedule}
               onComplete={onComplete}
               onWaive={waive}
