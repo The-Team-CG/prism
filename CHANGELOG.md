@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- PMCM and coordinator Ctrl K search finds events, clients, inquiries, each event's sections and the coordinator's own tasks and issues, with "Report an issue" and "Mark attendance" actions; the coordinator run sheet reads through a coordinator-scoped schedule, PMCM URLs send coordinators home before any PMCM data loads, and Team shows each coordinator's next or last booking with Invite staff moved from Audit.
 - PMCM navigation: dead sub-views and aliases redirect to their section, each page names its section in the breadcrumb, header and document title, the client dossier has a view tab strip, and the Tasks and Inbox pages no longer show empty-event prompts.
 - PMCM closure and floorplans: snapshot history loads and fails plainly, official floorplans wait on the ocular visit, compliance shows the newest result per rule, review gaps appear after Add review, and closure tabs run 1–5 with Deliverables before Archive.
 - PMCM supplier, billing and staffing status agree with the data: one assigned-supplier count across badges and tabs, readiness banners name only categories without a selected supplier, overdue milestones show days late, statements without a billing source say so, and coordinator acknowledgement is shown per role.
