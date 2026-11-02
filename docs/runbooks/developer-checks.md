@@ -103,7 +103,10 @@ retain tests for valid public contracts and forbidden private imports.
 ## GitHub checks
 
 `CI` runs repository checks, lint/typecheck, workspace tests, and production
-builds in separate GitHub-hosted jobs. Security workflows remain independent.
+builds in separate GitHub-hosted jobs. Each selected workspace test suite runs
+on its own runner, with at most four workspace jobs active at once. Its existing
+coverage thresholds apply unchanged, and its LCOV artifact is named
+`coverage-<workspace-id>-<run-id>`. Security workflows remain independent.
 The final required **Node CI** result succeeds only when every validation and
 security dependency succeeds. Failure, cancellation, skipped dependencies, and
 missing results fail the aggregate.
@@ -113,12 +116,29 @@ actual Git merge base and includes every dependent. Manifests, root/shared input
 unknown paths, missing ancestry, or an empty/uncertain selection run the full
 graph. Pushes run the full graph. Repository migration, persistence, invariant,
 clock, complexity, boundary, and security gates always run in full.
+`scripts/ci/workspace-tests.mjs` uses the same selection for the test matrix.
+Unsupported layouts or uncertain test mapping produce one complete-suite job,
+not an empty successful matrix.
 
-Npm caches download data. Turbo caches task outputs, keyed by platform,
-architecture, Node baseline, lockfile, job, and commit, with compatible restore
-prefixes. Tool wrappers/configuration are global task inputs. Installed dependency
-trees are not cached; regeneration and install lifecycle behavior remain intact.
-The root manifest permits version-specific Prisma and Bun installer scripts.
+The dependency bootstrap installs once on a miss and populates an exact
+installed-dependency archive. Keys include the Node patch version, platform,
+architecture, runner image, lockfile, workspace manifests, Prisma schema and
+install configuration. Consumers restore that key or fall back to `npm ci`.
+Partial restores of installed dependencies are forbidden. Restore hits rerun
+workspace and root postinstall scripts so Prisma and shared declarations match
+the current source. The root manifest still permits only version-specific
+Prisma and Bun dependency installer scripts.
+
+Per-commit Turbo archives are replaced by installed-dependency and versioned
+Playwright archives. Turbo still caches locally within a job and developer
+checkout. Only the bootstrap uses npm's download cache. After successful staging
+CI, a narrowly permissioned maintenance job retires the old `turbo-v2-` entries
+and superseded `prism-deps-v1-`/`prism-playwright-v1-` entries. It retains two recent
+entries per new family, protects current staging keys, and targets eight GiB
+of total repository cache inventory. This target is best-effort: protected or
+unrelated caches are preserved and an unmet target is reported. Cache maintenance
+does not raise storage limits or enable paid storage. Repository quota eviction
+still applies.
 
 Desktop and mobile browser acceptance run in separate hosted jobs with separate
 PostgreSQL services, databases, Mailpit containers, and synthetic actors. Each
@@ -130,7 +150,8 @@ Phase timings are uploaded separately from bounded failure reports. The required
 [browser acceptance guide](../../scripts/e2e/browser/README.md).
 
 Vitest API/portal suites cap workers at two to avoid multiplying module-loading
-memory. Turbo still runs workspace test suites one at a time. The API partitions
+memory. Local `test:ci` still runs workspaces one at a time; hosted CI places
+workspace suites on separate machines. The API partitions
 six reviewed pure-policy files into a shared-module project with global/mock/
 environment/timer cleanup; every other file retains isolation. Discovery checks
 prove every behavior file, including database suites, belongs to exactly one

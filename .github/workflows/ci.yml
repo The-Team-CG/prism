@@ -12,13 +12,32 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
+  dependencies:
+    name: Dependencies and test plan
+    runs-on: ubuntu-latest
+    outputs:
+      tests: ${{ steps.tests.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - uses: ./.github/actions/dependencies
+        with:
+          populate: 'true'
+      - id: tests
+        name: Select workspace test jobs
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: node scripts/ci/workspace-tests.mjs --matrix
   validation:
     name: Node ${{ matrix.task }}
+    needs: dependencies
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        task: [checks, quality, tests, build]
+        task: [checks, quality, build]
     env:
       NEXT_TELEMETRY_DISABLED: "1"
       PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -30,23 +49,7 @@ jobs:
           fetch-depth: 0
           filter: blob:none
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: "24"
-          check-latest: true
-          cache: npm
-
-      - name: Turbo cache
-        if: matrix.task != 'checks'
-        uses: actions/cache@v6
-        with:
-          path: .turbo/cache
-          key: turbo-v2-${{ runner.os }}-${{ runner.arch }}-node24-${{ matrix.task }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
-          restore-keys: turbo-v2-${{ runner.os }}-${{ runner.arch }}-node24-${{ matrix.task }}-${{ hashFiles('package-lock.json') }}-
-
-      - name: Install dependencies
-        run: npm ci
+      - uses: ./.github/actions/dependencies
 
       - name: Dependency audit
         if: matrix.task == 'checks'
@@ -78,34 +81,43 @@ jobs:
         if: matrix.task == 'checks'
         run: npm run test:ci:guards
 
-      # One suite at a time: the API and portal suites each start their own vitest workers and time out when run together.
-      - name: Workspace tests with coverage
-        if: matrix.task == 'tests'
-        env:
-          CI: "true"
-        run: node scripts/ci/run-tasks.mjs test:ci --concurrency=1
-
-      - name: Upload coverage
-        if: always() && matrix.task == 'tests'
-        uses: actions/upload-artifact@v7
-        continue-on-error: true
-        with:
-          name: coverage-${{ github.run_id }}
-          path: |
-            **/coverage/lcov.info
-            !node_modules/**
-          if-no-files-found: ignore
-          retention-days: 7
-
       - name: Build
         if: matrix.task == 'build'
         env:
           PRISM_VERCEL_SERVICES: "1"
         run: node scripts/ci/run-tasks.mjs build
+  workspace-tests:
+    name: Tests ${{ matrix.workspace }}
+    needs: dependencies
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs.dependencies.outputs.tests) }}
+    env:
+      CI: 'true'
+      TEST_WORKSPACE: ${{ matrix.workspace }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/dependencies
+      # Separate machines avoid competing Vitest pools while preserving every suite and threshold.
+      - name: Workspace suite with existing coverage gates
+        run: node scripts/ci/workspace-tests.mjs
+      - name: Upload workspace coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        continue-on-error: true
+        with:
+          name: coverage-${{ matrix.id }}-${{ github.run_id }}
+          path: |
+            ${{ matrix.coverage }}
+            !node_modules/**
+          if-no-files-found: ignore
+          retention-days: 7
   monorepo:
     name: Node CI
     if: always()
-    needs: [validation, gitleaks, codeql]
+    needs: [dependencies, validation, workspace-tests, gitleaks, codeql]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -116,7 +128,25 @@ jobs:
       - name: Require every validation and security job
         env:
           REQUIRED_JOB_RESULTS: ${{ toJSON(needs) }}
-        run: node scripts/ci/check-results.mjs validation gitleaks codeql
+        run: node scripts/ci/check-results.mjs dependencies validation workspace-tests gitleaks codeql
+  cache-maintenance:
+    name: Bound owned cache storage
+    needs: monorepo
+    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Retire superseded owned caches without changing paid limits
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/ci/prune-caches.mjs
   gitleaks:
     uses: The-Team-CG/.github/.github/workflows/security-gitleaks.yml@v2
     secrets: inherit

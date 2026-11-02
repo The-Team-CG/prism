@@ -1,0 +1,52 @@
+name: Prism dependencies
+description: Restore an exact installed dependency tree and refresh generated project outputs.
+inputs:
+  populate:
+    description: Populate a missing archive once before consumer jobs.
+    default: 'false'
+outputs:
+  cache-key:
+    description: Exact installed-dependency cache key.
+    value: ${{ steps.keys.outputs.dependencies }}
+  browser-key:
+    description: Playwright version and platform cache key.
+    value: ${{ steps.keys.outputs.browser }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v7
+      with:
+        node-version: '24'
+        check-latest: true
+        cache: ${{ inputs.populate == 'true' && 'npm' || '' }}
+        package-manager-cache: ${{ inputs.populate == 'true' }}
+    - id: keys
+      shell: bash
+      run: node scripts/ci/dependency-cache.mjs
+    - id: restore
+      uses: actions/cache/restore@v6
+      with:
+        path: |
+          node_modules
+          apps/*/node_modules
+          packages/*/node_modules
+        key: ${{ steps.keys.outputs.dependencies }}
+    - name: Install on a miss
+      if: steps.restore.outputs.cache-hit != 'true'
+      shell: bash
+      run: npm ci
+    - name: Refresh generated project outputs
+      if: steps.restore.outputs.cache-hit == 'true'
+      shell: bash
+      run: |
+        npm run postinstall --workspaces --if-present
+        npm run postinstall
+    - uses: actions/cache/save@v6
+      if: inputs.populate == 'true' && steps.restore.outputs.cache-hit != 'true'
+      continue-on-error: true
+      with:
+        path: |
+          node_modules
+          apps/*/node_modules
+          packages/*/node_modules
+        key: ${{ steps.keys.outputs.dependencies }}

@@ -10,9 +10,21 @@ on:
       - 'scripts/local-supabase.mjs'
       - 'scripts/ci/**'
       - 'scripts/typescript.mjs'
+      - '.github/actions/dependencies/**'
       - 'package*.json'
       - '.github/workflows/browser-acceptance.yml'
   workflow_dispatch:
+    inputs:
+      server:
+        description: Production/development acceptance, or a same-head comparison.
+        type: choice
+        options: [production, development, compare]
+        default: production
+      repetitions:
+        description: Use five samples for a server-mode comparison.
+        type: choice
+        options: ['1', '5']
+        default: '1'
   schedule:
     - cron: '0 19 * * *'
 permissions:
@@ -21,14 +33,50 @@ concurrency:
   group: browser-acceptance-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
+  dependencies:
+    name: Browser dependencies and plan
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      revision: ${{ steps.revision.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'staging' || github.sha }}
+      - id: revision
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - id: dependencies
+        uses: ./.github/actions/dependencies
+        with:
+          populate: 'true'
+      - id: browser
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.dependencies.outputs.browser-key }}
+      - name: Download the pinned browser on a miss
+        if: steps.browser.outputs.cache-hit != 'true'
+        run: npx playwright install --only-shell chromium
+      - uses: actions/cache/save@v6
+        if: steps.browser.outputs.cache-hit != 'true'
+        continue-on-error: true
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.dependencies.outputs.browser-key }}
+      - id: matrix
+        env:
+          BROWSER_COMPARISON_SERVER: ${{ inputs.server || 'production' }}
+          BROWSER_COMPARISON_RUNS: ${{ inputs.repetitions || '1' }}
+        run: node scripts/e2e/browser/execution.mjs
   browser-project:
-    name: Browser ${{ matrix.project }}
+    name: Browser ${{ matrix.project }} (${{ matrix.server }}, ${{ matrix.sample }})
+    needs: dependencies
     runs-on: ubuntu-latest
     timeout-minutes: 35
     strategy:
       fail-fast: false
-      matrix:
-        project: [desktop, mobile]
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs.dependencies.outputs.matrix) }}
     services:
       postgres:
         image: postgres:16
@@ -43,43 +91,80 @@ jobs:
     env:
       BROWSER_DATABASE_URL: postgresql://prism_ci:prism_ci_ephemeral@127.0.0.1:55439/postgres
       NEXT_TELEMETRY_DISABLED: '1'
+      BROWSER_COMPARISON_SAMPLE: ${{ matrix.sample }}
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event_name == 'schedule' && 'staging' || github.ref }}
-      - uses: actions/setup-node@v7
+          ref: ${{ needs.dependencies.outputs.revision }}
+      - id: dependencies
+        uses: ./.github/actions/dependencies
+      - id: browser
+        uses: actions/cache/restore@v6
         with:
-          node-version: '24'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.dependencies.outputs.browser-key }}
+      - if: steps.browser.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps --only-shell chromium
+      - if: steps.browser.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
       - run: npm run test:browser:guards
-      - run: npm run test:browser -- --project=${{ matrix.project }}
+      - run: npm run test:browser -- --project=${{ matrix.project }} --server=${{ matrix.server }}
       - name: Upload browser phase timings
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: browser-timings-${{ matrix.project }}-${{ github.run_id }}
+          name: browser-timings-${{ matrix.project }}-${{ matrix.server }}-${{ matrix.sample }}-${{ github.run_id }}
           path: .local-dev/browser/*/timings.json
           if-no-files-found: ignore
           retention-days: 7
       - uses: actions/upload-artifact@v7
-        if: failure()
+        if: failure() && matrix.sample == 1
         with:
-          name: browser-acceptance-failures-${{ matrix.project }}-${{ github.run_id }}
+          name: browser-acceptance-failures-${{ matrix.project }}-${{ matrix.server }}-${{ matrix.sample }}-${{ github.run_id }}
           path: |
             .local-dev/browser/*/report/
             .local-dev/browser/*/results/
           retention-days: 7
+  comparison:
+    name: Complete server comparison
+    if: inputs.server == 'compare'
+    needs: [dependencies, browser-project]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.dependencies.outputs.revision }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Collect only safe timing records from this run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download "$GITHUB_RUN_ID" --pattern 'browser-timings-*' --dir .local-dev/browser-comparison
+      - name: Compare complete matching samples
+        env:
+          BROWSER_REPETITIONS: ${{ inputs.repetitions || '1' }}
+        run: node scripts/e2e/browser/compare-timings.mjs .local-dev/browser-comparison "$BROWSER_REPETITIONS"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: browser-server-comparison-${{ github.run_id }}
+          path: |
+            .local-dev/browser-comparison/comparison.json
+            .local-dev/browser-comparison/comparison.md
+          retention-days: 7
   browser:
     name: browser
     if: always()
-    needs: [browser-project]
+    needs: [dependencies, browser-project, comparison]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event_name == 'schedule' && 'staging' || github.ref }}
+          ref: ${{ needs.dependencies.outputs.revision }}
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
@@ -87,4 +172,10 @@ jobs:
       - name: Require both browser projects
         env:
           REQUIRED_JOB_RESULTS: ${{ toJSON(needs) }}
-        run: node scripts/ci/check-results.mjs browser-project
+          COMPARE_BROWSER: ${{ inputs.server == 'compare' }}
+        run: |
+          if [[ "$COMPARE_BROWSER" == 'true' ]]; then
+            node scripts/ci/check-results.mjs dependencies browser-project comparison
+          else
+            node scripts/ci/check-results.mjs dependencies browser-project
+          fi
