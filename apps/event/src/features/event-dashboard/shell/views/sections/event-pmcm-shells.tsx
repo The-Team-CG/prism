@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { EventWorkspaceSwitcher } from "./event-workspace-switcher";
 import { PrismDashboardShell } from "@prism/ui";
+import { buildPmcmCommandGroups, inquiryLogHref } from "../../model/event-command-index";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { roleLabel } from "@/features/pmcm-kit/model/display-labels";
 import { supplierWorkspaceStyles } from "@/features/suppliers/directory";
@@ -50,6 +52,15 @@ export function EventPmcmLoadingShell({ viewModel }: { viewModel: LoadedShell })
 
 export function EventPmcmReadyShell({ viewModel, children }: { viewModel: LoadedShell; children?: ReactNode }) {
   const { documentTitle } = viewModel.shellCopy;
+  const router = useRouter();
+  const { events, clientRecords, inquiries, navigateEvent, navigateClient } = viewModel;
+  const commandGroups = useMemo(
+    () => buildPmcmCommandGroups(
+      { events, clients: clientRecords, inquiries },
+      { openEvent: navigateEvent, openClient: navigateClient, openInquiry: (inquiry) => router.push(inquiryLogHref(inquiry)) },
+    ),
+    [clientRecords, events, inquiries, navigateClient, navigateEvent, router],
+  );
   useEffect(() => {
     document.title = documentTitle;
   }, [documentTitle]);
@@ -69,7 +80,9 @@ export function EventPmcmReadyShell({ viewModel, children }: { viewModel: Loaded
       sidebarMode="single"
       onNavSelect={viewModel.handleSidebarNav}
       user={{ name: viewModel.session.name, detail: roleLabel(viewModel.session.role), initials: viewModel.session.name.slice(0, 2).toUpperCase() }}
-      searchPlaceholder="Find a page"
+      searchPlaceholder="Find events, clients or pages"
+      commandGroups={commandGroups}
+      commandEmptyLabel="Nothing matches. Try an event or client name."
       sidebarContext={
         viewModel.routeState.eventId && viewModel.selectedEvent ? (
           <EventWorkspaceSwitcher events={viewModel.events} selected={viewModel.selectedEvent} view={viewModel.routeState.view} />
