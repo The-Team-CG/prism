@@ -283,7 +283,7 @@ export class EventReadModelsService {
       floorPlanDraftsCount: counts.floorPlanDrafts,
       approvedFloorplan: counts.approvedFloorplan > 0,
       quoteRequestsCount: counts.quoteRequests,
-      selectedSupplierCount: counts.selectedSupplierQuotes,
+      selectedSupplierCount: counts.selectedSupplierRequests,
       coordinatorAssignmentsCount,
       pendingCoordinatorCount,
       billingStatementsCount: counts.billingStatements,

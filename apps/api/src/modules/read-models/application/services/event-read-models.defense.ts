@@ -76,7 +76,7 @@ function supplierAction(input: DefenseInputs): DefenseAction {
     key: "suppliers",
     label: "Supplier selection",
     detail: done
-      ? `${input.selectedSupplierCount} selected supplier quote(s) are locked.`
+      ? `${input.selectedSupplierCount} supplier(s) selected.`
       : attention
         ? "Quote requests are out; select winning supplier quotes."
         : "Send scoped quote requests to Tier 1 or backup suppliers.",
