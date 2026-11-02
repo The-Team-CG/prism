@@ -105,6 +105,7 @@ describe("EventOcularVisitTask", () => {
     />);
     expect(screen.getByLabelText("Ocular visit status").textContent).toBe("Scheduled");
     expect(screen.queryByRole("button", { name: "Schedule visit" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Reschedule visit" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Mark ocular visit complete" })).toBeTruthy();
     expect(screen.getByText("Note for the client")).toBeTruthy();
     expect(screen.getByText("Gate 2 access")).toBeTruthy();
