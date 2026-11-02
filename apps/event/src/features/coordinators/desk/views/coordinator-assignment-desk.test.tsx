@@ -112,7 +112,10 @@ describe("CoordinatorAssignmentDesk skill suggestions", () => {
 
     await waitFor(() => expect(props.onLoadOperator).toHaveBeenCalled());
     fireEvent.change(screen.getByRole("combobox", { name: "Coordinator role filter" }), { target: { value: "Usher" } });
-    fireEvent.click(screen.getByLabelText("Available only"));
+    const availableOnly = screen.getByRole("checkbox", { name: "Available only" }) as HTMLInputElement;
+    expect(availableOnly.checked).toBe(true);
+    fireEvent.click(availableOnly);
+    expect(availableOnly.checked).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Review conflict" }));
 
     expect(await screen.findByText("1 of 1 required skills matched")).toBeTruthy();
