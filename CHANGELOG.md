@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Run workspace coverage suites on independent CI runners, reuse exact dependency and browser caches with bounded retention, and validate complete browser journeys against production builds with repeatable timing comparisons.
 - Validate independent CI jobs and desktop/mobile browser journeys in parallel on GitHub-hosted runners, with complete required-check aggregation and dependency-aware task selection. Local pushes check affected projects using native typechecks and shared architecture lint.
 - Upgrade NestJS 12, Vitest 5, Anthropic SDK 1, Lucide 1 and development tooling; retain compatible TypeScript 6 build APIs alongside TypeScript 7 checks and align Node types with Node 24. Preserve rate limiting, provider retry ownership, shared contracts and coverage thresholds.
 - Refresh compatible portal, API and development dependencies, including Next.js 16.4, React 19.3, Prisma 7.10 and Zod 4.6, while retaining existing major-version compatibility. Development tooling requires Node 24.15+ on the Node 24 line, or Node 26+.
