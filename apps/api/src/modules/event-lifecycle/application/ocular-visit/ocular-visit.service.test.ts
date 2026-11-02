@@ -180,9 +180,16 @@ describe('OcularVisitService', () => {
 
     expect(state.record).toMatchObject({ status: 'scheduled', scheduledAt: movedTo, scheduleNote: 'Use the loading dock' });
     expect(notifications.write).toHaveBeenCalledWith(
-      expect.objectContaining({ idempotencyKey: `ocular-visit-rescheduled:ovr_1:${movedTo.toISOString()}` }),
+      expect.objectContaining({
+        idempotencyKey: `ocular-visit-rescheduled:ovr_1:${movedTo.toISOString()}`,
+        message: expect.stringContaining('moved to Wed, Oct 7, 2026'),
+      }),
       expect.anything(),
     );
+    const [{ message }] = notifications.write.mock.calls[0] as unknown as [{ message: string }];
+    expect(message).toContain('10:00');
+    expect(message).toContain('(Manila time)');
+    expect(message).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
     expect(audit.write).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'Rescheduled ocular visit', metadata: expect.objectContaining({ initiatedBy: 'pmcm' }) }),
       expect.anything(),
