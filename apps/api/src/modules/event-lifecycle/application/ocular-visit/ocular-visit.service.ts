@@ -123,16 +123,19 @@ export class OcularVisitService {
 
       // PMCM may book a visit without a client request; that record has no requestedAt and is audited as PMCM-initiated.
       const scheduledAt = new Date(input.scheduledAt);
+      // Trimmed by the request schema; an empty note is stored as null, and each schedule call replaces the previous note.
+      const scheduleNote = input.note || null;
       const saved = existing
         ? await tx.opsOcularVisitRequest.update({
             where: { eventId },
-            data: { status: 'scheduled', scheduledAt },
+            data: { status: 'scheduled', scheduledAt, scheduleNote },
           })
         : await this.createOcularVisitRequest(tx, {
             id: 'ocular_visit_' + randomUUID(),
             eventId,
             status: 'scheduled',
             clientNote: null,
+            scheduleNote,
             requestedAt: null,
             scheduledAt,
           });
@@ -302,6 +305,7 @@ export class OcularVisitService {
       eventId: request.eventId,
       status: this.readStatus(request.status),
       clientNote: request.clientNote,
+      scheduleNote: request.scheduleNote,
       requestedAt: request.requestedAt?.toISOString() ?? null,
       scheduledAt: request.scheduledAt?.toISOString() ?? null,
     };

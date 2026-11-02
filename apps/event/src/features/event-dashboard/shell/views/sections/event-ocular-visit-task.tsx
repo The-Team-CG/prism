@@ -39,6 +39,12 @@ function OcularVisitDetails({
           Scheduled for {formatScheduledAt(visit.scheduledAt)}.
         </p>
       ) : null}
+      {visit?.scheduleNote ? (
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground">Note for the client</p>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{visit.scheduleNote}</p>
+        </div>
+      ) : null}
       {visit?.status === "completed" ? (
         <p className="text-sm text-muted-foreground">
           Completed {visit.completedAt ? formatScheduledAt(visit.completedAt) : "with no timestamp"}.
@@ -88,7 +94,7 @@ function OcularVisitScheduleForm({
       </div>
       <div className="space-y-1">
         <label htmlFor="ocular-visit-schedule-note" className="block text-sm font-medium text-foreground">
-          Notes <span className="font-normal text-muted-foreground">(optional)</span>
+          Note for the client <span className="font-normal text-muted-foreground">(optional)</span>
         </label>
         <textarea
           id="ocular-visit-schedule-note"

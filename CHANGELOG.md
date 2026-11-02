@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- PMCM's note when scheduling an ocular visit is saved on the visit (replacing any earlier note) and shown to the client under the scheduled date and time.
 - PMCM supplier names in the directory and the Team & roles "Available only" checkbox have click targets of at least 24 px, meeting WCAG 2.2 target size.
 - PMCM can decline an inquiry without a reason (a given reason is still recorded in the audit log), schedule an ocular visit without a client request, and the event-date compliance check now reads "Event date is upcoming" with links to Closure or a postponement.
 - PMCM Ctrl K finds events and clients from the Inbox too (records load when the palette opens), matches typed words as plain substrings, and each page's browser tab names that page, including Suppliers and My shift after a coordinator is redirected from a PMCM URL.
