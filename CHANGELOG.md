@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- PMCM supplier names in the directory and the Team & roles "Available only" checkbox have click targets of at least 24 px, meeting WCAG 2.2 target size.
 - PMCM Ctrl K finds events and clients from the Inbox too (records load when the palette opens), matches typed words as plain substrings, and each page's browser tab names that page, including Suppliers and My shift after a coordinator is redirected from a PMCM URL.
 - PMCM and coordinator Ctrl K search finds events, clients, inquiries, each event's sections and the coordinator's own tasks and issues, with "Report an issue" and "Mark attendance" actions; the coordinator run sheet reads through a coordinator-scoped schedule, PMCM URLs send coordinators home before any PMCM data loads, and Team shows each coordinator's next or last booking with Invite staff moved from Audit.
 - PMCM copy, dates and access: inquiry and proposal dates, peso amounts with a confirm before a proposal is issued, plain operator wording across Inquiries, Suppliers, Privacy and Audit, shared segmented filters, labelled live-ops controls and sentence-case document titles.
