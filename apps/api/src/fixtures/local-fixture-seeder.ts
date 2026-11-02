@@ -492,6 +492,13 @@ export class LocalFixtureSeeder {
     const event = await this.prisma.opsEvent.findUnique({ where: { id: 'evt_sample_ayala' } });
     if (!event) return;
 
+    // Earlier runs seeded these requests as "open" while their quotes were selected. Assignment and readiness
+    // treat only "selected" requests as assigned, so converge existing rows to what the selection flow writes.
+    await this.prisma.opsSupplierQuoteRequest.updateMany({
+      where: { eventId: 'evt_sample_ayala', id: { in: ['qr_pare_harvesttable', 'qr_pare_lenscraft'] }, status: 'open' },
+      data: { status: 'selected' },
+    });
+
     const existing = await this.prisma.opsSupplierQuoteRequest.findFirst({
       where: { eventId: 'evt_sample_ayala', id: 'qr_pare_harvesttable' },
     });
@@ -513,7 +520,7 @@ export class LocalFixtureSeeder {
           message: 'Full buffet service for 300 pax. VIP plated section required. Include crew meals.',
           dueDate,
           accessToken: 'sample-pare-token-harvesttable',
-          status: 'open',
+          status: 'selected',
           assignmentStatus: 'confirmed',
           assignmentConfirmedAt: now,
           readinessStatus: 'confirmed',
@@ -534,6 +541,7 @@ export class LocalFixtureSeeder {
           notes: 'Menu finalized. Headcount confirmed at 300.',
           status: 'selected',
           selectedAt: now,
+          lockedAt: now,
         },
       });
 
@@ -549,7 +557,7 @@ export class LocalFixtureSeeder {
           message: 'Full event documentation: photo, video, same-day edit, raw file turnover.',
           dueDate,
           accessToken: 'sample-pare-token-lenscraft',
-          status: 'open',
+          status: 'selected',
           assignmentStatus: 'confirmed',
           assignmentConfirmedAt: now,
           readinessStatus: 'confirmed',
@@ -570,6 +578,7 @@ export class LocalFixtureSeeder {
           notes: 'Run-of-show received. All outputs confirmed.',
           status: 'selected',
           selectedAt: now,
+          lockedAt: now,
         },
       });
     });
@@ -1211,20 +1220,43 @@ export class LocalFixtureSeeder {
         data: { year: 2026, nextNumber: 2 },
       });
 
+      const billingSchedule = [
+        { label: 'Downpayment', percentage: 50, amount: 260000, dueDate: '2026-04-29' },
+        { label: 'Balance', percentage: 50, amount: 260000, dueDate: '2026-06-11' },
+      ];
+      const billingLines = [{ label: 'Approved event package', amount: 520000 }];
+      // The statement is issued from an approved billing source, as the billing workflow requires.
+      await tx.opsBillingSource.create({
+        data: {
+          id: 'bsrc_sample_ayala',
+          eventId: 'evt_sample_ayala',
+          sourceType: 'ce_proposal',
+          sourceLabel: 'Ayala Tech Summit 2026 approved proposal',
+          lineItems: toPrismaJson(billingLines),
+          paymentSchedule: toPrismaJson(billingSchedule),
+          paymentMethods: toPrismaJson([]),
+          totalAmount: 520000,
+          status: 'approved',
+          approvedAt: createdAt,
+          approvedBy: 'PMCM Admin',
+          approvalNotes: 'Approved with the seeded proposal.',
+          createdAt,
+          updatedAt: createdAt,
+        },
+      });
+
       await tx.opsBillingStatement.create({
         data: {
           id: 'bill_sample_ayala',
           eventId: 'evt_sample_ayala',
+          sourceId: 'bsrc_sample_ayala',
           number: 'BS-2026-0001',
           clientName: 'Ana Reyes',
           clientContact: 'ana@ayala.test',
-          eventName: 'Ayala Summit',
+          eventName: 'Ayala Tech Summit 2026',
           eventDate: new Date('2026-06-18'),
-          lineItems: toPrismaJson([{ label: 'Approved event package', amount: 520000 }]),
-          paymentSchedule: toPrismaJson([
-            { label: 'Downpayment', percentage: 50, amount: 260000, dueDate: '2026-04-29' },
-            { label: 'Balance', percentage: 50, amount: 260000, dueDate: '2026-06-11' },
-          ]),
+          lineItems: toPrismaJson(billingLines),
+          paymentSchedule: toPrismaJson(billingSchedule),
           paymentMethods: toPrismaJson([
             { label: 'Bank Transfer', details: 'PMCM corporate bank account' },
             { label: 'GCash', details: 'PMCM finance GCash number' },
