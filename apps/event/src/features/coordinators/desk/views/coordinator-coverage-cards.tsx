@@ -23,9 +23,10 @@ function requirementSkills(requirement: CoverageRequirement | null): string[] {
   return requirement && "requiredSkills" in requirement ? requirement.requiredSkills : [];
 }
 
-export function StaffingSummary({ roleRequirements, assignmentCounts, onEdit }: {
+export function StaffingSummary({ roleRequirements, assignmentCounts, eventEnded = false, onEdit }: {
   roleRequirements: CoverageRequirement[];
   assignmentCounts: Map<string, number>;
+  eventEnded?: boolean;
   onEdit: (requirement: CoverageRequirement) => void;
 }) {
   return (
@@ -42,7 +43,7 @@ export function StaffingSummary({ roleRequirements, assignmentCounts, onEdit }: 
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {roleRequirements.map((requirement) => (
-              <RequirementTile key={requirement.role} requirement={requirement} assignedFallback={assignmentCounts.get(requirement.role) ?? 0} onEdit={onEdit} />
+              <RequirementTile key={requirement.role} requirement={requirement} assignedFallback={assignmentCounts.get(requirement.role) ?? 0} eventEnded={eventEnded} onEdit={onEdit} />
             ))}
           </div>
         )}
@@ -51,9 +52,27 @@ export function StaffingSummary({ roleRequirements, assignmentCounts, onEdit }: 
   );
 }
 
-function RequirementTile({ requirement, assignedFallback, onEdit }: {
+/**
+ * What a tile says about its target. Before the event it is a to-do only while the target is unmet; a met target
+ * that is still unconfirmed or missing a skill says what is left. After the event it reads as a record.
+ */
+export function coverageTileStatus({ assigned, required, acknowledged, complete, eventEnded }: {
+  assigned: number;
+  required: number;
+  acknowledged: number;
+  complete: boolean;
+  eventEnded: boolean;
+}): string {
+  if (eventEnded) return complete ? "Staffed" : "Not staffed";
+  if (complete) return "Covered for this event.";
+  if (assigned < required) return "Still needs staffing.";
+  return acknowledged < required ? "Target met; waiting on acknowledgements." : "Target met; a required skill is missing.";
+}
+
+function RequirementTile({ requirement, assignedFallback, eventEnded, onEdit }: {
   requirement: CoverageRequirement;
   assignedFallback: number;
+  eventEnded: boolean;
   onEdit: (requirement: CoverageRequirement) => void;
 }) {
   const assigned = "assigned" in requirement ? requirement.assigned : assignedFallback;
@@ -67,7 +86,9 @@ function RequirementTile({ requirement, assignedFallback, onEdit }: {
           {assigned} of {requirement.required} assigned{"acknowledged" in requirement ? ` · ${acknowledged} acknowledged` : ""}
         </span>
       </div>
-      <p className="mt-1.5 text-xs text-muted-foreground">{complete ? "Covered for this event." : "Still needs staffing."}</p>
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        {coverageTileStatus({ assigned, required: requirement.required, acknowledged, complete, eventEnded })}
+      </p>
       <Button type="button" size="sm" variant="ghost" className="-ml-2 mt-2" onClick={() => onEdit(requirement)}>Edit target</Button>
     </div>
   );

@@ -14,7 +14,7 @@ import type {
   PrismEvent,
   PrismEventOperatorDesignation,
 } from "@prism/types";
-import { COORDINATOR_ROLES, canonicalCoordinatorRole } from "@prism/types";
+import { COORDINATOR_ROLES, canonicalCoordinatorRole, hasEventDatePassed, prismCalendarDateKey } from "@prism/types";
 import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -174,7 +174,7 @@ export function CoordinatorAssignmentDesk({
     <div className="space-y-5">
       <PendingAcknowledgmentsPanel assignments={pendingAcknowledgments} busy={busy} onSendReminders={onSendReminders} />
 
-      <StaffingSummary roleRequirements={roleRequirements} assignmentCounts={assignmentCounts} onEdit={setEditingTarget} />
+      <StaffingSummary roleRequirements={roleRequirements} assignmentCounts={assignmentCounts} eventEnded={hasEventDatePassed(event.eventDate, prismCalendarDateKey())} onEdit={setEditingTarget} />
 
       {/* Coordinator assignment */}
       <Card>

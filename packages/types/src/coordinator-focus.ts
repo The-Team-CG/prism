@@ -30,6 +30,15 @@ export function isWithinCoordinatorAttendanceWindow(eventDate: string, todayKey:
   return Number.isFinite(dayOffset) && Math.abs(dayOffset) <= 1;
 }
 
+/**
+ * The event's calendar day lies before today, in Philippine calendar days. Once it has passed, planning and
+ * live entry are over and the event moves to closure; the rule is the same for every portal.
+ */
+export function hasEventDatePassed(eventDate: string, todayKey: string): boolean {
+  const dayOffset = calendarDayNumber(todayKey) - calendarDayNumber(eventDate);
+  return Number.isFinite(dayOffset) && dayOffset > 0;
+}
+
 /** Whole days since the epoch for a YYYY-MM-DD key (or the date part of an ISO timestamp). NaN when unparseable. */
 function calendarDayNumber(value: string): number {
   const key = value.slice(0, 10);

@@ -40,6 +40,13 @@ describe("PaymentTracker overdue milestones", () => {
 
     expect(screen.queryByText(/Overdue by/)).toBeNull();
   });
+
+  it("offers no payment to record on a fully paid milestone", () => {
+    render(<PaymentTracker payments={[downpayment, balance]} busy={false} onRecord={vi.fn()} onMarkPayment={vi.fn()} />);
+
+    expect(screen.getByText("Fully paid")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: /Record payment/ })).toHaveLength(1);
+  });
 });
 
 describe("BillingStatementCard PDF availability", () => {

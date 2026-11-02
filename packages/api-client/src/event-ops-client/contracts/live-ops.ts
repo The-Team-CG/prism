@@ -4,6 +4,7 @@ import type {
   DecideEventTaskReassignmentInput,
   CreateUrgentIssueInput,
   PrismCoordinatorWorkspace,
+  PrismCoordinatorEventSchedule,
   PrismLiveOps,
   PrismEventDayTask,
   PrismEventTaskReassignmentRequest,
@@ -30,6 +31,10 @@ import type { EventOpsActorQuery } from "./primitives";
 export interface EventOpsLiveOpsContract {
   coordinator: {
     workspace(actor?: EventOpsActorQuery): Promise<PrismCoordinatorWorkspace>;
+    eventSchedule(
+      eventId: string,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismCoordinatorEventSchedule>;
   };
 
   liveOps: {

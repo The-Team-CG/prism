@@ -1,6 +1,7 @@
 export type {
   PrismAccountMenuItem,
   PrismAppShellProps,
+  PrismCommandGroup,
   PrismMobileAction,
   PrismNavItem,
   PrismNavSubItem,
