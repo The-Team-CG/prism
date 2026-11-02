@@ -2,6 +2,7 @@
 import { createElement, type ReactNode } from "react";
 import { cleanup, fireEvent, render as renderTest, screen, waitFor } from "@testing-library/react";
 import { PortalQueryProvider } from "@prism/portal-query";
+import { DocumentTitleProvider } from "@/app/components/document-title";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrismCoordinatorAssignment, PrismEvent } from "@prism/types";
 import { CoordinatorEventSwitcher } from "./coordinator-event-switcher";
@@ -38,7 +39,7 @@ vi.mock("../data/coordinators-repository", () => ({
   coordinatorFocusRoleView: { name: "coordinator.focus-role-view", staleMs: 30_000, fetch: vi.fn(async () => null) },
 }));
 
-const wrapper = ({ children }: { children: ReactNode }) => createElement(PortalQueryProvider, { actorKey: "marco@pmcm.test", children });
+const wrapper = ({ children }: { children: ReactNode }) => createElement(DocumentTitleProvider, null, createElement(PortalQueryProvider, { actorKey: "marco@pmcm.test", children }));
 const render: typeof renderTest = ((ui: Parameters<typeof renderTest>[0]) => renderTest(ui, { wrapper })) as typeof renderTest;
 
 afterEach(() => {
@@ -142,6 +143,20 @@ it("sends a PMCM or unknown path home with a notice that can be dismissed", asyn
   fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
   expect(screen.queryByText("That page isn't part of the coordinator portal.")).toBeNull();
   expect(new URLSearchParams(window.location.search).has("notice")).toBe(false);
+});
+
+it("titles the tab after the view on screen, including a coordinator redirected from a PMCM URL", () => {
+  navigation.pathname = "/dashboard/suppliers";
+  window.history.replaceState(null, "", "/dashboard/suppliers");
+  const { unmount } = render(<CoordinatorView session={session} state={{ events, assignments } as never} onRefresh={async () => {}} />);
+  expect(navigation.replace).toHaveBeenCalledWith("/dashboard?view=shift&notice=outside-portal");
+  expect(document.title).toBe("My shift · P.R.I.S.M");
+  unmount();
+
+  navigation.pathname = "/dashboard";
+  window.history.replaceState(null, "", "/dashboard?view=tasks&event=evt_current");
+  render(<CoordinatorView session={session} state={{ events, assignments } as never} onRefresh={async () => {}} />);
+  expect(document.title).toBe("Tasks · P.R.I.S.M");
 });
 
 it("rewrites old section links to the readable view and keeps the event", () => {

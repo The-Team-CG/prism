@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- PMCM Ctrl K finds events and clients from the Inbox too (records load when the palette opens), matches typed words as plain substrings, and each page's browser tab names that page, including Suppliers and My shift after a coordinator is redirected from a PMCM URL.
 - PMCM and coordinator Ctrl K search finds events, clients, inquiries, each event's sections and the coordinator's own tasks and issues, with "Report an issue" and "Mark attendance" actions; the coordinator run sheet reads through a coordinator-scoped schedule, PMCM URLs send coordinators home before any PMCM data loads, and Team shows each coordinator's next or last booking with Invite staff moved from Audit.
 - PMCM copy, dates and access: inquiry and proposal dates, peso amounts with a confirm before a proposal is issued, plain operator wording across Inquiries, Suppliers, Privacy and Audit, shared segmented filters, labelled live-ops controls and sentence-case document titles.
 - PMCM navigation: dead sub-views and aliases redirect to their section, each page names its section in the breadcrumb, header and document title, the client dossier has a view tab strip, and the Tasks and Inbox pages no longer show empty-event prompts.

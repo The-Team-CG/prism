@@ -33,7 +33,7 @@ function openPalette(placeholder: string) {
   return screen.getByPlaceholderText(placeholder);
 }
 
-function renderShell(commandGroups: PrismCommandGroup[], extra: { commandActions?: Parameters<typeof PrismPortalShell>[0]["commandActions"]; commandEmptyLabel?: string; searchPlaceholder: string }) {
+function renderShell(commandGroups: PrismCommandGroup[], extra: Partial<Parameters<typeof PrismPortalShell>[0]> & { searchPlaceholder: string }) {
   return render(
     <PrismPortalShell
       portal="event"
@@ -82,6 +82,43 @@ describe("PMCM Ctrl K palette", () => {
     fireEvent.click(screen.getByRole("option", { name: /^Billing — Ayala Tech Summit 2026/ }));
 
     expect(openEvent).toHaveBeenCalledWith("evt_ayala", "billing");
+  });
+
+  it("keeps a record only when the typed words appear in its text, so 'bill' does not reach a declined inquiry", () => {
+    const declined = { id: "inq_ria", clientName: "Ria Santos", eventName: "Private Birthday Celebration", status: "declined" } as PrismInquiry;
+    const groups = buildPmcmCommandGroups(
+      { events: [ayala], clients: [], inquiries: [declined] },
+      { openEvent: vi.fn(), openClient: vi.fn(), openInquiry: vi.fn() },
+    );
+    renderShell(groups, { searchPlaceholder: PALETTE_PLACEHOLDER });
+
+    fireEvent.change(openPalette(PALETTE_PLACEHOLDER), { target: { value: "bill" } });
+    expect(screen.getByRole("option", { name: /^Billing — Ayala Tech Summit 2026/ })).toBeTruthy();
+    expect(screen.queryByRole("option", { name: /Ria Santos/ })).toBeNull();
+
+    fireEvent.change(screen.getByPlaceholderText(PALETTE_PLACEHOLDER), { target: { value: "ria declined" } });
+    expect(screen.getByRole("option", { name: /^Ria Santos/ })).toBeTruthy();
+    expect(screen.queryByRole("option", { name: /Ayala Tech/ })).toBeNull();
+  });
+
+  it("opens with a loading row while the records load, then lists them once they arrive", () => {
+    const onOpen = vi.fn();
+    const groups = buildPmcmCommandGroups({ events: [ayala], clients: [], inquiries: [] }, { openEvent: vi.fn(), openClient: vi.fn(), openInquiry: vi.fn() });
+    const { rerender } = renderShell([], { searchPlaceholder: PALETTE_PLACEHOLDER, commandGroupsLoading: true, onCommandPaletteOpen: onOpen, commandEmptyLabel: "Nothing matches." });
+
+    const input = openPalette(PALETTE_PLACEHOLDER);
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("status").textContent).toBe("Loading events and clients…");
+    expect(screen.queryByText("Nothing matches.")).toBeNull();
+
+    rerender(
+      <PrismPortalShell portal="event" roleLabel="PMCM Event Command" title="Inbox" navItems={navItems} activeItemId="inbox" commandGroups={groups} commandEmptyLabel="Nothing matches." searchPlaceholder={PALETTE_PLACEHOLDER}>
+        <p>page body</p>
+      </PrismPortalShell>,
+    );
+    fireEvent.change(input, { target: { value: "ayala" } });
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByRole("option", { name: /^Ayala Tech Summit 2026/ })).toBeTruthy();
   });
 
   it("suggests an event or client name when nothing matches", () => {

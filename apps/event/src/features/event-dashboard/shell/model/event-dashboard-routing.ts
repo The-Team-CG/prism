@@ -346,7 +346,8 @@ const ROUTE_TITLES: Partial<Record<DashboardSection, string>> = {
   inquiries: "Inquiries",
 };
 
-function documentTitle(parts: Array<string | undefined>): string {
+/** The browser tab title for a page: its named parts, then the product, e.g. "Suppliers · P.R.I.S.M". */
+export function pageDocumentTitle(parts: Array<string | undefined>): string {
   return [...parts.filter((part): part is string => Boolean(part)), PRODUCT_NAME].join(" · ");
 }
 
@@ -369,7 +370,7 @@ export function routeShellCopy(
         ? [sectionLabel, `${event.clientName} · ${formatPortalDate(event.eventDate)}`].filter(Boolean).join(" · ")
         : "Select an event or accept an inquiry to begin.",
       breadcrumb: sectionLabel ? [sectionLabel] : [],
-      documentTitle: documentTitle([sectionLabel, event?.eventName]),
+      documentTitle: pageDocumentTitle([sectionLabel, event?.eventName]),
     };
   }
 
@@ -380,7 +381,7 @@ export function routeShellCopy(
       title: clientName,
       description: ROUTE_DESCRIPTIONS.clients ?? "",
       breadcrumb: ["Clients", clientName],
-      documentTitle: documentTitle(["Clients", clientName]),
+      documentTitle: pageDocumentTitle(["Clients", clientName]),
     };
   }
 
@@ -390,7 +391,7 @@ export function routeShellCopy(
     title,
     description: ROUTE_DESCRIPTIONS[routeState.section] ?? "Select an event or accept an inquiry to begin.",
     breadcrumb: [title],
-    documentTitle: documentTitle([title]),
+    documentTitle: pageDocumentTitle([title]),
   };
 }
 

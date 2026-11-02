@@ -56,6 +56,7 @@ export function useEventDashboardWorkspaceViewModel({
   const [session, setSession] = useState<EventSession | null>(null);
   const [status, setStatus] = useState<WorkspaceStatus>("idle");
   const [reference, setReference] = useState<PrismPmcmReference | null>(null);
+  const [commandReferenceLoading, setCommandReferenceLoading] = useState(false);
   const [coordinatorState, setCoordinatorState] = useState<PrismCoordinatorWorkspace | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [approvalRequests, setApprovalRequests] = useState<PrismApprovalRequest[]>([]);
@@ -166,6 +167,17 @@ export function useEventDashboardWorkspaceViewModel({
     };
   }, [session, section]);
 
+
+  // Ctrl K searches events and clients, which need the PMCM reference. Pages that do not load it (the Inbox) fetch it
+  // the first time the palette opens; the repository's cache makes later opens free.
+  const loadCommandReference = useCallback(() => {
+    if (reference || !session || !isPmcmAdmin(session.role)) return;
+    setCommandReferenceLoading(true);
+    loadPmcmReference()
+      .then(setReference)
+      .catch((err) => setError(err instanceof Error ? err.message : "Unable to load events and clients"))
+      .finally(() => setCommandReferenceLoading(false));
+  }, [reference, session]);
 
   // Only the event Floorplans tab offers templates; every other page skipped rendering them but still paid the request.
   // PMCM-only reads wait for a PMCM session, so a coordinator who opens a PMCM URL sends none of them before the redirect.
@@ -353,6 +365,8 @@ export function useEventDashboardWorkspaceViewModel({
     refreshSelectedEventWorkspace,
     selectedEventWorkspace,
     setReference,
+    commandReferenceLoading,
+    loadCommandReference,
     setCoordinatorState,
     setLiveOps,
     setStatusFeed,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { EventWorkspaceSwitcher } from "./event-workspace-switcher";
@@ -10,8 +10,10 @@ import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { roleLabel } from "@/features/pmcm-kit/model/display-labels";
 import { supplierWorkspaceStyles } from "@/features/suppliers/directory";
 import { EventDashboardSkeleton, eventDashboardSkeletonVariant } from "@/app/(portal)/dashboard/components/event-dashboard-skeleton";
+import { useDocumentTitle } from "@/app/components/document-title";
 import type { EventSession } from "@/app/lib/session";
 import type { EventDashboardShellViewModel } from "../../view-models/use-event-dashboard-shell-view-model";
+import { pageDocumentTitle } from "../../model/event-dashboard-routing";
 
 // Opened only when PMCM attaches a conforme, so it loads on demand rather than with every page.
 const ConformeUploadModal = dynamic(() =>
@@ -24,6 +26,7 @@ type LoadedShell = EventDashboardShellViewModel & {
 
 export function EventPmcmLoadingShell({ viewModel }: { viewModel: LoadedShell }) {
   const loadingVariant = eventDashboardSkeletonVariant(viewModel.routeState);
+  useDocumentTitle(pageDocumentTitle([viewModel.loadingShellCopy.title]));
   return (
     <PrismDashboardShell
       portal="event"
@@ -51,7 +54,6 @@ export function EventPmcmLoadingShell({ viewModel }: { viewModel: LoadedShell })
 }
 
 export function EventPmcmReadyShell({ viewModel, children }: { viewModel: LoadedShell; children?: ReactNode }) {
-  const { documentTitle } = viewModel.shellCopy;
   const router = useRouter();
   const { events, clientRecords, inquiries, navigateEvent, navigateClient } = viewModel;
   const commandGroups = useMemo(
@@ -61,9 +63,7 @@ export function EventPmcmReadyShell({ viewModel, children }: { viewModel: Loaded
     ),
     [clientRecords, events, inquiries, navigateClient, navigateEvent, router],
   );
-  useEffect(() => {
-    document.title = documentTitle;
-  }, [documentTitle]);
+  useDocumentTitle(viewModel.shellCopy.documentTitle);
   return (
     <PrismDashboardShell
       portal="event"
@@ -82,6 +82,8 @@ export function EventPmcmReadyShell({ viewModel, children }: { viewModel: Loaded
       user={{ name: viewModel.session.name, detail: roleLabel(viewModel.session.role), initials: viewModel.session.name.slice(0, 2).toUpperCase() }}
       searchPlaceholder="Find events, clients or pages"
       commandGroups={commandGroups}
+      commandGroupsLoading={viewModel.commandReferenceLoading}
+      onCommandPaletteOpen={viewModel.loadCommandReference}
       commandEmptyLabel="Nothing matches. Try an event or client name."
       sidebarContext={
         viewModel.routeState.eventId && viewModel.selectedEvent ? (
