@@ -140,10 +140,6 @@ export class InquiriesService {
         if (current.status === 'declined' && input.status !== 'declined') {
           throw new BadRequestException('Declined inquiries are permanently flagged and cannot be reopened');
         }
-        if (input.status === 'declined' && !input.declineReason) {
-          throw new BadRequestException('Decline reason is required');
-        }
-
         const now = new Date();
         data =
           input.status === 'accepted'
@@ -162,7 +158,7 @@ export class InquiriesService {
                 ? {
                     status: 'declined',
                     declinedAt: current.declinedAt ?? now,
-                    declineReason: input.declineReason,
+                    declineReason: input.declineReason ?? null,
                   }
                 : {
                     status: input.status,
@@ -219,7 +215,8 @@ export class InquiriesService {
           });
         }
         if (input.status === 'declined') {
-          await this.audit(undefined, verifiedActor.name, `Declined inquiry for ${inquiry.clientName}: ${input.declineReason}`, {
+          const reasonSuffix = input.declineReason ? `: ${input.declineReason}` : ' with no reason given';
+          await this.audit(undefined, verifiedActor.name, `Declined inquiry for ${inquiry.clientName}${reasonSuffix}`, {
             actorRole: verifiedActor.role,
             actorEmail: verifiedActor.email,
             metadata: { actorId: verifiedActor.id },
