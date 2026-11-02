@@ -212,7 +212,7 @@ export function CoordinatorAssignmentDesk({
                   type="checkbox"
                   checked={onlyAvailable}
                   onChange={(e) => setOnlyAvailable(e.target.checked)}
-                  className="size-4 rounded"
+                  className="size-6 shrink-0 rounded"
                 />
                 Available only
               </label>
