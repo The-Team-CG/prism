@@ -146,6 +146,7 @@ export function InquiryIntakeLog({
       {declining && (
         <InquiryDeclineDialog
           clientName={declining.clientName}
+          clientEmail={declining.email}
           declineReason={declineReason}
           busy={busy}
           onReason={setDeclineReason}

@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException } from '@nes
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
-import { InquiriesService } from './inquiries.service';
+import { InquiriesService, inquiryDeclinedMessage } from './inquiries.service';
 
 import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 function inquiry(overrides: Record<string, unknown> = {}) {
@@ -146,6 +146,25 @@ const pmcmActor = {
   id: 'pmcm_merge', role: OpsUserRole.PmcmAdmin, name: 'M. Reyes', email: 'm.reyes@pmcm.test',
   explicit: true, verified: true,
 } satisfies ResolvedEventOpsActor;
+
+const declineLead = 'About your inquiry for Ayala Summit. Thank you for thinking of PMCM. We can\'t take on Ayala Summit this time.';
+const declineClose = 'We would welcome the chance to work with you on future events, so please reach out anytime.';
+const declineGenericEmail = `${declineLead} ${declineClose}`;
+const declineDateEmail = `${declineLead} We're not available on your requested date. ${declineClose}`;
+const declineScopeEmail = `${declineLead} The event is outside the services we currently offer. ${declineClose}`;
+
+describe('inquiryDeclinedMessage', () => {
+  it.each([
+    { declineReason: 'Date Unavailable', expected: declineDateEmail },
+    { declineReason: 'Outside Service Scope', expected: declineScopeEmail },
+    { declineReason: 'Budget Too Low', expected: declineGenericEmail },
+    { declineReason: 'Prior Issue', expected: declineGenericEmail },
+    { declineReason: 'Other', expected: declineGenericEmail },
+    { declineReason: undefined, expected: declineGenericEmail },
+  ])('writes the client copy for reason $declineReason', ({ declineReason, expected }) => {
+    expect(inquiryDeclinedMessage('Ayala Summit', declineReason)).toBe(expected);
+  });
+});
 
 describe('InquiriesService', () => {
   it('requires privacy consent for public inquiry creation', async () => {
@@ -305,6 +324,54 @@ describe('InquiriesService', () => {
 
     expect(records[0]).toMatchObject({ status: 'declined', declineReason: declineReason ?? null });
     expect(audits.map(([input]) => input)).toContainEqual(expect.objectContaining({ action: auditAction }));
+  });
+
+  describe('client decline email', () => {
+    it.each([
+      { declineReason: undefined, message: declineGenericEmail },
+      { declineReason: 'Date Unavailable', message: declineDateEmail },
+      { declineReason: 'Outside Service Scope', message: declineScopeEmail },
+    ])('queues one decline email to the client with the disclosed copy for reason $declineReason', async ({ declineReason, message }) => {
+      const { service, notifications } = createService();
+
+      await service.updateInquiryStatus('inq_existing', { status: 'declined', declineReason }, pmcmActor);
+
+      expect(notifications).toHaveLength(1);
+      expect(notifications[0][0]).toMatchObject({
+        recipient: 'ana@ayala.test',
+        channel: 'email',
+        message,
+        idempotencyKey: 'inquiry-declined:inq_existing',
+      });
+    });
+
+    it.each(['Budget Too Low', 'Prior Issue', 'Other'])('sends the generic copy and does not disclose the internal reason %s', async (declineReason) => {
+      const { service, notifications } = createService();
+
+      await service.updateInquiryStatus('inq_existing', { status: 'declined', declineReason }, pmcmActor);
+
+      expect(notifications[0][0].message).toBe(declineGenericEmail);
+    });
+
+    it('sends nothing again when the same inquiry is declined a second time, even with a new reason', async () => {
+      const { service, notifications, records } = createService();
+
+      await service.updateInquiryStatus('inq_existing', { status: 'declined', declineReason: 'Other' }, pmcmActor);
+      await expect(service.updateInquiryStatus('inq_existing', { status: 'declined', declineReason: 'Date Unavailable' }, pmcmActor))
+        .resolves.toMatchObject({ status: 'declined' });
+
+      expect(notifications).toHaveLength(1);
+      expect(records[0]).toMatchObject({ status: 'declined' });
+    });
+
+    it('refuses to decline a merged inquiry and sends nothing to its client', async () => {
+      const { service, notifications } = createService([inquiry({ mergedInto: { id: 'merge_1' } })]);
+
+      await expect(service.updateInquiryStatus('inq_existing', { status: 'declined', declineReason: 'Date Unavailable' }, pmcmActor))
+        .rejects.toBeInstanceOf(ConflictException);
+
+      expect(notifications).toHaveLength(0);
+    });
   });
 
   it('records the verified actor for manual conforme reminders', async () => {

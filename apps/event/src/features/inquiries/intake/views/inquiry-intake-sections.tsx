@@ -545,6 +545,7 @@ function InquiryDetailActions({
  */
 export function InquiryDeclineDialog({
   clientName,
+  clientEmail,
   declineReason,
   busy,
   onReason,
@@ -552,6 +553,7 @@ export function InquiryDeclineDialog({
   onConfirm,
 }: {
   clientName: string;
+  clientEmail: string;
   declineReason: string;
   busy: boolean;
   onReason: (value: string) => void;
@@ -567,6 +569,7 @@ export function InquiryDeclineDialog({
         <p className="mt-1 text-sm text-muted-foreground">
           A declined inquiry can&apos;t be reopened. The reason is optional and is kept on the inquiry and in the audit log.
         </p>
+        <p className="mt-2 text-sm text-muted-foreground">We&apos;ll email {clientEmail} to let them know.</p>
         <label htmlFor={reasonId} className="mt-4 block text-sm font-medium text-foreground">
           Decline reason <span className="font-normal text-muted-foreground">(optional)</span>
         </label>
