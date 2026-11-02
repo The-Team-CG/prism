@@ -33,6 +33,7 @@ import { useEventDashboardWorkspaceViewModel } from "./use-event-dashboard-works
 import { eventDashboardCommands } from "../data/event-dashboard-commands";
 import { refreshAfterDashboardCommand, runDashboardActionWithSuccess, type DashboardActionRefreshers } from "./dashboard-action-runner";
 import { countersignConformeExecution, prepareConformeExecution, refreshConformeExecution } from "@/features/conforme/signing/use-cases/conforme-signing";
+import { assignedSupplierRequests } from "@/features/suppliers/readiness";
 
 export type { EventDashboardClientProps };
 
@@ -301,7 +302,7 @@ export function useEventDashboardShellViewModel({
         ? commandInbox.counts.critical + commandInbox.counts.warning + commandInbox.counts.attention
         : undefined,
     assignmentCount: assignments.length,
-    quoteCount: quotes.length,
+    quoteCount: assignedSupplierRequests(quoteRequests).length,
     draftCount: drafts.length,
     paymentCount: payments.length,
     closeoutCount: openCheckCount,

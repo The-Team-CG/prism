@@ -64,7 +64,7 @@ function RequirementTile({ requirement, assignedFallback, onEdit }: {
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-bold text-foreground">{requirement.role}</p>
         <span className={"rounded-full px-2 py-0.5 text-xs font-bold " + (complete ? "bg-success/10 text-success" : "bg-attention/10 text-attention")}>
-          {assigned}/{requirement.required}{"acknowledged" in requirement ? " · " + acknowledged + " ack" : ""}
+          {assigned} of {requirement.required} assigned{"acknowledged" in requirement ? ` · ${acknowledged} acknowledged` : ""}
         </span>
       </div>
       <p className="mt-1.5 text-xs text-muted-foreground">{complete ? "Covered for this event." : "Still needs staffing."}</p>

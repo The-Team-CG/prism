@@ -22,7 +22,7 @@ import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
 import { HandoffBriefPanel } from "@/features/live-ops/handoff-brief";
 import { DecisionLogPanel } from "@/features/decision-log";
 import { SupplierQuotePlanner } from "@/features/suppliers/directory";
-import { PmcmSupplierReadinessBoard, supplierReadinessRefreshKey } from "@/features/suppliers/readiness";
+import { PmcmSupplierReadinessBoard, assignedSupplierRequests, supplierReadinessRefreshKey } from "@/features/suppliers/readiness";
 import { PmcmSupplierWorkflowsPanel } from "@/features/suppliers/workflows/views/pmcm-supplier-workflows-panel";
 import { EventRegistrationTab } from "@/app/components/pmcm/event-registration-tab";
 import { EventGamesHostView } from "@/features/event-games/host";
@@ -205,7 +205,7 @@ export function EventWorkspaceSuppliersTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   const event = vm.selectedEvent;
-  const confirmed = vm.quoteRequests.filter((request) => request.assignmentStatus === "confirmed");
+  const assigned = assignedSupplierRequests(vm.quoteRequests);
   const awaitingQuotes = vm.quoteRequests.filter((request) => !vm.quotes.some((quote) => quote.requestId === request.id)).length;
   const tabs: WorkspaceSubTab[] = [
     {
@@ -229,16 +229,16 @@ export function EventWorkspaceSuppliersTab() {
       ),
     },
     { id: "readiness", label: "Readiness", render: () => <PmcmSupplierReadinessBoard eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /> },
-    { id: "bookings", label: "Bookings & contracts", count: confirmed.length, render: () => <PmcmSupplierWorkflowsPanel eventId={event.id} requests={vm.quoteRequests} quotes={vm.quotes} /> },
+    { id: "bookings", label: "Bookings & contracts", count: assigned.length, render: () => <PmcmSupplierWorkflowsPanel eventId={event.id} requests={vm.quoteRequests} quotes={vm.quotes} /> },
     {
       id: "emergency",
       label: "Replace a supplier",
       render: () => (
         <section className="rounded-xl border border-border bg-card p-5">
           <h2 className="font-semibold text-foreground">Replace a supplier</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">If a confirmed supplier drops out, withdraw them here and review suggested replacements.</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">If an assigned supplier drops out, withdraw them here and review suggested replacements.</p>
           <div className="mt-4">
-            <PAREPanel eventId={event.id} assignedRequests={confirmed} suppliers={vm.suppliers} onWithdraw={vm.withdrawSupplier} busy={Boolean(vm.busy)} />
+            <PAREPanel eventId={event.id} assignedRequests={assigned} suppliers={vm.suppliers} onWithdraw={vm.withdrawSupplier} busy={Boolean(vm.busy)} />
           </div>
         </section>
       ),
@@ -352,6 +352,7 @@ export function EventWorkspaceBillingTab() {
           key={event.id}
           eventName={event.eventName}
           billingSources={vm.billingSources}
+          statements={vm.billingStatements}
           proposalDocuments={vm.documents.filter((document) => document.eventId === event.id && /proposal/i.test(document.type))}
           busy={Boolean(vm.busy)}
           onCreate={vm.createBillingSource}

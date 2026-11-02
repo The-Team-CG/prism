@@ -336,6 +336,27 @@ export function isOperatorEligibleAssignment(assignment: { status?: string; coor
 }
 
 /**
+ * The active assignment for one person in one role. Acknowledgement belongs to this pair: a status on the
+ * same person's assignment for another role must never be shown on this role's card.
+ */
+export function activeAssignmentForRole<T extends { coordinatorId?: string | null; role: string; status?: string }>(
+  assignments: T[],
+  coordinatorId: string,
+  role: string,
+): T | undefined {
+  return assignments.find((a) => a.coordinatorId === coordinatorId && canonicalCoordinatorRole(a.role) === role && isCoordinatorAssignmentActive(a));
+}
+
+/** Another role this person already holds in the same event, if any. */
+export function otherActiveRoleAssignment<T extends { coordinatorId?: string | null; role: string; status?: string }>(
+  assignments: T[],
+  coordinatorId: string,
+  role: string,
+): T | undefined {
+  return assignments.find((a) => a.coordinatorId === coordinatorId && canonicalCoordinatorRole(a.role) !== role && isCoordinatorAssignmentActive(a));
+}
+
+/**
  * Mirrors the API's task update scope (requireTaskScope). The operator may update any task; other
  * coordinators only tasks for their own role that are unowned or owned by them. The role view also
  * lists General Coordinator tasks, which the API refuses to let a regular coordinator change.
