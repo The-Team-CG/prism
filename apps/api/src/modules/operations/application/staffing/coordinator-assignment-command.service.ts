@@ -4,6 +4,8 @@ import {
   COORDINATOR_ROLES,
   canonicalCoordinatorRole,
   coordinatorRoleSchema,
+  isWithinCoordinatorAttendanceWindow,
+  prismCalendarDateKey,
 } from '@prism/types';
 import type {
   CreateCoordinatorAssignmentInput,
@@ -905,6 +907,10 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
   ) {
     const event = await this.requireEvent(eventId, prisma);
     if (event.archived) throw new BadRequestException('Archived coordinator events are read-only');
+    // Coordinators record attendance only around the event day; PMCM corrects records outside that window.
+    if (actor.role === OpsUserRole.Coordinator && !isWithinCoordinatorAttendanceWindow(event.eventDate.toISOString(), prismCalendarDateKey())) {
+      throw new BadRequestException('Attendance can only be marked from the day before through the day after the event. Contact PMCM to correct it.');
+    }
     const assignment = await prisma.opsCoordinatorAssignment.findFirst({ where: { id: assignmentId, eventId } });
     if (!assignment) throw new NotFoundException('Coordinator assignment not found');
     if ((INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES as readonly string[]).includes(assignment.status)) {

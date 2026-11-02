@@ -1,6 +1,6 @@
 "use client";
 import { DateTimePicker } from "@prism/ui/components/date-time-picker";
-import { formatPortalDateTime } from "@prism/ui/format-date";
+import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 
 import {
   AlertTriangle,
@@ -11,19 +11,22 @@ import {
   LayoutGrid,
   Radio,
   ShieldCheck,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
-import { useId } from "react";
+import { useId, useRef, type ReactNode } from "react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { label } from "@/features/pmcm-kit";
 import {
   coordinatorAttendanceControlCopy,
+  coordinatorAttendanceRecordLine,
+  coordinatorAttendanceSummary,
   coordinatorIssueFormCopy,
   coordinatorTaskFormCopy,
 } from "../../model/coordinator-view-copy";
-import type { CoordinatorAttendanceChoice } from "../../model/coordinators-desk-rules";
+import { recordedAttendanceLabel, type CoordinatorAttendanceChoice } from "../../model/coordinators-desk-rules";
 import { liveOpsPillClass } from "@/features/live-ops/workspace/model/live-ops-workspace-rules";
 import type { CoordinatorRole, PrismCoordinatorAssignment, PrismCoordinatorRoleView } from "@prism/types";
 import { CCard, CCardBody, CCardHeader, FIELD_AREA, FIELD_INPUT, FIELD_LABEL, FORM_ALERT, FORM_SUBMIT } from "./coordinator-view-primitives";
@@ -143,6 +146,8 @@ export type CoordinatorAttendanceFormModel = {
   status: string;
   choices: readonly { value: CoordinatorAttendanceChoice; label: string }[];
   canMark: boolean;
+  windowOpen: boolean;
+  markedAt: string | null;
   hasAssignment: boolean;
   replaced: boolean;
   isDisabled: (choice: CoordinatorAttendanceChoice) => boolean;
@@ -163,32 +168,53 @@ function CoordinatorAttendanceControl({
 }: {
   attendanceForm: CoordinatorAttendanceFormModel;
 }) {
+  const choiceGroupRef = useRef<HTMLDivElement>(null);
+  const recordedLabel = recordedAttendanceLabel(attendanceForm.status);
   const copy = coordinatorAttendanceControlCopy({
     hasAssignment: attendanceForm.hasAssignment,
     replaced: attendanceForm.replaced,
+    windowOpen: attendanceForm.windowOpen,
+    recordedLabel,
     pendingChoiceLabel: attendanceForm.pendingChoiceLabel,
   });
 
   return (
     <div className="mt-5 border-t border-border pt-4">
       <p className="text-sm font-semibold text-foreground">{copy.heading}</p>
-      {copy.blockedReason ? (
-        <p className="mt-2 text-sm text-muted-foreground">{copy.blockedReason}</p>
+      {copy.blockedReason || copy.closedReason ? (
+        <p role="status" className="mt-2 text-sm text-muted-foreground">{copy.blockedReason ?? copy.closedReason}</p>
       ) : (
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
-          {attendanceForm.choices.map((choice) => (
-            <button
-              key={choice.value}
-              type="button"
-              disabled={attendanceForm.busy || attendanceForm.isDisabled(choice.value)}
-              data-active={attendanceForm.status === choice.value}
-              onClick={() => attendanceForm.mark(choice.value)}
-              className={ATTENDANCE_CHOICE_BUTTON}
-            >
-              {choice.label}
-            </button>
-          ))}
-        </div>
+        <>
+          <div ref={choiceGroupRef} role="group" aria-label="Your attendance" className="mt-3 grid gap-2 sm:grid-cols-3">
+            {attendanceForm.choices.map((choice) => (
+              <button
+                key={choice.value}
+                type="button"
+                disabled={attendanceForm.busy || attendanceForm.isDisabled(choice.value)}
+                aria-pressed={attendanceForm.status === choice.value}
+                data-active={attendanceForm.status === choice.value}
+                onClick={() => attendanceForm.mark(choice.value)}
+                className={ATTENDANCE_CHOICE_BUTTON}
+              >
+                {choice.label}
+              </button>
+            ))}
+          </div>
+          {recordedLabel ? (
+            <p role="status" className="mt-2 text-sm text-muted-foreground">
+              <span>{coordinatorAttendanceRecordLine(recordedLabel, attendanceForm.markedAt)}</span>
+              {" · "}
+              <button
+                type="button"
+                disabled={attendanceForm.busy}
+                onClick={() => choiceGroupRef.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus()}
+                className="font-semibold text-primary underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                Change
+              </button>
+            </p>
+          ) : null}
+        </>
       )}
       {copy.confirmPrompt ? (
         <div className="mt-3 rounded-md border border-danger/25 bg-danger/8 px-3 py-3">
@@ -239,7 +265,7 @@ function CoordinatorAssignedBadge({
     <div>
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <p className="text-lg font-semibold text-foreground">{roleName}</p>
-        <p className="text-sm text-muted-foreground">Attendance: {label(attendanceStatus)}</p>
+        <p className="text-sm text-muted-foreground">{coordinatorAttendanceSummary(attendanceStatus, recordedAttendanceLabel(attendanceStatus) ?? label(attendanceStatus))}</p>
       </div>
       {acknowledged ? (
         <p className="mt-2 text-sm text-success">Assignment confirmed with PMCM.</p>
@@ -403,7 +429,7 @@ function CoordinatorIssueForm({ issueForm }: { issueForm: CoordinatorIssueFormMo
       <CCardHeader>
         <div className="flex items-center gap-2">
           <Radio className="size-4 text-primary" />
-          <h3 className="text-sm font-bold text-foreground">Log an urgent issue</h3>
+          <h3 className="text-sm font-bold text-foreground">Report an issue</h3>
         </div>
       </CCardHeader>
       <CCardBody className="space-y-3">
@@ -579,29 +605,42 @@ function CoordinatorRoleQueueAndLive({
       {section === "tasks" ? (
         <>
           <CoordinatorTaskQueue roleView={roleView} taskActions={taskActions} />
-          <details className="rounded-lg border border-border bg-card">
-          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Log a task</summary>
-          <CoordinatorTaskForm taskForm={taskForm} />
-          </details>
-          <details className="rounded-lg border border-border bg-card">
-          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Event briefing</summary>
-          <CoordinatorBriefingCard roleView={roleView} />
-          </details>
-          <details className="rounded-lg border border-border bg-card">
-          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">On-site controls</summary>
-          <CoordinatorRoleActions roleView={roleView} reassignment={reassignment} operatorActions={operatorActions} />
-          </details>
+          {/* With nothing assigned yet, the way forward is logging a task, so that form opens. */}
+          <CoordinatorDisclosure title="Log a task" open={roleView.tasks.length === 0}>
+            <CoordinatorTaskForm taskForm={taskForm} />
+          </CoordinatorDisclosure>
+          <CoordinatorDisclosure title="Event briefing" description="The venue, guest count and notes PMCM shared for this event.">
+            <CoordinatorBriefingCard roleView={roleView} />
+          </CoordinatorDisclosure>
+          <CoordinatorDisclosure title="Team and supplier checks" description="Reassign tasks, update colleagues' attendance and verify suppliers.">
+            <CoordinatorRoleActions roleView={roleView} reassignment={reassignment} operatorActions={operatorActions} />
+          </CoordinatorDisclosure>
         </>
       ) : (
         <>
-          <CoordinatorRoleLiveData roleView={roleView} registrationRole={registrationRole} />
-          <details className="rounded-lg border border-border bg-card">
-          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Report an issue</summary>
           <CoordinatorIssueForm issueForm={issueForm} />
-          </details>
+          <CoordinatorOpenIssues roleView={roleView} />
+          <CoordinatorCheckIns roleView={roleView} registrationRole={registrationRole} />
         </>
       )}
     </div>
+  );
+}
+
+function CoordinatorDisclosure({ title, description, open, children }: {
+  title: string;
+  description?: string;
+  open?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <details open={open} className="rounded-lg border border-border bg-card">
+      <summary className="cursor-pointer px-5 py-4">
+        <span className="block text-sm font-semibold text-foreground">{title}</span>
+        {description ? <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{description}</span> : null}
+      </summary>
+      {children}
+    </details>
   );
 }
 
@@ -636,25 +675,18 @@ function CoordinatorBriefingCard({ roleView }: { roleView: PrismCoordinatorRoleV
   );
 }
 
-function CoordinatorRoleLiveData({ roleView, registrationRole }: { roleView: PrismCoordinatorRoleView; registrationRole: boolean }) {
-  const checkInCopy = registrationRole
-    ? `${roleView.guestAttendanceCount} checked in, including walk-ins flagged for PMCM review.`
-    : `${roleView.guestAttendanceCount} checked in. Guest-level records are hidden for this role.`;
+function CoordinatorOpenIssues({ roleView }: { roleView: PrismCoordinatorRoleView }) {
   return (
     <CCard>
       <CCardHeader>
         <div className="flex items-center gap-2">
           <Radio className="size-4 text-primary" />
-          <h3 className="text-sm font-bold text-foreground">Role-safe live data</h3>
+          <h3 className="text-sm font-bold text-foreground">Open issues</h3>
         </div>
       </CCardHeader>
-      <CCardBody id="coordinator-live-data" className="scroll-mt-24 space-y-3">
-        <div className="rounded-xl bg-muted/40 p-4">
-          <p className="text-sm font-bold text-foreground">Registration check-ins</p>
-          <p className="mt-1 text-sm text-muted-foreground">{checkInCopy}</p>
-        </div>
+      <CCardBody id="coordinator-live-data" className="scroll-mt-24">
         <CompactRecordList
-          emptyText="No urgent issue assigned to this role."
+          emptyText="No open issues."
           items={roleView.urgentIssues.map((issue) => ({
             id: issue.id,
             title: issue.title,
@@ -666,6 +698,25 @@ function CoordinatorRoleLiveData({ roleView, registrationRole }: { roleView: Pri
         />
       </CCardBody>
     </CCard>
+  );
+}
+
+/** Secondary to the issue list: the registration count is context for the issues, not the page's main work. */
+function CoordinatorCheckIns({ roleView, registrationRole }: { roleView: PrismCoordinatorRoleView; registrationRole: boolean }) {
+  const count = roleView.guestAttendanceCount;
+  const detail = count === 0
+    ? "No check-ins recorded."
+    : registrationRole
+      ? `${count} checked in, including walk-ins flagged for PMCM review.`
+      : `${count} checked in. Guest-level records are hidden for this role.`;
+  return (
+    <section aria-label="Check-ins" className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 px-5 py-4">
+      <UsersRound className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+      <div>
+        <p className="text-sm font-semibold text-foreground">Check-ins</p>
+        <p className="mt-0.5 text-sm text-muted-foreground">{detail}</p>
+      </div>
+    </section>
   );
 }
 
@@ -683,7 +734,7 @@ export function CoordinatorAssignmentHistory({ assignments }: { assignments: Pri
           emptyText="No coordinator assignments found."
           items={assignments.map((item) => ({
             id: item.id,
-            title: item.eventDate ? `${item.eventDate} · ${item.role}` : item.role,
+            title: item.eventDate ? `${formatPortalDate(item.eventDate)} · ${item.role}` : item.role,
             description: item.coordinatorName,
             meta: item.withdrawalReason || item.replacementReason || undefined,
             status: item.status,

@@ -10,7 +10,6 @@ import {
   ClipboardList,
   LayoutGrid,
   LockKeyhole,
-  ShieldCheck,
   Truck,
   UsersRound,
   type LucideIcon,
@@ -19,17 +18,17 @@ import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { label } from "@/features/pmcm-kit";
 import {
-  coordinatorAssignmentDetail,
+  coordinatorAttendanceSummary,
   coordinatorGreetingCopy,
   coordinatorIssueActionCopy,
   coordinatorTaskActionCopy,
 } from "../../model/coordinator-view-copy";
+import { recordedAttendanceLabel } from "../../model/coordinators-desk-rules";
 import type { PrismCoordinatorRoleView } from "@prism/types";
 import { LiveOpsControlSurface, LiveOpsScheduleDesk } from "@/features/live-ops/schedule";
 import { HandoffBriefPanel } from "@/features/live-ops/handoff-brief";
 import { CCard, CCardBody, CCardHeader } from "./coordinator-view-primitives";
 import type {
-  CoordinatorAttendanceFormModel,
   CoordinatorIssueFormModel,
   CoordinatorTaskFormModel,
 } from "./coordinator-role-sections";
@@ -52,11 +51,13 @@ type StatusSummaryItem = {
   icon?: LucideIcon;
   status?: string;
   detail?: string;
+  /** Opens the view that holds the detail behind this figure. Omitted when no view does. */
+  onSelect?: () => void;
 };
 
 function StatusSummary({ items }: { items: StatusSummaryItem[] }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {items.map((item) => (
         <StatusSummaryCard key={item.id} item={item} />
       ))}
@@ -66,23 +67,31 @@ function StatusSummary({ items }: { items: StatusSummaryItem[] }) {
 
 function StatusSummaryCard({ item }: { item: StatusSummaryItem }) {
   const Icon = item.icon;
-  return (
-    <div className="rounded-lg border border-border bg-background/80 p-3.5">
-      <div className="flex items-start gap-3">
-        {Icon ? (
-          <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-            <Icon className="size-4" />
-          </span>
-        ) : null}
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm font-black text-foreground">
-            <span className="min-w-0 truncate">{item.value}</span>
-          </div>
-          {item.detail ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{item.detail}</p> : null}
-        </div>
+  const body = (
+    <div className="flex items-start gap-3">
+      {Icon ? (
+        <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+          <Icon className="size-4" />
+        </span>
+      ) : null}
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
+        <div className="mt-1 text-sm font-black text-foreground">{item.value}</div>
+        {item.detail ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.detail}</p> : null}
       </div>
     </div>
+  );
+  if (!item.onSelect) {
+    return <div className="rounded-lg border border-border bg-background/80 p-3.5">{body}</div>;
+  }
+  return (
+    <button
+      type="button"
+      onClick={item.onSelect}
+      className="rounded-lg border border-border bg-background/80 p-3.5 text-left transition hover:border-primary/30 hover:bg-secondary/35 focus-visible:ring-2 focus-visible:ring-primary"
+    >
+      {body}
+    </button>
   );
 }
 
@@ -152,7 +161,6 @@ export type CoordinatorWorkspaceModel = {
   acknowledge: () => void;
   decline: (reason?: string) => void;
   withdraw: () => void;
-  scrollTo: (id: string) => void;
   taskForm: CoordinatorTaskFormModel;
   issueForm: CoordinatorIssueFormModel;
   reassignment: CoordinatorReassignmentModel;
@@ -194,7 +202,7 @@ export function CoordinatorGreetingBanner({
         <dl className="shrink-0 text-sm sm:text-right">
           <dt className="text-muted-foreground">Your role</dt>
           <dd className="font-semibold text-foreground">{roleName}</dd>
-          <dd className="text-muted-foreground">{label(attendanceStatus)}</dd>
+          <dd className="text-muted-foreground">{coordinatorAttendanceSummary(attendanceStatus, recordedAttendanceLabel(attendanceStatus) ?? label(attendanceStatus))}</dd>
         </dl>
       ) : null}
     </header>
@@ -260,18 +268,19 @@ export function CoordinatorBoundaryNotice() {
   );
 }
 
+/** Each figure opens the view that holds its detail. The attendance mark lives on My shift, so it is not repeated here. */
 export function CoordinatorStatusSummary({
   activeDraft,
   roleViewLoading,
   roleView,
   roleDataStatus,
   registrationRole,
-  attendanceStatus,
-  assignment,
+  onNavigate,
 }: Pick<
   CoordinatorWorkspaceModel,
-  "activeDraft" | "roleViewLoading" | "roleView" | "roleDataStatus" | "registrationRole" | "assignment"
-> & { attendanceStatus: string }) {
+  "activeDraft" | "roleViewLoading" | "roleView" | "roleDataStatus" | "registrationRole"
+> & { onNavigate: (view: CoordinatorStatusView) => void }) {
+  const checkIns = roleView?.guestAttendanceCount ?? 0;
   return (
     <StatusSummary
       items={[
@@ -289,37 +298,33 @@ export function CoordinatorStatusSummary({
           icon: Truck,
           status: roleDataStatus,
           detail: "Reported preparation and onsite updates.",
+          onSelect: () => onNavigate("tasks"),
         },
         {
-          id: "attendance",
-          label: "Guest attendance",
-          value: roleViewLoading ? "Loading" : !roleView || roleDataStatus === "unavailable" ? "Unavailable" : roleView.guestAttendanceCount,
+          id: "check-ins",
+          label: "Check-ins",
+          value: roleViewLoading ? "Loading" : !roleView || roleDataStatus === "unavailable" ? "Unavailable" : checkIns ? `${checkIns} checked in` : "No check-ins recorded",
           icon: UsersRound,
           status: roleDataStatus,
-          detail: registrationRole ? "Open Registration to review check-ins." : "Recorded event attendance count.",
-        },
-        {
-          id: "assignment",
-          label: "Your attendance",
-          value: label(attendanceStatus),
-          icon: ShieldCheck,
-          status: attendanceStatus,
-          detail: coordinatorAssignmentDetail(assignment ?? undefined, label),
+          detail: registrationRole ? "Open Registration to review check-ins." : "Guest check-ins for this event.",
+          onSelect: () => onNavigate(registrationRole ? "registration" : "issues"),
         },
       ]}
     />
   );
 }
 
+type CoordinatorStatusView = "tasks" | "issues" | "registration";
+
 export function CoordinatorEventDayActions({
   roleViewLoading,
   roleViewError,
   roleView,
-  scrollTo,
+  onNavigate,
 }: Pick<
   CoordinatorWorkspaceModel,
-  "roleViewLoading" | "roleViewError" | "roleView" | "scrollTo"
->) {
+  "roleViewLoading" | "roleViewError" | "roleView"
+> & { onNavigate: (view: CoordinatorStatusView) => void }) {
   const taskCopy = coordinatorTaskActionCopy(roleViewLoading, roleViewError, roleView?.tasks.filter((task) => !["done", "cancelled", "closed"].includes(task.status)).length ?? 0);
   const issueCopy = coordinatorIssueActionCopy(roleViewLoading, roleViewError, roleView?.urgentIssues.filter((issue) => !["resolved", "cancelled", "closed"].includes(issue.status)).length ?? 0);
 
@@ -340,7 +345,7 @@ export function CoordinatorEventDayActions({
               description: taskCopy.description,
               icon: ClipboardList,
               status: taskCopy.status,
-              onSelect: () => scrollTo("coordinator-role-queue"),
+              onSelect: () => onNavigate("tasks"),
             },
             {
               id: "issues",
@@ -348,7 +353,7 @@ export function CoordinatorEventDayActions({
               description: issueCopy.description,
               icon: BellRing,
               status: issueCopy.status,
-              onSelect: () => scrollTo("coordinator-live-data"),
+              onSelect: () => onNavigate("issues"),
             },
           ]}
         />
@@ -357,7 +362,24 @@ export function CoordinatorEventDayActions({
   );
 }
 
-export function CoordinatorTimelineCard({ roleView, readOnly = false }: { roleView: PrismCoordinatorRoleView | null; readOnly?: boolean }) {
+function RunSheetNotPublished({ onCheckAgain }: { onCheckAgain?: () => void }) {
+  return (
+    <div className="rounded-xl bg-muted/40 p-4">
+      <p className="text-sm font-semibold text-foreground">PMCM hasn&apos;t published the run sheet for this event yet.</p>
+      {onCheckAgain ? (
+        <Button variant="outline" className="mt-3 min-h-11 rounded-md" onClick={onCheckAgain}>
+          Check again
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+export function CoordinatorTimelineCard({ roleView, readOnly = false, onCheckAgain }: {
+  roleView: PrismCoordinatorRoleView | null;
+  readOnly?: boolean;
+  onCheckAgain?: () => void;
+}) {
   const [view, setView] = useState<"run-sheet" | "brief" | "reports">("run-sheet");
   return (
     <CCard>
@@ -388,8 +410,8 @@ export function CoordinatorTimelineCard({ roleView, readOnly = false }: { roleVi
         </div>
       </CCardHeader>
       <CCardBody id="coordinator-timeline" className="scroll-mt-24 space-y-3">
-        <fieldset disabled={readOnly} hidden={view !== "run-sheet"} className="min-w-0">{roleView?.schedule ? <LiveOpsControlSurface eventId={roleView.event.id} schedule={roleView.schedule} timer={roleView.timer} /> : (
-          <p className="rounded-xl bg-muted/40 p-4 text-sm text-muted-foreground">No event schedule has been published yet. Check with PMCM for the latest timing.</p>
+        <fieldset disabled={readOnly} hidden={view !== "run-sheet"} className="min-w-0">{roleView?.schedule?.authored ? <LiveOpsControlSurface eventId={roleView.event.id} schedule={roleView.schedule} timer={roleView.timer} /> : roleView ? <RunSheetNotPublished onCheckAgain={onCheckAgain} /> : (
+          <p className="rounded-xl bg-muted/40 p-4 text-sm text-muted-foreground">Loading the run sheet.</p>
         )}</fieldset>
         {roleView ? <fieldset disabled={readOnly} hidden={view !== "brief"} className="min-w-0"><HandoffBriefPanel eventId={roleView.event.id} defaultOpen /></fieldset> : null}
         {roleView ? <fieldset disabled={readOnly} hidden={view !== "reports"} className="min-w-0">
