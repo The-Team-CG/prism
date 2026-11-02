@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- PMCM supplier names in the directory and the Team & roles "Available only" checkbox have click targets of at least 24 px, meeting WCAG 2.2 target size.
 - PMCM can decline an inquiry without a reason (a given reason is still recorded in the audit log), schedule an ocular visit without a client request, and the event-date compliance check now reads "Event date is upcoming" with links to Closure or a postponement.
 - PMCM Ctrl K finds events and clients from the Inbox too (records load when the palette opens), matches typed words as plain substrings, and each page's browser tab names that page, including Suppliers and My shift after a coordinator is redirected from a PMCM URL.
 - PMCM and coordinator Ctrl K search finds events, clients, inquiries, each event's sections and the coordinator's own tasks and issues, with "Report an issue" and "Mark attendance" actions; the coordinator run sheet reads through a coordinator-scoped schedule, PMCM URLs send coordinators home before any PMCM data loads, and Team shows each coordinator's next or last booking with Invite staff moved from Audit.
