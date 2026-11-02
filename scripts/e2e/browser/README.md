@@ -8,17 +8,21 @@ Desktop Chromium and mobile Chromium run each journey with separate browser sess
 
 The normal manual-test database is never reset. Owned test processes and the temporary inbox/database are removed after the run. Private logs, env files, synthetic MFA secrets and failure traces stay in the ignored `.local-dev/browser/<run-id>/` directory. Inspect a failed HTML report with `npx playwright show-report <report-directory>`. Traces may contain synthetic credentials and email tokens; CI uploads only failure reports/results for seven days, never environment, actor or API log files. A cancelled runner/job still needs its normal process/container teardown; do not kill unrelated Node processes.
 
-Use `npm run test:browser -- --project=desktop` for one viewport, `--grep <title>` for a focused journey, and `--skip-build` only after a successful API build from the same source. `npm run test:browser:guards` checks environment refusal without touching a database.
+Use `npm run test:browser -- --project=desktop` for one viewport, `--grep <title>` for a focused journey, and `--skip-build` only after a successful API build from the same source. `npm run test:browser:guards` checks environment refusal, coverage completeness, and timing records without touching a database.
+
+The harness prints elapsed time and pass/fail status for database creation, Mailpit, migrations, each fixture seed, API compilation/readiness, fixture preparation, portal readiness, Playwright, and cleanup. The private run directory contains `timings.json` with those phase durations and total elapsed time. Timing records contain phase names, durations, and status; they exclude connection strings, credentials, process arguments, and exception details. Compare complete successful runs, including setup, before attributing a change to faster test execution.
 
 ## Registered page coverage
 
-Run `npm run test:browser -- --grep "all registered pages"` for the route sweep. It discovers all four portals' `page.tsx` routes and expands dynamic views from the client and PMCM navigation registries. Supplier section variants are listed explicitly. An unresolved parameter or a page template without a case fails the sweep, so new routes require coverage.
+Run `npm run test:browser -- --grep "all registered pages"` for the route sweeps. Each viewport has four independently selectable tests: `all registered pages render: client`, `supplier`, `event`, and `guest`. For example, `npm run test:browser -- --project=desktop --grep "all registered pages render: event"` checks PMCM's complete route group. This split preserves every route and the existing cross-role journeys while allowing future shards to select whole portal groups.
 
-The sweep signs in real fixture actors and opens each route with an existing client dossier, event, approved floorplan, supplier invitation or guest game session where needed. It checks rendered main content, dashboard authentication, uncaught browser errors and failed API loads. Missing-link and unavailable-session states are separate cases; the lifecycle journeys exercise valid activation and conforme links. Passing route coverage establishes that pages render and load their initial data, not that every action or workflow state works.
+Each group discovers its portal's `page.tsx` routes and expands dynamic views from the client and PMCM navigation registries. Supplier section variants are listed explicitly. An unresolved parameter or a page template without a case fails the sweep, so new routes require coverage. The completed group also requires a passing record for every expected route; a partially executed group cannot pass as complete.
+
+Each sweep signs in real fixture actors and prepares the data needed by its portal: a new event/client, approved official layout, supplier invitation, or guest game session. It checks rendered main content, dashboard authentication, uncaught browser errors and failed API loads. Missing-link and unavailable-session states are separate cases; the lifecycle journeys exercise valid activation and conforme links. Passing route coverage establishes that pages render and load their initial data, not that every action or workflow state works.
 
 The supplier directory check creates 26 synthetic suppliers and verifies the 25-row boundary, distinct next-page records, return to the previous page, search resetting the page, and the 50-row option. This validates that directory's controls; it does not establish that other lists are paginated.
 
-Each viewport writes `page-coverage-desktop.json` or `page-coverage-mobile.json` into the private run directory after each route. Reports contain page paths and results with supplier invitation tokens redacted. Completed reports are attached to the Playwright test; partial reports remain available after a setup or route failure.
+Each group writes `page-coverage-<viewport>-<portal>.json` into the private run directory after each route. Reports contain page paths and results with supplier invitation tokens redacted. Completed reports are attached to the Playwright test; partial reports remain available after a setup or route failure.
 
 ## Local test inbox for manual development
 
@@ -28,4 +32,4 @@ Without the opt-in, local mail still uses the API log. The local stop wrapper st
 
 ## CI
 
-`Browser acceptance` runs on affected pull requests, on demand, and daily at 03:00 Asia/Manila against staging. CI provisions disposable PostgreSQL/Mailpit and installs the pinned Playwright Chromium build. No hosted credentials are needed.
+`Browser acceptance` runs on affected pull requests, on demand, and daily at 03:00 Asia/Manila against staging. Desktop and mobile run in separate GitHub-hosted jobs, each provisioning its own disposable PostgreSQL/Mailpit and pinned Playwright Chromium build. Each harness invocation retains one worker: MFA/session files, fixture accounts, and mutable game state are shared within that invocation and are not safe for unrestricted worker concurrency. No hosted credentials are needed.

@@ -7,9 +7,10 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "node ../../scripts/typescript.mjs -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "test:ci": "vitest run"
+    "test:ci": "vitest run",
+    "lint": "node ../../scripts/lint.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.105.1"
@@ -22,6 +23,6 @@
     "@types/react": "^19",
     "jsdom": "^30.0.1",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.5"
   }
 }

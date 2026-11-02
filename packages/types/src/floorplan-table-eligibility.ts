@@ -1,4 +1,5 @@
-import { z } from "zod";
+import type { TableAssignmentIneligibleReason } from "./schemas/floorplan-inputs.js";
+export { tableAssignmentIneligibleReasonSchema, type TableAssignmentIneligibleReason } from "./schemas/floorplan-inputs.js";
 
 /**
  * Role-neutral table seating eligibility shared by the floorplan editor and the API. A guest may sit
@@ -6,16 +7,6 @@ import { z } from "zod";
  * with a seat count, and the table still has a free seat once the guest's own existing seat (if any)
  * is discounted.
  */
-export const tableAssignmentIneligibleReasonSchema = z.enum([
-  "unknown-guest",
-  "guest-declined",
-  "not-a-table",
-  "table-hidden",
-  "table-full",
-  "guest-already-seated",
-]);
-export type TableAssignmentIneligibleReason = z.infer<typeof tableAssignmentIneligibleReasonSchema>;
-
 export type TableAssignmentEligibility =
   | { eligible: true }
   | { eligible: false; reason: TableAssignmentIneligibleReason };
