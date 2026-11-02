@@ -213,6 +213,7 @@ export type SubmitClientOcularVisitInput = z.infer<typeof submitClientOcularVisi
 
 export const scheduleOcularVisitSchema = z.object({
   scheduledAt: z.string().datetime({ offset: true }),
+  note: optionalTrimmedStringSchema,
 });
 export type ScheduleOcularVisitInput = z.infer<typeof scheduleOcularVisitSchema>;
 

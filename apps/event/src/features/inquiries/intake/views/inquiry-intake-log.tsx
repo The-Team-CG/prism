@@ -36,7 +36,7 @@ export function InquiryIntakeLog({
   inquiries: PrismInquiry[];
   onAccept: (inquiry: PrismInquiry) => Promise<void>;
   onPend: (inquiry: PrismInquiry) => Promise<void>;
-  onDecline: (inquiry: PrismInquiry, reason: string) => Promise<void>;
+  onDecline: (inquiry: PrismInquiry, reason?: string) => Promise<void>;
   onMerge: (primary: PrismInquiry, input: { sourceInquiryId: string; reason: string }) => Promise<void>;
   onLogOnBehalf: (input: LogInquiryOnBehalfInput) => Promise<void>;
   busy: boolean;
@@ -77,8 +77,8 @@ export function InquiryIntakeLog({
   }
 
   async function confirmDecline() {
-    if (!declining || !declineReason) return;
-    await onDecline(declining, declineReason);
+    if (!declining) return;
+    await onDecline(declining, declineReason || undefined);
     setDeclining(null);
     setDeclineReason("");
   }

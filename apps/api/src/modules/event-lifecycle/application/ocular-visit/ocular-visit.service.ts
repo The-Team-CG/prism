@@ -116,16 +116,26 @@ export class OcularVisitService {
     await this.requireAdmin(actor, eventId);
     return this.prisma.$transaction(async (tx) => {
       const event = await this.requireEvent(tx, eventId);
-      const request = await tx.opsOcularVisitRequest.findUnique({ where: { eventId } });
-      if (!request) throw new NotFoundException('Ocular visit request not found');
-      if (request.status !== 'requested') {
+      const existing = await tx.opsOcularVisitRequest.findUnique({ where: { eventId } });
+      if (existing && existing.status !== 'requested') {
         throw new BadRequestException('Only a requested ocular visit can be scheduled');
       }
 
-      const saved = await tx.opsOcularVisitRequest.update({
-        where: { eventId },
-        data: { status: 'scheduled', scheduledAt: new Date(input.scheduledAt) },
-      });
+      // PMCM may book a visit without a client request; that record has no requestedAt and is audited as PMCM-initiated.
+      const scheduledAt = new Date(input.scheduledAt);
+      const saved = existing
+        ? await tx.opsOcularVisitRequest.update({
+            where: { eventId },
+            data: { status: 'scheduled', scheduledAt },
+          })
+        : await this.createOcularVisitRequest(tx, {
+            id: 'ocular_visit_' + randomUUID(),
+            eventId,
+            status: 'scheduled',
+            clientNote: null,
+            requestedAt: null,
+            scheduledAt,
+          });
       const context = { prisma: tx, correlationId: saved.id };
       await writeAudit(
         this.auditWriter,
@@ -140,7 +150,12 @@ export class OcularVisitService {
           affectedType: 'ocular_visit_request',
           affectedId: saved.id,
           affectedLabel: 'Client ocular visit',
-          metadata: { scheduledAt: saved.scheduledAt?.toISOString() ?? null, actorId: actor.id ?? null },
+          metadata: {
+            scheduledAt: saved.scheduledAt?.toISOString() ?? null,
+            actorId: actor.id ?? null,
+            initiatedBy: existing ? 'client' : 'pmcm',
+            note: input.note || null,
+          },
         },
         context,
       );

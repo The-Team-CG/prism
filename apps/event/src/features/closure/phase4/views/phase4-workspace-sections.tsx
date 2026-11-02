@@ -14,6 +14,8 @@ import type {
 import { cx } from "@/features/pmcm-kit";
 import {
   closeGateDestination,
+  EVENT_DATE_CONDITION_KEY,
+  eventDateRemediationLinks,
   isCompliancePhase,
   phase4ArchiveStatus,
   phase4StatusLabel,
@@ -200,6 +202,13 @@ function Phase4ComplianceCheckRow({
             <Phase4Status value={check.status} label={phase4StatusLabel(check.status)} />
           </p>
           {check.note ? <p className="truncate text-xs text-muted-foreground" title={check.note}>{check.note}</p> : null}
+          {check.status === "open" && check.conditionKey === EVENT_DATE_CONDITION_KEY ? (
+            <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold">
+              {eventDateRemediationLinks(check.eventId).map((link) => (
+                <a key={link.label} href={link.href} className="text-primary hover:text-primary-strong">{link.label}</a>
+              ))}
+            </p>
+          ) : null}
         </div>
         {check.status === "open" ? (
           <div className="flex shrink-0 gap-1.5">

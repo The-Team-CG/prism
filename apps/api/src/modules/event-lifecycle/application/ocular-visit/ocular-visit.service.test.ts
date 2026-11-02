@@ -130,6 +130,53 @@ describe('OcularVisitService', () => {
     );
   });
 
+  it('schedules a PMCM-initiated visit when no client request exists, recording it without a request time', async () => {
+    const { service, prisma, state, notifications, audit } = createService();
+
+    await service.scheduleOcularVisit(eventId, { scheduledAt: '2026-10-05T09:00:00+08:00', note: 'Gate 2 access' }, admin as never);
+
+    expect(prisma.opsOcularVisitRequest.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ eventId, status: 'scheduled', requestedAt: null, clientNote: null, scheduledAt }),
+    });
+    expect(state.record).toMatchObject({ status: 'scheduled', scheduledAt, requestedAt: null });
+    expect(notifications.write).toHaveBeenCalledWith(
+      expect.objectContaining({ recipient: 'client@example.test', idempotencyKey: `ocular-visit-scheduled:${state.record?.id}` }),
+      expect.objectContaining({ prisma }),
+    );
+    expect(audit.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: 'Maxine',
+        affectedType: 'ocular_visit_request',
+        metadata: expect.objectContaining({ initiatedBy: 'pmcm', note: 'Gate 2 access' }),
+      }),
+      expect.objectContaining({ prisma }),
+    );
+  });
+
+  it('audits a scheduled request as client-initiated and keeps its client note out of the schedule', async () => {
+    const { service, audit } = createService({
+      record: { id: 'ovr_1', eventId, status: 'requested', clientNote: 'Morning only', requestedAt },
+    });
+
+    await service.scheduleOcularVisit(eventId, { scheduledAt: '2026-10-05T09:00:00+08:00' }, admin as never);
+
+    expect(audit.write).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: expect.objectContaining({ initiatedBy: 'client', note: null }) }),
+      expect.anything(),
+    );
+  });
+
+  it('refuses to schedule a visit that is already scheduled, completed or waived', async () => {
+    const { service, prisma } = createService({
+      record: { id: 'ovr_1', eventId, status: 'waived', requestedAt: null, waiverReason: 'Not needed' },
+    });
+
+    await expect(service.scheduleOcularVisit(eventId, { scheduledAt: '2026-10-05T09:00:00+08:00' }, admin as never))
+      .rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.opsOcularVisitRequest.update).not.toHaveBeenCalled();
+    expect(prisma.opsOcularVisitRequest.create).not.toHaveBeenCalled();
+  });
+
   it('rejects completion before scheduling', async () => {
     const { service, state } = createService({
       record: { id: 'ovr_1', eventId, status: 'requested', requestedAt },
