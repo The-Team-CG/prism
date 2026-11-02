@@ -9,6 +9,7 @@ import {
   derivePrismLifecycleStage,
   prismCalendarDateKey,
   isWithinCoordinatorAttendanceWindow,
+  hasEventDatePassed,
   selectCoordinatorFocusEventId,
   isBeforePrismEventDay,
   nextPrismLifecycleStages,
@@ -75,6 +76,16 @@ describe("P.R.I.S.M lifecycle contract", () => {
     // Event dates may arrive as ISO timestamps; only the calendar day counts.
     expect(isWithinCoordinatorAttendanceWindow("2026-06-18T00:00:00.000Z", "2026-06-19")).toBe(true);
     expect(isWithinCoordinatorAttendanceWindow("2026-06-18", "not-a-date")).toBe(false);
+  });
+
+  it("treats an event as passed only once its Philippine calendar day is over", () => {
+    expect(hasEventDatePassed("2026-06-18", "2026-06-18")).toBe(false);
+    expect(hasEventDatePassed("2026-06-18", "2026-06-17")).toBe(false);
+    expect(hasEventDatePassed("2026-06-18", "2026-06-19")).toBe(true);
+    expect(hasEventDatePassed("2026-06-18T00:00:00.000Z", "2026-11-02")).toBe(true);
+    expect(hasEventDatePassed("2026-06-18", prismCalendarDateKey(new Date("2026-06-17T17:00:00Z")))).toBe(false);
+    expect(hasEventDatePassed("2026-06-18", prismCalendarDateKey(new Date("2026-06-18T17:00:00Z")))).toBe(true);
+    expect(hasEventDatePassed("not-a-date", "2026-11-02")).toBe(false);
   });
 
   it("allows client portal access only after inquiry acceptance and signed conforme", () => {

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   closeGateDestination,
+  compliancePhaseForStage,
+  isCompliancePhase,
   numberedClosureTabs,
   phase4ArchiveStatus,
   phase4BillingSourceCard,
@@ -49,6 +51,15 @@ describe("phase4-workspace-rules", () => {
     });
     expect(phase4ComplianceCard(2, 5).tone).toBe("text-danger");
     expect(phase4BillingSourceCard({ totalAmount: 100 }, 1, (amount) => String(amount)).value).toBe("Approved");
+  });
+
+  it("starts a compliance run in the phase the event is in, not always Planning", () => {
+    expect(compliancePhaseForStage("briefing_proposal")).toBe("planning");
+    expect(compliancePhaseForStage("planning")).toBe("planning");
+    expect(compliancePhaseForStage("event_day")).toBe("event_day");
+    expect(compliancePhaseForStage("closure_archive")).toBe("closure");
+    expect(isCompliancePhase("closure")).toBe(true);
+    expect(isCompliancePhase("Planning")).toBe(false);
   });
 
   it("maps status tones and rule layers", () => {

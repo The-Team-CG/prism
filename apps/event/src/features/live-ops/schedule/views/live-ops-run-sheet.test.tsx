@@ -105,11 +105,14 @@ describe("LiveOpsRunSheet", () => {
     await waitFor(() => expect(repository.getRunSheet).toHaveBeenLastCalledWith("evt_1", "day_2"));
   });
 
-  it("tells the team when no schedule has been authored", async () => {
+  it("points the team to where the schedule is authored when no run sheet exists", async () => {
     repository.getRunSheet.mockResolvedValue({ eventId: "evt_1", authored: false, reason: "no_schedule" });
 
-    render(<LiveOpsRunSheet eventId="evt_1" />);
+    render(<LiveOpsRunSheet eventId="evt_1" printable scheduleHref="/dashboard/events/ayala/live-ops" />);
 
     expect(await screen.findByText("No run sheet is available until the event schedule is authored.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Author the schedule in live operations" }).getAttribute("href")).toBe("/dashboard/events/ayala/live-ops");
+    expect(screen.queryByRole("button", { name: "Print run sheet" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Refresh" })).toBeNull();
   });
 });

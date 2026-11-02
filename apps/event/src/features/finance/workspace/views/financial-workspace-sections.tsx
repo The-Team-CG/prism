@@ -7,7 +7,7 @@ import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { label, money } from "@/features/pmcm-kit";
-import { countNoun, paymentHistoryLabel, paymentOverdueDays, sortPaymentsByDueDate } from "../model/finance-workspace-rules";
+import { countNoun, isMilestoneSettled, paymentHistoryLabel, paymentOverdueDays, sortPaymentsByDueDate } from "../model/finance-workspace-rules";
 import type { RecordPaymentInput } from "../model/finance-workspace-types";
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -289,6 +289,7 @@ function PaymentMilestoneCard({
 }) {
   const overdueDays = paymentOverdueDays(payment.status, payment.dueDate);
   const overdue = overdueDays > 0;
+  const settled = isMilestoneSettled(payment);
   return (
     <div className={`rounded-xl border p-4 ${overdue ? "border-destructive/30 bg-destructive/5" : "border-border bg-muted/30"}`}>
       <div className="flex items-start justify-between gap-3">
@@ -333,16 +334,20 @@ function PaymentMilestoneCard({
       ) : null}
       <div className="mt-3 flex items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">{paymentHistoryLabel(payment.history.length)}</p>
-        <Button
-          size="sm"
-          disabled={busy || payment.status === "paid"}
-          onClick={() => onRecord(payment)}
-          variant={overdue ? "default" : "outline"}
-          className="rounded-lg font-bold"
-        >
-          <WalletCards className="size-3" /> Record payment
-        </Button>
-        {payment.status !== "paid" ? (
+        {settled ? (
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-success"><CheckCircle2 className="size-3" /> Fully paid</span>
+        ) : (
+          <Button
+            size="sm"
+            disabled={busy}
+            onClick={() => onRecord(payment)}
+            variant={overdue ? "default" : "outline"}
+            className="rounded-lg font-bold"
+          >
+            <WalletCards className="size-3" /> Record payment
+          </Button>
+        )}
+        {!settled ? (
           <Button
             size="sm"
             disabled={busy}

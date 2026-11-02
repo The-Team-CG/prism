@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   CalendarCheck,
   Check,
@@ -14,7 +14,7 @@ import {
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
-import { PRISM_LIFECYCLE_STAGE_LABELS, derivePrismLifecycleStage, isBeforePrismEventDay } from "@prism/types";
+import { PRISM_LIFECYCLE_STAGE_LABELS, derivePrismLifecycleStage, hasEventDatePassed, isBeforePrismEventDay, prismCalendarDateKey } from "@prism/types";
 import type { PrismDefenseReadiness, PrismDefenseReadinessAction, PrismEvent, PrismFloorPlanDraft } from "@prism/types";
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 import { Button } from "@/app/components/ui/button";
@@ -108,6 +108,25 @@ function areaCards({
   ];
 }
 
+const CLOSE_OUT_ACTION: PrismDefenseReadinessAction = {
+  key: "close-out",
+  label: "This event has ended — close it out",
+  detail: "Work through the closure checks and deliverables, then archive the event.",
+  status: "attention",
+  targetTab: "closure",
+};
+
+/** A past event that is not archived is owed its close-out, so it is the one next step. */
+export function needsCloseOut(event: Pick<PrismEvent, "eventDate" | "archived">, todayKey: string): boolean {
+  return !event.archived && hasEventDatePassed(event.eventDate, todayKey);
+}
+
+/** Once the event date has passed, the close-out leads and the briefing stops being a to-do. */
+export function overviewNextActions(pending: PrismDefenseReadinessAction[], closeOut: boolean): PrismDefenseReadinessAction[] {
+  if (!closeOut) return pending;
+  return [CLOSE_OUT_ACTION, ...pending.filter((action) => action.key !== "briefing")];
+}
+
 function NextStepsSection({ event, readiness, pending, onOpenTab }: { event: PrismEvent; readiness: PrismDefenseReadiness | null; pending: PrismDefenseReadinessAction[]; onOpenTab: (tab: DetailTab) => void }) {
   return (
     <section aria-labelledby="overview-next-steps" className="rounded-xl border border-border bg-card">
@@ -149,7 +168,7 @@ function NextStepsSection({ event, readiness, pending, onOpenTab }: { event: Pri
   );
 }
 
-function ReadinessSection({ readiness, busy, onRunCompliance, onSubmitBriefing }: { readiness: PrismDefenseReadiness | null; busy: boolean; onRunCompliance: () => void; onSubmitBriefing: () => void }) {
+function ReadinessSection({ readiness, busy, showSubmitBriefing, onRunCompliance, onSubmitBriefing }: { readiness: PrismDefenseReadiness | null; busy: boolean; showSubmitBriefing: boolean; onRunCompliance: () => void; onSubmitBriefing: () => void }) {
   const score = readiness?.score ?? null;
   return (
     <section aria-labelledby="overview-readiness" className="flex flex-col rounded-xl border border-border bg-card px-5 py-4">
@@ -165,7 +184,7 @@ function ReadinessSection({ readiness, busy, onRunCompliance, onSubmitBriefing }
       </div>
       <div className="mt-auto flex flex-wrap gap-2 pt-4">
         <Button size="sm" variant="outline" disabled={busy} onClick={onRunCompliance}>Run compliance check</Button>
-        {readiness && !readiness.summary.briefingSubmitted ? (
+        {showSubmitBriefing ? (
           <Button size="sm" disabled={busy} onClick={onSubmitBriefing}>Submit briefing</Button>
         ) : null}
       </div>
@@ -216,6 +235,7 @@ export function EventWorkspaceOverview({
   onSubmitBriefing,
   onRunCompliance,
   onOpenTab,
+  ocularVisit,
 }: {
   event: PrismEvent;
   readiness: PrismDefenseReadiness | null;
@@ -230,11 +250,15 @@ export function EventWorkspaceOverview({
   onSubmitBriefing: () => void;
   onRunCompliance: () => void;
   onOpenTab: (tab: DetailTab) => void;
+  /** Ocular visit status and its collapsed controls; rendered under Readiness and Next steps. */
+  ocularVisit?: ReactNode;
 }) {
-  const pending = (readiness?.nextActions ?? []).filter((action) => action.status !== "done");
+  const closeOut = needsCloseOut(event, prismCalendarDateKey());
+  const pending = overviewNextActions((readiness?.nextActions ?? []).filter((action) => action.status !== "done"), closeOut);
   const stage = derivePrismLifecycleStage(event);
   const cards = areaCards({ readiness, activeDraft, draftCount: drafts.length, quoteCount, quoteRequestCount, openCheckCount, preEvent: isBeforePrismEventDay(stage) });
-  const showEventDayBanner = canStartEventDay && isEventDayClose(event.eventDate);
+  const showEventDayBanner = canStartEventDay && isEventDayClose(event.eventDate) && !closeOut;
+  const showSubmitBriefing = Boolean(readiness && !readiness.summary.briefingSubmitted && !closeOut);
   const facts = [
     { label: "Event date", value: formatPortalDate(event.eventDate) },
     { label: "Client", value: event.clientName },
@@ -269,8 +293,10 @@ export function EventWorkspaceOverview({
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <NextStepsSection event={event} readiness={readiness} pending={pending} onOpenTab={onOpenTab} />
 
-        <ReadinessSection readiness={readiness} busy={busy} onRunCompliance={onRunCompliance} onSubmitBriefing={onSubmitBriefing} />
+        <ReadinessSection readiness={readiness} busy={busy} showSubmitBriefing={showSubmitBriefing} onRunCompliance={onRunCompliance} onSubmitBriefing={onSubmitBriefing} />
       </div>
+
+      {ocularVisit}
 
       <section aria-labelledby="overview-areas">
         <h2 id="overview-areas" className="sr-only">Event areas</h2>
