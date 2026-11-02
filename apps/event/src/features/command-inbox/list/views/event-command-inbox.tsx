@@ -104,7 +104,7 @@ function InboxRow({ item, todayKey }: { item: PrismCommandInboxItem; todayKey: s
       <p className="col-start-2 whitespace-nowrap text-xs sm:col-start-auto sm:text-sm">
         <InboxRowWhen item={item} todayKey={todayKey} />
       </p>
-      <span className="hidden items-center justify-end gap-1 whitespace-nowrap text-sm font-medium text-primary sm:flex">
+      <span className="col-start-2 flex items-center justify-start gap-1 whitespace-nowrap text-sm font-medium text-primary sm:col-start-auto sm:justify-end">
         {item.href ? (
           <>
             {COMMAND_INBOX_ACTION_LABEL[item.kind]}
