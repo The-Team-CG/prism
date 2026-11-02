@@ -8,6 +8,8 @@ on:
       - 'scripts/e2e/browser/**'
       - 'scripts/local-mailpit.mjs'
       - 'scripts/local-supabase.mjs'
+      - 'scripts/ci/**'
+      - 'scripts/typescript.mjs'
       - 'package*.json'
       - '.github/workflows/browser-acceptance.yml'
   workflow_dispatch:
@@ -19,9 +21,14 @@ concurrency:
   group: browser-acceptance-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
-  browser:
+  browser-project:
+    name: Browser ${{ matrix.project }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [desktop, mobile]
     services:
       postgres:
         image: postgres:16
@@ -47,12 +54,37 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser:guards
-      - run: npm run test:browser
-      - uses: actions/upload-artifact@v6
+      - run: npm run test:browser -- --project=${{ matrix.project }}
+      - name: Upload browser phase timings
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-timings-${{ matrix.project }}-${{ github.run_id }}
+          path: .local-dev/browser/*/timings.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: browser-acceptance-failures
+          name: browser-acceptance-failures-${{ matrix.project }}-${{ github.run_id }}
           path: |
             .local-dev/browser/*/report/
             .local-dev/browser/*/results/
           retention-days: 7
+  browser:
+    name: browser
+    if: always()
+    needs: [browser-project]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'staging' || github.ref }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Require both browser projects
+        env:
+          REQUIRED_JOB_RESULTS: ${{ toJSON(needs) }}
+        run: node scripts/ci/check-results.mjs browser-project

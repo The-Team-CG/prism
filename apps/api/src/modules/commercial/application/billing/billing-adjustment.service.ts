@@ -162,7 +162,7 @@ export class BillingAdjustmentService {
     const eventId = correction.eventId;
     const inputResult = createBillingSourceSchema.safeParse({
       sourceType: 'billing_correction', sourceLabel: `Corrected statement ${original.number}`,
-      lineItems: [{ label: `Corrected total — ${correction.reason}`, amount: correctedTotal }],
+      lineItems: [{ label: `Corrected total â€” ${correction.reason}`, amount: correctedTotal }],
       paymentSchedule: original.paymentSchedule, paymentMethods: original.paymentMethods,
       ...(source.paymentTermsPolicyState === 'repeat_client_override' ? { paymentTermsPolicy: 'repeat_client_override', paymentTermsOverrideReason: source.paymentTermsOverrideReason ?? undefined } : {}),
       idempotencyKey: `billing-correction-source:${correction.id}`,

@@ -1,11 +1,34 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 import { resolve } from 'node:path';
+import { sharedPolicyTests } from './test/shared-policy-tests';
 
 export default defineConfig({
   test: {
+    maxWorkers: 2,
     environment: 'node',
+    setupFiles: ['./test/setup.ts'],
     globals: true,
-    include: ['src/**/*.test.ts', 'test/integration/**/*.test.ts'],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'isolated',
+          isolate: true,
+          include: ['src/**/*.test.ts', 'test/integration/**/*.test.ts'],
+          exclude: [...configDefaults.exclude, ...sharedPolicyTests],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'shared-policy',
+          isolate: false,
+          include: sharedPolicyTests,
+          setupFiles: ['./test/shared-module-setup.ts'],
+          sequence: { shuffle: true },
+        },
+      },
+    ],
     clearMocks: true,
     restoreMocks: true,
     coverage: {

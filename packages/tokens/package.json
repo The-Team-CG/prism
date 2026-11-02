@@ -15,7 +15,8 @@
     "./typography.css": "./src/typography.css"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "node ../../scripts/typescript.mjs -p tsconfig.json --noEmit",
+    "lint": "node ../../scripts/lint.mjs"
   },
   "devDependencies": {
     "typescript": "^6.0.3"
