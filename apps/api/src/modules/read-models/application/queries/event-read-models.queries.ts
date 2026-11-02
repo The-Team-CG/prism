@@ -667,7 +667,7 @@ export class EventReadModelQueries {
       ),
       this.prisma.opsOcularVisitRequest.findMany({
         where: { eventId: { in: eventIds } },
-        select: { eventId: true, status: true, clientNote: true, requestedAt: true, scheduledAt: true },
+        select: { eventId: true, status: true, clientNote: true, scheduleNote: true, requestedAt: true, scheduledAt: true },
         orderBy: [{ eventId: 'asc' }],
         take: MAX_CLIENT_WORKSPACE_ROWS,
       }),

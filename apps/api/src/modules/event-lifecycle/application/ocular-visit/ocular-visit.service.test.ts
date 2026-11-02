@@ -136,9 +136,9 @@ describe('OcularVisitService', () => {
     await service.scheduleOcularVisit(eventId, { scheduledAt: '2026-10-05T09:00:00+08:00', note: 'Gate 2 access' }, admin as never);
 
     expect(prisma.opsOcularVisitRequest.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ eventId, status: 'scheduled', requestedAt: null, clientNote: null, scheduledAt }),
+      data: expect.objectContaining({ eventId, status: 'scheduled', requestedAt: null, clientNote: null, scheduleNote: 'Gate 2 access', scheduledAt }),
     });
-    expect(state.record).toMatchObject({ status: 'scheduled', scheduledAt, requestedAt: null });
+    expect(state.record).toMatchObject({ status: 'scheduled', scheduledAt, requestedAt: null, scheduleNote: 'Gate 2 access' });
     expect(notifications.write).toHaveBeenCalledWith(
       expect.objectContaining({ recipient: 'client@example.test', idempotencyKey: `ocular-visit-scheduled:${state.record?.id}` }),
       expect.objectContaining({ prisma }),
@@ -150,6 +150,24 @@ describe('OcularVisitService', () => {
         metadata: expect.objectContaining({ initiatedBy: 'pmcm', note: 'Gate 2 access' }),
       }),
       expect.objectContaining({ prisma }),
+    );
+  });
+
+  it.each([
+    { name: 'stores the schedule note', note: 'Gate 2 access', stored: 'Gate 2 access' },
+    { name: 'stores no schedule note when the note is empty', note: '', stored: null },
+    { name: 'replaces an earlier schedule note', note: 'Use the loading dock', stored: 'Use the loading dock' },
+  ])('$name on a requested visit', async ({ note, stored }) => {
+    const { service, state, audit } = createService({
+      record: { id: 'ovr_1', eventId, status: 'requested', clientNote: 'Morning only', scheduleNote: 'Earlier note', requestedAt },
+    });
+
+    await service.scheduleOcularVisit(eventId, { scheduledAt: '2026-10-05T09:00:00+08:00', note }, admin as never);
+
+    expect(state.record).toMatchObject({ status: 'scheduled', scheduleNote: stored, clientNote: 'Morning only' });
+    expect(audit.write).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: expect.objectContaining({ note: stored }) }),
+      expect.anything(),
     );
   });
 
