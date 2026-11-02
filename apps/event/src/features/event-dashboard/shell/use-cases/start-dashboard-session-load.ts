@@ -12,6 +12,11 @@ import {
   isDashboardCacheFresh,
   loadCoordinatorWorkspace,
 } from "./load-dashboard-workspace";
+import {
+  COORDINATOR_HOME_PATH,
+  coordinatorLocationRedirect,
+  isCoordinatorHomePath,
+} from "@/features/coordinators/desk/model/coordinator-portal-routes";
 
 type WorkspaceStatus = "idle" | "loading" | "ready" | "error";
 
@@ -121,6 +126,17 @@ function loadPmcmDashboard(isCancelled: () => boolean, setters: DashboardSession
     });
 }
 
+/**
+ * A coordinator on a PMCM URL is sent home before any data loads. The decision uses only the URL and the stored
+ * session, so no PMCM read is started for a page the coordinator cannot see.
+ */
+function redirectCoordinatorOffPmcmPath(router: DashboardSessionLoadSetters["router"]) {
+  const { pathname, search } = window.location;
+  if (isCoordinatorHomePath(pathname)) return;
+  const redirect = coordinatorLocationRedirect({ pathname, search });
+  if (redirect) router.replace(`${COORDINATOR_HOME_PATH}${redirect.search}`);
+}
+
 export function startDashboardSessionLoad(setters: DashboardSessionLoadSetters) {
   let cancelled = false;
   const isCancelled = () => cancelled;
@@ -138,6 +154,7 @@ export function startDashboardSessionLoad(setters: DashboardSessionLoadSetters) 
   setters.setError(null);
 
   if (current.role === "coordinator") {
+    redirectCoordinatorOffPmcmPath(setters.router);
     loadCoordinatorDashboard(current, isCancelled, setters);
     return () => {
       cancelled = true;

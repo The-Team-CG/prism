@@ -24,7 +24,20 @@ type LocalScheduleSegmentInput = {
   sequence: number;
 };
 
-export function useLiveOpsScheduleDeskViewModel(eventId: string) {
+/**
+ * A PMCM reads the event record for its status; a coordinator reads the coordinator-scoped schedule, which carries the
+ * same status and is available only for an event they are assigned to.
+ */
+async function loadScheduleAndStatus(eventId: string, coordinatorScope: boolean): Promise<{ schedule: PrismEventSchedule; eventStatus: string }> {
+  if (coordinatorScope) {
+    const scoped = await liveOpsScheduleRepository.getCoordinatorSchedule(eventId);
+    return { schedule: scoped.schedule, eventStatus: scoped.eventStatus };
+  }
+  const [schedule, event] = await Promise.all([liveOpsScheduleRepository.getSchedule(eventId), liveOpsScheduleRepository.getEvent(eventId)]);
+  return { schedule, eventStatus: event.status };
+}
+
+export function useLiveOpsScheduleDeskViewModel(eventId: string, { coordinatorScope = false }: { coordinatorScope?: boolean } = {}) {
   const [schedule, setSchedule] = useState<PrismEventSchedule | null>(null);
   const [eventStatus, setEventStatus] = useState<string | null>(null);
   const [handoffs, setHandoffs] = useState<PrismEventHandoff[]>([]);
@@ -40,15 +53,14 @@ export function useLiveOpsScheduleDeskViewModel(eventId: string) {
     setStatus((current) => current === "ready" ? current : "loading");
     setError(null);
     try {
-      const [nextSchedule, nextHandoffs, nextReports, event] = await Promise.all([
-        liveOpsScheduleRepository.getSchedule(eventId),
+      const [{ schedule: nextSchedule, eventStatus: nextStatus }, nextHandoffs, nextReports] = await Promise.all([
+        loadScheduleAndStatus(eventId, coordinatorScope),
         liveOpsScheduleRepository.listHandoffs(eventId),
         liveOpsScheduleRepository.listEodReports(eventId),
-        liveOpsScheduleRepository.getEvent(eventId),
       ]);
       if (requestVersion.current !== version) return;
       setSchedule(nextSchedule);
-      setEventStatus(event.status);
+      setEventStatus(nextStatus);
       setHandoffs(nextHandoffs);
       setReports(nextReports);
       setStatus("ready");
@@ -57,7 +69,7 @@ export function useLiveOpsScheduleDeskViewModel(eventId: string) {
       setError(cause instanceof Error ? cause.message : "Unable to load event-day records.");
       setStatus("error");
     }
-  }, [eventId]);
+  }, [coordinatorScope, eventId]);
 
   useEffect(() => {
     setSchedule(null);
