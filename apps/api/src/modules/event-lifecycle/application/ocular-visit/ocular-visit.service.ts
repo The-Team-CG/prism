@@ -28,7 +28,22 @@ import type {
   SubmitClientOcularVisitInput,
   WaiveOcularVisitInput,
 } from '@prism/types';
+import { PRISM_BUSINESS_TIME_ZONE } from '@prism/types';
 import { randomUUID } from 'node:crypto';
+
+/** The visit time as the client reads it in the email: PMCM's business time zone, never a raw ISO timestamp. */
+export function formatOcularVisitTime(at: Date): string {
+  const formatted = new Intl.DateTimeFormat('en-PH', {
+    timeZone: PRISM_BUSINESS_TIME_ZONE,
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(at);
+  return `${formatted} (Manila time)`;
+}
 
 type OcularVisitEvent = Prisma.OpsEventGetPayload<{ include: { inquiry: true } }>;
 
@@ -38,6 +53,17 @@ const ocularVisitStatuses = new Set<PrismOcularVisitStatus>([
   'completed',
   'waived',
 ]);
+
+/**
+ * Whether a schedule call books the visit for the first time or moves an already scheduled one, and who started
+ * the visit: a client request carries requestedAt; a visit PMCM booked directly never has one.
+ */
+export function ocularScheduleKind(existing: { status: string; requestedAt: Date | null } | null) {
+  return {
+    rescheduled: existing?.status === 'scheduled',
+    initiatedBy: existing?.requestedAt ? ('client' as const) : ('pmcm' as const),
+  };
+}
 
 @Injectable()
 export class OcularVisitService {
@@ -117,22 +143,26 @@ export class OcularVisitService {
     return this.prisma.$transaction(async (tx) => {
       const event = await this.requireEvent(tx, eventId);
       const existing = await tx.opsOcularVisitRequest.findUnique({ where: { eventId } });
-      if (existing && existing.status !== 'requested') {
-        throw new BadRequestException('Only a requested ocular visit can be scheduled');
+      if (existing && existing.status !== 'requested' && existing.status !== 'scheduled') {
+        throw new BadRequestException('Only a requested or scheduled ocular visit can be scheduled');
       }
+      const kind = ocularScheduleKind(existing);
 
       // PMCM may book a visit without a client request; that record has no requestedAt and is audited as PMCM-initiated.
       const scheduledAt = new Date(input.scheduledAt);
+      // Trimmed by the request schema; an empty note is stored as null, and each schedule call replaces the previous note.
+      const scheduleNote = input.note || null;
       const saved = existing
         ? await tx.opsOcularVisitRequest.update({
             where: { eventId },
-            data: { status: 'scheduled', scheduledAt },
+            data: { status: 'scheduled', scheduledAt, scheduleNote },
           })
         : await this.createOcularVisitRequest(tx, {
             id: 'ocular_visit_' + randomUUID(),
             eventId,
             status: 'scheduled',
             clientNote: null,
+            scheduleNote,
             requestedAt: null,
             scheduledAt,
           });
@@ -141,7 +171,7 @@ export class OcularVisitService {
         this.auditWriter,
         eventId,
         actor.name,
-        'Scheduled ocular visit',
+        kind.rescheduled ? 'Rescheduled ocular visit' : 'Scheduled ocular visit',
         {
           actorRole: actor.role,
           actorEmail: actor.email,
@@ -153,7 +183,7 @@ export class OcularVisitService {
           metadata: {
             scheduledAt: saved.scheduledAt?.toISOString() ?? null,
             actorId: actor.id ?? null,
-            initiatedBy: existing ? 'client' : 'pmcm',
+            initiatedBy: kind.initiatedBy,
             note: input.note || null,
           },
         },
@@ -163,9 +193,10 @@ export class OcularVisitService {
         this.notificationOutboxWriter,
         eventId,
         event.inquiry.email,
-        event.eventName + ' ocular visit scheduled for ' + input.scheduledAt,
+        event.eventName + (kind.rescheduled ? ' ocular visit moved to ' : ' ocular visit scheduled for ') + formatOcularVisitTime(scheduledAt) + '.',
         'email',
-        { idempotencyKey: 'ocular-visit-scheduled:' + saved.id },
+        // A reschedule is a new notice per new time; the first booking keeps its original key.
+        { idempotencyKey: kind.rescheduled ? `ocular-visit-rescheduled:${saved.id}:${scheduledAt.toISOString()}` : 'ocular-visit-scheduled:' + saved.id },
         context,
       );
       return this.toPmcmView(saved);
@@ -302,6 +333,7 @@ export class OcularVisitService {
       eventId: request.eventId,
       status: this.readStatus(request.status),
       clientNote: request.clientNote,
+      scheduleNote: request.scheduleNote,
       requestedAt: request.requestedAt?.toISOString() ?? null,
       scheduledAt: request.scheduledAt?.toISOString() ?? null,
     };

@@ -144,7 +144,7 @@ function mapClientEventTimeline(source: ClientEventTimelineSource): PrismClientE
 
 type ClientOcularVisitRecord = Pick<
   OpsOcularVisitRequest,
-  'eventId' | 'status' | 'clientNote' | 'requestedAt' | 'scheduledAt'
+  'eventId' | 'status' | 'clientNote' | 'scheduleNote' | 'requestedAt' | 'scheduledAt'
 >;
 
 function ocularVisitStatus(status: string): PrismOcularVisitStatus {
@@ -159,6 +159,7 @@ function mapClientOcularVisit(request: ClientOcularVisitRecord): PrismClientOcul
     eventId: request.eventId,
     status: ocularVisitStatus(request.status),
     clientNote: request.clientNote,
+    scheduleNote: request.scheduleNote,
     requestedAt: request.requestedAt?.toISOString() ?? null,
     scheduledAt: request.scheduledAt?.toISOString() ?? null,
   };

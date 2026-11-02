@@ -39,6 +39,12 @@ function OcularVisitDetails({
           Scheduled for {formatScheduledAt(visit.scheduledAt)}.
         </p>
       ) : null}
+      {visit?.scheduleNote ? (
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground">Note for the client</p>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{visit.scheduleNote}</p>
+        </div>
+      ) : null}
       {visit?.status === "completed" ? (
         <p className="text-sm text-muted-foreground">
           Completed {visit.completedAt ? formatScheduledAt(visit.completedAt) : "with no timestamp"}.
@@ -88,7 +94,7 @@ function OcularVisitScheduleForm({
       </div>
       <div className="space-y-1">
         <label htmlFor="ocular-visit-schedule-note" className="block text-sm font-medium text-foreground">
-          Notes <span className="font-normal text-muted-foreground">(optional)</span>
+          Note for the client <span className="font-normal text-muted-foreground">(optional)</span>
         </label>
         <textarea
           id="ocular-visit-schedule-note"
@@ -122,6 +128,7 @@ function OcularVisitScheduleForm({
 
 /** "Schedule visit" opens the date, time and notes form; the form closes again once the visit is saved or cancelled. */
 function OcularVisitScheduleControl({
+  label,
   busy,
   scheduling,
   scheduledAtLocal,
@@ -132,6 +139,7 @@ function OcularVisitScheduleControl({
   onCancel,
   onSubmit,
 }: {
+  label: string;
   busy: boolean;
   scheduling: boolean;
   scheduledAtLocal: string;
@@ -150,7 +158,7 @@ function OcularVisitScheduleControl({
         disabled={busy}
         className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
       >
-        Schedule visit
+        {label}
       </button>
     );
   }
@@ -170,6 +178,7 @@ function OcularVisitScheduleControl({
 function OcularVisitActions({
   busy,
   canSchedule,
+  scheduleLabel,
   canComplete,
   canWaive,
   formError,
@@ -188,6 +197,7 @@ function OcularVisitActions({
 }: {
   busy: boolean;
   canSchedule: boolean;
+  scheduleLabel: string;
   canComplete: boolean;
   canWaive: boolean;
   formError: string | null;
@@ -210,6 +220,7 @@ function OcularVisitActions({
 
       {canSchedule ? (
         <OcularVisitScheduleControl
+          label={scheduleLabel}
           busy={busy}
           scheduling={scheduling}
           scheduledAtLocal={scheduledAtLocal}
@@ -300,8 +311,9 @@ export function EventOcularVisitTask({
   const [formError, setFormError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const terminal = visit?.status === "completed" || visit?.status === "waived";
-  // PMCM can book a visit with no client request on file, or act on a client's requested visit.
-  const canSchedule = isAdmin && (!visit || visit.status === "requested");
+  // PMCM can book a visit with no client request on file, act on a client's requested visit, or move a scheduled one.
+  const canSchedule = isAdmin && !terminal;
+  const scheduleLabel = visit?.status === "scheduled" ? "Reschedule visit" : "Schedule visit";
   const canComplete = isAdmin && visit?.status === "scheduled";
   const canWaive = isAdmin && !terminal;
   const canAct = canSchedule || canComplete || canWaive;
@@ -349,6 +361,7 @@ export function EventOcularVisitTask({
             <OcularVisitActions
               busy={busy}
               canSchedule={canSchedule}
+              scheduleLabel={scheduleLabel}
               canComplete={canComplete}
               canWaive={canWaive}
               formError={formError}

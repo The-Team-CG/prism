@@ -20,18 +20,35 @@ describe("ClientOcularVisitPanel", () => {
     expect(markup).toContain("Request ocular visit");
   });
 
-  it("shows a scheduled client confirmation", () => {
+  it("shows the scheduled date and time with the PMCM note when one was saved", () => {
     const markup = renderPanel({
       eventId: "evt_1",
       status: "scheduled",
       clientNote: null,
+      scheduleNote: "Bring the Gate 2 access badge",
       requestedAt: "2026-10-01T00:00:00.000Z",
       scheduledAt: "2026-10-17T10:00:00+08:00",
     });
 
     expect(markup).toMatch(/scheduled/i);
     expect(markup).toContain("Oct 17");
+    expect(markup).toContain("Note from PMCM");
+    expect(markup).toContain("Bring the Gate 2 access badge");
     expect(markup).not.toContain("Waiver reason");
+  });
+
+  it("shows the scheduled date and time without a note label when PMCM saved no note", () => {
+    const markup = renderPanel({
+      eventId: "evt_1",
+      status: "scheduled",
+      clientNote: null,
+      scheduleNote: null,
+      requestedAt: null,
+      scheduledAt: "2026-10-17T10:00:00+08:00",
+    });
+
+    expect(markup).toContain("Oct 17");
+    expect(markup).not.toContain("Note from PMCM");
   });
 
   it("does not render a PMCM waiver reason", () => {
@@ -39,6 +56,7 @@ describe("ClientOcularVisitPanel", () => {
       eventId: "evt_1",
       status: "waived",
       clientNote: null,
+      scheduleNote: null,
       requestedAt: null,
       scheduledAt: null,
       waiverReason: "Internal PMCM reason",

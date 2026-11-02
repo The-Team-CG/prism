@@ -132,6 +132,8 @@ export interface PrismClientOcularVisit {
   eventId: string;
   status: PrismOcularVisitStatus;
   clientNote: string | null;
+  /** Free-text note PMCM wrote when booking the visit; clients can read it. */
+  scheduleNote: string | null;
   requestedAt: string | null;
   scheduledAt: string | null;
 }
