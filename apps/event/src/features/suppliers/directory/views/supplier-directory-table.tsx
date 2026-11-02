@@ -173,7 +173,7 @@ function SupplierDirectoryRow({ supplier, selected, onSelect }: { supplier: Supp
     <tr className={`border-b border-border/55 transition-colors ${selected ? styles.selectedRow : ""}`}>
       <th scope="row" className="px-4 font-medium">
         <div className="flex items-center gap-1.5">
-          <button title={supplier.name} type="button" onClick={(event) => onSelect(supplier.id, event.currentTarget)} className="group flex min-w-0 flex-1 items-center justify-between gap-1 text-left text-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <button title={supplier.name} type="button" onClick={(event) => onSelect(supplier.id, event.currentTarget)} className="group flex min-h-6 min-w-0 flex-1 items-center justify-between gap-1 text-left text-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <span className="truncate">{supplier.name}</span><ChevronRight aria-hidden="true" className="size-3 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100" />
           </button>
           {supplier.bniMember ? <span title={BNI_TITLE} className="text-[9px] text-primary">BNI</span> : null}
