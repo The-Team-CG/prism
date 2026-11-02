@@ -1,13 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
-import { ClipboardList, Home, BellRing, CalendarClock, ClipboardCheck, UsersRound } from "lucide-react";
+import { BellRing, CalendarClock, ClipboardCheck, ClipboardList, Home, Radio, UsersRound } from "lucide-react";
 import type { PrismAuthenticatedSession, PrismCoordinatorWorkspace } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
+import { Button } from "@/app/components/ui/button";
 import { roleLabel } from "@/features/pmcm-kit";
 import { CoordinatorRegistrationDesk } from "@/features/coordinators/registration";
 import { optionalNavBadge } from "../model/coordinator-view-copy";
+import {
+  COORDINATOR_HOME_PATH,
+  COORDINATOR_VIEW_LABELS,
+  OUTSIDE_PORTAL_NOTICE,
+  coordinatorLocationRedirect,
+  coordinatorViewFromParam,
+  coordinatorViewSearch,
+  isCoordinatorHomePath,
+  type CoordinatorViewId,
+} from "../model/coordinator-portal-routes";
 import { useCoordinatorViewModel } from "../view-models/use-coordinator-view-model";
 import { CoordinatorEventSwitcher } from "./coordinator-event-switcher";
 import {
@@ -19,26 +31,12 @@ import {
 } from "./sections/coordinator-view-sections";
 import { CoordinatorAssignmentHistory, CoordinatorRoleBadgeCard, CoordinatorRoleData } from "./sections/coordinator-role-sections";
 
-const SECTION_LABELS = {
-  "coord-home": "My shift",
-  "coord-queue": "Tasks",
-  "coord-issues": "Issues",
-  "coord-timeline": "Run sheet",
-  "coord-assignments": "Assignments",
-  "coord-registration": "Registration",
-} as const;
-type CoordinatorSection = keyof typeof SECTION_LABELS;
 type CoordinatorVm = ReturnType<typeof useCoordinatorViewModel>;
+type NavigateTo = (view: CoordinatorViewId) => void;
 
-function coordinatorSection(value: string | null): CoordinatorSection {
-  return value && Object.hasOwn(SECTION_LABELS, value) ? value as CoordinatorSection : "coord-home";
-}
-
-function navigateCoordinator(section: CoordinatorSection, eventId?: string) {
-  const url = new URL(window.location.href);
-  url.searchParams.set("section", section);
-  if (eventId) url.searchParams.set("event", eventId);
-  window.history.pushState(null, "", url);
+/** App-relative href for a sidebar item, so the shell can render it as a real link. */
+function viewHref(view: CoordinatorViewId, eventId?: string | null): string {
+  return `${COORDINATOR_HOME_PATH}${coordinatorViewSearch(view, eventId)}`;
 }
 
 function CoordinatorRoleSection({ vm, section }: { vm: CoordinatorVm; section: "tasks" | "issues" }) {
@@ -58,16 +56,28 @@ function CoordinatorRoleSection({ vm, section }: { vm: CoordinatorVm; section: "
   );
 }
 
+/** Primary issue entry point. It sits in the top bar on every view, so reporting takes one step from anywhere. */
+function ReportIssueButton({ onReport }: { onReport: () => void }) {
+  return (
+    <Button type="button" onClick={onReport} className="min-h-11 rounded-md font-semibold">
+      <Radio className="size-4" aria-hidden="true" /> Report an issue
+    </Button>
+  );
+}
+
 function CoordinatorShift({ vm, roleName, onNavigate }: {
   vm: CoordinatorVm;
   roleName: string;
-  onNavigate: (section: CoordinatorSection) => void;
+  onNavigate: NavigateTo;
 }) {
   const nextTask = [...(vm.roleView?.tasks ?? [])]
     .filter((task) => !["done", "cancelled", "closed"].includes(task.status))
     .sort((left, right) => (left.dueAt ?? "9999").localeCompare(right.dueAt ?? "9999"))[0];
   return (
     <div className="space-y-5">
+      <div>
+        <ReportIssueButton onReport={() => onNavigate("issues")} />
+      </div>
       {nextTask && !vm.roleViewError ? (
         <section className="rounded-lg bg-primary-soft p-5" aria-label="Next task for your role">
           <p className="text-sm font-medium text-primary">Next task for your role</p>
@@ -76,7 +86,7 @@ function CoordinatorShift({ vm, roleName, onNavigate }: {
           <p className="mt-3 text-sm text-muted-foreground">
             Owner: {nextTask.ownerName || nextTask.assignedRole} · {nextTask.dueAt ? `Due ${formatPortalDateTime(nextTask.dueAt)}` : "No deadline set"}
           </p>
-          <button type="button" onClick={() => onNavigate("coord-queue")} className="mt-3 min-h-11 rounded-md px-1 text-sm font-semibold text-primary focus-visible:ring-2 focus-visible:ring-primary">
+          <button type="button" onClick={() => onNavigate("tasks")} className="mt-3 min-h-11 rounded-md px-1 text-sm font-semibold text-primary focus-visible:ring-2 focus-visible:ring-primary">
             Open task queue
           </button>
         </section>
@@ -85,10 +95,7 @@ function CoordinatorShift({ vm, roleName, onNavigate }: {
         roleViewLoading={vm.roleViewLoading}
         roleViewError={vm.roleViewError}
         roleView={vm.roleView}
-        scrollTo={(id) => {
-          if (id === "coordinator-attendance") document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-          else onNavigate(id === "coordinator-role-queue" ? "coord-queue" : "coord-issues");
-        }}
+        onNavigate={onNavigate}
       />
       <CoordinatorRoleBadgeCard
         assignment={vm.assignment}
@@ -104,8 +111,7 @@ function CoordinatorShift({ vm, roleName, onNavigate }: {
         roleView={vm.roleView}
         roleDataStatus={vm.roleDataStatus}
         registrationRole={vm.registrationRole && !vm.readOnly}
-        attendanceStatus={vm.attendanceStatus}
-        assignment={vm.assignment}
+        onNavigate={onNavigate}
       />
     </div>
   );
@@ -118,27 +124,27 @@ function CoordinatorRegistrationSection({ vm }: { vm: CoordinatorVm }) {
   return <CoordinatorRegistrationDesk key={vm.event.id} eventId={vm.event.id} guestAttendanceCount={vm.roleView?.guestAttendanceCount} onAttendanceChange={vm.refreshRoleView} />;
 }
 
-function CoordinatorSectionView({ vm, section, sessionName, roleName, onNavigate }: {
+function CoordinatorViewContent({ vm, view, sessionName, roleName, onNavigate }: {
   vm: CoordinatorVm;
-  section: CoordinatorSection;
+  view: CoordinatorViewId;
   sessionName: string;
   roleName: string;
-  onNavigate: (section: CoordinatorSection) => void;
+  onNavigate: NavigateTo;
 }) {
   if (!vm.event) return <p role="status" className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">{vm.selectedEventId ? "That event is not available to this account. Choose an assigned event." : "Choose an assigned event to see your work."}</p>;
-  switch (section) {
-    case "coord-home": return <CoordinatorShift vm={vm} roleName={roleName} onNavigate={onNavigate} />;
-    case "coord-queue": return <CoordinatorRoleSection vm={vm} section="tasks" />;
-    case "coord-issues": return <CoordinatorRoleSection vm={vm} section="issues" />;
-    case "coord-timeline": return <CoordinatorTimelineCard roleView={vm.roleView} readOnly={vm.readOnly} />;
-    case "coord-assignments": return (
+  switch (view) {
+    case "shift": return <CoordinatorShift vm={vm} roleName={roleName} onNavigate={onNavigate} />;
+    case "tasks": return <CoordinatorRoleSection vm={vm} section="tasks" />;
+    case "issues": return <CoordinatorRoleSection vm={vm} section="issues" />;
+    case "run-sheet": return <CoordinatorTimelineCard roleView={vm.roleView} readOnly={vm.readOnly} onCheckAgain={() => void vm.refreshRoleView()} />;
+    case "assignments": return (
       <div className="space-y-5">
         <CoordinatorGreetingBanner event={vm.event} assignment={vm.assignment} busy={vm.busy} roleName={roleName} attendanceStatus={vm.attendanceStatus} sessionName={sessionName} onAcknowledge={vm.acknowledge} onDecline={vm.decline} onWithdraw={vm.withdraw} />
         <CoordinatorAssignmentHistory assignments={vm.assignments} />
         <CoordinatorBoundaryNotice />
       </div>
     );
-    case "coord-registration": return <CoordinatorRegistrationSection vm={vm} />;
+    case "registration": return <CoordinatorRegistrationSection vm={vm} />;
   }
 }
 
@@ -149,37 +155,53 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
   onSignOut?: () => void;
 }) {
   const vm = useCoordinatorViewModel({ session, state, onRefresh });
-  const [activeSection, setActiveSection] = useState<CoordinatorSection>("coord-home");
+  const pathname = usePathname() ?? COORDINATOR_HOME_PATH;
+  const router = useRouter();
+  const [activeView, setActiveView] = useState<CoordinatorViewId>("shift");
+  const [outsideNotice, setOutsideNotice] = useState(false);
   const selectEventRef = useRef(vm.selectEvent);
   useEffect(() => { selectEventRef.current = vm.selectEvent; });
   useEffect(() => {
+    // A PMCM or unknown path leaves the coordinator portal: send the coordinator home instead of rendering a page
+    // for the wrong URL. Legacy section ids are rewritten in place, so old links keep their event and view.
+    const redirect = coordinatorLocationRedirect({ pathname, search: window.location.search });
+    if (redirect && !isCoordinatorHomePath(pathname)) {
+      router.replace(`${COORDINATOR_HOME_PATH}${redirect.search}`);
+      return;
+    }
+    if (redirect) window.history.replaceState(null, "", `${window.location.pathname}${redirect.search}`);
     const sync = () => {
       const params = new URLSearchParams(window.location.search);
-      setActiveSection(coordinatorSection(params.get("section")));
+      setActiveView(coordinatorViewFromParam(params.get("view")));
+      setOutsideNotice(params.get("notice") === OUTSIDE_PORTAL_NOTICE);
       selectEventRef.current(params.get("event"));
     };
     sync();
     window.addEventListener("popstate", sync);
     return () => window.removeEventListener("popstate", sync);
-  }, []);
+  }, [pathname, router]);
 
   const roleName = vm.assignment?.role ?? roleLabel(session.role);
   const navItems = [
-    { id: "coord-home", icon: Home, label: SECTION_LABELS["coord-home"], section: "Coordinator" },
-    { id: "coord-queue", icon: ClipboardList, label: SECTION_LABELS["coord-queue"], section: "Coordinator", badge: optionalNavBadge(vm.roleView?.tasks.length) },
-    { id: "coord-issues", icon: BellRing, label: SECTION_LABELS["coord-issues"], section: "Coordinator", badge: optionalNavBadge(vm.roleView?.urgentIssues.filter((issue) => issue.status !== "resolved").length) },
-    { id: "coord-timeline", icon: CalendarClock, label: SECTION_LABELS["coord-timeline"], section: "Coordinator" },
-    { id: "coord-assignments", icon: UsersRound, label: SECTION_LABELS["coord-assignments"], section: "Coordinator" },
-    ...(vm.registrationRole && !vm.readOnly ? [{ id: "coord-registration", icon: ClipboardCheck, label: SECTION_LABELS["coord-registration"], section: "Coordinator" }] : []),
+    { id: "shift", icon: Home, label: COORDINATOR_VIEW_LABELS.shift, section: "Coordinator", href: viewHref("shift", vm.event?.id) },
+    { id: "tasks", icon: ClipboardList, label: COORDINATOR_VIEW_LABELS.tasks, section: "Coordinator", badge: optionalNavBadge(vm.roleView?.tasks.length), href: viewHref("tasks", vm.event?.id) },
+    { id: "issues", icon: BellRing, label: COORDINATOR_VIEW_LABELS.issues, section: "Coordinator", badge: optionalNavBadge(vm.roleView?.urgentIssues.filter((issue) => issue.status !== "resolved").length), href: viewHref("issues", vm.event?.id) },
+    { id: "run-sheet", icon: CalendarClock, label: COORDINATOR_VIEW_LABELS["run-sheet"], section: "Coordinator", href: viewHref("run-sheet", vm.event?.id) },
+    { id: "assignments", icon: UsersRound, label: COORDINATOR_VIEW_LABELS.assignments, section: "Coordinator", href: viewHref("assignments", vm.event?.id) },
+    ...(vm.registrationRole && !vm.readOnly ? [{ id: "registration", icon: ClipboardCheck, label: COORDINATOR_VIEW_LABELS.registration, section: "Coordinator", href: viewHref("registration", vm.event?.id) }] : []),
   ];
-  function handleNav(id: string) {
-    const section = coordinatorSection(id);
-    setActiveSection(section);
-    navigateCoordinator(section, vm.event?.id);
+
+  function navigateTo(view: CoordinatorViewId, eventId = vm.event?.id) {
+    setActiveView(view);
+    window.history.pushState(null, "", `${window.location.pathname}${coordinatorViewSearch(view, eventId)}`);
   }
   function handleEvent(eventId: string) {
     vm.selectEvent(eventId);
-    navigateCoordinator(activeSection, eventId);
+    navigateTo(activeView, eventId);
+  }
+  function dismissOutsideNotice() {
+    setOutsideNotice(false);
+    window.history.replaceState(null, "", `${window.location.pathname}${coordinatorViewSearch(activeView, vm.event?.id)}`);
   }
 
   return (
@@ -188,20 +210,30 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
       productLabel="P.R.I.S.M"
       roleLabel="Coordinator Portal"
       eyebrow="Event operations"
-      title={SECTION_LABELS[activeSection]}
+      title={COORDINATOR_VIEW_LABELS[activeView]}
       description={vm.event ? `${vm.event.eventName} · ${formatPortalDate(vm.event.eventDate)} · ${roleName}` : "Choose an assigned event to get started."}
-      activeItemId={activeSection}
+      activeItemId={activeView}
       navItems={navItems}
-      onNavSelect={handleNav}
+      onNavSelect={(id) => navigateTo(coordinatorViewFromParam(id))}
+      headerActions={<ReportIssueButton onReport={() => navigateTo("issues")} />}
+      alwaysShowHeaderActions
       user={{ name: session.name, detail: roleLabel(session.role), initials: session.name.slice(0, 2).toUpperCase() }}
       onSignOut={onSignOut}
       searchPlaceholder="Search tasks and issues..."
       sidebarContext={<CoordinatorEventSwitcher events={state.events} assignments={vm.assignments} selectedEventId={vm.event?.id} onSelect={handleEvent} />}
     >
       <div className="space-y-5">
+        {outsideNotice ? (
+          <div role="status" className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+            <span>{"That page isn't part of the coordinator portal."}</span>
+            <button type="button" onClick={dismissOutsideNotice} className="min-h-11 shrink-0 px-2 font-semibold text-foreground focus-visible:ring-2 focus-visible:ring-primary">
+              Dismiss
+            </button>
+          </div>
+        ) : null}
         {vm.readOnly ? <p role="status" className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">Archived event: operational records are read-only.</p> : null}
-        <fieldset disabled={vm.readOnly && activeSection !== "coord-timeline"} className="min-w-0">
-          <CoordinatorSectionView vm={vm} section={activeSection} sessionName={session.name} roleName={roleName} onNavigate={handleNav} />
+        <fieldset disabled={vm.readOnly && activeView !== "run-sheet"} className="min-w-0">
+          <CoordinatorViewContent vm={vm} view={activeView} sessionName={session.name} roleName={roleName} onNavigate={navigateTo} />
         </fieldset>
       </div>
     </PrismDashboardShell>

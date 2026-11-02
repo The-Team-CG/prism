@@ -73,14 +73,14 @@ export function CoordinatorTaskQueue({ roleView, taskActions }: { roleView: Pris
       <CCardHeader>
         <div className="flex items-center gap-2">
           <ClipboardList className="size-4 text-primary" />
-          <h3 className="text-sm font-bold text-foreground">Role queue</h3>
+          <h3 className="text-sm font-bold text-foreground">Assigned to you</h3>
           {roleView.tasks.length > 0 && (
             <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-3xs font-bold text-primary">{roleView.tasks.length}</span>
           )}
         </div>
       </CCardHeader>
       <CCardBody id="coordinator-role-queue" className="scroll-mt-24">
-        {roleView.tasks.length === 0 && <p className="text-sm text-muted-foreground">No event-day tasks assigned to this role yet.</p>}
+        {roleView.tasks.length === 0 && <p className="text-sm text-muted-foreground">No tasks assigned to you yet.</p>}
         <div className="space-y-2">
           {roleView.tasks.map((task) => (
             <CoordinatorTaskQueueRow key={task.id} task={task} taskActions={taskActions} canUpdate={canCoordinatorUpdateTask(task, roleView)} />

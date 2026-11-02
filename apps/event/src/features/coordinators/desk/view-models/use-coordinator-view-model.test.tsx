@@ -70,8 +70,25 @@ function renderVm(assignment: Record<string, unknown>) {
 }
 
 describe("EP-11-S03: pending Absent confirm must not survive a replacement", () => {
+  // The event is 2026-06-18; these confirm flows only run inside its attendance window, on the event day.
   beforeEach(() => {
     vi.mocked(markAttendanceAndRefreshRoleView).mockClear();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-18T10:00:00.000Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("offers no attendance mark once the event window has closed, so nothing can be recorded late", () => {
+    vi.setSystemTime(new Date("2026-11-02T10:00:00.000Z"));
+    const { result } = renderVm(LIVE);
+
+    expect(result.current.attendanceForm.windowOpen).toBe(false);
+    expect(result.current.attendanceForm.canMark).toBe(false);
+    act(() => result.current.attendanceForm.mark("absent"));
+    expect(result.current.attendanceForm.pendingChoice).toBeNull();
+    expect(markAttendanceAndRefreshRoleView).not.toHaveBeenCalled();
   });
 
   it("clears the pending confirm when the assignment becomes replaced", async () => {

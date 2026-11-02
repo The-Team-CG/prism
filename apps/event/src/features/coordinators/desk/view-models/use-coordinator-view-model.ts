@@ -56,6 +56,7 @@ import {
   taskAssignedRoleOptions,
   shouldPreserveRoleViewOnAcknowledgeFailure,
   COORDINATOR_ATTENDANCE_CHOICES,
+  isCoordinatorAttendanceOpen,
   type CoordinatorAttendanceChoice,
 } from "../model/coordinators-desk-rules";
 
@@ -89,6 +90,8 @@ export function useCoordinatorViewModel({
     : undefined;
   const assignment = pickActiveAssignment(assignments.filter((item) => item.eventId === event?.id));
   const readOnly = Boolean(event?.archived);
+  // Same rule the API enforces on coordinator marks: the day before through the day after the event, Manila time.
+  const attendanceWindowOpen = isCoordinatorAttendanceOpen(event?.eventDate, prismCalendarDateKey());
   const activeDraft = event?.floorPlanDrafts?.find((draft) => draft.eventId === event.id && draft.isActive);
   const [busy, setBusy] = useState(false);
   const [roleView, setRoleView] = useState<PrismCoordinatorRoleView | null>(null);
@@ -200,7 +203,7 @@ export function useCoordinatorViewModel({
   // or gone from the workspace entirely — drop any open confirm prompt so it
   // cannot be tapped against stale state. Paired with the submit-time re-check
   // in confirmAttendance, which is the guarantee; this is the render concern.
-  const attendanceAssignmentUsable = canMarkOwnAttendance({ assignment, busy: readOnly });
+  const attendanceAssignmentUsable = canMarkOwnAttendance({ assignment, busy: readOnly, windowOpen: attendanceWindowOpen });
   useEffect(() => {
     if (!attendanceAssignmentUsable) setPendingAttendanceChoice(null);
   }, [attendanceAssignmentUsable]);
@@ -414,7 +417,7 @@ export function useCoordinatorViewModel({
   }
 
   function markAttendance(choice: CoordinatorAttendanceChoice) {
-    if (readOnly) return;
+    if (readOnly || !attendanceWindowOpen) return;
     setAttendanceError(null);
     // Picking any choice clears a pending confirm first, so an unconfirmed
     // Absent cannot survive into a later pick.
@@ -433,7 +436,7 @@ export function useCoordinatorViewModel({
     // REJECT half: re-check assignment state at submit time. The prompt may have
     // outlived the assignment it was opened against (PMCM replacement, role-view
     // refresh), and hiding it is a render concern that can lose that race.
-    if (!canConfirmPendingAttendance({ assignment, pendingChoice: choice, busy: attendanceBusy })) {
+    if (!canConfirmPendingAttendance({ assignment, pendingChoice: choice, busy: attendanceBusy, windowOpen: attendanceWindowOpen })) {
       return;
     }
     void submitAttendance(choice);
@@ -458,7 +461,7 @@ export function useCoordinatorViewModel({
   // PA-299 lives in the model, with its own test, so the rule cannot drift back
   // into the acknowledgment vocabulary here.
   const attendanceStatus = resolveOwnAttendanceStatus(assignment);
-  const attendanceCanMark = canMarkOwnAttendance({ assignment, busy: busy || readOnly, attendanceBusy });
+  const attendanceCanMark = canMarkOwnAttendance({ assignment, busy: busy || readOnly, attendanceBusy, windowOpen: attendanceWindowOpen });
   const pendingAttendanceLabel = attendanceChoiceLabel(pendingAttendanceChoice);
 
   return {
@@ -545,6 +548,8 @@ export function useCoordinatorViewModel({
       status: attendanceStatus,
       choices: COORDINATOR_ATTENDANCE_CHOICES,
       canMark: attendanceCanMark,
+      windowOpen: attendanceWindowOpen,
+      markedAt: assignment?.attendanceMarkedAt ?? null,
       hasAssignment: Boolean(assignment),
       replaced: isReplacedAssignment(assignment),
       isDisabled: (choice: CoordinatorAttendanceChoice) =>
