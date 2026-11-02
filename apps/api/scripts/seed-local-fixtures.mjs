@@ -42,11 +42,10 @@ function assertDisposableLocalDatabase(env) {
 }
 
 async function createSeedContext() {
-  const [{ NestFactory }, fixturesModule, seederModule] = await Promise.all([
-    import('@nestjs/core'),
-    import('../dist/apps/api/src/fixtures/local-fixtures.module.js'),
-    import('../dist/apps/api/src/fixtures/local-fixture-seeder.js'),
-  ]);
+  // Sequential: Nest is ESM, and concurrent import() of CommonJS modules that require it races.
+  const { NestFactory } = await import('@nestjs/core');
+  const fixturesModule = await import('../dist/apps/api/src/fixtures/local-fixtures.module.js');
+  const seederModule = await import('../dist/apps/api/src/fixtures/local-fixture-seeder.js');
   const LocalFixturesModule = fixturesModule.LocalFixturesModule ?? fixturesModule.default?.LocalFixturesModule;
   const LocalFixtureSeeder = seederModule.LocalFixtureSeeder ?? seederModule.default?.LocalFixtureSeeder;
   const context = await NestFactory.createApplicationContext(LocalFixturesModule, { logger: false });
