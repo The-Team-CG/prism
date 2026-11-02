@@ -7,6 +7,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 - PMCM navigation: dead sub-views and aliases redirect to their section, each page names its section in the breadcrumb, header and document title, the client dossier has a view tab strip, and the Tasks and Inbox pages no longer show empty-event prompts.
+- PMCM closure and floorplans: snapshot history loads and fails plainly, official floorplans wait on the ocular visit, compliance shows the newest result per rule, review gaps appear after Add review, and closure tabs run 1–5 with Deliverables before Archive.
 - The API starts and builds again after the NestJS 12 upgrade: its runtime `.cjs` helpers are copied to the right `dist` path. Local fixture seeding works on freshly migrated databases again.
 - Run workspace coverage suites on independent CI runners, reuse exact dependency and browser caches with bounded retention, and validate complete browser journeys against production builds with repeatable timing comparisons.
 - Validate independent CI jobs and desktop/mobile browser journeys in parallel on GitHub-hosted runners, with complete required-check aggregation and dependency-aware task selection. Local pushes check affected projects using native typechecks and shared architecture lint.

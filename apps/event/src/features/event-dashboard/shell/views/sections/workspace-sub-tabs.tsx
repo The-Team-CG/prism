@@ -28,8 +28,25 @@ const TAB_LIST_CLASS = "-mx-1 flex max-w-full gap-1 overflow-x-auto rounded-lg b
  * One section of an event tab at a time, chosen from a segmented switcher instead of stacked
  * accordions. The choice lives in the URL (`?part=`) so links, refreshes and Back keep it.
  */
-export function WorkspaceSubTabs({ label, tabs, intro, defaultId }: { label: string; tabs: WorkspaceSubTab[]; intro?: ReactNode; defaultId?: string }) {
-  const [selected, setSelected] = useListFilter("part", defaultId ?? tabs[0]?.id ?? "");
+export function WorkspaceSubTabs({
+  label,
+  tabs,
+  intro,
+  defaultId,
+  selectedId,
+  onSelect,
+}: {
+  label: string;
+  tabs: WorkspaceSubTab[];
+  intro?: ReactNode;
+  defaultId?: string;
+  /** Lets the owner drive the selection, e.g. a close gate that links to another step. Uncontrolled when absent. */
+  selectedId?: string;
+  onSelect?: (id: string) => void;
+}) {
+  const [uncontrolled, setUncontrolled] = useListFilter("part", defaultId ?? tabs[0]?.id ?? "");
+  const selected = selectedId ?? uncontrolled;
+  const setSelected = onSelect ?? setUncontrolled;
   const active = tabs.find((tab) => tab.id === selected) ?? tabs[0];
   if (!active) return null;
   return (
