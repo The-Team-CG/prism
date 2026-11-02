@@ -1,4 +1,4 @@
-import { isActiveCoordinatorAssignmentStatus } from "@prism/types";
+import { isActiveCoordinatorAssignmentStatus, isWithinCoordinatorAttendanceWindow } from "@prism/types";
 import type {
   CoordinatorRole,
   CreateEventDayTaskInput,
@@ -409,4 +409,9 @@ export function coordinatorRoleDataStatus(status: string, hasRoleView: boolean) 
   if (status === "loading") return "loading";
   if (status === "error") return "unavailable";
   return hasRoleView ? "ready" : "pending";
+}
+
+/** Same rule the API enforces on coordinator marks: the day before through the day after the event, Manila time. */
+export function isCoordinatorAttendanceOpen(eventDate: string | undefined, todayKey: string): boolean {
+  return Boolean(eventDate) && isWithinCoordinatorAttendanceWindow(eventDate ?? "", todayKey);
 }

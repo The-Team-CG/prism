@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { isWithinCoordinatorAttendanceWindow, prismCalendarDateKey, selectCoordinatorFocusEventId } from "@prism/types";
+import { prismCalendarDateKey, selectCoordinatorFocusEventId } from "@prism/types";
 import type { EventSession } from "@/app/lib/session";
 import { useEventDayLiveUpdates } from "@/features/live-ops/workspace";
 import {
@@ -56,6 +56,7 @@ import {
   taskAssignedRoleOptions,
   shouldPreserveRoleViewOnAcknowledgeFailure,
   COORDINATOR_ATTENDANCE_CHOICES,
+  isCoordinatorAttendanceOpen,
   type CoordinatorAttendanceChoice,
 } from "../model/coordinators-desk-rules";
 
@@ -90,7 +91,7 @@ export function useCoordinatorViewModel({
   const assignment = pickActiveAssignment(assignments.filter((item) => item.eventId === event?.id));
   const readOnly = Boolean(event?.archived);
   // Same rule the API enforces on coordinator marks: the day before through the day after the event, Manila time.
-  const attendanceWindowOpen = Boolean(event) && isWithinCoordinatorAttendanceWindow(event?.eventDate ?? "", prismCalendarDateKey());
+  const attendanceWindowOpen = isCoordinatorAttendanceOpen(event?.eventDate, prismCalendarDateKey());
   const activeDraft = event?.floorPlanDrafts?.find((draft) => draft.eventId === event.id && draft.isActive);
   const [busy, setBusy] = useState(false);
   const [roleView, setRoleView] = useState<PrismCoordinatorRoleView | null>(null);
