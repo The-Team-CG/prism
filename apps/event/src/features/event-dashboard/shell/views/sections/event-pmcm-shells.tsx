@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { EventWorkspaceSwitcher } from "./event-workspace-switcher";
 import { PrismDashboardShell } from "@prism/ui";
@@ -49,6 +49,10 @@ export function EventPmcmLoadingShell({ viewModel }: { viewModel: LoadedShell })
 }
 
 export function EventPmcmReadyShell({ viewModel, children }: { viewModel: LoadedShell; children?: ReactNode }) {
+  const { documentTitle } = viewModel.shellCopy;
+  useEffect(() => {
+    document.title = documentTitle;
+  }, [documentTitle]);
   return (
     <PrismDashboardShell
       portal="event"
@@ -59,6 +63,7 @@ export function EventPmcmReadyShell({ viewModel, children }: { viewModel: Loaded
       eyebrow={viewModel.shellCopy.eyebrow}
       title={viewModel.shellCopy.title}
       description={viewModel.shellCopy.description}
+      breadcrumb={viewModel.shellCopy.breadcrumb}
       activeItemId={viewModel.sidebarActiveOverride ?? viewModel.activeSidebarItemId}
       navItems={viewModel.shellNavItems}
       sidebarMode="single"
