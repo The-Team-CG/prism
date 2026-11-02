@@ -1,10 +1,22 @@
 import type { PrismLifecycleStage } from "@prism/types";
+import { eventWorkspaceHref } from "@/features/event-dashboard/shell/model/event-dashboard-routing";
 
 const PASSED_TONES =["approved", "resolved", "overridden", "generated", "sent"];
 const OPEN_TONES = ["draft", "issued", "open"];
 
 export const COMPLIANCE_PHASES = ["planning", "pre_event", "event_day", "closure"] as const;
 export type CompliancePhase = (typeof COMPLIANCE_PHASES)[number];
+
+/** The compliance rule whose open check means the event date has passed while the event is still in planning. */
+export const EVENT_DATE_CONDITION_KEY = "event_date_relative_to_now";
+
+/** Where PMCM goes to resolve an open event-date check: start closure, or record a postponement under Scope changes. */
+export function eventDateRemediationLinks(eventId: string) {
+  return [
+    { label: "Open Closure", href: eventWorkspaceHref(eventId, "closure") },
+    { label: "Record a postponement", href: `${eventWorkspaceHref(eventId, "briefing")}?part=changes` },
+  ];
+}
 
 export function isCompliancePhase(value: string): value is CompliancePhase {
   return (COMPLIANCE_PHASES as readonly string[]).includes(value);
