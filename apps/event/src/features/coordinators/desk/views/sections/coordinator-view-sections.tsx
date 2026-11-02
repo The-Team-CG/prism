@@ -421,6 +421,7 @@ export function CoordinatorTimelineCard({ roleView, readOnly = false, onCheckAga
             canManageSchedule={Boolean(roleView.isDesignatedOperator)}
             canReplyToReports={false}
             canSubmitReports
+            coordinatorScope
           />
         </fieldset> : null}
       </CCardBody>

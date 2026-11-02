@@ -636,3 +636,10 @@ export interface PrismCoordinatorRoleView
   extends Omit<PrismCoordinatorLiveOps, "eventDayLogs"> {
   assignment: PrismCoordinatorAssignment;
 }
+
+/** Published run sheet schedule and event status, readable by a coordinator assigned to the event. */
+export interface PrismCoordinatorEventSchedule {
+  eventId: string;
+  eventStatus: string;
+  schedule: PrismEventSchedule;
+}

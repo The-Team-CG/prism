@@ -168,7 +168,9 @@ export function useEventDashboardWorkspaceViewModel({
 
 
   // Only the event Floorplans tab offers templates; every other page skipped rendering them but still paid the request.
-  const needsFloorPlanTemplates = section === "events" && tab === "floorplans";
+  // PMCM-only reads wait for a PMCM session, so a coordinator who opens a PMCM URL sends none of them before the redirect.
+  const isPmcmSession = Boolean(session && isPmcmAdmin(session.role));
+  const needsFloorPlanTemplates = isPmcmSession && section === "events" && tab === "floorplans";
   useEffect(() => {
     if (!needsFloorPlanTemplates) return;
     let cancelled = false;
@@ -261,6 +263,8 @@ export function useEventDashboardWorkspaceViewModel({
 
   useEffect(() => {
     let cancelled = false;
+    // Event command data is PMCM-only. A coordinator on a PMCM URL must not request it; the portal redirects them home.
+    if (!isPmcmSession) return;
     if (section === "suppliers") {
       eventCommandDataRequestIdRef.current += 1;
       setLiveOps(null);
@@ -318,7 +322,7 @@ export function useEventDashboardWorkspaceViewModel({
     return () => {
       cancelled = true;
     };
-  }, [applyEventCommandData, commandParts, isEventDayLiveOpsView, section, selectedEventId]);
+  }, [applyEventCommandData, commandParts, isEventDayLiveOpsView, isPmcmSession, section, selectedEventId]);
 
   return {
     status,

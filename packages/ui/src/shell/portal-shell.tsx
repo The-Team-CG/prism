@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { ChevronRight, ChevronsUpDown, LogOut, Search, ShieldCheck } from "lucide-react";
-import type { PrismAppShellProps, PrismNavItem } from "./types";
+import type { PrismAppShellProps, PrismCommandGroup, PrismNavItem, PrismPageAction } from "./types";
 import { PrismBrandLogo } from "../brand";
 import { cn } from "../utils";
 import { portalHref } from "../portal-path";
@@ -267,20 +267,42 @@ function AccountMenu({ user, items, onSignOut }: Pick<PrismAppShellProps, "user"
   );
 }
 
+function PaletteAction({ action, onChoose }: { action: PrismPageAction; onChoose: (action: PrismPageAction) => void }) {
+  return (
+    <CommandItem
+      value={`${action.label} ${action.description ?? ""}`}
+      disabled={action.disabled}
+      onSelect={() => onChoose(action)}
+    >
+      {action.icon ? <action.icon aria-hidden="true" /> : null}
+      <span className="truncate">{action.label}</span>
+      {action.description ? <span className="ml-auto truncate pl-3 text-xs text-muted-foreground">{action.description}</span> : null}
+      {action.status ? <span className="ml-auto shrink-0 pl-3 text-xs text-muted-foreground">{action.status}</span> : null}
+    </CommandItem>
+  );
+}
+
 function PageSearch({
   navItems,
   actions,
   actionsLabel,
+  groups = [],
+  emptyLabel = "Nothing matches.",
   placeholder,
   onSelect,
 }: {
   navItems: PrismNavItem[];
   actions: NonNullable<PrismAppShellProps["commandActions"]>;
   actionsLabel?: string;
+  groups?: PrismCommandGroup[];
+  emptyLabel?: string;
   placeholder: string;
   onSelect: (id: string) => void;
 }) {
   const [open, setOpen] = React.useState(false);
+  const [query, setQuery] = React.useState("");
+  const searching = query.trim().length > 0;
+  const visibleGroups = groups.filter((group) => searching || !group.whenSearching);
   React.useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
@@ -295,6 +317,10 @@ function PageSearch({
     setOpen(false);
     onSelect(id);
   };
+  const choose = (action: PrismPageAction) => {
+    setOpen(false);
+    action.onSelect?.();
+  };
   return (
     <>
       <button
@@ -307,10 +333,18 @@ function PageSearch({
         <span className="hidden flex-1 truncate text-left sm:block">{placeholder}</span>
         <kbd className="hidden rounded border border-border px-1.5 text-xs text-muted-foreground sm:inline">Ctrl K</kbd>
       </button>
-      <CommandDialog open={open} onOpenChange={setOpen} title="Go to" description="Search pages and actions">
-        <CommandInput placeholder={placeholder} />
+      <CommandDialog
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) setQuery("");
+        }}
+        title="Go to"
+        description="Search events, clients, inquiries, pages and actions"
+      >
+        <CommandInput placeholder={placeholder} value={query} onValueChange={setQuery} />
         <CommandList>
-          <CommandEmpty>Nothing matches.</CommandEmpty>
+          <CommandEmpty>{emptyLabel}</CommandEmpty>
           {groupNav(navItems).map((group) => (
             <CommandGroup key={group.label} heading={group.label}>
               {group.items.flatMap((item) => [
@@ -327,21 +361,17 @@ function PageSearch({
               ])}
             </CommandGroup>
           ))}
+          {visibleGroups.map((group) => (
+            <CommandGroup key={group.heading} heading={group.heading}>
+              {group.actions.map((action) => (
+                <PaletteAction key={action.id} action={action} onChoose={choose} />
+              ))}
+            </CommandGroup>
+          ))}
           {actions.length ? (
             <CommandGroup heading={actionsLabel ?? "Actions"}>
               {actions.map((action) => (
-                <CommandItem
-                  key={action.id}
-                  value={`${action.label} ${action.description ?? ""}`}
-                  onSelect={() => {
-                    setOpen(false);
-                    action.onSelect?.();
-                  }}
-                >
-                  {action.icon ? <action.icon aria-hidden="true" /> : null}
-                  <span className="truncate">{action.label}</span>
-                  {action.status ? <span className="ml-auto text-xs text-muted-foreground">{action.status}</span> : null}
-                </CommandItem>
+                <PaletteAction key={action.id} action={action} onChoose={choose} />
               ))}
             </CommandGroup>
           ) : null}
@@ -371,6 +401,8 @@ export function PrismPortalShell({
   showTopBarSearch = true,
   commandActions = [],
   commandSectionLabel,
+  commandGroups,
+  commandEmptyLabel,
   headerActions,
   alwaysShowHeaderActions = false,
   sidebarContext,
@@ -428,7 +460,15 @@ export function PrismPortalShell({
             </Breadcrumb>
             <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2">
               {showTopBarSearch ? (
-                <PageSearch navItems={navItems} actions={commandActions} actionsLabel={commandSectionLabel} placeholder={searchPlaceholder} onSelect={select} />
+                <PageSearch
+                  navItems={navItems}
+                  actions={commandActions}
+                  actionsLabel={commandSectionLabel}
+                  groups={commandGroups}
+                  emptyLabel={commandEmptyLabel}
+                  placeholder={searchPlaceholder}
+                  onSelect={select}
+                />
               ) : null}
               {headerActions ? <div className={cn("shrink-0 items-center gap-2", alwaysShowHeaderActions ? "flex" : "hidden md:flex")}>{headerActions}</div> : null}
             </div>
