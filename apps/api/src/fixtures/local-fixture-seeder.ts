@@ -306,30 +306,9 @@ async function countPrismaModelRows(prisma: PrismaService, modelName: Prisma.Mod
 }
 
 const MIGRATION_SEEDED_MODEL_COUNTS: Readonly<Partial<Record<Prisma.ModelName, number>>> = Object.freeze({
-  FloorPlan: 7,
-  FloorPlanObject: 231,
-  VenueTemplate: 7,
   OpsAuditChainLock: 1,
+  OpsRetentionPolicy: 8,
 });
-
-const MIGRATION_SEEDED_FLOOR_PLAN_IDS = Object.freeze([
-  'plan_tpl_builtin_blank',
-  'plan_tpl_builtin_corporate_gala',
-  'plan_tpl_builtin_wedding',
-  'plan_tpl_builtin_conference',
-  'plan_tpl_builtin_classroom',
-  'plan_tpl_builtin_banquet',
-  'plan_tpl_builtin_cocktail',
-]);
-const MIGRATION_SEEDED_VENUE_TEMPLATE_IDS = Object.freeze([
-  'tpl_builtin_blank',
-  'tpl_builtin_corporate_gala',
-  'tpl_builtin_wedding',
-  'tpl_builtin_conference',
-  'tpl_builtin_classroom',
-  'tpl_builtin_banquet',
-  'tpl_builtin_cocktail',
-]);
 
 const FIXTURE_SEED_BASELINE_ERROR =
   'Fixture seeding requires a fresh database containing only migration-owned baseline rows. Recreate prism_sample_disposable with migrations first.';
@@ -354,55 +333,6 @@ async function assertModelCountsAreBaseline(prisma: PrismaService): Promise<void
   }
 }
 
-async function assertFloorPlansAreBaseline(prisma: PrismaService): Promise<Set<string>> {
-  const floorPlans = await prisma.floorPlan.findMany({
-    select: { id: true, ownerId: true, eventId: true },
-  });
-  const floorPlanIds = new Set(floorPlans.map(({ id }) => id));
-  const expectedFloorPlanIds = new Set(MIGRATION_SEEDED_FLOOR_PLAN_IDS);
-  if (
-    floorPlans.length !== MIGRATION_SEEDED_FLOOR_PLAN_IDS.length ||
-    floorPlanIds.size !== expectedFloorPlanIds.size ||
-    floorPlans.some(({ id, ownerId, eventId }) =>
-      !expectedFloorPlanIds.has(id) || ownerId !== LOCAL_FIXTURE_OWNER_ID || eventId !== null,
-    )
-  ) {
-    failFixtureBaseline();
-  }
-  return floorPlanIds;
-}
-
-async function assertVenueTemplatesAreBaseline(prisma: PrismaService, floorPlanIds: Set<string>): Promise<void> {
-  const venueTemplates = await prisma.venueTemplate.findMany({
-    select: { id: true, ownerId: true, floorPlanId: true },
-  });
-  const expectedVenueTemplateIds = new Set(MIGRATION_SEEDED_VENUE_TEMPLATE_IDS);
-  if (
-    venueTemplates.length !== MIGRATION_SEEDED_VENUE_TEMPLATE_IDS.length ||
-    new Set(venueTemplates.map(({ id }) => id)).size !== expectedVenueTemplateIds.size ||
-    venueTemplates.some(({ id, ownerId, floorPlanId }) =>
-      !expectedVenueTemplateIds.has(id) ||
-      ownerId !== LOCAL_FIXTURE_OWNER_ID ||
-      !floorPlanIds.has(floorPlanId) ||
-      floorPlanId !== `plan_${id}`,
-    )
-  ) {
-    failFixtureBaseline();
-  }
-}
-
-async function assertFloorPlanObjectsAreBaseline(prisma: PrismaService, floorPlanIds: Set<string>): Promise<void> {
-  const floorPlanObjects = await prisma.floorPlanObject.findMany({
-    select: { floorPlanId: true, objectId: true },
-  });
-  if (
-    floorPlanObjects.length !== 231 ||
-    floorPlanObjects.some(({ floorPlanId, objectId }) => !floorPlanIds.has(floorPlanId) || objectId.trim().length === 0)
-  ) {
-    failFixtureBaseline();
-  }
-}
-
 async function assertAuditChainIsPristine(prisma: PrismaService): Promise<void> {
   const auditChainLocks = await prisma.opsAuditChainLock.findMany({
     select: { id: true, revision: true, headId: true, headHash: true },
@@ -420,9 +350,6 @@ async function assertAuditChainIsPristine(prisma: PrismaService): Promise<void> 
 
 export async function assertFixtureDatabaseIsFresh(prisma: PrismaService): Promise<void> {
   await assertModelCountsAreBaseline(prisma);
-  const floorPlanIds = await assertFloorPlansAreBaseline(prisma);
-  await assertVenueTemplatesAreBaseline(prisma, floorPlanIds);
-  await assertFloorPlanObjectsAreBaseline(prisma, floorPlanIds);
   await assertAuditChainIsPristine(prisma);
 }
 
