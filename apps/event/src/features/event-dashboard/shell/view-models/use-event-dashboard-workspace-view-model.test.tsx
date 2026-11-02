@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const loadEventCommandDataMock = vi.hoisted(() => vi.fn());
 const loadTemplatesMock = vi.hoisted(() => vi.fn());
@@ -35,9 +35,10 @@ vi.mock("../use-cases/load-dashboard-workspace", () => ({
   isDashboardCacheFresh: vi.fn(() => false),
   loadCoordinatorWorkspace: vi.fn(async () => null),
 }));
+const sessionFixture = vi.hoisted(() => ({ role: "pmcm-admin" as "pmcm-admin" | "coordinator" }));
 vi.mock("../use-cases/start-dashboard-session-load", () => ({
   startDashboardSessionLoad: ({ setSession }: { setSession: (session: unknown) => void }) => {
-    setSession({ role: "pmcm-admin", name: "PMCM Admin", email: "admin@pmcm.test" });
+    setSession({ role: sessionFixture.role, name: "Session User", email: "user@pmcm.test" });
     return () => {};
   },
 }));
@@ -174,6 +175,41 @@ describe("PMCM event-day live updates", () => {
 
     rerender({ selectedEventId: "evt_1", routeSection: "events", routeTab: "floorplans" });
     await waitFor(() => expect(loadTemplates).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe("coordinator on a PMCM event URL", () => {
+  beforeEach(() => {
+    sessionFixture.role = "coordinator";
+    vi.mocked(loadEventCommandData).mockReset();
+    vi.mocked(loadTemplates).mockReset().mockResolvedValue([]);
+    loadPmcmReferenceMock.mockClear();
+    vi.mocked(loadApprovalRequests).mockReset().mockResolvedValue([]);
+    vi.mocked(loadCommandInbox).mockReset().mockResolvedValue(null as never);
+    vi.mocked(usePmcmSelectedEventWorkspace).mockReset().mockImplementation(() => ({ refresh: vi.fn(async () => {}), workspace: null }) as never);
+  });
+
+  afterEach(() => {
+    sessionFixture.role = "pmcm-admin";
+  });
+
+  it("starts no PMCM event-command, floor-plan, reference or workspace read", async () => {
+    renderWorkspace("evt_1", "events", "billing");
+    await act(async () => {});
+
+    expect(loadEventCommandData).not.toHaveBeenCalled();
+    expect(loadPmcmReferenceMock).not.toHaveBeenCalled();
+    expect(eventWorkspaceRepository.loadWorkspace).not.toHaveBeenCalled();
+    expect(loadApprovalRequests).not.toHaveBeenCalled();
+    expect(loadCommandInbox).not.toHaveBeenCalled();
+  });
+
+  it("does not fetch floor-plan templates on the Floorplans tab either", async () => {
+    renderWorkspace("evt_1", "events", "floorplans");
+    await act(async () => {});
+
+    expect(loadTemplates).not.toHaveBeenCalled();
+    expect(loadEventCommandData).not.toHaveBeenCalled();
   });
 });
 

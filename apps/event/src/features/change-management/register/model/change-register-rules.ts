@@ -56,3 +56,19 @@ export const supplierImpactOptions = [
   { value: "release_obligations", label: "Release supplier obligations" },
   { value: "preserve_obligations", label: "Preserve supplier obligations" },
 ] as const;
+
+/** A cancellation or postponement can be sent only once it is fully specified and its impact review confirmed. */
+export function canRecordDecision(draft: {
+  decision: "" | "cancelled" | "postponed" | "date_to_be_confirmed";
+  reason: string;
+  newEventDate: string;
+  frozen: boolean;
+  freezeExceptionId: string;
+  impactReviewed: boolean;
+}): boolean {
+  if (draft.decision === "") return false;
+  if (draft.reason.trim().length === 0 || !draft.impactReviewed) return false;
+  if (draft.decision === "postponed" && draft.newEventDate.length === 0) return false;
+  return !draft.frozen || draft.freezeExceptionId.length > 0;
+}
+
