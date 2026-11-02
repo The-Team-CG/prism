@@ -3,9 +3,41 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrismComplianceCheck } from "@prism/types";
 import { Phase4SectionBoundary } from "./phase4-section-boundary";
-import { Phase4ComplianceSection, Phase4InsightsSection } from "./phase4-workspace-sections";
+import { Phase4CloseGatesSection, Phase4ComplianceSection, Phase4InsightsSection } from "./phase4-workspace-sections";
 
 afterEach(cleanup);
+
+describe("Phase4CloseGatesSection", () => {
+  it("links each unpassed gate to the place that resolves it and leaves passed gates unlinked", () => {
+    const onOpenDestination = vi.fn();
+    render(
+      <Phase4CloseGatesSection
+        closeGates={{
+          eventId: "evt_1",
+          ready: false,
+          missingKeys: ["documents", "billing"],
+          gates: [
+            { key: "documents", label: "Deliverables", passed: false, detail: "2 deliverables pending" },
+            { key: "billing", label: "Billing and payment schedule", passed: false, detail: "No approved statement" },
+            { key: "logistics", label: "Logistics", passed: true, detail: "Returns verified" },
+          ],
+        }}
+        overrideReason=""
+        busy={false}
+        onOverrideReason={vi.fn()}
+        onRefresh={vi.fn()}
+        onArchive={vi.fn()}
+        onOpenDestination={onOpenDestination}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Open Wrap up" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Open Deliverables" }));
+    expect(onOpenDestination).toHaveBeenCalledWith({ kind: "closure-tab", tabId: "deliverables", label: "Open Deliverables" });
+    fireEvent.click(screen.getByRole("button", { name: "Open Billing" }));
+    expect(onOpenDestination).toHaveBeenLastCalledWith({ kind: "event-tab", tab: "billing", label: "Open Billing" });
+  });
+});
 
 describe("Phase4InsightsSection coordinator staffing", () => {
   it("shows coordinator outcome counts in the generated insights card", () => {
