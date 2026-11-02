@@ -1,6 +1,11 @@
 /** Pure finance domain rules (no React / I/O). */
 import { daysUntil, manilaCalendarKey, manilaDateKey } from "@prism/ui/format-date";
 
+/** A milestone with nothing left to collect: its status is paid or waived, or its remaining balance is cleared. */
+export function isMilestoneSettled(payment: { status: string; remainingBalance: number }): boolean {
+  return payment.status === "paid" || payment.status === "waived" || payment.remainingBalance <= 0;
+}
+
 /**
  * Whole Philippine calendar days a milestone is past due, or 0 when it is paid, waived, or not yet due.
  * Uses the same day count as the Inbox's "Overdue N days" so both screens agree.

@@ -37,17 +37,22 @@ function renderTask(
 }
 
 describe("EventOcularVisitTask", () => {
-  it("shows requested task details", () => {
+  it("shows the status on one row and reveals the request details on demand", () => {
     renderTask(requestedVisit);
+
+    expect(screen.getByLabelText("Ocular visit status").textContent).toBe("Requested");
+    expect(screen.queryByText("Please coordinate with venue security.")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Manage visit" }));
 
     expect(screen.getByText("Summit")).toBeTruthy();
     expect(screen.getByText("Please coordinate with venue security.")).toBeTruthy();
-    expect(screen.getByText("Requested")).toBeTruthy();
   });
 
   it("schedules a requested visit", async () => {
     const onSchedule = vi.fn(async () => undefined);
     renderTask(requestedVisit, { onSchedule });
+    fireEvent.click(screen.getByRole("button", { name: "Manage visit" }));
     const localDateTime = "2026-10-17T10:30";
     // Pin the clock so the picker opens on October 2026.
     vi.useFakeTimers({ toFake: ["Date"] });
@@ -76,6 +81,7 @@ describe("EventOcularVisitTask", () => {
       scheduledAt: "2026-10-17T02:30:00.000Z",
     }, { onComplete });
 
+    fireEvent.click(screen.getByRole("button", { name: "Manage visit" }));
     fireEvent.click(screen.getByRole("button", { name: "Mark ocular visit complete" }));
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledOnce());
@@ -84,6 +90,7 @@ describe("EventOcularVisitTask", () => {
   it("requires a waiver reason", async () => {
     const onWaive = vi.fn(async () => undefined);
     renderTask(null, { onWaive });
+    fireEvent.click(screen.getByRole("button", { name: "Manage visit" }));
 
     const submit = screen.getByRole("button", { name: "Waive ocular visit" });
     expect((submit as HTMLButtonElement).disabled).toBe(true);

@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ReassignmentReviewPanel } from "./live-ops-sections";
 import { LiveOperationsWorkspace } from "./live-operations-workspace";
 
@@ -55,6 +55,13 @@ describe("ReassignmentReviewPanel", () => {
 });
 
 describe("LiveOperationsWorkspace desk order", () => {
+  // The event is dated Oct 2, 2026; pin the clock before it so the desk is still live.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-01T04:00:00Z"));
+  });
+  afterEach(() => vi.useRealTimers());
+
   const issue = (id: string, status: string, severity: string) => ({ id, eventId: "evt_1", title: `Issue ${id}`, description: "", severity, status, affectedArea: "", ownerRole: "Floor Director" });
 
   it("leads with the run window and open issues, and keeps creation forms closed until asked", () => {
@@ -104,3 +111,75 @@ describe("LiveOperationsWorkspace desk order", () => {
     expect(taskForm.hidden).toBe(true);
   });
 });
+
+describe("LiveOperationsWorkspace after the event date", () => {
+  const event = { id: "evt_1", eventDate: "2026-06-18", clientName: "Ayala Holdings", eventName: "Ayala Tech Summit 2026" };
+  const fullLiveOps = {
+    schedule: { authored: true },
+    timer: null,
+    guestAttendanceCount: 0,
+    urgentIssues: [{ id: "issue_1", title: "Generator fault", description: "", affectedArea: "Stage", ownerRole: "Floor Director", severity: "high", status: "open", slaStatus: "on_track", slaDueAt: null, escalationLevel: "none", escalatedBy: null }],
+    tasks: [{ id: "task_1", title: "Stage cue check", assignedRole: "Floor Director", ownerName: "", priority: "normal", status: "open", slaStatus: "on_track", slaDueAt: null, escalationLevel: "none", escalatedBy: null }],
+    taskReassignmentRequests: [{ id: "req_1", eventId: "evt_1", taskId: "task_1", requestedBy: "Marco Santos", requestedByRole: "coordinator", fromOwnerRole: "Floor Director", fromOwnerName: "", toOwnerRole: "Stage Director", toOwnerName: "Sam Cruz", reason: "On stage", status: "pending" }],
+    coordinatorAssignments: [],
+    supplierStatuses: [],
+    eventDayLogs: [{ id: "log_1", message: "Doors opened", actionType: "note", actor: "PMCM", createdAt: "2026-06-18T00:30:00.000Z" }],
+  };
+
+  function renderWorkspace() {
+    const noop = () => vi.fn(async () => {});
+    render(
+      <LiveOperationsWorkspace
+        event={event as never}
+        liveOps={fullLiveOps as never}
+        statusFeed={null}
+        coordinators={[]}
+        busy={false}
+        onReload={noop()}
+        onCreateTask={noop()}
+        onUpdateTask={noop()}
+        onEscalateTask={noop()}
+        onCreateIssue={noop()}
+        onUpdateIssue={noop()}
+        onEscalateIssue={noop()}
+        onUpdateCoordinatorAttendance={noop()}
+        onReplaceCoordinator={noop()}
+        onLoadCoordinatorSuggestions={async () => []}
+        onVerifySupplierStatus={noop()}
+        onDecideTaskReassignment={noop()}
+      />,
+    );
+  }
+
+  afterEach(() => vi.useRealTimers());
+
+  it("keeps the desk history visible but closes live entry once the event date has passed", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-02T04:00:00Z"));
+    renderWorkspace();
+
+    expect(screen.getByText(/Event ended on Jun 18, 2026/)).toBeTruthy();
+    expect(screen.getByText("Stage cue check")).toBeTruthy();
+    expect(screen.getByText("Generator fault")).toBeTruthy();
+    expect(screen.getByText("Doors opened")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Log issue" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add task" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Mark resolved" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Escalate task" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Run window" })).toBeNull();
+  });
+
+  it("keeps live entry open on the event day", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-18T02:00:00Z"));
+    renderWorkspace();
+
+    expect(screen.queryByText(/Event ended on/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Log issue" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Mark resolved" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Run window" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Approve" })).toBeTruthy();
+  });
+});
+

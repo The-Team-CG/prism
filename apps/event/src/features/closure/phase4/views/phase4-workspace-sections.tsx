@@ -14,10 +14,12 @@ import type {
 import { cx } from "@/features/pmcm-kit";
 import {
   closeGateDestination,
+  isCompliancePhase,
   phase4ArchiveStatus,
   phase4StatusLabel,
   phase4StatusTone,
   type CloseGateDestination,
+  type CompliancePhase,
 } from "../model/phase4-workspace-rules";
 
 const money = new Intl.NumberFormat("en-PH", {
@@ -82,12 +84,12 @@ export function Phase4ComplianceSection({
   onResolveCompliance,
   onOverrideCompliance,
 }: {
-  phase: string;
+  phase: CompliancePhase;
   checks: PrismComplianceCheck[];
   rules: PrismComplianceRule[];
   openChecks: PrismComplianceCheck[];
   busy: boolean;
-  onPhase: (value: string) => void;
+  onPhase: (value: CompliancePhase) => void;
   onRunCompliance: () => void;
   onResolveCompliance: (checkId: string) => void;
   onOverrideCompliance: (checkId: string, reason: string) => void;
@@ -103,10 +105,11 @@ export function Phase4ComplianceSection({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <label htmlFor="phase4-run-phase" className="text-sm text-muted-foreground">Phase</label>
-          <select id="phase4-run-phase" value={phase} onChange={(event) => onPhase(event.target.value)} className="h-10 rounded-md border border-border bg-white px-3 text-sm">
+          <select id="phase4-run-phase" value={phase} onChange={(event) => { if (isCompliancePhase(event.target.value)) onPhase(event.target.value); }} className="h-10 rounded-md border border-border bg-white px-3 text-sm">
             <option value="planning">Planning</option>
             <option value="pre_event">Pre-event</option>
             <option value="event_day">Event day</option>
+            <option value="closure">Closure</option>
           </select>
           <button disabled={busy} onClick={onRunCompliance} className="h-10 rounded-md bg-ink px-3 text-sm font-black text-ink-foreground disabled:opacity-60">
             Run checks
