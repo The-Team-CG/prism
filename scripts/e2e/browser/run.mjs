@@ -4,11 +4,13 @@ import { createServer } from 'node:net';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseEnv } from 'node:util';
-import { spawn, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { availableParallelism } from 'node:os';
 import { createRequire } from 'node:module';
 import { Pool } from 'pg';
 import { startMailpit, stopMailpit } from '../../local-mailpit.mjs';
 import { browserTimings } from './timings.mjs';
+import { browserExecution, browserTimingScope, portalEnvironment } from './execution.mjs';
 
 const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
 export const browserPorts = { api: 4300, client: 3301, supplier: 3302, guest: 3303, event: 3304, mailpit: 58025 };
@@ -72,6 +74,9 @@ function restoreNextFile({ path, file, original }) {
   if (restored !== null) writeFileSync(path, restored);
 }
 export async function main(args = process.argv.slice(2)) {
+  const execution = browserExecution(args);
+  const scope = browserTimingScope(execution.playwrightArgs, process.env.BROWSER_COMPARISON_SAMPLE ?? '1');
+  const revision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', windowsHide: true }).trim();
   for (const port of Object.values(browserPorts)) await requireFreePort(port);
   const selected = process.env.BROWSER_DATABASE_URL || parseEnv(readFileSync(process.env.PRISM_ENV_FILE || join(root, '.local-dev/api.env'), 'utf8')).DATABASE_URL;
   const serverUrl = assertBrowserDatabase(selected);
@@ -90,6 +95,7 @@ export async function main(args = process.argv.slice(2)) {
   let created = false;
   let mailStarted = false;
   let directoryCreated = false;
+  let accepted = false;
   function stopChild(child) {
     if (child.exitCode !== null || child.signalCode !== null) return;
     if (process.platform === 'win32') spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
@@ -126,7 +132,7 @@ export async function main(args = process.argv.slice(2)) {
     const apiDir = join(root, 'apps/api');
     await run(join(root, 'node_modules/prisma/build/index.js'), ['migrate', 'deploy'], apiDir, env, 'migrate');
     for (const profile of ['accounts', 'portal-uat']) await run(join(apiDir, 'scripts/seed.mjs'), ['--profile', profile, '--scenario-date', new Date().toISOString().slice(0, 10), '--env-file', envFile], apiDir, env, `seed-${profile}`);
-    if (!args.includes('--skip-build')) await run(createRequire(join(apiDir, 'package.json')).resolve('@nestjs/cli/bin/nest.js'), ['build', 'api', '--path', 'tsconfig.e2e.json'], apiDir, env, 'build-api');
+    if (execution.buildApi) await run(createRequire(join(apiDir, 'package.json')).resolve('@nestjs/cli/bin/nest.js'), ['build', 'api', '--path', 'tsconfig.e2e.json'], apiDir, env, 'build-api');
     for (const asset of ['kernel/database/db-connection-config.cjs', 'kernel/database/migration-ledger-compatibility.cjs', 'modules/identity-access/application/auth/password-hash.cjs']) {
       const destination = join(apiDir, '.e2e-dist/apps/api/src', asset);
       mkdirSync(dirname(destination), { recursive: true });
@@ -135,15 +141,24 @@ export async function main(args = process.argv.slice(2)) {
     launch(join(apiDir, 'scripts/run-with-env.mjs'), ['.e2e-dist/apps/api/src/main.js'], apiDir, env, 'api');
     await timings.measure('api-ready', () => awaitReady(`${values.NEXT_PUBLIC_API_URL}/health`, children));
     await run(join(root, 'scripts/e2e/browser/prepare-fixtures.mjs'), [], root, env, 'prepare-fixtures');
-    for (const app of ['client', 'supplier', 'guest', 'event']) launch(join(root, 'node_modules/next/dist/bin/next'), ['dev', '--hostname', '127.0.0.1', '--port', String(browserPorts[app])], join(root, `apps/${app}`), env, app);
+    const portalEnv = portalEnvironment(env, execution.server);
+    const next = join(root, 'node_modules/next/dist/bin/next');
+    if (execution.server === 'production') {
+      // Serial builds bound memory. Their full cost is included in acceptance timings.
+      for (const app of ['client', 'supplier', 'guest', 'event']) await run(next, ['build'], join(root, `apps/${app}`), portalEnv, `build-${app}`);
+    }
+    for (const app of ['client', 'supplier', 'guest', 'event']) launch(next,
+      [execution.server === 'production' ? 'start' : 'dev', '--hostname', '127.0.0.1', '--port', String(browserPorts[app])],
+      join(root, `apps/${app}`), portalEnv, app);
     await timings.measure('portals-ready', () => Promise.all(['client', 'supplier', 'guest', 'event'].map(app => awaitReady(`http://127.0.0.1:${browserPorts[app]}/${app === 'guest' ? 'open' : 'sign-in'}`, children))));
-    const testArgs = args.filter(arg => arg !== '--skip-build');
+    const testArgs = execution.playwrightArgs;
     const child = launch(join(root, 'node_modules/@playwright/test/cli.js'), ['test', '--config', 'scripts/e2e/browser/playwright.config.mjs', ...testArgs], root, env, 'playwright');
     child.stdout.on('data', data => process.stdout.write(data)); child.stderr.on('data', data => process.stderr.write(data));
     await timings.measure('playwright', async () => {
       const code = await new Promise(resolve => child.once('exit', resolve));
       if (code !== 0) throw new Error('Browser tests failed. Inspect the private browser report.');
     });
+    accepted = true;
     console.log(`Private browser report: ${directory}`);
   } finally {
     // Each step is isolated so one failure cannot skip restoring tracked files or dropping the database.
@@ -156,7 +171,11 @@ export async function main(args = process.argv.slice(2)) {
     if (created) await cleanup('drop database', () => owner.query(`DROP DATABASE IF EXISTS "${dbName}" WITH (FORCE)`));
     await cleanup('close pool', () => owner.end());
     process.removeListener('SIGINT', interrupt); process.removeListener('SIGTERM', interrupt);
-    if (directoryCreated) writeFileSync(join(directory, 'timings.json'), JSON.stringify({ elapsedMs: Date.now() - startedAt, phases: timings.phases }, null, 2), { mode: 0o600 });
+    if (directoryCreated) writeFileSync(join(directory, 'timings.json'), JSON.stringify({ server: execution.server, ...scope, revision,
+      node: process.version, platform: process.platform, arch: process.arch, logicalCpus: availableParallelism(),
+      image: process.env.ImageOS ?? null, imageVersion: process.env.ImageVersion ?? null,
+      success: accepted && timings.phases.every(phase => phase.status === 'passed'),
+      elapsedMs: Date.now() - startedAt, phases: timings.phases }, null, 2), { mode: 0o600 });
   }
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch(error => { console.error(error.message); process.exitCode ||= 1; });

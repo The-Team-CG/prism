@@ -3,6 +3,46 @@ import assert from 'node:assert/strict';
 import { assertBrowserDatabase, browserEnvironment, restoredNextFile } from './run.mjs';
 import { assertPageCoverageComplete, validatedPageCoverageCases } from './page-coverage-report.mjs';
 import { browserTimings } from './timings.mjs';
+import { browserExecution, browserJobMatrix, browserTimingScope, portalEnvironment } from './execution.mjs';
+
+test('production portals keep fixture URLs and API settings while enabling the real production server', () => {
+  const env = browserEnvironment('postgresql://user@localhost/prism_browser_012345abcdef', '/tmp/test');
+  const portals = portalEnvironment({ ...env, PRISM_VERCEL_SERVICES: '1', PRISM_DOCKER_STANDALONE: '1' }, 'production');
+  assert.equal(portals.NODE_ENV, 'production');
+  assert.equal(env.NODE_ENV, 'development', 'Fixture preparation and API retain their established environment.');
+  assert.equal(portals.NEXT_PUBLIC_PRISM_API_BASE_URL, env.NEXT_PUBLIC_PRISM_API_BASE_URL);
+  assert.equal(portals.PRISM_NEXT_DIST_DIR, '.next-acceptance');
+  assert.equal(portals.PRISM_VERCEL_SERVICES, '');
+  assert.equal(portals.PRISM_DOCKER_STANDALONE, '');
+  assert.deepEqual(browserExecution(['--server=development', '--project=desktop', '--skip-build']),
+    { server: 'development', playwrightArgs: ['--project=desktop'], buildApi: false });
+  assert.throws(() => browserExecution(['--server=invalid']), /server mode/);
+  assert.throws(() => browserExecution(['--server=production', '--skip-build']), /always builds/);
+  assert.throws(() => browserExecution(['--server=production', '--server=development']), /one browser server/);
+});
+
+test('comparison jobs run complete desktop and mobile projects for each mode and sample', () => {
+  const matrix = browserJobMatrix({ server: 'compare', repetitions: 5 }).include;
+  assert.equal(matrix.length, 20);
+  for (let sample = 1; sample <= 5; sample += 1) {
+    for (const server of ['production', 'development']) {
+      assert.deepEqual(matrix.filter(job => job.sample === sample && job.server === server).map(job => job.project).sort(), ['desktop', 'mobile']);
+    }
+  }
+  assert.deepEqual(browserJobMatrix().include.map(job => job.project), ['desktop', 'mobile']);
+  assert.equal(matrix[0].server, 'development');
+  assert.equal(matrix[4].server, 'production');
+  for (const input of [{ server: 'invalid' }, { repetitions: 0 }, { repetitions: 6 }, { repetitions: 1.5 }]) assert.throws(() => browserJobMatrix(input), /supported browser mode/);
+});
+
+test('timing samples distinguish complete project runs from filtered or combined local runs', () => {
+  assert.deepEqual(browserTimingScope(['--project=desktop'], '3'), { project: 'desktop', sample: 3, completeSuite: true });
+  assert.deepEqual(browserTimingScope(['--project', 'mobile']), { project: 'mobile', sample: 1, completeSuite: true });
+  assert.equal(browserTimingScope(['--project=desktop', '--grep', 'one journey']).completeSuite, false);
+  assert.equal(browserTimingScope(['--project=unknown']).completeSuite, false);
+  assert.equal(browserTimingScope([]).project, 'all');
+  assert.throws(() => browserTimingScope([], '0'), /Invalid browser comparison sample/);
+});
 test('browser setup refuses hosted and normal databases before preparing a test runtime', () => {
   assert.throws(() => assertBrowserDatabase('postgresql://user@hosted.example/postgres'), /loopback/);
   assert.throws(() => assertBrowserDatabase('postgresql://user@localhost/postgres?host=hosted.example'), /query overrides/);

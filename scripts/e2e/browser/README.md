@@ -2,15 +2,50 @@
 
 Run `npx playwright install chromium` once, then `npm run test:browser` from the repository root. Docker Desktop and a prepared local Supabase database server are required. The runner reads only `DATABASE_URL` from `.local-dev/api.env` (or an explicitly selected `PRISM_ENV_FILE`); `BROWSER_DATABASE_URL` can select another loopback PostgreSQL server. Hosted servers are refused.
 
-The runner creates a new uniquely named `prism_browser_*` database, applies migrations, seeds synthetic accounts/UAT scenarios, starts the API on 4300, portals on 3301–3304, and Mailpit on 58025. Busy ports cause refusal; existing servers are never reused or stopped. The four portals use separate `.next-acceptance` output so ordinary development builds remain available. The run uses real API responses and rendered browser controls, with no business API interception or browser-local fixture state. Prerequisites are prepared through the API/guarded fixture CLI.
+The runner creates a new uniquely named `prism_browser_*` database, applies migrations, seeds synthetic accounts/UAT scenarios, starts the API on 4300, portals on 3301–3304, and Mailpit on 58025. Busy ports cause refusal; existing servers are never reused or stopped. The four portals use separate `.next-acceptance` output so ordinary development builds remain available. Production mode builds each portal serially and runs `next start` with the same public URLs and fixture environment. The API and seed commands retain their established synthetic development environment. The run uses real API responses and rendered browser controls, with no business API interception or browser-local fixture state. Prerequisites are prepared through the API/guarded fixture CLI.
 
 Desktop Chromium and mobile Chromium run each journey with separate browser sessions and no retries. Coverage: public inquiry and calendar, PMCM MFA/acceptance, client email activation/password reset/sign-in, supplier emailed quote submission, guest code/consent/check-in, signed-out dashboard guards, refusal of client credentials in PMCM/supplier workspaces, and one cross-role lifecycle journey (inquiry, conforme, proposal and billing statement, supplier quote and readiness, coordinator assignment, official plan approval, event day, closeout and archive). The [API lifecycle suite](../lifecycle/README.md) remains the broader workflow and permission layer. Route checks cover every registered page as described below; additional actions such as uploads, payments and floorplan editing gestures still need their own journeys.
 
 The normal manual-test database is never reset. Owned test processes and the temporary inbox/database are removed after the run. Private logs, env files, synthetic MFA secrets and failure traces stay in the ignored `.local-dev/browser/<run-id>/` directory. Inspect a failed HTML report with `npx playwright show-report <report-directory>`. Traces may contain synthetic credentials and email tokens; CI uploads only failure reports/results for seven days, never environment, actor or API log files. A cancelled runner/job still needs its normal process/container teardown; do not kill unrelated Node processes.
 
-Use `npm run test:browser -- --project=desktop` for one viewport, `--grep <title>` for a focused journey, and `--skip-build` only after a successful API build from the same source. `npm run test:browser:guards` checks environment refusal, coverage completeness, and timing records without touching a database.
+Use `npm run test:browser -- --project=desktop` for one viewport and `--grep <title>` for a focused journey. Production mode is the default and always builds from the current source. `--server=development` selects the development servers; only that mode accepts `--skip-build`, after a successful API build from the same source. `npm run test:browser:guards` checks environment refusal, coverage completeness, execution selection and timing comparison without touching a database.
 
-The harness prints elapsed time and pass/fail status for database creation, Mailpit, migrations, each fixture seed, API compilation/readiness, fixture preparation, portal readiness, Playwright, and cleanup. The private run directory contains `timings.json` with those phase durations and total elapsed time. Timing records contain phase names, durations, and status; they exclude connection strings, credentials, process arguments, and exception details. Compare complete successful runs, including setup, before attributing a change to faster test execution.
+The harness prints elapsed time and pass/fail status for database creation, Mailpit, migrations, each fixture seed, API compilation/readiness, fixture preparation, each production portal build, portal readiness, Playwright, and cleanup. The private run directory contains `timings.json` with those phase durations and total elapsed time. Records also identify the revision, server mode, viewport, sample, runtime/runner configuration and complete-suite status. They exclude connection strings, credentials, process arguments, and exception details. Compare complete successful runs, including setup and builds, before attributing a change to faster test execution.
+
+## Compare complete server modes
+
+The manual Browser acceptance workflow accepts `server=production`, `development`
+or `compare`, with one or five repetitions. Comparison mode runs both viewports
+for each server and sample, alternating submission order. Every job checks out
+the same immutable revision resolved by the bootstrap. Each gets a fresh runner,
+database and complete fixture preparation. The installed-dependency and pinned
+headless Chromium archives are prepared before sample jobs; system browser
+libraries still install on each machine.
+
+Replace `BRANCH` and `RUN_ID` with the branch and comparison workflow run:
+
+```bash
+gh workflow run browser-acceptance.yml --ref BRANCH -f server=compare -f repetitions=5
+gh run download RUN_ID --pattern 'browser-timings-*' --dir .local-dev/browser-comparison/RUN_ID
+node scripts/e2e/browser/compare-timings.mjs .local-dev/browser-comparison/RUN_ID 5
+```
+
+The analyzer requires every mode/viewport/sample exactly once, successful cleanup,
+complete suites, matching revisions/runtime/image configuration, and all required
+build/setup phases. Filtered or failed runs cannot establish a speedup. Its
+critical-path statistic is the maximum desktop/mobile harness duration per
+sample; it reports median and range for each mode and viewport. It includes API
+and all four portal builds, migrations, fixtures, acceptance and cleanup, and
+excludes runner queue/dependency bootstrap. Five samples with separated ranges
+are required for `productionClearlyFaster=true`. Do not switch a default based
+on an incomplete or inconclusive comparison.
+
+The manual workflow also downloads only its own safe timing artifacts, runs this
+analyzer, and uploads `browser-server-comparison-<run-id>` with JSON and Markdown
+results. In comparison mode the required browser aggregate includes that job.
+Failure reports/traces are uploaded for the first sample of each mode/viewport
+only, bounding repeated diagnostic storage. Every sample still runs and gates
+the complete suite, and all samples upload safe timings.
 
 ## Registered page coverage
 

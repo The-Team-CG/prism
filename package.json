@@ -60,7 +60,7 @@
     "db:seed": "npm --workspace prism-api run db:seed --",
     "db:seed:verify": "npm --workspace prism-api run db:seed:verify --",
     "test:browser": "node scripts/e2e/browser/run.mjs",
-    "test:browser:guards": "node --test scripts/e2e/browser/run.test.mjs",
+    "test:browser:guards": "node --test scripts/e2e/browser/run.test.mjs scripts/e2e/browser/compare-timings.test.mjs",
     "check:push": "node scripts/ci/pre-push.mjs",
     "hooks:install": "node scripts/ci/install-hooks.mjs",
     "test:ci:guards": "node --test scripts/ci/*.test.mjs scripts/typescript.test.mjs scripts/verify-vitest-projects.test.mjs",
