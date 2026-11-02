@@ -89,7 +89,7 @@ describe("PrivacyConsoleView", () => {
     render(<PrivacyConsoleView />);
     await screen.findByText("No privacy requests match these filters.");
 
-    fireEvent.change(screen.getByLabelText("Filter by owner"), { target: { value: "mine" } });
+    fireEvent.change(screen.getByLabelText("Owner"), { target: { value: "mine" } });
 
     await waitFor(() => expect(repository.queue).toHaveBeenLastCalledWith(expect.objectContaining({ assignedTo: "usr_maxine", page: 0 })));
   });

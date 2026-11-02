@@ -8,6 +8,8 @@ export function useSupplierApplicationsInboxViewModel() {
   const [items, setItems] = useState<PrismSupplierApplication[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The reason belongs to one application at a time: it is only open on the card being declined.
+  const [decliningId, setDecliningId] = useState<string | null>(null);
   const [declineReason, setDeclineReason] = useState("");
 
   const load = useCallback(async () => {
@@ -33,6 +35,7 @@ export function useSupplierApplicationsInboxViewModel() {
       const input: ReviewSupplierApplicationInput =
         action === "decline" ? { action, declineReason } : { action };
       await supplierApplicationsRepository.review(applicationId, input);
+      setDecliningId(null);
       setDeclineReason("");
       await load();
     } catch (caught) {
@@ -41,5 +44,16 @@ export function useSupplierApplicationsInboxViewModel() {
     }
   }
 
-  return { items, busy, error, declineReason, setDeclineReason, review };
+  function startDecline(applicationId: string) {
+    setError(null);
+    setDecliningId(applicationId);
+    setDeclineReason("");
+  }
+
+  function cancelDecline() {
+    setDecliningId(null);
+    setDeclineReason("");
+  }
+
+  return { items, busy, error, decliningId, declineReason, setDeclineReason, review, startDecline, cancelDecline };
 }

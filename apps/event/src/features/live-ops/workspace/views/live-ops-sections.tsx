@@ -545,6 +545,7 @@ function CoordinatorRow({
           </p>
           <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]">
             <select
+              aria-label="Replacement coordinator"
               value={vm.replacementCoordinatorId}
               onChange={(event) => vm.selectReplacementCoordinator(event.target.value)}
               className="h-10 rounded-md border border-border bg-white px-2 text-xs"
@@ -554,7 +555,7 @@ function CoordinatorRow({
                 <option key={coordinator.id} value={coordinator.id}>{coordinator.name}</option>
               ))}
             </select>
-            <select value={vm.replacementRole} onChange={(event) => vm.setReplacementRole(event.target.value)} className="h-10 rounded-md border border-border bg-white px-2 text-xs">
+            <select aria-label="Replacement role" value={vm.replacementRole} onChange={(event) => vm.setReplacementRole(event.target.value)} className="h-10 rounded-md border border-border bg-white px-2 text-xs">
               <option value="">Select role</option>
               {vm.replacementRoleOptions.map((role) => <option key={role} value={role}>{role}</option>)}
             </select>
@@ -585,6 +586,7 @@ function CoordinatorRow({
             </div>
           ))}
           <input
+            aria-label="Replacement reason"
             value={vm.replacementReason}
             onChange={(event) => vm.setReplacementReason(event.target.value)}
             placeholder="Replacement reason required for live log"

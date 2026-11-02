@@ -59,7 +59,7 @@ export function GuestsPanel() {
     <div className="flex flex-col">
       {/* Header summary */}
       <div className="px-3 pb-2 pt-3">
-        <div className="text-[10px] uppercase tracking-wider text-neutral-400">Event</div>
+        <div className="text-xs font-medium text-neutral-500">Event</div>
         <div className="mt-0.5 text-sm text-neutral-900" style={{ fontWeight: 500 }}>
           Guest list
         </div>
