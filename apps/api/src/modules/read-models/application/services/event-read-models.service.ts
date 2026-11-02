@@ -174,6 +174,21 @@ function mapPmcmOcularVisit(request: OpsOcularVisitRequest): PrismPmcmOcularVisi
   };
 }
 
+/**
+ * Every compliance run re-evaluates the same rules and keeps its own check rows, so the workspace shows
+ * the newest result for each rule. Input order (newest first) is kept for the rows that survive.
+ */
+function latestCheckPerRule<T extends { id: string; conditionKey: string; ruleId: string | null; createdAt: Date }>(checks: T[]): T[] {
+  const newestByRule = new Map<string, T>();
+  for (const check of checks) {
+    const key = check.conditionKey || check.ruleId || check.id;
+    const current = newestByRule.get(key);
+    if (!current || check.createdAt.getTime() > current.createdAt.getTime()) newestByRule.set(key, check);
+  }
+  const survivors = new Set(newestByRule.values());
+  return checks.filter((check) => survivors.has(check));
+}
+
 export type EventListMappers = {
   mapEvent: (event: EventWithDrafts) => unknown;
 };
@@ -721,7 +736,7 @@ export class EventReadModelsService {
       supplierQuotes: supplierQuotes.map(mappers.mapSupplierQuote),
       coordinatorAssignments: coordinatorAssignments.map(mappers.mapCoordinatorAssignment),
       coordinatorCoverage,
-      complianceChecks: complianceChecks.map(mappers.mapComplianceCheck),
+      complianceChecks: latestCheckPerRule(complianceChecks).map(mappers.mapComplianceCheck),
       billingSources: billingSources.map(mappers.mapBillingSource),
       billingStatements: billingStatements.map(mappers.mapBillingStatement),
       paymentMilestones: paymentMilestones.map((payment) =>

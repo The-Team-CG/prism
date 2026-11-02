@@ -590,6 +590,17 @@ describe("prismRequest", () => {
       },
     });
   });
+
+  it("never shows an HTML error page as the problem message", async () => {
+    const page = "<!DOCTYPE html><html><body><pre>Cannot GET /events/evt_1/floorplans/fp_1/history</pre></body></html>";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(page, { status: 404, headers: { "Content-Type": "text/html" } })));
+
+    const error = await prismRequest("/events/evt_1/history", { baseUrl: "http://localhost:4000/api" }).catch((cause: unknown) => cause);
+
+    expect(error).toBeInstanceOf(PrismApiError);
+    expect((error as PrismApiError).problem.message).toBe("P.R.I.S.M API request failed: 404");
+    expect((error as PrismApiError).message).not.toContain("<");
+  });
 });
 
 describe("toQueryString", () => {

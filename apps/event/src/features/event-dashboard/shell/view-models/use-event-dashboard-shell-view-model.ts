@@ -376,6 +376,7 @@ export function useEventDashboardShellViewModel({
     shellCopy: routeShellCopy(routeState, {
       activeNavLabel: activeNavItem?.label,
       selectedEvent,
+      selectedClient: selectedClient ?? undefined,
     }),
     refresh,
     refreshApprovals,

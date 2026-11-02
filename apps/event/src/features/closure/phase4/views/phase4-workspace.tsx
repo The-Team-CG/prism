@@ -20,6 +20,7 @@ import {
   phase4CloseGatesCard,
   phase4ComplianceCard,
   phase4StatementsCard,
+  type CloseGateDestination,
 } from "../model/phase4-workspace-rules";
 import {
   money,
@@ -58,6 +59,7 @@ export function Phase4Workspace({
   onLoadInsights,
   onGenerateInsights,
   onAddReview,
+  onOpenDestination,
 }: {
   step: ClosureStep;
   event: PrismEvent;
@@ -80,6 +82,8 @@ export function Phase4Workspace({
   onLoadInsights: () => Promise<PrismEventInsight[]>;
   onGenerateInsights: () => Promise<void>;
   onAddReview: (supplierId: string, input: CreateSupplierReviewInput) => Promise<boolean>;
+  /** Moves the reviewer to the tab, or event tab, that resolves an unpassed archive gate. */
+  onOpenDestination: (destination: CloseGateDestination) => void;
 }) {
   const [phase, setPhase] = useState("planning");
   const [closeGates, setCloseGates] = useState<PrismCloseGates | null>(null);
@@ -174,6 +178,7 @@ export function Phase4Workspace({
               onOverrideReason={setOverrideReason}
               onRefresh={refreshCloseGates}
               onArchive={archiveEvent}
+              onOpenDestination={onOpenDestination}
             />
           </Phase4SectionBoundary>
           <Phase4SectionBoundary title="Post-event insights"><Phase4InsightsSection latestInsight={latestInsight} busy={busy} onGenerate={generateInsights} /></Phase4SectionBoundary>
