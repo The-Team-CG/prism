@@ -128,6 +128,11 @@ function CoordinatorRegistrationSection({ vm }: { vm: CoordinatorVm }) {
   return <CoordinatorRegistrationDesk key={vm.event.id} eventId={vm.event.id} guestAttendanceCount={vm.roleView?.guestAttendanceCount} onAttendanceChange={vm.refreshRoleView} />;
 }
 
+function CoordinatorCalendarSection({ vm, onOpen }: { vm: CoordinatorVm; onOpen: (view: CoordinatorViewId, eventId: string) => void }) {
+  const focus = vm.event && vm.roleView ? { eventId: vm.event.id, tasks: vm.roleView.tasks, days: vm.roleView.schedule?.days ?? [] } : null;
+  return <CoordinatorCalendar items={buildCoordinatorCalendarItems(vm.assignedEvents, focus)} onOpen={onOpen} />;
+}
+
 function CoordinatorViewContent({ vm, view, sessionName, roleName, onNavigate, onOpenItem }: {
   vm: CoordinatorVm;
   view: CoordinatorViewId;
@@ -136,10 +141,7 @@ function CoordinatorViewContent({ vm, view, sessionName, roleName, onNavigate, o
   onNavigate: NavigateTo;
   onOpenItem: (view: CoordinatorViewId, eventId: string) => void;
 }) {
-  if (view === "calendar") {
-    const focus = vm.event && vm.roleView ? { eventId: vm.event.id, tasks: vm.roleView.tasks, days: vm.roleView.schedule?.days ?? [] } : null;
-    return <CoordinatorCalendar items={buildCoordinatorCalendarItems(vm.assignedEvents, focus)} onOpen={onOpenItem} />;
-  }
+  if (view === "calendar") return <CoordinatorCalendarSection vm={vm} onOpen={onOpenItem} />;
   if (!vm.event) return <p role="status" className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">{vm.selectedEventId ? "That event is not available to this account. Choose an assigned event." : "Choose an assigned event to see your work."}</p>;
   switch (view) {
     case "shift": return <CoordinatorShift vm={vm} roleName={roleName} onNavigate={onNavigate} />;
