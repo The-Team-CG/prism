@@ -96,6 +96,7 @@ function FreezeScopeForm({ busy, onSubmit }: { busy: boolean; onSubmit: (reason:
         <DatePicker aria-label="Freeze deadline (optional)" value={deadline} onValueChange={setDeadline} className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm" />
       </div>
       <button type="submit" disabled={busy || !reason.trim()} className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">Freeze scope</button>
+      {!reason.trim() ? <p className="text-xs text-muted-foreground">Add a reason for freezing to continue.</p> : null}
     </form>
   );
 }

@@ -22,7 +22,7 @@ function subTabClassName(isActive: boolean) {
 }
 
 /** The segmented strip shared by the state-backed and route-backed tab components below. */
-const TAB_LIST_CLASS = "-mx-1 flex max-w-full gap-1 overflow-x-auto rounded-lg bg-muted p-1";
+const TAB_LIST_CLASS = "-mx-1 flex max-w-full flex-wrap gap-1 rounded-lg bg-muted p-1 sm:flex-nowrap sm:overflow-x-auto";
 
 /**
  * One section of an event tab at a time, chosen from a segmented switcher instead of stacked

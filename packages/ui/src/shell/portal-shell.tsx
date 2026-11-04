@@ -157,8 +157,13 @@ function NavButtonRow({ item, activeId, onSelect, open, setOpen }: NavRowProps &
 }
 
 function NavItemRow({ item, activeId, onSelect }: NavRowProps) {
+  const { isMobile, setOpenMobile } = useSidebar();
   const active = isItemActive(item, activeId);
   const [open, setOpen] = React.useState(active);
+  const selectAndClose = React.useCallback((id: string) => {
+    onSelect(id);
+    if (isMobile) setOpenMobile(false);
+  }, [isMobile, onSelect, setOpenMobile]);
   React.useEffect(() => {
     if (active) setOpen(true);
   }, [active]);
@@ -167,12 +172,12 @@ function NavItemRow({ item, activeId, onSelect }: NavRowProps) {
   return (
     <SidebarMenuItem>
       {asLink ? (
-        <NavLinkRow item={item} activeId={activeId} onSelect={onSelect} />
+        <NavLinkRow item={item} activeId={activeId} onSelect={selectAndClose} />
       ) : (
-        <NavButtonRow item={item} activeId={activeId} onSelect={onSelect} open={open} setOpen={setOpen} />
+        <NavButtonRow item={item} activeId={activeId} onSelect={hasSub ? onSelect : selectAndClose} open={open} setOpen={setOpen} />
       )}
       {hasBadge(item.badge) && !hasSub ? <SidebarMenuBadge>{item.badge}</SidebarMenuBadge> : null}
-      {hasSub && open ? <NavSubItems items={item.subItems ?? []} activeId={activeId} onSelect={onSelect} /> : null}
+      {hasSub && open ? <NavSubItems items={item.subItems ?? []} activeId={activeId} onSelect={selectAndClose} /> : null}
     </SidebarMenuItem>
   );
 }
@@ -426,6 +431,7 @@ export function PrismPortalShell({
   children,
   className,
   contentClassName,
+  titleClassName,
   homeHref = "/dashboard",
 }: PrismPortalShellProps) {
   const select = React.useCallback((id: string) => onNavSelect?.(id), [onNavSelect]);
@@ -491,7 +497,7 @@ export function PrismPortalShell({
             </div>
           </header>
           <div className={cn("mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 sm:px-6 lg:px-8", contentClassName)}>
-            <div className="mb-6 grid gap-1">
+            <div className={cn("mb-6 grid gap-1", titleClassName)}>
               <h1 className="font-heading text-2xl font-bold leading-tight text-foreground">{title}</h1>
               {description ? <p className="max-w-3xl text-sm text-muted-foreground">{description}</p> : null}
             </div>
