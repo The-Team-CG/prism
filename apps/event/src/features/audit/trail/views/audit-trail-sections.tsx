@@ -56,7 +56,7 @@ export function AuditTrailOverview({
   return (
     <section className="rounded-lg border border-border bg-card p-5 shadow-[0_18px_70px_rgba(23,18,22,0.07)]">
       <AuditTrailHeader busy={vm.busy} onExport={vm.exportLog} onToggleFilters={() => vm.setAdvancedOpen((value) => !value)} />
-      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
         <Metric label="Total events (view)" value={vm.logs.length} icon={ListFilter} />
         <Metric label="User actions" value={vm.userActionCount} icon={UserCheck} />
         <Metric label="System events" value={vm.systemActionCount} icon={RotateCcw} />
