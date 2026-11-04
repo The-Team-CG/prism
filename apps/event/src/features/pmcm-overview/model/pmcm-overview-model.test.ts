@@ -39,7 +39,10 @@ describe("PMCM calendar entries", () => {
     expect(arrival).toMatchObject({ startTime: "06:00", target: "suppliers" });
   });
 
-  it("loads a window that reaches two months back and a little over a year ahead", () => {
-    expect(calendarWindow("2026-11-05")).toEqual({ from: "2026-09-04", to: "2027-12-10" });
+  it("loads the visible dates widened to whole months plus the month on each side", () => {
+    // November's grid runs Nov 1 to Dec 5, so the window is October through January.
+    expect(calendarWindow({ from: "2026-11-01", to: "2026-12-05" })).toEqual({ from: "2026-10-01", to: "2027-01-31" });
+    expect(calendarWindow({ from: "2026-12-30", to: "2026-12-30" })).toEqual({ from: "2026-11-01", to: "2027-01-31" });
+    expect(calendarWindow({ from: "2028-03-10", to: "2028-03-10" })).toEqual({ from: "2028-02-01", to: "2028-04-30" });
   });
 });

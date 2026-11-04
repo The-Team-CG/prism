@@ -14,8 +14,10 @@ import {
   periodTitle,
   shiftAnchor,
   spanOf,
+  visibleRange,
   weekDateKeys,
   type CalendarViewId,
+  type VisibleRange,
 } from "./calendar-views";
 import { Button } from "./components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuShortcut, DropdownMenuTrigger } from "./components/ui/dropdown-menu";
@@ -64,6 +66,8 @@ export type PortalCalendarProps<Item extends PortalCalendarItem> = {
   /** Singular name of what is counted, for the month cell labels. */
   noun?: string;
   className?: string;
+  /** Called with the dates on screen when the calendar opens and whenever the view or period changes. */
+  onRangeChange?: (range: VisibleRange) => void;
   renderItem: PortalCalendarItemRenderer<Item>;
 };
 
@@ -88,7 +92,7 @@ function itemsByDate<Item extends PortalCalendarItem>(items: Item[]) {
 const isTyping = (target: EventTarget | null) => target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 
 /** A calendar with month, week, day and agenda views. Role-neutral: portals decide which items exist and where each leads. */
-export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, today, initialDate, initialView = "month", className, renderItem }: PortalCalendarProps<Item>) {
+export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, today, initialDate, initialView = "month", className, onRangeChange, renderItem }: PortalCalendarProps<Item>) {
   const headingId = useId();
   const [view, setView] = useState<CalendarViewId>(initialView);
   const [anchor, setAnchor] = useState(initialDate);
@@ -104,6 +108,11 @@ export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, 
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  const range = visibleRange(view, anchor);
+  useEffect(() => {
+    onRangeChange?.({ from: range.from, to: range.to });
+  }, [range.from, range.to]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openDay = (dateKey: string) => {
     setAnchor(dateKey);

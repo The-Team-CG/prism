@@ -1,5 +1,5 @@
 import type { PortalCalendarItem, PortalCalendarKind } from "@prism/ui/portal-calendar";
-import { addDays } from "@prism/ui/calendar-views";
+import { addDays, type VisibleRange } from "@prism/ui/calendar-views";
 import type { PmcmCalendarQuery, PrismPmcmCalendarItem, PrismPmcmCalendarItemKind } from "@prism/types";
 
 /** The event workspace section where each kind of dated work is handled. */
@@ -49,7 +49,16 @@ export function toCalendarEntries(items: PrismPmcmCalendarItem[]): PmcmCalendarE
   }));
 }
 
-/** Two months back and a little over a year ahead: wide enough that ordinary browsing never leaves the loaded window. */
-export function calendarWindow(today: string): PmcmCalendarQuery {
-  return { from: addDays(today, -62), to: addDays(today, 400) };
+const startOfMonth = (dateKey: string) => `${dateKey.slice(0, 7)}-01`;
+const endOfMonth = (dateKey: string) => addDays(startOfMonth(addDays(startOfMonth(dateKey), 32)), -1);
+
+/**
+ * What to load for the dates on screen: those dates widened to whole months, plus the month on each side.
+ * Browsing month to month then reuses what is loaded instead of asking again at every step.
+ */
+export function calendarWindow(range: VisibleRange): PmcmCalendarQuery {
+  return {
+    from: startOfMonth(addDays(startOfMonth(range.from), -1)),
+    to: endOfMonth(addDays(endOfMonth(range.to), 1)),
+  };
 }
