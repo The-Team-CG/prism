@@ -43,6 +43,15 @@ describe("buildSupplierCalendarItems", () => {
       ["arrival", "06:00"],
       ["departure", "18:00"],
     ]);
+    // Month-cell labels name the subject, so a chip reads on its own without opening it.
+    expect(items.map((item) => [item.kind, item.chipLabel])).toEqual([
+      ["deadline", "Lights quote due"],
+      ["deliverable", "Slides"],
+      ["payment", "Deposit"],
+      ["event", "Gala"],
+      ["arrival", "Arrive · Gala"],
+      ["departure", "Leave · Gala"],
+    ]);
     expect(items.find((item) => item.kind === "event")?.href).toBe("/dashboard/bookings#supplier-work-won");
     expect(items.find((item) => item.kind === "deadline")?.href).toBe("/dashboard/requests#supplier-work-open");
     expect(items.find((item) => item.kind === "payment")?.href).toBe("/dashboard/payments");

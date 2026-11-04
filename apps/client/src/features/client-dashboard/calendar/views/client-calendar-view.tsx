@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { BadgeCheck, CalendarDays, MapPinned, WalletCards, type LucideIcon } from "lucide-react";
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
+import { Button } from "@prism/ui/components/button";
 import { PortalCalendar } from "@prism/ui/portal-calendar";
 import { cn } from "@/app/components/ui/utils";
 import { CLIENT_PORTAL_VIEW_META, dashboardHref, formatStatusLabel, useClientWorkspace } from "../../workspace/shared";
@@ -12,11 +13,11 @@ import { ClientListEmpty, ClientListSection, type ClientRowTone } from "../../sh
 import { dueState, eventCountdown } from "../../home/model/client-home-summary";
 import { buildClientCalendarItems, type ClientCalendarItem, type ClientCalendarItemKind } from "../model/client-calendar-items";
 
-const KIND: Record<ClientCalendarItemKind, { label: string; icon: LucideIcon; chip: string; dot: string; route: ClientDashboardRoute }> = {
-  event: { label: "Event", icon: CalendarDays, chip: "bg-primary/10 text-primary hover:bg-primary/15", dot: "bg-primary", route: "overview" },
-  payment: { label: "Payment due", icon: WalletCards, chip: "bg-attention-soft text-attention hover:bg-attention/15", dot: "bg-attention", route: "billing" },
-  visit: { label: "Site visit", icon: MapPinned, chip: "bg-info-soft text-info hover:bg-info/15", dot: "bg-info", route: "overview" },
-  approval: { label: "Layout approved", icon: BadgeCheck, chip: "bg-success-soft text-success hover:bg-success/15", dot: "bg-success", route: "floorplan" },
+const KIND: Record<ClientCalendarItemKind, { label: string; icon: LucideIcon; chip: string; dot: string; route: ClientDashboardRoute; action: string }> = {
+  event: { label: "Event", icon: CalendarDays, chip: "bg-primary/10 text-primary hover:bg-primary/15", dot: "bg-primary", route: "overview", action: "Open event" },
+  payment: { label: "Payment due", icon: WalletCards, chip: "bg-attention-soft text-attention hover:bg-attention/15", dot: "bg-attention", route: "billing", action: "Open billing" },
+  visit: { label: "Site visit", icon: MapPinned, chip: "bg-info-soft text-info hover:bg-info/15", dot: "bg-info", route: "overview", action: "Open event" },
+  approval: { label: "Layout approved", icon: BadgeCheck, chip: "bg-success-soft text-success hover:bg-success/15", dot: "bg-success", route: "floorplan", action: "Open layout" },
 };
 
 function itemHref(item: ClientCalendarItem) {
@@ -52,7 +53,9 @@ export function ClientCalendarView() {
         kinds={KIND}
         today={today}
         initialDate={upcoming[0]?.date ?? today}
-        renderItem={({ item, className, title, children }) => <Link href={itemHref(item)} title={title} className={className}>{children}</Link>}
+        detail={{
+          action: (item) => <Button asChild><Link href={itemHref(item)}>{KIND[item.kind].action}</Link></Button>,
+        }}
       />
 
       <ClientListSection id="client-calendar-upcoming" title={viewTitle ?? (upcoming.length ? "Coming up" : "Recent")} count={(upcoming.length ? upcoming : items).length}>

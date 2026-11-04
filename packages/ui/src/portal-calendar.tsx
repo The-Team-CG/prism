@@ -20,6 +20,8 @@ import {
   type VisibleRange,
 } from "./calendar-views";
 import { Button } from "./components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "./components/ui/popover";
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "./components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuShortcut, DropdownMenuTrigger } from "./components/ui/dropdown-menu";
 import { formatPortalDate } from "./format-date";
 import { cn } from "./utils";
@@ -55,7 +57,19 @@ export type PortalCalendarItemRenderer<Item extends PortalCalendarItem> = (input
   children: ReactNode;
 }) => ReactNode;
 
-export type PortalCalendarProps<Item extends PortalCalendarItem> = {
+/** Opt-in details panel: clicking an item opens it in a side panel instead of navigating straight away. */
+export type PortalCalendarDetail<Item extends PortalCalendarItem> = {
+  /** Portal content shown under the item's own date, time and detail. */
+  body?: (item: Item) => ReactNode;
+  /** The portal's link or button that leaves the calendar for the place the item is handled. */
+  action?: (item: Item) => ReactNode;
+};
+
+type PortalCalendarNavigation<Item extends PortalCalendarItem> =
+  | { renderItem: PortalCalendarItemRenderer<Item>; detail?: undefined }
+  | { renderItem?: undefined; detail: PortalCalendarDetail<Item> };
+
+export type PortalCalendarProps<Item extends PortalCalendarItem> = PortalCalendarNavigation<Item> & {
   items: Item[];
   kinds: Record<string, PortalCalendarKind>;
   /** Today's Philippine calendar date (YYYY-MM-DD). */
@@ -68,7 +82,6 @@ export type PortalCalendarProps<Item extends PortalCalendarItem> = {
   className?: string;
   /** Called with the dates on screen when the calendar opens and whenever the view or period changes. */
   onRangeChange?: (range: VisibleRange) => void;
-  renderItem: PortalCalendarItemRenderer<Item>;
 };
 
 type ViewProps<Item extends PortalCalendarItem> = {
@@ -92,14 +105,17 @@ function itemsByDate<Item extends PortalCalendarItem>(items: Item[]) {
 const isTyping = (target: EventTarget | null) => target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 
 /** A calendar with month, week, day and agenda views. Role-neutral: portals decide which items exist and where each leads. */
-export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, today, initialDate, initialView = "month", className, onRangeChange, renderItem }: PortalCalendarProps<Item>) {
+export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, today, initialDate, initialView = "month", className, onRangeChange, renderItem, detail }: PortalCalendarProps<Item>) {
   const headingId = useId();
   const [view, setView] = useState<CalendarViewId>(initialView);
   const [anchor, setAnchor] = useState(initialDate);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const byDate = useMemo(() => itemsByDate(items), [items]);
   const legend = Object.keys(kinds).filter((kind) => items.some((item) => item.kind === kind));
+  const selected = detail ? items.find((item) => item.id === selectedId) ?? null : null;
 
   useEffect(() => {
+    if (selectedId) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;
       const match = CALENDAR_VIEWS.find((entry) => entry.shortcut.toLowerCase() === event.key.toLowerCase());
@@ -107,7 +123,11 @@ export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, 
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [selectedId]);
+
+  const selectChip: PortalCalendarItemRenderer<Item> = ({ item, className: chipClass, style, title, children }) => (
+    <button type="button" title={title} style={style} className={chipClass} aria-haspopup="dialog" onClick={() => setSelectedId(item.id)}>{children}</button>
+  );
 
   const range = visibleRange(view, anchor);
   useEffect(() => {
@@ -118,7 +138,7 @@ export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, 
     setAnchor(dateKey);
     setView("day");
   };
-  const viewProps = { items, kinds, today, renderItem };
+  const viewProps = { items, kinds, today, renderItem: renderItem ?? selectChip };
 
   return (
     <section aria-labelledby={headingId} className={cn("min-w-0 overflow-hidden rounded-lg border border-border bg-card", className)}>
@@ -142,7 +162,31 @@ export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, 
           {legend.map((kind) => <span key={kind} className="inline-flex items-center gap-1.5"><span aria-hidden className={cn("size-2 rounded-full", kinds[kind].dot)} />{kinds[kind].label}</span>)}
         </div>
       ) : null}
+
+      {detail ? <ItemPanel item={selected} kinds={kinds} detail={detail} onClose={() => setSelectedId(null)} /> : null}
     </section>
+  );
+}
+
+function ItemPanel<Item extends PortalCalendarItem>({ item, kinds, detail, onClose }: { item: Item | null; kinds: Record<string, PortalCalendarKind>; detail: PortalCalendarDetail<Item>; onClose: () => void }) {
+  const kind = item ? kindOf(kinds, item.kind) : null;
+  return (
+    <Sheet open={item !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
+      {item && kind ? (
+        <SheetContent className="gap-0 sm:max-w-md">
+          <SheetHeader className="border-b border-border pr-12">
+            <p className="flex items-center gap-2 text-xs text-muted-foreground"><span aria-hidden className={cn("size-2 rounded-full", kind.dot)} />{kind.label}</p>
+            <SheetTitle className="break-words text-lg">{item.title}</SheetTitle>
+            <SheetDescription>{formatPortalDate(item.date)} · {timeRange(item)}</SheetDescription>
+          </SheetHeader>
+          <div className="space-y-3 p-4 text-sm">
+            {item.detail ? <p className="break-words text-foreground">{item.detail}</p> : null}
+            {detail.body?.(item)}
+          </div>
+          {detail.action ? <SheetFooter>{detail.action(item)}</SheetFooter> : null}
+        </SheetContent>
+      ) : null}
+    </Sheet>
   );
 }
 
@@ -172,6 +216,18 @@ function MonthView<Item extends PortalCalendarItem>({ items, kinds, today, rende
   const byDate = useMemo(() => itemsByDate(items), [items]);
   const inMonth = (dateKey: string) => dateKey.startsWith(`${month.year}-${String(month.month + 1).padStart(2, "0")}-`);
   const monthItems = weeks.flat().filter(inMonth).flatMap((dateKey) => byDate.get(dateKey) ?? []);
+  const [moreDate, setMoreDate] = useState<string | null>(null);
+  const chip = (item: Item, outside: boolean) => (
+    <Fragment key={item.id}>
+      {renderItem({
+        item,
+        variant: "chip",
+        title: tooltip(item),
+        className: cn("block w-full min-w-0 truncate rounded px-1.5 py-0.5 text-left text-xs font-medium", kindOf(kinds, item.kind).chip, outside && "opacity-60"),
+        children: <>{item.startTime ? <span className="mr-1 font-normal opacity-70">{clockLabel(item.startTime)}</span> : null}{item.chipLabel ?? item.title}</>,
+      })}
+    </Fragment>
+  );
 
   return (
     <>
@@ -200,18 +256,18 @@ function MonthView<Item extends PortalCalendarItem>({ items, kinds, today, rende
                     className={cn("flex min-h-28 min-w-0 flex-col gap-1 border-b border-border p-1.5", index > 0 && "border-l", outside && "bg-muted/30")}
                   >
                     <button type="button" onClick={() => onOpenDay(dateKey)} aria-label={`Open ${formatPortalDate(dateKey)}`} className={cn("grid size-6 shrink-0 place-items-center rounded-full text-xs font-medium hover:bg-muted", dateKey === today ? "bg-primary font-semibold text-primary-foreground hover:bg-primary" : outside ? "text-muted-foreground/60" : "text-foreground")}>{Number(dateKey.slice(8))}</button>
-                    {dayItems.slice(0, MAX_MONTH_CHIPS).map((item) => (
-                      <Fragment key={item.id}>
-                        {renderItem({
-                          item,
-                          variant: "chip",
-                          title: tooltip(item),
-                          className: cn("block w-full min-w-0 truncate rounded px-1.5 py-0.5 text-left text-xs font-medium", kindOf(kinds, item.kind).chip, outside && "opacity-60"),
-                          children: <>{item.startTime ? <span className="mr-1 font-normal opacity-70">{clockLabel(item.startTime)}</span> : null}{item.chipLabel ?? item.title}</>,
-                        })}
-                      </Fragment>
-                    ))}
-                    {dayItems.length > MAX_MONTH_CHIPS ? <button type="button" onClick={() => onOpenDay(dateKey)} className="px-1 text-left text-xs text-muted-foreground hover:text-foreground">+{dayItems.length - MAX_MONTH_CHIPS} more</button> : null}
+                    {dayItems.slice(0, MAX_MONTH_CHIPS).map((item) => chip(item, outside))}
+                    {dayItems.length > MAX_MONTH_CHIPS ? (
+                      <Popover open={moreDate === dateKey} onOpenChange={(open) => setMoreDate(open ? dateKey : null)}>
+                        <PopoverTrigger asChild>
+                          <button type="button" className="px-1 text-left text-xs text-muted-foreground hover:text-foreground">+{dayItems.length - MAX_MONTH_CHIPS} more</button>
+                        </PopoverTrigger>
+                        <PopoverContent align="start" className="flex w-64 flex-col gap-1 p-2" onClick={() => setMoreDate(null)}>
+                          <p className="px-1 pb-1 text-xs font-medium text-foreground">{formatPortalDate(dateKey)}</p>
+                          {dayItems.map((item) => chip(item, false))}
+                        </PopoverContent>
+                      </Popover>
+                    ) : null}
                   </div>
                 );
               })}
