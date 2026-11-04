@@ -21,7 +21,8 @@ export type PrismPmcmCalendarItemKind =
   | "quote_deadline"
   | "payment_due"
   | "supplier_arrival"
-  | "supplier_departure";
+  | "supplier_departure"
+  | "schedule_day";
 
 export interface PrismPmcmCalendarItem {
   id: string;
@@ -34,6 +35,8 @@ export interface PrismPmcmCalendarItem {
   startTime?: string;
   /** A second line: the supplier and category, the milestone, the place. */
   detail: string;
+  /** The event-day schedule day on this date, whose run sheet this item leads to. Set on schedule days and on the event day when it has one. */
+  scheduleDayId?: string;
 }
 
 export interface PrismPmcmCalendar {
