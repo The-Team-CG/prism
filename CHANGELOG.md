@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Coordinators get a Calendar on the shared portal calendar: the day of every event they are assigned to, plus the open event's task deadlines and its other schedule days. Each item opens in a side panel with a button to My shift, Tasks or the run sheet for that event.
 - The PMCM calendar shows each event's schedule days (load-in, load-out, extra days) next to the event day, and every day that has a schedule leads to its run sheet. The run sheet opens on that day and has a "Back to calendar" link. `GET /api/pmcm/calendar` items gain a `schedule_day` kind and an optional `scheduleDayId`.
 - Calendars (PMCM, supplier, client): "+N more" opens a small list of that day's items instead of switching view, and clicking an item opens its details in a side panel with a button to the place it is handled. Supplier calendar entries now name the thing (the event, the quote category) instead of just "Arrive" or "Quote due".
 - The event-day run sheet works in Philippine time: an early-morning supplier arrival no longer drops off the sheet, and on later days of an event it opens that day instead of the one before.
