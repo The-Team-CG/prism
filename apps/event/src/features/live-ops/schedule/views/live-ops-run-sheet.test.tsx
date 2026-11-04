@@ -105,6 +105,16 @@ describe("LiveOpsRunSheet", () => {
     await waitFor(() => expect(repository.getRunSheet).toHaveBeenLastCalledWith("evt_1", "day_2"));
   });
 
+  it("opens on the schedule day the calendar linked to and offers the way back", async () => {
+    repository.getRunSheet.mockResolvedValue(runSheetFixture({ day: { id: "day_2", eventId: "evt_1", dayDate: "2026-08-21", label: "Load-out", status: "planned", segments: [] } }));
+
+    render(<LiveOpsRunSheet eventId="evt_1" dayId="day_2" printable calendarHref="/dashboard/calendar" />);
+
+    expect(await screen.findByText("Opening program")).toBeTruthy();
+    expect(repository.getRunSheet).toHaveBeenCalledWith("evt_1", "day_2");
+    expect(screen.getByRole("link", { name: "Back to calendar" }).getAttribute("href")).toBe("/dashboard/calendar");
+  });
+
   it("points the team to where the schedule is authored when no run sheet exists", async () => {
     repository.getRunSheet.mockResolvedValue({ eventId: "evt_1", authored: false, reason: "no_schedule" });
 

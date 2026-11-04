@@ -5,7 +5,7 @@ import type { PmcmCalendarQuery, PrismPmcmCalendarItem, PrismPmcmCalendarItemKin
 /** The event workspace section where each kind of dated work is handled. */
 export type PmcmCalendarTarget = "overview" | "suppliers" | "billing";
 
-export type PmcmCalendarEntry = PortalCalendarItem & { eventId: string; target: PmcmCalendarTarget };
+export type PmcmCalendarEntry = PortalCalendarItem & { eventId: string; target: PmcmCalendarTarget; scheduleDayId?: string };
 
 const TARGETS: Record<PrismPmcmCalendarItemKind, PmcmCalendarTarget> = {
   event: "overview",
@@ -14,6 +14,7 @@ const TARGETS: Record<PrismPmcmCalendarItemKind, PmcmCalendarTarget> = {
   payment_due: "billing",
   supplier_arrival: "suppliers",
   supplier_departure: "suppliers",
+  schedule_day: "overview",
 };
 
 const CHIP_LABELS: Record<PrismPmcmCalendarItemKind, string | null> = {
@@ -23,6 +24,7 @@ const CHIP_LABELS: Record<PrismPmcmCalendarItemKind, string | null> = {
   payment_due: "Payment due",
   supplier_arrival: "Arrival",
   supplier_departure: "Departure",
+  schedule_day: null,
 };
 
 export const PMCM_CALENDAR_KINDS: Record<PrismPmcmCalendarItemKind, PortalCalendarKind> = {
@@ -32,6 +34,7 @@ export const PMCM_CALENDAR_KINDS: Record<PrismPmcmCalendarItemKind, PortalCalend
   payment_due: { label: "Payment due", chip: "bg-success-soft text-success hover:bg-success/15", dot: "bg-success" },
   supplier_arrival: { label: "Supplier arrival", chip: "bg-secondary text-foreground hover:bg-secondary/80", dot: "bg-foreground/60" },
   supplier_departure: { label: "Supplier departure", chip: "bg-muted text-foreground hover:bg-muted/80", dot: "bg-muted-foreground" },
+  schedule_day: { label: "Event-day schedule", chip: "bg-accent text-accent-foreground hover:bg-accent/80", dot: "bg-accent-foreground" },
 };
 
 /** The event is the headline of its own day; every other kind leads with what is due and shows the event under it. */
@@ -42,6 +45,7 @@ export function toCalendarEntries(items: PrismPmcmCalendarItem[]): PmcmCalendarE
     kind: item.kind,
     eventId: item.eventId,
     target: TARGETS[item.kind],
+    scheduleDayId: item.scheduleDayId,
     title: item.kind === "event" ? item.eventName : item.detail,
     chipLabel: CHIP_LABELS[item.kind] ?? item.eventName,
     detail: item.kind === "event" ? item.detail : item.eventName,
