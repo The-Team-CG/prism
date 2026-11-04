@@ -36,6 +36,7 @@ export function SupplierWorkspaceView({ section: routeSection }: { section: Supp
       eyebrow={meta.eyebrow}
       title={meta.title}
       description={meta.description}
+      breadcrumb={section === "support" ? [meta.title] : undefined}
       activeItemId={supplierActiveNavId(section)}
       navItems={supplierNavItems({
         needsActionCount,

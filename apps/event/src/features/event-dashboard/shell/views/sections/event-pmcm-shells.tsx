@@ -69,6 +69,7 @@ export function EventPmcmReadyShell({ viewModel, children }: { viewModel: Loaded
       portal="event"
       className={viewModel.section === "suppliers" ? supplierWorkspaceStyles.shell : undefined}
       contentClassName={viewModel.section === "suppliers" ? "max-w-none p-0 sm:p-0" : undefined}
+      titleClassName={viewModel.section === "suppliers" ? "px-4 pt-6 sm:px-6 lg:px-8" : undefined}
       productLabel="P.R.I.S.M"
       roleLabel="PMCM Event Command"
       eyebrow={viewModel.shellCopy.eyebrow}
