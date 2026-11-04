@@ -62,12 +62,12 @@ export function Phase4ClosureBoard({
         </div>
         <Phase4Status value={archive.toneKey} label={archive.label} />
       </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
         {cards.map((card) => (
-          <div key={card.label} className="rounded-lg border border-border bg-secondary/35 px-4 py-3">
+          <div key={card.label} className="rounded-lg border border-border bg-secondary/35 px-3 py-2 sm:px-4 sm:py-3">
             <p className="text-xs font-medium text-muted-foreground">{card.label}</p>
             <p className={cx("mt-1 text-lg font-black", card.tone)}>{card.value}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{card.detail}</p>
+            <p className="mt-1 hidden text-xs text-muted-foreground sm:block">{card.detail}</p>
           </div>
         ))}
       </div>
