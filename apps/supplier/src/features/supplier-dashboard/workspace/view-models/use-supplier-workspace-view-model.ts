@@ -73,8 +73,8 @@ export function useSupplierWorkspaceViewModel(section: SupplierDashboardSection)
   }
 
   const derived = useMemo(
-    () => deriveWorkspace(workspace, readinessBoard),
-    [workspace, readinessBoard],
+    () => deriveWorkspace(workspace),
+    [workspace],
   );
 
   function updateForm(requestId: string, patch: Partial<QuoteFormState>) {

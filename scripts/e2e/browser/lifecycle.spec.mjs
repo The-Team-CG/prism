@@ -5,7 +5,7 @@ import { submitPublicInquiry } from './inquiry-actions.mjs';
 // Each supplier booking is a <details> titled "Category · Event". A single booking starts open, so only a closed one is clicked.
 async function openBooking(page, eventName) {
   const booking = page.locator('details', { has: page.locator('summary', { hasText: eventName }) });
-  if ((await booking.getAttribute('open')) === null) await booking.locator('summary').click();
+  if ((await booking.getAttribute('open')) === null) await booking.locator(':scope > summary').click();
   return booking;
 }
 
@@ -132,7 +132,9 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       const booking = await openBooking(supplierActor.page, inquiry.eventName);
       await booking.getByRole('button', { name: 'Confirm assignment', exact: true }).click();
       await booking.getByRole('button', { name: 'Confirm readiness', exact: true }).click();
-      await expect(booking.getByRole('button', { name: 'Readiness confirmed', exact: true })).toBeVisible();
+      // Confirming readiness folds that step and unlocks event-day reporting.
+      await expect(booking.getByRole('button', { name: /^Arrived/ })).toBeVisible();
+      await expect(booking.getByRole('button', { name: 'Confirm readiness', exact: true })).toHaveCount(0);
       await pmcm.page.goto(path('coordinators'));
       await pmcm.page.getByRole('checkbox', { name: 'Available only', exact: true }).uncheck();
       const coordinatorCard = pmcm.page.getByRole('group', { name: 'General Coordinator: Marco Santos', exact: true });
