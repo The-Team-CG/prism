@@ -1140,6 +1140,18 @@ describe("createEventOpsClient", () => {
     );
   });
 
+  it("loads the PMCM event summaries and the cross-event calendar window", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ items: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.pmcm.eventSummaries();
+    await client.pmcm.calendar({ from: "2026-10-01", to: "2027-01-31" });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "http://localhost:4000/api/pmcm/event-summaries", { headers: { "Content-Type": "application/json" } });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "http://localhost:4000/api/pmcm/calendar?from=2026-10-01&to=2027-01-31", { headers: { "Content-Type": "application/json" } });
+  });
+
   it("loads the PMCM decision log from the event-scoped route with kind and paging filters", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ eventId: "evt_1", entries: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
