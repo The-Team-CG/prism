@@ -1,5 +1,5 @@
 import type { PrismSupplierWorkflowWorkspace } from "@prism/types";
-import { formatPortalTime, manilaCalendarKey } from "@prism/ui/format-date";
+import { manilaCalendarKey, manilaClockKey } from "@prism/ui/format-date";
 import { buildQuoteByRequest, formatMoney, isRequestClosed } from "./supplier-workspace-rules";
 import type { PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, SupplierWorkspace } from "./supplier-workspace-types";
 import { supplierSectionHref, supplierWorkTargetHref } from "./supplier-workspace-types";
@@ -14,6 +14,8 @@ export type SupplierCalendarItem = {
   detail: string;
   kind: SupplierCalendarItemKind;
   href: string;
+  /** Philippine wall-clock time, HH:mm; absent for all-day items. */
+  startTime?: string;
 };
 
 type ReadinessItems = PrismSupplierReadinessBoard["items"];
@@ -63,8 +65,8 @@ function scheduleItems(workflow: PrismSupplierWorkflowWorkspace, eventName: Even
     const href = supplierWorkTargetHref("bookings", schedule.requestId);
     const name = eventName(schedule.eventId);
     return [
-      { id: `arrival:${schedule.id}`, date: manilaCalendarKey(schedule.ingressAt), title: `Arrive: ${name}`, chipLabel: "Arrive", detail: `${formatPortalTime(schedule.ingressAt)} · ${schedule.location}`, kind: "arrival", href },
-      { id: `departure:${schedule.id}`, date: manilaCalendarKey(schedule.egressAt), title: `Leave: ${name}`, chipLabel: "Leave", detail: `${formatPortalTime(schedule.egressAt)} · ${schedule.location}`, kind: "departure", href },
+      { id: `arrival:${schedule.id}`, date: manilaCalendarKey(schedule.ingressAt), title: `Arrive: ${name}`, chipLabel: "Arrive", detail: schedule.location, kind: "arrival", href, startTime: manilaClockKey(schedule.ingressAt) },
+      { id: `departure:${schedule.id}`, date: manilaCalendarKey(schedule.egressAt), title: `Leave: ${name}`, chipLabel: "Leave", detail: schedule.location, kind: "departure", href, startTime: manilaClockKey(schedule.egressAt) },
     ];
   });
 }
@@ -78,6 +80,7 @@ function deliverableItems(workflow: PrismSupplierWorkflowWorkspace, eventName: E
     detail: eventName(task.eventId),
     kind: "deliverable",
     href: supplierWorkTargetHref("bookings", task.requestId),
+    startTime: manilaClockKey(task.dueAt as string),
   }));
 }
 

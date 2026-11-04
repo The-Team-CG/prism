@@ -14,8 +14,13 @@ const selectClassName = "h-10 rounded-md border border-border bg-white px-3 text
 
 export function PrivacyFilterBar({ vm }: { vm: PrivacyConsoleViewModel }) {
   const { filters } = vm;
+  const [open, setOpen] = useState(false);
   return (
-    <div className="grid min-w-0 gap-3 rounded-md border border-border bg-background p-3 sm:grid-cols-2 xl:grid-cols-3">
+    <>
+      <button type="button" aria-expanded={open} onClick={() => setOpen((value) => !value)} className="inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm font-semibold sm:hidden">
+        {open ? "Hide filters" : "Filters"}
+      </button>
+      <div className={cx("min-w-0 gap-3 rounded-md border border-border bg-background p-3 sm:grid sm:grid-cols-2 xl:grid-cols-3", open ? "grid" : "hidden")}>
       <FilterSelect label="Event" value={filters.eventId} onChange={(value) => vm.updateFilters({ eventId: value })}>
         <option value="all">All events</option>
         {vm.events.map((event) => <option key={event.id} value={event.id}>{event.eventName}</option>)}
@@ -52,7 +57,8 @@ export function PrivacyFilterBar({ vm }: { vm: PrivacyConsoleViewModel }) {
         <option value="mine">Assigned to me</option>
         <option value="unassigned">Unassigned</option>
       </FilterSelect>
-    </div>
+      </div>
+    </>
   );
 }
 
