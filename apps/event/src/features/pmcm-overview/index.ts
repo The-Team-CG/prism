@@ -1,5 +1,5 @@
-export { pmcmCalendar, pmcmEventSummaries } from "./data/pmcm-overview-resources";
-export { emptyEventSummary, financeSummaryLabel, messagesSummaryLabel, summariesByEvent, type SummaryLabel } from "./model/event-summary-labels";
+export { pmcmCalendar, pmcmEventSummaries, pmcmFileSummaries } from "./data/pmcm-overview-resources";
+export { emptyEventSummary, fileSummaryLabel, financeSummaryLabel, messagesSummaryLabel, summariesByEvent, type SummaryLabel } from "./model/event-summary-labels";
 export {
   PMCM_CALENDAR_KINDS,
   calendarWindow,
