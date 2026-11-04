@@ -467,6 +467,8 @@ export function useCoordinatorViewModel({
   return {
     status: roleViewStatus,
     assignments,
+    /** Events the coordinator is actively assigned to and that are not archived. */
+    assignedEvents: state.events.filter((item) => activeEventIds.has(item.id)),
     assignment,
     event,
     readOnly,
