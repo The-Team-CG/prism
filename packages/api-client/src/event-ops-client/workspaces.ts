@@ -4,7 +4,10 @@ import type {
   PrismClientWorkspace,
   PrismDecisionLog,
   PrismPmcmCommandInbox,
+  PrismPmcmCalendar,
   PrismPmcmCommandInboxQueryInput,
+  PrismPmcmEventSummaries,
+  PmcmCalendarQuery,
   PrismPmcmReference,
   PrismPmcmEventWorkspace,
   PrismPmcmSupplierReadinessBoard,
@@ -95,6 +98,8 @@ export function createWorkspacesClient(
           withBase(options),
         );
       },
+      eventSummaries: () => prismRequest<PrismPmcmEventSummaries>("/pmcm/event-summaries", withBase(options)),
+      calendar: (query: PmcmCalendarQuery) => prismRequest<PrismPmcmCalendar>(`/pmcm/calendar?${toQueryString(query)}`, withBase(options)),
       decisionLog: (eventId, query = {}) => {
         const params = toQueryString(query);
         const path = `/events/${encodeURIComponent(eventId)}/decision-log`;
