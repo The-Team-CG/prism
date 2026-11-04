@@ -7,7 +7,10 @@ import type {
   PrismDecisionLog,
   PrismDecisionLogQueryInput,
   PrismPmcmCommandInbox,
+  PrismPmcmCalendar,
   PrismPmcmCommandInboxQueryInput,
+  PrismPmcmEventSummaries,
+  PmcmCalendarQuery,
   PrismPmcmEventWorkspace,
   PrismPmcmReference,
   PrismPmcmSupplierReadinessBoard,
@@ -36,6 +39,10 @@ export interface EventOpsWorkspacesContract {
     /** Event switcher, inquiries, directories and rules for PMCM event pages; identity comes from the session token. */
     reference(): Promise<PrismPmcmReference>;
     commandInbox(query?: PrismPmcmCommandInboxQueryInput): Promise<PrismPmcmCommandInbox>;
+    /** What each event owes and how many messages the signed-in PMCM admin has not read. */
+    eventSummaries(): Promise<PrismPmcmEventSummaries>;
+    /** Dated work across events (event days, quote deadlines, payments, ocular visits, supplier schedules) in a window. */
+    calendar(query: PmcmCalendarQuery): Promise<PrismPmcmCalendar>;
     /** PMCM-only decision log for one event (FL-019); identity comes from the session token. */
     decisionLog(eventId: string, query?: PrismDecisionLogQueryInput): Promise<PrismDecisionLog>;
     eventWorkspace(
