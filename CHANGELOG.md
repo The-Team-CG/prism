@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Calendars (PMCM, supplier, client): "+N more" opens a small list of that day's items instead of switching view, and clicking an item opens its details in a side panel with a button to the place it is handled. Supplier calendar entries now name the thing (the event, the quote category) instead of just "Arrive" or "Quote due".
 - The event-day run sheet works in Philippine time: an early-morning supplier arrival no longer drops off the sheet, and on later days of an event it opens that day instead of the one before.
 - PMCM Finance event list shows what each event owes, its next payment due date and overdue milestones, and Messages shows unread messages per event. The PMCM calendar now shows quote deadlines, payment due dates, ocular visits and supplier arrivals and departures alongside event days, and clicking an item opens the event section where it is handled.
 - The client, PMCM and supplier calendars share one calendar with Month, Week, Day and Agenda views (switch from the view menu or with M, W, D and A), a live time line, and "+N more" that opens the day. The supplier calendar places arrivals, departures and deliverables at their times.
