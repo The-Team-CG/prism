@@ -59,6 +59,22 @@ export function periodTitle(view: CalendarViewId, anchor: string): string {
   return `${shortMonth(start)} – ${shortMonth(end)} ${year}`;
 }
 
+export type VisibleRange = { from: string; to: string };
+
+/** The first and last date the view puts on screen, including the neighbouring days a month grid shows. */
+export function visibleRange(view: CalendarViewId, anchor: string): VisibleRange {
+  if (view === "month") {
+    const weeks = monthWeeks(monthOfDateKey(anchor));
+    return { from: weeks[0][0], to: weeks[weeks.length - 1][6] };
+  }
+  if (view === "week") {
+    const week = weekDateKeys(anchor);
+    return { from: week[0], to: week[6] };
+  }
+  if (view === "day") return { from: anchor, to: anchor };
+  return { from: anchor, to: addDays(anchor, AGENDA_DAYS - 1) };
+}
+
 export function minutesOf(time: string): number {
   const [hours, minutes] = time.split(":").map(Number);
   return (hours ?? 0) * 60 + (minutes ?? 0);

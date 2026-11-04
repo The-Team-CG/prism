@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
+import type { VisibleRange } from "@prism/ui/calendar-views";
 import { PortalCalendar } from "@prism/ui/portal-calendar";
 import type { PrismEvent } from "@prism/types";
 import { eventDateKey } from "@prism/ui/calendar-grid";
@@ -13,12 +14,14 @@ export function EventCalendarWorkspace({
   events,
   items,
   selectedEventId,
+  onRangeChange,
   onOpenItem,
   onOpenEvent,
 }: {
   events: PrismEvent[];
   items: PmcmCalendarEntry[];
   selectedEventId?: string | null;
+  onRangeChange: (range: VisibleRange) => void;
   onOpenItem: (item: PmcmCalendarEntry) => void;
   onOpenEvent: (id: string) => void;
 }) {
@@ -42,6 +45,7 @@ export function EventCalendarWorkspace({
         kinds={PMCM_CALENDAR_KINDS}
         today={today}
         initialDate={today}
+        onRangeChange={onRangeChange}
         renderItem={({ item, className, style, title, children }) => (
           <button
             type="button"

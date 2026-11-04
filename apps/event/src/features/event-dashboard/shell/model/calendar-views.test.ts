@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, clockLabel, layoutOverlaps, monthWeeks, periodTitle, shiftAnchor, spanOf, weekDateKeys } from "@prism/ui/calendar-views";
+import { addDays, clockLabel, layoutOverlaps, monthWeeks, periodTitle, shiftAnchor, spanOf, visibleRange, weekDateKeys } from "@prism/ui/calendar-views";
 
 describe("calendar view navigation", () => {
   it("builds Sunday-first weeks and pads a month with its neighbouring days", () => {
@@ -22,6 +22,15 @@ describe("calendar view navigation", () => {
     expect(periodTitle("week", "2026-11-29")).toBe("Nov – Dec 2026");
     expect(periodTitle("day", "2026-11-05")).toBe("Thursday, November 5, 2026");
     expect(periodTitle("agenda", "2026-11-05")).toBe("Nov – Dec 2026");
+  });
+});
+
+describe("visibleRange", () => {
+  it("reports the dates each view puts on screen, including a month grid's neighbouring days", () => {
+    expect(visibleRange("month", "2026-11-17")).toEqual({ from: "2026-11-01", to: "2026-12-05" });
+    expect(visibleRange("week", "2026-11-05")).toEqual({ from: "2026-11-01", to: "2026-11-07" });
+    expect(visibleRange("day", "2026-11-05")).toEqual({ from: "2026-11-05", to: "2026-11-05" });
+    expect(visibleRange("agenda", "2026-11-05")).toEqual({ from: "2026-11-05", to: "2026-12-04" });
   });
 });
 
