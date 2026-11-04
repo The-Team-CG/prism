@@ -1,101 +1,75 @@
 "use client";
 
-import { FormEvent, useMemo } from "react";
-import {
-  BadgeCheck,
-  CalendarClock,
-  CalendarDays,
-  CheckCircle2,
-  Circle,
-  ClipboardList,
-  Clock3,
-  FileCheck2,
-  FileText,
-  HelpCircle,
-  LockKeyhole,
-  LogOut,
-  MessageSquare,
-  PackageCheck,
-  RefreshCcw,
-  Send,
-  ShieldCheck,
-  Sparkles,
-  Truck,
-  User,
-  Wallet,
-  Warehouse,
-  type LucideIcon,
-} from "lucide-react";
-import { Badge } from "@/app/components/ui/badge";
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { useMemo } from "react";
+import Link from "next/link";
+import { CalendarDays } from "lucide-react";
+import type { PrismSupplierWorkflowWorkspace } from "@prism/types";
+import { monthOfDateKey } from "@prism/ui/calendar-grid";
+import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
+import { PortalMonthCalendar, type PortalCalendarKind } from "@prism/ui/portal-month-calendar";
 import { EmptyState } from "@/app/components/ui/empty-state";
-import { PrismDashboardShell } from "@prism/ui";
-import {
-  EVENT_STATUS_ACTIONS,
-  buildBookingSteps,
-  buildCalendarEvents,
-  closedRequestReason,
-  firstNameFrom,
-  formatDate,
-  formatMoney,
-  fmt,
-  greetingForHour,
-  initialForm,
-  isPastDate,
-  isRequestClosed,
-  readinessTone,
-} from "../../model/supplier-workspace-rules";
-import type { PrismSupplier, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierDashboardSection, SupplierWorkspace } from "../../model/supplier-workspace-types";
-import { useSupplierWorkspaceViewModel } from "../../view-models/use-supplier-workspace-view-model";
+import { buildSupplierCalendarItems, type SupplierCalendarItemKind } from "../../model/supplier-calendar-items";
+import type { PrismSupplierReadinessBoard, SupplierWorkspace } from "../../model/supplier-workspace-types";
+import { Card, CardBody } from "./shell-ui";
 
+const UPCOMING_LIMIT = 8;
 
-import { Card, CardBody, CardHeader, SectionAccent, StatCell } from "./shell-ui";
+const KINDS: Record<SupplierCalendarItemKind, PortalCalendarKind> = {
+  event: { label: "Event day", chip: "bg-primary/10 text-primary hover:bg-primary/15", dot: "bg-primary" },
+  deadline: { label: "Quote deadline", chip: "bg-attention-soft text-attention hover:bg-attention/15", dot: "bg-attention" },
+  arrival: { label: "Arrival", chip: "bg-info-soft text-info hover:bg-info/15", dot: "bg-info" },
+  departure: { label: "Departure", chip: "bg-info-soft text-info hover:bg-info/15", dot: "bg-info" },
+  deliverable: { label: "Deliverable", chip: "bg-attention-soft text-attention hover:bg-attention/15", dot: "bg-attention" },
+  payment: { label: "Payment", chip: "bg-success-soft text-success hover:bg-success/15", dot: "bg-success" },
+};
 
-export function CalendarPage({ workspace }: { workspace: SupplierWorkspace; quoteByRequest: Map<string, PrismSupplierQuote> }) {
-  const events = useMemo(() => buildCalendarEvents(workspace), [workspace]);
+export function CalendarPage({ workspace, readinessBoard, workflowWorkspace }: {
+  workspace: SupplierWorkspace;
+  readinessBoard: PrismSupplierReadinessBoard | null;
+  workflowWorkspace: PrismSupplierWorkflowWorkspace | null;
+}) {
+  const items = useMemo(() => buildSupplierCalendarItems(workspace, readinessBoard, workflowWorkspace), [readinessBoard, workflowWorkspace, workspace]);
+  const today = manilaDateKey();
+  const upcoming = items.filter((item) => item.date >= today);
 
-  const today = new Date().toISOString().slice(0, 10);
+  if (items.length === 0) {
+    return (
+      <Card><CardBody>
+        <EmptyState icon={CalendarDays} title="Nothing scheduled yet" description="Event days, quote deadlines, arrivals, deliverables and payments appear here once they're set." />
+      </CardBody></Card>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <CalendarDays className="size-4 text-primary" />
-            <h2 className="text-sm font-bold text-foreground">Upcoming deadlines &amp; dates</h2>
-          </div>
-        </CardHeader>
-        {events.length === 0 ? (
-          <CardBody>
-            <EmptyState icon={CalendarDays} title="No upcoming dates." description="Quote deadlines and event dates will appear here." />
-          </CardBody>
-        ) : (
-          <div className="divide-y divide-border">
-            {events.map((ev, i) => {
-              const past = ev.date < today;
-              const isToday = ev.date === today;
-              return (
-                <div key={i} className="flex items-center gap-4 px-6 py-4">
-                  <div className={`flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl text-center ${isToday ? "bg-primary text-white" : past ? "bg-muted text-muted-foreground" : "bg-muted/50 text-foreground"}`}>
-                    <span className="text-xs font-medium leading-none">{new Date(ev.date + "T00:00:00").toLocaleString("en-PH", { month: "short" })}</span>
-                    <span className="text-lg font-black leading-tight">{new Date(ev.date + "T00:00:00").getDate()}</span>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className={`text-sm font-bold ${past ? "text-muted-foreground line-through" : "text-foreground"}`}>{ev.label}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{isToday ? "Today" : past ? "Past" : formatDate(ev.date)}</p>
-                  </div>
-                  <span className={`rounded-full px-2.5 py-1 text-3xs font-bold ${ev.type === "deadline" ? (past ? "bg-muted text-muted-foreground" : "bg-attention/10 text-attention") : "bg-success/10 text-success"}`}>
-                    {ev.type === "deadline" ? "Quote deadline" : "Event day"}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </Card>
+    <div className="space-y-3">
+      {!readinessBoard ? <p role="status" className="text-sm text-muted-foreground">We could not load your event days. Use Refresh above to try again.</p> : null}
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <PortalMonthCalendar
+          items={items}
+          kinds={KINDS}
+          today={today}
+          initialMonth={monthOfDateKey(upcoming[0]?.date ?? today)}
+          renderItem={({ item, className, title, children }) => <Link href={item.href} title={title} className={className}>{children}</Link>}
+        />
+        <Card className="min-w-0 self-start">
+          <h2 className="border-b border-border px-4 py-3 text-base font-semibold text-foreground">Coming up</h2>
+          {upcoming.length === 0 ? (
+            <p className="px-4 py-5 text-sm text-muted-foreground">Nothing else is scheduled.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {upcoming.slice(0, UPCOMING_LIMIT).map((item) => (
+                <li key={item.id}>
+                  <Link href={item.href} className="block min-h-11 px-4 py-3 outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-primary">
+                    <span className="block text-xs text-muted-foreground">{formatPortalDate(item.date)} · {KINDS[item.kind].label}</span>
+                    <span className="block break-words text-sm font-semibold text-foreground">{item.title}</span>
+                    <span className="block break-words text-xs text-muted-foreground">{item.detail}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
     </div>
   );
 }
-

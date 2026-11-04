@@ -6,6 +6,10 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Supplier portal: quote deadlines now stay open through the end of the Manila due date and show the same date on every screen, and open requests are migrated to match. Today splits work into "Your turn" and "Waiting on PMCM", event dates appear on Today, Requests and Bookings, and sidebar counts agree (Today is Requests plus Bookings). Requests lists only live bids, soonest first, and locked quotes read as a record on both the portal and the emailed link. Bookings opens one step at a time, Files links to the booking that needs a contract, and Payments shows a selected quote's amount before its schedule is published.
+- Supplier calendar is a month view with event days, deadlines, arrivals, departures, deliverables and payments. The month view now lives in `@prism/ui` and also serves the client and PMCM calendars.
+- Suppliers can start a conversation with PMCM about a booked event; it always goes to the PMCM admins. Confidential bids keep the event name and client masked on the supplier dashboard and quote link until that supplier is selected; the event date is visible during bidding so suppliers can price and check availability.
+
 - A declined inquiry emails the client once with a polite note; "Date Unavailable" and "Outside Service Scope" are explained, other reasons are not disclosed, and the PMCM decline dialog shows who will be emailed.
 - PMCM's note when scheduling an ocular visit is saved on the visit (replacing any earlier note) and shown to the client under the scheduled date and time.
 - PMCM supplier names in the directory and the Team & roles "Available only" checkbox have click targets of at least 24 px, meeting WCAG 2.2 target size.

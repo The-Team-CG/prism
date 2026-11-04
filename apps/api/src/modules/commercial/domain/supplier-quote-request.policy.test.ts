@@ -3,8 +3,23 @@ import { SupplierQuoteRequestStatus, SupplierQuoteStatus } from '@prism/kernel/e
 import {
   isSupplierQuoteLocked,
   isSupplierQuoteRequestClosed,
+  manilaCalendarDate,
+  quoteDeadlineInstant,
   resolveExpiredQuoteRequestStatus,
 } from './supplier-quote-request.policy';
+
+describe('quote deadlines', () => {
+  it('keep a request open through the end of the chosen Philippine day, however the date was sent', () => {
+    expect(quoteDeadlineInstant(new Date('2026-11-12')).toISOString()).toBe('2026-11-12T15:59:59.999Z');
+    expect(quoteDeadlineInstant(new Date('2026-11-12T23:30:00+08:00')).toISOString()).toBe('2026-11-12T15:59:59.999Z');
+    expect(quoteDeadlineInstant(new Date('2026-11-12T00:30:00+08:00')).toISOString()).toBe('2026-11-12T15:59:59.999Z');
+  });
+
+  it('read back as the Philippine calendar date, including deadlines stored at Manila midnight', () => {
+    expect(manilaCalendarDate(new Date('2026-11-12T15:59:59.999Z'))).toBe('2026-11-12');
+    expect(manilaCalendarDate(new Date('2026-11-11T16:00:00.000Z'))).toBe('2026-11-12');
+  });
+});
 
 describe('isSupplierQuoteRequestClosed', () => {
   it('treats Selected, Closed, and Expired as closed', () => {

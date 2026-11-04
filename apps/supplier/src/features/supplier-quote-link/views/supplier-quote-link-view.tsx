@@ -7,7 +7,8 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Textarea } from "@/app/components/ui/textarea";
 import { Card, CardBody, CardHeader } from "@/features/supplier-dashboard/workspace/views/sections/shell-ui";
-import { formatMoney } from "@/features/supplier-dashboard/workspace/model/supplier-workspace-rules";
+import { closedRequestReason, formatMoney, isQuoteLocked } from "@/features/supplier-dashboard/workspace/model/supplier-workspace-rules";
+import { QuoteReadOnly } from "@/features/supplier-dashboard/workspace/views/sections/request-quote-card";
 import { useSupplierQuoteLinkViewModel } from "../view-models/use-supplier-quote-link-view-model";
 
 export function SupplierQuoteLinkView({ token }: { token: string }) {
@@ -44,6 +45,15 @@ type QuoteLinkVm = ReturnType<typeof useSupplierQuoteLinkViewModel>;
 function QuoteLinkForm({ vm, onSubmit }: { vm: QuoteLinkVm; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
   const detail = vm.detail;
   if (!detail) return null;
+  if (isQuoteLocked(detail.request, detail.quote)) {
+    return (
+      <div className="space-y-4">
+        {detail.request.message ? <p className="text-sm leading-6 text-muted-foreground">{detail.request.message}</p> : null}
+        <p role="status" className="text-sm font-medium text-foreground">{closedRequestReason(detail.request, detail.quote)}</p>
+        {detail.quote ? <QuoteReadOnly quote={detail.quote} /> : null}
+      </div>
+    );
+  }
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       {detail.request.message ? <p className="text-sm leading-6 text-muted-foreground">{detail.request.message}</p> : null}
@@ -53,7 +63,7 @@ function QuoteLinkForm({ vm, onSubmit }: { vm: QuoteLinkVm; onSubmit: (event: Fo
           <p className="text-foreground">
             Current offer: <span className="font-semibold tabular-nums">{formatMoney(detail.quote.amount)}</span> · revision {detail.quote.revisionNumber ?? 1}
           </p>
-          <p className="mt-1 text-muted-foreground">Sending a revision replaces this as the offer PMCM evaluates. Earlier versions stay on record.</p>
+          <p className="mt-1 text-muted-foreground">You can revise once. A revision replaces this as the offer PMCM evaluates; earlier versions stay on record.</p>
         </div>
       ) : null}
       <label className="grid gap-1.5 text-sm font-medium">Quote amount (PHP)<Input required type="number" min="1" step="1" value={vm.form.amount} onChange={(e) => vm.update({ amount: e.target.value })} /></label>
