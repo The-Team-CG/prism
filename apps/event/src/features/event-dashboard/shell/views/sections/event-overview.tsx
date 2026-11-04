@@ -121,10 +121,13 @@ export function needsCloseOut(event: Pick<PrismEvent, "eventDate" | "archived">,
   return !event.archived && hasEventDatePassed(event.eventDate, todayKey);
 }
 
-/** Once the event date has passed, the close-out leads and the briefing stops being a to-do. */
+/** After the event only money and wrap-up work remain; planning, supplier and team readiness are over. */
+const AFTER_EVENT_ACTION_KEYS = new Set(["billing", "closure"]);
+
+/** Once the event date has passed, the close-out leads and only post-event work stays on the list. */
 export function overviewNextActions(pending: PrismDefenseReadinessAction[], closeOut: boolean): PrismDefenseReadinessAction[] {
   if (!closeOut) return pending;
-  return [CLOSE_OUT_ACTION, ...pending.filter((action) => action.key !== "briefing")];
+  return [CLOSE_OUT_ACTION, ...pending.filter((action) => AFTER_EVENT_ACTION_KEYS.has(action.key))];
 }
 
 function NextStepsSection({ event, readiness, pending, onOpenTab }: { event: PrismEvent; readiness: PrismDefenseReadiness | null; pending: PrismDefenseReadinessAction[]; onOpenTab: (tab: DetailTab) => void }) {
