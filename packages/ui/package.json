@@ -14,7 +14,8 @@
     "./status-badge": "./src/status-badge.tsx",
     "./format-date": "./src/format-date.ts",
     "./calendar-grid": "./src/calendar-grid.ts",
-    "./portal-month-calendar": "./src/portal-month-calendar.tsx",
+    "./portal-calendar": "./src/portal-calendar.tsx",
+    "./calendar-views": "./src/calendar-views.ts",
     "./chat": "./src/chat/index.ts",
     "./components/*": "./src/components/ui/*.tsx"
   },

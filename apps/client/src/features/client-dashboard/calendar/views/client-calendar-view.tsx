@@ -3,9 +3,8 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { BadgeCheck, CalendarDays, MapPinned, WalletCards, type LucideIcon } from "lucide-react";
-import { monthOfDateKey } from "@prism/ui/calendar-grid";
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
-import { PortalMonthCalendar } from "@prism/ui/portal-month-calendar";
+import { PortalCalendar } from "@prism/ui/portal-calendar";
 import { cn } from "@/app/components/ui/utils";
 import { CLIENT_PORTAL_VIEW_META, dashboardHref, formatStatusLabel, useClientWorkspace } from "../../workspace/shared";
 import type { ClientDashboardRoute } from "../../workspace/model/client-dashboard-types";
@@ -47,12 +46,12 @@ export function ClientCalendarView() {
   }
 
   return (
-    <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
-      <PortalMonthCalendar
+    <div className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <PortalCalendar
         items={items}
         kinds={KIND}
         today={today}
-        initialMonth={monthOfDateKey(upcoming[0]?.date ?? today)}
+        initialDate={upcoming[0]?.date ?? today}
         renderItem={({ item, className, title, children }) => <Link href={itemHref(item)} title={title} className={className}>{children}</Link>}
       />
 

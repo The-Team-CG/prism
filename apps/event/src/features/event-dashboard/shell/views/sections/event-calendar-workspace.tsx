@@ -3,13 +3,12 @@
 import { useMemo } from "react";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
-import { PortalMonthCalendar } from "@prism/ui/portal-month-calendar";
+import { PortalCalendar } from "@prism/ui/portal-calendar";
 import type { PrismEvent } from "@prism/types";
-import { eventDateKey, monthOfDateKey } from "@prism/ui/calendar-grid";
+import { eventDateKey } from "@prism/ui/calendar-grid";
 import { Card, CardHeader } from "./shell-ui";
 
 const EVENT_KINDS = { event: { label: "Event", chip: "bg-primary/10 text-primary hover:bg-primary/15 data-[active=true]:bg-primary data-[active=true]:text-primary-foreground", dot: "bg-primary" } };
-const MAX_EVENTS_PER_CELL = 2;
 
 export function EventCalendarWorkspace({
   events,
@@ -35,22 +34,14 @@ export function EventCalendarWorkspace({
   const items = datedEvents.map(({ event, dateKey }) => ({ id: event.id, date: dateKey, title: event.eventName, kind: "event" }));
 
   return (
-    <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
-      <PortalMonthCalendar
+    <section className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <PortalCalendar
         items={items}
         kinds={EVENT_KINDS}
         today={today}
-        initialMonth={monthOfDateKey(today)}
-        noun="event"
-        maxPerCell={MAX_EVENTS_PER_CELL}
-        renderItem={({ item, variant, className, title, children }) => (
-          <button
-            type="button"
-            title={title}
-            onClick={() => onOpenEvent(item.id)}
-            data-active={item.id === selectedEventId}
-            className={variant === "agenda" ? `${className} data-[active=true]:text-primary` : className}
-          >
+        initialDate={today}
+        renderItem={({ item, className, style, title, children }) => (
+          <button type="button" title={title} style={style} onClick={() => onOpenEvent(item.id)} data-active={item.id === selectedEventId} className={className}>
             {children}
           </button>
         )}
