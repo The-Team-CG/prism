@@ -22,6 +22,11 @@ function NoBillingSource({ statements }: { statements: PrismBillingStatement[] }
  * PMCM turns an issued proposal into billing: create the source, approve it, then generate the statement.
  * Sending the statement to the client happens in the statements list below this panel.
  */
+function CreateHint({ canCreate, busy }: { canCreate: boolean; busy: boolean }) {
+  if (canCreate || busy) return null;
+  return <p className="text-xs text-muted-foreground">Add a source name, a line item, an amount and a proposal to continue.</p>;
+}
+
 export function BillingSourcePanel({
   eventName,
   billingSources,
@@ -124,6 +129,7 @@ export function BillingSourcePanel({
           </div>
         </details>
         <Button type="button" disabled={!canCreate} onClick={() => void create()}>Create billing source</Button>
+        <CreateHint canCreate={canCreate} busy={busy} />
       </div>
 
       <ul className="mt-4 grid gap-3" aria-label="Billing sources">
