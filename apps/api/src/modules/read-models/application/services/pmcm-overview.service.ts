@@ -1,17 +1,23 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
-import type { PmcmCalendarQuery, PrismPmcmCalendar, PrismPmcmEventSummaries } from '@prism/types';
+import { FILE_REQUIREMENT_READER, type FileRequirementReader } from '@prism/contexts/event-lifecycle';
+import type { PmcmCalendarQuery, PrismPmcmCalendar, PrismPmcmEventSummaries, PrismPmcmFileSummaries } from '@prism/types';
 import {
   buildEventSummaries,
   buildPmcmCalendarItems,
   manilaDateKeyOf,
   summarizeEventBalances,
+  summarizeFileRequirements,
   unreadMessagesByEvent,
 } from '../mappers/pmcm-overview.mappers';
 import { PmcmOverviewQueries } from '../queries/pmcm-overview.queries';
 
 const PMCM_ROLES = [OpsUserRole.PmcmAdmin, OpsUserRole.System];
+
+/** Each event's file requirements take about a dozen queries to derive, so the read covers a bounded set in small batches. */
+export const FILE_SUMMARY_EVENT_LIMIT = 25;
+const FILE_SUMMARY_BATCH = 5;
 
 /** Read-only PMCM overviews that span events: money and unread messages per event, and the cross-event calendar. */
 @Injectable()
@@ -19,6 +25,7 @@ export class PmcmOverviewService {
   constructor(
     private readonly queries: PmcmOverviewQueries,
     private readonly policy: EventAccessPolicyService,
+    @Inject(FILE_REQUIREMENT_READER) private readonly fileRequirements: FileRequirementReader,
   ) {}
 
   async eventSummaries(actor: ResolvedEventOpsActor): Promise<PrismPmcmEventSummaries> {
@@ -29,6 +36,18 @@ export class PmcmOverviewService {
       generatedAt: now.toISOString(),
       items: buildEventSummaries(summarizeEventBalances(milestones, manilaDateKeyOf(now)), unread),
     };
+  }
+
+  async fileSummaries(actor: ResolvedEventOpsActor): Promise<PrismPmcmFileSummaries> {
+    await this.policy.requireActorRole(actor, PMCM_ROLES, 'PMCM file summaries');
+    const events = await this.queries.activeEventIds(FILE_SUMMARY_EVENT_LIMIT);
+    const items: PrismPmcmFileSummaries['items'] = [];
+    for (let start = 0; start < events.length; start += FILE_SUMMARY_BATCH) {
+      const batch = events.slice(start, start + FILE_SUMMARY_BATCH);
+      const matrices = await Promise.all(batch.map((event) => this.fileRequirements.buildForEvent(event.id)));
+      items.push(...matrices.map((matrix) => summarizeFileRequirements(matrix.eventId, matrix.items)));
+    }
+    return { generatedAt: new Date().toISOString(), items };
   }
 
   async calendar(actor: ResolvedEventOpsActor, query: PmcmCalendarQuery): Promise<PrismPmcmCalendar> {

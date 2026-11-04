@@ -98,6 +98,16 @@ export class PmcmOverviewQueries {
     });
   }
 
+  /** Events still in play, most recent first. File requirements are costly per event, so this list is short. */
+  activeEventIds(limit: number) {
+    return this.prisma.opsEvent.findMany({
+      where: { archived: false },
+      select: { id: true },
+      orderBy: [{ eventDate: 'desc' }, { id: 'asc' }],
+      take: limit,
+    });
+  }
+
   eventNames(eventIds: string[]) {
     if (eventIds.length === 0) return Promise.resolve([]);
     return this.prisma.opsEvent.findMany({
