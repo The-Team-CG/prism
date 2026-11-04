@@ -32,7 +32,7 @@ function deadlineItems(requests: PrismSupplierQuoteRequest[], isLive: IsLive, ev
     id: `deadline:${request.id}`,
     date: request.dueDate as string,
     title: `Quote due: ${request.category}`,
-    chipLabel: "Quote due",
+    chipLabel: `${request.category} quote due`,
     detail: eventName(request.eventId),
     kind: "deadline",
     href: supplierWorkTargetHref("requests", request.id),
@@ -51,7 +51,7 @@ function eventDayItems(readiness: ReadinessItems, requests: PrismSupplierQuoteRe
       id: `event:${item.eventId}`,
       date: item.eventDate,
       title: item.eventName ?? "Assigned event",
-      chipLabel: "Event day",
+      chipLabel: item.eventName ?? "Assigned event",
       detail: `Event day · ${item.category}`,
       kind: "event",
       href: supplierWorkTargetHref(isBooked(request) ? "bookings" : "requests", request.id),
@@ -65,8 +65,8 @@ function scheduleItems(workflow: PrismSupplierWorkflowWorkspace, eventName: Even
     const href = supplierWorkTargetHref("bookings", schedule.requestId);
     const name = eventName(schedule.eventId);
     return [
-      { id: `arrival:${schedule.id}`, date: manilaCalendarKey(schedule.ingressAt), title: `Arrive: ${name}`, chipLabel: "Arrive", detail: schedule.location, kind: "arrival", href, startTime: manilaClockKey(schedule.ingressAt) },
-      { id: `departure:${schedule.id}`, date: manilaCalendarKey(schedule.egressAt), title: `Leave: ${name}`, chipLabel: "Leave", detail: schedule.location, kind: "departure", href, startTime: manilaClockKey(schedule.egressAt) },
+      { id: `arrival:${schedule.id}`, date: manilaCalendarKey(schedule.ingressAt), title: `Arrive: ${name}`, chipLabel: `Arrive · ${name}`, detail: schedule.location, kind: "arrival", href, startTime: manilaClockKey(schedule.ingressAt) },
+      { id: `departure:${schedule.id}`, date: manilaCalendarKey(schedule.egressAt), title: `Leave: ${name}`, chipLabel: `Leave · ${name}`, detail: schedule.location, kind: "departure", href, startTime: manilaClockKey(schedule.egressAt) },
     ];
   });
 }
