@@ -568,7 +568,7 @@
       "access_token",
       "status"
     ],
-    "select": "'rq_uat_xperto_submit', 'evt_uat_ops_261121', 'sup_xperto', 'supcat_digital_registration',\r\n       'XPERTO Registration', 'Digital Registration', 'Submit an initial registration proposal for this UAT event.',\r\n       ($1::timestamptz + ('2026-11-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), replace(gen_random_uuid()::text, '-', ''), 'open'",
+    "select": "'rq_uat_xperto_submit', 'evt_uat_ops_261121', 'sup_xperto', 'supcat_digital_registration',\r\n       'XPERTO Registration', 'Digital Registration', 'Submit an initial registration proposal for this UAT event.',\r\n       ($1::timestamptz + ('2026-11-01T23:59:59.999+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), replace(gen_random_uuid()::text, '-', ''), 'open'",
     "identity": [
       "event_id",
       "supplier_id",
@@ -590,7 +590,7 @@
       "access_token",
       "status"
     ],
-    "select": "'rq_uat_xperto_revision', 'evt_uat_ops_261121', 'sup_xperto', 'supcat_digital_registration',\r\n       'XPERTO Registration', 'Digital Registration', 'Revise the seeded quote to test supplier resubmission and history.',\r\n       ($1::timestamptz + ('2026-11-02T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), replace(gen_random_uuid()::text, '-', ''), 'open'",
+    "select": "'rq_uat_xperto_revision', 'evt_uat_ops_261121', 'sup_xperto', 'supcat_digital_registration',\r\n       'XPERTO Registration', 'Digital Registration', 'Revise the seeded quote to test supplier resubmission and history.',\r\n       ($1::timestamptz + ('2026-11-02T23:59:59.999+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), replace(gen_random_uuid()::text, '-', ''), 'open'",
     "identity": [
       "event_id",
       "supplier_id",
@@ -612,7 +612,7 @@
       "access_token",
       "status"
     ],
-    "select": "'rq_uat_xperto_selected', 'evt_uat_ops_261121', 'sup_xperto', 'supcat_digital_registration',\r\n       'XPERTO Registration', 'Digital Registration', 'Selected UAT supplier booking awaiting supplier confirmation.',\r\n       ($1::timestamptz + ('2026-11-03T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), replace(gen_random_uuid()::text, '-', ''), 'selected'",
+    "select": "'rq_uat_xperto_selected', 'evt_uat_ops_261121', 'sup_xperto', 'supcat_digital_registration',\r\n       'XPERTO Registration', 'Digital Registration', 'Selected UAT supplier booking awaiting supplier confirmation.',\r\n       ($1::timestamptz + ('2026-11-03T23:59:59.999+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), replace(gen_random_uuid()::text, '-', ''), 'selected'",
     "identity": [
       "event_id",
       "supplier_id",
@@ -636,7 +636,7 @@
       "assignment_status",
       "assignment_confirmed_at"
     ],
-    "select": "'rq_uat_bloom_confirmed', 'evt_uat_ops_261121', 'sup_bloom', 'supcat_production',\r\n       'Bloom Florals', 'Production', 'Confirmed UAT booking with schedule, creative task, and payable milestone.',\r\n       ($1::timestamptz + ('2026-11-03T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), replace(gen_random_uuid()::text, '-', ''),\r\n       'selected', 'confirmed', now()",
+    "select": "'rq_uat_bloom_confirmed', 'evt_uat_ops_261121', 'sup_bloom', 'supcat_production',\r\n       'Bloom Florals', 'Production', 'Confirmed UAT booking with schedule, creative task, and payable milestone.',\r\n       ($1::timestamptz + ('2026-11-03T23:59:59.999+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), replace(gen_random_uuid()::text, '-', ''),\r\n       'selected', 'confirmed', now()",
     "identity": [
       "event_id",
       "supplier_id",
@@ -660,7 +660,7 @@
       "assignment_status",
       "assignment_confirmed_at"
     ],
-    "select": "'rq_uat_bloom_closed', 'evt_uat_ops_261121', 'sup_bloom', 'supcat_production',\r\n       'Bloom Florals', 'Production', 'Closed UAT request for supplier read-only history checks.',\r\n       ($1::timestamptz + ('2026-11-03T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), replace(gen_random_uuid()::text, '-', ''),\r\n       'closed', 'confirmed', now()",
+    "select": "'rq_uat_bloom_closed', 'evt_uat_ops_261121', 'sup_bloom', 'supcat_production',\r\n       'Bloom Florals', 'Production', 'Closed UAT request for supplier read-only history checks.',\r\n       ($1::timestamptz + ('2026-11-03T23:59:59.999+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), replace(gen_random_uuid()::text, '-', ''),\r\n       'closed', 'confirmed', now()",
     "identity": [
       "event_id",
       "supplier_id",

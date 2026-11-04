@@ -49,13 +49,14 @@ export type ChatCompose = {
   onStart: () => void;
   onCancel: () => void;
   contextLabel: string;
-  participants: ChatPerson[];
   subject: string;
   onSubjectChange: (value: string) => void;
-  selected: string[];
-  onToggle: (id: string) => void;
   onCreate: () => void;
-};
+} & (
+  | { participants: ChatPerson[]; selected: string[]; onToggle: (id: string) => void }
+  /** The actor cannot choose people: the conversation goes to this named recipient. */
+  | { recipient: string }
+);
 
 export type ChatWorkspaceProps = {
   ariaLabel: string;
@@ -202,7 +203,12 @@ function ConversationList({
         {loading ? (
           <li className="px-3 py-6 text-center text-sm text-muted-foreground">Loading…</li>
         ) : shown.length === 0 ? (
-          <li className="px-3 py-6 text-center text-sm text-muted-foreground">{query ? "No conversation matches." : "No conversations yet."}</li>
+          <li className="px-3 py-6 text-center text-sm text-muted-foreground">
+            {query ? "No conversation matches." : "No conversations yet."}
+            {!query && onCompose ? (
+              <button type="button" onClick={onCompose} className="mx-auto mt-2 block min-h-9 text-sm font-semibold text-primary md:hidden">Start a conversation</button>
+            ) : null}
+          </li>
         ) : (
           shown.map((thread) => <ConversationListItem key={thread.id} thread={thread} people={people} active={thread.id === activeId} onOpen={onOpen} />)
         )}
@@ -441,6 +447,9 @@ function NewConversation({ compose, canCancel, busy, error, onBack }: { compose:
               className="h-10 rounded-md border border-border bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
             />
           </label>
+          {"recipient" in compose ? (
+            <p className="text-sm text-foreground"><span className="text-muted-foreground">To</span> {compose.recipient}</p>
+          ) : (
           <fieldset className="grid gap-1.5">
             <legend className="mb-1.5 text-sm font-medium text-foreground">
               People <span className="font-normal text-muted-foreground">· {compose.selected.length} selected</span>
@@ -470,12 +479,13 @@ function NewConversation({ compose, canCancel, busy, error, onBack }: { compose:
               </ul>
             )}
           </fieldset>
+          )}
           {error ? <p role="alert" className="text-sm text-danger">{error}</p> : null}
         </div>
         <div className="border-t border-border bg-card p-3 sm:px-6">
           <button
             type="submit"
-            disabled={!compose.subject.trim() || compose.selected.length === 0 || busy}
+            disabled={!compose.subject.trim() || ("selected" in compose && compose.selected.length === 0) || busy}
             className="inline-flex h-10 items-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-40"
           >
             {busy ? <Loader2 className="size-4 animate-spin" /> : <MessageSquareText className="size-4" />}

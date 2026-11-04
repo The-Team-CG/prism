@@ -13,6 +13,8 @@ import {
   isQuoteAccessTokenUsable,
   isSupplierQuoteLocked,
   isSupplierQuoteRequestClosed,
+  manilaCalendarDate,
+  quoteDeadlineInstant,
   resolveExpiredQuoteRequestStatus,
 } from '../../domain/supplier-quote-request.policy';
 import type {
@@ -37,10 +39,6 @@ export type QuoteRequestTokenDetail = {
   event: { id: string; eventName: string; clientName: string; eventDate: Date };
   quote: OpsSupplierQuote | null;
 };
-
-function isoDate(value: Date) {
-  return value.toISOString().slice(0, 10);
-}
 
 function parseDate(value: string) {
   const parsed = new Date(value);
@@ -207,7 +205,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
           throw new BadRequestException('Selected suppliers already have active quote requests for this event and category');
         }
 
-        dueDate = input.deadline ? parseDate(input.deadline) : null;
+        dueDate = input.deadline ? quoteDeadlineInstant(parseDate(input.deadline)) : null;
         if (dueDate && dueDate.getTime() < Date.now()) {
           throw new BadRequestException('Quote deadline is in the past. Choose a deadline that has not passed yet.');
         }
@@ -292,7 +290,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
               metadata: {
                 actorId: verifiedActor.id,
                 confidentialBid: Boolean(input.confidentialBid),
-                deadline: dueDate ? isoDate(dueDate) : null,
+                deadline: dueDate ? manilaCalendarDate(dueDate) : null,
               },
             },
           ),

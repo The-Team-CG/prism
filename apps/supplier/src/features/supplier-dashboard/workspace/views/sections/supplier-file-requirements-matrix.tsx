@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FileCheck2 } from "lucide-react";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -35,7 +36,10 @@ export function SupplierFileRequirementsMatrix({
                 <p className="text-sm font-bold text-foreground">{item.label}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">{item.detail}</p>
               </div>
-              <StatusBadge status={item.status} />
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <StatusBadge status={item.status} />
+                {item.status === "missing" || item.status === "pending" ? <Link href={item.bookingHref} className="inline-flex min-h-9 items-center text-sm font-semibold text-primary hover:text-primary/80">Open booking</Link> : null}
+              </div>
             </div>
           ))}
         </div>

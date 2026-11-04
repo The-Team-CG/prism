@@ -75,6 +75,7 @@ import {
   buildPmcmSupplierReadinessItem,
   buildSupplierReadinessItem,
   sortSupplierReadinessItems,
+  supplierFacingEventRef,
   type SupplierReadinessClock,
 } from './event-read-models.supplier-readiness';
 
@@ -612,7 +613,7 @@ export class EventReadModelsService {
     const items = sortSupplierReadinessItems(
       requests
         .filter((request) => eventsById.has(request.eventId))
-        .map((request) => buildSupplierReadinessItem(request, eventsById.get(request.eventId), clock)),
+        .map((request) => buildSupplierReadinessItem(request, supplierFacingEventRef(request, eventsById.get(request.eventId)), clock)),
     );
 
     return {
