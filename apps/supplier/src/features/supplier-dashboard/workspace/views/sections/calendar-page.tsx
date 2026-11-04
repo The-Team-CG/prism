@@ -4,9 +4,9 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { CalendarDays } from "lucide-react";
 import type { PrismSupplierWorkflowWorkspace } from "@prism/types";
-import { monthOfDateKey } from "@prism/ui/calendar-grid";
+import { clockLabel } from "@prism/ui/calendar-views";
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
-import { PortalMonthCalendar, type PortalCalendarKind } from "@prism/ui/portal-month-calendar";
+import { PortalCalendar, type PortalCalendarKind } from "@prism/ui/portal-calendar";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { buildSupplierCalendarItems, type SupplierCalendarItemKind } from "../../model/supplier-calendar-items";
 import type { PrismSupplierReadinessBoard, SupplierWorkspace } from "../../model/supplier-workspace-types";
@@ -43,13 +43,13 @@ export function CalendarPage({ workspace, readinessBoard, workflowWorkspace }: {
   return (
     <div className="space-y-3">
       {!readinessBoard ? <p role="status" className="text-sm text-muted-foreground">We could not load your event days. Use Refresh above to try again.</p> : null}
-      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <PortalMonthCalendar
+      <div className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <PortalCalendar
           items={items}
           kinds={KINDS}
           today={today}
-          initialMonth={monthOfDateKey(upcoming[0]?.date ?? today)}
-          renderItem={({ item, className, title, children }) => <Link href={item.href} title={title} className={className}>{children}</Link>}
+          initialDate={upcoming[0]?.date ?? today}
+          renderItem={({ item, className, style, title, children }) => <Link href={item.href} title={title} style={style} className={className}>{children}</Link>}
         />
         <Card className="min-w-0 self-start">
           <h2 className="border-b border-border px-4 py-3 text-base font-semibold text-foreground">Coming up</h2>
@@ -60,7 +60,7 @@ export function CalendarPage({ workspace, readinessBoard, workflowWorkspace }: {
               {upcoming.slice(0, UPCOMING_LIMIT).map((item) => (
                 <li key={item.id}>
                   <Link href={item.href} className="block min-h-11 px-4 py-3 outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-primary">
-                    <span className="block text-xs text-muted-foreground">{formatPortalDate(item.date)} · {KINDS[item.kind].label}</span>
+                    <span className="block text-xs text-muted-foreground">{formatPortalDate(item.date)}{item.startTime ? ` · ${clockLabel(item.startTime)}` : ""} · {KINDS[item.kind].label}</span>
                     <span className="block break-words text-sm font-semibold text-foreground">{item.title}</span>
                     <span className="block break-words text-xs text-muted-foreground">{item.detail}</span>
                   </Link>
