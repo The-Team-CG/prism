@@ -91,22 +91,6 @@ function BookingSummary({ request, readiness }: { request: PrismSupplierQuoteReq
   );
 }
 
-function BookingProgress({ req }: { req: PrismSupplierQuoteRequest }) {
-  return (
-    <div className="grid grid-cols-2 gap-3 px-4 py-4 sm:grid-cols-4 sm:px-6">
-      {buildBookingSteps(req).map((step) => (
-        <div key={step.label} className="flex items-start gap-2">
-          {step.done ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" /> : <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
-          <div className="min-w-0">
-            <p className={`text-xs font-semibold ${step.done ? "text-success" : "text-muted-foreground"}`}>{step.label}</p>
-            <p className="mt-0.5 text-3xs text-muted-foreground">{step.meta}</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function AssignmentStep({ req, busy, onConfirmAssignment }: { req: PrismSupplierQuoteRequest; busy: string | null; onConfirmAssignment: BookingHandlers["onConfirmAssignment"] }) {
   const confirmed = req.assignmentStatus === "confirmed";
   return (
@@ -261,8 +245,7 @@ function BookingDetail({ req, workflowWorkspace, readinessNote, statusNote, busy
           <BadgeCheck className="size-3.5" aria-hidden /> Selected by PMCM
         </span>
       </div>
-      <BookingProgress req={req} />
-      <div className="space-y-3 px-4 pb-5 sm:px-6">
+      <div className="space-y-3 px-4 py-4 sm:px-6">
         <AssignmentStep req={req} busy={busy} onConfirmAssignment={handlers.onConfirmAssignment} />
         <ContractStep req={req} contracts={forRequest(workflowWorkspace?.contracts)} busy={busy} onSaveContract={handlers.onSaveContract} onDownloadObject={handlers.onDownloadObject} />
         {forRequest(workflowWorkspace?.schedules).map((schedule) => (

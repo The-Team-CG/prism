@@ -312,7 +312,7 @@ export function PAREPanel({
             <Zap className="size-4" />
           </span>
           <div>
-            <p className="text-sm font-black text-foreground">PARE · Emergency Response Engine</p>
+            <p className="text-sm font-black text-foreground">Emergency supplier replacement</p>
             <p className="text-xs text-muted-foreground">Withdraw an assigned supplier to trigger AI-powered replacement analysis</p>
           </div>
         </div>
@@ -404,7 +404,7 @@ export function PAREPanel({
           </span>
           <p className="mt-3 text-sm font-bold text-foreground">No assigned suppliers yet</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Assign a supplier quote above, then withdraw them here to trigger PARE.
+            Once a supplier is selected for this event, you can withdraw them here to get replacement suggestions.
           </p>
         </div>
       )}
