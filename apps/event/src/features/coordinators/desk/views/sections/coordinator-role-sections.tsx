@@ -4,6 +4,7 @@ import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 
 import {
   AlertTriangle,
+  ChevronRight,
   BadgeCheck,
   CalendarClock,
   CheckCircle2,
@@ -634,10 +635,13 @@ function CoordinatorDisclosure({ title, description, open, children }: {
   children: ReactNode;
 }) {
   return (
-    <details open={open} className="rounded-lg border border-border bg-card">
-      <summary className="cursor-pointer px-5 py-4">
-        <span className="block text-sm font-semibold text-foreground">{title}</span>
-        {description ? <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{description}</span> : null}
+    <details open={open} className="group rounded-lg border border-border bg-card">
+      <summary className="flex min-h-11 cursor-pointer list-none items-start gap-3 px-5 py-4 [&::-webkit-details-marker]:hidden">
+        <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" aria-hidden="true" />
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-foreground">{title}</span>
+          {description ? <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{description}</span> : null}
+        </span>
       </summary>
       {children}
     </details>

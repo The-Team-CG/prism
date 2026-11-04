@@ -23,14 +23,12 @@ describe("event workspace stage signals", () => {
     expect(live.find((item) => item.id === "event-report")?.badge).toBe(11);
   });
 
-  it("leads a past, unarchived event with its close-out and drops the briefing to-do", () => {
-    const pending: PrismDefenseReadinessAction[] = [
-      { key: "briefing", label: "Client briefing", detail: "Submit the venue.", status: "blocked", targetTab: "briefing" },
-      { key: "floorplan", label: "Official floorplan", detail: "Approve the layout.", status: "attention", targetTab: "floorplans" },
-    ];
+  it("leads a past, unarchived event with its close-out and keeps only billing and closure work", () => {
+    const action = (key: string, targetTab: PrismDefenseReadinessAction["targetTab"]): PrismDefenseReadinessAction => ({ key, label: key, detail: key, status: "attention", targetTab });
+    const pending = [action("briefing", "briefing"), action("floorplan", "floorplans"), action("suppliers", "suppliers"), action("coordinators", "coordinators"), action("billing", "billing"), action("closure", "closure")];
     const next = overviewNextActions(pending, needsCloseOut({ eventDate: "2026-06-18", archived: false }, "2026-11-02"));
 
-    expect(next.map((action) => action.key)).toEqual(["close-out", "floorplan"]);
+    expect(next.map((entry) => entry.key)).toEqual(["close-out", "billing", "closure"]);
     expect(next[0]).toMatchObject({ label: "This event has ended — close it out", targetTab: "closure" });
   });
 

@@ -11,7 +11,10 @@ import {
   type RunSheetTimelineRow,
 } from "../model/run-sheet-timeline";
 
-const words = (value: string) => value.replaceAll("_", " ");
+const words = (value: string) => {
+  const text = value.replaceAll("_", " ");
+  return text.charAt(0).toUpperCase() + text.slice(1);
+};
 
 export type LiveOpsRunSheetViewProps = {
   runSheet: PrismEventRunSheet | null;
@@ -61,7 +64,7 @@ export function LiveOpsRunSheetView(props: LiveOpsRunSheetViewProps) {
         <div>
           <h2 id="run-sheet-heading" className="text-lg font-bold text-foreground">Event day run sheet</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {runSheet ? `${runSheet.day.label || runSheet.day.dayDate} · ${runSheet.day.dayDate}` : "Time-ordered program, supplier windows, task deadlines and open issues."}
+            {runSheet ? [runSheet.day.label, formatRunSheetDate(runSheet.day.dayDate)].filter(Boolean).join(" · ") : "Time-ordered program, supplier windows, task deadlines and open issues."}
           </p>
           {runSheet?.scope === "coordinator" ? (
             <p className="mt-1 text-xs text-muted-foreground">Showing what your assignment allows. Finance, private supplier notes and audit records are not included.</p>

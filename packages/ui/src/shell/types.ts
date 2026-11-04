@@ -125,5 +125,7 @@ export interface PrismAppShellProps {
   children: React.ReactNode;
   className?: string;
   contentClassName?: string;
+  /** Padding for the page title when contentClassName removes the content padding. */
+  titleClassName?: string;
   homeHref?: string;
 }
