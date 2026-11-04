@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- PMCM Finance event list shows what each event owes, its next payment due date and overdue milestones, and Messages shows unread messages per event. The PMCM calendar now shows quote deadlines, payment due dates, ocular visits and supplier arrivals and departures alongside event days, and clicking an item opens the event section where it is handled.
 - The client, PMCM and supplier calendars share one calendar with Month, Week, Day and Agenda views (switch from the view menu or with M, W, D and A), a live time line, and "+N more" that opens the day. The supplier calendar places arrivals, departures and deliverables at their times.
 - The API gains two PMCM-only reads: `GET /api/pmcm/event-summaries` (what each event owes, its next payment due date, overdue milestones, and the signed-in admin's unread messages) and `GET /api/pmcm/calendar?from=&to=` (event days, quote deadlines, payment due dates, ocular visits and supplier arrivals and departures in a window of up to 800 days).
 - PMCM Finance, Files and Messages event lists show each event's stage and put events still being run before finished ones, Settings drops the policy cards that looked like controls but did nothing, and the Calendar subtitle says what it shows.
