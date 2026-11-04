@@ -1,5 +1,7 @@
 "use client";
 
+import { useResource } from "@prism/portal-query";
+import { emptyEventSummary, financeSummaryLabel, pmcmEventSummaries, summariesByEvent } from "@/features/pmcm-overview";
 import { EventDestinationPicker } from "./event-destination-picker";
 import { FinancialWorkspace } from "@/features/finance/workspace";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
@@ -18,6 +20,8 @@ export function EventDashboardFinanceSectionView() {
     events,
     navigateEvent,
   } = useEventDashboardLoadedRouteViewModel();
+  const summaries = useResource(pmcmEventSummaries, selectedEvent ? null : "signed-in");
+  const byEvent = summariesByEvent(summaries.data?.items);
   return (
 
           selectedEvent ? (
@@ -39,6 +43,7 @@ export function EventDashboardFinanceSectionView() {
               actionLabel="Open billing"
               tab="billing"
               onOpenEvent={(eventId) => navigateEvent(eventId, "billing")}
+              rowDetail={(event) => (summaries.status === "ready" ? financeSummaryLabel(byEvent.get(event.id) ?? emptyEventSummary(event.id)) : null)}
             />
           )
   );

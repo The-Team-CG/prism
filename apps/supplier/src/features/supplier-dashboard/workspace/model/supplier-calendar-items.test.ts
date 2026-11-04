@@ -37,6 +37,12 @@ describe("buildSupplierCalendarItems", () => {
       ["arrival", "2026-12-01"],
       ["departure", "2026-12-01"],
     ]);
+    // Timed items carry their Manila wall-clock time so the day and week views can place them.
+    expect(items.filter((item) => item.startTime).map((item) => [item.kind, item.startTime])).toEqual([
+      ["deliverable", "10:00"],
+      ["arrival", "06:00"],
+      ["departure", "18:00"],
+    ]);
     expect(items.find((item) => item.kind === "event")?.href).toBe("/dashboard/bookings#supplier-work-won");
     expect(items.find((item) => item.kind === "deadline")?.href).toBe("/dashboard/requests#supplier-work-open");
     expect(items.find((item) => item.kind === "payment")?.href).toBe("/dashboard/payments");

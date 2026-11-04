@@ -2,9 +2,27 @@
 
 import { ChevronRight } from "lucide-react";
 import { formatPortalDate } from "@prism/ui/format-date";
-import type { PrismEvent } from "@prism/types";
+import { PRISM_LIFECYCLE_STAGE_LABELS, derivePrismLifecycleStage, type PrismEvent } from "@prism/types";
 import { RouteLink } from "@/features/pmcm-kit";
+import type { SummaryLabel } from "@/features/pmcm-overview";
 import { eventWorkspaceHref, type DetailTab } from "../../model/event-dashboard-routing";
+
+function RowDetail({ label }: { label: SummaryLabel | null }) {
+  if (!label) return null;
+  return <span className={label.urgent ? "mt-0.5 block text-xs font-medium text-attention" : "mt-0.5 block text-xs text-muted-foreground"}>{label.text}</span>;
+}
+
+type PickerEvent = Pick<PrismEvent, "id" | "eventName" | "clientName" | "eventDate" | "status" | "archived" | "actualEndedAt" | "clientPortalStatus" | "proposalClientStatus">;
+
+const isFinished = (event: PickerEvent) => derivePrismLifecycleStage(event) === "closure_archive";
+
+/** Events still being run come first, soonest first; finished events follow, most recent first. */
+export function orderPickerEvents<Event extends PickerEvent>(events: Event[]): Event[] {
+  const byDate = (a: Event, b: Event) => (a.eventDate ?? "").localeCompare(b.eventDate ?? "");
+  const active = events.filter((event) => !isFinished(event)).sort(byDate);
+  const finished = events.filter(isFinished).sort((a, b) => byDate(b, a));
+  return [...active, ...finished];
+}
 
 /**
  * Inline event chooser for global PMCM destinations (Finance, Files, Messages) that only work inside one
@@ -16,15 +34,18 @@ export function EventDestinationPicker({
   actionLabel,
   tab,
   onOpenEvent,
+  rowDetail,
 }: {
-  events: Pick<PrismEvent, "id" | "eventName" | "clientName" | "eventDate">[];
+  events: PickerEvent[];
   description: string;
   actionLabel: string;
   /** The workspace section each row opens. */
   tab: DetailTab;
   onOpenEvent: (eventId: string) => void;
+  /** An extra line under each event, such as what it owes; absent or null shows nothing. */
+  rowDetail?: (event: PickerEvent) => SummaryLabel | null;
 }) {
-  const sorted = [...events].sort((a, b) => (a.eventDate ?? "").localeCompare(b.eventDate ?? ""));
+  const sorted = orderPickerEvents(events);
   return (
     <section aria-labelledby="event-destination-picker-title" className="min-w-0 rounded-lg border border-border bg-card">
       <div className="border-b border-border px-5 py-4">
@@ -47,8 +68,9 @@ export function EventDestinationPicker({
                 <span className="min-w-0 flex-1">
                   <span className="block break-words text-sm font-semibold text-foreground">{event.eventName}</span>
                   <span className="mt-0.5 block break-words text-xs text-muted-foreground">
-                    {event.clientName || "—"} · <span className="tabular-nums">{formatPortalDate(event.eventDate, "—")}</span>
+                    {event.clientName || "—"} · <span className="tabular-nums">{formatPortalDate(event.eventDate, "—")}</span> · {PRISM_LIFECYCLE_STAGE_LABELS[derivePrismLifecycleStage(event)]}
                   </span>
+                  <RowDetail label={rowDetail?.(event) ?? null} />
                 </span>
                 <span className="hidden shrink-0 text-sm font-medium text-primary sm:inline">{actionLabel}</span>
                 <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />

@@ -320,7 +320,7 @@ const ROUTE_DESCRIPTIONS: Partial<Record<DashboardSection, string>> = {
   audit: "Complete audit trail of all actions, approvals, and system events.",
   privacy: "Privacy requests with 30-day deadlines, owners, execution, legal holds, and retention policies.",
   clients: "Every client contact, with their events and inquiries.",
-  calendar: "Event dates, planning windows, supplier deadlines, and onsite schedule checkpoints.",
+  calendar: "Event days, quote deadlines, payments, ocular visits and supplier schedules across events. Click an item to open its event.",
   tasks: "PMCM actions across inquiries, approvals, planning, finance, live operations, and closure.",
   team: "PMCM coordinators, their roles and availability. Assign them inside each event.",
   files: "Operational documents, official floorplans, billing statements, contracts, and closeout records.",
