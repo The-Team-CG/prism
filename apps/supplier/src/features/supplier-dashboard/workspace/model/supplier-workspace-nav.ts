@@ -17,12 +17,12 @@ import { supplierSectionHref, type SupplierDashboardSection } from "../model/sup
 
 export function supplierNavItems(input: {
   needsActionCount: number;
-  openRequestCount: number;
+  quoteNeedingSubmission: number;
   handoffPending: number;
 }) {
   const items = [
     { id: "dashboard", label: "Today", icon: Warehouse, badge: input.needsActionCount || undefined },
-    { id: "requests", label: "Requests & quotes", icon: ClipboardList, badge: input.openRequestCount || undefined },
+    { id: "requests", label: "Requests & quotes", icon: ClipboardList, badge: input.quoteNeedingSubmission || undefined },
     { id: "bookings", label: "Bookings", icon: BadgeCheck, badge: input.handoffPending || undefined },
     { id: "calendar", label: "Calendar", icon: CalendarDays },
     { id: "messages", label: "Messages", icon: MessageSquare },
@@ -48,7 +48,6 @@ export function supplierCommandActions(input: {
   openRequestCount: number;
   handoffPending: number;
   readinessInfoCount: number | null;
-  readinessNeedsActionCount: number;
   onNavigate: (section: SupplierDashboardSection) => void;
 }) {
   const requestLabel = input.quoteNeedingSubmission
@@ -59,7 +58,7 @@ export function supplierCommandActions(input: {
     : input.readinessInfoCount != null
       ? `${input.readinessInfoCount} readiness item(s) monitored`
       : "Handoff is clear";
-  const bookingPending = Boolean(input.handoffPending || input.readinessNeedsActionCount);
+  const bookingPending = Boolean(input.handoffPending);
 
   return [
     {

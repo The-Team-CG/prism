@@ -25,7 +25,6 @@ export function SupplierWorkspaceView({ section: routeSection }: { section: Supp
     selectedQuotes,
     quoteNeedingSubmission,
     handoffPending,
-    readinessNeedsActionCount,
     needsActionCount,
     eventsThisMonth,
   } = derived;
@@ -40,7 +39,7 @@ export function SupplierWorkspaceView({ section: routeSection }: { section: Supp
       activeItemId={supplierActiveNavId(section)}
       navItems={supplierNavItems({
         needsActionCount,
-        openRequestCount: openRequests.length,
+        quoteNeedingSubmission,
         handoffPending,
       })}
       sidebarMode="single"
@@ -52,7 +51,6 @@ export function SupplierWorkspaceView({ section: routeSection }: { section: Supp
         openRequestCount: openRequests.length,
         handoffPending,
         readinessInfoCount: readinessBoard ? readinessBoard.counts.info : null,
-        readinessNeedsActionCount,
         onNavigate: setSection,
       })}
       accountMenuItems={supplierAccountMenuItems(setSection)}

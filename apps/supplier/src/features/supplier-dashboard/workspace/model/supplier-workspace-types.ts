@@ -35,6 +35,11 @@ export function supplierSectionHref(section: SupplierDashboardSection) {
   return section === "dashboard" ? "/dashboard" : `/dashboard/${section}`;
 }
 
+/** Links straight to one request or booking row, which opens on arrival. */
+export function supplierWorkTargetHref(section: "requests" | "bookings", requestId: string) {
+  return `${supplierSectionHref(section)}#supplier-work-${encodeURIComponent(requestId)}`;
+}
+
 export type QuoteFormState = {
   amount: string;
   inclusions: string;
@@ -49,12 +54,6 @@ export type QuoteSubmitInput = {
   notes: string;
 };
 
-export type CalendarEventItem = {
-  date: string;
-  label: string;
-  type: "deadline" | "event" | "booking";
-};
-
 export type WorkspaceDerived = {
   quoteByRequest: Map<string, PrismSupplierQuote>;
   openRequests: PrismSupplierQuoteRequest[];
@@ -62,7 +61,6 @@ export type WorkspaceDerived = {
   selectedQuotes: PrismSupplierQuote[];
   quoteNeedingSubmission: number;
   handoffPending: number;
-  readinessNeedsActionCount: number;
   needsActionCount: number;
   eventsThisMonth: number;
 };
