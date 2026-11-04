@@ -57,6 +57,16 @@ export class PmcmOverviewQueries {
     });
   }
 
+  /** Authored event-day schedule days; each has a run sheet. */
+  scheduleDays(from: string, to: string) {
+    return this.prisma.opsEventScheduleDay.findMany({
+      where: { dayDate: { gte: startOfUtcDay(from), lte: endOfUtcDay(to) } },
+      select: { id: true, eventId: true, dayDate: true, label: true },
+      orderBy: [{ dayDate: 'asc' }, { id: 'asc' }],
+      take: MAX_ROWS,
+    });
+  }
+
   /** Deadlines still being waited on; once a request is selected, closed or expired its deadline is history. */
   quoteDeadlines(from: string, to: string) {
     return this.prisma.opsSupplierQuoteRequest.findMany({

@@ -38,11 +38,11 @@ const EVENT_TAB_VIEWS: Record<DetailTab, () => ReactElement> = {
 };
 
 /** PMCM print-friendly run sheet for the selected event (FL-026). */
-export function EventDashboardRunSheetView() {
+export function EventDashboardRunSheetView({ dayId }: { dayId?: string }) {
   const { selectedEvent } = useEventDashboardLoadedRouteViewModel();
   if (!selectedEvent) return <EmptyEventWorkspace />;
   // The run sheet is its own page: the event name is already the page title, so no second header card.
-  return <LiveOpsRunSheet eventId={selectedEvent.id} printable scheduleHref={eventWorkspaceHref(selectedEvent.id, "live-ops")} />;
+  return <LiveOpsRunSheet eventId={selectedEvent.id} dayId={dayId} printable scheduleHref={eventWorkspaceHref(selectedEvent.id, "live-ops")} calendarHref="/dashboard/calendar" />;
 }
 
 export function EventDashboardEventWorkspaceView() {

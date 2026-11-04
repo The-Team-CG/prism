@@ -34,18 +34,20 @@ export class PmcmOverviewService {
   async calendar(actor: ResolvedEventOpsActor, query: PmcmCalendarQuery): Promise<PrismPmcmCalendar> {
     await this.policy.requireActorRole(actor, PMCM_ROLES, 'PMCM calendar');
     const { from, to } = query;
-    const [events, quoteRequests, milestones, ocularVisits, schedules] = await Promise.all([
+    const [events, quoteRequests, milestones, ocularVisits, schedules, scheduleDays] = await Promise.all([
       this.queries.events(from, to),
       this.queries.quoteDeadlines(from, to),
       this.queries.milestonesDue(from, to),
       this.queries.ocularVisits(from, to),
       this.queries.supplierSchedules(from, to),
+      this.queries.scheduleDays(from, to),
     ]);
     const names = await this.queries.eventNames([...new Set([
       ...quoteRequests.map((row) => row.eventId),
       ...milestones.map((row) => row.eventId),
       ...ocularVisits.map((row) => row.eventId),
       ...schedules.map((row) => row.eventId),
+      ...scheduleDays.map((row) => row.eventId),
     ])]);
     const eventNames = new Map([...events.map((event) => [event.id, event.eventName] as const), ...names.map((event) => [event.id, event.eventName] as const)]);
     return {
@@ -60,6 +62,7 @@ export class PmcmOverviewService {
         quoteRequests: quoteRequests.flatMap((row) => (row.dueDate ? [{ ...row, dueDate: row.dueDate }] : [])),
         milestones,
         ocularVisits: ocularVisits.flatMap((row) => (row.scheduledAt ? [{ ...row, scheduledAt: row.scheduledAt }] : [])),
+        scheduleDays,
         schedules: schedules.map((row) => ({ id: row.id, eventId: row.eventId, ingressAt: row.ingressAt, egressAt: row.egressAt, location: row.location, supplierName: row.request.supplierName })),
       }),
     };
