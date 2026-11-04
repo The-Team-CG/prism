@@ -154,6 +154,17 @@ function PaneMessage({ icon, title, body, action }: { icon: ReactNode; title: st
   );
 }
 
+function NoConversations({ searching, onCompose }: { searching: boolean; onCompose?: () => void }) {
+  return (
+    <li className="px-3 py-6 text-center text-sm text-muted-foreground">
+      {searching ? "No conversation matches." : "No conversations yet."}
+      {!searching && onCompose ? (
+        <button type="button" onClick={onCompose} className="mx-auto mt-2 block min-h-9 text-sm font-semibold text-primary md:hidden">Start a conversation</button>
+      ) : null}
+    </li>
+  );
+}
+
 function ConversationList({
   threads,
   visibleThreads,
@@ -203,12 +214,7 @@ function ConversationList({
         {loading ? (
           <li className="px-3 py-6 text-center text-sm text-muted-foreground">Loading…</li>
         ) : shown.length === 0 ? (
-          <li className="px-3 py-6 text-center text-sm text-muted-foreground">
-            {query ? "No conversation matches." : "No conversations yet."}
-            {!query && onCompose ? (
-              <button type="button" onClick={onCompose} className="mx-auto mt-2 block min-h-9 text-sm font-semibold text-primary md:hidden">Start a conversation</button>
-            ) : null}
-          </li>
+          <NoConversations searching={Boolean(query)} onCompose={onCompose} />
         ) : (
           shown.map((thread) => <ConversationListItem key={thread.id} thread={thread} people={people} active={thread.id === activeId} onOpen={onOpen} />)
         )}
