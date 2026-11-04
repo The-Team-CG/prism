@@ -6,17 +6,20 @@ import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 import { PortalCalendar } from "@prism/ui/portal-calendar";
 import type { PrismEvent } from "@prism/types";
 import { eventDateKey } from "@prism/ui/calendar-grid";
+import { PMCM_CALENDAR_KINDS, type PmcmCalendarEntry } from "@/features/pmcm-overview";
 import { Card, CardHeader } from "./shell-ui";
-
-const EVENT_KINDS = { event: { label: "Event", chip: "bg-primary/10 text-primary hover:bg-primary/15 data-[active=true]:bg-primary data-[active=true]:text-primary-foreground", dot: "bg-primary" } };
 
 export function EventCalendarWorkspace({
   events,
+  items,
   selectedEventId,
+  onOpenItem,
   onOpenEvent,
 }: {
   events: PrismEvent[];
+  items: PmcmCalendarEntry[];
   selectedEventId?: string | null;
+  onOpenItem: (item: PmcmCalendarEntry) => void;
   onOpenEvent: (id: string) => void;
 }) {
   const today = manilaDateKey();
@@ -31,17 +34,23 @@ export function EventCalendarWorkspace({
   );
   const upcoming = datedEvents.filter((item) => item.dateKey >= today);
   const schedule = (upcoming.length ? upcoming : datedEvents).slice(0, 6);
-  const items = datedEvents.map(({ event, dateKey }) => ({ id: event.id, date: dateKey, title: event.eventName, kind: "event" }));
 
   return (
     <section className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(0,1fr)_22rem]">
       <PortalCalendar
         items={items}
-        kinds={EVENT_KINDS}
+        kinds={PMCM_CALENDAR_KINDS}
         today={today}
         initialDate={today}
         renderItem={({ item, className, style, title, children }) => (
-          <button type="button" title={title} style={style} onClick={() => onOpenEvent(item.id)} data-active={item.id === selectedEventId} className={className}>
+          <button
+            type="button"
+            title={title}
+            style={style}
+            onClick={() => onOpenItem(item)}
+            data-active={item.eventId === selectedEventId}
+            className={`${className} data-[active=true]:ring-2 data-[active=true]:ring-primary`}
+          >
             {children}
           </button>
         )}
