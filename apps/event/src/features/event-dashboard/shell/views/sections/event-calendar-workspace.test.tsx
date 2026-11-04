@@ -12,7 +12,7 @@ const entry = (id: string, kind: PmcmCalendarEntry["kind"], target: PmcmCalendar
 });
 
 const items: PmcmCalendarEntry[] = [
-  entry("a", "event", "overview", "Gala", "Event day"),
+  { ...entry("a", "event", "overview", "Gala", "Event day"), scheduleDayId: "day_main" },
   entry("b", "ocular_visit", "overview", "Ocular visit", "Gala"),
   entry("c", "quote_deadline", "suppliers", "Lights quote due", "Gala"),
   entry("d", "payment_due", "billing", "Deposit", "Gala"),
@@ -32,6 +32,26 @@ function renderCalendar(onOpenItem = vi.fn()) {
 }
 
 describe("EventCalendarWorkspace", () => {
+  it("leads an event day to its run sheet and a load-in day to the run sheet first", () => {
+    const { cell } = renderCalendar();
+    fireEvent.click(within(cell()).getByRole("button", { name: /Gala/ }));
+    expect(within(screen.getByRole("dialog")).getByRole("link", { name: "Open run sheet" }).getAttribute("href")).toBe("/dashboard/events/evt_1/run-sheet?dayId=day_main");
+    expect(within(screen.getByRole("dialog")).getByRole("button", { name: "Open event" })).toBeTruthy();
+    cleanup();
+
+    render(
+      <EventCalendarWorkspace
+        events={[] as PrismEvent[]}
+        items={[{ ...entry("d0", "schedule_day", "overview", "Load-in", "Gala"), scheduleDayId: "day_0" }]}
+        onRangeChange={vi.fn()}
+        onOpenItem={vi.fn()}
+        onOpenEvent={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Gala/ }));
+    expect(within(screen.getByRole("dialog")).getByRole("link", { name: "Open run sheet" }).getAttribute("href")).toBe("/dashboard/events/evt_1/run-sheet?dayId=day_0");
+  });
+
   it("lists a crowded day's hidden items in a popup instead of leaving the month", () => {
     const { cell } = renderCalendar();
     fireEvent.click(within(cell()).getByRole("button", { name: "+1 more" }));

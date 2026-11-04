@@ -75,6 +75,7 @@ export type CalendarFacts = {
   milestones: MilestoneFact[];
   ocularVisits: Array<{ id: string; eventId: string; scheduledAt: Date }>;
   schedules: Array<{ id: string; eventId: string; ingressAt: Date; egressAt: Date; location: string; supplierName: string }>;
+  scheduleDays: Array<{ id: string; eventId: string; dayDate: Date; label: string }>;
 };
 
 const peso = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 });
@@ -84,8 +85,20 @@ export function buildPmcmCalendarItems(facts: CalendarFacts): PrismPmcmCalendarI
   const nameOf = (eventId: string) => facts.eventNames.get(eventId) ?? 'Event';
   const items: PrismPmcmCalendarItem[] = [];
 
+  const eventDates = new Map(facts.events.map((event) => [event.id, calendarDateKeyOf(event.eventDate)]));
+  const eventDayScheduleIds = new Map<string, string>();
+  for (const day of facts.scheduleDays) {
+    const date = calendarDateKeyOf(day.dayDate);
+    if (eventDates.get(day.eventId) === date) {
+      eventDayScheduleIds.set(day.eventId, day.id);
+    } else {
+      items.push({ id: `day:${day.id}`, kind: 'schedule_day', eventId: day.eventId, eventName: nameOf(day.eventId), date, detail: day.label || 'Event-day schedule', scheduleDayId: day.id });
+    }
+  }
+
   for (const event of facts.events) {
-    items.push({ id: `event:${event.id}`, kind: 'event', eventId: event.id, eventName: event.eventName, date: calendarDateKeyOf(event.eventDate), detail: 'Event day' });
+    const scheduleDayId = eventDayScheduleIds.get(event.id);
+    items.push({ id: `event:${event.id}`, kind: 'event', eventId: event.id, eventName: event.eventName, date: calendarDateKeyOf(event.eventDate), detail: 'Event day', ...(scheduleDayId ? { scheduleDayId } : {}) });
   }
   for (const request of facts.quoteRequests) {
     items.push({ id: `quote:${request.id}`, kind: 'quote_deadline', eventId: request.eventId, eventName: nameOf(request.eventId), date: manilaDateKeyOf(request.dueDate), detail: `${request.supplierName} · ${request.category} quote due` });
