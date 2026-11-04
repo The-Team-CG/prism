@@ -80,11 +80,9 @@ export type CalendarFacts = {
 
 const peso = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 });
 
-/** Every dated thing PMCM tracks across events, as calendar items inside [from, to], earliest first. */
-export function buildPmcmCalendarItems(facts: CalendarFacts): PrismPmcmCalendarItem[] {
-  const nameOf = (eventId: string) => facts.eventNames.get(eventId) ?? 'Event';
+/** Event days and the other schedule days. An event's own date carries its schedule day's id instead of a second item. */
+function eventAndScheduleDayItems(facts: CalendarFacts, nameOf: (eventId: string) => string): PrismPmcmCalendarItem[] {
   const items: PrismPmcmCalendarItem[] = [];
-
   const eventDates = new Map(facts.events.map((event) => [event.id, calendarDateKeyOf(event.eventDate)]));
   const eventDayScheduleIds = new Map<string, string>();
   for (const day of facts.scheduleDays) {
@@ -100,6 +98,15 @@ export function buildPmcmCalendarItems(facts: CalendarFacts): PrismPmcmCalendarI
     const scheduleDayId = eventDayScheduleIds.get(event.id);
     items.push({ id: `event:${event.id}`, kind: 'event', eventId: event.id, eventName: event.eventName, date: calendarDateKeyOf(event.eventDate), detail: 'Event day', ...(scheduleDayId ? { scheduleDayId } : {}) });
   }
+  return items;
+}
+
+/** Every dated thing PMCM tracks across events, as calendar items inside [from, to], earliest first. */
+export function buildPmcmCalendarItems(facts: CalendarFacts): PrismPmcmCalendarItem[] {
+  const nameOf = (eventId: string) => facts.eventNames.get(eventId) ?? 'Event';
+  const items: PrismPmcmCalendarItem[] = [];
+
+  items.push(...eventAndScheduleDayItems(facts, nameOf));
   for (const request of facts.quoteRequests) {
     items.push({ id: `quote:${request.id}`, kind: 'quote_deadline', eventId: request.eventId, eventName: nameOf(request.eventId), date: manilaDateKeyOf(request.dueDate), detail: `${request.supplierName} · ${request.category} quote due` });
   }
