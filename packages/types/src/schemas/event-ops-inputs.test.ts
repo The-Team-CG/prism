@@ -39,6 +39,8 @@ import {
   updateCoordinatorAttendanceSchema,
   verifySupplierStatusSchema,
   COORDINATOR_ROLES,
+  riskSeverityFromRatings,
+  createComplianceRiskSchema,
   canonicalCoordinatorRole,
   coordinatorRoleSchema,
   coordinatorSuggestionsQuerySchema,
@@ -85,6 +87,25 @@ describe("privacy legal hold contracts", () => {
     }).success).toBe(false);
     expect(releasePrivacyLegalHoldSchema.safeParse({ reason: "Counsel confirmed release" }).success).toBe(true);
     expect(releasePrivacyLegalHoldSchema.safeParse({ reason: "  " }).success).toBe(false);
+  });
+});
+
+describe("risk likelihood and impact contract", () => {
+  it("maps every rating pair to a severity on the 1-2 low, 3-4 medium, 6 high, 9 critical scale", () => {
+    const ratings = ["low", "medium", "high"] as const;
+    const grid = ratings.map((likelihood) => ratings.map((impact) => riskSeverityFromRatings(likelihood, impact)));
+    expect(grid).toEqual([
+      ["low", "low", "medium"],
+      ["low", "medium", "high"],
+      ["medium", "high", "critical"],
+    ]);
+  });
+
+  it("accepts ratings without a severity and rejects unknown ratings", () => {
+    const base = { phase: "closure", title: "Generator failure" };
+    expect(createComplianceRiskSchema.safeParse({ ...base, likelihood: "high", impact: "low" }).success).toBe(true);
+    expect(createComplianceRiskSchema.parse(base).severity).toBeUndefined();
+    expect(createComplianceRiskSchema.safeParse({ ...base, likelihood: "certain" }).success).toBe(false);
   });
 });
 

@@ -424,7 +424,7 @@ export function EventWorkspaceClosureTab() {
     compliance: { count: vm.openCheckCount, attention: vm.openCheckCount > 0, render: () => closureStep("compliance") },
     deliverables: {
       count: vm.postEventDocuments.length,
-      render: () => <PostEventDeliverablesPanel eventId={event.id} documents={vm.postEventDocuments} archived={event.archived} />,
+      render: () => <PostEventDeliverablesPanel eventId={event.id} documents={vm.postEventDocuments} archived={event.archived} actualEndedAt={event.actualEndedAt ?? null} />,
     },
     archive: { render: () => closureStep("archive") },
   };

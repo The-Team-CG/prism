@@ -7,14 +7,15 @@ import { AUDIT_WRITER, type AuditWriter, writeAudit, EventAccessPolicyService, t
 import { FileRequirementsMatrixService } from '../files/file-requirements-matrix.service';
 import { COMMERCIAL_FACTS_READER, type CommercialFactsReader } from '@prism/contexts/read-models/commercial-facts-reader';
 import { LIFECYCLE_FACTS_READER, type LifecycleFactsReader } from '@prism/contexts/read-models/lifecycle-facts';
+import { RISK_RATINGS, riskSeverityFromRatings, type CreateComplianceRiskInput, type RiskRating, type UpdateComplianceRiskInput } from '@prism/types';
 import { COMPLIANCE_RULE_REGISTRY, evaluateComplianceRuleForPhase, type ComplianceEvaluationContext } from './compliance-rule-registry';
+
+function isRiskRating(value: unknown): value is RiskRating { return RISK_RATINGS.some((rating) => rating === value); }
 
 export type ComplianceRunInput = { phase?: string; trigger?: 'manual' | 'scheduled' | 'state_change' };
 export type ResolveComplianceInput = { action?: string; note?: string; overrideReason?: string };
 export type CreateComplianceRuleInput = { eventId?: string; eventType?: string; phase?: string; severity?: string; layer?: string; conditionKey: string; title: string; note?: string; active?: boolean };
 export type UpdateComplianceRuleInput = Partial<CreateComplianceRuleInput>;
-export type CreateComplianceRiskInput = { phase: string; title: string; severity?: string; owner?: string; mitigation?: string; status?: string; reason?: string };
-export type UpdateComplianceRiskInput = Partial<CreateComplianceRiskInput>;
 
 function setDefinedField(data: Record<string, unknown>, key: string, value: unknown, map?: (value: unknown) => unknown) {
   if (value !== undefined) data[key] = map ? map(value) : value;
@@ -168,9 +169,9 @@ export class ComplianceWorkflowService {
       validatePermission: () => this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'compliance risks', eventId),
       validateState: () => { if (action === 'create' && (!input.phase?.trim() || !input.title?.trim())) throw new BadRequestException('Risk phase and title are required'); if (input.status === 'closed' && !actor.name?.trim()) throw new BadRequestException('Closing actor is required'); },
       write: () => this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        const data = { phase: input.phase?.trim(), title: input.title?.trim(), severity: input.severity?.trim(), owner: input.owner?.trim(), mitigation: input.mitigation?.trim(), status: input.status?.trim(), source: action === 'create' ? 'pmcm' : undefined, closedAt: input.status === 'closed' ? new Date() : undefined, closedBy: input.status === 'closed' ? actor.name : undefined };
-        const risk = action === 'create' ? await tx.opsComplianceRisk.create({ data: { id: `crisk_${randomUUID()}`, eventId, phase: data.phase!, title: data.title!, severity: data.severity ?? 'medium', owner: data.owner ?? '', mitigation: data.mitigation ?? '', status: data.status ?? 'open', source: data.source!, closedAt: data.closedAt, closedBy: data.closedBy } }) : await tx.opsComplianceRisk.update({ where: { id: riskId!, eventId }, data });
-        await tx.opsComplianceRiskHistory.create({ data: { id: `criskh_${randomUUID()}`, riskId: risk.id, action, phase: risk.phase, severity: risk.severity, owner: risk.owner, mitigation: risk.mitigation, status: risk.status, actor: actor.name, reason: input.reason?.trim() ?? '' } });
+        const existing = action === 'update' ? await tx.opsComplianceRisk.findFirst({ where: { id: riskId!, eventId } }) : null; if (action === 'update' && !existing) throw new NotFoundException('Risk not found'); const likelihood = input.likelihood ?? existing?.likelihood ?? undefined; const impact = input.impact ?? existing?.impact ?? undefined; const ratingsChanged = input.likelihood !== undefined || input.impact !== undefined; const derivedSeverity = !input.severity && ratingsChanged && isRiskRating(likelihood) && isRiskRating(impact) ? riskSeverityFromRatings(likelihood, impact) : undefined; const data = { phase: input.phase?.trim(), title: input.title?.trim(), severity: input.severity?.trim() ?? derivedSeverity, likelihood: input.likelihood, impact: input.impact, owner: input.owner?.trim(), mitigation: input.mitigation?.trim(), status: input.status?.trim(), source: action === 'create' ? 'pmcm' : undefined, closedAt: input.status === 'closed' ? new Date() : undefined, closedBy: input.status === 'closed' ? actor.name : undefined };
+        const risk = action === 'create' ? await tx.opsComplianceRisk.create({ data: { id: `crisk_${randomUUID()}`, eventId, phase: data.phase!, title: data.title!, severity: data.severity ?? 'medium', likelihood: data.likelihood ?? null, impact: data.impact ?? null, owner: data.owner ?? '', mitigation: data.mitigation ?? '', status: data.status ?? 'open', source: data.source!, closedAt: data.closedAt, closedBy: data.closedBy } }) : await tx.opsComplianceRisk.update({ where: { id: riskId!, eventId }, data });
+        await tx.opsComplianceRiskHistory.create({ data: { id: `criskh_${randomUUID()}`, riskId: risk.id, action, phase: risk.phase, severity: risk.severity, likelihood: risk.likelihood, impact: risk.impact, owner: risk.owner, mitigation: risk.mitigation, status: risk.status, actor: actor.name, reason: input.reason?.trim() ?? '' } });
         return risk;
       }),
       sideEffects: async (risk) => { await writeAudit(this.auditWriter, eventId, actor.name, `${action === 'create' ? 'Created' : 'Updated'} compliance risk: ${risk.title}`, { actionType: action === 'create' ? AuditActionType.Create : AuditActionType.Update, category: AuditCategory.Compliance, affectedType: 'compliance_risk', affectedId: risk.id, affectedLabel: risk.title }); },
