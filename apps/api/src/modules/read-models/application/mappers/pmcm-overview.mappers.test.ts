@@ -89,6 +89,7 @@ describe('buildPmcmCalendarItems', () => {
       milestones: [milestone({ id: 'm1' }), milestone({ id: 'settled', amountPaid: 100_000 })],
       ocularVisits: [{ id: 'o1', eventId: 'e1', scheduledAt: new Date('2026-11-05T02:30:00.000Z') }],
       schedules: [{ id: 's1', eventId: 'e1', ingressAt: new Date('2026-11-19T22:00:00.000Z'), egressAt: new Date('2026-11-20T10:00:00.000Z'), location: 'Hall A', supplierName: 'XPERTO' }],
+      scheduleDays: [],
     });
 
     expect(items.map((item) => [item.date, item.startTime ?? null, item.kind])).toEqual([
@@ -102,5 +103,31 @@ describe('buildPmcmCalendarItems', () => {
     ]);
     expect(items.find((item) => item.kind === 'payment_due')?.detail).toContain('100,000');
     expect(items.some((item) => item.id === 'payment:settled')).toBe(false);
+  });
+
+  it('leads event days and other schedule days to their run sheet without doubling the event day', () => {
+    const items = buildPmcmCalendarItems({
+      from: '2026-11-01',
+      to: '2026-11-30',
+      events: [{ id: 'e1', eventName: 'Gala', eventDate: new Date('2026-11-20T00:00:00.000Z') }, { id: 'e2', eventName: 'Fair', eventDate: new Date('2026-11-25T00:00:00.000Z') }],
+      eventNames: new Map([['e1', 'Gala'], ['e2', 'Fair'], ['e3', 'Expo']]),
+      quoteRequests: [],
+      milestones: [],
+      ocularVisits: [],
+      schedules: [],
+      scheduleDays: [
+        { id: 'd1', eventId: 'e1', dayDate: new Date('2026-11-20T00:00:00.000Z'), label: 'Main day' },
+        { id: 'd0', eventId: 'e1', dayDate: new Date('2026-11-19T00:00:00.000Z'), label: 'Load-in' },
+        // An event whose own date is outside the window still shows its schedule days inside it.
+        { id: 'd3', eventId: 'e3', dayDate: new Date('2026-11-28T00:00:00.000Z'), label: '' },
+      ],
+    });
+
+    expect(items.map((item) => [item.date, item.kind, item.eventName, item.scheduleDayId ?? null, item.detail])).toEqual([
+      ['2026-11-19', 'schedule_day', 'Gala', 'd0', 'Load-in'],
+      ['2026-11-20', 'event', 'Gala', 'd1', 'Event day'],
+      ['2026-11-25', 'event', 'Fair', null, 'Event day'],
+      ['2026-11-28', 'schedule_day', 'Expo', 'd3', 'Event-day schedule'],
+    ]);
   });
 });

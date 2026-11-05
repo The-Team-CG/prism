@@ -9,8 +9,8 @@ function isAuthored(result: PrismEventRunSheetResult | null): result is PrismEve
   return Boolean(result && "entries" in result);
 }
 
-export function useRunSheetViewModel(eventId: string) {
-  const [dayId, setDayId] = useState<string | undefined>(undefined);
+export function useRunSheetViewModel(eventId: string, initialDayId?: string) {
+  const [dayId, setDayId] = useState<string | undefined>(initialDayId);
   const [result, setResult] = useState<PrismEventRunSheetResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,7 +35,7 @@ export function useRunSheetViewModel(eventId: string) {
   }, [eventId, dayId]);
 
   useEffect(() => { void reload(); }, [reload]);
-  useEffect(() => { setDayId(undefined); setResult(null); }, [eventId]);
+  useEffect(() => { setDayId(initialDayId); setResult(null); }, [eventId, initialDayId]);
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), NOW_TICK_MS);
     return () => clearInterval(timer);

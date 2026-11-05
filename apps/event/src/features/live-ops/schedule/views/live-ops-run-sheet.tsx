@@ -27,14 +27,16 @@ export type LiveOpsRunSheetViewProps = {
   printable?: boolean;
   /** Where the schedule is authored; offered when no run sheet exists yet. */
   scheduleHref?: string;
+  /** The calendar this run sheet is one day of; offered as a way back. */
+  calendarHref?: string;
   onSelectDay(dayId: string): void;
   onReload(): void;
   onPrint?(): void;
 };
 
 /** Event-scoped, role-projected run sheet. The API decides which entries this actor may see. */
-export function LiveOpsRunSheet({ eventId, printable = false, scheduleHref }: { eventId: string; printable?: boolean; scheduleHref?: string }) {
-  const vm = useRunSheetViewModel(eventId);
+export function LiveOpsRunSheet({ eventId, printable = false, scheduleHref, calendarHref, dayId }: { eventId: string; printable?: boolean; scheduleHref?: string; calendarHref?: string; dayId?: string }) {
+  const vm = useRunSheetViewModel(eventId, dayId);
   return (
     <LiveOpsRunSheetView
       runSheet={vm.runSheet}
@@ -46,6 +48,7 @@ export function LiveOpsRunSheet({ eventId, printable = false, scheduleHref }: { 
       selectedDayId={vm.selectedDayId}
       printable={printable}
       scheduleHref={scheduleHref}
+      calendarHref={calendarHref}
       onSelectDay={vm.selectDay}
       onReload={() => void vm.reload()}
       onPrint={printable ? () => window.print() : undefined}
@@ -84,6 +87,11 @@ function RunSheetControls({ props }: { props: LiveOpsRunSheetViewProps }) {
   const { runSheet } = props;
   return (
     <div className="flex flex-wrap items-center gap-2 print:hidden">
+      {props.calendarHref ? (
+        <Link href={props.calendarHref} className="inline-flex min-h-9 items-center rounded-md border border-border px-3 py-1.5 text-sm font-semibold text-foreground no-underline">
+          Back to calendar
+        </Link>
+      ) : null}
       {runSheet && runSheet.days.length > 1 ? (
         <label className="flex items-center gap-2 text-sm">
           <span className="text-muted-foreground">Day</span>

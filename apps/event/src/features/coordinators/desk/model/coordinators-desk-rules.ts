@@ -386,6 +386,24 @@ export function delegatedAttendanceTargets<T extends { id: string; status?: stri
   return assignments.filter((item) => item.id !== ownAssignmentId && isCoordinatorAssignmentActive(item));
 }
 
+const SUPPLIER_SITE_STEPS = [
+  { status: "arrived", label: "Arrived" },
+  { status: "set_up_ready", label: "Set up and ready" },
+  { status: "done_leaving", label: "Done and leaving" },
+] as const;
+
+export type SupplierSiteStep = (typeof SUPPLIER_SITE_STEPS)[number];
+
+/**
+ * The single forward step the API accepts next for a supplier (arrived, then set up and ready, then done and
+ * leaving). Any unreported state counts as before arrival. Null once complete or while readiness is unconfirmed.
+ */
+export function nextSupplierSiteStep(supplier: { readinessStatus?: string; eventDayStatus?: string }): SupplierSiteStep | null {
+  if (supplier.readinessStatus !== "confirmed") return null;
+  const index = SUPPLIER_SITE_STEPS.findIndex((step) => step.status === supplier.eventDayStatus);
+  return SUPPLIER_SITE_STEPS[index + 1] ?? null;
+}
+
 /** Only suppliers with a confirmed assignment are on site, so only those have a setup to check. */
 export function confirmedSupplierChecks<T extends { assignmentStatus?: string }>(suppliers: T[]): T[] {
   return suppliers.filter((supplier) => supplier.assignmentStatus === "confirmed");
