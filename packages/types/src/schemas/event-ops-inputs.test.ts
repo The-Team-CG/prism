@@ -40,6 +40,7 @@ import {
   verifySupplierStatusSchema,
   COORDINATOR_ROLES,
   createTemplateSchema,
+  isEmergencyCoordinatorWithdrawal,
   canonicalCoordinatorRole,
   coordinatorRoleSchema,
   coordinatorSuggestionsQuerySchema,
@@ -103,6 +104,22 @@ describe("venue library template contract", () => {
 });
 
 describe("coordinator role contracts", () => {
+  it("treats a withdrawal from 48 hours before the Manila event day until it ends as an emergency", () => {
+    // 18 Jun begins at 17 Jun 16:00 UTC in Manila, so the window is 15 Jun 16:00 UTC to 18 Jun 16:00 UTC.
+    const eventDate = "2026-06-18";
+    const at = (withdrawnAt: string, status = "cancelled") => isEmergencyCoordinatorWithdrawal({ status, withdrawnAt, eventDate });
+    expect(at("2026-06-15T16:00:00.000Z")).toBe(true);
+    expect(at("2026-06-17T20:00:00.000Z")).toBe(true);
+    expect(at("2026-06-18T09:00:00.000Z")).toBe(true);
+    expect(at("2026-06-18T15:59:59.000Z")).toBe(true);
+    expect(at("2026-06-15T15:59:59.000Z")).toBe(false);
+    expect(at("2026-06-18T16:00:00.000Z")).toBe(false);
+    expect(at("2026-06-19T00:00:00.000Z")).toBe(false);
+    expect(at("2026-06-17T20:00:00.000Z", "replaced")).toBe(false);
+    expect(isEmergencyCoordinatorWithdrawal({ status: "cancelled", withdrawnAt: null, eventDate })).toBe(false);
+    expect(isEmergencyCoordinatorWithdrawal({ status: "cancelled", withdrawnAt: "2026-06-17T00:00:00.000Z", eventDate: null })).toBe(false);
+  });
+
   it("accepts the seven canonical roles and rejects new role values outside the catalog", () => {
     expect(COORDINATOR_ROLES).toEqual([
       "General Coordinator",
