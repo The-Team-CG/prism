@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, UserCheck } from "lucide-react";
 
 import type {
@@ -9,6 +9,7 @@ import type {
   PrismCoordinator,
   PrismCoordinatorAssignment,
   PrismCoordinatorAvailability,
+  PrismCoordinatorPoolAvailability,
   PrismCoordinatorReliabilityHistoryEntry,
   PrismCoordinatorSuggestion,
   PrismEvent,
@@ -29,7 +30,7 @@ import {
 import { PendingAcknowledgmentsPanel } from "./coordinator-acknowledgment-panel";
 import { CoordinatorAvailabilityCard } from "./coordinator-availability-card";
 import { CoordinatorReliabilityHistory } from "./coordinator-reliability-history";
-import { CoverageTargetCard, StaffingSummary, type CoverageRequirement } from "./coordinator-coverage-cards";
+import { CoverageTargetCard, EmergencyWithdrawalsNotice, PoolAvailabilityNote, StaffingSummary, type CoverageRequirement } from "./coordinator-coverage-cards";
 import { Card, CardBody, CardHeader } from "./coordinator-desk-primitives";
 import { OperatorDesignationCard } from "./coordinator-operator-card";
 
@@ -51,6 +52,7 @@ export function CoordinatorAssignmentDesk({
   busy,
   onAssign,
   onLoadSuggestions,
+  onLoadPoolAvailability,
   onSaveCoverage,
   onSendReminders,
   onDesignateOperator,
@@ -68,6 +70,7 @@ export function CoordinatorAssignmentDesk({
   busy: boolean;
   onAssign: (coordinator: CoordinatorIdentity, role: CoordinatorRole, overrideConflict?: boolean) => Promise<void>;
   onLoadSuggestions: (role: CoordinatorRole, skills: string[]) => Promise<PrismCoordinatorSuggestion[]>;
+  onLoadPoolAvailability?: () => Promise<PrismCoordinatorPoolAvailability | null>;
   onSaveCoverage: (input: CreateCoordinatorCoverageRequirementInput) => Promise<boolean>;
   onSendReminders: () => Promise<PrismAcknowledgementReminderResult | null>;
   onDesignateOperator: (coordinatorId: string) => Promise<boolean>;
@@ -97,6 +100,17 @@ export function CoordinatorAssignmentDesk({
   const eventAssignments = assignments.filter((a) => a.eventId === event.id);
   const pendingAcknowledgments = eventAssignments.filter((a) => a.status === "pending_acknowledgement");
   const operatorCandidates = eventAssignments.filter(isOperatorEligibleAssignment);
+
+  const [pool, setPool] = useState<PrismCoordinatorPoolAvailability | null>(null);
+  // Assignments and withdrawals change who is free, so the count reloads whenever the roster of assignments does.
+  const assignmentSignature = eventAssignments.map((a) => a.id + ":" + a.status).join("|");
+  useEffect(() => {
+    if (!onLoadPoolAvailability) return;
+    let current = true;
+    onLoadPoolAvailability().then((next) => { if (current) setPool(next); }).catch(() => { if (current) setPool(null); });
+    return () => { current = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the loader is a fresh closure each render; the event and assignment state drive reloads
+  }, [event.id, assignmentSignature]);
 
   const roleOptions = COORDINATOR_ROLES;
   const skillOptions = useMemo(
@@ -172,7 +186,11 @@ export function CoordinatorAssignmentDesk({
 
   return (
     <div className="space-y-5">
+      <EmergencyWithdrawalsNotice assignments={eventAssignments} />
+
       <PendingAcknowledgmentsPanel assignments={pendingAcknowledgments} busy={busy} onSendReminders={onSendReminders} />
+
+      <PoolAvailabilityNote pool={pool} />
 
       <StaffingSummary roleRequirements={roleRequirements} assignmentCounts={assignmentCounts} eventEnded={hasEventDatePassed(event.eventDate, prismCalendarDateKey())} onEdit={setEditingTarget} />
 

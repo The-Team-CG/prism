@@ -66,6 +66,8 @@ export interface PrismCoordinatorAssignment {
   withdrawalReason?: string;
   withdrawnAt?: string | null;
   withdrawnBy?: string | null;
+  /** True when the coordinator withdrew inside the 48-hour emergency window before the event day. */
+  emergencyChange?: boolean;
   acknowledgementHistory?: PrismCoordinatorAssignmentAcknowledgment[];
   createdAt?: string;
 }
@@ -79,6 +81,17 @@ export interface PrismCoordinatorSuggestion {
   matchedSkillCount: number;
   requiredSkillCount: number;
 }
+/** Who is free to be staffed on an event's date, counted across the whole active coordinator pool. */
+export interface PrismCoordinatorPoolAvailability {
+  eventDate: string;
+  activeCoordinators: number;
+  available: number;
+  alreadyAssigned: number;
+  markedUnavailable: number;
+  /** Available coordinators per catalog role; a coordinator holding several role tags counts under each. */
+  availableByRole: Array<{ role: string; available: number }>;
+}
+
 export interface PrismCoordinatorAssignmentAcknowledgment {
   id: string;
   assignmentId: string;

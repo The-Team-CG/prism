@@ -7,6 +7,7 @@ import type {
   DecideEventTaskReassignmentInput,
   UpdateCoordinatorAttendanceInput,
   UpdateEventDayTaskInput,
+  ReportSupplierSiteStatusInput,
   VerifySupplierStatusInput,
   WithdrawCoordinatorAssignmentInput,
 } from "@prism/types";
@@ -124,5 +125,15 @@ export async function verifySupplierStatusAndRefreshRoleView(input: {
   input: VerifySupplierStatusInput;
 }) {
   await coordinatorsRepository.verifySupplierStatus(input.session, input.eventId, input.requestId, input.input);
+  return loadCoordinatorRoleView(input.session, input.eventId);
+}
+
+export async function reportSupplierStatusAndRefreshRoleView(input: {
+  session: EventSession;
+  eventId: string;
+  requestId: string;
+  input: ReportSupplierSiteStatusInput;
+}) {
+  await coordinatorsRepository.reportSupplierStatus(input.session, input.eventId, input.requestId, input.input);
   return loadCoordinatorRoleView(input.session, input.eventId);
 }
