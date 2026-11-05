@@ -1,9 +1,11 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsCoordinator, OpsCoordinatorAssignment, Prisma } from '@prisma/client';
 import {
+  COORDINATOR_EMERGENCY_WINDOW_HOURS,
   COORDINATOR_ROLES,
   canonicalCoordinatorRole,
   coordinatorRoleSchema,
+  isEmergencyCoordinatorWithdrawal,
   isWithinCoordinatorAttendanceWindow,
   prismCalendarDateKey,
 } from '@prism/types';
@@ -637,24 +639,28 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
       },
       sideEffects: async (assignment, transactionContext) => {
         const reason = input.reason?.trim();
+        const emergencyChange = isEmergencyCoordinatorWithdrawal(assignment);
         await Promise.all([
           this.reliabilityWriter.record({
             eventId,
             coordinatorId: assignment.coordinatorId,
             assignmentId: assignment.id,
-            note: `${assignment.coordinatorName} withdrew from ${assignment.role}${reason ? `: ${reason}` : ' (no reason provided)'}`,
+            note: `${assignment.coordinatorName} withdrew from ${assignment.role}${emergencyChange ? ` within ${COORDINATOR_EMERGENCY_WINDOW_HOURS} hours of the event` : ''}${reason ? `: ${reason}` : ' (no reason provided)'}`,
             severity: 'warning',
           }, transactionContext),
           this.auditWriter.write({
             eventId,
             actor: actor.name,
-            action: `Withdrew coordinator assignment for ${assignment.coordinatorName}`,
+            action: emergencyChange
+              ? `Emergency change: ${assignment.coordinatorName} withdrew from ${assignment.role} within ${COORDINATOR_EMERGENCY_WINDOW_HOURS} hours of the event`
+              : `Withdrew coordinator assignment for ${assignment.coordinatorName}`,
             actionType: AuditActionType.Update,
             category: AuditCategory.Events,
             affectedType: 'coordinator_assignment',
             affectedId: assignment.id,
             affectedLabel: assignment.coordinatorName,
-            metadata: { reason: input.reason ?? '' },
+            ...(emergencyChange ? { severity: 'critical' as const } : {}),
+            metadata: { reason: input.reason ?? '', emergencyChange },
           }, transactionContext),
           this.notificationOutboxWriter.write({
             eventId,
@@ -663,10 +669,31 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
             correlationId: commandContext.correlationId,
             idempotencyKey: `${commandContext.idempotencyKey}:notify`,
           }, transactionContext),
+          ...(emergencyChange ? await this.notifyPmcmOfEmergency(eventId, assignment, reason, commandContext, transactionContext) : []),
         ]);
       },
       project: (assignment) => mapCoordinatorAssignment(assignment),
     });
+  }
+
+  /** One email per approved PMCM admin, so a withdrawal inside the 48-hour window is acted on, not just recorded. */
+  private async notifyPmcmOfEmergency(
+    eventId: string,
+    assignment: OpsCoordinatorAssignment,
+    reason: string | undefined,
+    commandContext: PrismCommandContext,
+    transactionContext?: PrismTransactionContext,
+  ) {
+    const recipients = await this.coordinatorAccountEligibility.listPmcmAdminEmails(transactionContext);
+    return recipients.map((recipient) =>
+      this.notificationOutboxWriter.write({
+        eventId,
+        recipient,
+        message: `Emergency change: ${assignment.coordinatorName} withdrew from ${assignment.role} within ${COORDINATOR_EMERGENCY_WINDOW_HOURS} hours of the event${reason ? `: ${reason}` : '.'} Assign a replacement now.`,
+        correlationId: commandContext.correlationId,
+        idempotencyKey: `${commandContext.idempotencyKey}:emergency:${recipient}`,
+      }, transactionContext),
+    );
   }
 
   async replaceCoordinator(

@@ -23,6 +23,7 @@ export function EventDashboardTeamSectionView() {
     busy,
     assignCoordinator,
     loadCoordinatorSuggestions,
+    loadCoordinatorPoolAvailability,
     saveCoordinatorCoverage,
     sendCoordinatorAcknowledgementReminders,
     designateEventDayOperator,
@@ -52,6 +53,7 @@ export function EventDashboardTeamSectionView() {
           busy={Boolean(busy)}
           onAssign={assignCoordinator}
           onLoadSuggestions={loadCoordinatorSuggestions}
+          onLoadPoolAvailability={loadCoordinatorPoolAvailability}
           onSaveCoverage={saveCoordinatorCoverage}
           onSendReminders={sendCoordinatorAcknowledgementReminders}
           onDesignateOperator={designateEventDayOperator}

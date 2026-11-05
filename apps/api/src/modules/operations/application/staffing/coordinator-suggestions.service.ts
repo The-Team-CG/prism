@@ -2,13 +2,13 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsEvent, Prisma } from '@prisma/client';
 import { CoordinatorAssignmentStatus } from '@prism/kernel/event-core';
 import { PrismaService } from '@prism/kernel/database';
-import type { CoordinatorSuggestionsQueryInput, PrismCoordinatorSuggestion } from '@prism/types';
+import type { CoordinatorSuggestionsQueryInput, PrismCoordinatorPoolAvailability, PrismCoordinatorSuggestion } from '@prism/types';
 import { canonicalCoordinatorRole } from '@prism/types';
 import {
   OPERATIONS_EVENT_REFERENCE_READER,
   type OperationsEventReferenceReader,
 } from '@prism/contexts/event-lifecycle/operations-reference';
-import { rankCoordinatorSuggestions } from './coordinator-suggestion-rules';
+import { rankCoordinatorSuggestions, summarizePoolAvailability } from './coordinator-suggestion-rules';
 
 const STAFFING_QUERY_LIMIT = 500;
 
@@ -26,6 +26,20 @@ export class CoordinatorSuggestionsService {
     return this.listForConflict(event, query.role, undefined, this.prisma, query.skills);
   }
 
+  /** How many coordinators in the whole active pool are free, assigned elsewhere or blocked on the event's date. */
+  async poolAvailabilityForEvent(eventId: string): Promise<PrismCoordinatorPoolAvailability> {
+    const event = await this.eventReferences.findOperationsEvent(eventId);
+    if (!event) throw new NotFoundException('Event not found');
+
+    const pool = await this.loadPool(event, this.prisma);
+    return summarizePoolAvailability({
+      eventDate: event.eventDate.toISOString().slice(0, 10),
+      coordinators: pool.coordinators,
+      assignedIds: pool.busyIds,
+      unavailableIds: pool.unavailableIds,
+    });
+  }
+
   async listForConflict(
     event: Pick<OpsEvent, 'id' | 'eventDate'>,
     role: string,
@@ -36,6 +50,24 @@ export class CoordinatorSuggestionsService {
     const canonicalRole = canonicalCoordinatorRole(role);
     if (!canonicalRole) return [];
 
+    const { coverageRequirements, coordinators, busyIds, unavailableIds } = await this.loadPool(event, prisma);
+    const coverage = coverageRequirements.find((item) => canonicalCoordinatorRole(item.role) === canonicalRole);
+
+    return rankCoordinatorSuggestions({
+      coordinators: coordinators.filter(
+        (coordinator) => !busyIds.has(coordinator.id) && !unavailableIds.has(coordinator.id),
+      ),
+      role: canonicalRole,
+      requiredSkills: coverage?.requiredSkills ?? [],
+      selectedSkills,
+      excludeCoordinatorId,
+    });
+  }
+
+  private async loadPool(
+    event: Pick<OpsEvent, 'id' | 'eventDate'>,
+    prisma: Prisma.TransactionClient | PrismaService,
+  ) {
     const eventDateEnd = new Date(event.eventDate.getTime() + 24 * 60 * 60 * 1000);
     const [coverageRequirements, coordinators] = await Promise.all([
       prisma.opsEventCoverageRequirement.findMany({
@@ -72,18 +104,8 @@ export class CoordinatorSuggestionsService {
       }),
     ]);
 
-    const coverage = coverageRequirements.find((item) => canonicalCoordinatorRole(item.role) === canonicalRole);
     const busyIds = new Set(assignments.map((assignment) => assignment.coordinatorId).filter((id): id is string => Boolean(id)));
     const unavailableIds = new Set(unavailable.map((entry) => entry.coordinatorId));
-
-    return rankCoordinatorSuggestions({
-      coordinators: coordinators.filter(
-        (coordinator) => !busyIds.has(coordinator.id) && !unavailableIds.has(coordinator.id),
-      ),
-      role: canonicalRole,
-      requiredSkills: coverage?.requiredSkills ?? [],
-      selectedSkills,
-      excludeCoordinatorId,
-    });
+    return { coverageRequirements, coordinators, busyIds, unavailableIds };
   }
 }
