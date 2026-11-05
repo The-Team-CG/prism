@@ -20,6 +20,7 @@ import {
   delegatedAttendanceTargets,
   isCoordinatorAssignmentActive,
   isIngressOrEgressRole,
+  nextSupplierSiteStep,
   requiresAttendanceConfirmation,
   taskAssignedRoleOptions,
   type CoordinatorAttendanceChoice,
@@ -45,6 +46,7 @@ export type CoordinatorOperatorActionsModel = {
   supplierError: string | null;
   updateAttendance: (assignmentId: string, status: string) => void;
   verifySupplier: (requestId: string, verificationStatus: "verified" | "disputed", note?: string) => void;
+  reportSupplierStatus: (requestId: string, status: "arrived" | "set_up_ready" | "done_leaving", note?: string) => void;
 };
 
 type RoleViewTask = PrismCoordinatorRoleView["tasks"][number];
@@ -270,6 +272,11 @@ function CoordinatorSupplierChecks({ roleView, actions }: { roleView: PrismCoord
     setNote("");
   }
 
+  function report(supplier: SupplierStatus, status: "arrived" | "set_up_ready" | "done_leaving") {
+    actions.reportSupplierStatus(supplier.id, status, note);
+    setNote("");
+  }
+
   return (
     <CCard>
       <CCardHeader>
@@ -288,7 +295,7 @@ function CoordinatorSupplierChecks({ roleView, actions }: { roleView: PrismCoord
           </label>
         )}
         {suppliers.map((supplier) => (
-          <SupplierCheckRow key={supplier.id} supplier={supplier} busy={actions.supplierBusy} onCheck={(status) => check(supplier, status)} />
+          <SupplierCheckRow key={supplier.id} supplier={supplier} busy={actions.supplierBusy} onCheck={(status) => check(supplier, status)} onReport={(status) => report(supplier, status)} />
         ))}
         {actions.supplierError ? <p role="alert" className={FORM_ALERT}>{actions.supplierError}</p> : null}
       </CCardBody>
@@ -296,8 +303,14 @@ function CoordinatorSupplierChecks({ roleView, actions }: { roleView: PrismCoord
   );
 }
 
-function SupplierCheckRow({ supplier, busy, onCheck }: { supplier: SupplierStatus; busy: boolean; onCheck: (status: "verified" | "disputed") => void }) {
+function SupplierCheckRow({ supplier, busy, onCheck, onReport }: {
+  supplier: SupplierStatus;
+  busy: boolean;
+  onCheck: (status: "verified" | "disputed") => void;
+  onReport: (status: "arrived" | "set_up_ready" | "done_leaving") => void;
+}) {
   const reported = label(supplier.eventDayStatus || supplier.readinessStatus || "no update");
+  const next = nextSupplierSiteStep(supplier);
   const verification = label(supplier.verificationStatus ?? "self_reported");
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3">
@@ -307,7 +320,8 @@ function SupplierCheckRow({ supplier, busy, onCheck }: { supplier: SupplierStatu
           {reported} · verification {verification}{supplier.verifiedBy ? " by " + supplier.verifiedBy : ""}
         </p>
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
+        {next ? <Button type="button" size="sm" disabled={busy} onClick={() => onReport(next.status)}>Mark {next.label.toLowerCase()}</Button> : null}
         <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => onCheck("verified")}>Verify setup</Button>
         <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => onCheck("disputed")}>Dispute</Button>
       </div>

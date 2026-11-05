@@ -271,6 +271,7 @@ export function EventWorkspaceCoordinatorsTab() {
             busy={Boolean(vm.busy)}
             onAssign={vm.assignCoordinator}
             onLoadSuggestions={vm.loadCoordinatorSuggestions}
+            onLoadPoolAvailability={vm.loadCoordinatorPoolAvailability}
             onSaveCoverage={vm.saveCoordinatorCoverage}
             onSendReminders={vm.sendCoordinatorAcknowledgementReminders}
             onDesignateOperator={vm.designateEventDayOperator}
