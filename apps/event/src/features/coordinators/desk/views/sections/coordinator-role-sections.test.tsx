@@ -40,7 +40,7 @@ function renderRoleData(view: Record<string, unknown>, actions: { operator?: Rec
     issueForm: { title: "", setTitle: vi.fn(), severity: "high", setSeverity: vi.fn(), affectedArea: "", setAffectedArea: vi.fn(), description: "", setDescription: vi.fn(), slaDueAt: "", setSlaDueAt: vi.fn(), assignToMe: false, setAssignToMe: vi.fn(), busy: false, error: null, submit: vi.fn() },
     reassignment: { busy: false, error: null, request: vi.fn() },
     taskActions: { busy: false, error: null, updateStatus: vi.fn() },
-    operatorActions: { busy: false, error: null, supplierBusy: false, supplierError: null, updateAttendance: vi.fn(), verifySupplier: vi.fn(), ...actions.operator },
+    operatorActions: { busy: false, error: null, supplierBusy: false, supplierError: null, updateAttendance: vi.fn(), verifySupplier: vi.fn(), reportSupplierStatus: vi.fn(), ...actions.operator },
   };
   const props = { section, roleViewLoading: false, roleViewError: null, roleView: view, registrationRole: false, ...models };
   render(<CoordinatorRoleData {...(props as unknown as ComponentProps<typeof CoordinatorRoleData>)} />);
@@ -169,6 +169,35 @@ describe("supplier setup checks", () => {
 
     expect(models.operatorActions.verifySupplier).toHaveBeenCalledWith("req_ok", "disputed", "Generator not running");
     expect((screen.getByLabelText("Note for PMCM (optional)") as HTMLInputElement).value).toBe("");
+  });
+
+  it("offers each confirmed supplier only its next on-site step and passes the note with it", () => {
+    const models = renderRoleData(ingressView({
+      supplierStatuses: [
+        supplier({ id: "req_new", supplierName: "Harvest Table", eventDayStatus: "not_started" }),
+        supplier({ id: "req_set", supplierName: "Sound Co", eventDayStatus: "set_up_ready" }),
+        supplier({ id: "req_done", supplierName: "Florals", eventDayStatus: "done_leaving" }),
+        supplier({ id: "req_unready", supplierName: "Lights", eventDayStatus: "not_started", readinessStatus: "pending" }),
+      ],
+    }));
+
+    expect(screen.getAllByRole("button", { name: /^Mark / }).map((button) => button.textContent)).toEqual(["Mark arrived", "Mark done and leaving"]);
+
+    fireEvent.change(screen.getByLabelText("Note for PMCM (optional)"), { target: { value: "Truck at dock 2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Mark arrived" }));
+
+    expect(models.operatorActions.reportSupplierStatus).toHaveBeenCalledWith("req_new", "arrived", "Truck at dock 2", undefined);
+  });
+
+  it("sends a chosen setup photo with the status and clears it afterwards", () => {
+    const models = renderRoleData(ingressView({ supplierStatuses: [supplier({ id: "req_new", supplierName: "Harvest Table", eventDayStatus: "not_started" })] }));
+    const photo = new File(["x"], "dock.jpg", { type: "image/jpeg" });
+
+    fireEvent.change(screen.getByLabelText(/Photo of the setup/), { target: { files: [photo] } });
+    fireEvent.click(screen.getByRole("button", { name: "Mark arrived" }));
+
+    expect(models.operatorActions.reportSupplierStatus).toHaveBeenCalledWith("req_new", "arrived", "", photo);
+    expect((screen.getByLabelText(/Photo of the setup/) as HTMLInputElement).value).toBe("");
   });
 
   it("shows a failed check to a coordinator who is not the operator", () => {
