@@ -63,6 +63,14 @@ describe('ChangeManagementService automatic freeze', () => {
     );
   });
 
+  it('does not freeze an event before Manila midnight five days ahead', async () => {
+    const { service, updateMany } = setup([event({ id: 'evt_edge' })]);
+
+    await expect(service.freezeEventsDue(new Date('2026-10-04T15:59:00.000Z'))).resolves.toEqual({ frozen: 0 });
+    expect(updateMany).not.toHaveBeenCalled();
+    await expect(service.freezeEventsDue(new Date('2026-10-04T16:00:00.000Z'))).resolves.toEqual({ frozen: 1 });
+  });
+
   it('writes no audit and counts nothing when a manual freeze got there first', async () => {
     const { service, audit } = setup([event({ id: 'evt_due' })], 0);
 
