@@ -43,6 +43,7 @@ import type {
   CreateSupplierScheduleInput,
   PrismSupplierQuoteRequest,
   PrismVerifiedEventActor,
+  ReportSupplierSiteStatusInput,
   UploadContractInput,
   UploadMetadataInput,
 } from '@prism/types';
@@ -381,16 +382,61 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
     input: SupplierEventStatusInput,
     actor: ResolvedEventOpsActor,
   ) {
+    const updated = await this.applySupplierEventStatus({
+      name: 'update_supplier_event_status',
+      input,
+      actor,
+      loadRequest: () => this.requireSupplierQuoteRequestForActor(requestId, actor),
+    });
+    return mapSupplierQuoteRequestForSupplier(updated);
+  }
+
+  /**
+   * On-site report of a supplier's event-day status by the ingress coordinator, a designated operator or PMCM.
+   * It follows the supplier's forward-only order, so a coordinator cannot rewind a status; PMCM corrections
+   * stay on the reasoned correction path. The caller has already checked the coordinator's role for the event.
+   */
+  async reportSupplierEventStatusOnSite(
+    eventId: string,
+    requestId: string,
+    input: ReportSupplierSiteStatusInput,
+    actor: ResolvedEventOpsActor,
+  ) {
+    const updated = await this.applySupplierEventStatus({
+      name: 'report_supplier_event_status_on_site',
+      input,
+      actor,
+      eventId,
+      reportedOnSite: true,
+      loadRequest: async () => {
+        const request = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { id: requestId } });
+        if (request?.eventId !== eventId) throw new NotFoundException('Supplier quote request not found');
+        return request;
+      },
+    });
+    return mapSupplierQuoteRequest(updated);
+  }
+
+  private async applySupplierEventStatus(params: {
+    name: string;
+    input: SupplierEventStatusInput;
+    actor: ResolvedEventOpsActor;
+    eventId?: string;
+    reportedOnSite?: boolean;
+    loadRequest: () => Promise<OpsSupplierQuoteRequest>;
+  }) {
+    const { input, actor, reportedOnSite = false } = params;
     let request: OpsSupplierQuoteRequest | null = null;
     let photo: ValidatedUploadMetadata | null = null;
     let replay = false;
     let previousStatus = '';
 
-    const updated = await this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
-      name: 'update_supplier_event_status',
+    return this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
+      name: params.name,
       sideEffectMode: 'same_tx',
+      ...(params.eventId ? { eventId: params.eventId } : {}),
       validatePermission: async () => {
-        request = await this.requireSupplierQuoteRequestForActor(requestId, actor);
+        request = await params.loadRequest();
         if (request.status !== 'selected' || request.assignmentStatus !== 'confirmed' || request.readinessStatus !== 'confirmed') {
           throw new BadRequestException('Supplier event-day status requires confirmed assignment and readiness');
         }
@@ -430,11 +476,15 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
           affectedType: 'supplier_quote_request',
           affectedId: request.id,
           affectedLabel: request.supplierName,
-          metadata: { status: input.status, notes: input.notes ?? '', photoFileName: photo?.generatedFileName ?? null },
+          metadata: {
+            status: input.status,
+            notes: input.notes ?? '',
+            photoFileName: photo?.generatedFileName ?? null,
+            ...(reportedOnSite ? { reportedOnSite: true, reportedById: actor.id } : {}),
+          },
         }, transactionContext);
       },
     });
-    return mapSupplierQuoteRequestForSupplier(updated);
   }
 
   /**

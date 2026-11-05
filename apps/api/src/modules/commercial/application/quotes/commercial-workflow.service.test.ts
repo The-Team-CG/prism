@@ -203,6 +203,9 @@ describe('CommercialWorkflowService', () => {
         supplierName: 'Sonic Line Events',
         category: 'Technicals',
         categoryId: 'cat_tech',
+        amount: 180000,
+        inclusions: ['LED wall', 'Sound system'],
+        paymentTerms: '50% downpayment, 50% seven days before the event',
         status: 'received',
         createdAt: new Date('2026-06-20T08:00:00.000Z'),
         updatedAt: new Date('2026-06-20T08:00:00.000Z'),
@@ -225,7 +228,14 @@ describe('CommercialWorkflowService', () => {
       { id: 'qr_other', eventId: 'evt_sample', categoryId: 'cat_tech', status: 'submitted' },
     ];
     const prisma = {
-      opsEvent: { findUnique: vi.fn(async () => ({ id: 'evt_sample' })) },
+      opsEvent: { findUnique: vi.fn(async () => ({ id: 'evt_sample', eventName: 'Summit', eventDate: new Date('2026-10-01T00:00:00.000Z') })) },
+      opsSupplierSchedule: {
+        findUnique: vi.fn(async () => ({
+          ingressAt: new Date('2026-09-30T22:00:00.000Z'),
+          egressAt: new Date('2026-10-01T14:00:00.000Z'),
+          location: 'Loading dock B',
+        })),
+      },
       opsSupplierQuote: {
         findUnique: vi.fn(async ({ where }) => quotes.find((quote) => quote.id === where.id) ?? null),
         findMany: vi.fn(async ({ where }) => quotes
@@ -298,7 +308,7 @@ describe('CommercialWorkflowService', () => {
       expect.objectContaining({
         eventId: 'evt_sample',
         recipient: 'Sonic Line Events',
-        message: 'Your supplier quote was selected',
+        message: expect.stringMatching(/Summit on 2026-10-01.*LED wall; Sound system.*Loading dock B.*PHP 180,000.*50% downpayment/),
         idempotencyKey: 'supplier-quote-result:quote_selected:selected',
       }),
       undefined,
