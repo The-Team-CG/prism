@@ -30,7 +30,7 @@ export function browserEnvironment(databaseUrl, directory) {
     NODE_ENV: 'development', PORT: String(browserPorts.api), PRISM_SESSION_SECRET: randomBytes(32).toString('hex'), PRISM_SESSION_TTL_SECONDS: '28800',
     PRISM_TRUST_PROXY: 'true', PRISM_SEED_ENV: 'local', PRISM_MAIL_TRANSPORT: 'mailpit', PRISM_MAILPIT_URL: `http://127.0.0.1:${browserPorts.mailpit}`, RESEND_API_KEY: '',
     PRISM_STORAGE_PROVIDER: 'local', PRISM_STORAGE_LOCAL_DIRECTORY: join(directory, 'storage'), PRISM_DISABLE_CONFORME_REMINDER_JOB: 'true',
-    AI_PROVIDER: 'mock', AI_ROUTE_PROFILE: 'mock', PARE_MODE: 'mock', NEXT_TELEMETRY_DISABLED: '1',
+    PARE_MODE: 'mock', NEXT_TELEMETRY_DISABLED: '1',
     NEXT_PUBLIC_API_URL: `http://127.0.0.1:${browserPorts.api}`, NEXT_PUBLIC_PRISM_API_BASE_URL: `http://127.0.0.1:${browserPorts.api}/api`,
     NEXT_PUBLIC_CLIENT_ORIGIN: `http://127.0.0.1:${browserPorts.client}`, PRISM_NEXT_DIST_DIR: '.next-acceptance',
     CORS_ORIGIN: ['client', 'supplier', 'guest', 'event'].map(app => `http://127.0.0.1:${browserPorts[app]}`).join(','),

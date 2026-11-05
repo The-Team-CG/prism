@@ -7,21 +7,42 @@ import {
 } from '@prism/types';
 import type { AiToolHandler, AiUseCaseRegistry } from '../../../contracts/ai-governance/ai-gateway.port';
 import type { PAREContext } from './pare.types';
+import { MASKED_CANDIDATE_REASON } from './pare-model-view';
 
 const privateDataClasses = ['internal', 'personal'] as const;
 const emptyInputSchema = pareContextSchema.pick({}).strict();
 const supplierNameInputSchema = pareCandidateSchema.pick({ supplierName: true }).strict();
 
+const MASKED_IDENTITY_NOTE = [
+  'Identities are masked: replacement suppliers are named Candidate 1, Candidate 2 and so on in ranked order, and the client, event and withdrawn supplier names are placeholders.',
+  'Refer to suppliers only as Candidate N and never guess a real name.',
+].join(' ');
+
+/**
+ * PARE hands the model a masked view (see pare-model-view.ts). The gateway keeps a candidate name or id
+ * only when it is one of those aliases, so a raw supplier name or id is still flattened.
+ */
+const CANDIDATE_ALIAS_KEYS = {
+  supplierName: /^Candidate \d+$/,
+  supplierId: /^candidate-\d+$/,
+  reason: new RegExp('^' + MASKED_CANDIDATE_REASON + '$'),
+} as const;
+
+/** Free text the model needs: client preferences, and the analysis the earlier stages wrote. */
+const PREFERENCE_TEXT_KEYS = ['clientPreferences'] as const;
+const ANALYSIS_TEXT_KEYS = ['summary', 'costDeltaLabel', 'factors', 'recommendation'] as const;
+
 export const PARE_AI_USE_CASES = {
   'pare.budget': {
     id: 'pare.budget',
-    promptVersion: 'pare-budget-v2',
+    promptVersion: 'pare-budget-v3',
     systemPrompt: [
       'Use case: pare.budget.',
       'You are the P.R.I.S.M supplier replacement budget analyst.',
       'Assess the candidate against the event budget.',
       'Use read-only tools when useful. Never claim a supplier was selected or contacted.',
       'The PMCM approver makes every decision.',
+      MASKED_IDENTITY_NOTE,
       'Return only a JSON object with feasible, selectedCandidate, costDelta, costDeltaLabel, and summary. Copy all selectedCandidate fields from the supplied candidate. Do not add markdown or prose outside the JSON object.',
     ].join(' '),
     inputSchema: pareContextSchema,
@@ -32,16 +53,19 @@ export const PARE_AI_USE_CASES = {
     approval: 'pmcm-required',
     limits: { maxSteps: 6, maxOutputTokens: 1024, timeoutMs: 60_000, dailyTokenBudget: 50_000 },
     delivery: 'run',
+    freeTextKeys: [...PREFERENCE_TEXT_KEYS],
+    aliasKeys: CANDIDATE_ALIAS_KEYS,
   },
   'pare.risk': {
     id: 'pare.risk',
-    promptVersion: 'pare-risk-v2',
+    promptVersion: 'pare-risk-v3',
     systemPrompt: [
       'Use case: pare.risk.',
       'You are the P.R.I.S.M supplier replacement risk assessor.',
       'Assess timeline, client preferences, and the recommended replacement.',
       'Use read-only tools when useful.',
       'The PMCM approver makes every decision.',
+      MASKED_IDENTITY_NOTE,
       'Return only a JSON object with level (LOW, MEDIUM, or HIGH), factors (a string array), and recommendation (a string). Do not add markdown or prose outside the JSON object.',
     ].join(' '),
     inputSchema: pareContextSchema,
@@ -52,15 +76,19 @@ export const PARE_AI_USE_CASES = {
     approval: 'pmcm-required',
     limits: { maxSteps: 8, maxOutputTokens: 1024, timeoutMs: 90_000, dailyTokenBudget: 50_000 },
     delivery: 'run',
+    freeTextKeys: [...PREFERENCE_TEXT_KEYS],
+    aliasKeys: CANDIDATE_ALIAS_KEYS,
   },
   'pare.message-drafts': {
     id: 'pare.message-drafts',
-    promptVersion: 'pare-message-drafts-v2',
+    promptVersion: 'pare-message-drafts-v3',
     systemPrompt: [
       'Use case: pare.message-drafts.',
       'You draft supplier and client messages for P.R.I.S.M supplier replacement review.',
       'Use a professional, reassuring tone. Avoid claiming any message was sent.',
       'PMCM must approve before any sending.',
+      MASKED_IDENTITY_NOTE,
+      'Names are masked, so write [Client name] and [Supplier name] wherever a real name belongs; PMCM fills them in before anything is sent.',
       'Return only a JSON object with supplierNotification and clientReassurance as string fields. Encode paragraph breaks inside those strings. Do not add markdown or prose outside the JSON object.',
     ].join(' '),
     inputSchema: pareContextSchema,
@@ -71,6 +99,8 @@ export const PARE_AI_USE_CASES = {
     approval: 'pmcm-required',
     limits: { maxSteps: 6, maxOutputTokens: 2048, timeoutMs: 60_000, dailyTokenBudget: 50_000 },
     delivery: 'run',
+    freeTextKeys: [...PREFERENCE_TEXT_KEYS, ...ANALYSIS_TEXT_KEYS],
+    aliasKeys: CANDIDATE_ALIAS_KEYS,
   },
 } satisfies Pick<AiUseCaseRegistry, 'pare.budget' | 'pare.risk' | 'pare.message-drafts'>;
 

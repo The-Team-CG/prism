@@ -22,66 +22,65 @@ export type AiGatewayRuntimeConfig = {
   profileId: AiRouteProfileId;
   liveUseCases: ReadonlySet<AiUseCaseId>;
   isProduction: boolean;
-  /** True when local provider settings enable only the synthetic route defaults. */
-  localSyntheticProviderMode?: boolean;
+  /** Operator override that lets a production-mode deployment (for example UAT) use a non-ZDR route. */
+  allowTestDataInProduction?: boolean;
+  /** False when no provider is configured: every use case is blocked until one is. */
+  configured: boolean;
 };
 
-const ALL_DATA_CLASSES = ['synthetic', 'public', 'internal', 'personal', 'sensitive'] as const;
-type ExternalAiProvider = Exclude<AiProviderId, 'mock'>;
-const LOCAL_SYNTHETIC_PROFILE_BY_PROVIDER: Readonly<Record<ExternalAiProvider, string>> = {
-  anthropic: 'test-anthropic',
-  openrouter: 'test-openrouter-glm53-zdr',
-};
-const LOCAL_SYNTHETIC_USE_CASES: readonly AiUseCaseId[] = [
-  'pare.budget',
-  'pare.risk',
-  'pare.message-drafts',
-  'comms.draft',
-];
+const ZDR_DATA_CLASSES = ['synthetic', 'public', 'internal', 'personal'] as const;
+type ExternalAiProvider = AiProviderId;
 
+const ANTHROPIC_DEFAULT_MODEL = 'claude-sonnet-5-5';
+const OPENROUTER_DEFAULT_MODEL = 'z-ai/glm-5.3-flash';
+
+function anthropicRoute(zdrConfirmed: boolean): AiRoute {
+  return {
+    provider: 'anthropic',
+    model: ANTHROPIC_DEFAULT_MODEL,
+    endpointPolicyId: 'anthropic-direct',
+    adapterRevision: zdrConfirmed ? 'anthropic-messages-zdr-v1' : 'anthropic-messages-test-data-v1',
+    zdrBasis: zdrConfirmed ? 'provider-enforced' : 'test-data-only',
+    allowedDataClasses: [...ZDR_DATA_CLASSES],
+  };
+}
+
+const OPENROUTER_ROUTE: AiRoute = {
+  provider: 'openrouter',
+  model: OPENROUTER_DEFAULT_MODEL,
+  endpointPolicyId: 'fireworks',
+  adapterRevision: 'openrouter-chat-completions-zdr-v1',
+  zdrBasis: 'provider-enforced',
+  allowedDataClasses: [...ZDR_DATA_CLASSES],
+};
+
+/** Fixtures-only lockdown. Never selected automatically; choose it with AI_ROUTE_PROFILE to refuse real data. */
+const ANTHROPIC_FIXTURES_ONLY_ROUTE: AiRoute = {
+  ...anthropicRoute(false),
+  adapterRevision: 'anthropic-messages-v1',
+  zdrBasis: 'none',
+  allowedDataClasses: ['synthetic'],
+};
+
+function profileOf(id: string, route: AiRoute): AiRouteProfile {
+  return { id, routesByTier: { fast: route, strong: route } };
+}
+
+/**
+ * Selectable route profiles. Anthropic direct is ZDR only when the operator confirms a
+ * zero-data-retention agreement with AI_ZDR_CONFIRMED; otherwise it is a test-data route that
+ * production refuses. OpenRouter requests ZDR on every call and fails closed when the endpoint
+ * cannot honor it. anthropic-synthetic is an explicit fixtures-only lockdown.
+ */
 export const AI_ROUTE_PROFILES: Readonly<Record<string, AiRouteProfile>> = {
-  mock: {
-    id: 'mock',
-    routesByTier: {
-      fast: {
-        provider: 'mock', model: 'mock-v1', endpointPolicyId: 'deterministic-mock', adapterRevision: 'mock-v1',
-        zdrBasis: 'none', allowedDataClasses: [...ALL_DATA_CLASSES],
-      },
-      strong: {
-        provider: 'mock', model: 'mock-v1', endpointPolicyId: 'deterministic-mock', adapterRevision: 'mock-v1',
-        zdrBasis: 'none', allowedDataClasses: [...ALL_DATA_CLASSES],
-      },
-    },
-  },
-  'test-anthropic': {
-    id: 'test-anthropic',
-    routesByTier: {
-      fast: {
-        provider: 'anthropic', model: 'claude-sonnet-4-6', endpointPolicyId: 'anthropic-direct',
-        adapterRevision: 'anthropic-conformance-v1', zdrBasis: 'none', allowedDataClasses: ['synthetic'],
-      },
-      strong: {
-        provider: 'anthropic', model: 'claude-sonnet-4-6', endpointPolicyId: 'anthropic-direct',
-        adapterRevision: 'anthropic-conformance-v1', zdrBasis: 'none', allowedDataClasses: ['synthetic'],
-      },
-    },
-  },
-  'test-openrouter-glm53-zdr': {
-    id: 'test-openrouter-glm53-zdr',
-    routesByTier: {
-      fast: {
-        provider: 'openrouter', model: 'z-ai/glm-5.3-flash',
-        endpointPolicyId: 'fireworks', adapterRevision: 'openrouter-glm-5.3-flash-zdr-v1',
-        zdrBasis: 'none', allowedDataClasses: ['synthetic'],
-      },
-      strong: {
-        provider: 'openrouter', model: 'z-ai/glm-5.3-flash',
-        endpointPolicyId: 'fireworks', adapterRevision: 'openrouter-glm-5.3-flash-zdr-v1',
-        zdrBasis: 'none', allowedDataClasses: ['synthetic'],
-      },
-    },
-  },
+  'anthropic-zdr': profileOf('anthropic-zdr', anthropicRoute(true)),
+  'anthropic-test-data': profileOf('anthropic-test-data', anthropicRoute(false)),
+  'anthropic-synthetic': profileOf('anthropic-synthetic', ANTHROPIC_FIXTURES_ONLY_ROUTE),
+  'openrouter-zdr': profileOf('openrouter-zdr', OPENROUTER_ROUTE),
 };
+
+/** Placeholder when no provider is configured. It has no live use cases, so every call is blocked. */
+const UNCONFIGURED_PROFILE: AiRouteProfile = profileOf('unconfigured', anthropicRoute(false));
 
 function parseLiveUseCases(rawLiveUseCases: string): Set<AiUseCaseId> {
   const liveUseCases = new Set<AiUseCaseId>();
@@ -105,7 +104,7 @@ function readConfiguredModel(config: Pick<ConfigService, 'get'>, key: string): s
   return config.get<string>(key)?.trim() || undefined;
 }
 
-function providerFromLocalKeys(config: Pick<ConfigService, 'get'>): ExternalAiProvider | undefined {
+function providerFromKeys(config: Pick<ConfigService, 'get'>): ExternalAiProvider | undefined {
   const configuredProviders: ExternalAiProvider[] = [];
   if (config.get<string>('ANTHROPIC_API_KEY')?.trim()) configuredProviders.push('anthropic');
   if (config.get<string>('OPENROUTER_API_KEY')?.trim()) configuredProviders.push('openrouter');
@@ -137,7 +136,7 @@ function applyConfiguredModels(profile: AiRouteProfile, overrides: AiModelOverri
   if (!overrides.all && !overrides.fast && !overrides.strong) return profile;
 
   const providers = new Set(profileRoutes(profile).map((route) => route.provider));
-  if (providers.size !== 1 || providers.has('mock')) {
+  if (providers.size !== 1) {
     throw new Error('AI_MODEL settings require one selected external AI provider profile');
   }
   const provider = [...providers][0];
@@ -175,39 +174,39 @@ function assertProfileCompatible(
   profile: AiRouteProfile,
   liveUseCases: ReadonlySet<AiUseCaseId>,
   isProduction: boolean,
+  allowTestDataInProduction: boolean,
 ): void {
-  if (isProduction && profileRoutes(profile).some((route) =>
-    route.provider !== 'mock' && route.allowedDataClasses.length === 1 && route.allowedDataClasses[0] === 'synthetic')) {
-    throw new Error('A synthetic-only external AI route cannot be selected in production');
+  if (isProduction && !allowTestDataInProduction && liveUseCases.size > 0 &&
+    profileRoutes(profile).some((route) => route.zdrBasis !== 'provider-enforced')) {
+    throw new Error(
+      'Production AI routes must be ZDR: set AI_ZDR_CONFIRMED=true, select OpenRouter, or set AI_ALLOW_TEST_DATA_IN_PRODUCTION=true for a UAT deployment that holds only test data',
+    );
   }
 
   for (const useCaseId of liveUseCases) {
-    const definition = AI_USE_CASE_REGISTRY[useCaseId];
-    const route = resolveAiRoute(profile, useCaseId, definition.modelTier);
-    if (route.provider === 'mock') {
-      throw new Error('AI_LIVE_USE_CASES includes ' + useCaseId + ', but its selected route uses the mock provider');
-    }
+    resolveAiRoute(profile, useCaseId, AI_USE_CASE_REGISTRY[useCaseId].modelTier);
   }
 }
 
 type AiRuntimeEnvironment = {
-  configuredProfileId: string;
   explicitProfileId?: string;
-  isDevelopment: boolean;
   isProduction: boolean;
+  zdrConfirmed: boolean;
+  allowTestDataInProduction: boolean;
 };
 
+function isTruthyFlag(value: string | undefined): boolean {
+  const normalized = value?.trim().toLowerCase();
+  return normalized === 'true' || normalized === '1';
+}
+
 function readRuntimeEnvironment(config: Pick<ConfigService, 'get'>): AiRuntimeEnvironment {
-  const configuredProfileId = config.get<string>('AI_ROUTE_PROFILE')?.trim() || '';
-  const explicitProfileId = configuredProfileId && configuredProfileId !== 'mock'
-    ? configuredProfileId
-    : undefined;
-  const environment = config.get<string>('NODE_ENV')?.trim() || '';
+  const explicitProfileId = config.get<string>('AI_ROUTE_PROFILE')?.trim() || undefined;
   return {
-    configuredProfileId,
     explicitProfileId,
-    isDevelopment: environment === 'development',
-    isProduction: environment === 'production',
+    isProduction: config.get<string>('NODE_ENV')?.trim() === 'production',
+    zdrConfirmed: isTruthyFlag(config.get<string>('AI_ZDR_CONFIRMED')),
+    allowTestDataInProduction: isTruthyFlag(config.get<string>('AI_ALLOW_TEST_DATA_IN_PRODUCTION')),
   };
 }
 
@@ -215,21 +214,17 @@ function resolveRequestedProvider(
   config: Pick<ConfigService, 'get'>,
   environment: AiRuntimeEnvironment,
 ): AiProviderId | undefined {
-  const configuredProvider = readConfiguredProvider(config);
-  if (configuredProvider) return configuredProvider;
-  if (environment.isDevelopment && !environment.explicitProfileId) return providerFromLocalKeys(config);
-  return undefined;
+  return readConfiguredProvider(config) ?? (environment.explicitProfileId ? undefined : providerFromKeys(config));
 }
 
 function selectProfileId(
   environment: AiRuntimeEnvironment,
   requestedProvider: AiProviderId | undefined,
-): string {
+): string | undefined {
   if (environment.explicitProfileId) return environment.explicitProfileId;
-  if (requestedProvider && requestedProvider !== 'mock') {
-    return LOCAL_SYNTHETIC_PROFILE_BY_PROVIDER[requestedProvider];
-  }
-  return environment.configuredProfileId || 'mock';
+  if (requestedProvider === 'openrouter') return 'openrouter-zdr';
+  if (requestedProvider === 'anthropic') return environment.zdrConfirmed ? 'anthropic-zdr' : 'anthropic-test-data';
+  return undefined;
 }
 
 function loadSelectedProfile(
@@ -243,21 +238,17 @@ function loadSelectedProfile(
   if (parsedProfile.id !== selectedProfileId) {
     throw new Error('AI route profile registry key does not match profile ID: ' + selectedProfileId);
   }
-  const selectedProvider = profileProvider(parsedProfile);
-  if (requestedProvider && selectedProvider !== requestedProvider) {
+  if (requestedProvider && profileProvider(parsedProfile) !== requestedProvider) {
     throw new Error('AI_PROVIDER=' + requestedProvider + ' conflicts with AI_ROUTE_PROFILE=' + selectedProfileId);
   }
   return parsedProfile;
 }
 
-function resolveLiveUseCases(
-  config: Pick<ConfigService, 'get'>,
-  localSyntheticProviderMode: boolean,
-): Set<AiUseCaseId> {
+/** With a provider configured every use case is live. AI_LIVE_USE_CASES narrows that list. */
+function resolveLiveUseCases(config: Pick<ConfigService, 'get'>): Set<AiUseCaseId> {
   const rawLiveUseCases = config.get<string>('AI_LIVE_USE_CASES')?.trim() || '';
   if (rawLiveUseCases) return parseLiveUseCases(rawLiveUseCases);
-  if (localSyntheticProviderMode) return new Set<AiUseCaseId>(LOCAL_SYNTHETIC_USE_CASES);
-  return new Set<AiUseCaseId>();
+  return new Set<AiUseCaseId>(aiUseCaseIdSchema.options);
 }
 
 export function resolveAiGatewayRuntimeConfig(
@@ -267,28 +258,29 @@ export function resolveAiGatewayRuntimeConfig(
   const environment = readRuntimeEnvironment(config);
   const requestedProvider = resolveRequestedProvider(config, environment);
   const selectedProfileId = selectProfileId(environment, requestedProvider);
-  const parsedProfile = loadSelectedProfile(profiles, selectedProfileId, requestedProvider);
-  const selectedProfileProvider = profileProvider(parsedProfile);
-  const usesRuntimeProviderSelection = !environment.explicitProfileId &&
-    selectedProfileProvider !== undefined && selectedProfileProvider !== 'mock';
-  const runtimeProfile = usesRuntimeProviderSelection
-    ? { ...parsedProfile, id: 'local-' + selectedProfileProvider + '-synthetic' }
-    : parsedProfile;
-  const profile = applyConfiguredModels(runtimeProfile, {
+  if (!selectedProfileId) {
+    return {
+      profile: UNCONFIGURED_PROFILE,
+      profileId: UNCONFIGURED_PROFILE.id,
+      liveUseCases: new Set<AiUseCaseId>(),
+      isProduction: environment.isProduction,
+      configured: false,
+    };
+  }
+  const profile = applyConfiguredModels(loadSelectedProfile(profiles, selectedProfileId, requestedProvider), {
     all: readConfiguredModel(config, 'AI_MODEL'),
     fast: readConfiguredModel(config, 'AI_MODEL_FAST'),
     strong: readConfiguredModel(config, 'AI_MODEL_STRONG'),
   });
-
-  const localSyntheticProviderMode = environment.isDevelopment && usesRuntimeProviderSelection;
-  const liveUseCases = resolveLiveUseCases(config, localSyntheticProviderMode);
-  assertProfileCompatible(profile, liveUseCases, environment.isProduction);
+  const liveUseCases = resolveLiveUseCases(config);
+  assertProfileCompatible(profile, liveUseCases, environment.isProduction, environment.allowTestDataInProduction);
   return {
     profile,
     profileId: profile.id,
     liveUseCases,
     isProduction: environment.isProduction,
-    ...(localSyntheticProviderMode ? { localSyntheticProviderMode: true } : {}),
+    allowTestDataInProduction: environment.allowTestDataInProduction,
+    configured: true,
   };
 }
 

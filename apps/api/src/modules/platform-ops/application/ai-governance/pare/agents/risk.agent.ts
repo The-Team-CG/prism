@@ -1,7 +1,7 @@
 import type { AiGateway, AiSyntheticPareChain } from '../../../../contracts/ai-governance/ai-gateway.port';
 import type { PARERisk, PARERiskLevel, PAREContext, PARECandidate } from '../pare.types';
 import { assertPareExecutionAllowed } from '../pare-execution.policy';
-import { runPareAiUseCase, type PareAgentRunResult } from '../pare-ai-gateway';
+import { maskPareInput, runPareAiUseCase, type PareAgentRunResult } from '../pare-ai-gateway';
 import { createPareRiskToolHandlers } from '../pare-ai-use-cases';
 
 function timelineRisk(daysUntilEvent: number) {
@@ -82,6 +82,8 @@ export class RiskAgent {
   constructor(
     private readonly mode: 'mock' | 'live' = 'mock',
     private readonly gateway?: AiGateway,
+    /** Mask identities before the model sees them (live PARE on a route that allows real data). */
+    private readonly maskIdentity = false,
   ) {}
 
   async runPareRiskAgent(
@@ -92,11 +94,12 @@ export class RiskAgent {
     assertPareExecutionAllowed(this.mode);
     throwIfAborted(signal);
     if (this.mode === 'live') {
+      const input = this.maskIdentity ? maskPareInput(ctx) : ctx;
       return runPareAiUseCase(
         this.gateway,
         'pare.risk',
-        ctx,
-        createPareRiskToolHandlers(ctx),
+        input,
+        createPareRiskToolHandlers(input),
         signal,
         syntheticPareChain,
       );
