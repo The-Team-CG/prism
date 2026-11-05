@@ -7,7 +7,9 @@ import {
   parseContract,
   type CoordinatorRole,
   type CreateCoordinatorCoverageRequirementInput,
+  type PrismCoordinatorAssignment,
   type PrismCoordinatorCoverage,
+  type PrismCoordinatorPoolAvailability,
   type PrismCoordinatorRoleRequirement,
 } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
@@ -21,6 +23,37 @@ const LABEL_CLASS = "grid gap-1 text-xs font-semibold text-muted-foreground";
 
 function requirementSkills(requirement: CoverageRequirement | null): string[] {
   return requirement && "requiredSkills" in requirement ? requirement.requiredSkills : [];
+}
+
+/** How many coordinators in the whole pool are free on the event date, so PMCM knows the room before assigning. */
+export function PoolAvailabilityNote({ pool }: { pool: PrismCoordinatorPoolAvailability | null }) {
+  if (!pool) return null;
+  const elsewhere = pool.alreadyAssigned > 0 ? ` · ${pool.alreadyAssigned} assigned to events that day` : "";
+  const blocked = pool.markedUnavailable > 0 ? ` · ${pool.markedUnavailable} marked unavailable` : "";
+  return (
+    <p role="status" className="text-xs text-muted-foreground">
+      {pool.available} of {pool.activeCoordinators} active coordinators are free on {pool.eventDate}{elsewhere}{blocked}.
+    </p>
+  );
+}
+
+/** Coordinators who withdrew inside the 48-hour window: the replacement is urgent, so it is not left in history. */
+export function EmergencyWithdrawalsNotice({ assignments }: { assignments: PrismCoordinatorAssignment[] }) {
+  const emergencies = assignments.filter((assignment) => assignment.emergencyChange);
+  if (emergencies.length === 0) return null;
+  return (
+    <div role="alert" className="rounded-xl border border-danger/25 bg-danger/8 px-4 py-3">
+      <p className="text-sm font-bold text-danger">Emergency change: a coordinator withdrew within 48 hours of the event</p>
+      <ul className="mt-1.5 space-y-1 text-xs text-foreground">
+        {emergencies.map((assignment) => (
+          <li key={assignment.id}>
+            {assignment.coordinatorName} withdrew from {assignment.role}
+            {assignment.withdrawalReason ? `: ${assignment.withdrawalReason}` : ""}. Assign a replacement below.
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 export function StaffingSummary({ roleRequirements, assignmentCounts, eventEnded = false, onEdit }: {
