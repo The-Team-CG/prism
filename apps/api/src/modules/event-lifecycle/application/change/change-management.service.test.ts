@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ForbiddenException } from '@nestjs/common';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
@@ -24,6 +24,14 @@ describe('W26 deterministic snapshot comparison', () => {
 });
 
 describe('ChangeManagementService automatic freeze', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-01T00:00:00.000Z'));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   const event = (overrides: Record<string, unknown>) => ({
     id: 'evt_a',
     eventDate: new Date('2026-10-10T00:00:00.000Z'),

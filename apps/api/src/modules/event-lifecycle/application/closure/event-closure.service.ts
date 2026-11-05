@@ -120,13 +120,7 @@ export class EventClosureService {
         await this.createWrapUpRecord(eventId, event.actualEndedAt, input.mode ?? 'full', tx);
       const logistics = await readLogisticsEvidence(tx, eventId);
       const { sections, requiredItems, complete, acknowledged, now } = deriveWrapUpState(existing, logistics, input, new Date());
-      const egress = (sections as Record<string, { status?: string; evidence?: string }>).supplierEgress;
-      if (egress?.status === 'complete') {
-        const { outstanding } = await this.readSupplierEgress(eventId, tx);
-        if (outstanding.length > 0 && !egress.evidence?.trim()) {
-          throw new BadRequestException(`Explain why ${outstanding.join(', ')} have not reported leaving before confirming supplier egress`);
-        }
-      }
+      await this.requireEgressExplanation(eventId, sections, tx);
       const updated = await tx.opsEventWrapUp.update({
         where: { eventId },
         data: {
@@ -148,6 +142,16 @@ export class EventClosureService {
       }, { prisma: tx, correlationId: `wrap-up-update:${updated.id}:${updated.updatedAt.toISOString()}` });
       return this.withDerivedLogistics(updated, eventId, tx);
     }, { isolationLevel: 'Serializable' });
+  }
+
+  /** Supplier egress can be confirmed while suppliers have not reported leaving only with an explanation. */
+  private async requireEgressExplanation(eventId: string, sections: unknown, tx: Prisma.TransactionClient) {
+    const egress = (sections as Record<string, { status?: string; evidence?: string }>).supplierEgress;
+    if (egress?.status !== 'complete') return;
+    const { outstanding } = await this.readSupplierEgress(eventId, tx);
+    if (outstanding.length > 0 && !egress.evidence?.trim()) {
+      throw new BadRequestException(`Explain why ${outstanding.join(', ')} have not reported leaving before confirming supplier egress`);
+    }
   }
 
   async runWrapUpReminderSweep(now = new Date()) {

@@ -1,10 +1,18 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { automaticFreezeAt, isDueForAutomaticFreeze } from './auto-freeze.policy';
 
-const eventDate = new Date('2026-10-10T00:00:00.000Z');
-const base = { eventDate, freezeStatus: 'open', archived: false, actualEndedAt: null as Date | null };
-
 describe('automatic scope freeze', () => {
+  const eventDate = new Date('2026-10-10T00:00:00.000Z');
+  const base = { eventDate, freezeStatus: 'open', archived: false, actualEndedAt: null as Date | null };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-01T00:00:00.000Z'));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('is due at midnight Manila five days before the event day and stays due through that Manila day', () => {
     // 10 Oct is stored as 10 Oct 00:00 UTC; Manila midnight on 5 Oct is 4 Oct 16:00 UTC.
     expect(automaticFreezeAt(eventDate).toISOString()).toBe('2026-10-04T16:00:00.000Z');
