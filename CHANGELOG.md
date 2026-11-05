@@ -6,7 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-- Event scope now freezes by itself five days before the event day: an hourly sweep freezes open, live events (audited as the system, and a manual freeze that lands first is left alone). Turn it off with `PRISM_DISABLE_AUTO_FREEZE_JOB=1`.
+- Event scope now freezes by itself at midnight Philippine time five days before the event day: an hourly sweep freezes open, live events (audited as the system, and a manual freeze that lands first is left alone). Turn it off with `PRISM_DISABLE_AUTO_FREEZE_JOB=1`.
 - The compliance panel gives a readiness report from the latest completed run: not ready while any Must-Fix is outstanding (listing each with what to do), ready with follow-ups for outstanding lower layers or open high and critical risks, otherwise ready, with counts per layer.
 - Recorded risks now carry a likelihood and an impact (low, medium or high). When no severity is given, it is worked out from the two (1-2 low, 3-4 medium, 6 high, 9 critical); an explicit severity still wins. Existing and rule-raised risks stay unrated. Adds a migration for the two columns.
 - The wrap-up screen has the two sections the catalog lists: supplier egress confirmation (shows which confirmed suppliers have not reported done and leaving, and needs an explanation to confirm while any are outstanding) and additional billing items draft (up to 20 items kept as a draft). Wrap-ups completed before this stay complete. The post-event deliverables panel counts down to the 24-hour wrap-up deadline and says how late it is once past.

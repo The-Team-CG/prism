@@ -1,11 +1,13 @@
+import { prismEventDayStart } from '@prism/types';
+
 /** Catalog rule: event scope freezes automatically this many days before the event day. */
 export const AUTO_FREEZE_DAYS_BEFORE_EVENT = 5;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** The moment an open event is due to freeze: the start of its event day (UTC, as event dates are whole days) minus five days. */
+/** The moment an open event is due to freeze: five days before its event day begins in Philippine time. */
 export function automaticFreezeAt(eventDate: Date): Date {
-  return new Date(eventDate.getTime() - AUTO_FREEZE_DAYS_BEFORE_EVENT * DAY_MS);
+  return new Date(prismEventDayStart(eventDate).getTime() - AUTO_FREEZE_DAYS_BEFORE_EVENT * DAY_MS);
 }
 
 /**
@@ -17,5 +19,5 @@ export function isDueForAutomaticFreeze(
   now: Date,
 ): boolean {
   if (event.freezeStatus !== 'open' || event.archived || event.actualEndedAt) return false;
-  return now.getTime() >= automaticFreezeAt(event.eventDate).getTime() && now.getTime() < event.eventDate.getTime() + DAY_MS;
+  return now.getTime() >= automaticFreezeAt(event.eventDate).getTime() && now.getTime() < prismEventDayStart(event.eventDate).getTime() + DAY_MS;
 }

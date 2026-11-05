@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { mapAddendumConformeExecution } from './addendum-conforme.mappers';
 import { COMMERCIAL_ADDENDUM_IMPACT_WRITER, type CommercialAddendumImpactWriter } from '@prism/contexts/commercial';
 import { consumeApprovedFreezeException } from './freeze-exception-consumption';
+import { PRISM_BUSINESS_UTC_OFFSET_HOURS } from '@prism/types';
 import { AUTO_FREEZE_DAYS_BEFORE_EVENT, isDueForAutomaticFreeze } from '../../domain/auto-freeze.policy';
 import { CLIENT_CHANGE_REQUEST_SELECT, toClientChangeRequest } from '../../domain/client-change-request.projection';
 
@@ -97,7 +98,7 @@ export class ChangeManagementService {
         archived: false,
         freezeStatus: 'open',
         actualEndedAt: null,
-        eventDate: { lte: new Date(now.getTime() + AUTO_FREEZE_DAYS_BEFORE_EVENT * dayMs), gt: new Date(now.getTime() - dayMs) },
+        eventDate: { lte: new Date(now.getTime() + AUTO_FREEZE_DAYS_BEFORE_EVENT * dayMs + PRISM_BUSINESS_UTC_OFFSET_HOURS * 60 * 60 * 1000), gt: new Date(now.getTime() - dayMs) },
       },
       orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
       take: 100,
