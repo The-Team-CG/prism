@@ -21,6 +21,28 @@ function setDefinedField(data: Record<string, unknown>, key: string, value: unkn
   if (value !== undefined) data[key] = map ? map(value) : value;
 }
 
+/**
+ * The fields a risk create or update writes. With no explicit severity, a change to likelihood or impact
+ * derives one from the new rating combined with the stored one.
+ */
+function riskWriteData(
+  input: CreateComplianceRiskInput | UpdateComplianceRiskInput,
+  existing: { likelihood: string | null; impact: string | null } | null,
+  action: 'create' | 'update',
+  actorName: string,
+) {
+  const likelihood = input.likelihood ?? existing?.likelihood ?? undefined;
+  const impact = input.impact ?? existing?.impact ?? undefined;
+  const ratingsChanged = input.likelihood !== undefined || input.impact !== undefined;
+  const derivedSeverity = !input.severity && ratingsChanged && isRiskRating(likelihood) && isRiskRating(impact) ? riskSeverityFromRatings(likelihood, impact) : undefined;
+  const closing = input.status === 'closed';
+  return {
+    phase: input.phase?.trim(), title: input.title?.trim(), severity: input.severity?.trim() ?? derivedSeverity,
+    likelihood: input.likelihood, impact: input.impact, owner: input.owner?.trim(), mitigation: input.mitigation?.trim(), status: input.status?.trim(),
+    source: action === 'create' ? 'pmcm' : undefined, closedAt: closing ? new Date() : undefined, closedBy: closing ? actorName : undefined,
+  };
+}
+
 @Injectable()
 export class ComplianceWorkflowService {
   constructor(
@@ -169,7 +191,7 @@ export class ComplianceWorkflowService {
       validatePermission: () => this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'compliance risks', eventId),
       validateState: () => { if (action === 'create' && (!input.phase?.trim() || !input.title?.trim())) throw new BadRequestException('Risk phase and title are required'); if (input.status === 'closed' && !actor.name?.trim()) throw new BadRequestException('Closing actor is required'); },
       write: () => this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        const existing = action === 'update' ? await tx.opsComplianceRisk.findFirst({ where: { id: riskId!, eventId } }) : null; if (action === 'update' && !existing) throw new NotFoundException('Risk not found'); const likelihood = input.likelihood ?? existing?.likelihood ?? undefined; const impact = input.impact ?? existing?.impact ?? undefined; const ratingsChanged = input.likelihood !== undefined || input.impact !== undefined; const derivedSeverity = !input.severity && ratingsChanged && isRiskRating(likelihood) && isRiskRating(impact) ? riskSeverityFromRatings(likelihood, impact) : undefined; const data = { phase: input.phase?.trim(), title: input.title?.trim(), severity: input.severity?.trim() ?? derivedSeverity, likelihood: input.likelihood, impact: input.impact, owner: input.owner?.trim(), mitigation: input.mitigation?.trim(), status: input.status?.trim(), source: action === 'create' ? 'pmcm' : undefined, closedAt: input.status === 'closed' ? new Date() : undefined, closedBy: input.status === 'closed' ? actor.name : undefined };
+        const existing = action === 'update' ? await tx.opsComplianceRisk.findFirst({ where: { id: riskId!, eventId } }) : null; if (action === 'update' && !existing) throw new NotFoundException('Risk not found'); const data = riskWriteData(input, existing, action, actor.name);
         const risk = action === 'create' ? await tx.opsComplianceRisk.create({ data: { id: `crisk_${randomUUID()}`, eventId, phase: data.phase!, title: data.title!, severity: data.severity ?? 'medium', likelihood: data.likelihood ?? null, impact: data.impact ?? null, owner: data.owner ?? '', mitigation: data.mitigation ?? '', status: data.status ?? 'open', source: data.source!, closedAt: data.closedAt, closedBy: data.closedBy } }) : await tx.opsComplianceRisk.update({ where: { id: riskId!, eventId }, data });
         await tx.opsComplianceRiskHistory.create({ data: { id: `criskh_${randomUUID()}`, riskId: risk.id, action, phase: risk.phase, severity: risk.severity, likelihood: risk.likelihood, impact: risk.impact, owner: risk.owner, mitigation: risk.mitigation, status: risk.status, actor: actor.name, reason: input.reason?.trim() ?? '' } });
         return risk;
