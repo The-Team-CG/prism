@@ -145,3 +145,10 @@ export const verifySupplierStatusSchema = z.object({
   notes: optionalTrimmedStringSchema,
 });
 export type VerifySupplierStatusInput = z.infer<typeof verifySupplierStatusSchema>;
+
+/** On-site report of a supplier's event-day status by the ingress coordinator, a designated operator or PMCM. */
+export const reportSupplierSiteStatusSchema = z.object({
+  status: z.enum(["arrived", "set_up_ready", "done_leaving"]),
+  notes: optionalTrimmedStringSchema,
+});
+export type ReportSupplierSiteStatusInput = z.infer<typeof reportSupplierSiteStatusSchema>;

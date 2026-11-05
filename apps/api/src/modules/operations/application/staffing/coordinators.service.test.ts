@@ -967,6 +967,7 @@ describe('Coordinator staffing workflows', () => {
       const withdrawn = await service.withdrawCoordinator(event.id, created.id, { reason: 'No longer available' }, pmcmAdminActor);
 
       expect(withdrawn.status).toBe('cancelled');
+      expect(withdrawn.emergencyChange).toBe(false);
       expect(fake.reliabilityNotes).toHaveLength(1);
       expect(fake.reliabilityNotes[0]).toMatchObject({
         eventId: event.id,
@@ -977,6 +978,32 @@ describe('Coordinator staffing workflows', () => {
       });
       expect(fake.notifications.length).toBeGreaterThan(0);
       expect(fake.audits.some((entry: any) => entry.action?.includes('Withdrew'))).toBe(true);
+    });
+
+    it('flags a withdrawal inside the 48-hour window as an emergency change in the audit trail and reliability note', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      try {
+        vi.setSystemTime(new Date('2026-06-17T12:00:00.000Z'));
+        const fake = createPrisma();
+        const service = createService(fake.prisma as any);
+        const created = await service.assignCoordinator(
+          event.id,
+          { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true },
+          pmcmAdminActor,
+        );
+
+        const withdrawn = await service.withdrawCoordinator(event.id, created.id, { reason: 'Family emergency' }, pmcmAdminActor);
+
+        expect(withdrawn.emergencyChange).toBe(true);
+        expect(fake.reliabilityNotes[0].note).toBe('Marco Santos withdrew from Floor Director within 48 hours of the event: Family emergency');
+        expect(fake.audits).toContainEqual(expect.objectContaining({
+          action: expect.stringContaining('Emergency change: Marco Santos withdrew from Floor Director'),
+          severity: 'critical',
+          metadata: expect.objectContaining({ emergencyChange: true }),
+        }));
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('allows the owning Coordinator to withdraw with a required reason', async () => {
