@@ -39,6 +39,8 @@ import {
   updateCoordinatorAttendanceSchema,
   verifySupplierStatusSchema,
   COORDINATOR_ROLES,
+  supplierCapacityRatingSchema,
+  updateSupplierSchema,
   canonicalCoordinatorRole,
   coordinatorRoleSchema,
   coordinatorSuggestionsQuerySchema,
@@ -85,6 +87,15 @@ describe("privacy legal hold contracts", () => {
     }).success).toBe(false);
     expect(releasePrivacyLegalHoldSchema.safeParse({ reason: "Counsel confirmed release" }).success).toBe(true);
     expect(releasePrivacyLegalHoldSchema.safeParse({ reason: "  " }).success).toBe(false);
+  });
+});
+
+describe("supplier capacity rating contract", () => {
+  it("takes small, medium or large on create and update, lets update clear it with null, and rejects other sizes", () => {
+    expect(["small", "medium", "large"].every((rating) => supplierCapacityRatingSchema.safeParse(rating).success)).toBe(true);
+    expect(createSupplierSchema.safeParse({ categoryId: "cat_1", name: "Acme", capacityRating: "large" }).success).toBe(true);
+    expect(updateSupplierSchema.safeParse({ capacityRating: null }).success).toBe(true);
+    expect(createSupplierSchema.safeParse({ categoryId: "cat_1", name: "Acme", capacityRating: "huge" }).success).toBe(false);
   });
 });
 

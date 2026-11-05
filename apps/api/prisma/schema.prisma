@@ -941,6 +941,7 @@ model OpsSupplier {
   bniMember         Boolean  @default(false) @map("bni_member")
   serviceInclusions String   @default("") @map("service_inclusions")
   performanceNotes  String   @default("") @map("performance_notes")
+  capacityRating    String?  @map("capacity_rating")
   applicationDate   DateTime @default(now()) @map("application_date")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
