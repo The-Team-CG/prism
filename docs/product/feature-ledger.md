@@ -218,11 +218,11 @@ Of the Prism-scope rows (the prototype scope), only Supplier Unresponsive Escala
 
 **Partial, by family:**
 
-- **FL-001/FL-002/FL-005:** No MOA/NDA document type and no pre-conforme notes; billing statements are generated manually rather than on signing; the proposal flow has no revision comments, Word template upload, or program-flow input; payment terms are fixed at 50/50 in the UI; cancellation has no automatic fee calculation.
-- **FL-007/FL-008:** No Capacity/Scale Rating on suppliers; no automatic reliability notes on withdrawal; quotes show only event name, category and date; assignment notices carry no deliverables, ingress or payment terms; no coordinator pool-wide availability count; no 48-hour Emergency Change trigger; ingress and egress assistants have no Arrived, Set up or Done controls.
-- **FL-009/FL-013:** The compliance engine is nine deterministic rules with no readiness report; the risk register has no likelihood or impact; the change freeze is set manually rather than five days before the event; post-event documents have no deadline countdown; the wrap-up screen has no supplier-egress or billing-draft section.
-- **FL-011:** Client annotation is a form, not on the canvas; the venue library omits permanent features; the table list has no private-event or 200-guest gate and no printable seating list.
-- **FL-012:** Check-in covers name search and headcount only; game templates differ from the V4 five; guest media is recorded as `pending_storage`.
+- **FL-001/FL-002/FL-005:** No MOA/NDA document type and no pre-conforme notes; billing statements are generated manually rather than on signing; the proposal flow has no revision comments, Word template upload, or program-flow input; cancellation has no automatic fee calculation (the decision form takes the fee by hand).
+- **FL-007/FL-008:** Quotes show only event name, category and date. A coordinator withdrawal inside 48 hours of the event is flagged as an Emergency Change, audited as critical and emailed to PMCM, but it does not start PARE while live AI is gated.
+- **FL-009/FL-013:** The compliance engine is nine deterministic rules. The five-day change freeze runs on UTC event days, and drafted wrap-up billing items are not turned into billing automatically.
+- **FL-011:** Annotation pin hit-testing ignores object rotation. Every event counts as private, so only the 200-guest limit gates the seating list.
+- **FL-012:** Check-in covers name search and headcount only, since QR and camera entry stay gated; game templates differ from the V4 five; guest media is recorded as `pending_storage`.
 - **FL-014:** Only email is delivered. Viber is queued but has no provider, and there is no recipient language preference.
 
 ## Next Ledger Maintenance
