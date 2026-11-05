@@ -115,6 +115,7 @@ export class SuppliersService {
         bniMember: Boolean(input.bniMember),
         serviceInclusions: input.serviceInclusions?.trim() ?? '',
         performanceNotes: input.performanceNotes?.trim() ?? '',
+        capacityRating: input.capacityRating ?? null,
       },
     });
 
@@ -136,6 +137,7 @@ export class SuppliersService {
           ...(input.phone !== undefined ? { phone: input.phone.trim() } : {}),
           ...(input.serviceInclusions !== undefined ? { serviceInclusions: input.serviceInclusions.trim() } : {}),
           ...(input.performanceNotes !== undefined ? { performanceNotes: input.performanceNotes.trim() } : {}),
+          ...(input.capacityRating !== undefined ? { capacityRating: input.capacityRating } : {}),
         },
       })
       .catch(() => {
@@ -474,6 +476,7 @@ export class SuppliersService {
       phone: supplier.phone,
       serviceInclusions: supplier.serviceInclusions,
       performanceNotes: supplier.performanceNotes,
+      capacityRating: toCapacityRating(supplier.capacityRating),
       applicationDate: isoDate(supplier.applicationDate),
       aggregateRating,
       lastEventDate: datedEvents[0] ? isoDate(datedEvents[0].eventDate) : null,
@@ -550,4 +553,8 @@ export class SuppliersService {
     });
     return this.attachSupplierEventsToRows(suppliers);
   }
+}
+
+function toCapacityRating(value: string | null): 'small' | 'medium' | 'large' | null {
+  return value === 'small' || value === 'medium' || value === 'large' ? value : null;
 }

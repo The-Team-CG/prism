@@ -6,6 +6,9 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Billing sources take payment terms other than 50/50: up to three named milestones totalling 100%, shown with a running total. A downpayment under 50% needs a repeat-client reason before the source can be created, as the API already required.
+- Suppliers carry a capacity or scale rating (small, medium or large, or not rated) that PMCM sets on the supplier profile and sees in the profile drawer. It is PMCM-only. Adds a migration for one nullable column.
+- Withdrawing a booked supplier now writes a reliability note on their profile by itself (event, category and reason), once per assignment, instead of relying on PMCM to add one.
 - Coordinators get a Calendar on the shared portal calendar: the day of every event they are assigned to, plus the open event's task deadlines and its other schedule days. Each item opens in a side panel with a button to My shift, Tasks or the run sheet for that event.
 - The PMCM calendar shows each event's schedule days (load-in, load-out, extra days) next to the event day, and every day that has a schedule leads to its run sheet. The run sheet opens on that day and has a "Back to calendar" link. `GET /api/pmcm/calendar` items gain a `schedule_day` kind and an optional `scheduleDayId`.
 - Calendars (PMCM, supplier, client): "+N more" opens a small list of that day's items instead of switching view, and clicking an item opens its details in a side panel with a button to the place it is handled. Supplier calendar entries now name the thing (the event, the quote category) instead of just "Arrive" or "Quote due".

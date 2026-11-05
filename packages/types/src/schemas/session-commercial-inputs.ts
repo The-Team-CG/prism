@@ -23,6 +23,11 @@ export const requestSupplierQuotesSchema = z.object({
 });
 export type RequestSupplierQuotesInput = z.infer<typeof requestSupplierQuotesSchema>;
 
+/** PMCM's own sizing of how big an event a supplier can serve, relative to their category (catalog FR-14, FR-35). */
+export const SUPPLIER_CAPACITY_RATINGS = ["small", "medium", "large"] as const;
+export const supplierCapacityRatingSchema = z.enum(SUPPLIER_CAPACITY_RATINGS);
+export type SupplierCapacityRating = z.infer<typeof supplierCapacityRatingSchema>;
+
 export const createSupplierSchema = z.object({
   categoryId: nonEmptyStringSchema,
   name: nonEmptyStringSchema,
@@ -33,6 +38,8 @@ export const createSupplierSchema = z.object({
   bniMember: z.boolean().optional(),
   serviceInclusions: optionalTrimmedStringSchema,
   performanceNotes: optionalTrimmedStringSchema,
+  /** Null clears the rating back to unrated. */
+  capacityRating: supplierCapacityRatingSchema.nullable().optional(),
 });
 export type CreateSupplierInput = z.infer<typeof createSupplierSchema>;
 
