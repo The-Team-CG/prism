@@ -14,7 +14,7 @@ export class HealthController {
       status: 'ok',
       service: 'p.r.i.s.m api',
       aiGateway: {
-        profile: this.aiGatewayStatus?.profile ?? 'mock',
+        profile: this.aiGatewayStatus?.profile ?? 'unconfigured',
         providerCallsEnabled: this.aiGatewayStatus?.providerCallsEnabled ?? false,
       },
     };

@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
-import { pareBudgetAnalysisSchema, pareRiskSchema, type AiRouteProfile, type AiSyntheticProvenance } from '@prism/types';
+import { pareBudgetAnalysisSchema, pareRiskSchema, type AiSyntheticProvenance } from '@prism/types';
 import type { PrismaService } from '@prism/kernel/database';
 import type { AiProviderAdapter, AiProviderRequest, AiProviderResponse } from '../../../contracts/ai-governance/ai-gateway.port';
 import type { AiGatewayRuntimeConfig } from './ai-gateway.config';
 import { AI_ROUTE_PROFILES, resolveAiGatewayRuntimeConfig } from './ai-gateway.config';
+import { digestJson } from '../json-digest';
 import { AiGatewayService } from './ai-gateway.service';
 import {
   SyntheticFixtureRegistry,
@@ -16,7 +17,7 @@ import {
   SYNTHETIC_PARE_TOOL_RESULT_FIXTURES,
   SYNTHETIC_TOOL_RESULT_FIXTURE,
 } from './synthetic-fixture-registry';
-import { MockAiProviderAdapter } from '../../../infrastructure/ai-governance/mock-ai-provider.adapter';
+import { FAKE_ZDR_ENV, FakeAiProviderAdapter } from '../../../infrastructure/ai-governance/fake-ai-provider.test-support';
 import { AnthropicProviderAdapter, createAnthropicProviderClient } from '../../../infrastructure/ai-governance/anthropic-provider.adapter';
 import { BudgetAgent } from '../pare/agents/budget.agent';
 import { createPareBudgetToolHandlers, createPareMessageDraftToolHandlers, createPareRiskToolHandlers } from '../pare/pare-ai-use-cases';
@@ -55,24 +56,33 @@ function fakePrisma(options: { allowBudget?: boolean } = {}) {
   return { prisma: prisma as unknown as PrismaService, tx, audits: auditRows };
 }
 
-function runtime(values: Record<string, string | undefined> = {}): AiGatewayRuntimeConfig {
+/** Defaults to the real-data Anthropic route (ZDR confirmed), the one the fake provider stands in for. */
+function runtime(values: Record<string, string | undefined> = { ...FAKE_ZDR_ENV }): AiGatewayRuntimeConfig {
   return resolveAiGatewayRuntimeConfig(config(values));
 }
 
 function gateway(
   prisma: PrismaService,
   aiRuntime: AiGatewayRuntimeConfig = runtime(),
-  adapter: AiProviderAdapter = new MockAiProviderAdapter(),
+  adapter: AiProviderAdapter = new FakeAiProviderAdapter(),
   syntheticVerifier: { verify(input: unknown): Promise<AiSyntheticProvenance | null> } = new SyntheticFixtureRegistry(),
 ) {
-  const mockAdapter = new MockAiProviderAdapter();
-  return new AiGatewayService(
-    prisma,
-    aiRuntime,
-    adapter.provider === 'mock' ? [adapter] : [mockAdapter, adapter],
-    syntheticVerifier,
-  );
+  return new AiGatewayService(prisma, aiRuntime, [adapter], syntheticVerifier);
 }
+
+const TRIAGE_INPUT = {
+  inquiryId: 'inquiry-real-42',
+  eventType: 'Corporate gala',
+  clientType: 'corporate',
+  eventDate: '2026-12-05',
+  daysUntilEvent: 29,
+  hasOrganization: true,
+  source: 'referral',
+  referralDetails: 'Referred by a past client',
+  message: 'We expect 200 guests. Reach me at maria.lopez@example.com or +63 917 123 4567 to discuss.',
+  duplicateInquiryCount: 0,
+  previouslyDeclined: false,
+};
 
 class CountingAnthropicAdapter implements AiProviderAdapter {
   readonly provider = 'anthropic' as const;
@@ -94,7 +104,7 @@ class CountingAnthropicAdapter implements AiProviderAdapter {
 
 class CountingOpenRouterAdapter implements AiProviderAdapter {
   readonly provider = 'openrouter' as const;
-  readonly endpointPolicyId = 'fake-openrouter';
+  readonly endpointPolicyId = 'fireworks';
   run = vi.fn(async (): Promise<AiProviderResponse> => ({
     text: JSON.stringify(SYNTHETIC_PARE_MESSAGE_CONTEXT_FIXTURE.budgetAnalysis),
     toolCalls: [],
@@ -127,20 +137,53 @@ const PARE_EVALUATION_SCENARIOS = [
 ] as const;
 
 describe('AI gateway core', () => {
-  it('defaults to the mock profile and rejects live routes with invalid configuration', () => {
-    expect(runtime().profileId).toBe('mock');
-    expect(runtime().liveUseCases.size).toBe(0);
-    expect(() => runtime({ AI_ROUTE_PROFILE: 'openrouter' })).toThrow(/Unsupported AI_ROUTE_PROFILE/);
-    expect(() => runtime({ AI_ROUTE_PROFILE: 'openrouter', AI_LIVE_USE_CASES: 'pare.risk', ANTHROPIC_API_KEY: 'configured' })).toThrow(/Unsupported AI_ROUTE_PROFILE/);
-    expect(runtime({ AI_ROUTE_PROFILE: 'test-anthropic', AI_LIVE_USE_CASES: 'comms.draft' }).profileId).toBe('test-anthropic');
-    expect(() => runtime({ AI_ROUTE_PROFILE: 'test-anthropic', AI_LIVE_USE_CASES: 'pare.unknown', ANTHROPIC_API_KEY: 'configured' })).toThrow(/Unsupported AI live use case/);
-    expect(() => runtime({ AI_ROUTE_PROFILE: 'test-anthropic', NODE_ENV: 'production' })).toThrow(/synthetic-only.*production/i);
-    expect(() => runtime({ AI_ROUTE_PROFILE: 'test-anthropic', AI_LIVE_USE_CASES: 'pare.risk', ANTHROPIC_API_KEY: 'configured', NODE_ENV: 'production' })).toThrow(/synthetic-only.*production/i);
+  it('blocks every call, without contacting a provider, when no AI provider is configured', async () => {
+    const { prisma, audits } = fakePrisma();
+    const adapter = new FakeAiProviderAdapter();
+    const run = vi.spyOn(adapter, 'run');
+    const unconfigured = runtime({});
+    const service = gateway(prisma, unconfigured, adapter);
+    service.onModuleInit();
+
+    const result = await service.run('comms.draft', SYNTHETIC_COMMS_REQUEST_FIXTURE);
+
+    expect(unconfigured.profileId).toBe('unconfigured');
+    expect(unconfigured.configured).toBe(false);
+    expect(unconfigured.liveUseCases.size).toBe(0);
+    expect(result.outcome).toBe('blocked');
+    expect(result.outcome === 'blocked' && result.error.code).toBe('use_case_disabled');
+    expect(result.outcome === 'blocked' && result.error.message).toMatch(/No AI provider is configured/);
+    expect(run).not.toHaveBeenCalled();
+    expect([...audits.values()][0].outcome).toBe('blocked');
   });
 
-  it('runs mock calls through validated output, usage reservation, and one audit outcome', async () => {
+  it('blocks use cases outside the AI_LIVE_USE_CASES allowlist without contacting the provider', async () => {
+    const { prisma } = fakePrisma();
+    const adapter = new FakeAiProviderAdapter();
+    const run = vi.spyOn(adapter, 'run');
+    const service = gateway(prisma, runtime({ ...FAKE_ZDR_ENV, AI_LIVE_USE_CASES: 'comms.draft' }), adapter);
+    service.onModuleInit();
+
+    const blocked = await service.run('pare.risk', SYNTHETIC_PARE_CONTEXT_FIXTURE);
+    expect(blocked.outcome).toBe('blocked');
+    expect(blocked.outcome === 'blocked' && blocked.error.code).toBe('use_case_disabled');
+    expect(run).not.toHaveBeenCalled();
+
+    const allowed = await service.run('comms.draft', SYNTHETIC_COMMS_REQUEST_FIXTURE);
+    expect(allowed.outcome).toBe('completed');
+    expect(run).toHaveBeenCalledOnce();
+  });
+
+  it('rejects invalid route configuration at startup', () => {
+    expect(() => runtime({ AI_ROUTE_PROFILE: 'openrouter' })).toThrow(/Unsupported AI_ROUTE_PROFILE/);
+    expect(() => runtime({ ...FAKE_ZDR_ENV, AI_LIVE_USE_CASES: 'pare.unknown' })).toThrow(/Unsupported AI live use case/);
+    expect(() => runtime({ AI_PROVIDER: 'anthropic', NODE_ENV: 'production' })).toThrow(/must be ZDR/i);
+    expect(runtime({ ...FAKE_ZDR_ENV, NODE_ENV: 'production' }).profileId).toBe('anthropic-zdr');
+  });
+
+  it('runs a call through validated output, usage reservation, and one audit outcome', async () => {
     const { prisma, tx, audits } = fakePrisma();
-    const adapter = new MockAiProviderAdapter();
+    const adapter = new FakeAiProviderAdapter();
     const run = vi.spyOn(adapter, 'run');
     const service = gateway(prisma, runtime(), adapter);
     service.onModuleInit();
@@ -157,24 +200,69 @@ describe('AI gateway core', () => {
     expect(audits.size).toBe(1);
     const audit = [...audits.values()][0];
     expect(audit.featureName).toBe('pare.budget');
-    expect(audit.modelVersion).toBe('mock-v1');
+    expect(audit.profileId).toBe('anthropic-zdr');
+    expect(audit.modelVersion).toBe('claude-sonnet-5-5');
     expect(audit.outcome).toBe('completed');
     expect(audit.status).toBe('completed');
-    expect(audit.zdrConfirmed).toBe(false);
+    expect(audit.zdrConfirmed).toBe(true);
     expect(audit.inputTokens).toBeGreaterThan(0);
     expect(audit.sanitizedPayload).toMatchObject({
       ...SYNTHETIC_PARE_CONTEXT_FIXTURE,
       _aiGatewayRoute: {
         routeRevision: expect.stringMatching(/^[a-f0-9]{64}$/),
-        routePolicyOutcome: 'mock_local',
-        endpointPolicyId: 'deterministic-mock',
+        routePolicyOutcome: 'zdr_approved',
+        endpointPolicyId: 'anthropic-direct',
       },
     });
+    // The audit row links to the exact validated output the caller received.
+    expect(result.outcome === 'completed' && audit.sanitizedPayload)
+      .toMatchObject({ _aiOutputDigest: digestJson(result.outcome === 'completed' ? result.output : null) });
+  });
+
+  it('records no output digest for a run that did not complete', async () => {
+    const { prisma, audits } = fakePrisma();
+    const adapter = new FakeAiProviderAdapter();
+    vi.spyOn(adapter, 'run').mockImplementation(async (request) => ({
+      text: '{"feasible": true}', toolCalls: [], stopReason: 'end_turn',
+      usage: { inputTokens: 5, outputTokens: 5 }, responseModel: request.model, endpointTag: adapter.endpointPolicyId,
+    }));
+    const service = gateway(prisma, runtime(), adapter);
+    service.onModuleInit();
+
+    const result = await service.run('pare.budget', SYNTHETIC_PARE_CONTEXT_FIXTURE);
+
+    expect(result.outcome).toBe('failed');
+    expect([...audits.values()][0].sanitizedPayload).not.toHaveProperty('_aiOutputDigest');
+  });
+
+  it('keeps a server-generated alias declared by the use case but still flattens a raw name or id', async () => {
+    const { prisma } = fakePrisma();
+    const adapter = new FakeAiProviderAdapter();
+    const run = vi.spyOn(adapter, 'run');
+    const service = gateway(prisma, runtime(), adapter);
+    service.onModuleInit();
+    const candidate = SYNTHETIC_PARE_CANDIDATE_FIXTURE;
+
+    const result = await service.run('pare.risk', {
+      ...SYNTHETIC_PARE_CONTEXT_FIXTURE,
+      candidates: [
+        { ...candidate, supplierId: 'candidate-1', supplierName: 'Candidate 1', reason: 'Ranked replacement candidate' },
+        { ...candidate, supplierId: 'sup-real-9', supplierName: 'Jane Smith', reason: 'Jane Smith at 123 Main Street' },
+      ],
+    });
+
+    expect(result.outcome).toBe('completed');
+    const sent = run.mock.calls[0][0].messages[0];
+    const content = sent.role === 'user' ? sent.content : '';
+    expect(content).toContain('Candidate 1');
+    expect(content).toContain('candidate-1');
+    expect(content).toContain('Ranked replacement candidate');
+    for (const leaked of ['Jane Smith', 'sup-real-9', '123 Main Street']) expect(content).not.toContain(leaked);
   });
 
   it('drafts a generic conforme reminder from inquiry identity only', async () => {
     const { prisma } = fakePrisma();
-    const adapter = new MockAiProviderAdapter();
+    const adapter = new FakeAiProviderAdapter();
     const run = vi.spyOn(adapter, 'run');
     const service = gateway(prisma, runtime(), adapter);
 
@@ -194,7 +282,7 @@ describe('AI gateway core', () => {
     const { prisma, audits } = fakePrisma();
     const adapter = new CountingAnthropicAdapter();
     const aiRuntime = runtime({
-      AI_ROUTE_PROFILE: 'test-anthropic',
+      AI_ROUTE_PROFILE: 'anthropic-synthetic',
       AI_LIVE_USE_CASES: 'pare.risk',
       ANTHROPIC_API_KEY: 'configured',
     });
@@ -205,7 +293,7 @@ describe('AI gateway core', () => {
       ...SYNTHETIC_PARE_CONTEXT_FIXTURE,
       clientName: 'Real Person',
       eventName: 'Jane Smith Wedding',
-      clientPreferences: ['Jane Smith <jane@example.org>'],
+      clientPreferences: ['Quiet venue, reach me at <jane@example.org>'],
       budgetAnalysis: {
         feasible: true,
         selectedCandidate: {
@@ -239,17 +327,89 @@ describe('AI gateway core', () => {
     expect(audit.syntheticProvenance).toBe(Prisma.DbNull);
   });
 
-  it('keeps Anthropic disabled when the explicit live-use-case allowlist is empty', async () => {
-    const { prisma } = fakePrisma();
-    const adapter = new CountingAnthropicAdapter();
-    const aiRuntime = runtime({ AI_ROUTE_PROFILE: 'test-anthropic', ANTHROPIC_API_KEY: 'configured' });
-    const service = gateway(prisma, aiRuntime, adapter);
+  it('lets real data through a ZDR route with undeclared free text redacted and declared free text scrubbed of contact details', async () => {
+    const { prisma, audits } = fakePrisma();
+    const adapter = new FakeAiProviderAdapter();
+    const service = gateway(prisma, runtime(), adapter);
 
-    const result = await service.run('pare.risk', SYNTHETIC_PARE_CONTEXT_FIXTURE);
+    const triage = await service.run('inquiry.triage', TRIAGE_INPUT);
+
+    expect(triage.outcome).toBe('completed');
+    expect(adapter.requests).toHaveLength(1);
+    const sentText = (adapter.requests[0].messages[0] as { content: string }).content;
+    const sent = JSON.parse(sentText);
+    expect(sentText).not.toMatch(/maria\.lopez|917|inquiry-real-42/);
+    expect(sent).toMatchObject({
+      eventType: 'Corporate gala',
+      clientType: 'corporate',
+      eventDate: '2026-12-05',
+      daysUntilEvent: 29,
+      hasOrganization: true,
+      source: 'referral',
+      referralDetails: 'Referred by a past client',
+      duplicateInquiryCount: 0,
+      previouslyDeclined: false,
+    });
+    expect(sent.message).toContain('We expect 200 guests.');
+    expect(sent.message).toContain('[email redacted]');
+    expect(sent.message).toContain('[phone redacted]');
+    expect(sent.inquiryId).toBe('[identifier redacted]');
+    const audit = [...audits.values()][0];
+    expect(audit.outcome).toBe('completed');
+    expect(audit.dataCategories).toEqual(['internal', 'personal']);
+    expect(audit.zdrConfirmed).toBe(true);
+    expect(JSON.stringify(audit.sanitizedPayload)).not.toMatch(/maria\.lopez|917 123|inquiry-real-42/);
+
+    const risk = await service.run('pare.risk', {
+      ...SYNTHETIC_PARE_CONTEXT_FIXTURE,
+      clientName: 'Real Person',
+      eventName: 'Jane Smith Wedding',
+      clientPreferences: ['Quiet venue, reach me at jane@example.org'],
+    });
+    expect(risk.outcome).toBe('completed');
+    const riskPayload = (adapter.requests[1].messages[0] as { content: string }).content;
+    expect(riskPayload).not.toMatch(/Real Person|Jane Smith|jane@example\.org/);
+    expect(riskPayload).toContain('[free text redacted]');
+    // clientPreferences is declared free text for PARE: its wording stays, its contact details do not.
+    expect(riskPayload).toContain('Quiet venue, reach me at [email redacted]');
+  });
+
+  it('lets the non-ZDR Anthropic test-data route handle real UAT data, recorded as test-data evidence', async () => {
+    const { prisma, audits } = fakePrisma();
+    const adapter = new FakeAiProviderAdapter();
+    const service = gateway(prisma, runtime({ AI_PROVIDER: 'anthropic' }), adapter);
+    service.onModuleInit();
+
+    const result = await service.run('inquiry.triage', TRIAGE_INPUT);
+
+    expect(result.outcome).toBe('completed');
+    expect(result.outcome === 'completed' && result.evidence).toMatchObject({
+      profileId: 'anthropic-test-data',
+      routePolicyOutcome: 'test_data_approved',
+      zdrBasis: 'test-data-only',
+      dataClasses: ['internal', 'personal'],
+    });
+    expect([...audits.values()][0].zdrConfirmed).toBe(false);
+    expect(JSON.stringify(adapter.requests)).not.toMatch(/maria\.lopez|917 123/);
+  });
+
+  it('blocks the same real-data call on the fixtures-only lockdown profile before any provider call', async () => {
+    const { prisma, audits } = fakePrisma();
+    const adapter = new FakeAiProviderAdapter();
+    const run = vi.spyOn(adapter, 'run');
+    const service = gateway(prisma, runtime({ AI_PROVIDER: 'anthropic', AI_ROUTE_PROFILE: 'anthropic-synthetic' }), adapter);
+    service.onModuleInit();
+
+    const result = await service.run('inquiry.triage', TRIAGE_INPUT);
 
     expect(result.outcome).toBe('blocked');
-    expect(result.outcome === 'blocked' && result.error.code).toBe('use_case_disabled');
-    expect(adapter.run).not.toHaveBeenCalled();
+    expect(result.outcome === 'blocked' && result.error.code).toBe('synthetic_provenance_required');
+    expect(run).not.toHaveBeenCalled();
+    const audit = [...audits.values()][0];
+    expect(audit.outcome).toBe('blocked');
+    expect(audit.profileId).toBe('anthropic-synthetic');
+    expect(audit.dataCategories).toEqual(['internal', 'personal']);
+    expect(JSON.stringify(audit.sanitizedPayload)).not.toMatch(/maria\.lopez|917 123/);
   });
 
   it('completes the fixed PARE budget tool path with synthetic Anthropic evidence', async () => {
@@ -284,7 +444,7 @@ describe('AI gateway core', () => {
       }
     }();
     const aiRuntime = runtime({
-      AI_ROUTE_PROFILE: 'test-anthropic',
+      AI_ROUTE_PROFILE: 'anthropic-synthetic',
       AI_LIVE_USE_CASES: 'pare.budget',
       ANTHROPIC_API_KEY: 'configured',
     });
@@ -305,32 +465,15 @@ describe('AI gateway core', () => {
   });
 
   it('switches the same PARE agent between providers through reviewed profiles only', async () => {
-    const externalRoute = (provider: 'anthropic' | 'openrouter', model: string, endpointPolicyId: string) => ({
-      provider,
-      model,
-      endpointPolicyId,
-      adapterRevision: `${provider}-conformance-v1`,
-      zdrBasis: 'none' as const,
-      allowedDataClasses: ['synthetic' as const],
-    });
-    const anthroProfile = AI_ROUTE_PROFILES['test-anthropic'];
-    const openRouterRoute = externalRoute('openrouter', 'glm-test', 'fake-openrouter');
-    const openRouterProfile: AiRouteProfile = {
-      id: 'test-openrouter',
-      routesByTier: { fast: openRouterRoute, strong: openRouterRoute },
-    };
-    const outcomes = [];
+    const outputs = [];
 
-    for (const [profile, adapter] of [
-      [anthroProfile, new CountingAnthropicAdapter()],
-      [openRouterProfile, new CountingOpenRouterAdapter()],
+    for (const [profileId, adapter, routePolicyOutcome] of [
+      ['anthropic-synthetic', new CountingAnthropicAdapter(), 'synthetic_verified'],
+      ['openrouter-zdr', new CountingOpenRouterAdapter(), 'zdr_approved'],
     ] as const) {
+      const profile = AI_ROUTE_PROFILES[profileId];
       const { prisma, audits } = fakePrisma();
-      const profiles = { ...AI_ROUTE_PROFILES, [profile.id]: profile };
-      const aiRuntime = resolveAiGatewayRuntimeConfig(config({
-        AI_ROUTE_PROFILE: profile.id,
-        AI_LIVE_USE_CASES: 'pare.budget',
-      }), profiles);
+      const aiRuntime = runtime({ AI_ROUTE_PROFILE: profileId, AI_LIVE_USE_CASES: 'pare.budget' });
       const service = gateway(prisma, aiRuntime, adapter);
       service.onModuleInit();
       const result = await new BudgetAgent('live', service)
@@ -339,18 +482,18 @@ describe('AI gateway core', () => {
       expect(result.output).toEqual(SYNTHETIC_PARE_MESSAGE_CONTEXT_FIXTURE.budgetAnalysis);
       expect(result.evidence).toMatchObject({
         provider: profile.routesByTier.fast.provider,
-        profileId: profile.id,
-        routePolicyOutcome: 'synthetic_verified',
+        profileId,
+        routePolicyOutcome,
         endpointTag: profile.routesByTier.fast.endpointPolicyId,
         approvalState: 'pending',
       });
       expect(result.evidence?.routeRevision).toMatch(/^[a-f0-9]{64}$/);
       const audit = [...audits.values()][0];
       expect(audit).toMatchObject({ provider: profile.routesByTier.fast.provider, humanApprovalRequired: true, humanApproved: false });
-      outcomes.push({ output: result.output, routePolicyOutcome: result.evidence?.routePolicyOutcome });
+      outputs.push(result.output);
     }
 
-    expect(outcomes[0]).toEqual(outcomes[1]);
+    expect(outputs[0]).toEqual(outputs[1]);
   });
 
   it('accepts a synthetic date and numeric timeline tool result but blocks a phone number', async () => {
@@ -374,7 +517,7 @@ describe('AI gateway core', () => {
         yield { type: 'final', response: await this.run(request) };
       }
     }();
-    const aiRuntime = runtime({ AI_ROUTE_PROFILE: 'test-anthropic', AI_LIVE_USE_CASES: 'pare.risk', ANTHROPIC_API_KEY: 'configured' });
+    const aiRuntime = runtime({ AI_ROUTE_PROFILE: 'anthropic-synthetic', AI_LIVE_USE_CASES: 'pare.risk', ANTHROPIC_API_KEY: 'configured' });
     const service = gateway(prisma, aiRuntime, adapter);
     const timelineTool = createPareRiskToolHandlers(SYNTHETIC_PARE_EVALUATION_CONTEXT_FIXTURE)
       .find((tool) => tool.name === 'get_event_timeline');
@@ -394,7 +537,7 @@ describe('AI gateway core', () => {
     expect(withPhone.outcome === 'blocked' && withPhone.error.message).toBe('Tool output exceeded safety checks');
   });
 
-  it('completes the fixed PARE stage fixtures on the mock baseline', async () => {
+  it('completes the fixed PARE stage fixtures on the fake ZDR provider', async () => {
     const { prisma } = fakePrisma();
     const service = gateway(prisma);
 
@@ -408,7 +551,8 @@ describe('AI gateway core', () => {
   it('accepts one complete JSON code fence while rejecting prose and malformed provider output', async () => {
     const { prisma } = fakePrisma();
     const adapter = new class implements AiProviderAdapter {
-      readonly provider = 'mock' as const;
+      readonly provider = 'anthropic' as const;
+      readonly endpointPolicyId = 'anthropic-direct';
       text = '';
       async run(): Promise<AiProviderResponse> {
         return { text: this.text, toolCalls: [], stopReason: 'end_turn', usage: { inputTokens: 10, outputTokens: 20 } };
@@ -465,7 +609,7 @@ describe('AI gateway core', () => {
       }
     }();
     const aiRuntime = runtime({
-      AI_ROUTE_PROFILE: 'test-anthropic',
+      AI_ROUTE_PROFILE: 'anthropic-synthetic',
       AI_LIVE_USE_CASES: 'pare.risk',
       ANTHROPIC_API_KEY: 'configured',
     });
@@ -515,7 +659,7 @@ describe('AI gateway core', () => {
       }
     }();
     const aiRuntime = runtime({
-      AI_ROUTE_PROFILE: 'test-anthropic',
+      AI_ROUTE_PROFILE: 'anthropic-synthetic',
       AI_LIVE_USE_CASES: 'pare.risk',
       ANTHROPIC_API_KEY: 'configured',
     });
@@ -539,7 +683,7 @@ describe('AI gateway core', () => {
     const { prisma, audits } = fakePrisma();
     const adapter = new CountingAnthropicAdapter();
     const aiRuntime = runtime({
-      AI_ROUTE_PROFILE: 'test-anthropic',
+      AI_ROUTE_PROFILE: 'anthropic-synthetic',
       AI_LIVE_USE_CASES: 'pare.risk',
       ANTHROPIC_API_KEY: 'configured',
     });
@@ -556,7 +700,7 @@ describe('AI gateway core', () => {
 
   it('does not reach the provider after the daily reservation is denied', async () => {
     const { prisma } = fakePrisma({ allowBudget: false });
-    const adapter = new MockAiProviderAdapter();
+    const adapter = new FakeAiProviderAdapter();
     const run = vi.spyOn(adapter, 'run');
     const service = gateway(prisma, runtime(), adapter);
 
@@ -569,7 +713,8 @@ describe('AI gateway core', () => {
   it('fails closed when provider usage exceeds the requested output bound', async () => {
     const { prisma, audits } = fakePrisma();
     const adapter = new class implements AiProviderAdapter {
-      readonly provider = 'mock' as const;
+      readonly provider = 'anthropic' as const;
+      readonly endpointPolicyId = 'anthropic-direct';
       async run(request: AiProviderRequest): Promise<AiProviderResponse> {
         return {
           text: '{"level":"LOW","factors":[],"recommendation":"Review"}',
@@ -595,7 +740,8 @@ describe('AI gateway core', () => {
     const { prisma, tx } = fakePrisma();
     let attempts = 0;
     const adapter = new class implements AiProviderAdapter {
-      readonly provider = 'mock' as const;
+      readonly provider = 'anthropic' as const;
+      readonly endpointPolicyId = 'anthropic-direct';
       async run(): Promise<AiProviderResponse> {
         attempts += 1;
         if (attempts < 3) {
@@ -608,7 +754,7 @@ describe('AI gateway core', () => {
           toolCalls: [],
           stopReason: 'end_turn',
           usage: { inputTokens: 12, outputTokens: 8 },
-          responseModel: 'mock-v1',
+          responseModel: 'claude-sonnet-5-5',
         };
       }
       async *stream(): AsyncIterable<{ type: 'final'; response: AiProviderResponse }> {
@@ -629,7 +775,8 @@ describe('AI gateway core', () => {
     const { prisma } = fakePrisma();
     const execute = vi.fn(async () => 'safe synthetic tool result');
     const adapter = new class implements AiProviderAdapter {
-      readonly provider = 'mock' as const;
+      readonly provider = 'anthropic' as const;
+      readonly endpointPolicyId = 'anthropic-direct';
       async run(): Promise<AiProviderResponse> {
         return {
           text: '',
@@ -660,7 +807,8 @@ describe('AI gateway core', () => {
     const { prisma } = fakePrisma();
     const execute = vi.fn(async () => 'safe result');
     const adapter = new class implements AiProviderAdapter {
-      readonly provider = 'mock' as const;
+      readonly provider = 'anthropic' as const;
+      readonly endpointPolicyId = 'anthropic-direct';
       async run(): Promise<AiProviderResponse> {
         return {
           text: '',
@@ -694,7 +842,7 @@ describe('AI gateway core', () => {
 
   it('records caller aborts and does not call the provider', async () => {
     const { prisma } = fakePrisma();
-    const adapter = new MockAiProviderAdapter();
+    const adapter = new FakeAiProviderAdapter();
     const run = vi.spyOn(adapter, 'run');
     const service = gateway(prisma, runtime(), adapter);
     const controller = new AbortController();
@@ -709,7 +857,8 @@ describe('AI gateway core', () => {
   it('validates final output before emitting stream deltas', async () => {
     const { prisma } = fakePrisma();
     const adapter = new class implements AiProviderAdapter {
-      readonly provider = 'mock' as const;
+      readonly provider = 'anthropic' as const;
+      readonly endpointPolicyId = 'anthropic-direct';
       async run(): Promise<AiProviderResponse> {
         return { text: '{"unexpected":true}', toolCalls: [], stopReason: 'end_turn', usage: { inputTokens: 1, outputTokens: 2 } };
       }
@@ -733,7 +882,8 @@ describe('AI gateway core', () => {
       markProviderStarted = resolve;
     });
     const adapter = new class implements AiProviderAdapter {
-      readonly provider = 'mock' as const;
+      readonly provider = 'anthropic' as const;
+      readonly endpointPolicyId = 'anthropic-direct';
       run = vi.fn(async (_request: AiProviderRequest, signal?: AbortSignal) => {
         capturedSignal = signal;
         markProviderStarted();
@@ -767,7 +917,7 @@ it.skipIf(process.env.AI_SYNTHETIC_EVALUATION !== 'anthropic-test-only' || Boole
     if (process.env.NODE_ENV === 'production') throw new Error('The synthetic evaluation cannot run in production');
     const { prisma } = fakePrisma();
     const aiRuntime = runtime({
-      AI_ROUTE_PROFILE: 'test-anthropic',
+      AI_ROUTE_PROFILE: 'anthropic-synthetic',
       AI_LIVE_USE_CASES: 'comms.draft',
       ANTHROPIC_API_KEY: apiKey,
       NODE_ENV: process.env.NODE_ENV ?? 'test',
@@ -816,7 +966,7 @@ it.skipIf(process.env.AI_SYNTHETIC_EVALUATION !== 'anthropic-test-only' || Boole
     if (process.env.NODE_ENV === 'production') throw new Error('The synthetic evaluation cannot run in production');
     const { prisma } = fakePrisma();
     const aiRuntime = runtime({
-      AI_ROUTE_PROFILE: 'test-anthropic',
+      AI_ROUTE_PROFILE: 'anthropic-synthetic',
       AI_LIVE_USE_CASES: PARE_EVALUATION_SCENARIOS.map((scenario) => scenario.id).join(','),
       ANTHROPIC_API_KEY: apiKey,
       NODE_ENV: process.env.NODE_ENV ?? 'test',
