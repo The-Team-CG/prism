@@ -65,6 +65,19 @@ type SupplierWithProfile = Omit<SupplierProfileBase, 'reviews' | 'reliabilityNot
 
 type CategoryWithDimensions = OpsSupplierCategory & { reviewDimensions: OpsSupplierReviewDimension[] };
 
+const SUPPLIER_TEXT_FIELDS = ['name', 'contactName', 'email', 'phone', 'serviceInclusions', 'performanceNotes'] as const;
+type SupplierTextField = (typeof SUPPLIER_TEXT_FIELDS)[number];
+
+/** The free-text supplier fields present on an update, trimmed; absent fields stay untouched. */
+function trimmedSupplierText(input: UpdateSupplierInput): Partial<Record<SupplierTextField, string>> {
+  const data: Partial<Record<SupplierTextField, string>> = {};
+  for (const field of SUPPLIER_TEXT_FIELDS) {
+    const value = input[field];
+    if (value !== undefined) data[field] = value.trim();
+  }
+  return data;
+}
+
 function isoDate(value: Date) {
   return value.toISOString().slice(0, 10);
 }
@@ -131,12 +144,7 @@ export class SuppliersService {
         data: {
           ...(typeof input.bniMember === 'boolean' ? { bniMember: input.bniMember } : {}),
           ...(input.categoryId ? { categoryId: input.categoryId } : {}),
-          ...(input.name !== undefined ? { name: input.name.trim() } : {}),
-          ...(input.contactName !== undefined ? { contactName: input.contactName.trim() } : {}),
-          ...(input.email !== undefined ? { email: input.email.trim() } : {}),
-          ...(input.phone !== undefined ? { phone: input.phone.trim() } : {}),
-          ...(input.serviceInclusions !== undefined ? { serviceInclusions: input.serviceInclusions.trim() } : {}),
-          ...(input.performanceNotes !== undefined ? { performanceNotes: input.performanceNotes.trim() } : {}),
+          ...trimmedSupplierText(input),
           ...(input.capacityRating !== undefined ? { capacityRating: input.capacityRating } : {}),
         },
       })
