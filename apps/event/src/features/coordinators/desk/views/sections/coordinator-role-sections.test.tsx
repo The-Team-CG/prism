@@ -186,7 +186,18 @@ describe("supplier setup checks", () => {
     fireEvent.change(screen.getByLabelText("Note for PMCM (optional)"), { target: { value: "Truck at dock 2" } });
     fireEvent.click(screen.getByRole("button", { name: "Mark arrived" }));
 
-    expect(models.operatorActions.reportSupplierStatus).toHaveBeenCalledWith("req_new", "arrived", "Truck at dock 2");
+    expect(models.operatorActions.reportSupplierStatus).toHaveBeenCalledWith("req_new", "arrived", "Truck at dock 2", undefined);
+  });
+
+  it("sends a chosen setup photo with the status and clears it afterwards", () => {
+    const models = renderRoleData(ingressView({ supplierStatuses: [supplier({ id: "req_new", supplierName: "Harvest Table", eventDayStatus: "not_started" })] }));
+    const photo = new File(["x"], "dock.jpg", { type: "image/jpeg" });
+
+    fireEvent.change(screen.getByLabelText(/Photo of the setup/), { target: { files: [photo] } });
+    fireEvent.click(screen.getByRole("button", { name: "Mark arrived" }));
+
+    expect(models.operatorActions.reportSupplierStatus).toHaveBeenCalledWith("req_new", "arrived", "", photo);
+    expect((screen.getByLabelText(/Photo of the setup/) as HTMLInputElement).value).toBe("");
   });
 
   it("shows a failed check to a coordinator who is not the operator", () => {

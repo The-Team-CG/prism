@@ -388,12 +388,16 @@ export function useCoordinatorViewModel({
     finally { setSupplierBusy(false); }
   }
 
-  async function reportSupplierStatus(requestId: string, status: "arrived" | "set_up_ready" | "done_leaving", note = "") {
+  async function reportSupplierStatus(requestId: string, status: "arrived" | "set_up_ready" | "done_leaving", note = "", photo?: File) {
     if (!isWritableCoordinatorEvent(event) || !(roleView?.isDesignatedOperator || isIngressOrEgressRole(roleView?.role))) return;
     setSupplierBusy(true);
     setSupplierError(null);
     try {
-      const input = parseContract(reportSupplierSiteStatusSchema, { status, notes: note.trim() || undefined }, "Supplier site status");
+      const input = parseContract(reportSupplierSiteStatusSchema, {
+        status,
+        notes: note.trim() || undefined,
+        photo: photo ? { fileName: photo.name, mimeType: photo.type || undefined, sizeBytes: photo.size } : undefined,
+      }, "Supplier site status");
       setRoleView(await reportSupplierStatusAndRefreshRoleView({ session, eventId: event.id, requestId, input }));
     } catch (error) { setSupplierError(error instanceof Error ? error.message : "Unable to report the supplier status."); }
     finally { setSupplierBusy(false); }

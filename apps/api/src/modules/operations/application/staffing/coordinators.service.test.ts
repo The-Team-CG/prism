@@ -309,7 +309,7 @@ function eventReferencesFor(prisma: any) {
   };
 }
 
-function createService(prisma: any, accessPolicy: any = createAccessPolicy(), coordinatorAccountEligibility: any = { isCoordinatorAccountEligible: vi.fn(async () => true) }) {
+function createService(prisma: any, accessPolicy: any = createAccessPolicy(), coordinatorAccountEligibility: any = { isCoordinatorAccountEligible: vi.fn(async () => true), listPmcmAdminEmails: vi.fn(async () => ["admin@pmcm.test", "ops@pmcm.test"]) }) {
   const writers = createServiceWriters(prisma);
   const eventReferences = eventReferencesFor(prisma);
   return new CoordinatorAssignmentCommandService(
@@ -968,6 +968,7 @@ describe('Coordinator staffing workflows', () => {
 
       expect(withdrawn.status).toBe('cancelled');
       expect(withdrawn.emergencyChange).toBe(false);
+      expect(fake.notifications.some((entry: any) => /Emergency change/.test(entry.message))).toBe(false);
       expect(fake.reliabilityNotes).toHaveLength(1);
       expect(fake.reliabilityNotes[0]).toMatchObject({
         eventId: event.id,
@@ -996,6 +997,9 @@ describe('Coordinator staffing workflows', () => {
 
         expect(withdrawn.emergencyChange).toBe(true);
         expect(fake.reliabilityNotes[0].note).toBe('Marco Santos withdrew from Floor Director within 48 hours of the event: Family emergency');
+        const pmcmAlerts = fake.notifications.filter((entry: any) => /Emergency change/.test(entry.message));
+        expect(pmcmAlerts.map((entry: any) => entry.recipient).sort()).toEqual(["admin@pmcm.test", "ops@pmcm.test"]);
+        expect(pmcmAlerts[0].message).toContain("Marco Santos withdrew from Floor Director within 48 hours of the event: Family emergency");
         expect(fake.audits).toContainEqual(expect.objectContaining({
           action: expect.stringContaining('Emergency change: Marco Santos withdrew from Floor Director'),
           severity: 'critical',
