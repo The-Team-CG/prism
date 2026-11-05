@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isoDateStringSchema, nonEmptyStringSchema, optionalTrimmedStringSchema } from "./common.js";
+import { isoDateStringSchema, nonEmptyStringSchema, optionalTrimmedStringSchema, uploadMetadataSchema } from "./common.js";
 import { coordinatorRoleSchema } from "./coordinator-roles.js";
 /* ── Live ops ─────────────────────────────────────────────────── */
 
@@ -150,5 +150,6 @@ export type VerifySupplierStatusInput = z.infer<typeof verifySupplierStatusSchem
 export const reportSupplierSiteStatusSchema = z.object({
   status: z.enum(["arrived", "set_up_ready", "done_leaving"]),
   notes: optionalTrimmedStringSchema,
+  photo: uploadMetadataSchema.optional(),
 });
 export type ReportSupplierSiteStatusInput = z.infer<typeof reportSupplierSiteStatusSchema>;

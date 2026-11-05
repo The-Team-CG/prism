@@ -46,7 +46,7 @@ export type CoordinatorOperatorActionsModel = {
   supplierError: string | null;
   updateAttendance: (assignmentId: string, status: string) => void;
   verifySupplier: (requestId: string, verificationStatus: "verified" | "disputed", note?: string) => void;
-  reportSupplierStatus: (requestId: string, status: "arrived" | "set_up_ready" | "done_leaving", note?: string) => void;
+  reportSupplierStatus: (requestId: string, status: "arrived" | "set_up_ready" | "done_leaving", note?: string, photo?: File) => void;
 };
 
 type RoleViewTask = PrismCoordinatorRoleView["tasks"][number];
@@ -265,6 +265,8 @@ function DelegatedAttendanceRow({ item, busy, onMark }: { item: PrismCoordinator
 
 function CoordinatorSupplierChecks({ roleView, actions }: { roleView: PrismCoordinatorRoleView; actions: CoordinatorOperatorActionsModel }) {
   const [note, setNote] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoKey, setPhotoKey] = useState(0);
   const suppliers = confirmedSupplierChecks(roleView.supplierStatuses);
 
   function check(supplier: SupplierStatus, status: "verified" | "disputed") {
@@ -273,8 +275,10 @@ function CoordinatorSupplierChecks({ roleView, actions }: { roleView: PrismCoord
   }
 
   function report(supplier: SupplierStatus, status: "arrived" | "set_up_ready" | "done_leaving") {
-    actions.reportSupplierStatus(supplier.id, status, note);
+    actions.reportSupplierStatus(supplier.id, status, note, photo ?? undefined);
     setNote("");
+    setPhoto(null);
+    setPhotoKey((key) => key + 1);
   }
 
   return (
@@ -289,10 +293,22 @@ function CoordinatorSupplierChecks({ roleView, actions }: { roleView: PrismCoord
         {suppliers.length === 0 ? (
           <p className="text-sm text-muted-foreground">No confirmed suppliers to check yet.</p>
         ) : (
-          <label className={FIELD_CAPTION}>
-            Note for PMCM (optional)
-            <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="What you saw at the setup" className={SELECT_FIELD} />
-          </label>
+          <>
+            <label className={FIELD_CAPTION}>
+              Note for PMCM (optional)
+              <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="What you saw at the setup" className={SELECT_FIELD} />
+            </label>
+            <label className={FIELD_CAPTION}>
+              Photo of the setup (optional, sent with the next status you mark)
+              <input
+                key={photoKey}
+                type="file"
+                accept="image/*"
+                onChange={(event) => setPhoto(event.target.files?.[0] ?? null)}
+                className="text-sm text-foreground"
+              />
+            </label>
+          </>
         )}
         {suppliers.map((supplier) => (
           <SupplierCheckRow key={supplier.id} supplier={supplier} busy={actions.supplierBusy} onCheck={(status) => check(supplier, status)} onReport={(status) => report(supplier, status)} />
