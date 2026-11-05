@@ -220,7 +220,7 @@ Of the Prism-scope rows (the prototype scope), only Supplier Unresponsive Escala
 
 - **FL-001/FL-002/FL-005:** No MOA/NDA document type and no pre-conforme notes; billing statements are generated manually rather than on signing; the proposal flow has no revision comments, Word template upload, or program-flow input; cancellation has no automatic fee calculation (the decision form takes the fee by hand).
 - **FL-007/FL-008:** Quotes show only event name, category and date. A coordinator withdrawal inside 48 hours of the event is flagged as an Emergency Change, audited as critical and emailed to PMCM, but it does not start PARE while live AI is gated.
-- **FL-009/FL-013:** The compliance engine is nine deterministic rules. The five-day change freeze runs on UTC event days, and drafted wrap-up billing items are not turned into billing automatically.
+- **FL-009/FL-013:** The compliance engine is nine deterministic rules. The five-day change freeze and the 48-hour emergency window run on Philippine event days, and drafted wrap-up billing items are not turned into billing automatically.
 - **FL-011:** Annotation pin hit-testing ignores object rotation. Every event counts as private, so only the 200-guest limit gates the seating list.
 - **FL-012:** Check-in covers name search and headcount only, since QR and camera entry stay gated; game templates differ from the V4 five; guest media is recorded as `pending_storage`.
 - **FL-014:** Only email is delivered. Viber is queued but has no provider, and there is no recipient language preference.
