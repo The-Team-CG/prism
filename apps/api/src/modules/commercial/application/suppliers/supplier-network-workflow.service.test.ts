@@ -338,6 +338,27 @@ describe('SupplierNetworkWorkflowService', () => {
     expect(notify.mock.calls).toHaveLength(notifications);
   });
 
+  it('records an on-site status report in the supplier order, audits who reported it, and keeps it inside the event', async () => {
+    const { service, request, audit } = createService();
+    Object.assign(request, { status: 'selected', assignmentStatus: 'confirmed', readinessStatus: 'confirmed' });
+    const assistant = { id: 'coord_user_1', name: 'Ingress Assistant', email: 'ingress@pmcm.test', role: OpsUserRole.Coordinator, explicit: true, verified: true };
+
+    await expect(service.reportSupplierEventStatusOnSite('evt_sample', 'qr_sonic', { status: 'set_up_ready' }, assistant)).rejects.toThrow(/Report "arrived" next/);
+    await expect(service.reportSupplierEventStatusOnSite('evt_other', 'qr_sonic', { status: 'arrived' }, assistant)).rejects.toThrow('Supplier quote request not found');
+    expect(request.eventDayStatus).toBe('not_started');
+
+    expect((await service.reportSupplierEventStatusOnSite('evt_sample', 'qr_sonic', { status: 'arrived', notes: 'Truck at dock 2' }, assistant)).eventDayStatus).toBe('arrived');
+    expect(audit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: 'Ingress Assistant',
+        metadata: expect.objectContaining({ status: 'arrived', reportedOnSite: true, reportedById: 'coord_user_1', notes: 'Truck at dock 2' }),
+      }),
+      undefined,
+    );
+    await expect(service.reportSupplierEventStatusOnSite('evt_sample', 'qr_sonic', { status: 'arrived' }, assistant)).resolves.toBeDefined();
+    expect(audit).toHaveBeenCalledTimes(1);
+  });
+
   it('refuses a status correction without a reason, from non-PMCM roles, or for another event', async () => {
     const { service, request, prisma, notify } = createService();
     Object.assign(request, { status: 'selected', assignmentStatus: 'confirmed', readinessStatus: 'confirmed', eventDayStatus: 'arrived' });
