@@ -39,6 +39,7 @@ import {
   updateCoordinatorAttendanceSchema,
   verifySupplierStatusSchema,
   COORDINATOR_ROLES,
+  createTemplateSchema,
   canonicalCoordinatorRole,
   coordinatorRoleSchema,
   coordinatorSuggestionsQuerySchema,
@@ -85,6 +86,19 @@ describe("privacy legal hold contracts", () => {
     }).success).toBe(false);
     expect(releasePrivacyLegalHoldSchema.safeParse({ reason: "Counsel confirmed release" }).success).toBe(true);
     expect(releasePrivacyLegalHoldSchema.safeParse({ reason: "  " }).success).toBe(false);
+  });
+});
+
+describe("venue library template contract", () => {
+  const editorObject = { id: "o1", name: "Wall", kind: "rect", category: "architecture", x: 1, y: 1, w: 4, h: 0.2, rotation: 0, fill: "#000", stroke: "#000", strokeWidth: 1, locked: false, hidden: false };
+
+  it("accepts the floorplan editor shape for layout and permanent features, with the venue rules", () => {
+    const parsed = createTemplateSchema.safeParse({ name: "Hall", venueRules: "No confetti", objects: [editorObject], permanentFeatures: [editorObject], width: 20, height: 12, gridSize: 1, pax: 100 });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("still refuses objects that fit neither shape", () => {
+    expect(createTemplateSchema.safeParse({ name: "Hall", objects: [{ id: "x", kind: "blob" }] }).success).toBe(false);
   });
 });
 

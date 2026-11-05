@@ -129,6 +129,16 @@ describe("table assignment eligibility in the floorplan editor", () => {
     },
   );
 
+  it("refuses to seat anyone once the event expects 200 guests or more, and seats again under it", () => {
+    const big = initialState({ ...project, pax: 200, objects: [tableObject({ id: "t1" })], guests });
+    const refused = reducer(big, { type: "ASSIGN_GUEST", guestId: "g-ana", objectId: "t1" });
+    expect(refused.project).toBe(big.project);
+    expect(refused.assignmentRejection).toEqual({ guestId: "g-ana", objectId: "t1", reason: "event-too-large" });
+
+    const small = initialState({ ...project, pax: 199, objects: [tableObject({ id: "t1" })], guests });
+    expect(reducer(small, { type: "ASSIGN_GUEST", guestId: "g-ana", objectId: "t1" }).assignmentRejection).toBeNull();
+  });
+
   it("clears a recorded rejection on the next eligible assignment or on dismissal", () => {
     const start = withLayout([tableObject({ id: "t1", seats: 1 }), tableObject({ id: "t2" })]);
     const refused = reducer(start, { type: "ASSIGN_GUEST", guestId: "g-dee", objectId: "t1" });

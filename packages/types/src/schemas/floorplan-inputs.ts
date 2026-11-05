@@ -8,6 +8,7 @@ export const tableAssignmentIneligibleReasonSchema = z.enum([
   "table-hidden",
   "table-full",
   "guest-already-seated",
+  "event-too-large",
 ]);
 export type TableAssignmentIneligibleReason = z.infer<typeof tableAssignmentIneligibleReasonSchema>;
 /* ── Floorplan preference (client layout notes) ───────────────── */
