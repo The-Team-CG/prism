@@ -6,6 +6,7 @@ import type {
   PrismSupplierReadinessSchedule,
   PrismSupplierReadinessSetupStatus,
 } from '@prism/types';
+import { supplierIngressLateGraceMinutes } from '@prism/contexts/commercial';
 import { priorityRank, toIso } from './event-read-models.inbox';
 
 /** Event-day statuses the late-ingress sweep treats as "not yet reported". */
@@ -48,6 +49,10 @@ export type SupplierReadinessRequestSource = {
 export type SupplierReadinessEventRef = { eventName?: string | null; clientName?: string | null } | undefined;
 
 export type SupplierReadinessClock = { now: Date; ingressLateGraceMinutes: number };
+
+export function createSupplierReadinessClock(now = new Date()): SupplierReadinessClock {
+  return { now, ingressLateGraceMinutes: supplierIngressLateGraceMinutes() };
+}
 
 function contractStatusOf(request: SupplierReadinessRequestSource): PrismSupplierReadinessItem['contractStatus'] {
   const latest = request.contractVersions?.[0]?.reviewStatus;

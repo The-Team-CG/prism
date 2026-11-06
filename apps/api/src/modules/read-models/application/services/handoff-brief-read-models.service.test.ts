@@ -193,6 +193,7 @@ function createService(input: {
         submittedAt: CREATED_AT,
       },
     })),
+    supplierReadinessRequestsForEvent: vi.fn(async () => input.suppliers ?? []),
     taskReassignmentRequests: vi.fn(async () => []),
     activeOperatorForCoordinator: vi.fn(async () => (input.operatorDesignated ? { id: 'designation_1' } : null)),
     handoffsForEvent: vi.fn(async () => [handoffFixture()]),

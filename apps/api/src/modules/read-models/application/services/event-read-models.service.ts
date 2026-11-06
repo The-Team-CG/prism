@@ -46,7 +46,6 @@ import type {
   PrismPmcmOcularVisit,
   PrismPmcmSupplierReadinessBoard,
 } from '@prism/types';
-import { supplierIngressLateGraceMinutes } from '@prism/contexts/commercial';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import {
   GUEST_READER,
@@ -75,6 +74,7 @@ import {
 import {
   buildPmcmSupplierReadinessItem,
   buildSupplierReadinessItem,
+  createSupplierReadinessClock,
   sortSupplierReadinessItems,
   type SupplierReadinessClock,
 } from './event-read-models.supplier-readiness';
@@ -646,7 +646,7 @@ export class EventReadModelsService {
     await this.policy.requireCanReadEvent(actor, event, 'PMCM supplier readiness board');
 
     const clock = this.readinessClock();
-    const requests = await this.queries.pmcmSupplierReadinessRequests(eventId);
+    const requests = await this.queries.supplierReadinessRequestsForEvent(eventId);
     const items = sortSupplierReadinessItems(
       requests.map((request) => buildPmcmSupplierReadinessItem(request, event, clock)),
     );
@@ -659,7 +659,7 @@ export class EventReadModelsService {
   }
 
   private readinessClock(): SupplierReadinessClock {
-    return { now: new Date(), ingressLateGraceMinutes: supplierIngressLateGraceMinutes() };
+    return createSupplierReadinessClock();
   }
 
   async pmcmCommandInbox(actor: ResolvedEventOpsActor, page = 0) {

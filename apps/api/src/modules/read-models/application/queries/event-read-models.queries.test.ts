@@ -9,6 +9,7 @@ import {
   MAX_CLIENT_WORKSPACE_ROWS,
   MAX_CLIENT_ARCHIVED_EVENTS,
   MAX_CLIENT_ACTION_CENTER_ROWS,
+  MAX_SUPPLIER_WORKSPACE_ROWS,
   MAX_VISIBLE_EVENTS,
 } from './event-read-models.queries';
 
@@ -40,6 +41,23 @@ describe('EventReadModelQueries collection limits', () => {
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: expect.any(Number),
     });
+  });
+
+  it('keyset-pages every event-scoped supplier readiness request', async () => {
+    const rows = Array.from({ length: MAX_SUPPLIER_WORKSPACE_ROWS * 2 + 1 }, (_, index) => ({ id: `qr_${String(index).padStart(4, '0')}` }));
+    const requests = { findMany: vi.fn(async ({ where, take }: { where: { id?: { gt?: string } }; take: number }) => {
+      const afterId = where.id?.gt;
+      return rows.filter((row) => !afterId || row.id > afterId).slice(0, take);
+    }) };
+    const queries = new EventReadModelQueries({ opsSupplierQuoteRequest: requests } as unknown as PrismaService);
+
+    const result = await queries.supplierReadinessRequestsForEvent('evt_1');
+
+    expect(result).toEqual(rows);
+    expect(requests.findMany).toHaveBeenCalledTimes(3);
+    expect(requests.findMany).toHaveBeenNthCalledWith(1, expect.objectContaining({ where: { eventId: 'evt_1' }, orderBy: { id: 'asc' }, take: MAX_SUPPLIER_WORKSPACE_ROWS }));
+    expect(requests.findMany).toHaveBeenNthCalledWith(2, expect.objectContaining({ where: { eventId: 'evt_1', id: { gt: rows[MAX_SUPPLIER_WORKSPACE_ROWS - 1]?.id } }, orderBy: { id: 'asc' }, take: MAX_SUPPLIER_WORKSPACE_ROWS }));
+    expect(requests.findMany).toHaveBeenNthCalledWith(3, expect.objectContaining({ where: { eventId: 'evt_1', id: { gt: rows[MAX_SUPPLIER_WORKSPACE_ROWS * 2 - 1]?.id } }, orderBy: { id: 'asc' }, take: MAX_SUPPLIER_WORKSPACE_ROWS }));
   });
 
   it('loads recent coordinator reliability history by coordinator with event and role context', async () => {
