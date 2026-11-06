@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismPmcmCalendarItem, PrismPmcmEventSummary } from "@prism/types";
-import { financeSummaryLabel, messagesSummaryLabel, summariesByEvent } from "./event-summary-labels";
+import { fileSummaryLabel, financeSummaryLabel, messagesSummaryLabel, summariesByEvent } from "./event-summary-labels";
 import { calendarWindow, toCalendarEntries } from "./pmcm-calendar-items";
 
 const summary = (overrides: Partial<PrismPmcmEventSummary> = {}): PrismPmcmEventSummary => ({ eventId: "e1", balanceDue: 0, nextPaymentDue: null, overdueMilestones: 0, unreadMessages: 0, ...overrides });
@@ -19,6 +19,16 @@ describe("event list summaries", () => {
     expect(messagesSummaryLabel(summary({ unreadMessages: 1 }))).toEqual({ text: "1 unread message", urgent: true });
     expect(messagesSummaryLabel(summary({ unreadMessages: 4 }))).toEqual({ text: "4 unread messages", urgent: true });
     expect(summariesByEvent([summary({ eventId: "e7" })]).get("e7")?.eventId).toBe("e7");
+  });
+});
+
+describe("file summaries", () => {
+  it("says how much file work is left, flags overdue, and says nothing for events the read did not cover", () => {
+    expect(fileSummaryLabel(undefined)).toBeNull();
+    expect(fileSummaryLabel({ eventId: "e1", total: 0, open: 0, overdue: 0 })).toBeNull();
+    expect(fileSummaryLabel({ eventId: "e1", total: 8, open: 0, overdue: 0 })).toEqual({ text: "All requirements met" });
+    expect(fileSummaryLabel({ eventId: "e1", total: 8, open: 6, overdue: 0 })).toEqual({ text: "6 of 8 requirements open" });
+    expect(fileSummaryLabel({ eventId: "e1", total: 8, open: 6, overdue: 2 })).toEqual({ text: "6 of 8 requirements open · 2 overdue", urgent: true });
   });
 });
 

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ForbiddenException } from '@nestjs/common';
-import { PmcmOverviewService } from './pmcm-overview.service';
+import { FILE_SUMMARY_EVENT_LIMIT, PmcmOverviewService } from './pmcm-overview.service';
 
 function harness(allowed: boolean) {
   const queries = {
@@ -13,9 +13,21 @@ function harness(allowed: boolean) {
     ocularVisits: vi.fn(async () => []),
     supplierSchedules: vi.fn(async () => []),
     eventNames: vi.fn(async () => []),
+    activeEventIds: vi.fn(async (limit: number) => Array.from({ length: Math.min(limit, 7) }, (_, index) => ({ id: `e${index + 1}` }))),
+  };
+  const fileRequirements = {
+    buildForEvent: vi.fn(async (eventId: string) => ({
+      eventId,
+      items: [
+        { status: 'missing', overdue: true },
+        { status: 'pending', overdue: false },
+        { status: 'approved', overdue: false },
+        { status: 'complete', overdue: false },
+      ],
+    })),
   };
   const policy = { requireActorRole: vi.fn(async () => { if (!allowed) throw new ForbiddenException('Role is not allowed'); }) };
-  return { queries, policy, service: new PmcmOverviewService(queries as never, policy as never) };
+  return { queries, policy, fileRequirements, service: new PmcmOverviewService(queries as never, policy as never, fileRequirements as never) };
 }
 
 const pmcm = { id: 'u_pmcm', role: 'pmcm-admin', name: 'PMCM' } as never;
@@ -37,10 +49,23 @@ describe('PmcmOverviewService', () => {
     expect(result.items[0].unreadMessages).toBe(0);
   });
 
+  it('summarises each active event\'s open and overdue file requirements, within the event cap', async () => {
+    const { service, queries, fileRequirements } = harness(true);
+    const result = await service.fileSummaries(pmcm);
+
+    expect(queries.activeEventIds).toHaveBeenCalledWith(FILE_SUMMARY_EVENT_LIMIT);
+    expect(fileRequirements.buildForEvent).toHaveBeenCalledTimes(7);
+    expect(result.items).toHaveLength(7);
+    expect(result.items[0]).toEqual({ eventId: 'e1', total: 4, open: 2, overdue: 1 });
+  });
+
   it.each(['supplier', 'client', 'coordinator'])('refuses a %s before reading anything', async (role) => {
-    const { service, queries } = harness(false);
+    const { service, queries, fileRequirements } = harness(false);
     const actor = { id: 'u', role, name: 'Someone' } as never;
 
+    await expect(service.fileSummaries(actor)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(queries.activeEventIds).not.toHaveBeenCalled();
+    expect(fileRequirements.buildForEvent).not.toHaveBeenCalled();
     await expect(service.eventSummaries(actor)).rejects.toBeInstanceOf(ForbiddenException);
     await expect(service.calendar(actor, { from: '2026-11-01', to: '2026-11-30' })).rejects.toBeInstanceOf(ForbiddenException);
     expect(queries.openMilestones).not.toHaveBeenCalled();
