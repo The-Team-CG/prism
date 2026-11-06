@@ -90,6 +90,9 @@ function createService(assignment: unknown) {
     opsUrgentIssue: {
       findFirst: vi.fn(async () => null),
     },
+    opsEventDayLog: {
+      create: vi.fn(async () => ({})),
+    },
   };
   const eventAccessPolicyService = {
     requireActorRole: vi.fn(async () => undefined),
@@ -124,7 +127,9 @@ function createService(assignment: unknown) {
     findAssignmentForEventActor: vi.fn(async () => assignment),
     mapCoordinatorAssignment: vi.fn(),
   };
-  const supplierCommands = {};
+  const supplierCommands = {
+    reportSupplierEventStatusOnSite: vi.fn().mockResolvedValue({ id: 'supplier_req_1', supplierName: 'Sonic Line Events' }),
+  };
   const eventReferences = { findOperationsEvent: vi.fn(async (eventId: string) => prisma.opsEvent.findUnique({ where: { id: eventId } })) };
   const service = new EventLiveOpsCommandService(
     prisma as never,
@@ -135,7 +140,7 @@ function createService(assignment: unknown) {
     supplierCommands as never,
     eventReferences as never,
   );
-  return { service, liveOperationsService, coordinatorCommandService, eventAccessPolicyService, staffingReader, prisma, eventReferences };
+  return { service, liveOperationsService, coordinatorCommandService, eventAccessPolicyService, staffingReader, supplierCommands, prisma, eventReferences };
 }
 
 describe('EventLiveOpsCommandService event scoping', () => {
@@ -550,6 +555,29 @@ describe('EventLiveOpsCommandService coordinator attendance self-scope', () => {
       expect.objectContaining({ role: OpsUserRole.Coordinator }),
       'supplier setup verification',
       'evt_sample_ayala',
+    );
+  });
+
+  it('lets only the ingress coordinator, a designated operator or PMCM report supplier status on site', async () => {
+    const floor = createService(coordinatorAssignmentRow({ role: 'Floor Director' }));
+    floor.prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample_ayala' } as never);
+    floor.prisma.opsEventOperatorDesignation.findFirst.mockResolvedValue(null as never);
+    await expect(
+      floor.service.reportSupplierEventStatus('evt_sample_ayala', 'supplier_req_1', { status: 'arrived' }, coordinatorActor()),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(floor.eventAccessPolicyService.recordForbiddenAccess).toHaveBeenCalledWith(
+      expect.objectContaining({ role: OpsUserRole.Coordinator }),
+      'supplier on-site status report',
+      'evt_sample_ayala',
+    );
+    expect(floor.supplierCommands.reportSupplierEventStatusOnSite).not.toHaveBeenCalled();
+
+    const ingress = createService(coordinatorAssignmentRow({ role: 'Ingress and Egress Assistant' }));
+    ingress.prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample_ayala' } as never);
+    ingress.prisma.opsEventOperatorDesignation.findFirst.mockResolvedValue(null as never);
+    await ingress.service.reportSupplierEventStatus('evt_sample_ayala', 'supplier_req_1', { status: 'arrived' }, coordinatorActor());
+    expect(ingress.supplierCommands.reportSupplierEventStatusOnSite).toHaveBeenCalledWith(
+      'evt_sample_ayala', 'supplier_req_1', { status: 'arrived' }, expect.objectContaining({ role: OpsUserRole.Coordinator }),
     );
   });
 });

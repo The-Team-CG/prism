@@ -16,6 +16,38 @@ function harness(options: { removed?: boolean; replay?: { body: string } } = {})
   return { service, actor, tx };
 }
 
+describe('CommunicationService thread creation', () => {
+  function threadHarness(resolveForEvent = vi.fn(async (id: string) => ({ id, role: 'supplier' }))) {
+    const supplier = { id: 'u_supplier', name: 'Supplier', email: 'supplier@example.test', role: 'supplier', explicit: true, verified: true } as const;
+    const pmcm = { id: 'u_pmcm', name: 'PMCM', email: 'pmcm@example.test', role: 'pmcm-admin', explicit: true, verified: true };
+    const createMany = vi.fn();
+    const row = { id: 'thread_1', eventId: 'event_1', subject: 'Parking', status: 'open', createdBy: supplier.id, createdAt: new Date(), updatedAt: new Date(), participants: [], messages: [] };
+    const tx = { opsCommunicationThread: { create: vi.fn(async () => ({ id: 'thread_1', subject: 'Parking' })), findUnique: vi.fn(async () => row) }, opsCommunicationParticipant: { createMany } };
+    const prisma = { $transaction: vi.fn(async (fn: (db: typeof tx) => unknown) => fn(tx)) };
+    const listPmcmAdmins = vi.fn(async () => [pmcm]);
+    const service = new CommunicationService(prisma as never, { requireActorRole: vi.fn() } as never, { resolveForEvent, listPmcmAdmins } as never, { write: vi.fn() } as never, { write: vi.fn() } as never);
+    return { service, supplier, createMany };
+  }
+
+  it('sends a booked supplier thread to the PMCM admins', async () => {
+    const { service, supplier, createMany } = threadHarness();
+    await service.createThread({ eventId: 'event_1', subject: 'Parking' }, supplier);
+    expect(createMany.mock.calls[0][0].data.map((member: { actorId: string }) => member.actorId)).toEqual(['u_supplier', 'u_pmcm']);
+  });
+
+  it('never lets a supplier choose who joins a thread', async () => {
+    const { service, supplier, createMany } = threadHarness();
+    await expect(service.createThread({ eventId: 'event_1', subject: 'Parking', participantActorIds: ['u_client'] }, supplier)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(createMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects a supplier without a booking on the event', async () => {
+    const { service, supplier, createMany } = threadHarness(vi.fn(async () => { throw new ForbiddenException('Not on this event'); }));
+    await expect(service.createThread({ eventId: 'event_1', subject: 'Parking' }, supplier)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(createMany).not.toHaveBeenCalled();
+  });
+});
+
 describe('CommunicationService message guards', () => {
   it('rejects a removed member inside the transaction', async () => {
     const { service, actor } = harness({ removed: true });

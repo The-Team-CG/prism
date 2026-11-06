@@ -17,7 +17,7 @@ import { eventApi, eventApiRequest } from "@/lib/prism-api";
 import { privacyQueueSearch } from "../model/privacy-console-rules";
 
 export type PrivacyConsoleCommands = {
-  pmcmState(): Promise<{ events: PrismEvent[]; users: PrismUser[] }>;
+  pmcmReference(): Promise<{ events: PrismEvent[]; users: PrismUser[] }>;
   requestQueue(query: ListPrivacyRequestsQueryInput): Promise<PrismPrivacyRequestPage>;
   createRequest(input: CreatePrivacyRequestInput): Promise<PrismPrivacyRequest>;
   assignRequest(requestId: string, input: AssignPrivacyRequestInput): Promise<PrismPrivacyRequest>;
@@ -33,7 +33,7 @@ function eventQuery(eventId?: string) {
 }
 
 const privacyConsoleCommands = {
-  pmcmState: () => eventApi.pmcmDashboard.detail().then(({ events, users }) => ({ events, users })),
+  pmcmReference: () => eventApi.pmcm.reference().then(({ events, users }) => ({ events, users })),
   requestQueue: (query: ListPrivacyRequestsQueryInput) =>
     eventApiRequest<PrismPrivacyRequestPage>(`/api/privacy/requests${privacyQueueSearch(query)}`),
   createRequest: (input: CreatePrivacyRequestInput) =>
@@ -55,7 +55,7 @@ const privacyConsoleCommands = {
 
 export function createPrivacyConsoleRepository(commands: PrivacyConsoleCommands = privacyConsoleCommands) {
   return {
-    loadContext: () => commands.pmcmState(),
+    loadContext: () => commands.pmcmReference(),
     queue: (query: ListPrivacyRequestsQueryInput) => commands.requestQueue(query),
     loadLegalHolds: (eventId?: string) => commands.legalHolds(eventId),
     createRequest: (input: CreatePrivacyRequestInput) => commands.createRequest(input),

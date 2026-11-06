@@ -1,0 +1,28 @@
+{
+  "name": "@prism/portal-query",
+  "version": "0.1.0",
+  "private": true,
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "node ../../scripts/typescript.mjs -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:ci": "vitest run",
+    "lint": "node ../../scripts/lint.mjs"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.105.1"
+  },
+  "peerDependencies": {
+    "react": "^19.2.5"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19",
+    "jsdom": "^30.0.1",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.5"
+  }
+}

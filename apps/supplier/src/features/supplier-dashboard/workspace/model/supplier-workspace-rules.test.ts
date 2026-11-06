@@ -4,14 +4,12 @@ import {
   buildBookingSteps,
   buildSupplierContractRequirements,
   buildSupplierFileRequirementRows,
-  buildCalendarEvents,
   canReportSupplierEventDayStatus,
   buildQuoteByRequest,
   closedRequestReason,
   countEventsThisMonth,
   countHandoffPending,
   countQuotesNeedingSubmission,
-  countReadinessNeedsAction,
   dashboardGreetingCopy,
   deriveWorkspace,
   filterOpenRequests,
@@ -24,15 +22,17 @@ import {
   greetingForHour,
   initialForm,
   isPastDate,
+  isQuoteLocked,
   isRequestClosed,
+  requestsForQuoting,
   parseQuoteForm,
   quoteRequestsNavDesc,
   bookingsNavDesc,
-  groupReadinessItemsByEvent,
   quoteSubmitSuccessNotice,
   supplierReadinessSection,
   supplierMessageEvents,
 } from "./supplier-workspace-rules";
+import { splitSupplierNextSteps } from "./supplier-next-step";
 import type { PrismFileRequirementsMatrix, PrismSupplierReadinessItem } from "@prism/types";
 import type { PrismSupplierQuote, PrismSupplierQuoteRequest, SupplierWorkspace } from "./supplier-workspace-types";
 import { supplierBookingHref, supplierWorkHref } from "./supplier-next-step";
@@ -116,6 +116,9 @@ describe("supplier-workspace-rules", () => {
     expect(isPastDate("2000-01-01", Date.parse("2026-01-01"))).toBe(true);
     expect(isPastDate("2099-01-01", Date.parse("2026-01-01"))).toBe(false);
     expect(isPastDate(null)).toBe(false);
+    // The due date stays current all day in Manila, even after 8 AM when it has passed in UTC terms.
+    expect(isPastDate("2026-11-12", Date.parse("2026-11-12T15:59:00.000Z"))).toBe(false);
+    expect(isPastDate("2026-11-12", Date.parse("2026-11-12T16:00:00.000Z"))).toBe(true);
   });
 
   it("builds initial quote form from quote or empty", () => {
@@ -171,14 +174,15 @@ describe("supplier-workspace-rules", () => {
   });
 
   it.each([
-    ["missing", false, "Upload signed contract below", "missing"],
+    ["missing", false, "Signed contract needed", "missing"],
     ["submitted", false, "Awaiting PMCM review", "submitted"],
     ["changes_requested", false, "Upload a corrected version", "pending"],
     ["accepted", true, "Accepted by PMCM", "approved"],
   ] as const)("keeps contract handoff aligned with %s review evidence", (contractReviewStatus, done, meta, status) => {
     const request = makeRequest({ id: "contract", status: "selected", assignmentStatus: "confirmed", readinessStatus: "confirmed", contractDocumentId: "legacy-metadata", contractReviewStatus });
     expect(buildBookingSteps(request)[2]).toMatchObject({ done, meta });
-    expect(countHandoffPending([request])).toBe(done ? 0 : 1);
+    // A contract PMCM is reviewing is no longer the supplier's work.
+    expect(countHandoffPending([request])).toBe(done || contractReviewStatus === "submitted" ? 0 : 1);
     expect(buildSupplierContractRequirements({ quoteRequests: [request, makeRequest({ id: "unselected" })], supplierQuotes: [] })).toEqual([
       expect.objectContaining({ key: "supplier-contract:contract", status, detail: meta }),
     ]);
@@ -217,7 +221,7 @@ describe("supplier-workspace-rules", () => {
     expect(supplierWorkHref({ quoteStatus: "selected", requestId: "booking_selected" })).toBe("/dashboard/bookings#supplier-work-booking_selected");
   });
 
-  it("routes every readiness item to the section where it is actioned and groups all items by event", () => {
+  it("routes every readiness item to the section where it is actioned", () => {
     const item = (id: string, eventId: string, quoteStatus: string, eventName: string | null = null) =>
       ({ id, eventId, eventName, quoteStatus }) as PrismSupplierReadinessItem;
     const items = [
@@ -229,42 +233,46 @@ describe("supplier-workspace-rules", () => {
     ];
 
     expect(items.map(supplierReadinessSection)).toEqual(["bookings", "requests", "requests", "bookings", "bookings"]);
-    expect(groupReadinessItemsByEvent(items).map((group) => [group.eventName, group.items.map((entry) => entry.id)])).toEqual([
-      ["Gala", ["a", "c"]],
-      ["Summit", ["b", "e"]],
-      ["Assigned event", ["d"]],
-    ]);
   });
 
-  it("orders Today by the soonest action, within and across events", () => {
-    const item = (id: string, eventId: string, quoteStatus: string, dueAt: string | null, ingressAt?: string) =>
-      ({ id, eventId, eventName: eventId, quoteStatus, dueAt, schedule: ingressAt ? { ingressAt } : null }) as PrismSupplierReadinessItem;
+  it("splits Today into the supplier's turn and work waiting on PMCM, soonest first, without closed requests", () => {
+    const item = (id: string, quoteStatus: string, dueAt: string | null, ingressAt?: string) =>
+      ({ id, requestId: id, eventId: "e1", eventName: "e1", quoteStatus, dueAt, schedule: ingressAt ? { ingressAt, acknowledged: true } : null, assignmentStatus: "pending", contractStatus: "missing" }) as unknown as PrismSupplierReadinessItem;
     const items = [
-      item("undated", "late-event", "open", null),
-      item("quote-later", "late-event", "open", "2026-11-20T00:00:00Z"),
-      item("booked", "soon-event", "selected", "2026-10-01T00:00:00Z", "2026-11-02T08:00:00Z"),
-      item("quote-sooner", "soon-event", "open", "2026-11-01T00:00:00Z"),
+      item("undated", "open", null),
+      item("quote-later", "open", "2026-11-20T00:00:00Z"),
+      item("booked", "selected", "2026-10-01T00:00:00Z", "2026-11-02T08:00:00Z"),
+      item("quote-sooner", "open", "2026-11-01T00:00:00Z"),
+      item("sent", "open", "2026-11-03T00:00:00Z"),
+      item("gone", "expired", "2026-10-01T00:00:00Z"),
     ];
 
-    expect(groupReadinessItemsByEvent(items).map((group) => [group.eventId, group.items.map((entry) => entry.id)])).toEqual([
-      ["soon-event", ["quote-sooner", "booked"]],
-      ["late-event", ["quote-later", "undated"]],
-    ]);
+    const steps = splitSupplierNextSteps(items, (entry) => entry.id === "sent");
+    expect(steps.yourTurn.map((entry) => entry.id)).toEqual(["quote-sooner", "booked", "quote-later", "undated"]);
+    expect(steps.waiting.map((entry) => entry.id)).toEqual(["sent"]);
   });
 
-  it("counts readiness needs and events this month", () => {
-    expect(
-      countReadinessNeedsAction(
-        {
-          counts: { critical: 1, warning: 2, attention: 3, info: 0 },
-          items: [],
-        } as never,
-        9,
-        9,
-      ),
-    ).toBe(6);
-    expect(countReadinessNeedsAction(null, 2, 3)).toBe(5);
+  it("lists requests still being bid, live before closed and soonest first, leaving won work to Bookings", () => {
+    const requests = [
+      makeRequest({ id: "closed", status: "closed", dueDate: "2026-01-01" }),
+      makeRequest({ id: "later", status: "open", dueDate: "2026-02-02" }),
+      makeRequest({ id: "won", status: "selected", dueDate: "2026-01-02" }),
+      makeRequest({ id: "sooner", status: "open", dueDate: "2026-02-01" }),
+    ];
+    expect(requestsForQuoting(requests, new Map()).map((request) => request.id)).toEqual(["sooner", "later", "closed"]);
+  });
 
+  it("locks a quote after selection or its one revision, and says why", () => {
+    const open = makeRequest({ id: "r", status: "open" });
+    expect(isQuoteLocked(open, makeQuote({ id: "q", requestId: "r", revisionNumber: 1 }))).toBe(false);
+    const revised = makeQuote({ id: "q", requestId: "r", revisionNumber: 2 });
+    expect(isQuoteLocked(open, revised)).toBe(true);
+    expect(closedRequestReason(open, revised)).toMatch(/one revision/);
+    expect(isQuoteLocked(makeRequest({ id: "r", status: "selected" }), makeQuote({ id: "q", requestId: "r" }))).toBe(true);
+    expect(isQuoteLocked(open, null)).toBe(false);
+  });
+
+  it("counts events this month", () => {
     const may = new Date("2026-05-15T12:00:00.000Z");
     expect(
       countEventsThisMonth(
@@ -301,7 +309,7 @@ describe("supplier-workspace-rules", () => {
     expect(closedRequestReason(expired)).toMatch(/Deadline/);
   });
 
-  it("derives workspace aggregates and calendar events", () => {
+  it("derives workspace aggregates whose Today count is the sum of the Requests and Bookings counts", () => {
     const workspace = {
       supplier: { name: "Xperto", categoryName: "AV" },
       quoteRequests: [
@@ -316,15 +324,12 @@ describe("supplier-workspace-rules", () => {
       supplierQuotes: [makeQuote({ id: "q1", requestId: "r2", status: "selected" })],
     } as unknown as SupplierWorkspace;
 
-    const derived = deriveWorkspace(workspace, null, new Date("2026-05-15T00:00:00.000Z"));
+    const derived = deriveWorkspace(workspace, new Date("2026-05-15T00:00:00.000Z"));
     expect(derived.openRequests).toHaveLength(1);
     expect(derived.selectedRequests).toHaveLength(1);
     expect(derived.quoteNeedingSubmission).toBe(1);
     expect(derived.handoffPending).toBe(1);
-
-    const events = buildCalendarEvents(workspace);
-    expect(events).toHaveLength(2);
-    expect(events[0].date <= events[1].date).toBe(true);
+    expect(derived.needsActionCount).toBe(2);
   });
 
   it("greeting, first name, and notices", () => {

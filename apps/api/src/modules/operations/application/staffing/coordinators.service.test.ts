@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
 import { AuditService, AuditWriterAdapter, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/contexts/platform-ops';
@@ -309,7 +309,7 @@ function eventReferencesFor(prisma: any) {
   };
 }
 
-function createService(prisma: any, accessPolicy: any = createAccessPolicy(), coordinatorAccountEligibility: any = { isCoordinatorAccountEligible: vi.fn(async () => true) }) {
+function createService(prisma: any, accessPolicy: any = createAccessPolicy(), coordinatorAccountEligibility: any = { isCoordinatorAccountEligible: vi.fn(async () => true), listPmcmAdminEmails: vi.fn(async () => ["admin@pmcm.test", "ops@pmcm.test"]) }) {
   const writers = createServiceWriters(prisma);
   const eventReferences = eventReferencesFor(prisma);
   return new CoordinatorAssignmentCommandService(
@@ -967,6 +967,8 @@ describe('Coordinator staffing workflows', () => {
       const withdrawn = await service.withdrawCoordinator(event.id, created.id, { reason: 'No longer available' }, pmcmAdminActor);
 
       expect(withdrawn.status).toBe('cancelled');
+      expect(withdrawn.emergencyChange).toBe(false);
+      expect(fake.notifications.some((entry: any) => /Emergency change/.test(entry.message))).toBe(false);
       expect(fake.reliabilityNotes).toHaveLength(1);
       expect(fake.reliabilityNotes[0]).toMatchObject({
         eventId: event.id,
@@ -977,6 +979,35 @@ describe('Coordinator staffing workflows', () => {
       });
       expect(fake.notifications.length).toBeGreaterThan(0);
       expect(fake.audits.some((entry: any) => entry.action?.includes('Withdrew'))).toBe(true);
+    });
+
+    it('flags a withdrawal inside the 48-hour window as an emergency change in the audit trail and reliability note', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      try {
+        vi.setSystemTime(new Date('2026-06-17T12:00:00.000Z'));
+        const fake = createPrisma();
+        const service = createService(fake.prisma as any);
+        const created = await service.assignCoordinator(
+          event.id,
+          { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true },
+          pmcmAdminActor,
+        );
+
+        const withdrawn = await service.withdrawCoordinator(event.id, created.id, { reason: 'Family emergency' }, pmcmAdminActor);
+
+        expect(withdrawn.emergencyChange).toBe(true);
+        expect(fake.reliabilityNotes[0].note).toBe('Marco Santos withdrew from Floor Director within 48 hours of the event: Family emergency');
+        const pmcmAlerts = fake.notifications.filter((entry: any) => /Emergency change/.test(entry.message));
+        expect(pmcmAlerts.map((entry: any) => entry.recipient).sort()).toEqual(["admin@pmcm.test", "ops@pmcm.test"]);
+        expect(pmcmAlerts[0].message).toContain("Marco Santos withdrew from Floor Director within 48 hours of the event: Family emergency");
+        expect(fake.audits).toContainEqual(expect.objectContaining({
+          action: expect.stringContaining('Emergency change: Marco Santos withdrew from Floor Director'),
+          severity: 'critical',
+          metadata: expect.objectContaining({ emergencyChange: true }),
+        }));
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('allows the owning Coordinator to withdraw with a required reason', async () => {
@@ -1107,6 +1138,15 @@ describe('Coordinator staffing workflows', () => {
   });
 
   describe('Operations assignment ownership commands', () => {
+    // The attendance tests run on the event day in Manila (2026-06-18 18:00), inside the coordinator window.
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-06-18T10:00:00.000Z'));
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     const activeAssignment = (overrides: Record<string, unknown> = {}) => ({
       id: 'coord_asg_event_day',
       eventId: event.id,
@@ -1183,6 +1223,61 @@ describe('Coordinator staffing workflows', () => {
         { status: 'present' },
         actor,
       )).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('lets a coordinator record attendance from the day before through the day after, by Philippine date', async () => {
+      const fake = createPrisma();
+      const row = activeAssignment();
+      fake.assignments.push(row);
+      const service = createService(fake.prisma as any);
+      // Event 2026-06-18. Manila reaches 2026-06-17 and 2026-06-19 a few hours before UTC does.
+      const inWindow = ['2026-06-17T09:00:00.000Z', '2026-06-18T10:00:00.000Z', '2026-06-16T16:30:00.000Z'];
+      for (const at of inWindow) {
+        vi.setSystemTime(new Date(at));
+        await expect(service.updateCoordinatorAttendance(event.id, row.id, { status: 'present' }, coordinatorActor)).resolves.toMatchObject({
+          assignment: { id: row.id, attendanceStatus: 'present' },
+        });
+      }
+      // 2026-06-19 16:30 UTC is already 2026-06-20 in Manila, so the day-after window has closed.
+      vi.setSystemTime(new Date('2026-06-19T16:30:00.000Z'));
+      await expect(service.updateCoordinatorAttendance(event.id, row.id, { status: 'late' }, coordinatorActor)).rejects.toThrow(
+        'Attendance can only be marked from the day before through the day after the event',
+      );
+    });
+
+    it('rejects a coordinator mark outside the window without writing a reliability note', async () => {
+      const fake = createPrisma();
+      const row = activeAssignment();
+      fake.assignments.push(row);
+      const service = createService(fake.prisma as any);
+      // Months after the event, as in the audit: an Absent mark would otherwise write a permanent reliability note.
+      vi.setSystemTime(new Date('2026-11-02T10:00:00.000Z'));
+
+      await expect(service.updateCoordinatorAttendance(
+        event.id,
+        row.id,
+        { status: 'absent', notes: 'No-show' },
+        coordinatorActor,
+      )).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(row).toMatchObject({ attendanceStatus: 'pending', attendanceNotes: '' });
+      expect(fake.reliabilityNotes).toHaveLength(0);
+      expect(fake.audits.filter((entry: any) => entry.action?.includes('Updated coordinator attendance'))).toHaveLength(0);
+    });
+
+    it('keeps PMCM able to correct attendance after the coordinator window has closed', async () => {
+      const fake = createPrisma();
+      const row = activeAssignment();
+      fake.assignments.push(row);
+      const service = createService(fake.prisma as any);
+      vi.setSystemTime(new Date('2026-11-02T10:00:00.000Z'));
+
+      await expect(service.updateCoordinatorAttendance(
+        event.id,
+        row.id,
+        { status: 'present', notes: 'Corrected by PMCM' },
+        pmcmAdminActor,
+      )).resolves.toMatchObject({ assignment: { attendanceStatus: 'present' } });
     });
 
     it('releases only active assignments owned by the cancelled event', async () => {

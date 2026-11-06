@@ -168,11 +168,68 @@ describe('wrap-up logistics mirror', () => {
         if (!roles.includes(actor.role)) throw new ForbiddenException(`${actor.role} cannot access ${resource}`);
       }),
     };
+    const suppliers: { rows: Array<Record<string, string>> } = { rows: [] };
+    const commercialFacts = { getLifecycleFacts: vi.fn(async () => ({ supplierQuoteRequests: suppliers.rows })) };
     const service = new EventClosureService(
-      prisma as never, {} as never, {} as never, { write: vi.fn(async () => undefined) } as never, access as never, {} as never, {} as never, {} as never, {} as never,
+      prisma as never, {} as never, {} as never, { write: vi.fn(async () => undefined) } as never, access as never, {} as never, {} as never, commercialFacts as never, {} as never,
     );
-    return { service, wrapUpState, logisticsState, logistics };
+    return { service, wrapUpState, logisticsState, logistics, suppliers };
   }
+
+  describe('supplier egress and billing draft sections', () => {
+    const supplier = (supplierName: string, assignmentStatus: string, eventDayStatus: string) => ({ id: supplierName, supplierName, assignmentStatus, readinessStatus: 'confirmed', eventDayStatus });
+    const sections = (egress: Record<string, unknown>, billing: Record<string, unknown> = {}) => ({
+      supplierEgress: { status: 'complete', evidence: '', completedAt: null, ...egress },
+      billingDraft: { status: 'complete', evidence: '', completedAt: null, items: [], ...billing },
+    });
+
+    it('reports which confirmed suppliers have not left, counting only confirmed assignments', async () => {
+      const { service, suppliers } = wrapUpHarness({ wrapUp: legacyWrapUpRow({ status: 'pending', evidence: '', completedAt: null }) });
+      suppliers.rows = [supplier('Sound Co', 'confirmed', 'done_leaving'), supplier('Florals', 'confirmed', 'set_up_ready'), supplier('Withdrawn AV', 'withdrawn', 'not_started')];
+
+      const wrapUp = await service.getWrapUp('event_1', pmcm);
+
+      expect(wrapUp?.supplierEgressSummary).toEqual({ confirmedSuppliers: 2, leftSite: 1, outstanding: ['Florals'] });
+      expect(wrapUp?.sections).toMatchObject({ supplierEgress: { status: 'pending' }, billingDraft: { status: 'pending', items: [] } });
+    });
+
+    it('will not confirm egress without an explanation while a confirmed supplier has not left', async () => {
+      const { service, suppliers } = wrapUpHarness({ wrapUp: legacyWrapUpRow({ status: 'pending', evidence: '', completedAt: null }) });
+      suppliers.rows = [supplier('Florals', 'confirmed', 'set_up_ready')];
+
+      await expect(service.updateWrapUp('event_1', updateEventWrapUpSchema.parse({ sections: sections({}) }), pmcm))
+        .rejects.toThrow('Explain why Florals have not reported leaving');
+
+      const saved = await service.updateWrapUp('event_1', updateEventWrapUpSchema.parse({
+        sections: sections({ evidence: 'Florals collected next morning by arrangement' }, { items: [{ label: 'Extra overtime hours', amount: 4500 }] }),
+      }), pmcm);
+      expect(saved.sections.supplierEgress).toMatchObject({ status: 'complete' });
+      expect(saved.sections.billingDraft).toMatchObject({ status: 'complete', items: [{ label: 'Extra overtime hours', amount: 4500, note: '' }] });
+      expect(saved.supplierEgressSummary?.outstanding).toEqual(['Florals']);
+    });
+
+    it('keeps a wrap-up that was completed before these sections existed complete', async () => {
+      const completedAt = new Date('2026-10-18T10:00:00Z');
+      const legacy = {
+        ...legacyWrapUpRow({ status: 'complete', evidence: 'x', completedAt: null }, 'complete'),
+        requiredItems: { post_event_documents: true, billing: true, logistics: true, issues: true, feedback: true },
+        sections: {
+          logistics: { status: 'complete', evidence: 'x', completedAt: null },
+          issues: { status: 'complete', evidence: 'x', completedAt: null },
+          feedback: { status: 'complete', evidence: 'x', completedAt: null },
+        },
+        clientAcknowledgedAt: completedAt,
+        completedAt,
+      };
+      const { service, logisticsState } = wrapUpHarness({ wrapUp: legacy as never });
+      logisticsState.row = { assetReturnsVerified: true, recordedAt: completedAt };
+
+      const wrapUp = await service.getWrapUp('event_1', pmcm);
+
+      expect(wrapUp?.status).toBe('complete');
+      expect(wrapUp?.sections.supplierEgress).toMatchObject({ status: 'complete', evidence: 'Completed before this section existed' });
+    });
+  });
 
   it('shows the logistics section as pending until the PMCM record exists, then complete', async () => {
     const { service, wrapUpState } = wrapUpHarness({ wrapUp: legacyWrapUpRow({ status: 'pending', evidence: '', completedAt: null }) });

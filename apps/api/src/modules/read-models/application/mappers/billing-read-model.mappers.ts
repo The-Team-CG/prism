@@ -71,6 +71,7 @@ export function mapBillingEvent(event: EventWithDrafts) {
     status: event.status,
     clientPortalStatus: event.clientPortalStatus as 'locked' | 'unlocked',
     clientEventDayViewEnabled: event.clientEventDayViewEnabled,
+    proposalClientStatus: event.proposalClientStatus,
     readiness: event.readiness,
     archived: event.archived,
     floorPlanStatus: event.floorPlanStatus,

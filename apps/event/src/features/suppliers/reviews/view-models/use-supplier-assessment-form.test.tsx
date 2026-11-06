@@ -24,19 +24,29 @@ function renderAssessment(overrides: Partial<Omit<Parameters<typeof useSupplierA
 }
 
 describe("useSupplierAssessmentForm", () => {
-  it("keeps submission blocked until every dimension and the notes are complete", () => {
-    const { result } = renderAssessment();
+  it("shows no validation until a save is attempted, then names the gaps in plain copy", async () => {
+    const { result, onAddReview } = renderAssessment();
+
+    expect(result.current.canSubmit).toBe(true);
+    expect(result.current.missingDimensionNames).toEqual([]);
+    expect(result.current.validationMessage).toBeNull();
+
+    await act(async () => { await result.current.submit(); });
+    expect(onAddReview).not.toHaveBeenCalled();
+    expect(result.current.validationMessage).toBe("Add a note before saving this review.");
+    expect(result.current.missingDimensionNames).toEqual(["Reliability", "Punctuality"]);
 
     act(() => result.current.updateDraft({ notes: "Solid run of show" }));
-    expect(result.current.canSubmit).toBe(false);
+    expect(result.current.validationMessage).toBeNull();
     expect(result.current.missingDimensionNames).toEqual(["Reliability", "Punctuality"]);
 
     act(() => result.current.updateDimension("dim_reliability", "5"));
     expect(result.current.missingDimensionNames).toEqual(["Punctuality"]);
-    expect(result.current.canSubmit).toBe(false);
+    await act(async () => { await result.current.submit(); });
+    expect(onAddReview).not.toHaveBeenCalled();
 
     act(() => result.current.updateDimension("dim_punctuality", "4"));
-    expect(result.current.canSubmit).toBe(true);
+    expect(result.current.missingDimensionNames).toEqual([]);
     expect(result.current.validationMessage).toBeNull();
   });
 

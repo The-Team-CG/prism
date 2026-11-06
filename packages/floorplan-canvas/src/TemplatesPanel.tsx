@@ -3,6 +3,7 @@ import { Save, Trash2, Check, Download, Search, Layers } from "lucide-react";
 import { useEditor } from "./store";
 import {
   cloneTemplateObjects,
+  permanentFeatureCount,
   type FloorPlanTemplate,
 } from "./templates";
 import type { TemplateStore } from "./template-store";
@@ -77,6 +78,7 @@ export function TemplatesPanel({ store }: { store: TemplateStore }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState(state.project.name || "New template");
+  const [venueRules, setVenueRules] = useState("");
   const [includeGuests, setIncludeGuests] = useState(false);
   const [includeSuppliers, setIncludeSuppliers] = useState(true);
   const [justSavedId, setJustSavedId] = useState<string | null>(null);
@@ -103,6 +105,7 @@ export function TemplatesPanel({ store }: { store: TemplateStore }) {
       const t = await store.add({
         name: name.trim() || "Untitled template",
         venue: p.venue,
+        venueRules,
         widthM: p.widthM,
         heightM: p.heightM,
         pax: p.pax,
@@ -157,7 +160,7 @@ export function TemplatesPanel({ store }: { store: TemplateStore }) {
   return (
     <div className="flex flex-col">
       <div className="px-3 pb-2 pt-3">
-        <div className="text-[10px] uppercase tracking-wider text-neutral-400">Library</div>
+        <div className="text-xs font-medium text-neutral-500">Library</div>
         <div className="mt-0.5 text-sm text-neutral-900" style={{ fontWeight: 500 }}>
           My templates
         </div>
@@ -177,6 +180,14 @@ export function TemplatesPanel({ store }: { store: TemplateStore }) {
               placeholder="Template name"
               className="w-full rounded-md bg-white px-2 py-1.5 text-xs outline-none ring-1 ring-neutral-200 focus:ring-primary/40"
             />
+            <textarea
+              value={venueRules}
+              onChange={(e) => setVenueRules(e.target.value)}
+              placeholder="Venue rules (load-in hours, noise limits, restricted areas)"
+              aria-label="Venue rules"
+              className="min-h-14 w-full rounded-md bg-white px-2 py-1.5 text-[11px] outline-none ring-1 ring-neutral-200 focus:ring-primary/40"
+            />
+            <p className="text-[9px] text-neutral-500">Walls, doors, windows, pillars and safety equipment are saved as permanent venue features and come back locked.</p>
             <label className="flex items-center gap-1.5 text-[10px] text-neutral-600">
               <input type="checkbox" checked={includeGuests} onChange={(e) => setIncludeGuests(e.target.checked)} />
               Include guest list
@@ -262,6 +273,12 @@ export function TemplatesPanel({ store }: { store: TemplateStore }) {
                 <span className="text-neutral-300">·</span>
                 {t.pax} pax
               </div>
+              {permanentFeatureCount(t) > 0 && (
+                <div className="text-[9px] text-neutral-500">{permanentFeatureCount(t)} permanent venue feature{permanentFeatureCount(t) === 1 ? "" : "s"}</div>
+              )}
+              {t.venueRules && (
+                <div className="line-clamp-2 text-[9px] text-neutral-500" title={t.venueRules}>Rules: {t.venueRules}</div>
+              )}
               <div className="mt-auto flex gap-1 pt-1">
                 <button
                   onClick={() => apply(t)}

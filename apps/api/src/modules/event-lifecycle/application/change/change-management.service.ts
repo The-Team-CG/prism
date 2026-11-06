@@ -8,6 +8,8 @@ import { randomUUID } from 'node:crypto';
 import { mapAddendumConformeExecution } from './addendum-conforme.mappers';
 import { COMMERCIAL_ADDENDUM_IMPACT_WRITER, type CommercialAddendumImpactWriter } from '@prism/contexts/commercial';
 import { consumeApprovedFreezeException } from './freeze-exception-consumption';
+import { PRISM_BUSINESS_UTC_OFFSET_HOURS } from '@prism/types';
+import { AUTO_FREEZE_DAYS_BEFORE_EVENT, isDueForAutomaticFreeze } from '../../domain/auto-freeze.policy';
 import { CLIENT_CHANGE_REQUEST_SELECT, toClientChangeRequest } from '../../domain/client-change-request.projection';
 
 type SnapshotEntry = Record<string, unknown>;
@@ -83,6 +85,43 @@ export class ChangeManagementService {
       await writeAudit(this.audit, eventId, actor.name, 'Froze event scope', { actorRole: actor.role, actionType: 'update', category: 'events', affectedType: 'event_freeze', affectedId: eventId, metadata: { reason: input.reason.trim(), previousStatus: event.freezeStatus } }, { prisma: tx, correlationId: eventId, actorId: actor.id });
       return { eventId: updated.id, freezeStatus: updated.freezeStatus, freezeAt: updated.freezeAt?.toISOString() ?? null, freezeDeadlineAt: updated.freezeDeadlineAt?.toISOString() ?? null, freezeReason: updated.freezeReason };
     }, { isolationLevel: 'Serializable' });
+  }
+
+  /**
+   * Freezes every open, live event that has reached five days before its event day. Each event is frozen in its own
+   * transaction and only if it is still open, so a manual freeze that lands first, or a repeat sweep, changes nothing.
+   */
+  async freezeEventsDue(now = new Date()) {
+    const dayMs = 24 * 60 * 60 * 1000;
+    const candidates = await this.prisma.opsEvent.findMany({
+      where: {
+        archived: false,
+        freezeStatus: 'open',
+        actualEndedAt: null,
+        eventDate: { lte: new Date(now.getTime() + AUTO_FREEZE_DAYS_BEFORE_EVENT * dayMs + PRISM_BUSINESS_UTC_OFFSET_HOURS * 60 * 60 * 1000), gt: new Date(now.getTime() - dayMs) },
+      },
+      orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
+      take: 100,
+    });
+    const reason = `Automatic scope freeze ${AUTO_FREEZE_DAYS_BEFORE_EVENT} days before the event`;
+    let frozen = 0;
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: the event query above caps each sweep at 100 rows.
+    for (const event of candidates) {
+      if (!isDueForAutomaticFreeze(event, now)) continue;
+      try {
+        const changed = await this.prisma.$transaction(async (tx) => {
+          const result = await tx.opsEvent.updateMany({
+            where: { id: event.id, freezeStatus: 'open', archived: false },
+            data: { freezeStatus: 'frozen', freezeAt: now, freezeDeadlineAt: event.eventDate, freezeReason: reason },
+          });
+          if (result.count !== 1) return false;
+          await writeAudit(this.audit, event.id, 'System', 'Froze event scope automatically', { actorRole: OpsUserRole.System, actionType: 'update', category: 'events', affectedType: 'event_freeze', affectedId: event.id, metadata: { reason, automatic: true, daysBeforeEvent: AUTO_FREEZE_DAYS_BEFORE_EVENT } }, { prisma: tx, correlationId: `auto-freeze:${event.id}` });
+          return true;
+        });
+        if (changed) frozen += 1;
+      } catch { /* one event's failure leaves it open for the next sweep and does not stop the others */ }
+    }
+    return { frozen };
   }
 
   async requestException(eventId: string, input: RequestFreezeExceptionInput, actor: ResolvedEventOpsActor): Promise<PrismEventFreezeException> {

@@ -79,14 +79,16 @@ function RiskAssessmentForm({
   busy: boolean;
   onSubmit: (draft: RecordEventRiskAssessmentInput) => Promise<boolean>;
 }) {
-  const [level, setLevel] = useState<RiskLevel>(recordedLevel ?? "medium");
+  // Starts empty until PMCM chooses a level; a recorded level is shown as the current value.
+  const [level, setLevel] = useState<RiskLevel | "">(recordedLevel ?? "");
   const [summary, setSummary] = useState("");
   const [mitigations, setMitigations] = useState("");
   const [reason, setReason] = useState("");
-  const lowering = isLoweringRiskLevel(recordedLevel, level);
+  const lowering = level !== "" && isLoweringRiskLevel(recordedLevel, level);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (level === "") return;
     const saved = await onSubmit({ level, summary, mitigations: mitigations || undefined, expectedRevision, reason: reason || undefined });
     if (saved) { setSummary(""); setMitigations(""); setReason(""); }
   }
@@ -96,7 +98,8 @@ function RiskAssessmentForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-sm">
           <span className="text-muted-foreground">Recorded level</span>
-          <select value={level} onChange={(event) => setLevel(event.target.value as RiskLevel)} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
+          <select required aria-label="Recorded level" value={level} onChange={(event) => setLevel(event.target.value as RiskLevel | "")} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
+            <option value="">Choose a level…</option>
             {riskLevelOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </label>
@@ -115,7 +118,7 @@ function RiskAssessmentForm({
           <input required value={reason} onChange={(event) => setReason(event.target.value)} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
         </label>
       ) : null}
-      <button type="submit" disabled={busy || !summary.trim() || (lowering && !reason.trim())} className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+      <button type="submit" disabled={busy || level === "" || !summary.trim() || (lowering && !reason.trim())} className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">
         Record risk level
       </button>
     </form>

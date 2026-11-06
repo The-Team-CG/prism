@@ -1,4 +1,5 @@
 import { ArrowLeft, Check, FilePlus2, Plus, Search } from "lucide-react";
+import { BNI_TITLE } from "./supplier-visuals";
 
 import type { PrismSupplier, PrismSupplierCategory } from "@prism/types";
 import { DatePicker } from "@prism/ui/components/date-picker";
@@ -92,7 +93,7 @@ export function SupplierDirectoryList({
     <section className="min-w-0 rounded-lg border border-primary/12 bg-card p-4 shadow-none">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-medium text-attention">Supplier Directory</p>
+          <p className="text-sm text-muted-foreground">Supplier Directory</p>
           <h2 className="mt-2 text-2xl font-black">PMCM supplier database</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Eight configurable categories, tier tags, BNI auto-trust, reviews, and reliability history.
@@ -156,7 +157,7 @@ export function SupplierDirectoryList({
             <span>Name</span>
             <span>Category</span>
             <span>Tier</span>
-            <span>BNI</span>
+            <span title={BNI_TITLE}>BNI</span>
             <span>Aggregate Rating</span>
             <span>Last Event</span>
           </div>
@@ -196,7 +197,7 @@ function SupplierCreateFormFields({
 }) {
   return (
     <div className="mt-5 rounded-lg border border-border bg-muted p-4">
-      <p className="text-xs font-medium text-attention">New supplier</p>
+      <p className="text-sm text-muted-foreground">New supplier</p>
       <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
         <Input value={createForm.name} onChange={(event) => onCreateForm({ name: event.target.value })} className="h-10 bg-white" placeholder="Supplier name" />
         <Input value={createForm.contactName} onChange={(event) => onCreateForm({ contactName: event.target.value })} className="h-10 bg-white" placeholder="Contact person" />
@@ -249,7 +250,7 @@ function SupplierDirectoryRow({
       </span>
       <span>
         {supplier.bniMember ? (
-          <Badge variant="outline" className="rounded-full border-brand-orange/30 bg-accent px-2.5 py-1 text-2xs font-black text-attention">BNI</Badge>
+          <Badge variant="outline" title={BNI_TITLE} className="rounded-full border-brand-orange/30 bg-accent px-2.5 py-1 text-2xs font-black text-attention">BNI</Badge>
         ) : (
           <span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-2xs font-black text-muted-foreground">No BNI</span>
         )}
@@ -346,7 +347,7 @@ function SupplierProfileHeader({ supplier, onBack }: { supplier: PrismSupplier; 
     <div>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-medium text-attention">Supplier Profile</p>
+          <p className="text-sm text-muted-foreground">Supplier Profile</p>
           <h3 className="mt-2 truncate text-2xl font-black">{supplier.name}</h3>
         </div>
         <button
@@ -413,7 +414,7 @@ function SupplierEditProfileForm({
 }) {
   return (
     <div className="rounded-lg border border-border bg-muted p-4">
-      <p className="text-xs font-medium text-attention">Edit Profile</p>
+      <p className="text-sm text-muted-foreground">Edit Profile</p>
       <div className="mt-3 grid gap-2">
         <Input value={editForm.name} onChange={(event) => onEditForm({ name: event.target.value })} className="h-10 bg-white" placeholder="Supplier name" />
         <Input value={editForm.contactName} onChange={(event) => onEditForm({ contactName: event.target.value })} className="h-10 bg-white" placeholder="Contact person" />
@@ -444,7 +445,7 @@ function SupplierTierChangeForm({
 }) {
   return (
     <div className="rounded-lg border border-border bg-muted p-4">
-      <p className="text-xs font-medium text-attention">Tier Change</p>
+      <p className="text-sm text-muted-foreground">Tier Change</p>
       <div className="mt-3 grid gap-2">
         <select value={tierForm.tier} onChange={(event) => onTierForm({ tier: event.target.value as SupplierTierForm["tier"] })} className="h-10 rounded-md border border-border bg-white px-3 text-sm">
           <option value="tier_1">Tier 1</option>
@@ -473,7 +474,7 @@ function SupplierCertificationForm({
 }) {
   return (
     <div className="rounded-lg border border-border bg-muted p-4">
-      <p className="text-xs font-medium text-attention">Certification Metadata</p>
+      <p className="text-sm text-muted-foreground">Certification Metadata</p>
       <div className="mt-3 grid gap-2">
         <Input value={certForm.fileName} onChange={(event) => onCertForm({ fileName: event.target.value })} className="h-10 bg-white" placeholder="File name" />
         <Input value={certForm.documentType} onChange={(event) => onCertForm({ documentType: event.target.value })} className="h-10 bg-white" placeholder="Document type" />
@@ -500,20 +501,20 @@ function SupplierFacts({ supplier }: { supplier: PrismSupplier }) {
   return (
     <div className="grid gap-3 text-sm">
       <div className="rounded-md bg-background p-3">
-        <p className="text-xs font-medium text-attention">Contact</p>
+        <p className="text-sm text-muted-foreground">Contact</p>
         <p className="mt-1 font-semibold">{supplier.contactName || "No contact person"}</p>
         <p className="text-muted-foreground">{supplier.email || "No email"} - {supplier.phone || "No phone"}</p>
       </div>
       <div className="rounded-md bg-background p-3">
-        <p className="text-xs font-medium text-attention">Internal Rating</p>
+        <p className="text-sm text-muted-foreground">Internal Rating</p>
         <div className="mt-2"><RatingStars rating={supplier.aggregateRating} /></div>
       </div>
       <div className="rounded-md bg-background p-3">
-        <p className="text-xs font-medium text-attention">Service Inclusions</p>
+        <p className="text-sm text-muted-foreground">Service Inclusions</p>
         <p className="mt-1 leading-6 text-muted-foreground">{supplier.serviceInclusions}</p>
       </div>
       <div className="rounded-md bg-background p-3">
-        <p className="text-xs font-medium text-attention">Performance Notes</p>
+        <p className="text-sm text-muted-foreground">Performance Notes</p>
         <p className="mt-1 leading-6 text-muted-foreground">{supplier.performanceNotes}</p>
       </div>
     </div>
