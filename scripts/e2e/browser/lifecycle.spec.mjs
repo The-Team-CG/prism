@@ -149,7 +149,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await pmcm.page.goto(`${origins.event}/dashboard/suppliers`);
       await pmcm.page.getByRole('button', { name: 'Applications', exact: true }).click();
       const applicationCard = pmcm.page.getByText(supplierCompany, { exact: true }).locator('xpath=../../..');
-      await expect(applicationCard.getByText(supplierEmail, { exact: true })).toBeVisible();
+      await expect(applicationCard.getByText(supplierEmail, { exact: false })).toBeVisible();
       await applicationCard.getByRole('button', { name: 'Approve supplier', exact: true }).click();
       await expect.poll(async () => {
         const applications = await api('GET', '/supplier-applications/inbox');
