@@ -1,11 +1,9 @@
-import type { PARECandidate, PAREContext } from '../pare.types';
+import type { PARECandidate } from '../pare.types';
 import type { PareSupplierCandidateSource } from '@prism/contexts/read-models';
 
 export class SupplierFinderAgent {
-  async findPareSupplierCandidates(ctx: PAREContext, suppliers: PareSupplierCandidateSource[], signal?: AbortSignal): Promise<PARECandidate[]> {
+  async findPareSupplierCandidates(suppliers: PareSupplierCandidateSource[], signal?: AbortSignal): Promise<PARECandidate[]> {
     throwIfAborted(signal);
-    const { withdrawnSupplier } = ctx;
-
     const candidates: PARECandidate[] = [];
     const seenNames = new Set<string>();
 
@@ -15,7 +13,6 @@ export class SupplierFinderAgent {
       if (seenNames.has(supplier.name)) continue;
       seenNames.add(supplier.name);
 
-      // Skip if already assigned to this event in another role (same category block)
       if (supplier.confirmedOnEvent) continue;
 
       const reliabilityScore = this.computeReliabilityScore(supplier);
@@ -37,21 +34,19 @@ export class SupplierFinderAgent {
       });
     }
 
-    // Sort: tier_1 first, then by reliability score descending
     candidates.sort((a, b) => {
       const tierOrder = (t: string) => (t === 'tier_1' ? 0 : t === 'tier_2' ? 1 : 2);
       if (tierOrder(a.tier) !== tierOrder(b.tier)) return tierOrder(a.tier) - tierOrder(b.tier);
       return b.reliabilityScore - a.reliabilityScore;
     });
 
-    return candidates.slice(0, 5); // Top 5
+    return candidates.slice(0, 5);
   }
 
   private computeReliabilityScore(supplier: PareSupplierCandidateSource): number {
     if (supplier.reviewRatings.length === 0) return 0.5; // Unknown — neutral
 
     const avgRating = supplier.reviewRatings.reduce((sum, rating) => sum + rating, 0) / supplier.reviewRatings.length;
-    // Normalize 1-5 rating to 0-1 score
     const score = (avgRating - 1) / 4;
     return Math.round(score * 100) / 100;
   }

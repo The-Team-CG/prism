@@ -19,6 +19,7 @@ vi.mock("@prism/types", async (importOriginal) => {
 vi.mock("@/features/guest-shared/guest-http", () => ({ guestJson: http.guestJson }));
 
 import { guestDashboardRepository } from "./guest-dashboard-repository";
+import { guestAccessRepository } from "@/features/guest-access/open/data/guest-access-repository";
 
 const storedSession = {
   id: "evt_yala",
@@ -48,14 +49,18 @@ describe("guest dashboard session storage", () => {
 
   afterEach(() => vi.unstubAllGlobals());
 
-  it("removes names from legacy saved sessions before returning them", () => {
-    storage.read.mockReturnValue({ ...storedSession, guestName: "Legacy Name", attendanceCount: 4 });
+  it.each([
+    { label: "access", read: guestAccessRepository.readSession },
+    { label: "dashboard", read: guestDashboardRepository.readSession },
+  ])("removes legacy guest details through the $label entry point while retaining the feedback receipt", ({ read }) => {
+    const expected = { ...storedSession, feedbackReceiptId: "feedback_1" };
+    storage.read.mockReturnValue({ ...expected, guestName: "Legacy Name", attendanceCount: 4 });
 
-    const session = guestDashboardRepository.readSession();
+    const session = read();
 
-    expect(session).toEqual(storedSession);
+    expect(session).toEqual(expected);
     expect(session).not.toHaveProperty("guestName");
-    expect(storage.save).toHaveBeenCalledWith(expect.any(String), storedSession);
+    expect(storage.save).toHaveBeenCalledWith(expect.any(String), expected);
   });
 
   it("does not rewrite sessions that already contain no guest name", () => {
