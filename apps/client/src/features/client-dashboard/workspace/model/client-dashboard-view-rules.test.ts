@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  actionCenterItemToDashboardAction,
   clientFloorplanDashboardActionLabel,
   draftIsOfficial,
   selectNextAction,
@@ -85,5 +86,26 @@ describe("client dashboard action rules", () => {
       ["change-request:fx_1", "/dashboard/events/evt_1/changes", "neutral"],
     ]);
     expect(selectClientDashboardActions({ items }, "evt_2")).toEqual([]);
+  });
+
+  it("routes a pending addendum action to its specific acknowledgment section", () => {
+    const action = actionCenterItemToDashboardAction({
+      id: "addendum:add_7",
+      eventId: "evt_1",
+      eventName: "Summit",
+      kind: "addendum",
+      priority: "attention",
+      label: "Acknowledge addendum: Updated lighting plan",
+      description: "Version 7 is waiting for your acknowledgment.",
+      status: "awaiting_client",
+      href: "/dashboard/events/evt_1/overview#client-addendum-add_7",
+    });
+
+    expect(action).toMatchObject({
+      ctaLabel: "Review and acknowledge",
+      targetTab: "overview",
+      href: "/dashboard/events/evt_1/overview#client-addendum-add_7",
+      nextActor: "you",
+    });
   });
 });

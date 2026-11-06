@@ -8,6 +8,7 @@ import {
   MAX_COORDINATOR_RELIABILITY_HISTORY_ROWS,
   MAX_CLIENT_WORKSPACE_ROWS,
   MAX_CLIENT_ARCHIVED_EVENTS,
+  MAX_CLIENT_ACTION_CENTER_ROWS,
   MAX_VISIBLE_EVENTS,
 } from './event-read-models.queries';
 
@@ -359,6 +360,38 @@ describe('EventReadModelQueries collection limits', () => {
     expect(statementFilters).toHaveLength(4);
     expect(milestoneFilters.filter((where) => JSON.stringify(where).includes('"sentAt":{"not":null}'))).toHaveLength(3);
     expect(milestoneFilters).toHaveLength(4);
+  });
+  it('reads only client-pending addenda for event action cards', async () => {
+    const opsAddendum = model();
+    const prisma = new Proxy(
+      { opsAddendum },
+      {
+        get(target, property: string) {
+          if (property in target) return target[property as keyof typeof target];
+          return model();
+        },
+      },
+    );
+    const queries = new EventReadModelQueries(prisma as unknown as PrismaService);
+
+    await queries.clientActionCenterForEvents(['evt_client']);
+
+    expect(opsAddendum.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: {
+        eventId: { in: ['evt_client'] },
+        conformeExecution: { is: { status: 'awaiting_client' } },
+      },
+      select: {
+        id: true,
+        eventId: true,
+        versionNumber: true,
+        title: true,
+        issuedAt: true,
+        conformeExecution: { select: { status: true } },
+      },
+      orderBy: { id: 'asc' },
+      take: MAX_CLIENT_ACTION_CENTER_ROWS,
+    }));
   });
 
   it('bounds PMCM dashboard collections and nested floorplan history', async () => {

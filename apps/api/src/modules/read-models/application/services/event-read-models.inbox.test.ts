@@ -4,6 +4,33 @@ import { collectClientActionItems, collectPmcmCommandInboxItems } from './event-
 type Input = Parameters<typeof collectClientActionItems>[0];
 
 describe('client action center', () => {
+  it('surfaces only addenda awaiting the client and links to the version to acknowledge', () => {
+    const items = collectClientActionItems({
+      visibleEvents: [{ id: 'evt_gala', eventName: 'Founders gala', status: 'planning' }] as unknown as Input['visibleEvents'],
+      briefings: [{ eventId: 'evt_gala' }] as unknown as Input['briefings'],
+      documents: [],
+      floorPlanDrafts: [],
+      billingStatements: [],
+      paymentMilestones: [],
+      paymentRecords: [],
+      postEventDocuments: [],
+      addenda: [
+        { id: 'add_7', eventId: 'evt_gala', versionNumber: 7, title: 'Updated lighting plan', issuedAt: new Date('2026-11-05T00:00:00Z'), conformeExecution: { status: 'awaiting_client' } },
+        { id: 'add_6', eventId: 'evt_gala', versionNumber: 6, title: 'Prior plan', issuedAt: new Date('2026-11-04T00:00:00Z'), conformeExecution: { status: 'awaiting_pmcm' } },
+      ],
+      now: new Date('2026-11-06T00:00:00Z'),
+    });
+
+    expect(items.filter((item) => item.kind === 'addendum')).toEqual([expect.objectContaining({
+      id: 'addendum:add_7',
+      priority: 'attention',
+      label: 'Acknowledge addendum: Updated lighting plan',
+      description: 'Version 7 is waiting for your acknowledgment.',
+      status: 'awaiting_client',
+      href: '/dashboard/events/evt_gala/overview#client-addendum-add_7',
+    })]);
+  });
+
   it('names each pending closeout record so two items can be told apart without opening them', () => {
     const items = collectClientActionItems({
       visibleEvents: [{ id: 'evt_gala', eventName: 'Founders gala', status: 'completed' }] as unknown as Input['visibleEvents'],
