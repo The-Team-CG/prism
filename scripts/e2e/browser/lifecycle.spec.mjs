@@ -16,6 +16,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
   const contexts = [pmcm.context];
   let inquiry, eventId;
   let supplierActor, coordinator;
+  let supplierCompany, supplierEmail;
   const path = tab => `${origins.event}/dashboard/events/${eventId}/${tab}`;
   try {
     await test.step('Public client submits; PMCM accepts; client activates from the local inbox', async () => {
@@ -57,7 +58,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       expect(eventId).toBeTruthy();
     });
 
-    await test.step('Client submits the briefing; PMCM issues a priced proposal; client approves it', async () => {
+    await test.step('Client submits the briefing; requests a proposal revision; PMCM issues a new version for approval', async () => {
       await client.goto(`${origins.client}/dashboard/events/${eventId}/briefing`);
       await client.getByLabel(/^Venue preference/).fill('Browser acceptance venue');
       await client.getByLabel(/^Expected guest count/).fill('120');
@@ -77,6 +78,22 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await proposal.getByLabel('Proposal title', { exact: true }).fill('Browser lifecycle proposal');
       await proposal.getByRole('button', { name: 'Issue to client', exact: true }).click();
       await expect(proposal.getByRole('status')).toContainText('Version 1 is issued');
+      await client.goto(`${origins.client}/dashboard/events/${eventId}/proposal`);
+      await client.getByPlaceholder('Describe the change you need.').fill('Please clarify the venue package before approval.');
+      await client.getByRole('button', { name: 'Request revision', exact: true }).click();
+      await expect(client.getByText('Revision request sent to PMCM. Your notes are recorded with this proposal.', { exact: true })).toBeVisible();
+      await pmcm.page.goto(path('briefing'));
+      await pmcm.page.getByRole('tab', { name: 'Proposal', exact: true }).click();
+      const revisedProposal = pmcm.page.locator('section').filter({ has: pmcm.page.getByRole('heading', { name: 'Commercial proposal', exact: true }) });
+      await revisedProposal.getByLabel('Client budget (PHP)', { exact: true }).fill('150000');
+      await revisedProposal.getByLabel('Line 1 category', { exact: true }).fill('Venue');
+      await revisedProposal.getByLabel('Line 1 description', { exact: true }).fill('Updated event delivery');
+      await revisedProposal.getByLabel('Line 1 quantity', { exact: true }).fill('1');
+      await revisedProposal.getByLabel('Line 1 unit amount in PHP', { exact: true }).fill('105000');
+      await revisedProposal.getByLabel('Proposal title', { exact: true }).fill('Browser lifecycle proposal v2');
+      await revisedProposal.getByLabel(/^What changed since version 1/).fill('Clarified the venue package from the client revision.');
+      await revisedProposal.getByRole('button', { name: 'Issue to client', exact: true }).click();
+      await expect(revisedProposal.getByRole('status')).toContainText('Version 2 is issued');
       // The client's proposal package includes billing, and a client only sees a statement once PMCM sends it.
       await pmcm.page.goto(path('billing'));
       const billing = pmcm.page.getByRole('region', { name: 'Billing source', exact: true });
@@ -92,18 +109,67 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await expect(client.getByText('Approved', { exact: true }).first()).toBeVisible();
     });
 
-    await test.step('PMCM requests a supplier quote; supplier follows its own email; PMCM selects the quote', async () => {
+    await test.step('Supplier applies; PMCM reviews the application and the supplier activates its account', async () => {
+      const applicantContext = await browser.newContext(device); contexts.push(applicantContext);
+      const applicant = await applicantContext.newPage();
+      const applicantSuffix = `${info.project.name}-${Date.now()}`;
+      supplierCompany = `Browser Registration Supplier ${applicantSuffix}`;
+      supplierEmail = `browser-supplier-${applicantSuffix}@example.test`;
+      await applicant.goto(`${origins.supplier}/apply`);
+      await applicant.getByLabel('Company name', { exact: true }).fill(supplierCompany);
+      await applicant.getByLabel('Contact person', { exact: true }).fill('Browser Supplier Contact');
+      await applicant.getByLabel('Email address', { exact: true }).fill(supplierEmail);
+      await applicant.getByRole('button', { name: 'Continue', exact: true }).click();
+      await applicant.getByRole('combobox', { name: 'Service category', exact: true }).click();
+      await applicant.getByRole('option', { name: 'Digital Registration', exact: true }).click();
+      await applicant.getByLabel('Service inclusions', { exact: true }).fill('Registration equipment and on-site support');
+      await applicant.getByRole('button', { name: 'Continue', exact: true }).click();
+      await applicant.getByRole('button', { name: 'Continue', exact: true }).click();
+      await applicant.getByRole('checkbox', { name: /These details are accurate/ }).check();
+      await applicant.getByRole('button', { name: 'Submit application', exact: true }).click();
+      await expect(applicant.getByRole('heading', { name: 'Application submitted', exact: true })).toBeVisible();
+      const applicationId = (await applicant.getByText(/^sap_/).textContent())?.trim();
+      expect(applicationId).toBeTruthy();
+
+      await pmcm.page.goto(`${origins.event}/dashboard/suppliers`);
+      await pmcm.page.getByRole('button', { name: 'Applications', exact: true }).click();
+      const applicationCard = pmcm.page.getByText(supplierCompany, { exact: true }).locator('xpath=../../..');
+      await expect(applicationCard.getByText(supplierEmail, { exact: true })).toBeVisible();
+      await applicationCard.getByRole('button', { name: 'Approve supplier', exact: true }).click();
+      await expect.poll(async () => {
+        const applications = await api('GET', '/supplier-applications/inbox');
+        return applications.find(item => item.id === applicationId)?.status;
+      }).toBe('approved');
+
+      const invitation = await inbox(supplierEmail, '/activate');
+      await applicant.goto(mailLink(invitation, '/activate', origins.supplier));
+      await applicant.getByLabel('New password', { exact: true }).fill(password);
+      await applicant.getByLabel('Confirm new password', { exact: true }).fill(password);
+      await applicant.getByRole('button', { name: 'Activate account', exact: true }).click();
+      await expect(applicant.getByRole('heading', { name: "You're all set", exact: true })).toBeVisible();
+      await applicant.getByRole('link', { name: 'Sign in', exact: true }).click();
+      await fillStable(applicant.getByLabel('Email address', { exact: true }), supplierEmail);
+      await fillStable(applicant.getByLabel('Password', { exact: true }), password);
+      await applicant.getByRole('button', { name: 'Sign in', exact: true }).click();
+      await privacyIfNeeded(applicant);
+      supplierActor = { context: applicantContext, page: applicant };
+    });
+
+    await test.step('PMCM requests a supplier quote; the applicant supplier replies; PMCM selects the quote', async () => {
       await pmcm.page.goto(path('suppliers'));
       await pmcm.page.getByRole('tab', { name: /^Requests & quotes/ }).click();
+      await pmcm.page.locator('select').first().selectOption('supcat_digital_registration');
       await pmcm.page.getByRole('button', { name: 'Request Quotes', exact: true }).click();
-      await pmcm.page.getByRole('checkbox', { name: /XPERTO Registration/ }).check();
+      const existingSupplier = pmcm.page.getByRole('checkbox', { name: /XPERTO Registration/ });
+      if (await existingSupplier.isChecked()) await existingSupplier.uncheck();
+      await pmcm.page.getByRole('checkbox', { name: new RegExp(supplierCompany) }).check();
       await pmcm.page.getByLabel('Quote deadline', { exact: true }).fill('12/01/2030');
       await expect(pmcm.page.getByLabel('Quote deadline', { exact: true })).toHaveValue('12/01/2030');
       const request = pmcm.page.waitForResponse(response => response.url().endsWith(`/events/${eventId}/quote-requests`) && response.request().method() === 'POST');
       await pmcm.page.getByRole('button', { name: 'Send Requests', exact: true }).click();
       const requests = await (await request).json();
       const token = (Array.isArray(requests) ? requests : requests.data)[0].accessToken;
-      const mail = await inbox('ops@xperto.test', token);
+      const mail = await inbox(supplierEmail, token);
       const context = await browser.newContext(device); contexts.push(context);
       const supplier = await context.newPage();
       await supplier.goto(mailLink(mail, '/quote-requests/', origins.supplier));
@@ -118,7 +184,6 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
     });
 
     await test.step('Supplier confirms the booking/readiness; PMCM assigns the coordinator; coordinator acknowledges', async () => {
-      supplierActor = await persona(browser, 'supplier', device); contexts.push(supplierActor.context);
       await supplierActor.page.goto(`${origins.supplier}/dashboard/bookings`);
       const booking = await openBooking(supplierActor.page, inquiry.eventName);
       await booking.getByRole('button', { name: 'Confirm assignment', exact: true }).click();
