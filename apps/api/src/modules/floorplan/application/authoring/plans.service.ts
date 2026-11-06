@@ -20,6 +20,7 @@ import type { CanvasObject, FloorPlan, FloorPlanObject, JsonValue, SavedPlanObje
 import type { UpdatePlanInput } from '@prism/types';
 import { floorPlanScalarPatch, replaceFloorPlanObjects } from './plan-patch';
 import {
+  assertSeatingAllowedForNewAssignments,
   assertTableAssignmentsEligible,
   storedTableEligibilityGuests,
   storedTableEligibilityObjects,
@@ -213,6 +214,9 @@ export class PlansService {
     const objects = changes.objects ?? storedTableEligibilityObjects(storedObjects);
     const guests = changes.guests ?? storedTableEligibilityGuests(asArray<unknown>(plan.guests));
     assertTableAssignmentsEligible(objects, guests);
+    if (changes.objects !== undefined) {
+      assertSeatingAllowedForNewAssignments(storedTableEligibilityObjects(storedObjects), objects, changes.pax ?? plan.pax);
+    }
   }
 
   private async savePlanChanges(

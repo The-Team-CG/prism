@@ -331,6 +331,7 @@ export const handlers: ActionHandlers = {
       guests: state.project.guests,
       guestId: action.guestId,
       objectId: action.objectId,
+      pax: state.project.pax,
     });
     if (!eligibility.eligible) {
       return {

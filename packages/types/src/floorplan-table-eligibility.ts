@@ -1,6 +1,17 @@
 import type { TableAssignmentIneligibleReason } from "./schemas/floorplan-inputs.js";
 export { tableAssignmentIneligibleReasonSchema, type TableAssignmentIneligibleReason } from "./schemas/floorplan-inputs.js";
 
+/** Table assignment and the printable seating list are for events under this many guests (catalog FR-84). */
+export const SEATING_LIST_MAX_GUESTS = 200;
+
+/**
+ * Every Prism event is a private PMCM-run client event, so the catalog's private-event condition always holds;
+ * only the size limit varies. An unset guest count (0) does not block seating.
+ */
+export function isSeatingListAvailable(pax: number | undefined | null): boolean {
+  return !pax || pax < SEATING_LIST_MAX_GUESTS;
+}
+
 /**
  * Role-neutral table seating eligibility shared by the floorplan editor and the API. A guest may sit
  * at a table only when the guest is known and not declined, the target is a visible seating table
@@ -38,7 +49,10 @@ export function evaluateTableAssignment(input: {
   guests: readonly TableEligibilityGuest[];
   guestId: string;
   objectId: string;
+  /** The event's expected guest count; seating is refused at SEATING_LIST_MAX_GUESTS (200) or more. */
+  pax?: number;
 }): TableAssignmentEligibility {
+  if (!isSeatingListAvailable(input.pax)) return refuse("event-too-large");
   const guest = input.guests.find((g) => g.id === input.guestId);
   if (!guest) return refuse("unknown-guest");
   if (guest.rsvp === "declined") return refuse("guest-declined");
@@ -90,4 +104,20 @@ export function findTableAssignmentRejection(
 
 function isSeatedAtAnotherTable(objects: readonly TableEligibilityObject[], objectId: string, guestId: string): boolean {
   return objects.some((other) => other.id !== objectId && (other.assignedGuestIds ?? []).includes(guestId));
+}
+
+/**
+ * Seat assignments present in `next` that were not in `previous`. A plan that already seated guests before the size
+ * limit applied keeps its seats; only additions are refused for a large event.
+ */
+export function newTableAssignments(
+  previous: readonly TableEligibilityObject[],
+  next: readonly TableEligibilityObject[],
+): Array<{ guestId: string; objectId: string }> {
+  const before = new Set(previous.flatMap((object) => (object.assignedGuestIds ?? []).map((guestId) => object.id + "|" + guestId)));
+  return next.flatMap((object) =>
+    (object.assignedGuestIds ?? [])
+      .filter((guestId) => !before.has(object.id + "|" + guestId))
+      .map((guestId) => ({ guestId, objectId: object.id })),
+  );
 }

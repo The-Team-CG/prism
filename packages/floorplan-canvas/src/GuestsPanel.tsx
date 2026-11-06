@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
-import { Plus, Search, Trash2, GripVertical, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { Plus, Search, Trash2, GripVertical, CheckCircle2, Clock, XCircle, Printer } from "lucide-react";
+import { SEATING_LIST_MAX_GUESTS, isSeatingListAvailable } from "@prism/types";
 import { useEditor } from "./store";
 import type { Guest, RSVP } from "./types";
 import { uid } from "./assetLibrary";
+import { buildSeatingList, printSeatingList } from "./seating-list";
 
 const RSVP_META: Record<RSVP, { label: string; color: string; Icon: typeof CheckCircle2 }> = {
   confirmed: { label: "Confirmed", color: "#1F7A4B", Icon: CheckCircle2 },
@@ -16,6 +18,8 @@ export function GuestsPanel() {
   const { state, dispatch } = useEditor();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [printBlocked, setPrintBlocked] = useState(false);
+  const seatingOpen = isSeatingListAvailable(state.project.pax);
 
   const assignedMap = useMemo(() => {
     const m = new Map<string, { objectId: string; label: string }>();
@@ -80,6 +84,24 @@ export function GuestsPanel() {
           <div className="text-neutral-500">Seated</div>
         </div>
       </div>
+
+      {seatingOpen ? (
+        <div className="mx-3 mb-2">
+          <button
+            type="button"
+            disabled={stats.assigned === 0}
+            onClick={() => setPrintBlocked(!printSeatingList((state.project.name || "Event") + " seating list", buildSeatingList(state.project)))}
+            className="flex w-full items-center justify-center gap-1.5 rounded-md bg-white py-1.5 text-[11px] text-neutral-700 ring-1 ring-neutral-200 hover:bg-neutral-50 disabled:opacity-50"
+          >
+            <Printer size={12} /> Print seating list
+          </button>
+          {printBlocked && <p role="alert" className="mt-1 text-[10px] text-rose-700">Your browser blocked the print window. Allow pop-ups for this site and try again.</p>}
+        </div>
+      ) : (
+        <p role="status" className="mx-3 mb-2 rounded-md bg-muted p-2 text-[10px] text-neutral-600">
+          Table assignment and the seating list are only for events under {SEATING_LIST_MAX_GUESTS} guests. This event expects {state.project.pax}.
+        </p>
+      )}
 
       {/* Search */}
       <div className="px-2 pb-1.5">

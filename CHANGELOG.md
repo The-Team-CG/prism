@@ -6,6 +6,9 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Clients annotate the official floor plan on the plan itself: the review shows the submitted layout, a click pins a note to that spot (and to the table or element under it), saved notes show as numbered pins, and the typed object ID field is gone. Only the primary contact can annotate, as before.
+- Table assignment and the seating list are for events under 200 guests (the catalog limit; every Prism event is a private client event). The editor and the API refuse new seats at 200 or more, while seats already made stay. The guest panel can print a seating list by table with the guests still without a seat.
+- The venue library saves walls, doors, windows, pillars and safety equipment as permanent venue features that come back locked when a template is used, and saves the venue rules with the template. This also fixes saving a template from the editor, which the API refused because it only accepted an older object shape.
 - Event scope now freezes by itself at midnight Philippine time five days before the event day: an hourly sweep freezes open, live events (audited as the system, and a manual freeze that lands first is left alone). Turn it off with `PRISM_DISABLE_AUTO_FREEZE_JOB=1`.
 - The compliance panel gives a readiness report from the latest completed run: not ready while any Must-Fix is outstanding (listing each with what to do), ready with follow-ups for outstanding lower layers or open high and critical risks, otherwise ready, with counts per layer.
 - Recorded risks now carry a likelihood and an impact (low, medium or high). When no severity is given, it is worked out from the two (1-2 low, 3-4 medium, 6 high, 9 critical); an explicit severity still wins. Existing and rule-raised risks stay unrated. Adds a migration for the two columns.
