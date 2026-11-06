@@ -1,5 +1,5 @@
 import { eventApi as eventOpsClient, eventApiRequest as request } from "@/lib/prism-api";
-import type { PrismCoordinatorAssignment, PrismCoordinatorAvailability, PrismCoordinatorReliabilityHistoryEntry, PrismCoordinatorSuggestion, PrismEventDayTask, PrismSupplierQuoteRequest, PrismUrgentIssue, CreateEventDayTaskInput, DecideEventTaskReassignmentInput, PrismEventTaskReassignmentRequest, EscalateLiveOpsInput, EscalateEventDayTaskInput, UpdateCoordinatorAttendanceInput, UpdateEventDayTaskInput, UpdateUrgentIssueInput, CreateUrgentIssueInput, VerifySupplierStatusInput, CreateCoordinatorAvailabilityInput, CreateCoordinatorCoverageRequirementInput, CreateEventOperatorDesignationInput, PrismAcknowledgementReminderResult, PrismEventOperatorDesignation, ReplaceCoordinatorAssignmentInput, CreateCoordinatorAssignmentInput, CoordinatorSuggestionsQueryInput } from "@prism/types";
+import type { PrismCoordinatorAssignment, PrismCoordinatorAvailability, PrismCoordinatorPoolAvailability, PrismCoordinatorReliabilityHistoryEntry, PrismCoordinatorSuggestion, PrismEventDayTask, PrismSupplierQuoteRequest, PrismUrgentIssue, CreateEventDayTaskInput, DecideEventTaskReassignmentInput, PrismEventTaskReassignmentRequest, EscalateLiveOpsInput, EscalateEventDayTaskInput, UpdateCoordinatorAttendanceInput, UpdateEventDayTaskInput, UpdateUrgentIssueInput, CreateUrgentIssueInput, VerifySupplierStatusInput, CreateCoordinatorAvailabilityInput, CreateCoordinatorCoverageRequirementInput, CreateEventOperatorDesignationInput, PrismAcknowledgementReminderResult, PrismEventOperatorDesignation, ReplaceCoordinatorAssignmentInput, CreateCoordinatorAssignmentInput, CoordinatorSuggestionsQueryInput } from "@prism/types";
 
 export const operationsCommands = {
 revokeEventDayOperator: (eventId: string) => request<PrismEventOperatorDesignation>(`/api/events/${eventId}/operator-designation`, { method: "DELETE" }),
@@ -23,6 +23,8 @@ loadCoordinatorSuggestions: (eventId: string, input: CoordinatorSuggestionsQuery
     `/api/events/${eventId}/staffing/coordinator-suggestions?${query.toString()}`,
   );
 },
+loadCoordinatorPoolAvailability: (eventId: string) =>
+  request<PrismCoordinatorPoolAvailability>(`/api/events/${eventId}/staffing/pool-availability`),
 createEventDayTask: (eventId: string, input: CreateEventDayTaskInput) =>
     request<PrismEventDayTask>(`/api/events/${eventId}/event-day/tasks`, {
       method: "POST",

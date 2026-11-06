@@ -1,5 +1,5 @@
 import { formatPortalDate } from "@prism/ui/format-date";
-import type { PrismPmcmEventSummary } from "@prism/types";
+import type { PrismPmcmEventSummary, PrismPmcmFileSummary } from "@prism/types";
 
 export type SummaryLabel = { text: string; urgent?: boolean };
 
@@ -13,6 +13,14 @@ export function financeSummaryLabel(summary: PrismPmcmEventSummary | undefined):
   if (summary.overdueMilestones > 0) parts.push(`${summary.overdueMilestones} overdue`);
   if (summary.nextPaymentDue) parts.push(`next ${formatPortalDate(summary.nextPaymentDue)}`);
   return summary.overdueMilestones > 0 ? { text: parts.join(" · "), urgent: true } : { text: parts.join(" · ") };
+}
+
+/** How much file work is left, in one line for the Files event list; nothing for an event the read did not cover. */
+export function fileSummaryLabel(summary: PrismPmcmFileSummary | undefined): SummaryLabel | null {
+  if (!summary || summary.total === 0) return null;
+  if (summary.open === 0) return { text: "All requirements met" };
+  const text = `${summary.open} of ${summary.total} requirements open${summary.overdue > 0 ? ` · ${summary.overdue} overdue` : ""}`;
+  return summary.overdue > 0 ? { text, urgent: true } : { text };
 }
 
 /** Unread messages in one line for the Messages event list. */

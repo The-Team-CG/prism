@@ -14,6 +14,7 @@ import {
   formatAvailabilityRange,
   isAttendanceChoiceDisabled,
   isIngressOrEgressRole,
+  nextSupplierSiteStep,
   activeAssignmentForRole,
   isOperatorEligibleAssignment,
   isReplacedAssignment,
@@ -498,6 +499,13 @@ describe("operator and supplier check eligibility", () => {
     expect(isIngressOrEgressRole("Egress Lead")).toBe(true);
     expect(isIngressOrEgressRole("Floor Director")).toBe(false);
     expect(isIngressOrEgressRole(undefined)).toBe(false);
+  });
+
+  it("offers a supplier only the next forward on-site step, and none before readiness is confirmed", () => {
+    const at = (eventDayStatus?: string, readinessStatus = "confirmed") => nextSupplierSiteStep({ eventDayStatus, readinessStatus })?.status ?? null;
+    expect([undefined, "not_started", "late", "arrived", "set_up_ready", "done_leaving"].map((status) => at(status)))
+      .toEqual(["arrived", "arrived", "arrived", "set_up_ready", "done_leaving", null]);
+    expect(at("not_started", "pending")).toBeNull();
   });
 
   it("only offers coordinators who are working the event as operator", () => {
