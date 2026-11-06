@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { prismCalendarDateKey, selectCoordinatorFocusEventId } from "@prism/types";
 import type { EventSession } from "@/app/lib/session";
 import { useEventDayLiveUpdates } from "@/features/live-ops/workspace";
 import {
@@ -13,6 +14,7 @@ import {
   parseContract,
   updateCoordinatorAttendanceSchema,
   updateEventDayTaskSchema,
+  reportSupplierSiteStatusSchema,
   verifySupplierStatusSchema,
   type CreateEventTaskReassignmentInput,
   type CoordinatorRole,
@@ -30,8 +32,10 @@ import {
   markAttendanceAndRefreshRoleView,
   updateOwnTaskAndRefreshRoleView,
   updateDelegatedAttendanceAndRefreshRoleView,
+  reportSupplierStatusAndRefreshRoleView,
   verifySupplierStatusAndRefreshRoleView,
 } from "../use-cases/coordinator-desk-actions";
+import { useCoordinatorRoleViewSource } from "./use-coordinator-role-view-source";
 import {
   coordinatorRoleDataStatus,
   resolveCoordinatorTaskRole,
@@ -54,6 +58,7 @@ import {
   taskAssignedRoleOptions,
   shouldPreserveRoleViewOnAcknowledgeFailure,
   COORDINATOR_ATTENDANCE_CHOICES,
+  isCoordinatorAttendanceOpen,
   type CoordinatorAttendanceChoice,
 } from "../model/coordinators-desk-rules";
 
@@ -75,8 +80,10 @@ export function useCoordinatorViewModel({
   const activeEventIds = new Set(activeAssignments
     .filter((item) => state.events.some((event) => event.id === item.eventId && !event.archived))
     .map((item) => item.eventId));
-  const defaultAssignment = activeEventIds.size === 1
-    ? pickActiveAssignment(activeAssignments.filter((item) => activeEventIds.has(item.eventId)))
+  // Open on the next upcoming assigned event instead of asking the coordinator to pick one.
+  const defaultEventId = selectCoordinatorFocusEventId(state.events.filter((event) => activeEventIds.has(event.id)), prismCalendarDateKey());
+  const defaultAssignment = defaultEventId
+    ? pickActiveAssignment(activeAssignments.filter((item) => item.eventId === defaultEventId))
     : undefined;
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const eventId = selectedEventId ?? defaultAssignment?.eventId;
@@ -85,6 +92,8 @@ export function useCoordinatorViewModel({
     : undefined;
   const assignment = pickActiveAssignment(assignments.filter((item) => item.eventId === event?.id));
   const readOnly = Boolean(event?.archived);
+  // Same rule the API enforces on coordinator marks: the day before through the day after the event, Manila time.
+  const attendanceWindowOpen = isCoordinatorAttendanceOpen(event?.eventDate, prismCalendarDateKey());
   const activeDraft = event?.floorPlanDrafts?.find((draft) => draft.eventId === event.id && draft.isActive);
   const [busy, setBusy] = useState(false);
   const [roleView, setRoleView] = useState<PrismCoordinatorRoleView | null>(null);
@@ -125,6 +134,8 @@ export function useCoordinatorViewModel({
     activeEventIdRef.current = event?.id ?? null;
   }, [event?.id]);
 
+  const roleViewSource = useCoordinatorRoleViewSource(selectedEventId === null, event?.id);
+
   useEffect(() => {
     if (!event?.id) {
       setRoleView(null);
@@ -132,11 +143,24 @@ export function useCoordinatorViewModel({
       setRoleViewError(null);
       return;
     }
+    if (roleViewSource.kind === "focus") {
+      setRoleView(roleViewSource.view);
+      setRoleViewStatus("success");
+      setRoleViewError(null);
+      return;
+    }
+    if (roleViewSource.kind === "error") {
+      setRoleView(null);
+      setRoleViewStatus("error");
+      setRoleViewError(roleViewSource.message);
+      return;
+    }
 
     let alive = true;
     setRoleView(null);
     setRoleViewStatus("loading");
     setRoleViewError(null);
+    if (roleViewSource.kind === "wait") return;
     loadCoordinatorRoleView(session, event.id)
       .then((next) => {
         if (!alive) return;
@@ -153,7 +177,7 @@ export function useCoordinatorViewModel({
     return () => {
       alive = false;
     };
-  }, [event?.id, session.email, session.name]);
+  }, [event?.id, roleViewSource, session.email, session.name]);
 
   const refreshRoleView = useCallback(async () => {
     const eventId = event?.id;
@@ -181,7 +205,7 @@ export function useCoordinatorViewModel({
   // or gone from the workspace entirely — drop any open confirm prompt so it
   // cannot be tapped against stale state. Paired with the submit-time re-check
   // in confirmAttendance, which is the guarantee; this is the render concern.
-  const attendanceAssignmentUsable = canMarkOwnAttendance({ assignment, busy: readOnly });
+  const attendanceAssignmentUsable = canMarkOwnAttendance({ assignment, busy: readOnly, windowOpen: attendanceWindowOpen });
   useEffect(() => {
     if (!attendanceAssignmentUsable) setPendingAttendanceChoice(null);
   }, [attendanceAssignmentUsable]);
@@ -364,6 +388,21 @@ export function useCoordinatorViewModel({
     finally { setSupplierBusy(false); }
   }
 
+  async function reportSupplierStatus(requestId: string, status: "arrived" | "set_up_ready" | "done_leaving", note = "", photo?: File) {
+    if (!isWritableCoordinatorEvent(event) || !(roleView?.isDesignatedOperator || isIngressOrEgressRole(roleView?.role))) return;
+    setSupplierBusy(true);
+    setSupplierError(null);
+    try {
+      const input = parseContract(reportSupplierSiteStatusSchema, {
+        status,
+        notes: note.trim() || undefined,
+        photo: photo ? { fileName: photo.name, mimeType: photo.type || undefined, sizeBytes: photo.size } : undefined,
+      }, "Supplier site status");
+      setRoleView(await reportSupplierStatusAndRefreshRoleView({ session, eventId: event.id, requestId, input }));
+    } catch (error) { setSupplierError(error instanceof Error ? error.message : "Unable to report the supplier status."); }
+    finally { setSupplierBusy(false); }
+  }
+
   async function submitAttendance(choice: CoordinatorAttendanceChoice) {
     if (!isWritableCoordinatorEvent(event) || !assignment) return;
     setAttendanceBusy(true);
@@ -395,7 +434,7 @@ export function useCoordinatorViewModel({
   }
 
   function markAttendance(choice: CoordinatorAttendanceChoice) {
-    if (readOnly) return;
+    if (readOnly || !attendanceWindowOpen) return;
     setAttendanceError(null);
     // Picking any choice clears a pending confirm first, so an unconfirmed
     // Absent cannot survive into a later pick.
@@ -414,7 +453,7 @@ export function useCoordinatorViewModel({
     // REJECT half: re-check assignment state at submit time. The prompt may have
     // outlived the assignment it was opened against (PMCM replacement, role-view
     // refresh), and hiding it is a render concern that can lose that race.
-    if (!canConfirmPendingAttendance({ assignment, pendingChoice: choice, busy: attendanceBusy })) {
+    if (!canConfirmPendingAttendance({ assignment, pendingChoice: choice, busy: attendanceBusy, windowOpen: attendanceWindowOpen })) {
       return;
     }
     void submitAttendance(choice);
@@ -439,12 +478,14 @@ export function useCoordinatorViewModel({
   // PA-299 lives in the model, with its own test, so the rule cannot drift back
   // into the acknowledgment vocabulary here.
   const attendanceStatus = resolveOwnAttendanceStatus(assignment);
-  const attendanceCanMark = canMarkOwnAttendance({ assignment, busy: busy || readOnly, attendanceBusy });
+  const attendanceCanMark = canMarkOwnAttendance({ assignment, busy: busy || readOnly, attendanceBusy, windowOpen: attendanceWindowOpen });
   const pendingAttendanceLabel = attendanceChoiceLabel(pendingAttendanceChoice);
 
   return {
     status: roleViewStatus,
     assignments,
+    /** Events the coordinator is actively assigned to and that are not archived. */
+    assignedEvents: state.events.filter((item) => activeEventIds.has(item.id)),
     assignment,
     event,
     readOnly,
@@ -520,12 +561,15 @@ export function useCoordinatorViewModel({
       supplierError,
       updateAttendance: updateDelegatedAttendance,
       verifySupplier,
+      reportSupplierStatus,
     },
     attendanceStatus,
     attendanceForm: {
       status: attendanceStatus,
       choices: COORDINATOR_ATTENDANCE_CHOICES,
       canMark: attendanceCanMark,
+      windowOpen: attendanceWindowOpen,
+      markedAt: assignment?.attendanceMarkedAt ?? null,
       hasAssignment: Boolean(assignment),
       replaced: isReplacedAssignment(assignment),
       isDisabled: (choice: CoordinatorAttendanceChoice) =>

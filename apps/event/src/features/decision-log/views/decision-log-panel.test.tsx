@@ -49,7 +49,7 @@ describe("DecisionLogPanel", () => {
 
     expect(await screen.findByText("Archive override: archived with override")).toBeTruthy();
     expect(screen.getByText("Reason: Asset returns verified offline")).toBeTruthy();
-    expect(screen.getByText(/Ms\. Mys \(pmcm-admin\) · Source event evt_1/)).toBeTruthy();
+    expect(screen.getByText(/Ms\. Mys \(PMCM administrator\) · Source event evt_1/)).toBeTruthy();
     expect(screen.getByText("No reason recorded.")).toBeTruthy();
     expect(screen.getByText(/^Francis · Source/)).toBeTruthy();
     expect(repository.load).toHaveBeenCalledWith("evt_1", { page: 0, pageSize: 25 });
@@ -60,7 +60,7 @@ describe("DecisionLogPanel", () => {
     render(<DecisionLogPanel eventId="evt_1" />);
     await screen.findByText("Archive override: archived with override");
 
-    const select = screen.getByLabelText("Filter by kind") as HTMLSelectElement;
+    const select = screen.getByLabelText("Type") as HTMLSelectElement;
     expect(Array.from(select.options).map((option) => option.value)).toEqual(["all", "archive_override", "ocular_waiver"]);
 
     fireEvent.click(screen.getByRole("button", { name: "Older" }));

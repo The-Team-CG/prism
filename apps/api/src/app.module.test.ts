@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { Controller, Get } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ApplicationConfig } from '@nestjs/core/application-config';
 import { NestContainer } from '@nestjs/core/injector/container';
 import { MetadataScanner } from '@nestjs/core/metadata-scanner';
@@ -19,6 +22,12 @@ import { PrivacyOperationsService } from './modules/platform-ops/application/tru
 import { PlatformPrivacyModule } from './modules/platform-ops/platform-privacy.module';
 import { AppModule } from './app.module';
 
+@Controller('probe')
+class RateLimitProbeController {
+  @Get()
+  read() { return { ready: true }; }
+}
+
 /**
  * Guards the boot path itself. Nest DI metadata is invisible to `tsc`, so a
  * module that exports a token nothing provides typechecks cleanly and then
@@ -28,6 +37,26 @@ import { AppModule } from './app.module';
  * promise pending for this graph's forward references.
  */
 describe('AppModule', () => {
+  it('boots the rate-limit guard and enforces its request budget', async () => {
+    const module = await Test.createTestingModule({
+      imports: [ThrottlerModule.forRoot([{ ttl: 60_000, limit: 1 }])],
+      controllers: [RateLimitProbeController],
+      providers: [ThrottlerGuard],
+    }).compile();
+    const app = module.createNestApplication();
+    app.useGlobalGuards(module.get(ThrottlerGuard));
+    try {
+      await app.listen(0, '127.0.0.1');
+      const endpoint = `${await app.getUrl()}/probe`;
+      const first = await fetch(endpoint);
+      expect(first.status).toBe(200);
+      expect(await first.json()).toEqual({ ready: true });
+      expect((await fetch(endpoint)).status).toBe(429);
+    } finally {
+      await app.close();
+    }
+  });
+
   it('scans the whole module graph without instantiating providers', async () => {
     for (const contextModule of [CommercialModule, EventLifecycleModule, IdentityAccessModule, OperationsModule, PlatformOpsModule, PlatformPrivacyModule]) {
       const exports = Reflect.getMetadata('exports', contextModule) as unknown[];

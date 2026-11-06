@@ -14,12 +14,16 @@ import {
   formatAvailabilityRange,
   isAttendanceChoiceDisabled,
   isIngressOrEgressRole,
+  nextSupplierSiteStep,
+  activeAssignmentForRole,
   isOperatorEligibleAssignment,
   isReplacedAssignment,
+  otherActiveRoleAssignment,
   isTaskOutsideOwnQueue,
   requiresAttendanceConfirmation,
   resolveOwnAttendanceStatus,
   attendanceChoiceLabel,
+  recordedAttendanceLabel,
   taskAssignedRoleOptions,
   isRegistrationCoordinatorRole,
   isCoordinatorAssignmentActive,
@@ -242,9 +246,9 @@ describe("COORDINATOR_ATTENDANCE_CHOICES", () => {
     expect(values).not.toContain("replaced");
   });
 
-  it("labels late as Late Arrival", () => {
+  it("labels late as Late arrival", () => {
     expect(COORDINATOR_ATTENDANCE_CHOICES.find((choice) => choice.value === "late")?.label).toBe(
-      "Late Arrival",
+      "Late arrival",
     );
   });
 });
@@ -273,7 +277,7 @@ describe("resolveOwnAttendanceStatus", () => {
 describe("attendanceChoiceLabel", () => {
   it("labels an offered choice and returns null for none", () => {
     expect(attendanceChoiceLabel("absent")).toBe("Absent");
-    expect(attendanceChoiceLabel("late")).toBe("Late Arrival");
+    expect(attendanceChoiceLabel("late")).toBe("Late arrival");
     expect(attendanceChoiceLabel(null)).toBeNull();
   });
 });
@@ -298,28 +302,48 @@ describe("canMarkOwnAttendance", () => {
   const live = { attendanceStatus: "pending", status: "acknowledged" };
 
   it("allows marking on a live assignment", () => {
-    expect(canMarkOwnAttendance({ assignment: live, busy: false })).toBe(true);
+    expect(canMarkOwnAttendance({ assignment: live, busy: false, windowOpen: true })).toBe(true);
   });
 
   it("blocks with no assignment, a replaced assignment, or while busy", () => {
-    expect(canMarkOwnAttendance({ assignment: undefined, busy: false })).toBe(false);
-    expect(canMarkOwnAttendance({ assignment: { status: "replaced" }, busy: false })).toBe(false);
-    expect(canMarkOwnAttendance({ assignment: live, busy: true })).toBe(false);
+    expect(canMarkOwnAttendance({ assignment: undefined, busy: false, windowOpen: true })).toBe(false);
+    expect(canMarkOwnAttendance({ assignment: { status: "replaced" }, busy: false, windowOpen: true })).toBe(false);
+    expect(canMarkOwnAttendance({ assignment: live, busy: true, windowOpen: true })).toBe(false);
   });
 
   it("blocks while the attendance flow itself is in flight", () => {
     // Both in-flight flags are folded in here rather than OR-ed at the call
     // site, so the rule is tested rather than living in the view-model.
-    expect(canMarkOwnAttendance({ assignment: live, busy: false, attendanceBusy: true })).toBe(false);
-    expect(canMarkOwnAttendance({ assignment: live, busy: false, attendanceBusy: false })).toBe(true);
+    expect(canMarkOwnAttendance({ assignment: live, busy: false, attendanceBusy: true, windowOpen: true })).toBe(false);
+    expect(canMarkOwnAttendance({ assignment: live, busy: false, attendanceBusy: false, windowOpen: true })).toBe(true);
   });
 
   it("does NOT lock out a coordinator who already marked absent", () => {
     // The reliability note is irreversible; attendanceStatus is not — the
     // update overwrites it. A permanent lockout is not in AC1.
     expect(
-      canMarkOwnAttendance({ assignment: { ...live, attendanceStatus: "absent" }, busy: false }),
+      canMarkOwnAttendance({ assignment: { ...live, attendanceStatus: "absent" }, busy: false, windowOpen: true }),
     ).toBe(true);
+  });
+});
+
+describe("canMarkOwnAttendance outside the event window", () => {
+  const live = { attendanceStatus: "pending", status: "acknowledged" };
+
+  it("offers no mark, Absent included, once the window has closed", () => {
+    // The API rejects these marks anyway. The view must not offer a button that would fail.
+    expect(canMarkOwnAttendance({ assignment: live, busy: false, windowOpen: false })).toBe(false);
+    expect(canMarkOwnAttendance({ assignment: { ...live, attendanceStatus: "absent" }, busy: false, windowOpen: false })).toBe(false);
+    expect(canConfirmPendingAttendance({ assignment: live, pendingChoice: "absent", busy: false, windowOpen: false })).toBe(false);
+  });
+});
+
+describe("recordedAttendanceLabel", () => {
+  it("names a recorded status and reports nothing for pending or replaced", () => {
+    expect(recordedAttendanceLabel("late")).toBe("Late arrival");
+    expect(recordedAttendanceLabel("present")).toBe("Present");
+    expect(recordedAttendanceLabel("pending")).toBeNull();
+    expect(recordedAttendanceLabel("replaced")).toBeNull();
   });
 });
 
@@ -363,7 +387,7 @@ describe("canConfirmPendingAttendance", () => {
 
   it("allows confirming a pending choice on a live assignment", () => {
     expect(
-      canConfirmPendingAttendance({ assignment: live, pendingChoice: "absent", busy: false }),
+      canConfirmPendingAttendance({ assignment: live, pendingChoice: "absent", busy: false, windowOpen: true }),
     ).toBe(true);
   });
 
@@ -377,25 +401,26 @@ describe("canConfirmPendingAttendance", () => {
         assignment: { attendanceStatus: "replaced", status: "replaced" },
         pendingChoice: "absent",
         busy: false,
+        windowOpen: true,
       }),
     ).toBe(false);
   });
 
   it("refuses once the assignment disappeared entirely", () => {
     expect(
-      canConfirmPendingAttendance({ assignment: undefined, pendingChoice: "absent", busy: false }),
+      canConfirmPendingAttendance({ assignment: undefined, pendingChoice: "absent", busy: false, windowOpen: true }),
     ).toBe(false);
     expect(
-      canConfirmPendingAttendance({ assignment: null, pendingChoice: "absent", busy: false }),
+      canConfirmPendingAttendance({ assignment: null, pendingChoice: "absent", busy: false, windowOpen: true }),
     ).toBe(false);
   });
 
   it("refuses when nothing is pending, or while a mark is already in flight", () => {
     expect(
-      canConfirmPendingAttendance({ assignment: live, pendingChoice: null, busy: false }),
+      canConfirmPendingAttendance({ assignment: live, pendingChoice: null, busy: false, windowOpen: true }),
     ).toBe(false);
     expect(
-      canConfirmPendingAttendance({ assignment: live, pendingChoice: "absent", busy: true }),
+      canConfirmPendingAttendance({ assignment: live, pendingChoice: "absent", busy: true, windowOpen: true }),
     ).toBe(false);
   });
 
@@ -408,6 +433,7 @@ describe("canConfirmPendingAttendance", () => {
         assignment: { ...live, attendanceStatus: "absent" },
         pendingChoice: "present",
         busy: false,
+        windowOpen: true,
       }),
     ).toBe(true);
   });
@@ -473,6 +499,13 @@ describe("operator and supplier check eligibility", () => {
     expect(isIngressOrEgressRole("Egress Lead")).toBe(true);
     expect(isIngressOrEgressRole("Floor Director")).toBe(false);
     expect(isIngressOrEgressRole(undefined)).toBe(false);
+  });
+
+  it("offers a supplier only the next forward on-site step, and none before readiness is confirmed", () => {
+    const at = (eventDayStatus?: string, readinessStatus = "confirmed") => nextSupplierSiteStep({ eventDayStatus, readinessStatus })?.status ?? null;
+    expect([undefined, "not_started", "late", "arrived", "set_up_ready", "done_leaving"].map((status) => at(status)))
+      .toEqual(["arrived", "arrived", "arrived", "set_up_ready", "done_leaving", null]);
+    expect(at("not_started", "pending")).toBeNull();
   });
 
   it("only offers coordinators who are working the event as operator", () => {
@@ -543,5 +576,26 @@ describe("describeReminderResult", () => {
     expect(describeReminderResult({ leadTimeDays: 7, reminders: [queued, { ...queued, assignmentId: "a2" }] })).toBe("2 pending coordinators reminded.");
     expect(describeReminderResult({ leadTimeDays: 7, reminders: [queued, { assignmentId: "a2", status: "failed", reason: "no email" }] }))
       .toBe("1 pending coordinator reminded. 1 could not be sent; check the PMCM status message.");
+  });
+
+});
+
+describe("per-role assignment status", () => {
+  const assignments = [
+    { id: "a1", coordinatorId: "c_marco", role: "Floor Director", status: "acknowledged" },
+    { id: "a2", coordinatorId: "c_bianca", role: "Stage Director", status: "pending_acknowledgement" },
+    { id: "a3", coordinatorId: "c_old", role: "Usher", status: "replaced" },
+  ];
+
+  it("returns an acknowledgement only for the role the person holds", () => {
+    expect(activeAssignmentForRole(assignments, "c_marco", "Floor Director")?.status).toBe("acknowledged");
+    expect(activeAssignmentForRole(assignments, "c_marco", "General Coordinator")).toBeUndefined();
+    expect(otherActiveRoleAssignment(assignments, "c_marco", "General Coordinator")?.role).toBe("Floor Director");
+    expect(otherActiveRoleAssignment(assignments, "c_marco", "Floor Director")).toBeUndefined();
+  });
+
+  it("ignores replaced assignments for both lookups", () => {
+    expect(activeAssignmentForRole(assignments, "c_old", "Usher")).toBeUndefined();
+    expect(otherActiveRoleAssignment(assignments, "c_old", "General Coordinator")).toBeUndefined();
   });
 });

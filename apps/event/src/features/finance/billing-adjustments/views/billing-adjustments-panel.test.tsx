@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { PrismBillingCorrection } from "@prism/types";
+import type { PrismBillingCorrection, PrismUrgentIssue } from "@prism/types";
 import { BillingAdjustmentsPanel } from "./billing-adjustments-panel";
 
 const { loadBilling, resolveCorrection, readStoredEventSession } = vi.hoisted(() => ({
@@ -40,7 +40,7 @@ function correction(overrides: Partial<PrismBillingCorrection> = {}): PrismBilli
 function renderPanelWith(corrections: PrismBillingCorrection[], viewer: { id: string; name: string }) {
   readStoredEventSession.mockReturnValue(viewer);
   loadBilling.mockResolvedValue({ billingCorrections: corrections, billingDisputes: [], additionalBillings: [] });
-  render(<BillingAdjustmentsPanel eventId="evt_1" statements={[]} billingSources={[]} payments={[]} />);
+  render(<BillingAdjustmentsPanel eventId="evt_1" statements={[]} billingSources={[]} payments={[]} urgentIssues={[]} />);
 }
 
 function buttonFor(name: string) {
@@ -76,5 +76,28 @@ describe("BillingAdjustmentsPanel correction approval", () => {
 
     await screen.findByText(/You requested this correction/);
     expect(buttonFor("Approve").disabled).toBe(true);
+  });
+});
+
+describe("BillingAdjustmentsPanel creation flows", () => {
+  it("keeps each creation form closed until its button opens it, and links additional billing to the event's urgent issues", async () => {
+    readStoredEventSession.mockReturnValue({ id: "usr_pmcm", name: "Ms. Mys" });
+    loadBilling.mockResolvedValue({ billingCorrections: [], billingDisputes: [], additionalBillings: [] });
+    render(
+      <BillingAdjustmentsPanel
+        eventId="evt_1"
+        statements={[]}
+        billingSources={[]}
+        payments={[]}
+        urgentIssues={[{ id: "issue_1", title: "Walk-in queue" } as PrismUrgentIssue]}
+      />,
+    );
+
+    expect(screen.queryByLabelText("Linked urgent issue")).toBeNull();
+    fireEvent.click(buttonFor("Issue additional billing"));
+
+    const picker = screen.getByLabelText("Linked urgent issue") as HTMLSelectElement;
+    expect(Array.from(picker.options).map((option) => option.textContent)).toEqual(["No linked issue", "Walk-in queue"]);
+    expect(buttonFor("Close form").getAttribute("aria-expanded")).toBe("true");
   });
 });

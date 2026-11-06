@@ -10,6 +10,7 @@ import {
   guestPassDetails,
   isFileWithinSizeLimit,
   isGuestAccessEndedError,
+  isGuestCheckInOpen,
   isVideoDurationAllowed,
   MAX_FILE_SIZE_BYTES,
   MAX_VIDEO_DURATION_S,
@@ -117,5 +118,12 @@ describe("guest-dashboard-rules", () => {
     expect(isGuestAccessEndedError(apiError(410))).toBe(true);
     expect(isGuestAccessEndedError(apiError(500))).toBe(false);
     expect(isGuestAccessEndedError(new Error("network"))).toBe(false);
+  });
+
+  it("opens check-in on the event's Philippine calendar day, not months before", () => {
+    const now = new Date("2026-11-01T02:00:00Z");
+    expect(isGuestCheckInOpen("2027-06-15", now)).toBe(false);
+    expect(isGuestCheckInOpen("2026-11-01", now)).toBe(true);
+    expect(isGuestCheckInOpen("2026-10-31", now)).toBe(true);
   });
 });

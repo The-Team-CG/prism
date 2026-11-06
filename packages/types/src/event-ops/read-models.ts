@@ -78,33 +78,22 @@ export interface PrismEventPage {
   pagination: PrismCursorPageInfo;
 }
 
-export interface PrismPmcmDashboardWorkspace {
-  users: PrismUser[];
-  inquiries: PrismInquiry[];
+/**
+ * What every PMCM screen needs besides its own scoped read: the event switcher, the inquiry behind each event,
+ * the people, directories and rules screens choose from, and each event's outstanding balance. Events carry no
+ * floor-plan drafts here; each event's drafts come from its workspace. Replaces the whole-system dashboard.
+ */
+export interface PrismPmcmReference {
   events: PrismEvent[];
-  documents: PrismDocument[];
-  briefings: PrismBriefing[];
-  supplierQuoteRequests: PrismSupplierQuoteRequest[];
-  supplierQuotes: PrismSupplierQuote[];
+  inquiries: PrismInquiry[];
+  users: PrismUser[];
+  suppliers: PrismSupplier[];
+  supplierCategories: PrismSupplierCategory[];
   coordinators: PrismCoordinator[];
-  coordinatorRoleRequirements: PrismCoordinatorRoleRequirement[];
   coordinatorAssignments: PrismCoordinatorAssignment[];
   complianceRules: PrismComplianceRule[];
-  complianceChecks: PrismComplianceCheck[];
-  billingSources: PrismBillingSource[];
-  billingStatements: PrismBillingStatement[];
-  paymentMilestones: PrismPaymentMilestone[];
-  paymentRecords: PrismPaymentRecord[];
-  billingCorrections?: PrismBillingCorrection[];
-  billingDisputes?: PrismBillingDispute[];
-  additionalBillings?: PrismAdditionalBilling[];
-  postEventDocuments: PrismPostEventDocument[];
-  eventInsights: PrismEventInsight[];
-  floorPlanDrafts: PrismFloorPlanDraft[];
-  supplierCategories: PrismSupplierCategory[];
-  suppliers: PrismSupplier[];
-  auditLogs: PrismAuditLog[];
-  notificationLogs: PrismNotificationLog[];
+  /** Remaining balance across each event's current payment milestones, keyed by event id. */
+  outstandingBalanceByEvent: Record<string, number>;
 }
 
 export type PrismClientTimelineMilestoneKey =
@@ -143,6 +132,8 @@ export interface PrismClientOcularVisit {
   eventId: string;
   status: PrismOcularVisitStatus;
   clientNote: string | null;
+  /** Free-text note PMCM wrote when booking the visit; clients can read it. */
+  scheduleNote: string | null;
   requestedAt: string | null;
   scheduledAt: string | null;
 }
@@ -154,23 +145,22 @@ export interface PrismPmcmOcularVisit extends PrismClientOcularVisit {
   waivedBy: string | null;
 }
 
-export type PrismClientWorkspace = Pick<
-  PrismPmcmDashboardWorkspace,
-  | "users"
-  | "inquiries"
-  | "events"
-  | "documents"
-  | "briefings"
-  | "supplierQuotes"
-  | "coordinatorAssignments"
-  | "complianceChecks"
-  | "billingStatements"
-  | "paymentMilestones"
-  | "postEventDocuments"
-  | "floorPlanDrafts"
-  | "auditLogs"
-  | "notificationLogs"
-> & {
+export type PrismClientWorkspace = {
+  users: PrismUser[];
+  inquiries: PrismInquiry[];
+  events: PrismEvent[];
+  documents: PrismDocument[];
+  briefings: PrismBriefing[];
+  supplierQuotes: PrismSupplierQuote[];
+  coordinatorAssignments: PrismCoordinatorAssignment[];
+  complianceChecks: PrismComplianceCheck[];
+  billingStatements: PrismBillingStatement[];
+  paymentMilestones: PrismPaymentMilestone[];
+  postEventDocuments: PrismPostEventDocument[];
+  floorPlanDrafts: PrismFloorPlanDraft[];
+  /** The client's own event activity and notifications. */
+  auditLogs: PrismAuditLog[];
+  notificationLogs: PrismNotificationLog[];
   pagination: PrismCursorPageInfo;
   clientEventTimelines: PrismClientEventTimeline[];
   ocularVisits?: PrismClientOcularVisit[];
@@ -236,6 +226,8 @@ export interface PrismSupplierReadinessItem {
   eventId: string;
   eventName?: string | null;
   clientName?: string | null;
+  /** Event calendar date (YYYY-MM-DD). Confidential bids keep the date while the event name and client stay masked. */
+  eventDate?: string | null;
   supplierId?: string | null;
   supplierName: string;
   category: string;

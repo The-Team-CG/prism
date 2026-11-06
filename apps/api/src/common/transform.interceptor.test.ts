@@ -1,5 +1,6 @@
 import { Controller, Get, Module, StreamableFile } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { ExpressAdapter } from '@nestjs/platform-express';
 import { describe, expect, it } from 'vitest';
 import { TransformInterceptor } from './transform.interceptor';
 
@@ -23,7 +24,7 @@ class DownloadProbeModule {}
 
 describe('API response transport', () => {
   it('streams original file bytes while retaining the JSON response envelope', async () => {
-    const app = await NestFactory.create(DownloadProbeModule, { logger: false });
+    const app = await NestFactory.create(DownloadProbeModule, new ExpressAdapter(), { logger: false });
     try {
       app.useGlobalInterceptors(new TransformInterceptor());
       await app.listen(0, '127.0.0.1');

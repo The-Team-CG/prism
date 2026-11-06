@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { ExpressAdapter } from '@nestjs/platform-express';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { PrismaService } from '@prism/kernel/database';
@@ -130,7 +131,7 @@ describe('scope change and risk routes, authenticated HTTP authorization', () =>
       tokens[id] = session.issueSession(user, issuedAt).accessToken;
     }
 
-    app = await NestFactory.create(ScopeChangeRiskHttpTestModule, { logger: false });
+    app = await NestFactory.create(ScopeChangeRiskHttpTestModule, new ExpressAdapter(), { logger: false });
     app.setGlobalPrefix('api');
     await app.listen(0, '127.0.0.1');
     const address = app.getHttpServer().address() as AddressInfo;

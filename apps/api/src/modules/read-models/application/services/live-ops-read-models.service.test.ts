@@ -393,4 +393,45 @@ describe('LiveOpsReadModelsService', () => {
 
     expect(result).not.toHaveProperty('eventDayLogs');
   });
+
+  it('opens the coordinator focus role view on the next upcoming open assignment without a second lookup', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-01T02:00:00Z'));
+    try {
+      const focus = { ...assignmentFixture('Logistics Coordinator'), eventId: EVENT_ID };
+      const { service, staffingReader, queries } = createService({ assignment: focus });
+      Object.assign(staffingReader, {
+        resolveCoordinatorForActor: vi.fn(async () => ({ id: 'coordinator_1' })),
+        listAssignmentsForCoordinator: vi.fn(async () => [
+          { ...focus, id: 'past', eventId: 'evt_past' },
+          focus,
+          { ...focus, id: 'cancelled', eventId: 'evt_cancelled', status: 'cancelled' },
+        ]),
+      });
+      Object.assign(queries, {
+        coordinatorFocusCandidates: vi.fn(async () => [
+          { id: 'evt_past', eventDate: new Date('2026-10-01T00:00:00Z') },
+          { id: EVENT_ID, eventDate: new Date('2026-11-05T00:00:00Z') },
+        ]),
+      });
+
+      const result = await service.getCoordinatorFocusRoleView(actor(OpsUserRole.Coordinator));
+
+      expect(result?.event.id).toBe(EVENT_ID);
+      // Cancelled assignments are never candidates, and the focus assignment is reused, not looked up again.
+      expect(queries.coordinatorFocusCandidates).toHaveBeenCalledWith(['evt_past', EVENT_ID]);
+      expect(staffingReader.findAssignmentForEventActor).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('returns no focus role view for a coordinator with no open assignment', async () => {
+    const { service, staffingReader } = createService({});
+    Object.assign(staffingReader, {
+      resolveCoordinatorForActor: vi.fn(async () => ({ id: 'coordinator_1' })),
+      listAssignmentsForCoordinator: vi.fn(async () => []),
+    });
+    await expect(service.getCoordinatorFocusRoleView(actor(OpsUserRole.Coordinator))).resolves.toBeNull();
+  });
 });

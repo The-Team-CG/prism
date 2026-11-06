@@ -13,14 +13,17 @@ import type {
   PrismSupplierQuoteRequest,
   CreateSupplierReviewInput,
 } from "@prism/types";
+import { derivePrismLifecycleStage } from "@prism/types";
 import { SupplierReviewPromptList } from "@/features/suppliers/reviews";
 import { ComplianceReviewPanel } from "@/features/compliance/review";
 import {
+  compliancePhaseForStage,
   phase4BillingSourceCard,
   phase4CloseGatesCard,
   phase4ComplianceCard,
-  phase4RuleLayer,
   phase4StatementsCard,
+  type CloseGateDestination,
+  type CompliancePhase,
 } from "../model/phase4-workspace-rules";
 import {
   money,
@@ -35,7 +38,10 @@ import { EventWrapUpView } from "../../wrap-up";
 import { LogisticsCompletionPanel } from "../../logistics";
 import { ClientTestimonialModerationPanel } from "../../wrap-up/views/client-testimonial-moderation-panel";
 
+export type ClosureStep = "wrap-up" | "feedback" | "compliance" | "archive";
+
 export function Phase4Workspace({
+  step,
   event,
   rules,
   checks,
@@ -47,7 +53,6 @@ export function Phase4Workspace({
   quoteRequests,
   canReviewSuppliers,
   busy,
-  onCreateRule,
   onRunCompliance,
   onResolveCompliance,
   onOverrideCompliance,
@@ -57,7 +62,9 @@ export function Phase4Workspace({
   onLoadInsights,
   onGenerateInsights,
   onAddReview,
+  onOpenDestination,
 }: {
+  step: ClosureStep;
   event: PrismEvent;
   rules: PrismComplianceRule[];
   checks: PrismComplianceCheck[];
@@ -69,14 +76,6 @@ export function Phase4Workspace({
   quoteRequests: PrismSupplierQuoteRequest[];
   canReviewSuppliers: boolean;
   busy: boolean;
-  onCreateRule: (input: {
-    title: string;
-    conditionKey: string;
-    phase: string;
-    severity: string;
-    layer: string;
-    note: string;
-  }) => Promise<void>;
   onRunCompliance: (phase: string) => Promise<void>;
   onResolveCompliance: (checkId: string) => Promise<void>;
   onOverrideCompliance: (checkId: string, reason: string) => Promise<void>;
@@ -86,12 +85,10 @@ export function Phase4Workspace({
   onLoadInsights: () => Promise<PrismEventInsight[]>;
   onGenerateInsights: () => Promise<void>;
   onAddReview: (supplierId: string, input: CreateSupplierReviewInput) => Promise<boolean>;
+  /** Moves the reviewer to the tab, or event tab, that resolves an unpassed archive gate. */
+  onOpenDestination: (destination: CloseGateDestination) => void;
 }) {
-  const [phase, setPhase] = useState("planning");
-  const [ruleTitle, setRuleTitle] = useState("");
-  const [ruleKey, setRuleKey] = useState("");
-  const [ruleSeverity, setRuleSeverity] = useState("must_fix");
-  const [ruleNote, setRuleNote] = useState("");
+  const [phase, setPhase] = useState<CompliancePhase>(() => compliancePhaseForStage(derivePrismLifecycleStage(event)));
   const [closeGates, setCloseGates] = useState<PrismCloseGates | null>(null);
   const [overrideReason, setOverrideReason] = useState("");
   const [localInsights, setLocalInsights] = useState<PrismEventInsight[]>(insights);
@@ -115,20 +112,6 @@ export function Phase4Workspace({
     phase4StatementsCard(billingStatements.length, Boolean(latestInsight)),
   ];
 
-  async function createRule() {
-    await onCreateRule({
-      title: ruleTitle,
-      conditionKey: ruleKey,
-      phase,
-      severity: ruleSeverity,
-      layer: phase4RuleLayer(ruleSeverity),
-      note: ruleNote,
-    });
-    setRuleTitle("");
-    setRuleKey("");
-    setRuleNote("");
-  }
-
   async function refreshCloseGates() {
     setCloseGates(await onLoadCloseGates());
   }
@@ -145,57 +128,65 @@ export function Phase4Workspace({
 
   return (
     <div className="space-y-5">
-      <Phase4SectionBoundary title="Closure board"><Phase4ClosureBoard event={event} closeGates={closeGates} cards={closureCards} /></Phase4SectionBoundary>
-      <Phase4SectionBoundary title="Event end"><ActualEventEndSection event={event} busy={busy} onRecord={onRecordActualEventEnd} /></Phase4SectionBoundary>
-      <Phase4SectionBoundary title="Logistics completion"><LogisticsCompletionPanel eventId={event.id} /></Phase4SectionBoundary>
-      <Phase4SectionBoundary title="Wrap-up"><EventWrapUpView eventId={event.id} /></Phase4SectionBoundary>
-      <Phase4SectionBoundary title="Client testimonials"><ClientTestimonialModerationPanel eventId={event.id} /></Phase4SectionBoundary>
-      <Phase4SectionBoundary title="Compliance checks">
-      <Phase4ComplianceSection
-        phase={phase}
-        ruleTitle={ruleTitle}
-        ruleKey={ruleKey}
-        ruleSeverity={ruleSeverity}
-        ruleNote={ruleNote}
-        checks={checks}
-        rules={rules}
-        openChecks={openChecks}
-        busy={busy}
-        onPhase={setPhase}
-        onRuleTitle={setRuleTitle}
-        onRuleKey={setRuleKey}
-        onRuleSeverity={setRuleSeverity}
-        onRuleNote={setRuleNote}
-        onCreateRule={createRule}
-        onRunCompliance={() => onRunCompliance(phase)}
-        onResolveCompliance={onResolveCompliance}
-        onOverrideCompliance={onOverrideCompliance}
-      />
-      </Phase4SectionBoundary>
-      <Phase4SectionBoundary title="Compliance review"><ComplianceReviewPanel eventId={event.id} /></Phase4SectionBoundary>
-      <Phase4SectionBoundary title="Close gates">
-      <Phase4CloseGatesSection
-        closeGates={closeGates}
-        overrideReason={overrideReason}
-        busy={busy}
-        onOverrideReason={setOverrideReason}
-        onRefresh={refreshCloseGates}
-        onArchive={archiveEvent}
-      />
-      </Phase4SectionBoundary>
-      <Phase4SectionBoundary title="Supplier reviews">
-      {canReviewSuppliers ? (
-        <SupplierReviewPromptList
-          event={event}
-          categories={supplierCategories}
-          suppliers={suppliers}
-          quoteRequests={quoteRequests}
-          busy={busy}
-          onAddReview={onAddReview}
-        />
+      <Phase4SectionBoundary title="Closure summary"><Phase4ClosureBoard event={event} closeGates={closeGates} cards={closureCards} /></Phase4SectionBoundary>
+      {step === "wrap-up" ? (
+        <>
+          <Phase4SectionBoundary title="Event end"><ActualEventEndSection event={event} busy={busy} onRecord={onRecordActualEventEnd} /></Phase4SectionBoundary>
+          <Phase4SectionBoundary title="Logistics completion"><LogisticsCompletionPanel eventId={event.id} /></Phase4SectionBoundary>
+          <Phase4SectionBoundary title="Wrap-up"><EventWrapUpView eventId={event.id} /></Phase4SectionBoundary>
+        </>
       ) : null}
-      </Phase4SectionBoundary>
-      <Phase4SectionBoundary title="Post-event insights"><Phase4InsightsSection latestInsight={latestInsight} busy={busy} onGenerate={generateInsights} /></Phase4SectionBoundary>
+      {step === "feedback" ? (
+        <>
+          <Phase4SectionBoundary title="Client testimonials"><ClientTestimonialModerationPanel eventId={event.id} /></Phase4SectionBoundary>
+          {canReviewSuppliers ? (
+            <Phase4SectionBoundary title="Supplier reviews">
+              <SupplierReviewPromptList
+                event={event}
+                categories={supplierCategories}
+                suppliers={suppliers}
+                quoteRequests={quoteRequests}
+                busy={busy}
+                onAddReview={onAddReview}
+              />
+            </Phase4SectionBoundary>
+          ) : null}
+        </>
+      ) : null}
+      {step === "compliance" ? (
+        <>
+          <Phase4SectionBoundary title="Compliance checks">
+            <Phase4ComplianceSection
+              phase={phase}
+              checks={checks}
+              rules={rules}
+              openChecks={openChecks}
+              busy={busy}
+              onPhase={setPhase}
+              onRunCompliance={() => onRunCompliance(phase)}
+              onResolveCompliance={onResolveCompliance}
+              onOverrideCompliance={onOverrideCompliance}
+            />
+          </Phase4SectionBoundary>
+          <Phase4SectionBoundary title="Compliance review"><ComplianceReviewPanel eventId={event.id} /></Phase4SectionBoundary>
+        </>
+      ) : null}
+      {step === "archive" ? (
+        <>
+          <Phase4SectionBoundary title="Close gates">
+            <Phase4CloseGatesSection
+              closeGates={closeGates}
+              overrideReason={overrideReason}
+              busy={busy}
+              onOverrideReason={setOverrideReason}
+              onRefresh={refreshCloseGates}
+              onArchive={archiveEvent}
+              onOpenDestination={onOpenDestination}
+            />
+          </Phase4SectionBoundary>
+          <Phase4SectionBoundary title="Post-event insights"><Phase4InsightsSection latestInsight={latestInsight} busy={busy} onGenerate={generateInsights} /></Phase4SectionBoundary>
+        </>
+      ) : null}
     </div>
   );
 }

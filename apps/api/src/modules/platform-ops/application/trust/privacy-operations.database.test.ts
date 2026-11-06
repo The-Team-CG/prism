@@ -11,6 +11,7 @@ import { CommercialPrivacyRedactorService } from '../../../commercial/applicatio
 import { OperationsPrivacyRedactorService } from '../../../operations/application/guest/operations-privacy-redactor.service';
 import { IdentityPrivacyRedactorService } from '../../../identity-access/application/participants/identity-privacy-redactor.service';
 import { normalizePrivacyLegalHoldScope } from './privacy-legal-hold.policy';
+import { AiTriageRecordEraser } from '../ai-governance/ai-triage-record-eraser.service';
 
 const databaseUrl = process.env.P0_TEST_DATABASE_URL;
 const operator = {
@@ -53,6 +54,7 @@ describe.skipIf(!databaseUrl)('privacy execution against PostgreSQL', () => {
       new CommercialPrivacyRedactorService(),
       new OperationsPrivacyRedactorService(),
       new IdentityPrivacyRedactorService(),
+      new AiTriageRecordEraser(),
     );
   });
 

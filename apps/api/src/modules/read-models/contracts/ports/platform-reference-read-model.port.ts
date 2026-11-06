@@ -44,6 +44,31 @@ export type PareSupplierCandidateSource = {
   eventQuoteAmount: number | null;
 };
 
+/** Inquiry facts the AI triage use case may read. Contact identity is deliberately absent. */
+export type AiInquiryTriageSource = {
+  id: string;
+  status: string;
+  eventType: string;
+  clientType: string;
+  eventDate: Date;
+  hasOrganization: boolean;
+  source: string;
+  referralDetails: string;
+  message: string;
+  duplicateInquiryCount: number;
+  previouslyDeclined: boolean;
+};
+
+/** Event facts the AI proposal drafting use case may read. Client identity is deliberately absent. */
+export type AiProposalEventSource = {
+  id: string;
+  eventName: string;
+  eventType: string;
+  eventDate: Date;
+  archived: boolean;
+  clientPortalStatus: string;
+};
+
 export type PlatformPrivacyConsentFact = {
   privacyConsentAccepted: boolean;
   privacyNoticeVersion: string;
@@ -77,6 +102,8 @@ export interface PlatformReferenceReadModel {
   findPrivacyInventory(input?: { eventId?: string }): Promise<PlatformPrivacyInventory>;
   findPareEventSource(requestId: string): Promise<PareEventSource | null>;
   findPareSupplierCandidates(input: { category: string; withdrawnSupplierId: string; withdrawnSupplierName: string; eventId: string }): Promise<PareSupplierCandidateSource[]>;
+  findInquiryTriageSource(inquiryId: string): Promise<AiInquiryTriageSource | null>;
+  findProposalDraftEventSource(eventId: string): Promise<AiProposalEventSource | null>;
   findApprovedTrustRecipientEmail(): Promise<string | null>;
   /** Approved, non-locked PMCM administrator by user id; used to validate privacy request assignees. */
   findApprovedPmcmOperator(userId: string): Promise<{ id: string; name: string } | null>;

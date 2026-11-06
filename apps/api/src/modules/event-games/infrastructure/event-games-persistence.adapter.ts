@@ -1,6 +1,6 @@
 import { ConflictException, Inject, Injectable, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { eventGameLobbyBrandingSettingsSchema, eventGameParticipantResultSchema, prismEventGameBrandThemeSchema } from '@prism/types';
-import { z } from 'zod';
+import { advanceEventGameRoundCommandSchema as advanceRoundCommandSchema, type AdvanceEventGameRoundCommand as AdvanceRoundCommand } from '@prism/types';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type { GameHostCommandInput, GameHostMutationOutcome, GameHostAction, GamePersistencePort, PersistedGameHostCommand } from '../contracts/game-persistence.port';
 import { GAME_PIN_STORE, type GamePinStorePort } from '../contracts/game-pin-store.port';
@@ -16,18 +16,6 @@ interface TransitionRow {
 interface LobbySlugRow { event_id: string; lobby_slug: string }
 interface RoundAdvanceRow { event_id: string; session_id: string; status: string }
 interface WheelResultRow { event_id: string; session_id: string; status: string; wheel_result?: unknown }
-
-const advanceRoundCommandSchema = z.object({
-  expectedRoundKey: z.string().regex(/^[A-Za-z0-9:_-]{1,120}$/),
-  advanceByMs: z.number().int().min(1).max(600_000),
-  expectedRoundOffsetMs: z.number().int().min(0),
-  expectedStatus: z.enum(['live', 'paused']),
-  expectedStartedAt: z.string().datetime({ offset: true }),
-  expectedPausedAt: z.string().datetime({ offset: true }).nullable(),
-  expectedTotalPausedMs: z.number().int().min(0),
-}).strict();
-
-type AdvanceRoundCommand = z.infer<typeof advanceRoundCommandSchema>;
 
 interface HostTransition {
   action: GameHostAction;
