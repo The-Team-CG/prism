@@ -53,6 +53,10 @@ export interface PrismComplianceRisk {
   ruleId?: string | null;
   title: string;
   severity: "low" | "medium" | "high" | "critical" | string;
+  /** How likely the risk is; null when it was recorded without one (rule-raised risks and older entries). */
+  likelihood?: "low" | "medium" | "high" | null;
+  /** How much it would hurt the event if it happened. */
+  impact?: "low" | "medium" | "high" | null;
   owner: string;
   mitigation: string;
   status: "open" | "mitigated" | "accepted" | "closed" | string;
@@ -260,6 +264,23 @@ export interface PrismWrapUpSection {
   completedAt: string | null;
 }
 
+export interface PrismWrapUpBillingDraftItem {
+  label: string;
+  amount: number;
+  note: string;
+}
+
+export interface PrismWrapUpBillingDraftSection extends PrismWrapUpSection {
+  items: PrismWrapUpBillingDraftItem[];
+}
+
+/** Confirmed suppliers and whether each has reported leaving the venue; read live, not stored. */
+export interface PrismWrapUpSupplierEgressSummary {
+  confirmedSuppliers: number;
+  leftSite: number;
+  outstanding: string[];
+}
+
 export interface PrismEventWrapUp {
   id: string;
   eventId: string;
@@ -274,7 +295,10 @@ export interface PrismEventWrapUp {
     logistics: PrismWrapUpSection;
     issues: PrismWrapUpSection;
     feedback: PrismWrapUpSection;
+    supplierEgress: PrismWrapUpSection;
+    billingDraft: PrismWrapUpBillingDraftSection;
   };
+  supplierEgressSummary?: PrismWrapUpSupplierEgressSummary;
   clientAcknowledgedAt: string | null;
   acknowledgementRecordedBy: string | null;
   acknowledgementSource: "pmcm_recorded" | "client";

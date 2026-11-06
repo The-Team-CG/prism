@@ -39,6 +39,9 @@ import {
   updateCoordinatorAttendanceSchema,
   verifySupplierStatusSchema,
   COORDINATOR_ROLES,
+  createTemplateSchema,
+  riskSeverityFromRatings,
+  createComplianceRiskSchema,
   isEmergencyCoordinatorWithdrawal,
   canonicalCoordinatorRole,
   coordinatorRoleSchema,
@@ -86,6 +89,38 @@ describe("privacy legal hold contracts", () => {
     }).success).toBe(false);
     expect(releasePrivacyLegalHoldSchema.safeParse({ reason: "Counsel confirmed release" }).success).toBe(true);
     expect(releasePrivacyLegalHoldSchema.safeParse({ reason: "  " }).success).toBe(false);
+  });
+});
+
+describe("venue library template contract", () => {
+  const editorObject = { id: "o1", name: "Wall", kind: "rect", category: "architecture", x: 1, y: 1, w: 4, h: 0.2, rotation: 0, fill: "#000", stroke: "#000", strokeWidth: 1, locked: false, hidden: false };
+
+  it("accepts the floorplan editor shape for layout and permanent features, with the venue rules", () => {
+    const parsed = createTemplateSchema.safeParse({ name: "Hall", venueRules: "No confetti", objects: [editorObject], permanentFeatures: [editorObject], width: 20, height: 12, gridSize: 1, pax: 100 });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("still refuses objects that fit neither shape", () => {
+    expect(createTemplateSchema.safeParse({ name: "Hall", objects: [{ id: "x", kind: "blob" }] }).success).toBe(false);
+  });
+});
+
+describe("risk likelihood and impact contract", () => {
+  it("maps every rating pair to a severity on the 1-2 low, 3-4 medium, 6 high, 9 critical scale", () => {
+    const ratings = ["low", "medium", "high"] as const;
+    const grid = ratings.map((likelihood) => ratings.map((impact) => riskSeverityFromRatings(likelihood, impact)));
+    expect(grid).toEqual([
+      ["low", "low", "medium"],
+      ["low", "medium", "high"],
+      ["medium", "high", "critical"],
+    ]);
+  });
+
+  it("accepts ratings without a severity and rejects unknown ratings", () => {
+    const base = { phase: "closure", title: "Generator failure" };
+    expect(createComplianceRiskSchema.safeParse({ ...base, likelihood: "high", impact: "low" }).success).toBe(true);
+    expect(createComplianceRiskSchema.parse(base).severity).toBeUndefined();
+    expect(createComplianceRiskSchema.safeParse({ ...base, likelihood: "certain" }).success).toBe(false);
   });
 });
 
