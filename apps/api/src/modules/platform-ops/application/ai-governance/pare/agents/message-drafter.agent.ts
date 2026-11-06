@@ -1,7 +1,7 @@
 import type { AiGateway, AiSyntheticPareChain } from '../../../../contracts/ai-governance/ai-gateway.port';
 import type { PAREDrafts, PAREContext } from '../pare.types';
 import { assertPareExecutionAllowed } from '../pare-execution.policy';
-import { runPareAiUseCase, type PareAgentRunResult } from '../pare-ai-gateway';
+import { maskPareInput, runPareAiUseCase, type PareAgentRunResult } from '../pare-ai-gateway';
 import { createPareMessageDraftToolHandlers } from '../pare-ai-use-cases';
 
 function mockDrafts(ctx: PAREContext): PAREDrafts {
@@ -48,6 +48,8 @@ export class MessageDrafterAgent {
   constructor(
     private readonly mode: 'mock' | 'live' = 'mock',
     private readonly gateway?: AiGateway,
+    /** Mask identities before the model sees them (live PARE on a route that allows real data). */
+    private readonly maskIdentity = false,
   ) {}
 
   async runPareMessageDraftAgent(
@@ -58,11 +60,12 @@ export class MessageDrafterAgent {
     assertPareExecutionAllowed(this.mode);
     throwIfAborted(signal);
     if (this.mode === 'live') {
+      const input = this.maskIdentity ? maskPareInput(ctx) : ctx;
       return runPareAiUseCase(
         this.gateway,
         'pare.message-drafts',
-        ctx,
-        createPareMessageDraftToolHandlers(ctx),
+        input,
+        createPareMessageDraftToolHandlers(input),
         signal,
         syntheticPareChain,
       );

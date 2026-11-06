@@ -179,10 +179,30 @@ export type CreateComplianceRuleInput = z.infer<typeof createComplianceRuleSchem
 export const updateComplianceRuleSchema = createComplianceRuleSchema.partial();
 export type UpdateComplianceRuleInput = z.infer<typeof updateComplianceRuleSchema>;
 
+export const RISK_RATINGS = ["low", "medium", "high"] as const;
+export const riskRatingSchema = z.enum(RISK_RATINGS);
+export type RiskRating = z.infer<typeof riskRatingSchema>;
+export type RiskSeverity = "low" | "medium" | "high" | "critical";
+
+/**
+ * Severity from a likelihood and impact rating (low 1, medium 2, high 3, multiplied): 1-2 low, 3-4 medium, 6 high,
+ * 9 critical. A recorded severity always wins over this; it only fills in when none was given.
+ */
+export function riskSeverityFromRatings(likelihood: RiskRating, impact: RiskRating): RiskSeverity {
+  const weight = (rating: RiskRating) => RISK_RATINGS.indexOf(rating) + 1;
+  const score = weight(likelihood) * weight(impact);
+  if (score >= 9) return "critical";
+  if (score >= 6) return "high";
+  if (score >= 3) return "medium";
+  return "low";
+}
+
 export const createComplianceRiskSchema = z.object({
   phase: nonEmptyStringSchema,
   title: nonEmptyStringSchema,
-  severity: z.enum(["low", "medium", "high", "critical"]).default("medium"),
+  severity: z.enum(["low", "medium", "high", "critical"]).optional(),
+  likelihood: riskRatingSchema.optional(),
+  impact: riskRatingSchema.optional(),
   owner: optionalTrimmedStringSchema,
   mitigation: optionalTrimmedStringSchema,
   status: z.enum(["open", "mitigated", "accepted", "closed"]).default("open"),

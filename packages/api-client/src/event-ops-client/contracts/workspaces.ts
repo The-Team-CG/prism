@@ -10,6 +10,7 @@ import type {
   PrismPmcmCalendar,
   PrismPmcmCommandInboxQueryInput,
   PrismPmcmEventSummaries,
+  PrismPmcmFileSummaries,
   PmcmCalendarQuery,
   PrismPmcmEventWorkspace,
   PrismPmcmReference,
@@ -41,6 +42,8 @@ export interface EventOpsWorkspacesContract {
     commandInbox(query?: PrismPmcmCommandInboxQueryInput): Promise<PrismPmcmCommandInbox>;
     /** What each event owes and how many messages the signed-in PMCM admin has not read. */
     eventSummaries(): Promise<PrismPmcmEventSummaries>;
+    /** Open and overdue file requirements for the events still in play (a bounded set). */
+    fileSummaries(): Promise<PrismPmcmFileSummaries>;
     /** Dated work across events (event days, quote deadlines, payments, ocular visits, supplier schedules) in a window. */
     calendar(query: PmcmCalendarQuery): Promise<PrismPmcmCalendar>;
     /** PMCM-only decision log for one event (FL-019); identity comes from the session token. */
