@@ -66,29 +66,6 @@ import { ConformeSigningService } from './application/onboarding/conforme-signin
 import { EventDayStartController } from './api/onboarding/event-day-start.controller';
 import { EventDayStartService } from './application/onboarding/event-day-start.service';
 
-/**
- * Bounded-context composition root for event-lifecycle: the event record's
- * own lifecycle from inquiry through closure. Merged from the former
- * `inquiry-onboarding`, `compliance-ops`, `closure-ops`, and `file-ops`
- * Nest library modules (2026-09-01). `inquiry-onboarding` owns `OpsEvent`
- * itself; `compliance-ops` and `closure-ops` write status/derived fields
- * onto it, and Floorplan sends a versioned state projection through the
- * Lifecycle capability. `file-ops` is a read-only requirements-matrix view over
- * documents owned by this and other contexts, plus PMCM-managed requirement
- * overrides and custom requirements (`OpsFileRequirement`). Kept as four sub-areas
- * (`onboarding`, `compliance`, `closure`, `files`) under one context.
- *
- * Owned tables: OpsBriefing, OpsDocument (all document metadata), OpsEvent,
- * OpsEventClientFloorplanAccessGrant,
- * OpsFileRequirement, OpsInquiry, OpsPostEventDocument, OpsEventWrapUp, OpsComplianceCheck,
- * OpsComplianceRule, and OpsEventInsight. Lifecycle owns addendum records and
- * impact history; Commercial applies billing-source and selected-quote changes
- * through its owner capability. Current briefing and conforme workflows do
- * not create initial billing rows because they carry no priced-source input.
- * Read-only: ongoing billing records and OpsSupplierReview via commercial.
- * File requirements compose owned and external document kinds on read and
- * merge PMCM overrides; only PMCM writes requirement rows.
- */
 @Module({
   imports: [
     DatabaseModule,
