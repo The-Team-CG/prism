@@ -197,8 +197,9 @@ production delivery, or live database performance.
 FL-018 Event Health Score, FL-023 Staffing Heatmap, and FL-028 Workflow
 Template Builder remain deferred or gated; staffing suggestions do not
 constitute a heatmap. Production notification adapters, external auth, camera
-QR, live AI, storage-provider activation, and malware scanning retain their
-readiness gates.
+QR, storage-provider activation, and malware scanning retain their readiness
+gates. Live AI runs once a provider key is set; real client data needs a
+confirmed zero-data-retention route (see `docs/runbooks/ai-provider-routing.md`).
 
 ## Catalog coverage
 
@@ -211,7 +212,7 @@ by catalog row; Phase 2 rows are later scope, so their absence is expected.
 | Done end to end | About 37 of 124 non-AI rows, including inquiry log, public inquiry page and referral fields, floorplan authoring and client review, quote request and comparison, supplier registration and review, coordinator double-booking, acknowledgment and registration view, additional billing and waivers, archive search, one-screen close, addendum conforme, authentication, privacy, upload validation and the audit trail. |
 | Partial | About 69 of 124. Most are Prism-scope features missing a named part, listed below. |
 | Not done | 17 of 124 (listed below). |
-| AI (12 rows) | PARE and its supplier recommendation are built but mock-only. The client communication assistant and the zero-data-retention governance layer are partial. Triage, proposal drafting, theme suggestions, compliance advisory, the operations assistant, reliability scoring, the event-day copilot and post-event analysis are not built; live AI stays gated. |
+| AI (12 rows) | Inquiry triage, proposal drafting, and PARE with its supplier recommendation run live through the gateway once a provider key is set. The client communication assistant and the zero-data-retention governance layer are partial. Theme suggestions, compliance advisory, the operations assistant, reliability scoring, the event-day copilot and post-event analysis are not built. |
 
 Of the Prism-scope rows (the prototype scope), only Supplier Unresponsive Escalation with Viber Deep Link (FR-76) and the Guest Pass Promotional Sample (FR-42) have no implementation.
 
@@ -220,7 +221,7 @@ Of the Prism-scope rows (the prototype scope), only Supplier Unresponsive Escala
 **Partial, by family:**
 
 - **FL-001/FL-002/FL-005:** No MOA/NDA document type and no pre-conforme notes; billing statements are generated manually rather than on signing; the proposal flow has no revision comments, Word template upload, or program-flow input; cancellation has no automatic fee calculation (the decision form takes the fee by hand).
-- **FL-007/FL-008:** Quotes show only event name, category and date. A coordinator withdrawal inside 48 hours of the event is flagged as an Emergency Change, audited as critical and emailed to PMCM, but it does not start PARE while live AI is gated.
+- **FL-007/FL-008:** Quotes show only event name, category and date. A coordinator withdrawal inside 48 hours of the event is flagged as an Emergency Change, audited as critical and emailed to PMCM, but it does not start PARE.
 - **FL-009/FL-013:** The compliance engine is nine deterministic rules. The five-day change freeze and the 48-hour emergency window run on Philippine event days, and drafted wrap-up billing items are not turned into billing automatically.
 - **FL-011:** Annotation pin hit-testing ignores object rotation. Every event counts as private, so only the 200-guest limit gates the seating list.
 - **FL-012:** Check-in covers name search and headcount only, since QR and camera entry stay gated; game templates differ from the V4 five; guest media is recorded as `pending_storage`.

@@ -863,7 +863,16 @@ export class PAREService implements PareApprovalGovernance {
     }
     const outputs = savedStageOutputsAsProduced(reviewPayload);
     if (!outputs) throw new BadRequestException('PARE review result does not match its gateway output digest');
+    await this.assertGatewayStageAudits(prisma, evidence, outputs, requestId);
+  }
 
+  /** Each stage needs its own completed gateway audit row whose recorded output digest matches the saved output. */
+  private async assertGatewayStageAudits(
+    prisma: Prisma.TransactionClient,
+    evidence: AiAuditEvidence[],
+    outputs: readonly unknown[],
+    requestId: string,
+  ): Promise<void> {
     const ids = evidence.map((item) => 'aia_' + item.requestId);
     const rows = await prisma.opsAiAuditLog.findMany({ where: { id: { in: ids } } });
     const byId = new Map(rows.map((row) => [row.id, row]));
