@@ -7,9 +7,13 @@ import type {
   PrismDecisionLog,
   PrismDecisionLogQueryInput,
   PrismPmcmCommandInbox,
+  PrismPmcmCalendar,
   PrismPmcmCommandInboxQueryInput,
-  PrismPmcmDashboardWorkspace,
+  PrismPmcmEventSummaries,
+  PrismPmcmFileSummaries,
+  PmcmCalendarQuery,
   PrismPmcmEventWorkspace,
+  PrismPmcmReference,
   PrismPmcmSupplierReadinessBoard,
   PrismRegistrationPlatform,
   PrismSupplierQuoteRequest,
@@ -32,12 +36,16 @@ export interface EventOpsWorkspacesContract {
     list(actor?: EventOpsActorQuery): Promise<PrismBillingWorkspace>;
   };
 
-  pmcmDashboard: {
-    detail(actor?: EventOpsActorQuery): Promise<PrismPmcmDashboardWorkspace>;
-  };
-
   pmcm: {
+    /** Event switcher, inquiries, directories and rules for PMCM event pages; identity comes from the session token. */
+    reference(): Promise<PrismPmcmReference>;
     commandInbox(query?: PrismPmcmCommandInboxQueryInput): Promise<PrismPmcmCommandInbox>;
+    /** What each event owes and how many messages the signed-in PMCM admin has not read. */
+    eventSummaries(): Promise<PrismPmcmEventSummaries>;
+    /** Open and overdue file requirements for the events still in play (a bounded set). */
+    fileSummaries(): Promise<PrismPmcmFileSummaries>;
+    /** Dated work across events (event days, quote deadlines, payments, ocular visits, supplier schedules) in a window. */
+    calendar(query: PmcmCalendarQuery): Promise<PrismPmcmCalendar>;
     /** PMCM-only decision log for one event (FL-019); identity comes from the session token. */
     decisionLog(eventId: string, query?: PrismDecisionLogQueryInput): Promise<PrismDecisionLog>;
     eventWorkspace(

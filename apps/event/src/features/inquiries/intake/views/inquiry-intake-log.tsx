@@ -6,7 +6,8 @@ import { useListFilter } from "@/features/pmcm-kit";
 import { buildPublicInquiryLink, portalUrlFor, type PrismInquiry } from "@prism/types";
 import { portalUrlsFromEnvironment } from "@/lib/portal-urls";
 import {
-  declineReasons,
+  AWAITING_REVIEW,
+  compareIntakeInquiries,
   initialLogForm,
   inquiryMatchesIntakeFilters,
   toLogInquiryInput,
@@ -35,20 +36,22 @@ export function InquiryIntakeLog({
   inquiries: PrismInquiry[];
   onAccept: (inquiry: PrismInquiry) => Promise<void>;
   onPend: (inquiry: PrismInquiry) => Promise<void>;
-  onDecline: (inquiry: PrismInquiry, reason: string) => Promise<void>;
+  onDecline: (inquiry: PrismInquiry, reason?: string) => Promise<void>;
   onMerge: (primary: PrismInquiry, input: { sourceInquiryId: string; reason: string }) => Promise<void>;
   onLogOnBehalf: (input: LogInquiryOnBehalfInput) => Promise<void>;
   busy: boolean;
 }) {
   const [query, setQuery] = useListFilter("q");
-  const [status, setStatus] = useListFilter("inquiryStatus", "all");
+  const unreviewedCount = inquiries.filter((inquiry) => inquiry.status === "new").length;
+  // Open on the decisions waiting for PMCM; accepted history is one filter change away.
+  const [status, setStatus] = useListFilter("inquiryStatus", unreviewedCount > 0 ? AWAITING_REVIEW : "all");
   const [source, setSource] = useListFilter("inquirySource", "all");
   const [clientType, setClientType] = useListFilter("clientType", "all");
   const [dateRange, setDateRange] = useListFilter("dateRange", "all");
   const [openedId, setOpenedId] = useState<string | null>(null);
   const opened = inquiries.find((inquiry) => inquiry.id === openedId);
   const [declining, setDeclining] = useState<PrismInquiry | null>(null);
-  const [declineReason, setDeclineReason] = useState(declineReasons[0]);
+  const [declineReason, setDeclineReason] = useState("");
   const [loggingOnBehalf, setLoggingOnBehalf] = useState(false);
   const [logForm, setLogForm] = useState(initialLogForm);
   const [logPhase, setLogPhase] = useState<"idle" | "submitting" | "error">("idle");
@@ -57,11 +60,10 @@ export function InquiryIntakeLog({
   const todayIso = new Date().toISOString().slice(0, 10);
   const logFormFirstFieldRef = useRef<HTMLInputElement>(null);
 
-  const unreviewedCount = inquiries.filter((inquiry) => inquiry.status === "new").length;
   const clientTypes = Array.from(new Set(inquiries.map((inquiry) => inquiry.clientType).filter(Boolean))).sort();
   const filtered = inquiries
     .filter((inquiry) => inquiryMatchesIntakeFilters(inquiry, { query, status, source, clientType, dateRange }))
-    .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
+    .sort(compareIntakeInquiries);
 
   async function copyInquiryLink() {
     const origin = portalUrlFor("client", portalUrlsFromEnvironment());
@@ -76,9 +78,9 @@ export function InquiryIntakeLog({
 
   async function confirmDecline() {
     if (!declining) return;
-    await onDecline(declining, declineReason);
+    await onDecline(declining, declineReason || undefined);
     setDeclining(null);
-    setDeclineReason(declineReasons[0]);
+    setDeclineReason("");
   }
 
   function closeLogForm() {
@@ -129,7 +131,11 @@ export function InquiryIntakeLog({
           onClose={() => setOpenedId(null)}
           onAccept={() => onAccept(opened)}
           onPend={() => onPend(opened)}
-          onDecline={() => setDeclining(opened)}
+          onDecline={() => {
+            // The confirm dialog must not sit under the open drawer, where it would be inert to keyboard and screen readers.
+            setDeclining(opened);
+            setOpenedId(null);
+          }}
           allInquiries={inquiries}
           onMerge={async (primary, reason) => {
             await onMerge(primary, { sourceInquiryId: opened.id, reason });
@@ -140,10 +146,14 @@ export function InquiryIntakeLog({
       {declining && (
         <InquiryDeclineDialog
           clientName={declining.clientName}
+          clientEmail={declining.email}
           declineReason={declineReason}
           busy={busy}
           onReason={setDeclineReason}
-          onCancel={() => setDeclining(null)}
+          onCancel={() => {
+            setDeclining(null);
+            setDeclineReason("");
+          }}
           onConfirm={confirmDecline}
         />
       )}

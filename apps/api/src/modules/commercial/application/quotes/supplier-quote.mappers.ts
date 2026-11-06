@@ -1,6 +1,7 @@
 import type { OpsSupplierQuote, OpsSupplierQuoteRequest, OpsSupplierSchedule } from '@prisma/client';
-import { SupplierVerificationStatus } from '@prism/kernel/event-core';
+import { CONFIDENTIAL_EVENT_NAME, SupplierVerificationStatus, isSupplierBidIdentityHidden } from '@prism/kernel/event-core';
 import type { PrismSupplierQuoteRequest, PrismSupplierSchedule } from '@prism/types';
+import { manilaCalendarDate } from '../../domain/supplier-quote-request.policy';
 import type { QuoteRequestTokenDetail } from './commercial-workflow.service';
 
 function isoDate(value: Date) {
@@ -25,7 +26,7 @@ export function mapSupplierQuoteRequest(request: OpsSupplierQuoteRequest & { con
     supplierName: request.supplierName,
     category: request.category,
     message: request.message,
-    dueDate: request.dueDate ? isoDate(request.dueDate) : null,
+    dueDate: request.dueDate ? manilaCalendarDate(request.dueDate) : null,
     accessToken: request.accessToken,
     confidentialBid: request.confidentialBid,
     status: request.status,
@@ -116,12 +117,13 @@ export function mapSupplierQuoteForSupplier(quote: OpsSupplierQuote) {
 }
 
 export function mapQuoteRequestTokenDetail({ request, event, quote }: QuoteRequestTokenDetail) {
+  const hidden = isSupplierBidIdentityHidden(request);
   return {
     request: mapSupplierQuoteRequestForSupplier(request),
     quote: quote ? mapSupplierQuoteForSupplier(quote) : null,
     eventId: event.id,
-    eventName: request.confidentialBid ? 'Confidential event' : event.eventName,
-    clientName: request.confidentialBid ? null : event.clientName,
-    eventDate: request.confidentialBid ? null : isoDate(event.eventDate),
+    eventName: hidden ? CONFIDENTIAL_EVENT_NAME : event.eventName,
+    clientName: hidden ? null : event.clientName,
+    eventDate: isoDate(event.eventDate),
   };
 }

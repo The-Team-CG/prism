@@ -137,7 +137,8 @@ describe('AnthropicProviderAdapter', () => {
     const sent = transport.requests[0];
     expect(sent.url).toBe(`${TEST_BASE_URL}/v1/messages`);
     expect(sent.method).toBe('POST');
-    expect(sent.headers.get('x-api-key')).toBe(TEST_API_KEY);
+    expect(sent.headers.get('authorization')).toBe(`Bearer ${TEST_API_KEY}`);
+    expect(sent.headers.get('anthropic-version')).toBe('2026-10-21');
     expect(sent.body).not.toContain(TEST_API_KEY);
 
     const body = JSON.parse(sent.body) as Record<string, unknown>;
@@ -210,6 +211,19 @@ describe('AnthropicProviderAdapter', () => {
       });
     }
   });
+
+  it.each(['max_tokens', 'model_context_window_exceeded', 'pause_turn'])(
+    'reports incomplete generation as token exhaustion for %s',
+    async (stopReason) => {
+      const transport = makeResponseFetch(makeMessageResponse({
+        content: [{ type: 'text', text: 'Partial result' }], stopReason,
+      }));
+      const result = await makeAdapter(transport.fetchMock).run({
+        ...AI_PROVIDER_CONFORMANCE_REQUEST, tools: [], toolChoice: 'auto',
+      });
+      expect(result).toMatchObject({ text: 'Partial result', stopReason: 'max_tokens' });
+    },
+  );
 
   it('passes invalid output text through for the gateway output schema to reject', async () => {
     const transport = makeResponseFetch(

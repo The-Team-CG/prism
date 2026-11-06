@@ -1,97 +1,161 @@
 ---
 type: "Playbook"
-title: "Local AI provider and model routing"
-description: "Configure local synthetic-only AI provider routes and understand the activation limits for Prism's AI gateway."
+title: "AI provider and model routing"
+description: "Configure Prism's live AI provider, understand which data may reach it, and switch providers or models."
 tags: [runbook, ai, providers, routing, privacy]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-11-06"
 authority: operational
 audience: [developers, reviewers, agents]
-scope: "Local AI provider/model selection and the current staging/real-data activation boundary"
-last_verified: "2026-09-28; local route defaults and synthetic-only limits recorded; external route qualification remains open"
+scope: "Live AI provider/model selection, the real-data gate, and the AI use cases that depend on it"
+last_verified: "2026-11-06; route selection and gateway gates reviewed in code and covered by unit tests; no live provider call has been made from this checkout"
 sources:
   - id: ai-gateway
     resource: "apps/api/src/modules/platform-ops/application/ai-governance/gateway"
-    title: "AI gateway route configuration and provider adapters"
+    title: "AI gateway route configuration, use-case registry, and enforcement"
   - id: ai-decision
-    resource: "docs/roadmap/ai-provider-real-data-activation-decision.md"
+    resource: "docs/roadmap/ai-real-data-zdr-activation-decision.md"
     title: "Real-data activation decision"
 ---
-# Local AI provider and model routing
+# AI provider and model routing
 
 ## At a glance
 
-- **Purpose:** Configure local synthetic-only provider routes and preserve the current activation gates.
-- **Authority:** Operational guide; staging and production activation require separate approval.
-- **Scope:** Local provider/model selection and current AI data-use limits.
-- **Use when:** Changing local AI provider, model, or route profile.
-- **Change when:** Provider support or activation policy changes.
-- **Verify with:** Gateway route configuration and the currently approved activation decision.
+- **Purpose:** Configure the live AI provider and keep non-ZDR routes out of production.
+- **Authority:** Operational guide; the activation decision record owns the policy.
+- **Scope:** Provider and model selection, the real-data gate, and the use cases that use it.
+- **Use when:** Turning AI on, switching provider or model, or debugging a blocked AI call.
+- **Change when:** A provider, route profile, or use case is added or its data policy changes.
+- **Verify with:** `GET /api/health` (`aiGateway.profile`, `providerCallsEnabled`) and the gateway tests.
 
-This runbook describes local development behavior. It does not approve staging
-or production AI use.
+There is no mock provider. With no provider configured, every AI call is blocked
+with `use_case_disabled`, no provider is contacted, and the health check reports
+the `unconfigured` profile. Portals show the draft actions as unavailable.
 
-## Select a provider and model
+## Configure a provider
 
-The API currently has two external adapters:
+Set one provider key. The gateway selects that provider; if both keys exist, set
+`AI_PROVIDER` to `anthropic` or `openrouter`.
 
-- Anthropic direct, configured with ANTHROPIC_API_KEY. Its default model is
-  claude-sonnet-4-6.
-- OpenRouter, configured with OPENROUTER_API_KEY. Its default model is
-  z-ai/glm-5.3-flash, pinned to the Fireworks endpoint.
+| Provider | Key | Default model | Real data |
+| --- | --- | --- | --- |
+| Anthropic direct | `ANTHROPIC_API_KEY` | `claude-sonnet-5-5` | Test data without ZDR; ZDR when `AI_ZDR_CONFIRMED=true` |
+| OpenRouter | `OPENROUTER_API_KEY` | `z-ai/glm-5.3-flash`, pinned to Fireworks | Yes: ZDR is requested on every call |
 
-With NODE_ENV=development, one configured provider key is enough to select that
-provider while AI_ROUTE_PROFILE remains mock. If both keys are present, set
-AI_PROVIDER explicitly to anthropic or openrouter. With no key and no provider
-selection, the deterministic mock remains selected.
+Anthropic direct has no zero-data-retention guarantee unless your organization
+has a ZDR agreement. Without `AI_ZDR_CONFIRMED=true` it runs as the
+`anthropic-test-data` route: inquiry and event data reach the provider, minimized
+as described below, and every audit row records `test_data_approved`. That is
+acceptable for UAT or test data only. `AI_ZDR_CONFIRMED=true` is an operator
+attestation the code cannot verify; set it only when the agreement exists.
+OpenRouter requests ZDR, denies data collection, requires supported parameters,
+and disables provider fallback; a call fails closed if the endpoint cannot honor
+that.
 
-Set AI_MODEL to replace the selected provider's model for all routes. Set
-AI_MODEL_FAST and AI_MODEL_STRONG to choose different models for those tiers;
-a tier-specific value takes precedence over AI_MODEL. Leave these empty to use
-the provider's current default. The model ID is passed through to the selected
-adapter, and the route revision records the exact provider and model.
+`NODE_ENV=production` refuses any non-ZDR route at startup, so going live without
+ZDR cannot happen by accident. A UAT deployment that runs in production mode and
+holds only test data sets `AI_ALLOW_TEST_DATA_IN_PRODUCTION=true`. Remove it and
+set ZDR (or use OpenRouter) before real client data is loaded.
 
-Example local settings:
+For a fixtures-only lockdown, set `AI_ROUTE_PROFILE=anthropic-synthetic`. It is
+never selected automatically and refuses real data.
 
-    NODE_ENV=development
-    AI_ROUTE_PROFILE=mock
-    AI_PROVIDER=openrouter
-    AI_MODEL=z-ai/glm-5.3-flash
-    OPENROUTER_API_KEY=your-local-key
+Example (Anthropic with a ZDR agreement):
 
-To switch providers, change AI_PROVIDER and provide that provider's key. To
-switch models, change AI_MODEL or the tier-specific setting. Restart the API
-after changing environment values. API startup does not send a provider request;
-a request occurs only when an enabled use case is invoked.
+    AI_PROVIDER=anthropic
+    AI_ZDR_CONFIRMED=true
+    ANTHROPIC_API_KEY=your-key
 
-Only the Anthropic and OpenRouter adapters are implemented. A model must be
-available to the selected provider and support the gateway's tool and structured
-output contract. OpenRouter remains pinned to Fireworks and continues to request
-ZDR, deny data collection, require supported parameters, and disable provider
-fallback. Selecting a model that is unavailable on the pinned endpoint or
-cannot satisfy the request fails closed; the gateway does not try another
-provider, endpoint, or mock.
+To switch to OpenRouter, set `AI_PROVIDER=openrouter` and `OPENROUTER_API_KEY`,
+remove `AI_ZDR_CONFIRMED`, and restart. Nothing else changes.
 
-## Local data and approval limits
+`AI_MODEL` replaces the model for all routes of the selected provider;
+`AI_MODEL_FAST` and `AI_MODEL_STRONG` override one tier and take precedence. The
+route revision in each audit row records the exact provider and model. API
+startup sends no provider request; a request occurs only when a use case runs.
+Keep keys in the ignored local `.env` or the deployment secret store.
 
-Local provider selection enables only pare.budget, pare.risk,
-pare.message-drafts, and comms.draft by default. An explicit AI_LIVE_USE_CASES
-value replaces that list. External profiles accept synthetic data only.
-Gateway fixture verification and the server-owned PARE provenance chain must
-succeed before a provider call. Real event and inquiry data is blocked. PARE
-output remains a recommendation, and PMCM approval is required before any
-notification can enter the outbox. The conforme draft provider input remains
-generic and server-owned.
+`AI_LIVE_USE_CASES` is an optional allowlist. Empty means every registered use
+case is live once a provider is configured.
 
-The Fireworks endpoint's forced-tool and ZDR eligibility, account privacy
-settings, and processor/logging details have not been qualified. Request
-controls fail closed if the selected endpoint cannot meet them. Do not treat
-local provider/model switching as approval for real data or staging.
+## Use cases
 
-Staging does not infer activation from a key. Production keeps its live-use-case
-allowlist empty under the current no-go decision and refuses synthetic-only
-external profiles. A staged or real-data route requires its separate deployment,
-privacy, review, and approval gates.
+| Use case | Ledger | What it does | Data it sends |
+| --- | --- | --- | --- |
+| `inquiry.triage` | FR-AI-01 | Advises PMCM on fit, risks and questions for an inquiry. Stored as an advisory record. | Inquiry shape and wording. No name, email, phone or company. |
+| `proposal.draft` | FR-AI-03 | Drafts proposal title, summary and highlights from the estimate being built. Returned to the form, stored nowhere. | Event, budget and estimate lines. No client identity. |
+| `comms.draft` | FR-AI-09 | Drafts a conforme reminder. | A generic fixture only. |
+| `pare.budget`, `pare.risk`, `pare.message-drafts` | FR-AI-04 | PARE supplier-replacement stages. PMCM approves before anything is sent. | Event, budget, ranked candidates and client preferences with names and ids masked (see PARE below). |
 
-Keep credentials in the ignored local .env; never commit them. Remove the keys
-and provider/model overrides, then restart the API to return to mock behavior.
+Every use case is PMCM-only and advisory. AI output is never sent, applied or
+approved automatically: triage changes no inquiry status, a proposal draft only
+fills the form until PMCM issues it, and a conforme reminder needs PMCM approval
+before it enters the notification outbox.
+
+## What the gateway enforces
+
+- Free-text fields are replaced before a provider call unless the use case
+  declares them in `freeTextKeys`. Declared fields still have emails, phone
+  numbers, identifiers and payment-card patterns redacted. A payload that still
+  matches a personal-data pattern is blocked.
+- Input over 32 KB, output that is not valid JSON for the registered schema,
+  or output containing a personal-data pattern is rejected.
+- Each use case has a step limit, an output-token limit, a timeout and a daily
+  token budget. Every run, including blocked ones, writes an audit row.
+- A route whose ZDR basis is `none` (the fixtures-only lockdown) accepts only verified synthetic data.
+
+Applicant free text (an inquiry message) is untrusted input. The triage prompt
+tells the model to treat it as data, and the result is advisory with a fixed
+schema, so a hostile message can at worst skew advice a person then reads.
+
+## PARE
+
+PARE recommends a replacement supplier when one withdraws. It has two modes.
+The persisted mode value stays `mock` or `live` so stored records keep working.
+
+- **`mock` (rules engine):** a deterministic engine that ranks candidates and
+  writes the messages from fixed rules, without calling any model. It is the
+  offline fallback when no provider is configured.
+- **`live`:** the three stages (budget, risk, message drafts) run through the
+  gateway. `PARE_MODE=live|mock` forces a mode. With `PARE_MODE` unset, PARE is live
+  when a provider is configured and all three PARE use cases are live
+  (`AI_LIVE_USE_CASES` unset or listing them), and the rules engine otherwise.
+  `PARE_MODE=live` with no provider, or with a PARE use case disabled, stops the
+  API at startup.
+
+What live PARE sends depends on the route of its three use cases:
+
+- **ZDR or test-data-only routes:** real event context goes through the gateway
+  like any other use case. The model sees ranked suppliers as "Candidate 1",
+  "Candidate 2" and so on (the order of the PARE candidate list), with the client,
+  event and withdrawn supplier names replaced by placeholders. The read-only tools
+  return the same masked view. Message drafts use `[Client name]` and
+  `[Supplier name]` placeholders for PMCM to fill in. Audit rows say
+  `zdr_approved` or `test_data_approved`, and the review record counts as ZDR
+  confirmed only when every stage was `zdr_approved`. Production refuses the
+  test-data route unless `AI_ALLOW_TEST_DATA_IN_PRODUCTION=true`; PARE adds no
+  separate production gate.
+- **Fixtures-only route (`anthropic-synthetic`):** PARE accepts only registered
+  synthetic fixtures and keeps its server-owned provenance chain.
+
+PMCM must approve every PARE result before any message enters the notification
+outbox. At approval PARE re-checks the run. For a real-data run it requires, for
+each stage in order, a completed gateway audit row for that stage and request,
+on a ZDR or test-data route, whose recorded output digest equals the digest of
+the output saved for review. A changed output, a missing or incomplete stage
+audit or a stage from another request blocks approval.
+
+## Limits to know
+
+- Live PARE sends the briefing's client preferences as free text. Emails and phone
+  numbers in them are redacted, but a name typed into a preference is not. PARE
+  does not yet read the event's real budget: its context carries placeholder budget
+  totals, so live budget feasibility rests on the quote amounts.
+- Triage advice is stored in `platform_ops.ai_approval_records`. When an inquiry is
+  erased by a privacy request or reaches retention, its triage advice is deleted
+  and the gateway audit row keeps only its route evidence, because the audit
+  row's stored input holds the applicant's free-text message. A data-subject
+  access export does not yet list triage advice.
+- OpenRouter's Fireworks endpoint has not been qualified against the gateway's
+  forced-tool and ZDR conformance checks with a live key.
+- The only provider adapters are Anthropic and OpenRouter.

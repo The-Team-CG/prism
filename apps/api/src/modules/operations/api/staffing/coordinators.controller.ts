@@ -21,7 +21,7 @@ export class OpsCoordinatorsController {
     // from the allow-list during the PA-279 fix: exhaustive search found zero real
     // callers of GET /api/coordinators anywhere in apps/event/src (CoordinatorView uses
     // the actor-scoped coordinatorWorkspace() endpoint; the pmcm-admin dashboard sources
-    // its roster from pmcmState()). Widen this only alongside a real caller that needs it.
+    // its roster from the PMCM reference). Widen this only alongside a real caller that needs it.
     await this.eventAccessPolicyService.requireActorRole(
       actor,
       [OpsUserRole.PmcmAdmin],

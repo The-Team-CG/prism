@@ -39,7 +39,7 @@ const savedDraft: ConformeDraftReviewRecord = {
   lastConformeReminderAt: null,
   reminderWindowBaseAt: '2026-09-19T12:00:00.000Z',
   requestId: 'req_1',
-  modelVersion: 'mock',
+  modelVersion: 'claude-sonnet-5-5',
 };
 
 type DraftEvent = AiGatewayStreamEvent<CommsDraftResult>;

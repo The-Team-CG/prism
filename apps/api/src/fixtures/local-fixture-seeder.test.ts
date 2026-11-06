@@ -1,58 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { assertFixtureDatabaseIsFresh, LocalFixtureSeeder } from './local-fixture-seeder';
 
-const migrationFloorPlanIds = [
-  'plan_tpl_builtin_blank',
-  'plan_tpl_builtin_corporate_gala',
-  'plan_tpl_builtin_wedding',
-  'plan_tpl_builtin_conference',
-  'plan_tpl_builtin_classroom',
-  'plan_tpl_builtin_banquet',
-  'plan_tpl_builtin_cocktail',
-];
-const migrationVenueTemplateIds = migrationFloorPlanIds.map((id) => id.replace('plan_', ''));
-
 const migrationSeedCounts: Record<string, number> = {
-  floorPlan: 7,
-  floorPlanObject: 231,
-  venueTemplate: 7,
   opsAuditChainLock: 1,
+  opsRetentionPolicy: 8,
 };
 
 function createMigrationBaselinePrisma({
   countOverrides = {},
   auditRevision = 0,
-  floorPlanOwnerId = 'owner-sample',
-  replaceFirstFloorPlanId = false,
   missingCountModel,
   invalidCountModel,
 }: {
   countOverrides?: Record<string, number>;
   auditRevision?: number;
-  floorPlanOwnerId?: string;
-  replaceFirstFloorPlanId?: boolean;
   missingCountModel?: string;
   invalidCountModel?: string;
 } = {}) {
-  const floorPlanIds = migrationFloorPlanIds.map((id, index) =>
-    replaceFirstFloorPlanId && index === 0 ? 'unexpected-floor-plan' : id,
-  );
-  const floorPlans = floorPlanIds.map((id) => ({
-    id,
-    ownerId: floorPlanOwnerId,
-    eventId: null,
-  }));
   const rowsByModel: Record<string, unknown[]> = {
-    floorPlan: floorPlans,
-    floorPlanObject: Array.from({ length: 231 }, (_unused, index) => ({
-      floorPlanId: floorPlanIds[index % floorPlanIds.length],
-      objectId: `migration-object-${index}`,
-    })),
-    venueTemplate: floorPlanIds.map((floorPlanId, index) => ({
-      id: migrationVenueTemplateIds[index],
-      ownerId: 'owner-sample',
-      floorPlanId,
-    })),
     opsAuditChainLock: [{ id: 'global', revision: auditRevision, headId: null, headHash: null }],
   };
   const modelCounts = { ...migrationSeedCounts, ...countOverrides };
@@ -99,9 +64,6 @@ describe('LocalFixtureSeeder', () => {
 
     await expect(assertFixtureDatabaseIsFresh(prisma as never)).resolves.toBeUndefined();
 
-    expect(calls).toContain('floorPlan.findMany');
-    expect(calls).toContain('venueTemplate.findMany');
-    expect(calls).toContain('floorPlanObject.findMany');
     expect(calls).toContain('opsAuditChainLock.findMany');
     expect(writes).toEqual([]);
   });
@@ -118,16 +80,10 @@ describe('LocalFixtureSeeder', () => {
     expect(writes).toEqual([]);
   });
 
-  it('refuses altered migration-owned rows before fixture writes', async () => {
-    const { prisma, writes } = createMigrationBaselinePrisma({ floorPlanOwnerId: 'other-owner' });
-    const seeder = new LocalFixtureSeeder(prisma as never, { audit: async () => ({}) } as never);
-
-    await expect(seeder.seedFixtures()).rejects.toThrow('migration-owned baseline rows');
-    expect(writes).toEqual([]);
-  });
-
-  it('refuses an unexpected migration baseline ID before fixture writes', async () => {
-    const { prisma, writes } = createMigrationBaselinePrisma({ replaceFirstFloorPlanId: true });
+  it('refuses a changed retention policy count before fixture writes', async () => {
+    const { prisma, writes } = createMigrationBaselinePrisma({
+      countOverrides: { opsRetentionPolicy: 9 },
+    });
     const seeder = new LocalFixtureSeeder(prisma as never, { audit: async () => ({}) } as never);
 
     await expect(seeder.seedFixtures()).rejects.toThrow('migration-owned baseline rows');
@@ -143,10 +99,10 @@ describe('LocalFixtureSeeder', () => {
   });
 
   it('fails closed when a model returns an invalid row count', async () => {
-    const { prisma, writes } = createMigrationBaselinePrisma({ invalidCountModel: 'floorPlan' });
+    const { prisma, writes } = createMigrationBaselinePrisma({ invalidCountModel: 'opsRetentionPolicy' });
     const seeder = new LocalFixtureSeeder(prisma as never, { audit: async () => ({}) } as never);
 
-    await expect(seeder.seedFixtures()).rejects.toThrow('invalid row count for model FloorPlan');
+    await expect(seeder.seedFixtures()).rejects.toThrow('invalid row count for model OpsRetentionPolicy');
     expect(writes).toEqual([]);
   });
 

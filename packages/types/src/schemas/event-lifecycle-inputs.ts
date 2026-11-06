@@ -155,10 +155,23 @@ export type ArchiveSearchFilters = z.infer<typeof archiveSearchFiltersSchema>;
 export const wrapUpModeSchema = z.enum(["full", "quick"]);
 export type WrapUpMode = z.infer<typeof wrapUpModeSchema>;
 
+/** The post-event wrap-up window: it closes this many hours after the recorded actual end of the event. */
+export const WRAP_UP_WINDOW_HOURS = 24;
+
 export const wrapUpSectionSchema = z.object({
   status: z.enum(["pending", "complete", "blocked"]).default("pending"),
   evidence: z.string().trim().max(4000).default(""),
   completedAt: z.string().datetime({ offset: true }).nullable().default(null),
+});
+
+/** One additional billing item PMCM spotted at wrap-up, kept as a draft until it is billed through the billing panel. */
+export const wrapUpBillingDraftItemSchema = z.object({
+  label: z.string().trim().min(1).max(200),
+  amount: z.number().int().min(0).max(2147483647),
+  note: z.string().trim().max(500).default(""),
+});
+export const wrapUpBillingDraftSectionSchema = wrapUpSectionSchema.extend({
+  items: z.array(wrapUpBillingDraftItemSchema).max(20).default([]),
 });
 
 export const startEventWrapUpSchema = z.object({ mode: wrapUpModeSchema.default("full") });
@@ -171,6 +184,8 @@ export const updateEventWrapUpSchema = z.object({
   sections: z.object({
     issues: wrapUpSectionSchema.optional(),
     feedback: wrapUpSectionSchema.optional(),
+    supplierEgress: wrapUpSectionSchema.optional(),
+    billingDraft: wrapUpBillingDraftSectionSchema.optional(),
   }).strict().optional(),
   clientAcknowledged: z.boolean().optional(),
   clientAcknowledgementNote: z.string().trim().max(2000).optional(),
@@ -213,6 +228,7 @@ export type SubmitClientOcularVisitInput = z.infer<typeof submitClientOcularVisi
 
 export const scheduleOcularVisitSchema = z.object({
   scheduledAt: z.string().datetime({ offset: true }),
+  note: optionalTrimmedStringSchema,
 });
 export type ScheduleOcularVisitInput = z.infer<typeof scheduleOcularVisitSchema>;
 

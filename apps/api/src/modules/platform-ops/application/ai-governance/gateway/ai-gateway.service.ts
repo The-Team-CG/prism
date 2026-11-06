@@ -43,6 +43,7 @@ import {
 } from './ai-gateway.config';
 import { AI_USE_CASE_REGISTRY } from './ai-use-cases';
 import { canonicalJson, digestJson } from '../json-digest';
+import { containsPii, redactString } from './pii-redaction';
 
 const MAX_INPUT_BYTES = 32_768;
 const MAX_TOOL_RESULT_BYTES = 16_384;
@@ -72,6 +73,8 @@ type GatewayRunState = {
   provenance: AiSyntheticProvenance | null;
   pareChainVerification?: AiSyntheticPareChainVerification;
   pareChainEvidence?: AiPareProvenanceChainEvidence;
+  /** Digest of the validated output of a completed run; callers compare it with the output they store. */
+  outputDigest?: string;
   toolResultDigests: string[];
   dataClasses: AiDataClass[];
   auditCreated: boolean;
@@ -139,19 +142,18 @@ function priorAuditIdentityMatches(
 }
 
 function assertRouteActivation(runtime: AiGatewayRuntimeConfig, state: GatewayRunState): void {
-  if (state.route.provider !== 'mock' && !runtime.liveUseCases.has(state.useCaseId)) {
-    fail('blocked', 'use_case_disabled', 'This use case is not enabled for live provider calls');
+  if (!runtime.liveUseCases.has(state.useCaseId)) {
+    fail(
+      'blocked',
+      'use_case_disabled',
+      runtime.configured
+        ? 'This use case is not enabled for live provider calls'
+        : 'No AI provider is configured. Set AI_PROVIDER and its API key.',
+    );
   }
-  if (state.route.provider === 'mock' && runtime.liveUseCases.has(state.useCaseId)) {
-    fail('blocked', 'configuration_invalid', 'An enabled live use case cannot resolve to the mock provider');
+  if (runtime.isProduction && !runtime.allowTestDataInProduction && state.route.zdrBasis !== 'provider-enforced') {
+    fail('blocked', 'configuration_invalid', 'Non-ZDR routes are disabled in production');
   }
-  if (runtime.isProduction && state.route.provider !== 'mock' && isSyntheticOnlyRoute(state.route)) {
-    fail('blocked', 'configuration_invalid', 'Synthetic-only external routes are disabled in production');
-  }
-}
-
-function isSyntheticOnlyRoute(route: AiRoute): boolean {
-  return route.allowedDataClasses.length === 1 && route.allowedDataClasses[0] === 'synthetic';
 }
 
 function assertRouteDataClasses(route: AiRoute, dataClasses: AiDataClass[]): void {
@@ -170,7 +172,7 @@ function assertRouteZdrRequirement(
   definition: AiUseCaseDefinition<AiUseCaseId>,
   provenance: AiSyntheticProvenance | null,
 ): void {
-  if (definition.requiresZdr && route.zdrBasis !== 'provider-enforced' && !provenance) {
+  if (definition.requiresZdr && route.zdrBasis === 'none' && !provenance) {
     fail('blocked', 'zdr_required', 'Real-data use cases require a provider-enforced ZDR route');
   }
 }
@@ -180,7 +182,7 @@ function assertRouteSyntheticData(
   dataClasses: AiDataClass[],
   provenance: AiSyntheticProvenance | null,
 ): void {
-  if (route.provider === 'mock' || route.zdrBasis !== 'none') return;
+  if (route.zdrBasis !== 'none') return;
   if (!provenance || dataClasses.length !== 1 || dataClasses[0] !== 'synthetic') {
     fail('blocked', 'synthetic_provenance_required', 'A non-ZDR external route requires verified synthetic data');
   }
@@ -193,8 +195,8 @@ function assertRoutePayloadSanitized(payload: unknown): void {
 }
 
 function routePolicyOutcome(route: AiRoute): AiRoutePolicyOutcome {
-  if (route.provider === 'mock') return 'mock_local';
-  return route.zdrBasis === 'provider-enforced' ? 'zdr_approved' : 'synthetic_verified';
+  if (route.zdrBasis === 'provider-enforced') return 'zdr_approved';
+  return route.zdrBasis === 'test-data-only' ? 'test_data_approved' : 'synthetic_verified';
 }
 
 function providerJsonText(text: string): string {
@@ -203,14 +205,6 @@ function providerJsonText(text: string): string {
   return fence ? fence[1] : trimmed;
 }
 
-const EMAIL_TEST_RE = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
-const EMAIL_REDACT_RE = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
-const PHONE_TEST_RE = /\+?(?=(?:[\d\s().-]*\d){10,})[\d\s().-]{10,}/;
-const PHONE_REDACT_RE = /\+?(?=(?:[\d\s().-]*\d){10,})[\d\s().-]{10,}/g;
-const SSN_TEST_RE = /\b\d{3}-\d{2}-\d{4}\b/;
-const SSN_REDACT_RE = /\b\d{3}-\d{2}-\d{4}\b/g;
-const PAYMENT_CARD_TEST_RE = /\b(?:\d[ -]*?){13,19}\b/;
-const PAYMENT_CARD_REDACT_RE = /\b(?:\d[ -]*?){13,19}\b/g;
 const SAFE_STRUCTURED_STRING_KEYS = new Set([
   'eventdate',
   'category',
@@ -223,51 +217,52 @@ const SAFE_STRUCTURED_STRING_KEYS = new Set([
   'inquiryid',
 ]);
 
-function containsPii(value: unknown): boolean {
-  if (typeof value === 'string') return EMAIL_TEST_RE.test(value) || PHONE_TEST_RE.test(value) || SSN_TEST_RE.test(value) || PAYMENT_CARD_TEST_RE.test(value);
-  if (Array.isArray(value)) return value.some(containsPii);
-  if (value && typeof value === 'object') return Object.values(value).some(containsPii);
-  return false;
-}
-
-function redactString(value: string): string {
-  return value
-    .replace(EMAIL_REDACT_RE, '[email redacted]')
-    .replace(PHONE_REDACT_RE, '[phone redacted]')
-    .replace(SSN_REDACT_RE, '[identifier redacted]')
-    .replace(PAYMENT_CARD_REDACT_RE, '[payment data redacted]');
-}
+type MinimizeRules = {
+  freeTextKeys: ReadonlySet<string>;
+  aliasKeys: Readonly<Record<string, RegExp>>;
+};
 
 function minimizeValue(
   key: string,
   value: unknown,
   synthetic: boolean,
+  rules: MinimizeRules,
   parentKey = '',
 ): unknown {
   if (Array.isArray(value)) {
-    return value.map((item) => minimizeValue(key, item, synthetic, parentKey));
+    return value.map((item) => minimizeValue(key, item, synthetic, rules, parentKey));
   }
   if (value && typeof value === 'object') {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>).map(([childKey, childValue]) => [
         childKey,
-        minimizeValue(childKey, childValue, synthetic, key),
+        minimizeValue(childKey, childValue, synthetic, rules, key),
       ]),
     );
   }
   if (typeof value !== 'string') return value;
-  return minimizeStringValue(key, value, synthetic, parentKey);
+  return minimizeStringValue(key, value, synthetic, rules, parentKey);
 }
 
-function minimizeStringValue(key: string, value: string, synthetic: boolean, parentKey: string): string {
+const NAME_PLACEHOLDERS: ReadonlyArray<readonly [string, string]> = [['supplier', 'Supplier X'], ['guest', 'Guest'], ['contact', 'Contact']];
+
+/** A stand-in for a person or organisation name, chosen by where the name sits in the payload. */
+function namePlaceholder(nameContext: string): string {
+  const context = nameContext.toLowerCase();
+  return NAME_PLACEHOLDERS.find(([marker]) => context.includes(marker))?.[1] ?? 'Client A';
+}
+
+function minimizeStringValue(
+  key: string,
+  value: string,
+  synthetic: boolean,
+  rules: MinimizeRules,
+  parentKey: string,
+): string {
   if (synthetic) return redactString(value);
-  if (/^(?:client|supplier|guest|contact).*name$/i.test(key) || key.toLowerCase() === 'name') {
-    const nameContext = `${parentKey}.${key}`.toLowerCase();
-    if (nameContext.includes('supplier')) return 'Supplier X';
-    if (nameContext.includes('guest')) return 'Guest';
-    if (nameContext.includes('contact')) return 'Contact';
-    return 'Client A';
-  }
+  if (rules.aliasKeys[key]?.test(value)) return value;
+  if (rules.freeTextKeys.has(key)) return redactString(value);
+  if (/^(?:client|supplier|guest|contact).*name$/i.test(key) || key.toLowerCase() === 'name') return namePlaceholder(`${parentKey}.${key}`);
   if (/^(?:id|(?:event|inquiry|trigger|supplier|guest|client).*id)$/i.test(key)) {
     return '[identifier redacted]';
   }
@@ -333,9 +328,6 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
   }
 
   onModuleInit(): void {
-    if (!this.adaptersByProvider.has('mock')) {
-      throw new Error('The required deterministic AI mock adapter is not registered');
-    }
     for (const useCaseId of this.runtime.liveUseCases) {
       const definition = AI_USE_CASE_REGISTRY[useCaseId];
       const route = resolveAiRoute(this.runtime.profile, useCaseId, definition.modelTier);
@@ -589,7 +581,15 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
 
   private async minimizeAndValidateInput(state: GatewayRunState): Promise<void> {
     state.dataClasses = useCaseDataClasses(state.definition, Boolean(state.provenance));
-    const minimized = minimizeValue('input', state.parsedInput, Boolean(state.provenance));
+    const minimized = minimizeValue(
+      'input',
+      state.parsedInput,
+      Boolean(state.provenance),
+      {
+        freeTextKeys: new Set(state.definition.freeTextKeys ?? []),
+        aliasKeys: state.definition.aliasKeys ?? {},
+      },
+    );
     const minimizedResult = state.definition.inputSchema.safeParse(minimized);
     if (!minimizedResult.success || !minimized || typeof minimized !== 'object') {
       await this.createAudit(state);
@@ -645,6 +645,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
         endpointPolicyId: state.route.endpointPolicyId,
       },
       ...(state.pareChainEvidence ? { _aiPareChain: state.pareChainEvidence } : {}),
+      ...(state.outputDigest ? { _aiOutputDigest: state.outputDigest } : {}),
     };
   }
 
@@ -684,7 +685,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
   private requireStepAdapter(state: GatewayRunState): AiProviderAdapter {
     const adapter = this.adaptersByProvider.get(state.route.provider);
     if (!adapter) fail('unavailable', 'provider_unavailable', 'The selected provider adapter is not registered', true);
-    if (state.route.provider !== 'mock' && adapter.endpointPolicyId !== state.route.endpointPolicyId) {
+    if (adapter.endpointPolicyId !== state.route.endpointPolicyId) {
       fail('blocked', 'configuration_invalid', 'The selected provider adapter does not match the reviewed endpoint policy');
     }
     return adapter;
@@ -769,6 +770,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
       state.pareChainEvidence = undefined;
       fail('blocked', 'synthetic_provenance_required', 'PARE output failed server-side provenance chain completion');
     }
+    state.outputDigest = digestJson(output);
     const result = { outcome: 'completed' as const, output, evidence: this.evidence(state, 'completed') };
     await this.finishAudit(state, 'completed');
     return result;
@@ -893,7 +895,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
     content: string,
   ): Promise<{ content: string; digest?: string }> {
     const { route } = state;
-    const requiresSynthetic = Boolean(state.pareChainVerification) || (route.zdrBasis === 'none' && route.provider !== 'mock');
+    const requiresSynthetic = Boolean(state.pareChainVerification) || route.zdrBasis === 'none';
     if (!requiresSynthetic) return { content };
     let parsedToolResult: unknown;
     try {
@@ -927,6 +929,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
     callerSignal?: AbortSignal,
   ): Promise<AiGatewayRunFailure> {
     state.pareChainEvidence = undefined;
+    state.outputDigest = undefined;
     if (!state.auditCreated) {
       // If audit persistence itself failed, stop before any provider call.
       if (!(error instanceof AiGatewayFault)) throw error;

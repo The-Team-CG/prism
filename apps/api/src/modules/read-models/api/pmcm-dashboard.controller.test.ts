@@ -8,7 +8,7 @@ function controllerPath(controller: Function): string {
 
 function createController() {
   const eventReadModelsService = {
-    pmcmDashboard: vi.fn(async () => ({ events: [] })),
+    pmcmReference: vi.fn(async () => ({ events: [] })),
     pmcmEventWorkspace: vi.fn(async () => ({ event: { id: 'evt_sample' } })),
     coordinatorReliabilityHistory: vi.fn(async () => [{ id: 'note_1' }]),
     pmcmSupplierReadinessBoard: vi.fn(async () => ({ eventId: 'evt_sample', items: [] })),
@@ -41,13 +41,13 @@ describe('OpsPmcmDashboardController', () => {
     expect(controllerPath(OpsPmcmDashboardController)).toBe('pmcm');
   });
 
-  it('serves PMCM dashboard reads through EventReadModelsService', async () => {
+  it('serves the PMCM reference through EventReadModelsService', async () => {
     const { controller, eventReadModelsService, eventAccessPolicyService } = createController();
 
-    await expect(controller.dashboard({ id: 'user_pmcm', actorId: 'user_pmcm', role: 'pmcm-admin', actorRole: 'pmcm-admin', email: 'mys@pmcm.test', actorEmail: 'mys@pmcm.test', name: 'Maxine', actorName: 'Maxine', expiresAt: '2026-07-03T12:00:00.000Z' } as any)).resolves.toEqual({ events: [] });
+    await expect(controller.reference({ id: 'user_pmcm', actorId: 'user_pmcm', role: 'pmcm-admin', actorRole: 'pmcm-admin', email: 'mys@pmcm.test', actorEmail: 'mys@pmcm.test', name: 'Maxine', actorName: 'Maxine', expiresAt: '2026-07-03T12:00:00.000Z' } as any)).resolves.toEqual({ events: [] });
 
     expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, { id: 'user_pmcm', actorId: 'user_pmcm', role: 'pmcm-admin', actorRole: 'pmcm-admin', email: 'mys@pmcm.test', actorEmail: 'mys@pmcm.test', name: 'Maxine', actorName: 'Maxine', expiresAt: '2026-07-03T12:00:00.000Z' });
-    expect(eventReadModelsService.pmcmDashboard).toHaveBeenCalledWith(
+    expect(eventReadModelsService.pmcmReference).toHaveBeenCalledWith(
       { role: 'pmcm-admin', name: 'Maxine' },
       expect.objectContaining({
         coordinatorRoleRequirements: expect.any(Array),

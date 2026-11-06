@@ -185,7 +185,7 @@ function ProductPanel() {
         <div className="rounded-lg border border-primary/12 bg-card/88 p-4 shadow-sm backdrop-blur">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-medium text-primary">Official floorplan review</p>
+              <p className="text-sm text-muted-foreground">Official floorplan review</p>
               <h2 className="mt-2 text-2xl font-black leading-tight text-foreground">Approved ballroom layout</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">Review the approved layout with guest flow, entrances, and service access.</p>
             </div>
@@ -396,7 +396,7 @@ export function ClientHomeLandingView() {
       <section id="platform" className="px-5 py-16 sm:px-8 lg:px-10">
         <div className="mx-auto grid max-w-[1320px] gap-8 lg:grid-cols-[0.34fr_0.66fr] lg:items-center">
           <div>
-            <p className="text-xs font-medium text-primary">Your workspace</p>
+            <p className="text-sm text-muted-foreground">Your workspace</p>
             <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-ink sm:text-5xl">Everything you need, all in one place</h2>
             <p className="mt-4 text-lg leading-8 text-muted-foreground">From the official floorplan to billing, documents, and activity, stay informed and in control as your event comes to life.</p>
             <div className="mt-6 grid gap-3 text-sm text-muted-foreground">
@@ -453,7 +453,7 @@ export function ClientHomeLandingView() {
 
       <section id="roles" className="border-y border-primary/10 bg-card px-5 py-20 sm:px-8 lg:px-10">
         <div className="mx-auto max-w-[1320px]">
-          <p className="text-xs font-medium text-primary">Your event life cycle</p>
+          <p className="text-sm text-muted-foreground">Your event life cycle</p>
           <div className="mt-4 grid gap-8 lg:grid-cols-[0.32fr_0.68fr] lg:items-center">
             <h2 className="prism-serif text-4xl font-black leading-[0.98] text-ink sm:text-5xl">Guided from inquiry to closure</h2>
             <div className="grid gap-4 md:grid-cols-6">
@@ -482,7 +482,7 @@ export function ClientHomeLandingView() {
       <DarkBand>
         <div id="floorplans" className="grid gap-10 lg:grid-cols-[0.34fr_0.66fr] lg:items-center">
           <div>
-            <p className="text-xs font-medium text-primary">Official floorplan control</p>
+            <p className="text-sm text-muted-foreground">Official floorplan control</p>
             <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-sidebar-foreground sm:text-5xl">Review layouts with confidence</h2>
             <p className="mt-5 text-lg leading-8 text-sidebar-foreground/75">PMCM creates and controls the official floorplans so accuracy, safety, and version history stay protected from the start.</p>
             <div className="mt-6 grid gap-3 text-sm text-sidebar-foreground/75">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import type { PrismEventFreezeException } from "@prism/types";
 import { DatePicker } from "@prism/ui/components/date-picker";
 import { useChangeRegisterViewModel } from "../view-models/use-change-register-view-model";
@@ -35,25 +35,43 @@ export function ChangeRegisterPanel({ eventId, frozen }: { eventId: string; froz
 
       {vm.status === "ready" ? (
         <>
-          {!frozen ? <FreezeScopeForm busy={vm.busy} onSubmit={(reason, deadline) => vm.freezeScope(reason, deadline)} /> : null}
-          {frozen ? <RequestExceptionForm busy={vm.busy} onSubmit={(draft) => vm.requestException(draft)} /> : null}
-          <ExceptionRegister
-            exceptions={vm.exceptions}
-            busy={vm.busy}
-            onApprove={(id) => vm.approveException(id)}
-            onReject={(id, note) => vm.rejectException(id, note)}
-          />
-          <RiskAssessmentPanel eventId={eventId} />
-          <ScopeChangeReviewPanel eventId={eventId} frozen={frozen} />
-          <RecordDecisionForm frozen={frozen} approvedExceptions={vm.approvedExceptions} busy={vm.busy} onSubmit={(draft) => vm.recordDecision(draft)} />
-          <PmcmAddendaStatus
-            addenda={vm.addenda}
-            busy={vm.busy}
-            onRequestConforme={(addendumId) => vm.requestAddendumConforme(addendumId)}
-            onCountersign={(addendum) => vm.countersignAddendumConforme(addendum)}
-          />
+          <RegisterGroup title="Scope freeze and exceptions">
+            {!frozen ? <FreezeScopeForm busy={vm.busy} onSubmit={(reason, deadline) => vm.freezeScope(reason, deadline)} /> : null}
+            {frozen ? <RequestExceptionForm busy={vm.busy} onSubmit={(draft) => vm.requestException(draft)} /> : null}
+            <ExceptionRegister
+              exceptions={vm.exceptions}
+              busy={vm.busy}
+              onApprove={(id) => vm.approveException(id)}
+              onReject={(id, note) => vm.rejectException(id, note)}
+            />
+          </RegisterGroup>
+          <RegisterGroup title="Risk and scope changes">
+            <RiskAssessmentPanel eventId={eventId} />
+            <ScopeChangeReviewPanel eventId={eventId} frozen={frozen} />
+          </RegisterGroup>
+          <RegisterGroup title="Cancel or postpone">
+            <RecordDecisionForm frozen={frozen} approvedExceptions={vm.approvedExceptions} busy={vm.busy} onSubmit={(draft) => vm.recordDecision(draft)} />
+          </RegisterGroup>
+          <RegisterGroup title="Addenda">
+            <PmcmAddendaStatus
+              addenda={vm.addenda}
+              busy={vm.busy}
+              onRequestConforme={(addendumId) => vm.requestAddendumConforme(addendumId)}
+              onCountersign={(addendum) => vm.countersignAddendumConforme(addendum)}
+            />
+          </RegisterGroup>
         </>
       ) : null}
+    </section>
+  );
+}
+
+/** A labelled stretch of the long register, so PMCM can scan the page by what it decides. */
+function RegisterGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section aria-label={title} className="space-y-4">
+      <h3 className="text-sm font-bold text-foreground">{title}</h3>
+      {children}
     </section>
   );
 }
@@ -78,6 +96,7 @@ function FreezeScopeForm({ busy, onSubmit }: { busy: boolean; onSubmit: (reason:
         <DatePicker aria-label="Freeze deadline (optional)" value={deadline} onValueChange={setDeadline} className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm" />
       </div>
       <button type="submit" disabled={busy || !reason.trim()} className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">Freeze scope</button>
+      {!reason.trim() ? <p className="text-xs text-muted-foreground">Add a reason for freezing to continue.</p> : null}
     </form>
   );
 }

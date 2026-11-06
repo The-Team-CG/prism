@@ -1,4 +1,5 @@
 import type { PrismAccountInvitationOutcome, PrismProjectLike, PrismUserRole } from "./core.js";
+import type { PrismLifecycleStage } from "../lifecycle.js";
 
 /** A client portal invitation re-sent for an inquiry, with the inquiry as it now stands. */
 export interface PrismPortalInvitationResend {
@@ -253,7 +254,7 @@ export interface PrismDefenseReadiness {
   eventId: string;
   eventName: string;
   overallStatus: "ready" | "attention" | "blocked";
-  lifecycleStage: string;
+  lifecycleStage: PrismLifecycleStage;
   score: number;
   summary: {
     briefingSubmitted: boolean;

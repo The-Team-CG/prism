@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type { PrismUser, PrismUserRole } from "@prism/types";
 import { formatPortalDate } from "@prism/ui/format-date";
-import { Search, UserPlus, UserRound } from "lucide-react";
+import { Search, UserRound } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Panel, cx, roleLabel } from "@/features/pmcm-kit";
@@ -16,7 +16,7 @@ type AccountAdminVm = ReturnType<typeof useAccountAdminViewModel>;
 
 const ROLE_FILTERS: ReadonlyArray<{ value: "all" | PrismUserRole; label: string }> = [
   { value: "all", label: "All" },
-  { value: "pmcm-admin", label: "PMCM" },
+  { value: "pmcm-admin", label: "PMCM administrators" },
   { value: "coordinator", label: "Coordinators" },
   { value: "client", label: "Clients" },
   { value: "supplier", label: "Suppliers" },
@@ -39,7 +39,6 @@ export function AccountAdminPanel({
 }) {
   const [role, setRole] = useState<"all" | PrismUserRole>("all");
   const [query, setQuery] = useState("");
-  const [inviteOpen, setInviteOpen] = useState(false);
   const needle = query.trim().toLowerCase();
   const visible = useMemo(
     () =>
@@ -53,7 +52,7 @@ export function AccountAdminPanel({
   const now = new Date();
 
   return (
-    <Panel title="Accounts and staff invitations" icon={UserRound}>
+    <Panel title="Accounts" icon={UserRound}>
       <div className="grid gap-4">
         <div className="flex flex-wrap items-center gap-2">
           <div role="group" aria-label="Filter accounts by role" className="flex flex-wrap gap-1 rounded-md bg-muted p-1">
@@ -79,12 +78,7 @@ export function AccountAdminPanel({
             <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name, email or organization" aria-label="Search accounts" className="h-9 bg-white pl-9" />
           </label>
-          <Button type="button" size="sm" onClick={() => setInviteOpen((open) => !open)} aria-expanded={inviteOpen}>
-            <UserPlus className="size-4" /> Invite staff
-          </Button>
         </div>
-
-        {inviteOpen ? <StaffInviteForm vm={vm} onCancel={() => setInviteOpen(false)} /> : null}
 
         <div className="overflow-hidden rounded-lg border border-border bg-white">
           {visible.length === 0 ? (
@@ -190,44 +184,3 @@ function AccountRowActions({
   );
 }
 
-function StaffInviteForm({ vm, onCancel }: { vm: AccountAdminVm; onCancel: () => void }) {
-  return (
-    <form onSubmit={vm.submitInvite} className="grid gap-3 rounded-lg border border-border bg-surface-raised p-4 sm:grid-cols-2 lg:grid-cols-4">
-      <p className="text-sm font-semibold text-foreground sm:col-span-2 lg:col-span-4">Invite a PMCM staff member</p>
-      <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
-        Name
-        <Input required value={vm.draft.name} onChange={(event) => vm.updateDraft("name", event.target.value)} placeholder="Full name" className="h-10 bg-white" />
-      </label>
-      <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
-        Email
-        <Input required type="email" value={vm.draft.email} onChange={(event) => vm.updateDraft("email", event.target.value)} placeholder="name@pmcm.ph" className="h-10 bg-white" />
-      </label>
-      <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
-        Organization
-        <Input value={vm.draft.organization} onChange={(event) => vm.updateDraft("organization", event.target.value)} placeholder="PMCM" className="h-10 bg-white" />
-      </label>
-      <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
-        Role
-        <select
-          value={vm.draft.role}
-          onChange={(event) => vm.updateDraft("role", event.target.value)}
-          className="h-10 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground"
-        >
-          <option value="coordinator">Coordinator</option>
-          <option value="pmcm-admin">PMCM administrator</option>
-        </select>
-      </label>
-      <div className="flex flex-wrap items-center gap-2 sm:col-span-2 lg:col-span-4">
-        <Button type="submit" disabled={vm.inviteBusy}>
-          {vm.inviteBusy ? "Sending…" : "Send invitation"}
-        </Button>
-        <Button type="button" variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
-        {vm.inviteFeedback ? (
-          <p role="status" className={cx("text-xs", vm.inviteFeedback.tone === "success" ? "text-success" : "text-danger")}>{vm.inviteFeedback.text}</p>
-        ) : null}
-      </div>
-    </form>
-  );
-}

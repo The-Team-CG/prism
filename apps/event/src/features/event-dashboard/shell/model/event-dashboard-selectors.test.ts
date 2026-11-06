@@ -119,9 +119,10 @@ describe("event-dashboard-selectors", () => {
 });
 
 describe("canStartEventDay", () => {
-  const ready = event({ id: "evt_ready", clientName: "Client", status: "briefing", clientPortalStatus: "unlocked", floorPlanStatus: "approved" });
+  const ready = event({ id: "evt_ready", clientName: "Client", status: "briefing", clientPortalStatus: "unlocked", proposalClientStatus: "approved", floorPlanStatus: "approved" });
   it.each([
-    ["an unlocked event with an approved floorplan, whatever its planning status", ready, true],
+    ["an unlocked event with an approved proposal and floorplan, whatever its planning status", ready, true],
+    ["a proposal the client has not approved", { ...ready, proposalClientStatus: "pending" as const }, false],
     ["a locked portal (conforme not signed)", { ...ready, clientPortalStatus: "locked" as const }, false],
     ["an unapproved floorplan", { ...ready, floorPlanStatus: "draft" }, false],
     ["an event already on event day", { ...ready, status: "event_day" }, false],

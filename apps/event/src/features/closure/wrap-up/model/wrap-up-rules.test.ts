@@ -17,6 +17,8 @@ function wrapUp(logisticsStatus: "pending" | "complete", logisticsRequired: bool
       logistics: { status: logisticsStatus, evidence: "", completedAt: null },
       issues: { status: "pending", evidence: "", completedAt: null },
       feedback: { status: "pending", evidence: "", completedAt: null },
+      supplierEgress: { status: "pending", evidence: "", completedAt: null },
+      billingDraft: { status: "pending", evidence: "", completedAt: null, items: [] },
     },
     clientAcknowledgedAt: null,
     acknowledgementRecordedBy: null,

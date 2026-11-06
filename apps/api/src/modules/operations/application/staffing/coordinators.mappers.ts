@@ -1,4 +1,5 @@
 import type { OpsCoordinator, OpsCoordinatorAssignment } from '@prisma/client';
+import { isEmergencyCoordinatorWithdrawal } from '@prism/types';
 import { isoDate, timestamp } from './staffing.utils';
 
 export function mapCoordinator(coordinator: OpsCoordinator) {
@@ -56,6 +57,7 @@ export function mapCoordinatorAssignment(assignment: OpsCoordinatorAssignment) {
     withdrawalReason: assignment.withdrawalReason ?? '',
     withdrawnAt: assignment.withdrawnAt ? timestamp(assignment.withdrawnAt) : null,
     withdrawnBy: assignment.withdrawnBy ?? null,
+    emergencyChange: isEmergencyCoordinatorWithdrawal(assignment),
     acknowledgementHistory: withHistory.acknowledgmentHistory?.map((entry) => ({
       id: entry.id,
       assignmentId: entry.assignmentId,

@@ -1,14 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { RouteLink, useListFilter } from "@/features/pmcm-kit";
 import { eventWorkspaceHref } from "../../model/event-dashboard-routing";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CalendarDays, Search } from "lucide-react";
-import type { PrismEvent } from "@prism/types";
+import { PRISM_LIFECYCLE_STAGE_LABELS, derivePrismLifecycleStage, type PrismEvent } from "@prism/types";
 import { formatPortalDate } from "@prism/ui/format-date";
 import { EmptyState } from "@/app/components/ui/empty-state";
-import { StatusBadge } from "@/app/components/ui/status-badge";
 import { cn } from "@/app/components/ui/utils";
 
 const VIEWS = [
@@ -19,6 +19,27 @@ const VIEWS = [
   { href: "/dashboard/events/cancelled", label: "Cancelled" },
 ] as const;
 
+const PAGE_SIZE = 25;
+
+/** "June 2027" — events are grouped under the month they happen in. */
+export function eventMonthLabel(eventDate: string) {
+  const day = /^\d{4}-\d{2}-\d{2}/.test(eventDate) ? `${eventDate.slice(0, 10)}T00:00:00Z` : eventDate;
+  const date = new Date(day);
+  if (!Number.isFinite(date.getTime())) return "Date not set";
+  return new Intl.DateTimeFormat("en-PH", { month: "long", year: "numeric", timeZone: "UTC" }).format(date);
+}
+
+export function groupEventsByMonth(events: PrismEvent[]) {
+  const groups: Array<{ month: string; events: PrismEvent[] }> = [];
+  for (const event of events) {
+    const month = eventMonthLabel(event.eventDate);
+    const last = groups.at(-1);
+    if (last?.month === month) last.events.push(event);
+    else groups.push({ month, events: [event] });
+  }
+  return groups;
+}
+
 function matches(event: PrismEvent, query: string) {
   const text = `${event.eventName} ${event.clientName} ${event.venue ?? ""}`.toLowerCase();
   return text.includes(query.trim().toLowerCase());
@@ -28,10 +49,11 @@ function matches(event: PrismEvent, query: string) {
 export function EventRegister({ events, onOpenEvent }: { events: PrismEvent[]; onOpenEvent: (id: string) => void }) {
   const pathname = usePathname();
   const [query, setQuery] = useListFilter("q");
+  const [visible, setVisible] = useState(PAGE_SIZE);
   const rows = [...events].filter((event) => matches(event, query)).sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+  const groups = groupEventsByMonth(rows.slice(0, visible));
   return (
     <div className="grid gap-4">
-      <p className="max-w-3xl text-sm leading-6 text-muted-foreground">Find an event by its date, client or venue. Open its workspace to review decisions, preparation and event-day work.</p>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <nav aria-label="Event views" className="flex flex-wrap gap-1">
           {VIEWS.map((view) => {
@@ -75,41 +97,55 @@ export function EventRegister({ events, onOpenEvent }: { events: PrismEvent[]; o
           </div>
         ) : (
           <table className="w-full text-sm">
-            <caption className="sr-only">Events with their client, date, venue and lifecycle stage</caption>
+            <caption className="sr-only">Events by month, with their client, date and lifecycle stage</caption>
             <thead className="border-b border-border text-left text-xs text-muted-foreground">
               <tr>
                 <th scope="col" className="px-4 py-2.5 font-medium">Event</th>
                 <th scope="col" className="hidden px-4 py-2.5 font-medium sm:table-cell">Date</th>
-                <th scope="col" className="hidden px-4 py-2.5 font-medium md:table-cell">Venue</th>
                 <th scope="col" className="px-4 py-2.5 font-medium">Stage</th>
                 <th scope="col" className="px-4 py-2.5"><span className="sr-only">Open</span></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
-              {rows.map((event) => (
-                <tr key={event.id} className="hover:bg-surface-raised">
-                  <td className="px-4 py-3">
-                    <p className="font-semibold text-foreground">{event.eventName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {event.clientName}
-                      <span className="sm:hidden"> · {formatPortalDate(event.eventDate)}</span>
-                    </p>
-                    {event.venue ? <p className="mt-1 text-xs text-muted-foreground md:hidden">{event.venue}</p> : null}
-                  </td>
-                  <td className="hidden whitespace-nowrap px-4 py-3 text-foreground sm:table-cell">{formatPortalDate(event.eventDate)}</td>
-                  <td className="hidden px-4 py-3 text-muted-foreground md:table-cell">{event.venue || "Not recorded"}</td>
-                  <td className="px-4 py-3"><StatusBadge status={event.status} /></td>
-                  <td className="px-4 py-3 text-right">
-                    <RouteLink href={eventWorkspaceHref(event.id)} onNavigate={() => onOpenEvent(event.id)} className="inline-flex min-h-11 items-center rounded-md px-2 text-sm font-semibold text-primary hover:text-primary-strong focus-visible:ring-2 focus-visible:ring-primary">
-                      Open event<span className="sr-only"> {event.eventName}</span>
-                    </RouteLink>
-                  </td>
+            {groups.map((group) => (
+              <tbody key={group.month} className="divide-y divide-border border-b border-border last:border-b-0">
+                <tr className="bg-muted/40">
+                  <th scope="rowgroup" colSpan={4} className="px-4 py-2 text-left text-xs font-semibold text-foreground">
+                    {group.month} <span className="font-normal text-muted-foreground">· {group.events.length}</span>
+                  </th>
                 </tr>
-              ))}
-            </tbody>
+                {group.events.map((event) => (
+                  <tr key={event.id} className="hover:bg-surface-raised">
+                    <td className="px-4 py-2.5">
+                      <p className="font-semibold text-foreground">{event.eventName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {event.clientName}
+                        {event.venue ? <> · {event.venue}</> : null}
+                        <span className="sm:hidden"> · {formatPortalDate(event.eventDate)}</span>
+                      </p>
+                    </td>
+                    <td className="hidden whitespace-nowrap px-4 py-2.5 text-foreground sm:table-cell">{formatPortalDate(event.eventDate)}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-foreground">{PRISM_LIFECYCLE_STAGE_LABELS[derivePrismLifecycleStage(event)]}</td>
+                    <td className="px-4 py-2.5 text-right">
+                      <RouteLink href={eventWorkspaceHref(event.id)} onNavigate={() => onOpenEvent(event.id)} className="inline-flex min-h-11 items-center rounded-md px-2 text-sm font-semibold text-primary hover:text-primary-strong focus-visible:ring-2 focus-visible:ring-primary">
+                        Open event<span className="sr-only"> {event.eventName}</span>
+                      </RouteLink>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            ))}
           </table>
         )}
       </div>
+      {rows.length > visible ? (
+        <button
+          type="button"
+          onClick={() => setVisible((count) => count + PAGE_SIZE)}
+          className="justify-self-center rounded-md border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-surface-raised"
+        >
+          Show {Math.min(PAGE_SIZE, rows.length - visible)} more of {rows.length - visible} remaining
+        </button>
+      ) : null}
     </div>
   );
 }
