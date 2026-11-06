@@ -102,6 +102,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await revisedProposal.getByLabel('Proposal title', { exact: true }).fill('Browser lifecycle proposal v2');
       await revisedProposal.getByLabel(/^What changed since version 1/).fill('Clarified the venue package from the client revision.');
       await revisedProposal.getByRole('button', { name: 'Issue to client', exact: true }).click();
+      await revisedProposal.getByRole('button', { name: 'Confirm and issue', exact: true }).click();
       await expect(revisedProposal.getByRole('status')).toContainText('Version 2 is issued');
       // The client's proposal package includes billing, and a client only sees a statement once PMCM sends it.
       await pmcm.page.goto(path('billing'));
