@@ -40,6 +40,7 @@ const KIND_ICON: Record<PrismCommandInboxKind, LucideIcon> = {
   closure: CalendarCheck,
   live_ops: Radio,
   change_request: Building2,
+  addendum: FileSignature,
   feedback: MessageSquareText,
 };
 
