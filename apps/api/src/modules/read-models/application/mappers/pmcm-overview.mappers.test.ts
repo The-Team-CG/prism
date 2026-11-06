@@ -5,6 +5,7 @@ import {
   manilaClockOf,
   manilaDateKeyOf,
   summarizeEventBalances,
+  summarizeFileRequirements,
   unreadMessagesByEvent,
 } from './pmcm-overview.mappers';
 
@@ -61,6 +62,19 @@ describe('event balances and unread messages', () => {
       { eventId: 'e1', balanceDue: 100_000, nextPaymentDue: '2026-11-10', overdueMilestones: 0, unreadMessages: 0 },
       { eventId: 'e9', balanceDue: 0, nextPaymentDue: null, overdueMilestones: 0, unreadMessages: 3 },
     ]);
+  });
+});
+
+describe('summarizeFileRequirements', () => {
+  it('counts the same open and overdue requirements the event Files tab shows', () => {
+    expect(summarizeFileRequirements('e1', [
+      { status: 'missing', overdue: true },
+      { status: 'pending', overdue: false },
+      { status: 'submitted', overdue: false },
+      { status: 'approved', overdue: false },
+      { status: 'generated', overdue: false },
+    ])).toEqual({ eventId: 'e1', total: 5, open: 2, overdue: 1 });
+    expect(summarizeFileRequirements('e2', [])).toEqual({ eventId: 'e2', total: 0, open: 0, overdue: 0 });
   });
 });
 

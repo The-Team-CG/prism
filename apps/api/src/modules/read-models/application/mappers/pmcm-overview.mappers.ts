@@ -1,4 +1,4 @@
-import type { PrismPmcmCalendarItem, PrismPmcmEventSummary } from '@prism/types';
+import type { PrismFileRequirementItem, PrismPmcmCalendarItem, PrismPmcmEventSummary, PrismPmcmFileSummary } from '@prism/types';
 
 const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000;
 
@@ -64,6 +64,16 @@ export function buildEventSummaries(balances: Map<string, BalanceSummary>, unrea
     overdueMilestones: balances.get(eventId)?.overdueMilestones ?? 0,
     unreadMessages: unread.get(eventId) ?? 0,
   }));
+}
+
+/** The same counts the event's Files tab shows: open is missing or pending, overdue is flagged on the item. */
+export function summarizeFileRequirements(eventId: string, items: Array<Pick<PrismFileRequirementItem, 'status' | 'overdue'>>): PrismPmcmFileSummary {
+  return {
+    eventId,
+    total: items.length,
+    open: items.filter((item) => item.status === 'missing' || item.status === 'pending').length,
+    overdue: items.filter((item) => item.overdue).length,
+  };
 }
 
 export type CalendarFacts = {

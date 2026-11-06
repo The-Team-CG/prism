@@ -1,6 +1,8 @@
 "use client";
 
+import { useResource } from "@prism/portal-query";
 import { FileRequirementsMatrixPanel } from "@/features/files/matrix";
+import { fileSummaryLabel, pmcmFileSummaries } from "@/features/pmcm-overview";
 import { PmcmDocumentHubView } from "@/features/files/hub";
 import { EventFileHub } from "./event-file-hub";
 import { EventDestinationPicker } from "./event-destination-picker";
@@ -21,6 +23,8 @@ export function EventDashboardFilesSectionView() {
     events,
     navigateEvent,
   } = useEventDashboardLoadedRouteViewModel();
+  const summaries = useResource(pmcmFileSummaries, selectedEvent ? null : "signed-in");
+  const byEvent = new Map((summaries.data?.items ?? []).map((item) => [item.eventId, item]));
   return (
 
           selectedEvent ? (
@@ -59,6 +63,7 @@ export function EventDashboardFilesSectionView() {
               actionLabel="Open files"
               tab="files"
               onOpenEvent={(eventId) => navigateEvent(eventId, "files")}
+              rowDetail={(event) => fileSummaryLabel(byEvent.get(event.id))}
             />
           )
   );
