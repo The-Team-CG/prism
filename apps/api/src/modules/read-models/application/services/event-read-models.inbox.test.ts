@@ -37,6 +37,14 @@ describe('client action center', () => {
 });
 
 describe('PMCM command inbox', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-06T00:00:00Z'));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('shows blocked task context and links directly to the affected event-day task', () => {
     const items = collectPmcmCommandInboxItems({
       inquiries: [],
