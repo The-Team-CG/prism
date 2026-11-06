@@ -18,6 +18,7 @@ function model<T = never>() {
     findUnique: vi.fn(async () => null),
     findFirst: vi.fn(async () => null),
     count: vi.fn(async () => 0),
+    groupBy: vi.fn(async () => []),
   };
 }
 
@@ -394,11 +395,12 @@ describe('EventReadModelQueries collection limits', () => {
     }));
   });
 
-  it('bounds PMCM dashboard collections and nested floorplan history', async () => {
+  it('bounds the PMCM reference and reads no floor-plan drafts or row lists it does not return', async () => {
     const opsEvent = model();
     const opsFloorPlanDraft = model();
+    const opsPaymentMilestone = model();
     const prisma = new Proxy(
-      { opsEvent, opsFloorPlanDraft },
+      { opsEvent, opsFloorPlanDraft, opsPaymentMilestone },
       {
         get(target, property: string) {
           if (property in target) return target[property as keyof typeof target];
@@ -408,17 +410,16 @@ describe('EventReadModelQueries collection limits', () => {
     );
     const queries = new EventReadModelQueries(prisma as unknown as PrismaService);
 
-    await queries.pmcmDashboard();
+    await queries.pmcmReference();
 
     expect(opsEvent.findMany).toHaveBeenCalledWith(expect.objectContaining({
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: MAX_VISIBLE_EVENTS,
     }));
-    expect(opsFloorPlanDraft.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
-      take: MAX_PMCM_DASHBOARD_ROWS,
-    }));
-    expect((prisma as typeof prisma).opsEvent).toBe(opsEvent);
+    expect(opsFloorPlanDraft.findMany).not.toHaveBeenCalled();
+    // Balances are one grouped sum over current milestones, not a list of milestone rows.
+    expect(opsPaymentMilestone.findMany).not.toHaveBeenCalled();
+    expect(opsPaymentMilestone.groupBy).toHaveBeenCalledWith({ by: ['eventId'], where: { supersededAt: null }, _sum: { remainingBalance: true } });
     expect(MAX_PMCM_DASHBOARD_ROWS).toBe(500);
   });
 
@@ -509,7 +510,7 @@ describe('EventReadModelQueries collection limits', () => {
     expect(page.hasMore).toBe(false);
   });
 
-  it('returns exact aggregate counts alongside capped defense rows', async () => {
+  it('reads the event and exact aggregate counts, without row lists', async () => {
     const opsEvent = model();
     const prisma = new Proxy(
       { opsEvent },
@@ -524,12 +525,13 @@ describe('EventReadModelQueries collection limits', () => {
 
     const result = await queries.defenseReadiness('evt_high_volume');
 
-    expect(result[8]).toEqual({
+    expect(result).toHaveLength(2);
+    expect(result[1]).toEqual({
       briefings: 0,
       floorPlanDrafts: 0,
       approvedFloorplan: 0,
       quoteRequests: 0,
-      selectedSupplierQuotes: 0,
+      selectedSupplierRequests: 0,
       eventDayTasks: 0,
       urgentIssues: 0,
       billingStatements: 0,
@@ -537,5 +539,27 @@ describe('EventReadModelQueries collection limits', () => {
       unpaidPaymentMilestones: 0,
     });
     expect((prisma as typeof prisma).opsEvent).toBe(opsEvent);
+  });
+
+  it('counts selected suppliers as selected quote requests, the same rows the PMCM Bookings tab shows', async () => {
+    const requests = {
+      ...model(),
+      count: vi.fn(async (args?: { where?: { status?: string } }) => (args?.where?.status === 'selected' ? 2 : 5)),
+    };
+    const prisma = new Proxy(
+      { opsEvent: model(), opsSupplierQuoteRequest: requests },
+      {
+        get(target, property: string) {
+          if (property in target) return target[property as keyof typeof target];
+          return model();
+        },
+      },
+    );
+    const queries = new EventReadModelQueries(prisma as unknown as PrismaService);
+
+    const result = await queries.defenseReadiness('evt_suppliers');
+
+    expect(result[1].quoteRequests).toBe(5);
+    expect(result[1].selectedSupplierRequests).toBe(2);
   });
 });

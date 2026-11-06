@@ -16,14 +16,14 @@ describe("recordRiskAssessmentUseCase", () => {
     expect(record).not.toHaveBeenCalled();
   });
 
-  it("sends a lowering with its reason and the revision the PMCM user last read", () => {
-    recordRiskAssessmentUseCase("evt_1", { ...lowering, reason: "Venue confirmed the access route in writing" }, "critical");
+  it("sends a lowering with its reason and the revision the PMCM user last read", async () => {
+    await recordRiskAssessmentUseCase("evt_1", { ...lowering, reason: "Venue confirmed the access route in writing" }, "critical");
 
     expect(record).toHaveBeenCalledWith("evt_1", expect.objectContaining({ level: "medium", expectedRevision: 1, reason: "Venue confirmed the access route in writing" }));
   });
 
-  it("does not need a reason to raise or repeat the recorded level", () => {
-    recordRiskAssessmentUseCase("evt_1", { level: "high", summary: "Escalated after site visit", expectedRevision: 0 }, "medium");
+  it("does not need a reason to raise or repeat the recorded level", async () => {
+    await recordRiskAssessmentUseCase("evt_1", { level: "high", summary: "Escalated after site visit", expectedRevision: 0 }, "medium");
 
     expect(record).toHaveBeenCalledWith("evt_1", expect.objectContaining({ level: "high" }));
   });

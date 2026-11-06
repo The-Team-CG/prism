@@ -27,15 +27,8 @@ export const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
     route: "home",
   },
   {
-    id: "shared-floorplans",
-    label: "Shared floorplans",
-    icon: MapPinned,
-    section: "Client Portal",
-    route: "shared-floorplans",
-  },
-  {
     id: "my-events",
-    label: "My Events",
+    label: "Events",
     icon: CalendarDays,
     section: "Client Portal",
     route: "events",
@@ -87,6 +80,17 @@ export const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
   },
 ];
 
+/** Account-level entries that only forward into one event's section when the client has a single event. */
+const EVENT_OWNED_SIDEBAR_IDS = new Set(["approvals", "messages", "files", "billing-payments"]);
+
+/**
+ * With one event, Approvals, Messages, Files and Billing would each bounce into that event's own tab, so
+ * the portal sidebar keeps Home, Events and Calendar and the event workspace carries the rest.
+ */
+export function clientPortalSidebarItems(eventCount: number): ClientSidebarNavItem[] {
+  return eventCount > 1 ? CLIENT_SIDEBAR_ITEMS : CLIENT_SIDEBAR_ITEMS.filter((item) => !EVENT_OWNED_SIDEBAR_IDS.has(item.id));
+}
+
 export const EVENT_WORKSPACE_NAV_ITEMS: ClientSidebarSubItem[] = [
   { id: "event-overview", label: "Overview", route: "overview", requiresEvent: true, eventScoped: true },
   { id: "event-progress", label: "Planning", route: "progress", requiresEvent: true, eventScoped: true },
@@ -114,10 +118,11 @@ const EVENT_NAV_ICONS: Record<string, LucideIcon> = {
 };
 
 /**
- * Inside one event the sidebar is that event's workspace, with My Events and Home as the way back,
- * instead of the portal sidebar plus a second row of tabs.
+ * Inside one event the sidebar is that event's workspace, with Events and Home as the way back,
+ * instead of the portal sidebar plus a second row of tabs. The event switcher above already names
+ * the event, so the group is labelled "This event" rather than repeating the name.
  */
-export function clientEventSidebarItems(eventName: string, eventId?: string, event?: Pick<PrismEvent, "actualEndedAt" | "archived">) {
+export function clientEventSidebarItems(eventId?: string, event?: Pick<PrismEvent, "actualEndedAt" | "archived">) {
   const closeoutAvailable = Boolean(event?.actualEndedAt || event?.archived);
   const eventItems = EVENT_WORKSPACE_NAV_ITEMS.filter((item) =>
     event?.archived ? item.route === "summary" : item.route !== "summary" || closeoutAvailable,
@@ -127,11 +132,11 @@ export function clientEventSidebarItems(eventName: string, eventId?: string, eve
       id: item.id,
       label: item.label,
       icon: EVENT_NAV_ICONS[item.id] ?? LayoutGrid,
-      section: eventName,
+      section: "This event",
       href: eventId ? dashboardHref(item.route, eventId) : undefined,
     })),
-    { id: "my-events", label: "My Events", icon: CalendarDays, section: "Client portal", href: clientSidebarLinkHref("my-events") },
-    { id: "client-dashboard", label: "Home", icon: Home, section: "Client portal", href: clientSidebarLinkHref("client-dashboard") },
+    { id: "my-events", label: "All events", icon: CalendarDays, section: "Back to", href: clientSidebarLinkHref("my-events") },
+    { id: "client-dashboard", label: "Home", icon: Home, section: "Back to", href: clientSidebarLinkHref("client-dashboard") },
   ];
 }
 
@@ -149,7 +154,7 @@ export function findClientEventNavItem(id: string) {
 
 export const PORTAL_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, string>> = {
   home: "client-dashboard",
-  "shared-floorplans": "shared-floorplans",
+  "shared-floorplans": "my-events",
   request: "client-dashboard",
   events: "my-events",
   calendar: "calendar",

@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { CoordinatorRole, PrismConformeExecution, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismSupplier } from "@prism/types";
-import { type FloorPlanTemplate, type Project, cloneTemplateObjects } from "@/features/floorplan/editor";
+import { derivePrismLifecycleStage } from "@prism/types";
+import { type FloorPlanTemplate, type Project, cloneTemplateObjects } from "@prism/floorplan-canvas";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { eventPortalNavItems, loadingShellNavItems } from "./use-event-dashboard-nav";
 import { useEventDashboardNavigationViewModel } from "./use-event-dashboard-navigation-view-model";
@@ -30,8 +31,9 @@ import {
 } from "../model/event-dashboard-routing";
 import { useEventDashboardWorkspaceViewModel } from "./use-event-dashboard-workspace-view-model";
 import { eventDashboardCommands } from "../data/event-dashboard-commands";
-import { runDashboardActionWithSuccess } from "./dashboard-action-runner";
+import { refreshAfterDashboardCommand, runDashboardActionWithSuccess, type DashboardActionRefreshers } from "./dashboard-action-runner";
 import { countersignConformeExecution, prepareConformeExecution, refreshConformeExecution } from "@/features/conforme/signing/use-cases/conforme-signing";
+import { assignedSupplierRequests } from "@/features/suppliers/readiness";
 
 export type { EventDashboardClientProps };
 
@@ -72,7 +74,6 @@ export function useEventDashboardShellViewModel({
   });
   const {
     session,
-    state,
     coordinatorState,
     error,
     setError,
@@ -95,7 +96,10 @@ export function useEventDashboardShellViewModel({
     loadLiveOps,
     refreshSelectedEventWorkspace,
     selectedEventWorkspace,
-    setState,
+    setReference,
+    reference,
+    commandReferenceLoading,
+    loadCommandReference,
     setCoordinatorState,
     setLiveOps,
     setStatusFeed,
@@ -112,20 +116,20 @@ export function useEventDashboardShellViewModel({
   }, [routeState.clientId, routeState.eventId, routeState.section, routeState.tab, routeState.view]);
 
   useEffect(() => {
-    if (!state) return;
+    if (!reference) return;
     setSelectedEventId((prev) => routeState.eventId ?? prev);
-  }, [routeState.eventId, state]);
+  }, [routeState.eventId, reference]);
 
-  const events = useMemo(() => selectActiveEvents(state), [state]);
+  const events = useMemo(() => selectActiveEvents(reference), [reference]);
   const selectedEvent = selectedEventWorkspace?.event.id === selectedEventId
     ? selectedEventWorkspace.event
     : selectSelectedEvent(events, selectedEventId);
-  const supplierCategories = state?.supplierCategories ?? [];
-  const suppliers = state?.suppliers ?? [];
-  const coordinators = state?.coordinators ?? [];
-  const inquiries = state?.inquiries ?? [];
+  const supplierCategories = reference?.supplierCategories ?? [];
+  const suppliers = reference?.suppliers ?? [];
+  const coordinators = reference?.coordinators ?? [];
+  const inquiries = reference?.inquiries ?? [];
   const unreviewedInquiries = selectUnreviewedInquiryCount(inquiries);
-  const complianceRules = state?.complianceRules ?? [];
+  const complianceRules = reference?.complianceRules ?? [];
   const {
     activeDraft,
     assignments,
@@ -143,7 +147,7 @@ export function useEventDashboardShellViewModel({
     postEventDocuments,
     quoteRequests,
     quotes,
-  } = selectEventWorkspaceResources(state, selectedEvent, selectedEventWorkspace);
+  } = selectEventWorkspaceResources(selectedEvent, selectedEventWorkspace);
   const coordinatorRoleRequirements = coordinatorCoverage;
   const selectedInquiry = inquiries.find((item) => item.id === selectedEvent?.inquiryId);
   const pendingApprovals = selectPendingApprovals(approvalRequests);
@@ -154,17 +158,20 @@ export function useEventDashboardShellViewModel({
   const eventListView = routeState.view ?? "all";
   const eventsForView = useMemo(() => selectEventsForView(events, eventListView), [eventListView, events]);
 
+  function commandRefreshers(): DashboardActionRefreshers {
+    return {
+      refresh,
+      refreshSelectedEventWorkspace,
+      loadLiveOps: selectedEvent?.id ? () => loadLiveOps(true) : undefined,
+    };
+  }
+
   async function run(actionLabel: string, action: () => Promise<unknown>) {
     setBusy(actionLabel);
     setError(null);
     try {
       await action();
-      await refresh();
-      await refreshSelectedEventWorkspace();
-      await refreshApprovals();
-      if (selectedEvent?.id) {
-        await loadLiveOps(true).catch(() => undefined);
-      }
+      await refreshAfterDashboardCommand(commandRefreshers());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed");
     } finally {
@@ -195,12 +202,7 @@ export function useEventDashboardShellViewModel({
     try {
       return await runDashboardActionWithSuccess(
         action,
-        {
-          refresh,
-          refreshSelectedEventWorkspace,
-          refreshApprovals,
-          loadLiveOps: selectedEvent?.id ? () => loadLiveOps(true) : undefined,
-        },
+        commandRefreshers(),
         (message) => setError(message),
       );
     } finally {
@@ -213,9 +215,7 @@ export function useEventDashboardShellViewModel({
     setError(null);
     try {
       await action();
-      await refresh();
-      await loadLiveOps(true);
-      await refreshApprovals();
+      await Promise.all([refresh(), loadLiveOps(true)]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed");
     } finally {
@@ -296,7 +296,7 @@ export function useEventDashboardShellViewModel({
   const inEventWorkspace = Boolean(routeState.eventId) && !eventWorkspaceDisabled;
   const shellNavItems = eventPortalNavItems({
     inEventWorkspace,
-    eventName: selectedEvent?.eventName,
+    eventStage: selectedEvent ? derivePrismLifecycleStage(selectedEvent) : undefined,
     inquiryCount: unreviewedInquiries + pendingApprovals.length,
     commandInboxCount: commandInboxLoadFailed
       ? "!"
@@ -304,7 +304,7 @@ export function useEventDashboardShellViewModel({
         ? commandInbox.counts.critical + commandInbox.counts.warning + commandInbox.counts.attention
         : undefined,
     assignmentCount: assignments.length,
-    quoteCount: quotes.length,
+    quoteCount: assignedSupplierRequests(quoteRequests).length,
     draftCount: drafts.length,
     paymentCount: payments.length,
     closeoutCount: openCheckCount,
@@ -314,7 +314,7 @@ export function useEventDashboardShellViewModel({
   return {
     routeState,
     session,
-    state,
+    reference,
     coordinatorState,
     screen,
     error,
@@ -378,9 +378,12 @@ export function useEventDashboardShellViewModel({
     shellCopy: routeShellCopy(routeState, {
       activeNavLabel: activeNavItem?.label,
       selectedEvent,
+      selectedClient: selectedClient ?? undefined,
     }),
     refresh,
     refreshApprovals,
+    commandReferenceLoading,
+    loadCommandReference,
     loadLiveOps,
     run,
     runLiveOps,
@@ -402,7 +405,7 @@ export function useEventDashboardShellViewModel({
     setSection,
     setSelectedClientId,
     setError,
-    setState,
+    setReference,
     setCoordinatorState,
     setLiveOps,
     setStatusFeed,
@@ -412,7 +415,7 @@ export function useEventDashboardShellViewModel({
     acceptInquiry: (inquiry: PrismInquiry) => run("accept inquiry", () => commands.acceptInquiry(inquiry.id)),
     startEventDay: () => selectedEvent ? run("start event day", () => commands.startEventDay(selectedEvent.id)) : Promise.resolve(false),
     pendInquiry: (inquiry: PrismInquiry) => run("pend inquiry", () => commands.pendInquiry(inquiry.id)),
-    declineInquiry: (inquiry: PrismInquiry, reason: string) => run("decline inquiry", () => commands.declineInquiry(inquiry.id, reason)),
+    declineInquiry: (inquiry: PrismInquiry, reason?: string) => run("decline inquiry", () => commands.declineInquiry(inquiry.id, reason)),
     mergeInquiry: (primary: PrismInquiry, input: { sourceInquiryId: string; reason: string }) =>
       run("merge inquiry", () => commands.mergeInquiry(primary.id, input)),
     logInquiryOnBehalf: (input: Parameters<typeof commands.logInquiryOnBehalf>[0]) => session ? run("log inquiry on behalf", () => commands.logInquiryOnBehalf(input, session)) : Promise.resolve(),
@@ -459,6 +462,7 @@ export function useEventDashboardShellViewModel({
     generateEventInsights: () => selectedEvent ? run("generate insights", () => commands.generateEventInsights(selectedEvent.id)) : Promise.resolve(),
     assignCoordinator: (coordinator: { id: string }, role: CoordinatorRole, overrideConflict = false) => selectedEvent ? run("coordinator assignment", () => commands.assignCoordinator(selectedEvent.id, { coordinatorId: coordinator.id, role, overrideConflict })) : Promise.resolve(),
     loadCoordinatorSuggestions: (role: CoordinatorRole, skills: string[]) => selectedEvent ? commands.loadCoordinatorSuggestions(selectedEvent.id, { role, skills }) : Promise.resolve([]),
+    loadCoordinatorPoolAvailability: () => selectedEvent ? commands.loadCoordinatorPoolAvailability(selectedEvent.id) : Promise.resolve(null),
     loadCoordinatorReliabilityHistory: (coordinatorId: string) => session ? commands.loadCoordinatorReliabilityHistory(coordinatorId) : Promise.resolve([]),
     saveCoordinatorCoverage: (input: Parameters<typeof commands.upsertCoordinatorCoverage>[1]) => selectedEvent && session ? runAsBoolean("coordinator coverage", () => commands.upsertCoordinatorCoverage(selectedEvent.id, input)) : Promise.resolve(false),
     sendCoordinatorAcknowledgementReminders: () => selectedEvent && session ? runForResult("acknowledgement reminders", () => commands.sendCoordinatorAcknowledgementReminders(selectedEvent.id)) : Promise.resolve(null),

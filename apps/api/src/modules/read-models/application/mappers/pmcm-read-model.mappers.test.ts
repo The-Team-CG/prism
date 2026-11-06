@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mapComplianceCheck, mapEvent } from './pmcm-read-model.mappers';
+import { derivePrismLifecycleStage } from '@prism/types';
+import { mapBillingEvent } from './billing-read-model.mappers';
 
 const dependencies = {
   guestReader: { guestAccessCode: () => 'GUEST-1' },
@@ -29,6 +31,13 @@ describe('PMCM mapEvent', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it.each([['approved', 'planning'], ['pending', 'briefing_proposal']])('keeps the portal lifecycle stage for a %s client proposal', (proposalClientStatus, stage) => {
+    const input = { ...event, status: 'planning', proposalClientStatus, actualEndedAt: null } as never;
+    for (const mapped of [mapEvent(input, dependencies), mapBillingEvent(input)]) {
+      expect(derivePrismLifecycleStage(mapped)).toBe(stage);
+    }
   });
 
   it('exposes the recorded actual end so PMCM closure can correct it, without the recording staff id', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismRetentionPolicy, PrismRetentionReviewItem } from "@prism/types";
-import { canDismissReviewItem, canEnablePolicy, canExecuteReviewItem, parsePeriodDays } from "./retention-rules";
+import { canDismissReviewItem, canEnablePolicy, canExecuteReviewItem, parsePeriodDays, retentionPeriodCopy } from "./retention-rules";
 
 function reviewItem(status: PrismRetentionReviewItem["status"]): PrismRetentionReviewItem {
   return {
@@ -20,6 +20,15 @@ function reviewItem(status: PrismRetentionReviewItem["status"]): PrismRetentionR
     createdAt: "2026-10-01T00:00:00.000Z",
   };
 }
+
+describe("retention period copy", () => {
+  it("shows whole years as years and keeps other periods in days", () => {
+    expect(retentionPeriodCopy({ periodDays: 2555, retentionPeriod: "2555 days after event archive" })).toBe("7 years after event archive");
+    expect(retentionPeriodCopy({ periodDays: 730, retentionPeriod: "730 days after event archive (disabled)" })).toBe("2 years after event archive (disabled)");
+    expect(retentionPeriodCopy({ periodDays: 365, retentionPeriod: "365 days after event archive" })).toBe("1 year after event archive");
+    expect(retentionPeriodCopy({ periodDays: 90, retentionPeriod: "90 days after event archive" })).toBe("90 days after event archive");
+  });
+});
 
 describe("privacy retention review rules", () => {
   it("lets operators execute only pending items and dismiss pending or held items", () => {

@@ -1,5 +1,6 @@
 # Runbooks
 
+* [Developer checks and CI](developer-checks.md) - explicit compiler ownership, architecture lint, pre-push checks, affected task selection, and isolated hosted jobs.
 * [Environments and fixture commands](environments-and-fixtures.md) - explicit target selection, repeatable accounts/UAT scenarios, and read-only migration comparison.
 * [Docker development and testing](docker-dev-testing.md) - local Docker modes, ports, environment files, and troubleshooting.
 * [Database migrations](database-migrations.md) - Prisma migration ownership, preflight, deployment, drift diagnosis, and recovery.

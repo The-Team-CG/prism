@@ -6,6 +6,10 @@ import {
   aiGatewayStreamEventSchema,
   aiRouteProfileSchema,
   commsDraftRequestSchema,
+  inquiryTriageInputSchema,
+  inquiryTriageResultSchema,
+  proposalDraftRequestSchema,
+  proposalDraftResultSchema,
   pareBudgetAnalysisSchema,
   pareRiskSchema,
 } from "./ai-governance.js";
@@ -30,13 +34,13 @@ const pareInput = {
   clientPreferences: ["vegetarian menu"],
 };
 
-const mockRoute = {
-  provider: "mock",
-  model: "deterministic-v1",
-  endpointPolicyId: "deterministic-mock",
-  adapterRevision: "deterministic-v1",
+const openRouterRoute = {
+  provider: "openrouter",
+  model: "glm-test",
+  endpointPolicyId: "fake-openrouter",
+  adapterRevision: "fake-openrouter-v1",
   zdrBasis: "none",
-  allowedDataClasses: ["synthetic", "public", "internal", "personal", "sensitive"],
+  allowedDataClasses: ["synthetic"],
 };
 
 const anthropicRoute = {
@@ -49,26 +53,36 @@ const anthropicRoute = {
 };
 
 describe("AI governance contracts", () => {
-  it("accepts the default mock profile and synthetic-only Anthropic profile", () => {
+  it("accepts the synthetic-only and ZDR Anthropic profiles and the OpenRouter ZDR profile", () => {
+    const zdrRoute = {
+      ...anthropicRoute,
+      zdrBasis: "provider-enforced",
+      allowedDataClasses: ["synthetic", "public", "internal", "personal"],
+    };
+    for (const route of [
+      anthropicRoute,
+      zdrRoute,
+      { ...zdrRoute, provider: "openrouter", endpointPolicyId: "fireworks" },
+    ]) {
+      expect(
+        aiRouteProfileSchema.safeParse({ id: "test-profile", routesByTier: { fast: route, strong: route } }).success,
+      ).toBe(true);
+    }
+  });
+
+  it("no longer recognizes a mock provider", () => {
+    const mockRoute = { ...anthropicRoute, provider: "mock", allowedDataClasses: ["synthetic", "personal"] };
+
     expect(
-      aiRouteProfileSchema.safeParse({
-        id: "mock",
-        routesByTier: { fast: mockRoute, strong: mockRoute },
-      }).success,
-    ).toBe(true);
-    expect(
-      aiRouteProfileSchema.safeParse({
-        id: "test-anthropic",
-        routesByTier: { fast: anthropicRoute, strong: anthropicRoute },
-      }).success,
-    ).toBe(true);
+      aiRouteProfileSchema.safeParse({ id: "mock", routesByTier: { fast: mockRoute, strong: mockRoute } }).success,
+    ).toBe(false);
   });
 
   it("accepts route overrides and audits provider-neutral policy evidence", () => {
     const alternateProviderProfile = {
       id: "test-openrouter",
-      routesByTier: { fast: { ...mockRoute, provider: "openrouter", model: "glm-test", endpointPolicyId: "fake-openrouter", adapterRevision: "fake-openrouter-v1", zdrBasis: "none", allowedDataClasses: ["synthetic"] }, strong: { ...mockRoute, provider: "openrouter", model: "glm-test", endpointPolicyId: "fake-openrouter", adapterRevision: "fake-openrouter-v1", zdrBasis: "none", allowedDataClasses: ["synthetic"] } },
-      routesByUseCase: { "pare.risk": { ...mockRoute, provider: "openrouter", model: "glm-risk-test", endpointPolicyId: "fake-openrouter", adapterRevision: "fake-openrouter-v1", zdrBasis: "none", allowedDataClasses: ["synthetic"] } },
+      routesByTier: { fast: openRouterRoute, strong: openRouterRoute },
+      routesByUseCase: { "pare.risk": { ...openRouterRoute, model: "glm-risk-test" } },
     };
     const evidence = {
       requestId: "request-1",
@@ -134,6 +148,15 @@ describe("AI governance contracts", () => {
   });
 
   it("rejects any non-ZDR external route that allows non-synthetic data", () => {
+    expect(
+      aiRouteProfileSchema.safeParse({
+        id: "test-anthropic-real-data",
+        routesByTier: {
+          fast: { ...anthropicRoute, allowedDataClasses: ["synthetic", "personal"] },
+          strong: anthropicRoute,
+        },
+      }).success,
+    ).toBe(false);
     expect(
       aiRouteProfileSchema.safeParse({
         id: "test-external",
@@ -284,5 +307,47 @@ describe("AI governance contracts", () => {
     expect(
       commsDraftRequestSchema.safeParse({ inquiryId: "inquiry-1", clientEmail: "person@example.com" }).success,
     ).toBe(false);
+  });
+
+  it("keeps applicant identity out of the triage input and bounds the triage result", () => {
+    const input = {
+      inquiryId: "inq_1", eventType: "Gala", clientType: "corporate", eventDate: "2026-12-16", daysUntilEvent: 40,
+      hasOrganization: true, source: "Referral", referralDetails: "", message: "Hello", duplicateInquiryCount: 0,
+      previouslyDeclined: false,
+    };
+    expect(inquiryTriageInputSchema.safeParse(input).success).toBe(true);
+    expect(inquiryTriageInputSchema.safeParse({ ...input, email: "person@example.com" }).success).toBe(false);
+    expect(inquiryTriageInputSchema.safeParse({ ...input, clientName: "Jane" }).success).toBe(false);
+
+    const result = {
+      fit: "high", summary: "Clear request.", signals: [], risks: [], suggestedAction: "accept", suggestedQuestions: [],
+    };
+    expect(inquiryTriageResultSchema.safeParse(result).success).toBe(true);
+    expect(inquiryTriageResultSchema.safeParse({ ...result, fit: "great" }).success).toBe(false);
+    expect(inquiryTriageResultSchema.safeParse({ ...result, suggestedAction: "approve" }).success).toBe(false);
+    expect(inquiryTriageResultSchema.safeParse({ ...result, signals: Array(7).fill("x") }).success).toBe(false);
+  });
+
+  it("requires at least one estimate line for a proposal draft and bounds the drafted wording", () => {
+    const line = { category: "Venue", description: "Garden", quantity: 1, unitAmount: 1000 };
+    const request = { eventId: "evt_1", budgetAmount: 5000, lines: [line] };
+    expect(proposalDraftRequestSchema.safeParse(request).success).toBe(true);
+    expect(proposalDraftRequestSchema.safeParse({ ...request, lines: [] }).success).toBe(false);
+    expect(proposalDraftRequestSchema.safeParse({ ...request, clientName: "Jane" }).success).toBe(false);
+
+    const draft = { title: "Package", summary: "Summary", revisionNote: "", highlights: [] };
+    expect(proposalDraftResultSchema.safeParse(draft).success).toBe(true);
+    expect(proposalDraftResultSchema.safeParse({ ...draft, title: "x".repeat(121) }).success).toBe(false);
+  });
+
+  it("lets a test-data-only route carry personal data but never a route with no ZDR basis", () => {
+    const route = {
+      provider: "anthropic", model: "claude-sonnet-5-5", endpointPolicyId: "anthropic-direct",
+      adapterRevision: "anthropic-messages-test-data-v1", zdrBasis: "test-data-only", allowedDataClasses: ["internal", "personal"],
+    };
+    const profile = (r: object) => ({ id: "p", routesByTier: { fast: r, strong: r } });
+    expect(aiRouteProfileSchema.safeParse(profile(route)).success).toBe(true);
+    expect(aiRouteProfileSchema.safeParse(profile({ ...route, zdrBasis: "none" })).success).toBe(false);
+    expect(aiRouteProfileSchema.safeParse(profile({ ...route, zdrBasis: "none", allowedDataClasses: ["synthetic"] })).success).toBe(true);
   });
 });

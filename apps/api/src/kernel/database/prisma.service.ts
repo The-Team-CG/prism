@@ -23,14 +23,16 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       // PA-307, values agreed with Anthony.
       // max: 5 halves pg's default ceiling of 10 (pg-pool/index.js:89). This is a
       // real behavioural change, not a restatement.
-      // idleTimeoutMillis restates the installed default (pg-pool/index.js:98-100);
-      // explicit so a version bump cannot change it silently.
+      // idleTimeoutMillis keeps idle connections for 5 minutes instead of pg's 10 s default
+      // (pg-pool/index.js:98-100). A new TLS + Supavisor login to the hosted database costs
+      // about 1.7 s, so dropping connections between clicks made the next page pay it.
+      // max is unchanged, so the share of the single shared database's pooler is the same.
       // connectionTimeoutMillis is the other real change - pg arms no timer when it
       // is unset (pg-pool/index.js:206), so a checkout against an unreachable
       // database waits forever. 30s sits above the slowest observed successful
       // connect (18.7s), so it bounds the wait without cutting off a slow success.
       max: 5,
-      idleTimeoutMillis: 10_000,
+      idleTimeoutMillis: 300_000,
       connectionTimeoutMillis: 30_000,
     });
 

@@ -40,6 +40,22 @@ export class OpsCoordinatorCapacityController {
     return this.coordinatorSuggestionsService.listForEvent(eventId, query);
   }
 
+  @Get(':eventId/staffing/pool-availability')
+  @UseGuards(EventSessionGuard)
+  async getPoolAvailability(
+    @Param('eventId') eventId: string,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    await this.eventAccessPolicyService.requireActorRole(
+      actor,
+      [OpsUserRole.PmcmAdmin, OpsUserRole.System],
+      'coordinator pool availability',
+      eventId,
+    );
+    return this.coordinatorSuggestionsService.poolAvailabilityForEvent(eventId);
+  }
+
   @Get(':eventId/staffing/coverage')
   @UseGuards(EventSessionGuard)
   getCoverage(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {

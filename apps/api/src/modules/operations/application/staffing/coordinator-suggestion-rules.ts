@@ -1,5 +1,5 @@
-import { canonicalCoordinatorRole } from '@prism/types';
-import type { CoordinatorRole, PrismCoordinatorSuggestion } from '@prism/types';
+import { COORDINATOR_ROLES, canonicalCoordinatorRole } from '@prism/types';
+import type { CoordinatorRole, PrismCoordinatorPoolAvailability, PrismCoordinatorSuggestion } from '@prism/types';
 
 export interface CoordinatorSuggestionCandidate {
   id: string;
@@ -69,4 +69,31 @@ export function rankCoordinatorSuggestions(input: {
       compareText(left.id, right.id),
     )
     .slice(0, 5);
+}
+
+/**
+ * Pool-wide counts for one event date. Both "already assigned" and "marked unavailable" are counted per coordinator,
+ * and a coordinator who is both counts as already assigned, so the three groups always add up to the active pool.
+ */
+export function summarizePoolAvailability(input: {
+  eventDate: string;
+  coordinators: CoordinatorSuggestionCandidate[];
+  assignedIds: ReadonlySet<string>;
+  unavailableIds: ReadonlySet<string>;
+}): PrismCoordinatorPoolAvailability {
+  const free = input.coordinators.filter(
+    (coordinator) => !input.assignedIds.has(coordinator.id) && !input.unavailableIds.has(coordinator.id),
+  );
+  const alreadyAssigned = input.coordinators.filter((coordinator) => input.assignedIds.has(coordinator.id)).length;
+  return {
+    eventDate: input.eventDate,
+    activeCoordinators: input.coordinators.length,
+    available: free.length,
+    alreadyAssigned,
+    markedUnavailable: input.coordinators.length - free.length - alreadyAssigned,
+    availableByRole: COORDINATOR_ROLES.map((role) => ({
+      role,
+      available: free.filter((coordinator) => coordinator.roleTags.some((tag) => canonicalCoordinatorRole(tag) === role)).length,
+    })),
+  };
 }

@@ -32,9 +32,9 @@ export class CommunicationService {
   constructor(private readonly prisma: PrismaService, private readonly access: EventAccessPolicyService, @Inject(PARTICIPANT_READER) private readonly participants: ParticipantReader, @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter, @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter) {}
 
   async createThread(input: CreateCommunicationThreadInput, actor: ResolvedEventOpsActor) {
-    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'communication thread', input.eventId);
+    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Supplier], 'communication thread', input.eventId);
     if (!actor.id) throw new BadRequestException('Thread creator requires a verified account');
-    const resolved = await Promise.all([...new Set(input.participantActorIds ?? [])].map((id) => this.participants.resolveForEvent(id, input.eventId)));
+    const resolved = await this.threadRecipients(input, actor);
     const members = [actor, ...resolved.filter((candidate) => candidate.id !== actor.id)];
     return this.prisma.$transaction(async (tx) => {
       const thread = await tx.opsCommunicationThread.create({ data: { id: `thread_${randomUUID()}`, eventId: input.eventId, subject: input.subject.trim(), createdBy: actor.id! } });
@@ -43,6 +43,16 @@ export class CommunicationService {
       const result = await this.thread(tx, thread.id);
       return result ? this.safeThread(result, actor.id!) : result;
     });
+  }
+
+  /** PMCM picks recipients. A booked supplier cannot: their thread always goes to the PMCM admins. */
+  private async threadRecipients(input: CreateCommunicationThreadInput, actor: ResolvedEventOpsActor) {
+    if (actor.role !== OpsUserRole.Supplier) {
+      return Promise.all([...new Set(input.participantActorIds ?? [])].map((id) => this.participants.resolveForEvent(id, input.eventId)));
+    }
+    if (input.participantActorIds?.length) throw new ForbiddenException('Suppliers cannot choose conversation participants');
+    await this.participants.resolveForEvent(actor.id!, input.eventId);
+    return this.participants.listPmcmAdmins();
   }
 
   listEligibleParticipants(eventId: string, actor: ResolvedEventOpsActor) { return this.participants.listEligibleForEvent(eventId, actor); }

@@ -8,7 +8,7 @@ import type { SupplierActionDraft } from "../use-cases/submit-supplier-action";
 import type { SupplierActionResult } from "../use-cases/save-supplier-action";
 
 type SubmitAction = (action: SupplierActionDraft) => Promise<SupplierActionResult>;
-type SupplierEditForm = { name: string; categoryId: string; contactName: string; email: string; phone: string; serviceInclusions: string; performanceNotes: string };
+type SupplierEditForm = { name: string; categoryId: string; contactName: string; email: string; phone: string; serviceInclusions: string; performanceNotes: string; capacityRating: "" | "small" | "medium" | "large" };
 type SupplierTierFormState = { tier: "tier_1" | "tier_2" | "pending_first_event"; reason: string; eventId: string; idempotencyKey: string };
 type SupplierReviewFormState = { eventId: string; rating: string; notes: string; dimensionRatings: Record<string, string>; idempotencyKey: string };
 type SupplierReliabilityNoteFormState = { eventId: string; note: string; idempotencyKey: string };
@@ -46,7 +46,7 @@ export function SupplierProfileActions({
   onSubmit: SubmitAction;
 }) {
   const supplier = profile.supplier;
-  const [editForm, setEditForm] = useState({ name: supplier.name, categoryId: supplier.categoryId, contactName: supplier.contactName, email: supplier.email, phone: supplier.phone, serviceInclusions: supplier.serviceInclusions, performanceNotes: supplier.performanceNotes });
+  const [editForm, setEditForm] = useState<SupplierEditForm>({ name: supplier.name, categoryId: supplier.categoryId, contactName: supplier.contactName, email: supplier.email, phone: supplier.phone, serviceInclusions: supplier.serviceInclusions, performanceNotes: supplier.performanceNotes, capacityRating: supplier.capacityRating ?? "" });
   const [tierForm, setTierForm] = useState(() => ({ tier: "tier_1" as "tier_1" | "tier_2" | "pending_first_event", reason: "", eventId: "", idempotencyKey: crypto.randomUUID() }));
   const [reviewForm, setReviewForm] = useState(() => ({ eventId: "", rating: "4", notes: "", dimensionRatings: {} as Record<string, string>, idempotencyKey: crypto.randomUUID() }));
   const [noteForm, setNoteForm] = useState(() => ({ eventId: "", note: "", idempotencyKey: crypto.randomUUID() }));
@@ -57,7 +57,7 @@ export function SupplierProfileActions({
   const activeDimensions = profile.reviewDimensions.filter((dimension) => dimension.active);
 
   useEffect(() => {
-    setEditForm({ name: supplier.name, categoryId: supplier.categoryId, contactName: supplier.contactName, email: supplier.email, phone: supplier.phone, serviceInclusions: supplier.serviceInclusions, performanceNotes: supplier.performanceNotes });
+    setEditForm({ name: supplier.name, categoryId: supplier.categoryId, contactName: supplier.contactName, email: supplier.email, phone: supplier.phone, serviceInclusions: supplier.serviceInclusions, performanceNotes: supplier.performanceNotes, capacityRating: supplier.capacityRating ?? "" });
     setTierForm({ tier: supplier.tier === "tier_2" ? "tier_1" : "tier_2", reason: "", eventId: "", idempotencyKey: crypto.randomUUID() });
     setReviewForm({ eventId: "", rating: "4", notes: "", dimensionRatings: {}, idempotencyKey: crypto.randomUUID() });
     setNoteForm({ eventId: "", note: "", idempotencyKey: crypto.randomUUID() });
@@ -73,7 +73,7 @@ export function SupplierProfileActions({
   }, [profile.supplier.categoryId, profile.reviewDimensions]);
 
   async function saveProfile() {
-    await onSubmit({ kind: "update", supplierId: supplier.id, input: editForm });
+    await onSubmit({ kind: "update", supplierId: supplier.id, input: { ...editForm, capacityRating: editForm.capacityRating || null } });
   }
 
   async function saveTier() {
@@ -140,6 +140,7 @@ function ProfileEditForm({ supplier, categories, form, onChange, actionSaving, o
         <label className="grid gap-1 text-xs text-muted-foreground">Contact name<input value={form.contactName} onChange={(event) => onChange({ ...form, contactName: event.target.value })} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground" /></label>
         <label className="grid gap-1 text-xs text-muted-foreground">Email<input type="email" value={form.email} onChange={(event) => onChange({ ...form, email: event.target.value })} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground" /></label>
         <label className="grid gap-1 text-xs text-muted-foreground">Phone<input value={form.phone} onChange={(event) => onChange({ ...form, phone: event.target.value })} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground" /></label>
+        <label className="grid gap-1 text-xs text-muted-foreground">Capacity or scale rating<select aria-label="Capacity or scale rating" value={form.capacityRating} onChange={(event) => onChange({ ...form, capacityRating: event.target.value as SupplierEditForm["capacityRating"] })} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground"><option value="">Not rated</option><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></select></label>
         <label className="grid gap-1 text-xs text-muted-foreground">Service inclusions<textarea value={form.serviceInclusions} onChange={(event) => onChange({ ...form, serviceInclusions: event.target.value })} className="min-h-16 rounded-md border border-input bg-background p-2 text-sm text-foreground" /></label>
         <label className="grid gap-1 text-xs text-muted-foreground">Private PMCM notes<textarea value={form.performanceNotes} onChange={(event) => onChange({ ...form, performanceNotes: event.target.value })} className="min-h-16 rounded-md border border-input bg-background p-2 text-sm text-foreground" /></label>
         <div className="flex flex-wrap items-center gap-2"><Button type="button" size="sm" disabled={actionSaving || !form.name.trim()} onClick={() => void onSave()}>Save profile</Button><Button type="button" variant="outline" size="sm" disabled={actionSaving} onClick={() => void onSubmit({ kind: "update", supplierId: supplier.id, input: { bniMember: !supplier.bniMember } })}>{supplier.bniMember ? "Remove BNI member" : "Mark BNI member"}</Button></div>

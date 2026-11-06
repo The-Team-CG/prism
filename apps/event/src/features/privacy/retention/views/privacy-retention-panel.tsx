@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { compactTimestamp, label, Panel } from "@/features/pmcm-kit";
-import { reviewStatusLabel } from "../model/retention-rules";
+import { retentionPeriodCopy, reviewStatusLabel } from "../model/retention-rules";
 import { usePrivacyRetentionViewModel, type PrivacyRetentionViewModel } from "../view-models/use-privacy-retention-view-model";
 import type { ReviewStatusFilter } from "../use-cases/retention-use-cases";
 
@@ -32,7 +32,7 @@ export function PrivacyRetentionView({ vm }: { vm: PrivacyRetentionViewModel }) 
             <AlertDescription>{vm.message.text}</AlertDescription>
           </Alert>
         ) : null}
-        <div className="grid gap-2">
+        <div className="grid min-w-0 gap-2">
           {vm.policies.map((policy) => (
             <PolicyRow key={policy.category} policy={policy} vm={vm} />
           ))}
@@ -62,44 +62,44 @@ export function PrivacyRetentionView({ vm }: { vm: PrivacyRetentionViewModel }) 
 }
 
 function PolicyRow({ policy, vm }: { policy: PrismRetentionPolicy; vm: PrivacyRetentionViewModel }) {
-  const enableBlocked = !policy.enabled && !vm.canEnable(policy);
+  // Reference-only categories have no review source: they show their terms but offer no controls.
+  const referenceOnly = !vm.canEnable(policy);
   return (
     <div className="space-y-2 rounded-md bg-background p-3 text-xs">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="font-black text-foreground">{policy.label}</p>
         <p className="text-muted-foreground">{policy.enabled ? "Enabled" : "Disabled"} · revision {policy.revision}</p>
       </div>
-      <p className="text-muted-foreground">{policy.retentionPeriod}</p>
+      <p className="text-muted-foreground">{retentionPeriodCopy(policy)}</p>
       <p className="text-muted-foreground">{policy.deletionBehavior}</p>
-      {enableBlocked ? <p className="text-muted-foreground">Reference only: this category has no review source and cannot be enabled.</p> : null}
-      <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-center">
-        <Input
-          aria-label={`Reason for ${policy.label} change`}
-          value={vm.reasonDrafts[policy.category] ?? ""}
-          onChange={(event) => vm.setReasonDraft(policy.category, event.target.value)}
-          className="h-9 bg-white"
-          placeholder="Reason for the change"
-        />
-        <div className="flex items-center gap-2">
+      {referenceOnly ? (
+        <p className="text-muted-foreground">Reference only. This category has no review source, so it can&apos;t be enabled or changed here.</p>
+      ) : (
+        <div className="flex min-w-0 flex-col gap-2">
           <Input
-            aria-label={`Retention days for ${policy.label}`}
-            inputMode="numeric"
-            value={vm.periodDrafts[policy.category] ?? String(policy.periodDays)}
-            onChange={(event) => vm.setPeriodDraft(policy.category, event.target.value)}
-            className="h-9 w-24 bg-white"
+            aria-label={`Reason for ${policy.label} change`}
+            value={vm.reasonDrafts[policy.category] ?? ""}
+            onChange={(event) => vm.setReasonDraft(policy.category, event.target.value)}
+            className="h-9 w-full min-w-0 bg-white"
+            placeholder="Reason for the change"
           />
-          <Button type="button" variant="outline" disabled={vm.busy} onClick={() => vm.savePolicy(policy, { usePeriodDraft: true })}>
-            Save period
-          </Button>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <Input
+              aria-label={`Retention days for ${policy.label}`}
+              inputMode="numeric"
+              value={vm.periodDrafts[policy.category] ?? String(policy.periodDays)}
+              onChange={(event) => vm.setPeriodDraft(policy.category, event.target.value)}
+              className="h-9 w-24 bg-white"
+            />
+            <Button type="button" variant="outline" disabled={vm.busy} onClick={() => vm.savePolicy(policy, { usePeriodDraft: true })}>
+              Save period
+            </Button>
+            <Button type="button" disabled={vm.busy} onClick={() => vm.savePolicy(policy, { enabled: !policy.enabled })}>
+              {policy.enabled ? "Disable" : "Enable"}
+            </Button>
+          </div>
         </div>
-        <Button
-          type="button"
-          disabled={vm.busy || enableBlocked}
-          onClick={() => vm.savePolicy(policy, { enabled: !policy.enabled })}
-        >
-          {policy.enabled ? "Disable" : "Enable"}
-        </Button>
-      </div>
+      )}
     </div>
   );
 }

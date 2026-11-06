@@ -7,20 +7,21 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "node ../../scripts/typescript.mjs -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "test:ci": "vitest run"
+    "test:ci": "vitest run",
+    "lint": "node ../../scripts/lint.mjs"
   },
   "dependencies": {
     "@prism/types": "*"
   },
   "peerDependencies": {
-    "lucide-react": "^0.487.0",
-    "react": "^19.2.5"
+    "lucide-react": "^1.66.0",
+    "react": "^19.3.1"
   },
   "devDependencies": {
-    "@types/react": "^19",
+    "@types/react": "^19.3.0",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.5"
   }
 }

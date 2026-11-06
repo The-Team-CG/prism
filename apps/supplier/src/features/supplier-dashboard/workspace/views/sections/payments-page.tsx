@@ -1,75 +1,53 @@
 "use client";
-import { formatPortalDate } from "@prism/ui/format-date";
 
-import { FormEvent, useMemo } from "react";
-import {
-  BadgeCheck,
-  CalendarClock,
-  CalendarDays,
-  CheckCircle2,
-  Circle,
-  ClipboardList,
-  Clock3,
-  FileCheck2,
-  FileText,
-  HelpCircle,
-  LockKeyhole,
-  LogOut,
-  MessageSquare,
-  PackageCheck,
-  RefreshCcw,
-  Send,
-  ShieldCheck,
-  Sparkles,
-  Truck,
-  User,
-  Wallet,
-  Warehouse,
-  type LucideIcon,
-} from "lucide-react";
-import { Badge } from "@/app/components/ui/badge";
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
-import { StatusBadge } from "@/app/components/ui/status-badge";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { Wallet } from "lucide-react";
 import type { PrismSupplierWorkflowWorkspace } from "@prism/types";
-import { PrismDashboardShell } from "@prism/ui";
-import {
-  EVENT_STATUS_ACTIONS,
-  buildBookingSteps,
-  buildCalendarEvents,
-  closedRequestReason,
-  firstNameFrom,
-  formatDate,
-  formatMoney,
-  fmt,
-  greetingForHour,
-  initialForm,
-  isPastDate,
-  isRequestClosed,
-  readinessTone,
-} from "../../model/supplier-workspace-rules";
-import type { PrismSupplier, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierDashboardSection, SupplierWorkspace } from "../../model/supplier-workspace-types";
-import { useSupplierWorkspaceViewModel } from "../../view-models/use-supplier-workspace-view-model";
+import { formatPortalDate } from "@prism/ui/format-date";
+import { EmptyState } from "@/app/components/ui/empty-state";
+import { StatusBadge } from "@/app/components/ui/status-badge";
+import { formatMoney } from "../../model/supplier-workspace-rules";
+import type { PrismSupplierQuote, PrismSupplierReadinessBoard, SupplierWorkspace } from "../../model/supplier-workspace-types";
+import { Card, CardBody, CardHeader, SectionAccent } from "./shell-ui";
 
-
-import { Card, CardBody, CardHeader, SectionAccent, StatCell } from "./shell-ui";
-
-export function PaymentsPage({ workflowWorkspace }: { workspace: SupplierWorkspace; workflowWorkspace: PrismSupplierWorkflowWorkspace | null }) {
+export function PaymentsPage({ workspace, workflowWorkspace, selectedQuotes, readinessBoard }: {
+  workspace: SupplierWorkspace;
+  workflowWorkspace: PrismSupplierWorkflowWorkspace | null;
+  selectedQuotes: PrismSupplierQuote[];
+  readinessBoard: PrismSupplierReadinessBoard | null;
+}) {
   const payables = workflowWorkspace?.payables ?? [];
+  // A won quote without milestones still has an agreed amount: show it rather than an empty page.
+  const awaitingSchedule = selectedQuotes.filter((quote) => !payables.some((payable) => payable.quoteId === quote.id));
   return (
     <div className="space-y-4">
-      {payables.length === 0 ? (
+      {awaitingSchedule.map((quote) => {
+        const request = workspace.quoteRequests.find((item) => item.id === quote.requestId);
+        const eventName = readinessBoard?.items.find((item) => item.requestId === quote.requestId)?.eventName;
+        return (
+          <Card key={quote.id}>
+            <CardBody className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <SectionAccent>{[request?.category, eventName].filter(Boolean).join(" · ") || "Selected quote"}</SectionAccent>
+                <p className="mt-1 text-xl font-semibold tabular-nums text-foreground">{formatMoney(quote.amount)}</p>
+                {quote.paymentTerms ? <p className="mt-1 break-words text-sm text-muted-foreground">Your terms: {quote.paymentTerms}</p> : null}
+              </div>
+              <p className="text-sm text-muted-foreground">Payment schedule pending from PMCM</p>
+            </CardBody>
+          </Card>
+        );
+      })}
+      {payables.length === 0 && awaitingSchedule.length === 0 ? (
         <Card><CardBody>
-          <EmptyState icon={Wallet} title="No supplier payables recorded yet." description="PMCM will publish payment milestones after selecting your quote." />
+          <EmptyState icon={Wallet} title="No supplier payables recorded yet." description="PMCM publishes payment milestones once a quote is selected." />
         </CardBody></Card>
-      ) : payables.map((milestone) => (
+      ) : null}
+      {payables.map((milestone) => (
         <Card key={milestone.id}>
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <SectionAccent>{milestone.label}</SectionAccent>
-                <p className="mt-1 text-xl font-black text-foreground">{formatMoney(milestone.amount)}</p>
+                <p className="mt-1 text-xl font-semibold tabular-nums text-foreground">{formatMoney(milestone.amount)}</p>
               </div>
               <StatusBadge status={milestone.status} />
             </div>
@@ -83,7 +61,7 @@ export function PaymentsPage({ workflowWorkspace }: { workspace: SupplierWorkspa
               ].map(({ label, value, status }) => (
                 <div key={label} className="rounded-xl border border-border bg-muted/30 p-4">
                   <p className="text-xs font-medium text-muted-foreground">{label}</p>
-                  <p className="mt-2 text-lg font-black text-foreground">{value}</p>
+                  <p className="mt-2 text-lg font-semibold tabular-nums text-foreground">{value}</p>
                   <div className="mt-2"><StatusBadge status={status} /></div>
                 </div>
               ))}
@@ -101,4 +79,3 @@ export function PaymentsPage({ workflowWorkspace }: { workspace: SupplierWorkspa
     </div>
   );
 }
-

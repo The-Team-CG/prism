@@ -42,7 +42,15 @@ export interface PrismPageAction {
   description?: string;
   icon?: LucideIcon;
   status?: string;
+  disabled?: boolean;
   onSelect?: () => void;
+}
+
+/** A labelled section of the Ctrl K palette. `whenSearching` groups only appear once the person has typed. */
+export interface PrismCommandGroup {
+  heading: string;
+  actions: PrismPageAction[];
+  whenSearching?: boolean;
 }
 
 export interface PrismMobileAction {
@@ -80,7 +88,10 @@ export interface PrismAppShellProps {
   eyebrow?: string;
   title: string;
   description?: string;
-  activeItemId: string;
+  /** The sidebar item that owns the page. Omit it when no sidebar item does; nothing is highlighted then. */
+  activeItemId?: string;
+  /** Breadcrumb labels after the role. Defaults to the trail of the active sidebar item. */
+  breadcrumb?: string[];
   navItems: PrismNavItem[];
   onNavSelect?: (id: string) => void;
   primaryNavItems?: PrismPrimaryNavItem[];
@@ -92,7 +103,17 @@ export interface PrismAppShellProps {
   showTopBarSearch?: boolean;
   commandActions?: PrismPageAction[];
   commandSectionLabel?: string;
+  /** Extra palette sections, such as records found by name. Rendered after the page navigation. */
+  commandGroups?: PrismCommandGroup[];
+  /** Shown when nothing in the palette matches the typed text. */
+  commandEmptyLabel?: string;
+  /** True while the records behind commandGroups are still loading; the palette shows a loading row for them. */
+  commandGroupsLoading?: boolean;
+  /** Called each time the palette opens, so a page can load its palette records on demand. */
+  onCommandPaletteOpen?: () => void;
   headerActions?: React.ReactNode;
+  /** Keep headerActions in the top bar on small screens too. Off by default, so they stay out of the way on mobile. */
+  alwaysShowHeaderActions?: boolean;
   /** Sits under the brand in the sidebar, for a scope control such as the open event. Hidden when collapsed. */
   sidebarContext?: React.ReactNode;
   accountMenuItems?: PrismAccountMenuItem[];
@@ -104,5 +125,7 @@ export interface PrismAppShellProps {
   children: React.ReactNode;
   className?: string;
   contentClassName?: string;
+  /** Padding for the page title when contentClassName removes the content padding. */
+  titleClassName?: string;
   homeHref?: string;
 }

@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { categoriesWithSupplierGap, supplierGapHardBlockCopy, supplierReadinessRefreshKey } from "./pmcm-supplier-readiness-rules";
+import { assignedSupplierRequests, categoriesWithSupplierGap, supplierGapHardBlockCopy, supplierReadinessRefreshKey } from "./pmcm-supplier-readiness-rules";
 
 describe("pmcm-supplier-readiness-rules", () => {
+  it("counts assigned suppliers as selected requests, the same rows the Bookings tab lists", () => {
+    const requests = [
+      { id: "qr_harvest", status: "selected" },
+      { id: "qr_lens", status: "selected" },
+      { id: "qr_sonic", status: "submitted" },
+      { id: "qr_pulse", status: "open" },
+    ];
+
+    expect(assignedSupplierRequests(requests).map((request) => request.id)).toEqual(["qr_harvest", "qr_lens"]);
+  });
+
   it("hard-blocks only categories where no server item has a locked quote", () => {
     const gaps = categoriesWithSupplierGap([
       { category: "Catering", quoteLocked: false },

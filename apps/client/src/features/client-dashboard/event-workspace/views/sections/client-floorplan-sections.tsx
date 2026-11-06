@@ -72,7 +72,7 @@ export function FloorPlanCardHeader({
   return (
     <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-6 py-5">
       <div>
-        <p className="text-xs font-medium text-primary">Floor plan workspace</p>
+        <p className="text-sm text-muted-foreground">Floor plan workspace</p>
         <h2 className="mt-1 text-xl font-black text-foreground">{title}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>
       </div>
