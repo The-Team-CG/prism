@@ -35,6 +35,7 @@ export const logFormReferralSources = [
   "Other",
 ];
 
+// Channel and referral source start unset: a default would record a guess about how the client reached PMCM.
 export const initialLogForm = {
   clientName: "",
   companyName: "",
@@ -43,8 +44,8 @@ export const initialLogForm = {
   eventType: "",
   eventDate: "",
   clientType: "",
-  source: logFormReferralSources[0],
-  channel: logFormChannels[0],
+  source: "",
+  channel: "",
   referralDetails: "",
   message: "",
 };
@@ -53,6 +54,22 @@ export type InquiryLogForm = typeof initialLogForm;
 
 export function matchesAllOrValue(selected: string, value?: string | null) {
   return selected === "all" || selected === value;
+}
+
+/** Status filter value for the inquiries PMCM still has to decide on. */
+export const AWAITING_REVIEW = "awaiting_review";
+
+function matchesStatusFilter(selected: string, status: string) {
+  return selected === AWAITING_REVIEW ? status === "new" : matchesAllOrValue(selected, status);
+}
+
+/** Undecided inquiries first, then newest received. */
+export function compareIntakeInquiries(
+  left: Pick<PrismInquiry, "status" | "createdAt">,
+  right: Pick<PrismInquiry, "status" | "createdAt">,
+) {
+  const awaiting = Number(right.status === "new") - Number(left.status === "new");
+  return awaiting || new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
 }
 
 export function dateRangeMatches(value: string, range: string, now = new Date()) {
@@ -76,24 +93,30 @@ export function inquiryMatchesIntakeFilters(
   const haystack = `${inquiry.clientName} ${inquiry.companyName ?? ""} ${inquiry.email} ${inquiry.eventName}`.toLowerCase();
   const query = filters.query.trim().toLowerCase();
   if (query && !haystack.includes(query)) return false;
-  if (!matchesAllOrValue(filters.status, inquiry.status)) return false;
+  if (!matchesStatusFilter(filters.status, inquiry.status)) return false;
   if (!matchesAllOrValue(filters.source, inquiry.source)) return false;
   if (!matchesAllOrValue(filters.clientType, inquiry.clientType)) return false;
   return dateRangeMatches(inquiry.eventDate, filters.dateRange, now);
 }
 
+/** Labels of the required log-form fields that are still empty, in form order. Empty means Save is enabled. */
+export function inquiryLogMissingFields(form: InquiryLogForm): string[] {
+  const missing: Array<[string, boolean]> = [
+    ["Client name", !form.clientName.trim()],
+    ["Email", !form.email.trim()],
+    ["Event name", !form.eventName.trim()],
+    ["Event type", !form.eventType],
+    ["Event date", !form.eventDate],
+    ["Client type", !form.clientType],
+    ["Channel", !form.channel],
+    ["Referral source", !form.source],
+    ["Message", !form.message.trim()],
+  ];
+  return missing.filter(([, isMissing]) => isMissing).map(([name]) => name);
+}
+
 export function isInquiryLogFormReady(form: InquiryLogForm) {
-  return Boolean(
-    form.clientName.trim() &&
-      form.email.trim() &&
-      form.eventName.trim() &&
-      form.eventType &&
-      form.eventDate &&
-      form.clientType &&
-      form.source &&
-      form.channel &&
-      form.message.trim(),
-  );
+  return inquiryLogMissingFields(form).length === 0;
 }
 
 export function inquiryExtraDetailFields(inquiry: PrismInquiry) {

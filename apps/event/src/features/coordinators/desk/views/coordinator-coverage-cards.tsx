@@ -7,7 +7,9 @@ import {
   parseContract,
   type CoordinatorRole,
   type CreateCoordinatorCoverageRequirementInput,
+  type PrismCoordinatorAssignment,
   type PrismCoordinatorCoverage,
+  type PrismCoordinatorPoolAvailability,
   type PrismCoordinatorRoleRequirement,
 } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
@@ -23,9 +25,41 @@ function requirementSkills(requirement: CoverageRequirement | null): string[] {
   return requirement && "requiredSkills" in requirement ? requirement.requiredSkills : [];
 }
 
-export function StaffingSummary({ roleRequirements, assignmentCounts, onEdit }: {
+/** How many coordinators in the whole pool are free on the event date, so PMCM knows the room before assigning. */
+export function PoolAvailabilityNote({ pool }: { pool: PrismCoordinatorPoolAvailability | null }) {
+  if (!pool) return null;
+  const elsewhere = pool.alreadyAssigned > 0 ? ` · ${pool.alreadyAssigned} assigned to events that day` : "";
+  const blocked = pool.markedUnavailable > 0 ? ` · ${pool.markedUnavailable} marked unavailable` : "";
+  return (
+    <p role="status" className="text-xs text-muted-foreground">
+      {pool.available} of {pool.activeCoordinators} active coordinators are free on {pool.eventDate}{elsewhere}{blocked}.
+    </p>
+  );
+}
+
+/** Coordinators who withdrew inside the 48-hour window: the replacement is urgent, so it is not left in history. */
+export function EmergencyWithdrawalsNotice({ assignments }: { assignments: PrismCoordinatorAssignment[] }) {
+  const emergencies = assignments.filter((assignment) => assignment.emergencyChange);
+  if (emergencies.length === 0) return null;
+  return (
+    <div role="alert" className="rounded-xl border border-danger/25 bg-danger/8 px-4 py-3">
+      <p className="text-sm font-bold text-danger">Emergency change: a coordinator withdrew within 48 hours of the event</p>
+      <ul className="mt-1.5 space-y-1 text-xs text-foreground">
+        {emergencies.map((assignment) => (
+          <li key={assignment.id}>
+            {assignment.coordinatorName} withdrew from {assignment.role}
+            {assignment.withdrawalReason ? `: ${assignment.withdrawalReason}` : ""}. Assign a replacement below.
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export function StaffingSummary({ roleRequirements, assignmentCounts, eventEnded = false, onEdit }: {
   roleRequirements: CoverageRequirement[];
   assignmentCounts: Map<string, number>;
+  eventEnded?: boolean;
   onEdit: (requirement: CoverageRequirement) => void;
 }) {
   return (
@@ -42,7 +76,7 @@ export function StaffingSummary({ roleRequirements, assignmentCounts, onEdit }: 
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {roleRequirements.map((requirement) => (
-              <RequirementTile key={requirement.role} requirement={requirement} assignedFallback={assignmentCounts.get(requirement.role) ?? 0} onEdit={onEdit} />
+              <RequirementTile key={requirement.role} requirement={requirement} assignedFallback={assignmentCounts.get(requirement.role) ?? 0} eventEnded={eventEnded} onEdit={onEdit} />
             ))}
           </div>
         )}
@@ -51,9 +85,27 @@ export function StaffingSummary({ roleRequirements, assignmentCounts, onEdit }: 
   );
 }
 
-function RequirementTile({ requirement, assignedFallback, onEdit }: {
+/**
+ * What a tile says about its target. Before the event it is a to-do only while the target is unmet; a met target
+ * that is still unconfirmed or missing a skill says what is left. After the event it reads as a record.
+ */
+export function coverageTileStatus({ assigned, required, acknowledged, complete, eventEnded }: {
+  assigned: number;
+  required: number;
+  acknowledged: number;
+  complete: boolean;
+  eventEnded: boolean;
+}): string {
+  if (eventEnded) return complete ? "Staffed" : "Not staffed";
+  if (complete) return "Covered for this event.";
+  if (assigned < required) return "Still needs staffing.";
+  return acknowledged < required ? "Target met; waiting on acknowledgements." : "Target met; a required skill is missing.";
+}
+
+function RequirementTile({ requirement, assignedFallback, eventEnded, onEdit }: {
   requirement: CoverageRequirement;
   assignedFallback: number;
+  eventEnded: boolean;
   onEdit: (requirement: CoverageRequirement) => void;
 }) {
   const assigned = "assigned" in requirement ? requirement.assigned : assignedFallback;
@@ -64,10 +116,12 @@ function RequirementTile({ requirement, assignedFallback, onEdit }: {
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-bold text-foreground">{requirement.role}</p>
         <span className={"rounded-full px-2 py-0.5 text-xs font-bold " + (complete ? "bg-success/10 text-success" : "bg-attention/10 text-attention")}>
-          {assigned}/{requirement.required}{"acknowledged" in requirement ? " · " + acknowledged + " ack" : ""}
+          {assigned} of {requirement.required} assigned{"acknowledged" in requirement ? ` · ${acknowledged} acknowledged` : ""}
         </span>
       </div>
-      <p className="mt-1.5 text-xs text-muted-foreground">{complete ? "Covered for this event." : "Still needs staffing."}</p>
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        {coverageTileStatus({ assigned, required: requirement.required, acknowledged, complete, eventEnded })}
+      </p>
       <Button type="button" size="sm" variant="ghost" className="-ml-2 mt-2" onClick={() => onEdit(requirement)}>Edit target</Button>
     </div>
   );

@@ -32,11 +32,12 @@ function workspace(overrides: Partial<PrismClientWorkspace> = {}): PrismClientWo
 }
 
 describe("event-progress-rules", () => {
-  it("moves to Planning when the client approves the proposal, not only once a floorplan is approved", () => {
-    const briefed = workspace({ briefings: [{ eventId: "evt_1" }] as PrismClientWorkspace["briefings"] });
-    expect(deriveLifecycleIndex(event, briefed)).toBe(2);
-    expect(deriveLifecycleIndex({ ...event, proposalClientStatus: "approved" }, briefed)).toBe(3);
-    expect(deriveLifecycleIndex(event, workspace({ floorPlanDrafts: [{ eventId: "evt_1", status: "approved" }] as PrismClientWorkspace["floorPlanDrafts"] }))).toBe(3);
+  it("uses the shared stage: Planning only once the client approves the proposal", () => {
+    expect(deriveLifecycleIndex({ ...event, status: "briefing" })).toBe(2);
+    expect(deriveLifecycleIndex({ ...event, status: "briefing", proposalClientStatus: "approved" })).toBe(3);
+    // The fixture's operational status is "planning" (briefing submitted); that alone is not Planning.
+    expect(deriveLifecycleIndex(event)).toBe(2);
+    expect(deriveLifecycleIndex({ ...event, clientPortalStatus: "locked" })).toBe(1);
   });
 
   it("keeps documents detail independent of completion", () => {
@@ -120,11 +121,11 @@ describe("event-progress-rules", () => {
 
     expect(steps).toHaveLength(5);
     expect(steps.map((step) => [step.id, step.title, step.status, step.meta])).toEqual([
-      ["conforme_signed", "Conforme signed", "completed", "2026-06-01"],
-      ["proposal_accepted", "Proposal accepted", "completed", "2026-06-05"],
+      ["conforme_signed", "Conforme signed", "completed", "Jun 1, 2026"],
+      ["proposal_accepted", "Proposal accepted", "completed", "Jun 5, 2026"],
       ["floor_plan_approved", "Floor plan approved", "current", "Date pending"],
-      ["balance_payment_due", "Balance payment due", "pending", "2026-08-15"],
-      ["event_date", "Event date", "pending", "2026-10-01"],
+      ["balance_payment_due", "Balance payment due", "pending", "Aug 15, 2026"],
+      ["event_date", "Event date", "pending", "Oct 1, 2026"],
     ]);
   });
 

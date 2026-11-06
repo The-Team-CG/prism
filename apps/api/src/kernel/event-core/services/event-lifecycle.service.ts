@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import type { OpsEvent } from '@prisma/client';
-import type { PrismLifecycleStage } from '@prism/types';
+import { derivePrismLifecycleStage, type PrismLifecycleStage } from '@prism/types';
 
 export const EventLifecycleStage = {
   Inquiry: 'inquiry',
@@ -12,6 +12,8 @@ export const EventLifecycleStage = {
 } as const;
 
 export type EventLifecycleStage = PrismLifecycleStage;
+
+type StageFacts = Pick<OpsEvent, 'status' | 'archived' | 'clientPortalStatus' | 'proposalClientStatus' | 'actualEndedAt'>;
 
 export type CloseGateResult = {
   ready: boolean;
@@ -29,13 +31,9 @@ const NEXT_LIFECYCLE_STAGES: Record<EventLifecycleStage, EventLifecycleStage[]> 
 
 @Injectable()
 export class EventLifecycleService {
-  stageForEvent(event: Pick<OpsEvent, 'status' | 'clientPortalStatus' | 'archived' | 'floorPlanStatus'>): EventLifecycleStage {
-    if (event.archived || event.status === 'archived') return EventLifecycleStage.ClosureArchive;
-    if (event.status === 'event_day') return EventLifecycleStage.EventDay;
-    if (event.floorPlanStatus === 'approved') return EventLifecycleStage.Planning;
-    if (event.clientPortalStatus === 'unlocked') return EventLifecycleStage.BriefingProposal;
-    if (event.status === 'planning') return EventLifecycleStage.Conforme;
-    return EventLifecycleStage.Inquiry;
+  /** Same rule the portals display: planning starts when the client approves the proposal. */
+  stageForEvent(event: StageFacts): EventLifecycleStage {
+    return derivePrismLifecycleStage(event);
   }
 
   nextAllowedStages(stage: EventLifecycleStage): EventLifecycleStage[] {
@@ -50,7 +48,7 @@ export class EventLifecycleService {
   }
 
   assertCanArchive(
-    event: Pick<OpsEvent, 'status' | 'archived' | 'clientPortalStatus' | 'floorPlanStatus'>,
+    event: StageFacts,
     closeGates: CloseGateResult,
     overrideReason?: string,
   ) {

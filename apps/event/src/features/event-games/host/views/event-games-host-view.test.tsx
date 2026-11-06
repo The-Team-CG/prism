@@ -96,6 +96,16 @@ describe("EventGamesHostView", () => {
     expect(screen.queryByRole("button", { name: /create game/i })).toBeNull();
   });
 
+  it("opens the game draft form only from the Create game button, below the catalog", () => {
+    render(<EventGamesHostView eventId="event-1" role="pmcm-admin" eventStatus="confirmed" archived={false} />);
+
+    expect(screen.queryByLabelText("Game template")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /create game/i }));
+
+    expect(screen.getByLabelText("Game template")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /close form/i }).getAttribute("aria-expanded")).toBe("true");
+  });
+
   it("shows only event-host controls to pmcm admins", () => {
     render(<EventGamesHostView eventId="event-1" role="pmcm-admin" eventStatus="confirmed" archived={false} />);
 

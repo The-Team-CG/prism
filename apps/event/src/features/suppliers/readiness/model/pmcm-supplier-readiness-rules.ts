@@ -17,6 +17,15 @@ export function categoriesWithSupplierGap(items: Array<Pick<PrismPmcmSupplierRea
   return [...lockedByCategory.entries()].filter(([, locked]) => !locked).map(([category]) => category);
 }
 
+/**
+ * The one PMCM definition of an assigned supplier: a quote request whose supplier was selected. The sidebar
+ * badge, the Bookings & contracts badge and rows, and Replace a supplier all count this; the API's Overview
+ * count uses the same status.
+ */
+export function assignedSupplierRequests<T extends { status: string }>(requests: T[]): T[] {
+  return requests.filter((request) => request.status === "selected");
+}
+
 export function supplierGapHardBlockCopy(categories: string[]) {
   if (categories.length === 0) return null;
   return `Do not advance planning until a supplier is selected in: ${categories.join(", ")}.`;

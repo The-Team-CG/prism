@@ -53,7 +53,9 @@ describe("PmcmSupplierReadinessBoard", () => {
 
     expect(await screen.findByText("Sonic Line")).toBeTruthy();
     expect(repository.get).toHaveBeenCalledWith("evt_1");
-    expect(screen.getByText("Quote locked")).toBeTruthy();
+    expect(screen.getByText("Quote: Locked")).toBeTruthy();
+    expect(screen.getByText("Assignment: Confirmed")).toBeTruthy();
+    expect(screen.getByText("Contract: Changes requested")).toBeTruthy();
     expect(screen.getByText("Ingress late")).toBeTruthy();
     expect(screen.getByText(/revision 3 not acknowledged/)).toBeTruthy();
     expect(screen.getByRole("list", { name: "Sonic Line concerns" }).textContent).toContain("Missing insurance page");
@@ -61,15 +63,17 @@ describe("PmcmSupplierReadinessBoard", () => {
     expect(screen.queryByText(/Do not advance planning/)).toBeNull();
   });
 
-  it("keeps the category-gap hard block when no request in a category has a locked quote", async () => {
+  it("hard-blocks only the categories with no locked quote, and keeps the rows visible", async () => {
     repository.get.mockResolvedValue(board([
       item(),
       item({ id: "supplier-readiness:qr_cater", requestId: "qr_cater", supplierName: "Open Bid", category: "Catering", quoteStatus: "open", quoteLocked: false, concerns: [] }),
+      item({ id: "supplier-readiness:qr_docs", requestId: "qr_docs", supplierName: "LensCraft Studios", category: "Documentation", quoteStatus: "selected", quoteLocked: true, concerns: [] }),
     ]));
 
     render(<PmcmSupplierReadinessBoard eventId="evt_1" />);
 
     expect(await screen.findByText("Do not advance planning until a supplier is selected in: Catering.")).toBeTruthy();
+    expect(screen.getByText("LensCraft Studios")).toBeTruthy();
   });
 
   it("refetches when planner state changes and surfaces a forbidden read without stale rows", async () => {

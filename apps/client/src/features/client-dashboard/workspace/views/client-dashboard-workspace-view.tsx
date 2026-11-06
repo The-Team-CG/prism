@@ -33,7 +33,7 @@ import {
   preferenceFormFromDraft,
 } from "../model/client-floorplan-preference-rules";
 import {
-  CLIENT_SIDEBAR_ITEMS,
+  clientPortalSidebarItems,
   DETAIL_TAB_TO_ROUTE,
   EVENT_ROUTE_TO_NAV_ITEM,
   ROUTE_TO_DETAIL_TAB,
@@ -115,13 +115,14 @@ function disableEventNav(requiresEvent: boolean | undefined, hasEvent: boolean) 
   return Boolean(requiresEvent) && !hasEvent;
 }
 
-function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, selectedEvent }: {
+function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, selectedEvent, eventCount }: {
   route: ClientDashboardRoute;
   portalView?: ClientPortalView;
   isEventScopedView: boolean;
   selectedEvent?: PrismEvent;
+  eventCount: number;
 }) {
-  const shellNavItems = CLIENT_SIDEBAR_ITEMS.map((item) => ({
+  const shellNavItems = clientPortalSidebarItems(eventCount).map((item) => ({
     ...item,
     href: clientSidebarLinkHref(item.id, selectedEvent?.id),
     disabled: disableEventNav(item.requiresEvent, clientEventWorkspaceAvailable(selectedEvent)),
@@ -138,7 +139,7 @@ function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, 
       ? EVENT_ROUTE_TO_NAV_ITEM[route] ?? "event-overview"
       : sidebarActiveItemId(route, isEventScopedView, portalView),
     sidebarNavItems: inEventWorkspace && selectedEvent
-      ? clientEventSidebarItems(selectedEvent.eventName, selectedEvent.id, selectedEvent)
+      ? clientEventSidebarItems(selectedEvent.id, selectedEvent)
       : shellNavItems,
   };
 }
@@ -460,7 +461,7 @@ export function ClientDashboardWorkspaceView({
   }
 
   const { inEventWorkspace, activeShellItemId, sidebarNavItems } = clientWorkspaceShellNavigation({
-    route, portalView, isEventScopedView, selectedEvent,
+    route, portalView, isEventScopedView, selectedEvent, eventCount: events.length,
   });
 
   function handleShellNavSelect(id: string) {

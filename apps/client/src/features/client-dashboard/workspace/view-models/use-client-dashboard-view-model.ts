@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { usePrefetch } from "@prism/portal-query";
+import { clientEventAddendaResource } from "../../addenda";
+import { clientEventChangeRequestsResource } from "../../change-requests";
 import type { PrismClientActionCenter, PrismClientWorkspace, PrismUser } from "@prism/types";
 import { dashboardHref } from "../model/client-dashboard-navigation";
 import type { ClientDashboardRoute, ClientPortalView, ClientSession } from "../model/client-dashboard-types";
@@ -91,6 +94,15 @@ export function useClientDashboardViewModel({
   portalView?: ClientPortalView;
 }) {
   const router = useRouter();
+  const prefetch = usePrefetch();
+
+  // The overview's change requests and addenda only need the route's event id: start them with the
+  // workspace instead of after it, when their panels would otherwise mount.
+  useEffect(() => {
+    if (route !== "overview" || !eventId || readClientSession()?.role !== "client") return;
+    prefetch(clientEventChangeRequestsResource, eventId);
+    prefetch(clientEventAddendaResource, eventId);
+  }, [eventId, prefetch, route]);
   const [session, setSession] = useState<ClientSession | null>(null);
   const [actionCenter, setActionCenter] = useState<PrismClientActionCenter | null>(null);
   const [actionCenterLoadFailed, setActionCenterLoadFailed] = useState(false);

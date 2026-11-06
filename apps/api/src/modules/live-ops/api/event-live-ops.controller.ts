@@ -13,6 +13,7 @@ import {
   updateCoordinatorAttendanceSchema,
   updateEventDayTaskSchema,
   updateUrgentIssueSchema,
+  reportSupplierSiteStatusSchema,
   verifySupplierStatusSchema,
   createEventScheduleDaySchema,
   createEventScheduleSegmentSchema,
@@ -31,6 +32,7 @@ import {
   type UpdateCoordinatorAttendanceInput,
   type UpdateEventDayTaskInput,
   type UpdateUrgentIssueInput,
+  type ReportSupplierSiteStatusInput,
   type VerifySupplierStatusInput,
   type CreateEventScheduleDayInput,
   type CreateEventScheduleSegmentInput,
@@ -277,6 +279,18 @@ export class EventLiveOpsController {
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.commandService.replaceCoordinatorAssignment(eventId, assignmentId, dto, actor);
+  }
+
+  @Patch(':eventId/supplier-status/:requestId/report')
+  @UseGuards(EventSessionGuard)
+  reportSupplierStatus(
+    @Param('eventId') eventId: string,
+    @Param('requestId') requestId: string,
+    @Body(zodBody(reportSupplierSiteStatusSchema)) dto: ReportSupplierSiteStatusInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.commandService.reportSupplierEventStatus(eventId, requestId, dto, actor);
   }
 
   @Patch(':eventId/supplier-status/:requestId/verify')

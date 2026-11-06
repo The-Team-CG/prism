@@ -1,5 +1,16 @@
 import { z } from "zod";
 import { optionalTrimmedStringSchema } from "./common.js";
+
+export const tableAssignmentIneligibleReasonSchema = z.enum([
+  "unknown-guest",
+  "guest-declined",
+  "not-a-table",
+  "table-hidden",
+  "table-full",
+  "guest-already-seated",
+  "event-too-large",
+]);
+export type TableAssignmentIneligibleReason = z.infer<typeof tableAssignmentIneligibleReasonSchema>;
 /* ── Floorplan preference (client layout notes) ───────────────── */
 
 export const createFloorPlanDraftSchema = z.object({

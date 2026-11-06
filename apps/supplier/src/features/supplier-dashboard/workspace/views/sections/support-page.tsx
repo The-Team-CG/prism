@@ -36,7 +36,6 @@ import { PrismDashboardShell } from "@prism/ui";
 import {
   EVENT_STATUS_ACTIONS,
   buildBookingSteps,
-  buildCalendarEvents,
   closedRequestReason,
   firstNameFrom,
   formatDate,

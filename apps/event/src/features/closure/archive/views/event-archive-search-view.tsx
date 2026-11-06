@@ -1,6 +1,7 @@
 "use client";
 
 import { Archive } from "lucide-react";
+import { formatPortalDate } from "@prism/ui/format-date";
 import { Button } from "@/app/components/ui/button";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { archiveComparisonHint } from "../model/archive-comparison-rules";
@@ -76,7 +77,7 @@ export function EventArchiveSearchView() {
                     </span>
                   </span>
                 </span>
-                <span className="text-xs font-semibold text-muted-foreground">{hit.eventDate}</span>
+                <span className="text-xs font-semibold text-muted-foreground">{formatPortalDate(hit.eventDate)}</span>
               </label>
             ))}
           </div>
