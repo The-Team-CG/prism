@@ -6,6 +6,7 @@ import { proposalIssuerRepository } from "../data/proposal-issuer-repository";
 import {
   buildCostEstimateInput,
   buildIssueProposalInput,
+  buildProposalDraftRequest,
   emptyEstimateLine,
   estimateTotal,
   type EstimateLineDraft,
@@ -22,6 +23,9 @@ export function useProposalIssuerViewModel(eventId: string) {
   const [summary, setSummary] = useState("");
   const [revisionNote, setRevisionNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [drafting, setDrafting] = useState(false);
+  // What the form held before the last AI draft, so one click restores typed text.
+  const [beforeDraft, setBeforeDraft] = useState<{ title: string; summary: string; revisionNote: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   // Kept between attempts so a failed issue retries against the estimate it already created.
@@ -68,6 +72,38 @@ export function useProposalIssuerViewModel(eventId: string) {
     editEstimate(setLines)(lines.map((line) => (line.key === key ? { ...line, ...patch } : line)));
   const addLine = () => editEstimate(setLines)([...lines, newLine()]);
   const removeLine = (key: string) => editEstimate(setLines)(lines.length > 1 ? lines.filter((line) => line.key !== key) : lines);
+
+  /** Fills the title, summary and change note from the estimate. Nothing is issued; PMCM edits first. */
+  async function draftWording() {
+    if (drafting || busy) return;
+    const requestedEventId = eventId;
+    setDrafting(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const request = buildProposalDraftRequest(requestedEventId, { budgetAmount, notes, lines, title, summary, revisionNote });
+      const { draft } = await proposalIssuerRepository.draftWording(request);
+      if (currentEventId.current !== requestedEventId) return;
+      setBeforeDraft({ title, summary, revisionNote });
+      editProposal(setTitle)(draft.title);
+      editProposal(setSummary)(draft.summary);
+      if (latest) editProposal(setRevisionNote)(draft.revisionNote);
+      setNotice("Draft wording added. Review and edit it before you issue.");
+    } catch (cause) {
+      if (currentEventId.current === requestedEventId) setError(cause instanceof Error ? cause.message : "Could not draft the wording.");
+    } finally {
+      if (currentEventId.current === requestedEventId) setDrafting(false);
+    }
+  }
+
+  function undoDraft() {
+    if (!beforeDraft) return;
+    editProposal(setTitle)(beforeDraft.title);
+    editProposal(setSummary)(beforeDraft.summary);
+    editProposal(setRevisionNote)(beforeDraft.revisionNote);
+    setBeforeDraft(null);
+    setNotice("Your earlier wording is back.");
+  }
 
   async function issue() {
     if (busy) return;
@@ -118,6 +154,10 @@ export function useProposalIssuerViewModel(eventId: string) {
     revisionNote,
     setRevisionNote: editProposal(setRevisionNote),
     busy,
+    drafting,
+    draftWording,
+    canUndoDraft: beforeDraft !== null,
+    undoDraft,
     error,
     notice,
     updateLine,

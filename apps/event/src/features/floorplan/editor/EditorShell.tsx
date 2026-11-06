@@ -20,6 +20,7 @@ const assignmentRejectionMessages: AssignmentRejectionMessages = {
   "table-hidden": "Hidden tables cannot take guests. Unhide the table first.",
   "table-full": "This table has no free seats.",
   "guest-already-seated": "A guest can only be seated at one table.",
+  "event-too-large": "Table assignment is only available for events under 200 guests.",
 };
 
 type EventEditorShellProps = Omit<
