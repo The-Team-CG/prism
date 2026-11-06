@@ -936,7 +936,7 @@ export class EventReadModelQueries {
             { slaDueAt: null, dueAt: { lt: now } },
           ],
         },
-        select: { id: true, eventId: true, title: true, status: true, assignedRole: true, ownerName: true, dueAt: true, slaDueAt: true, slaStatus: true },
+        select: { id: true, eventId: true, title: true, status: true, assignedRole: true, ownerName: true, notes: true, dueAt: true, slaDueAt: true, slaStatus: true },
         orderBy: [{ slaDueAt: 'asc' }, { id: 'asc' }],
         // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
         skip, take,
