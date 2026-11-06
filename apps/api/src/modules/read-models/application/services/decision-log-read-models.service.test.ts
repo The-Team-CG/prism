@@ -40,7 +40,7 @@ function emptySources(overrides: Partial<DecisionLogSources> = {}): DecisionLogS
 }
 
 function audit(affectedType: string, affectedId: string, actor = 'Ms. Mys', actorRole = 'pmcm-admin', day = 1) {
-  return { affectedType, affectedId, actor, actorRole, createdAt: at(day) };
+  return { id: `audit_${affectedType}_${affectedId}_${day}`, affectedType, affectedId, actor, actorRole, createdAt: at(day) };
 }
 
 /** One source row per kind, each dated on a distinct day so newest-first order is checkable. */
@@ -51,15 +51,15 @@ function everySource(): DecisionLogSources {
       { id: 'dec_post', decision: 'postponed', reason: 'Venue flooding', actorName: 'Ms. Mys', actorRole: 'pmcm-admin', decidedAt: at(2) },
       { id: 'dec_cancel', decision: 'cancelled', reason: 'Client withdrew', actorName: 'Ms. Mys', actorRole: 'pmcm-admin', decidedAt: at(3) },
     ],
-    freezeExceptions: [{ id: 'fx_1', requestedChange: 'Add photo booth', reason: 'Sponsor request', status: 'approved', decidedBy: 'Ms. Mys', decisionNote: 'Sponsor covers cost', decidedAt: at(4) }],
+    freezeExceptions: [{ id: 'fx_1', requestedChange: 'Add photo booth', reason: 'Sponsor request', status: 'approved', decidedBy: 'Ms. Mys', decisionNote: 'Sponsor covers cost', requestedAt: at(3), decidedAt: at(4) }],
     addenda: [{ id: 'add_1', versionNumber: 2, title: 'Photo booth', summary: 'Adds booth after freeze exception', status: 'issued', financialDelta: 5000, issuedAt: at(5), _count: { impacts: 2 } }],
     complianceOverrides: [{ id: 'chk_1', title: 'Fire permit uploaded', status: 'overridden', overrideReason: 'Permit verified at city hall', overrideAt: at(6), overrideBy: 'Ms. Mys' }],
     riskChanges: [{ id: 'rh_1', riskId: 'risk_1', action: 'update', status: 'closed', severity: 'high', actor: 'Ms. Mys', reason: 'Generator backup confirmed', createdAt: at(7), risk: { title: 'Power outage' } }],
     ocularWaivers: [{ id: 'ocu_1', status: 'waived', waiverReason: 'Site plan already confirmed', waivedAt: at(8), waivedBy: 'Ms. Mys' }],
-    billingCorrections: [{ id: 'corr_1', statementId: 'stmt_1', reason: 'Duplicate line', status: 'approved', correctedTotalAmount: 90000, resolvedBy: 'Ms. Mys', resolutionNotes: 'Duplicate catering line removed', resolvedAt: at(9) }],
+    billingCorrections: [{ id: 'corr_1', statementId: 'stmt_1', reason: 'Duplicate line', status: 'approved', correctedTotalAmount: 90000, resolvedBy: 'Ms. Mys', resolutionNotes: 'Duplicate catering line removed', createdAt: at(8), resolvedAt: at(9) }],
     billingWaivers: [{ id: 'addbill_1', description: 'Overtime equipment', amount: 5000, status: 'waived', waiverReason: 'Goodwill for repeat client', waivedBy: 'Ms. Mys', waivedAt: at(10) }],
     paymentTermsOverrides: [{ id: 'bsrc_1', sourceLabel: 'Final proposal', status: 'approved', paymentTermsOverrideReason: 'Repeat client with approved credit terms', paymentTermsApprovedBy: 'Ms. Mys', approvedAt: at(11), createdAt: at(1) }],
-    reassignments: [{ id: 'reassign_1', status: 'approved', reason: 'Coordinator ill', decisionReason: 'Backup coordinator available', decidedBy: 'Ms. Mys', decidedAt: at(12), fromOwnerRole: 'Floor Director', fromOwnerName: 'Rhea', toOwnerRole: 'Floor Director', toOwnerName: 'Taylor', task: { title: 'Stage check' } }],
+    reassignments: [{ id: 'reassign_1', status: 'approved', reason: 'Coordinator ill', decisionReason: 'Backup coordinator available', decidedBy: 'Ms. Mys', requestedAt: at(11), decidedAt: at(12), fromOwnerRole: 'Floor Director', fromOwnerName: 'Rhea', toOwnerRole: 'Floor Director', toOwnerName: 'Taylor', task: { title: 'Stage check' } }],
     inquiryMerges: [{ id: 'merge_1', primaryInquiryId: 'inq_1', mergedInquiryId: 'inq_dup', matchBasis: 'organization', reason: 'Same organization, same date', actorName: 'Ms. Mys', actorRole: 'pmcm-admin', createdAt: at(14) }],
     auditAttributions: [
       audit('event', EVENT_ID),
@@ -124,6 +124,29 @@ describe('DecisionLogReadModelsService', () => {
     ]);
     expect(log.page).toEqual({ index: 0, size: 25, total: 13, hasMore: false });
     expect(Object.values(log.kindCounts).every((count) => count === 1)).toBe(true);
+  });
+
+  it('includes pending requests at request time and uses the newest available audit role', async () => {
+    const { service } = createService(emptySources({
+      freezeExceptions: [{ id: 'fx_pending', requestedChange: 'Move photo booth', reason: 'Client request', status: 'pending', decidedBy: null, decisionNote: null, requestedAt: at(3), decidedAt: null }],
+      billingCorrections: [{ id: 'corr_pending', statementId: 'stmt_2', reason: 'Duplicate line', status: 'pending', correctedTotalAmount: null, resolvedBy: null, resolutionNotes: null, createdAt: at(4), resolvedAt: null }],
+      reassignments: [{ id: 'reassign_pending', status: 'pending', reason: 'Coordinator unavailable', decisionReason: null, decidedBy: null, requestedAt: at(5), decidedAt: null, fromOwnerRole: 'Floor Director', fromOwnerName: 'Rhea', toOwnerRole: 'Floor Director', toOwnerName: 'Taylor', task: { title: 'Stage check' } }],
+      auditAttributions: [
+        audit('freeze_exception', 'fx_pending', 'Marco Santos', 'coordinator', 2),
+        audit('freeze_exception', 'fx_pending', 'Ms. Mys', 'pmcm-admin', 6),
+        audit('billing_correction', 'corr_pending', 'Approver', 'pmcm-admin', 7),
+        audit('event_task_reassignment', 'reassign_pending', 'Ms. Mys', 'pmcm-admin', 8),
+      ],
+    }));
+
+    const log = await service.getDecisionLog(EVENT_ID, actor(OpsUserRole.PmcmAdmin), query());
+
+    expect(log.entries).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'freeze_exception:fx_pending', decision: 'pending', decidedAt: at(3).toISOString(), actor: { name: 'Ms. Mys', role: 'pmcm-admin' } }),
+      expect.objectContaining({ id: 'billing_correction:corr_pending', decision: 'pending', decidedAt: at(4).toISOString(), actor: { name: 'Approver', role: 'pmcm-admin' } }),
+      expect.objectContaining({ id: 'event_task_reassignment:reassign_pending', decision: 'pending', decidedAt: at(5).toISOString(), actor: { name: 'Ms. Mys', role: 'pmcm-admin' } }),
+    ]));
+    expect(log.page.total).toBe(3);
   });
 
   it('pages the filtered list without overlap and keeps kind counts unfiltered', async () => {

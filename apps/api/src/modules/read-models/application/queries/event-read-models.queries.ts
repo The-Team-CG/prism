@@ -51,8 +51,8 @@ export const MAX_EVENT_SCHEDULE_DAYS = 100;
 export const MAX_EVENT_SCHEDULE_SEGMENTS = 200;
 export const MAX_TASK_REASSIGNMENT_REQUESTS = 100;
 export const MAX_EVENT_HANDOFFS = 200;
-export const MAX_DECISION_LOG_SOURCE_ROWS = 200;
-export const MAX_DECISION_LOG_AUDIT_ROWS = 500;
+export const DECISION_LOG_SOURCE_PAGE_SIZE = 200;
+export const DECISION_LOG_AUDIT_PAGE_SIZE = 500;
 /** Audit `affectedType`s that attribute (actor name and role) a decision-log source row. */
 export const DECISION_LOG_AUDIT_AFFECTED_TYPES = [
   'event',
@@ -376,9 +376,8 @@ export class EventReadModelQueries {
     });
   }
 
-  // Query budget: one selected event query plus twelve bounded event-scoped decision-source queries
-  // (FL-019), no per-row Prisma loop. Reasons come from each source row's dedicated field; the audit
-  // query only returns attribution columns (actor, role, affected record), never metadata.
+  // Query budget: one selected event query plus twelve keyset-paged decision-source queries (FL-019).
+  // Reasons come from source rows; the audit query returns attribution columns only, never metadata.
   async decisionLogSourcesForEvent(eventId: string) {
     const event = await this.prisma.opsEvent.findUnique({
       where: { id: eventId },
@@ -394,7 +393,6 @@ export class EventReadModelQueries {
       },
     });
     if (!event) return null;
-    const take = MAX_DECISION_LOG_SOURCE_ROWS;
     const [
       eventDecisions,
       freezeExceptions,
@@ -409,82 +407,107 @@ export class EventReadModelQueries {
       inquiryMerges,
       auditAttributions,
     ] = await Promise.all([
-      this.prisma.opsEventDecision.findMany({
-        where: { eventId },
-        select: { id: true, decision: true, reason: true, actorName: true, actorRole: true, decidedAt: true },
-        orderBy: [{ decidedAt: 'desc' }, { id: 'desc' }],
-        take,
-      }),
-      this.prisma.opsEventFreezeException.findMany({
-        where: { eventId, decidedAt: { not: null } },
-        select: { id: true, requestedChange: true, reason: true, status: true, decidedBy: true, decisionNote: true, decidedAt: true },
-        orderBy: [{ decidedAt: 'desc' }, { id: 'desc' }],
-        take,
-      }),
-      this.prisma.opsAddendum.findMany({
-        where: { eventId },
-        select: { id: true, versionNumber: true, title: true, summary: true, status: true, financialDelta: true, issuedAt: true, _count: { select: { impacts: true } } },
-        orderBy: [{ issuedAt: 'desc' }, { id: 'desc' }],
-        take,
-      }),
-      this.prisma.opsComplianceCheck.findMany({
-        where: { eventId, overrideAt: { not: null } },
-        select: { id: true, title: true, status: true, overrideReason: true, overrideAt: true, overrideBy: true },
-        orderBy: [{ overrideAt: 'desc' }, { id: 'desc' }],
-        take,
-      }),
+      readAllRowsById(DECISION_LOG_SOURCE_PAGE_SIZE, (afterId) =>
+        this.prisma.opsEventDecision.findMany({
+          where: { eventId, ...(afterId ? { id: { gt: afterId } } : {}) },
+          select: { id: true, decision: true, reason: true, actorName: true, actorRole: true, decidedAt: true },
+          orderBy: { id: 'asc' },
+          take: DECISION_LOG_SOURCE_PAGE_SIZE,
+        }),
+      ),
+      readAllRowsById(DECISION_LOG_SOURCE_PAGE_SIZE, (afterId) =>
+        this.prisma.opsEventFreezeException.findMany({
+          where: { eventId, ...(afterId ? { id: { gt: afterId } } : {}) },
+          select: { id: true, requestedChange: true, reason: true, status: true, decidedBy: true, decisionNote: true, requestedAt: true, decidedAt: true },
+          orderBy: { id: 'asc' },
+          take: DECISION_LOG_SOURCE_PAGE_SIZE,
+        }),
+      ),
+      readAllRowsById(DECISION_LOG_SOURCE_PAGE_SIZE, (afterId) =>
+        this.prisma.opsAddendum.findMany({
+          where: { eventId, ...(afterId ? { id: { gt: afterId } } : {}) },
+          select: { id: true, versionNumber: true, title: true, summary: true, status: true, financialDelta: true, issuedAt: true, _count: { select: { impacts: true } } },
+          orderBy: { id: 'asc' },
+          take: DECISION_LOG_SOURCE_PAGE_SIZE,
+        }),
+      ),
+      readAllRowsById(DECISION_LOG_SOURCE_PAGE_SIZE, (afterId) =>
+        this.prisma.opsComplianceCheck.findMany({
+          where: { eventId, overrideAt: { not: null }, ...(afterId ? { id: { gt: afterId } } : {}) },
+          select: { id: true, title: true, status: true, overrideReason: true, overrideAt: true, overrideBy: true },
+          orderBy: { id: 'asc' },
+          take: DECISION_LOG_SOURCE_PAGE_SIZE,
+        }),
+      ),
       // Engine-raised history rows are automated evaluations, not management decisions.
-      this.prisma.opsComplianceRiskHistory.findMany({
-        where: { risk: { eventId }, action: { in: ['create', 'update'] } },
-        select: { id: true, riskId: true, action: true, status: true, severity: true, actor: true, reason: true, createdAt: true, risk: { select: { title: true } } },
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        take,
-      }),
-      this.prisma.opsOcularVisitRequest.findMany({
-        where: { eventId, waivedAt: { not: null } },
-        select: { id: true, status: true, waiverReason: true, waivedAt: true, waivedBy: true },
-        take: 1,
-      }),
-      this.prisma.opsBillingCorrection.findMany({
-        where: { eventId, resolvedAt: { not: null } },
-        select: { id: true, statementId: true, reason: true, status: true, correctedTotalAmount: true, resolvedBy: true, resolutionNotes: true, resolvedAt: true },
-        orderBy: [{ resolvedAt: 'desc' }, { id: 'desc' }],
-        take,
-      }),
-      this.prisma.opsAdditionalBilling.findMany({
-        where: { eventId, waivedAt: { not: null } },
-        select: { id: true, description: true, amount: true, status: true, waiverReason: true, waivedBy: true, waivedAt: true },
-        orderBy: [{ waivedAt: 'desc' }, { id: 'desc' }],
-        take,
-      }),
-      this.prisma.opsBillingSource.findMany({
-        where: { eventId, paymentTermsPolicyState: 'repeat_client_override' },
-        select: { id: true, sourceLabel: true, status: true, paymentTermsOverrideReason: true, paymentTermsApprovedBy: true, approvedAt: true, createdAt: true },
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        take,
-      }),
-      this.prisma.opsEventTaskReassignmentRequest.findMany({
-        where: { eventId, decidedAt: { not: null } },
-        select: {
-          id: true, status: true, reason: true, decisionReason: true, decidedBy: true, decidedAt: true,
-          fromOwnerRole: true, fromOwnerName: true, toOwnerRole: true, toOwnerName: true,
-          task: { select: { title: true } },
-        },
-        orderBy: [{ decidedAt: 'desc' }, { id: 'desc' }],
-        take,
-      }),
-      this.prisma.opsInquiryMerge.findMany({
-        where: { OR: [{ primaryInquiryId: event.inquiryId }, { mergedInquiryId: event.inquiryId }] },
-        select: { id: true, primaryInquiryId: true, mergedInquiryId: true, matchBasis: true, reason: true, actorName: true, actorRole: true, createdAt: true },
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        take,
-      }),
-      this.prisma.opsAuditLog.findMany({
-        where: { eventId, affectedType: { in: [...DECISION_LOG_AUDIT_AFFECTED_TYPES] }, category: { not: AuditCategory.Access } },
-        select: { actor: true, actorRole: true, affectedType: true, affectedId: true, createdAt: true },
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        take: MAX_DECISION_LOG_AUDIT_ROWS,
-      }),
+      readAllRowsById(DECISION_LOG_SOURCE_PAGE_SIZE, (afterId) =>
+        this.prisma.opsComplianceRiskHistory.findMany({
+          where: { risk: { eventId }, action: { in: ['create', 'update'] }, ...(afterId ? { id: { gt: afterId } } : {}) },
+          select: { id: true, riskId: true, action: true, status: true, severity: true, actor: true, reason: true, createdAt: true, risk: { select: { title: true } } },
+          orderBy: { id: 'asc' },
+          take: DECISION_LOG_SOURCE_PAGE_SIZE,
+        }),
+      ),
+      readAllRowsById(DECISION_LOG_SOURCE_PAGE_SIZE, (afterId) =>
+        this.prisma.opsOcularVisitRequest.findMany({
+          where: { eventId, waivedAt: { not: null }, ...(afterId ? { id: { gt: afterId } } : {}) },
+          select: { id: true, status: true, waiverReason: true, waivedAt: true, waivedBy: true },
+          orderBy: { id: 'asc' },
+          take: DECISION_LOG_SOURCE_PAGE_SIZE,
+        }),
+      ),
+      readAllRowsById(DECISION_LOG_SOURCE_PAGE_SIZE, (afterId) =>
+        this.prisma.opsBillingCorrection.findMany({
+          where: { eventId, ...(afterId ? { id: { gt: afterId } } : {}) },
+          select: { id: true, statementId: true, reason: true, status: true, correctedTotalAmount: true, resolvedBy: true, resolutionNotes: true, createdAt: true, resolvedAt: true },
+          orderBy: { id: 'asc' },
+          take: DECISION_LOG_SOURCE_PAGE_SIZE,
+        }),
+      ),
+      readAllRowsById(DECISION_LOG_SOURCE_PAGE_SIZE, (afterId) =>
+        this.prisma.opsAdditionalBilling.findMany({
+          where: { eventId, waivedAt: { not: null }, ...(afterId ? { id: { gt: afterId } } : {}) },
+          select: { id: true, description: true, amount: true, status: true, waiverReason: true, waivedBy: true, waivedAt: true },
+          orderBy: { id: 'asc' },
+          take: DECISION_LOG_SOURCE_PAGE_SIZE,
+        }),
+      ),
+      readAllRowsById(DECISION_LOG_SOURCE_PAGE_SIZE, (afterId) =>
+        this.prisma.opsBillingSource.findMany({
+          where: { eventId, paymentTermsPolicyState: 'repeat_client_override', ...(afterId ? { id: { gt: afterId } } : {}) },
+          select: { id: true, sourceLabel: true, status: true, paymentTermsOverrideReason: true, paymentTermsApprovedBy: true, approvedAt: true, createdAt: true },
+          orderBy: { id: 'asc' },
+          take: DECISION_LOG_SOURCE_PAGE_SIZE,
+        }),
+      ),
+      readAllRowsById(DECISION_LOG_SOURCE_PAGE_SIZE, (afterId) =>
+        this.prisma.opsEventTaskReassignmentRequest.findMany({
+          where: { eventId, ...(afterId ? { id: { gt: afterId } } : {}) },
+          select: {
+            id: true, status: true, reason: true, decisionReason: true, decidedBy: true, requestedAt: true, decidedAt: true,
+            fromOwnerRole: true, fromOwnerName: true, toOwnerRole: true, toOwnerName: true,
+            task: { select: { title: true } },
+          },
+          orderBy: { id: 'asc' },
+          take: DECISION_LOG_SOURCE_PAGE_SIZE,
+        }),
+      ),
+      readAllRowsById(DECISION_LOG_SOURCE_PAGE_SIZE, (afterId) =>
+        this.prisma.opsInquiryMerge.findMany({
+          where: { OR: [{ primaryInquiryId: event.inquiryId }, { mergedInquiryId: event.inquiryId }], ...(afterId ? { id: { gt: afterId } } : {}) },
+          select: { id: true, primaryInquiryId: true, mergedInquiryId: true, matchBasis: true, reason: true, actorName: true, actorRole: true, createdAt: true },
+          orderBy: { id: 'asc' },
+          take: DECISION_LOG_SOURCE_PAGE_SIZE,
+        }),
+      ),
+      readAllRowsById(DECISION_LOG_AUDIT_PAGE_SIZE, (afterId) =>
+        this.prisma.opsAuditLog.findMany({
+          where: { eventId, affectedType: { in: [...DECISION_LOG_AUDIT_AFFECTED_TYPES] }, category: { not: AuditCategory.Access }, ...(afterId ? { id: { gt: afterId } } : {}) },
+          select: { id: true, actor: true, actorRole: true, affectedType: true, affectedId: true, createdAt: true },
+          orderBy: { id: 'asc' },
+          take: DECISION_LOG_AUDIT_PAGE_SIZE,
+        }),
+      ),
     ]);
     return {
       event,
