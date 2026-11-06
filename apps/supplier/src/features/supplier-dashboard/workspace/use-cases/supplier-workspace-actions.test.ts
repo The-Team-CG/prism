@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PRISM_SESSION_STORAGE_KEYS, type PrismAuthenticatedSession } from "@prism/types";
 import { supplierWorkspaceRepository } from "../data/supplier-workspace-repository";
-import { signOutSupplier } from "./supplier-workspace-actions";
+import { loadSupplierFileRequirements, signOutSupplier } from "./supplier-workspace-actions";
 
 const supplierSession: PrismAuthenticatedSession = {
   id: "supplier_1",
@@ -27,6 +27,23 @@ function stubBrowserStorage(initial: Record<string, string>) {
   return items;
 }
 
+describe("loadSupplierFileRequirements", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("loads role-filtered file matrices for unique assigned event ids in bounded batches", async () => {
+    const eventIds = Array.from({ length: 21 }, (_, index) => `evt_${index + 1}`);
+    const fetchFileRequirements = vi.spyOn(supplierWorkspaceRepository, "fetchFileRequirements")
+      .mockImplementation(async (eventId) => ({ eventId, items: [] }));
+
+    const matrices = await loadSupplierFileRequirements(supplierSession, [...eventIds, eventIds[0]!]);
+
+    expect(fetchFileRequirements).toHaveBeenCalledTimes(eventIds.length);
+    expect(fetchFileRequirements).toHaveBeenNthCalledWith(1, eventIds[0], supplierSession);
+    expect(fetchFileRequirements).toHaveBeenNthCalledWith(eventIds.length, eventIds.at(-1), supplierSession);
+    expect(matrices.map((matrix) => matrix.eventId)).toEqual(eventIds);
+  });
+});
+
 describe("signOutSupplier", () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -38,9 +55,7 @@ describe("signOutSupplier", () => {
       [PRISM_SESSION_STORAGE_KEYS.supplier]: JSON.stringify(supplierSession),
     });
     const logoutRequest = vi.spyOn(supplierWorkspaceRepository, "logout").mockImplementation(logout);
-
     await expect(signOutSupplier()).resolves.toBeUndefined();
-
     expect(logoutRequest).toHaveBeenCalledOnce();
     expect(items.has(PRISM_SESSION_STORAGE_KEYS.supplier)).toBe(false);
   });

@@ -6,6 +6,10 @@ export function supplierWorkHref(item: Pick<PrismSupplierReadinessItem, "quoteSt
   return `${supplierSectionHref(supplierReadinessSection(item))}#supplier-work-${encodeURIComponent(item.requestId)}`;
 }
 
+export function supplierBookingHref(requestId: string) {
+  return `${supplierSectionHref("bookings")}#supplier-work-${encodeURIComponent(requestId)}`;
+}
+
 function quoteNextStep(item: PrismSupplierReadinessItem, hasQuote: boolean) {
     if (["closed", "cancelled"].includes(item.quoteStatus)) return { title: "Request closed", detail: "Review the request and any quote you submitted.", action: "View request", owner: "For reference" };
     return hasQuote

@@ -5,7 +5,7 @@ import {
   parseQuoteForm,
   quoteSubmitSuccessNotice,
 } from "../model/supplier-workspace-rules";
-import type { PrismAuthenticatedSession, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, PrismSupplierWorkflowWorkspace } from "@prism/types";
+import type { PrismAuthenticatedSession, PrismFileRequirementsMatrix, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, PrismSupplierWorkflowWorkspace } from "@prism/types";
 import type { PrismSupplier, QuoteFormState, SupplierWorkspace } from "../model/supplier-workspace-types";
 
 export function loadSupplierDashboardSession(): PrismAuthenticatedSession | null {
@@ -34,6 +34,21 @@ export async function loadSupplierWorkspace(session: PrismAuthenticatedSession):
     supplierWorkflowRepository.fetch(session),
   ]);
   return { workspace, readinessBoard, workflows };
+}
+
+export async function loadSupplierFileRequirements(
+  session: PrismAuthenticatedSession,
+  eventIds: string[],
+): Promise<PrismFileRequirementsMatrix[]> {
+  const matrices: PrismFileRequirementsMatrix[] = [];
+  const uniqueEventIds = [...new Set(eventIds)];
+  for (let offset = 0; offset < uniqueEventIds.length; offset += 10) {
+    const batch = await Promise.all(uniqueEventIds.slice(offset, offset + 10).map((eventId) =>
+      supplierWorkspaceRepository.fetchFileRequirements(eventId, session),
+    ));
+    matrices.push(...batch);
+  }
+  return matrices;
 }
 
 export async function submitOrReviseQuote(input: {
