@@ -22,7 +22,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
     await test.step('Public client submits; PMCM accepts; client activates from the local inbox', async () => {
       inquiry = await submitPublicInquiry(client, 'Full browser lifecycle', info.project.name === 'mobile' ? '12/16/2030' : '12/15/2030');
       await pmcm.page.goto(`${origins.event}/dashboard/inquiries`);
-      await pmcm.page.getByPlaceholder('Search client, email, or event...').fill(inquiry.eventName);
+      await pmcm.page.getByRole('searchbox', { name: 'Search inquiries' }).fill(inquiry.eventName);
       await pmcm.page.getByRole('button', { name: `Review inquiry ${inquiry.eventName}`, exact: true }).click();
       await pmcm.page.getByRole('button', { name: 'Accept', exact: true }).click();
       await expect(pmcm.page.getByText('Inquiry accepted', { exact: true })).toBeVisible();

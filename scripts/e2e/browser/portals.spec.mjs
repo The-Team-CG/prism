@@ -11,7 +11,7 @@ test('PMCM completes MFA and accepts an inquiry through the portal', async ({ pa
   const inquiry = await createInquiry('PMCM browser approval');
   await signInPmcm(page);
   await page.goto(`${origins.event}/dashboard/inquiries`);
-  await page.getByPlaceholder('Search client, email, or event...').fill(inquiry.eventName);
+  await page.getByRole('searchbox', { name: 'Search inquiries' }).fill(inquiry.eventName);
   await page.getByRole('button', { name: `Review inquiry ${inquiry.eventName}`, exact: true }).click();
   await page.getByRole('button', { name: 'Accept', exact: true }).click();
   await expect(page.getByText('Inquiry accepted', { exact: true })).toBeVisible();
