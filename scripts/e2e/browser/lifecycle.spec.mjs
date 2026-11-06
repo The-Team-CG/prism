@@ -32,6 +32,8 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await client.getByLabel('Confirm new password', { exact: true }).fill(password);
       await client.getByRole('button', { name: 'Set password', exact: true }).click();
       await client.getByRole('link', { name: 'Sign in', exact: true }).click();
+      await expect(client).toHaveURL(/\/sign-in$/);
+      await client.waitForLoadState('networkidle');
       await fillStable(client.getByLabel('Email address'), inquiry.email);
       await fillStable(client.getByLabel('Password', { exact: true }), password);
       await client.getByRole('button', { name: 'Sign in', exact: true }).click();
@@ -96,6 +98,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await expect(revisedProposal.getByRole('status')).toContainText('Version 2 is issued');
       // The client's proposal package includes billing, and a client only sees a statement once PMCM sends it.
       await pmcm.page.goto(path('billing'));
+      await pmcm.page.getByRole('tab', { name: 'Billing sources', exact: true }).click();
       const billing = pmcm.page.getByRole('region', { name: 'Billing source', exact: true });
       await billing.getByLabel('Amount (PHP)', { exact: true }).fill('100000');
       await billing.getByLabel('Proposal evidence', { exact: true }).selectOption({ index: 1 });
@@ -148,6 +151,8 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await applicant.getByRole('button', { name: 'Activate account', exact: true }).click();
       await expect(applicant.getByRole('heading', { name: "You're all set", exact: true })).toBeVisible();
       await applicant.getByRole('link', { name: 'Sign in', exact: true }).click();
+      await expect(applicant).toHaveURL(/\/sign-in$/);
+      await applicant.waitForLoadState('networkidle');
       await fillStable(applicant.getByLabel('Email address', { exact: true }), supplierEmail);
       await fillStable(applicant.getByLabel('Password', { exact: true }), password);
       await applicant.getByRole('button', { name: 'Sign in', exact: true }).click();
