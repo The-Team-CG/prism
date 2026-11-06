@@ -20,9 +20,9 @@ export function pareRiskColor(level: PARERisk["level"] | string) {
 
 export function pareModeCopy(mode: string) {
   if (mode === "live") {
-    return { label: "Claude AI", className: "bg-info-soft text-info" };
+    return { label: "AI assisted", className: "bg-info-soft text-info" };
   }
-  return { label: "Mock", className: "bg-muted text-muted-foreground" };
+  return { label: "Rules engine", className: "bg-muted text-muted-foreground" };
 }
 
 export function pareBudgetTone(feasible: boolean) {

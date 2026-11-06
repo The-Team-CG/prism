@@ -287,11 +287,11 @@ export async function run(ctx) {
     const hit = routeFilesOf("apps/supplier/src/app").find((p) => /quote/i.test(p.replace(ROOT, "")));
     if (!hit) gap("API only, no UI: GET /quote-requests/:token has no supplier-portal route (the link in the email is a bare /quote-requests/<token> path)");
   });
-  await step("supplier reads the request through its token; confidential bids hide client and event details", async () => {
+  await step("supplier reads the request through its token; confidential bids hide the client and event name but keep the date", async () => {
     need(s.tokA);
     const r = is(await call("GET", `/quote-requests/${s.tokA}`), 200);
     expect(r.request?.id === s.reqA.id, "token resolved to another request");
-    expect(r.clientName === null && r.eventName === "Confidential event" && r.eventDate === null, `confidential details leaked: ${text({ n: r.eventName, c: r.clientName, d: r.eventDate })}`);
+    expect(r.clientName === null && r.eventName === "Confidential event" && Boolean(r.eventDate), `confidential details leaked: ${text({ n: r.eventName, c: r.clientName, d: r.eventDate })}`);
     const privateKeys = ["eventDayVerificationNotes", "eventDayVerifiedBy"].filter((key) => key in r.request);
     expect(!privateKeys.length, `PMCM verification fields are exposed: ${privateKeys.join(", ")}`);
   });

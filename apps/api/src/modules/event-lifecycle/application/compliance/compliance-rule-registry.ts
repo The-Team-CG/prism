@@ -151,9 +151,9 @@ export const COMPLIANCE_RULE_REGISTRY: readonly ComplianceRuleDefinition[] = [
   },
   {
     id: 'compliance.lifecycle.event-date-valid', conditionKey: 'event_date_relative_to_now',
-    title: 'Event date is still actionable', phases: ['planning', 'pre_event'],
+    title: 'Event date is upcoming', phases: ['planning', 'pre_event'],
     severity: 'advisory', layer: 'Advisory', definitionStatus: 'PROVISIONAL',
-    remediation: 'Confirm the event date or move the event through the appropriate lifecycle transition.',
+    remediation: 'The event date has passed. Start closure if the event took place, or record a postponement with the new date.',
     evaluate: (context, now) => context.event.eventDate.getTime() >= now.getTime()
       ? satisfied([`Persisted event date ${context.event.eventDate.toISOString()} is on or after evaluation time ${now.toISOString()}.`])
       : failed([`Persisted event date ${context.event.eventDate.toISOString()} is before evaluation time ${now.toISOString()}.`]),

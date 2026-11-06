@@ -8,6 +8,7 @@ import {
   MapPinned,
   ReceiptText,
 } from "lucide-react";
+import { PRISM_LIFECYCLE_STAGES, PRISM_LIFECYCLE_STAGE_LABELS, derivePrismLifecycleStage } from "@prism/types";
 import type { PrismAuditLog, PrismClientActionItem, PrismBillingStatement, PrismBriefing, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
@@ -36,44 +37,24 @@ export function daysToEventLabel(eventDate?: string | null, now = Date.now()) {
   return "Held";
 }
 
-export function overviewLifecycleSteps(
-  selectedEvent: PrismEvent,
-  briefing?: PrismBriefing,
-  billing?: PrismBillingStatement,
-  officialDraft?: PrismFloorPlanDraft,
-) {
-  const done = [
-    true,
-    selectedEvent.clientPortalStatus === "unlocked",
-    Boolean(briefing && billing),
-    officialDraft?.status === "approved",
-    false,
-    false,
-  ];
-  const labels = ["Inquiry accepted", "Conforme signed", "Briefing and proposal", "Planning", "Event day", "Closure"];
-  // Exactly one current stage: the first one not yet done.
-  const current = done.findIndex((value) => !value);
-  return labels.map((label, index) => ({
-    label,
-    state: done[index] ? ("done" as const) : index === current ? ("current" as const) : ("pending" as const),
+/** The shared lifecycle stage (same as PMCM sees), as a six-step strip. */
+export function overviewLifecycleSteps(selectedEvent: PrismEvent) {
+  const current = PRISM_LIFECYCLE_STAGES.indexOf(derivePrismLifecycleStage(selectedEvent));
+  return PRISM_LIFECYCLE_STAGES.map((stage, index) => ({
+    label: PRISM_LIFECYCLE_STAGE_LABELS[stage],
+    state: index < current ? ("done" as const) : index === current ? ("current" as const) : ("pending" as const),
   }));
 }
 
 /** The overview's lead: where the event stands and the one thing the client should do next. */
 export function OverviewNextDecision({
   selectedEvent,
-  briefing,
-  billing,
-  officialDraft,
   nextAction,
 }: {
   selectedEvent: PrismEvent;
-  briefing?: PrismBriefing;
-  billing?: PrismBillingStatement;
-  officialDraft?: PrismFloorPlanDraft;
   nextAction?: PrismClientActionItem;
 }) {
-  const steps = overviewLifecycleSteps(selectedEvent, briefing, billing, officialDraft);
+  const steps = overviewLifecycleSteps(selectedEvent);
   const currentIndex = Math.max(0, steps.findIndex((step) => step.state === "current"));
   return (
     <Card>
@@ -166,11 +147,9 @@ export function OverviewEventDetails({
         </div>
       </CardHeader>
       <CardBody className="py-2">
-        <DataRow label="Event name" value={selectedEvent.eventName} />
         <DataRow label="Primary contact" value={selectedEvent.clientName} />
-        <DataRow label="Date" value={selectedEvent.eventDate ?? "Pending"} />
-        <DataRow label="Status" value={<StatusBadge status={selectedEvent.status} />} />
-        <DataRow label="Readiness" value={selectedEvent.readiness ?? "Pending"} />
+        <DataRow label="Date" value={formatPortalDate(selectedEvent.eventDate, "Pending")} />
+        <DataRow label="Stage" value={PRISM_LIFECYCLE_STAGE_LABELS[derivePrismLifecycleStage(selectedEvent)]} />
         <DataRow
           label="Portal access"
           value={
@@ -212,7 +191,7 @@ export function OverviewFloorPlanCard({
       <CardBody className="py-2">
         <DataRow label="Preference drafts" value={preferenceDraftCount || "None yet"} />
         <DataRow label="Official layout" value={officialDraft ? formatLabel(officialDraft.status) : "Not published"} />
-        <DataRow label="Last update" value={officialDraft?.updatedAt ?? "—"} />
+        <DataRow label="Last update" value={officialDraft ? formatPortalDateTime(officialDraft.updatedAt) : "—"} />
       </CardBody>
       <div className="px-6 pb-5">
         <Button

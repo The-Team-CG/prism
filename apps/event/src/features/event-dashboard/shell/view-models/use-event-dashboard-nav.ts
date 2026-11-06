@@ -22,7 +22,8 @@ import {
   UsersRound,
 } from "lucide-react";
 import { type PrismNavItem } from "@prism/ui";
-import { eventWorkspaceSectionLabel, optionalNavBadge } from "../model/event-dashboard-nav-copy";
+import { isBeforePrismEventDay, type PrismLifecycleStage } from "@prism/types";
+import { optionalNavBadge } from "../model/event-dashboard-nav-copy";
 
 /**
  * Static PMCM dashboard nav configuration, extracted from
@@ -35,8 +36,15 @@ export function loadingShellNavItems(inEventWorkspace: boolean): PrismNavItem[] 
   return eventPortalNavItems({ inEventWorkspace });
 }
 
+const PREPARE = "Prepare";
+const EVENT_DAY = "Event day & after";
+
+/**
+ * Event tabs in the order the work happens. Preparation comes first; event-day and closure tabs are grouped
+ * after it, and closure counts stay hidden until the event day so planning-stage events do not look overdue.
+ */
 function eventWorkspaceNavItems(
-  eventSection: string,
+  stage: PrismLifecycleStage | undefined,
   counts: {
     assignmentCount?: number;
     quoteCount?: number;
@@ -45,18 +53,19 @@ function eventWorkspaceNavItems(
     closeoutCount?: number;
   },
 ): PrismNavItem[] {
+  const preEvent = !stage || isBeforePrismEventDay(stage);
   return [
-    { id: "event-overview", icon: LayoutGrid, label: "Overview", section: eventSection },
-    { id: "event-planning", icon: FileCheck2, label: "Planning & decisions", section: eventSection },
-    { id: "event-files", icon: FileText, label: "Files", section: eventSection },
-    { id: "event-floorplans", icon: MapPinned, label: "Floorplans", section: eventSection, badge: optionalNavBadge(counts.draftCount) },
-    { id: "event-suppliers", icon: Truck, label: "Suppliers", section: eventSection, badge: optionalNavBadge(counts.quoteCount) },
-    { id: "event-staff", icon: UsersRound, label: "Team & roles", section: eventSection, badge: optionalNavBadge(counts.assignmentCount) },
-    { id: "event-timeline", icon: Radio, label: "Live operations", section: eventSection },
-    { id: "event-budget", icon: ReceiptText, label: "Billing", section: eventSection, badge: optionalNavBadge(counts.paymentCount) },
-    { id: "event-report", icon: Archive, label: "Closure", section: eventSection, badge: optionalNavBadge(counts.closeoutCount) },
-    { id: "event-games", icon: Gamepad2, label: "Registration & games", section: eventSection },
-    { id: "event-messages", icon: MessageSquareText, label: "Messages", section: eventSection },
+    { id: "event-overview", icon: LayoutGrid, label: "Overview", section: PREPARE },
+    { id: "event-planning", icon: FileCheck2, label: "Planning & decisions", section: PREPARE },
+    { id: "event-floorplans", icon: MapPinned, label: "Floorplans", section: PREPARE, badge: optionalNavBadge(counts.draftCount) },
+    { id: "event-suppliers", icon: Truck, label: "Suppliers", section: PREPARE, badge: optionalNavBadge(counts.quoteCount) },
+    { id: "event-staff", icon: UsersRound, label: "Team & roles", section: PREPARE, badge: optionalNavBadge(counts.assignmentCount) },
+    { id: "event-budget", icon: ReceiptText, label: "Billing", section: PREPARE, badge: optionalNavBadge(counts.paymentCount) },
+    { id: "event-files", icon: FileText, label: "Files", section: PREPARE },
+    { id: "event-messages", icon: MessageSquareText, label: "Messages", section: PREPARE },
+    { id: "event-games", icon: Gamepad2, label: "Registration & games", section: EVENT_DAY },
+    { id: "event-timeline", icon: Radio, label: "Live operations", section: EVENT_DAY },
+    { id: "event-report", icon: Archive, label: "Closure", section: EVENT_DAY, badge: preEvent ? undefined : optionalNavBadge(counts.closeoutCount) },
   ];
 }
 
@@ -66,7 +75,7 @@ function eventWorkspaceNavItems(
  */
 export function eventPortalNavItems({
   inEventWorkspace,
-  eventName,
+  eventStage,
   inquiryCount,
   commandInboxCount,
   assignmentCount,
@@ -76,7 +85,7 @@ export function eventPortalNavItems({
   closeoutCount,
 }: {
   inEventWorkspace: boolean;
-  eventName?: string;
+  eventStage?: PrismLifecycleStage;
   inquiryCount?: number;
   commandInboxCount?: number | string;
   assignmentCount?: number;
@@ -88,9 +97,9 @@ export function eventPortalNavItems({
   const inbox: PrismNavItem = { id: "dashboard", icon: Inbox, label: "Inbox", section: "PMCM", badge: optionalNavBadge(commandInboxCount) };
   if (inEventWorkspace) {
     return [
-      ...eventWorkspaceNavItems(eventWorkspaceSectionLabel(eventName), { assignmentCount, quoteCount, draftCount, paymentCount, closeoutCount }),
-      { id: "events-list", icon: CalendarDays, label: "All events", section: "PMCM" },
-      inbox,
+      ...eventWorkspaceNavItems(eventStage, { assignmentCount, quoteCount, draftCount, paymentCount, closeoutCount }),
+      { id: "events-list", icon: CalendarDays, label: "All events", section: "Back to" },
+      { ...inbox, section: "Back to" },
     ];
   }
   return [

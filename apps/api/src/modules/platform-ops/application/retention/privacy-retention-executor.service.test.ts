@@ -13,13 +13,16 @@ function createExecutor() {
     redactGuest: vi.fn(async () => ({ surfaces: ['guest_check_in'], touchedRecords: 3 })),
     redactGuestRecord: vi.fn(async () => ({ surfaces: ['guest_feedback'], touchedRecords: 2 })),
   };
-  const executor = new PrivacyRetentionExecutorService(lifecycle as never, commercial as never, operations as never);
-  return { executor, lifecycle, commercial, operations };
+  const triage = {
+    eraseForInquiries: vi.fn(async (ids: readonly string[]) => (ids.length ? { surfaces: ['ai_triage'], touchedRecords: 1 } : { surfaces: [], touchedRecords: 0 })),
+  };
+  const executor = new PrivacyRetentionExecutorService(lifecycle as never, commercial as never, operations as never, triage as never);
+  return { executor, lifecycle, commercial, operations, triage };
 }
 
 describe('PrivacyRetentionExecutorService', () => {
   it('redacts an inquiry only for its own event, using the owner redactors, and reports their counts', async () => {
-    const { executor, lifecycle, commercial, operations } = createExecutor();
+    const { executor, lifecycle, commercial, operations, triage } = createExecutor();
     const candidate: PlatformRetentionCandidate = {
       category: 'inquiry', subjectId: 'inq_a', eventId: 'evt_a', subjectEmail: ' Ana@Ayala.TEST ', subjectName: '', anchorAt: new Date('2025-01-01T00:00:00.000Z'),
     };
@@ -32,7 +35,8 @@ describe('PrivacyRetentionExecutorService', () => {
     );
     expect(commercial.redactClientBilling).toHaveBeenCalledWith({ eventIds: ['evt_a'], redactedEmail: 'redacted+retention_retention_1@privacy.local' }, expect.anything());
     expect(operations.redactGuest).not.toHaveBeenCalled();
-    expect(result).toEqual({ surfaces: ['inquiry', 'billing_contact'], touchedRecords: 3 });
+    expect(triage.eraseForInquiries).toHaveBeenCalledWith(['inq_a'], expect.anything());
+    expect(result).toEqual({ surfaces: ['inquiry', 'billing_contact', 'ai_triage'], touchedRecords: 4 });
   });
 
   it('redacts a guest record by name inside its event through the operations redactor', async () => {

@@ -4,7 +4,7 @@ import { FileCheck2, FileText, ShieldCheck } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
-import { formatDate } from "../../model/supplier-workspace-rules";
+import { buildSupplierContractRequirements, formatDate } from "../../model/supplier-workspace-rules";
 import type { PrismAuthenticatedSession } from "@prism/types";
 import type { PrismSupplierWorkflowWorkspace } from "@prism/types";
 import type { SupplierWorkspace } from "../../model/supplier-workspace-types";
@@ -23,6 +23,7 @@ export function FilesPage({
   onDownloadObject: (objectId: string) => void;
 }) {
   const contracts = workflowWorkspace?.contracts ?? [];
+  const hasBooking = buildSupplierContractRequirements(workspace).length > 0;
 
   return (
     <div className="space-y-4">
@@ -37,7 +38,7 @@ export function FilesPage({
         </CardHeader>
         {contracts.length === 0 ? (
           <CardBody>
-            <EmptyState icon={FileCheck2} title="No contract files uploaded." description="Upload a signed contract from the Bookings section after PMCM selects your quote." />
+            <EmptyState icon={FileCheck2} title="No contract files uploaded." description={hasBooking ? "Upload your signed contract from the booking that needs it." : "Upload a signed contract from Bookings once PMCM selects your quote."} />
           </CardBody>
         ) : (
           <div className="divide-y divide-border">

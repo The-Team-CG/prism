@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { ExpressAdapter } from '@nestjs/platform-express';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { PrismaService } from '@prism/kernel/database';
@@ -149,7 +150,7 @@ describe('PlansController authenticated HTTP authorization', () => {
     otherAnaToken = session.issueSession(user('client-other', 'ana.other@example.test', 'client'), issuedAt).accessToken;
     pmcmToken = session.issueSession(user('pmcm-user', 'maxine@pmcm.example.test', 'pmcm-admin'), issuedAt).accessToken;
 
-    app = await NestFactory.create(PlansHttpTestModule, { logger: false });
+    app = await NestFactory.create(PlansHttpTestModule, new ExpressAdapter(), { logger: false });
     app.setGlobalPrefix('api');
     await app.listen(0, '127.0.0.1');
     const address = app.getHttpServer().address() as AddressInfo;

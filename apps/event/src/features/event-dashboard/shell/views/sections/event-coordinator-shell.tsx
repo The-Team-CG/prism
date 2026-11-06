@@ -6,9 +6,15 @@ import {
   SkeletonCard,
   SkeletonLine,
 } from "@/app/(portal)/dashboard/components/event-dashboard-skeleton";
-import { CoordinatorView } from "@/features/coordinators/desk";
+import dynamic from "next/dynamic";
+import { useCoordinatorHomePrefetch } from "@/features/coordinators/desk/view-models/use-coordinator-home-prefetch";
 import type { EventSession } from "@/app/lib/session";
 import type { EventDashboardShellViewModel } from "../../view-models/use-event-dashboard-shell-view-model";
+
+// Only coordinators render the desk, so PMCM pages do not download it; it loads while the workspace does.
+const CoordinatorView = dynamic(() =>
+  import("@/features/coordinators/desk/views/coordinator-view").then((mod) => mod.CoordinatorView),
+);
 
 export function EventCoordinatorShell({
   session,
@@ -23,6 +29,7 @@ export function EventCoordinatorShell({
   refresh: EventDashboardShellViewModel["refresh"];
   signOut: EventDashboardShellViewModel["signOut"];
 }) {
+  useCoordinatorHomePrefetch();
   if (!coordinatorState) {
     return (
       <main className="grid min-h-screen place-items-center bg-background px-6">

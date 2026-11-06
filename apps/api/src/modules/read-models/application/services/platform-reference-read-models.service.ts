@@ -2,6 +2,8 @@ import { Inject, Injectable, Optional, ServiceUnavailableException } from '@nest
 import { PrismaService } from '@prism/kernel/database';
 import { OPERATIONS_EVENT_REFERENCE_READER, type OperationsEventReferenceReader } from '@prism/contexts/event-lifecycle/operations-reference';
 import type {
+  AiInquiryTriageSource,
+  AiProposalEventSource,
   PareEventSource,
   PareSupplierCandidateSource,
   PlatformPrivacyConsentFact,
@@ -59,6 +61,56 @@ export class PlatformReferenceReadModelsService implements PlatformReferenceRead
       take: 200,
     });
     return Object.fromEntries(rows.map((row) => [row.key, row.visibleToRoles]));
+  }
+
+  async findInquiryTriageSource(inquiryId: string): Promise<AiInquiryTriageSource | null> {
+    const inquiry = await this.prisma.opsInquiry.findUnique({
+      where: { id: inquiryId },
+      select: {
+        id: true, status: true, eventType: true, clientType: true, eventDate: true, companyName: true, source: true,
+        referralDetails: true, message: true, normalizedEmail: true, organizationKey: true, previousDeclinedInquiryId: true,
+      },
+    });
+    if (!inquiry) return null;
+    const sameApplicant = [
+      ...(inquiry.normalizedEmail ? [{ normalizedEmail: inquiry.normalizedEmail }] : []),
+      ...(inquiry.organizationKey ? [{ organizationKey: inquiry.organizationKey }] : []),
+    ];
+    const duplicateInquiryCount = sameApplicant.length
+      ? await this.prisma.opsInquiry.count({ where: { id: { not: inquiry.id }, OR: sameApplicant } })
+      : 0;
+    return {
+      id: inquiry.id,
+      status: inquiry.status,
+      eventType: inquiry.eventType,
+      clientType: inquiry.clientType,
+      eventDate: inquiry.eventDate,
+      hasOrganization: Boolean(inquiry.companyName.trim()),
+      source: inquiry.source,
+      referralDetails: inquiry.referralDetails,
+      message: inquiry.message,
+      duplicateInquiryCount,
+      previouslyDeclined: Boolean(inquiry.previousDeclinedInquiryId),
+    };
+  }
+
+  async findProposalDraftEventSource(eventId: string): Promise<AiProposalEventSource | null> {
+    const event = await this.prisma.opsEvent.findUnique({
+      where: { id: eventId },
+      select: {
+        id: true, eventName: true, eventDate: true, archived: true, clientPortalStatus: true,
+        inquiry: { select: { eventType: true } },
+      },
+    });
+    if (!event) return null;
+    return {
+      id: event.id,
+      eventName: event.eventName,
+      eventType: event.inquiry?.eventType ?? 'Event',
+      eventDate: event.eventDate,
+      archived: event.archived,
+      clientPortalStatus: event.clientPortalStatus,
+    };
   }
 
   findEventReference(eventId: string): Promise<{ id: string } | null> {

@@ -1,4 +1,4 @@
-import { formatPortalDate } from "@prism/ui/format-date";
+import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 import type { CheckInMode, CheckInPayload, FeedbackMediaMeta, FeedbackPayload, GuestSession } from "./guest-dashboard-types";
 import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
 import { GuestApiError } from "@/features/guest-shared/guest-http";
@@ -133,4 +133,11 @@ export function guestPassDetails(session: GuestSession): Array<[string, string]>
     ["Host", session.clientName],
     ["Access code", session.guestAccessCode],
   ];
+}
+
+/** Check-in opens on the event's Philippine calendar day; before that the pass leads with event details. */
+export function isGuestCheckInOpen(eventDate: string, now = new Date()): boolean {
+  const day = eventDate.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return true;
+  return manilaDateKey(now) >= day;
 }

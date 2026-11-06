@@ -5,13 +5,18 @@ import type {
 } from "@prism/types";
 import type { EventSession } from "@/app/lib/session";
 import { readStoredEventSession } from "@/app/lib/session";
-import { getCachedApprovalRequests, loadApprovalRequests } from "@/features/event-workspace/shell";
-import { getCachedCommandInbox, loadCommandInbox } from "@/features/command-inbox/list";
+import { getCachedApprovalRequests, loadApprovalRequests } from "@/features/event-workspace/shell/use-cases/load-event-workspace";
+import { getCachedCommandInbox, loadCommandInbox } from "@/features/command-inbox/list/use-cases/load-command-inbox";
 import {
   getCachedCoordinatorWorkspace,
   isDashboardCacheFresh,
   loadCoordinatorWorkspace,
 } from "./load-dashboard-workspace";
+import {
+  COORDINATOR_HOME_PATH,
+  coordinatorLocationRedirect,
+  isCoordinatorHomePath,
+} from "@/features/coordinators/desk/model/coordinator-portal-routes";
 
 type WorkspaceStatus = "idle" | "loading" | "ready" | "error";
 
@@ -22,7 +27,7 @@ export type DashboardSessionLoadSetters = {
   setStatus: (status: WorkspaceStatus) => void;
   setSession: (session: EventSession) => void;
   setError: (error: string | null) => void;
-  setState: (state: null) => void;
+  setReference: (reference: null) => void;
   setCoordinatorState: (state: PrismCoordinatorWorkspace | null) => void;
   setApprovalRequests: (requests: PrismApprovalRequest[]) => void;
   setCommandInbox: (inbox: PrismPmcmCommandInbox) => void;
@@ -62,7 +67,7 @@ function loadCoordinatorDashboard(
   const cached = getCachedCoordinatorWorkspace(current);
   if (cached) {
     setters.setCoordinatorState(cached.value);
-    setters.setState(null);
+    setters.setReference(null);
     if (isDashboardCacheFresh(cached.loadedAt)) {
       setters.setStatus("ready");
       return;
@@ -73,7 +78,7 @@ function loadCoordinatorDashboard(
     .then((next) => {
       if (isCancelled()) return;
       setters.setCoordinatorState(next);
-      setters.setState(null);
+      setters.setReference(null);
       setters.setStatus("ready");
       setters.setError(null);
     })
@@ -88,7 +93,7 @@ function loadPmcmDashboard(isCancelled: () => boolean, setters: DashboardSession
   const cachedApprovals = getCachedApprovalRequests();
   const cachedInbox = getCachedCommandInbox();
 
-  setters.setState(null);
+  setters.setReference(null);
   setters.setCoordinatorState(null);
   if (cachedApprovals) setters.setApprovalRequests(cachedApprovals.value);
   if (cachedInbox) setters.setCommandInbox(cachedInbox.value);
@@ -121,6 +126,17 @@ function loadPmcmDashboard(isCancelled: () => boolean, setters: DashboardSession
     });
 }
 
+/**
+ * A coordinator on a PMCM URL is sent home before any data loads. The decision uses only the URL and the stored
+ * session, so no PMCM read is started for a page the coordinator cannot see.
+ */
+function redirectCoordinatorOffPmcmPath(router: DashboardSessionLoadSetters["router"]) {
+  const { pathname, search } = window.location;
+  if (isCoordinatorHomePath(pathname)) return;
+  const redirect = coordinatorLocationRedirect({ pathname, search });
+  if (redirect) router.replace(`${COORDINATOR_HOME_PATH}${redirect.search}`);
+}
+
 export function startDashboardSessionLoad(setters: DashboardSessionLoadSetters) {
   let cancelled = false;
   const isCancelled = () => cancelled;
@@ -138,6 +154,7 @@ export function startDashboardSessionLoad(setters: DashboardSessionLoadSetters) 
   setters.setError(null);
 
   if (current.role === "coordinator") {
+    redirectCoordinatorOffPmcmPath(setters.router);
     loadCoordinatorDashboard(current, isCancelled, setters);
     return () => {
       cancelled = true;

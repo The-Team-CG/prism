@@ -5,12 +5,12 @@ import {
   freezeEventSchema,
   requestFreezeExceptionSchema,
   type DecideFreezeExceptionInput,
-  type RecordEventDecisionInput,
   type FreezeEventInput,
   type PrismAddendum,
   type RequestFreezeExceptionInput,
 } from "@prism/types";
 import { changeRegisterRepository } from "../data/change-register-repository";
+import { pesosToMinorUnits, type RecordDecisionDraft } from "../model/change-register-rules";
 
 function parseOrThrow<T>(result: { success: true; data: T } | { success: false; error: { issues: { message: string }[] } }): T {
   if (!result.success) throw new Error(result.error.issues[0]?.message ?? "Check the highlighted fields and try again.");
@@ -50,9 +50,14 @@ export function decideFreezeExceptionUseCase(eventId: string, exceptionId: strin
  * Records a cancellation or postponement. On a frozen event the decision must name an unused approval; the
  * server enforces the same rule, so this check only avoids a round trip with a clear message.
  */
-export function recordEventDecisionUseCase(eventId: string, draft: RecordEventDecisionInput, options: { frozen: boolean }) {
+export function recordEventDecisionUseCase(eventId: string, draft: RecordDecisionDraft, options: { frozen: boolean }) {
   if (options.frozen && !draft.freezeExceptionId) {
     throw new Error("Choose an approved freeze exception before recording this decision on a frozen event.");
   }
-  return changeRegisterRepository.recordDecision(eventId, parseOrThrow(recordEventDecisionSchema.safeParse(draft)));
+  const { cancellationFeePesos, ...decision } = draft;
+  const cancellationFeeAmount = pesosToMinorUnits(cancellationFeePesos);
+  if (!Number.isFinite(cancellationFeeAmount)) {
+    throw new Error("Enter the cancellation fee in pesos, for example 12,500, or leave it blank for no fee.");
+  }
+  return changeRegisterRepository.recordDecision(eventId, parseOrThrow(recordEventDecisionSchema.safeParse({ ...decision, cancellationFeeAmount })));
 }

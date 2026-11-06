@@ -1,9 +1,9 @@
 "use client";
 
 import type { ReactElement } from "react";
-import type { DetailTab } from "../../model/event-dashboard-routing";
+import { eventWorkspaceHref, type DetailTab } from "../../model/event-dashboard-routing";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
-import { EmptyEventWorkspace, EventWorkspaceHeader } from "./event-workspace-header";
+import { EmptyEventWorkspace } from "./event-workspace-header";
 import {
   EventWorkspaceActivityTab,
   EventWorkspaceBillingTab,
@@ -18,7 +18,7 @@ import {
   EventWorkspaceRegistrationTab,
   EventWorkspaceSuppliersTab,
 } from "./event-workspace-tabs";
-import { EventDashboardFilesSectionView } from "./event-dashboard-section-views";
+import { EventDashboardFilesSectionView } from "./files-section-view";
 import { LiveOpsRunSheet } from "@/features/live-ops/schedule";
 
 const EVENT_TAB_VIEWS: Record<DetailTab, () => ReactElement> = {
@@ -38,17 +38,11 @@ const EVENT_TAB_VIEWS: Record<DetailTab, () => ReactElement> = {
 };
 
 /** PMCM print-friendly run sheet for the selected event (FL-026). */
-export function EventDashboardRunSheetView() {
+export function EventDashboardRunSheetView({ dayId }: { dayId?: string }) {
   const { selectedEvent } = useEventDashboardLoadedRouteViewModel();
   if (!selectedEvent) return <EmptyEventWorkspace />;
-  return (
-    <div className="space-y-5">
-      <div className="print:hidden">
-        <EventWorkspaceHeader />
-      </div>
-      <LiveOpsRunSheet eventId={selectedEvent.id} printable />
-    </div>
-  );
+  // The run sheet is its own page: the event name is already the page title, so no second header card.
+  return <LiveOpsRunSheet eventId={selectedEvent.id} dayId={dayId} printable scheduleHref={eventWorkspaceHref(selectedEvent.id, "live-ops")} calendarHref="/dashboard/calendar" />;
 }
 
 export function EventDashboardEventWorkspaceView() {

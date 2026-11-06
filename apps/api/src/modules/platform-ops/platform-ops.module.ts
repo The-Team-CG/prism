@@ -32,7 +32,6 @@ import {
 import { AI_USE_CASE_REGISTRY } from './application/ai-governance/gateway/ai-use-cases';
 import { SyntheticFixtureRegistry } from './application/ai-governance/gateway/synthetic-fixture-registry';
 import { AI_GATEWAY } from './contracts/ai-governance/ai-gateway.port';
-import { MockAiProviderAdapter } from './infrastructure/ai-governance/mock-ai-provider.adapter';
 import { AnthropicProviderAdapter, createAnthropicProviderClient } from './infrastructure/ai-governance/anthropic-provider.adapter';
 import { OpenRouterProviderAdapter } from './infrastructure/ai-governance/openrouter-provider.adapter';
 import type { AiProviderAdapter } from './contracts/ai-governance/ai-gateway.port';
@@ -49,6 +48,9 @@ import { SupabaseStorageAdapter } from './infrastructure/storage/supabase-storag
 import { StorageController } from './api/storage/storage.controller';
 import { ConformeCommsDraftsController } from './api/ai-governance/conforme-comms-drafts.controller';
 import { ConformeCommsDraftService } from './application/ai-governance/conforme-comms-draft.service';
+import { InquiryTriageService } from './application/ai-governance/inquiry-triage.service';
+import { ProposalDraftService } from './application/ai-governance/proposal-draft.service';
+import { InquiryTriageController, ProposalDraftsController } from './api/ai-governance/ai-drafting.controllers';
 
 const auditWriterProvider = {
   provide: AUDIT_WRITER,
@@ -83,18 +85,12 @@ const storageAdapterProvider = {
 };
 
 export function createAiProviderAdapters(
-  mockAdapter: MockAiProviderAdapter,
   runtime: AiGatewayRuntimeConfig,
   config: Pick<ConfigService, 'get'>,
 ): AiProviderAdapter[] {
-  const adapters: AiProviderAdapter[] = [mockAdapter];
+  const adapters: AiProviderAdapter[] = [];
   const liveProviders = new Set([...runtime.liveUseCases].map((useCaseId) =>
     resolveAiRoute(runtime.profile, useCaseId, AI_USE_CASE_REGISTRY[useCaseId].modelTier).provider));
-  const unsupportedProviders = [...liveProviders].filter((provider) =>
-    provider !== 'mock' && provider !== 'anthropic' && provider !== 'openrouter');
-  if (unsupportedProviders.length > 0) {
-    throw new Error(`No AI provider adapter factory is registered for: ${unsupportedProviders.join(', ')}`);
-  }
   if (liveProviders.has('anthropic')) {
     const apiKey = config.get<string>('ANTHROPIC_API_KEY')?.trim();
     if (!apiKey) {
@@ -139,7 +135,7 @@ export function createAiProviderAdapters(
  */
 @Module({
   imports: [DatabaseModule, EventSessionModule, ConfigModule, AccessControlModule, ConformeReminderWindowModule, AccountContactReadModelModule, MailModule],
-  controllers: [OpsAuditController, OpsNotificationsController, OpsAiGovernanceController, StorageController, ConformeCommsDraftsController],
+  controllers: [OpsAuditController, OpsNotificationsController, OpsAiGovernanceController, StorageController, ConformeCommsDraftsController, InquiryTriageController, ProposalDraftsController],
   providers: [
     AuditService,
     AuditReadService,
@@ -153,7 +149,8 @@ export function createAiProviderAdapters(
     { provide: NOTIFICATION_DELIVERY, useClass: MailNotificationDeliveryAdapter },
     AiGovernanceService,
     ConformeCommsDraftService,
-    MockAiProviderAdapter,
+    InquiryTriageService,
+    ProposalDraftService,
     {
       provide: AI_GATEWAY_RUNTIME_CONFIG,
       inject: [ConfigService],
@@ -161,7 +158,7 @@ export function createAiProviderAdapters(
     },
     {
       provide: AI_PROVIDER_ADAPTERS,
-      inject: [MockAiProviderAdapter, AI_GATEWAY_RUNTIME_CONFIG, ConfigService],
+      inject: [AI_GATEWAY_RUNTIME_CONFIG, ConfigService],
       useFactory: createAiProviderAdapters,
     },
     { provide: AI_SYNTHETIC_PROVENANCE_VERIFIER, useClass: SyntheticFixtureRegistry },

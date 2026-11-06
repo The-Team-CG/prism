@@ -37,6 +37,16 @@ describe('CoordinatorAccountReferenceService', () => {
     await expect(service.isCoordinatorAccountEligible('u_coord')).resolves.toBe(false);
   });
 
+  it('lists only approved, unlocked PMCM administrators by normalised email', async () => {
+    const findMany = vi.fn(async () => [{ email: ' Admin@PMCM.test ' }, { email: 'second@pmcm.test' }, { email: 'not-an-email' }]);
+    const service = new CoordinatorAccountReferenceService({ opsUser: { findMany } } as never);
+
+    await expect(service.listPmcmAdminEmails()).resolves.toEqual(['admin@pmcm.test', 'second@pmcm.test']);
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { role: OpsUserRole.PmcmAdmin, approvalStatus: 'approved', permanentLockout: false },
+    }));
+  });
+
   it('rejects a user whose current identity role is no longer coordinator', async () => {
     const service = new CoordinatorAccountReferenceService({
       opsUser: {

@@ -8,7 +8,7 @@ updated: "2026-10-29"
 authority: normative
 audience: [product, engineering, design, agents]
 scope: "Prism feature-family decisions, ownership, sequencing, and closure evidence"
-last_verified: "2026-10-29; portal routes and features, API modules and controllers (inquiry merge, file requirements, archive/compare, operator designation, readiness board, decision log, run sheet, handoff brief, event games); family states and policy gates retained"
+last_verified: "2026-11-05; every V4 catalog feature checked against controllers, services, Prisma schema and portal features; portal calendars and the run-sheet Philippine-time day windows; family states and policy gates retained"
 sources:
   - id: v4-reference
     resource: "docs/reference/prism-v4/complete-feature-catalog.md"
@@ -177,10 +177,11 @@ production delivery, or live database performance.
 
 | Ledger scope | Implemented behavior | Open limits |
 | --- | --- | --- |
-| FL-001 | PMCM-only organization merge (`POST /inquiries/:inquiryId/merge`) with required reason, merge history and audit. Duplicate, previous-decline, parallel-organization and deterministic high-fit cues in the PMCM inquiry drawer, with queue-only PMCM notifications for duplicate and high-fit inquiries. Copy-link, rejection history and log-on-behalf copy. The public schema and response omit PMCM triage and logged-by fields. | Live AI triage (FR-AI-01), company-name change log and dormant-client reactivation alerts remain gated or unbuilt. |
+| FL-001 | PMCM-only organization merge (`POST /inquiries/:inquiryId/merge`) with required reason, merge history and audit. Duplicate, previous-decline, parallel-organization and deterministic high-fit cues in the PMCM inquiry drawer, with queue-only PMCM notifications for duplicate and high-fit inquiries. Copy-link, rejection history and log-on-behalf copy. The public schema and response omit PMCM triage and logged-by fields. Live AI triage (FR-AI-01): PMCM asks for advice in the inquiry drawer (`POST /inquiry-triage`); the gateway sends the inquiry wording without name, email, phone or company over a ZDR route, and the result (fit, risks, questions, suggested action) is stored as an advisory record and changes no status. | Triage advice is deleted with its inquiry on erasure and retention but is not yet in the access export; triage quality has no staging evaluation; company-name change log and dormant-client reactivation alerts remain unbuilt. |
 | FL-017/FL-020 | PMCM command inbox on `/dashboard` with live-ops items, overdue and blocked-task notices, blocker/owner/due context and direct task links, plus selected-event summary. Client action center with feedback, change-request status, and version-specific addendum acknowledgment actions that clear once the client responds. | The client feedback prompt runs from event end until archive. |
 | FL-006/FL-024 | Role-filtered requirement matrix, PMCM custom requirements and overrides, file audit events, reminder sweep, client due status, and verified uploads. | Visibility enforcement covers signed conformes and billing statements. The reminder sweep reads the first 100 matching events without rotating the window. Supplier due status, broader file-type enforcement, and database acceptance remain. |
 | FL-007/FL-022 | Supplier applications inbox (request proposal, schedule, decline) and public apply/status pages in `apps/supplier`; category-dimension completeness on assessments, with assessment data excluded from supplier reads. Shared server readiness calculation for supplier and PMCM views, a PMCM-only read endpoint, a category-gap hard-block when no quote is selected, and a supplier ingress late sweep with idempotent atomic audit. Private verification notes and verifier identity are removed from supplier reads, command responses, quote-token detail, and contract-upload receipt replays. | Historical receipts are filtered on response; their stored payloads are not rewritten. Actions open sections rather than items. PMCM reads cap at 500 requests per event; the handoff brief still calculates readiness separately. Broader performance-reliability reporting remains open. |
+| FL-005 | AI proposal drafting (FR-AI-03): "Draft wording with AI" on the PMCM proposal form (`POST /proposal-drafts`) writes a title, summary and change note from the estimate being built, without client identity. The draft is returned to the form and stored nowhere; issuing stays the human approval step. | Canva/PowerPoint export, tiered options and revision comments remain unbuilt. Provider quality has no staging evaluation. |
 | FL-008 | Multi-event coordinator selection with venue/history cards; reliability history and withdrawal notes; coordinator insights; coordinator and PMCM event-day polling; scheduled acknowledgment follow-ups; schedule authoring/status, handoff and end-of-day forms; registration search, verification, check-in and pending walk-in registration. | Heatmap, phone notify and AI copilot remain gated. QR/camera and external registration integrations remain gated. |
 | FL-009/FL-025 | Freeze-exception enforcement on cancellation and postponement with single-use approvals and impact-review confirmation; freeze-exception register and decision workspace; primary-client scope requests, PMCM review decisions, impact checks and recorded event risk level with history; client-safe change-request status. The primary client acknowledges an immutable, hashed addendum version before PMCM countersigns; billing trace uses the addendum id. A recorded postponement conflict panel shows decision history. | Issuing an addendum changes billing lines and quote amounts before acknowledgment or countersignature; changing that timing is an open business-policy decision. Older billing lines without an addendum id are not traced. Approval consumes the exception, so a later addendum needs another. Operational policy defaults remain unconfirmed; client decision notices, clearer withdrawal state and interactive rescheduling remain absent. |
 | FL-010 | Disputes, corrections (rejection requires a reason), additional billing traced to an approved same-event source, and reasoned waivers in the PMCM billing adjustments panel. Clients see remaining balance, follow-up copy, and dispute status and amount only. Upcoming, overdue and payment-risk reminders enqueue once per milestone in the notification outbox. | Production reminder delivery stays gated with FL-014. |
@@ -190,13 +191,41 @@ production delivery, or live database performance.
 | FL-015/FL-027 | Privacy queue with filters, paging, due dates and self-assignment; execution of access/export, erasure and correction (see above). Disabled-by-default retention policies, hourly review queue, legal-hold checks, and PMCM-approved record-specific redaction. | No self-service requester flow. The 30-day due-date default and retention periods need maintainer confirmation. Assignment cannot select another operator; overdue notices are absent. The retention sweep supports inquiry and guest check-in/feedback only; finance is absent; the queue caps at 200 without paging. Full guest feedback identity linkage remains unfinished. |
 | FL-019 | PMCM-only, read-only decision log with source-record reasons, kind filters, counts and paging. | Reads cap at 200 rows per source and 500 audit rows, so older decisions can be under-reported. Pending requests are excluded; actor role can be null. |
 | FL-021 | Read-only `GET /events/:eventId/handoff-brief` composed in `read-models`. PMCM receives the full brief; assigned coordinators receive a subset without finance, private supplier notes, audit categories, client identity or guest access codes; others are forbidden. | A complete handoff brief remains broader work. |
-| FL-026 | Time-ordered, role-projected run sheet combining schedule, supplier windows, task deadlines and open issues, with a printable PMCM route. | Day windows use UTC because events have no timezone field. An unknown `dayId` returns 404. Guest-flow entries are absent. |
+| FL-026 | Time-ordered, role-projected run sheet combining schedule, supplier windows, task deadlines and open issues, with a printable PMCM route. | Day windows follow Philippine time, because events have no timezone field of their own. An unknown `dayId` returns 404. Guest-flow entries are absent. |
+| FL-003/FL-004/FL-008/FL-026 | One portal calendar with Month, Week, Day and Agenda views for the PMCM, client, supplier and coordinator portals. "+N more" opens a list of that day's items, and an item opens a side panel with a button to where it is handled. The PMCM calendar shows event days, schedule days, quote deadlines, payments due, ocular visits and supplier arrivals and departures; event and schedule days open the run sheet on that day, and the run sheet links back. Coordinators see their assigned event days plus the open event's task deadlines and schedule days. | Guests have no calendar: one event and one date. No multi-day bars: nothing spans days. No notifications page: the API has no per-user notification feed. Browser acceptance of the calendar views is not recorded. |
 
 FL-018 Event Health Score, FL-023 Staffing Heatmap, and FL-028 Workflow
 Template Builder remain deferred or gated; staffing suggestions do not
 constitute a heatmap. Production notification adapters, external auth, camera
-QR, live AI, storage-provider activation, and malware scanning retain their
-readiness gates.
+QR, storage-provider activation, and malware scanning retain their readiness
+gates. Live AI runs once a provider key is set; real client data needs a
+confirmed zero-data-retention route (see `docs/runbooks/ai-provider-routing.md`).
+
+## Catalog coverage
+
+Every feature in the V4 catalog was checked against code (controllers,
+services, schema and portal features), not against documentation. Counts are
+by catalog row; Phase 2 rows are later scope, so their absence is expected.
+
+| Result | Features |
+| --- | --- |
+| Done end to end | About 37 of 124 non-AI rows, including inquiry log, public inquiry page and referral fields, floorplan authoring and client review, quote request and comparison, supplier registration and review, coordinator double-booking, acknowledgment and registration view, additional billing and waivers, archive search, one-screen close, addendum conforme, authentication, privacy, upload validation and the audit trail. |
+| Partial | About 69 of 124. Most are Prism-scope features missing a named part, listed below. |
+| Not done | 17 of 124 (listed below). |
+| AI (12 rows) | Inquiry triage, proposal drafting, and PARE with its supplier recommendation run live through the gateway once a provider key is set. The client communication assistant and the zero-data-retention governance layer are partial. Theme suggestions, compliance advisory, the operations assistant, reliability scoring, the event-day copilot and post-event analysis are not built. |
+
+Of the Prism-scope rows (the prototype scope), only Supplier Unresponsive Escalation with Viber Deep Link (FR-76) and the Guest Pass Promotional Sample (FR-42) have no implementation.
+
+**Not done:** FR-16 Supplier Selection Policy Layer, FR-24 Toggle System, FR-42 Guest Pass Promotional Sample, FR-43 Bid Workspace, FR-47 Lightweight Spatial Preference Form, FR-50 Abandoned Inquiry Draft Save, FR-53 Pre-Conforme Context Notes, FR-54 Pre-Conforme Document Attachment, FR-55 Bilingual Email Templates, FR-59 Canva and PowerPoint Integration, FR-61 Zoom Meeting Scheduler, FR-62 Tiered Package Options, FR-65 Client-Owned Supplier Sub-Ticket, FR-70 Accreditation Tracker, FR-76 Supplier Unresponsive Escalation, FR-82 Quick Setup Presets, and the Logistics Booking Record.
+
+**Partial, by family:**
+
+- **FL-001/FL-002/FL-005:** No MOA/NDA document type and no pre-conforme notes; billing statements are generated manually rather than on signing; the proposal flow has no revision comments, Word template upload, or program-flow input; cancellation has no automatic fee calculation (the decision form takes the fee by hand).
+- **FL-007/FL-008:** Quotes show only event name, category and date. A coordinator withdrawal inside 48 hours of the event is flagged as an Emergency Change, audited as critical and emailed to PMCM, but it does not start PARE.
+- **FL-009/FL-013:** The compliance engine is nine deterministic rules. The five-day change freeze and the 48-hour emergency window run on Philippine event days, and drafted wrap-up billing items are not turned into billing automatically.
+- **FL-011:** Annotation pin hit-testing ignores object rotation. Every event counts as private, so only the 200-guest limit gates the seating list.
+- **FL-012:** Check-in covers name search and headcount only, since QR and camera entry stay gated; game templates differ from the V4 five; guest media is recorded as `pending_storage`.
+- **FL-014:** Only email is delivered. Viber is queued but has no provider, and there is no recipient language preference.
 
 ## Next Ledger Maintenance
 

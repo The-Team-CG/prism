@@ -1,16 +1,84 @@
-const PASSED_TONES = ["approved", "resolved", "overridden", "generated", "sent"];
+import type { PrismLifecycleStage } from "@prism/types";
+import { eventWorkspaceHref } from "@/features/event-dashboard/shell/model/event-dashboard-routing";
+
+const PASSED_TONES =["approved", "resolved", "overridden", "generated", "sent"];
 const OPEN_TONES = ["draft", "issued", "open"];
 
+export const COMPLIANCE_PHASES = ["planning", "pre_event", "event_day", "closure"] as const;
+export type CompliancePhase = (typeof COMPLIANCE_PHASES)[number];
+
+/** The compliance rule whose open check means the event date has passed while the event is still in planning. */
+export const EVENT_DATE_CONDITION_KEY = "event_date_relative_to_now";
+
+/** Where PMCM goes to resolve an open event-date check: start closure, or record a postponement under Scope changes. */
+export function eventDateRemediationLinks(eventId: string) {
+  return [
+    { label: "Open Closure", href: eventWorkspaceHref(eventId, "closure") },
+    { label: "Record a postponement", href: `${eventWorkspaceHref(eventId, "briefing")}?part=changes` },
+  ];
+}
+
+export function isCompliancePhase(value: string): value is CompliancePhase {
+  return (COMPLIANCE_PHASES as readonly string[]).includes(value);
+}
+
+/** The compliance phase the event is in now, so a run defaults to it instead of always starting at Planning. */
+export function compliancePhaseForStage(stage: PrismLifecycleStage): CompliancePhase {
+  if (stage === "event_day") return "event_day";
+  if (stage === "closure_archive") return "closure";
+  return "planning";
+}
+
+/** Closure runs in this order; Archive comes last because it is the step that needs the others done. */
+export const CLOSURE_TABS = [
+  { id: "wrap-up", label: "Wrap up" },
+  { id: "feedback", label: "Feedback & reviews" },
+  { id: "compliance", label: "Compliance" },
+  { id: "deliverables", label: "Deliverables" },
+  { id: "archive", label: "Archive" },
+] as const;
+
+export type ClosureTabId = (typeof CLOSURE_TABS)[number]["id"];
+
+/** The closure tabs in order, numbered 1–5 from their position. */
+export function numberedClosureTabs() {
+  return CLOSURE_TABS.map((tab, index) => ({ id: tab.id, label: `${index + 1}. ${tab.label}` }));
+}
+
+/** Where a close gate is resolved: a closure tab, or another event tab. */
+export type CloseGateDestination =
+  | { kind: "closure-tab"; tabId: ClosureTabId; label: string }
+  | { kind: "event-tab"; tab: "billing" | "live-ops"; label: string };
+
+const CLOSE_GATE_DESTINATIONS: Record<string, CloseGateDestination> = {
+  documents: { kind: "closure-tab", tabId: "deliverables", label: "Open Deliverables" },
+  billing: { kind: "event-tab", tab: "billing", label: "Open Billing" },
+  logistics: { kind: "closure-tab", tabId: "wrap-up", label: "Open Wrap up" },
+  issues: { kind: "event-tab", tab: "live-ops", label: "Open Live ops" },
+  feedback: { kind: "closure-tab", tabId: "feedback", label: "Open Feedback & reviews" },
+};
+
+export function closeGateDestination(gateKey: string): CloseGateDestination | null {
+  return CLOSE_GATE_DESTINATIONS[gateKey] ?? null;
+}
+
+/** Sentence case for a status word, so the display does not need CSS capitalisation: "not_applicable" → "Not applicable". */
+export function phase4StatusLabel(value: string) {
+  const text = value.replaceAll("_", " ");
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** Text and dot colour for a closure status, shown as a dot plus label rather than an outlined pill. */
 export function phase4StatusTone(value: string, passed?: boolean) {
-  if (passed || PASSED_TONES.includes(value)) return "bg-success-soft text-success ring-success/20";
-  if (OPEN_TONES.includes(value)) return "bg-attention-soft text-attention ring-attention/20";
-  return "bg-danger-soft text-danger ring-danger/20";
+  if (passed || PASSED_TONES.includes(value)) return "text-success";
+  if (OPEN_TONES.includes(value)) return "text-attention";
+  return "text-danger";
 }
 
 export function phase4ArchiveStatus(archived: boolean, ready?: boolean) {
   if (archived) return { label: "Archived", toneKey: "approved" };
   if (ready) return { label: "Ready for archive", toneKey: "approved" };
-  return { label: "Archive gated", toneKey: "open" };
+  return { label: "Not ready to archive", toneKey: "open" };
 }
 
 export function phase4CloseGatesCard(closeGates: { ready: boolean; gates: Array<{ passed: boolean }> } | null) {
@@ -65,6 +133,3 @@ export function phase4StatementsCard(statementCount: number, insightReady: boole
   };
 }
 
-export function phase4RuleLayer(severity: string) {
-  return severity === "watch_out" ? "Should-Fix" : "Must-Fix";
-}

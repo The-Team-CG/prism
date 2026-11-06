@@ -5,6 +5,7 @@ import { PRISM_PORTAL_URLS, type PrismPortalUrls } from '@prism/kernel/shared';
 import { toPrismaJson } from '@prism/kernel/database';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole, SupplierQuoteRequestStatus, SupplierQuoteStatus, WorkflowCommandService, isOpsConstantValue } from '@prism/kernel/event-core';
+import { buildSupplierAssignmentNotice } from '../../domain/supplier-assignment-notice';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
@@ -13,6 +14,8 @@ import {
   isQuoteAccessTokenUsable,
   isSupplierQuoteLocked,
   isSupplierQuoteRequestClosed,
+  manilaCalendarDate,
+  quoteDeadlineInstant,
   resolveExpiredQuoteRequestStatus,
 } from '../../domain/supplier-quote-request.policy';
 import type {
@@ -37,10 +40,6 @@ export type QuoteRequestTokenDetail = {
   event: { id: string; eventName: string; clientName: string; eventDate: Date };
   quote: OpsSupplierQuote | null;
 };
-
-function isoDate(value: Date) {
-  return value.toISOString().slice(0, 10);
-}
 
 function parseDate(value: string) {
   const parsed = new Date(value);
@@ -207,7 +206,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
           throw new BadRequestException('Selected suppliers already have active quote requests for this event and category');
         }
 
-        dueDate = input.deadline ? parseDate(input.deadline) : null;
+        dueDate = input.deadline ? quoteDeadlineInstant(parseDate(input.deadline)) : null;
         if (dueDate && dueDate.getTime() < Date.now()) {
           throw new BadRequestException('Quote deadline is in the past. Choose a deadline that has not passed yet.');
         }
@@ -292,7 +291,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
               metadata: {
                 actorId: verifiedActor.id,
                 confidentialBid: Boolean(input.confidentialBid),
-                deadline: dueDate ? isoDate(dueDate) : null,
+                deadline: dueDate ? manilaCalendarDate(dueDate) : null,
               },
             },
           ),
@@ -485,6 +484,23 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
       },
       sideEffects: async (result) => {
         if (!result.selectedNow) return;
+        const [event, schedule] = await Promise.all([
+          this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { eventName: true, eventDate: true } }),
+          result.quote.requestId
+            ? this.prisma.opsSupplierSchedule.findUnique({ where: { requestId: result.quote.requestId } })
+            : Promise.resolve(null),
+        ]);
+        const selectionNotice = event
+          ? buildSupplierAssignmentNotice({
+              eventName: event.eventName,
+              eventDate: event.eventDate,
+              category: result.quote.category,
+              amount: result.quote.amount,
+              inclusions: result.quote.inclusions,
+              paymentTerms: result.quote.paymentTerms,
+              ingress: schedule,
+            })
+          : 'Your supplier quote was selected';
         await Promise.all([
           writeAudit(this.auditWriter, eventId, verifiedActor.name, `Selected supplier quote: ${result.quote.supplierName}`, {
             actorRole: verifiedActor.role,
@@ -499,7 +515,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
             this.notificationOutboxWriter,
             eventId,
             await this.supplierRecipient(result.quote.supplierId, result.quote.supplierName),
-            'Your supplier quote was selected',
+            selectionNotice,
             'email',
             { idempotencyKey: `supplier-quote-result:${result.quote.id}:selected` },
           ),
