@@ -9,7 +9,13 @@ export function isSupplierApplicationStepValid(form: SupplierApplicationForm, st
   if (step === 1) {
     return Boolean(form.categoryId);
   }
-  return form.privacyConsentAccepted;
+  if (step === 2) {
+    return true;
+  }
+  if (step === APPLICATION_WIZARD_STEPS.length - 1) {
+    return form.privacyConsentAccepted;
+  }
+  return false;
 }
 
 export function canAdvanceSupplierApplicationStep(form: SupplierApplicationForm, step: number): boolean {
