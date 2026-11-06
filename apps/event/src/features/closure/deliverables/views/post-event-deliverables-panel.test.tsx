@@ -28,6 +28,24 @@ describe("PostEventDeliverablesPanel", () => {
     expect(screen.queryByText("Complete")).toBeNull();
   });
 
+  it("counts down to the wrap-up deadline only while a deliverable is still open and the event has ended", () => {
+    const now = Date.parse("2026-10-18T12:00:00.000Z");
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+    vi.setSystemTime(now);
+    try {
+      const view = render(<PostEventDeliverablesPanel eventId="evt_1" documents={documents} actualEndedAt="2026-10-17T18:00:00.000Z" />);
+      expect(screen.getByRole("timer").textContent).toContain("Due in 6h");
+      view.rerender(<PostEventDeliverablesPanel eventId="evt_1" documents={documents} actualEndedAt={null} />);
+      expect(screen.queryByRole("timer")).toBeNull();
+      view.rerender(<PostEventDeliverablesPanel eventId="evt_1" documents={documents} actualEndedAt="2026-10-17T18:00:00.000Z" archived />);
+      expect(screen.queryByRole("timer")).toBeNull();
+      view.rerender(<PostEventDeliverablesPanel eventId="evt_1" documents={[{ ...documents[0], status: "submitted" }]} actualEndedAt="2026-10-17T18:00:00.000Z" />);
+      expect(screen.queryByRole("timer")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps a failed completion actionable and makes archive read-only", async () => {
     complete.mockRejectedValueOnce(new Error("File unavailable"));
     const view = render(<PostEventDeliverablesPanel eventId="evt_1" documents={documents} />);

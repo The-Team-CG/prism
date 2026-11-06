@@ -1911,6 +1911,8 @@ model OpsComplianceRisk {
   ruleId     String?   @map("rule_id")
   title      String
   severity   String    @default("medium")
+  likelihood String?
+  impact     String?
   owner      String    @default("")
   mitigation String    @default("")
   status     String    @default("open")
@@ -1936,6 +1938,8 @@ model OpsComplianceRiskHistory {
   action     String
   phase      String
   severity   String
+  likelihood String?
+  impact     String?
   owner      String
   mitigation String
   status     String

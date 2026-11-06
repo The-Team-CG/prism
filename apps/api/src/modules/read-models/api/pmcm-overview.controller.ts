@@ -19,6 +19,13 @@ export class OpsPmcmOverviewController {
     return this.overview.eventSummaries(this.eventAccessPolicyService.resolveActor({}, verifiedActor));
   }
 
+  @Get('file-summaries')
+  @Header('Cache-Control', 'private, no-store')
+  @UseGuards(EventSessionGuard)
+  fileSummaries(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    return this.overview.fileSummaries(this.eventAccessPolicyService.resolveActor({}, verifiedActor));
+  }
+
   @Get('calendar')
   @Header('Cache-Control', 'private, no-store')
   @UseGuards(EventSessionGuard)

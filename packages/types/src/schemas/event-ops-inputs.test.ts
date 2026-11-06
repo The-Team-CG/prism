@@ -40,6 +40,8 @@ import {
   verifySupplierStatusSchema,
   COORDINATOR_ROLES,
   createTemplateSchema,
+  riskSeverityFromRatings,
+  createComplianceRiskSchema,
   isEmergencyCoordinatorWithdrawal,
   canonicalCoordinatorRole,
   coordinatorRoleSchema,
@@ -100,6 +102,25 @@ describe("venue library template contract", () => {
 
   it("still refuses objects that fit neither shape", () => {
     expect(createTemplateSchema.safeParse({ name: "Hall", objects: [{ id: "x", kind: "blob" }] }).success).toBe(false);
+  });
+});
+
+describe("risk likelihood and impact contract", () => {
+  it("maps every rating pair to a severity on the 1-2 low, 3-4 medium, 6 high, 9 critical scale", () => {
+    const ratings = ["low", "medium", "high"] as const;
+    const grid = ratings.map((likelihood) => ratings.map((impact) => riskSeverityFromRatings(likelihood, impact)));
+    expect(grid).toEqual([
+      ["low", "low", "medium"],
+      ["low", "medium", "high"],
+      ["medium", "high", "critical"],
+    ]);
+  });
+
+  it("accepts ratings without a severity and rejects unknown ratings", () => {
+    const base = { phase: "closure", title: "Generator failure" };
+    expect(createComplianceRiskSchema.safeParse({ ...base, likelihood: "high", impact: "low" }).success).toBe(true);
+    expect(createComplianceRiskSchema.parse(base).severity).toBeUndefined();
+    expect(createComplianceRiskSchema.safeParse({ ...base, likelihood: "certain" }).success).toBe(false);
   });
 });
 
