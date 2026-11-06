@@ -1173,6 +1173,7 @@ describe('EventReadModelsService', () => {
       opsPaymentRecord: { findMany: vi.fn(async () => []) },
       opsPostEventDocument: { findMany: vi.fn(async () => []) },
       opsClientCloseoutResponse: { findMany: vi.fn(async () => []) },
+      opsAddendum: { findMany: vi.fn(async () => []) },
       opsEventFreezeException: { findMany: vi.fn(async () => []) },
     };
     const policy = new EventAccessPolicyService({ write: vi.fn() } as any);
