@@ -6,6 +6,17 @@ export function prismCalendarDateKey(at: Date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: PRISM_BUSINESS_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(at);
 }
 
+/** Philippine time has no daylight saving: it is always UTC+8. */
+export const PRISM_BUSINESS_UTC_OFFSET_HOURS = 8;
+
+/**
+ * The instant a Philippine calendar day begins, for an event date stored as that day at UTC midnight
+ * (10 Oct is stored as 10 Oct 00:00 UTC and begins at 9 Oct 16:00 UTC).
+ */
+export function prismEventDayStart(eventDate: string | Date): Date {
+  return new Date(new Date(eventDate).getTime() - PRISM_BUSINESS_UTC_OFFSET_HOURS * 60 * 60 * 1000);
+}
+
 /** An assignment the coordinator still works: not cancelled, replaced or declined. */
 export function isActiveCoordinatorAssignmentStatus(status: string | undefined | null): boolean {
   return status !== "cancelled" && status !== "replaced" && status !== "declined";

@@ -15,6 +15,20 @@ export interface PrismPmcmEventSummaries {
   items: PrismPmcmEventSummary[];
 }
 
+/** How many of an event's file requirements still need work, for the PMCM Files event list. */
+export interface PrismPmcmFileSummary {
+  eventId: string;
+  total: number;
+  /** Requirements whose status is missing or pending, the same count the event's Files tab shows. */
+  open: number;
+  overdue: number;
+}
+
+export interface PrismPmcmFileSummaries {
+  generatedAt: string;
+  items: PrismPmcmFileSummary[];
+}
+
 export type PrismPmcmCalendarItemKind =
   | "event"
   | "ocular_visit"

@@ -8,6 +8,12 @@ export const pmcmEventSummaries = defineResource({
   fetch: (_actor: "signed-in") => eventApi.pmcm.eventSummaries(),
 });
 
+/** Open and overdue file requirements per event, for the Files event list. Covers the events still in play. */
+export const pmcmFileSummaries = defineResource({
+  name: "pmcm.file-summaries",
+  fetch: (_actor: "signed-in") => eventApi.pmcm.fileSummaries(),
+});
+
 /** Dated work across events inside a window of calendar dates. */
 export const pmcmCalendar = defineResource({
   name: "pmcm.calendar",
