@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { prismEventDayStart } from "../coordinator-focus.js";
 
 export const COORDINATOR_ROLES = [
   "General Coordinator",
@@ -21,4 +22,25 @@ export function canonicalCoordinatorRole(value?: string | null): CoordinatorRole
   if (!value) return undefined;
   const normalized = normalizeCoordinatorRole(value);
   return COORDINATOR_ROLES.find((role) => normalizeCoordinatorRole(role) === normalized);
+}
+
+/** A coordinator who withdraws this close to the event day creates an Emergency Change (catalog FR-89). */
+export const COORDINATOR_EMERGENCY_WINDOW_HOURS = 48;
+
+/**
+ * Whether a withdrawal happened inside the emergency window around the event day. The window runs from 48 hours
+ * before the event day begins in Philippine time until that day ends, so a withdrawal on the day itself counts but a
+ * later clean-up does not. Anything not withdrawn, or missing either date, is not an emergency.
+ */
+export function isEmergencyCoordinatorWithdrawal(input: {
+  status?: string | null;
+  withdrawnAt?: string | Date | null;
+  eventDate?: string | Date | null;
+}): boolean {
+  if (input.status !== "cancelled" || !input.withdrawnAt || !input.eventDate) return false;
+  const withdrawn = new Date(input.withdrawnAt).getTime();
+  const eventStart = prismEventDayStart(input.eventDate).getTime();
+  if (Number.isNaN(withdrawn) || Number.isNaN(eventStart)) return false;
+  const hour = 60 * 60 * 1000;
+  return withdrawn >= eventStart - COORDINATOR_EMERGENCY_WINDOW_HOURS * hour && withdrawn < eventStart + 24 * hour;
 }

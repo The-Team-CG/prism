@@ -4,8 +4,12 @@ import type {
   PrismClientWorkspace,
   PrismDecisionLog,
   PrismPmcmCommandInbox,
+  PrismPmcmCalendar,
   PrismPmcmCommandInboxQueryInput,
-  PrismPmcmDashboardWorkspace,
+  PrismPmcmEventSummaries,
+  PrismPmcmFileSummaries,
+  PmcmCalendarQuery,
+  PrismPmcmReference,
   PrismPmcmEventWorkspace,
   PrismPmcmSupplierReadinessBoard,
   PrismRegistrationPlatform,
@@ -21,7 +25,7 @@ export function createWorkspacesClient(
   options: EventOpsClientOptions,
 ): Pick<
   EventOpsClient,
-  "clientWorkspace" | "supplierWorkspace" | "billing" | "pmcmDashboard" | "pmcm"
+  "clientWorkspace" | "supplierWorkspace" | "billing" | "pmcm"
 > {
   return {
     clientWorkspace: {
@@ -86,14 +90,8 @@ export function createWorkspacesClient(
           withBase(options),
         ),
     },
-    pmcmDashboard: {
-      detail: (actor = {}) =>
-        prismRequest<PrismPmcmDashboardWorkspace>(
-          actorPath("/pmcm/dashboard", actor),
-          withBase(options),
-        ),
-    },
     pmcm: {
+      reference: () => prismRequest<PrismPmcmReference>("/pmcm/reference", withBase(options)),
       commandInbox: (query: PrismPmcmCommandInboxQueryInput = { page: 0 }) => {
         const params = toQueryString(query);
         return prismRequest<PrismPmcmCommandInbox>(
@@ -101,6 +99,9 @@ export function createWorkspacesClient(
           withBase(options),
         );
       },
+      eventSummaries: () => prismRequest<PrismPmcmEventSummaries>("/pmcm/event-summaries", withBase(options)),
+      fileSummaries: () => prismRequest<PrismPmcmFileSummaries>("/pmcm/file-summaries", withBase(options)),
+      calendar: (query: PmcmCalendarQuery) => prismRequest<PrismPmcmCalendar>(`/pmcm/calendar?${toQueryString(query)}`, withBase(options)),
       decisionLog: (eventId, query = {}) => {
         const params = toQueryString(query);
         const path = `/events/${encodeURIComponent(eventId)}/decision-log`;

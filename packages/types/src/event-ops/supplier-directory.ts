@@ -79,6 +79,7 @@ export interface PrismPmcmSupplierProfile {
     | "phone"
     | "serviceInclusions"
     | "performanceNotes"
+    | "capacityRating"
     | "applicationDate"
   >;
   rating: { average: number | null; count: number };

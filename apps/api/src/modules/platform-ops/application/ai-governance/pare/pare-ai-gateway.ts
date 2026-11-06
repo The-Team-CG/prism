@@ -6,7 +6,8 @@ import {
   type AiUseCaseOutput,
 } from '@prism/types';
 import type { AiGateway, AiSyntheticPareChain, AiToolHandler } from '../../../contracts/ai-governance/ai-gateway.port';
-import type { PAREContext } from './pare.types';
+import type { PAREBudgetAnalysis, PAREContext } from './pare.types';
+import { maskPareContext, PareModelViewError, unmaskBudgetAnalysis } from './pare-model-view';
 import { PARE_AI_USE_CASES } from './pare-ai-use-cases';
 import { PareConfigurationError } from './pare-execution.policy';
 
@@ -40,11 +41,35 @@ function matchesPareRun(evidence: AiAuditEvidence, useCaseId: PareAiUseCaseId, t
     evidence.outcome === 'completed';
 }
 
+/**
+ * Real-data routes (ZDR or test-data-only) need no synthetic provenance; a fixtures-only route
+ * ('synthetic_verified') is eligible only with the server-verified provenance.
+ */
 export function isPareRoutePolicyEligibleEvidence(evidence: AiAuditEvidence): boolean {
-  const providerRoute = evidence.routePolicyOutcome === 'synthetic_verified' || evidence.routePolicyOutcome === 'zdr_approved';
-  const verifiedMock = evidence.routePolicyOutcome === 'mock_local' && evidence.provider === 'mock' &&
-    evidence.dataClasses.length === 1 && evidence.dataClasses[0] === 'synthetic';
-  return (providerRoute || verifiedMock) && Boolean(evidence.syntheticProvenance);
+  if (evidence.routePolicyOutcome === 'zdr_approved' || evidence.routePolicyOutcome === 'test_data_approved') {
+    return true;
+  }
+  return evidence.routePolicyOutcome === 'synthetic_verified' && Boolean(evidence.syntheticProvenance);
+}
+
+/** The masked context for a real-data run; an unusable context is blocked before any provider call. */
+export function maskPareInput(ctx: PAREContext): PAREContext {
+  try {
+    return maskPareContext(ctx);
+  } catch (error) {
+    if (error instanceof PareModelViewError) throw new PareAiGatewayError('blocked', 'invalid_input', false);
+    throw error;
+  }
+}
+
+/** Maps the model's budget analysis back to the real candidate, rejecting a changed copy. */
+export function unmaskPareBudget(ctx: PAREContext, output: PAREBudgetAnalysis): PAREBudgetAnalysis {
+  try {
+    return unmaskBudgetAnalysis(ctx.candidates ?? [], output);
+  } catch (error) {
+    if (error instanceof PareModelViewError) throw new PareAiGatewayError('failed', 'invalid_output', false);
+    throw error;
+  }
 }
 
 export async function runPareAiUseCase<K extends PareAiUseCaseId>(

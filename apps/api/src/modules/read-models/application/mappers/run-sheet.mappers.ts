@@ -1,3 +1,4 @@
+import { prismCalendarDateKey } from '@prism/types';
 import type {
   PrismCoordinatorLiveOps,
   PrismEventDayTask,
@@ -51,19 +52,19 @@ export function isIngressRole(role?: string | null) {
 
 /**
  * Explicit day id wins (undefined when unknown). Without one, prefer the schedule day
- * matching today's UTC date, then the next upcoming day, then the first day.
+ * matching today's Philippine date, then the next upcoming day, then the first day.
  */
 export function selectRunSheetDay(days: PrismEventScheduleDay[], dayId: string | undefined, now: Date) {
   if (dayId) return days.find((day) => day.id === dayId);
-  const today = now.toISOString().slice(0, 10);
+  const today = prismCalendarDateKey(now);
   return days.find((day) => day.dayDate === today)
     ?? days.find((day) => day.dayDate > today)
     ?? days[0];
 }
 
-/** UTC calendar day of the schedule day, widened to cover that day's authored segments. */
+/** Philippine calendar day (UTC+8, no DST) of the schedule day, widened to cover that day's authored segments. */
 export function runSheetWindow(day: PrismEventScheduleDay) {
-  let start = Date.parse(`${day.dayDate}T00:00:00.000Z`);
+  let start = Date.parse(`${day.dayDate}T00:00:00.000+08:00`);
   let end = start + DAY_MS;
   for (const segment of day.segments) {
     start = Math.min(start, Date.parse(segment.plannedStartAt));

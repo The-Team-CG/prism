@@ -15,6 +15,11 @@ export function selectActiveDraft<T extends FloorPlanDraftLike>(
   return drafts.find((d) => d.isActive) ?? drafts[0];
 }
 
+/** The API refuses an official floor plan until the ocular visit is completed or waived. */
+export function isOcularVisitCleared(status: string | null | undefined): boolean {
+  return status === "completed" || status === "waived";
+}
+
 export function canSubmitFloorPlanDraft(status?: string): boolean {
   if (!status) return true;
   return status !== "in_review" && status !== "approved";

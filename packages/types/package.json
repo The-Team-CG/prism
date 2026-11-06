@@ -7,16 +7,17 @@
     ".": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "dev": "tsc --watch -p tsconfig.build.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "node ../../scripts/typescript.mjs --compiler=legacy -p tsconfig.build.json",
+    "dev": "node ../../scripts/typescript.mjs --compiler=legacy --watch -p tsconfig.build.json",
+    "typecheck": "node ../../scripts/typescript.mjs -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "test:ci": "vitest run"
+    "test:ci": "vitest run",
+    "lint": "node ../../scripts/lint.mjs"
   },
   "devDependencies": {
     "typescript": "^6.0.3"
   },
   "dependencies": {
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   }
 }

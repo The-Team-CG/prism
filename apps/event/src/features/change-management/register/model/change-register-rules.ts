@@ -1,4 +1,15 @@
-import type { PrismAddendum, PrismEventFreezeException } from "@prism/types";
+import type { PrismAddendum, PrismEventFreezeException, RecordEventDecisionInput } from "@prism/types";
+
+/** The decision form works in pesos; the API stores the cancellation fee in minor units (centavos). */
+export type RecordDecisionDraft = Omit<RecordEventDecisionInput, "cancellationFeeAmount"> & { cancellationFeePesos: string };
+
+/** "₱12,500.50" becomes 1250050. Blank means no fee. Returns NaN for text that is not a non-negative amount. */
+export function pesosToMinorUnits(value: string): number {
+  const digits = value.replace(/[₱,\s]/g, "");
+  if (digits === "") return 0;
+  const amount = Number(digits);
+  return Number.isFinite(amount) && amount >= 0 ? Math.round(amount * 100) : Number.NaN;
+}
 
 export type AddendumConformeAction = "request" | "countersign" | "awaiting_client" | "none";
 
@@ -45,3 +56,19 @@ export const supplierImpactOptions = [
   { value: "release_obligations", label: "Release supplier obligations" },
   { value: "preserve_obligations", label: "Preserve supplier obligations" },
 ] as const;
+
+/** A cancellation or postponement can be sent only once it is fully specified and its impact review confirmed. */
+export function canRecordDecision(draft: {
+  decision: "" | "cancelled" | "postponed" | "date_to_be_confirmed";
+  reason: string;
+  newEventDate: string;
+  frozen: boolean;
+  freezeExceptionId: string;
+  impactReviewed: boolean;
+}): boolean {
+  if (draft.decision === "") return false;
+  if (draft.reason.trim().length === 0 || !draft.impactReviewed) return false;
+  if (draft.decision === "postponed" && draft.newEventDate.length === 0) return false;
+  return !draft.frozen || draft.freezeExceptionId.length > 0;
+}
+

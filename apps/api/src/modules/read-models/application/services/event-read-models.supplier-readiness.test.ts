@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildPmcmSupplierReadinessItem,
   buildSupplierReadinessItem,
+  supplierFacingEventRef,
   type SupplierReadinessRequestSource,
   type SupplierReadinessScheduleSource,
 } from './event-read-models.supplier-readiness';
@@ -51,6 +52,23 @@ function request(overrides: Partial<SupplierReadinessRequestSource> = {}): Suppl
 }
 
 const event = { eventName: 'Ayala Summit', clientName: 'Ana Reyes' };
+
+describe('supplierFacingEventRef', () => {
+  const fullEvent = { ...event, eventDate: new Date('2026-12-01T00:00:00.000Z') };
+
+  it('hides the event name and client on a confidential bid until that supplier is selected, keeping the date', () => {
+    const hidden = { eventName: 'Confidential event', clientName: null, eventDate: fullEvent.eventDate };
+    expect(supplierFacingEventRef({ confidentialBid: true, status: 'open' }, fullEvent)).toEqual(hidden);
+    expect(supplierFacingEventRef({ confidentialBid: true, status: 'closed' }, fullEvent)).toEqual(hidden);
+    expect(supplierFacingEventRef({ confidentialBid: true, status: 'selected' }, fullEvent)).toEqual(fullEvent);
+    expect(supplierFacingEventRef({ confidentialBid: false, status: 'open' }, fullEvent)).toEqual(fullEvent);
+  });
+
+  it('gives the supplier the event date as a calendar date', () => {
+    expect(buildSupplierReadinessItem(request(), fullEvent, clock).eventDate).toBe('2026-12-01');
+    expect(buildSupplierReadinessItem(request(), { ...event, eventDate: '2026-12-01T00:00:00.000Z' }, clock).eventDate).toBe('2026-12-01');
+  });
+});
 
 describe('supplier readiness item builder', () => {
   it('reports schedule window and acknowledgment for a fully ready assignment', () => {

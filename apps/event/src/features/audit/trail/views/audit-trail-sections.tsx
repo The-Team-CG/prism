@@ -26,7 +26,7 @@ import type { PrismAuditLog, PrismEvent, PrismUser, PrismLoginHistory, PrismSecu
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
-import { compactTimestamp, cx, label, roleLabel, severityTone } from "@/features/pmcm-kit";
+import { compactTimestamp, cx, label, roleLabel, SegmentedControl, sessionDeviceLabel, severityTone } from "@/features/pmcm-kit";
 import { Metric, Panel } from "@/features/pmcm-kit";
 import { auditIconKind, auditIntegrityCopy, groupRepeatedAuditLogs, type AuditLogGroup } from "../model/audit-trail-rules";
 import { usePagedItems } from "../view-models/use-paged-items";
@@ -56,7 +56,7 @@ export function AuditTrailOverview({
   return (
     <section className="rounded-lg border border-border bg-card p-5 shadow-[0_18px_70px_rgba(23,18,22,0.07)]">
       <AuditTrailHeader busy={vm.busy} onExport={vm.exportLog} onToggleFilters={() => vm.setAdvancedOpen((value) => !value)} />
-      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
         <Metric label="Total events (view)" value={vm.logs.length} icon={ListFilter} />
         <Metric label="User actions" value={vm.userActionCount} icon={UserCheck} />
         <Metric label="System events" value={vm.systemActionCount} icon={RotateCcw} />
@@ -176,19 +176,13 @@ function AuditLogFilters({
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={vm.query} onChange={(event) => vm.setQuery(event.target.value)} className="h-10 bg-white pl-9" placeholder="Search logs..." />
         </div>
-        {vm.auditCategories.map((item) => (
-          <button
-            key={item}
-            type="button"
-            onClick={() => vm.setCategory(item)}
-            className={cx(
-              "h-10 rounded-full border px-4 text-xs font-black capitalize transition-colors",
-              vm.category === item ? "border-primary bg-secondary text-foreground" : "border-border bg-white text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {label(item)}
-          </button>
-        ))}
+        <SegmentedControl
+          label="Filter audit log by category"
+          options={vm.auditCategories.map((item) => ({ value: item, label: sentenceCase(label(item)) }))}
+          value={vm.category}
+          onChange={vm.setCategory}
+          className="self-center"
+        />
       </div>
       {vm.advancedOpen ? <AuditAdvancedFilters vm={vm} events={events} users={users} /> : null}
     </>
@@ -283,6 +277,10 @@ function AuditLogList({ logs, busy }: { logs: PrismAuditLog[]; busy: boolean }) 
   );
 }
 
+function sentenceCase(text: string) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 const AUDIT_ROW_GRID = "md:grid md:grid-cols-[9.5rem_minmax(0,13rem)_minmax(0,1fr)_7rem] md:items-center md:gap-4";
 
 const SEVERITY_TEXT: Record<string, string> = { critical: "text-danger", warning: "text-attention" };
@@ -350,7 +348,7 @@ export function SecurityAlertsPanel({ alerts }: { alerts: PrismSecurityAlert[] }
                 <p className="font-black">{alert.title}</p>
                 <p className="mt-1 text-muted-foreground">{alert.description}</p>
               </div>
-              <span className={cx("rounded-full px-2 py-1 text-2xs font-black capitalize ring-1", severityTone(alert.severity))}>{alert.severity}</span>
+              <span className={cx("rounded-full px-2 py-1 text-2xs font-semibold capitalize", severityTone(alert.severity))}>{alert.severity}</span>
             </div>
             <p className="mt-2 text-xs text-muted-foreground">{compactTimestamp(alert.createdAt)} - {alert.triggeredBy}</p>
           </div>
@@ -369,12 +367,12 @@ export function LoginHistoryPanel({ loginHistory }: { loginHistory: PrismLoginHi
           <div key={entry.id} className="rounded-md bg-background p-3 text-sm">
             <div className="flex items-center justify-between gap-3">
               <p className="font-black capitalize">{label(entry.status)}</p>
-              <span className={cx("rounded-full px-2 py-1 text-2xs font-black capitalize ring-1", entry.status === "success" ? severityTone("info") : severityTone("warning"))}>
-                {label(entry.userRole)}
+              <span className={cx("rounded-full px-2 py-1 text-2xs font-semibold capitalize", entry.status === "success" ? severityTone("info") : severityTone("warning"))}>
+                {roleLabel(entry.userRole)}
               </span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">{compactTimestamp(entry.createdAt)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{entry.ipAddress} - {entry.device}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{[entry.ipAddress, sessionDeviceLabel(entry.device)].filter(Boolean).join(" · ")}</p>
             {entry.failureReason ? <p className="mt-1 text-xs text-danger">{entry.failureReason}</p> : null}
           </div>
         ))}
