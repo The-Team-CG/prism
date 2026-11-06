@@ -21,6 +21,18 @@ const EXPIRABLE_REQUEST_STATUSES: ReadonlySet<string> = new Set([
   SupplierQuoteRequestStatus.RevisionRequested,
 ]);
 
+const MANILA_UTC_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+/** The Philippine calendar date (YYYY-MM-DD) of an instant. The Philippines has no daylight saving. */
+export function manilaCalendarDate(value: Date): string {
+  return new Date(value.getTime() + MANILA_UTC_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/** A quote deadline is a Philippine calendar date: the request stays open through the end of that day. */
+export function quoteDeadlineInstant(value: Date): Date {
+  return new Date(`${manilaCalendarDate(value)}T23:59:59.999+08:00`);
+}
+
 /** A quote-request link stays valid for this long after it is issued. */
 export const QUOTE_ACCESS_TOKEN_TTL_DAYS = 90;
 

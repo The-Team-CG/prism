@@ -534,6 +534,26 @@ describe('PlansService table assignment eligibility on official saves', () => {
     expect(prisma.floorPlan.update).toHaveBeenCalled();
   });
 
+  it('refuses new seat assignments when the event expects 200 guests or more, but keeps seats already made', async () => {
+    const seated = editorTable({ assignedGuestIds: ['g-ana'] });
+    const { service, prisma } = createService(draft('pmcm_draft'), {
+      objectRows: [{ objectId: 't1', objectData: seated, zIndex: 0 }],
+    });
+    const addSeat = [editorTable({ assignedGuestIds: ['g-ana', 'g-ben'] })];
+
+    await expect(
+      service.updatePlan('plan_event_1', changes({ objects: addSeat, guests: eventGuestRoster, pax: 200 }), pmcmActor()),
+    ).rejects.toThrow('Table assignment is only available for events under 200 guests.');
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+
+    await expect(
+      service.updatePlan('plan_event_1', changes({ objects: [seated], guests: eventGuestRoster, pax: 450 }), pmcmActor()),
+    ).resolves.toMatchObject({ id: 'plan_event_1' });
+    await expect(
+      service.updatePlan('plan_event_1', changes({ objects: addSeat, guests: eventGuestRoster, pax: 150 }), pmcmActor()),
+    ).resolves.toMatchObject({ id: 'plan_event_1' });
+  });
+
   it('keeps saving plans that carry no seat assignment fields, including legacy kernel-shaped objects', async () => {
     const { service, prisma } = createService(draft('pmcm_draft'));
     const legacyObject = {

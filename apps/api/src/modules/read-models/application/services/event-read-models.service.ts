@@ -36,6 +36,7 @@ import { FLOORPLAN_READER, type FloorplanReader } from '@prism/contexts/floorpla
 import { isClientVisibleFloorPlanDraft } from '@prism/contexts/floorplan/event-drafts';
 import { mapClientBillingStatement } from '@prism/contexts/commercial';
 import { OpsUserRole, SupplierQuoteRequestStatus, isOpsConstantValue } from '@prism/kernel/event-core';
+import { derivePrismLifecycleStage } from '@prism/types';
 import type {
   PrismClientEventTimeline,
   PrismClientSharedFloorplanEntry,
@@ -55,11 +56,9 @@ import {
   STAFFING_READER,
   type StaffingReader,
 } from '@prism/contexts/operations';
-import { EventReadModelQueries, MAX_PMCM_COMMAND_INBOX_PAGE_SIZE } from '../queries/event-read-models.queries';
+import { EventReadModelQueries, MAX_EVENT_FLOORPLAN_DRAFTS, MAX_PMCM_COMMAND_INBOX_PAGE_SIZE } from '../queries/event-read-models.queries';
 import {
   buildDefenseActions,
-  countMatching,
-  defenseLifecycleStage,
   defenseSummary,
   overallDefenseStatus,
 } from './event-read-models.defense';
@@ -76,6 +75,7 @@ import {
   buildSupplierReadinessItem,
   createSupplierReadinessClock,
   sortSupplierReadinessItems,
+  supplierFacingEventRef,
   type SupplierReadinessClock,
 } from './event-read-models.supplier-readiness';
 
@@ -145,7 +145,7 @@ function mapClientEventTimeline(source: ClientEventTimelineSource): PrismClientE
 
 type ClientOcularVisitRecord = Pick<
   OpsOcularVisitRequest,
-  'eventId' | 'status' | 'clientNote' | 'requestedAt' | 'scheduledAt'
+  'eventId' | 'status' | 'clientNote' | 'scheduleNote' | 'requestedAt' | 'scheduledAt'
 >;
 
 function ocularVisitStatus(status: string): PrismOcularVisitStatus {
@@ -160,6 +160,7 @@ function mapClientOcularVisit(request: ClientOcularVisitRecord): PrismClientOcul
     eventId: request.eventId,
     status: ocularVisitStatus(request.status),
     clientNote: request.clientNote,
+    scheduleNote: request.scheduleNote,
     requestedAt: request.requestedAt?.toISOString() ?? null,
     scheduledAt: request.scheduledAt?.toISOString() ?? null,
   };
@@ -173,6 +174,21 @@ function mapPmcmOcularVisit(request: OpsOcularVisitRequest): PrismPmcmOcularVisi
     waivedAt: request.waivedAt?.toISOString() ?? null,
     waivedBy: request.waivedBy,
   };
+}
+
+/**
+ * Every compliance run re-evaluates the same rules and keeps its own check rows, so the workspace shows
+ * the newest result for each rule. Input order (newest first) is kept for the rows that survive.
+ */
+function latestCheckPerRule<T extends { id: string; conditionKey: string; ruleId: string | null; createdAt: Date }>(checks: T[]): T[] {
+  const newestByRule = new Map<string, T>();
+  for (const check of checks) {
+    const key = check.conditionKey || check.ruleId || check.id;
+    const current = newestByRule.get(key);
+    if (!current || check.createdAt.getTime() > current.createdAt.getTime()) newestByRule.set(key, check);
+  }
+  const survivors = new Set(newestByRule.values());
+  return checks.filter((check) => survivors.has(check));
 }
 
 export type EventListMappers = {
@@ -258,66 +274,40 @@ export class EventReadModelsService {
     await this.policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'defense readiness', eventId);
     if (!this.closureReadinessReader) throw new Error('Closure readiness reader is not configured');
 
+    // One wave: every count and the close gates start together. A missing event is reported after the wave;
+    // only counts are read, and nothing is returned before the event is confirmed to exist.
     const [
-      event,
-      briefings,
-      quoteRequests,
-      supplierQuotes,
-      eventDayTasks,
-      urgentIssues,
-      billingStatements,
-      paymentMilestones,
-      counts,
-    ] = await this.queries.defenseReadiness(eventId);
-    if (!event) throw new NotFoundException('Event not found');
-
-    const [
-      coordinatorAssignments,
-      guestCheckIns,
-      guestFeedback,
+      [event, counts],
       closeGatesResult,
-      staffingAssignmentCount,
-      pendingStaffingAssignmentCount,
-      guestAttendanceCount,
+      coordinatorAssignmentsCount,
+      pendingCoordinatorCount,
+      guestCheckInsCount,
       pendingFeedbackCount,
     ] = await Promise.all([
-      this.staffingReader.listAssignmentsForEvent(eventId),
-      this.guestReader.listCheckInsForEvent(eventId),
-      this.guestReader.listFeedbackForEvent(eventId),
+      this.queries.defenseReadiness(eventId),
       this.closureReadinessReader.closeGates(eventId),
       this.staffingReader.countAssignmentsForEvent(eventId),
       this.staffingReader.countPendingAssignmentsForEvent(eventId),
       this.guestReader.countCheckInsForEvent(eventId),
       this.guestReader.countPendingFeedbackForEvent(eventId),
     ]);
+    if (!event) throw new NotFoundException('Event not found');
     const closeGates = closeGatesResult as { ready: boolean; missingKeys: string[] };
-    const floorPlanDrafts = event.floorPlanDrafts ?? [];
     const input = {
       eventName: event.eventName,
       archived: event.archived,
-      briefingsCount: counts?.briefings ?? briefings.length,
-      floorPlanDraftsCount: counts?.floorPlanDrafts ?? floorPlanDrafts.length,
-      approvedFloorplan: counts ? counts.approvedFloorplan > 0 : Boolean(floorPlanDrafts.find((draft: { status: string }) => draft.status === 'approved')),
-      quoteRequestsCount: counts?.quoteRequests ?? quoteRequests.length,
-      selectedSupplierCount:
-        counts?.selectedSupplierQuotes ??
-        countMatching(supplierQuotes, (quote: { status: string }) => ['selected', 'locked'].includes(quote.status)),
-      coordinatorAssignmentsCount: staffingAssignmentCount ?? coordinatorAssignments.length,
-      pendingCoordinatorCount:
-        pendingStaffingAssignmentCount ??
-        countMatching(coordinatorAssignments, (assignment: { status: string }) => ['pending', 'pending_acknowledgement'].includes(assignment.status)),
-      billingStatementsCount: counts?.billingStatements ?? billingStatements.length,
-      unpaidMilestoneCount:
-        counts?.unpaidPaymentMilestones ??
-        countMatching(
-          paymentMilestones,
-          (milestone: { status: string; remainingBalance: number }) => milestone.status !== 'paid' || milestone.remainingBalance > 0,
-        ),
-      openTaskCount:
-        counts?.eventDayTasks ?? countMatching(eventDayTasks, (task: { status: string }) => !['done', 'cancelled'].includes(task.status)),
-      openIssueCount:
-        counts?.urgentIssues ?? countMatching(urgentIssues, (issue: { status: string }) => !['resolved', 'closed'].includes(issue.status)),
-      guestCheckInsCount: guestAttendanceCount,
+      briefingsCount: counts.briefings,
+      floorPlanDraftsCount: counts.floorPlanDrafts,
+      approvedFloorplan: counts.approvedFloorplan > 0,
+      quoteRequestsCount: counts.quoteRequests,
+      selectedSupplierCount: counts.selectedSupplierRequests,
+      coordinatorAssignmentsCount,
+      pendingCoordinatorCount,
+      billingStatementsCount: counts.billingStatements,
+      unpaidMilestoneCount: counts.unpaidPaymentMilestones,
+      openTaskCount: counts.eventDayTasks,
+      openIssueCount: counts.urgentIssues,
+      guestCheckInsCount,
       pendingFeedbackCount,
       closeGates,
     };
@@ -328,7 +318,7 @@ export class EventReadModelsService {
       eventId,
       eventName: event.eventName,
       overallStatus: overallDefenseStatus(nextActions),
-      lifecycleStage: defenseLifecycleStage(input),
+      lifecycleStage: derivePrismLifecycleStage(event),
       score: Math.round((doneCount / nextActions.length) * 100),
       summary: defenseSummary(input),
       nextActions,
@@ -627,7 +617,7 @@ export class EventReadModelsService {
     const items = sortSupplierReadinessItems(
       requests
         .filter((request) => eventsById.has(request.eventId))
-        .map((request) => buildSupplierReadinessItem(request, eventsById.get(request.eventId), clock)),
+        .map((request) => buildSupplierReadinessItem(request, supplierFacingEventRef(request, eventsById.get(request.eventId)), clock)),
     );
 
     return {
@@ -705,11 +695,11 @@ export class EventReadModelsService {
   async pmcmEventWorkspace(actor: ResolvedEventOpsActor, eventId: string, mappers: PmcmDashboardMappers) {
     await this.policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'PMCM event workspace', eventId);
 
-    const event = await this.queries.eventWithDrafts(eventId);
-    if (!event) throw new NotFoundException('Event not found');
-    await this.policy.requireCanReadEvent(actor, event, 'PMCM event workspace');
-
+    // One wave: the event row, the event-scoped batch and the context readers start together. The access check
+    // needs only the event row and makes no database call, so nothing is returned before it passes.
     const [
+      eventRow,
+      [
       documents,
       briefings,
       supplierQuoteRequests,
@@ -725,15 +715,24 @@ export class EventReadModelsService {
       auditLogs,
       notificationLogs,
       ocularVisit,
-    ] = await this.queries.pmcmEventWorkspace(eventId);
-    const [coordinatorAssignments, coordinatorCoverage, guestCheckIns, guestFeedback, registrationPlatform, guestAttendanceCount] = await Promise.all([
-      this.staffingReader.listAssignmentsForEvent(eventId),
-      this.staffingReader.listCoverageForEvent?.(eventId) ?? Promise.resolve([]),
-      this.guestReader.listCheckInsForEvent(eventId),
-      this.guestReader.listFeedbackForEvent(eventId),
-      this.registrationPlatformReader?.getByEventId(eventId) ?? Promise.resolve(null),
-      this.guestReader.countCheckInsForEvent(eventId),
+      ],
+      [coordinatorAssignments, coordinatorCoverage, guestCheckIns, guestFeedback, registrationPlatform, guestAttendanceCount],
+    ] = await Promise.all([
+      this.queries.eventRow(eventId),
+      this.queries.pmcmEventWorkspace(eventId),
+      Promise.all([
+        this.staffingReader.listAssignmentsForEvent(eventId),
+        this.staffingReader.listCoverageForEvent?.(eventId) ?? Promise.resolve([]),
+        this.guestReader.listCheckInsForEvent(eventId),
+        this.guestReader.listFeedbackForEvent(eventId),
+        this.registrationPlatformReader?.getByEventId(eventId) ?? Promise.resolve(null),
+        this.guestReader.countCheckInsForEvent(eventId),
+      ]),
     ]);
+    if (!eventRow) throw new NotFoundException('Event not found');
+    // The batch already read this event's drafts (same order), so the event carries them without a second query.
+    const event = { ...eventRow, floorPlanDrafts: floorPlanDrafts.slice(0, MAX_EVENT_FLOORPLAN_DRAFTS) };
+    await this.policy.requireCanReadEvent(actor, event, 'PMCM event workspace');
 
     return {
       event: mappers.mapEvent(event),
@@ -743,7 +742,7 @@ export class EventReadModelsService {
       supplierQuotes: supplierQuotes.map(mappers.mapSupplierQuote),
       coordinatorAssignments: coordinatorAssignments.map(mappers.mapCoordinatorAssignment),
       coordinatorCoverage,
-      complianceChecks: complianceChecks.map(mappers.mapComplianceCheck),
+      complianceChecks: latestCheckPerRule(complianceChecks).map(mappers.mapComplianceCheck),
       billingSources: billingSources.map(mappers.mapBillingSource),
       billingStatements: billingStatements.map(mappers.mapBillingStatement),
       paymentMilestones: paymentMilestones.map((payment) =>
@@ -782,65 +781,24 @@ export class EventReadModelsService {
     }));
   }
 
-  async pmcmDashboard(actor: ResolvedEventOpsActor, mappers: PmcmDashboardMappers) {
-    await this.policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'PMCM dashboard');
-
-    const [
-      users,
-      inquiries,
-      events,
-      documents,
-      briefings,
-      supplierQuoteRequests,
-      supplierQuotes,
-      complianceRules,
-      complianceChecks,
-      billingSources,
-      billingStatements,
-      paymentMilestones,
-      paymentRecords,
-      postEventDocuments,
-      eventInsights,
-      floorPlanDrafts,
-      auditLogs,
-      notificationLogs,
-      supplierCategories,
-      suppliers,
-    ] = await this.queries.pmcmDashboard();
-    const [coordinators, coordinatorAssignments] = await Promise.all([
+  /** The event switcher, inquiries, directories and rules PMCM event pages use, in one parallel wave. */
+  async pmcmReference(actor: ResolvedEventOpsActor, mappers: PmcmDashboardMappers) {
+    await this.policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'PMCM reference');
+    const [[events, inquiries, users, complianceRules, supplierCategories, suppliers, balances], coordinators, coordinatorAssignments] = await Promise.all([
+      this.queries.pmcmReference(),
       this.queries.activeCoordinators(),
       this.queries.boundedCoordinatorAssignments(),
     ]);
-
     return {
-      users: users.map(mappers.mapUser),
-      inquiries: inquiries.map(mappers.mapInquiry),
       events: events.map(mappers.mapEvent),
-      documents: documents.map(mappers.mapDocument),
-      briefings: briefings.map(mappers.mapBriefing),
-      supplierQuoteRequests: supplierQuoteRequests.map(mappers.mapSupplierQuoteRequest),
-      supplierQuotes: supplierQuotes.map(mappers.mapSupplierQuote),
+      inquiries: inquiries.map(mappers.mapInquiry),
+      suppliers,
+      supplierCategories,
       coordinators: coordinators.map(mappers.mapCoordinator),
-      coordinatorRoleRequirements: mappers.coordinatorRoleRequirements,
       coordinatorAssignments: coordinatorAssignments.map(mappers.mapCoordinatorAssignment),
       complianceRules: complianceRules.map(mappers.mapComplianceRule),
-      complianceChecks: complianceChecks.map(mappers.mapComplianceCheck),
-      billingSources: billingSources.map(mappers.mapBillingSource),
-      billingStatements: billingStatements.map(mappers.mapBillingStatement),
-      paymentMilestones: paymentMilestones.map((payment) =>
-        mappers.mapPaymentMilestone(
-          payment,
-          paymentRecords.filter((record) => record.milestoneId === payment.id),
-        ),
-      ),
-      paymentRecords: paymentRecords.map(mappers.mapPaymentRecord),
-      postEventDocuments: postEventDocuments.map(mappers.mapPostEventDocument),
-      eventInsights: eventInsights.map(mappers.mapEventInsight),
-      floorPlanDrafts: floorPlanDrafts.map(mappers.mapFloorPlanDraft),
-      supplierCategories,
-      suppliers,
-      auditLogs: auditLogs.map(mappers.mapAuditLog),
-      notificationLogs: notificationLogs.map(mappers.mapNotificationLog),
+      users: users.map(mappers.mapUser),
+      outstandingBalanceByEvent: Object.fromEntries(balances.map((row) => [row.eventId, row._sum.remainingBalance ?? 0])),
     };
   }
 

@@ -5,7 +5,7 @@ import { ConformeCommsDraftService } from './conforme-comms-draft.service';
 import { resolveAiGatewayRuntimeConfig } from './gateway/ai-gateway.config';
 import { AiGatewayService } from './gateway/ai-gateway.service';
 import { SYNTHETIC_COMMS_REQUEST_FIXTURE, SyntheticFixtureRegistry } from './gateway/synthetic-fixture-registry';
-import { MockAiProviderAdapter } from '../../infrastructure/ai-governance/mock-ai-provider.adapter';
+import { FAKE_ZDR_ENV, FakeAiProviderAdapter } from '../../infrastructure/ai-governance/fake-ai-provider.test-support';
 
 const NOW = new Date('2026-09-24T12:00:00.000Z');
 const SENT_AT = new Date(NOW.getTime() - 6 * 24 * 60 * 60 * 1000);
@@ -17,12 +17,12 @@ const EVIDENCE: AiAuditEvidence = {
   requestId: 'req_comms_1',
   useCaseId: 'comms.draft',
   promptVersion: 'comms-draft-v1',
-  profileId: 'mock',
-  provider: 'mock',
-  requestedModel: 'mock',
+  profileId: 'anthropic-zdr',
+  provider: 'anthropic',
+  requestedModel: 'claude-sonnet-5-5',
   routeRevision: 'a'.repeat(64),
-  routePolicyOutcome: 'mock_local',
-  zdrBasis: 'none',
+  routePolicyOutcome: 'zdr_approved',
+  zdrBasis: 'provider-enforced',
   dataClasses: ['synthetic'],
   latencyMs: 12,
   outcome: 'completed',
@@ -282,11 +282,16 @@ describe('ConformeCommsDraftService', () => {
     expect(state.notifications).toHaveLength(0);
   });
 
-  it('completes a real mock gateway stream for an eligible inquiry without sending its identity', async () => {
+  it.each([
+    { label: 'ZDR-confirmed', env: FAKE_ZDR_ENV, outcome: 'zdr_approved' },
+    { label: 'test-data', env: { AI_PROVIDER: 'anthropic' }, outcome: 'test_data_approved' },
+    { label: 'fixtures-only', env: { AI_PROVIDER: 'anthropic', AI_ROUTE_PROFILE: 'anthropic-synthetic' }, outcome: 'synthetic_verified' },
+  ])('completes a real gateway stream on the $label route without sending the inquiry identity', async ({ env, outcome }) => {
     const { state, prisma, policy, notificationOutboxWriter, reminderWindowClaimer } = createHarness();
     const registry = new SyntheticFixtureRegistry();
-    const runtime = resolveAiGatewayRuntimeConfig({ get: () => undefined } as never);
-    const gateway = new AiGatewayService(prisma as never, runtime, [new MockAiProviderAdapter()], registry);
+    const runtime = resolveAiGatewayRuntimeConfig({ get: (key: string) => (env as Record<string, string>)[key] });
+    const provider = new FakeAiProviderAdapter();
+    const gateway = new AiGatewayService(prisma as never, runtime, [provider], registry);
     gateway.onModuleInit();
     const service = new ConformeCommsDraftService(
       prisma as never, gateway, notificationOutboxWriter as never, policy as never, reminderWindowClaimer as never,
@@ -295,6 +300,8 @@ describe('ConformeCommsDraftService', () => {
     const events = await consume(await service.prepareStream({ inquiryId: 'inq_1' }, verifiedActor()));
     expect(events[events.length - 1]?.type).toBe('complete');
     expect(await registry.verify({ inquiryId: 'inq_1' })).toBeNull();
+    expect(JSON.stringify(provider.requests)).not.toContain('inq_1');
+    expect(JSON.stringify(provider.requests)).not.toContain('ana@customer.test');
     expect([...state.drafts.values()][0].inquiryId).toBe('inq_1');
     const gatewayAudit = [...state.audits.values()].find((row) => row.featureName === 'comms.draft');
     expect(gatewayAudit?.dataCategories).toEqual(['synthetic']);
@@ -302,11 +309,28 @@ describe('ConformeCommsDraftService', () => {
       ...SYNTHETIC_COMMS_REQUEST_FIXTURE,
       _aiGatewayRoute: {
         routeRevision: expect.stringMatching(/^[a-f0-9]{64}$/),
-        routePolicyOutcome: 'mock_local',
-        endpointPolicyId: 'deterministic-mock',
+        routePolicyOutcome: outcome,
+        endpointPolicyId: 'anthropic-direct',
       },
     });
     expect(JSON.stringify(gatewayAudit)).not.toContain('inq_1');
+  });
+
+  it('blocks the draft stream and persists nothing when no AI provider is configured', async () => {
+    const { state, prisma, policy, notificationOutboxWriter, reminderWindowClaimer } = createHarness();
+    const runtime = resolveAiGatewayRuntimeConfig({ get: () => undefined });
+    const gateway = new AiGatewayService(prisma as never, runtime, [], new SyntheticFixtureRegistry());
+    gateway.onModuleInit();
+    const service = new ConformeCommsDraftService(
+      prisma as never, gateway, notificationOutboxWriter as never, policy as never, reminderWindowClaimer as never,
+    );
+
+    const events = await consume(await service.prepareStream({ inquiryId: 'inq_1' }, verifiedActor()));
+
+    expect(events.some((event) => event.type === 'complete')).toBe(false);
+    expect(state.drafts.size).toBe(0);
+    expect(state.approvals.size).toBe(0);
+    expect(state.notifications).toHaveLength(0);
   });
 
   it('does not expose or approve a malformed migrated draft snapshot', async () => {

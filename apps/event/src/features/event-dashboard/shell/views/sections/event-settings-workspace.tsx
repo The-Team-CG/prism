@@ -56,7 +56,7 @@ export function EventSettingsWorkspace({
       {[
         { label: "Signed in as", value: session.name, detail: humanizeToken(session.role) },
         { label: "Default workspace", value: selectedEvent?.eventName ?? "No event selected", detail: selectedEvent?.clientName ?? "Pick an event from Events." },
-        { label: "Notifications", value: "Email + Viber", detail: "Production adapters are still gated by notification infrastructure." },
+        { label: "Notifications", value: "Email + Viber", detail: "Live sending isn't connected yet." },
       ].map((item) => (
         <Card key={item.label}>
           <CardBody>
@@ -66,6 +66,7 @@ export function EventSettingsWorkspace({
           </CardBody>
         </Card>
       ))}
+      {canManageClientEventDayView ? (
       <Card className="lg:col-span-3">
         <CardHeader>
           <div className="flex items-center gap-2">
@@ -74,12 +75,6 @@ export function EventSettingsWorkspace({
           </div>
         </CardHeader>
         <CardBody className="grid gap-3 md:grid-cols-3">
-          {["Role-safe access", "Audit logging", "Client portal gating"].map((item) => (
-            <div key={item} className="rounded-md border border-border bg-muted/20 px-4 py-3">
-              <p className="text-sm font-black text-foreground">{item}</p>
-              <p className="mt-1 text-xs text-muted-foreground">Managed by PMCM event command policy.</p>
-            </div>
-          ))}
           {canManageClientEventDayView && (
             <div className="rounded-md border border-border bg-muted/20 px-4 py-3">
               <div className="flex items-center justify-between gap-4">
@@ -125,6 +120,7 @@ export function EventSettingsWorkspace({
           )}
         </CardBody>
       </Card>
+      ) : null}
     </div>
   );
 }

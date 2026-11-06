@@ -37,6 +37,7 @@ import {
 } from './privacy-legal-hold.policy';
 import { requireVerifiedTrustActor } from './verified-trust-actor';
 import { mapPrivacyRequest, privacyRequestDueAt, type OpsPrivacyRequestRecord } from './privacy-request.mapper';
+import { AiTriageRecordEraser } from '../ai-governance/ai-triage-record-eraser.service';
 
 type CreatePrivacyRequestInput = {
   subjectType: string;
@@ -80,7 +81,7 @@ type OpsPrivacyLegalHoldRecord = {
 };
 
 type PrivacyOwnerReceipt = {
-  owner: 'event-lifecycle' | 'commercial' | 'operations' | 'identity-access';
+  owner: 'event-lifecycle' | 'commercial' | 'operations' | 'identity-access' | 'platform-ops';
   outcome: 'completed' | 'no_matches';
   surfaces: string[];
   touchedRecords: number;
@@ -105,6 +106,7 @@ export class PrivacyOperationsService {
     private readonly operationsPrivacy: OperationsPrivacyRedactor,
     @Inject(IDENTITY_PRIVACY_REDACTOR)
     private readonly identityPrivacy: IdentityPrivacyRedactor,
+    private readonly aiTriageRecords: AiTriageRecordEraser,
   ) {}
 
   async getInventory(input: PrivacyInventoryInput = {}) {
@@ -802,13 +804,15 @@ export class PrivacyOperationsService {
       prisma,
     );
     const identity = await this.redactIdentitySurfaces(byEmail, redactedEmail, OpsUserRole.Client, prisma, accountId);
+    const aiTriage = await this.aiTriageRecords.eraseForInquiries(lifecycle.inquiryIds, prisma);
     return {
-      surfaces: [...lifecycle.surfaces, ...commercial.surfaces, ...identity.surfaces],
-      touchedRecords: lifecycle.touchedRecords + commercial.touchedRecords + identity.touchedRecords,
+      surfaces: [...lifecycle.surfaces, ...commercial.surfaces, ...identity.surfaces, ...aiTriage.surfaces],
+      touchedRecords: lifecycle.touchedRecords + commercial.touchedRecords + identity.touchedRecords + aiTriage.touchedRecords,
       ownerReceipts: [
         this.ownerReceipt('event-lifecycle', lifecycle),
         this.ownerReceipt('commercial', commercial),
         identity.receipt,
+        this.ownerReceipt('platform-ops', aiTriage),
       ],
     };
   }

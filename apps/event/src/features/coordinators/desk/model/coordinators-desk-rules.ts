@@ -1,9 +1,11 @@
+import { isActiveCoordinatorAssignmentStatus, isWithinCoordinatorAttendanceWindow } from "@prism/types";
 import type {
   CoordinatorRole,
   CreateEventDayTaskInput,
   CreateUrgentIssueInput,
   PrismAcknowledgementReminderResult,
   PrismCoordinator,
+  PrismCoordinatorRoleView,
   UpdateCoordinatorAttendanceInput,
 } from "@prism/types";
 import { COORDINATOR_ROLES, canonicalCoordinatorRole } from "@prism/types";
@@ -14,7 +16,28 @@ export function sameCoordinatorName(a: string, b: string): boolean {
 }
 
 export function isCoordinatorAssignmentActive(assignment: { status?: string }): boolean {
-  return assignment.status !== "cancelled" && assignment.status !== "replaced" && assignment.status !== "declined";
+  return isActiveCoordinatorAssignmentStatus(assignment.status);
+}
+
+export type CoordinatorRoleViewSource =
+  | { kind: "event" }
+  | { kind: "wait" }
+  | { kind: "focus"; view: PrismCoordinatorRoleView }
+  | { kind: "error"; message: string };
+
+/**
+ * Where the open event's role view comes from. On the home's default event, the focus read the shell started with the
+ * workspace covers it; an event the coordinator picked, or a focus that names another event, gets its own read.
+ */
+export function coordinatorRoleViewSource(
+  focus: { status: "pending" | "ready" | "error"; data: PrismCoordinatorRoleView | null | undefined; error: Error | null } | null,
+  eventId: string | undefined,
+): CoordinatorRoleViewSource {
+  if (!focus) return { kind: "event" };
+  if (focus.data && focus.data.event.id === eventId) return { kind: "focus", view: focus.data };
+  if (focus.status === "pending") return { kind: "wait" };
+  if (focus.error) return { kind: "error", message: focus.error.message };
+  return { kind: "event" };
 }
 
 export function coordinatorSkillFilterOptions(
@@ -180,7 +203,7 @@ export function buildCoordinatorIssueInput({
  */
 export const COORDINATOR_ATTENDANCE_CHOICES = [
   { value: "present", label: "Present" },
-  { value: "late", label: "Late Arrival" },
+  { value: "late", label: "Late arrival" },
   { value: "absent", label: "Absent" },
 ] as const;
 
@@ -229,13 +252,21 @@ export function canMarkOwnAttendance({
   assignment,
   busy,
   attendanceBusy = false,
+  windowOpen,
 }: {
   assignment?: AssignmentLifecycle | null;
   busy: boolean;
   attendanceBusy?: boolean;
+  /** From isWithinCoordinatorAttendanceWindow. Outside the window the API rejects coordinator marks. */
+  windowOpen: boolean;
 }): boolean {
-  if (!assignment || busy || attendanceBusy) return false;
+  if (!assignment || busy || attendanceBusy || !windowOpen) return false;
   return !isReplacedAssignment(assignment);
+}
+
+/** Recorded attendance, shown as text once the window has closed. Null when PMCM has no record to show. */
+export function recordedAttendanceLabel(attendanceStatus: string): string | null {
+  return COORDINATOR_ATTENDANCE_CHOICES.find((item) => item.value === attendanceStatus)?.label ?? null;
 }
 
 /** Disables the status already set (a no-op), and everything when marking is off. */
@@ -266,13 +297,15 @@ export function canConfirmPendingAttendance({
   assignment,
   pendingChoice,
   busy,
+  windowOpen,
 }: {
   assignment?: AssignmentLifecycle | null;
   pendingChoice: CoordinatorAttendanceChoice | null;
   busy: boolean;
+  windowOpen: boolean;
 }): boolean {
   if (!pendingChoice) return false;
-  return canMarkOwnAttendance({ assignment, busy });
+  return canMarkOwnAttendance({ assignment, busy, windowOpen });
 }
 
 /**
@@ -313,6 +346,27 @@ export function isOperatorEligibleAssignment(assignment: { status?: string; coor
 }
 
 /**
+ * The active assignment for one person in one role. Acknowledgement belongs to this pair: a status on the
+ * same person's assignment for another role must never be shown on this role's card.
+ */
+export function activeAssignmentForRole<T extends { coordinatorId?: string | null; role: string; status?: string }>(
+  assignments: T[],
+  coordinatorId: string,
+  role: string,
+): T | undefined {
+  return assignments.find((a) => a.coordinatorId === coordinatorId && canonicalCoordinatorRole(a.role) === role && isCoordinatorAssignmentActive(a));
+}
+
+/** Another role this person already holds in the same event, if any. */
+export function otherActiveRoleAssignment<T extends { coordinatorId?: string | null; role: string; status?: string }>(
+  assignments: T[],
+  coordinatorId: string,
+  role: string,
+): T | undefined {
+  return assignments.find((a) => a.coordinatorId === coordinatorId && canonicalCoordinatorRole(a.role) !== role && isCoordinatorAssignmentActive(a));
+}
+
+/**
  * Mirrors the API's task update scope (requireTaskScope). The operator may update any task; other
  * coordinators only tasks for their own role that are unowned or owned by them. The role view also
  * lists General Coordinator tasks, which the API refuses to let a regular coordinator change.
@@ -330,6 +384,24 @@ export function canCoordinatorUpdateTask(
 /** Coordinators the operator can mark: everyone still working the event except the operator. */
 export function delegatedAttendanceTargets<T extends { id: string; status?: string }>(assignments: T[], ownAssignmentId: string): T[] {
   return assignments.filter((item) => item.id !== ownAssignmentId && isCoordinatorAssignmentActive(item));
+}
+
+const SUPPLIER_SITE_STEPS = [
+  { status: "arrived", label: "Arrived" },
+  { status: "set_up_ready", label: "Set up and ready" },
+  { status: "done_leaving", label: "Done and leaving" },
+] as const;
+
+export type SupplierSiteStep = (typeof SUPPLIER_SITE_STEPS)[number];
+
+/**
+ * The single forward step the API accepts next for a supplier (arrived, then set up and ready, then done and
+ * leaving). Any unreported state counts as before arrival. Null once complete or while readiness is unconfirmed.
+ */
+export function nextSupplierSiteStep(supplier: { readinessStatus?: string; eventDayStatus?: string }): SupplierSiteStep | null {
+  if (supplier.readinessStatus !== "confirmed") return null;
+  const index = SUPPLIER_SITE_STEPS.findIndex((step) => step.status === supplier.eventDayStatus);
+  return SUPPLIER_SITE_STEPS[index + 1] ?? null;
 }
 
 /** Only suppliers with a confirmed assignment are on site, so only those have a setup to check. */
@@ -376,4 +448,9 @@ export function coordinatorRoleDataStatus(status: string, hasRoleView: boolean) 
   if (status === "loading") return "loading";
   if (status === "error") return "unavailable";
   return hasRoleView ? "ready" : "pending";
+}
+
+/** Same rule the API enforces on coordinator marks: the day before through the day after the event, Manila time. */
+export function isCoordinatorAttendanceOpen(eventDate: string | undefined, todayKey: string): boolean {
+  return Boolean(eventDate) && isWithinCoordinatorAttendanceWindow(eventDate ?? "", todayKey);
 }

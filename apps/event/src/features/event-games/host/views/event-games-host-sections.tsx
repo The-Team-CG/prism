@@ -37,27 +37,24 @@ export function EventGamesHeaderCard({
   error: string | null;
   onRefresh: () => void;
 }) {
+  // A plain page header: the section's content (catalog, forms, analytics) carries the cards.
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-bold text-foreground">Event games</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Create event game drafts, host ready Active (Multiplayer) sessions, and review event-level engagement.
-            </p>
-          </div>
-          <Button type="button" variant="outline" disabled={loading || busy} onClick={onRefresh}>
-            <RefreshCw className="mr-2 size-4" aria-hidden="true" />
-            Refresh
-          </Button>
+    <header className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-foreground">Event games</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Create event game drafts, host ready Active (Multiplayer) sessions, and review event-level engagement.
+          </p>
         </div>
-      </CardHeader>
-      <CardBody>
-        {error ? <p role="alert" className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p> : null}
-        {loading ? <p role="status" className="text-sm text-muted-foreground">Loading event games…</p> : null}
-      </CardBody>
-    </Card>
+        <Button type="button" variant="outline" disabled={loading || busy} onClick={onRefresh}>
+          <RefreshCw className="mr-2 size-4" aria-hidden="true" />
+          Refresh
+        </Button>
+      </div>
+      {error ? <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p> : null}
+      {loading ? <p role="status" className="text-sm text-muted-foreground">Loading event games…</p> : null}
+    </header>
   );
 }
 
@@ -150,16 +147,25 @@ export function EventGameDraftCard({
 export function EventGameCatalogCard({
   games,
   renderGame,
+  creating,
+  onToggleCreate,
 }: {
   games: PrismEventGameDefinition[];
   renderGame: (game: PrismEventGameDefinition) => ReactNode;
+  creating: boolean;
+  onToggleCreate: () => void;
 }) {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="text-base font-bold text-foreground">Game catalog</h3>
-          <span className="text-sm text-muted-foreground">{games.length} configured</span>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-baseline gap-3">
+            <h3 className="text-base font-bold text-foreground">Game catalog</h3>
+            <span className="text-sm text-muted-foreground">{games.length} configured</span>
+          </div>
+          <Button type="button" size="sm" variant={creating ? "outline" : "default"} aria-expanded={creating} onClick={onToggleCreate}>
+            {creating ? "Close form" : "Create game"}
+          </Button>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">Drafts stay unpublished until their template rules and configuration are implemented.</p>
       </CardHeader>

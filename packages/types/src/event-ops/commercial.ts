@@ -193,6 +193,8 @@ export interface PrismSupplier {
   phone: string;
   serviceInclusions: string;
   performanceNotes: string;
+  /** PMCM's capacity or scale rating; null while unrated. */
+  capacityRating?: "small" | "medium" | "large" | null;
   applicationDate: string;
   aggregateRating: number | null;
   lastEventDate: string | null;

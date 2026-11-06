@@ -167,7 +167,14 @@ export function DateTimePicker({
       {name ? <input type="hidden" name={name} value={value} /> : null}
       {/* Keeps native required-field validation working on the button-driven picker. */}
       {required ? <input tabIndex={-1} aria-hidden className="pointer-events-none absolute inset-0 opacity-0" required value={value} onChange={() => undefined} /> : null}
-      <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Root
+        open={open}
+        onOpenChange={(next) => {
+          // With nothing chosen, open on the current month rather than the month the page loaded in.
+          if (next && !selected) setMonth(new Date());
+          setOpen(next);
+        }}
+      >
         <Popover.Trigger asChild>
           <button
             type="button"

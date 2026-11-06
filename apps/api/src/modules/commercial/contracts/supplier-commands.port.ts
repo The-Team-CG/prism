@@ -12,6 +12,7 @@ import type {
   UpdateSupplierEventStatusInput,
   UpdateSupplierInput,
   UploadContractInput,
+  ReportSupplierSiteStatusInput,
   VerifySupplierStatusInput,
   PromoteSupplierInput,
   PrismVerifiedEventActor,
@@ -48,6 +49,12 @@ export interface SupplierCommands {
   updateSupplierEventStatus(
     requestId: string,
     input: SupplierEventStatusInput,
+    actor: ResolvedEventOpsActor,
+  ): Promise<PrismSupplierQuoteRequest>;
+  reportSupplierEventStatusOnSite(
+    eventId: string,
+    requestId: string,
+    input: ReportSupplierSiteStatusInput,
     actor: ResolvedEventOpsActor,
   ): Promise<PrismSupplierQuoteRequest>;
   verifySupplierEventStatus(

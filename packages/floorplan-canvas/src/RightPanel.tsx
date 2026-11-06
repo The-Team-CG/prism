@@ -290,7 +290,7 @@ const PALETTE = ["#FFF4EC", "#FFF0E6", "#EAD5CE", "#E9F7FB", "#CCECF4", "#C01867
 
 function SectionHeader({ icon: Icon, label }: { icon: React.ComponentType<{ size?: number | string }>; label: string }) {
   return (
-    <div className="flex items-center gap-1.5 px-3 pb-1.5 pt-3 text-[10px] uppercase tracking-wider text-neutral-400">
+    <div className="flex items-center gap-1.5 px-3 pb-1.5 pt-3 text-xs font-medium text-neutral-500">
       <Icon size={11} />
       <span>{label}</span>
     </div>
@@ -505,7 +505,7 @@ export function RightPanel() {
   return (
     <div className="flex w-[280px] shrink-0 flex-col border-l border-neutral-200 bg-white">
       <div className="flex items-center justify-between border-b border-neutral-200 px-3 py-2">
-        <div className="text-[10px] uppercase tracking-wider text-neutral-400">
+        <div className="text-xs font-medium text-neutral-500">
           {sel.length === 0 ? "Document" : sel.length === 1 ? "Properties" : "Multi-select"}
         </div>
         {sel.length > 0 && (

@@ -30,6 +30,5 @@ export type EventProgressSnapshot = {
   checkpoints: ProgressCheckpoint[];
   timeline: EventTimelineStep[];
   paymentMilestones: PaymentMilestoneRow[];
-  score: number;
   clientEventDayStatus: string | null;
 };

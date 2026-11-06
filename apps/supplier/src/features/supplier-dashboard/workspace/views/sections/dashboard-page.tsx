@@ -1,18 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { formatPortalDateTime } from "@prism/ui/format-date";
+import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import type { PrismSupplierQuote, PrismSupplierReadinessItem, PrismSupplierReadinessBoard } from "@prism/types";
-import { groupReadinessItemsByEvent, readinessConcernLabel, readinessSetupLabel } from "../../model/supplier-workspace-rules";
-import { supplierNextStep, supplierWorkHref } from "../../model/supplier-next-step";
+import { readinessConcernLabel, readinessSetupLabel } from "../../model/supplier-workspace-rules";
+import { splitSupplierNextSteps, supplierNextStep, supplierWorkHref } from "../../model/supplier-next-step";
 import { Card, CardBody, CardHeader } from "./shell-ui";
 
-function ReadinessDetails({ item }: { item: PrismSupplierReadinessItem }) {
-  const next = supplierNextStep(item, false);
+function ReadinessDetails({ item, hasQuote }: { item: PrismSupplierReadinessItem; hasQuote: boolean }) {
+  const next = supplierNextStep(item, hasQuote);
   const selected = item.quoteStatus === "selected";
   return (
-    <details className="group mt-2">
-      <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm text-muted-foreground transition-colors hover:text-foreground">
+    <details className="group mt-1">
+      <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm text-muted-foreground transition-colors hover:text-foreground sm:min-h-9">
         <span className="group-open:hidden">Show details</span>
         <span className="hidden group-open:inline">Hide details</span>
       </summary>
@@ -31,32 +31,49 @@ function ReadinessDetails({ item }: { item: PrismSupplierReadinessItem }) {
   );
 }
 
+/** The date that matters for this step: the quote deadline while bidding, then arrival or the event day. */
+function nextStepWhen(item: PrismSupplierReadinessItem) {
+  const eventDay = item.eventDate ? `Event ${formatPortalDate(item.eventDate)}` : null;
+  if (item.quoteStatus !== "selected") return [`Quote due ${formatPortalDate(item.dueAt, "—")}`, eventDay].filter(Boolean).join(" · ");
+  if (item.schedule) return `Arrive ${formatPortalDateTime(item.schedule.ingressAt)}`;
+  return eventDay ?? "Schedule not set yet";
+}
+
 function ReadinessRow({ item, hasQuote }: { item: PrismSupplierReadinessItem; hasQuote: boolean }) {
   const next = supplierNextStep(item, hasQuote);
-  const selected = item.quoteStatus === "selected";
-  const when = selected && item.schedule
-    ? `Arrive ${formatPortalDateTime(item.schedule.ingressAt)}`
-    : `Quote due ${formatPortalDateTime(item.dueAt, "—")}`;
   const concern = item.concerns[0];
   return (
-    <li className="py-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+    <li className="py-3">
+      <div className="flex items-start justify-between gap-3 sm:gap-6">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">{next.title}</p>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {item.category} · <span className={item.ingressLate ? "font-medium text-danger" : undefined}>{when}</span>
-          </p>
+          <p className="mt-0.5 break-words text-sm text-muted-foreground">{item.eventName ?? "Assigned event"} · {item.category}</p>
+          <p className={item.ingressLate ? "mt-0.5 text-sm font-medium text-danger" : "mt-0.5 text-sm text-muted-foreground"}>{nextStepWhen(item)}</p>
           {concern ? <p className="mt-1 text-sm text-attention">{readinessConcernLabel(concern.kind)}: {concern.message}</p> : null}
         </div>
         <Link
           href={supplierWorkHref(item)}
-          className="inline-flex min-h-11 shrink-0 items-center self-start rounded-md text-sm font-semibold text-primary outline-none hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-primary sm:min-h-9"
+          className="inline-flex min-h-11 shrink-0 items-center rounded-md text-sm font-semibold text-primary outline-none hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-primary sm:min-h-9"
         >
           {next.action}<span className="sr-only"> for {item.category} at {item.eventName}</span>
         </Link>
       </div>
-      <ReadinessDetails item={item} />
+      <ReadinessDetails item={item} hasQuote={hasQuote} />
     </li>
+  );
+}
+
+function NextStepGroup({ title, items, empty, hasQuote }: { title: string; items: PrismSupplierReadinessItem[]; empty?: string; hasQuote: (item: PrismSupplierReadinessItem) => boolean }) {
+  if (!items.length && !empty) return null;
+  return (
+    <section aria-label={title} className="border-b border-border py-3 last:border-b-0">
+      <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
+      {items.length ? (
+        <ul className="divide-y divide-border">
+          {items.map((item) => <ReadinessRow key={item.id} item={item} hasQuote={hasQuote(item)} />)}
+        </ul>
+      ) : <p className="py-3 text-sm text-muted-foreground">{empty}</p>}
+    </section>
   );
 }
 
@@ -66,6 +83,8 @@ export function DashboardPage({ readinessBoard, quoteByRequest, quoteNeedingSubm
   quoteNeedingSubmission: number;
   handoffPending: number;
 }) {
+  const hasQuote = (item: PrismSupplierReadinessItem) => quoteByRequest.has(item.requestId);
+  const steps = readinessBoard ? splitSupplierNextSteps(readinessBoard.items, hasQuote) : null;
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_17rem]">
       {/* Summary links carry actions, so on phones they sit above the list as one divided row. */}
@@ -88,17 +107,13 @@ export function DashboardPage({ readinessBoard, quoteByRequest, quoteNeedingSubm
           <p className="mt-1 text-sm text-muted-foreground">Soonest deadline first.</p>
         </CardHeader>
         <CardBody className="py-1">
-          {!readinessBoard ? (
+          {!steps ? (
             <p role="status" className="py-4 text-sm text-muted-foreground">We could not load your work. Use Refresh above to try again.</p>
-          ) : readinessBoard.items.length ? (
-            groupReadinessItemsByEvent(readinessBoard.items).map((group) => (
-              <section key={group.eventId} aria-label={group.eventName + " work"} className="border-b border-border py-3 last:border-b-0">
-                <h3 className="break-words text-sm font-medium text-muted-foreground" title={group.eventName}>{group.eventName}</h3>
-                <ul className="divide-y divide-border">
-                  {group.items.map((item) => <ReadinessRow key={item.id} item={item} hasQuote={quoteByRequest.has(item.requestId)} />)}
-                </ul>
-              </section>
-            ))
+          ) : steps.yourTurn.length || steps.waiting.length ? (
+            <>
+              <NextStepGroup title="Your turn" items={steps.yourTurn} empty="Nothing needs you right now." hasQuote={hasQuote} />
+              <NextStepGroup title="Waiting on PMCM" items={steps.waiting} hasQuote={hasQuote} />
+            </>
           ) : (
             <p className="py-4 text-sm text-muted-foreground">No requests or booking updates to review. New work from PMCM will appear here.</p>
           )}

@@ -35,10 +35,10 @@ archiveEvent: (eventId: string, overrideReason?: string) =>
     }),
 recordActualEventEnd: (eventId: string, input: RecordActualEventEndInput) =>
     request<PrismEvent>(`/api/events/${eventId}/actual-end`, { method: "POST", body: input }),
-declineInquiry: (inquiryId: string, declineReason: string) =>
+declineInquiry: (inquiryId: string, declineReason?: string) =>
     request<PrismInquiry>(`/api/inquiries/${inquiryId}/status`, {
       method: "PATCH",
-      body: { status: "declined", declineReason },
+      body: { status: "declined", declineReason: declineReason || undefined },
     }),
 mergeInquiry: (primaryInquiryId: string, input: { sourceInquiryId: string; reason: string }) =>
     request<PrismInquiryMergeRecord>(`/api/inquiries/${primaryInquiryId}/merge`, {

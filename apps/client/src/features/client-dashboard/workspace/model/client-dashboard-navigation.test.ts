@@ -5,6 +5,7 @@ import {
   dashboardHref,
   dashboardLoadingVariant,
   findClientSidebarLink,
+  clientPortalSidebarItems,
   clientEventWorkspaceAvailable,
   sidebarActiveItemId,
 } from "./client-dashboard-navigation";
@@ -13,7 +14,8 @@ describe("client-dashboard navigation", () => {
   it("builds portal and event hrefs", () => {
     expect(dashboardHref("home")).toBe("/dashboard");
     expect(dashboardHref("shared-floorplans")).toBe("/dashboard/shared-floorplans");
-    expect(findClientSidebarLink("shared-floorplans")?.label).toBe("Shared floorplans");
+    // Shared layouts live under each event's floor plan, not as a second top-level floorplan entry.
+    expect(findClientSidebarLink("shared-floorplans")).toBeUndefined();
     expect(CLIENT_CONFORME_REVIEW_HREF).toBe("/conforme");
     expect(dashboardHref("request")).toBe("/dashboard/request");
     expect(dashboardHref("events")).toBe("/dashboard/events");
@@ -28,10 +30,15 @@ describe("client-dashboard navigation", () => {
   it("resolves active nav ids for portal and event scopes", () => {
     expect(activeNavItemId("home", false)).toBe("client-dashboard");
     expect(activeNavItemId("events", false)).toBe("my-events");
-    expect(activeNavItemId("shared-floorplans", false)).toBe("shared-floorplans");
+    expect(activeNavItemId("shared-floorplans", false)).toBe("my-events");
     expect(activeNavItemId("floorplan", true)).toBe("event-floorplan");
     expect(sidebarActiveItemId("floorplan", true)).toBe("my-events");
     expect(sidebarActiveItemId("approvals", false, "approvals-pending")).toBe("approvals-pending");
+  });
+
+  it("keeps event-owned sections inside the event when the client has one event", () => {
+    expect(clientPortalSidebarItems(1).map((item) => item.label)).toEqual(["Home", "Events", "Calendar"]);
+    expect(clientPortalSidebarItems(2).map((item) => item.id)).toContain("billing-payments");
   });
 
   it("maps loading variants", () => {

@@ -55,3 +55,6 @@ export const uploadMetadataSchema = z.object({
   sizeBytes: z.number().int().nonnegative().optional(),
 });
 export type UploadMetadataInput = z.infer<typeof uploadMetadataSchema>;
+
+export const prismJsonRecordSchema = z.record(z.string(), z.unknown());
+export const prismEmailAddressSchema = z.email();

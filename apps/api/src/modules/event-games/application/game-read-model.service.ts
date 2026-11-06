@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { z } from 'zod';
+import { eventGameResponseCursorSchema as RESPONSE_CURSOR_SCHEMA } from '@prism/types';
 import { PrismTransactionRunner, type PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import {
   eventGameMediaObjectIdSchema,
@@ -32,10 +32,6 @@ const PARTICIPANT_CREDENTIAL_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const COMPETITIVE_GAME_KINDS = new Set([
   'live-trivia', 'bingo', 'guess-picture', 'spin-wheel', 'family-feud',
 ]);
-const RESPONSE_CURSOR_SCHEMA = z.object({
-  createdAt: z.string().datetime({ offset: true }),
-  id: z.string().uuid(),
-}).strict();
 
 type HostRound = NonNullable<ReturnType<typeof currentRoundFor>>;
 
