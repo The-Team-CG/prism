@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { eventGameParticipantResultSchema, prismEventGameKindSchema } from '@prism/types';
-import { z } from 'zod';
+import { eventGameResponsePayloadSchema as responsePayloadSchema, eventGameResponseScoreSchema as responseScoreSchema } from '@prism/types';
 import type { PrismEventGameKind } from '@prism/types';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type {
@@ -63,22 +63,6 @@ interface GameResponseRow {
 
 interface SessionExistsRow { exists: boolean }
 interface RedactedCountRow { redacted_count: number }
-
-const responsePayloadSchema = z.record(
-  z.string().trim().min(1).max(64),
-  z.union([
-    z.string().trim().min(1).max(500),
-    z.number().finite(),
-    z.boolean(),
-    z.array(z.string().trim().min(1).max(120)).min(1).max(50),
-  ]),
-);
-
-const responseScoreSchema = z.object({
-  points: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
-  isCorrect: z.boolean(),
-  result: eventGameParticipantResultSchema.optional(),
-}).strict();
 
 const PROFILE_RESPONSE_KEYS = new Set([
   "avatar", "avatarurl", "bio", "displayname", "email", "firstname", "fullname",

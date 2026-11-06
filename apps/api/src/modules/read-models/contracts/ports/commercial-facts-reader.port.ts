@@ -5,7 +5,7 @@ export type ProposalReviewEvent = OpsEvent & { inquiry: Pick<OpsInquiry, 'email'
 export type ProposalReviewAudit = Pick<OpsAuditLog, 'metadata'>;
 export type ReadClient = PrismaClient | Prisma.TransactionClient;
 export type LifecycleCommercialFacts = {
-  supplierQuoteRequests: Array<{ id: string; supplierName: string; assignmentStatus: string; readinessStatus: string }>;
+  supplierQuoteRequests: Array<{ id: string; supplierName: string; assignmentStatus: string; readinessStatus: string; eventDayStatus: string }>;
   billingSources: Array<{ id: string; status: string }>;
   supplierReviews: Array<{ id: string; supplierId: string; rating: number; notes: string; reviewedBy: string }>;
   billingStatements: Array<{ id: string; totalAmount: number }>;

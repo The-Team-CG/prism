@@ -1,6 +1,7 @@
 import 'reflect-metadata';
-import { RequestMethod } from '@nestjs/common';
+import { ForbiddenException, RequestMethod } from '@nestjs/common';
 import { GUARDS_METADATA, METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
+import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventSessionGuard } from '@prism/kernel/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
@@ -75,6 +76,31 @@ describe('OcularVisitController', () => {
       eventId,
     );
     expect(service.submitClientRequest).toHaveBeenCalledWith(eventId, input, clientActor);
+  });
+
+  it.each([
+    { role: OpsUserRole.Client },
+    { role: OpsUserRole.Coordinator },
+    { role: OpsUserRole.Supplier },
+  ])('refuses a $role from scheduling a visit through the real access policy', async ({ role }) => {
+    const service = { scheduleOcularVisit: vi.fn() };
+    const policy = new EventAccessPolicyService({ write: vi.fn(async () => undefined) } as never);
+    const controller = new OcularVisitController(service as never, policy);
+    const actorContext = { ...adminVerifiedActor, id: `${role}_1`, actorId: `${role}_1`, role, actorRole: role } satisfies PrismVerifiedEventActor;
+
+    await expect(controller.scheduleOcularVisit(eventId, { scheduledAt: '2026-10-05T09:00:00+08:00' }, actorContext))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(service.scheduleOcularVisit).not.toHaveBeenCalled();
+  });
+
+  it('lets a PMCM admin schedule through the real access policy', async () => {
+    const service = { scheduleOcularVisit: vi.fn(async () => ({ status: 'scheduled' })) };
+    const policy = new EventAccessPolicyService({ write: vi.fn(async () => undefined) } as never);
+    const controller = new OcularVisitController(service as never, policy);
+    const input = { scheduledAt: '2026-10-05T09:00:00+08:00', note: 'Gate 2 access' };
+
+    await expect(controller.scheduleOcularVisit(eventId, input, adminVerifiedActor)).resolves.toEqual({ status: 'scheduled' });
+    expect(service.scheduleOcularVisit).toHaveBeenCalledWith(eventId, input, expect.objectContaining({ role: OpsUserRole.PmcmAdmin }));
   });
 
   it('blocks non-admin actors from scheduling, completion, and waiver commands', async () => {

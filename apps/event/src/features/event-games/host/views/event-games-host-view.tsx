@@ -51,6 +51,7 @@ function responseText(response: PrismGameSessionResponse["response"]): string {
 export function EventGamesHostView({ eventId, role, eventStatus, archived, actualEndedAt }: Props) {
   const vm = useEventGamesHostViewModel({ eventId, role, eventStatus, archived, actualEndedAt });
   const [responseSessionId, setResponseSessionId] = useState("");
+  const [creating, setCreating] = useState(false);
 
   if (!eventId) {
     return (
@@ -77,9 +78,10 @@ export function EventGamesHostView({ eventId, role, eventStatus, archived, actua
       <EventGamesHeaderCard loading={vm.loading} busy={Boolean(vm.busy)} error={vm.error} onRefresh={() => void vm.load()} />
       {vm.canManage ? (
         <>
-          <EventGameDraftCard busy={Boolean(vm.busy)} onCreate={vm.createDraft} />
           <EventGameCatalogCard
             games={vm.games}
+            creating={creating}
+            onToggleCreate={() => setCreating((open) => !open)}
             renderGame={(game) => (
               <GameDefinitionRow
                 key={game.id}
@@ -93,6 +95,7 @@ export function EventGamesHostView({ eventId, role, eventStatus, archived, actua
               />
             )}
           />
+          {creating ? <EventGameDraftCard busy={Boolean(vm.busy)} onCreate={vm.createDraft} /> : null}
           <GuestGameLobbyCard
             lobbySlug={vm.lobbySlug}
             branding={vm.lobbyBranding}

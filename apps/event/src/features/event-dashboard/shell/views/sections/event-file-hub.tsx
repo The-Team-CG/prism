@@ -191,7 +191,7 @@ export function EventFileHub({
         <aside className="min-w-0 border-b border-border bg-card lg:border-b-0 lg:border-r">
           <div className="border-b border-border px-4 py-4">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-black text-foreground">{filteredItems.length} results</p>
+              <p className="text-sm font-black text-foreground">{filteredItems.length} {filteredItems.length === 1 ? "result" : "results"}</p>
               <div className="flex rounded-md border border-border bg-background p-0.5">
                 <button type="button" data-active={view === "grid"} onClick={() => setView("grid")} className="grid size-7 place-items-center rounded-sm text-muted-foreground data-[active=true]:bg-primary/10 data-[active=true]:text-primary" aria-label="Grid view">
                   <Grid2X2 className="size-3.5" />

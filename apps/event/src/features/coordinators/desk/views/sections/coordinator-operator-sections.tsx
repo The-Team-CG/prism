@@ -20,6 +20,7 @@ import {
   delegatedAttendanceTargets,
   isCoordinatorAssignmentActive,
   isIngressOrEgressRole,
+  nextSupplierSiteStep,
   requiresAttendanceConfirmation,
   taskAssignedRoleOptions,
   type CoordinatorAttendanceChoice,
@@ -45,6 +46,7 @@ export type CoordinatorOperatorActionsModel = {
   supplierError: string | null;
   updateAttendance: (assignmentId: string, status: string) => void;
   verifySupplier: (requestId: string, verificationStatus: "verified" | "disputed", note?: string) => void;
+  reportSupplierStatus: (requestId: string, status: "arrived" | "set_up_ready" | "done_leaving", note?: string, photo?: File) => void;
 };
 
 type RoleViewTask = PrismCoordinatorRoleView["tasks"][number];
@@ -73,14 +75,14 @@ export function CoordinatorTaskQueue({ roleView, taskActions }: { roleView: Pris
       <CCardHeader>
         <div className="flex items-center gap-2">
           <ClipboardList className="size-4 text-primary" />
-          <h3 className="text-sm font-bold text-foreground">Role queue</h3>
+          <h3 className="text-sm font-bold text-foreground">Assigned to you</h3>
           {roleView.tasks.length > 0 && (
             <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-3xs font-bold text-primary">{roleView.tasks.length}</span>
           )}
         </div>
       </CCardHeader>
       <CCardBody id="coordinator-role-queue" className="scroll-mt-24">
-        {roleView.tasks.length === 0 && <p className="text-sm text-muted-foreground">No event-day tasks assigned to this role yet.</p>}
+        {roleView.tasks.length === 0 && <p className="text-sm text-muted-foreground">No tasks assigned to you yet.</p>}
         <div className="space-y-2">
           {roleView.tasks.map((task) => (
             <CoordinatorTaskQueueRow key={task.id} task={task} taskActions={taskActions} canUpdate={canCoordinatorUpdateTask(task, roleView)} />
@@ -263,11 +265,20 @@ function DelegatedAttendanceRow({ item, busy, onMark }: { item: PrismCoordinator
 
 function CoordinatorSupplierChecks({ roleView, actions }: { roleView: PrismCoordinatorRoleView; actions: CoordinatorOperatorActionsModel }) {
   const [note, setNote] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoKey, setPhotoKey] = useState(0);
   const suppliers = confirmedSupplierChecks(roleView.supplierStatuses);
 
   function check(supplier: SupplierStatus, status: "verified" | "disputed") {
     actions.verifySupplier(supplier.id, status, note);
     setNote("");
+  }
+
+  function report(supplier: SupplierStatus, status: "arrived" | "set_up_ready" | "done_leaving") {
+    actions.reportSupplierStatus(supplier.id, status, note, photo ?? undefined);
+    setNote("");
+    setPhoto(null);
+    setPhotoKey((key) => key + 1);
   }
 
   return (
@@ -282,13 +293,25 @@ function CoordinatorSupplierChecks({ roleView, actions }: { roleView: PrismCoord
         {suppliers.length === 0 ? (
           <p className="text-sm text-muted-foreground">No confirmed suppliers to check yet.</p>
         ) : (
-          <label className={FIELD_CAPTION}>
-            Note for PMCM (optional)
-            <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="What you saw at the setup" className={SELECT_FIELD} />
-          </label>
+          <>
+            <label className={FIELD_CAPTION}>
+              Note for PMCM (optional)
+              <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="What you saw at the setup" className={SELECT_FIELD} />
+            </label>
+            <label className={FIELD_CAPTION}>
+              Photo of the setup (optional, sent with the next status you mark)
+              <input
+                key={photoKey}
+                type="file"
+                accept="image/*"
+                onChange={(event) => setPhoto(event.target.files?.[0] ?? null)}
+                className="text-sm text-foreground"
+              />
+            </label>
+          </>
         )}
         {suppliers.map((supplier) => (
-          <SupplierCheckRow key={supplier.id} supplier={supplier} busy={actions.supplierBusy} onCheck={(status) => check(supplier, status)} />
+          <SupplierCheckRow key={supplier.id} supplier={supplier} busy={actions.supplierBusy} onCheck={(status) => check(supplier, status)} onReport={(status) => report(supplier, status)} />
         ))}
         {actions.supplierError ? <p role="alert" className={FORM_ALERT}>{actions.supplierError}</p> : null}
       </CCardBody>
@@ -296,8 +319,14 @@ function CoordinatorSupplierChecks({ roleView, actions }: { roleView: PrismCoord
   );
 }
 
-function SupplierCheckRow({ supplier, busy, onCheck }: { supplier: SupplierStatus; busy: boolean; onCheck: (status: "verified" | "disputed") => void }) {
+function SupplierCheckRow({ supplier, busy, onCheck, onReport }: {
+  supplier: SupplierStatus;
+  busy: boolean;
+  onCheck: (status: "verified" | "disputed") => void;
+  onReport: (status: "arrived" | "set_up_ready" | "done_leaving") => void;
+}) {
   const reported = label(supplier.eventDayStatus || supplier.readinessStatus || "no update");
+  const next = nextSupplierSiteStep(supplier);
   const verification = label(supplier.verificationStatus ?? "self_reported");
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3">
@@ -307,7 +336,8 @@ function SupplierCheckRow({ supplier, busy, onCheck }: { supplier: SupplierStatu
           {reported} · verification {verification}{supplier.verifiedBy ? " by " + supplier.verifiedBy : ""}
         </p>
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
+        {next ? <Button type="button" size="sm" disabled={busy} onClick={() => onReport(next.status)}>Mark {next.label.toLowerCase()}</Button> : null}
         <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => onCheck("verified")}>Verify setup</Button>
         <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => onCheck("disputed")}>Dispute</Button>
       </div>

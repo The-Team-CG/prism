@@ -622,6 +622,7 @@ export const joinActiveMultiplayerGameSessionSchema = z.object({
 }).strict();
 export type PrismJoinActiveMultiplayerGameSessionInput = z.infer<typeof joinActiveMultiplayerGameSessionSchema>;
 
+export type PrismJoinedMultiplayerGameSession = z.infer<typeof joinedMultiplayerGameSessionSchema>;
 export const joinedMultiplayerGameSessionSchema = z.object({
   eventId: z.string().trim().min(1).max(120),
   sessionId: z.string().trim().min(1).max(120),

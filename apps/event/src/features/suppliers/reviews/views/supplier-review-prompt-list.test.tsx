@@ -77,18 +77,24 @@ describe("SupplierReviewPromptList", () => {
     expect(screen.queryByText("Review saved")).toBeNull();
   });
 
-  it("blocks submission until every category dimension is rated", () => {
+  it("explains missing review fields only after Add review is pressed, and saves once they are complete", async () => {
     const onAddReview = vi.fn(async () => true);
     render(<SupplierReviewPromptList {...promptProps} onAddReview={onAddReview} />);
 
-    fireEvent.change(screen.getByPlaceholderText("Private review notes"), { target: { value: "Notes without a dimension." } });
-    const submit = screen.getByRole("button", { name: "Add review" }) as HTMLButtonElement;
-    expect(submit.disabled).toBe(true);
-    expect(screen.getByText(/Rate every dimension to submit: Reliability/)).toBeTruthy();
+    expect(screen.queryByText(/Rate every dimension to submit/)).toBeNull();
+    expect(screen.queryByText(/Add a note before saving/)).toBeNull();
 
-    fireEvent.change(screen.getByLabelText("Reliability"), { target: { value: "4" } });
-    expect((screen.getByRole("button", { name: "Add review" }) as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Add review" }));
     expect(onAddReview).not.toHaveBeenCalled();
+    expect(screen.getByText("Add a note before saving this review.")).toBeTruthy();
+    expect(screen.getByText(/Rate every dimension to submit: Reliability/)).toBeTruthy();
+    expect(screen.queryByText(/Too small/)).toBeNull();
+
+    fireEvent.change(screen.getByPlaceholderText("Private review notes"), { target: { value: "Notes without a dimension." } });
+    fireEvent.change(screen.getByLabelText("Reliability"), { target: { value: "4" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add review" }));
+    await waitFor(() => expect(onAddReview).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText("Review saved")).toBeTruthy();
   });
 
   it("shows a closure empty state when no confirmed supplier is available", () => {

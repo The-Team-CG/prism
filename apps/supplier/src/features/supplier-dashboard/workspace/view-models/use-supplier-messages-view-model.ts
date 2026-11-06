@@ -17,6 +17,8 @@ export function useSupplierMessagesViewModel({ eventId, session }: { eventId?: s
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [reload, setReload] = useState(0);
+  const [composing, setComposing] = useState(false);
+  const [subject, setSubject] = useState("");
   const pendingKey = useRef<string | null>(null);
 
   useEffect(() => {
@@ -79,6 +81,23 @@ export function useSupplierMessagesViewModel({ eventId, session }: { eventId?: s
     }
   }
 
+  async function createThread() {
+    if (!eventId || !subject.trim() || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const thread = await supplierMessagesRepository.create(eventId, subject.trim(), session);
+      setThreads((current) => [thread, ...current]);
+      setActiveId(thread.id);
+      setSubject("");
+      setComposing(false);
+    } catch (reason) {
+      setError(errorText(reason, "Unable to start this conversation"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function loadOlder() {
     if (!active?.messagesNextCursor) return;
     try {
@@ -101,6 +120,11 @@ export function useSupplierMessagesViewModel({ eventId, session }: { eventId?: s
     draft,
     updateDraft,
     send,
+    composing,
+    setComposing,
+    subject,
+    setSubject,
+    createThread,
     loadOlder,
     loading,
     busy,

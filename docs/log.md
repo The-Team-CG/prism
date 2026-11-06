@@ -4,6 +4,11 @@ This log tracks changes to documentation structure and durable contracts. Releas
 notes are in [`../CHANGELOG.md`](../CHANGELOG.md); Git history retains detailed
 implementation and verification history.
 
+## 2026-11-02
+
+- Updated the CI and browser execution contract for isolated workspace coverage jobs, generated-output refresh after dependency-cache restores, owned cache retention, and complete production/development server comparisons.
+- Added the developer-checks runbook covering dual compiler ownership, shared architecture rules, pre-push validation, affected task fallback, and required CI/browser aggregate checks.
+
 ## 2026-10-29
 
 - Clarified issued-proposal review prerequisites and version handoff, and documented the closeout read model's acknowledgement-presence flag without changing acknowledgement authorship or private-note visibility.

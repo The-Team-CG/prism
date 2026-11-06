@@ -16,6 +16,7 @@ import type {
   VerifySupplierStatusInput,
   DecideEventTaskReassignmentInput,
 } from "@prism/types";
+import { hasEventDatePassed, prismCalendarDateKey } from "@prism/types";
 import { useLiveOperationsWorkspaceViewModel } from "../view-models/use-live-operations-workspace-view-model";
 import { LiveOpsDesk, LiveOpsOverview } from "./live-ops-sections";
 
@@ -57,6 +58,7 @@ export function LiveOperationsWorkspace({
   onDecideTaskReassignment: (requestId: string, input: DecideEventTaskReassignmentInput) => Promise<void>;
 }) {
   const vm = useLiveOperationsWorkspaceViewModel({ liveOps, busy, onCreateTask, onCreateIssue });
+  const ended = hasEventDatePassed(event.eventDate, prismCalendarDateKey());
 
   return (
     <div className="space-y-4">
@@ -65,6 +67,7 @@ export function LiveOperationsWorkspace({
         liveOps={liveOps}
         metrics={vm.metrics}
         busy={busy}
+        ended={ended}
         onReload={onReload}
       />
       {liveOps ? (
@@ -74,6 +77,7 @@ export function LiveOperationsWorkspace({
           statusFeed={statusFeed}
           coordinators={coordinators}
           busy={busy}
+          readOnly={ended}
           vm={vm}
           onUpdateTask={onUpdateTask}
           onEscalateTask={onEscalateTask}

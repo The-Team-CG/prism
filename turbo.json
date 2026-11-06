@@ -1,11 +1,33 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": ["tsconfig.base.json", "eslint.config.mjs", ".nvmrc", "scripts/clean-next-dev.cjs"],
-  "globalEnv": ["CI", "NODE_ENV"],
+  "globalDependencies": [
+    "tsconfig.base.json",
+    "eslint.config.mjs",
+    ".nvmrc",
+    "scripts/clean-next-dev.cjs",
+    ".oxlintrc.json",
+    "scripts/typescript.mjs",
+    "scripts/lint.mjs",
+    "scripts/oxlint-prism-architecture.mjs",
+    "scripts/prism-public-context-seams.mjs",
+    "scripts/eslint-prism-architecture.mjs",
+    "scripts/ci/**"
+  ],
+  "globalEnv": [
+    "CI",
+    "NODE_ENV"
+  ],
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", "!**/*.test.{ts,tsx,mjs}", "!**/*.md", "!coverage/**"],
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/*.test.{ts,tsx,mjs}",
+        "!**/*.md",
+        "!coverage/**"
+      ],
       "env": [
         "PRISM_DOCKER_STANDALONE",
         "PRISM_VERCEL_SERVICES",
@@ -16,25 +38,45 @@
         "NEXT_PUBLIC_PMCM_SUPPORT_EMAIL",
         "NEXT_PUBLIC_PMCM_SUPPORT_PHONE"
       ],
-      "outputs": [".next/**", "dist/**", "!.next/cache/**"]
+      "outputs": [
+        ".next/**",
+        "dist/**",
+        "!.next/cache/**"
+      ]
     },
     "typecheck": {
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "outputs": []
     },
     "lint": {
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "outputs": []
     },
     "test": {
-      "dependsOn": ["^build"],
-      "env": ["P0_TEST_DATABASE_URL"],
-      "outputs": ["coverage/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "env": [
+        "P0_TEST_DATABASE_URL"
+      ],
+      "outputs": [
+        "coverage/**"
+      ]
     },
     "test:ci": {
-      "dependsOn": ["^build"],
-      "env": ["P0_TEST_DATABASE_URL"],
-      "outputs": ["coverage/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "env": [
+        "P0_TEST_DATABASE_URL"
+      ],
+      "outputs": [
+        "coverage/**"
+      ]
     },
     "dev": {
       "cache": false,

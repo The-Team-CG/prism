@@ -60,6 +60,12 @@ export function ClientOcularVisitPanel({
         <div className="mt-4 rounded-lg border border-border bg-muted/20 p-4" aria-live="polite">
           <p className="font-medium text-foreground">{statusCopy.title}</p>
           <p className="mt-1 text-sm text-muted-foreground">{statusCopy.detail}</p>
+          {visit.scheduleNote ? (
+            <div className="mt-3">
+              <p className="text-xs font-semibold text-muted-foreground">Note from PMCM</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{visit.scheduleNote}</p>
+            </div>
+          ) : null}
         </div>
       ) : (
         <form className="mt-4 space-y-3" onSubmit={submitRequest}>

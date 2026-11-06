@@ -9,6 +9,8 @@ import { useClientAddendaViewModel } from "../view-models/use-client-addenda-vie
 export function ClientAddendaStatus({ eventId }: { eventId: string }) {
   const vm = useClientAddendaViewModel(eventId);
   const awaiting = addendaAwaitingClientAcknowledgment(vm.addenda);
+  // Addenda exist only after a scope change is issued; an empty card is noise on the overview.
+  if (vm.status === "ready" && !vm.error && vm.addenda.length === 0) return null;
 
   useEffect(() => {
     if (vm.status !== "ready" || !window.location.hash.startsWith("#client-addendum-")) return;
@@ -24,7 +26,6 @@ export function ClientAddendaStatus({ eventId }: { eventId: string }) {
       </div>
       {vm.status === "loading" ? <p role="status" className="text-sm text-muted-foreground">Loading addenda…</p> : null}
       {vm.status === "error" || vm.error ? <p role="alert" className="text-sm text-destructive">{vm.error}</p> : null}
-      {vm.status === "ready" && vm.addenda.length === 0 ? <p className="text-sm text-muted-foreground">No addenda have been issued.</p> : null}
       {vm.status === "ready" && vm.addenda.length > 0 ? (
         <ul className="space-y-3">
           {vm.addenda.map((addendum) => (
