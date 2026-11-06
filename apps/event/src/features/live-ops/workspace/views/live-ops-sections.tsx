@@ -434,20 +434,21 @@ function LiveOpsTasksPanel({
       <div className="mt-3 space-y-3">
         {liveOps.tasks.length === 0 ? <Empty label="No event-day tasks yet." /> : null}
         {liveOps.tasks.map((task) => (
-          <TaskRow
-            key={task.id}
-            task={task}
-            busy={busy}
-            onProgress={() => onUpdateTask(task.id, { status: "in_progress" })}
-            onDone={() => onUpdateTask(task.id, { status: "done", notes: "Completed from live desk." })}
-            onEscalate={() =>
-              onEscalateTask(task.id, {
-                escalationLevel: task.priority === "critical" ? "critical" : "pmcm",
-                notes: `Escalated from PMCM live desk: ${task.title}`,
-                ownerName: task.ownerName || undefined,
-              })
-            }
-          />
+          <div key={task.id} id={`event-day-task-${task.id}`} className="scroll-mt-6">
+            <TaskRow
+              task={task}
+              busy={busy}
+              onProgress={() => onUpdateTask(task.id, { status: "in_progress" })}
+              onDone={() => onUpdateTask(task.id, { status: "done", notes: "Completed from live desk." })}
+              onEscalate={() =>
+                onEscalateTask(task.id, {
+                  escalationLevel: task.priority === "critical" ? "critical" : "pmcm",
+                  notes: `Escalated from PMCM live desk: ${task.title}`,
+                  ownerName: task.ownerName || undefined,
+                })
+              }
+            />
+          </div>
         ))}
       </div>
       <div id="live-ops-task-form" hidden={!vm.taskFormOpen} className="mt-4 grid gap-3 rounded-md border border-border bg-background p-3">

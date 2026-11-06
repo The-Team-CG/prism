@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { collectClientActionItems } from './event-read-models.inbox';
+import { collectClientActionItems, collectPmcmCommandInboxItems } from './event-read-models.inbox';
 
 type Input = Parameters<typeof collectClientActionItems>[0];
 
@@ -23,5 +23,35 @@ describe('client action center', () => {
     const closeout = items.filter((item) => item.kind === 'closure');
     expect(closeout.map((item) => item.label).sort()).toEqual(['Closeout: Post-event report', 'Closeout: Venue feedback form']);
     expect(closeout.find((item) => item.id === 'closure:doc_feedback')?.description).toContain('in progress');
+  });
+});
+
+describe('PMCM command inbox', () => {
+  it('shows blocked task context and links directly to the affected event-day task', () => {
+    const items = collectPmcmCommandInboxItems({
+      inquiries: [],
+      events: [{
+        id: 'evt_gala', eventName: 'Founders gala', eventDate: new Date('2026-11-10T09:00:00.000Z'),
+        floorPlanStatus: 'not_started', status: 'planning', clientName: 'Alex Client',
+      }],
+      paymentMilestones: [],
+      quoteRequests: [],
+      coordinatorAssignments: [],
+      floorPlanDrafts: [],
+      postEventDocuments: [],
+      eventDayTasks: [{
+        id: 'task_42', eventId: 'evt_gala', title: 'Confirm venue power', status: 'blocked',
+        assignedRole: 'Technical Coordinator', ownerName: 'Morgan Lee', notes: 'Waiting for the venue power map.',
+        dueAt: new Date('2026-11-08T09:00:00.000Z'), slaDueAt: null, slaStatus: 'on_track',
+      }],
+    });
+
+    expect(items).toContainEqual(expect.objectContaining({
+      id: 'live-ops:task:task_42',
+      label: 'Event-day task blocked',
+      description: 'Confirm venue power for Founders gala is blocked. Owner: Technical Coordinator (Morgan Lee). Blocker: Waiting for the venue power map.',
+      dueAt: '2026-11-08T09:00:00.000Z',
+      href: '/dashboard/events/evt_gala/live-ops#event-day-task-task_42',
+    }));
   });
 });
