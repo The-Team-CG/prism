@@ -6,10 +6,12 @@ export const aiUseCaseIdSchema = z.enum([
   "pare.risk",
   "pare.message-drafts",
   "comms.draft",
+  "inquiry.triage",
+  "proposal.draft",
 ]);
 export type AiUseCaseId = z.infer<typeof aiUseCaseIdSchema>;
 
-export const aiProviderIdSchema = z.enum(["mock", "anthropic", "openrouter"]);
+export const aiProviderIdSchema = z.enum(["anthropic", "openrouter"]);
 export type AiProviderId = z.infer<typeof aiProviderIdSchema>;
 
 export const aiRouteProfileIdSchema = nonEmptyStringSchema;
@@ -18,13 +20,18 @@ export type AiRouteProfileId = z.infer<typeof aiRouteProfileIdSchema>;
 export const aiModelTierSchema = z.enum(["fast", "strong"]);
 export type AiModelTier = z.infer<typeof aiModelTierSchema>;
 
-export const aiZdrBasisSchema = z.enum(["provider-enforced", "none"]);
+/**
+ * provider-enforced: zero data retention is enforced for this route.
+ * test-data-only: no ZDR; the operator accepts that only UAT/test data is sent. Refused in production.
+ * none: no ZDR and no real data; only verified synthetic fixtures may be sent.
+ */
+export const aiZdrBasisSchema = z.enum(["provider-enforced", "test-data-only", "none"]);
 export type AiZdrBasis = z.infer<typeof aiZdrBasisSchema>;
 
 export const aiRoutePolicyOutcomeSchema = z.enum([
   "synthetic_verified",
   "zdr_approved",
-  "mock_local",
+  "test_data_approved",
   "denied",
 ]);
 export type AiRoutePolicyOutcome = z.infer<typeof aiRoutePolicyOutcomeSchema>;
@@ -79,7 +86,7 @@ export const aiRouteProfileSchema = z
       ...Object.entries(profile.routesByUseCase ?? {}).map(([key, route]) => ({ key, route, field: "routesByUseCase" })),
     ];
     for (const { key, route, field } of routes) {
-      if (route.provider !== "mock" && route.zdrBasis === "none" &&
+      if (route.zdrBasis === "none" &&
         (route.allowedDataClasses.length !== 1 || route.allowedDataClasses[0] !== "synthetic")) {
         ctx.addIssue({
           code: "custom",
@@ -204,6 +211,130 @@ export const commsDraftResultSchema = z
   .strict();
 export type CommsDraftResult = z.infer<typeof commsDraftResultSchema>;
 
+export const inquiryTriageRequestSchema = z
+  .object({
+    inquiryId: nonEmptyStringSchema,
+  })
+  .strict();
+export type InquiryTriageRequest = z.infer<typeof inquiryTriageRequestSchema>;
+
+/** The minimized, server-built view of an inquiry that the triage model sees. No name, email, phone or company. */
+export const inquiryTriageInputSchema = z
+  .object({
+    inquiryId: nonEmptyStringSchema,
+    eventType: z.string().trim(),
+    clientType: z.string().trim(),
+    eventDate: nonEmptyStringSchema,
+    daysUntilEvent: z.number().int(),
+    hasOrganization: z.boolean(),
+    source: z.string().trim(),
+    referralDetails: z.string().trim(),
+    message: z.string().trim(),
+    duplicateInquiryCount: z.number().int().nonnegative(),
+    previouslyDeclined: z.boolean(),
+  })
+  .strict();
+export type InquiryTriageInput = z.infer<typeof inquiryTriageInputSchema>;
+
+export const inquiryTriageFitSchema = z.enum(["high", "medium", "low"]);
+export type InquiryTriageFit = z.infer<typeof inquiryTriageFitSchema>;
+
+export const inquiryTriageActionSchema = z.enum(["accept", "pend", "decline", "request_more_info"]);
+export type InquiryTriageAction = z.infer<typeof inquiryTriageActionSchema>;
+
+export const inquiryTriageResultSchema = z
+  .object({
+    fit: inquiryTriageFitSchema,
+    summary: nonEmptyStringSchema.max(600),
+    signals: z.array(nonEmptyStringSchema.max(200)).max(6),
+    risks: z.array(nonEmptyStringSchema.max(200)).max(6),
+    suggestedAction: inquiryTriageActionSchema,
+    suggestedQuestions: z.array(nonEmptyStringSchema.max(200)).max(5),
+  })
+  .strict();
+export type InquiryTriageResult = z.infer<typeof inquiryTriageResultSchema>;
+
+export const inquiryTriageReviewSchema = z
+  .object({
+    reviewId: nonEmptyStringSchema,
+    inquiryId: nonEmptyStringSchema,
+    result: inquiryTriageResultSchema,
+    requestedAt: nonEmptyStringSchema,
+    requestedBy: nonEmptyStringSchema,
+    requestId: nonEmptyStringSchema,
+    modelVersion: nonEmptyStringSchema,
+  })
+  .strict();
+export type InquiryTriageReview = z.infer<typeof inquiryTriageReviewSchema>;
+
+const proposalDraftLineSchema = z
+  .object({
+    category: nonEmptyStringSchema,
+    description: nonEmptyStringSchema,
+    quantity: z.number().positive(),
+    unitAmount: z.number().int().nonnegative(),
+  })
+  .strict();
+
+/** What PMCM sends: the estimate being built for an event. Server adds the event context. */
+export const proposalDraftRequestSchema = z
+  .object({
+    eventId: nonEmptyStringSchema,
+    budgetAmount: z.number().int().positive(),
+    notes: z.string().trim().default(""),
+    lines: z.array(proposalDraftLineSchema).min(1).max(60),
+  })
+  .strict();
+export type ProposalDraftRequest = z.infer<typeof proposalDraftRequestSchema>;
+
+/** The minimized, server-built view of an event estimate that the drafting model sees. No client identity. */
+export const proposalDraftInputSchema = z
+  .object({
+    eventId: nonEmptyStringSchema,
+    eventName: z.string().trim(),
+    eventType: z.string().trim(),
+    eventDate: nonEmptyStringSchema,
+    daysUntilEvent: z.number().int(),
+    budgetAmount: z.number().int().nonnegative(),
+    totalAmount: z.number().int().nonnegative(),
+    budgetAlignment: z.enum(["within_budget", "over_budget"]),
+    estimateNotes: z.string().trim(),
+    lines: z
+      .array(
+        z
+          .object({
+            category: nonEmptyStringSchema,
+            description: z.string().trim(),
+            quantity: z.number().positive(),
+            totalAmount: z.number().int().nonnegative(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(60),
+  })
+  .strict();
+export type ProposalDraftInput = z.infer<typeof proposalDraftInputSchema>;
+
+export const proposalDraftResultSchema = z
+  .object({
+    title: nonEmptyStringSchema.max(120),
+    summary: nonEmptyStringSchema.max(1_500),
+    revisionNote: z.string().trim().max(400),
+    highlights: z.array(nonEmptyStringSchema.max(200)).max(8),
+  })
+  .strict();
+export type ProposalDraftResult = z.infer<typeof proposalDraftResultSchema>;
+
+export const proposalDraftResponseSchema = z
+  .object({
+    draft: proposalDraftResultSchema,
+    requestId: nonEmptyStringSchema,
+    modelVersion: nonEmptyStringSchema,
+  })
+  .strict();
+export type ProposalDraftResponse = z.infer<typeof proposalDraftResponseSchema>;
+
 export const conformeDraftReviewSchema = z.object({
   draftId: nonEmptyStringSchema,
   inquiryId: nonEmptyStringSchema,
@@ -225,6 +356,8 @@ export type AiUseCaseContractMap = {
   "pare.risk": { input: AiPareContext; output: AiPareRisk };
   "pare.message-drafts": { input: AiPareContext; output: AiPareDrafts };
   "comms.draft": { input: CommsDraftRequest; output: CommsDraftResult };
+  "inquiry.triage": { input: InquiryTriageInput; output: InquiryTriageResult };
+  "proposal.draft": { input: ProposalDraftInput; output: ProposalDraftResult };
 };
 
 export type AiUseCaseInput<K extends AiUseCaseId> = AiUseCaseContractMap[K]["input"];
@@ -352,28 +485,32 @@ const aiAuditEvidenceBaseSchema = z
   })
   .strict();
 
+type AiAuditEvidenceFields = z.infer<typeof aiAuditEvidenceBaseSchema>;
+
+/** Route evidence that contradicts its own policy outcome; each is reported on `routePolicyOutcome`. */
+const AI_AUDIT_EVIDENCE_RULES: ReadonlyArray<{ violated: (evidence: AiAuditEvidenceFields) => boolean; message: string }> = [
+  {
+    violated: (evidence) => evidence.routePolicyOutcome === "synthetic_verified" &&
+      (!evidence.syntheticProvenance || evidence.dataClasses.length !== 1 || evidence.dataClasses[0] !== "synthetic"),
+    message: "Synthetic-verified route evidence requires verified synthetic provenance",
+  },
+  {
+    violated: (evidence) => evidence.routePolicyOutcome === "zdr_approved" && evidence.zdrBasis !== "provider-enforced",
+    message: "ZDR-approved route evidence must record a provider-enforced ZDR basis",
+  },
+  {
+    violated: (evidence) => evidence.routePolicyOutcome === "test_data_approved" && evidence.zdrBasis !== "test-data-only",
+    message: "Test-data route evidence must record a test-data-only basis",
+  },
+  {
+    violated: (evidence) => evidence.outcome === "completed" && evidence.routePolicyOutcome === "denied",
+    message: "A denied route policy cannot produce a completed result",
+  },
+];
+
 export const aiAuditEvidenceSchema = aiAuditEvidenceBaseSchema.superRefine((evidence, ctx) => {
-  if (evidence.routePolicyOutcome === "synthetic_verified" &&
-    (!evidence.syntheticProvenance || evidence.dataClasses.length !== 1 || evidence.dataClasses[0] !== "synthetic")) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["routePolicyOutcome"],
-      message: "Synthetic-verified route evidence requires verified synthetic provenance",
-    });
-  }
-  if (evidence.routePolicyOutcome === "zdr_approved" && evidence.zdrBasis !== "provider-enforced") {
-    ctx.addIssue({
-      code: "custom",
-      path: ["routePolicyOutcome"],
-      message: "ZDR-approved route evidence must record a provider-enforced ZDR basis",
-    });
-  }
-  if (evidence.outcome === "completed" && evidence.routePolicyOutcome === "denied") {
-    ctx.addIssue({
-      code: "custom",
-      path: ["routePolicyOutcome"],
-      message: "A denied route policy cannot produce a completed result",
-    });
+  for (const rule of AI_AUDIT_EVIDENCE_RULES) {
+    if (rule.violated(evidence)) ctx.addIssue({ code: "custom", path: ["routePolicyOutcome"], message: rule.message });
   }
 });
 export type AiAuditEvidence = z.infer<typeof aiAuditEvidenceSchema>;
@@ -433,6 +570,20 @@ export const aiGatewayRequestSchema = z.discriminatedUnion("useCaseId", [
     .object({
       useCaseId: z.literal("comms.draft"),
       input: commsDraftRequestSchema,
+      correlationId: nonEmptyStringSchema.optional(),
+    })
+    .strict(),
+  z
+    .object({
+      useCaseId: z.literal("inquiry.triage"),
+      input: inquiryTriageInputSchema,
+      correlationId: nonEmptyStringSchema.optional(),
+    })
+    .strict(),
+  z
+    .object({
+      useCaseId: z.literal("proposal.draft"),
+      input: proposalDraftInputSchema,
       correlationId: nonEmptyStringSchema.optional(),
     })
     .strict(),

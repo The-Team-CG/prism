@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findTableAssignmentRejection, type TableEligibilityObject } from "./floorplan-table-eligibility";
+import { evaluateTableAssignment, findTableAssignmentRejection, isSeatingListAvailable, newTableAssignments, type TableEligibilityObject } from "./floorplan-table-eligibility";
 import { updatePlanSchema } from "./schemas/session-spatial-inputs";
 
 const seatingTable = (overrides: Partial<TableEligibilityObject> = {}): TableEligibilityObject => ({
@@ -132,5 +132,30 @@ describe("table assignment eligibility on saved plans", () => {
     });
 
     expect(parsed.success).toBe(false);
+  });
+});
+
+describe("seating list size limit", () => {
+  const table: TableEligibilityObject = { id: "t1", kind: "ellipse", category: "furniture", seats: 10, assignedGuestIds: [] };
+  const guests = [{ id: "g1", rsvp: "confirmed" }];
+
+  it("is open below 200 guests or when the count is unset, and closed from 200", () => {
+    expect([undefined, 0, 1, 199, 200, 450].map((pax) => isSeatingListAvailable(pax))).toEqual([true, true, true, true, false, false]);
+  });
+
+  it("refuses to seat a guest at a large event before any other check", () => {
+    const seat = (pax?: number) => evaluateTableAssignment({ objects: [table], guests, guestId: "g1", objectId: "t1", pax });
+    expect(seat(199)).toEqual({ eligible: true });
+    expect(seat(200)).toEqual({ eligible: false, reason: "event-too-large" });
+    expect(evaluateTableAssignment({ objects: [table], guests, guestId: "ghost", objectId: "t1", pax: 500 })).toEqual({ eligible: false, reason: "event-too-large" });
+  });
+
+  it("lists only the seats a save adds, so seats made before the limit stay", () => {
+    const seated = { ...table, assignedGuestIds: ["g1"] };
+    const other = { ...table, id: "t2", assignedGuestIds: [] };
+
+    expect(newTableAssignments([seated, other], [seated, other])).toEqual([]);
+    expect(newTableAssignments([seated, other], [{ ...seated, assignedGuestIds: [] }, { ...other, assignedGuestIds: ["g1"] }])).toEqual([{ guestId: "g1", objectId: "t2" }]);
+    expect(newTableAssignments([], [seated])).toEqual([{ guestId: "g1", objectId: "t1" }]);
   });
 });

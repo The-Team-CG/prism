@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ForbiddenException } from '@nestjs/common';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
@@ -20,6 +20,70 @@ describe('W26 deterministic snapshot comparison', () => {
       { key: 'b', before: { id: 'b', amount: 20 }, after: null },
       { key: 'c', before: null, after: { id: 'c', amount: 30 } },
     ]);
+  });
+});
+
+describe('ChangeManagementService automatic freeze', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-01T00:00:00.000Z'));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const event = (overrides: Record<string, unknown>) => ({
+    id: 'evt_a',
+    eventDate: new Date('2026-10-10T00:00:00.000Z'),
+    freezeStatus: 'open',
+    archived: false,
+    actualEndedAt: null,
+    ...overrides,
+  });
+
+  function setup(events: Array<ReturnType<typeof event>>, updateCount = 1) {
+    const updateMany = vi.fn(async () => ({ count: updateCount }));
+    const audit = vi.fn(async () => undefined);
+    const prisma = {
+      opsEvent: { findMany: vi.fn(async () => events), updateMany },
+      $transaction: async (callback: (transaction: unknown) => Promise<unknown>) => callback(prisma),
+    };
+    const service = new ChangeManagementService(prisma as never, {} as never, { write: audit } as unknown as AuditWriter, {} as never);
+    return { service, updateMany, audit };
+  }
+
+  it('freezes only events that reached five days before the event day and audits it as the system', async () => {
+    const { service, updateMany, audit } = setup([
+      event({ id: 'evt_due' }),
+      event({ id: 'evt_early', eventDate: new Date('2026-10-20T00:00:00.000Z') }),
+    ]);
+
+    await expect(service.freezeEventsDue(new Date('2026-10-06T00:00:00.000Z'))).resolves.toEqual({ frozen: 1 });
+
+    expect(updateMany).toHaveBeenCalledTimes(1);
+    expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'evt_due', freezeStatus: 'open', archived: false },
+      data: expect.objectContaining({ freezeStatus: 'frozen', freezeReason: 'Automatic scope freeze 5 days before the event' }),
+    }));
+    expect(audit).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: 'evt_due', actor: 'System', actorRole: OpsUserRole.System, metadata: expect.objectContaining({ automatic: true }) }),
+      expect.anything(),
+    );
+  });
+
+  it('does not freeze an event before Manila midnight five days ahead', async () => {
+    const { service, updateMany } = setup([event({ id: 'evt_edge' })]);
+
+    await expect(service.freezeEventsDue(new Date('2026-10-04T15:59:00.000Z'))).resolves.toEqual({ frozen: 0 });
+    expect(updateMany).not.toHaveBeenCalled();
+    await expect(service.freezeEventsDue(new Date('2026-10-04T16:00:00.000Z'))).resolves.toEqual({ frozen: 1 });
+  });
+
+  it('writes no audit and counts nothing when a manual freeze got there first', async () => {
+    const { service, audit } = setup([event({ id: 'evt_due' })], 0);
+
+    await expect(service.freezeEventsDue(new Date('2026-10-06T00:00:00.000Z'))).resolves.toEqual({ frozen: 0 });
+    expect(audit).not.toHaveBeenCalled();
   });
 });
 

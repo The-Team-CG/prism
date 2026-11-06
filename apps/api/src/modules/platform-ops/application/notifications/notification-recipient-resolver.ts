@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { prismEmailAddressSchema } from '@prism/types';
 import type { AccountContactReadModel } from '@prism/contexts/read-models/account-contacts';
 
 export type NotificationRecipientLookups = Pick<
@@ -35,7 +35,7 @@ export async function resolveNotificationRecipients(
   lookups: NotificationRecipientLookups,
 ): Promise<ResolvedNotificationRecipients> {
   const label = recipient.trim();
-  if (z.email().safeParse(label).success) return { status: 'resolved', addresses: [label] };
+  if (prismEmailAddressSchema.safeParse(label).success) return { status: 'resolved', addresses: [label] };
 
   if (PMCM_ADMIN_LABELS.has(label)) {
     return addressesOrFailure(await lookups.findApprovedPmcmAdminEmails(), 'No approved, unlocked PMCM Admin account has an email address');

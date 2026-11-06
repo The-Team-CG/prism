@@ -186,7 +186,7 @@ databaseSuite('CoordinatorsService PostgreSQL concurrency invariants', () => {
       new CoordinatorSuggestionsService(prisma, eventReferences),
       new CoordinatorReliabilityNoteWriterService(prisma),
       eventReferences,
-      { isCoordinatorAccountEligible: async () => true },
+      { isCoordinatorAccountEligible: async () => true, listPmcmAdminEmails: async () => [] },
     );
     const transactions = new PrismTransactionRunner(prisma);
     coordinators = buildCoordinators(new WorkflowCommandService(transactions));

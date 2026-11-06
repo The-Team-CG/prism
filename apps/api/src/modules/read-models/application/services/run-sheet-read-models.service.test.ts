@@ -105,7 +105,12 @@ function actor(role: string): ResolvedEventOpsActor {
   } as ResolvedEventOpsActor;
 }
 
-function createService(input: { assignment?: OpsCoordinatorAssignment | null; operatorDesignated?: boolean; scheduled?: boolean } = {}) {
+function createService(input: {
+  assignment?: OpsCoordinatorAssignment | null;
+  operatorDesignated?: boolean;
+  scheduled?: boolean;
+  extraWindows?: Array<{ id: string; requestId: string; ingressAt: Date; egressAt: Date; location: string; status: string }>;
+} = {}) {
   const queries = {
     liveOpsForEvent: vi.fn(async () => ({
       event: eventFixture(),
@@ -118,7 +123,7 @@ function createService(input: { assignment?: OpsCoordinatorAssignment | null; op
         task('task_audio', '2026-08-20T13:00:00.000Z', 'Audio Lead'),
       ],
       urgentIssues: [
-        issue('issue_carried', '2026-08-19T20:00:00.000Z', 'Logistics Coordinator'),
+        issue('issue_carried', '2026-08-19T10:00:00.000Z', 'Logistics Coordinator'),
         issue('issue_resolved', '2026-08-20T09:30:00.000Z', 'Logistics Coordinator', 'resolved'),
         issue('issue_audio', '2026-08-20T09:45:00.000Z', 'Audio Lead'),
       ],
@@ -129,9 +134,11 @@ function createService(input: { assignment?: OpsCoordinatorAssignment | null; op
     scheduleForEvent: vi.fn(async () => (input.scheduled === false ? [] : scheduleFixture())),
     taskReassignmentRequests: vi.fn(async () => []),
     activeOperatorForCoordinator: vi.fn(async () => (input.operatorDesignated ? { id: 'designation_1' } : null)),
+    // The event runs on Philippine time (UTC+8): day 1 is 2026-08-19T16:00Z up to 2026-08-20T16:00Z.
     supplierSchedulesForEvent: vi.fn(async () => [
-      { id: 'sched_lights', requestId: 'quote_lights', ingressAt: at('2026-08-20T09:00:00.000Z'), egressAt: at('2026-08-20T18:00:00.000Z'), location: 'Dock B', status: 'planned' },
-      { id: 'sched_unknown', requestId: 'quote_not_visible', ingressAt: at('2026-08-20T07:00:00.000Z'), egressAt: at('2026-08-20T19:00:00.000Z'), location: 'Dock A', status: 'planned' },
+      { id: 'sched_lights', requestId: 'quote_lights', ingressAt: at('2026-08-20T09:00:00.000Z'), egressAt: at('2026-08-20T15:00:00.000Z'), location: 'Dock B', status: 'planned' },
+      { id: 'sched_unknown', requestId: 'quote_not_visible', ingressAt: at('2026-08-20T07:00:00.000Z'), egressAt: at('2026-08-20T15:30:00.000Z'), location: 'Dock A', status: 'planned' },
+      ...(input.extraWindows ?? []),
     ]),
   };
   const policy = {
@@ -220,6 +227,22 @@ describe('RunSheetReadModelsService', () => {
     vi.setSystemTime(new Date('2026-08-21T07:00:00.000Z'));
     expect(sheet(await service.getRunSheet(EVENT_ID, undefined, actor(OpsUserRole.PmcmAdmin))).day.id).toBe('day_2');
     await expect(service.getRunSheet(EVENT_ID, 'day_missing', actor(OpsUserRole.PmcmAdmin))).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('keeps a Philippine-morning arrival on its event day and opens the day it is in Manila', async () => {
+    // 06:00 and 23:00 on 20 Aug in Manila are 22:00Z on the 19th and 15:00Z on the 20th.
+    const { service } = createService({
+      extraWindows: [{ id: 'sched_early', requestId: 'quote_lights', ingressAt: at('2026-08-19T22:00:00.000Z'), egressAt: at('2026-08-20T16:00:00.000Z'), location: 'Dock C', status: 'planned' }],
+    });
+
+    const dayOne = sheet(await service.getRunSheet(EVENT_ID, 'day_1', actor(OpsUserRole.PmcmAdmin)));
+    expect(dayOne.entries.map((entry) => entry.id)).toContain('ingress:sched_early');
+    // Egress at 00:00 Manila on the 21st belongs to the next day, not this one.
+    expect(dayOne.entries.map((entry) => entry.id)).not.toContain('egress:sched_early');
+
+    // 07:00 Manila on 21 Aug is still 20 Aug in UTC.
+    vi.setSystemTime(new Date('2026-08-20T23:00:00.000Z'));
+    expect(sheet(await service.getRunSheet(EVENT_ID, undefined, actor(OpsUserRole.PmcmAdmin))).day.id).toBe('day_2');
   });
 
   it('reports an unauthored schedule instead of an empty sheet', async () => {

@@ -1,4 +1,4 @@
-import { createCostEstimateSchema, issueProposalVersionSchema, parseContract } from "@prism/types";
+import { createCostEstimateSchema, issueProposalVersionSchema, parseContract, proposalDraftRequestSchema } from "@prism/types";
 
 export type EstimateLineDraft = { key: string; category: string; description: string; quantity: string; unitAmount: string };
 
@@ -26,6 +26,12 @@ export function formatPeso(amount: number) {
   return new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(amount);
 }
 
+/** Reads a peso amount typed with or without the ₱ sign and thousands separators. Empty or non-numeric input is NaN. */
+export function parsePesoAmount(value: string): number {
+  const digits = value.replace(/[₱,s]/g, "");
+  return digits === "" ? Number.NaN : Number(digits);
+}
+
 type ProposalDraft = {
   budgetAmount: string;
   notes: string;
@@ -39,7 +45,7 @@ export function buildCostEstimateInput(draft: ProposalDraft) {
   return parseContract(
     createCostEstimateSchema,
     {
-      budgetAmount: Number(draft.budgetAmount),
+      budgetAmount: parsePesoAmount(draft.budgetAmount),
       notes: draft.notes,
       lines: draft.lines.map((line) => ({
         category: line.category,
@@ -57,5 +63,24 @@ export function buildIssueProposalInput(draft: ProposalDraft, costEstimateId: st
     issueProposalVersionSchema,
     { title: draft.title, summary: draft.summary, revisionNote: draft.revisionNote, costEstimateId, idempotencyKey },
     "Proposal",
+  );
+}
+
+/** The estimate being built, shaped for the AI drafting request. Invalid input throws a readable message. */
+export function buildProposalDraftRequest(eventId: string, draft: ProposalDraft) {
+  return parseContract(
+    proposalDraftRequestSchema,
+    {
+      eventId,
+      budgetAmount: parsePesoAmount(draft.budgetAmount),
+      notes: draft.notes,
+      lines: draft.lines.map((line) => ({
+        category: line.category,
+        description: line.description,
+        quantity: Number(line.quantity),
+        unitAmount: Number(line.unitAmount),
+      })),
+    },
+    "Proposal draft",
   );
 }

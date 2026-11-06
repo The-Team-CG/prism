@@ -1,4 +1,5 @@
-import { EventDashboardRouteView, EventDashboardSuppliersSectionView } from "@/features/event-dashboard/shell";
+import { EventDashboardRouteView } from "@/features/event-dashboard/shell/views/event-dashboard-route-view";
+import { EventDashboardSuppliersSectionView } from "@/features/event-dashboard/shell/views/sections/suppliers-section-view";
 
 export default function EventDashboardRoutePage() {
   return (

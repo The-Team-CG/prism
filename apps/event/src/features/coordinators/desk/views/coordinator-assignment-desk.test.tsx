@@ -112,7 +112,10 @@ describe("CoordinatorAssignmentDesk skill suggestions", () => {
 
     await waitFor(() => expect(props.onLoadOperator).toHaveBeenCalled());
     fireEvent.change(screen.getByRole("combobox", { name: "Coordinator role filter" }), { target: { value: "Usher" } });
-    fireEvent.click(screen.getByLabelText("Available only"));
+    const availableOnly = screen.getByRole("checkbox", { name: "Available only" }) as HTMLInputElement;
+    expect(availableOnly.checked).toBe(true);
+    fireEvent.click(availableOnly);
+    expect(availableOnly.checked).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Review conflict" }));
 
     expect(await screen.findByText("1 of 1 required skills matched")).toBeTruthy();
@@ -289,6 +292,33 @@ describe("CoordinatorAssignmentDesk coverage targets", () => {
 
     await waitFor(() => expect(props.onSaveCoverage).toHaveBeenCalledWith({ role: "Floor Director", required: 2, requiredSkills: ["first aid", "registration"] }));
     expect(await screen.findByText("Coverage target saved for Floor Director.")).toBeTruthy();
+  });
+
+  describe("staffing tiles against the event date", () => {
+    const metTarget = { role: "Floor Director", required: 1, assigned: 1, acknowledged: 1, requiredSkills: [], assignedSkills: [], satisfied: true };
+    const skillGapTarget = { role: "Stage Director", required: 1, assigned: 1, acknowledged: 1, requiredSkills: ["first aid"], assignedSkills: [], satisfied: false };
+
+    afterEach(() => vi.useRealTimers());
+
+    it("tells the planner what is left while the event is ahead", () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-09-30T04:00:00Z"));
+      renderDesk({ roleRequirements: [metTarget, usherTarget, skillGapTarget] });
+
+      expect(screen.getByText("Covered for this event.")).toBeTruthy();
+      expect(screen.getByText("Still needs staffing.")).toBeTruthy();
+      expect(screen.getByText("Target met; a required skill is missing.")).toBeTruthy();
+    });
+
+    it("reads each target as a record once the event date has passed, never as a to-do", () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-11-02T04:00:00Z"));
+      renderDesk({ roleRequirements: [metTarget, usherTarget, skillGapTarget] });
+
+      expect(screen.getByText("Staffed")).toBeTruthy();
+      expect(screen.getAllByText("Not staffed")).toHaveLength(2);
+      expect(screen.queryByText(/Still needs staffing/)).toBeNull();
+    });
   });
 
   it("loads an existing target into the form so it can be changed", async () => {

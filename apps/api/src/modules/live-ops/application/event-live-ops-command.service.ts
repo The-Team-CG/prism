@@ -17,6 +17,7 @@ import type {
   UpdateEventDayTaskInput,
   UpdateSupplierEventStatusInput,
   UpdateUrgentIssueInput,
+  ReportSupplierSiteStatusInput,
   VerifySupplierStatusInput,
 } from '@prism/types';
 import { OpsUserRole } from '@prism/kernel/event-core';
@@ -210,6 +211,30 @@ export class EventLiveOpsCommandService {
       metadata,
     );
 
+    return updated;
+  }
+
+  async reportSupplierEventStatus(
+    eventId: string,
+    requestId: string,
+    input: ReportSupplierSiteStatusInput,
+    actor: ResolvedEventOpsActor,
+  ) {
+    const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'supplier on-site status report');
+    if (actor.role === OpsUserRole.Coordinator && !designatedOperator && !this.isIngressRole(assignment?.role)) {
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'supplier on-site status report', eventId);
+      throw new ForbiddenException('Only the ingress coordinator or designated operator may report supplier status');
+    }
+    const updated = await this.supplierCommands.reportSupplierEventStatusOnSite(eventId, requestId, input, actor);
+    await recordEventDayLog(this.prisma,
+      eventId,
+      'supplier_status_reported_on_site',
+      actor,
+      `Reported supplier on site as ${input.status.replace(/_/g, ' ')}: ${updated.supplierName}`,
+      'supplier_quote_request',
+      updated.id,
+      { status: input.status, notes: input.notes ?? '' },
+    );
     return updated;
   }
 

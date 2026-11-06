@@ -1,3 +1,4 @@
+import { publicContextSeams } from "./prism-public-context-seams.mjs";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -35,27 +36,8 @@ function contextOf(normalized) {
 
 function hasPrivateModuleImport(source) {
   const nestedImports = source.matchAll(/from\s+["'](@prism\/(?:contexts|kernel)\/[^/"']+\/[^"']+)["']/g);
-  const publicSubpathSeams = new Set([
-    '@prism/contexts/read-models/closeout',
-    '@prism/contexts/read-models/event-scope',
-    '@prism/contexts/read-models/participant-facts',
-    '@prism/contexts/read-models/guest-events',
-    '@prism/contexts/read-models/account-contacts',
-    '@prism/contexts/read-models/commercial-facts-reader',
-    '@prism/contexts/read-models/lifecycle-facts',
-    '@prism/contexts/read-models/file-evidence',
-    '@prism/contexts/event-lifecycle/conforme-reminder-window',
-    '@prism/contexts/event-lifecycle/post-event-reference',
-    '@prism/contexts/event-lifecycle/operations-reference',
-    '@prism/contexts/identity-access/account-invitation-reference',
-    '@prism/contexts/identity-access/coordinator-reference',
-    '@prism/contexts/operations/live-ops-reference',
-    '@prism/contexts/commercial/registration-supplier-reference',
-    '@prism/contexts/live-ops/urgent-issue-reference',
-    '@prism/contexts/event-lifecycle/floorplan-reference',
-    '@prism/contexts/floorplan/event-drafts',
-  ]);
-  return [...nestedImports].some((match) => !publicSubpathSeams.has(match[1]));
+
+  return [...nestedImports].some((match) => !publicContextSeams.has(match[1]));
 }
 
 function hasPrivateCrossContextImport(normalized, source) {
@@ -105,6 +87,11 @@ export const boundaryRules = [
     name: "shared types must not import React or app modules",
     filePattern: /^packages\/types\//,
     importPattern: /from\s+["'](?:react|@\/|apps\/|@prism\/ui)/,
+  },
+  {
+    name: "portal query must stay transport- and role-neutral (fetchers are passed in by each portal's data layer)",
+    filePattern: /^packages\/portal-query\//,
+    importPattern: /\b(?:from\s*|import\s*\(\s*|require\s*\(\s*)["'](?:@\/|apps\/|@prism\/(?:api-client|client|event|guest|supplier|ui|types)(?:\/|["']))/,
   },
   {
     name: "api client must not import role app modules",

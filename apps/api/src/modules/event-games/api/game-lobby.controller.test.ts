@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { EventGamesLobbyController } from './game-lobby.controller';
 
 describe('EventGamesLobbyController trusted request source', () => {
-  it('passes only the socket remote address and ignores forwarded-address headers', () => {
+  it('passes only the socket remote address and ignores forwarded-address headers', async () => {
     const lobbies = {
       getPublicLobby: vi.fn(),
       startIndependentGame: vi.fn(),
@@ -14,8 +14,8 @@ describe('EventGamesLobbyController trusted request source', () => {
       headers: { 'x-forwarded-for': '198.51.100.77' },
     } as unknown as Request;
 
-    controller.getPublicLobby('opaque-slug', request);
-    controller.startIndependentGame('opaque-slug', 'game-1', {
+    await controller.getPublicLobby('opaque-slug', request);
+    await controller.startIndependentGame('opaque-slug', 'game-1', {
       idempotencyKey: '00000000-0000-4000-8000-000000000004',
     }, request);
 

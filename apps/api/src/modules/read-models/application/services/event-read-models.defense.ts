@@ -34,10 +34,6 @@ function statusWhen(done: boolean, attention: boolean, blocked = false): Defense
   return "blocked";
 }
 
-export function countMatching<T>(items: T[], predicate: (item: T) => boolean) {
-  return items.filter(predicate).length;
-}
-
 export function buildDefenseActions(input: DefenseInputs): DefenseAction[] {
   return [
     briefingAction(input),
@@ -80,7 +76,7 @@ function supplierAction(input: DefenseInputs): DefenseAction {
     key: "suppliers",
     label: "Supplier selection",
     detail: done
-      ? `${input.selectedSupplierCount} selected supplier quote(s) are locked.`
+      ? `${input.selectedSupplierCount} supplier(s) selected.`
       : attention
         ? "Quote requests are out; select winning supplier quotes."
         : "Send scoped quote requests to Tier 1 or backup suppliers.",
@@ -151,16 +147,6 @@ export function overallDefenseStatus(actions: DefenseAction[]) {
   if (actions.some((action) => action.status === "blocked")) return "blocked";
   if (actions.some((action) => action.status === "attention")) return "attention";
   return "ready";
-}
-
-export function defenseLifecycleStage(input: DefenseInputs) {
-  if (input.archived) return "archive";
-  if (!input.briefingsCount) return "briefing";
-  if (!input.approvedFloorplan) return "planning";
-  if (input.selectedSupplierCount === 0 || input.pendingCoordinatorCount > 0) return "supplier-coordinator-setup";
-  if (input.openTaskCount + input.openIssueCount > 0) return "event-day";
-  if (input.closeGates.ready) return "closure-ready";
-  return "closure";
 }
 
 export function defenseSummary(input: DefenseInputs) {

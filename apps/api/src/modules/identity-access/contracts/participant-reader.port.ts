@@ -6,4 +6,6 @@ export const PARTICIPANT_READER = Symbol.for('prism.identityAccess.participantRe
 export interface ParticipantReader {
   resolveForEvent(actorId: string, eventId: string, db?: Prisma.TransactionClient): Promise<ResolvedEventOpsActor>;
   listEligibleForEvent(eventId: string, requester: ResolvedEventOpsActor): Promise<Array<{ id: string; name: string; email: string; role: string }>>;
+  /** PMCM admins who receive a conversation a booked supplier opens; never exposed to the supplier. */
+  listPmcmAdmins(db?: Prisma.TransactionClient): Promise<ResolvedEventOpsActor[]>;
 }

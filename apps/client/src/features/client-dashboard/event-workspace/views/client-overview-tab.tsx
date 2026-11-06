@@ -45,7 +45,7 @@ export function ClientOverviewTab({
 
   return (
     <div className="space-y-5">
-      <OverviewNextDecision selectedEvent={selectedEvent} briefing={briefing} billing={billing} officialDraft={officialDraft} nextAction={nextAction} />
+      <OverviewNextDecision selectedEvent={selectedEvent} nextAction={nextAction} />
       <OverviewStats selectedEvent={selectedEvent} payments={payments} documents={documents} />
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <OverviewEventDetails selectedEvent={selectedEvent} briefing={briefing} />
