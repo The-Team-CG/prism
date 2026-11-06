@@ -870,14 +870,16 @@ export class EventReadModelQueries {
     return sortByDate(requests, (row) => row.createdAt, 'desc');
   }
 
-  /** PMCM event-scoped readiness rows; callers must already hold PMCM access to the event. */
-  pmcmSupplierReadinessRequests(eventId: string) {
-    return this.prisma.opsSupplierQuoteRequest.findMany({
-      where: { eventId },
-      include: SUPPLIER_READINESS_INCLUDE,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: MAX_PMCM_EVENT_WORKSPACE_ROWS,
-    });
+  /** Event-scoped readiness sources; callers authorize event access before reading them. */
+  supplierReadinessRequestsForEvent(eventId: string) {
+    return readAllRowsById(MAX_SUPPLIER_WORKSPACE_ROWS, (afterId) =>
+      this.prisma.opsSupplierQuoteRequest.findMany({
+        where: { eventId, ...(afterId ? { id: { gt: afterId } } : {}) },
+        include: SUPPLIER_READINESS_INCLUDE,
+        orderBy: { id: 'asc' },
+        take: MAX_SUPPLIER_WORKSPACE_ROWS,
+      }),
+    );
   }
 
   // Each actionable source has its own deterministic page so combined queue rows are never silently dropped.
