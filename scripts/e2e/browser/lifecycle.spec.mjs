@@ -137,7 +137,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await applicant.getByRole('button', { name: 'Continue', exact: true }).click();
       await applicant.getByRole('combobox', { name: 'Service category', exact: true }).click();
       await applicant.getByRole('option', { name: 'Digital Registration', exact: true }).click();
-      await applicant.getByLabel('Service inclusions', { exact: true }).fill('Registration equipment and on-site support');
+      await applicant.getByLabel(/Service inclusions/).fill('Registration equipment and on-site support');
       await applicant.getByRole('button', { name: 'Continue', exact: true }).click();
       await applicant.getByRole('button', { name: 'Continue', exact: true }).click();
       await applicant.getByRole('checkbox', { name: /These details are accurate/ }).check();
