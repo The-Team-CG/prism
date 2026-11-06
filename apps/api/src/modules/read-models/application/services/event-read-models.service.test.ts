@@ -811,9 +811,9 @@ describe('EventReadModelsService', () => {
     const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const inTwoHours = new Date(Date.now() + 2 * 60 * 60 * 1000);
     prisma.opsEventDayTask.findMany.mockImplementation(async () => [
-      { id: 'edt_overdue', eventId: 'evt_visible', title: 'Confirm stage power', status: 'open', assignedRole: 'Technical Lead', ownerName: 'Dane', dueAt: null, slaDueAt: hourAgo, slaStatus: 'on_track' },
-      { id: 'edt_blocked', eventId: 'evt_visible', title: 'Release VIP gate', status: 'blocked', assignedRole: 'Access Lead', ownerName: '', dueAt: inTwoHours, slaDueAt: inTwoHours, slaStatus: 'on_track' },
-      { id: 'edt_on_track', eventId: 'evt_visible', title: 'Brief ushers', status: 'in_progress', assignedRole: 'Usher Lead', ownerName: '', dueAt: inTwoHours, slaDueAt: inTwoHours, slaStatus: 'on_track' },
+      { id: 'edt_overdue', eventId: 'evt_visible', title: 'Confirm stage power', status: 'open', assignedRole: 'Technical Lead', ownerName: 'Dane', notes: '', dueAt: null, slaDueAt: hourAgo, slaStatus: 'on_track' },
+      { id: 'edt_blocked', eventId: 'evt_visible', title: 'Release VIP gate', status: 'blocked', assignedRole: 'Access Lead', ownerName: '', notes: '', dueAt: inTwoHours, slaDueAt: inTwoHours, slaStatus: 'on_track' },
+      { id: 'edt_on_track', eventId: 'evt_visible', title: 'Brief ushers', status: 'in_progress', assignedRole: 'Usher Lead', ownerName: '', notes: '', dueAt: inTwoHours, slaDueAt: inTwoHours, slaStatus: 'on_track' },
     ]);
     prisma.opsUrgentIssue.findMany.mockImplementation(async () => [
       { id: 'iss_high', eventId: 'evt_visible', title: 'Projector failure', severity: 'high', status: 'open', slaDueAt: inTwoHours, slaStatus: 'on_track', createdAt: hourAgo },
@@ -832,7 +832,12 @@ describe('EventReadModelsService', () => {
       ['live-ops:task:edt_blocked', 'warning', 'blocked'],
       ['live-ops:issue:iss_low', 'attention', 'assigned'],
     ]);
-    expect(liveOps.every((item) => item.href === '/dashboard/events/evt_visible/live-ops')).toBe(true);
+    expect(liveOps.map((item) => [item.id, item.href])).toEqual([
+      ['live-ops:task:edt_overdue', '/dashboard/events/evt_visible/live-ops#event-day-task-edt_overdue'],
+      ['live-ops:issue:iss_high', '/dashboard/events/evt_visible/live-ops'],
+      ['live-ops:task:edt_blocked', '/dashboard/events/evt_visible/live-ops#event-day-task-edt_blocked'],
+      ['live-ops:issue:iss_low', '/dashboard/events/evt_visible/live-ops'],
+    ]);
     const severities = inbox.items.map((item) => item.severity);
     expect(severities).toEqual([...severities].sort((left, right) =>
       ['critical', 'warning', 'attention', 'info'].indexOf(left) - ['critical', 'warning', 'attention', 'info'].indexOf(right)));
