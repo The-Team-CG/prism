@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- The PMCM Files event list shows how many of each event's file requirements are open and how many are overdue (for the 25 most recent active events), from a new PMCM-only `GET /api/pmcm/file-summaries` read.
 - PMCM sees how many coordinators in the whole active pool are free on the event date (and how many are assigned to other events or marked unavailable) above the staffing summary, from `GET /api/events/:eventId/staffing/pool-availability`.
 - A coordinator who withdraws from 48 hours before the event day (Philippine time) until it ends is flagged as an Emergency Change: the assignment carries `emergencyChange`, the audit entry is critical, the reliability note says it was within 48 hours, the PMCM assignments desk shows an alert listing who withdrew and from which role, and every approved PMCM admin is emailed.
 - The email a supplier receives when PMCM selects their quote now names the event and date, the deliverables they quoted, their ingress and egress window in Philippine time (or says PMCM will send it), the agreed amount and the payment terms.
