@@ -41,6 +41,8 @@ function createService() {
       },
     ] as any[],
     checks: [] as any[],
+    risks: [] as any[],
+    riskHistory: [] as any[],
   };
   const prisma = {
     opsEvent: {
@@ -73,6 +75,20 @@ function createService() {
         return check;
       }),
     },
+    opsComplianceRisk: {
+      create: vi.fn(async ({ data }) => {
+        const risk = { ...data, createdAt: new Date(), updatedAt: new Date() };
+        state.risks.push(risk);
+        return risk;
+      }),
+      findFirst: vi.fn(async ({ where }) => state.risks.find((risk) => risk.id === where.id && risk.eventId === where.eventId) ?? null),
+      update: vi.fn(async ({ where, data }) => {
+        const risk = state.risks.find((item) => item.id === where.id)!;
+        Object.assign(risk, Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined)));
+        return risk;
+      }),
+    },
+    opsComplianceRiskHistory: { create: vi.fn(async ({ data }) => { state.riskHistory.push(data); return data; }) },
     $transaction: vi.fn(async (callback) => callback(prisma)),
   };
   const auditService = new AuditService(prisma as any);
@@ -117,6 +133,46 @@ describe('ComplianceWorkflowService', () => {
       expect.objectContaining({ metadata: expect.objectContaining({ ruleCount: 1 }) }),
       undefined,
     );
+  });
+
+  describe('risk likelihood and impact', () => {
+    const admin = { role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true };
+    const base = { phase: 'closure', title: 'Generator failure', status: 'open' as const };
+
+    it('derives severity from likelihood and impact, records both, and keeps them in history', async () => {
+      const { service, state } = createService();
+
+      const risk = await service.createComplianceRisk('evt_sample', { ...base, likelihood: 'high', impact: 'high' }, admin);
+
+      expect(risk).toMatchObject({ severity: 'critical', likelihood: 'high', impact: 'high' });
+      expect(state.riskHistory[0]).toMatchObject({ riskId: risk.id, severity: 'critical', likelihood: 'high', impact: 'high' });
+    });
+
+    it('lets an explicit severity win and falls back to medium when nothing was rated', async () => {
+      const { service } = createService();
+
+      expect(await service.createComplianceRisk('evt_sample', { ...base, severity: 'low', likelihood: 'high', impact: 'high' }, admin))
+        .toMatchObject({ severity: 'low' });
+      expect(await service.createComplianceRisk('evt_sample', base, admin))
+        .toMatchObject({ severity: 'medium', likelihood: null, impact: null });
+    });
+
+    it('re-derives severity on update from the new rating and the stored one, and ignores a lone rating with no partner', async () => {
+      const { service } = createService();
+      const unrated = await service.createComplianceRisk('evt_sample', base, admin);
+      const rated = await service.createComplianceRisk('evt_sample', { ...base, likelihood: 'low', impact: 'low' }, admin);
+
+      expect((await service.updateComplianceRisk('evt_sample', unrated.id, { impact: 'high' }, admin)).severity).toBe('medium');
+      expect((await service.updateComplianceRisk('evt_sample', rated.id, { impact: 'high' }, admin)).severity).toBe('medium');
+      expect((await service.updateComplianceRisk('evt_sample', rated.id, { likelihood: 'high' }, admin)).severity).toBe('critical');
+    });
+
+    it('refuses to update a risk that belongs to another event', async () => {
+      const { service } = createService();
+      const risk = await service.createComplianceRisk('evt_sample', base, admin);
+
+      await expect(service.updateComplianceRisk('evt_other', risk.id, { impact: 'high' }, admin)).rejects.toThrow('Risk not found');
+    });
   });
 
   it('requires override reason before overriding a compliance check', async () => {

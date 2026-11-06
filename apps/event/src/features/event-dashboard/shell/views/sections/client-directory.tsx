@@ -6,8 +6,9 @@ import { EmptyState } from "@/app/components/ui/empty-state";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { RouteLink, label, useListFilter } from "@/features/pmcm-kit";
 import type { EventClientRecord } from "../../model/event-dashboard-selectors";
-import { clientDossierHref, eventWorkspaceHref, type DetailTab } from "../../model/event-dashboard-routing";
+import { CLIENT_DOSSIER_VIEWS, clientDossierHref, eventWorkspaceHref, type DetailTab } from "../../model/event-dashboard-routing";
 import { portalHref } from "@prism/ui/portal-path";
+import { WorkspaceRouteTabs } from "./workspace-sub-tabs";
 
 const CLOSED_EVENT_STATUSES = ["completed", "cancelled", "closed"];
 const STATUS_ORDER: Record<string, number> = { active: 0, prospect: 1, "past client": 2 };
@@ -204,11 +205,8 @@ export function ClientDossier({
         <ArrowLeft aria-hidden="true" className="size-4" />
         All clients
       </button>
-      <section aria-labelledby="client-dossier-title" className="rounded-lg border border-border bg-card p-5">
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h2 id="client-dossier-title" className="font-heading text-xl font-bold text-foreground">{client.name}</h2>
-          <StatusBadge status={clientStatus(client)} />
-        </div>
+      <section aria-label="Client summary" className="rounded-lg border border-border bg-card p-5">
+        <StatusBadge status={clientStatus(client)} />
         <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {facts.map((fact) => (
             <div key={fact.label}>
@@ -218,6 +216,12 @@ export function ClientDossier({
           ))}
         </dl>
       </section>
+
+      <WorkspaceRouteTabs
+        label="Client views"
+        tabs={CLIENT_DOSSIER_VIEWS.map((item) => ({ id: item.view, label: item.label, href: clientDossierHref(client.id, item.view) }))}
+        activeId={view}
+      />
 
       {eventSection ? <DossierEventLinks client={client} section={eventSection} onOpenEvent={onOpenEvent} /> : null}
       {view === "contacts" ? <DossierContacts client={client} /> : null}
@@ -273,7 +277,7 @@ export function ClientDossier({
                   <span className="min-w-0">
                     <span className="block truncate font-semibold text-foreground">{inquiry.eventName}</span>
                     <span className="block text-xs text-muted-foreground">
-                      {inquiry.eventDate || "Date pending"} · {inquiry.source || "Source not recorded"}
+                      {formatPortalDate(inquiry.eventDate, "Date pending")} · {inquiry.source || "Source not recorded"}
                     </span>
                   </span>
                   <StatusBadge status={inquiry.status} label={label(inquiry.status)} />

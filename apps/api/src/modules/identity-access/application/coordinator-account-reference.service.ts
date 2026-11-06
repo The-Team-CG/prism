@@ -8,6 +8,16 @@ import type { CoordinatorAccountEligibilityReader } from '../contracts/coordinat
 export class CoordinatorAccountReferenceService implements CoordinatorAccountEligibilityReader {
   constructor(private readonly prisma: PrismaService) {}
 
+  async listPmcmAdminEmails(transaction?: PrismTransactionContext) {
+    const prisma = transaction?.prisma ?? this.prisma;
+    const admins = await prisma.opsUser.findMany({
+      where: { role: OpsUserRole.PmcmAdmin, approvalStatus: 'approved', permanentLockout: false },
+      select: { email: true },
+      orderBy: { id: 'asc' },
+    });
+    return admins.map((admin) => admin.email.trim().toLowerCase()).filter((email) => email.includes('@'));
+  }
+
   async isCoordinatorAccountEligible(userId: string, transaction?: PrismTransactionContext) {
     const prisma = transaction?.prisma ?? this.prisma;
     if (transaction) {

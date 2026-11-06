@@ -8,6 +8,10 @@ import { PLATFORM_REFERENCE_READ_MODEL, type PlatformReferenceReadModel } from '
 import {
   aiAuditEvidenceSchema,
   aiPareProvenanceChainEvidenceSchema,
+  pareBudgetAnalysisSchema,
+  pareCandidateSchema,
+  pareDraftsSchema,
+  pareRiskSchema,
   type AiAuditEvidence,
   type AiUseCaseId,
 } from '@prism/types';
@@ -17,7 +21,17 @@ import {
   AI_SYNTHETIC_PROVENANCE_VERIFIER,
   type AiGatewayRuntimeConfig,
 } from '../gateway/ai-gateway.config';
-import { assertPareExecutionAllowed, configuredPareMode, PareConfigurationError, type PAREMode } from './pare-execution.policy';
+import {
+  assertLivePareRuntime,
+  assertPareExecutionAllowed,
+  configuredPareMode,
+  PARE_USE_CASE_IDS,
+  PareConfigurationError,
+  resolvePareLiveInput,
+  type PareLiveInput,
+  type PAREMode,
+} from './pare-execution.policy';
+import { maskBudgetAnalysis } from './pare-model-view';
 import { DataSanitizerService } from './data-sanitizer.service';
 import { PareSourceNotFoundError } from './pare-source.errors';
 import { EventContextAgent } from './agents/event-context.agent';
@@ -41,6 +55,9 @@ import type { PareApprovalGovernance } from '../../../contracts/ai-governance/pa
 
 const PARE_LINEAR_CHAIN_PROVENANCE_VERSION = 1;
 const PARE_CHAIN_PROVENANCE_VERSION = 2;
+/** Real-data run without a synthetic chain: each stage audit carries the digest of its validated output. */
+const PARE_GATEWAY_DIGEST_VERSION = 3;
+const GATEWAY_REAL_DATA_OUTCOMES: ReadonlySet<string> = new Set(['zdr_approved', 'test_data_approved']);
 
 type ApprovalRow = {
   id: string;
@@ -251,16 +268,6 @@ function createPareGatewaySignal(executionSignal: AbortSignal | undefined, cance
     : [cancellation.signal]);
 }
 
-function assertLivePareRoute(runtime: AiGatewayRuntimeConfig): void {
-  if (runtime.isProduction) {
-    throw new PareConfigurationError('Live PARE is disabled in production until its activation is approved');
-  }
-  const requiredUseCases: AiUseCaseId[] = ['pare.budget', 'pare.risk', 'pare.message-drafts'];
-  if (!requiredUseCases.every((id) => runtime.liveUseCases.has(id))) {
-    throw new PareConfigurationError('Live PARE requires all three PARE use cases in AI_LIVE_USE_CASES');
-  }
-}
-
 function assertMockApprovalAudit(audit: OpsAiAuditLog, payload: Record<string, unknown>): void {
   const noGatewayEvidence = payload.runEvidence === undefined ||
     (Array.isArray(payload.runEvidence) && payload.runEvidence.length === 0);
@@ -293,6 +300,7 @@ function isExpectedLiveEvidence(
     !seen.has(evidence.useCaseId) &&
     evidence.outcome === 'completed' &&
     evidence.correlationId === requestId &&
+    Boolean(evidence.syntheticProvenance) &&
     isPareRoutePolicyEligibleEvidence(evidence);
 }
 
@@ -337,6 +345,54 @@ function assertPareChainEvidenceSet(
   }
 }
 
+function plainRecord(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+/** Every stage evidence of a real-data run: completed, in stage order, on one correlation id, no chain. */
+function assertGatewayEvidenceSet(evidenceSet: AiAuditEvidence[], requestId: string): void {
+  const valid = evidenceSet.length === PARE_USE_CASE_IDS.length &&
+    evidenceSet.every((evidence, index) =>
+      evidence.useCaseId === PARE_USE_CASE_IDS[index] &&
+      evidence.outcome === 'completed' &&
+      evidence.correlationId === requestId &&
+      !evidence.pareChain &&
+      GATEWAY_REAL_DATA_OUTCOMES.has(evidence.routePolicyOutcome));
+  if (!valid) throw new BadRequestException('A matching durable PARE audit is required');
+}
+
+/**
+ * The three stage outputs in the form the model produced them: the saved budget analysis carries real
+ * candidate ids, which are re-masked from the saved candidate list. Null when the saved record is incomplete.
+ */
+function savedStageOutputsAsProduced(reviewPayload: unknown): unknown[] | null {
+  const data = plainRecord(reviewPayload);
+  const candidates = pareCandidateSchema.array().safeParse(data.candidates);
+  const budget = pareBudgetAnalysisSchema.safeParse(data.budgetAnalysis);
+  const risk = pareRiskSchema.safeParse(data.riskAssessment);
+  const drafts = pareDraftsSchema.safeParse(data.drafts);
+  if (!candidates.success || !budget.success || !risk.success || !drafts.success) return null;
+  const maskedBudget = maskBudgetAnalysis(candidates.data, budget.data);
+  return maskedBudget ? [maskedBudget, risk.data, drafts.data] : null;
+}
+
+function durableGatewayStageMatches(
+  row: OpsAiAuditLog,
+  item: AiAuditEvidence,
+  expectedUseCase: AiUseCaseId,
+  requestId: string,
+): boolean {
+  const route = plainRecord(plainRecord(row.sanitizedPayload)._aiGatewayRoute);
+  return durableStageIdentityMatches(row, item, expectedUseCase) &&
+    row.correlationId === requestId &&
+    durableProviderEvidenceMatches(row, item) &&
+    durableApprovalEvidenceMatches(row, item) &&
+    GATEWAY_REAL_DATA_OUTCOMES.has(String(route.routePolicyOutcome)) &&
+    durableRouteEvidenceMatches(route, item);
+}
+
 function assertPareResultMatchesChain(evidenceSet: AiAuditEvidence[], pareResult: PAREResult): void {
   const outputs = [pareResult.budgetAnalysis, pareResult.riskAssessment, pareResult.drafts];
   if (evidenceSet.length !== outputs.length || evidenceSet.some((evidence, index) =>
@@ -348,6 +404,8 @@ function assertPareResultMatchesChain(evidenceSet: AiAuditEvidence[], pareResult
 @Injectable()
 export class PAREService implements PareApprovalGovernance {
   private readonly mode: PAREMode;
+  /** How live PARE feeds the gateway; null when the service has no gateway runtime (test wiring only). */
+  private readonly liveInput: PareLiveInput | null;
   private readonly sanitizer: DataSanitizerService;
   private readonly eventContextAgent: EventContextAgent;
   private readonly supplierFinderAgent: SupplierFinderAgent;
@@ -365,14 +423,16 @@ export class PAREService implements PareApprovalGovernance {
     @Optional() @Inject(PLATFORM_REFERENCE_READ_MODEL)
     private readonly platformReferences?: PlatformReferenceReadModel,
   ) {
-    this.mode = configuredPareMode(process.env.PARE_MODE, this.aiRuntime?.localSyntheticProviderMode === true);
-    if (this.mode === 'live' && this.aiRuntime) assertLivePareRoute(this.aiRuntime);
+    this.mode = configuredPareMode(process.env.PARE_MODE, this.aiRuntime);
+    if (this.mode === 'live' && this.aiRuntime) assertLivePareRuntime(this.aiRuntime);
+    this.liveInput = this.mode === 'live' && this.aiRuntime ? resolvePareLiveInput(this.aiRuntime) : null;
+    const maskIdentity = this.liveInput === 'real-data';
     this.sanitizer = new DataSanitizerService();
     this.eventContextAgent = new EventContextAgent();
     this.supplierFinderAgent = new SupplierFinderAgent();
-    this.budgetAgent = new BudgetAgent(this.mode, this.aiGateway);
-    this.riskAgent = new RiskAgent(this.mode, this.aiGateway);
-    this.messageDrafterAgent = new MessageDrafterAgent(this.mode, this.aiGateway);
+    this.budgetAgent = new BudgetAgent(this.mode, this.aiGateway, maskIdentity);
+    this.riskAgent = new RiskAgent(this.mode, this.aiGateway, maskIdentity);
+    this.messageDrafterAgent = new MessageDrafterAgent(this.mode, this.aiGateway, maskIdentity);
   }
 
   async handleEmergencyTrigger(
@@ -409,7 +469,7 @@ export class PAREService implements PareApprovalGovernance {
     if (this.mode === 'live' && !this.aiGateway) {
       throw new PareConfigurationError('PARE AI gateway is not registered; live PARE is disabled');
     }
-    if (this.mode === 'live' && this.aiRuntime && !this.syntheticVerifier?.beginPareChain) {
+    if (this.mode === 'live' && this.liveInput === 'registered-synthetic' && !this.syntheticVerifier?.beginPareChain) {
       throw new PareConfigurationError('Live PARE requires a server-owned synthetic provenance-chain verifier');
     }
   }
@@ -450,7 +510,7 @@ export class PAREService implements PareApprovalGovernance {
   }
 
   private async beginSyntheticPareChain(ctx: PAREContext): Promise<AiSyntheticPareChain | undefined> {
-    if (this.mode === 'live' && this.syntheticVerifier?.beginPareChain) {
+    if (this.mode === 'live' && this.liveInput === 'registered-synthetic' && this.syntheticVerifier?.beginPareChain) {
       const syntheticPareChain = await this.syntheticVerifier.beginPareChain(ctx, ctx.triggerId) ?? undefined;
       if (!syntheticPareChain) {
         throw new BadRequestException('PARE input is not a registered synthetic provenance-chain root');
@@ -501,6 +561,7 @@ export class PAREService implements PareApprovalGovernance {
     if (this.mode === 'live' && syntheticPareChain) {
       assertPareChainEvidenceSet(runEvidence, ctx.triggerId, PARE_CHAIN_PROVENANCE_VERSION);
     }
+    if (this.mode === 'live' && this.liveInput === 'real-data') assertGatewayEvidenceSet(runEvidence, ctx.triggerId);
 
     const pareResult: PAREResult = {
       requestId: ctx.triggerId,
@@ -518,13 +579,20 @@ export class PAREService implements PareApprovalGovernance {
 
     if (syntheticPareChain) assertPareResultMatchesChain(runEvidence, pareResult);
 
-    return this.persistRecommendation(ctx, pareResult, triggeredAt, sourceDispatchId);
+    return this.persistRecommendation(ctx, pareResult, triggeredAt, this.provenanceVersion(syntheticPareChain), sourceDispatchId);
+  }
+
+  private provenanceVersion(syntheticPareChain: AiSyntheticPareChain | undefined): number {
+    if (this.mode !== 'live') return 0;
+    if (syntheticPareChain) return PARE_CHAIN_PROVENANCE_VERSION;
+    return this.liveInput === 'real-data' ? PARE_GATEWAY_DIGEST_VERSION : 0;
   }
 
   private async persistRecommendation(
     ctx: PAREContext,
     pareResult: PAREResult,
     triggeredAt: Date,
+    pareProvenanceVersion: number,
     sourceDispatchId?: string,
   ): Promise<PAREApprovalRecord> {
     const runEvidence = pareResult.runEvidence;
@@ -556,9 +624,7 @@ export class PAREService implements PareApprovalGovernance {
           requestId: pareResult.requestId,
           eventId: pareResult.eventId,
           mode: pareResult.mode,
-          pareProvenanceVersion: runEvidence.length === 3 && runEvidence.every((evidence) => evidence.pareChain)
-            ? PARE_CHAIN_PROVENANCE_VERSION
-            : 0,
+          pareProvenanceVersion,
           runEvidence,
           triggeredAt: pareResult.triggeredAt,
           reviewPayloadDigest: digestSerializedText(canonicalPayload),
@@ -691,7 +757,7 @@ export class PAREService implements PareApprovalGovernance {
       if (record.status !== 'pending_human_approval') throw new BadRequestException('Only pending PARE recommendations can be reviewed');
       const audit = requireMatchingAudit(record, await tx.opsAiAuditLog.findUnique({ where: { id: record.aiAuditLogId } }));
       await this.assertDispatchMatches(tx, record, audit);
-      if (status === 'approved') await this.assertApprovableAudit(tx, audit, record.id);
+      if (status === 'approved') await this.assertApprovableAudit(tx, audit, record);
       const data = { status, humanApproved: status === 'approved', approvedBy: reviewedBy, approvedAt: new Date() };
       const claimed = await tx.opsAiApprovalRecord.updateMany({
         where: { id, status: 'pending_human_approval' }, data,
@@ -709,16 +775,16 @@ export class PAREService implements PareApprovalGovernance {
   private async assertApprovableAudit(
     prisma: Prisma.TransactionClient,
     audit: OpsAiAuditLog,
-    approvalRecordId: string,
+    record: Pick<ApprovalRow, 'id' | 'reviewPayload'>,
   ): Promise<void> {
     const payload = this.asRecord(audit.sanitizedPayload);
     const reviewPayloadDigest = payload.reviewPayloadDigest;
-    await this.assertSavedReviewPayloadDigest(prisma, payload, reviewPayloadDigest, approvalRecordId);
+    await this.assertSavedReviewPayloadDigest(prisma, payload, reviewPayloadDigest, record.id);
     if (payload.mode === 'mock') {
       assertMockApprovalAudit(audit, payload);
       return;
     }
-    await this.assertLiveApprovalAudit(prisma, audit, payload);
+    await this.assertLiveApprovalAudit(prisma, audit, payload, record.reviewPayload);
   }
 
   private async assertSavedReviewPayloadDigest(
@@ -728,7 +794,8 @@ export class PAREService implements PareApprovalGovernance {
     approvalRecordId: string,
   ): Promise<void> {
     const hasVersionedChain = payload.pareProvenanceVersion === PARE_LINEAR_CHAIN_PROVENANCE_VERSION ||
-      payload.pareProvenanceVersion === PARE_CHAIN_PROVENANCE_VERSION;
+      payload.pareProvenanceVersion === PARE_CHAIN_PROVENANCE_VERSION ||
+      payload.pareProvenanceVersion === PARE_GATEWAY_DIGEST_VERSION;
     if (hasVersionedChain && typeof reviewPayloadDigest !== 'string') {
       throw new BadRequestException('The saved PARE review payload does not match its audited digest');
     }
@@ -749,7 +816,12 @@ export class PAREService implements PareApprovalGovernance {
     prisma: Prisma.TransactionClient,
     audit: OpsAiAuditLog,
     payload: Record<string, unknown>,
+    reviewPayload: unknown,
   ): Promise<void> {
+    if (payload.pareProvenanceVersion === PARE_GATEWAY_DIGEST_VERSION) {
+      await this.assertGatewayDigestApprovalAudit(prisma, audit, payload, reviewPayload);
+      return;
+    }
     const evidence = requireLiveRunEvidence(audit, payload);
     assertLiveEvidenceSet(evidence, auditRequestId(audit));
     if (payload.pareProvenanceVersion === PARE_CHAIN_PROVENANCE_VERSION ||
@@ -765,6 +837,53 @@ export class PAREService implements PareApprovalGovernance {
       await this.assertDurablePareChainAudits(prisma, evidence);
     } else if (payload.pareProvenanceVersion !== 0 || evidence.some((item) => item.pareChain)) {
       throw new BadRequestException('A supported PARE provenance version is required');
+    }
+  }
+
+  /**
+   * A real-data run has no synthetic chain. Its integrity link is the gateway: each stage audit row
+   * records the digest of the output the model returned, and that must still equal the digest of the
+   * output saved for review. Every piece must be present, or approval fails closed.
+   */
+  private async assertGatewayDigestApprovalAudit(
+    prisma: Prisma.TransactionClient,
+    audit: OpsAiAuditLog,
+    payload: Record<string, unknown>,
+    reviewPayload: unknown,
+  ): Promise<void> {
+    const requestId = auditRequestId(audit);
+    const parsed = aiAuditEvidenceSchema.array().safeParse(payload.runEvidence);
+    if (payload.mode !== 'live' || audit.modelVersion !== 'ai-gateway' || !requestId || !parsed.success) {
+      throw new BadRequestException('A matching durable PARE audit is required');
+    }
+    const evidence = parsed.data;
+    assertGatewayEvidenceSet(evidence, requestId);
+    if (audit.zdrConfirmed !== evidence.every((item) => item.routePolicyOutcome === 'zdr_approved')) {
+      throw new BadRequestException('A matching durable PARE audit is required');
+    }
+    const outputs = savedStageOutputsAsProduced(reviewPayload);
+    if (!outputs) throw new BadRequestException('PARE review result does not match its gateway output digest');
+    await this.assertGatewayStageAudits(prisma, evidence, outputs, requestId);
+  }
+
+  /** Each stage needs its own completed gateway audit row whose recorded output digest matches the saved output. */
+  private async assertGatewayStageAudits(
+    prisma: Prisma.TransactionClient,
+    evidence: AiAuditEvidence[],
+    outputs: readonly unknown[],
+    requestId: string,
+  ): Promise<void> {
+    const ids = evidence.map((item) => 'aia_' + item.requestId);
+    const rows = await prisma.opsAiAuditLog.findMany({ where: { id: { in: ids } } });
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    for (const [index, item] of evidence.entries()) {
+      const row = byId.get(ids[index]);
+      if (!row || !durableGatewayStageMatches(row, item, PARE_USE_CASE_IDS[index], requestId)) {
+        throw new BadRequestException('A matching durable completed PARE stage audit is required');
+      }
+      if (plainRecord(row.sanitizedPayload)._aiOutputDigest !== digestJson(outputs[index])) {
+        throw new BadRequestException('PARE review result does not match its gateway output digest');
+      }
     }
   }
 

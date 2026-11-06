@@ -5,6 +5,7 @@ import { toPrismaJson } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, EventLifecycleService, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
+import { WRAP_UP_WINDOW_HOURS } from '@prism/types';
 import type { ArchiveComparisonQuery, ArchiveSearchFilters, PrismCoordinatorInsightFacts, RecordActualEventEndInput, RecordLogisticsCompletionInput, StartEventWrapUpInput, UpdateEventWrapUpInput } from '@prism/types';
 import { EventAccessPolicyService, type EventOpsActorInput, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { FileRequirementsMatrixService } from '../files/file-requirements-matrix.service';
@@ -19,12 +20,14 @@ export type ArchiveEventInput = EventOpsActorInput & {
   actorName?: string;
 };
 
-const WRAP_UP_HOURS = 24;
+const WRAP_UP_HOURS = WRAP_UP_WINDOW_HOURS;
 const WRAP_UP_REMINDER_HOURS = [12, 24] as const;
 const defaultWrapUpSections = () => ({
   logistics: { status: 'pending', evidence: '', completedAt: null },
   issues: { status: 'pending', evidence: '', completedAt: null },
   feedback: { status: 'pending', evidence: '', completedAt: null },
+  supplierEgress: { status: 'pending', evidence: '', completedAt: null },
+  billingDraft: { status: 'pending', evidence: '', completedAt: null, items: [] as unknown[] },
 });
 const defaultRequiredItems = () => ({ post_event_documents: false, billing: false, logistics: false, issues: false, feedback: false });
 
@@ -117,6 +120,7 @@ export class EventClosureService {
         await this.createWrapUpRecord(eventId, event.actualEndedAt, input.mode ?? 'full', tx);
       const logistics = await readLogisticsEvidence(tx, eventId);
       const { sections, requiredItems, complete, acknowledged, now } = deriveWrapUpState(existing, logistics, input, new Date());
+      await this.requireEgressExplanation(eventId, sections, tx);
       const updated = await tx.opsEventWrapUp.update({
         where: { eventId },
         data: {
@@ -136,8 +140,18 @@ export class EventClosureService {
         category: AuditCategory.Events, affectedType: 'event_wrap_up', affectedId: updated.id,
         metadata: { status: updated.status, requiredItems, sections, clientAcknowledged: acknowledged },
       }, { prisma: tx, correlationId: `wrap-up-update:${updated.id}:${updated.updatedAt.toISOString()}` });
-      return updated;
+      return this.withDerivedLogistics(updated, eventId, tx);
     }, { isolationLevel: 'Serializable' });
+  }
+
+  /** Supplier egress can be confirmed while suppliers have not reported leaving only with an explanation. */
+  private async requireEgressExplanation(eventId: string, sections: unknown, tx: Prisma.TransactionClient) {
+    const egress = (sections as Record<string, { status?: string; evidence?: string }>).supplierEgress;
+    if (egress?.status !== 'complete') return;
+    const { outstanding } = await this.readSupplierEgress(eventId, tx);
+    if (outstanding.length > 0 && !egress.evidence?.trim()) {
+      throw new BadRequestException(`Explain why ${outstanding.join(', ')} have not reported leaving before confirming supplier egress`);
+    }
   }
 
   async runWrapUpReminderSweep(now = new Date()) {
@@ -421,7 +435,20 @@ export class EventClosureService {
   private async withDerivedLogistics(record: OpsEventWrapUp, eventId: string, prisma: Prisma.TransactionClient | PrismaService) {
     const logistics = await readLogisticsEvidence(prisma, eventId);
     const derived = deriveWrapUpState(record, logistics, {}, new Date());
-    return { ...record, sections: derived.sections, requiredItems: derived.requiredItems, status: derived.complete ? 'complete' : 'pending' };
+    const supplierEgressSummary = await this.readSupplierEgress(eventId, prisma);
+    return { ...record, sections: derived.sections, requiredItems: derived.requiredItems, status: derived.complete ? 'complete' : 'pending', supplierEgressSummary };
+  }
+
+  /** Confirmed suppliers and who has not yet reported done and leaving, from the live event-day status. */
+  private async readSupplierEgress(eventId: string, prisma: Prisma.TransactionClient | PrismaService) {
+    const facts = await this.commercialFactsReader.getLifecycleFacts(eventId, prisma);
+    const confirmed = facts.supplierQuoteRequests.filter((request) => request.assignmentStatus === 'confirmed');
+    const left = confirmed.filter((request) => request.eventDayStatus === 'done_leaving');
+    return {
+      confirmedSuppliers: confirmed.length,
+      leftSite: left.length,
+      outstanding: confirmed.filter((request) => request.eventDayStatus !== 'done_leaving').map((request) => request.supplierName),
+    };
   }
 
   private async requireEvent(eventId: string, prisma: Prisma.TransactionClient = this.prisma) {
@@ -635,15 +662,25 @@ type LogisticsEvidence = { assetReturnsVerified: boolean; recordedAt: Date } | n
  * Rows written before this rule still read correctly because the mirror overrides their stored logistics state.
  */
 function deriveWrapUpState(
-  stored: { sections: unknown; requiredItems: unknown; clientAcknowledgedAt: Date | null },
+  stored: { sections: unknown; requiredItems: unknown; clientAcknowledgedAt: Date | null; completedAt?: Date | null },
   logistics: LogisticsEvidence,
   input: { sections?: Record<string, unknown>; requiredItems?: Record<string, boolean>; clientAcknowledged?: boolean },
   now: Date,
 ) {
   const recorded = logistics?.assetReturnsVerified === true;
+  const storedSections = (stored.sections as Record<string, unknown> | null) ?? {};
+  // A wrap-up completed before supplier egress and the billing draft existed stays complete; they were never asked of it.
+  const predatesNewSections = Boolean(stored.completedAt) && !('supplierEgress' in storedSections);
+  const carriedOver = predatesNewSections
+    ? {
+        supplierEgress: { status: 'complete', evidence: 'Completed before this section existed', completedAt: stored.completedAt!.toISOString() },
+        billingDraft: { status: 'complete', evidence: 'Completed before this section existed', completedAt: stored.completedAt!.toISOString(), items: [] },
+      }
+    : {};
   const sections = normalizeWrapUpSections({
     ...defaultWrapUpSections(),
-    ...(stored.sections as object ?? {}),
+    ...carriedOver,
+    ...storedSections,
     ...(input.sections ?? {}),
     logistics: {
       status: recorded ? 'complete' : 'pending',

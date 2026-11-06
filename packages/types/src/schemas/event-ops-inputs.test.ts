@@ -39,6 +39,12 @@ import {
   updateCoordinatorAttendanceSchema,
   verifySupplierStatusSchema,
   COORDINATOR_ROLES,
+  supplierCapacityRatingSchema,
+  updateSupplierSchema,
+  createTemplateSchema,
+  riskSeverityFromRatings,
+  createComplianceRiskSchema,
+  isEmergencyCoordinatorWithdrawal,
   canonicalCoordinatorRole,
   coordinatorRoleSchema,
   coordinatorSuggestionsQuerySchema,
@@ -88,7 +94,64 @@ describe("privacy legal hold contracts", () => {
   });
 });
 
+describe("supplier capacity rating contract", () => {
+  it("takes small, medium or large on create and update, lets update clear it with null, and rejects other sizes", () => {
+    expect(["small", "medium", "large"].every((rating) => supplierCapacityRatingSchema.safeParse(rating).success)).toBe(true);
+    expect(createSupplierSchema.safeParse({ categoryId: "cat_1", name: "Acme", capacityRating: "large" }).success).toBe(true);
+    expect(updateSupplierSchema.safeParse({ capacityRating: null }).success).toBe(true);
+    expect(createSupplierSchema.safeParse({ categoryId: "cat_1", name: "Acme", capacityRating: "huge" }).success).toBe(false);
+  });
+});
+
+describe("venue library template contract", () => {
+  const editorObject = { id: "o1", name: "Wall", kind: "rect", category: "architecture", x: 1, y: 1, w: 4, h: 0.2, rotation: 0, fill: "#000", stroke: "#000", strokeWidth: 1, locked: false, hidden: false };
+
+  it("accepts the floorplan editor shape for layout and permanent features, with the venue rules", () => {
+    const parsed = createTemplateSchema.safeParse({ name: "Hall", venueRules: "No confetti", objects: [editorObject], permanentFeatures: [editorObject], width: 20, height: 12, gridSize: 1, pax: 100 });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("still refuses objects that fit neither shape", () => {
+    expect(createTemplateSchema.safeParse({ name: "Hall", objects: [{ id: "x", kind: "blob" }] }).success).toBe(false);
+  });
+});
+
+describe("risk likelihood and impact contract", () => {
+  it("maps every rating pair to a severity on the 1-2 low, 3-4 medium, 6 high, 9 critical scale", () => {
+    const ratings = ["low", "medium", "high"] as const;
+    const grid = ratings.map((likelihood) => ratings.map((impact) => riskSeverityFromRatings(likelihood, impact)));
+    expect(grid).toEqual([
+      ["low", "low", "medium"],
+      ["low", "medium", "high"],
+      ["medium", "high", "critical"],
+    ]);
+  });
+
+  it("accepts ratings without a severity and rejects unknown ratings", () => {
+    const base = { phase: "closure", title: "Generator failure" };
+    expect(createComplianceRiskSchema.safeParse({ ...base, likelihood: "high", impact: "low" }).success).toBe(true);
+    expect(createComplianceRiskSchema.parse(base).severity).toBeUndefined();
+    expect(createComplianceRiskSchema.safeParse({ ...base, likelihood: "certain" }).success).toBe(false);
+  });
+});
+
 describe("coordinator role contracts", () => {
+  it("treats a withdrawal from 48 hours before the Manila event day until it ends as an emergency", () => {
+    // 18 Jun begins at 17 Jun 16:00 UTC in Manila, so the window is 15 Jun 16:00 UTC to 18 Jun 16:00 UTC.
+    const eventDate = "2026-06-18";
+    const at = (withdrawnAt: string, status = "cancelled") => isEmergencyCoordinatorWithdrawal({ status, withdrawnAt, eventDate });
+    expect(at("2026-06-15T16:00:00.000Z")).toBe(true);
+    expect(at("2026-06-17T20:00:00.000Z")).toBe(true);
+    expect(at("2026-06-18T09:00:00.000Z")).toBe(true);
+    expect(at("2026-06-18T15:59:59.000Z")).toBe(true);
+    expect(at("2026-06-15T15:59:59.000Z")).toBe(false);
+    expect(at("2026-06-18T16:00:00.000Z")).toBe(false);
+    expect(at("2026-06-19T00:00:00.000Z")).toBe(false);
+    expect(at("2026-06-17T20:00:00.000Z", "replaced")).toBe(false);
+    expect(isEmergencyCoordinatorWithdrawal({ status: "cancelled", withdrawnAt: null, eventDate })).toBe(false);
+    expect(isEmergencyCoordinatorWithdrawal({ status: "cancelled", withdrawnAt: "2026-06-17T00:00:00.000Z", eventDate: null })).toBe(false);
+  });
+
   it("accepts the seven canonical roles and rejects new role values outside the catalog", () => {
     expect(COORDINATOR_ROLES).toEqual([
       "General Coordinator",
@@ -487,6 +550,12 @@ describe("event-ops write schemas", () => {
     expect(updateInquiryStatusSchema.safeParse({ status: "nope" }).success).toBe(false);
   });
 
+  it("accepts a decline with or without a listed reason and rejects an unlisted one", () => {
+    expect(updateInquiryStatusSchema.safeParse({ status: "declined" }).success).toBe(true);
+    expect(updateInquiryStatusSchema.safeParse({ status: "declined", declineReason: "Budget Too Low" }).success).toBe(true);
+    expect(updateInquiryStatusSchema.safeParse({ status: "declined", declineReason: "Bored" }).success).toBe(false);
+  });
+
   it("keeps PMCM triage and organization fields out of the public inquiry contract", () => {
     const parsed = createPrismInquirySchema.parse({
       clientName: "Maria Santos",
@@ -708,6 +777,12 @@ describe("event-ops write schemas", () => {
   it("requiresOffsetDatetimeForOcularVisitSchedule", () => {
     expect(scheduleOcularVisitSchema.safeParse({ scheduledAt: "2026-10-14T09:00:00+08:00" }).success).toBe(true);
     expect(scheduleOcularVisitSchema.safeParse({ scheduledAt: "2026-10-14T09:00:00" }).success).toBe(false);
+  });
+
+  it("keeps an optional trimmed PMCM note on an ocular visit schedule", () => {
+    expect(scheduleOcularVisitSchema.parse({ scheduledAt: "2026-10-14T09:00:00+08:00", note: "  Gate 2 access  " }))
+      .toEqual({ scheduledAt: "2026-10-14T09:00:00+08:00", note: "Gate 2 access" });
+    expect(scheduleOcularVisitSchema.parse({ scheduledAt: "2026-10-14T09:00:00+08:00" })).toEqual({ scheduledAt: "2026-10-14T09:00:00+08:00" });
   });
 
   it("rejectsBlankOcularVisitWaiverReason", () => {

@@ -91,6 +91,17 @@ export type AiUseCaseDefinition<K extends AiUseCaseId> = {
   limits: AiUseCaseLimits;
   delivery: AiDeliveryMode;
   tools?: readonly AiToolHandler[];
+  /**
+   * Input keys whose string values may reach a ZDR route as free text. The gateway still redacts
+   * emails, phone numbers and identifiers from them. Every other free-text key is replaced.
+   */
+  freeTextKeys?: readonly string[];
+  /**
+   * Input keys whose string value is kept as is when it matches the pattern, for server-generated
+   * aliases a caller put in place of a real name or id (for example "Candidate 2"). A value that does
+   * not match the pattern is minimized like any other, so a raw name or id still never leaves.
+   */
+  aliasKeys?: Readonly<Record<string, RegExp>>;
 };
 
 export type AiUseCaseRegistry = {

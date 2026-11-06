@@ -16,7 +16,7 @@ export function createCIEnvironment(databaseUrl, root) {
     PRISM_MAIL_TRANSPORT: "log", PRISM_SESSION_SECRET: randomBytes(32).toString("hex"), PRISM_SESSION_TTL_SECONDS: "28800",
     PRISM_STORAGE_PROVIDER: "local", PRISM_STORAGE_LOCAL_DIRECTORY: join(root, ".local-dev/lifecycle-ci-storage"),
     PRISM_CLIENT_PORTAL_URL: "http://localhost:3001", PRISM_SUPPLIER_PORTAL_URL: "http://localhost:3002",
-    PRISM_EVENT_PORTAL_URL: "http://localhost:3004", AI_PROVIDER: "mock", AI_ROUTE_PROFILE: "mock", PARE_MODE: "mock",
+    PRISM_EVENT_PORTAL_URL: "http://localhost:3004", PARE_MODE: "mock",
     PRISM_DISABLE_CONFORME_REMINDER_JOB: "true", E2E_API_URL: "http://localhost:4100/api", E2E_STRICT: "1",
     E2E_API_LOG: join(root, ".local-dev/lifecycle-ci-api.log"), E2E_SECRETS_FILE: join(root, ".local-dev/lifecycle-ci-secrets.json"),
   };

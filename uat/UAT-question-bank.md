@@ -569,7 +569,7 @@ Before you start: Select a current event you are assigned to.
 | ID | Test case | Steps | Expected result |
 | --- | --- | --- | --- |
 | CO-DAY-01 | Mark arrival | Mark your arrival. | Your attendance shows as arrived. |
-| CO-DAY-02 | Role queue | Update the status of a task in your queue. | The new status is saved. |
+| CO-DAY-02 | Assigned to you | Update the status of a task in your queue. | The new status is saved. |
 | CO-DAY-03 | Request reassignment | Request reassignment of a task with a reason and a new role or coordinator. | The request is sent to the operator or PMCM. |
 | CO-DAY-04 | Log task and urgent issue | Log an event-day task with priority and due time, and an urgent issue with severity and area. | Both are recorded and PMCM can see them in Live ops. |
 | CO-DAY-05 | Timeline and briefing | Open the timeline and briefing. | The critical timeline and floor and stage briefing are shown, or a message if PMCM has not submitted the briefing. |

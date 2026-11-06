@@ -89,6 +89,30 @@ export function inquiryAcceptedMessage(eventName: string, invitation: PrismAccou
   return `${accepted} PMCM will send you a link to set up your account shortly.`;
 }
 
+/**
+ * Only these reasons are explained to the client. Every other reason, including no reason, declines with the generic wording,
+ * so internal reasons such as budget or prior issues are never disclosed.
+ */
+const DISCLOSED_DECLINE_REASONS = new Map<string, string>([
+  ['Date Unavailable', "We're not available on your requested date."],
+  ['Outside Service Scope', 'The event is outside the services we currently offer.'],
+]);
+
+/**
+ * The client's decline email. The first sentence becomes the mail subject ("P.R.I.S.M: About your inquiry for …"),
+ * so it names the event and stays a plain headline.
+ */
+export function inquiryDeclinedMessage(eventName: string, declineReason?: string | null) {
+  const disclosure = declineReason ? DISCLOSED_DECLINE_REASONS.get(declineReason) : undefined;
+  return [
+    `About your inquiry for ${eventName}.`,
+    'Thank you for thinking of PMCM.',
+    `We can't take on ${eventName} this time.`,
+    disclosure,
+    'We would welcome the chance to work with you on future events, so please reach out anytime.',
+  ].filter(Boolean).join(' ');
+}
+
 @Injectable()
 export class InquiriesService {
   private readonly logger = new Logger(InquiriesService.name);
@@ -127,6 +151,8 @@ export class InquiriesService {
     let data: Prisma.OpsInquiryUpdateInput = {};
     // True only for the call that moves the inquiry into accepted, so a repeat accept announces and invites nothing new.
     let movedToAccepted = false;
+    // Same guard for decline: a repeat decline of an already-declined inquiry does not email the client again.
+    let movedToDeclined = false;
 
     return this.workflowCommandService.execute<OpsInquiry>({
       name: 'update_inquiry_status',
@@ -140,10 +166,6 @@ export class InquiriesService {
         if (current.status === 'declined' && input.status !== 'declined') {
           throw new BadRequestException('Declined inquiries are permanently flagged and cannot be reopened');
         }
-        if (input.status === 'declined' && !input.declineReason) {
-          throw new BadRequestException('Decline reason is required');
-        }
-
         const now = new Date();
         data =
           input.status === 'accepted'
@@ -162,7 +184,7 @@ export class InquiriesService {
                 ? {
                     status: 'declined',
                     declinedAt: current.declinedAt ?? now,
-                    declineReason: input.declineReason,
+                    declineReason: input.declineReason ?? null,
                   }
                 : {
                     status: input.status,
@@ -178,6 +200,7 @@ export class InquiriesService {
           throw new BadRequestException('Declined inquiries are permanently flagged and cannot be reopened');
         }
         movedToAccepted = input.status === 'accepted';
+        movedToDeclined = input.status === 'declined' && locked.status !== 'declined';
         const updated = await tx.opsInquiry.update({ where: { id: inquiryId }, data });
         if (tx.opsInquiryStatusHistory?.create) {
           await tx.opsInquiryStatusHistory.create({
@@ -219,11 +242,13 @@ export class InquiriesService {
           });
         }
         if (input.status === 'declined') {
-          await this.audit(undefined, verifiedActor.name, `Declined inquiry for ${inquiry.clientName}: ${input.declineReason}`, {
+          const reasonSuffix = input.declineReason ? `: ${input.declineReason}` : ' with no reason given';
+          await this.audit(undefined, verifiedActor.name, `Declined inquiry for ${inquiry.clientName}${reasonSuffix}`, {
             actorRole: verifiedActor.role,
             actorEmail: verifiedActor.email,
             metadata: { actorId: verifiedActor.id },
           });
+          if (movedToDeclined) await this.notifyClientDeclined(inquiry, input.declineReason);
         }
       },
     });
@@ -747,6 +772,17 @@ export class InquiriesService {
     } = {},
   ) {
     return writeAudit(this.auditWriter, eventId, actor, action, options);
+  }
+
+  private notifyClientDeclined(inquiry: OpsInquiry, declineReason: string | undefined) {
+    return writeNotification(
+      this.notificationOutboxWriter,
+      undefined,
+      inquiry.email,
+      inquiryDeclinedMessage(inquiry.eventName, declineReason),
+      'email',
+      { idempotencyKey: `inquiry-declined:${inquiry.id}` },
+    );
   }
 
   private notifyPmcmTriage(inquiryId: string, kind: 'duplicate' | 'high-fit', message: string) {

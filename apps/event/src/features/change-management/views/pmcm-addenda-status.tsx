@@ -20,7 +20,7 @@ export function PmcmAddendaStatus({
     <section aria-labelledby="pmcm-addenda-status" className="space-y-4 rounded-xl border border-border bg-card p-5">
       <div>
         <h2 id="pmcm-addenda-status" className="text-lg font-semibold">Scope freeze and addenda</h2>
-        <p className="text-sm text-muted-foreground">Issued versions remain immutable. Scanned document bytes stay pending until the document workflow confirms availability.</p>
+        <p className="text-sm text-muted-foreground">An issued version can't be edited. A scanned copy shows as available once its file is uploaded.</p>
       </div>
       {addenda.length === 0 ? <p className="text-sm text-muted-foreground">No addenda issued.</p> : (
         <ul className="space-y-3">

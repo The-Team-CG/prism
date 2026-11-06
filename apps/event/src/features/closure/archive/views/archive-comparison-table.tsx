@@ -7,7 +7,7 @@ type ComparisonAttribute = { label: string; value: (row: PrismArchiveComparisonR
 
 const attributes: ComparisonAttribute[] = [
   { label: "Client", value: (row) => row.clientName },
-  { label: "Event date", value: (row) => row.eventDate },
+  { label: "Event date", value: (row) => formatPortalDate(row.eventDate) },
   { label: "Venue", value: (row) => row.venue || "Venue pending" },
   { label: "Event type", value: (row) => row.eventType || "Type pending" },
   { label: "Actual end", value: (row) => (row.actualEndedAt ? formatPortalDateTime(row.actualEndedAt) : "Not recorded") },
