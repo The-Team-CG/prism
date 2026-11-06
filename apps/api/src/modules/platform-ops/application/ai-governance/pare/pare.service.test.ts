@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PlatformReferenceReadModelsService } from '@prism/contexts/read-models';
 import { PAREService } from './pare.service';
+import { resolveAiGatewayRuntimeConfig } from '../gateway/ai-gateway.config';
 
 function createParePrisma() {
   const event = {
@@ -186,6 +187,23 @@ function pareService(prisma: unknown) {
 }
 
 describe('PAREService', () => {
+  it('uses the deterministic rules engine when PARE_MODE is unset and no AI provider is configured', async () => {
+    const { prisma, quoteRequest, state } = createParePrisma();
+    const service = new PAREService(
+      prisma as any,
+      undefined,
+      undefined,
+      resolveAiGatewayRuntimeConfig({ get: () => undefined }),
+      undefined,
+      new PlatformReferenceReadModelsService(prisma as never),
+    );
+
+    const pending = await service.handleEmergencyTrigger(quoteRequest.id);
+
+    expect(pending.pareResult).toMatchObject({ mode: 'mock', runEvidence: [] });
+    expect(state.auditLogs[0]).toMatchObject({ modelVersion: 'mock' });
+  });
+
   it('returns a hydrated pending approval response even when replacement candidates have no quotes yet', async () => {
     const { prisma, quoteRequest } = createParePrisma();
     const service = pareService(prisma);

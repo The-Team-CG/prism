@@ -4,6 +4,7 @@ import { useEffect, useId, useState, type Dispatch, type ReactNode, type RefObje
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import { DatePicker } from "@prism/ui/components/date-picker";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@prism/ui/components/sheet";
+import { InquiryTriagePanel } from "@/features/inquiries/triage";
 import {
   AlertCircle,
   ChevronRight,
@@ -322,6 +323,7 @@ export function InquiryDetailDrawer({
               {inquiry.message || "No message provided."}
             </p>
           </section>
+          <InquiryTriagePanel inquiryId={inquiry.id} />
           <InquiryExtraDetails inquiry={inquiry} />
         </div>
         <div className="border-t border-border px-6 py-4">

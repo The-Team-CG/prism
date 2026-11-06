@@ -85,6 +85,20 @@ function ProposalIssueForm({ vm }: { vm: ProposalIssuerVm }) {
         <textarea rows={2} value={vm.notes} onChange={(event) => vm.setNotes(event.target.value)} className="rounded-md border border-border bg-input px-3 py-2 text-sm" />
       </label>
 
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="button" variant="outline" size="sm" disabled={vm.drafting || vm.busy} onClick={() => void vm.draftWording()}>
+          {vm.drafting ? "Drafting…" : "Draft wording with AI"}
+        </Button>
+        {vm.canUndoDraft ? (
+          <Button type="button" variant="ghost" size="sm" disabled={vm.drafting || vm.busy} onClick={vm.undoDraft}>
+            Undo AI draft
+          </Button>
+        ) : null}
+        <p className="text-xs text-muted-foreground">
+          Writes the title and summary from the estimate above. Undo restores what you had typed. The client&apos;s identity is not shared.
+        </p>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2">
         <label className={`${fieldLabel} md:col-span-2`}>
           Proposal title

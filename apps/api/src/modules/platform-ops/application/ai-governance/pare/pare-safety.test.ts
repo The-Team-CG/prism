@@ -18,7 +18,8 @@ import { RiskAgent } from './agents/risk.agent';
 import { SupplierFinderAgent } from './agents/supplier-finder.agent';
 import { PAREService } from './pare.service';
 import type { PAREContext } from './pare.types';
-import { AI_ROUTE_PROFILES } from '../gateway/ai-gateway.config';
+import { AI_ROUTE_PROFILES, resolveAiGatewayRuntimeConfig, type AiGatewayRuntimeConfig } from '../gateway/ai-gateway.config';
+import { configuredPareMode, PareConfigurationError } from './pare-execution.policy';
 import {
   createPareBudgetToolHandlers,
   createPareMessageDraftToolHandlers,
@@ -34,7 +35,7 @@ const context: PAREContext = {
 };
 
 const providerRouteCases = [
-  { label: 'Anthropic', profileId: 'test-anthropic', provider: 'anthropic' as const },
+  { label: 'Anthropic', profileId: 'anthropic-synthetic', provider: 'anthropic' as const },
   { label: 'OpenRouter', profileId: 'test-openrouter', provider: 'openrouter' as const },
 ];
 
@@ -56,7 +57,7 @@ function evidenceFor(
   useCaseId: AiUseCaseId,
   correlationId: string,
   outcome: AiAuditEvidence['outcome'] = 'completed',
-  profileId = 'test-anthropic',
+  profileId = 'anthropic-synthetic',
   provider: AiAuditEvidence['provider'] = 'anthropic',
 ): AiAuditEvidence {
   return aiAuditEvidenceSchema.parse({
@@ -106,6 +107,11 @@ function fakeGateway(options: FakeGatewayOptions = {}) {
       clientReassurance: 'Client draft for PMCM review.',
     },
     'comms.draft': { subject: 'Draft', body: 'Draft body' },
+    'inquiry.triage': {
+      fit: 'medium' as const, summary: 'Triage summary.', signals: [], risks: [],
+      suggestedAction: 'pend' as const, suggestedQuestions: [],
+    },
+    'proposal.draft': { title: 'Proposal', summary: 'Proposal summary.', revisionNote: 'First draft.', highlights: [] },
   };
 
   const run = async <K extends AiUseCaseId>(
@@ -147,7 +153,7 @@ function fakeGateway(options: FakeGatewayOptions = {}) {
   return { gateway, calls };
 }
 
-function harness(gateway?: AiGateway) {
+function harness(gateway?: AiGateway, runtime?: AiGatewayRuntimeConfig) {
   const state = { audits: [] as StoredRow[], approvals: [] as StoredRow[] };
   const failures = { auditCreate: false, auditUpdate: false, approvalCreate: false };
   function model(rows: StoredRow[], kind: 'audit' | 'approval') {
@@ -231,9 +237,11 @@ function harness(gateway?: AiGateway) {
     findPareSupplierCandidates: async () => [],
     findApprovedTrustRecipientEmail: async () => null,
     findApprovedPmcmOperator: async () => null,
+    findInquiryTriageSource: async () => null,
+    findProposalDraftEventSource: async () => null,
   };
   return {
-    service: new PAREService(prisma as unknown as PrismaService, undefined, gateway, undefined, undefined, platformReferences),
+    service: new PAREService(prisma as unknown as PrismaService, undefined, gateway, runtime, undefined, platformReferences),
     prisma,
     state,
     failures,
@@ -265,7 +273,7 @@ describe('PARE gateway boundary', () => {
     expect(eventSummaryTool?.inputSchema.safeParse({}).success).toBe(true);
   });
 
-  it('keeps mock as the default and keeps deterministic work local', async () => {
+  it('keeps PARE mock mode as the default and keeps deterministic work local without a model call', async () => {
     const { service, state } = harness();
     const pending = await service.handleEmergencyTrigger('request_1');
     expect(pending.pareResult).toMatchObject({ mode: 'mock', runEvidence: [] });
@@ -291,17 +299,66 @@ describe('PARE gateway boundary', () => {
     expect(EventContextAgent.prototype.buildPareEventContext).not.toHaveBeenCalled();
   });
 
-  it('rejects live PARE at startup when the gateway still uses the mock route', () => {
+  it('rejects PARE_MODE=live at startup with a clear configuration error when no AI provider is configured', () => {
     vi.stubEnv('PARE_MODE', 'live');
     const { prisma } = harness();
     const { gateway } = fakeGateway();
-    expect(() => new PAREService(prisma as unknown as PrismaService, undefined, gateway, {
-      profile: AI_ROUTE_PROFILES.mock,
-      profileId: 'mock',
-      liveUseCases: new Set(),
-      isProduction: false,
-    })).toThrow(/all three PARE use cases/i);
+    const runtime = resolveAiGatewayRuntimeConfig({ get: () => undefined });
+    expect(runtime.configured).toBe(false);
+    let failure: unknown;
+    try {
+      new PAREService(prisma as unknown as PrismaService, undefined, gateway, runtime);
+    } catch (error) {
+      failure = error;
+    }
+    expect(failure).toBeInstanceOf(PareConfigurationError);
+    expect((failure as Error).message).toMatch(/configured AI provider/i);
     expect(EventContextAgent.prototype.buildPareEventContext).not.toHaveBeenCalled();
+  });
+
+  const allPareUseCases: AiUseCaseId[] = ['pare.budget', 'pare.risk', 'pare.message-drafts'];
+  const configuredRuntime = (liveUseCases: AiUseCaseId[]): AiGatewayRuntimeConfig => ({
+    profile: AI_ROUTE_PROFILES['anthropic-zdr']!,
+    profileId: 'anthropic-zdr',
+    liveUseCases: new Set<AiUseCaseId>(liveUseCases),
+    isProduction: false,
+    configured: true,
+  });
+
+  it.each([
+    { label: 'PARE_MODE=live forces live even without a provider', value: 'live', runtime: undefined, expected: 'live' },
+    { label: 'PARE_MODE=mock forces the rules engine on a configured gateway', value: 'mock', runtime: configuredRuntime(allPareUseCases), expected: 'mock' },
+    { label: 'an unset mode falls back to the rules engine without a gateway runtime', value: undefined, runtime: undefined, expected: 'mock' },
+    { label: 'an unset mode falls back to the rules engine when no provider is configured', value: undefined, runtime: resolveAiGatewayRuntimeConfig({ get: () => undefined }), expected: 'mock' },
+    { label: 'an unset mode is live when a provider and all three PARE use cases are live', value: undefined, runtime: configuredRuntime(allPareUseCases), expected: 'live' },
+    { label: 'an unset mode stays on the rules engine unless all three PARE use cases are live', value: undefined, runtime: configuredRuntime(['pare.budget', 'pare.risk']), expected: 'mock' },
+  ])('selects the PARE mode: $label', ({ value, runtime, expected }) => {
+    expect(configuredPareMode(value, runtime)).toBe(expected);
+  });
+
+  it('rejects an unknown PARE_MODE value', () => {
+    expect(() => configuredPareMode('auto')).toThrow('PARE_MODE must be mock or live');
+  });
+
+  it('runs the deterministic rules engine when PARE_MODE is unset and no provider is configured', async () => {
+    delete process.env.PARE_MODE;
+    const { gateway, calls } = fakeGateway();
+    const { service, state } = harness(gateway, resolveAiGatewayRuntimeConfig({ get: () => undefined }));
+    const pending = await service.handleEmergencyTrigger('request_1');
+    expect(pending.pareResult).toMatchObject({ mode: 'mock', runEvidence: [] });
+    expect(state.audits[0]).toMatchObject({ modelVersion: 'mock' });
+    expect(calls).toHaveLength(0);
+  });
+
+  it('adds no production gate of its own: live PARE starts on a production ZDR route', () => {
+    vi.stubEnv('PARE_MODE', 'live');
+    const { prisma } = harness();
+    const { gateway } = fakeGateway();
+    const runtime = resolveAiGatewayRuntimeConfig({
+      get: (key: string) => ({ AI_PROVIDER: 'anthropic', AI_ZDR_CONFIRMED: 'true', NODE_ENV: 'production' } as Record<string, string>)[key],
+    });
+    expect(runtime).toMatchObject({ isProduction: true, configured: true });
+    expect(() => new PAREService(prisma as unknown as PrismaService, undefined, gateway, runtime)).not.toThrow();
   });
 
   it('accepts a fully enabled synthetic route without an Anthropic-specific profile requirement', () => {
@@ -325,6 +382,7 @@ describe('PARE gateway boundary', () => {
       profileId: 'test-openrouter',
       liveUseCases: new Set<AiUseCaseId>(['pare.budget', 'pare.risk', 'pare.message-drafts']),
       isProduction: false,
+      configured: true,
     })).not.toThrow();
   });
 
@@ -333,10 +391,11 @@ describe('PARE gateway boundary', () => {
     const { prisma } = harness();
     const { gateway } = fakeGateway();
     expect(() => new PAREService(prisma as unknown as PrismaService, undefined, gateway, {
-      profile: AI_ROUTE_PROFILES['test-anthropic'],
-      profileId: 'test-anthropic',
+      profile: AI_ROUTE_PROFILES['anthropic-synthetic']!,
+      profileId: 'anthropic-synthetic',
       liveUseCases: new Set<AiUseCaseId>(['pare.budget', 'pare.risk']),
       isProduction: false,
+      configured: true,
     })).toThrow(/all three PARE use cases/i);
     expect(EventContextAgent.prototype.buildPareEventContext).not.toHaveBeenCalled();
   });
@@ -346,10 +405,11 @@ describe('PARE gateway boundary', () => {
     const { gateway } = fakeGateway();
     const { prisma, state } = harness(gateway);
     const runtime = {
-      profile: AI_ROUTE_PROFILES['test-anthropic'],
-      profileId: 'test-anthropic',
+      profile: AI_ROUTE_PROFILES['anthropic-synthetic']!,
+      profileId: 'anthropic-synthetic',
       liveUseCases: new Set<AiUseCaseId>(['pare.budget', 'pare.risk', 'pare.message-drafts']),
       isProduction: false,
+      configured: true,
     };
     const service = new PAREService(prisma as unknown as PrismaService, undefined, gateway, runtime);
 
@@ -493,7 +553,7 @@ describe('PARE gateway boundary', () => {
       if (corruption === 'blocked') evidence[0].outcome = 'blocked';
       if (corruption === 'mismatched') evidence[0].correlationId = 'another-request';
       if (corruption === 'unaudited') auditPayload.runEvidence = [];
-      if (corruption === 'ineligible') evidence[0].routePolicyOutcome = 'mock_local';
+      if (corruption === 'ineligible') delete evidence[0].syntheticProvenance;
 
       await expect(service.approveRecommendation(pending.id, 'Verified PMCM'))
         .rejects.toThrow(/matching durable PARE audit/);
