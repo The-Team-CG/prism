@@ -1,7 +1,7 @@
 import type { AiGateway, AiSyntheticPareChain } from '../../../../contracts/ai-governance/ai-gateway.port';
 import type { PAREBudgetAnalysis, PARECandidate, PAREContext } from '../pare.types';
 import { assertPareExecutionAllowed } from '../pare-execution.policy';
-import { PareAiGatewayError, runPareAiUseCase, type PareAgentRunResult } from '../pare-ai-gateway';
+import { maskPareInput, PareAiGatewayError, runPareAiUseCase, unmaskPareBudget, type PareAgentRunResult } from '../pare-ai-gateway';
 import { createPareBudgetToolHandlers } from '../pare-ai-use-cases';
 
 function mockAnalysis(ctx: PAREContext, candidate: PARECandidate): PAREBudgetAnalysis {
@@ -28,6 +28,8 @@ export class BudgetAgent {
   constructor(
     private readonly mode: 'mock' | 'live' = 'mock',
     private readonly gateway?: AiGateway,
+    /** Mask identities before the model sees them (live PARE on a route that allows real data). */
+    private readonly maskIdentity = false,
   ) {}
 
   async runPareBudgetAgent(
@@ -65,14 +67,16 @@ export class BudgetAgent {
     }
 
     if (this.mode === 'live') {
-      return runPareAiUseCase(
+      const input = this.maskIdentity ? maskPareInput(ctx) : ctx;
+      const run = await runPareAiUseCase(
         this.gateway,
         'pare.budget',
-        ctx,
-        createPareBudgetToolHandlers(ctx),
+        input,
+        createPareBudgetToolHandlers(input),
         signal,
         syntheticPareChain,
       );
+      return this.maskIdentity ? { ...run, output: unmaskPareBudget(ctx, run.output) } : run;
     }
 
     return { output: mockAnalysis(ctx, top), evidence: null };

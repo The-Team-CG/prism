@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ConfigService } from '@nestjs/config';
 import type { AiRouteProfile } from '@prism/types';
 import { AI_ROUTE_PROFILES, resolveAiGatewayRuntimeConfig } from './application/ai-governance/gateway/ai-gateway.config';
-import { MockAiProviderAdapter } from './infrastructure/ai-governance/mock-ai-provider.adapter';
+import { AnthropicProviderAdapter } from './infrastructure/ai-governance/anthropic-provider.adapter';
 import { OpenRouterProviderAdapter } from './infrastructure/ai-governance/openrouter-provider.adapter';
 import { createAiProviderAdapters } from './platform-ops.module';
 
@@ -37,63 +37,65 @@ const openRouterTestProfile: AiRouteProfile = {
 };
 
 describe('platform-ops AI provider wiring', () => {
-  it('keeps mock as the only provider by default without reading the Anthropic key', () => {
-    const mockAdapter = new MockAiProviderAdapter();
+  it('registers no provider and never reads a key when no provider is configured', () => {
     const config = keyConfig('test-only-key');
+    const aiRuntime = runtime();
 
-    const adapters = createAiProviderAdapters(mockAdapter, runtime(), config);
-
-    expect(adapters).toEqual([mockAdapter]);
+    expect(aiRuntime.configured).toBe(false);
+    expect(createAiProviderAdapters(aiRuntime, config)).toEqual([]);
     expect(config.get).not.toHaveBeenCalled();
   });
 
-  it('keeps the Anthropic adapter absent until a test use case is explicitly enabled', () => {
-    const mockAdapter = new MockAiProviderAdapter();
-    const config = keyConfig();
-    const aiRuntime = runtime({ AI_ROUTE_PROFILE: 'test-anthropic' });
+  it('registers no provider when live use cases are narrowed to none by an unconfigured runtime', () => {
+    const config = keyConfig('test-only-key');
 
-    const adapters = createAiProviderAdapters(mockAdapter, aiRuntime, config);
-
-    expect(adapters).toEqual([mockAdapter]);
+    expect(createAiProviderAdapters(runtime({ AI_LIVE_USE_CASES: 'pare.risk' }), config)).toEqual([]);
     expect(config.get).not.toHaveBeenCalled();
   });
 
-  it('registers Anthropic only for enabled test-profile use cases and reads the key there', () => {
-    const mockAdapter = new MockAiProviderAdapter();
+  it('registers Anthropic and reads only its key when the Anthropic provider is configured', () => {
     const config = keyConfig('test-only-key');
-    const aiRuntime = runtime({
-      AI_ROUTE_PROFILE: 'test-anthropic',
-      AI_LIVE_USE_CASES: 'pare.risk',
-    });
+    const aiRuntime = runtime({ AI_PROVIDER: 'anthropic', AI_ZDR_CONFIRMED: 'true' });
 
-    const adapters = createAiProviderAdapters(mockAdapter, aiRuntime, config);
+    const adapters = createAiProviderAdapters(aiRuntime, config);
 
-    expect(adapters.map((adapter) => adapter.provider)).toEqual(['mock', 'anthropic']);
+    expect(adapters).toHaveLength(1);
+    expect(adapters[0]).toBeInstanceOf(AnthropicProviderAdapter);
+    expect(adapters[0]?.provider).toBe('anthropic');
     expect(config.get).toHaveBeenCalledExactlyOnceWith('ANTHROPIC_API_KEY');
   });
 
-  it('rejects an enabled test route when the key is missing', () => {
-    const aiRuntime = runtime({
-      AI_ROUTE_PROFILE: 'test-anthropic',
-      AI_LIVE_USE_CASES: 'pare.risk',
-    });
+  it('rejects a configured Anthropic provider when the key is missing', () => {
+    const aiRuntime = runtime({ AI_PROVIDER: 'anthropic', AI_LIVE_USE_CASES: 'pare.risk' });
 
-    expect(() => createAiProviderAdapters(new MockAiProviderAdapter(), aiRuntime, keyConfig(' ')))
+    expect(() => createAiProviderAdapters(aiRuntime, keyConfig(' ')))
       .toThrow(/ANTHROPIC_API_KEY is required/);
   });
 
-  it('registers OpenRouter only for an explicitly enabled synthetic route', () => {
+  it('registers OpenRouter for the OpenRouter ZDR profile on its reviewed endpoint policy', () => {
+    const config = keyConfig('test-openrouter-key-only', 'OPENROUTER_API_KEY');
+    const aiRuntime = runtime({ AI_PROVIDER: 'openrouter' });
+
+    const adapters = createAiProviderAdapters(aiRuntime, config);
+
+    expect(aiRuntime.profileId).toBe('openrouter-zdr');
+    expect(adapters).toHaveLength(1);
+    expect(adapters[0]).toBeInstanceOf(OpenRouterProviderAdapter);
+    expect(adapters[0]?.endpointPolicyId).toBe(AI_ROUTE_PROFILES['openrouter-zdr']!.routesByTier.fast.endpointPolicyId);
+    expect(config.get).toHaveBeenCalledExactlyOnceWith('OPENROUTER_API_KEY');
+  });
+
+  it('registers OpenRouter for an explicitly enabled synthetic route', () => {
     const config = keyConfig('test-openrouter-key-only', 'OPENROUTER_API_KEY');
     const aiRuntime = runtime({
       AI_ROUTE_PROFILE: openRouterTestProfile.id,
       AI_LIVE_USE_CASES: 'pare.risk',
     }, { [openRouterTestProfile.id]: openRouterTestProfile });
 
-    const adapters = createAiProviderAdapters(new MockAiProviderAdapter(), aiRuntime, config);
+    const adapters = createAiProviderAdapters(aiRuntime, config);
 
-    expect(adapters.map((adapter) => adapter.provider)).toEqual(['mock', 'openrouter']);
-    expect(adapters[1]).toBeInstanceOf(OpenRouterProviderAdapter);
-    expect(adapters[1]?.endpointPolicyId).toBe('test-upstream');
+    expect(adapters.map((adapter) => adapter.provider)).toEqual(['openrouter']);
+    expect(adapters[0]?.endpointPolicyId).toBe('test-upstream');
     expect(config.get).toHaveBeenCalledExactlyOnceWith('OPENROUTER_API_KEY');
   });
 
@@ -103,7 +105,7 @@ describe('platform-ops AI provider wiring', () => {
       AI_LIVE_USE_CASES: 'pare.risk',
     }, { [openRouterTestProfile.id]: openRouterTestProfile });
 
-    expect(() => createAiProviderAdapters(new MockAiProviderAdapter(), aiRuntime, keyConfig(undefined, 'OPENROUTER_API_KEY')))
+    expect(() => createAiProviderAdapters(aiRuntime, keyConfig(undefined, 'OPENROUTER_API_KEY')))
       .toThrow(/OPENROUTER_API_KEY is required/);
   });
 });
