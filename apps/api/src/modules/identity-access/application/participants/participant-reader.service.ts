@@ -45,6 +45,11 @@ export class ParticipantReaderService implements ParticipantReader {
     return eligible;
   }
 
+  async listPmcmAdmins(db?: Prisma.TransactionClient): Promise<ResolvedEventOpsActor[]> {
+    const users = await (db ?? this.prisma).opsUser.findMany({ where: { role: OpsUserRole.PmcmAdmin, approvalStatus: 'approved' }, select: { id: true, name: true, email: true, role: true }, orderBy: { id: 'asc' } });
+    return users.map((user) => ({ id: user.id, name: user.name, email: user.email, role: OpsUserRole.PmcmAdmin, explicit: true, verified: true }));
+  }
+
   private canResolveRole(user: { id: string; email: string; role: string }, facts: ParticipantEventFacts, event: ReturnType<typeof toPolicyEvent>) {
     if (user.role === OpsUserRole.PmcmAdmin || user.role === OpsUserRole.System) return true;
     if (user.role === OpsUserRole.Client) return Boolean(event.inquiry?.email && normalizeEmail(event.inquiry.email) === normalizeEmail(user.email));

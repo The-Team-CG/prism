@@ -12,6 +12,7 @@ export default defineConfig({
     },
   },
   test: {
+    maxWorkers: 2,
     globals: true,
     environment: "node",
     include: ["src/**/*.test.ts"],

@@ -1,4 +1,5 @@
 import { PRISM_DECISION_LOG_KINDS, type PrismDecisionLog, type PrismDecisionLogActor, type PrismDecisionLogKind } from "@prism/types";
+import { roleLabel } from "@/features/pmcm-kit";
 
 export const DECISION_LOG_KIND_LABELS: Record<PrismDecisionLogKind, string> = {
   postponement: "Postponement",
@@ -35,8 +36,8 @@ export function decisionLogKindOptions(log: PrismDecisionLog | null): DecisionLo
 export function formatDecisionActor(actor: PrismDecisionLogActor) {
   if (!actor.name && !actor.role) return "Actor not recorded";
   if (!actor.role) return actor.name!;
-  if (!actor.name) return actor.role;
-  return `${actor.name} (${actor.role})`;
+  if (!actor.name) return roleLabel(actor.role);
+  return `${actor.name} (${roleLabel(actor.role)})`;
 }
 
 export function formatDecisionToken(value: string) {

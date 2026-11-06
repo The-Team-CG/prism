@@ -6,7 +6,9 @@ import type {
   PrismSupplierReadinessItem,
   PrismSupplierReadinessSetupStatus,
 } from "@prism/types";
-import type { BookingStep, CalendarEventItem, QuoteFormState, QuoteSubmitInput, SectionMeta, SupplierDashboardSection, SupplierWorkspace, WorkspaceDerived, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard } from "./supplier-workspace-types";
+import { manilaCalendarKey, manilaDateKey } from "@prism/ui/format-date";
+import type { BookingStep, QuoteFormState, QuoteSubmitInput, SectionMeta, SupplierDashboardSection, SupplierWorkspace, WorkspaceDerived, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard } from "./supplier-workspace-types";
+import { supplierWorkTargetHref } from "./supplier-workspace-types";
 
 export const EVENT_STATUS_ACTIONS = [
   { status: "arrived", label: "Arrived", helper: "Onsite at venue" },
@@ -46,6 +48,11 @@ export function fmt(value: string): string {
   return value.replaceAll("_", " ");
 }
 
+export function statusLabel(value: string): string {
+  const text = fmt(value);
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 export function formatMoney(amount: number): string {
   return money.format(amount);
 }
@@ -61,10 +68,10 @@ export function formatDate(value?: string | null): string {
   return value.includes("T") ? dateTime.format(parsed) : dateOnly.format(parsed);
 }
 
+/** A due date stays current through the end of its Philippine calendar day. */
 export function isPastDate(value?: string | null, now: number = Date.now()): boolean {
   if (!value) return false;
-  const p = new Date(value);
-  return !Number.isNaN(p.getTime()) && p.getTime() < now;
+  return manilaCalendarKey(value) < manilaDateKey(new Date(now));
 }
 
 export function readinessTone(priority: string): string {
@@ -129,11 +136,11 @@ export function countHandoffPending(selectedRequests: PrismSupplierQuoteRequest[
     (r) =>
       r.assignmentStatus !== "confirmed" ||
       r.readinessStatus !== "confirmed" ||
-      r.contractReviewStatus !== "accepted",
+      !["accepted", "submitted"].includes(r.contractReviewStatus ?? "missing"),
   ).length;
 }
 
-export function buildSupplierContractRequirements(workspace: Pick<SupplierWorkspace, "quoteRequests" | "supplierQuotes">): PrismFileRequirementItem[] {
+export function buildSupplierContractRequirements(workspace: Pick<SupplierWorkspace, "quoteRequests" | "supplierQuotes">): Array<PrismFileRequirementItem & { bookingHref: string }> {
   return filterSelectedRequests(workspace.quoteRequests, buildQuoteByRequest(workspace.supplierQuotes)).map((request) => ({
     key: `supplier-contract:${request.id}`,
     label: `${request.category} signed contract`,
@@ -147,6 +154,7 @@ export function buildSupplierContractRequirements(workspace: Pick<SupplierWorksp
     detail: buildBookingSteps(request)[2].meta,
     required: true,
     overdue: false,
+    bookingHref: supplierWorkTargetHref("bookings", request.id),
   }));
 }
 
@@ -232,7 +240,6 @@ export function countEventsThisMonth(
 
 export function deriveWorkspace(
   workspace: SupplierWorkspace | null,
-  readinessBoard: PrismSupplierReadinessBoard | null,
   now: Date = new Date(),
 ): WorkspaceDerived {
   const quotes = workspace?.supplierQuotes ?? [];
@@ -243,11 +250,6 @@ export function deriveWorkspace(
   const selectedQuotes = filterSelectedQuotes(quotes);
   const quoteNeedingSubmission = countQuotesNeedingSubmission(openRequests, quoteByRequest);
   const handoffPending = countHandoffPending(selectedRequests);
-  const readinessNeedsActionCount = countReadinessNeedsAction(
-    readinessBoard,
-    quoteNeedingSubmission,
-    handoffPending,
-  );
 
   return {
     quoteByRequest,
@@ -256,15 +258,36 @@ export function deriveWorkspace(
     selectedQuotes,
     quoteNeedingSubmission,
     handoffPending,
-    readinessNeedsActionCount,
-    needsActionCount: readinessNeedsActionCount,
+    needsActionCount: quoteNeedingSubmission + handoffPending,
     eventsThisMonth: countEventsThisMonth(requests, now),
   };
 }
 
+/** Requests still being bid: live ones first, soonest deadline first. Won work lives in Bookings. */
+export function requestsForQuoting(
+  requests: PrismSupplierQuoteRequest[],
+  quoteByRequest: Map<string, PrismSupplierQuote>,
+): PrismSupplierQuoteRequest[] {
+  const booked = new Set(filterSelectedRequests(requests, quoteByRequest).map((request) => request.id));
+  const closed = (request: PrismSupplierQuoteRequest) => Number(isRequestClosed(request, quoteByRequest.get(request.id)));
+  return requests
+    .filter((request) => !booked.has(request.id))
+    .sort((left, right) => closed(left) - closed(right) || (left.dueDate ?? "9999").localeCompare(right.dueDate ?? "9999"));
+}
+
+/** A supplier gets one revision after the first submission (the API rejects a third version). */
+const MAX_QUOTE_VERSIONS = 2;
+
+export function isQuoteLocked(
+  req: Pick<PrismSupplierQuoteRequest, "status">,
+  quote?: Pick<PrismSupplierQuote, "status" | "revisionNumber"> | null,
+): boolean {
+  return isRequestClosed(req, quote) || (quote?.revisionNumber ?? 1) >= MAX_QUOTE_VERSIONS;
+}
+
 export function isRequestClosed(
-  req: PrismSupplierQuoteRequest,
-  quote?: PrismSupplierQuote,
+  req: Pick<PrismSupplierQuoteRequest, "status">,
+  quote?: Pick<PrismSupplierQuote, "status"> | null,
 ): boolean {
   return (
     ["selected", "closed", "expired"].includes(req.status) ||
@@ -273,8 +296,8 @@ export function isRequestClosed(
 }
 
 export function closedRequestReason(
-  req: PrismSupplierQuoteRequest,
-  quote?: PrismSupplierQuote,
+  req: Pick<PrismSupplierQuoteRequest, "status">,
+  quote?: Pick<PrismSupplierQuote, "status"> | null,
 ): string {
   if (req.status === "expired") {
     return "Deadline passed. No longer accepting edits.";
@@ -287,6 +310,9 @@ export function closedRequestReason(
   }
   if (quote?.status === "not_selected") {
     return "PMCM did not select this quote.";
+  }
+  if (!isRequestClosed(req, quote)) {
+    return "You have used your one revision. PMCM is reviewing this quote.";
   }
   return "PMCM closed this request.";
 }
@@ -351,7 +377,7 @@ export function buildBookingSteps(
       meta: req.contractReviewStatus === "accepted" ? "Accepted by PMCM"
         : req.contractReviewStatus === "submitted" ? "Awaiting PMCM review"
           : req.contractReviewStatus === "changes_requested" ? "Upload a corrected version"
-            : "Upload signed contract below",
+            : "Signed contract needed",
     },
     {
       label: "Event day status",
@@ -365,22 +391,6 @@ export function buildBookingSteps(
 
 export function canReportSupplierEventDayStatus(req: PrismSupplierQuoteRequest): boolean {
   return req.status === "selected" && req.assignmentStatus === "confirmed" && req.readinessStatus === "confirmed";
-}
-
-export function buildCalendarEvents(
-  workspace: SupplierWorkspace,
-): CalendarEventItem[] {
-  const items: CalendarEventItem[] = [];
-  workspace.quoteRequests.forEach((req) => {
-    if (req.dueDate) {
-      items.push({
-        date: req.dueDate,
-        label: `Quote due: ${req.category}`,
-        type: "deadline",
-      });
-    }
-  });
-  return items.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export function sectionMeta(
@@ -407,7 +417,7 @@ export function sectionMeta(
     calendar: {
       eyebrow: "Calendar",
       title: "Your calendar",
-      description: "Upcoming quote deadlines and event dates.",
+      description: "Event days, quote deadlines, arrivals, deliverables and payments.",
     },
     quotations: {
       eyebrow: "Quotations",
@@ -498,28 +508,6 @@ export function bookingsNavDesc(handoffPending: number, selectedRequestCount: nu
  */
 export function supplierReadinessSection(item: Pick<PrismSupplierReadinessItem, "quoteStatus">): SupplierDashboardSection {
   return item.quoteStatus === "selected" ? "bookings" : "requests";
-}
-
-export type SupplierReadinessEventGroup = {
-  eventId: string;
-  eventName: string;
-  items: PrismSupplierReadinessItem[];
-};
-
-/** Groups every readiness item by event, keeping the server's priority order inside and across groups. */
-export function groupReadinessItemsByEvent(items: PrismSupplierReadinessItem[]): SupplierReadinessEventGroup[] {
-  const groups = new Map<string, SupplierReadinessEventGroup>();
-  for (const item of items) {
-    const group = groups.get(item.eventId) ?? { eventId: item.eventId, eventName: item.eventName ?? "Assigned event", items: [] };
-    group.items.push(item);
-    groups.set(item.eventId, group);
-  }
-  // Soonest deadline first, inside each event and across events; undated work keeps its order at the end.
-  const sorted = [...groups.values()].map((group) => ({
-    ...group,
-    items: [...group.items].sort((left, right) => readinessDeadline(left) - readinessDeadline(right)),
-  }));
-  return sorted.sort((left, right) => readinessDeadline(left.items[0]) - readinessDeadline(right.items[0]));
 }
 
 /** The next time a supplier must act: the quote deadline before selection, then the ingress time. */

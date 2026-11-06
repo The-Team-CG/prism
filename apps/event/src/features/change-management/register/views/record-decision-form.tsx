@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import type { RecordEventDecisionInput, PrismEventFreezeException } from "@prism/types";
 import { DatePicker } from "@prism/ui/components/date-picker";
-import { depositTreatmentOptions, decisionOptions, supplierImpactOptions } from "../model/change-register-rules";
+import { canRecordDecision, depositTreatmentOptions, decisionOptions, supplierImpactOptions, type RecordDecisionDraft } from "../model/change-register-rules";
 
 type DecisionValue = RecordEventDecisionInput["decision"];
 
@@ -20,12 +20,13 @@ export function RecordDecisionForm({
   frozen: boolean;
   approvedExceptions: readonly PrismEventFreezeException[];
   busy: boolean;
-  onSubmit: (draft: RecordEventDecisionInput) => Promise<boolean>;
+  onSubmit: (draft: RecordDecisionDraft) => Promise<boolean>;
 }) {
-  const [decision, setDecision] = useState<DecisionValue>("cancelled");
+  // No decision is preselected: a cancellation must be an explicit choice, never the default.
+  const [decision, setDecision] = useState<DecisionValue | "">("");
   const [reason, setReason] = useState("");
   const [newEventDate, setNewEventDate] = useState("");
-  const [cancellationFeeAmount, setCancellationFeeAmount] = useState(0);
+  const [cancellationFeePesos, setCancellationFeePesos] = useState("");
   const [depositTreatment, setDepositTreatment] = useState<"retain" | "credit" | "waive">("retain");
   const [supplierImpact, setSupplierImpact] = useState<"release_obligations" | "preserve_obligations">("release_obligations");
   const [freezeExceptionId, setFreezeExceptionId] = useState("");
@@ -35,19 +36,16 @@ export function RecordDecisionForm({
 
   const needsDate = decision === "postponed";
   const needsException = frozen;
-  const canSubmit = !busy
-    && reason.trim().length > 0
-    && (!needsDate || newEventDate.length > 0)
-    && (!needsException || freezeExceptionId.length > 0)
-    && impactReviewed;
+  const canSubmit = !busy && canRecordDecision({ decision, reason, newEventDate, frozen, freezeExceptionId, impactReviewed });
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (decision === "") return;
     const saved = await onSubmit({
       decision,
       reason,
       newEventDate: needsDate ? newEventDate : undefined,
-      cancellationFeeAmount,
+      cancellationFeePesos,
       depositTreatment,
       supplierImpact,
       freezeExceptionId: needsException ? freezeExceptionId : undefined,
@@ -57,7 +55,7 @@ export function RecordDecisionForm({
     if (saved) {
       setReason("");
       setNewEventDate("");
-      setCancellationFeeAmount(0);
+      setCancellationFeePesos("");
       setFreezeExceptionId("");
       setImpactReviewed(false);
       setIdempotencyKey(crypto.randomUUID());
@@ -65,65 +63,70 @@ export function RecordDecisionForm({
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4 border-t border-border pt-4" aria-label="Record cancellation or postponement">
-      <h3 className="text-sm font-semibold text-foreground">Record a cancellation or postponement</h3>
+    <details className="rounded-xl border border-danger/40 bg-danger-soft/30 p-4">
+      <summary className="min-h-11 cursor-pointer text-sm font-semibold text-danger">Cancel or postpone this event</summary>
+      <form onSubmit={submit} className="mt-4 space-y-4" aria-label="Record cancellation or postponement">
+        <p className="text-xs text-muted-foreground">Recording a cancellation or postponement releases or keeps coordinator and supplier obligations. Choose the decision explicitly.</p>
 
-      <label className="block text-sm">
-        <span className="text-muted-foreground">Decision</span>
-        <select value={decision} onChange={(event) => setDecision(event.target.value as DecisionValue)} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-          {decisionOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-        </select>
-      </label>
-
-      <label className="block text-sm">
-        <span className="text-muted-foreground">Reason</span>
-        <input required value={reason} onChange={(event) => setReason(event.target.value)} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-      </label>
-
-      {needsDate ? (
-        <div className="block text-sm">
-          <span className="text-muted-foreground">New event date</span>
-          <DatePicker aria-label="New event date" required value={newEventDate} onValueChange={setNewEventDate} className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm" />
-        </div>
-      ) : null}
-
-      {needsException ? (
         <label className="block text-sm">
-          <span className="text-muted-foreground">Approved freeze exception (used once)</span>
-          <select required value={freezeExceptionId} onChange={(event) => setFreezeExceptionId(event.target.value)} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-            <option value="">Choose an approved exception</option>
-            {approvedExceptions.map((exception) => <option key={exception.id} value={exception.id}>{exception.requestedChange}</option>)}
-          </select>
-          {approvedExceptions.length === 0 ? <span className="mt-1 block text-xs text-muted-foreground">No unused approved exception. Request and approve one first.</span> : null}
-        </label>
-      ) : null}
-
-      <fieldset className="space-y-3 rounded-lg border border-border p-3">
-        <legend className="px-1 text-sm font-semibold text-foreground">Impact review</legend>
-        <p className="text-xs text-muted-foreground">Coordinator assignments on this event are released or kept when the decision is recorded. Check the coordinator desk first.</p>
-        <label className="block text-sm">
-          <span className="text-muted-foreground">Supplier obligations</span>
-          <select value={supplierImpact} onChange={(event) => setSupplierImpact(event.target.value as typeof supplierImpact)} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-            {supplierImpactOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          <span className="text-muted-foreground">Decision</span>
+          <select required aria-label="Decision" value={decision} onChange={(event) => setDecision(event.target.value as DecisionValue | "")} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
+            <option value="">Choose a decision…</option>
+            {decisionOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </label>
-        <label className="block text-sm">
-          <span className="text-muted-foreground">Cancellation fee (minor units)</span>
-          <input type="number" min={0} step={1} value={cancellationFeeAmount} onChange={(event) => setCancellationFeeAmount(Number(event.target.value) || 0)} className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm" />
-        </label>
-        <label className="block text-sm">
-          <span className="text-muted-foreground">Deposit treatment</span>
-          <select value={depositTreatment} onChange={(event) => setDepositTreatment(event.target.value as typeof depositTreatment)} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-            {depositTreatmentOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-          </select>
-        </label>
-        <label className="flex items-start gap-2 text-sm">
-          <input type="checkbox" checked={impactReviewed} onChange={(event) => setImpactReviewed(event.target.checked)} className="mt-1" />
-          <span>I have reviewed the coordinator, supplier, and billing impact for this decision.</span>
-        </label>
-      </fieldset>
 
-      <button type="submit" disabled={!canSubmit} className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">Record decision</button>
-    </form>
+        <label className="block text-sm">
+          <span className="text-muted-foreground">Reason</span>
+          <input required value={reason} onChange={(event) => setReason(event.target.value)} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
+        </label>
+
+        {needsDate ? (
+          <div className="block text-sm">
+            <span className="text-muted-foreground">New event date</span>
+            <DatePicker aria-label="New event date" required value={newEventDate} onValueChange={setNewEventDate} className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm" />
+          </div>
+        ) : null}
+
+        {needsException ? (
+          <label className="block text-sm">
+            <span className="text-muted-foreground">Approved freeze exception (used once)</span>
+            <select required value={freezeExceptionId} onChange={(event) => setFreezeExceptionId(event.target.value)} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
+              <option value="">Choose an approved exception</option>
+              {approvedExceptions.map((exception) => <option key={exception.id} value={exception.id}>{exception.requestedChange}</option>)}
+            </select>
+            {approvedExceptions.length === 0 ? <span className="mt-1 block text-xs text-muted-foreground">No unused approved exception. Request and approve one first.</span> : null}
+          </label>
+        ) : null}
+
+        <fieldset className="space-y-3 rounded-lg border border-border p-3">
+          <legend className="px-1 text-sm font-semibold text-foreground">Impact review</legend>
+          <p className="text-xs text-muted-foreground">Coordinator assignments on this event are released or kept when the decision is recorded. Check the coordinator desk first.</p>
+          <label className="block text-sm">
+            <span className="text-muted-foreground">Supplier obligations</span>
+            <select value={supplierImpact} onChange={(event) => setSupplierImpact(event.target.value as typeof supplierImpact)} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
+              {supplierImpactOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </label>
+          <label className="block text-sm">
+            <span className="text-muted-foreground">Cancellation fee (PHP)</span>
+            <input inputMode="decimal" value={cancellationFeePesos} onChange={(event) => setCancellationFeePesos(event.target.value)} placeholder="0" className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
+            <span className="mt-1 block text-xs text-muted-foreground">Leave blank when no fee applies.</span>
+          </label>
+          <label className="block text-sm">
+            <span className="text-muted-foreground">Deposit treatment</span>
+            <select value={depositTreatment} onChange={(event) => setDepositTreatment(event.target.value as typeof depositTreatment)} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
+              {depositTreatmentOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </label>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" checked={impactReviewed} onChange={(event) => setImpactReviewed(event.target.checked)} className="mt-1" />
+            <span>I have reviewed the coordinator, supplier, and billing impact for this decision.</span>
+          </label>
+        </fieldset>
+
+        <button type="submit" disabled={!canSubmit} className="rounded-md bg-danger px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">Record decision</button>
+      </form>
+    </details>
   );
 }

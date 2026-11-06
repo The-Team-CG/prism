@@ -2,7 +2,7 @@ import { formatPortalDate } from "@prism/ui/format-date";
 import { ArrowDown, ArrowUp, CalendarDays, ChevronRight, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import type { PmcmSupplierDirectoryQuery, PrismPmcmSupplierDirectoryPage, PrismSupplierCategory } from "@prism/types";
-import { SegmentedMeter, SupplierAvatar, SupplierTags } from "./supplier-visuals";
+import { BNI_TITLE, SegmentedMeter, SupplierAvatar, SupplierTags } from "./supplier-visuals";
 import styles from "./supplier-workspace.module.css";
 
 type SupplierRow = PrismPmcmSupplierDirectoryPage["items"][number];
@@ -114,27 +114,27 @@ function SupplierDirectoryFilters({ categories, query, searchDraft, loading, onS
         <input value={searchDraft} onChange={(event) => onSearch(event.target.value)} placeholder="Search suppliers" className="h-8 w-full rounded-md border border-border bg-card pl-9 pr-3 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/35" />
       </label>
       <label className="sr-only" htmlFor="supplier-category-filter">Category</label>
-      <select id="supplier-category-filter" value={query.categoryId ?? ""} onChange={(event) => onQueryChange({ categoryId: event.target.value || undefined, page: 0 })} className="h-9 rounded-md border border-input bg-background px-2 text-sm">
+      <select id="supplier-category-filter" value={query.categoryId ?? ""} onChange={(event) => onQueryChange({ categoryId: event.target.value || undefined, page: 0 })} className="h-9 rounded-md border border-border bg-input px-2 text-sm">
         <option value="">All categories</option>
         {query.categoryId && !categories.some((category) => category.id === query.categoryId) ? <option value={query.categoryId}>No matching category for this view</option> : null}
         {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
       </select>
       <label className="sr-only" htmlFor="supplier-tier-filter">Tier</label>
-      <select id="supplier-tier-filter" value={query.tier ?? ""} onChange={(event) => onQueryChange({ tier: (event.target.value || undefined) as PmcmSupplierDirectoryQuery["tier"], page: 0 })} className="h-9 rounded-md border border-input bg-background px-2 text-sm">
+      <select id="supplier-tier-filter" value={query.tier ?? ""} onChange={(event) => onQueryChange({ tier: (event.target.value || undefined) as PmcmSupplierDirectoryQuery["tier"], page: 0 })} className="h-9 rounded-md border border-border bg-input px-2 text-sm">
         <option value="">All tiers</option>
         <option value="tier_1">Tier 1</option>
         <option value="tier_2">Tier 2</option>
         <option value="pending_first_event">Pending first event</option>
       </select>
       <label className="sr-only" htmlFor="supplier-rating-filter">Rating</label>
-      <select id="supplier-rating-filter" value={query.rating} onChange={(event) => onQueryChange({ rating: event.target.value as PmcmSupplierDirectoryQuery["rating"], page: 0 })} className="h-9 rounded-md border border-input bg-background px-2 text-sm">
+      <select id="supplier-rating-filter" value={query.rating} onChange={(event) => onQueryChange({ rating: event.target.value as PmcmSupplierDirectoryQuery["rating"], page: 0 })} className="h-9 rounded-md border border-border bg-input px-2 text-sm">
         <option value="all">Any rating</option>
         <option value="4.5">4.5 and above</option>
         <option value="4.0">4.0 and above</option>
         <option value="unrated">Not reviewed</option>
       </select>
       <label className="sr-only" htmlFor="supplier-sort">Sort suppliers</label>
-      <select id="supplier-sort" value={query.sort} onChange={(event) => onQueryChange({ sort: event.target.value as PmcmSupplierDirectoryQuery["sort"], page: 0 })} className="h-9 rounded-md border border-input bg-background px-2 text-sm">
+      <select id="supplier-sort" value={query.sort} onChange={(event) => onQueryChange({ sort: event.target.value as PmcmSupplierDirectoryQuery["sort"], page: 0 })} className="h-9 rounded-md border border-border bg-input px-2 text-sm">
         {sortOptions.map(([value, label]) => <option key={value} value={value}>Sort: {label}</option>)}
       </select>
       <Button type="button" variant="outline" size="sm" aria-label={`Sort ${query.direction === "asc" ? "descending" : "ascending"}`} onClick={() => onQueryChange({ direction: query.direction === "asc" ? "desc" : "asc" })}>
@@ -173,10 +173,10 @@ function SupplierDirectoryRow({ supplier, selected, onSelect }: { supplier: Supp
     <tr className={`border-b border-border/55 transition-colors ${selected ? styles.selectedRow : ""}`}>
       <th scope="row" className="px-4 font-medium">
         <div className="flex items-center gap-1.5">
-          <button title={supplier.name} type="button" onClick={(event) => onSelect(supplier.id, event.currentTarget)} className="group flex min-w-0 flex-1 items-center justify-between gap-1 text-left text-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <button title={supplier.name} type="button" onClick={(event) => onSelect(supplier.id, event.currentTarget)} className="group flex min-h-6 min-w-0 flex-1 items-center justify-between gap-1 text-left text-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <span className="truncate">{supplier.name}</span><ChevronRight aria-hidden="true" className="size-3 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100" />
           </button>
-          {supplier.bniMember ? <span className="text-[9px] text-primary">BNI</span> : null}
+          {supplier.bniMember ? <span title={BNI_TITLE} className="text-[9px] text-primary">BNI</span> : null}
         </div>
       </th>
       <td className="px-3"><SupplierTags category={supplier.categoryName} /></td>

@@ -107,6 +107,26 @@ function createPrisma(eventResult: typeof event | null = event) {
 }
 
 describe('CoordinatorSuggestionsService', () => {
+  it('counts the whole active pool as free, already assigned or blocked on the event date', async () => {
+    const { prisma, eventReferences } = createPrisma();
+    const service = new CoordinatorSuggestionsService(prisma as never, eventReferences as never);
+
+    const pool = await service.poolAvailabilityForEvent(event.id);
+
+    expect(pool).toMatchObject({ eventDate: '2026-06-18', activeCoordinators: 12, available: 10, alreadyAssigned: 1, markedUnavailable: 1 });
+    expect(pool.available + pool.alreadyAssigned + pool.markedUnavailable).toBe(pool.activeCoordinators);
+    expect(pool.availableByRole.find((entry) => entry.role === 'Floor Director')?.available).toBe(9);
+    expect(pool.availableByRole.find((entry) => entry.role === 'Stage Director')?.available).toBe(1);
+    expect(pool.availableByRole.find((entry) => entry.role === 'Usher')?.available).toBe(0);
+  });
+
+  it('refuses a pool count for an unknown event', async () => {
+    const { prisma, eventReferences } = createPrisma(null);
+    const service = new CoordinatorSuggestionsService(prisma as never, eventReferences as never);
+
+    await expect(service.poolAvailabilityForEvent('evt_missing')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it('returns eligible role matches filtered by every selected skill and ranked by coverage fit', async () => {
     const { prisma, eventReferences } = createPrisma();
     const service = new CoordinatorSuggestionsService(prisma as never, eventReferences as never);

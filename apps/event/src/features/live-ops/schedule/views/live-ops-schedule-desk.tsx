@@ -21,6 +21,8 @@ type LiveOpsScheduleDeskProps = {
   canStartEventDay?: boolean;
   canReplyToReports: boolean;
   canSubmitReports: boolean;
+  /** Set on the coordinator portal: reads the coordinator-scoped schedule instead of the PMCM event record. */
+  coordinatorScope?: boolean;
 };
 
 export function LiveOpsScheduleDesk({
@@ -30,8 +32,9 @@ export function LiveOpsScheduleDesk({
   canStartEventDay = false,
   canReplyToReports,
   canSubmitReports,
+  coordinatorScope = false,
 }: LiveOpsScheduleDeskProps) {
-  const vm = useLiveOpsScheduleDeskViewModel(eventId);
+  const vm = useLiveOpsScheduleDeskViewModel(eventId, { coordinatorScope });
   const days = vm.schedule?.days ?? [];
 
   return (

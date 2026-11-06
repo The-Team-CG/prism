@@ -25,7 +25,6 @@ const baseProgress: EventProgressViewModel = {
     { id: "event_date", title: "Event date", status: "pending", meta: "2026-10-01" },
   ],
   paymentMilestones: [],
-  score: 40,
   clientEventDayStatus: null,
   clientActions: [],
   runClientAction: vi.fn(),

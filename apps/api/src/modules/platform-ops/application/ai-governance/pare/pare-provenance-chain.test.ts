@@ -7,13 +7,14 @@ import type {
   AiProviderResponse,
 } from '../../../contracts/ai-governance/ai-gateway.port';
 import { resolveAiGatewayRuntimeConfig } from '../gateway/ai-gateway.config';
+import { digestJson, digestSerializedText } from '../json-digest';
+import { FakeAiProviderAdapter } from '../../../infrastructure/ai-governance/fake-ai-provider.test-support';
 import { AiGatewayService } from '../gateway/ai-gateway.service';
 import {
   SyntheticFixtureRegistry,
   SYNTHETIC_PARE_CHAIN_ROOT_FIXTURE,
   SYNTHETIC_PARE_MESSAGE_CONTEXT_FIXTURE,
 } from '../gateway/synthetic-fixture-registry';
-import { MockAiProviderAdapter } from '../../../infrastructure/ai-governance/mock-ai-provider.adapter';
 import { BudgetAgent } from './agents/budget.agent';
 import { EventContextAgent } from './agents/event-context.agent';
 import { MessageDrafterAgent } from './agents/message-drafter.agent';
@@ -24,7 +25,8 @@ import type { PAREContext } from './pare.types';
 
 type StoredRow = { id: string; [key: string]: unknown };
 type Stage = 'pare.budget' | 'pare.risk' | 'pare.message-drafts';
-type Provider = 'anthropic' | 'mock';
+/** anthropic-synthetic is the fixtures-only lockdown; the other two accept real (UAT) data. */
+type Route = 'anthropic-synthetic' | 'anthropic-test-data' | 'anthropic-zdr';
 
 function deferred<T = void>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -42,14 +44,9 @@ const outputs = {
 } satisfies Record<Stage, unknown>;
 
 class ScriptedPareAdapter implements AiProviderAdapter {
-  readonly provider: Provider;
-  readonly endpointPolicyId: string;
+  readonly provider = 'anthropic' as const;
+  readonly endpointPolicyId = 'anthropic-direct';
   readonly requests: { useCaseId: Stage; request: AiProviderRequest }[] = [];
-
-  constructor(provider: Provider) {
-    this.provider = provider;
-    this.endpointPolicyId = provider === 'anthropic' ? 'anthropic-direct' : 'deterministic-mock';
-  }
 
   async run(request: AiProviderRequest, signal?: AbortSignal): Promise<AiProviderResponse> {
     if (signal?.aborted) throw new DOMException('The operation was aborted', 'AbortError');
@@ -134,28 +131,40 @@ function createPrismaHarness() {
   return { prisma: prisma as unknown as PrismaService, state };
 }
 
-function createRuntime(provider: Provider) {
-  return provider === 'anthropic'
-    ? resolveAiGatewayRuntimeConfig(config({
-        AI_ROUTE_PROFILE: 'test-anthropic',
-        AI_LIVE_USE_CASES: 'pare.budget,pare.risk,pare.message-drafts',
-        ANTHROPIC_API_KEY: 'configured-for-test',
-        NODE_ENV: 'test',
-      }))
-    : resolveAiGatewayRuntimeConfig(config({ NODE_ENV: 'test' }));
+function createRuntime(route: Route, nodeEnv = 'test') {
+  return resolveAiGatewayRuntimeConfig(config({
+    AI_PROVIDER: 'anthropic',
+    AI_ROUTE_PROFILE: route === 'anthropic-synthetic' ? 'anthropic-synthetic' : undefined,
+    AI_ZDR_CONFIRMED: route === 'anthropic-zdr' ? 'true' : undefined,
+    AI_LIVE_USE_CASES: 'pare.budget,pare.risk,pare.message-drafts',
+    ANTHROPIC_API_KEY: 'configured-for-test',
+    NODE_ENV: nodeEnv,
+  }));
 }
 
-function setup(provider: Provider) {
+type SetupOptions<A extends AiProviderAdapter> = {
+  context?: PAREContext;
+  adapter?: A;
+  /** 'default' leaves PARE_MODE unset so the mode follows the gateway configuration. */
+  pareMode?: 'live' | 'default';
+  nodeEnv?: string;
+};
+
+function setup<A extends AiProviderAdapter = ScriptedPareAdapter>(
+  route: Route = 'anthropic-synthetic',
+  options: SetupOptions<A> = {},
+) {
   vi.stubEnv('PARE_MODE', 'live');
-  const root = structuredClone(SYNTHETIC_PARE_CHAIN_ROOT_FIXTURE) as PAREContext;
+  if (options.pareMode === 'default') delete process.env.PARE_MODE;
+  const root = options.context ?? structuredClone(SYNTHETIC_PARE_CHAIN_ROOT_FIXTURE) as PAREContext;
   vi.spyOn(EventContextAgent.prototype, 'buildPareEventContext').mockResolvedValue(root);
   vi.spyOn(SupplierFinderAgent.prototype, 'findPareSupplierCandidates').mockResolvedValue(root.candidates ?? []);
 
   const { prisma, state } = createPrismaHarness();
-  const adapter = new ScriptedPareAdapter(provider);
+  const adapter = (options.adapter ?? new ScriptedPareAdapter()) as A;
   const registry = new SyntheticFixtureRegistry();
-  const runtime = createRuntime(provider);
-  const gateway = new AiGatewayService(prisma, runtime, [new MockAiProviderAdapter(), adapter], registry);
+  const runtime = createRuntime(route, options.nodeEnv);
+  const gateway = new AiGatewayService(prisma, runtime, [adapter], registry);
   gateway.onModuleInit();
   const platformReferences: PlatformReferenceReadModel = {
     findStorageEventScope: async () => null,
@@ -184,8 +193,10 @@ function setup(provider: Provider) {
     findPareSupplierCandidates: async () => [],
     findApprovedTrustRecipientEmail: async () => null,
     findApprovedPmcmOperator: async () => null,
+    findInquiryTriageSource: async () => null,
+    findProposalDraftEventSource: async () => null,
   };
-  const service = new PAREService(prisma, undefined, gateway, undefined, registry, platformReferences);
+  const service = new PAREService(prisma, undefined, gateway, runtime, registry, platformReferences);
   return { root, prisma, state, adapter, registry, gateway, service };
 }
 
@@ -195,10 +206,10 @@ describe('PARE provenance chain', () => {
     vi.unstubAllEnvs();
   });
 
-  it.each(['mock', 'anthropic'] as const)(
-    'runs the complete ordered synthetic emergency through %s tool loops and leaves drafts for PMCM review',
-    async (provider) => {
-      const { root, state, adapter, service } = setup(provider);
+  it(
+    'runs the complete ordered synthetic emergency through the fixtures-only route tool loops and leaves drafts for PMCM review',
+    async () => {
+      const { root, state, adapter, service } = setup('anthropic-synthetic');
       const pending = await service.handleEmergencyTrigger(root.triggerId);
 
       expect(pending.status).toBe('pending');
@@ -241,14 +252,25 @@ describe('PARE provenance chain', () => {
       expect(pareAudit?.sanitizedPayload).not.toHaveProperty('drafts');
       expect(pareAudit?.sanitizedPayload).not.toHaveProperty('clientReassurance');
       expect(pareAudit?.sanitizedPayload).toHaveProperty('runEvidence');
+      expect(pareAudit?.sanitizedPayload).toMatchObject({ pareProvenanceVersion: 2 });
+      expect(gatewayAudits.every((row) => row.zdrConfirmed === false)).toBe(true);
       expect(state.approvals[0]?.reviewPayload).toMatchObject({ drafts: outputs['pare.message-drafts'] });
       expect(state.approvals[0]?.status).toBe('pending_human_approval');
       expect(state.audits.some((row) => row.featureName === 'notification' || row.featureName === 'outbox')).toBe(false);
     },
   );
 
+  it('keeps the synthetic chain, and rejects an unregistered real context, on the fixtures-only route', async () => {
+    const { root, adapter, state, service } = setup('anthropic-synthetic', { context: structuredClone(REAL_CONTEXT) });
+
+    await expect(service.handleEmergencyTrigger(root.triggerId))
+      .rejects.toThrow(/registered synthetic provenance-chain root/i);
+    expect(adapter.requests).toHaveLength(0);
+    expect(state.approvals).toHaveLength(0);
+  });
+
   it('starts budget and risk from the same root context and waits for both before drafting', async () => {
-    const { root, service } = setup('anthropic');
+    const { root, service } = setup();
     const budgetGate = deferred();
     const riskGate = deferred();
     const budgetStarted = deferred<PAREContext>();
@@ -300,7 +322,7 @@ describe('PARE provenance chain', () => {
   });
 
   it('aborts and awaits the sibling stage before rejecting, without starting drafts', async () => {
-    const { root, service } = setup('anthropic');
+    const { root, service } = setup();
     const budgetFailure = new Error('budget stage failed');
     const budgetStarted = deferred();
     const riskSawAbort = deferred();
@@ -349,7 +371,7 @@ describe('PARE provenance chain', () => {
   });
 
   it('aborts and awaits budget when the independent risk stage fails first', async () => {
-    const { root, service } = setup('anthropic');
+    const { root, service } = setup();
     const riskFailure = new Error('risk stage failed');
     const budgetStarted = deferred();
     const budgetSawAbort = deferred();
@@ -395,7 +417,7 @@ describe('PARE provenance chain', () => {
   });
 
   it('blocks drafting when a completed budget output is changed', async () => {
-    const { root, adapter, service } = setup('anthropic');
+    const { root, adapter, service } = setup();
     const original = BudgetAgent.prototype.runPareBudgetAgent;
     vi.spyOn(BudgetAgent.prototype, 'runPareBudgetAgent').mockImplementation(async function (this: BudgetAgent, ctx, signal, chain) {
       const result = await original.call(this, ctx, signal, chain);
@@ -409,7 +431,7 @@ describe('PARE provenance chain', () => {
   });
 
   it('blocks drafting when the shared PARE correlation ID changes', async () => {
-    const { root, adapter, service } = setup('anthropic');
+    const { root, adapter, service } = setup();
     const original = BudgetAgent.prototype.runPareBudgetAgent;
     vi.spyOn(BudgetAgent.prototype, 'runPareBudgetAgent').mockImplementation(async function (this: BudgetAgent, ctx, signal, chain) {
       const result = await original.call(this, ctx, signal, chain);
@@ -424,7 +446,7 @@ describe('PARE provenance chain', () => {
   });
 
   it('blocks a mutated tool result before the provider can continue its tool loop', async () => {
-    const { root, adapter, registry, service } = setup('anthropic');
+    const { root, adapter, registry, service } = setup();
     const verify = registry.verify.bind(registry);
     vi.spyOn(registry, 'verify').mockImplementation(async (input) => {
       if (input && typeof input === 'object' && !Array.isArray(input) && 'withdrawnSupplierQuote' in input) {
@@ -440,7 +462,7 @@ describe('PARE provenance chain', () => {
   });
 
   it('blocks drafting when a completed root audit outcome changes', async () => {
-    const { root, adapter, state, service } = setup('anthropic');
+    const { root, adapter, state, service } = setup();
     const original = BudgetAgent.prototype.runPareBudgetAgent;
     vi.spyOn(BudgetAgent.prototype, 'runPareBudgetAgent').mockImplementation(async function (this: BudgetAgent, ctx, signal, chain) {
       const result = await original.call(this, ctx, signal, chain);
@@ -456,7 +478,7 @@ describe('PARE provenance chain', () => {
   });
 
   it('allows PMCM approval only while every completed stage audit still matches the chain', async () => {
-    const { root, state, service } = setup('anthropic');
+    const { root, state, service } = setup();
     const pending = await service.handleEmergencyTrigger(root.triggerId);
     const approved = await service.approveRecommendation(pending.id, 'pmcm-reviewer');
 
@@ -466,7 +488,7 @@ describe('PARE provenance chain', () => {
   });
 
   it('keeps already-pending linear provenance version 1 approvals reviewable', async () => {
-    const { root, state, service } = setup('anthropic');
+    const { root, state, service } = setup();
     const pending = await service.handleEmergencyTrigger(root.triggerId);
     const parentAudit = state.audits.find((row) => row.featureName === 'PARE');
     const auditPayload = parentAudit?.sanitizedPayload as Record<string, unknown> | undefined;
@@ -495,7 +517,7 @@ describe('PARE provenance chain', () => {
   });
 
   it('keeps pre-chain pending PARE approvals reviewable after the migration', async () => {
-    const { root, state, service } = setup('anthropic');
+    const { root, state, service } = setup();
     const pending = await service.handleEmergencyTrigger(root.triggerId);
     const parentAudit = state.audits.find((row) => row.featureName === 'PARE');
     const auditPayload = parentAudit?.sanitizedPayload as Record<string, unknown> | undefined;
@@ -515,7 +537,7 @@ describe('PARE provenance chain', () => {
   });
 
   it('rejects chain evidence when the version marker is missing', async () => {
-    const { root, state, service } = setup('anthropic');
+    const { root, state, service } = setup();
     const pending = await service.handleEmergencyTrigger(root.triggerId);
     const parentAudit = state.audits.find((row) => row.featureName === 'PARE');
     const auditPayload = parentAudit?.sanitizedPayload as Record<string, unknown> | undefined;
@@ -528,8 +550,8 @@ describe('PARE provenance chain', () => {
   });
 
   it('fails closed when live PARE has no server-owned chain verifier', async () => {
-    const { root, prisma, state, adapter, gateway } = setup('anthropic');
-    const serviceWithoutVerifier = new PAREService(prisma, undefined, gateway, createRuntime('anthropic'));
+    const { root, prisma, state, adapter, gateway } = setup();
+    const serviceWithoutVerifier = new PAREService(prisma, undefined, gateway, createRuntime('anthropic-synthetic'));
 
     await expect(serviceWithoutVerifier.handleEmergencyTrigger(root.triggerId))
       .rejects.toThrow(/server-owned synthetic provenance-chain verifier/i);
@@ -538,7 +560,7 @@ describe('PARE provenance chain', () => {
   });
 
   it('rejects PMCM approval if a completed stage audit was changed after the run', async () => {
-    const { root, state, service } = setup('anthropic');
+    const { root, state, service } = setup();
     const pending = await service.handleEmergencyTrigger(root.triggerId);
     const budgetAudit = state.audits.find((row) => row.useCaseId === 'pare.budget');
     if (budgetAudit) budgetAudit.outcome = 'failed';
@@ -549,7 +571,7 @@ describe('PARE provenance chain', () => {
   });
 
   it('rejects PMCM approval if the saved review payload no longer matches its audit digest', async () => {
-    const { root, state, service } = setup('anthropic');
+    const { root, state, service } = setup();
     const pending = await service.handleEmergencyTrigger(root.triggerId);
     const savedPayload = state.approvals[0]?.reviewPayload as Record<string, unknown>;
     (savedPayload.drafts as Record<string, unknown>).clientReassurance = 'changed after generation';
@@ -560,10 +582,234 @@ describe('PARE provenance chain', () => {
   });
 
   it('rejects a root fixture that is not registered before any provider call', async () => {
-    const { root, adapter, service } = setup('anthropic');
+    const { root, adapter, service } = setup();
     root.eventName = 'unregistered emergency';
 
     await expect(service.handleEmergencyTrigger(root.triggerId)).rejects.toThrow(/registered synthetic provenance-chain root/i);
     expect(adapter.requests).toHaveLength(0);
+  });
+});
+
+const REAL_CONTEXT: PAREContext = {
+  triggerId: 'qr_real_1',
+  eventId: 'evt_real_1',
+  eventName: 'Santos Wedding',
+  eventDate: '2026-12-12',
+  daysUntilEvent: 36,
+  clientName: 'Ana Reyes',
+  totalBudget: 500_000,
+  spentBudget: 300_000,
+  remainingBudget: 200_000,
+  withdrawnSupplier: { id: 'sup_real_0', name: 'Lumina Catering Co', category: 'Catering', tier: 'tier_1', quotedAmount: 120_000 },
+  clientPreferences: ['halal: required', 'contact: reachable on +63 917 123 4567 or ana@example.com'],
+  candidates: [
+    {
+      supplierId: 'sup_real_1', supplierName: 'Mabuhay Feasts', tier: 'tier_1', quotedAmount: 125_000,
+      reliabilityScore: 0.88, halal: true, priorPmcmEvents: 4,
+      reason: 'Tier 1, reliability score 0.88, halal-certified, 4 prior PMCM event(s), quote on file: 125000',
+    },
+    {
+      supplierId: 'sup_real_2', supplierName: 'Casa Verde Catering', tier: 'tier_2', quotedAmount: 98_000,
+      reliabilityScore: 0.7, halal: false, priorPmcmEvents: 1,
+      reason: 'Tier 2, reliability score 0.7, 1 prior PMCM event(s), quote on file: 98000',
+    },
+  ],
+};
+
+/** Asks each stage's read-only tools first, then answers like the Fake provider. */
+class ToolUsingProviderAdapter implements AiProviderAdapter {
+  readonly provider = 'anthropic' as const;
+  readonly endpointPolicyId = 'anthropic-direct';
+  readonly requests: AiProviderRequest[] = [];
+  readonly answers = new FakeAiProviderAdapter();
+
+  async run(request: AiProviderRequest, signal?: AbortSignal): Promise<AiProviderResponse> {
+    this.requests.push(structuredClone(request));
+    if (request.messages.some((message) => message.role === 'tool')) return this.answers.run(request, signal);
+    const stage = request.systemPrompt.match(/Use case: (pare\.[a-z-]+)/)?.[1];
+    const toolCalls = stage === 'pare.budget'
+      ? [
+          { id: 'budget-1', name: 'get_event_budget_summary', input: {} },
+          { id: 'budget-2', name: 'get_quote_details', input: { supplierName: 'Candidate 1' } },
+        ]
+      : stage === 'pare.risk'
+        ? [
+            { id: 'risk-1', name: 'get_client_preferences', input: {} },
+            { id: 'risk-2', name: 'get_supplier_history', input: { supplierName: 'Candidate 1' } },
+          ]
+        : [{ id: 'drafts-1', name: 'get_event_and_replacement_summary', input: {} }];
+    return {
+      text: '', toolCalls, stopReason: 'tool_use', usage: { inputTokens: 10, outputTokens: 12 },
+      responseModel: request.model, endpointTag: this.endpointPolicyId,
+    };
+  }
+
+  async *stream(request: AiProviderRequest, signal?: AbortSignal) {
+    yield { type: 'final' as const, response: await this.run(request, signal) };
+  }
+}
+
+const REAL_IDENTITIES = [
+  'Ana Reyes', 'Santos Wedding', 'Lumina Catering', 'Mabuhay Feasts', 'Casa Verde', 'sup_real',
+  '+63 917', 'ana@example.com', 'evt_real_1', 'qr_real_1',
+];
+
+type RealRun = ReturnType<typeof setup<ToolUsingProviderAdapter>>;
+
+function realDataSetup(route: Route, options: Omit<SetupOptions<ToolUsingProviderAdapter>, 'context' | 'adapter'> = {}): RealRun {
+  return setup(route, { ...options, context: structuredClone(REAL_CONTEXT), adapter: new ToolUsingProviderAdapter() });
+}
+
+function stageAudit(run: RealRun, useCaseId: Stage) {
+  return run.state.audits.find((row) => row.useCaseId === useCaseId)!;
+}
+
+function aggregateAudit(run: RealRun) {
+  return run.state.audits.find((row) => row.featureName === 'PARE')!;
+}
+
+function reviewPayload(run: RealRun) {
+  return run.state.approvals[0].reviewPayload as Record<string, Record<string, unknown>>;
+}
+
+/** Re-seals the aggregate so a tampered review payload still matches its own audited text digest. */
+function resealReviewPayload(run: RealRun) {
+  (aggregateAudit(run).sanitizedPayload as Record<string, unknown>).reviewPayloadDigest =
+    digestSerializedText(JSON.stringify(run.state.approvals[0].reviewPayload));
+}
+
+describe('PARE on real event data through the gateway', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it.each([
+    { route: 'anthropic-test-data' as const, outcome: 'test_data_approved', zdrConfirmed: false },
+    { route: 'anthropic-zdr' as const, outcome: 'zdr_approved', zdrConfirmed: true },
+  ])('runs all three stages on a real event through the $route route with identities masked, then needs PMCM approval', async ({ route, outcome, zdrConfirmed }) => {
+    const run = realDataSetup(route);
+    const pending = await run.service.handleEmergencyTrigger(REAL_CONTEXT.triggerId);
+
+    expect(pending).toMatchObject({ status: 'pending', pareResult: { mode: 'live' } });
+    expect(pending.pareResult.runEvidence.map((item) => [item.useCaseId, item.routePolicyOutcome])).toEqual([
+      ['pare.budget', outcome], ['pare.risk', outcome], ['pare.message-drafts', outcome],
+    ]);
+    expect(pending.pareResult.runEvidence.some((item) => item.syntheticProvenance || item.pareChain)).toBe(false);
+
+    // Nothing that identifies the client, supplier or event reaches the provider, including tool results.
+    const providerText = JSON.stringify(run.adapter.requests);
+    for (const identity of REAL_IDENTITIES) expect(providerText).not.toContain(identity);
+    // The model still gets the signal it needs: ranked masked candidates, numbers and preferences.
+    const budgetInput = run.adapter.requests.find((request) => request.systemPrompt.includes('pare.budget'))!.messages[0];
+    const budgetText = (budgetInput as { content: string }).content;
+    for (const signal of ['"supplierName":"Candidate 1"', '"quotedAmount":125000', '"reliabilityScore":0.88', '"remainingBudget":200000', '"tier":"tier_1"']) {
+      expect(budgetText).toContain(signal);
+    }
+    expect(providerText).toContain('halal: required');
+    expect(providerText).toContain('[phone redacted]');
+
+    // The recommendation points at the real top candidate and is a pending review record only.
+    expect(reviewPayload(run).budgetAnalysis.selectedCandidate).toMatchObject({ supplierId: 'sup_real_1', quotedAmount: 125_000 });
+    expect(aggregateAudit(run)).toMatchObject({ modelVersion: 'ai-gateway', zdrConfirmed, status: 'pending_human_approval' });
+    expect(aggregateAudit(run).sanitizedPayload).toMatchObject({ pareProvenanceVersion: 3 });
+    expect(run.state.approvals[0]).toMatchObject({ status: 'pending_human_approval' });
+    expect(run.state.audits.some((row) => row.featureName === 'notification' || row.featureName === 'outbox')).toBe(false);
+    expect(run.adapter.requests).toHaveLength(6);
+
+    const approved = await run.service.approveRecommendation(pending.id, 'pmcm-reviewer');
+    expect(approved.status).toBe('approved');
+    expect(run.state.audits.some((row) => row.featureName === 'notification' || row.featureName === 'outbox')).toBe(false);
+  });
+
+  it('selects live mode by itself when a provider is configured and PARE_MODE is unset', async () => {
+    const run = realDataSetup('anthropic-zdr', { pareMode: 'default' });
+    const pending = await run.service.handleEmergencyTrigger(REAL_CONTEXT.triggerId);
+    expect(pending.pareResult.mode).toBe('live');
+    expect(run.adapter.requests.length).toBeGreaterThan(0);
+  });
+
+  it('adds no production gate of its own: a production ZDR route runs PARE live', async () => {
+    const run = realDataSetup('anthropic-zdr', { nodeEnv: 'production' });
+    const pending = await run.service.handleEmergencyTrigger(REAL_CONTEXT.triggerId);
+    expect(pending.pareResult.runEvidence.every((item) => item.routePolicyOutcome === 'zdr_approved')).toBe(true);
+  });
+
+  it('records each stage output digest at the gateway, so the saved risk and drafts match their stage audits', async () => {
+    const run = realDataSetup('anthropic-test-data');
+    await run.service.handleEmergencyTrigger(REAL_CONTEXT.triggerId);
+    const saved = reviewPayload(run);
+    const digestOf = (useCaseId: Stage) => (stageAudit(run, useCaseId).sanitizedPayload as Record<string, unknown>)._aiOutputDigest;
+    expect(digestOf('pare.risk')).toBe(digestJson(saved.riskAssessment));
+    expect(digestOf('pare.message-drafts')).toBe(digestJson(saved.drafts));
+    expect(digestOf('pare.budget')).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it('rejects a model that returns a changed copy of a candidate or a candidate it was not given', async () => {
+    const changed = realDataSetup('anthropic-test-data');
+    const { answers } = changed.adapter;
+    const original = answers.run.bind(answers);
+    vi.spyOn(answers, 'run').mockImplementation(async (request, signal) => {
+      const response = await original(request, signal);
+      if (!request.systemPrompt.includes('pare.budget')) return response;
+      const output = JSON.parse(response.text) as { selectedCandidate: Record<string, unknown> };
+      output.selectedCandidate.quotedAmount = 1;
+      return { ...response, text: JSON.stringify(output) };
+    });
+
+    await expect(changed.service.handleEmergencyTrigger(REAL_CONTEXT.triggerId))
+      .rejects.toMatchObject({ name: 'PareAiGatewayError', code: 'invalid_output' });
+    expect(changed.state.approvals).toHaveLength(0);
+  });
+
+  it.each([
+    ['a saved draft changed after review was prepared', (run: RealRun) => {
+      reviewPayload(run).drafts.clientReassurance = 'changed after the model answered';
+      resealReviewPayload(run);
+    }, /gateway output digest/],
+    ['a saved risk level changed', (run: RealRun) => {
+      reviewPayload(run).riskAssessment.level = 'HIGH';
+      resealReviewPayload(run);
+    }, /gateway output digest/],
+    ['a different candidate saved as the recommendation', (run: RealRun) => {
+      reviewPayload(run).budgetAnalysis.selectedCandidate = {
+        ...(reviewPayload(run).candidates as unknown as Record<string, unknown>[])[1],
+      };
+      resealReviewPayload(run);
+    }, /gateway output digest/],
+    ['a stage audit with no output digest', (run: RealRun) => {
+      delete (stageAudit(run, 'pare.risk').sanitizedPayload as Record<string, unknown>)._aiOutputDigest;
+    }, /gateway output digest/],
+    ['a missing stage audit', (run: RealRun) => {
+      run.state.audits.splice(run.state.audits.indexOf(stageAudit(run, 'pare.risk')), 1);
+    }, /durable completed PARE stage audit/],
+    ['an incomplete stage audit', (run: RealRun) => {
+      Object.assign(stageAudit(run, 'pare.budget'), { status: 'running', outcome: null });
+    }, /durable completed PARE stage audit/],
+    ['a stage audit with another correlation id', (run: RealRun) => {
+      stageAudit(run, 'pare.risk').correlationId = 'another-request';
+    }, /durable completed PARE stage audit/],
+    ['a stage audit recorded for another stage', (run: RealRun) => {
+      stageAudit(run, 'pare.budget').useCaseId = 'pare.risk';
+    }, /durable completed PARE stage audit/],
+    ['a stage audit on a fixtures-only route', (run: RealRun) => {
+      const payload = stageAudit(run, 'pare.message-drafts').sanitizedPayload as Record<string, Record<string, unknown>>;
+      payload._aiGatewayRoute.routePolicyOutcome = 'synthetic_verified';
+    }, /durable completed PARE stage audit/],
+    ['stages recorded out of order', (run: RealRun) => {
+      const evidence = (aggregateAudit(run).sanitizedPayload as Record<string, unknown[]>).runEvidence;
+      [evidence[0], evidence[1]] = [evidence[1], evidence[0]];
+    }, /matching durable PARE audit/],
+    ['a ZDR flag that disagrees with the stage evidence', (run: RealRun) => {
+      aggregateAudit(run).zdrConfirmed = true;
+    }, /matching durable PARE audit/],
+  ])('blocks PMCM approval of a real-data run with %s', async (_label, tamper, message) => {
+    const run = realDataSetup('anthropic-test-data');
+    const pending = await run.service.handleEmergencyTrigger(REAL_CONTEXT.triggerId);
+    tamper(run);
+
+    await expect(run.service.approveRecommendation(pending.id, 'pmcm-reviewer')).rejects.toThrow(message);
+    expect(run.state.approvals[0].status).toBe('pending_human_approval');
+    expect(aggregateAudit(run).status).toBe('pending_human_approval');
   });
 });

@@ -26,10 +26,12 @@ import {
 import type * as React from "react";
 
 import type { PrismDefenseReadiness, PrismEvent, PrismFloorPlanDraft, PrismUserRole } from "@prism/types";
+import { PRISM_LIFECYCLE_STAGE_LABELS } from "@prism/types";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
-import { label } from "@/features/pmcm-kit";
+import { formatPortalDate } from "@prism/ui/format-date";
+import { label, pluralize } from "@/features/pmcm-kit";
 
 /* ── Inline primitives (replacing @prism/ui blocks) ────────────── */
 
@@ -256,7 +258,7 @@ export function EventQueuePanel({
     <section className="rounded-lg border border-border bg-card p-3 shadow-sm">
       <div className="flex items-center justify-between gap-3 px-2 pb-2">
         <div>
-          <p className="text-xs font-medium text-primary">Event queue</p>
+          <p className="text-sm text-muted-foreground">Event queue</p>
           <p className="mt-1 text-xs text-muted-foreground">{events.length} active PMCM workspace(s)</p>
         </div>
       </div>
@@ -267,7 +269,7 @@ export function EventQueuePanel({
           id: event.id,
           title: event.eventName,
           description: `${event.clientName} - portal ${label(event.clientPortalStatus)}`,
-          meta: event.eventDate,
+          meta: formatPortalDate(event.eventDate),
           status: event.status,
           icon: CalendarClock,
           active: event.id === selectedEventId,
@@ -317,8 +319,8 @@ export function SelectedEventCockpit({
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
           { label: "Client", value: event.clientName, detail: event.clientPortalStatus === "unlocked" ? "Client portal unlocked" : "Client portal locked" },
-          { label: "Event date", value: event.eventDate, detail: event.readiness ?? "Readiness pending" },
-          { label: "Event readiness", value: readinessLabel, detail: defenseReadiness ? `Stage: ${label(defenseReadiness.lifecycleStage)}` : "Loading readiness check" },
+          { label: "Event date", value: formatPortalDate(event.eventDate), detail: event.readiness ?? "Readiness pending" },
+          { label: "Event readiness", value: readinessLabel, detail: defenseReadiness ? `Stage: ${PRISM_LIFECYCLE_STAGE_LABELS[defenseReadiness.lifecycleStage]}` : "Loading readiness check" },
           { label: "Guest access", value: event.guestAccessCode ?? "Pending", detail: event.guestAccessCode ? "Ready for guest portal access" : "Generated after event setup" },
         ].map((item) => (
           <div key={item.label} className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
@@ -371,7 +373,7 @@ export function DefenseControlPanel({
     {
       key: "finance",
       label: "Finance",
-      detail: `${defenseReadiness.summary.billingStatements} billing statement(s), ${defenseReadiness.summary.unpaidMilestones} unpaid milestone(s).`,
+      detail: `${pluralize(defenseReadiness.summary.billingStatements, "billing statement")}, ${pluralize(defenseReadiness.summary.unpaidMilestones, "unpaid milestone")}.`,
       ready: defenseReadiness.summary.billingStatements > 0 && defenseReadiness.summary.unpaidMilestones === 0,
       tab: "billing" as PmcmDetailTab,
     },
@@ -388,10 +390,10 @@ export function DefenseControlPanel({
     <section className="rounded-lg border border-primary/15 bg-card px-4 py-4 shadow-sm sm:px-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-2xl">
-          <p className="text-xs font-medium text-attention">Readiness control</p>
+          <p className="text-sm text-muted-foreground">Readiness control</p>
           <h3 className="mt-1 text-lg font-black text-foreground">{defenseReadiness.score}% lifecycle ready</h3>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Current stage: {label(defenseReadiness.lifecycleStage)}. The checklist keeps the selected event ready across briefing, floorplans, suppliers, finance, and closure.
+            Current stage: {PRISM_LIFECYCLE_STAGE_LABELS[defenseReadiness.lifecycleStage]}. The checklist keeps the selected event ready across briefing, floorplans, suppliers, finance, and closure.
           </p>
         </div>
         <div className="grid min-w-[220px] grid-cols-2 gap-4 border-l border-border bg-background/60 px-3 py-2.5">

@@ -34,7 +34,7 @@ describe('conforme draft review model', () => {
       lastConformeReminderAt: null,
       reminderWindowBaseAt: '2026-09-19T12:00:00.000Z',
       requestId: 'req_1',
-      modelVersion: 'mock',
+      modelVersion: 'claude-sonnet-5-5',
     });
     expect(parsed?.draft).toEqual({ subject: 'Subject', body: 'Body' });
     expect(parsed?.reminderWindowBaseAt).toBe('2026-09-19T12:00:00.000Z');

@@ -2,10 +2,11 @@
 
 import * as React from "react";
 import { ChevronRight, ChevronsUpDown, LogOut, Search, ShieldCheck } from "lucide-react";
-import type { PrismAppShellProps, PrismNavItem } from "./types";
+import type { PrismAppShellProps, PrismCommandGroup, PrismNavItem, PrismPageAction } from "./types";
 import { PrismBrandLogo } from "../brand";
 import { cn } from "../utils";
 import { portalHref } from "../portal-path";
+import { substringCommandFilter } from "./command-filter";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -156,8 +157,13 @@ function NavButtonRow({ item, activeId, onSelect, open, setOpen }: NavRowProps &
 }
 
 function NavItemRow({ item, activeId, onSelect }: NavRowProps) {
+  const { isMobile, setOpenMobile } = useSidebar();
   const active = isItemActive(item, activeId);
   const [open, setOpen] = React.useState(active);
+  const selectAndClose = React.useCallback((id: string) => {
+    onSelect(id);
+    if (isMobile) setOpenMobile(false);
+  }, [isMobile, onSelect, setOpenMobile]);
   React.useEffect(() => {
     if (active) setOpen(true);
   }, [active]);
@@ -166,12 +172,12 @@ function NavItemRow({ item, activeId, onSelect }: NavRowProps) {
   return (
     <SidebarMenuItem>
       {asLink ? (
-        <NavLinkRow item={item} activeId={activeId} onSelect={onSelect} />
+        <NavLinkRow item={item} activeId={activeId} onSelect={selectAndClose} />
       ) : (
-        <NavButtonRow item={item} activeId={activeId} onSelect={onSelect} open={open} setOpen={setOpen} />
+        <NavButtonRow item={item} activeId={activeId} onSelect={hasSub ? onSelect : selectAndClose} open={open} setOpen={setOpen} />
       )}
       {hasBadge(item.badge) && !hasSub ? <SidebarMenuBadge>{item.badge}</SidebarMenuBadge> : null}
-      {hasSub && open ? <NavSubItems items={item.subItems ?? []} activeId={activeId} onSelect={onSelect} /> : null}
+      {hasSub && open ? <NavSubItems items={item.subItems ?? []} activeId={activeId} onSelect={selectAndClose} /> : null}
     </SidebarMenuItem>
   );
 }
@@ -267,20 +273,53 @@ function AccountMenu({ user, items, onSignOut }: Pick<PrismAppShellProps, "user"
   );
 }
 
+function PaletteAction({ action, onChoose }: { action: PrismPageAction; onChoose: (action: PrismPageAction) => void }) {
+  return (
+    <CommandItem
+      value={`${action.label} ${action.description ?? ""}`}
+      disabled={action.disabled}
+      onSelect={() => onChoose(action)}
+    >
+      {action.icon ? <action.icon aria-hidden="true" /> : null}
+      <span className="truncate">{action.label}</span>
+      {action.description ? <span className="ml-auto truncate pl-3 text-xs text-muted-foreground">{action.description}</span> : null}
+      {action.status ? <span className="ml-auto shrink-0 pl-3 text-xs text-muted-foreground">{action.status}</span> : null}
+    </CommandItem>
+  );
+}
+
 function PageSearch({
   navItems,
   actions,
   actionsLabel,
+  groups = [],
+  groupsLoading = false,
+  emptyLabel = "Nothing matches.",
   placeholder,
+  onOpen,
   onSelect,
 }: {
   navItems: PrismNavItem[];
   actions: NonNullable<PrismAppShellProps["commandActions"]>;
   actionsLabel?: string;
+  groups?: PrismCommandGroup[];
+  groupsLoading?: boolean;
+  emptyLabel?: string;
   placeholder: string;
+  onOpen?: () => void;
   onSelect: (id: string) => void;
 }) {
   const [open, setOpen] = React.useState(false);
+  const [query, setQuery] = React.useState("");
+  const searching = query.trim().length > 0;
+  const visibleGroups = groups.filter((group) => searching || !group.whenSearching);
+  const onOpenRef = React.useRef(onOpen);
+  React.useEffect(() => {
+    onOpenRef.current = onOpen;
+  });
+  React.useEffect(() => {
+    if (open) onOpenRef.current?.();
+  }, [open]);
   React.useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
@@ -295,6 +334,10 @@ function PageSearch({
     setOpen(false);
     onSelect(id);
   };
+  const choose = (action: PrismPageAction) => {
+    setOpen(false);
+    action.onSelect?.();
+  };
   return (
     <>
       <button
@@ -307,10 +350,19 @@ function PageSearch({
         <span className="hidden flex-1 truncate text-left sm:block">{placeholder}</span>
         <kbd className="hidden rounded border border-border px-1.5 text-xs text-muted-foreground sm:inline">Ctrl K</kbd>
       </button>
-      <CommandDialog open={open} onOpenChange={setOpen} title="Go to" description="Search pages and actions">
-        <CommandInput placeholder={placeholder} />
+      <CommandDialog
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) setQuery("");
+        }}
+        title="Go to"
+        description="Search events, clients, inquiries, pages and actions"
+        filter={substringCommandFilter}
+      >
+        <CommandInput placeholder={placeholder} value={query} onValueChange={setQuery} />
         <CommandList>
-          <CommandEmpty>Nothing matches.</CommandEmpty>
+          {groupsLoading ? <p role="status" className="px-2 py-6 text-center text-sm text-muted-foreground">Loading events and clients…</p> : <CommandEmpty>{emptyLabel}</CommandEmpty>}
           {groupNav(navItems).map((group) => (
             <CommandGroup key={group.label} heading={group.label}>
               {group.items.flatMap((item) => [
@@ -327,21 +379,17 @@ function PageSearch({
               ])}
             </CommandGroup>
           ))}
+          {visibleGroups.map((group) => (
+            <CommandGroup key={group.heading} heading={group.heading}>
+              {group.actions.map((action) => (
+                <PaletteAction key={action.id} action={action} onChoose={choose} />
+              ))}
+            </CommandGroup>
+          ))}
           {actions.length ? (
             <CommandGroup heading={actionsLabel ?? "Actions"}>
               {actions.map((action) => (
-                <CommandItem
-                  key={action.id}
-                  value={`${action.label} ${action.description ?? ""}`}
-                  onSelect={() => {
-                    setOpen(false);
-                    action.onSelect?.();
-                  }}
-                >
-                  {action.icon ? <action.icon aria-hidden="true" /> : null}
-                  <span className="truncate">{action.label}</span>
-                  {action.status ? <span className="ml-auto text-xs text-muted-foreground">{action.status}</span> : null}
-                </CommandItem>
+                <PaletteAction key={action.id} action={action} onChoose={choose} />
               ))}
             </CommandGroup>
           ) : null}
@@ -362,7 +410,8 @@ export function PrismPortalShell({
   roleLabel,
   title,
   description,
-  activeItemId,
+  activeItemId = "",
+  breadcrumb,
   navItems,
   onNavSelect,
   user,
@@ -370,17 +419,23 @@ export function PrismPortalShell({
   showTopBarSearch = true,
   commandActions = [],
   commandSectionLabel,
+  commandGroups,
+  commandEmptyLabel,
+  commandGroupsLoading,
+  onCommandPaletteOpen,
   headerActions,
+  alwaysShowHeaderActions = false,
   sidebarContext,
   accountMenuItems,
   onSignOut,
   children,
   className,
   contentClassName,
+  titleClassName,
   homeHref = "/dashboard",
 }: PrismPortalShellProps) {
   const select = React.useCallback((id: string) => onNavSelect?.(id), [onNavSelect]);
-  const trail = findTrail(navItems, activeItemId);
+  const trail = breadcrumb ?? findTrail(navItems, activeItemId);
   return (
     <TooltipProvider delayDuration={300}>
       <SidebarProvider className={cn("prism-shell", className)} data-portal={portal}>
@@ -426,13 +481,23 @@ export function PrismPortalShell({
             </Breadcrumb>
             <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2">
               {showTopBarSearch ? (
-                <PageSearch navItems={navItems} actions={commandActions} actionsLabel={commandSectionLabel} placeholder={searchPlaceholder} onSelect={select} />
+                <PageSearch
+                  navItems={navItems}
+                  actions={commandActions}
+                  actionsLabel={commandSectionLabel}
+                  groups={commandGroups}
+                  groupsLoading={commandGroupsLoading}
+                  emptyLabel={commandEmptyLabel}
+                  placeholder={searchPlaceholder}
+                  onOpen={onCommandPaletteOpen}
+                  onSelect={select}
+                />
               ) : null}
-              {headerActions ? <div className="hidden shrink-0 items-center gap-2 md:flex">{headerActions}</div> : null}
+              {headerActions ? <div className={cn("shrink-0 items-center gap-2", alwaysShowHeaderActions ? "flex" : "hidden md:flex")}>{headerActions}</div> : null}
             </div>
           </header>
           <div className={cn("mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 sm:px-6 lg:px-8", contentClassName)}>
-            <div className="mb-6 grid gap-1">
+            <div className={cn("mb-6 grid gap-1", titleClassName)}>
               <h1 className="font-heading text-2xl font-bold leading-tight text-foreground">{title}</h1>
               {description ? <p className="max-w-3xl text-sm text-muted-foreground">{description}</p> : null}
             </div>

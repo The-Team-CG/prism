@@ -256,6 +256,7 @@ function normalizeStopReason(
     case 'tool_use':
       return 'tool_use';
     case 'max_tokens':
+    case 'model_context_window_exceeded':
     case 'pause_turn':
       return 'max_tokens';
     case 'end_turn':

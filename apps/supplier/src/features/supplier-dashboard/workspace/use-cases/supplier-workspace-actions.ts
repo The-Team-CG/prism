@@ -5,7 +5,7 @@ import {
   parseQuoteForm,
   quoteSubmitSuccessNotice,
 } from "../model/supplier-workspace-rules";
-import type { PrismAuthenticatedSession, PrismFileRequirementsMatrix, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, PrismSupplierWorkflowWorkspace } from "@prism/types";
+import type { PrismAuthenticatedSession, PrismFileRequirementsMatrix, PrismSupplierQuote, PrismSupplierQuoteRequest } from "@prism/types";
 import type { PrismSupplier, QuoteFormState, SupplierWorkspace } from "../model/supplier-workspace-types";
 
 export function loadSupplierDashboardSession(): PrismAuthenticatedSession | null {
@@ -23,19 +23,6 @@ export async function signOutSupplier(): Promise<void> {
   }
 }
 
-export async function loadSupplierWorkspace(session: PrismAuthenticatedSession): Promise<{
-  workspace: SupplierWorkspace;
-  readinessBoard: PrismSupplierReadinessBoard | null;
-  workflows: PrismSupplierWorkflowWorkspace;
-}> {
-  const [workspace, readinessBoard, workflows] = await Promise.all([
-    supplierWorkspaceRepository.fetchWorkspace(session),
-    supplierWorkspaceRepository.fetchReadinessBoard(session).catch(() => null),
-    supplierWorkflowRepository.fetch(session),
-  ]);
-  return { workspace, readinessBoard, workflows };
-}
-
 export async function loadSupplierFileRequirements(
   session: PrismAuthenticatedSession,
   eventIds: string[],
@@ -50,7 +37,6 @@ export async function loadSupplierFileRequirements(
   }
   return matrices;
 }
-
 export async function submitOrReviseQuote(input: {
   request: PrismSupplierQuoteRequest;
   form: QuoteFormState;

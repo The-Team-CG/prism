@@ -97,7 +97,7 @@ function ComponentsPanel() {
   return (
     <div className="flex flex-col">
       <div className="px-3 pb-2 pt-3">
-        <div className="text-[10px] uppercase tracking-wider text-neutral-400">Library</div>
+        <div className="text-xs font-medium text-neutral-500">Library</div>
         <div className="mt-0.5 text-sm text-neutral-900" style={{ fontWeight: 500 }}>
           Components
         </div>
@@ -142,7 +142,7 @@ function ComponentsPanel() {
           );
         })}
       </div>
-      <div className="px-3 pt-2 text-[10px] uppercase tracking-wider text-neutral-400">
+      <div className="px-3 pt-2 text-xs font-medium text-neutral-500">
         {cat === "all" ? `All · ${items.length}` : `${CATEGORY_LABELS[cat]} · ${items.length}`}
       </div>
       <div className="grid grid-cols-3 gap-0.5 px-1.5 pb-2 pt-1">
@@ -164,7 +164,7 @@ export function LeftPanel({ templateStore }: { templateStore: TemplateStore }) {
     content = (
       <div>
         <div className="px-3 pb-2 pt-3">
-          <div className="text-[10px] uppercase tracking-wider text-neutral-400">Document</div>
+          <div className="text-xs font-medium text-neutral-500">Document</div>
           <div className="mt-0.5 text-sm text-neutral-900" style={{ fontWeight: 500 }}>Layers</div>
         </div>
         <LayersPanel />
