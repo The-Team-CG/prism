@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClientFloorPlanAnnotationSchema, decideClientFloorPlanSchema, parseContract, type PrismClientFloorPlanReview } from "@prism/types";
 import { clientFloorplanReviewRepository } from "../data/client-floorplan-review-repository";
+import { objectAtAnchor, readReviewRoom, type AnnotationAnchor } from "../model/floorplan-annotation-geometry";
 
 /** `onDecided` runs after a decision is saved so the workspace can show the draft's new state (a revision request returns it to PMCM). */
 export function useClientFloorplanReview(eventId: string, draftId: string, onDecided?: () => Promise<void>) {
   const [review, setReview] = useState<PrismClientFloorPlanReview | null>(null);
   const [reviewKey, setReviewKey] = useState<string | null>(null);
   const [comment, setComment] = useState("");
-  const [objectId, setObjectId] = useState("");
+  const [anchor, setAnchor] = useState<AnnotationAnchor | null>(null);
   const [annotation, setAnnotation] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -34,7 +35,7 @@ export function useClientFloorplanReview(eventId: string, draftId: string, onDec
     setReview(null);
     setReviewKey(null);
     setComment("");
-    setObjectId("");
+    setAnchor(null);
     setAnnotation("");
     setBusy(false);
     setError(null);
@@ -60,12 +61,15 @@ export function useClientFloorplanReview(eventId: string, draftId: string, onDec
     const requestedKey = `${eventId}:${draftId}`;
     setBusy(true); setError(null);
     try {
-      const input = parseContract(createClientFloorPlanAnnotationSchema, { snapshotHash: visibleReview.snapshotHash, objectId, comment: annotation }, "Floorplan annotation");
+      const pinned = anchor ? objectAtAnchor(readReviewRoom(visibleReview.snapshot), anchor) : null;
+      const input = parseContract(createClientFloorPlanAnnotationSchema, { snapshotHash: visibleReview.snapshotHash, objectId: pinned?.id, comment: annotation, anchorX: anchor?.x, anchorY: anchor?.y }, "Floorplan annotation");
       await clientFloorplanReviewRepository.annotate(eventId, draftId, input);
-      setAnnotation(""); await load();
+      setAnnotation(""); setAnchor(null); await load();
     } catch (cause) { if (currentKey.current === requestedKey) setError(cause instanceof Error ? cause.message : "Could not add the annotation."); }
     finally { if (currentKey.current === requestedKey) setBusy(false); }
   };
   const objects = (visibleReview?.snapshot as { objects?: Array<{ id?: string; kind?: string; name?: string }> } | undefined)?.objects ?? [];
-  return { review: visibleReview, loading, comment, setComment, objectId, setObjectId, annotation, setAnnotation, busy, error, load, decide, annotate, objects, decision: visibleReview?.decisions.at(-1) };
+  const room = readReviewRoom(visibleReview?.snapshot);
+  const pinnedObject = anchor ? objectAtAnchor(room, anchor) : null;
+  return { review: visibleReview, loading, comment, setComment, anchor, setAnchor, pinnedObject, room, annotation, setAnnotation, busy, error, load, decide, annotate, objects, decision: visibleReview?.decisions.at(-1) };
 }
