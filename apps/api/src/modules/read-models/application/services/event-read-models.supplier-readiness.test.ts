@@ -66,6 +66,7 @@ describe('supplierFacingEventRef', () => {
 
   it('gives the supplier the event date as a calendar date', () => {
     expect(buildSupplierReadinessItem(request(), fullEvent, clock).eventDate).toBe('2026-12-01');
+    expect(buildSupplierReadinessItem(request(), { ...event, eventDate: '2026-12-01T00:00:00.000Z' }, clock).eventDate).toBe('2026-12-01');
   });
 });
 
