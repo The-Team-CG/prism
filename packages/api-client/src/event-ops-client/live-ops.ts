@@ -1,5 +1,6 @@
 import type {
   PrismCoordinatorWorkspace,
+  PrismCoordinatorEventSchedule,
   PrismLiveOps,
   PrismEventDayTask,
   PrismEventTaskReassignmentRequest,
@@ -24,6 +25,11 @@ export function createLiveOpsClient(
       workspace: (actor = {}) =>
         prismRequest<PrismCoordinatorWorkspace>(
           actorPath("/coordinator/workspace", actor),
+          withBase(options),
+        ),
+      eventSchedule: (eventId, actor = {}) =>
+        prismRequest<PrismCoordinatorEventSchedule>(
+          actorPath(`/coordinator/events/${eventId}/schedule`, actor),
           withBase(options),
         ),
     },

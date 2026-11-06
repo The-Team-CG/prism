@@ -306,30 +306,9 @@ async function countPrismaModelRows(prisma: PrismaService, modelName: Prisma.Mod
 }
 
 const MIGRATION_SEEDED_MODEL_COUNTS: Readonly<Partial<Record<Prisma.ModelName, number>>> = Object.freeze({
-  FloorPlan: 7,
-  FloorPlanObject: 231,
-  VenueTemplate: 7,
   OpsAuditChainLock: 1,
+  OpsRetentionPolicy: 8,
 });
-
-const MIGRATION_SEEDED_FLOOR_PLAN_IDS = Object.freeze([
-  'plan_tpl_builtin_blank',
-  'plan_tpl_builtin_corporate_gala',
-  'plan_tpl_builtin_wedding',
-  'plan_tpl_builtin_conference',
-  'plan_tpl_builtin_classroom',
-  'plan_tpl_builtin_banquet',
-  'plan_tpl_builtin_cocktail',
-]);
-const MIGRATION_SEEDED_VENUE_TEMPLATE_IDS = Object.freeze([
-  'tpl_builtin_blank',
-  'tpl_builtin_corporate_gala',
-  'tpl_builtin_wedding',
-  'tpl_builtin_conference',
-  'tpl_builtin_classroom',
-  'tpl_builtin_banquet',
-  'tpl_builtin_cocktail',
-]);
 
 const FIXTURE_SEED_BASELINE_ERROR =
   'Fixture seeding requires a fresh database containing only migration-owned baseline rows. Recreate prism_sample_disposable with migrations first.';
@@ -354,55 +333,6 @@ async function assertModelCountsAreBaseline(prisma: PrismaService): Promise<void
   }
 }
 
-async function assertFloorPlansAreBaseline(prisma: PrismaService): Promise<Set<string>> {
-  const floorPlans = await prisma.floorPlan.findMany({
-    select: { id: true, ownerId: true, eventId: true },
-  });
-  const floorPlanIds = new Set(floorPlans.map(({ id }) => id));
-  const expectedFloorPlanIds = new Set(MIGRATION_SEEDED_FLOOR_PLAN_IDS);
-  if (
-    floorPlans.length !== MIGRATION_SEEDED_FLOOR_PLAN_IDS.length ||
-    floorPlanIds.size !== expectedFloorPlanIds.size ||
-    floorPlans.some(({ id, ownerId, eventId }) =>
-      !expectedFloorPlanIds.has(id) || ownerId !== LOCAL_FIXTURE_OWNER_ID || eventId !== null,
-    )
-  ) {
-    failFixtureBaseline();
-  }
-  return floorPlanIds;
-}
-
-async function assertVenueTemplatesAreBaseline(prisma: PrismaService, floorPlanIds: Set<string>): Promise<void> {
-  const venueTemplates = await prisma.venueTemplate.findMany({
-    select: { id: true, ownerId: true, floorPlanId: true },
-  });
-  const expectedVenueTemplateIds = new Set(MIGRATION_SEEDED_VENUE_TEMPLATE_IDS);
-  if (
-    venueTemplates.length !== MIGRATION_SEEDED_VENUE_TEMPLATE_IDS.length ||
-    new Set(venueTemplates.map(({ id }) => id)).size !== expectedVenueTemplateIds.size ||
-    venueTemplates.some(({ id, ownerId, floorPlanId }) =>
-      !expectedVenueTemplateIds.has(id) ||
-      ownerId !== LOCAL_FIXTURE_OWNER_ID ||
-      !floorPlanIds.has(floorPlanId) ||
-      floorPlanId !== `plan_${id}`,
-    )
-  ) {
-    failFixtureBaseline();
-  }
-}
-
-async function assertFloorPlanObjectsAreBaseline(prisma: PrismaService, floorPlanIds: Set<string>): Promise<void> {
-  const floorPlanObjects = await prisma.floorPlanObject.findMany({
-    select: { floorPlanId: true, objectId: true },
-  });
-  if (
-    floorPlanObjects.length !== 231 ||
-    floorPlanObjects.some(({ floorPlanId, objectId }) => !floorPlanIds.has(floorPlanId) || objectId.trim().length === 0)
-  ) {
-    failFixtureBaseline();
-  }
-}
-
 async function assertAuditChainIsPristine(prisma: PrismaService): Promise<void> {
   const auditChainLocks = await prisma.opsAuditChainLock.findMany({
     select: { id: true, revision: true, headId: true, headHash: true },
@@ -420,9 +350,6 @@ async function assertAuditChainIsPristine(prisma: PrismaService): Promise<void> 
 
 export async function assertFixtureDatabaseIsFresh(prisma: PrismaService): Promise<void> {
   await assertModelCountsAreBaseline(prisma);
-  const floorPlanIds = await assertFloorPlansAreBaseline(prisma);
-  await assertVenueTemplatesAreBaseline(prisma, floorPlanIds);
-  await assertFloorPlanObjectsAreBaseline(prisma, floorPlanIds);
   await assertAuditChainIsPristine(prisma);
 }
 
@@ -565,6 +492,13 @@ export class LocalFixtureSeeder {
     const event = await this.prisma.opsEvent.findUnique({ where: { id: 'evt_sample_ayala' } });
     if (!event) return;
 
+    // Earlier runs seeded these requests as "open" while their quotes were selected. Assignment and readiness
+    // treat only "selected" requests as assigned, so converge existing rows to what the selection flow writes.
+    await this.prisma.opsSupplierQuoteRequest.updateMany({
+      where: { eventId: 'evt_sample_ayala', id: { in: ['qr_pare_harvesttable', 'qr_pare_lenscraft'] }, status: 'open' },
+      data: { status: 'selected' },
+    });
+
     const existing = await this.prisma.opsSupplierQuoteRequest.findFirst({
       where: { eventId: 'evt_sample_ayala', id: 'qr_pare_harvesttable' },
     });
@@ -586,7 +520,7 @@ export class LocalFixtureSeeder {
           message: 'Full buffet service for 300 pax. VIP plated section required. Include crew meals.',
           dueDate,
           accessToken: 'sample-pare-token-harvesttable',
-          status: 'open',
+          status: 'selected',
           assignmentStatus: 'confirmed',
           assignmentConfirmedAt: now,
           readinessStatus: 'confirmed',
@@ -607,6 +541,7 @@ export class LocalFixtureSeeder {
           notes: 'Menu finalized. Headcount confirmed at 300.',
           status: 'selected',
           selectedAt: now,
+          lockedAt: now,
         },
       });
 
@@ -622,7 +557,7 @@ export class LocalFixtureSeeder {
           message: 'Full event documentation: photo, video, same-day edit, raw file turnover.',
           dueDate,
           accessToken: 'sample-pare-token-lenscraft',
-          status: 'open',
+          status: 'selected',
           assignmentStatus: 'confirmed',
           assignmentConfirmedAt: now,
           readinessStatus: 'confirmed',
@@ -643,6 +578,7 @@ export class LocalFixtureSeeder {
           notes: 'Run-of-show received. All outputs confirmed.',
           status: 'selected',
           selectedAt: now,
+          lockedAt: now,
         },
       });
     });
@@ -1284,20 +1220,43 @@ export class LocalFixtureSeeder {
         data: { year: 2026, nextNumber: 2 },
       });
 
+      const billingSchedule = [
+        { label: 'Downpayment', percentage: 50, amount: 260000, dueDate: '2026-04-29' },
+        { label: 'Balance', percentage: 50, amount: 260000, dueDate: '2026-06-11' },
+      ];
+      const billingLines = [{ label: 'Approved event package', amount: 520000 }];
+      // The statement is issued from an approved billing source, as the billing workflow requires.
+      await tx.opsBillingSource.create({
+        data: {
+          id: 'bsrc_sample_ayala',
+          eventId: 'evt_sample_ayala',
+          sourceType: 'ce_proposal',
+          sourceLabel: 'Ayala Tech Summit 2026 approved proposal',
+          lineItems: toPrismaJson(billingLines),
+          paymentSchedule: toPrismaJson(billingSchedule),
+          paymentMethods: toPrismaJson([]),
+          totalAmount: 520000,
+          status: 'approved',
+          approvedAt: createdAt,
+          approvedBy: 'PMCM Admin',
+          approvalNotes: 'Approved with the seeded proposal.',
+          createdAt,
+          updatedAt: createdAt,
+        },
+      });
+
       await tx.opsBillingStatement.create({
         data: {
           id: 'bill_sample_ayala',
           eventId: 'evt_sample_ayala',
+          sourceId: 'bsrc_sample_ayala',
           number: 'BS-2026-0001',
           clientName: 'Ana Reyes',
           clientContact: 'ana@ayala.test',
-          eventName: 'Ayala Summit',
+          eventName: 'Ayala Tech Summit 2026',
           eventDate: new Date('2026-06-18'),
-          lineItems: toPrismaJson([{ label: 'Approved event package', amount: 520000 }]),
-          paymentSchedule: toPrismaJson([
-            { label: 'Downpayment', percentage: 50, amount: 260000, dueDate: '2026-04-29' },
-            { label: 'Balance', percentage: 50, amount: 260000, dueDate: '2026-06-11' },
-          ]),
+          lineItems: toPrismaJson(billingLines),
+          paymentSchedule: toPrismaJson(billingSchedule),
           paymentMethods: toPrismaJson([
             { label: 'Bank Transfer', details: 'PMCM corporate bank account' },
             { label: 'GCash', details: 'PMCM finance GCash number' },

@@ -54,4 +54,16 @@ describe('compliance rule registry', () => {
     expect(evaluateComplianceRuleForPhase(rule, 'planning', base, new Date('2026-09-30T00:00:00.000Z')).status).toBe('satisfied');
     expect(evaluateComplianceRuleForPhase(rule, 'planning', base, new Date('2026-10-02T00:00:00.000Z')).status).toBe('not_satisfied');
   });
+
+  it('states the upcoming-date condition and the closure or postponement next step once the date has passed', () => {
+    const rule = COMPLIANCE_RULE_REGISTRY.find((item) => item.conditionKey === 'event_date_relative_to_now')!;
+    const passed = evaluateComplianceRuleForPhase(rule, 'planning', base, new Date('2026-10-02T00:00:00.000Z'));
+
+    expect(rule.title).toBe('Event date is upcoming');
+    expect(passed.status).toBe('not_satisfied');
+    expect(passed.evidence.join(' ')).toContain('before evaluation time');
+    expect(rule.remediation).toBe(
+      'The event date has passed. Start closure if the event took place, or record a postponement with the new date.',
+    );
+  });
 });

@@ -15,6 +15,7 @@ import { PrivacyRetentionSweepService } from './application/retention/privacy-re
 import { PrivacyRetentionService } from './application/retention/privacy-retention.service';
 import { PrivacyRequestQueueService } from './application/trust/privacy-request-queue.service';
 import { PlatformOpsModule } from './platform-ops.module';
+import { AiTriageRecordEraser } from './application/ai-governance/ai-triage-record-eraser.service';
 
 /**
  * Platform privacy composition sits at the application edge so the owner
@@ -33,6 +34,7 @@ import { PlatformOpsModule } from './platform-ops.module';
   ],
   controllers: [OpsPrivacyController, OpsPrivacyRetentionController],
   providers: [
+    AiTriageRecordEraser,
     PrivacyOperationsService,
     PrivacyRequestQueueService,
     PrivacyRetentionService,

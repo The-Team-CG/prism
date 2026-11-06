@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatShortDate, humanizeToken } from "./formatters";
+import { formatShortDate, humanizeToken, pluralize, sessionDeviceLabel } from "./formatters";
 import { floorplanSourceLabel, roleLabel, statusLabel } from "./display-labels";
 
 describe("pmcm display formatters", () => {
@@ -11,6 +11,21 @@ describe("pmcm display formatters", () => {
     expect(formatShortDate("2026-01-15T00:00:00.000Z")).toMatch(/Jan 15, 2026/);
     expect(formatShortDate("not-a-date")).toBe("not-a-date");
     expect(formatShortDate()).toBe("No date");
+  });
+
+  it("pluralizes counts without a parenthesised (s) suffix", () => {
+    expect(pluralize(1, "check")).toBe("1 check");
+    expect(pluralize(0, "check")).toBe("0 checks");
+    expect(pluralize(3, "generated check")).toBe("3 generated checks");
+    expect(pluralize(2, "deliverable")).toBe("2 deliverables");
+    expect(pluralize(2, "person", "people")).toBe("2 people");
+  });
+
+  it("names an unrecorded session device in words", () => {
+    expect(sessionDeviceLabel("unknown")).toBe("Unknown device");
+    expect(sessionDeviceLabel(null)).toBe("Unknown device");
+    expect(sessionDeviceLabel("  ")).toBe("Unknown device");
+    expect(sessionDeviceLabel("Chrome on Windows")).toBe("Chrome on Windows");
   });
 
   it("never shows a raw stored identifier", () => {

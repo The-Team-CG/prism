@@ -69,6 +69,25 @@ describe("ChangeRegisterPanel", () => {
     await waitFor(() => expect(decideException).toHaveBeenCalledWith("evt_1", "freeze_ex_1", { decision: "approve" }));
   });
 
+  it("keeps the cancel-or-postpone decision closed and unchosen until PMCM opens it and picks one", async () => {
+    load.mockResolvedValue({ addenda: [], exceptions: [] });
+    render(<ChangeRegisterPanel eventId="evt_1" frozen={false} />);
+
+    const summary = await screen.findByText("Cancel or postpone this event");
+    expect((summary.closest("details") as HTMLDetailsElement).open).toBe(false);
+
+    fireEvent.click(summary);
+    expect((screen.getByLabelText("Decision") as HTMLSelectElement).value).toBe("");
+    expect((screen.getByRole("button", { name: "Record decision" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("starts the recorded risk level empty when none has been recorded", async () => {
+    load.mockResolvedValue({ addenda: [], exceptions: [] });
+    render(<ChangeRegisterPanel eventId="evt_1" frozen={false} />);
+
+    expect(((await screen.findByLabelText("Recorded level")) as HTMLSelectElement).value).toBe("");
+  });
+
   it("freezes an open event with a reason and offers no exception request until the freeze exists", async () => {
     load.mockResolvedValue({ addenda: [], exceptions: [] });
     freeze.mockResolvedValue({ eventId: "evt_1", freezeStatus: "frozen" });

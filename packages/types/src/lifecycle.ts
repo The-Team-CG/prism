@@ -22,6 +22,40 @@ export function nextPrismLifecycleStages(stage: PrismLifecycleStage): PrismLifec
   return PRISM_LIFECYCLE_TRANSITIONS[stage];
 }
 
+export const PRISM_LIFECYCLE_STAGE_LABELS: Record<PrismLifecycleStage, string> = {
+  inquiry: "Inquiry",
+  conforme: "Conforme",
+  briefing_proposal: "Briefing & proposal",
+  planning: "Planning",
+  event_day: "Event day",
+  closure_archive: "Closure",
+};
+
+export interface PrismLifecycleStageFacts {
+  status: string;
+  archived?: boolean;
+  actualEndedAt?: string | Date | null;
+  clientPortalStatus?: string;
+  proposalClientStatus?: string | null;
+}
+
+/**
+ * The one lifecycle stage for an event, used by the API's lifecycle guards and every portal. Planning starts
+ * when the client approves the proposal: a submitted briefing (which sets the operational status to
+ * `planning`) or an approved floorplan does not move the stage on its own.
+ */
+export function derivePrismLifecycleStage(event: PrismLifecycleStageFacts): PrismLifecycleStage {
+  if (event.archived || event.actualEndedAt || /^(completed|closed|archived)$/.test(event.status)) return "closure_archive";
+  if (event.status === "event_day") return "event_day";
+  if (event.clientPortalStatus !== "unlocked") return "conforme";
+  if (event.proposalClientStatus === "approved") return "planning";
+  return "briefing_proposal";
+}
+
+export function isBeforePrismEventDay(stage: PrismLifecycleStage): boolean {
+  return PRISM_LIFECYCLE_STAGES.indexOf(stage) < PRISM_LIFECYCLE_STAGES.indexOf("event_day");
+}
+
 export type PrismInquiryGateStatus =
   | "new"
   | "pending_review"

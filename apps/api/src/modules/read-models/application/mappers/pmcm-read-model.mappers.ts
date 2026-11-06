@@ -193,6 +193,7 @@ export function mapEvent(event: EventWithDrafts, dependencies: EventReadModelMap
     status: event.status,
     clientPortalStatus: event.clientPortalStatus as 'locked' | 'unlocked',
     clientEventDayViewEnabled: event.clientEventDayViewEnabled,
+    proposalClientStatus: event.proposalClientStatus,
     readiness: event.readiness,
     actualEndedAt: event.actualEndedAt?.toISOString() ?? null,
     archived: event.archived,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { Database } from "lucide-react";
 import type { PrismPrivacyLegalHold, PrismPrivacyRequest, PrismUser } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
@@ -14,43 +14,62 @@ const selectClassName = "h-10 rounded-md border border-border bg-white px-3 text
 
 export function PrivacyFilterBar({ vm }: { vm: PrivacyConsoleViewModel }) {
   const { filters } = vm;
+  const [open, setOpen] = useState(false);
   return (
-    <div className="grid gap-2 rounded-md border border-border bg-background p-3 sm:grid-cols-2 xl:grid-cols-6">
-      <select aria-label="Filter by event" value={filters.eventId} onChange={(event) => vm.updateFilters({ eventId: event.target.value })} className={selectClassName}>
+    <>
+      <button type="button" aria-expanded={open} onClick={() => setOpen((value) => !value)} className="inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm font-semibold sm:hidden">
+        {open ? "Hide filters" : "Filters"}
+      </button>
+      <div className={cx("min-w-0 gap-3 rounded-md border border-border bg-background p-3 sm:grid sm:grid-cols-2 xl:grid-cols-3", open ? "grid" : "hidden")}>
+      <FilterSelect label="Event" value={filters.eventId} onChange={(value) => vm.updateFilters({ eventId: value })}>
         <option value="all">All events</option>
         {vm.events.map((event) => <option key={event.id} value={event.id}>{event.eventName}</option>)}
-      </select>
-      <select aria-label="Filter by status" value={filters.status} onChange={(event) => vm.updateFilters({ status: event.target.value as typeof filters.status })} className={selectClassName}>
+      </FilterSelect>
+      <FilterSelect label="Status" value={filters.status} onChange={(value) => vm.updateFilters({ status: value as typeof filters.status })}>
         <option value="all">All statuses</option>
         <option value="open">Open (submitted or approved)</option>
         <option value="submitted">Submitted</option>
         <option value="approved">Approved</option>
         <option value="executed">Executed</option>
         <option value="rejected">Rejected</option>
-      </select>
-      <select aria-label="Filter by request type" value={filters.requestType} onChange={(event) => vm.updateFilters({ requestType: event.target.value as typeof filters.requestType })} className={selectClassName}>
+      </FilterSelect>
+      <FilterSelect label="Request type" value={filters.requestType} onChange={(value) => vm.updateFilters({ requestType: value as typeof filters.requestType })}>
         <option value="all">All request types</option>
         <option value="access">Access</option>
         <option value="correction">Correction</option>
         <option value="deletion">Deletion</option>
         <option value="export">Export</option>
-      </select>
-      <select aria-label="Filter by subject type" value={filters.subjectType} onChange={(event) => vm.updateFilters({ subjectType: event.target.value as typeof filters.subjectType })} className={selectClassName}>
+      </FilterSelect>
+      <FilterSelect label="Subject" value={filters.subjectType} onChange={(value) => vm.updateFilters({ subjectType: value as typeof filters.subjectType })}>
         <option value="all">All subjects</option>
         <option value="client">Client</option>
         <option value="supplier">Supplier</option>
         <option value="guest">Guest</option>
         <option value="account">Account</option>
-      </select>
-      <select aria-label="Filter by deadline" value={filters.deadline} onChange={(event) => vm.updateFilters({ deadline: event.target.value as typeof filters.deadline })} className={selectClassName}>
+      </FilterSelect>
+      <FilterSelect label="Deadline" value={filters.deadline} onChange={(value) => vm.updateFilters({ deadline: value as typeof filters.deadline })}>
         <option value="all">Any deadline</option>
         <option value="overdue">Overdue</option>
         <option value="on-track">Within 30-day SLA</option>
-      </select>
-      <select aria-label="Filter by owner" value={filters.assignment} onChange={(event) => vm.updateFilters({ assignment: event.target.value as typeof filters.assignment })} className={selectClassName}>
+      </FilterSelect>
+      <FilterSelect label="Owner" value={filters.assignment} onChange={(value) => vm.updateFilters({ assignment: value as typeof filters.assignment })}>
         <option value="all">Any owner</option>
         <option value="mine">Assigned to me</option>
         <option value="unassigned">Unassigned</option>
+      </FilterSelect>
+      </div>
+    </>
+  );
+}
+
+/** A filter with a visible caption, so the choice is never a truncated value with no name. */
+function FilterSelect({ label: caption, value, onChange, children }: { label: string; value: string; onChange: (value: string) => void; children: ReactNode }) {
+  const id = useId();
+  return (
+    <div className="grid min-w-0 gap-1">
+      <label htmlFor={id} className="text-xs font-medium text-muted-foreground">{caption}</label>
+      <select id={id} value={value} onChange={(event) => onChange(event.target.value)} className={`${selectClassName} w-full min-w-0`}>
+        {children}
       </select>
     </div>
   );

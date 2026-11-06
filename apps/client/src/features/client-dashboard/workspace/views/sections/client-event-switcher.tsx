@@ -55,7 +55,7 @@ export function ClientEventSwitcher({
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={onAllEvents}>My Events</DropdownMenuItem>
+        <DropdownMenuItem onSelect={onAllEvents}>All events</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -28,7 +28,7 @@ type TemplateUpdateInput = Pick<
   name?: string;
   description?: string;
   venueRules?: string;
-  permanentFeatures?: CanvasObject[];
+  permanentFeatures?: UpdatePlanInput['objects'];
   includeGuests?: boolean;
   includeSuppliers?: boolean;
   sourceType?: string;
@@ -145,8 +145,8 @@ export class TemplatesService {
     description?: string;
     venue?: string;
     venueRules?: string;
-    permanentFeatures?: CanvasObject[];
-    objects?: CanvasObject[];
+    permanentFeatures?: UpdatePlanInput['objects'];
+    objects?: UpdatePlanInput['objects'];
     width?: number;
     height?: number;
     gridSize?: number;
@@ -187,9 +187,9 @@ export class TemplatesService {
             floorPlanId: planId,
             objectId: object.id,
             kind: object.kind,
-            zIndex: object.zIndex ?? index,
+            zIndex: 'zIndex' in object && typeof object.zIndex === 'number' ? object.zIndex : index,
             objectData: toPrismaJson(object),
-            svgMarkup: object.svgMarkup ?? null,
+            svgMarkup: 'svgMarkup' in object && typeof object.svgMarkup === 'string' ? object.svgMarkup : null,
           })),
         });
       }
