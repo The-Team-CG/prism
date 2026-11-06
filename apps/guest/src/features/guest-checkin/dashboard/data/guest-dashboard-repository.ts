@@ -1,22 +1,18 @@
 import {
   PRISM_SESSION_STORAGE_KEYS,
-  clearPrismSession,
-  readPrismSession,
-  savePrismSession,
   type CreateGuestCheckInInput,
+  type CreateGuestFeedbackInput,
+  type PrismGuestCheckInReceipt,
   type PrismGuestEventPass,
   type PrismGuestEventWatermark,
-  type PrismGuestCheckInReceipt,
-  type CreateGuestFeedbackInput,
   type PrismGuestFeedbackReceipt,
+  type PrismGuestSession,
   type WithdrawGuestFeedbackConsentInput,
 } from "@prism/types";
 import { guestJson } from "@/features/guest-shared/guest-http";
-import { sanitizeGuestSession } from "@/features/guest-shared/guest-session-storage";
+import { guestSessionStorage } from "@/features/guest-shared/guest-session-storage";
 import { guestApiPath } from "../model/guest-dashboard-rules";
-import type { CheckInPayload, GuestSession } from "../model/guest-dashboard-types";
-
-const SESSION_KEY = PRISM_SESSION_STORAGE_KEYS.guest;
+import type { CheckInPayload } from "../model/guest-dashboard-types";
 
 type PendingGuestCheckIn = {
   sessionId: string;
@@ -78,7 +74,7 @@ function readPendingCheckIn(storage: Storage | null): PendingGuestCheckIn | null
   return null;
 }
 
-function getPendingCheckInKey(session: GuestSession, payload: CheckInPayload): string {
+function getPendingCheckInKey(session: PrismGuestSession, payload: CheckInPayload): string {
   const storage = browserSessionStorage();
   const payloadFingerprint = checkInPayloadFingerprint(payload);
   const pending = readPendingCheckIn(storage) ?? inMemoryPendingCheckIns.get(session.id) ?? null;
@@ -100,7 +96,7 @@ function getPendingCheckInKey(session: GuestSession, payload: CheckInPayload): s
   return next.idempotencyKey;
 }
 
-function clearPendingCheckIn(session: GuestSession, idempotencyKey: string): void {
+function clearPendingCheckIn(session: PrismGuestSession, idempotencyKey: string): void {
   const storage = browserSessionStorage();
   const pending = readPendingCheckIn(storage);
   if (pending?.sessionId === session.id && pending.idempotencyKey === idempotencyKey) {
@@ -115,33 +111,21 @@ function clearPendingCheckIn(session: GuestSession, idempotencyKey: string): voi
 }
 
 export const guestDashboardRepository = {
-  readSession(): GuestSession | null {
-    const stored = readPrismSession<GuestSession & { guestName?: unknown; attendanceCount?: unknown }>(SESSION_KEY);
-    if (!stored) return null;
-    const session = sanitizeGuestSession(stored) as GuestSession;
-    if ("guestName" in stored || "attendanceCount" in stored) {
-      savePrismSession(SESSION_KEY, session);
-    }
-    return session;
-  },
+  readSession: guestSessionStorage.read,
 
-  saveSession(session: GuestSession): void {
-    savePrismSession(SESSION_KEY, session);
-  },
+  saveSession: guestSessionStorage.save,
 
-  clearSession(): void {
-    clearPrismSession(SESSION_KEY);
-  },
+  clearSession: guestSessionStorage.clear,
 
-  fetchEvent(session: GuestSession): Promise<PrismGuestEventPass> {
+  fetchEvent(session: PrismGuestSession): Promise<PrismGuestEventPass> {
     return guestJson<PrismGuestEventPass>(guestApiPath(session));
   },
 
-  fetchWatermark(session: GuestSession): Promise<PrismGuestEventWatermark> {
+  fetchWatermark(session: PrismGuestSession): Promise<PrismGuestEventWatermark> {
     return guestJson<PrismGuestEventWatermark>(guestApiPath(session, "/watermark"));
   },
 
-  checkIn(session: GuestSession, payload: CheckInPayload): Promise<PrismGuestCheckInReceipt> {
+  checkIn(session: PrismGuestSession, payload: CheckInPayload): Promise<PrismGuestCheckInReceipt> {
     const idempotencyKey = getPendingCheckInKey(session, payload);
     return guestJson<PrismGuestCheckInReceipt>(guestApiPath(session, "/check-ins"), {
       method: "POST",
@@ -152,11 +136,11 @@ export const guestDashboardRepository = {
     });
   },
 
-  withdrawFeedbackConsent(session: GuestSession, feedbackId: string, payload: WithdrawGuestFeedbackConsentInput): Promise<unknown> {
+  withdrawFeedbackConsent(session: PrismGuestSession, feedbackId: string, payload: WithdrawGuestFeedbackConsentInput): Promise<unknown> {
     return guestJson(guestApiPath(session, `/feedback/${encodeURIComponent(feedbackId)}/consent-withdrawal`), { method: "POST", body: JSON.stringify(payload) });
   },
 
-  submitFeedback(session: GuestSession, payload: CreateGuestFeedbackInput): Promise<PrismGuestFeedbackReceipt> {
+  submitFeedback(session: PrismGuestSession, payload: CreateGuestFeedbackInput): Promise<PrismGuestFeedbackReceipt> {
     return guestJson<PrismGuestFeedbackReceipt>(guestApiPath(session, "/feedback"), {
       method: "POST",
       body: JSON.stringify(payload),
