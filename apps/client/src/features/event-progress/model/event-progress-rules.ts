@@ -1,10 +1,13 @@
 import {
   PRISM_LIFECYCLE_STAGES,
+  PRISM_LIFECYCLE_STAGE_LABELS,
+  derivePrismLifecycleStage,
   type PrismClientTimelineMilestoneKey,
   type PrismClientWorkspace,
   type PrismEvent,
   type PrismPaymentMilestone,
 } from "@prism/types";
+import { formatPortalDate } from "@prism/ui/format-date";
 import type {
   EventProgressSnapshot,
   EventTimelineStep,
@@ -12,44 +15,9 @@ import type {
   ProgressCheckpoint,
 } from "./event-progress-types";
 
-/** Stage names for the lifecycle strip, as the client reads them. */
-export const LIFECYCLE_STAGE_LABELS: Record<string, string> = {
-  inquiry: "Inquiry",
-  conforme: "Conforme",
-  briefing_proposal: "Briefing & proposal",
-  planning: "Planning",
-  event_day: "Event day",
-  closure_archive: "Closure",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  inquiry: "Inquiry accepted",
-  conforme: "Conforme signed",
-  briefing_proposal: "Briefing & proposal",
-  planning: "Planning",
-  event_day: "Event day",
-  closure_archive: "Closure",
-};
-
-export function deriveLifecycleIndex(
-  event: PrismEvent,
-  workspace: PrismClientWorkspace,
-): number {
-  const hasBriefing = workspace.briefings.some((b) => b.eventId === event.id);
-  const floorPlanApproved = workspace.floorPlanDrafts.some(
-    (d) => d.eventId === event.id && d.status === "approved",
-  );
-  const hasBilling = workspace.billingStatements.some(
-    (b) => b.eventId === event.id,
-  );
-
-  if (event.archived) return 5;
-  if (event.status === "event_day" || event.status === "completed") return 4;
-  // Planning starts once the client approves the proposal; an approved floorplan is planning work too.
-  if (floorPlanApproved || event.proposalClientStatus === "approved") return 3;
-  if (hasBriefing) return 2;
-  if (event.clientPortalStatus === "unlocked") return 1;
-  return 0;
+/** Index into PRISM_LIFECYCLE_STAGES, from the stage every portal shares. */
+export function deriveLifecycleIndex(event: PrismEvent): number {
+  return PRISM_LIFECYCLE_STAGES.indexOf(derivePrismLifecycleStage(event));
 }
 
 function countLabel(count: number, singular: string, plural: string) {
@@ -174,7 +142,7 @@ export function deriveTimeline(
     id: milestone.key,
     title: CLIENT_TIMELINE_TITLES[milestone.key],
     status: milestone.status,
-    meta: milestone.date ?? "Date pending",
+    meta: milestone.date ? formatPortalDate(milestone.date) : "Date pending",
   })) ?? [];
 }
 
@@ -197,23 +165,19 @@ export function computeEventProgress(
   event: PrismEvent,
   workspace: PrismClientWorkspace,
 ): EventProgressSnapshot {
-  const lifecycleIndex = deriveLifecycleIndex(event, workspace);
+  const lifecycleIndex = deriveLifecycleIndex(event);
   const checkpoints = deriveCheckpoints(event, workspace);
   const timeline = deriveTimeline(event, workspace);
   const paymentMilestones = derivePaymentMilestones(
     workspace.paymentMilestones,
     event.id,
   );
-  const doneCount = checkpoints.filter((c) => c.done).length;
-  const score = Math.round((doneCount / checkpoints.length) * 100);
-
   return {
-    lifecycleStage: STATUS_LABELS[PRISM_LIFECYCLE_STAGES[lifecycleIndex]] ?? "Planning",
+    lifecycleStage: PRISM_LIFECYCLE_STAGE_LABELS[PRISM_LIFECYCLE_STAGES[lifecycleIndex]],
     lifecycleIndex,
     checkpoints,
     timeline,
     paymentMilestones,
-    score,
     clientEventDayStatus: event.clientEventDayViewEnabled === true && event.status === "event_day"
       ? "Event day is in progress."
       : null,

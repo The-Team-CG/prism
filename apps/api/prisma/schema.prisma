@@ -382,6 +382,7 @@ model OpsOcularVisitRequest {
   eventId      String    @unique(map: "ocular_visit_requests_event_id_key") @map("event_id")
   status       String    @default("requested")
   clientNote   String?   @map("client_note")
+  scheduleNote String?   @map("schedule_note")
   requestedAt  DateTime? @map("requested_at")
   scheduledAt  DateTime? @map("scheduled_at")
   completedAt  DateTime? @map("completed_at")
@@ -940,6 +941,7 @@ model OpsSupplier {
   bniMember         Boolean  @default(false) @map("bni_member")
   serviceInclusions String   @default("") @map("service_inclusions")
   performanceNotes  String   @default("") @map("performance_notes")
+  capacityRating    String?  @map("capacity_rating")
   applicationDate   DateTime @default(now()) @map("application_date")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
@@ -1910,6 +1912,8 @@ model OpsComplianceRisk {
   ruleId     String?   @map("rule_id")
   title      String
   severity   String    @default("medium")
+  likelihood String?
+  impact     String?
   owner      String    @default("")
   mitigation String    @default("")
   status     String    @default("open")
@@ -1935,6 +1939,8 @@ model OpsComplianceRiskHistory {
   action     String
   phase      String
   severity   String
+  likelihood String?
+  impact     String?
   owner      String
   mitigation String
   status     String

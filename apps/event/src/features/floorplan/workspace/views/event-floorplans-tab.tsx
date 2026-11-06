@@ -30,6 +30,7 @@ export function EventFloorplansTab({
   floorPlanTemplates,
   onCreateTemplateDraft,
   onCreateBlankDraft,
+  ocularVisit,
   accessPanel,
   ...handlers
 }: DraftHandlers & {
@@ -37,6 +38,8 @@ export function EventFloorplansTab({
   onCreateTemplateDraft: (template: FloorPlanTemplate) => void | Promise<void>;
   /** Starts an empty official draft; always available, so a first plan never depends on a saved template. */
   onCreateBlankDraft?: () => void | Promise<void>;
+  /** Whether the ocular visit clears a new official draft; when it does not, creation is disabled and explained. */
+  ocularVisit: { cleared: boolean; onOpenOverview: () => void };
   /** Optional slot for the client floorplan access controls owned by the dashboard shell. */
   accessPanel?: ReactNode;
 }) {
@@ -75,12 +78,19 @@ export function EventFloorplansTab({
       ) : null}
 
       <WorkspaceSection id="floorplan-start-draft" title="Start a PMCM draft">
+        {ocularVisit.cleared ? null : (
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-attention-soft p-3 text-sm">
+            <p className="min-w-0 text-foreground">A PMCM draft can start once the ocular visit is completed or waived.</p>
+            <Button variant="outline" size="sm" className="min-h-11" onClick={ocularVisit.onOpenOverview}>Open Overview</Button>
+          </div>
+        )}
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             {onCreateBlankDraft ? (
               <button
                 type="button"
+                disabled={!ocularVisit.cleared}
                 onClick={() => void onCreateBlankDraft()}
-                className="min-h-11 rounded-md border border-dashed border-primary/40 bg-background p-3 text-left hover:bg-primary-soft"
+                className="min-h-11 rounded-md border border-dashed border-primary/40 bg-background p-3 text-left hover:bg-primary-soft disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-background"
               >
                 <span className="block text-sm font-semibold text-foreground">Blank layout</span>
                 <span className="mt-0.5 block text-xs text-muted-foreground">Empty room using the briefing's venue and guest count</span>
@@ -90,8 +100,9 @@ export function EventFloorplansTab({
               <button
                 key={template.id}
                 type="button"
+                disabled={!ocularVisit.cleared}
                 onClick={() => void onCreateTemplateDraft(template)}
-                className="min-h-11 rounded-md border border-border bg-background p-3 text-left hover:bg-muted"
+                className="min-h-11 rounded-md border border-border bg-background p-3 text-left hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-background"
               >
                 <span className="block break-words text-sm font-semibold text-foreground">{template.name}</span>
                 <span className="mt-0.5 block text-xs text-muted-foreground">{template.description || template.venue || "Saved PMCM template"}</span>

@@ -4,6 +4,7 @@ import { COMMERCIAL_PRIVACY_REDACTOR, type CommercialPrivacyRedactor } from '@pr
 import { LIFECYCLE_PRIVACY_REDACTOR, type LifecyclePrivacyRedactor } from '@prism/contexts/event-lifecycle';
 import { OPERATIONS_PRIVACY_REDACTOR, type OperationsPrivacyRedactor } from '@prism/contexts/operations';
 import type { PlatformRetentionCandidate } from '@prism/contexts/read-models';
+import { AiTriageRecordEraser } from '../ai-governance/ai-triage-record-eraser.service';
 
 export type RetentionRedactionResult = { surfaces: string[]; touchedRecords: number };
 
@@ -17,6 +18,7 @@ export class PrivacyRetentionExecutorService {
     @Inject(LIFECYCLE_PRIVACY_REDACTOR) private readonly lifecyclePrivacy: LifecyclePrivacyRedactor,
     @Inject(COMMERCIAL_PRIVACY_REDACTOR) private readonly commercialPrivacy: CommercialPrivacyRedactor,
     @Inject(OPERATIONS_PRIVACY_REDACTOR) private readonly operationsPrivacy: OperationsPrivacyRedactor,
+    private readonly aiTriageRecords: AiTriageRecordEraser,
   ) {}
 
   async redactCandidate(
@@ -35,9 +37,11 @@ export class PrivacyRetentionExecutorService {
         { eventIds: lifecycle.eventIds, redactedEmail },
         transaction,
       );
+      // AI triage advice about these inquiries goes with them.
+      const triage = await this.aiTriageRecords.eraseForInquiries(lifecycle.inquiryIds, transaction);
       return {
-        surfaces: [...lifecycle.surfaces, ...commercial.surfaces],
-        touchedRecords: lifecycle.touchedRecords + commercial.touchedRecords,
+        surfaces: [...lifecycle.surfaces, ...commercial.surfaces, ...triage.surfaces],
+        touchedRecords: lifecycle.touchedRecords + commercial.touchedRecords + triage.touchedRecords,
       };
     }
     // Guest redaction targets only the referenced record by id, never by name, so a different guest who shares the name is untouched.

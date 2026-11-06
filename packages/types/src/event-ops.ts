@@ -13,3 +13,4 @@ export * from "./event-ops/handoff-brief.js";
 export * from "./event-ops/scope-change-risk.js";
 export * from "./event-ops/privacy-retention.js";
 export * from "./event-ops/decision-log.js";
+export * from "./event-ops/pmcm-overview.js";

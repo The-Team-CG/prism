@@ -7,9 +7,10 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "node ../../scripts/typescript.mjs -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "test:ci": "vitest run"
+    "test:ci": "vitest run",
+    "lint": "node ../../scripts/lint.mjs"
   },
   "dependencies": {
     "@prism/types": "*"

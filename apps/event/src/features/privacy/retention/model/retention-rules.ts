@@ -22,6 +22,19 @@ export function parsePeriodDays(value: string): number | null {
   return days >= 30 && days <= 3650 ? days : null;
 }
 
+/** Whole years read as years ("7 years"); other periods stay in days. */
+export function formatRetentionDays(days: number): string {
+  if (days >= 365 && days % 365 === 0) return days === 365 ? "1 year" : `${days / 365} years`;
+  return days === 1 ? "1 day" : `${days} days`;
+}
+
+/** The policy's period copy from the API, with its leading day count shown in years when it is a whole number of years. */
+export function retentionPeriodCopy(policy: Pick<PrismRetentionPolicy, "periodDays" | "retentionPeriod">): string {
+  const dayCount = `${policy.periodDays} days`;
+  if (!policy.retentionPeriod.startsWith(dayCount)) return policy.retentionPeriod;
+  return `${formatRetentionDays(policy.periodDays)}${policy.retentionPeriod.slice(dayCount.length)}`;
+}
+
 export function reviewStatusLabel(status: PrismRetentionReviewItem["status"]) {
   const labels: Record<PrismRetentionReviewItem["status"], string> = {
     pending: "Awaiting review",

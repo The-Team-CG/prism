@@ -77,7 +77,7 @@ export function developmentEnv(url, project, ports, sessionSecret, { storage, ma
     PRISM_MAILPIT_URL: mailpit || '',
     // The API links to these portals only; guests sign in with event codes and have no API link.
     ...Object.fromEntries(['client', 'supplier', 'event'].map((app) => [`PRISM_${app.toUpperCase()}_PORTAL_URL`, `http://localhost:${ports[app]}`])),
-    PRISM_SESSION_SECRET: sessionSecret, PRISM_SESSION_TTL_SECONDS: '28800', PRISM_TRUST_PROXY: 'false', AI_ROUTE_PROFILE: 'mock', AI_PROVIDER: 'mock', PARE_MODE: 'mock',
+    PRISM_SESSION_SECRET: sessionSecret, PRISM_SESSION_TTL_SECONDS: '28800', PRISM_TRUST_PROXY: 'false', PARE_MODE: 'mock',
     PRISM_DISABLE_CONFORME_REMINDER_JOB: '1',
     ...(storage ? {
       PRISM_STORAGE_PROVIDER: 'supabase',

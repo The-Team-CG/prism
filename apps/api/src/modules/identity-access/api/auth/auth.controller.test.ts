@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { ExpressAdapter } from '@nestjs/platform-express';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import type { AddressInfo } from 'node:net';
 import { ForbiddenException, InternalServerErrorException } from '@nestjs/common';
@@ -201,7 +202,7 @@ describe('OpsAuthController public rate limits over HTTP', () => {
   let baseUrl: string;
 
   beforeAll(async () => {
-    app = await NestFactory.create(AuthRateLimitHttpTestModule, { logger: false });
+    app = await NestFactory.create(AuthRateLimitHttpTestModule, new ExpressAdapter(), { logger: false });
     app.setGlobalPrefix('api');
     await app.listen(0, '127.0.0.1');
     baseUrl = `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}/api`;

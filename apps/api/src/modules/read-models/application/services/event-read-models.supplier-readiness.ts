@@ -7,6 +7,7 @@ import type {
   PrismSupplierReadinessSetupStatus,
 } from '@prism/types';
 import { supplierIngressLateGraceMinutes } from '@prism/contexts/commercial';
+import { CONFIDENTIAL_EVENT_NAME, isSupplierBidIdentityHidden } from '@prism/kernel/event-core';
 import { priorityRank, toIso } from './event-read-models.inbox';
 
 /** Event-day statuses the late-ingress sweep treats as "not yet reported". */
@@ -46,7 +47,13 @@ export type SupplierReadinessRequestSource = {
   schedule?: SupplierReadinessScheduleSource | null;
 };
 
-export type SupplierReadinessEventRef = { eventName?: string | null; clientName?: string | null } | undefined;
+export type SupplierReadinessEventRef = { eventName?: string | null; clientName?: string | null; eventDate?: Date | null } | undefined;
+
+/** What a supplier may know about the event behind a request; PMCM projections keep the full event. */
+export function supplierFacingEventRef(request: { confidentialBid: boolean; status: string }, event: SupplierReadinessEventRef): SupplierReadinessEventRef {
+  if (!event || !isSupplierBidIdentityHidden(request)) return event;
+  return { eventName: CONFIDENTIAL_EVENT_NAME, clientName: null, eventDate: event.eventDate };
+}
 
 export type SupplierReadinessClock = { now: Date; ingressLateGraceMinutes: number };
 
@@ -171,6 +178,7 @@ export function buildSupplierReadinessItem(
     eventId: request.eventId,
     eventName: event?.eventName ?? null,
     clientName: event?.clientName ?? null,
+    eventDate: event?.eventDate ? event.eventDate.toISOString().slice(0, 10) : null,
     supplierId: request.supplierId,
     supplierName: request.supplierName,
     category: request.category,

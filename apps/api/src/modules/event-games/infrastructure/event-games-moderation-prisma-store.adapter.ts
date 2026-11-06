@@ -6,7 +6,7 @@ import {
   type PrismEventGameTemplateConfiguration,
   type PrismModerateEventGameInput,
 } from '@prism/types';
-import { z } from 'zod';
+import { eventGameFamilyFeudScoreResultSchema as familyFeudScoreResultSchema, eventGameFamilyFeudAnswerPayloadSchema as familyFeudAnswerPayloadSchema } from '@prism/types';
 import type {
   GameModerationStorePort,
   PersistedGameModeration,
@@ -34,12 +34,6 @@ interface FamilyFeudSubmissionRow {
 interface ParticipantTargetRow { id: string; revoked_at: Date | null }
 interface InsertedRow { id: string }
 type FamilyFeudConfiguration = Extract<PrismEventGameTemplateConfiguration, { kind: 'family-feud' }>;
-
-const familyFeudScoreResultSchema = z.object({
-  points: z.number().int().nonnegative(),
-  isCorrect: z.boolean(),
-}).passthrough();
-const familyFeudAnswerPayloadSchema = z.object({ answer: z.string().trim().min(1).max(120) }).passthrough();
 
 function familyFeudConfiguration(snapshot: unknown): FamilyFeudConfiguration | null {
   if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return null;
