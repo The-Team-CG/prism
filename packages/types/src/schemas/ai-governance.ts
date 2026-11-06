@@ -485,35 +485,32 @@ const aiAuditEvidenceBaseSchema = z
   })
   .strict();
 
+type AiAuditEvidenceFields = z.infer<typeof aiAuditEvidenceBaseSchema>;
+
+/** Route evidence that contradicts its own policy outcome; each is reported on `routePolicyOutcome`. */
+const AI_AUDIT_EVIDENCE_RULES: ReadonlyArray<{ violated: (evidence: AiAuditEvidenceFields) => boolean; message: string }> = [
+  {
+    violated: (evidence) => evidence.routePolicyOutcome === "synthetic_verified" &&
+      (!evidence.syntheticProvenance || evidence.dataClasses.length !== 1 || evidence.dataClasses[0] !== "synthetic"),
+    message: "Synthetic-verified route evidence requires verified synthetic provenance",
+  },
+  {
+    violated: (evidence) => evidence.routePolicyOutcome === "zdr_approved" && evidence.zdrBasis !== "provider-enforced",
+    message: "ZDR-approved route evidence must record a provider-enforced ZDR basis",
+  },
+  {
+    violated: (evidence) => evidence.routePolicyOutcome === "test_data_approved" && evidence.zdrBasis !== "test-data-only",
+    message: "Test-data route evidence must record a test-data-only basis",
+  },
+  {
+    violated: (evidence) => evidence.outcome === "completed" && evidence.routePolicyOutcome === "denied",
+    message: "A denied route policy cannot produce a completed result",
+  },
+];
+
 export const aiAuditEvidenceSchema = aiAuditEvidenceBaseSchema.superRefine((evidence, ctx) => {
-  if (evidence.routePolicyOutcome === "synthetic_verified" &&
-    (!evidence.syntheticProvenance || evidence.dataClasses.length !== 1 || evidence.dataClasses[0] !== "synthetic")) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["routePolicyOutcome"],
-      message: "Synthetic-verified route evidence requires verified synthetic provenance",
-    });
-  }
-  if (evidence.routePolicyOutcome === "zdr_approved" && evidence.zdrBasis !== "provider-enforced") {
-    ctx.addIssue({
-      code: "custom",
-      path: ["routePolicyOutcome"],
-      message: "ZDR-approved route evidence must record a provider-enforced ZDR basis",
-    });
-  }
-  if (evidence.routePolicyOutcome === "test_data_approved" && evidence.zdrBasis !== "test-data-only") {
-    ctx.addIssue({
-      code: "custom",
-      path: ["routePolicyOutcome"],
-      message: "Test-data route evidence must record a test-data-only basis",
-    });
-  }
-  if (evidence.outcome === "completed" && evidence.routePolicyOutcome === "denied") {
-    ctx.addIssue({
-      code: "custom",
-      path: ["routePolicyOutcome"],
-      message: "A denied route policy cannot produce a completed result",
-    });
+  for (const rule of AI_AUDIT_EVIDENCE_RULES) {
+    if (rule.violated(evidence)) ctx.addIssue({ code: "custom", path: ["routePolicyOutcome"], message: rule.message });
   }
 });
 export type AiAuditEvidence = z.infer<typeof aiAuditEvidenceSchema>;

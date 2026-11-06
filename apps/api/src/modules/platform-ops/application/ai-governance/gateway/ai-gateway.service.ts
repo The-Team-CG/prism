@@ -244,6 +244,14 @@ function minimizeValue(
   return minimizeStringValue(key, value, synthetic, rules, parentKey);
 }
 
+const NAME_PLACEHOLDERS: ReadonlyArray<readonly [string, string]> = [['supplier', 'Supplier X'], ['guest', 'Guest'], ['contact', 'Contact']];
+
+/** A stand-in for a person or organisation name, chosen by where the name sits in the payload. */
+function namePlaceholder(nameContext: string): string {
+  const context = nameContext.toLowerCase();
+  return NAME_PLACEHOLDERS.find(([marker]) => context.includes(marker))?.[1] ?? 'Client A';
+}
+
 function minimizeStringValue(
   key: string,
   value: string,
@@ -254,13 +262,7 @@ function minimizeStringValue(
   if (synthetic) return redactString(value);
   if (rules.aliasKeys[key]?.test(value)) return value;
   if (rules.freeTextKeys.has(key)) return redactString(value);
-  if (/^(?:client|supplier|guest|contact).*name$/i.test(key) || key.toLowerCase() === 'name') {
-    const nameContext = `${parentKey}.${key}`.toLowerCase();
-    if (nameContext.includes('supplier')) return 'Supplier X';
-    if (nameContext.includes('guest')) return 'Guest';
-    if (nameContext.includes('contact')) return 'Contact';
-    return 'Client A';
-  }
+  if (/^(?:client|supplier|guest|contact).*name$/i.test(key) || key.toLowerCase() === 'name') return namePlaceholder(`${parentKey}.${key}`);
   if (/^(?:id|(?:event|inquiry|trigger|supplier|guest|client).*id)$/i.test(key)) {
     return '[identifier redacted]';
   }
