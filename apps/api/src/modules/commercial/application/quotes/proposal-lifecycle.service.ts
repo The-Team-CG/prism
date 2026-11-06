@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, ServiceUnavailableException, NotFoundException, Optional, forwardRef } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, ServiceUnavailableException, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService } from '@prism/kernel/database';
 import type { Prisma } from '@prisma/client';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor, writeAudit } from '@prism/kernel/access-control';
@@ -27,7 +27,7 @@ export class ProposalLifecycleService {
     @Inject(AUDIT_WRITER) private readonly audit: AuditWriter,
     @Inject(DOCUMENT_VAULT) private readonly documentVault: DocumentVault,
     @Inject(PROPOSAL_REVIEW_OWNER) private readonly proposalReviewOwner: ProposalReviewOwner,
-    @Optional() @Inject(forwardRef(() => StorageObjectService)) private readonly storageObjectService?: StorageObjectService,
+    @Optional() @Inject(StorageObjectService) private readonly storageObjectService?: StorageObjectService,
   ) {}
 
   async createCostEstimate(eventId: string, input: CreateCostEstimateInput, actor: ResolvedEventOpsActor): Promise<PrismCostEstimate> {

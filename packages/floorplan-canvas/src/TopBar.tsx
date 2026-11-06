@@ -11,7 +11,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { useEditor } from "./store";
-import { useShellUI } from "./EditorShell";
+import { useShellUI } from "./shell-ui";
 import type { Project } from "./types";
 import {
   canRedoHistory,

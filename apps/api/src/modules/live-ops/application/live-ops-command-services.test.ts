@@ -75,22 +75,18 @@ describe('LiveOpsTaskIssueCommandService - Urgent Issues & Attribution Security'
 
     const issue = await service.createUrgentIssue('evt_001', input, actor);
 
-    // 1. openedBy must strictly be the verified session actor.name
     expect(issue.openedBy).toBe('Francis Coordinator');
     expect(issue.openedBy).not.toBe('Spoofed Administrator');
 
-    // 2. affectedArea must be persisted
     expect(issue.affectedArea).toBe('Main Stage');
     expect(issue.title).toBe('Microphone feedback at Stage A');
     expect(issue.severity).toBe('high');
     expect(issue.ownerRole).toBe('Audio Lead');
 
-    // 3. Mapper maps affectedArea
-    const mapped = mapUrgentIssue(issue, () => 'on_track');
+    const mapped = mapUrgentIssue(issue);
     expect(mapped.affectedArea).toBe('Main Stage');
     expect(mapped.openedBy).toBe('Francis Coordinator');
 
-    // 4. Audit trail matches actor
     expect(mockAuditWriter.write).toHaveBeenCalledWith(
       expect.objectContaining({
         eventId: 'evt_001',
