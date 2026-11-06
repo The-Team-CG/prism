@@ -175,7 +175,7 @@ function renderQuotations(ctx: SectionContext) {
 
 function renderFiles(ctx: SectionContext) {
   if (!ctx.workspace) return null;
-  return <FilesPage workspace={ctx.workspace} session={ctx.session} workflowWorkspace={ctx.workflowWorkspace} onDownloadObject={ctx.onDownloadObject} />;
+  return <FilesPage workspace={ctx.workspace} session={ctx.session} workflowWorkspace={ctx.workflowWorkspace} readinessBoard={ctx.readinessBoard} onDownloadObject={ctx.onDownloadObject} />;
 }
 
 function renderPayments(ctx: SectionContext) {
