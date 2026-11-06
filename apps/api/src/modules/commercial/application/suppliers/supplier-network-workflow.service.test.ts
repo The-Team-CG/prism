@@ -39,6 +39,7 @@ function createService(overrides: {
     contractDocumentId: null,
   };
   let schedule: Record<string, unknown> | null = null;
+  const reliabilityNotes: Array<Record<string, unknown>> = [];
   const audit = vi.fn();
   const notify = vi.fn(async () => ({}));
   const suppliers = {
@@ -51,7 +52,15 @@ function createService(overrides: {
     $queryRaw: vi.fn(async () => []),
     opsSupplier: { findUnique: vi.fn(async () => ({ email: 'supplier@example.com' })) },
     opsEvent: {
-      findUnique: vi.fn(async ({ where }: { where: { id: string } }) => (where.id === 'evt_sample' ? { id: 'evt_sample', archived: false } : null)),
+      findUnique: vi.fn(async ({ where }: { where: { id: string } }) => (where.id === 'evt_sample' ? { id: 'evt_sample', eventName: 'Summit', archived: false } : null)),
+    },
+    opsSupplierReliabilityNote: {
+      upsert: vi.fn(async ({ where, create }: { where: { idempotencyKey: string }; create: Record<string, unknown> }) => {
+        const existing = reliabilityNotes.find((note) => note.idempotencyKey === where.idempotencyKey);
+        if (existing) return existing;
+        reliabilityNotes.push(create);
+        return create;
+      }),
     },
     opsSupplierQuoteRequest: {
       findUnique: vi.fn(async ({ where }: { where: { id: string } }) => (where.id === request.id ? request : null)),
@@ -91,7 +100,7 @@ function createService(overrides: {
     { findOperationsEvent: vi.fn(async (eventId: string) => ({ id: eventId, archived: false })) } as any,
     { write: notify } as any,
   );
-  return { service, prisma, audit, notify, request, suppliers, documentVault, getSchedule: () => schedule };
+  return { service, prisma, audit, notify, request, suppliers, documentVault, reliabilityNotes, getSchedule: () => schedule };
 }
 
 function createCommandReceiptStore() {
@@ -336,6 +345,27 @@ describe('SupplierNetworkWorkflowService', () => {
     expect(prisma.opsSupplierQuoteRequest.update.mock.calls).toHaveLength(writes);
     expect(audit.mock.calls).toHaveLength(audits);
     expect(notify.mock.calls).toHaveLength(notifications);
+  });
+
+  it('records a reliability note against the supplier when PMCM withdraws a booked assignment, once', async () => {
+    const { service, request, reliabilityNotes, audit } = createService();
+    Object.assign(request, { status: 'selected', assignmentStatus: 'confirmed' });
+    const pmcm = { id: 'pmcm_1', name: 'PMCM Admin', email: 'admin@pmcm.test', role: OpsUserRole.PmcmAdmin, explicit: true, verified: true };
+
+    await service.withdrawSupplier('qr_sonic', 'Double-booked on the same date', pmcm, 'evt_sample');
+
+    expect(reliabilityNotes).toEqual([
+      expect.objectContaining({
+        supplierId: 'sup_sonicline',
+        eventId: 'evt_sample',
+        note: 'Withdrawn from Summit (Technicals) after being assigned: Double-booked on the same date',
+        createdBy: 'PMCM Admin',
+        idempotencyKey: 'supplier-withdraw-note:qr_sonic',
+      }),
+    ]);
+    expect(audit).toHaveBeenCalled();
+    await expect(service.withdrawSupplier('qr_sonic', 'again', pmcm, 'evt_sample')).rejects.toThrow('Only a selected supplier assignment can be withdrawn');
+    expect(reliabilityNotes).toHaveLength(1);
   });
 
   it('records an on-site status report in the supplier order, audits who reported it, and keeps it inside the event', async () => {
