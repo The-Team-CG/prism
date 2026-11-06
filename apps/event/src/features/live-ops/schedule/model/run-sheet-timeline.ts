@@ -47,7 +47,8 @@ export function formatRunSheetDate(iso: string) {
   return formatPortalDate(iso);
 }
 
-/** PMCM print-friendly run sheet route for the selected event. */
-export function eventRunSheetHref(eventId: string) {
-  return `/dashboard/events/${encodeURIComponent(eventId)}/run-sheet`;
+/** PMCM print-friendly run sheet route for the selected event, optionally opened on one schedule day. */
+export function eventRunSheetHref(eventId: string, dayId?: string) {
+  const href = `/dashboard/events/${encodeURIComponent(eventId)}/run-sheet`;
+  return dayId ? `${href}?dayId=${encodeURIComponent(dayId)}` : href;
 }

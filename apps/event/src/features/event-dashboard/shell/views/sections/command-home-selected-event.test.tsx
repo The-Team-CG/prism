@@ -17,7 +17,6 @@ describe("CommandHomeSelectedEvent", () => {
         quoteCount={3}
         openCheckCount={1}
         onOpenEvent={onOpenEvent}
-        onBrowseEvents={vi.fn()}
       />,
     );
 
@@ -35,23 +34,17 @@ describe("CommandHomeSelectedEvent", () => {
     expect(onOpenEvent).toHaveBeenCalledWith("evt_gala");
   });
 
-  it("offers a way to pick an event instead of generic totals when none is selected", () => {
-    const onBrowseEvents = vi.fn();
-    render(
+  it("renders nothing when no event is selected, instead of a permanent prompt", () => {
+    const { container } = render(
       <CommandHomeSelectedEvent
         drafts={[]}
         quoteRequestCount={0}
         quoteCount={0}
         openCheckCount={0}
         onOpenEvent={vi.fn()}
-        onBrowseEvents={onBrowseEvents}
       />,
     );
 
-    expect(screen.getByText("No event selected")).toBeTruthy();
-    const browse = screen.getByRole("link", { name: "Browse events" });
-    expect(browse.getAttribute("href")).toBe("/dashboard/events");
-    fireEvent.click(browse);
-    expect(onBrowseEvents).toHaveBeenCalled();
+    expect(container.innerHTML).toBe("");
   });
 });

@@ -39,6 +39,9 @@ import { GuestEventProjectionModule } from './guest-event-projection.module';
 import { CommercialFactsReaderModule } from './commercial-facts-reader.module';
 import { PmcmSupplierEventHeadersQueries } from './application/queries/pmcm-supplier-event-headers.queries';
 import { PmcmSupplierEngagementsService } from './application/services/pmcm-supplier-engagements.service';
+import { PmcmOverviewQueries } from './application/queries/pmcm-overview.queries';
+import { PmcmOverviewService } from './application/services/pmcm-overview.service';
+import { OpsPmcmOverviewController } from './api/pmcm-overview.controller';
 
 /**
  * Read-only composition context. It owns no writes and composes the public
@@ -71,12 +74,15 @@ import { PmcmSupplierEngagementsService } from './application/services/pmcm-supp
     OpsRunSheetController,
     OpsSupplierWorkspaceReadsController,
     OpsPmcmSupplierEngagementsController,
+    OpsPmcmOverviewController,
   ],
   providers: [
     EventReadModelQueries,
     PmcmSupplierEventHeadersQueries,
     EventReadModelsService,
     PmcmSupplierEngagementsService,
+    PmcmOverviewQueries,
+    PmcmOverviewService,
     LiveOpsReadModelsService,
     HandoffBriefReadModelsService,
     DecisionLogReadModelsService,

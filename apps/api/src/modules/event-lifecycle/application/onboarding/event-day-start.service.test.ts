@@ -14,9 +14,9 @@ beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-28T00:
   afterEach(() => { vi.useRealTimers(); });
 
 async function fixture() {
-  const event: Pick<OpsEvent, 'id' | 'status' | 'readiness' | 'archived' | 'actualEndedAt' | 'clientPortalStatus' | 'floorPlanStatus'> & { inquiry: Pick<OpsInquiry, 'conformeSignedAt'> } = {
+  const event: Pick<OpsEvent, 'id' | 'status' | 'readiness' | 'archived' | 'actualEndedAt' | 'clientPortalStatus' | 'floorPlanStatus' | 'proposalClientStatus'> & { inquiry: Pick<OpsInquiry, 'conformeSignedAt'> } = {
     id: 'evt_1', status: 'planning', readiness: 'Planning', archived: false, actualEndedAt: null,
-    clientPortalStatus: 'unlocked', floorPlanStatus: 'approved', inquiry: { conformeSignedAt: new Date('2026-10-01T00:00:00Z') } };
+    clientPortalStatus: 'unlocked', floorPlanStatus: 'approved', proposalClientStatus: 'approved', inquiry: { conformeSignedAt: new Date('2026-10-01T00:00:00Z') } };
   const tx = {
     $queryRaw: vi.fn(async () => [{ id: event.id }]),
     opsEvent: { findUnique: vi.fn(async () => event), update: vi.fn(async ({ data }: { data: { status: string; readiness: string } }) => Object.assign(event, data)) },
@@ -39,11 +39,12 @@ describe('EventDayStartService', () => {
     expect(f.audit.write).toHaveBeenCalledTimes(1);
   });
 
-  it.each(['locked', 'unsigned', 'unapproved', 'cancelled', 'ended'])('refuses %s events without a write', async (condition) => {
+  it.each(['locked', 'unsigned', 'unapproved', 'proposal pending', 'cancelled', 'ended'])('refuses %s events without a write', async (condition) => {
     const f = await fixture();
     if (condition === 'locked') f.event.clientPortalStatus = 'locked';
     if (condition === 'unsigned') f.event.inquiry.conformeSignedAt = null;
     if (condition === 'unapproved') f.event.floorPlanStatus = 'not_started';
+    if (condition === 'proposal pending') f.event.proposalClientStatus = 'pending';
     if (condition === 'cancelled') f.event.status = 'cancelled';
     if (condition === 'ended') f.event.actualEndedAt = new Date('2026-10-02T00:00:00Z');
     await expect(f.service.start('evt_1', actor)).rejects.toBeInstanceOf(BadRequestException);

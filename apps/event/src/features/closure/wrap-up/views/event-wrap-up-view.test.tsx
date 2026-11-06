@@ -29,7 +29,10 @@ function wrapUpRecord(logisticsRecorded: boolean): PrismEventWrapUp {
         : pending,
       issues: pending,
       feedback: pending,
+      supplierEgress: pending,
+      billingDraft: { ...pending, items: [] },
     },
+    supplierEgressSummary: { confirmedSuppliers: 3, leftSite: 2, outstanding: ["Florals"] },
     clientAcknowledgedAt: null,
     acknowledgementRecordedBy: null,
     acknowledgementSource: "pmcm_recorded",
@@ -38,6 +41,58 @@ function wrapUpRecord(logisticsRecorded: boolean): PrismEventWrapUp {
     completedBy: null,
   } as PrismEventWrapUp;
 }
+
+describe("EventWrapUpView supplier egress and billing draft", () => {
+  beforeEach(() => {
+    repository.get.mockReset();
+    repository.update.mockReset();
+  });
+  afterEach(cleanup);
+
+  it("shows who has not reported leaving next to the supplier egress section", async () => {
+    repository.get.mockResolvedValueOnce(wrapUpRecord(false));
+    render(<EventWrapUpView eventId="event_1" />);
+
+    const summary = await screen.findByTestId("supplier-egress-summary");
+    expect(summary.textContent).toContain("2 of 3 confirmed suppliers reported done and leaving.");
+    expect(summary.textContent).toContain("Not reported leaving: Florals");
+  });
+
+  it("saves drafted billing items with the sections and lets a draft item be removed first", async () => {
+    repository.get.mockResolvedValueOnce(wrapUpRecord(false));
+    repository.update.mockResolvedValueOnce(wrapUpRecord(false));
+    render(<EventWrapUpView eventId="event_1" />);
+    await screen.findByTestId("supplier-egress-summary");
+
+    fireEvent.change(screen.getByLabelText("Billing item"), { target: { value: "Overtime hours" } });
+    fireEvent.change(screen.getByLabelText("Billing amount"), { target: { value: "4500" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add item" }));
+    fireEvent.change(screen.getByLabelText("Billing item"), { target: { value: "Extra tables" } });
+    fireEvent.change(screen.getByLabelText("Billing amount"), { target: { value: "1200" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add item" }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove Extra tables" }));
+    expect(screen.queryByText(/Extra tables/)).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Save wrap-up evidence" }));
+    await waitFor(() => expect(repository.update).toHaveBeenCalledTimes(1));
+    expect(repository.update.mock.calls[0][1].sections?.billingDraft?.items).toEqual([{ label: "Overtime hours", amount: 4500, note: "" }]);
+    expect(repository.update.mock.calls[0][1].sections).toHaveProperty("supplierEgress");
+  });
+
+  it("does not add an item without a label or with a non-whole amount", async () => {
+    repository.get.mockResolvedValueOnce(wrapUpRecord(false));
+    render(<EventWrapUpView eventId="event_1" />);
+    await screen.findByTestId("supplier-egress-summary");
+    const add = screen.getByRole("button", { name: "Add item" });
+
+    expect((add as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText("Billing item"), { target: { value: "Overtime hours" } });
+    fireEvent.change(screen.getByLabelText("Billing amount"), { target: { value: "12.5" } });
+    expect((add as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText("Billing amount"), { target: { value: "12" } });
+    expect((add as HTMLButtonElement).disabled).toBe(false);
+  });
+});
 
 describe("EventWrapUpView logistics mirror", () => {
   beforeEach(() => {

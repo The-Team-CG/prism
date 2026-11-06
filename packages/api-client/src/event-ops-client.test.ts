@@ -590,6 +590,17 @@ describe("prismRequest", () => {
       },
     });
   });
+
+  it("never shows an HTML error page as the problem message", async () => {
+    const page = "<!DOCTYPE html><html><body><pre>Cannot GET /events/evt_1/floorplans/fp_1/history</pre></body></html>";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(page, { status: 404, headers: { "Content-Type": "text/html" } })));
+
+    const error = await prismRequest("/events/evt_1/history", { baseUrl: "http://localhost:4000/api" }).catch((cause: unknown) => cause);
+
+    expect(error).toBeInstanceOf(PrismApiError);
+    expect((error as PrismApiError).problem.message).toBe("P.R.I.S.M API request failed: 404");
+    expect((error as PrismApiError).message).not.toContain("<");
+  });
 });
 
 describe("toQueryString", () => {
@@ -770,6 +781,18 @@ describe("createEventOpsClient", () => {
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
       "http://localhost:4000/api/events/evt_1/run-sheet",
       "http://localhost:4000/api/events/evt_1/run-sheet?role=coordinator&dayId=day%202",
+    ]);
+  });
+
+  it("loads the coordinator event schedule through the coordinator route, not the PMCM events route", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ eventId: "evt_1" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.coordinator.eventSchedule("evt_1");
+
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "http://localhost:4000/api/coordinator/events/evt_1/schedule",
     ]);
   });
 
@@ -1005,9 +1028,9 @@ describe("createEventOpsClient", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api", getAuthToken: () => "signed-token" });
-    await client.pmcmDashboard.detail();
+    await client.pmcm.reference();
 
-    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/pmcm/dashboard", {
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/pmcm/reference", {
       headers: { "Content-Type": "application/json", Authorization: "Bearer signed-token" },
     });
   });
@@ -1024,7 +1047,7 @@ describe("createEventOpsClient", () => {
       onUnauthorized,
     });
 
-    await expect(client.pmcmDashboard.detail()).rejects.toMatchObject({ status: 401 });
+    await expect(client.pmcm.reference()).rejects.toMatchObject({ status: 401 });
     expect(onUnauthorized).toHaveBeenCalledTimes(1);
 
     await expect(
@@ -1033,7 +1056,7 @@ describe("createEventOpsClient", () => {
     expect(onUnauthorized).toHaveBeenCalledTimes(1);
 
     const anonymous = createEventOpsClient({ baseUrl: "http://localhost:4000/api", onUnauthorized });
-    await expect(anonymous.pmcmDashboard.detail()).rejects.toMatchObject({ status: 401 });
+    await expect(anonymous.pmcm.reference()).rejects.toMatchObject({ status: 401 });
     expect(onUnauthorized).toHaveBeenCalledTimes(1);
   });
 
@@ -1051,7 +1074,7 @@ describe("createEventOpsClient", () => {
       onUnauthorized,
     });
 
-    await expect(client.pmcmDashboard.detail()).rejects.toMatchObject({
+    await expect(client.pmcm.reference()).rejects.toMatchObject({
       status: 403,
       problem: { code: "privacy_notice_required" },
     });
@@ -1059,23 +1082,20 @@ describe("createEventOpsClient", () => {
     expect(onUnauthorized).not.toHaveBeenCalled();
 
     const anonymous = createEventOpsClient({ baseUrl: "http://localhost:4000/api", onPrivacyNoticeRequired });
-    await expect(anonymous.pmcmDashboard.detail()).rejects.toMatchObject({ status: 403 });
+    await expect(anonymous.pmcm.reference()).rejects.toMatchObject({ status: 403 });
     expect(onPrivacyNoticeRequired).toHaveBeenCalledTimes(1);
   });
 
-  it("loads the PMCM dashboard as a scoped read model", async () => {
+  it("loads the PMCM reference with identity from the session, not query parameters", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ events: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
     const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
-    await client.pmcmDashboard.detail({ actorName: "Ms. Mys", actorRole: "pmcm-admin" });
+    await client.pmcm.reference();
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:4000/api/pmcm/dashboard?actorName=Ms.+Mys&actorRole=pmcm-admin",
-      {
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/pmcm/reference", {
+      headers: { "Content-Type": "application/json" },
+    });
   });
 
   it("reviews a client proposal through the shared event contract", async () => {
@@ -1118,6 +1138,20 @@ describe("createEventOpsClient", () => {
         headers: { "Content-Type": "application/json" },
       },
     );
+  });
+
+  it("loads the PMCM event summaries and the cross-event calendar window", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ items: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.pmcm.eventSummaries();
+    await client.pmcm.fileSummaries();
+    await client.pmcm.calendar({ from: "2026-10-01", to: "2027-01-31" });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "http://localhost:4000/api/pmcm/event-summaries", { headers: { "Content-Type": "application/json" } });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "http://localhost:4000/api/pmcm/file-summaries", { headers: { "Content-Type": "application/json" } });
+    expect(fetchMock).toHaveBeenNthCalledWith(3, "http://localhost:4000/api/pmcm/calendar?from=2026-10-01&to=2027-01-31", { headers: { "Content-Type": "application/json" } });
   });
 
   it("loads the PMCM decision log from the event-scoped route with kind and paging filters", async () => {

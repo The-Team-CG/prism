@@ -6,6 +6,12 @@ import {
   PRISM_MAX_PAGE_LIMIT,
   canClientAccessPortal,
   canCreateEventWorkspace,
+  derivePrismLifecycleStage,
+  prismCalendarDateKey,
+  isWithinCoordinatorAttendanceWindow,
+  hasEventDatePassed,
+  selectCoordinatorFocusEventId,
+  isBeforePrismEventDay,
   nextPrismLifecycleStages,
   normalizePrismPageLimit,
   type PrismActionResult,
@@ -35,6 +41,51 @@ describe("P.R.I.S.M lifecycle contract", () => {
     expect(PRISM_LIFECYCLE_TRANSITIONS.inquiry).toEqual(["conforme"]);
     expect(PRISM_LIFECYCLE_TRANSITIONS.event_day).toEqual(["closure_archive"]);
     expect(nextPrismLifecycleStages("closure_archive")).toEqual([]);
+  });
+
+  it("derives one display stage from event facts so every portal agrees", () => {
+    const signed = { status: "briefing", clientPortalStatus: "unlocked" };
+    expect(derivePrismLifecycleStage({ status: "briefing", clientPortalStatus: "locked" })).toBe("conforme");
+    // An approved floorplan alone does not skip briefing: this was the PMCM/client disagreement.
+    expect(derivePrismLifecycleStage({ ...signed, proposalClientStatus: "pending" })).toBe("briefing_proposal");
+    expect(derivePrismLifecycleStage({ ...signed, proposalClientStatus: "approved" })).toBe("planning");
+    // Submitting the briefing sets the operational status to planning; the stage waits for proposal approval.
+    expect(derivePrismLifecycleStage({ ...signed, status: "planning", proposalClientStatus: "pending" })).toBe("briefing_proposal");
+    expect(derivePrismLifecycleStage({ ...signed, status: "event_day" })).toBe("event_day");
+    expect(derivePrismLifecycleStage({ ...signed, actualEndedAt: "2027-06-15T12:00:00Z" })).toBe("closure_archive");
+    expect(derivePrismLifecycleStage({ ...signed, archived: true })).toBe("closure_archive");
+    expect(isBeforePrismEventDay("planning")).toBe(true);
+    expect(isBeforePrismEventDay("event_day")).toBe(false);
+  });
+
+  it("opens a coordinator on their next upcoming event, or the latest past one, by Philippine date", () => {
+    const events = [{ id: "past", eventDate: "2026-10-01" }, { id: "later", eventDate: "2027-01-09" }, { id: "next", eventDate: "2026-11-02" }];
+    expect(selectCoordinatorFocusEventId(events, "2026-11-01")).toBe("next");
+    expect(selectCoordinatorFocusEventId(events, "2027-02-01")).toBe("later");
+    expect(selectCoordinatorFocusEventId([], "2026-11-01")).toBeUndefined();
+    // 2026-11-01 17:00 UTC is already 2 November in Manila.
+    expect(prismCalendarDateKey(new Date("2026-11-01T17:00:00Z"))).toBe("2026-11-02");
+  });
+
+  it("lets coordinators mark attendance from the day before through the day after the event only", () => {
+    expect(isWithinCoordinatorAttendanceWindow("2026-06-18", "2026-06-17")).toBe(true);
+    expect(isWithinCoordinatorAttendanceWindow("2026-06-18", "2026-06-18")).toBe(true);
+    expect(isWithinCoordinatorAttendanceWindow("2026-06-18", "2026-06-19")).toBe(true);
+    expect(isWithinCoordinatorAttendanceWindow("2026-06-18", "2026-06-16")).toBe(false);
+    expect(isWithinCoordinatorAttendanceWindow("2026-06-18", "2026-06-20")).toBe(false);
+    // Event dates may arrive as ISO timestamps; only the calendar day counts.
+    expect(isWithinCoordinatorAttendanceWindow("2026-06-18T00:00:00.000Z", "2026-06-19")).toBe(true);
+    expect(isWithinCoordinatorAttendanceWindow("2026-06-18", "not-a-date")).toBe(false);
+  });
+
+  it("treats an event as passed only once its Philippine calendar day is over", () => {
+    expect(hasEventDatePassed("2026-06-18", "2026-06-18")).toBe(false);
+    expect(hasEventDatePassed("2026-06-18", "2026-06-17")).toBe(false);
+    expect(hasEventDatePassed("2026-06-18", "2026-06-19")).toBe(true);
+    expect(hasEventDatePassed("2026-06-18T00:00:00.000Z", "2026-11-02")).toBe(true);
+    expect(hasEventDatePassed("2026-06-18", prismCalendarDateKey(new Date("2026-06-17T17:00:00Z")))).toBe(false);
+    expect(hasEventDatePassed("2026-06-18", prismCalendarDateKey(new Date("2026-06-18T17:00:00Z")))).toBe(true);
+    expect(hasEventDatePassed("not-a-date", "2026-11-02")).toBe(false);
   });
 
   it("allows client portal access only after inquiry acceptance and signed conforme", () => {

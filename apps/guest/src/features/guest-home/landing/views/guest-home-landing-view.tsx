@@ -188,7 +188,7 @@ export function GuestHomeLandingView() {
       <section id="access" className="px-5 py-16 sm:px-8 lg:px-10">
         <div className="mx-auto grid max-w-[1320px] gap-8 lg:grid-cols-[0.3fr_0.7fr] lg:items-start">
           <div>
-            <p className="text-xs font-medium text-primary">Open. Confirm. Check in.</p>
+            <p className="text-sm text-muted-foreground">Open. Confirm. Check in.</p>
             <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-ink sm:text-5xl">Your event pass is your easy access point</h2>
             <p className="mt-4 text-lg leading-8 text-muted-foreground">A few simple steps get you in, keep you informed, and make your experience smooth from start to finish.</p>
             <div className="mt-6 grid gap-2 text-sm text-muted-foreground">
@@ -235,7 +235,7 @@ export function GuestHomeLandingView() {
       <section id="feedback" className="px-5 py-16 sm:px-8 lg:px-10">
         <div className="mx-auto grid max-w-[1320px] gap-8 lg:grid-cols-[0.3fr_0.7fr] lg:items-center">
           <div>
-            <p className="text-xs font-medium text-primary">Your privacy. Your comfort.</p>
+            <p className="text-sm text-muted-foreground">Your privacy. Your comfort.</p>
             <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-ink sm:text-5xl">We protect your information and support a smooth experience</h2>
             <p className="mt-4 text-lg leading-8 text-muted-foreground">We keep things simple, secure, and respectful so you can focus on the experience ahead.</p>
           </div>
@@ -250,7 +250,7 @@ export function GuestHomeLandingView() {
       <section className="px-5 pb-16 sm:px-8 lg:px-10">
         <div className="mx-auto grid max-w-[1320px] gap-8 rounded-lg border border-primary/12 bg-card p-8 lg:grid-cols-[0.3fr_0.7fr] lg:items-center">
           <div>
-            <p className="text-xs font-medium text-primary">After the event</p>
+            <p className="text-sm text-muted-foreground">After the event</p>
             <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-ink sm:text-5xl">Your feedback makes a difference</h2>
             <p className="mt-4 text-lg leading-8 text-muted-foreground">Share your thoughts to help us create even better events in the future.</p>
           </div>
@@ -274,7 +274,7 @@ export function GuestHomeLandingView() {
       <section id="help" className="px-5 pb-20 sm:px-8 lg:px-10">
         <div className="mx-auto rounded-lg border border-primary/12 bg-card p-8 shadow-[0_24px_80px_rgba(23,18,22,0.08)] sm:p-10 lg:flex lg:items-center lg:justify-between">
           <div>
-            <p className="text-xs font-medium text-primary">Guest access</p>
+            <p className="text-sm text-muted-foreground">Guest access</p>
             <h2 className="mt-3 max-w-2xl prism-serif text-4xl font-black leading-tight text-ink">Open your event pass</h2>
           </div>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row lg:mt-0">

@@ -21,22 +21,18 @@ export function useEventDashboardRouteViewModel() {
   return viewModel;
 }
 
-export type EventDashboardLoadedViewModel = Omit<EventDashboardShellViewModel, "session" | "state"> & {
+export type EventDashboardLoadedViewModel = Omit<EventDashboardShellViewModel, "session" | "reference"> & {
   session: NonNullable<EventDashboardShellViewModel["session"]>;
-  state: NonNullable<EventDashboardShellViewModel["state"]>;
+  reference: NonNullable<EventDashboardShellViewModel["reference"]>;
 };
 
+/** For sections that render from the PMCM reference (event switcher, inquiries, people, directories, rules, balances). */
 export function useEventDashboardLoadedRouteViewModel(): EventDashboardLoadedViewModel {
   const viewModel = useEventDashboardRouteViewModel();
-  if (!viewModel.session || !viewModel.state) {
-    throw new Error("Loaded event dashboard content requires an authenticated workspace");
+  if (!viewModel.session || !viewModel.reference) {
+    throw new Error("Loaded event dashboard content requires an authenticated session and the PMCM reference");
   }
-
-  return {
-    ...viewModel,
-    session: viewModel.session,
-    state: viewModel.state,
-  };
+  return { ...viewModel, session: viewModel.session, reference: viewModel.reference };
 }
 
 export type EventDashboardScopedViewModel = Omit<EventDashboardShellViewModel, "session"> & {

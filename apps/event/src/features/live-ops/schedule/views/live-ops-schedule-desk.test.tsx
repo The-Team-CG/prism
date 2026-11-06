@@ -7,6 +7,7 @@ import { LiveOpsScheduleDesk } from "./live-ops-schedule-desk";
 const { repository } = vi.hoisted(() => ({
   repository: {
     getSchedule: vi.fn(),
+    getCoordinatorSchedule: vi.fn(),
     getEvent: vi.fn(),
     startEventDay: vi.fn(),
     listHandoffs: vi.fn(),
@@ -74,6 +75,7 @@ const report: PrismEventEodReport = {
 beforeEach(() => {
   vi.clearAllMocks();
   repository.getSchedule.mockResolvedValue(schedule);
+  repository.getCoordinatorSchedule.mockResolvedValue({ eventId: "evt_1", eventStatus: "event_day", schedule });
   repository.getEvent.mockResolvedValue({ status: "event_day" });
   repository.startEventDay.mockResolvedValue({ eventId: "evt_1", status: "event_day" });
   repository.listHandoffs.mockResolvedValue([]);
@@ -155,6 +157,15 @@ describe("LiveOpsScheduleDesk", () => {
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
     await waitFor(() => expect(repository.updateSegmentStatus).toHaveBeenCalledWith("evt_1", "segment_1", { action: "start" }));
     expect(await screen.findByText("Schedule segment updated.")).toBeTruthy();
+  });
+
+  it("reads a coordinator's run sheet through the coordinator-scoped schedule and never the PMCM event record", async () => {
+    render(<LiveOpsScheduleDesk eventId="evt_1" assignments={assignments} canManageSchedule={false} canReplyToReports={false} canSubmitReports coordinatorScope />);
+
+    expect(await screen.findByText("Doors open")).toBeTruthy();
+    expect(repository.getCoordinatorSchedule).toHaveBeenCalledWith("evt_1");
+    expect(repository.getEvent).not.toHaveBeenCalled();
+    expect(repository.getSchedule).not.toHaveBeenCalled();
   });
 
   it("lets an assigned coordinator submit an end-of-day report without PMCM schedule or reply controls", async () => {

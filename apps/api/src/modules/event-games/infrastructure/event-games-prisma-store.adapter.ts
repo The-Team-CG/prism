@@ -7,7 +7,7 @@ import type {
   PrismGameLeaderboardEntry,
 } from '@prism/types';
 import { eventGameParticipantResultSchema, prismEventGameKindSchema } from '@prism/types';
-import { z } from 'zod';
+import { prismJsonRecordSchema as jsonRecordSchema } from '@prism/types';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type {
   AppendGameDraftVersionRecord,
@@ -25,8 +25,6 @@ import type {
   PublishedGameDefinitionForSession,
 } from '../contracts/game-session-store.port';
 import { createAnonymousGameParticipantAlias } from '../domain/anonymous-game-participant-alias';
-
-const jsonRecordSchema = z.record(z.string(), z.unknown());
 
 interface DefinitionRow {
   id: string;

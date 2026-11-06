@@ -1,3 +1,4 @@
+import { defineResource } from "@prism/portal-query";
 import type { EventSession } from "@/app/lib/session";
 import { eventApiRequest } from "@/lib/prism-api";
 import type {
@@ -14,9 +15,17 @@ import type {
   DecideEventTaskReassignmentInput,
   UpdateCoordinatorAttendanceInput,
   UpdateEventDayTaskInput,
+  ReportSupplierSiteStatusInput,
   VerifySupplierStatusInput,
   WithdrawCoordinatorAssignmentInput,
 } from "@prism/types";
+
+/** The signed-in coordinator's focus role view; the API resolves the focus event so it loads with the workspace. */
+export const coordinatorFocusRoleView = defineResource({
+  name: "coordinator.focus-role-view",
+  fetch: (_actor: "signed-in", signal) =>
+    eventApiRequest<PrismCoordinatorRoleView | null>("/api/coordinator/focus-role-view", { signal }),
+});
 
 export const coordinatorsRepository = {
   loadRoleView(session: EventSession, eventId: string) {
@@ -94,6 +103,12 @@ export const coordinatorsRepository = {
   updateDelegatedAttendance(session: EventSession, eventId: string, assignmentId: string, input: UpdateCoordinatorAttendanceInput) {
     return eventApiRequest<PrismCoordinatorAssignment>(
       `/api/events/${eventId}/coordinators/${assignmentId}/status`,
+      { method: "PATCH", body: input, authToken: session.accessToken },
+    );
+  },
+  reportSupplierStatus(session: EventSession, eventId: string, requestId: string, input: ReportSupplierSiteStatusInput) {
+    return eventApiRequest<PrismSupplierQuoteRequest>(
+      `/api/events/${eventId}/supplier-status/${requestId}/report`,
       { method: "PATCH", body: input, authToken: session.accessToken },
     );
   },

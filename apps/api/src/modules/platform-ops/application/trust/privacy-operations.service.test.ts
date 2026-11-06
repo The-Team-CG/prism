@@ -13,6 +13,7 @@ import {
   privacyLegalHoldLockKeys,
   privacyRequestLegalHoldScope,
 } from './privacy-legal-hold.policy';
+import { AiTriageRecordEraser } from '../ai-governance/ai-triage-record-eraser.service';
 
 const verifiedActor = {
   id: 'user_mys',
@@ -109,6 +110,7 @@ describe('PrivacyOperationsService', () => {
       new CommercialPrivacyRedactorService(),
       new OperationsPrivacyRedactorService(),
       new IdentityPrivacyRedactorService(),
+      new AiTriageRecordEraser(),
     );
     return { service, prisma, rootPrisma, auditService, platformReferences, created, legalHold };
   }
@@ -271,6 +273,14 @@ describe('PrivacyOperationsService', () => {
         updateMany: updateMany(),
       },
       opsInquiry: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => [{ id: 'inq_legacy' }]), updateMany: updateMany() },
+      opsAiApprovalRecord: {
+        findMany: vi.fn(async (): Promise<Array<{ id: string; aiAuditLogId: string }>> => []),
+        deleteMany: vi.fn(async () => ({ count: 0 })),
+      },
+      opsAiAuditLog: {
+        findMany: vi.fn(async (): Promise<Array<{ id: string; sanitizedPayload: unknown }>> => []),
+        update: vi.fn(async () => undefined),
+      },
       opsEvent: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => [{ id: 'evt_linked' }]), updateMany: updateMany() },
       opsGuestFeedback: {
         findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => [{ id: 'feedback_1' }]),
@@ -313,6 +323,7 @@ describe('PrivacyOperationsService', () => {
       commercialPrivacy,
       operationsPrivacy,
       identityPrivacy,
+      new AiTriageRecordEraser(),
     );
     const execute = () => service.executeRequest(request.id, {}, verifiedActor);
     return { request, tx, rootPrisma: prisma, auditService, advisoryLockKeys, service, execute, lifecyclePrivacy, commercialPrivacy, operationsPrivacy, identityPrivacy };
@@ -427,6 +438,23 @@ describe('PrivacyOperationsService', () => {
       { email: 'ana@ayala.test', redactedEmail: 'redacted+privacy_priv_1@privacy.local', role: OpsUserRole.Client },
       tx,
     );
+  });
+
+  it('erases AI triage advice about the erased inquiries and reports it as its own owner receipt', async () => {
+    const { execute, tx, auditService } = executionFixture({ subjectEmail: 'ANA@AYALA.TEST', eventId: null });
+    tx.opsAiApprovalRecord.findMany.mockResolvedValue([{ id: 'rec_1', aiAuditLogId: 'aia_req_1' }]);
+    tx.opsAiAuditLog.findMany.mockResolvedValue([{ id: 'aia_req_1', sanitizedPayload: { message: 'We need a venue' } }]);
+
+    await execute();
+
+    expect(tx.opsAiApprovalRecord.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { featureName: 'FR-AI-01', OR: [{ sourceDispatchId: { startsWith: 'inquiry-triage:inq_legacy:' } }] },
+    }));
+    expect(tx.opsAiApprovalRecord.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['rec_1'] } } });
+    expect(tx.opsAiAuditLog.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: { sanitizedPayload: { _erased: 'erased-for-privacy' } },
+    }));
+    expect(JSON.stringify(auditService.audit.mock.calls)).toContain('platform-ops');
   });
 
   it('limits client matching to the requested event when one was selected', async () => {
