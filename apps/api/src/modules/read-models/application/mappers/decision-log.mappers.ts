@@ -11,7 +11,10 @@ type AuditAttributionRow = DecisionLogSources['auditAttributions'][number];
  */
 export function indexAuditAttributions(rows: AuditAttributionRow[]) {
   const byRecord = new Map<string, AuditAttributionRow[]>();
-  for (const row of rows) {
+  const newestFirst = [...rows].sort((left, right) =>
+    right.createdAt.getTime() - left.createdAt.getTime() || right.id.localeCompare(left.id),
+  );
+  for (const row of newestFirst) {
     if (!row.affectedType || !row.affectedId) continue;
     const key = `${row.affectedType}:${row.affectedId}`;
     const list = byRecord.get(key) ?? [];
@@ -65,7 +68,7 @@ export function mapDecisionLogEntries(sources: DecisionLogSources): PrismDecisio
         subject: row.requestedChange,
         reason: textOrNull(row.decisionNote) ?? row.reason,
         actor: attribute('freeze_exception', row.id, row.decidedBy),
-        decidedAt: row.decidedAt!,
+        decidedAt: row.decidedAt ?? row.requestedAt,
       }),
     ),
     ...sources.addenda.map((row) =>
@@ -111,7 +114,7 @@ export function mapDecisionLogEntries(sources: DecisionLogSources): PrismDecisio
         subject: row.correctedTotalAmount === null ? `Correction to statement ${row.statementId}` : `Correction to statement ${row.statementId}: total ${row.correctedTotalAmount}`,
         reason: textOrNull(row.resolutionNotes) ?? row.reason,
         actor: attribute('billing_correction', row.id, row.resolvedBy),
-        decidedAt: row.resolvedAt!,
+        decidedAt: row.resolvedAt ?? row.createdAt,
       }),
     ),
     ...sources.billingWaivers.map((row) =>
@@ -138,7 +141,7 @@ export function mapDecisionLogEntries(sources: DecisionLogSources): PrismDecisio
         subject: `${row.task.title}: ${textOrNull(row.fromOwnerName) ?? row.fromOwnerRole} to ${textOrNull(row.toOwnerName) ?? row.toOwnerRole}`,
         reason: textOrNull(row.decisionReason) ?? row.reason,
         actor: attribute('event_task_reassignment', row.id, row.decidedBy),
-        decidedAt: row.decidedAt!,
+        decidedAt: row.decidedAt ?? row.requestedAt,
       }),
     ),
     ...sources.inquiryMerges.map((row) =>
